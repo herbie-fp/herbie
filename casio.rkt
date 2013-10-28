@@ -26,20 +26,22 @@
                  (map (lambda (x exact) (error/one var prog x exact)) pts exacts))))
 
 (define (map-unmap-through fn lst)
-  (let loop ([start '()] [end lst] [out '()])
-    (cond
-      [(null? end) out]
-      [(not (list? end)) (list end)]
-      [#t
-       (let ([focus (car end)]
-             [end (cdr end)])
-         (loop
-          (cons focus start)
-          end
-          (append
-           (map (lambda (x) (append (reverse start) (cons x end)))
-                (fn focus))
-           out)))])))
+  (cond
+    [(null? lst) (list '())]
+    [(not (list? lst)) (fn lst)]
+    [#t
+     (let loop ([start (list (car lst))] [end (cdr lst)] [out '()])
+       (if (null? end)
+           out
+           (let ([focus (car end)]
+                 [end (cdr end)])
+             (loop
+              (cons focus start)
+              end
+              (append
+               (map (lambda (x) (append (reverse start) (cons x end)))
+                    (fn focus))
+               out)))))]))
 
 (define-syntax recursive-match
   (lambda (stx)
@@ -62,8 +64,8 @@
   (recursive-match expr
     ;[`(list - ,x ,x) 0]
     ;[`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
-    [(or (? (lambda (x) (eq? x var)) x) (? list? x)) `(exp (log ,x))]
-    [(or (? (lambda (x) (eq? x var)) x) (? list? x)) `(log (exp ,x))]))
+    [x `(exp (log ,x))]
+    [x `(log (exp ,x))]))
     ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
 
 (define (merge-lists a b)
