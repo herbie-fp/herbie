@@ -2,111 +2,170 @@
 
 (require racket/match)
 (require racket/flonum)
+(require racket/extflonum)
 
-(define prog1 '(/ (- (exp x) 1.0d0) x))
-(define prog2 '(/ (- (exp x) 1.0d0) (log (exp x))))
+;; Some evaluation programs.  Both evaluate the same function over the real
+;; numbers, but the second has better numerical precision.
 
-(define (eval-double var prog val)
-  (let ([fn (eval `(lambda (,var) ,prog))])
-    (fn (real->double-flonum val))))
+;; TODO: What about (+ 1.0s0 1.0d0) -> 2.0d0 ???
+(define prog1 '(λ (x) (/ (- (exp x) 1.0d0) x)))
+(define prog2 '(λ (x) (/ (- (exp x) 1.0d0) (log (exp x)))))
 
-(define (eval-single var prog val)
-  (let ([fn (eval `(lambda (,var) ,prog))])
-    (fn (real->single-flonum val))))
+(define program-body caddr)
+(define program-variable caadr)
 
-(define (error/one var prog val exact)
-  (flabs (fl/ (fl- exact (eval-single var prog val)) exact)))
+;; We evaluate a program by comparing its results computed with single precision
+;; to its results computed with extended precision.
 
+(define (relative-error approx exact)
+  (if (and (real? approx) (real? exact))
+      (abs (/ (- exact approx) exact))
+      +inf.0))
+
+(define (eval-exact prog val)
+  ((eval prog) (real->double-flonum val)))
+
+(define (eval-approx prog val)
+  ((eval prog) (real->single-flonum val)))
+
+; We evaluate  a program on random floating-point numbers.
+
+;; TODO : make very exact
 (define (random-flonum)
+  "Return a random 32-bit floating point number (approximately)"
   (expt 2 (- (* 253 (random)) 126)))
 
-(define (max-error var prog pts exacts)
-  (apply max
-         (filter (lambda (x) (not (or (infinite? x) (nan? x))))
-                 (map (lambda (x exact) (error/one var prog x exact)) pts exacts))))
+(define (drop-arg f)
+  "Make a one-argument function out of a no-argument function"
+  (lambda (x) (f)))
 
-(define (map-unmap-through fn lst)
+(define (make-points)
+  "Make a list of 100 random real numbers"
+  (build-list 100 (drop-arg random-flonum)))
+
+(define (make-exacts prog pts)
+  "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
+  (map (curry eval-exact prog) pts))
+
+(define (max-error prog pts exacts)
+  "Find the maximum finite error in a function's approximate evaluations at the given points (compared to the given exact results)"
+  ;; Imprecise to remove infinites and nans
+  (apply max
+         (filter (λ (x) (and (not (infinite? x)) (not (nan? x))))
+                 (for/list ([pt pts] [exact exacts])
+                   (relative-error (eval-approx prog pt) exact)))))
+
+;; Our main synthesis tool generates alternatives to an expression uses recursive rewrite tools
+
+(define (apply-to-children-collect fn exp)
+  "Given an S-expression exp, generate all versions where fn has been applied to an argument."
   (cond
-    [(null? lst) (list '())]
-    [(not (list? lst)) (fn lst)]
+    [(not (list? exp)) (fn exp)]
     [#t
-     (let loop ([start (list (car lst))] [end (cdr lst)] [out '()])
+     (let loop ([start (list (car exp))] ; Reversed prefix of the expression.  We skip the applicator.
+                [end (cdr exp)] ; Suffix of the expression
+                [out '()]) ; Versions already generated
        (if (null? end)
            out
-           (let ([focus (car end)]
-                 [end (cdr end)])
+           (let ([new-versions
+                  ; fn returns a list of new versions
+                  (map (λ (x) (append (reverse start) (cons x (cdr end))))
+                       (fn (car end)))])
              (loop
-              (cons focus start)
-              end
+              (cons (car end) start)
+              (cdr end)
               (append
-               (map (lambda (x) (append (reverse start) (cons x end)))
-                    (fn focus))
+               new-versions ; Since new-versions is a list, we append it on
                out)))))]))
 
 (define-syntax recursive-match
-  (lambda (stx)
+  (λ (stx)
+    "Returns a list of all possible new results from applying a set of rewrite rules to some subexpression of a program"
     (syntax-case stx ()
+      ; Syntax looks like (recursive-match expr [`(,my pat) `(,my result)])
       [(_ value [pattern expansion] ...)
+       ; Turns into ...
        #'(letrec
-             [(matcher (lambda (x)
-                         (append
-                          (match x
-                            [pattern (list expansion)] [_ '()]) ...)))
-              (walker (lambda (x)
-                        (append
-                         (matcher x)
-                         (map-unmap-through
-                          matcher
-                          x))))]
-             (walker value))])))
+             ; matcher returns a list of possible results from a single expression (no recursion)
+             [(matcher
+               (λ (exp)
+                 (append
+                  ; Collect the results of each individual match
+                  (match exp
+                    ; If match, return Just result
+                    [pattern (list expansion)]
+                    ; If no match, return None
+                    [_ '()])
+                  ...)))
+              ; walker applies matcher at every level of the expression
+              (walker
+               (λ (exp)
+                 (if (not (list? exp))
+                     (matcher exp)
+                     (append
+                      ; Apply at the top-level
+                      (matcher exp)
+                      ; Apply to all subexpressions
+                      (apply-to-children-collect walker exp)))))]
+           ; Finally, kick off the recursion
+           (walker value))])))
 
-(define (alternatives var expr)
+;; Now to implement a search tool to find the best expression
+
+(struct alternative (program error))
+
+(define (alternative< alt1 alt2)
+  (< (alternative-error alt1) (alternative-error alt2)))
+
+(define (choose-min-error alts)
+  "Choose the alternative with the least error"
+  ; Invariant: alts is nonempty
+  (let ([alts* (sort alts alternative<)])
+    (values (car alts*) (cdr alts*))))
+
+(define (heuristic-search start generator chooser make-alternative iterations)
+  "Search for a better version of start,
+   where generator creates new versions of a program to try,
+   chooser picks a candidate to generate versions from,
+   and make-alternative generates converts programs into alternatives."
+  
+  (define (step options done)
+    (let*-values ([(parent rest) (chooser options)]
+                  [(children)    (generator (alternative-program parent))])
+      (values
+       (append ; This is never precisely sorted, but it is always close
+        rest
+        (append (map make-alternative children)))
+       (cons parent done))))
+  
+  (let loop ([options (list (make-alternative start))]
+             [done '()])
+    (if (or (null? options)
+            (>= (length done) iterations))
+        done
+        (let-values ([(options* done*)
+                      (step options done)])
+          (loop options* done*)))))
+
+(define (heuristic-improve prog iterations)
+  (let* ([pts (make-points)]
+         [exacts (make-exacts prog pts)]
+         [evaluate (curryr max-error pts exacts)]
+         [make-alternative (λ (prog)
+                             (alternative prog (evaluate prog)))]
+         [generate (λ (prog)
+                     (let ([body (program-body prog)]
+                           [var (program-variable prog)])
+                       (map (λ (body*) `(λ (,var) ,body*))
+                        (rewrite-rules var body))))])
+    (heuristic-search prog generate choose-min-error make-alternative iterations)))
+
+;; Now we define our rewrite rules.
+
+(define (rewrite-rules var expr)
   (recursive-match expr
     ;[`(list - ,x ,x) 0]
     ;[`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
     [x `(exp (log ,x))]
     [x `(log (exp ,x))]))
     ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
-
-(define (merge-lists a b)
-  "Merge two sorted lists a and b into one sorted list, sorting by cdr"
-  (let loop ([a a] [b b] [res '()])
-    (cond
-      [(null? a) (append (reverse res) b)]
-      [(null? b) (append (reverse res) a)]
-      [(equal? (car a) (car b))
-       (loop (cdr a) (cdr b) (cons (car a) res))]
-      [(< (cdar a) (cdar b))
-       (loop (cdr a) b (cons (car a) res))]
-      [(>= (cdar a) (cdar b))
-       (loop a (cdr b) (cons (car b) res))])))
-
-(define (heuristic-search var start generate evaluate iterations)
-  (let [(options (list (cons start (evaluate var start))))
-        (done '())
-        (step (lambda (options done)
-                  (if (null? options)
-                      (values options done)
-                      ; We generate alternatives from "parent" and then annotate each with its value
-                      (let ([parent (caar options)])
-                        (values
-                         (merge-lists
-                          (cdr options)
-                          (sort
-                           (map (lambda (child) (cons child (evaluate var child)))
-                                (generate var parent))
-                           (lambda (x y) (< (cdr x) (cdr y)))))
-                         (cons (car options) done))))))]
-    (let loop ([options options] [done done])
-      (if (or (null? options) (>= (length done) iterations))
-          (values options done)
-          (call-with-values
-           (lambda () (step options done))
-           loop)))))
-
-(define (heuristic-improve var prog iterations)
-  (let* ([pts (build-list 100 (lambda (x) (random-flonum)))]
-         [exacts (map (lambda (x) (eval-double var prog x)) pts)])
-    (heuristic-search var prog alternatives
-                      (lambda (var prog) (max-error var prog pts exacts))
-                      iterations)))
