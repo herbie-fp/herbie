@@ -8,8 +8,8 @@
 ;; numbers, but the second has better numerical precision.
 
 ;; TODO: What about (+ 1.0s0 1.0d0) -> 2.0d0 ???
-(define prog1 '(λ (x) (/ (- (exp x) 1.0d0) x)))
-(define prog2 '(λ (x) (/ (- (exp x) 1.0d0) (log (exp x)))))
+(define prog1 '(λ (x) (/ (- (exp x) 1) x)))
+(define prog2 '(λ (x) (/ (- (exp x) 1) (log (exp x)))))
 
 (define program-body caddr)
 (define program-variable caadr)
@@ -22,11 +22,22 @@
       (abs (/ (- exact approx) exact))
       +inf.0))
 
+(define (rewrite-constants rule expr)
+  (cond
+   [(real? expr)
+    (rule expr)]
+   [(list? expr)
+    (map (curry rewrite-constants rule) expr)]
+   [#t
+    expr]))
+
 (define (eval-exact prog val)
-  ((eval prog) (real->double-flonum val)))
+  ((eval (rewrite-constants real->double-flonum prog))
+   (real->double-flonum val)))
 
 (define (eval-approx prog val)
-  ((eval prog) (real->single-flonum val)))
+  ((eval (rewrite-constants real->single-flonum prog))
+   (real->single-flonum val)))
 
 ; We evaluate  a program on random floating-point numbers.
 
