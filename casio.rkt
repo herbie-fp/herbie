@@ -43,10 +43,6 @@
 
 ; We evaluate  a program on random floating-point numbers.
 
-(define (drop-arg f)
-  "Make a one-argument function out of a no-argument function"
-  (lambda (x) (f)))
-
 (define (make-points)
   "Make a list of real numbers.  The list spans a large range of values"
   (build-list 505 (λ (idx) (expt 2 (- (/ (+ idx (random)) 2) 126)))))
