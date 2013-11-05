@@ -3,6 +3,7 @@
 (require racket/match)
 (require racket/flonum)
 (require racket/pretty)
+(require data/order)
 
 ;; Some evaluation programs.  Both evaluate the same function over the real
 ;; numbers, but the second has better numerical precision.
@@ -16,10 +17,16 @@
 ;; We evaluate a program by comparing its results computed with single precision
 ;; to its results computed with extended precision.
 
+; TODO : This assumes that 100% relative error must be due to a "special occurance",
+; which is a slack way to actually detect this condition.
 (define (relative-error approx exact)
-  (if (and (real? approx) (real? exact))
-      (abs (/ (- exact approx) exact))
-      +inf.0))
+  (let ([ans
+         (if (and (real? approx) (real? exact))
+             (abs (/ (- exact approx) exact))
+             +nan.0)])
+    (if (or (= ans 1.0) (nan? ans))
+        +nan.0
+        ans)))
 
 (define (rewrite-constants rule expr)
   (cond
@@ -188,15 +195,24 @@
 
 ;; TODO : think up a good scoring function
 (define (alternative-score alt)
-  "Measures how good a program is; lower is better."
-  (+ (log (alternative-error alt))
-     (alternative-specials alt)
-     (/ (alternative-cost alt) 10)))
+  "Measures how good a program is; lower is better.  Returns a list, to be sorted with list<."
+  (list
+   (+ (* 0.1 (alternative-specials alt))
+      (log (alternative-error alt))
+      (* 0.005 (alternative-cost alt)))
+   (alternative-error alt)
+   (alternative-specials alt)
+   (alternative-cost alt)))
+
+(define (list< list1 list2)
+  "Compares lists lexicographically."
+  ; Who picked this terrible API design of returning '< or '>
+  (eq? (datum-order list1 list2) '<))
 
 (define (choose-min-error alts)
   "Choose the alternative with the least error"
   ; Invariant: alts is nonempty
-  (let ([alts* (sort alts #:key alternative-score <)])
+  (let ([alts* (sort alts #:key alternative-score list<)])
     (values (car alts*) (cdr alts*))))
 
 (define (heuristic-execute prog iterations)
@@ -215,7 +231,7 @@
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
-  (for ([alt (sort (heuristic-execute prog iterations) #:key alternative-score <)])
+  (for ([alt (sort (heuristic-execute prog iterations) #:key alternative-score list<)])
     (display "; Alternative with score ")
     (display (alternative-score alt))
     (newline)
