@@ -2,6 +2,7 @@
 
 (require racket/match)
 (require racket/flonum)
+(require racket/pretty)
 
 ;; Some evaluation programs.  Both evaluate the same function over the real
 ;; numbers, but the second has better numerical precision.
@@ -119,17 +120,6 @@
 
 ;; Now to implement a search tool to find the best expression
 
-(struct alternative (program error))
-
-(define (alternative< alt1 alt2)
-  (< (alternative-error alt1) (alternative-error alt2)))
-
-(define (choose-min-error alts)
-  "Choose the alternative with the least error"
-  ; Invariant: alts is nonempty
-  (let ([alts* (sort alts alternative<)])
-    (values (car alts*) (cdr alts*))))
-
 (define (heuristic-search start generator chooser make-alternative iterations)
   "Search for a better version of start,
    where generator creates new versions of a program to try,
@@ -154,7 +144,62 @@
                       (step options done)])
           (loop options* done*)))))
 
-(define (heuristic-improve prog iterations)
+;; We want to weigh our heuristic search by the program cost.
+;; Simplest would be to simply compute the size of the tree as a
+;; whole.  but this is inaccurate if the program has many common
+;; subexpressions.  So, we compile the program to a register machine
+;; and use that to estimate the cost.
+
+(define (program-cost prog)
+  (define assignments '())
+  (define compilations (make-hash))
+
+  ;; TODO : use one of Racket's memoization libraries
+  (define (compile expr)
+    (if (list? expr)
+        (let ([memo (hash-ref compilations expr #f)])
+          (or memo
+              (let* ([fn (car expr)] [children (cdr expr)]
+                     [newexpr (cons fn (map compile children))]
+                     [register (gensym "r")])
+                (hash-set! compilations expr register)
+                (set! assignments (cons (cons register newexpr) assignments))
+                register)))
+        expr))
+
+  (define costs
+    ; See "costs.c" for details of how these numbers were determined
+    #hash((+ . 6) (- . 6) (* . 6) (/ . 6)
+          (abs . 6) (sqrt . 6)
+          (exp . 27) (log . 30)
+          (sin . 14) (cos . 19) (tan . 16)
+          (asin . 14) (acos . 15) (atan . 13)))
+
+  (compile (program-body prog))
+
+  (for/sum ([step assignments])
+    (let ([fn (cadr step)])
+      (hash-ref costs fn 100))))
+
+;; To use this heuristic search mechanism, we'll need to implement a
+;; few helper functions
+
+(struct alternative (program error specials cost))
+
+;; TODO : think up a good scoring function
+(define (alternative-score alt)
+  "Measures how good a program is; lower is better."
+  (+ (log (alternative-error alt))
+     (alternative-specials alt)
+     (/ (alternative-cost alt) 10)))
+
+(define (choose-min-error alts)
+  "Choose the alternative with the least error"
+  ; Invariant: alts is nonempty
+  (let ([alts* (sort alts #:key alternative-score <)])
+    (values (car alts*) (cdr alts*))))
+
+(define (heuristic-execute prog iterations)
   (let* ([pts (make-points)]
          [exacts (make-exacts prog pts)]
          [evaluate (curryr max-error pts exacts)]
@@ -168,6 +213,13 @@
                        (map (λ (body*) `(λ (,var) ,body*))
                         (rewrite-rules var body))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
+
+(define (improve prog iterations)
+  (for ([alt (sort (heuristic-execute prog iterations) #:key alternative-score <)])
+    (display "; Alternative with score ")
+    (display (alternative-score alt))
+    (newline)
+    (pretty-print (alternative-program alt))))
 
 ;; Now we define our rewrite rules.
 
