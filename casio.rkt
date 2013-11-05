@@ -198,7 +198,7 @@
   "Measures how good a program is; lower is better.  Returns a list, to be sorted with list<."
   (list
    (+ (* 0.1 (alternative-specials alt))
-      (log (alternative-error alt))
+      (log (max (alternative-error alt) 1e-50))
       (* 0.005 (alternative-cost alt)))
    (alternative-error alt)
    (alternative-specials alt)
@@ -242,7 +242,10 @@
 (define (rewrite-rules var expr)
   (recursive-match expr
     ;[`(list - ,x ,x) 0]
-    ;[`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
+    [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
+    [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
+    [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
+    [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
     [x `(exp (log ,x))]
     [x `(log (exp ,x))]))
     ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
