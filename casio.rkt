@@ -39,18 +39,13 @@
 
 ; We evaluate  a program on random floating-point numbers.
 
-;; TODO : make very exact
-(define (random-flonum)
-  "Return a random 32-bit floating point number (approximately)"
-  (expt 2 (- (* 253 (random)) 126)))
-
 (define (drop-arg f)
   "Make a one-argument function out of a no-argument function"
   (lambda (x) (f)))
 
 (define (make-points)
-  "Make a list of 100 random real numbers"
-  (build-list 100 (drop-arg random-flonum)))
+  "Make a list of real numbers.  The list spans a large range of values"
+  (build-list 505 (λ (idx) (expt 2 (- (/ (+ idx (random)) 2) 126)))))
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
