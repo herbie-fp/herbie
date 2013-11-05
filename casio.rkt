@@ -2,12 +2,10 @@
 
 (require racket/match)
 (require racket/flonum)
-(require racket/extflonum)
 
 ;; Some evaluation programs.  Both evaluate the same function over the real
 ;; numbers, but the second has better numerical precision.
 
-;; TODO: What about (+ 1.0s0 1.0d0) -> 2.0d0 ???
 (define prog1 '(λ (x) (/ (- (exp x) 1) x)))
 (define prog2 '(λ (x) (/ (- (exp x) 1) (log (exp x)))))
 
