@@ -29,13 +29,9 @@
    [#t
     expr]))
 
-(define (eval-exact prog val)
-  ((eval (rewrite-constants real->double-flonum prog))
-   (real->double-flonum val)))
-
-(define (eval-approx prog val)
-  ((eval (rewrite-constants real->single-flonum prog))
-   (real->single-flonum val)))
+(define (eval-prog prog rule)
+  (let ([fn (eval (rewrite-constants rule prog))])
+    (lambda (pt) (fn (rule pt)))))
 
 ; We evaluate  a program on random floating-point numbers.
 
@@ -49,15 +45,22 @@
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
-  (map (curry eval-exact prog) pts))
+  (map (eval-prog prog real->double-flonum) pts))
 
 (define (max-error prog pts exacts)
-  "Find the maximum finite error in a function's approximate evaluations at the given points (compared to the given exact results)"
-  ;; Imprecise to remove infinites and nans
-  (apply max
-         (filter (λ (x) (and (not (infinite? x)) (not (nan? x))))
-                 (for/list ([pt pts] [exact exacts])
-                   (relative-error (eval-approx prog pt) exact)))))
+  "Find the maximum error in a function's approximate evaluations at the given points
+   (compared to the given exact results), and the number of evaluations that yield
+   a special value."
+  (let ([errors
+         (let ([fn (eval-prog prog real->single-flonum)])
+           (for/list ([pt pts] [exact exacts])
+             (relative-error (fn pt) exact)))])
+    (let loop ([max-err 0] [specials 0] [errors errors])
+      (if (null? errors)
+          (values max-err specials)
+          (if (or (infinite? (car errors)) (nan? (car errors)))
+              (loop max-err (+ specials 1) (cdr errors))
+              (loop (max max-err (car errors)) specials (cdr errors)))))))
 
 ;; Our main synthesis tool generates alternatives to an expression uses recursive rewrite tools
 
@@ -155,8 +158,10 @@
   (let* ([pts (make-points)]
          [exacts (make-exacts prog pts)]
          [evaluate (curryr max-error pts exacts)]
-         [make-alternative (λ (prog)
-                             (alternative prog (evaluate prog)))]
+         [make-alternative
+          (λ (prog)
+             (let-values ([(err specials) (evaluate prog)])
+               (alternative prog err specials (program-cost prog))))]
          [generate (λ (prog)
                      (let ([body (program-body prog)]
                            [var (program-variable prog)])
