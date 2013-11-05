@@ -169,11 +169,11 @@
 
   (define costs
     ; See "costs.c" for details of how these numbers were determined
-    #hash((+ . 6) (- . 6) (* . 6) (/ . 6)
-          (abs . 6) (sqrt . 6)
-          (exp . 27) (log . 30)
-          (sin . 14) (cos . 19) (tan . 16)
-          (asin . 14) (acos . 15) (atan . 13)))
+    #hash((+ . 1) (- . 1) (* . 1) (/ . 1)
+          (abs . 1) (sqrt . 1)
+          (exp . 270) (log . 300)
+          (sin . 145) (cos . 185) (tan . 160)
+          (asin . 140) (acos . 155) (atan . 130)))
 
   (compile (program-body prog))
 

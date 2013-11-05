@@ -18,6 +18,7 @@ main() {
     clock_t start, end;
     double y = 1.517;
 
+    benchmark(0);
     benchmark(x + y);
     benchmark(x - y);
     benchmark(x * y);
