@@ -1,8 +1,7 @@
 Editing Racket
 ==============
 
-Since you might not be familiar with Racket (hey, it's a niche
-language), here's a quick way to get set up.
+Since you might not be familiar with Racket (hey, it's a niche language), here's a quick way to get set up.
 
 = Using Dr. Racket =
 
@@ -27,3 +26,10 @@ To make it easy to enter lambdas, run the following Lisp:
     (define-abbrev scheme-mode-abbrev-table "lambda" "λ")
 
 After running this code, a lambda will appear every time you enter `lambda`.  You might want to add this bit of Lisp to your startup files.
+
+= Running Tests =
+
+Before running tests, you need to make the `casio` package available. You can do this from the root directory with
+
+    raco link casio/
+
