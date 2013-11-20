@@ -45,7 +45,7 @@
 (define-syntax (casio-bench stx)
   (syntax-case stx ()
     [(_ vars name input)
-     #`(let* ([pts (make-points)]
+     #`(let* ([pts (make-points (length 'vars))]
               [prog '(lambda vars input)]
               [exacts (make-exacts prog pts)]
               [output (alternative-program

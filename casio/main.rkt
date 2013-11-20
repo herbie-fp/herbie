@@ -12,7 +12,7 @@
 (define prog2 '(λ (x) (/ (- (exp x) 1) (log (exp x)))))
 
 (define program-body caddr)
-(define program-variable caadr)
+(define program-variables cadr)
 
 ;; We evaluate a program by comparing its results computed with single precision
 ;; to its results computed with extended precision.
@@ -41,26 +41,37 @@
 
 (define (eval-prog prog rule)
   (let ([fn (eval (rewrite-constants rule prog) eval-prog-ns)])
-    (lambda (pt) (fn (rule pt)))))
+    (lambda (pts)
+      (apply fn (map rule pts)))))
 
 ; We evaluate  a program on random floating-point numbers.
 
-(define (make-points)
+(define (make-points dim)
   "Make a list of real numbers.  The list spans a large range of values"
-  (build-list 505 (λ (idx) (expt 2 (- (/ (+ idx (random)) 2) 126)))))
+  (define (exp->pt e m)
+    ;(display e)
+    ;(newline)
+    ;(display (* m (+ e (random))))
+    ;(newline)
+    (expt 2 (* m (+ e (random)))))
+  (if (= dim 2)
+      (for*/list ([x (range -31 32)] [y (range -31 32)])
+	(list (exp->pt x 4) (exp->pt y 4)))
+      (for*/list ([x (range -126 127)])
+	(list (exp->pt x 1)))))
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
   (map (eval-prog prog real->double-flonum) pts))
 
-(define (max-error prog pts exacts)
+(define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
    (compared to the given exact results), and the number of evaluations that yield
    a special value."
   (let ([errors
          (let ([fn (eval-prog prog real->single-flonum)])
-           (for/list ([pt pts] [exact exacts])
-             (relative-error (fn pt) exact)))])
+           (for/list ([pts pts-list] [exact exacts])
+             (relative-error (fn pts) exact)))])
     (let loop ([max-err 0] [specials 0] [errors errors])
       (if (null? errors)
           (values max-err specials)
@@ -214,7 +225,7 @@
     (values (car alts*) (cdr alts*))))
 
 (define (heuristic-execute prog iterations)
-  (let* ([pts (make-points)]
+  (let* ([pts (make-points (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
          [evaluate (curryr max-error pts exacts)]
          [make-alternative
@@ -223,9 +234,9 @@
                (alternative prog err specials (program-cost prog))))]
          [generate (λ (prog)
                      (let ([body (program-body prog)]
-                           [var (program-variable prog)])
-                       (map (λ (body*) `(λ (,var) ,body*))
-                        (rewrite-rules var body))))])
+                           [vars (program-variables prog)])
+                       (map (λ (body*) `(λ ,vars ,body*))
+                        (rewrite-rules vars body))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
@@ -237,7 +248,7 @@
 
 ;; Now we define our rewrite rules.
 
-(define (rewrite-rules var expr)
+(define (rewrite-rules vars expr)
   (recursive-match expr
     ;[`(list - ,x ,x) 0]
     [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
