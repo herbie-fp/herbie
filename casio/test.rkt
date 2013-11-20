@@ -40,7 +40,7 @@
               [alts (map alternative-program
                          (heuristic-execute prog 5))])
          (with-check-info (['start 'input] ['goal 'output])
-           (check-member alts 'output name)))]))
+           (check-member (map program-body alts) 'output name)))]))
 
 (define-syntax (casio-bench stx)
   (syntax-case stx ()

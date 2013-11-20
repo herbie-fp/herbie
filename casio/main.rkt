@@ -37,8 +37,10 @@
    [#t
     expr]))
 
+(define eval-prog-ns (make-base-namespace))
+
 (define (eval-prog prog rule)
-  (let ([fn (eval (rewrite-constants rule prog))])
+  (let ([fn (eval (rewrite-constants rule prog) eval-prog-ns)])
     (lambda (pt) (fn (rule pt)))))
 
 ; We evaluate  a program on random floating-point numbers.
