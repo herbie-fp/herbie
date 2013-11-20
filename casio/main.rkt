@@ -245,3 +245,5 @@
     [x `(exp (log ,x))]
     [x `(log (exp ,x))]))
     ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
+
+(provide (all-defined-out))
