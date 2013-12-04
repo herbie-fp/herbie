@@ -48,17 +48,26 @@
 
 (define (make-points dim)
   "Make a list of real numbers.  The list spans a large range of values"
+
   (define (exp->pt e m)
-    ;(display e)
-    ;(newline)
-    ;(display (* m (+ e (random))))
-    ;(newline)
     (expt 2 (* m (+ e (random)))))
-  (if (= dim 2)
-      (for*/list ([x (range -31 32)] [y (range -31 32)])
-	(list (exp->pt x 4) (exp->pt y 4)))
-      (for*/list ([x (range -126 127)])
-	(list (exp->pt x 1)))))
+
+  (define (list-cartesian-power lst repetitions)
+    (if (= repetitions 1)
+        lst
+        (let ([tails (list-cartesian-power lst (- repetitions 1))])
+          (for*/list ([head lst] [tail tails])
+            (cons head tail)))))
+
+  ; Chosen emperically
+  (define skip
+    (list-ref '(1 3 6 10 15 20 25) dim))
+
+  (define range-min (ceiling (/ -126 skip)))
+  (define range-max (floor (/ 127 skip)))
+
+  (let ([pts (range range-min range-max)])
+    (list-cartesian-power (map (curryr exp->pt skip) pts) dim)))
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
