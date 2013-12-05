@@ -3,6 +3,9 @@
 (require casio/main)
 (require rackunit)
 
+(define (cotan x)
+  (/ 1 (tan x)))
+
 (define (unfold-let expr)
   (match expr
     [`(let* ,vars ,body)
@@ -57,4 +60,4 @@
                        (max-error output pts exacts)])
            (bench-results name prog-score goal-score)))]))
 
-(provide casio-test casio-bench)
+(provide casio-test casio-bench cotan)
