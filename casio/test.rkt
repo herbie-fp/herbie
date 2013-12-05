@@ -5,7 +5,7 @@
 
 (define (unfold-let expr)
   (match expr
-    [`(let ,vars ,body)
+    [`(let* ,vars ,body)
      (let loop ([vars vars] [body body])
        (if (null? vars)
            body
@@ -36,7 +36,7 @@
 (define-syntax (casio-test stx)
   (syntax-case stx ()
     [(_ vars name input output)
-     #`(let* ([prog '(lambda vars input)]
+     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
               [alts (map alternative-program
                          (heuristic-execute prog 5))])
          (with-check-info (['start 'input] ['goal 'output])
@@ -46,7 +46,7 @@
   (syntax-case stx ()
     [(_ vars name input)
      #`(let* ([pts (make-points (length 'vars))]
-              [prog '(lambda vars input)]
+              [prog `(lambda vars ,(unfold-let 'input))]
               [exacts (make-exacts prog pts)]
               [output (alternative-program
                       (car (sort (heuristic-execute prog 5)
