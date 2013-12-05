@@ -67,7 +67,7 @@
   (define range-max (floor (/ 127 skip)))
 
   (let* ([idx (range range-min range-max)]
-         [pts+ (map (curryr exp->pt skip) pts)]
+         [pts+ (map (curryr exp->pt skip) idx)]
          [pts (append pts+ (map - pts+))])
     (list-cartesian-power pts dim)))
 
