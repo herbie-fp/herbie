@@ -1,15 +1,26 @@
-; quadratic formula
-(λ (a b c)
-   (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
-     (list (/ (+ (- b) d) (* 2 a))
-	   (/ (- (- b) d) (* 2 a)))))
+#lang racket
 
-; Hamming's rewriting of the quadratic formula
-(λ (a b c)
-   (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
-     (let* ((x1
-	     (if (< b 0)
-		 (/ (+ (- b) d) (* 2 a))
-		 (/ (- (- b) d) (* 2 a)))
-	     (x2 (/ c (* a x1)))))
-       (list x1 x2))))
+(require casio/test)
+
+; quadratic formula
+(casio-test (a b c)
+  "Hamming (NMSE) p42, the quadratic formula (first root)"
+   (let* ((d (sqrt (- (* b b) (* 4 (* a c))))))
+     (/ (+ (- b) d) (* 2 a)))
+   (let* ((d (sqrt (- (* b b) (* 4 (* a c)))))
+          (r1 (/ (+ (- b) d) (* 2 a)))
+          (r2 (/ (- (- b) d) (* 2 a))))
+     (if (< b 0)
+         r1
+         (/ c (* a r2)))))
+
+(casio-test (a b c)
+  "Hamming (NMSE) p42, the quadratic formula (second root)"
+   (let* ((d (sqrt (- (* b b) (* 4 (* a c))))))
+     (/ (+ (- b) d) (* 2 a)))
+   (let* ((d (sqrt (- (* b b) (* 4 (* a c)))))
+          (r1 (/ (+ (- b) d) (* 2 a)))
+          (r2 (/ (- (- b) d) (* 2 a))))
+     (if (< b 0)
+         r2
+         (/ c (* a r1)))))
