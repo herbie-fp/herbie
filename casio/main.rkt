@@ -66,8 +66,10 @@
   (define range-min (ceiling (/ -126 skip)))
   (define range-max (floor (/ 127 skip)))
 
-  (let ([pts (range range-min range-max)])
-    (list-cartesian-power (map (curryr exp->pt skip) pts) dim)))
+  (let* ([idx (range range-min range-max)]
+         [pts+ (map (curryr exp->pt skip) pts)]
+         [pts (append pts+ (map - pts+))])
+    (list-cartesian-power pts dim)))
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
