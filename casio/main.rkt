@@ -54,7 +54,7 @@
 
   (define (list-cartesian-power lst repetitions)
     (if (= repetitions 1)
-        lst
+        (map list lst)
         (let ([tails (list-cartesian-power lst (- repetitions 1))])
           (for*/list ([head lst] [tail tails])
             (cons head tail)))))
