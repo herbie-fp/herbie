@@ -42,7 +42,7 @@
 (define (eval-prog prog rule)
   (let ([fn (eval (rewrite-constants rule prog) eval-prog-ns)])
     (lambda (pts)
-      (apply fn (map rule pts)))))
+      (real->single-flonum (real-part (apply fn (map rule pts)))))))
 
 ; We evaluate  a program on random floating-point numbers.
 
