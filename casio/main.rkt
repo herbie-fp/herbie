@@ -275,13 +275,23 @@
 
 (define (rewrite-rules vars expr)
   (recursive-match expr
-    ;[`(list - ,x ,x) 0]
     [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
     [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
+    [`(- (+ ,a ,b) ,c) `(+ ,a (- ,b ,c))]
+    [`(+ ,a (- ,b ,c)) `(- (+ ,a ,b) ,c)]
     [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
     [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
+    [`(+ ,a ,b) `(+ ,b ,a)]
+    [`(- ,a ,a) 0]
+    [`(+ ,a 0) a]
     [x `(exp (log ,x))]
-    [x `(log (exp ,x))]))
-    ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
-
+    [x `(log (exp ,x))]
+    [`(exp (log ,x)) x]
+    [`(log (exp ,x)) x]
+    [`(square (sqrt ,x)) x]
+    [x `(square (sqrt ,x))]
+    [`(+ ,a ,b) `(/ (- (square ,a) (square ,b))
+                    (- ,a ,b))]
+    [`(- ,a ,b) `(/ (- (square ,a) (square ,b))
+                    (+ ,a ,b))]))
 (provide (all-defined-out))
