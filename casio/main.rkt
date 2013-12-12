@@ -5,14 +5,14 @@
 (require racket/pretty)
 (require data/order)
 
-;; Some evaluation programs.  Both evaluate the same function over the real
-;; numbers, but the second has better numerical precision.
-
-(define prog1 '(λ (x) (/ (- (exp x) 1) x)))
-(define prog2 '(λ (x) (/ (- (exp x) 1) (log (exp x)))))
-
 (define program-body caddr)
 (define program-variables cadr)
+
+(define (cotan x)
+  (/ 1 (tan x)))
+
+(define (square x)
+  (* x x))
 
 ;; We evaluate a program by comparing its results computed with single precision
 ;; to its results computed with extended precision.
@@ -28,19 +28,33 @@
         +nan.0
         ans)))
 
-(define (rewrite-constants rule expr)
-  (cond
-   [(real? expr)
-    (rule expr)]
-   [(list? expr)
-    (map (curry rewrite-constants rule) expr)]
-   [#t
-    expr]))
+(define (program-induct
+         prog
+         #:toplevel [toplevel identity] #:constant [constant identity]
+         #:variable [variable identity] #:primitive [primitive identity])
 
-(define eval-prog-ns (make-base-namespace))
+  (define (map-cdr f l)
+    (cons (car l) (map f (cdr l))))
+  
+  (define (inductor prog)
+    (cond
+     [(real? prog) (constant prog)]
+     [(symbol? prog) (variable prog)]
+     [(and (list? prog) (eq? (car prog) 'lambda))
+      (let ([body* (inductor (program-body prog))])
+        (toplevel `(lambda ,(program-variables prog) ,body*)))]
+     [(list? prog)
+      (primitive (map-cdr inductor prog))]
+     [#t
+      (error "Invalid program expression" prog)]))
+
+  (inductor prog))
+
+(define-namespace-anchor eval-prog-ns-anchor)
+(define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
 
 (define (eval-prog prog rule)
-  (let ([fn (eval (rewrite-constants rule prog) eval-prog-ns)])
+  (let ([fn (eval (program-induct prog #:constant rule) eval-prog-ns)])
     (lambda (pts)
       (real->single-flonum (real-part (apply fn (map rule pts)))))))
 
@@ -197,9 +211,9 @@
   (define costs
     ; See "costs.c" for details of how these numbers were determined
     #hash((+ . 1) (- . 1) (* . 1) (/ . 1)
-          (abs . 1) (sqrt . 1)
+          (abs . 1) (sqrt . 1) (square . 1)
           (exp . 270) (log . 300)
-          (sin . 145) (cos . 185) (tan . 160)
+          (sin . 145) (cos . 185) (tan . 160) (cotan . 160)
           (asin . 140) (acos . 155) (atan . 130)))
 
   (compile (program-body prog))
@@ -261,13 +275,23 @@
 
 (define (rewrite-rules vars expr)
   (recursive-match expr
-    ;[`(list - ,x ,x) 0]
     [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
     [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
+    [`(- (+ ,a ,b) ,c) `(+ ,a (- ,b ,c))]
+    [`(+ ,a (- ,b ,c)) `(- (+ ,a ,b) ,c)]
     [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
     [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
+    [`(+ ,a ,b) `(+ ,b ,a)]
+    [`(- ,a ,a) 0]
+    [`(+ ,a 0) a]
     [x `(exp (log ,x))]
-    [x `(log (exp ,x))]))
-    ;[`(/ (+ ,x (sqrt ,y)) ,c) `(/ (- (expt ,x 2) ,y) (* ,c (- ,x (sqrt ,y))))]))
-
+    [x `(log (exp ,x))]
+    [`(exp (log ,x)) x]
+    [`(log (exp ,x)) x]
+    [`(square (sqrt ,x)) x]
+    [x `(square (sqrt ,x))]
+    [`(+ ,a ,b) `(/ (- (square ,a) (square ,b))
+                    (- ,a ,b))]
+    [`(- ,a ,b) `(/ (- (square ,a) (square ,b))
+                    (+ ,a ,b))]))
 (provide (all-defined-out))
