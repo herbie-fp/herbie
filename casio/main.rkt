@@ -275,23 +275,31 @@
 
 (define (rewrite-rules vars expr)
   (recursive-match expr
+    ; Associativity
     [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
     [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
     [`(- (+ ,a ,b) ,c) `(+ ,a (- ,b ,c))]
     [`(+ ,a (- ,b ,c)) `(- (+ ,a ,b) ,c)]
+    ; Distributivity
     [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
     [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
+    ; Commutativity
     [`(+ ,a ,b) `(+ ,b ,a)]
+    ; Identity
     [`(- ,a ,a) 0]
     [`(+ ,a 0) a]
+    ; Square root
+    [`(square (sqrt ,x)) x]
+    [x `(square (sqrt ,x))]
+    ; Exponentials
     [x `(exp (log ,x))]
     [x `(log (exp ,x))]
     [`(exp (log ,x)) x]
     [`(log (exp ,x)) x]
-    [`(square (sqrt ,x)) x]
-    [x `(square (sqrt ,x))]
-    [`(+ ,a ,b) `(/ (- (square ,a) (square ,b))
-                    (- ,a ,b))]
-    [`(- ,a ,b) `(/ (- (square ,a) (square ,b))
-                    (+ ,a ,b))]))
+    ; Multiplying by x / x
+    [`(+ ,a ,b)
+     `(/ (- (square ,a) (square ,b)) (- ,a ,b))]
+    [`(- ,a ,b)
+     `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
+
 (provide (all-defined-out))
