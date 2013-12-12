@@ -6,6 +6,12 @@
 (require data/order)
 (require math/bigfloat)
 
+; 256 is a big number.
+(bf-precision 256)
+
+; Alternative: real->single-flonum
+(define *precision* real->double-flonum)
+
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
@@ -17,11 +23,8 @@
 (define (square x)
   (* x x))
 
-; 256 is a big number.
-(bf-precision 256)
-
-;; We evaluate a program by comparing its results computed with single precision
-;; to its results computed with extended precision.
+;; We evaluate a program by comparing its results computed with floating point
+;; to its results computed with arbitrary precision.
 
 ; TODO : This assumes that 100% relative error must be due to a "special occurance",
 ; which is a slack way to actually detect this condition.
@@ -42,10 +45,10 @@
                   [sinh . bfsinh] [cosh . bfcosh])
             op))
 
-(define (->single-flonum x)
+(define (->flonum x)
   (cond
-   [(real? x) (real->single-flonum x)]
-   [(bigfloat? x) (real->single-flonum (bigfloat->flonum x))]))
+   [(real? x) (*precision* x)]
+   [(bigfloat? x) (*precision* (bigfloat->flonum x))]))
 
 (define (program-induct
          prog
@@ -73,7 +76,7 @@
 (define (eval-prog prog const-rule symbol-table)
   (let ([fn (eval (program-induct prog #:constant const-rule #:symbol symbol-table) eval-prog-ns)])
     (lambda (pts)
-      (->single-flonum (apply fn (map const-rule pts))))))
+      (->flonum (apply fn (map const-rule pts))))))
 
 ; We evaluate  a program on random floating-point numbers.
 
@@ -105,14 +108,14 @@
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
   (map (eval-prog prog bf real-op->bigfloat-op) pts))
-;  (map (eval-prog prog real->single-flonum identity) pts))
+;  (map (eval-prog prog *precision* identity) pts))
 
 (define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
    (compared to the given exact results), and the number of evaluations that yield
    a special value."
   (let ([errors
-         (let ([fn (eval-prog prog real->single-flonum identity)])
+         (let ([fn (eval-prog prog *precision* identity)])
            (for/list ([pts pts-list] [exact exacts])
              (relative-error (fn pts) exact)))])
     (let loop ([max-err 0] [specials 0] [errors errors])
