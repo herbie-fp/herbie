@@ -3,9 +3,6 @@
 (require casio/main)
 (require rackunit)
 
-(define (cotan x)
-  (/ 1 (tan x)))
-
 (define (unfold-let expr)
   (match expr
     [`(let* ,vars ,body)
