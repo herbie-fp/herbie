@@ -4,15 +4,21 @@
 (require racket/flonum)
 (require racket/pretty)
 (require data/order)
+(require math/bigfloat)
 
+; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
 
+; Functions used by our benchmarks
 (define (cotan x)
   (/ 1 (tan x)))
 
 (define (square x)
   (* x x))
+
+; 256 is a big number.
+(bf-precision 256)
 
 ;; We evaluate a program by comparing its results computed with single precision
 ;; to its results computed with extended precision.
@@ -28,14 +34,25 @@
         +nan.0
         ans)))
 
+(define (real-op->bigfloat-op op)
+  (hash-ref #hash([+ . bf+] [* . bf*] [- . bf-] [/ . bf/] [square . bfsqr]
+                  [abs . bfabs] [sqrt . bfsqrt] [log . bflog] [exp . bfexp]
+                  [expt . bfexpt] [sin . bfsin] [cos . bfcos] [tan . bftan]
+                  [cotan . bfcot] [asin . bfasin] [acos . bfacos] [atan . bfatan]
+                  [sinh . bfsinh] [cosh . bfcosh])
+            op))
+
+(define (->single-flonum x)
+  (cond
+   [(real? x) (real->single-flonum x)]
+   [(bigfloat? x) (real->single-flonum (bigfloat->flonum x))]))
+
 (define (program-induct
          prog
          #:toplevel [toplevel identity] #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity])
+         #:variable [variable identity] #:primitive [primitive identity]
+         #:symbol [symbol-table identity])
 
-  (define (map-cdr f l)
-    (cons (car l) (map f (cdr l))))
-  
   (define (inductor prog)
     (cond
      [(real? prog) (constant prog)]
@@ -44,7 +61,7 @@
       (let ([body* (inductor (program-body prog))])
         (toplevel `(lambda ,(program-variables prog) ,body*)))]
      [(list? prog)
-      (primitive (map-cdr inductor prog))]
+      (primitive (cons (symbol-table (car prog)) (map inductor (cdr prog))))]
      [#t
       (error "Invalid program expression" prog)]))
 
@@ -53,10 +70,10 @@
 (define-namespace-anchor eval-prog-ns-anchor)
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
 
-(define (eval-prog prog rule)
-  (let ([fn (eval (program-induct prog #:constant rule) eval-prog-ns)])
+(define (eval-prog prog const-rule symbol-table)
+  (let ([fn (eval (program-induct prog #:constant const-rule #:symbol symbol-table) eval-prog-ns)])
     (lambda (pts)
-      (real->single-flonum (real-part (apply fn (map rule pts)))))))
+      (->single-flonum (apply fn (map const-rule pts))))))
 
 ; We evaluate  a program on random floating-point numbers.
 
@@ -87,14 +104,15 @@
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
-  (map (eval-prog prog real->double-flonum) pts))
+  (map (eval-prog prog bf real-op->bigfloat-op) pts))
+;  (map (eval-prog prog real->single-flonum identity) pts))
 
 (define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
    (compared to the given exact results), and the number of evaluations that yield
    a special value."
   (let ([errors
-         (let ([fn (eval-prog prog real->single-flonum)])
+         (let ([fn (eval-prog prog real->single-flonum identity)])
            (for/list ([pts pts-list] [exact exacts])
              (relative-error (fn pts) exact)))])
     (let loop ([max-err 0] [specials 0] [errors errors])
