@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="351.99365"
+   height="108.91406"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="logo.svg"
+   inkscape:export-filename="/home/pavpanchekha/casio/logo.png"
+   inkscape:export-xdpi="82.629997"
+   inkscape:export-ydpi="82.629997">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.3239055"
+     inkscape:cx="175.99683"
+     inkscape:cy="21.224876"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:window-width="1366"
+     inkscape:window-height="748"
+     inkscape:window-x="0"
+     inkscape:window-y="20"
+     inkscape:window-maximized="0">
+    <sodipodi:guide
+       orientation="1,0"
+       position="314.85714,138.57143"
+       id="guide3793" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="371.05692,99.181942"
+       id="guide3795" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="365.69978,12.396222"
+       id="guide3797" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="344.96709,48.487322"
+       id="guide3838" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="284.86302,12.396222"
+       id="guide3840" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-107.51451,-436.91577)">
+    <text
+       xml:space="preserve"
+       style="font-size:144px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="99.428574"
+       y="543.79077"
+       id="text2985"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/pavpanchekha/casio/logo.png"
+       inkscape:export-xdpi="82.586639"
+       inkscape:export-ydpi="82.586639"><tspan
+         sodipodi:role="line"
+         id="tspan2987"
+         x="99.428574"
+         y="543.79077"><tspan
+           style="fill:#fc00f1;fill-opacity:1"
+           id="tspan3781">C</tspan><tspan
+           id="tspan3809"
+           style="fill:#ffffff;fill-opacity:0">a</tspan><tspan
+           style="fill:#ff8100;fill-opacity:1"
+           id="tspan3777">S</tspan><tspan
+           id="tspan3817"
+           style="font-size:121px;fill:#ff8100;fill-opacity:0">X</tspan></tspan></text>
+    <path
+       style="fill:none;stroke:#5b00ff;stroke-width:14;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 392.37753,526.28273 60.10407,0 z"
+       id="path3783"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccc" />
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#06c6fc;stroke-width:14;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="path3791"
+       sodipodi:cx="512.6524"
+       sodipodi:cy="700.32404"
+       sodipodi:rx="23.233509"
+       sodipodi:ry="23.233509"
+       d="m 535.88591,700.32404 c 0,12.83151 -10.40199,23.2335 -23.23351,23.2335 -12.83151,0 -23.2335,-10.40199 -23.2335,-23.2335 0,-12.83152 10.40199,-23.23351 23.2335,-23.23351 12.83152,0 23.23351,10.40199 23.23351,23.23351 z"
+       transform="translate(-90.127629,-223.57142)" />
+    <text
+       xml:space="preserve"
+       style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="204.05475"
+       y="531.43359"
+       id="text3803"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3805"
+         x="204.05475"
+         y="531.43359"
+         style="font-size:144px;fill:#80fe00;fill-opacity:1">a</tspan></text>
+  </g>
+</svg>
