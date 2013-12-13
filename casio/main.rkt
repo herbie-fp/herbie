@@ -111,6 +111,14 @@
   (map (eval-prog prog bf real-op->bigfloat-op) pts))
 ;  (map (eval-prog prog *precision* identity) pts))
 
+(define (filter-points pts exacts)
+  "Take only the points for which the exact value is normal"
+  (map car (filter (lambda (x) (not (or (infinite? (cdr x)) (nan? (cdr x))))) (map cons pts exacts))))
+
+(define (filter-exacts pts exacts)
+  "Take only the exacts for which the exact value is normal"
+  (filter (lambda (x) (not (or (infinite? x) (nan? x)))) exacts))
+
 (define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
    (compared to the given exact results), and the number of evaluations that yield
@@ -252,10 +260,11 @@
 ;; TODO : think up a good scoring function
 (define (alternative-score alt)
   "Measures how good a program is; lower is better.  Returns a list, to be sorted with list<."
+
   (list
-   (+ (* 0.1 (alternative-specials alt))
+   (+ (alternative-specials alt)
       (log (max (alternative-error alt) 1e-50))
-      (* 0.005 (alternative-cost alt)))
+      (* 0.01 (alternative-cost alt)))
    (alternative-error alt)
    (alternative-specials alt)
    (alternative-cost alt)))
@@ -274,7 +283,9 @@
 (define (heuristic-execute prog iterations)
   (let* ([pts (make-points (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
-         [evaluate (curryr max-error pts exacts)]
+         [pts* (filter-points pts exacts)]
+         [exacts* (filter-exacts pts exacts)]
+         [evaluate (curryr max-error pts* exacts*)]
          [make-alternative
           (λ (prog)
              (let-values ([(err specials) (evaluate prog)])
