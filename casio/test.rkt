@@ -38,9 +38,9 @@
 (define-syntax (casio-test stx)
   (syntax-case stx ()
     [(_ vars name input output)
-     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
-              [alts (map alternative-program
-                         (heuristic-execute prog 5))])
+     #`(let*-values ([(prog) `(lambda vars ,(unfold-let 'input))]
+                     [(done opts) (heuristic-execute prog 10)]
+                     [(alts) (map alternative-program done)])
 	 (if (member 'output (map program-body alts))
 	     (exit 0)
 	     (begin
@@ -53,14 +53,11 @@
     [(_ vars name input)
      #`(let* ([pts (make-points (length 'vars))]
               [prog `(lambda vars ,(unfold-let 'input))]
-              [exacts (make-exacts prog pts)]
-              [output (alternative-program
-                      (car (sort (heuristic-execute prog 5)
-                                 #:key alternative-score list<)))])
-         (let-values ([(prog-score prog-specials)
-                       (max-error prog pts exacts)]
-                      [(goal-score goal-specials)
-                       (max-error output pts exacts)])
+              [exacts (make-exacts prog pts)])
+         (let-values ([(done opts) (heuristic-execute prog 5)]
+                      [(prog) (alternative-program (car (sort done #:key alternative-score list<)))]
+                      [(prog-score prog-specials) (max-error prog pts exacts)]
+                      [(goal-score goal-specials) (max-error output pts exacts)])
            (bench-results name prog-score goal-score)))]))
 
 (provide casio-test casio-bench cotan)
