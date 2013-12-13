@@ -25,6 +25,8 @@
    [#t
     expr]))
 
+
+
 (define (bench-results name inerr outerr)
   (printf "~a orders: ~s\n"
           (/ (round (* (- (/ (log (/ outerr (max inerr 1e-16)))
@@ -39,8 +41,12 @@
      #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
               [alts (map alternative-program
                          (heuristic-execute prog 5))])
-         (with-check-info (['start 'input] ['goal 'output])
-           (check-member (map program-body alts) 'output name)))]))
+	 (if (member 'output (map program-body alts))
+	     (exit 0)
+	     (begin
+	       (printf "failure on ~a\ninput: ~a\ndesired output: ~a\nactual output: ~a\n"
+		       'name 'input 'output (map program-body alts))
+	       (exit 1))))]))
 
 (define-syntax (casio-bench stx)
   (syntax-case stx ()
