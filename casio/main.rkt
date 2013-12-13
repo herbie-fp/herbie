@@ -5,6 +5,7 @@
 (require racket/pretty)
 (require data/order)
 (require math/bigfloat)
+(require plot)
 
 ; 256 is a big number.
 (bf-precision 256)
@@ -60,7 +61,7 @@
     (cond
      [(real? prog) (constant prog)]
      [(symbol? prog) (variable prog)]
-     [(and (list? prog) (eq? (car prog) 'lambda))
+     [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog))])
         (toplevel `(lambda ,(program-variables prog) ,body*)))]
      [(list? prog)
@@ -201,7 +202,7 @@
              [done '()])
     (if (or (null? options)
             (>= (length done) iterations))
-        done
+        (values options done)
         (let-values ([(options* done*)
                       (step options done)])
           (loop options* done*)))))
@@ -286,11 +287,28 @@
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
-  (for ([alt (sort (heuristic-execute prog iterations) #:key alternative-score list<)])
-    (display "; Alternative with score ")
-    (display (alternative-score alt))
+  (let-values ([(done options) (heuristic-execute prog iterations)])
+    (for ([alt (sort done #:key alternative-score list<)])
+      (display "; Alternative with score ")
+      (display (alternative-score alt))
+      (newline)
+      (pretty-print (alternative-program alt)))))
+
+(define (explore prog iterations)
+  (let-values ([(done options) (heuristic-execute prog iterations)])
+    (sort (append options done) #:key alternative-score list<)))
+
+(define (plot-alternatives prog iterations)
+  (let* ([alts (explore prog iterations)]
+         [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
+         [rands (for/list ([i (range (length logs))]) (random))])
+    (display "Found program with score ")
+    (display (alternative-score (car alts)))
     (newline)
-    (pretty-print (alternative-program alt))))
+    (pretty-print (alternative-program (car alts)))
+    (parameterize ([plot-width 800] [plot-height 100]
+                   [plot-x-label #f] [plot-y-label #f])
+      (plot (points (map vector logs rands))))))
 
 ;; Now we define our rewrite rules.
 
