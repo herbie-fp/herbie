@@ -208,7 +208,9 @@
       (values
        (append ; This is never precisely sorted, but it is always close
         rest
-        (append (filter (λ (x) (not (or (memf (λ (y) (alter-equal x y)) rest) (memf (λ (y) (alter-equal x y)) done)))) (map make-alternative children))))
+        (append (filter (λ (x) (not (or (memf (λ (y) (alter-equal x y)) rest)
+					(memf (λ (y) (alter-equal x y)) done))))
+			(map make-alternative children))))
        (cons parent done))))
   
   (let loop ([options (list (make-alternative start))]
@@ -299,7 +301,7 @@
                      (let ([body (program-body prog)]
                            [vars (program-variables prog)])
                        (map (λ (body*) `(λ ,vars ,body*))
-                        (rewrite-rules vars body))))])
+                        (remove-duplicates (rewrite-rules vars body)))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
