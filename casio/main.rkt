@@ -189,6 +189,11 @@
            ; Finally, kick off the recursion
            (walker value))])))
 
+;; A quick helper function to define equality between alternatives
+
+(define (alter-equal alter alter2)
+  (equal? (alternative-program alter) (alternative-program alter2)))
+
 ;; Now to implement a search tool to find the best expression
 
 (define (heuristic-search start generator chooser make-alternative iterations)
@@ -203,7 +208,7 @@
       (values
        (append ; This is never precisely sorted, but it is always close
         rest
-        (append (map make-alternative children)))
+        (append (filter (λ (x) (not (or (memf (λ (y) (alter-equal x y)) rest) (memf (λ (y) (alter-equal x y)) done)))) (map make-alternative children))))
        (cons parent done))))
   
   (let loop ([options (list (make-alternative start))]
