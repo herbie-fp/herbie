@@ -149,9 +149,9 @@
     (let loop ([max-err 0] [specials 0] [errors errors])
       (if (null? errors)
           (values max-err specials)
-          (if (or (infinite? (car errors)) (nan? (car errors)))
-              (loop max-err (+ specials 1) (cdr errors))
-              (loop (max max-err (car errors)) specials (cdr errors)))))))
+          (if (ordinary-float? (car errors))
+              (loop (max max-err (car errors)) specials (cdr errors))
+              (loop max-err (+ specials 1) (cdr errors)))))))
 
 ;; Our main synthesis tool generates alternatives to an expression uses recursive rewrite tools
 
