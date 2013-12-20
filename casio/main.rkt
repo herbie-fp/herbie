@@ -300,21 +300,26 @@
   (let ([alts* (sort alts #:key alternative-score list<)])
     (values (car alts*) (cdr alts*))))
 
-(define (heuristic-execute prog iterations)
+(define (prepare-points prog)
   (let* ([pts (make-points (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
          [pts* (filter-points pts exacts)]
-         [exacts* (filter-exacts pts exacts)]
-         [evaluate (curryr max-error pts* exacts*)]
-         [make-alternative
-          (λ (prog)
-             (let-values ([(err specials) (evaluate prog)])
-               (alternative prog err specials (program-cost prog))))]
-         [generate (λ (prog)
-                     (let ([body (program-body prog)]
-                           [vars (program-variables prog)])
-                       (map (λ (body*) `(λ ,vars ,body*))
-                        (remove-duplicates (rewrite-rules vars body)))))])
+         [exacts* (filter-exacts pts exacts)])
+    (values pts* exacts*)))
+
+(define (heuristic-execute prog iterations)
+  (let*-values ([(pts exacts) (prepare-points prog)]
+                [(evaluate) (curryr max-error pts exacts)]
+                [(make-alternative)
+                 (λ (prog)
+                    (let-values ([(err specials) (evaluate prog)])
+                      (alternative prog err specials (program-cost prog))))]
+                [(generate) (λ (prog)
+                             (let ([body (program-body prog)]
+                                   [vars (program-variables prog)])
+                               (map (λ (body*) `(λ ,vars ,body*))
+                                    (remove-duplicates
+                                     (rewrite-rules vars body)))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (explore prog iterations)
