@@ -189,11 +189,6 @@
            ; Finally, kick off the recursion
            (walker value))])))
 
-;; A quick helper function to define equality between alternatives
-
-(define (alter-equal alter alter2)
-  (equal? (alternative-program alter) (alternative-program alter2)))
-
 ;; Now to implement a search tool to find the best expression
 
 (define (heuristic-search start generator chooser make-alternative iterations)
@@ -208,9 +203,8 @@
       (values
        (append ; This is never precisely sorted, but it is always close
         rest
-        (append (filter (λ (x) (not (or (memf (λ (y) (alter-equal x y)) rest)
-					(memf (λ (y) (alter-equal x y)) done))))
-			(map make-alternative children))))
+        (filter (λ (x) (not (or (member x rest) (member x done))))
+                (map make-alternative children)))
        (cons parent done))))
   
   (let loop ([options (list (make-alternative start))]
@@ -262,7 +256,7 @@
 ;; To use this heuristic search mechanism, we'll need to implement a
 ;; few helper functions
 
-(struct alternative (program error specials cost))
+(struct alternative (program error specials cost) #:transparent)
 
 ;; TODO : think up a good scoring function
 (define (alternative-score alt)
