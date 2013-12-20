@@ -24,6 +24,13 @@
 (define (square x)
   (* x x))
 
+;; We usually want to show the "Top N" alternatives.
+
+(define (take-up-to l k)
+  ; This is unnecessarily slow. It is O(l), not O(k).
+  ; To be honest, it just isn't that big a deal for now.
+  (take l (min k (length l))))
+
 ;; We evaluate a program by comparing its results computed with floating point
 ;; to its results computed with arbitrary precision.
 
@@ -299,8 +306,8 @@
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
-    (for ([alt (sort done #:key alternative-score list<)])
   (let-values ([(options done) (heuristic-execute prog iterations)])
+    (for ([alt (take-up-to (sort done #:key alternative-score list<) 5)])
       (display "; Alternative with score ")
       (display (alternative-score alt))
       (newline)
