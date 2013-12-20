@@ -317,17 +317,19 @@
                         (remove-duplicates (rewrite-rules vars body)))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
-(define (improve prog iterations)
-  (let-values ([(options done) (heuristic-execute prog iterations)])
-    (for ([alt (take-up-to (sort done #:key alternative-score list<) 5)])
-      (display "; Alternative with score ")
-      (display (alternative-score alt))
-      (newline)
-      (pretty-print (alternative-program alt)))))
-
 (define (explore prog iterations)
   (let-values ([(options done) (heuristic-execute prog iterations)])
     (sort (append options done) #:key alternative-score list<)))
+
+(define (improve prog iterations)
+  (print-alternatives (take-up-to (explore prog iterations) 5)))
+
+(define (print-alternatives alts)
+  (for ([alt alts])
+    (display "; Alternative with score ")
+    (display (alternative-score alt))
+    (newline)
+    (pretty-print (alternative-program alt))))
 
 (define (plot-alternatives prog iterations)
   (let* ([alts (explore prog iterations)]
