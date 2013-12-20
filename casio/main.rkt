@@ -118,13 +118,25 @@
   (map (eval-prog prog bf real-op->bigfloat-op) pts))
 ;  (map (eval-prog prog *precision* identity) pts))
 
+(define (reap fn . lsts)
+  "A reap/sow abstraction for filters and maps."
+  ; If this gets a lot of use, make it a macro to remove λ noise
+  (let* ([store '()]
+         [sow (λ (elt) (set! store (cons elt store)))])
+    (apply map (curry fn sow) lsts)
+    (reverse store)))
+
+(define (ordinary-float? x)
+  (not (or (infinite? x) (nan? x))))
+
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal"
-  (map car (filter (lambda (x) (not (or (infinite? (cdr x)) (nan? (cdr x))))) (map cons pts exacts))))
+  (reap (λ (sow pt exact) (when (ordinary-float? exact) (sow pt)))
+        pts exacts))
 
 (define (filter-exacts pts exacts)
   "Take only the exacts for which the exact value is normal"
-  (filter (lambda (x) (not (or (infinite? x) (nan? x)))) exacts))
+  (filter ordinary-float? exacts))
 
 (define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
