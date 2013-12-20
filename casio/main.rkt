@@ -299,15 +299,15 @@
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (improve prog iterations)
-  (let-values ([(done options) (heuristic-execute prog iterations)])
     (for ([alt (sort done #:key alternative-score list<)])
+  (let-values ([(options done) (heuristic-execute prog iterations)])
       (display "; Alternative with score ")
       (display (alternative-score alt))
       (newline)
       (pretty-print (alternative-program alt)))))
 
 (define (explore prog iterations)
-  (let-values ([(done options) (heuristic-execute prog iterations)])
+  (let-values ([(options done) (heuristic-execute prog iterations)])
     (sort (append options done) #:key alternative-score list<)))
 
 (define (plot-alternatives prog iterations)
