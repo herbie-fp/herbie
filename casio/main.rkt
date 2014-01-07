@@ -17,6 +17,8 @@
 (define program-body caddr)
 (define program-variables cadr)
 
+(define a-program '(λ (x) (/ (- (exp x) 1) x)))
+
 ; Functions used by our benchmarks
 (define (cotan x)
   (/ 1 (tan x)))
@@ -215,7 +217,7 @@
    where generator creates new versions of a program to try,
    chooser picks a candidate to generate versions from,
    and make-alternative generates converts programs into alternatives."
-  
+
   (define (step options done)
     (let*-values ([(parent rest) (chooser options)]
                   [(children)    (generator (alternative-program parent))])
@@ -225,7 +227,7 @@
         (filter (λ (x) (not (or (member x rest) (member x done))))
                 (map make-alternative children)))
        (cons parent done))))
-  
+
   (let loop ([options (list (make-alternative start))]
              [done '()])
     (if (or (null? options)
@@ -378,5 +380,42 @@
      `(/ (- (square ,a) (square ,b)) (- ,a ,b))]
     [`(- ,a ,b)
      `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
+
+(define (analyze-expressions prog inputs)
+  (define (annot . vars) (cons 'annot vars))
+
+  (define varmap (map cons (program-variables prog) inputs))
+
+  (program-induct
+   prog
+
+   #:constant
+   (λ (c)
+      (let* ([exact (bf c)] [approx (*precision* c)]
+             [error (relative-error (->flonum exact) approx)])
+        (annot c exact approx error error)))
+
+   #:variable
+   (λ (v)
+      (let* ([var (cdr (assoc v varmap))]
+             [exact (bf var)] [approx (*precision* var)]
+             [error (relative-error (->flonum exact) approx)])
+        (annot v exact approx error error)))
+
+   #:primitive
+   (λ (expr)
+      (let* ([exact-op (eval (real-op->bigfloat-op (car expr)) eval-prog-ns)]
+             [approx-op (eval (car expr) eval-prog-ns)]
+             [exact-inputs (map (λ (an) (list-ref an 2)) (cdr expr))]
+             [semiapprox-inputs (map ->flonum exact-inputs)]
+             [approx-inputs (map (λ (an) (list-ref an 3)) (cdr expr))]
+             [exact-ans (apply exact-op exact-inputs)]
+             [semiapprox-ans (apply approx-op semiapprox-inputs)]
+             [approx-ans (apply approx-op approx-inputs)]
+             [local-error (relative-error (->flonum exact-ans)
+                                          semiapprox-ans)]
+             [cumulative-error (relative-error (->flonum exact-ans)
+                                               approx-ans)])
+        (annot expr exact-ans approx-ans local-error cumulative-error)))))
 
 (provide (all-defined-out))
