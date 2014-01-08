@@ -24,6 +24,7 @@
 ;; Different modes in which we evaluate expressions
 
 ; Table defining costs and translations to bigfloat and regular float
+; See "costs.c" for details of how these costs were determined
 (define operations
   ;  op       bf       fl      cost
   `([+       ,bf+     ,+       1]
@@ -289,19 +290,11 @@
                 register)))
         expr))
 
-  (define costs
-    ; See "costs.c" for details of how these numbers were determined
-    #hash((+ . 1) (- . 1) (* . 1) (/ . 1)
-          (abs . 1) (sqrt . 1) (square . 1)
-          (exp . 270) (log . 300)
-          (sin . 145) (cos . 185) (tan . 160) (cotan . 160)
-          (asin . 140) (acos . 155) (atan . 130)))
-
   (compile (program-body prog))
 
   (for/sum ([step assignments])
     (let ([fn (cadr step)])
-      (hash-ref costs fn 100))))
+      (list-ref (hash-ref operations fn) 2))))
 
 ;; To use this heuristic search mechanism, we'll need to implement a
 ;; few helper functions
