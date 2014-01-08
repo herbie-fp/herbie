@@ -7,17 +7,12 @@
 (require math/bigfloat)
 (require plot)
 
-; 256 is a big number.
+;; Precision standards
+
+; Precision for "exact" evaluation
 (bf-precision 256)
-
-; Alternative: real->single-flonum
+; Precision for approximate evaluation
 (define *precision* real->double-flonum)
-
-; Programs are just lambda expressions
-(define program-body caddr)
-(define program-variables cadr)
-
-(define a-program '(λ (x) (/ (- (exp x) 1) x)))
 
 ; Functions used by our benchmarks
 (define (cotan x)
@@ -25,6 +20,46 @@
 
 (define (square x)
   (* x x))
+
+;; Different modes in which we evaluate expressions
+
+; Table defining costs and translations to bigfloat and regular float
+(define operations
+  ;  op       bf       fl      cost
+  `([+       ,bf+     ,+       1]
+    [-       ,bf-     ,-       1]
+    [*       ,bf*     ,*       1]
+    [/       ,bf/     ,/       1]
+    [abs     ,bfabs   ,abs     1]
+    [sqrt    ,bfsqrt  ,sqrt    1]
+    [square  ,bfsqr   ,square  1]
+    [exp     ,bfexp   ,exp     270]
+    [log     ,bflog   ,log     300]
+    [sin     ,bfsin   ,sin     145]
+    [cos     ,bfcos   ,cos     185]
+    [tan     ,bftan   ,tan     160]
+    [cotan   ,bfcot   ,cotan   160]
+    [asin    ,bfasin  ,asin    140]
+    [acos    ,bfacos  ,acos    155]
+    [atan    ,bfatan  ,atan    130]
+
+    ; For compiling variables
+    [*var*   ,bf      ,*precision* 0]))
+
+; Munge the table above into a hash table.
+(let ([hash (make-hash)])
+  (for ([rec operations])
+    (hash-set! hash (car rec) (cdr rec)))
+  (set! operations hash))
+
+(define a-program '(λ (x) (/ (- (exp x) 1) x)))
+
+(define mode:bf 0)
+(define mode:fl 1)
+
+; Programs are just lambda expressions
+(define program-body caddr)
+(define program-variables cadr)
 
 ;; We usually want to show the "Top N" alternatives.
 
@@ -46,14 +81,6 @@
     (if (or (= ans 1.0) (nan? ans))
         +nan.0
         ans)))
-
-(define (real-op->bigfloat-op op)
-  (hash-ref #hash([+ . bf+] [* . bf*] [- . bf-] [/ . bf/] [square . bfsqr]
-                  [abs . bfabs] [sqrt . bfsqrt] [log . bflog] [exp . bfexp]
-                  [expt . bfexpt] [sin . bfsin] [cos . bfcos] [tan . bftan]
-                  [cotan . bfcot] [asin . bfasin] [acos . bfacos] [atan . bfatan]
-                  [sinh . bfsinh] [cosh . bfcosh])
-            op))
 
 (define (->flonum x)
   (cond
@@ -83,10 +110,13 @@
 (define-namespace-anchor eval-prog-ns-anchor)
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
 
-(define (eval-prog prog const-rule symbol-table)
-  (let ([fn (eval (program-induct prog #:constant const-rule #:symbol symbol-table) eval-prog-ns)])
+(define (eval-prog prog mode)
+  (let* ([real->precision (list-ref (hash-ref operations '*var*) mode)]
+         [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
+         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
+         [fn (eval prog* eval-prog-ns)])
     (lambda (pts)
-      (->flonum (apply fn (map const-rule pts))))))
+      (->flonum (apply fn (map real->precision pts))))))
 
 ; We evaluate  a program on random floating-point numbers.
 
@@ -117,8 +147,7 @@
 
 (define (make-exacts prog pts)
   "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
-  (map (eval-prog prog bf real-op->bigfloat-op) pts))
-;  (map (eval-prog prog *precision* identity) pts))
+  (map (eval-prog prog mode:bf) pts))
 
 (define (reap fn . lsts)
   "A reap/sow abstraction for filters and maps."
@@ -145,7 +174,7 @@
    (compared to the given exact results), and the number of evaluations that yield
    a special value."
   (let ([errors
-         (let ([fn (eval-prog prog *precision* identity)])
+         (let ([fn (eval-prog prog mode:fl)])
            (for/list ([pts pts-list] [exact exacts])
              (relative-error (fn pts) exact)))])
     (let loop ([max-err 0] [specials 0] [errors errors])
@@ -386,6 +415,13 @@
 
   (define varmap (map cons (program-variables prog) inputs))
 
+  (define (real-op->bigfloat-op op)
+    (list-ref (hash-ref operations op) mode:bf))
+
+  (define (real-op->float-op op)
+    (list-ref (hash-ref operations op) mode:fl))
+
+
   (program-induct
    prog
 
@@ -404,8 +440,8 @@
 
    #:primitive
    (λ (expr)
-      (let* ([exact-op (eval (real-op->bigfloat-op (car expr)) eval-prog-ns)]
-             [approx-op (eval (car expr) eval-prog-ns)]
+      (let* ([exact-op (real-op->bigfloat-op (car expr))]
+             [approx-op (real-op->float-op (car expr))]
              [exact-inputs (map (λ (an) (list-ref an 2)) (cdr expr))]
              [semiapprox-inputs (map ->flonum exact-inputs)]
              [approx-inputs (map (λ (an) (list-ref an 3)) (cdr expr))]
