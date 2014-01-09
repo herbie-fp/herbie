@@ -447,4 +447,27 @@
                                                approx-ans)])
         (annotation expr exact-ans approx-ans local-error cumulative-error l)))))
 
+(define (find-most-local-error annot-prog)
+  (define (search-expression expr)
+    (if (list? expr)
+        (let continue ([expr (cdr expr)] [err 0] [loc #f])
+          (cond
+           [(null? expr) (values err loc)]
+           [#t
+            (let-values ([(err* loc*) (search-annot (car expr))])
+              (if (> err* err)
+                  (continue (cdr expr) err* loc*)
+                  (continue (cdr expr) err loc)))]))
+        (values 0 #f)))
+
+  (define (search-annot annot)
+    (let-values ([(err loc) (search-expression (annotation-expr annot))])
+      ; Why >=? Because all else equal, we're more interested in small subexpressions
+      (if (>= err (annotation-local-error annot))
+          (values err loc)
+          (values (annotation-local-error annot) (annotation-location annot)))))
+
+  (let-values ([(err loc) (search-annot (program-body annot-prog))])
+    (if (= err 0) #f loc)))
+
 (provide (all-defined-out))
