@@ -75,13 +75,9 @@
 ; TODO : This assumes that 100% relative error must be due to a "special occurance",
 ; which is a slack way to actually detect this condition.
 (define (relative-error approx exact)
-  (let ([ans
-         (if (and (real? approx) (real? exact))
-             (abs (/ (- exact approx) exact))
-             +nan.0)])
-    (if (or (= ans 1.0) (nan? ans))
-        +nan.0
-        ans)))
+  (if (and (real? approx) (real? exact))
+      (abs (/ (- exact approx) (max (abs exact) (abs approx))))
+      +nan.0))
 
 (define (->flonum x)
   (cond
