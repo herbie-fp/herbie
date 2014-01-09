@@ -90,19 +90,21 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity])
 
-  (define (inductor prog)
+  (define (inductor prog loc)
     (cond
-     [(real? prog) (constant prog)]
-     [(symbol? prog) (variable prog)]
+     [(real? prog) (constant prog loc)]
+     [(symbol? prog) (variable prog loc)]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog))])
+      (let ([body* (inductor (program-body prog) (cons 2 loc))])
         (toplevel `(lambda ,(program-variables prog) ,body*)))]
      [(list? prog)
-      (primitive (cons (symbol-table (car prog)) (map inductor (cdr prog))))]
+      (let ([locs (map (curryr cons loc) (range 1 (length prog)))])
+        (primitive (cons (symbol-table (car prog))
+                         (map inductor (cdr prog) locs)) loc))]
      [#t
       (error "Invalid program expression" prog)]))
 
-  (inductor prog))
+  (inductor prog '()))
 
 (define-namespace-anchor eval-prog-ns-anchor)
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
@@ -110,7 +112,9 @@
 (define (eval-prog prog mode)
   (let* ([real->precision (list-ref (hash-ref operations '*var*) mode)]
          [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
-         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
+         [prog* (program-induct prog
+                                #:constant (lambda (x l) (real->precision l))
+                                #:symbol (lambda (f l) (op->precision f)))]
          [fn (eval prog* eval-prog-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
@@ -399,9 +403,9 @@
     [`(- ,a ,b)
      `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
 
-(define (analyze-expressions prog inputs)
-  (define (annot . vars) (cons 'annot vars))
+(struct annotation (expr exact-value approx-value local-error total-error location) #:transparent)
 
+(define (analyze-expressions prog inputs)
   (define varmap (map cons (program-variables prog) inputs))
 
   (define (real-op->bigfloat-op op)
@@ -415,25 +419,25 @@
    prog
 
    #:constant
-   (λ (c)
+   (λ (c l)
       (let* ([exact (bf c)] [approx (*precision* c)]
              [error (relative-error (->flonum exact) approx)])
-        (annot c exact approx error error)))
+        (annotation c exact approx error error l)))
 
    #:variable
-   (λ (v)
+   (λ (v l)
       (let* ([var (cdr (assoc v varmap))]
              [exact (bf var)] [approx (*precision* var)]
              [error (relative-error (->flonum exact) approx)])
-        (annot v exact approx error error)))
+        (annotation v exact approx error error l)))
 
    #:primitive
-   (λ (expr)
+   (λ (expr l)
       (let* ([exact-op (real-op->bigfloat-op (car expr))]
              [approx-op (real-op->float-op (car expr))]
-             [exact-inputs (map (λ (an) (list-ref an 2)) (cdr expr))]
+             [exact-inputs (map annotation-exact-value (cdr expr))]
              [semiapprox-inputs (map ->flonum exact-inputs)]
-             [approx-inputs (map (λ (an) (list-ref an 3)) (cdr expr))]
+             [approx-inputs (map annotation-approx-value (cdr expr))]
              [exact-ans (apply exact-op exact-inputs)]
              [semiapprox-ans (apply approx-op semiapprox-inputs)]
              [approx-ans (apply approx-op approx-inputs)]
@@ -441,6 +445,6 @@
                                           semiapprox-ans)]
              [cumulative-error (relative-error (->flonum exact-ans)
                                                approx-ans)])
-        (annot expr exact-ans approx-ans local-error cumulative-error)))))
+        (annotation expr exact-ans approx-ans local-error cumulative-error l)))))
 
 (provide (all-defined-out))
