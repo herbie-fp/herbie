@@ -90,21 +90,19 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity])
 
-  (define (inductor prog loc)
+  (define (inductor prog)
     (cond
-     [(real? prog) (constant prog loc)]
-     [(symbol? prog) (variable prog loc)]
+     [(real? prog) (constant prog)]
+     [(symbol? prog) (variable prog)]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog) (cons 2 loc))])
+      (let ([body* (inductor (program-body prog))])
         (toplevel `(lambda ,(program-variables prog) ,body*)))]
      [(list? prog)
-      (let ([locs (map (curryr cons loc) (range 1 (length prog)))])
-        (primitive (cons (symbol-table (car prog))
-                         (map inductor (cdr prog) locs)) loc))]
+      (primitive (cons (symbol-table (car prog)) (map inductor (cdr prog))))]
      [#t
       (error "Invalid program expression" prog)]))
 
-  (inductor prog '()))
+  (inductor prog))
 
 (define-namespace-anchor eval-prog-ns-anchor)
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
@@ -112,9 +110,7 @@
 (define (eval-prog prog mode)
   (let* ([real->precision (list-ref (hash-ref operations '*var*) mode)]
          [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
-         [prog* (program-induct prog
-                                #:constant (lambda (x l) (real->precision l))
-                                #:symbol (lambda (f l) (op->precision f)))]
+         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [fn (eval prog* eval-prog-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
@@ -187,58 +183,11 @@
 
 ;; Our main synthesis tool generates alternatives to an expression uses recursive rewrite tools
 
-(define (apply-to-children-collect fn exp)
-  "Given an S-expression exp, generate all versions where fn has been applied to an argument."
-  (cond
-    [(not (list? exp)) (fn exp)]
-    [#t
-     (let loop ([start (list (car exp))] ; Reversed prefix of the expression.  We skip the applicator.
-                [end (cdr exp)] ; Suffix of the expression
-                [out '()]) ; Versions already generated
-       (if (null? end)
-           out
-           (let ([new-versions
-                  ; fn returns a list of new versions
-                  (map (λ (x) (append (reverse start) (cons x (cdr end))))
-                       (fn (car end)))])
-             (loop
-              (cons (car end) start)
-              (cdr end)
-              (append
-               new-versions ; Since new-versions is a list, we append it on
-               out)))))]))
-
-(define-syntax recursive-match
-  (λ (stx)
-    "Returns a list of all possible new results from applying a set of rewrite rules to some subexpression of a program"
-    (syntax-case stx ()
-      ; Syntax looks like (recursive-match expr [`(,my pat) `(,my result)])
-      [(_ value [pattern expansion] ...)
-       ; Turns into ...
-       #'(letrec
-             ; matcher returns a list of possible results from a single expression (no recursion)
-             [(matcher
-               (λ (exp)
-                 (append
-                  ; Collect the results of each individual match
-                  (match exp
-                    ; If match, return Just result
-                    [pattern (list expansion)]
-                    ; If no match, return None
-                    [_ '()])
-                  ...)))
-              ; walker applies matcher at every level of the expression
-              (walker
-               (λ (exp)
-                 (if (not (list? exp))
-                     (matcher exp)
-                     (append
-                      ; Apply at the top-level
-                      (matcher exp)
-                      ; Apply to all subexpressions
-                      (apply-to-children-collect walker exp)))))]
-           ; Finally, kick off the recursion
-           (walker value))])))
+(define-syntax (match-all stx)
+  (syntax-case stx ()
+    [(_ value [pattern expansion] ...)
+     #'(append
+        (match value [pattern (list expansion)] [_ '()]) ...)]))
 
 ;; Now to implement a search tool to find the best expression
 
@@ -343,7 +292,7 @@
                                    [vars (program-variables prog)])
                                (map (λ (body*) `(λ ,vars ,body*))
                                     (remove-duplicates
-                                     (rewrite-rules vars body)))))])
+                                     (rewrite-tree vars body)))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
 
 (define (explore prog iterations)
@@ -374,8 +323,9 @@
 
 ;; Now we define our rewrite rules.
 
-(define (rewrite-rules vars expr)
-  (recursive-match expr
+(define (rewrite-expression vars expr)
+  ; (List symbol) → expr → (List expr)
+  (match-all expr
     ; Associativity
     [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
     [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
@@ -403,7 +353,34 @@
     [`(- ,a ,b)
      `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
 
-(struct annotation (expr exact-value approx-value local-error total-error location) #:transparent)
+(define (rewrite-tree vars expr) ; (List symbol) → expr → (List expr)
+  (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
+
+(define (recursively-apply->list f expr) ; (expr → List expr) → expr → (List expr)
+  (program-induct expr
+   #:constant (lambda (c) (cons c (f c)))
+   #:variable (lambda (x) (cons x (f x)))
+   #:toplevel (lambda (prog)
+                (for/list ([alt (program-body prog)])
+                  `(lambda ,(program-variables prog) ,alt)))
+   #:primitive (lambda (expr)
+                 (let ([oldexpr (cons (car expr) (map car (cdr expr)))])
+                   (cons oldexpr
+                         (append (f oldexpr)
+                                 (map (curry cons (car expr)) (list-join (cdr expr)))))))))
+
+(define (list-join x) ; (List (List x)) → (List x)
+  ; This is basically completely trivial and needs no explanation.
+  (apply append
+         (let loop ([alts (car x)] [rest (cdr x)] [prefix '()] [output '()])
+           (let ([revprefix (reverse prefix)] [restcar (map car rest)])
+             (let ([ans (for/list ([alt (cdr alts)])
+                          (append revprefix (cons alt restcar)))])
+               (if (null? rest)
+                   (cons ans output)
+                   (loop (car rest) (cdr rest) (cons (car alts) prefix) (cons ans output))))))))
+
+(struct annotation (expr exact-value approx-value local-error total-error) #:transparent)
 
 (define (analyze-expressions prog inputs)
   (define varmap (map cons (program-variables prog) inputs))
@@ -419,20 +396,20 @@
    prog
 
    #:constant
-   (λ (c l)
+   (λ (c)
       (let* ([exact (bf c)] [approx (*precision* c)]
              [error (relative-error (->flonum exact) approx)])
-        (annotation c exact approx error error l)))
+        (annotation c exact approx error error)))
 
    #:variable
-   (λ (v l)
+   (λ (v)
       (let* ([var (cdr (assoc v varmap))]
              [exact (bf var)] [approx (*precision* var)]
              [error (relative-error (->flonum exact) approx)])
-        (annotation v exact approx error error l)))
+        (annotation v exact approx error error)))
 
    #:primitive
-   (λ (expr l)
+   (λ (expr)
       (let* ([exact-op (real-op->bigfloat-op (car expr))]
              [approx-op (real-op->float-op (car expr))]
              [exact-inputs (map annotation-exact-value (cdr expr))]
@@ -445,29 +422,29 @@
                                           semiapprox-ans)]
              [cumulative-error (relative-error (->flonum exact-ans)
                                                approx-ans)])
-        (annotation expr exact-ans approx-ans local-error cumulative-error l)))))
+        (annotation expr exact-ans approx-ans local-error cumulative-error)))))
 
 (define (find-most-local-error annot-prog)
-  (define (search-expression expr)
+  (define (search-expression expr loc-tail)
     (if (list? expr)
-        (let continue ([expr (cdr expr)] [err 0] [loc #f])
+        (let continue ([expr (cdr expr)] [err 0] [loc loc-tail] [idx 1])
           (cond
            [(null? expr) (values err loc)]
            [#t
-            (let-values ([(err* loc*) (search-annot (car expr))])
+            (let-values ([(err* loc*) (search-annot (car expr) (cons idx loc-tail))])
               (if (> err* err)
-                  (continue (cdr expr) err* loc*)
-                  (continue (cdr expr) err loc)))]))
+                  (continue (cdr expr) err* loc* (+ idx 1))
+                  (continue (cdr expr) err loc (+ idx 1))))]))
         (values 0 #f)))
 
-  (define (search-annot annot)
-    (let-values ([(err loc) (search-expression (annotation-expr annot))])
+  (define (search-annot annot loc)
+    (let-values ([(err* loc*) (search-expression (annotation-expr annot) loc)])
       ; Why >=? Because all else equal, we're more interested in small subexpressions
-      (if (>= err (annotation-local-error annot))
-          (values err loc)
-          (values (annotation-local-error annot) (annotation-location annot)))))
+      (if (>= err* (annotation-local-error annot))
+          (values err* loc*)
+          (values (annotation-local-error annot) loc))))
 
-  (let-values ([(err loc) (search-annot (program-body annot-prog))])
+  (let-values ([(err loc) (search-annot (program-body annot-prog) '(2))])
     (if (= err 0) #f loc)))
 
 (provide (all-defined-out))
