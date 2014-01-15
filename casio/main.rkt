@@ -72,8 +72,6 @@
 ;; We evaluate a program by comparing its results computed with floating point
 ;; to its results computed with arbitrary precision.
 
-; TODO : This assumes that 100% relative error must be due to a "special occurance",
-; which is a slack way to actually detect this condition.
 (define (relative-error approx exact)
   (if (and (real? approx) (real? exact))
       (abs (/ (- exact approx) (max (abs exact) (abs approx))))
@@ -445,6 +443,19 @@
           (values (annotation-local-error annot) loc))))
 
   (let-values ([(err loc) (search-annot (program-body annot-prog) '(2))])
-    (if (= err 0) #f loc)))
+    (if (= err 0) #f (reverse loc))))
+
+(define (rewrite-at-location prog loc)
+  (define vars (program-variables prog))
+
+  (define (recursor exp loc)
+    (if (null? loc)
+        (rewrite-expression vars exp)
+        (let ([front (take exp (car loc))] [tail (drop exp (+ (car loc) 1))]
+              [middle (recursor (list-ref exp (car loc)) (cdr loc))])
+          (for/list ([opt middle])
+            (append front (cons opt tail))))))
+
+  (recursor prog loc))
 
 (provide (all-defined-out))
