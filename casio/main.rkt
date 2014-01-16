@@ -7,6 +7,13 @@
 (require math/bigfloat)
 (require plot)
 
+(define (println . args)
+  (for ([val args])
+    (if (string? val)
+        (display val)
+        (print val)))
+  (newline))
+
 ;; Precision standards
 
 ; Precision for approximate evaluation
@@ -31,13 +38,20 @@
          body ...
          (reverse store))]))
 
+(define (=-or-nan? x1 x2)
+  (or (= x1 x2)
+      (and (nan? x1) (nan? x2))))
+
 (define (list= l1 l2)
-  (and l1 l2 (andmap = l1 l2)))
+  (and l1 l2 (andmap =-or-nan? l1 l2)))
 
 (define (list< list1 list2)
   "Compares lists lexicographically."
   ; Who picked this terrible API design of returning '< or '>
   (eq? (datum-order list1 list2) '<))
+
+(define (enumerate . l)
+  (apply map list (range (length (car l))) l))
 
 ;; We usually want to show the "Top N" alternatives.
 
@@ -74,7 +88,7 @@
            [*var*   ,bf      ,*precision* 0])])
 
     ; Munge the table above into a hash table.
-    (let ([hash (make-hash)])
+    (let ([hash (make-hasheq)])
       (for ([rec table])
         (hash-set! hash (car rec) (cdr rec)))
       hash)))
@@ -213,22 +227,40 @@
          [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
 
-(define (max-error prog pts-list exacts)
-  "Find the maximum error in a function's approximate evaluations at the given points
-   (compared to the given exact results), and the number of evaluations that yield
-   a special value."
-  (let ([errors
-         (let ([fn (eval-prog prog mode:fl)])
-           (for/list ([pts pts-list] [exact exacts])
-             (cons (relative-error (fn pts) exact) (cons pts exact))))])
-    (let loop ([max-err 0] [specials 0] [errors errors] [max-err-pt #f] [max-err-ex #f])
-      (if (null? errors)
-          (values max-err specials max-err-pt max-err-ex)
-          (if (and (ordinary-float? (caar errors)) (< (caar errors) 1.0))
-              (if (> max-err (caar errors))
-                  (loop max-err specials (cdr errors) max-err-pt max-err-ex)
-                  (loop (caar errors) specials (cdr errors) (cadar errors) (cddar errors)))
-              (loop max-err (+ specials 1) (cdr errors) max-err-pt max-err-ex))))))
+(define (errors prog points exacts)
+  (let ([fn (eval-prog prog mode:fl)])
+    (for/list ([point points] [exact exacts])
+      (relative-error (fn point) exact))))
+
+(define errors-compare-cache (make-hash))
+
+(define (errors-compare errors1 errors2)
+  (hash-ref!
+   (hash-ref! errors-compare-cache errors1 make-hash)
+   errors2
+   (λ ()
+      (for/list ([error1 errors1] [error2 errors2])
+        (cond
+         [(and (ordinary-float? error1) (ordinary-float? error2))
+          (cond
+           [(< error1 error2) '<]
+           [(= error1 error2) '=]
+           [(> error1 error2) '>]
+           [#t (error "Cannot compare error1 and error2" error1 error2)])]
+         [(or (and (ordinary-float? error1) (not (ordinary-float? error2))))
+          '<]
+         [(or (and (not (ordinary-float? error1)) (ordinary-float? error2)))
+          '>]
+         [(and (infinite? error1) (infinite? error2))
+          '=]
+         [(and (infinite? error1) (nan? error2))
+          '<]
+         [(and (nan? error1) (infinite? error2))
+          '>]
+         [(and (nan? error1) (nan? error2))
+          '=]
+         [#t (error "Failed to classify error1 and error2" error1 error2)])))
+      ))
 
 ;; Now we define our rewrite rules.
 
@@ -318,20 +350,22 @@
 ;;
 ;; This is an A* search internally.
 
-(define (heuristic-search start generator chooser make-alternative iterations)
+(define (heuristic-search start generator sorter make-alternative iterations)
   "Search for a better version of start,
    where generator creates new versions of a program to try,
    chooser picks a candidate to generate versions from,
    and make-alternative generates converts programs into alternatives."
 
   (define (step options done)
-    (let*-values ([(parent rest) (chooser options)]
-                  [(children)    (generator (alternative-program parent))])
+    (let* ([parent (car options)]
+           [rest (cdr options)]
+           [children (generator (alternative-program parent))])
       (values
-       (append ; This is never precisely sorted, but it is always close
-        rest
-        (filter (λ (x) (not (or (member x rest) (member x done))))
-                (map make-alternative children)))
+       (sorter
+        (append ; This is never precisely sorted, but it is always close
+         rest
+         (filter (λ (x) (not (or (member x rest) (member x done))))
+                 (map make-alternative children))))
        (cons parent done))))
 
   (let loop ([options (list (make-alternative start))]
@@ -375,43 +409,52 @@
 ;; To use this heuristic search mechanism, we'll need to implement a
 ;; few helper functions
 
-(struct alternative (program error specials cost) #:transparent)
+(struct alternative (program errors cost) #:transparent)
 
-;; TODO : think up a good scoring function
-(define (alternative-score alt)
-  "Measures how good a program is; lower is better.  Returns a list, to be sorted with list<."
+(define (alternative<>? alt1 alt2)
+  "Compare two alternatives.
+   Compares first by a lattice order on points, then by program cost."
 
-  (list
-   (+ (alternative-specials alt)
-      (log (max (alternative-error alt) 1e-50))
-      (* 0.01 (alternative-cost alt)))
-   (alternative-error alt)
-   (alternative-specials alt)
-   (alternative-cost alt)))
+  (let ([comparisons (errors-compare (alternative-errors alt1) (alternative-errors alt2))])
+    (and (member '< comparisons) (member '> comparisons))))
 
-(define (choose-min-error alts)
-  "Choose the alternative with the least error"
-  ; Invariant: alts is nonempty
-  (let ([alts* (sort alts #:key alternative-score list<)])
-    (values (car alts*) (cdr alts*))))
+(define (alternative<? alt1 alt2)
+  "Compare two alternatives.
+   Compares first by a lattice order on points, then by program cost."
+
+  (let ([comparisons (errors-compare (alternative-errors alt1) (alternative-errors alt2))])
+    (or (andmap (negate (curry eq? '>)) comparisons)
+        (< (alternative-cost alt1) (alternative-cost alt2)))))
+
+(define (alternative<-at? idx alt1 alt2)
+  "Compare two alternatives.
+   Compares first by a lattice order on points, then by program cost."
+  ;(println "; Comparing " (alternative-program alt1) "\n;  and " (alternative-program alt2)
+  ;         "\n;  errors " (list-ref (alternative-errors alt1) idx)
+  ;         " and " (list-ref (alternative-errors alt2) idx))
+  (eq? (list-ref (errors-compare (alternative-errors alt1) (alternative-errors alt2)) idx) '<))
 
 ;; Now that we've defined the intermediate representation, we can
 ;; run the A* search with the alternatives structures.
 
 (define (heuristic-execute prog iterations)
-  (let*-values ([(pts exacts) (prepare-points prog)]
-                [(evaluate) (curryr max-error pts exacts)]
-                [(make-alternative)
-                 (λ (prog)
-                    (let-values ([(err specials pt ex) (evaluate prog)])
-                      (alternative prog err specials (program-cost prog))))]
-                [(generate) (λ (prog)
-                             (let ([body (program-body prog)]
-                                   [vars (program-variables prog)])
-                               (map (λ (body*) `(λ ,vars ,body*))
-                                    (remove-duplicates
-                                     (rewrite-tree vars body)))))])
-    (heuristic-search prog generate choose-min-error make-alternative iterations)))
+  (define-values (pts exacts) (prepare-points prog))
+
+  (define (make-alternative prog)
+    (let ([errs (errors prog pts exacts)])
+      (alternative prog errs (program-cost prog))))
+
+  (define (generate-alternative prog)
+    (let ([body (program-body prog)]
+          [vars (program-variables prog)])
+      (map (λ (body*) `(λ ,vars ,body*))
+           (remove-duplicates
+            (rewrite-tree vars body)))))
+
+  (define (sort-alternatives alts)
+    (sort alts alternative<?))
+
+  (heuristic-search prog generate-alternative sort-alternatives make-alternative iterations))
 
 (struct annotation (expr exact-value approx-value local-error total-error) #:transparent)
 
@@ -497,8 +540,8 @@
 
 (define (improve-by-analysis prog iters points exacts)
   (define (pick-input prog)
-    (let-values ([(err specials pt ex) (max-error (alternative-program prog) points exacts)])
-      (cons pt ex)))
+    (argmax cadr (filter (λ (x) (< (cadr x) 1))
+                  (enumerate (alternative-errors prog) points exacts))))
 
   (define (step prog input)
     (let ([annot (analyze-expressions (alternative-program prog) input)])
@@ -506,26 +549,29 @@
                                                  (find-most-local-error annot)))))
 
   (define (make-alternative prog)
-    (let-values ([(err specials pt ex) (max-error prog points exacts)])
-      (alternative prog err specials (program-cost prog))))
+    (let ([errs (errors prog points exacts)])
+      (alternative prog errs (program-cost prog))))
 
   (define start-prog (make-alternative prog))
 
   (let loop ([good-prog start-prog] [test-prog start-prog] [left iters]
-             [pt&ex (pick-input start-prog)])
+             [input (pick-input start-prog)])
+    (println "; Trying " (alternative-program test-prog) " at " (caddr input))
     (if (= left 0)
         good-prog
-        (let* ([alts (step test-prog (car pt&ex))]
-               [alts* (sort alts #:key alternative-score list<)]
+        (let* ([alts (step test-prog (caddr input))]
+               [alts* (sort alts (curry alternative<-at? (car input)))]
                [new-prog (car alts*)])
           (cond
            [(null? alts*)
             good-prog]
-           [(< (relative-error (cdr pt&ex) (eval-prog (alternative-program new-prog) mode:fl))
-               (relative-error (cdr pt&ex) (eval-prog (alternative-program good-prog) mode:fl)))
+           [(< (relative-error ((eval-prog (alternative-program new-prog) mode:fl) (caddr input))
+                               (cadddr input) )
+               (relative-error ((eval-prog (alternative-program good-prog) mode:fl) (caddr input))
+                               (cadddr input)))
             (loop new-prog new-prog iters (pick-input new-prog))]
            [#t
-            (loop good-prog new-prog (- left 1) pt&ex)])))))
+            (loop good-prog new-prog (- left 1) input)])))))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
@@ -538,29 +584,26 @@
 
 (define (explore prog iterations)
   (let-values ([(options done) (heuristic-execute prog iterations)])
-    (sort (append options done) #:key alternative-score list<)))
+    (sort (append options done) alternative<?)))
 
 (define (print-alternatives alts)
   (for ([alt alts])
-    (display "; Alternative with score ")
-    (display (alternative-score alt))
-    (newline)
     (pretty-print (alternative-program alt))))
 
 (define (improve prog iterations)
   (print-alternatives (take-up-to (explore prog iterations) 5)))
 
-(define (plot-alternatives prog iterations)
-  "Return a spectrum plot of the alternatives found."
-  (let* ([alts (explore prog iterations)]
-         [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
-         [rands (for/list ([i (range (length logs))]) (random))])
-    (display "Found program with score ")
-    (display (alternative-score (car alts)))
-    (newline)
-    (pretty-print (alternative-program (car alts)))
-    (parameterize ([plot-width 800] [plot-height 100]
-                   [plot-x-label #f] [plot-y-label #f])
-      (plot (points (map vector logs rands))))))
+;(define (plot-alternatives prog iterations)
+;  "Return a spectrum plot of the alternatives found."
+;  (let* ([alts (explore prog iterations)]
+;         [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
+;         [rands (for/list ([i (range (length logs))]) (random))])
+;    (display "Found program with score ")
+;    (display (alternative-score (car alts)))
+;    (newline)
+;    (pretty-print (alternative-program (car alts)))
+;    (parameterize ([plot-width 800] [plot-height 100]
+;                   [plot-x-label #f] [plot-y-label #f])
+;      (plot (points (map vector logs rands))))))
 
 (provide (all-defined-out))
