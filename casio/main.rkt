@@ -39,6 +39,13 @@
   ; Who picked this terrible API design of returning '< or '>
   (eq? (datum-order list1 list2) '<))
 
+;; We usually want to show the "Top N" alternatives.
+
+(define (take-up-to l k)
+  ; This is unnecessarily slow. It is O(l), not O(k).
+  ; To be honest, it just isn't that big a deal for now.
+  (take l (min k (length l))))
+
 ;; Different modes in which we evaluate expressions
 
 ; Table defining costs and translations to bigfloat and regular float
@@ -78,13 +85,6 @@
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-
-;; We usually want to show the "Top N" alternatives.
-
-(define (take-up-to l k)
-  ; This is unnecessarily slow. It is O(l), not O(k).
-  ; To be honest, it just isn't that big a deal for now.
-  (take l (min k (length l))))
 
 ;; We evaluate a program by comparing its results computed with floating point
 ;; to its results computed with arbitrary precision.
@@ -151,7 +151,7 @@
   (define (exp->pt bucket-number bucket-width)
     "Given an exponential bucket"
     (expt 2 (- (* bucket-width (+ bucket-number (random))) 126)))
- 
+
   (define (list-cartesian-power lst repetitions)
     "Returns a list, each element of which is a list
      of `repetitions` elements of `lst`"
@@ -164,7 +164,7 @@
 
   ; The bucket width for a given number of dimensions
   (define bucket-width-per-dim '(: 1 6 15 25 35 45))
-  
+
   (define (make-points dim)
     "Make a list of flonums.  The list spans a large range of values"
 
@@ -203,7 +203,7 @@
     (filter ordinary-float? exacts))
 
   ; These definitions in place, we finally generate the points.
-  
+
   ; First, we generate points;
   (let* ([pts (make-points (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
@@ -311,7 +311,7 @@
                            (cons ans output))))))))
 
   ; Now we can recursively rewrite the expression
-  
+
   (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
 
 ;; Now to implement a search tool to find the best expression
@@ -499,12 +499,12 @@
   (define (pick-input prog)
     (let-values ([(err specials pt ex) (max-error (alternative-program prog) points exacts)])
       (cons pt ex)))
-  
+
   (define (step prog input)
     (let ([annot (analyze-expressions (alternative-program prog) input)])
       (map make-alternative (rewrite-at-location (alternative-program prog)
                                                  (find-most-local-error annot)))))
-  
+
   (define (make-alternative prog)
     (let-values ([(err specials pt ex) (max-error prog points exacts)])
       (alternative prog err specials (program-cost prog))))
