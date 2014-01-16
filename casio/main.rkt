@@ -9,8 +9,6 @@
 
 ;; Precision standards
 
-; Precision for "exact" evaluation
-(bf-precision 256)
 ; Precision for approximate evaluation
 (define *precision* real->double-flonum)
 
@@ -21,39 +19,58 @@
 (define (square x)
   (* x x))
 
+(define (ordinary-float? x)
+  (not (or (infinite? x) (nan? x))))
+
+(define-syntax (reap stx)
+  "A reap/sow abstraction for filters and maps."
+  (syntax-case stx ()
+    [(_ [sow] body ...)
+     #'(let* ([store '()]
+              [sow (λ (elt) (set! store (cons elt store)))])
+         body ...
+         (reverse store))]))
+
+(define (list= l1 l2)
+  (and l1 l2 (andmap = l1 l2)))
+
+(define (list< list1 list2)
+  "Compares lists lexicographically."
+  ; Who picked this terrible API design of returning '< or '>
+  (eq? (datum-order list1 list2) '<))
+
 ;; Different modes in which we evaluate expressions
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define operations
-  ;  op       bf       fl      cost
-  `([+       ,bf+     ,+       1]
-    [-       ,bf-     ,-       1]
-    [*       ,bf*     ,*       1]
-    [/       ,bf/     ,/       1]
-    [abs     ,bfabs   ,abs     1]
-    [sqrt    ,bfsqrt  ,sqrt    1]
-    [square  ,bfsqr   ,square  1]
-    [exp     ,bfexp   ,exp     270]
-    [log     ,bflog   ,log     300]
-    [sin     ,bfsin   ,sin     145]
-    [cos     ,bfcos   ,cos     185]
-    [tan     ,bftan   ,tan     160]
-    [cotan   ,bfcot   ,cotan   160]
-    [asin    ,bfasin  ,asin    140]
-    [acos    ,bfacos  ,acos    155]
-    [atan    ,bfatan  ,atan    130]
+  (let ([table
+         ;  op       bf       fl      cost
+         `([+       ,bf+     ,+       1]
+           [-       ,bf-     ,-       1]
+           [*       ,bf*     ,*       1]
+           [/       ,bf/     ,/       1]
+           [abs     ,bfabs   ,abs     1]
+           [sqrt    ,bfsqrt  ,sqrt    1]
+           [square  ,bfsqr   ,square  1]
+           [exp     ,bfexp   ,exp     270]
+           [log     ,bflog   ,log     300]
+           [sin     ,bfsin   ,sin     145]
+           [cos     ,bfcos   ,cos     185]
+           [tan     ,bftan   ,tan     160]
+           [cotan   ,bfcot   ,cotan   160]
+           [asin    ,bfasin  ,asin    140]
+           [acos    ,bfacos  ,acos    155]
+           [atan    ,bfatan  ,atan    130]
 
-    ; For compiling variables
-    [*var*   ,bf      ,*precision* 0]))
+           ; For compiling variables
+           [*var*   ,bf      ,*precision* 0])])
 
-; Munge the table above into a hash table.
-(let ([hash (make-hash)])
-  (for ([rec operations])
-    (hash-set! hash (car rec) (cdr rec)))
-  (set! operations hash))
-
-(define a-program '(λ (x) (/ (- (exp x) 1) x)))
+    ; Munge the table above into a hash table.
+    (let ([hash (make-hash)])
+      (for ([rec operations])
+        (hash-set! hash (car rec) (cdr rec)))
+      hash)))
 
 (define mode:bf 0)
 (define mode:fl 1)
@@ -114,55 +131,87 @@
       (->flonum (apply fn (map real->precision pts))))))
 
 ; We evaluate  a program on random floating-point numbers.
+; Right now we generate these input points by dividing the
+; range of exponents into buckets, and generating a random
+; point in each bucket.
+;
+; This is not quite uniform on the floating point numbers,
+; but it is reasonably close, and it makes sure to test our
+; points on a range of values.
+;
+; (prepare-points prog) generates not only the input values
+; for a program but also the exact values for it.  These are
+; computed with arbitrary-precision arithmetic.
 
-(define (make-points dim)
-  "Make a list of real numbers.  The list spans a large range of values"
+(define (prepare-points prog)
+  "Given a program, return two lists:
+   a list of input points (each a list of flonums)
+   and a list of exact values for those points (each a flonum)"
 
-  (define (exp->pt e m)
-    (expt 2 (* m (+ e (random)))))
-
+  (define (exp->pt bucket-number bucket-width)
+    "Given an exponential bucket"
+    (expt 2 (- (* bucket-width (+ bucket-number (random))) 126)))
+ 
   (define (list-cartesian-power lst repetitions)
+    "Returns a list, each element of which is a list
+     of `repetitions` elements of `lst`"
+
     (if (= repetitions 1)
         (map list lst)
         (let ([tails (list-cartesian-power lst (- repetitions 1))])
           (for*/list ([head lst] [tail tails])
             (cons head tail)))))
 
-  ; Chosen emperically
-  (define skip
-    (list-ref '(1 3 6 10 15 20 25) dim))
+  ; The bucket width for a given number of dimensions
+  (define bucket-width-per-dim '(: 1 6 15 25 35 45))
+  
+  (define (make-points dim)
+    "Make a list of flonums.  The list spans a large range of values"
 
-  (define range-min (ceiling (/ -126 skip)))
-  (define range-max (floor (/ 127 skip)))
+    (let* ([bucket-width (list-ref bucket-width-per-dim dim)]
+           [num-buckets (floor (/ 253 bucket-width))]
+           [bucket-indices (range 0 num-buckets)]
+           [pts+ (map (curryr exp->pt bucket-width) bucket-indices)]
+           [pts (append pts+ (map - pts+))])
+      (list-cartesian-power pts dim)))
 
-  (let* ([idx (range range-min range-max)]
-         [pts+ (map (curryr exp->pt skip) idx)]
-         [pts (append pts+ (map - pts+))])
-    (list-cartesian-power pts dim)))
+  (bf-precision 256)
 
-(define (make-exacts prog pts)
-  "Given a list of arguments, produce a list of exact evaluations of a program at those arguments"
-  (map (eval-prog prog mode:bf) pts))
+  (define (make-exacts prog pts)
+    "Given a list of arguments,
+     produce a list of exact evaluations of a program-at those arguments
+     using true arbitrary precision.  That is, we increase the bits
+     available until the exact values converge.
+     Not guaranteed to terminate."
+    (let ([f (eval-prog prog mode:bf)])
+      (let loop ([prec 64] [prev #f])
+        (bf-precision prec)
+        (let ([curr (map f pts)])
+          (if (list= prev curr)
+              curr
+              (loop (+ prec 16) curr))))))
 
-(define (reap fn . lsts)
-  "A reap/sow abstraction for filters and maps."
-  ; If this gets a lot of use, make it a macro to remove λ noise
-  (let* ([store '()]
-         [sow (λ (elt) (set! store (cons elt store)))])
-    (apply map (curry fn sow) lsts)
-    (reverse store)))
+  (define (filter-points pts exacts)
+    "Take only the points for which the exact value is normal"
+    (reap (sow)
+      (for ([pt pts] [exact exacts])
+        (when (ordinary-float? exact)
+          (sow pt)))))
 
-(define (ordinary-float? x)
-  (not (or (infinite? x) (nan? x))))
+  (define (filter-exacts pts exacts)
+    "Take only the exacts for which the exact value is normal"
+    (filter ordinary-float? exacts))
 
-(define (filter-points pts exacts)
-  "Take only the points for which the exact value is normal"
-  (reap (λ (sow pt exact) (when (ordinary-float? exact) (sow pt)))
-        pts exacts))
-
-(define (filter-exacts pts exacts)
-  "Take only the exacts for which the exact value is normal"
-  (filter ordinary-float? exacts))
+  ; These definitions in place, we finally generate the points.
+  
+  ; First, we generate points;
+  (let* ([pts (make-points (length (program-variables prog)))]
+         [exacts (make-exacts prog pts)]
+         ; Then, we remove the points for which the answers
+         ; are not representable
+         [pts* (filter-points pts exacts)]
+         [exacts* (filter-exacts pts exacts)])
+    (values pts* exacts*)))
 
 (define (max-error prog pts-list exacts)
   "Find the maximum error in a function's approximate evaluations at the given points
@@ -171,23 +220,103 @@
   (let ([errors
          (let ([fn (eval-prog prog mode:fl)])
            (for/list ([pts pts-list] [exact exacts])
-             (relative-error (fn pts) exact)))])
-    (let loop ([max-err 0] [specials 0] [errors errors])
+             (cons (relative-error (fn pts) exact) (cons pts exact))))])
+    (let loop ([max-err 0] [specials 0] [errors errors] [max-err-pt #f] [max-err-ex #f])
       (if (null? errors)
-          (values max-err specials)
-          (if (ordinary-float? (car errors))
-              (loop (max max-err (car errors)) specials (cdr errors))
-              (loop max-err (+ specials 1) (cdr errors)))))))
+          (values max-err specials max-err-pt max-err-ex)
+          (if (and (ordinary-float? (caar errors)) (< (caar errors) 1.0))
+              (if (> max-err (caar errors))
+                  (loop max-err specials (cdr errors) max-err-pt max-err-ex)
+                  (loop (caar errors) specials (cdr errors) (cadar errors) (cddar errors)))
+              (loop max-err (+ specials 1) (cdr errors) max-err-pt max-err-ex))))))
 
-;; Our main synthesis tool generates alternatives to an expression uses recursive rewrite tools
+;; Now we define our rewrite rules.
 
 (define-syntax (match-all stx)
+  ; Like (match), but returns a list of all possible rewrites
   (syntax-case stx ()
     [(_ value [pattern expansion] ...)
      #'(append
-        (match value [pattern (list expansion)] [_ '()]) ...)]))
+        (match value
+          [pattern (list expansion)]
+          [_ '()])
+        ...)]))
+
+(define (rewrite-expression vars expr)
+  ; (List symbol) → expr → (List expr)
+  (match-all expr
+    ; Associativity
+    [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
+    [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
+    [`(- (+ ,a ,b) ,c) `(+ ,a (- ,b ,c))]
+    [`(+ ,a (- ,b ,c)) `(- (+ ,a ,b) ,c)]
+    ; Distributivity
+    [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
+    [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
+    ; Commutativity
+    [`(+ ,a ,b) `(+ ,b ,a)]
+    ; Identity
+    [`(- ,a ,a) 0]
+    [`(+ ,a 0) a]
+    ; Square root
+    [`(square (sqrt ,x)) x]
+    [x `(square (sqrt ,x))]
+    ; Exponentials
+    [x `(exp (log ,x))]
+    [x `(log (exp ,x))]
+    [`(exp (log ,x)) x]
+    [`(log (exp ,x)) x]
+    ; Multiplying by x / x
+    [`(+ ,a ,b)
+     `(/ (- (square ,a) (square ,b)) (- ,a ,b))]
+    [`(- ,a ,b)
+     `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
+
+(define (rewrite-tree vars expr)
+  "Return a list of expressions,
+   each of which is `expr` but with one subexpression
+   rewritten according to (rewrite-rules)."
+
+  (define (recursively-apply->list f expr)
+    ; (expr → List expr) → expr → (List expr)
+    (program-induct expr
+      #:constant
+      (lambda (c) (cons c (f c)))
+      #:variable
+      (lambda (x) (cons x (f x)))
+      #:toplevel
+      (lambda (prog)
+        (for/list ([alt (program-body prog)])
+          `(lambda ,(program-variables prog) ,alt)))
+      #:primitive
+      (lambda (expr)
+        (let ([oldexpr (cons (car expr) (map car (cdr expr)))])
+          (cons oldexpr
+                (append (f oldexpr)
+                        (map (curry cons (car expr))
+                             (list-join (cdr expr)))))))))
+
+  (define (list-join x)
+    ; This is basically completely trivial and needs no explanation.
+    (apply append
+           (let loop ([alts (car x)] [rest (cdr x)]
+                      [prefix '()] [output '()])
+             (let ([revprefix (reverse prefix)] [restcar (map car rest)])
+               (let ([ans (for/list ([alt (cdr alts)])
+                            (append revprefix (cons alt restcar)))])
+                 (if (null? rest)
+                     (cons ans output)
+                     (loop (car rest) (cdr rest)
+                           (cons (car alts) prefix)
+                           (cons ans output))))))))
+
+  ; Now we can recursively rewrite the expression
+  
+  (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
 
 ;; Now to implement a search tool to find the best expression
+;;
+;; This is an A* search internally.
 
 (define (heuristic-search start generator chooser make-alternative iterations)
   "Search for a better version of start,
@@ -260,30 +389,21 @@
    (alternative-specials alt)
    (alternative-cost alt)))
 
-(define (list< list1 list2)
-  "Compares lists lexicographically."
-  ; Who picked this terrible API design of returning '< or '>
-  (eq? (datum-order list1 list2) '<))
-
 (define (choose-min-error alts)
   "Choose the alternative with the least error"
   ; Invariant: alts is nonempty
   (let ([alts* (sort alts #:key alternative-score list<)])
     (values (car alts*) (cdr alts*))))
 
-(define (prepare-points prog)
-  (let* ([pts (make-points (length (program-variables prog)))]
-         [exacts (make-exacts prog pts)]
-         [pts* (filter-points pts exacts)]
-         [exacts* (filter-exacts pts exacts)])
-    (values pts* exacts*)))
+;; Now that we've defined the intermediate representation, we can
+;; run the A* search with the alternatives structures.
 
 (define (heuristic-execute prog iterations)
   (let*-values ([(pts exacts) (prepare-points prog)]
                 [(evaluate) (curryr max-error pts exacts)]
                 [(make-alternative)
                  (λ (prog)
-                    (let-values ([(err specials) (evaluate prog)])
+                    (let-values ([(err specials pt ex) (evaluate prog)])
                       (alternative prog err specials (program-cost prog))))]
                 [(generate) (λ (prog)
                              (let ([body (program-body prog)]
@@ -292,91 +412,6 @@
                                     (remove-duplicates
                                      (rewrite-tree vars body)))))])
     (heuristic-search prog generate choose-min-error make-alternative iterations)))
-
-(define (explore prog iterations)
-  (let-values ([(options done) (heuristic-execute prog iterations)])
-    (sort (append options done) #:key alternative-score list<)))
-
-(define (improve prog iterations)
-  (print-alternatives (take-up-to (explore prog iterations) 5)))
-
-(define (print-alternatives alts)
-  (for ([alt alts])
-    (display "; Alternative with score ")
-    (display (alternative-score alt))
-    (newline)
-    (pretty-print (alternative-program alt))))
-
-(define (plot-alternatives prog iterations)
-  (let* ([alts (explore prog iterations)]
-         [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
-         [rands (for/list ([i (range (length logs))]) (random))])
-    (display "Found program with score ")
-    (display (alternative-score (car alts)))
-    (newline)
-    (pretty-print (alternative-program (car alts)))
-    (parameterize ([plot-width 800] [plot-height 100]
-                   [plot-x-label #f] [plot-y-label #f])
-      (plot (points (map vector logs rands))))))
-
-;; Now we define our rewrite rules.
-
-(define (rewrite-expression vars expr)
-  ; (List symbol) → expr → (List expr)
-  (match-all expr
-    ; Associativity
-    [`(+ ,a (+ ,b ,c)) `(+ (+ ,a ,b) ,c)]
-    [`(+ (+ ,a ,b) ,c) `(+ ,a (+ ,b ,c))]
-    [`(- (+ ,a ,b) ,c) `(+ ,a (- ,b ,c))]
-    [`(+ ,a (- ,b ,c)) `(- (+ ,a ,b) ,c)]
-    ; Distributivity
-    [`(* ,a (+ ,b ,c)) `(+ (* ,a ,b) (* ,a ,c))]
-    [`(+ (* ,a ,b) (* ,a ,c)) `(* ,a (+ ,b ,c))]
-    ; Commutativity
-    [`(+ ,a ,b) `(+ ,b ,a)]
-    ; Identity
-    [`(- ,a ,a) 0]
-    [`(+ ,a 0) a]
-    ; Square root
-    [`(square (sqrt ,x)) x]
-    [x `(square (sqrt ,x))]
-    ; Exponentials
-    [x `(exp (log ,x))]
-    [x `(log (exp ,x))]
-    [`(exp (log ,x)) x]
-    [`(log (exp ,x)) x]
-    ; Multiplying by x / x
-    [`(+ ,a ,b)
-     `(/ (- (square ,a) (square ,b)) (- ,a ,b))]
-    [`(- ,a ,b)
-     `(/ (- (square ,a) (square ,b)) (+ ,a ,b))]))
-
-(define (rewrite-tree vars expr) ; (List symbol) → expr → (List expr)
-  (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
-
-(define (recursively-apply->list f expr) ; (expr → List expr) → expr → (List expr)
-  (program-induct expr
-   #:constant (lambda (c) (cons c (f c)))
-   #:variable (lambda (x) (cons x (f x)))
-   #:toplevel (lambda (prog)
-                (for/list ([alt (program-body prog)])
-                  `(lambda ,(program-variables prog) ,alt)))
-   #:primitive (lambda (expr)
-                 (let ([oldexpr (cons (car expr) (map car (cdr expr)))])
-                   (cons oldexpr
-                         (append (f oldexpr)
-                                 (map (curry cons (car expr)) (list-join (cdr expr)))))))))
-
-(define (list-join x) ; (List (List x)) → (List x)
-  ; This is basically completely trivial and needs no explanation.
-  (apply append
-         (let loop ([alts (car x)] [rest (cdr x)] [prefix '()] [output '()])
-           (let ([revprefix (reverse prefix)] [restcar (map car rest)])
-             (let ([ans (for/list ([alt (cdr alts)])
-                          (append revprefix (cons alt restcar)))])
-               (if (null? rest)
-                   (cons ans output)
-                   (loop (car rest) (cdr rest) (cons (car alts) prefix) (cons ans output))))))))
 
 (struct annotation (expr exact-value approx-value local-error total-error) #:transparent)
 
@@ -456,6 +491,76 @@
           (for/list ([opt middle])
             (append front (cons opt tail))))))
 
-  (recursor prog loc))
+  (if loc
+      (recursor prog loc)
+      (list prog)))
+
+(define (improve-by-analysis prog iters points exacts)
+  (define (pick-input prog)
+    (let-values ([(err specials pt ex) (max-error (alternative-program prog) points exacts)])
+      (cons pt ex)))
+  
+  (define (step prog input)
+    (let ([annot (analyze-expressions (alternative-program prog) input)])
+      (map make-alternative (rewrite-at-location (alternative-program prog)
+                                                 (find-most-local-error annot)))))
+  
+  (define (make-alternative prog)
+    (let-values ([(err specials pt ex) (max-error prog points exacts)])
+      (alternative prog err specials (program-cost prog))))
+
+  (define start-prog (make-alternative prog))
+
+  (let loop ([good-prog start-prog] [test-prog start-prog] [left iters]
+             [pt&ex (pick-input start-prog)])
+    (if (= left 0)
+        good-prog
+        (let* ([alts (step test-prog (car pt&ex))]
+               [alts* (sort alts #:key alternative-score list<)]
+               [new-prog (car alts*)])
+          (cond
+           [(null? alts*)
+            good-prog]
+           [(< (relative-error (cdr pt&ex) (eval-prog (alternative-program new-prog) mode:fl))
+               (relative-error (cdr pt&ex) (eval-prog (alternative-program good-prog) mode:fl)))
+            (loop new-prog new-prog iters (pick-input new-prog))]
+           [#t
+            (loop good-prog new-prog (- left 1) pt&ex)])))))
+
+;; For usage at the REPL, we define a few helper functions.
+;;
+;; PROGRAM-A and PROGRAM-B are two example programs to test.
+;; (explore prog iters) returns a list of alternatives found
+;; (improve prog iters) prints the found alternatives
+
+(define program-a '(λ (x) (/ (- (exp x) 1) x)))
+(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
+
+(define (explore prog iterations)
+  (let-values ([(options done) (heuristic-execute prog iterations)])
+    (sort (append options done) #:key alternative-score list<)))
+
+(define (print-alternatives alts)
+  (for ([alt alts])
+    (display "; Alternative with score ")
+    (display (alternative-score alt))
+    (newline)
+    (pretty-print (alternative-program alt))))
+
+(define (improve prog iterations)
+  (print-alternatives (take-up-to (explore prog iterations) 5)))
+
+(define (plot-alternatives prog iterations)
+  "Return a spectrum plot of the alternatives found."
+  (let* ([alts (explore prog iterations)]
+         [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
+         [rands (for/list ([i (range (length logs))]) (random))])
+    (display "Found program with score ")
+    (display (alternative-score (car alts)))
+    (newline)
+    (pretty-print (alternative-program (car alts)))
+    (parameterize ([plot-width 800] [plot-height 100]
+                   [plot-x-label #f] [plot-y-label #f])
+      (plot (points (map vector logs rands))))))
 
 (provide (all-defined-out))

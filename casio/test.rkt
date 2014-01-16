@@ -25,8 +25,6 @@
    [#t
     expr]))
 
-
-
 (define (bench-results name inerr outerr)
   (printf "~a orders: ~s\n"
           (/ (round (* (- (/ (log (/ outerr (max inerr 1e-16)))
