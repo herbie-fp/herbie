@@ -68,7 +68,7 @@
 
     ; Munge the table above into a hash table.
     (let ([hash (make-hash)])
-      (for ([rec operations])
+      (for ([rec table])
         (hash-set! hash (car rec) (cdr rec)))
       hash)))
 
