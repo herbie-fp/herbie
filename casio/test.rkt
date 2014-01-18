@@ -36,26 +36,25 @@
 (define-syntax (casio-test stx)
   (syntax-case stx ()
     [(_ vars name input output)
-     #`(let*-values ([(prog) `(lambda vars ,(unfold-let 'input))]
-                     [(done opts) (heuristic-execute prog 10)]
-                     [(alts) (map alternative-program done)])
-	 (if (member 'output (map program-body alts))
+     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
+              [opts (improve prog 10)])
+	 (if (member 'output (map program-body opts))
 	     (exit 0)
 	     (begin
 	       (printf "failure on ~a\ninput: ~a\ndesired output: ~a\nactual output: ~a\n"
-		       'name 'input 'output (map program-body alts))
+		       'name 'input 'output (map program-body opts))
 	       (exit 1))))]))
 
-(define-syntax (casio-bench stx)
-  (syntax-case stx ()
-    [(_ vars name input)
-     #`(let* ([pts (make-points (length 'vars))]
-              [prog `(lambda vars ,(unfold-let 'input))]
-              [exacts (make-exacts prog pts)])
-         (let-values ([(done opts) (heuristic-execute prog 5)]
-                      [(prog) (alternative-program (car (sort done #:key alternative-score list<)))]
-                      [(prog-score prog-specials) (max-error prog pts exacts)]
-                      [(goal-score goal-specials) (max-error output pts exacts)])
-           (bench-results name prog-score goal-score)))]))
+;(define-syntax (casio-bench stx)
+;  (syntax-case stx ()
+;    [(_ vars name input)
+;     #`(let* ([pts (make-points (length 'vars))]
+;              [prog `(lambda vars ,(unfold-let 'input))]
+;              [exacts (make-exacts prog pts)])
+;         (let-values ([(done opts) (improve prog 5)]
+;                      [(prog) (car (sort done #:key alternative-score list<))]
+;                      [(prog-score prog-specials) (max-error prog pts exacts)]
+;                      [(goal-score goal-specials) (max-error output pts exacts)])
+;           (bench-results name prog-score goal-score)))]))
 
 (provide casio-test casio-bench cotan)

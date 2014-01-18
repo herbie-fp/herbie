@@ -346,37 +346,6 @@
 
   (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
 
-;; Now to implement a search tool to find the best expression
-;;
-;; This is an A* search internally.
-
-(define (heuristic-search start generator sorter make-alternative iterations)
-  "Search for a better version of start,
-   where generator creates new versions of a program to try,
-   chooser picks a candidate to generate versions from,
-   and make-alternative generates converts programs into alternatives."
-
-  (define (step options done)
-    (let* ([parent (car options)]
-           [rest (cdr options)]
-           [children (generator (alternative-program parent))])
-      (values
-       (sorter
-        (append ; This is never precisely sorted, but it is always close
-         rest
-         (filter (λ (x) (not (or (member x rest) (member x done))))
-                 (map make-alternative children))))
-       (cons parent done))))
-
-  (let loop ([options (list (make-alternative start))]
-             [done '()])
-    (if (or (null? options)
-            (>= (length done) iterations))
-        (values options done)
-        (let-values ([(options* done*)
-                      (step options done)])
-          (loop options* done*)))))
-
 ;; We want to weigh our heuristic search by the program cost.
 ;; Simplest would be to simply compute the size of the tree as a
 ;; whole.  but this is inaccurate if the program has many common
@@ -435,26 +404,49 @@
   (eq? (list-ref (errors-compare (alternative-errors alt1) (alternative-errors alt2)) idx) '<))
 
 ;; Now that we've defined the intermediate representation, we can
-;; run the A* search with the alternatives structures.
+;; searhc to find the best expression
+;;
+;; This is an A* search internally.
 
-(define (heuristic-execute prog iterations)
-  (define-values (pts exacts) (prepare-points prog))
+(define (brute-force-search prog iters points exacts)
+  "Brute-force search for a better version of `prog`,
+   giving up after `iters` iterations without progress"
 
   (define (make-alternative prog)
-    (let ([errs (errors prog pts exacts)])
-      (alternative prog errs (program-cost prog))))
+    (alternative prog (errors prog points exacts) (program-cost prog)))
 
-  (define (generate-alternative prog)
+  (define (generate-alternatives prog)
     (let ([body (program-body prog)]
           [vars (program-variables prog)])
-      (map (λ (body*) `(λ ,vars ,body*))
-           (remove-duplicates
-            (rewrite-tree vars body)))))
+      (map make-alternative
+           (map (λ (body*) `(λ ,vars ,body*))
+                (remove-duplicates
+                 (rewrite-tree vars body))))))
 
-  (define (sort-alternatives alts)
-    (sort alts alternative<?))
+  (define (step options done)
+    (define (duplicate? alt)
+      (or (member alt options) (member alt done)))
+    
+    (let* ([parent (car options)]
+           [rest (cdr options)]
+           [children (generate-alternatives (alternative-program parent))])
+      (values
+       (sort (append rest (filter (negate duplicate?) children)) alternative<?)
+       (cons parent done))))
 
-  (heuristic-search prog generate-alternative sort-alternatives make-alternative iterations))
+  (let loop ([options (list (make-alternative prog))]
+             [done '()])
+    (if (or (null? options)
+            (>= (length done) iters))
+        done
+        (let-values ([(options* done*)
+                      (step options done)])
+          (loop options* done*)))))
+
+(define (improve prog iterations)
+  (define-values (points exacts) (prepare-points prog))
+
+  (map alternative-program (sort (brute-force-search prog iterations points exacts) alternative<?)))
 
 (struct annotation (expr exact-value approx-value local-error total-error) #:transparent)
 
@@ -582,16 +574,12 @@
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
-(define (explore prog iterations)
-  (let-values ([(options done) (heuristic-execute prog iterations)])
-    (sort (append options done) alternative<?)))
-
 (define (print-alternatives alts)
   (for ([alt alts])
     (pretty-print (alternative-program alt))))
 
-(define (improve prog iterations)
-  (print-alternatives (take-up-to (explore prog iterations) 5)))
+(define (print-improve prog iterations)
+  (print-alternatives (take-up-to (improve prog iterations) 5)))
 
 ;(define (plot-alternatives prog iterations)
 ;  "Return a spectrum plot of the alternatives found."
