@@ -133,6 +133,35 @@
 
   (inductor prog))
 
+(define (location-induct
+	 prog
+	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
+	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
+	 #:symbol [symbol-table (λ (sym location) sym)])
+  (define (inductor prog location)
+    (cond
+     [(real? prog) (constant prog location)]
+     [(symbol? prog) (variable prog location)]
+     [(and (list? prog) (memq (car prog) '(λ lambda)))
+      (let ([body* (inductor (program-body prog) location)])
+	(toplevel `(λ ,(program-variables prog) ,body*) location))]
+     [(list? prog)
+      (primitive (cons (symbol-table (car prog) (cons 'car location))
+		       (location-map (λ (prog loc)
+					(inductor prog (append (cons 'car (cons 'cdr loc)) location)))
+				     (cdr prog)))
+		 location)]))
+  (inductor prog '()))
+
+(define (location-map fun list)
+  (letrec ([loc-map (λ (list fun acc location)
+		       (if (null? list)
+			   acc
+			   (loc-map (cdr list) fun 
+				    (cons (fun (car list) location) acc)
+				    (cons 'cdr location))))])
+    (reverse (loc-map list fun '() '()))))
+
 (define-namespace-anchor eval-prog-ns-anchor)
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
 
@@ -346,6 +375,67 @@
 
   (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
 
+(define (rewrite-tree-changes vars expr)
+  "Returns a list of expressions consed with change objects,
+   each expression is `expr` but with one subexpression
+   rewritten according to (rewrite-rules), and the change objects
+   represent the rewrite made."
+
+  (define (attach-changes original list location)
+    "Loops across a given `list` of single-level alternatives to a
+     given subexpression, and conses them with a change object.
+     The change object assumes that the expression was originally
+     `original`, and that it is located at `location`"
+    (map (λ (item)
+	    (cons item (change (reverse location) (cons original item))))
+	 list))
+
+  (define (recursively-apply->list f expr)
+    "Takes an expression and a function which generates alternatives
+     for subexpressions, and returns a list of all the possible
+     [alternative expressions with one thing change, consed with a
+     change object to represent the change]"
+    (location-induct expr
+		     #:constant
+		     (λ (c l) (cons c (attach-changes c (f c) l)))
+		     #:variable
+		     (λ (x l) (cons x (attach-changes x (f x) l)))
+		     #:toplevel
+		     (λ (prog l)
+			(for/list ([alt (program-body prog)])
+			  `((λ ,(program-variables prog) ,(car alt)) . ,(cdr alt))))
+		     #:primitive
+		     (λ (expr l)
+			(let ([oldexpr (cons (car expr) (map car (cdr expr)))])
+			  (cons oldexpr
+				(append (map (λ (item)
+						(cons item (change (reverse l) (cons oldexpr item))))
+					     (f oldexpr)) ;The alts involving changes on the whole expression
+					(map (λ (e) (cons (cons (car expr) (car e)) (cdr e)))
+					     (list-join (cdr expr))))))))) ;The alts involving changes on subexpressions
+  (define (list-join x)
+    "Takes a list of lists, and returns a list of alternatives.
+     This assumes that each list is composed of first an original, 
+     then a bunch of alternatives to the original. The alternatives
+     generated are then each a list of one item from each of the
+     original lists, where one of them is an alternative, and the
+     rest are originals."
+    (apply append
+	   (let loop ([alts (car x)] [rest (cdr x)]
+		      [prefix '()] [output '()])
+	     (let ([revprefix (reverse prefix)] [restcar (map car rest)])
+	       (let ([ans (for/list ([alt (cdr alts)])
+			    (cons (append revprefix (cons (car alt) restcar)) (cdr alt)))])
+		 (if (null? rest)
+		     (cons ans output)
+		     (loop (car rest) (cdr rest)
+			   (cons (car alts) prefix)
+			   (cons ans output))))))))
+
+  ;;Now, recursively rewrite
+
+  (cdr (recursively-apply->list (curry rewrite-expression vars) expr)))
+
 ;; We want to weigh our heuristic search by the program cost.
 ;; Simplest would be to simply compute the size of the tree as a
 ;; whole.  but this is inaccurate if the program has many common
@@ -378,7 +468,8 @@
 ;; To use this heuristic search mechanism, we'll need to implement a
 ;; few helper functions
 
-(struct alternative (program errors cost) #:transparent)
+(struct alternative (program errors cost changes) #:transparent)
+(struct change (location rewrite-rule) #:transparent)
 
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives.
@@ -412,29 +503,38 @@
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
-  (define (make-alternative prog)
-    (alternative prog (errors prog points exacts) (program-cost prog)))
+  (define (make-alternative prog change parent)
+    (alternative prog (errors prog points exacts) (program-cost prog) (cons change (alternative-changes parent))))
+  (define (init-alternative prog)
+    "Create the initial alternative that doesn't have a parent"
+    (alternative prog (errors prog points exacts) (program-cost prog) '()))
 
-  (define (generate-alternatives prog)
-    (let ([body (program-body prog)]
-          [vars (program-variables prog)])
-      (map make-alternative
-           (map (λ (body*) `(λ ,vars ,body*))
+  (define (generate-alternatives alternative)
+    (let ([body (program-body (alternative-program alternative))]
+          [vars (program-variables (alternative-program alternative))])
+      (map (λ (prog-change) (make-alternative (car prog-change) (cdr prog-change) alternative))
+           (map (λ (body*-change) `((λ ,vars ,(car body*-change)) . ,(cdr body*-change)))
                 (remove-duplicates
-                 (rewrite-tree vars body))))))
+                 (rewrite-tree-changes vars body)
+		 )))))
 
   (define (step options done)
     (define (duplicate? alt)
-      (or (member alt options) (member alt done)))
+      (or (memf (λ (option) (equal? (program-body (alternative-program alt))
+				    (program-body (alternative-program option))))
+		options)
+	  (memf (λ (done-item) (equal? (program-body (alternative-program alt))
+				       (program-body (alternative-program done-item))))
+		done)))
     
     (let* ([parent (car options)]
            [rest (cdr options)]
-           [children (generate-alternatives (alternative-program parent))])
+           [children (generate-alternatives parent)])
       (values
        (sort (append rest (filter (negate duplicate?) children)) alternative<?)
        (cons parent done))))
 
-  (let loop ([options (list (make-alternative prog))]
+  (let loop ([options (list (init-alternative prog))]
              [done '()])
     (if (or (null? options)
             (>= (length done) iters))
@@ -542,7 +642,7 @@
 
   (define (make-alternative prog)
     (let ([errs (errors prog points exacts)])
-      (alternative prog errs (program-cost prog))))
+      (alternative prog errs (program-cost prog) '())))
 
   (define start-prog (make-alternative prog))
 
