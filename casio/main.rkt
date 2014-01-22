@@ -387,7 +387,7 @@
      The change object assumes that the expression was originally
      `original`, and that it is located at `location`"
     (map (λ (item)
-	    (cons item (change (reverse location) (cons original item))))
+	    (cons item (change (reverse location) (cons original item) '() '() '() '())))
 	 list))
 
   (define (recursively-apply->list f expr)
@@ -409,7 +409,7 @@
 			(let ([oldexpr (cons (car expr) (map car (cdr expr)))])
 			  (cons oldexpr
 				(append (map (λ (item)
-						(cons item (change (reverse l) (cons oldexpr item))))
+						(cons item (change (reverse l) (cons oldexpr item) '() '() '() '())))
 					     (f oldexpr)) ;The alts involving changes on the whole expression
 					(map (λ (e) (cons (cons (car expr) (car e)) (cdr e)))
 					     (list-join (cdr expr))))))))) ;The alts involving changes on subexpressions
@@ -469,7 +469,7 @@
 ;; few helper functions
 
 (struct alternative (program errors cost changes) #:transparent)
-(struct change (location rewrite-rule) #:transparent)
+(struct change (location rewrite preerrors precost posterrors postcost) #:transparent)
 
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives.
@@ -503,8 +503,17 @@
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
-  (define (make-alternative prog change parent)
-    (alternative prog (errors prog points exacts) (program-cost prog) (cons change (alternative-changes parent))))
+  (define (make-alternative prog chng parent)
+    (let ([parent-cost (alternative-cost parent)]
+	  [parent-errors (alternative-errors parent)]
+	  [child-cost (program-cost prog)]
+	  [child-errors (errors prog points exacts)])
+      (alternative prog child-errors child-cost (cons (change (change-location chng)
+							      (change-rewrite chng)
+							      parent-errors parent-cost
+							      child-errors child-cost)
+						      (alternative-changes parent)))))
+
   (define (init-alternative prog)
     "Create the initial alternative that doesn't have a parent"
     (alternative prog (errors prog points exacts) (program-cost prog) '()))
@@ -514,8 +523,8 @@
           [vars (program-variables (alternative-program alternative))])
       (map (λ (prog-change) (make-alternative (car prog-change) (cdr prog-change) alternative))
            (map (λ (body*-change) `((λ ,vars ,(car body*-change)) . ,(cdr body*-change)))
-                (remove-duplicates
-                 (rewrite-tree-changes vars body)
+		(remove-duplicates
+		 (rewrite-tree-changes vars body)
 		 )))))
 
   (define (step options done)
