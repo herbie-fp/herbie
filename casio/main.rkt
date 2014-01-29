@@ -537,11 +537,14 @@
 		done)))
     
     (let* ([parent (car options)]
+	   [parent-stripped (if (green? (car (alternative-changes parent)))
+				(remove-red parent)
+				parent)]
            [rest (cdr options)]
-           [children (generate-alternatives parent)])
+           [children (generate-alternatives parent-stripped)])
       (values
        (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent done))))
+       (cons parent-stripped done))))
 
   (let loop ([options (list (init-alternative prog))]
              [done '()])
@@ -551,6 +554,15 @@
         (let-values ([(options* done*)
                       (step options done)])
           (loop options* done*)))))
+
+(define (error-sum errors) (foldl (λ (x y) (+ x y)) 0 errors))
+(define green-threshold 50)
+(define (green? change)
+  (< green-threshold (- (error-sum (change-posterror change))
+			(error-sum (change-preerror change)))))
+
+(define (remove-red alternative)
+  alternative) ;;Eventually this should return an alternative with red changes undone.
 
 (define (improve prog iterations)
   (define-values (points exacts) (prepare-points prog))
