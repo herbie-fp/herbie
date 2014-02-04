@@ -68,3 +68,14 @@
    [#t (error "pattern-substitute: Confused by pattern term" pattern)]))
 
 ; Now for rules.
+
+(struct rule (name input output) #:transparent)
+
+(define (rule-apply rule expr)
+  (let ([bindings (pattern-match (rule-input rule) expr)])
+    (if bindings
+        (list (pattern-substitute (rule-output rule) bindings) rule bindings)
+        #f)))
+
+(define (rule-apply-force-destructs rule expr)
+  (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
