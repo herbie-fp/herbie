@@ -54,3 +54,17 @@
               "Don't ask me, I don't know!"
               pattern expr))]
    [#t (fail "pattern-match: Confused by pattern term" pattern)]))
+
+(define (pattern-substitute pattern bindings)
+  ; pattern binding -> expr
+  (cond
+   [(number? pattern) pattern]
+   [(symbol? pattern)
+    (cdr (assoc pattern bindings))]
+   [(list? pattern)
+    (cons (car pattern)
+          (for/list ([pat (cdr pattern)])
+            (pattern-substitute pat bindings)))]
+   [#t (error "pattern-substitute: Confused by pattern term" pattern)]))
+
+; Now for rules.
