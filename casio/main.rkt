@@ -537,7 +537,7 @@
 		done)))
     
     (let* ([parent (car options)]
-	   [parent-stripped (if (green? (car (alternative-changes parent)))
+	   [parent-stripped (if (green-tipped? parent)
 				(remove-red parent)
 				parent)]
            [rest (cdr options)]
@@ -557,9 +557,13 @@
 
 (define (error-sum errors) (foldl (λ (x y) (+ x y)) 0 errors))
 (define green-threshold 50)
+(define (green-tipped? alternative)
+  (let ((changes (alternative-changes alternative)))
+    (and (pair? changes)
+	 (green? (car changes)))))
 (define (green? change)
-  (< green-threshold (- (error-sum (change-posterror change))
-			(error-sum (change-preerror change)))))
+  (< green-threshold (- (error-sum (change-posterrors change))
+			(error-sum (change-preerrors change)))))
 
 (define (remove-red alternative)
   alternative) ;;Eventually this should return an alternative with red changes undone.
