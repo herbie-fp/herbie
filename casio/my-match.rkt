@@ -1,4 +1,6 @@
 #lang racket
+(require casio/common)
+(require casio/programs)
 
 ;; Our own pattern matcher.
 ;
@@ -69,7 +71,19 @@
 
 ; Now for rules.
 
-(struct rule (name input output) #:transparent)
+(struct rule (name input output)
+        #:methods gen:custom-write
+        [(define (write-proc rule port mode)
+           (display "#<rule " port)
+           (write (rule-name rule) port)
+           (display ">" port))])
+
+(define *rules* '())
+
+(define-syntax (define-rule stx)
+  (syntax-case stx ()
+    [(_ name input output)
+     #'(set! *rules* (cons (rule 'name 'input 'output) *rules*))]))
 
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
@@ -80,41 +94,53 @@
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
 
+(struct change (name location bindings) #:transparent)
+
+(define (rewrite-expression expr #:destruct [destruct #f])
+  (filter identity
+          (for/list ([rule *rules*])
+            ((if destruct rule-apply-force-destructs rule-apply) rule expr))))
+
+(define (rewrite-tree expr)
+  (reap [sow]
+    (let ([try-rewrites
+           (λ (expr loc)
+              (for ([opt (rewrite-expression expr)])
+                (match opt
+                  [`(,result ,rule ,bindings)
+                   (sow (change rule loc bindings))]))
+              expr)])
+      (location-induct expr
+        #:constant try-rewrites #:variable try-rewrites #:primitive try-rewrites))))
+
 ; Now we define some rules
 
-(define *rules* '())
-
-(define-syntax (define-rule stx)
-  (syntax-case stx ()
-    [(_ name input output)
-     #'(set! *rules* (cons (rule 'name 'input 'output) *rules))]))
-
 ; Associativity
-(define-rule associate-+-lft   (+ a (+ b c))         (+ (+ a b) c))
-(define-rule associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c)))
-(define-rule associate---lft   (+ a (- b c))         (- (+ a b) c))
-(define-rule associate---rgt   (- (+ a b) c)         (+ a (- b c)))
+(define-rule   associate-+-lft   (+ a (+ b c))         (+ (+ a b) c))
+(define-rule   associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c)))
+(define-rule   associate---lft   (+ a (- b c))         (- (+ a b) c))
+(define-rule   associate---rgt   (- (+ a b) c)         (+ a (- b c)))
 ; Distributivity
-(define-rule distribute-in     (* a (+ b c))         (+ (* a b) (* a c)))
-(define-rule distribute-out    (+ (* a b) (* a c))   (* a (+ b c)))
+(define-rule   distribute-in     (* a (+ b c))         (+ (* a b) (* a c)))
+(define-rule   distribute-out    (+ (* a b) (* a c))   (* a (+ b c)))
 ; Commutativity
-(define-rule +-commutative     (+ a b)               (+ b a))
-(define-rule *-commutative     (* a b)               (* b a))
+(define-rule   +-commutative     (+ a b)               (+ b a))
+(define-rule   *-commutative     (* a b)               (* b a))
 ; Identity
-(define-rule +-identity        (+ a 0)               a)
-(define-rule +-inverses        (- a a)               0)
-(define-rule *-identity        (* a 1)               a)
-(define-rule *-inverses        (/ a a)               1)
-; Square root
-(define-rule add-square-sqrt   x                     (square (sqrt x)))
-(define-rule add-sqrt-square   x                     (sqrt (square x)))
-(define-rule rem-square-sqrt   (square (sqrt x))     x)
-(define-rule rem-sqrt-square   (sqrt (square x))     x)
+(define-rule   +-identity        (+ a 0)               a)
+(define-rule   +-inverses        (- a a)               0)
+(define-rule   *-identity        (* a 1)               a)
+(define-rule   *-inverses        (/ a a)               1)
+; Square root  
+(define-rule   add-square-sqrt   x                     (square (sqrt x)))
+(define-rule   add-sqrt-square   x                     (sqrt (square x)))
+(define-rule   rem-square-sqrt   (square (sqrt x))     x)
+(define-rule   rem-sqrt-square   (sqrt (square x))     x)
 ; Exponentials
-(define-rule add-exp-log       x                     (exp (log x)))
-(define-rule add-log-exp       x                     (log (exp x)))
-(define-rule rem-exp-log       (exp (log x))         x)
-(define-rule rem-log-exp       (log (exp x))         x)
+(define-rule   add-exp-log       x                     (exp (log x)))
+(define-rule   add-log-exp       x                     (log (exp x)))
+(define-rule   rem-exp-log       (exp (log x))         x)
+(define-rule   rem-log-exp       (log (exp x))         x)
 ; Multiplying by x / x
-(define-rule flip-+            (+ a b)               (/ (- (square a) (square b)) (- a b)))
-(define-rule flip--            (- a b)               (/ (- (square a) (square b)) (+ a b)))
+(define-rule   flip-+            (+ a b)               (/ (- (square a) (square b)) (- a b)))
+(define-rule   flip--            (- a b)               (/ (- (square a) (square b)) (+ a b)))
