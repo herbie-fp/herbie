@@ -9,4 +9,13 @@
          body ...
          (reverse store))]))
 
-(provide reap)
+(define (println . args)
+  (for ([val args])
+    (if (string? val)
+        (display val)
+        (print val)))
+  (newline)
+  (when (not (null? args))
+    (car args)))
+
+(provide reap println)

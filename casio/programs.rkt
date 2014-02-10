@@ -21,17 +21,17 @@
 	 #:symbol [symbol-table (λ (sym location) sym)])
   (define (inductor prog location)
     (cond
-     [(real? prog) (constant prog location)]
-     [(symbol? prog) (variable prog location)]
+     [(real? prog) (constant prog (reverse location))]
+     [(symbol? prog) (variable prog (reverse location))]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog) location)])
-	(toplevel `(λ ,(program-variables prog) ,body*) location))]
+	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
      [(list? prog)
-      (primitive (cons (symbol-table (car prog) (cons 'car location))
+      (primitive (cons (symbol-table (car prog) (reverse (cons 'car location)))
 		       (location-map (λ (prog loc)
 					(inductor prog (append (cons 'car (cons 'cdr loc)) location)))
 				     (cdr prog)))
-		 location)]))
+		 (reverse location))]))
   (inductor prog '()))
 
 (define (program-induct
@@ -46,4 +46,13 @@
     #:toplevel (ignore toplevel) #:constant (ignore constant) #:variable (ignore variable)
     #:primitive (ignore primitive) #:symbol (ignore symbol-table)))
 
-(provide program-body program-variables location-induct program-induct)
+(define (location-do loc prog f)
+  (cond
+   [(null? loc)
+    (f prog)]
+   [(eq? (car loc) 'car)
+    (cons (location-do (cdr loc) (car prog) f) (cdr prog))]
+   [(eq? (car loc) 'cdr)
+    (cons (car prog) (location-do (cdr loc) (cdr prog) f))]))
+
+(provide program-body program-variables location-induct program-induct location-do)

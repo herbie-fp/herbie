@@ -94,7 +94,7 @@
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
 
-(struct change (name location bindings) #:transparent)
+(struct change (rule location bindings) #:transparent)
 
 (define (rewrite-expression expr #:destruct [destruct #f])
   (filter identity
@@ -112,6 +112,13 @@
               expr)])
       (location-induct expr
         #:constant try-rewrites #:variable try-rewrites #:primitive try-rewrites))))
+
+(define (change-apply change prog)
+  (let ([vars (program-variables prog)] [body (program-body prog)])
+    (list 'lambda vars
+          (location-do (change-location change) body
+                       (λ (expr) (pattern-substitute (rule-output (change-rule change))
+                                                     (change-bindings change)))))))
 
 ; Now we define some rules
 
