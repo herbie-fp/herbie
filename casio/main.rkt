@@ -247,35 +247,33 @@
     (for/list ([point points] [exact exacts])
       (relative-error (fn point) exact))))
 
-(define errors-compare-cache (make-hash))
+(define errors-compare-cache (make-hasheq))
+
+(define (reasonable-error? x)
+  (not (or (= x 1.0) (infinite? x) (nan? x))))
 
 (define (errors-compare errors1 errors2)
+  (map (λ (x) (cond [(< x 0) '<] [(> x 0) '>] [#t '=]))
+       (errors-difference errors1 errors2)))
+
+(define (errors-difference errors1 errors2)
   (hash-ref!
-   (hash-ref! errors-compare-cache errors1 make-hash)
+   (hash-ref! errors-compare-cache errors1 make-hasheq)
    errors2
    (λ ()
       (for/list ([error1 errors1] [error2 errors2])
         (cond
-         [(and (ordinary-float? error1) (ordinary-float? error2))
-          (cond
-           [(< error1 error2) '<]
-           [(= error1 error2) '=]
-           [(> error1 error2) '>]
-           [#t (error "Cannot compare error1 and error2" error1 error2)])]
-         [(or (and (ordinary-float? error1) (not (ordinary-float? error2))))
-          '<]
-         [(or (and (not (ordinary-float? error1)) (ordinary-float? error2)))
-          '>]
-         [(and (infinite? error1) (infinite? error2))
-          '=]
-         [(and (infinite? error1) (nan? error2))
-          '<]
-         [(and (nan? error1) (infinite? error2))
-          '>]
-         [(and (nan? error1) (nan? error2))
-          '=]
-         [#t (error "Failed to classify error1 and error2" error1 error2)])))
-      ))
+         [(and (reasonable-error? error1) (reasonable-error? error2))
+          (if (and (= error1 0) (= error2 0))
+              0.0
+              (log (/ error1 error2)))]
+         [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
+          -inf.0]
+         [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
+          +inf.0]
+         [#t
+          0.0]
+         [#t (error "Failed to classify error1 and error2" error1 error2)])))))
 
 ;; Now we define our rewrite rules.
 
