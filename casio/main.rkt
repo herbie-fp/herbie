@@ -537,23 +537,26 @@
 		done)))
     
     (let* ([parent (car options)]
-	   [parent-stripped (if (green-tipped? parent)
-				(remove-red parent)
-				parent)]
            [rest (cdr options)]
-           [children (generate-alternatives parent-stripped)])
+           [children (generate-alternatives parent)])
       (values
-       (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent-stripped done))))
+       (append rest (filter (negate duplicate?) children))
+       (cons parent done))))
 
-  (let loop ([options (list (init-alternative prog))]
+  (let loop ([best-option (init-alternative prog)]
+	     [options '()]
              [done '()])
-    (if (or (null? options)
+    (if (or (null? (cons best-option options))
             (>= (length done) iters))
         (car (sort (append options done) alternative<?))
         (let-values ([(options* done*)
-                      (step options done)])
-          (loop options* done*)))))
+                      (step (cons best-option options) done)])
+	  (let* ([sorted-options* (sort (append options* done) alternative<?)]
+		 [best-option* (car sorted-options*)]
+		 [rest-options* (cdr sorted-options*)])
+	    (if (green-tipped? best-option*)
+		best-option*
+		(loop best-option* rest-options* done*)))))))
 
 (define (error-sum errors) (foldl (λ (x y) (+ x y)) 0 errors))
 (define green-threshold 50)
@@ -715,7 +718,7 @@
 	cur-alternative
 	(let ([cur-result ((car routes) prog max-iters points exacts)])
 	  (if (green-tipped? cur-result)
-	      (loop all-routes cur-result)
+	      (loop all-routes (remove-red cur-result))
 	      (loop (cdr routes) cur-alternative))))))
 
 ;(define (plot-alternatives prog iterations)
