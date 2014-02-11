@@ -550,7 +550,7 @@
              [done '()])
     (if (or (null? options)
             (>= (length done) iters))
-        done
+        (car (sort (append options done) alternative<?))
         (let-values ([(options* done*)
                       (step options done)])
           (loop options* done*)))))
@@ -705,6 +705,18 @@
 
 (define (print-improve prog iterations)
   (print-alternatives (take-up-to (improve prog iterations) 5)))
+
+(define (improve-program prog max-iters)
+  (define-values (points exacts) (prepare-points prog))
+  (define all-routes (list brute-force-search improve-by-analysis))
+  (let loop ([routes all-routes]
+	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
+    (if (null? routes)
+	cur-alternative
+	(let ([cur-result ((car routes) prog max-iters points exacts)])
+	  (if (green-tipped? cur-result)
+	      (loop all-routes cur-result)
+	      (loop (cdr routes) cur-alternative))))))
 
 ;(define (plot-alternatives prog iterations)
 ;  "Return a spectrum plot of the alternatives found."
