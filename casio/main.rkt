@@ -714,7 +714,7 @@
 
 (define (improve-program prog max-iters)
   (define-values (points exacts) (prepare-points prog))
-  (define all-routes (list improve-by-analysis brute-forces-search)) 
+  (define all-routes (list improve-by-analysis brute-force-search)) 
   (let loop ([routes all-routes]
 	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
     (if (null? routes)
