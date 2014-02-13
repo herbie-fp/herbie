@@ -663,12 +663,17 @@
 
   (define (step prog input)
     (let ([annot (analyze-expressions (alternative-program prog) input)])
-      (map make-alternative (rewrite-at-location (alternative-program prog)
+      (map (curry make-alternative prog) (rewrite-at-location (alternative-program prog)
                                                  (find-most-local-error annot)))))
 
-  (define (make-alternative prog)
-    (let ([errs (errors prog points exacts)])
-      (alternative prog errs (program-cost prog) '())))
+  (define (make-alternative parent prog)
+    (let ([parent-cost (alternative-cost parent)]
+	  [parent-errs (alternative-errors parent)]
+	  [child-cost (program-cost prog)]
+	  [child-errs (errors prog points exacts)])
+      (alternative prog child-errs child-cost
+		   (cons (change '() '() parent-errs parent-cost
+				 child-errs child-cost) (alternative-changes parent)))))
 
   (define start-prog alt)
 
@@ -709,7 +714,7 @@
 
 (define (improve-program prog max-iters)
   (define-values (points exacts) (prepare-points prog))
-  (define all-routes (list brute-force-search improve-by-analysis)) ;;This should be changed to be the other way around once improve-by-analysis is compatible
+  (define all-routes (list improve-by-analysis brute-forces-search)) 
   (let loop ([routes all-routes]
 	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
     (if (null? routes)
@@ -718,6 +723,18 @@
 	  (if (and (green-tipped? cur-result) (not (eq? cur-result cur-alternative)))
 	      (loop all-routes (remove-red cur-result))
 	      (loop (cdr routes) cur-alternative))))))
+
+(define (print-alt alt)
+  (pretty-print (alternative-program alt))
+  (println (alternative-errors alt))
+  (print (alternative-cost alt))
+  (for ([chng (alternative-changes alt)])
+    (println (change-location chng))
+    (println (change-rewrite chng))
+    (println (change-preerrors chng))
+    (print (change-precost chng))
+    (println (change-posterrors chng))
+    (print (change-postcost chng))))
 
 ;(define (plot-alternatives prog iterations)
 ;  "Return a spectrum plot of the alternatives found."
