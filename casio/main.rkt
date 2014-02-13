@@ -497,7 +497,7 @@
 ;;
 ;; This is an A* search internally.
 
-(define (brute-force-search prog iters points exacts)
+(define (brute-force-search alt iters points exacts)
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
@@ -541,7 +541,7 @@
        (append rest (filter (negate duplicate?) children))
        (cons parent done))))
 
-  (let loop ([best-option (init-alternative prog)]
+  (let loop ([best-option alt]
 	     [options '()]
              [done '()])
     (if (or (null? (cons best-option options))
@@ -656,7 +656,7 @@
       (recursor prog loc)
       (list prog)))
 
-(define (improve-by-analysis prog iters points exacts)
+(define (improve-by-analysis alt iters points exacts)
   (define (pick-input prog)
     (argmax cadr (filter (λ (x) (< (cadr x) 1))
                   (enumerate (alternative-errors prog) points exacts))))
@@ -670,12 +670,12 @@
     (let ([errs (errors prog points exacts)])
       (alternative prog errs (program-cost prog) '())))
 
-  (define start-prog (make-alternative prog))
+  (define start-prog alt)
 
   (let loop ([good-prog start-prog] [test-prog start-prog] [left iters]
              [input (pick-input start-prog)])
     (println "; Trying " (alternative-program test-prog) " at " (caddr input))
-    (if (= left 0)
+    (if (or (= left 0) (green-tipped? good-prog))
         good-prog
         (let* ([alts (step test-prog (caddr input))]
                [alts* (sort alts (curry alternative<-at? (car input)))]
@@ -714,8 +714,8 @@
 	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
     (if (null? routes)
 	cur-alternative
-	(let ([cur-result ((car routes) (alternative-program cur-alternative) max-iters points exacts)])
-	  (if (green-tipped? cur-result)
+	(let ([cur-result ((car routes) cur-alternative max-iters points exacts)])
+	  (if (and (green-tipped? cur-result) (not (eq? cur-result cur-alternative)))
 	      (loop all-routes (remove-red cur-result))
 	      (loop (cdr routes) cur-alternative))))))
 
@@ -728,7 +728,7 @@
 ;    (display (alternative-score (car alts)))
 ;    (newline)
 ;    (pretty-print (alternative-program (car alts)))
-;    (parameterize ([plot-width 800] [plot-height 100]
+;    (parameterize ([plotn-width 800] [plot-height 100]
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
