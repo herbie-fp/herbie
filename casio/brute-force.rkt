@@ -4,6 +4,7 @@
 (require casio/points)
 (require casio/programs)
 (require casio/alternative)
+(require casio/redgreen)
 
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives; return if incomparable.
@@ -39,21 +40,18 @@
       (memf (curry alt-program=? alt) (append done options)))
 
     (let* ([parent (car options)]
-	   [parent-stripped
-            (if (green? parent) (remove-red parent) parent)]
            [rest (cdr options)]
-           [children (generate-alternatives parent-stripped)])
+           [children (generate-alternatives parent)])
       (values
        (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent-stripped done))))
+       (cons parent done))))
 
   (let loop ([options (list alt)] [done '()])
     (if (or (null? options)
             (>= (length done) iters))
-        done
-        (let-values ([(options* done*) (step options done)])
-          (loop options* done*)))))
-
-(define (green? _) #f)
-
-(define (remove-red l) l)
+        #f ; Didn't find anything [:(]
+        (let-values ([(options* done*) (step options done)]
+                     [(last-step) done])
+          (if (green-tipped? last-step)
+              last-step
+              (loop options* done*))))))
