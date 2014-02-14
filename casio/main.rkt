@@ -499,7 +499,7 @@
 ;;
 ;; This is an A* search internally.
 
-(define (brute-force-search prog iters points exacts)
+(define (brute-force-search alt iters points exacts)
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
@@ -537,29 +537,36 @@
 		done)))
     
     (let* ([parent (car options)]
-	   [parent-stripped (if (green? (car (alternative-changes parent)))
-				(remove-red parent)
-				parent)]
            [rest (cdr options)]
-           [children (generate-alternatives parent-stripped)])
+           [children (generate-alternatives parent)])
       (values
-       (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent-stripped done))))
+       (append rest (filter (negate duplicate?) children))
+       (cons parent done))))
 
-  (let loop ([options (list (init-alternative prog))]
+  (let loop ([best-option alt]
+	     [options '()]
              [done '()])
-    (if (or (null? options)
+    (if (or (null? (cons best-option options))
             (>= (length done) iters))
-        done
+        (car (sort (append options done) alternative<?))
         (let-values ([(options* done*)
-                      (step options done)])
-          (loop options* done*)))))
+                      (step (cons best-option options) done)])
+	  (let* ([sorted-options* (sort (append options* done) alternative<?)]
+		 [best-option* (car sorted-options*)]
+		 [rest-options* (cdr sorted-options*)])
+	    (if (green-tipped? best-option*)
+		best-option*
+		(loop best-option* rest-options* done*)))))))
 
 (define (error-sum errors) (foldl (λ (x y) (+ x y)) 0 errors))
 (define green-threshold 50)
+(define (green-tipped? alternative)
+  (let ((changes (alternative-changes alternative)))
+    (and (pair? changes)
+	 (green? (car changes)))))
 (define (green? change)
-  (< green-threshold (- (error-sum (change-posterror change))
-			(error-sum (change-preerror change)))))
+  (< green-threshold (error-sum (errors-difference (change-preerrors change)
+						   (change-posterrors change)))))
 
 (define (remove-red alternative)
   alternative) ;;Eventually this should return an alternative with red changes undone.
