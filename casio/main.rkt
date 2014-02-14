@@ -255,41 +255,39 @@
          [pts* (filter-points pts exacts)]
          [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
-
+(provide prepare-points)
 (define (errors prog points exacts)
   (let ([fn (eval-prog prog mode:fl)])
     (for/list ([point points] [exact exacts])
       (relative-error (fn point) exact))))
 
-(define errors-compare-cache (make-hash))
+(define errors-compare-cache (make-hasheq))
+
+(define (reasonable-error? x)
+  (not (or (= x 1.0) (infinite? x) (nan? x))))
 
 (define (errors-compare errors1 errors2)
+  (map (λ (x) (cond [(< x 0) '<] [(> x 0) '>] [#t '=]))
+       (errors-difference errors1 errors2)))
+
+(define (errors-difference errors1 errors2)
   (hash-ref!
-   (hash-ref! errors-compare-cache errors1 make-hash)
+   (hash-ref! errors-compare-cache errors1 make-hasheq)
    errors2
    (λ ()
       (for/list ([error1 errors1] [error2 errors2])
         (cond
-         [(and (ordinary-float? error1) (ordinary-float? error2))
-          (cond
-           [(< error1 error2) '<]
-           [(= error1 error2) '=]
-           [(> error1 error2) '>]
-           [#t (error "Cannot compare error1 and error2" error1 error2)])]
-         [(or (and (ordinary-float? error1) (not (ordinary-float? error2))))
-          '<]
-         [(or (and (not (ordinary-float? error1)) (ordinary-float? error2)))
-          '>]
-         [(and (infinite? error1) (infinite? error2))
-          '=]
-         [(and (infinite? error1) (nan? error2))
-          '<]
-         [(and (nan? error1) (infinite? error2))
-          '>]
-         [(and (nan? error1) (nan? error2))
-          '=]
-         [#t (error "Failed to classify error1 and error2" error1 error2)])))
-      ))
+         [(and (reasonable-error? error1) (reasonable-error? error2))
+          (if (and (= error1 0) (= error2 0))
+              0.0
+              (log (/ error1 error2)))]
+         [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
+          -inf.0]
+         [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
+          +inf.0]
+         [#t
+          0.0]
+         [#t (error "Failed to classify error1 and error2" error1 error2)])))))
 
 ;; Now we define our rewrite rules.
 
@@ -499,7 +497,7 @@
 ;;
 ;; This is an A* search internally.
 
-(define (brute-force-search prog iters points exacts)
+(define (brute-force-search alt iters points exacts)
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
@@ -537,23 +535,26 @@
 		done)))
     
     (let* ([parent (car options)]
-	   [parent-stripped (if (green-tipped? parent)
-				(remove-red parent)
-				parent)]
            [rest (cdr options)]
-           [children (generate-alternatives parent-stripped)])
+           [children (generate-alternatives parent)])
       (values
-       (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent-stripped done))))
+       (append rest (filter (negate duplicate?) children))
+       (cons parent done))))
 
-  (let loop ([options (list (init-alternative prog))]
+  (let loop ([best-option alt]
+	     [options '()]
              [done '()])
-    (if (or (null? options)
+    (if (or (null? (cons best-option options))
             (>= (length done) iters))
-        done
+        (car (sort (append options done) alternative<?))
         (let-values ([(options* done*)
-                      (step options done)])
-          (loop options* done*)))))
+                      (step (cons best-option options) done)])
+	  (let* ([sorted-options* (sort (append options* done) alternative<?)]
+		 [best-option* (car sorted-options*)]
+		 [rest-options* (cdr sorted-options*)])
+	    (if (green-tipped? best-option*)
+		best-option*
+		(loop best-option* rest-options* done*)))))))
 
 (define (error-sum errors) (foldl (λ (x y) (+ x y)) 0 errors))
 (define green-threshold 50)
@@ -562,8 +563,8 @@
     (and (pair? changes)
 	 (green? (car changes)))))
 (define (green? change)
-  (< green-threshold (- (error-sum (change-posterrors change))
-			(error-sum (change-preerrors change)))))
+  (< green-threshold (error-sum (errors-difference (change-preerrors change)
+						   (change-posterrors change)))))
 
 (define (remove-red alternative)
   alternative) ;;Eventually this should return an alternative with red changes undone.
@@ -655,26 +656,31 @@
       (recursor prog loc)
       (list prog)))
 
-(define (improve-by-analysis prog iters points exacts)
+(define (improve-by-analysis alt iters points exacts)
   (define (pick-input prog)
     (argmax cadr (filter (λ (x) (< (cadr x) 1))
                   (enumerate (alternative-errors prog) points exacts))))
 
   (define (step prog input)
     (let ([annot (analyze-expressions (alternative-program prog) input)])
-      (map make-alternative (rewrite-at-location (alternative-program prog)
+      (map (curry make-alternative prog) (rewrite-at-location (alternative-program prog)
                                                  (find-most-local-error annot)))))
 
-  (define (make-alternative prog)
-    (let ([errs (errors prog points exacts)])
-      (alternative prog errs (program-cost prog) '())))
+  (define (make-alternative parent prog)
+    (let ([parent-cost (alternative-cost parent)]
+	  [parent-errs (alternative-errors parent)]
+	  [child-cost (program-cost prog)]
+	  [child-errs (errors prog points exacts)])
+      (alternative prog child-errs child-cost
+		   (cons (change '() '() parent-errs parent-cost
+				 child-errs child-cost) (alternative-changes parent)))))
 
-  (define start-prog (make-alternative prog))
+  (define start-prog alt)
 
   (let loop ([good-prog start-prog] [test-prog start-prog] [left iters]
              [input (pick-input start-prog)])
     (println "; Trying " (alternative-program test-prog) " at " (caddr input))
-    (if (= left 0)
+    (if (or (= left 0) (green-tipped? good-prog))
         good-prog
         (let* ([alts (step test-prog (caddr input))]
                [alts* (sort alts (curry alternative<-at? (car input)))]
@@ -706,6 +712,30 @@
 (define (print-improve prog iterations)
   (print-alternatives (take-up-to (improve prog iterations) 5)))
 
+(define (improve-program prog max-iters)
+  (define-values (points exacts) (prepare-points prog))
+  (define all-routes (list improve-by-analysis brute-force-search)) 
+  (let loop ([routes all-routes]
+	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
+    (if (null? routes)
+	cur-alternative
+	(let ([cur-result ((car routes) cur-alternative max-iters points exacts)])
+	  (if (and (green-tipped? cur-result) (not (eq? cur-result cur-alternative)))
+	      (loop all-routes (remove-red cur-result))
+	      (loop (cdr routes) cur-alternative))))))
+
+(define (print-alt alt)
+  (pretty-print (alternative-program alt))
+  (println (alternative-errors alt))
+  (print (alternative-cost alt))
+  (for ([chng (alternative-changes alt)])
+    (println (change-location chng))
+    (println (change-rewrite chng))
+    (println (change-preerrors chng))
+    (print (change-precost chng))
+    (println (change-posterrors chng))
+    (print (change-postcost chng))))
+
 ;(define (plot-alternatives prog iterations)
 ;  "Return a spectrum plot of the alternatives found."
 ;  (let* ([alts (explore prog iterations)]
@@ -715,7 +745,7 @@
 ;    (display (alternative-score (car alts)))
 ;    (newline)
 ;    (pretty-print (alternative-program (car alts)))
-;    (parameterize ([plot-width 800] [plot-height 100]
+;    (parameterize ([plotn-width 800] [plot-height 100]
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
