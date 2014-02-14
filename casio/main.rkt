@@ -7,7 +7,14 @@
 (require math/bigfloat)
 (require plot)
 
-(require casio/common)
+
+
+(define (println . args)
+  (for ([val args])
+    (if (string? val)
+        (display val)
+        (print val)))
+  (newline))
 
 ;; Precision standards
 
@@ -23,6 +30,15 @@
 
 (define (ordinary-float? x)
   (not (or (infinite? x) (nan? x))))
+
+(define-syntax (reap stx)
+  "A reap/sow abstraction for filters and maps."
+  (syntax-case stx ()
+    [(_ [sow] body ...)
+     #'(let* ([store '()]
+              [sow (λ (elt) (set! store (cons elt store)))])
+         body ...
+         (reverse store))]))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
