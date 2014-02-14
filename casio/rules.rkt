@@ -2,6 +2,8 @@
 (require casio/common)
 (require casio/programs)
 
+(provide rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule))
+
 ;; Our own pattern matcher.
 ;
 ; The racket (match) macro doesn't give us access to the bindings made
@@ -88,7 +90,7 @@
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
     (if bindings
-        (list (pattern-substitute (rule-output rule) bindings) rule bindings)
+        (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
 (define (rule-apply-force-destructs rule expr)
@@ -96,29 +98,28 @@
 
 (struct change (rule location bindings) #:transparent)
 
-(define (rewrite-expression expr #:destruct [destruct #f])
-  (filter identity
-          (for/list ([rule *rules*])
-            ((if destruct rule-apply-force-destructs rule-apply) rule expr))))
+(define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
+  (reap [sow]
+    (for ([rule *rules*])
+      (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
+             [result (applyer rule expr)])
+        (when result
+            (sow (change rule root-loc (cdr result))))))))
 
-(define (rewrite-tree expr)
+(define (rewrite-tree expr #:root [root-loc '()])
   (reap [sow]
     (let ([try-rewrites
            (λ (expr loc)
-              (for ([opt (rewrite-expression expr)])
-                (match opt
-                  [`(,result ,rule ,bindings)
-                   (sow (change rule loc bindings))]))
+              (map sow (rewrite-expression expr #:root (append root-loc loc)))
               expr)])
       (location-induct expr
         #:constant try-rewrites #:variable try-rewrites #:primitive try-rewrites))))
 
-(define (change-apply change prog)
-  (let ([vars (program-variables prog)] [body (program-body prog)])
-    (list 'lambda vars
-          (location-do (change-location change) body
-                       (λ (expr) (pattern-substitute (rule-output (change-rule change))
-                                                     (change-bindings change)))))))
+(define (change-apply cng prog)
+  (let ([loc (change-location cng)]
+        [template (rule-output (change-rule cng))]
+        [bnd (change-bindings cng)])
+    (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
 
 ; Now we define some rules
 
