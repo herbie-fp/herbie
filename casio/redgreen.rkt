@@ -10,12 +10,12 @@
 (define (error-sum alt)
   (apply + (alt-errors alt)))
 
-(define (green? alt)
-  (and (alt-prev alt) ; The initial alternative is not green-tipped by convention
+(define (green? altn)
+  (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
        (< (green-threshold)
-          (- (error-sum alt)
-             (error-sum (alt-prev alt))))))
+          (- (error-sum altn)
+             (error-sum (alt-prev altn))))))
 
 ;; Eventually this should return an alternative with red changes undone.
-(define (remove-red alternative)
-  alternative)
+(define (remove-red altn)
+  altn)

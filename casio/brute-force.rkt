@@ -6,6 +6,8 @@
 (require casio/alternative)
 (require casio/redgreen)
 
+(provide brute-force-search)
+
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives; return if incomparable.
    Compares first by a lattice order on points, then by program cost."
@@ -46,8 +48,8 @@
   (cond
    [(and (pair? done) (green? (car done)))
     (car done)]
-   [(or (null? options) (= iters 0))
-    #f] ; Didn't find anything [:(]
+   [(or (null? options) (= iters 0)) ; Didn't find anything [:(]
+    (car (sort (append options done) alternative<?))]
    [#t
     (let-values ([(options* done*) (step options done)])
       (search-options options* done* (- iters 1)))]))

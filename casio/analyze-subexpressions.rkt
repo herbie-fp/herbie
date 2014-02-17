@@ -77,16 +77,19 @@
     (if (= err 0) #f loc)))
 
 (define (pick-bad-input alt)
-  (let ([lst (enumerate (alt-errors alt) (*points*) (*exacts*))])
-    ; We filter out very large errors.
-    ; Those usually result in overfitting.
-    ; TODO: Eliminate this ad-hoc solution.
-    (argmax cadr (filter (λ (x) (< (cadr x) 1)) lst))))
+  (let* ([lst (enumerate (alt-errors alt) (*points*) (*exacts*))]
+         ; We filter out very large errors.
+         ; Those usually result in overfitting.
+         ; TODO: Eliminate this ad-hoc solution.
+         [lst* (filter (λ (x) (< (cadr x) 1)) lst)])
+    (argmax cadr (if (null? lst*) lst lst*))))
 
 (define (step alt input)
-  (let ([annot (analyze-expressions (alt-program alt) input)])
-    (alt-rewrite-expression alt #:destruct #t
-                            #:root (find-most-local-error annot))))
+  (let* ([annot (analyze-expressions (alt-program alt) input)]
+         [loc (find-most-local-error annot)])
+    (if loc
+        (alt-rewrite-expression alt #:destruct #t #:root loc)
+        '())))
 
 (define (alt-error-at alt idx)
   (list-ref (alt-errors alt) idx))
@@ -103,11 +106,11 @@
 
   (let loop ([altn alt0] [left iters])
     (cond
-     [(= left 0) #f]
+     [(= left 0) altn]
      [(green? altn) altn]
      [#t
       (let* ([alts (step altn (caddr input))])
         (if (null? alts)
-            #f
+            altn
             (loop (argmin (curryr alt-error-at (car input)) alts)
                   (- iters 1))))])))
