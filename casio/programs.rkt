@@ -60,7 +60,9 @@
    [(eq? (car loc) 'car)
     (cons (location-do (cdr loc) (car prog) f) (cdr prog))]
    [(eq? (car loc) 'cdr)
-    (cons (car prog) (location-do (cdr loc) (cdr prog) f))]))
+    (cons (car prog) (location-do (cdr loc) (cdr prog) f))]
+   [#t
+    (error "Unknown location" loc)]))
 
 (define (location-get loc prog)
   ; Clever continuation usage to early-return
@@ -101,7 +103,7 @@
            [atan    ,bfatan  ,atan    130]
 
            ; For compiling variables
-           [*var*   ,bf      ,*precision* 0])])
+           [*var*   ,bf      ,(*precision*) 0])])
 
     ; Munge the table above into a hash table.
     (let ([hash (make-hasheq)])

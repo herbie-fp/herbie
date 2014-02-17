@@ -28,30 +28,32 @@
 ;; We can now search to find the best expression.
 ;; This is an A* search internally.
 
+(define (generate-alternatives alt)
+  (remove-duplicates (alt-rewrite-tree alt)))
+
+(define (step options done)
+  (define (duplicate? alt)
+    (memf (curry alt-program=? alt) (append done options)))
+
+  (let* ([parent (car options)]
+         [rest (cdr options)]
+         [children (generate-alternatives parent)])
+    (values
+     (sort (append rest (filter (negate duplicate?) children)) alternative<?)
+     (cons parent done))))
+
+(define (search-options options done iters)
+  (cond
+   [(and (pair? done) (green? (car done)))
+    (car done)]
+   [(or (null? options) (= iters 0))
+    #f] ; Didn't find anything [:(]
+   [#t
+    (let-values ([(options* done*) (step options done)])
+      (search-options options* done* (- iters 1)))]))
+
 (define (brute-force-search alt0 iters)
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
-  (define (generate-alternatives alt)
-    (remove-duplicates (alt-rewrite-tree alt)))
-
-  (define (step options done)
-    (define (duplicate? alt)
-      (memf (curry alt-program=? alt) (append done options)))
-
-    (let* ([parent (car options)]
-           [rest (cdr options)]
-           [children (generate-alternatives parent)])
-      (values
-       (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-       (cons parent done))))
-
-  (let loop ([options (list alt)] [done '()])
-    (if (or (null? options)
-            (>= (length done) iters))
-        #f ; Didn't find anything [:(]
-        (let-values ([(options* done*) (step options done)]
-                     [(last-step) done])
-          (if (green-tipped? last-step)
-              last-step
-              (loop options* done*))))))
+  (search-options (list alt0) '() iters))

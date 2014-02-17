@@ -10,24 +10,24 @@
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (display "#<alt ")
-           (pretty-print (alt-program alt))
-           (display ">\n"))])
+           (display "#<alt " port)
+           (write (alt-program alt) port)
+           (display ">" port))])
 
 (define (make-alt prog)
  (let* ([errs (errors prog (*points*) (*exacts*))])
     (alt prog errs (program-cost prog) #f #f)))
 
-(define (alt-apply alt cng)
-  (let* ([prog (change-apply cng (alt-program alt))]
+(define (alt-apply altn cng)
+  (let* ([prog (change-apply cng (alt-program altn))]
          [errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) cng alt)))
+    (alt prog errs (program-cost prog) cng altn)))
 
 (define (alt-rewrite-tree alt #:root [root-loc '()])
-  (let ([subtree (location-get (alt-program alt) root-loc)])
-    (map (curry alt-change alt) (rewrite-tree subtree #:root root-loc))))
+  (let ([subtree (location-get root-loc (alt-program alt))])
+    (map (curry alt-apply alt) (rewrite-tree subtree #:root root-loc))))
 
 (define (alt-rewrite-expression alt #:destruct [destruct? #f] #:root [root-loc '()])
-  (let ([subtree (location-get (alt-program alt) root-loc)])
-    (map (curry alt-change alt)
+  (let ([subtree (location-get root-loc (alt-program alt))])
+    (map (curry alt-apply alt)
          (rewrite-expression subtree #:destruct destruct? #:root root-loc))))

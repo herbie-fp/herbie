@@ -658,26 +658,31 @@
       (recursor prog loc)
       (list prog)))
 
-(define (improve-by-analysis prog iters points exacts)
+(define (improve-by-analysis alt iters points exacts)
   (define (pick-input prog)
     (argmax cadr (filter (λ (x) (< (cadr x) 1))
                   (enumerate (alternative-errors prog) points exacts))))
 
   (define (step prog input)
     (let ([annot (analyze-expressions (alternative-program prog) input)])
-      (map make-alternative (rewrite-at-location (alternative-program prog)
+      (map (curry make-alternative prog) (rewrite-at-location (alternative-program prog)
                                                  (find-most-local-error annot)))))
 
-  (define (make-alternative prog)
-    (let ([errs (errors prog points exacts)])
-      (alternative prog errs (program-cost prog) '())))
+  (define (make-alternative parent prog)
+    (let ([parent-cost (alternative-cost parent)]
+	  [parent-errs (alternative-errors parent)]
+	  [child-cost (program-cost prog)]
+	  [child-errs (errors prog points exacts)])
+      (alternative prog child-errs child-cost
+		   (cons (change '() '() parent-errs parent-cost
+				 child-errs child-cost) (alternative-changes parent)))))
 
-  (define start-prog (make-alternative prog))
+  (define start-prog alt)
 
   (let loop ([good-prog start-prog] [test-prog start-prog] [left iters]
              [input (pick-input start-prog)])
     (println "; Trying " (alternative-program test-prog) " at " (caddr input))
-    (if (= left 0)
+    (if (or (= left 0) (green-tipped? good-prog))
         good-prog
         (let* ([alts (step test-prog (caddr input))]
                [alts* (sort alts (curry alternative<-at? (car input)))]
@@ -708,6 +713,30 @@
 
 (define (print-improve prog iterations)
   (print-alternatives (take-up-to (improve prog iterations) 5)))
+
+(define (improve-program prog max-iters)
+  (define-values (points exacts) (prepare-points prog))
+  (define all-routes (list improve-by-analysis brute-force-search)) 
+  (let loop ([routes all-routes]
+	     [cur-alternative (alternative prog (errors prog points exacts) (program-cost prog) '())])
+    (if (null? routes)
+	cur-alternative
+	(let ([cur-result ((car routes) cur-alternative max-iters points exacts)])
+	  (if (and (green-tipped? cur-result) (not (eq? cur-result cur-alternative)))
+	      (loop all-routes (remove-red cur-result))
+	      (loop (cdr routes) cur-alternative))))))
+
+(define (print-alt alt)
+  (pretty-print (alternative-program alt))
+  (println (alternative-errors alt))
+  (print (alternative-cost alt))
+  (for ([chng (alternative-changes alt)])
+    (println (change-location chng))
+    (println (change-rewrite chng))
+    (println (change-preerrors chng))
+    (print (change-precost chng))
+    (println (change-posterrors chng))
+    (print (change-postcost chng))))
 
 ;(define (plot-alternatives prog iterations)
 ;  "Return a spectrum plot of the alternatives found."
