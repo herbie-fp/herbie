@@ -33,13 +33,14 @@
 (define (generate-alternatives alt)
   (remove-duplicates (alt-rewrite-tree alt)))
 
-(define (step options done)
+(define (step options done iters)
   (define (duplicate? alt)
     (memf (curry alt-program=? alt) (append done options)))
 
   (let* ([parent (car options)]
          [rest (cdr options)]
          [children (generate-alternatives parent)])
+    (when (*debug*) (println "; bfs(" iters ") " parent))
     (values
      (sort (append rest (filter (negate duplicate?) children)) alternative<?)
      (cons parent done))))
@@ -51,11 +52,12 @@
    [(or (null? options) (= iters 0)) ; Didn't find anything [:(]
     (car (sort (append options done) alternative<?))]
    [#t
-    (let-values ([(options* done*) (step options done)])
+    (let-values ([(options* done*) (step options done iters)])
       (search-options options* done* (- iters 1)))]))
 
 (define (brute-force-search alt0 iters)
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
+  (when (*debug*) (println "> bfs " alt0 " for " iters))
   (search-options (list alt0) '() iters))

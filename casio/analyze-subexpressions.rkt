@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/match)
 (require math/bigfloat)
 (require casio/common)
 (require casio/points)
@@ -102,15 +103,18 @@
        '<))
 
 (define (improve-by-analysis alt0 iters)
+  (when (*debug*) (println "> iba " alt0 " for " iters))
   (define input (pick-bad-input alt0))
 
   (let loop ([altn alt0] [left iters])
     (cond
-     [(= left 0) altn]
+     [(<= left 0) altn]
      [(green? altn) altn]
      [#t
       (let* ([alts (step altn (caddr input))])
+        (when (*debug*) (println "; iba(" left ") " altn))
         (if (null? alts)
             altn
             (loop (argmin (curryr alt-error-at (car input)) alts)
-                  (- iters 1))))])))
+                  (- left 1))))])))
+

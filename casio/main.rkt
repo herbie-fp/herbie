@@ -16,6 +16,7 @@
       (if (null? strats)
           alt0
           (let ([alt1 ((car strats) alt0 max-iters)])
+            (when (*debug*) (println "; improve " (car strats) " " alt1))
             (if (and (green? alt1) (not (eq? alt1 alt0)))
                 (loop *strategies* (remove-red alt1))
                 (loop (cdr strats) alt1)))))))
