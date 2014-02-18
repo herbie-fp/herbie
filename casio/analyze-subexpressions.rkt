@@ -118,3 +118,26 @@
             (loop (argmin (curryr alt-error-at (car input)) alts)
                   (- left 1))))])))
 
+(define (strip-off-top loc)
+  (let ([loc* (reverse loc)])
+    (match loc*
+      [`(car cdr car . ,rest)
+       (values (reverse (cons 'car rest))
+               (reverse (list* 'car 'cdr 'cdr 'car rest)))]
+      [`(car cdr cdr car . ,rest)
+       (values (reverse (cons 'car rest))
+               (reverse (list* 'car 'cdr 'car rest)))]
+      [#t
+       (error "Wat?")])))
+
+(define (correlate-binary-ops alt0)
+  (define input (pick-bad-input alt0))
+
+  (let* ([annot (analyze-expressions (alt-program alt0) (caddr input))]
+         [loc (find-most-local-error annot)])
+    (if loc
+        (let-values ([(parent other) (strip-off-top loc)])
+          (if (= (length (location-get parent (alt-program alt0))) 3)
+              (alt-rewrite-tree alt0 #:root other)
+              alt0))
+        alt0)))
