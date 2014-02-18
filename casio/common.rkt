@@ -4,10 +4,12 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan square ordinary-float?
-         list= list< enumerate take-up-to)
+         list= list< enumerate take-up-to *debug*)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
+
+(define *debug* (make-parameter #f))
 
 (define-syntax (reap stx)
   "A reap/sow abstraction for filters and maps."
