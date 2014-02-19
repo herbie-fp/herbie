@@ -4,8 +4,9 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct program-induct location-do location-get
-         eval-prog operations mode:bf mode:fl)
+         location-induct location-map program-induct
+	 location-do location-get eval-prog operations
+	 mode:bf mode:fl)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
