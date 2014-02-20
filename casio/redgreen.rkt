@@ -85,16 +85,16 @@
   (define (a-append joe bob)
     (if (null? joe)
 	bob
-	(alist-append (cdr joe) (cons (cons (caar joe)
-					    (let ([match (assoc (caar joe) bob)])
-					      (if match
-						  (append (cdr match) (cdar joe))
-						  (cdar joe))))
-				      bob))))
+	(a-append (cdr joe) (cons (cons (caar joe)
+					(let ([match (assoc (caar joe) bob)])
+					  (if match
+					      (list (cdr match) (cdar joe))
+					      (cdar joe))))
+				  bob))))
   (print "Appending: ")
   (print args)
   (newline)
   (if (< 2 (length args))
       (car args)
-      (apply alist-append (append (a-append (car args) (cadr args)) (cddr args)))))
+      (foldr (lambda (x y) (a-append x y)) '() args)))
       
