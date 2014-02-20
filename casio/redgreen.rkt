@@ -4,10 +4,11 @@
 (require casio/alternative)
 (require casio/rules)
 (require casio/programs)
+(require casio/common)
 
 (provide green? remove-red green-threshold orthogonal?)
 
-(define green-threshold (make-parameter 25))
+(define green-threshold (make-parameter 0))
 
 (define (error-sum alt)
   (apply + (alt-errors alt)))
@@ -20,7 +21,37 @@
 
 ;; Eventually this should return an alternative with red changes undone.
 (define (remove-red altn)
-  altn)
+  (define (swim-upstream salmon)
+    (when (*debug*) (println salmon " is swimming."))
+    (if (or (eq? (alt-prev salmon) #f ) (eq? (alt-change (alt-prev salmon)) #f)) salmon ;;We've reached the mouth of the river
+	(let ([upstream-change (translated-up (alt-change salmon) (alt-change (alt-prev salmon)))]
+	      [downstream-change (translated-down (alt-change (alt-prev salmon)) (alt-change salmon))])
+	  (if (and upstream-change downstream-change)
+	      (let* ([moved-salmon (alt-apply (alt-prev (alt-prev salmon)) upstream-change)]
+		     [new-salmon (swim-upstream moved-salmon)]
+		     [new-head (alt-apply new-salmon downstream-change)])
+		new-head)
+	      (let* ([dam (alt-prev salmon)]
+		     [new-next (swim-upstream dam)])
+		(if (eq? new-next dam)
+		    salmon
+		    (swim-upstream (alt-apply new-next (alt-change salmon)))))))))
+  (define (remove-until-green head)
+    (if (or (null? head) (eq? #f head) (green? head))
+	head
+	(remove-until-green (alt-prev head))))
+  (if (green? altn)
+      (remove-until-green (swim-upstream altn))
+      altn))
+
+(define (translated-up cur-change prev-change)
+  (if (orthogonal? cur-change prev-change)
+      cur-change
+      #f))
+(define (translated-down cur-change next-change)
+  (if (orthogonal? cur-change next-change)
+      cur-change
+      #f))
 
 (define (orthogonal? change-a change-b)
   (define (loc-match? loca locb)
