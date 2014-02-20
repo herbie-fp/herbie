@@ -24,8 +24,8 @@
   (define (swim-upstream salmon)
     (when (*debug*) (println salmon " is swimming."))
     (if (or (eq? (alt-prev salmon) #f ) (eq? (alt-change (alt-prev salmon)) #f)) salmon ;;We've reached the mouth of the river
-	(let ([upstream-change (translated-up (alt-change salmon) (alt-change (alt-prev salmon)))]
-	      [downstream-change (translated-down (alt-change (alt-prev salmon)) (alt-change salmon))])
+	(let ([upstream-change (translated-up (alt-prev (alt-prev salmon)) (alt-change salmon) (alt-change (alt-prev salmon)))]
+	      [downstream-change (translated-down (alt-prev (alt-prev salmon)) (alt-change (alt-prev salmon)) (alt-change salmon))])
 	  (if (and upstream-change downstream-change)
 	      (let* ([moved-salmon (alt-apply (alt-prev (alt-prev salmon)) upstream-change)]
 		     [new-salmon (swim-upstream moved-salmon)]
@@ -44,11 +44,40 @@
       (remove-until-green (swim-upstream altn))
       altn))
 
-(define (translated-up cur-change prev-change)
+(define (translated-up start cur-change prev-change)
+  (define (match-loc a b)
+    (cond [(null? a) b]
+	  [(null? b) a]
+	  [(eq? (car a) (car b)) (match-loc (cdr a) (cdr b))]
+	  [#t #f]))
+  (define (simple-translate-loc post-rel-loc translations)
+    (if (null? translations)
+	#f
+	(let ([tail (match-loc post-rel-loc (car (cadr (car translations))))])
+	  (if tail
+	      (append (caaar translations) tail)
+	      (simple-translate-loc post-rel-loc (cdr translations))))))
+	
   (if (orthogonal? cur-change prev-change)
       cur-change
-      #f))
-(define (translated-down cur-change next-change)
+      (let ([translations (rule-location-translations (change-rule (prev-change)))])
+	(if (apply andmap (map (lambda (x)
+				 (and (= 1 (length (car x)))
+				      (= 1 (length (cadr x)))))
+			       translations))
+	    (let ([new-rel-loc (simple-translate-loc (match-loc (change-location prev-change)
+								(change-location cur-change))
+						     translations)])
+	      (if new-rel-loc
+		  (change (change-rule cur-change)
+			  (append (change-location prev-change) new-rel-loc)
+			  (pattern-match (rule-input (change-rule cur-change))
+					 (location-get (change-location cur-change)
+						       (alt-program start))))
+		  #f))
+	    #f))))
+	    
+(define (translated-down start cur-change next-change)
   (if (orthogonal? cur-change next-change)
       cur-change
       #f))

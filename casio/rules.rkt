@@ -2,7 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *rules* rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule))
+(provide *rules* pattern-match rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule))
 
 ;; Our own pattern matcher.
 ;
