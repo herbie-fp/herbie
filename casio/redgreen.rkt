@@ -16,8 +16,8 @@
 (define (green? altn)
   (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
        (< (green-threshold)
-          (- (error-sum altn)
-             (error-sum (alt-prev altn)))))) ;Hmm, this was how I had it originally, but it didn't handle NaN and Inf cases well. Are those cases not there anymore?
+          (- (error-sum (alt-prev altn))
+             (error-sum altn))))) ;Hmm, this was how I had it originally, but it didn't handle NaN and Inf cases well. Are those cases not there anymore?
 
 
 (define (remove-red altn)
