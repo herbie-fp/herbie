@@ -72,7 +72,7 @@
 		(if tail
 		    (append (caar cur-translation) tail)
 		    (simple-translate-loc-up post-rel-loc (cdr translations))))
-	      #f))))
+	      (simple-translate-loc-up post-rel-loc (cdr translations))))))
   
   (cond [(orthogonal? cur-change prev-change)
 	 cur-change]
@@ -112,7 +112,7 @@
 		(if tail
 		    (append (car (cadr cur-translation)) tail)
 		    (simple-translate-loc-down post-rel-loc (cdr translations))))
-	      #f))))
+	      (simple-translate-loc-down post-rel-loc (cdr translations))))))
   
   (cond [(orthogonal? cur-change next-change)
 	 cur-change]
