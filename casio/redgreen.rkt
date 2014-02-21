@@ -99,19 +99,45 @@
                                                            ;a and all b, either (orthogonal? a b), (is-inside? a b), or (is-inside? b a)
 	    
 (define (translated-down start cur-change next-change)
+  
   ;;Translates locations for rules that have one to one variable bindings,
   ;;as in each variable only appears once in the input and once in the output.
   (define (simple-translate-loc-down post-rel-loc translations)
     (if (null? translations)
 	#f
-	(let* ([cur-translation (car translations)]
-	       [tail (match-loc post-rel-loc (caar cur-translation))])
-	  (if tail
-	      (append (car (cadr cur-translation)) tail)
-	      (simple-translate-loc-down post-rel-loc (cdr translations))))))
-  (if (orthogonal? cur-change next-change)
-      cur-change
-      #f))
+	(let ([cur-translation (car translations)])
+	  (if (and (= 1 (length (car cur-translation)))
+		   (= 1 (length (cadr cur-translation)))) ;We can only handle the cases of one-to-one bindings currently
+	      (let ([tail (match-loc post-rel-loc (caar cur-translation))])
+		(if tail
+		    (append (car (cadr cur-translation)) tail)
+		    (simple-translate-loc-down post-rel-loc (cdr translations))))
+	      #f))))
+  
+  (cond [(orthogonal? cur-change next-change)
+	 cur-change]
+	[(is-inside? (change-location cur-change) (change-location next-change))
+	 (let* ([translations (rule-location-translations (change-rule next-change))]
+		[new-rel-loc (simple-translate-loc-down (match-loc (change-location cur-change)
+								 (change-location next-change))
+						      translations)])
+	   (if new-rel-loc ;simple-translate-loc returns false if it hits a case it can't translate.
+	       (let ([rule* (change-rule cur-change)] ;The rule doesn't change
+		     [loc* (append (change-location next-change) new-rel-loc)]
+		     [bindings* (change-bindings cur-change)]) ;The bindings don't change if cur-change is inside prev-change.
+		 (change rule* loc* bindings*))
+	       #f))]
+	[(is-inside? (change-location next-change) (change-location cur-change))
+	 (let* ([rule* (change-rule cur-change)] ;The rule doesn't change
+		[loc* (change-location cur-change)] ;The location doesn't change if prev-change is inside cur-change
+		[bindings* (pattern-match (rule-input (change-rule cur-change))
+					  (location-get (change-location cur-change) (alt-program start)))])
+	   (if bindings* ;In this branch, a false value for bindings* is the way we find out we can't translate.
+	       (change rule* loc* bindings*)
+	       #f))]
+	[#t (error "Something has gone horribly wrong")])) ;The way orthogonal? and is-inside? are defined, it should be that for all
+                                                           ;a and all b, either (orthogonal? a b), (is-inside? a b), or (is-inside? b a)
+
 
 ;;Returns whether or not two changes are orthogonal.
 ;;Orthogonal changes can be rearranged without changing
