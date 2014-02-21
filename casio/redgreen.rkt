@@ -19,7 +19,7 @@
           (- (error-sum altn)
              (error-sum (alt-prev altn)))))) ;Hmm, this was how I had it originally, but it didn't handle NaN and Inf cases well. Are those cases not there anymore?
 
-;; Eventually this should return an alternative with red changes undone.
+
 (define (remove-red altn)
   (define (swim-upstream salmon)
     (when (*debug*) (println salmon " is swimming."))
@@ -67,21 +67,20 @@
 	
   (if (orthogonal? cur-change prev-change)
       cur-change ;If the changes are orthogonal, we don't need to transform the change to move it up.
-      (let ([translations (rule-location-translations (change-rule (prev-change)))])
-	(if (apply andmap (map (lambda (x)
-				 (and (= 1 (length (car x)))
-				      (= 1 (length (cadr x)))))
-			       translations)) ;Test if the rule has one to one variable bindings (See simple-translate-loc)
+      (let ([translations (rule-location-translations (change-rule prev-change))])
+	(if (andmap (lambda (x)
+		      (and (= 1 (length (car x)))
+			   (= 1 (length (cadr x)))))
+		    translations) ;Test if the rule has one to one variable bindings (See simple-translate-loc)
 	    (let ([new-rel-loc (simple-translate-loc (match-loc (change-location prev-change)
 								(change-location cur-change))
 						     translations)])
 	      (if new-rel-loc ;simple-translate-loc could still fail if one change is not within the bindings of the other.
-		  (change (change-rule cur-change) ;rule of our change hasn't changed.
-			  (append (change-location prev-change) new-rel-loc) ;If new-rel-loc isn't null, we need to add it to the
-			                                                     ;end of our location.
-			  (pattern-match (rule-input (change-rule cur-change)) ;;Get new bindings in case they've changed.
-					 (location-get (change-location cur-change)
-						       (alt-program start))))
+		  (let ([rule (change-rule cur-change)] ;The rule of our change hasn't changed.
+			[new-loc (append (change-location prev-change) new-rel-loc)]) 
+		    (let ([new-bindings (pattern-match (rule-input (change-rule cur-change))
+						       (location-get new-loc (alt-program start)))]) ;Get new bindings in case the other change is inside us.
+		      (change rule new-loc new-bindings)))
 		  #f))
 	    #f)))) ;Support for this case could be added in the future, it's just a little more complex and won't always work.
 	    
