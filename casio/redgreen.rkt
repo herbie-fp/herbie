@@ -36,13 +36,20 @@
 		(if (eq? new-next dam)
 		    salmon
 		    (swim-upstream (alt-apply new-next (alt-change salmon)))))))))
-  (define (remove-until-green head)
-    (if (or (null? head) (eq? #f head) (green? head))
-	head
-	(remove-until-green (alt-prev head))))
-  (if (green? altn)
-      (remove-until-green (swim-upstream altn))
-      altn))
+
+  (define (swim-head-upstream head-salmon)
+    (if (or (eq? (alt-prev head-salmon) #f) (eq? (alt-change (alt-prev head-salmon)) #f)) head-salmon
+	(let ([upstream-change (translated-up (alt-prev (alt-prev head-salmon)) (alt-change head-salmon) (alt-change (alt-prev head-salmon)))])
+	  (if upstream-change
+	      (let* ([moved-salmon (alt-apply (alt-prev (alt-prev head-salmon)) upstream-change)]
+		     [new-salmon (swim-head-upstream moved-salmon)])
+		new-salmon)
+	      (let* ([dam (alt-prev head-salmon)]
+		     [new-next (swim-upstream dam)])
+		(if (eq? new-next dam)
+		    head-salmon
+		    (swim-head-upstream (alt-apply new-next (alt-change head-salmon)))))))))
+  (swim-head-upstream altn))
 
 ;;Simple location match utility function. If 'a' is a continutation of 'b',
 ;;such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
