@@ -6,7 +6,7 @@
 (require casio/programs)
 (require casio/common)
 
-(provide green? remove-red green-threshold orthogonal?)
+(provide green? remove-red green-threshold)
 
 (define green-threshold (make-parameter 0))
 
@@ -19,13 +19,35 @@
           (- (error-sum (alt-prev altn))
              (error-sum altn))))) ;Hmm, this was how I had it originally, but it didn't handle NaN and Inf cases well. Are those cases not there anymore?
 
-
+;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
+;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
+;; change history.
 (define (remove-red altn)
+  
+  ;; If we're the first or second alt then we can't be moved back any farther.
+  (define (done altn)
+    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f)))
+
+  ;; Returns (alt-change altn) translated up one change.
+  (define (get-upstream altn)
+    (translated-up (alt-change altn)
+		   (alt-change (alt-prev altn))
+		   (alt-prev (alt-prev altn))))
+
+  ;; Returns (alt-change (alt-prev altn)) translated down one change.
+  (define (get-downstream altn)
+    (translated-down (alt-change (alt-prev altn))
+		     (alt-change altn)
+		     (alt-prev (alt-prev altn))))
+
+  ;; Takes the head of an alternative history and returns the head
+  ;; of a new history containing the same changes where the leading
+  ;; change has been moved down as far as possible.
   (define (swim-upstream salmon)
     (when (*debug*) (println salmon " is swimming."))
-    (if (or (eq? (alt-prev salmon) #f ) (eq? (alt-change (alt-prev salmon)) #f)) salmon ;;We've reached the mouth of the river
-	(let ([upstream-change (translated-up (alt-prev (alt-prev salmon)) (alt-change salmon) (alt-change (alt-prev salmon)))]
-	      [downstream-change (translated-down (alt-prev (alt-prev salmon)) (alt-change (alt-prev salmon)) (alt-change salmon))])
+    (if (done salmon) salmon
+	(let ([upstream-change (get-upstream salmon)]
+	      [downstream-change (get-downstream salmon)])
 	  (if (and upstream-change downstream-change)
 	      (let* ([moved-salmon (alt-apply (alt-prev (alt-prev salmon)) upstream-change)]
 		     [new-salmon (swim-upstream moved-salmon)]
@@ -37,9 +59,13 @@
 		    salmon
 		    (swim-upstream (alt-apply new-next (alt-change salmon)))))))))
 
+  ;; Takes the head of an alternative history and returns a history
+  ;; head which has the same change as the head passed, but with a
+  ;; history that has as many items as possible removed from it without
+  ;; compromising the head.
   (define (swim-head-upstream head-salmon)
-    (if (or (eq? (alt-prev head-salmon) #f) (eq? (alt-change (alt-prev head-salmon)) #f)) head-salmon
-	(let ([upstream-change (translated-up (alt-prev (alt-prev head-salmon)) (alt-change head-salmon) (alt-change (alt-prev head-salmon)))])
+    (if (done head-salmon) head-salmon
+	(let ([upstream-change (get-upstream head-salmon)])
 	  (if upstream-change
 	      (let* ([moved-salmon (alt-apply (alt-prev (alt-prev head-salmon)) upstream-change)]
 		     [new-salmon (swim-head-upstream moved-salmon)])
@@ -49,32 +75,45 @@
 		(if (eq? new-next dam)
 		    head-salmon
 		    (swim-head-upstream (alt-apply new-next (alt-change head-salmon)))))))))
+  
   (swim-head-upstream altn))
 
-;;Simple location match utility function. If 'a' is a continutation of 'b',
-;;such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
-;;'a' after 'b', '(cdr car). Visa-versa for 'b' as a continuation of 'a'. If
-;;'a' and 'b' diverge at some point before the end, returns false.
+;; Simple location match utility function. If 'a' is a continutation of 'b',
+;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
+;; 'a' after 'b', '(cdr car). Visa-versa for 'b' as a continuation of 'a'. If
+;; 'a' and 'b' diverge at some point before the end, returns false.
 (define (match-loc a b)
   (cond [(null? a) b]
 	[(null? b) a]
 	[(eq? (car a) (car b)) (match-loc (cdr a) (cdr b))]
 	[#t #f]))
+
+;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
 	[(null? b) #t]
 	[(eq? (car a) (car b)) (is-inside? (cdr a) (cdr b))]
 	[#t #f]))
 
-(define (translated-up start cur-change prev-change)
+;; Takes a location translation of the form ((loc loc loc...) (loc loc loc...))
+;; and returns true if the translation is one-to-one (of the form ((loc) (loc)).
+(define (one-to-one? translation)
+  (and (= 1 (length (car translation)))
+       (= 1 (length (cadr cur-translation)))))
   
-  ;;Translates locations for rules that have one to one variable bindings.
-  (define (simple-translate-loc-up post-rel-loc translations)
+
+(define (translated-up cur-change prev-change start)
+  
+  ;; Translates locations for rules that have one to one variable bindings.
+  ;; post-rel-loc means post-relative-location, which means it's the location
+  ;; after the translation (and we want the one before the translation), and
+  ;; it's relative to the location of the rule for which the translations were
+  ;; passed.
+  (define (simple-translate-loc-up post-rel-loc translations) 
     (if (null? translations)
 	#f
 	(let ([cur-translation (car translations)])
-	  (if (and (= 1 (length (car cur-translation)))
-		   (= 1 (length (cadr cur-translation)))) ;We can only handle the cases of one-to-one bindings currently
+	  (if (one-to-one? cur-translation);We can only handle the cases of one-to-one bindings currently
 	      (let ([tail (match-loc post-rel-loc (car (cadr cur-translation)))])
 		(if tail
 		    (append (caar cur-translation) tail)
@@ -85,8 +124,8 @@
 	 cur-change]
 	[(is-inside? (change-location cur-change) (change-location prev-change))
 	 (let* ([translations (rule-location-translations (change-rule prev-change))]
-		[new-rel-loc (simple-translate-loc-up (match-loc (change-location cur-change)
-								 (change-location prev-change))
+		[relative-location (match-loc (change-location cur-change) (change-location prev-change))]
+		[new-rel-loc (simple-translate-loc-up relative-location
 						      translations)])
 	   (if new-rel-loc ;simple-translate-loc returns false if it hits a case it can't translate.
 	       (let ([rule* (change-rule cur-change)] ;The rule doesn't change
@@ -105,21 +144,23 @@
 	[#t (error "Something has gone horribly wrong")])) ;The way orthogonal? and is-inside? are defined, it should be that for all
                                                            ;a and all b, either (orthogonal? a b), (is-inside? a b), or (is-inside? b a)
 	    
-(define (translated-down start cur-change next-change)
+(define (translated-down cur-change next-change start)
   
-  ;;Translates locations for rules that have one to one variable bindings,
-  ;;as in each variable only appears once in the input and once in the output.
-  (define (simple-translate-loc-down post-rel-loc translations)
+  ;; Translates locations for rules that have one to one variable bindings.
+  ;; pre-rel-loc means pre-relative-location, which means it's the location
+  ;; before the translation (and we want the one after the translation), and
+  ;; it's relative to the location of the rule for which the translations were
+  ;; passed.
+  (define (simple-translate-loc-down pre-rel-loc translations)
     (if (null? translations)
 	#f
 	(let ([cur-translation (car translations)])
-	  (if (and (= 1 (length (car cur-translation)))
-		   (= 1 (length (cadr cur-translation)))) ;We can only handle the cases of one-to-one bindings currently
+	  (if (one-to-one? cur-translation) ;We can only handle the cases of one-to-one bindings currently
 	      (let ([tail (match-loc post-rel-loc (caar cur-translation))])
 		(if tail
 		    (append (car (cadr cur-translation)) tail)
-		    (simple-translate-loc-down post-rel-loc (cdr translations))))
-	      (simple-translate-loc-down post-rel-loc (cdr translations))))))
+		    (simple-translate-loc-down pre-rel-loc (cdr translations))))
+	      (simple-translate-loc-down pre-rel-loc (cdr translations))))))
   
   (cond [(orthogonal? cur-change next-change)
 	 cur-change]
