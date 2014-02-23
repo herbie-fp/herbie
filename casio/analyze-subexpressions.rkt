@@ -103,7 +103,7 @@
        '<))
 
 (define (improve-by-analysis alt0 iters)
-  (when (*debug*) (println "> iba " alt0 " for " iters))
+  (debug alt0 "for" iters #:from 'iba #:tag 'enter)
   (define input (pick-bad-input alt0))
 
   (let loop ([altn alt0] [left iters])
@@ -112,11 +112,13 @@
      [(green? altn) altn]
      [#t
       (let* ([alts (step altn (caddr input))])
-        (when (*debug*) (println "; iba(" left ") " altn))
         (if (null? alts)
             altn
-            (loop (argmin (curryr alt-error-at (car input)) alts)
-                  (- left 1))))])))
+            (begin
+              (let ([altn* (argmin (curryr alt-error-at (car input)) alts)])
+
+                (debug (alt-change altn*) #:from (list 'iba left))
+                (loop altn* (- left 1))))))])))
 
 (define (strip-off-top loc)
   (let ([loc* (reverse loc)])

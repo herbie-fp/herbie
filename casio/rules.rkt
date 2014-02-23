@@ -96,7 +96,22 @@
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
 
-(struct change (rule location bindings) #:transparent)
+(struct change (rule location bindings) #:transparent
+        #:methods gen:custom-write
+        [(define (write-proc cng port mode)
+           (display "#<change " port)
+           (write (rule-name (change-rule cng)) port)
+           (display " at " port)
+           (write (change-location cng) port)
+           (let ([bindings (change-bindings cng)])
+             (when (not (null? bindings))
+               (display " with " port)
+               (for ([bind bindings])
+                 (write (car bind) port)
+                 (display "=" port)
+                 (write (cdr bind) port)
+                 (display ", " port))))
+           (display ">" port))])
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (reap [sow]
