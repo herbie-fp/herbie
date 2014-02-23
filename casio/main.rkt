@@ -10,6 +10,7 @@
 (define *strategies* (list improve-by-analysis brute-force-search))
 
 (define (improve prog max-iters)
+  (set! *log* '())
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     (let loop ([strats *strategies*] [alt0 (make-alt prog)])
