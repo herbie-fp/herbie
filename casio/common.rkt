@@ -4,12 +4,38 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan square ordinary-float?
-         list= list< enumerate take-up-to *debug*)
+         list= list< enumerate take-up-to *debug* debug)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
 
+(define (println . args)
+  (for ([val args])
+    (if (string? val)
+        (display val)
+        (write val)))
+  (newline)
+  (when (not (null? args))
+    (last args)))
+
 (define *debug* (make-parameter #f))
+(define *log* '())
+
+(define *tags*
+  #hasheq([enter . "> "]
+          [exit . "< "]
+          [info . ";; "]))
+
+(define (debug #:from from #:tag (tag #f) . args)
+  (set! *log*
+        (cons (list* from tag args) *log*))
+  (when (*debug*)
+      (display (hash-ref *tags* tag "; "))
+      (write from)
+      (for/list ([arg args])
+        (display " ")
+        ((if (string? arg) display write) arg))
+      (newline)))
 
 (define-syntax (reap stx)
   "A reap/sow abstraction for filters and maps."
@@ -19,15 +45,6 @@
               [sow (λ (elt) (set! store (cons elt store)) elt)])
          body ...
          (reverse store))]))
-
-(define (println . args)
-  (for ([val args])
-    (if (string? val)
-        (display val)
-        (print val)))
-  (newline)
-  (when (not (null? args))
-    (car args)))
 
 (define (->flonum x)
   (cond

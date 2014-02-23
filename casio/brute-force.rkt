@@ -39,11 +39,12 @@
 
   (let* ([parent (car options)]
          [rest (cdr options)]
-         [children (generate-alternatives parent)])
-    (when (*debug*) (println "; bfs(" iters ") " parent))
-    (values
-     (sort (append rest (filter (negate duplicate?) children)) alternative<?)
-     (cons parent done))))
+         [children (generate-alternatives parent)]
+         [options* (sort (append rest
+                                 (filter (negate duplicate?) children))
+                         alternative<?)])
+    (debug (alt-change (car options*)) #:from (list 'bfs iters))
+    (values options* (cons parent done))))
 
 (define (search-options options done iters)
   (cond
@@ -59,5 +60,5 @@
   "Brute-force search for a better version of `prog`,
    giving up after `iters` iterations without progress"
 
-  (when (*debug*) (println "> bfs " alt0 " for " iters))
+  (debug alt0 "for" iters #:from 'bfs #:tag 'enter)
   (search-options (list alt0) '() iters))
