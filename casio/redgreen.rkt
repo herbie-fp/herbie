@@ -240,9 +240,7 @@
 
 ;; Pipes an initial values through a list of funcs.
 (define (pipe initial funcs)
-  (if (null? funcs)
-      initial
-      (pipe ((car funcs) initial) (cdr funcs))))
+  ((apply compose (reverse funcs)) initial))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)
