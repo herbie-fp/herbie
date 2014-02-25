@@ -13,7 +13,7 @@
 (define (green? altn)
   (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
        (> (green-threshold)
-	  (errors-difference (alt-errors altn) (alt-errors (alt-prev altn))))))
+	  (apply + (errors-difference (alt-errors altn) (alt-errors (alt-prev altn)))))))
 
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
@@ -27,17 +27,19 @@
   ;; Returns (alt-change altn) translated up one change. The result is a
   ;; list of changes, since sometimes translating a change splits it.
   (define (get-upstream altn)
-    (translated-up (alt-change altn)
-		   (alt-change (alt-prev altn))
-		   (alt-prev (alt-prev altn))))
+    (translate #t
+	       (alt-change altn)
+	       (alt-change (alt-prev altn))
+	       (alt-prev (alt-prev altn))))
 
   ;; Returns (alt-change (alt-prev altn)) translated down one change.
   ;; The result is a list of changes, since sometimes translating a change
   ;; splits it.
   (define (get-downstream altn)
-    (translated-down (alt-change (alt-prev altn))
-		     (alt-change altn)
-		     (alt-prev (alt-prev altn))))
+    (translate #f
+	       (alt-change (alt-prev altn))
+	       (alt-change altn)
+	       (alt-prev (alt-prev altn))))
 
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
@@ -45,18 +47,26 @@
   (define (swim-upstream salmon)
     (when (*debug*) (println salmon " is swimming."))
     (if (done salmon) salmon
-	(let ([upstream-changes (get-upstream salmon)]
-	      [downstream-changes (get-downstream salmon)])
-	  (if (and upstream-changes downstream-changes)
-	      (let* ([moved-salmon (apply-changes (alt-prev (alt-prev salmon)) upstream-changes)]
-		     [new-salmon (swim-upstream moved-salmon)]
-		     [new-head (apply-changes new-salmon downstream-changes)])
-		new-head)
-	      (let* ([dam (alt-prev salmon)]
-		     [new-next (swim-upstream dam)])
-		(if (eq? new-next dam)
-		    salmon
-		    (swim-upstream (alt-apply new-next (alt-change salmon)))))))))
+	(let* ([grandparent (alt-prev (alt-prev salmon))]
+	       [upstream-changes (translate #t
+					    (alt-change salmon)
+					    (alt-change (alt-prev salmon))
+					    grandparent)])
+	  (if upstream-changes
+	      (let* ([moved-salmon (apply-changes grandparent upstream-changes)]
+		     [downstream-changes (translate #f
+						    (alt-change (alt-prev salmon))
+						    (alt-change salmon)
+						    moved-salmon)])
+		(if downstream-changes
+		    (let ([new-salmon (swim-upstream moved-salmon)])
+		      (apply-changes new-salmon downstream-changes))
+		    (let* ([dam (alt-prev salmon)]
+			   [new-next (swim-upstream dam)])
+		      (if (eq? new-next dam)
+			  salmon
+			  (swim-upstream (alt-apply new-next (alt-change salmon)))))))
+	      salmon))))
 
   ;; Takes the head of an alternative history and returns a history
   ;; head which has the same change as the head passed, but with a
@@ -64,11 +74,13 @@
   ;; compromising the head.
   (define (swim-head-upstream head-salmon)
     (if (done head-salmon) head-salmon
-	(let ([upstream-changes (get-upstream head-salmon)])
+	(let* ([grandparent (alt-prev (alt-prev head-salmon))]
+	       [upstream-changes (translate #t (alt-change head-salmon)
+					    (alt-change (alt-prev head-salmon))
+					    grandparent)])
 	  (if upstream-changes
-	      (let* ([moved-salmon (apply-changes (alt-prev (alt-prev head-salmon)) upstream-changes)]
-		     [new-salmon (swim-head-upstream moved-salmon)])
-		new-salmon)
+	      (let* ([moved-salmon (apply-changes grandparent upstream-changes)])
+		(swim-head-upstream moved-salmon))
 	      (let* ([dam (alt-prev head-salmon)]
 		     [new-next (swim-upstream dam)])
 		(if (eq? new-next dam)
@@ -94,20 +106,6 @@
 	[(eq? (car a) (car b)) (is-inside? (cdr a) (cdr b))]
 	[#t #f]))
 
-;; Takes a location translation of the form ((loc loc loc...) (loc loc loc...))
-;; and returns true if the translation is one-to-one (of the form ((loc) (loc))).
-(define (one-to-one? translation)
-  (and (= 1 (length (car translation)))
-       (= 1 (length (cadr translation)))))
-
-;; Takes a location translation of the form ((loc loc loc...) (loc loc loc...))
-;; and returns true if the translation is one-to-n (of the orm ((loc) (loc loc loc...))).
-(define (one-to-n? translation)
-  (= 1 (length (car translation))))
-
-(define (n-to-one? translation)
-  (= 1 (length (cadr translation))))
-
 ;; Takes a list of location tails, a single location head, and an original change,
 ;; and returns a list of changes that are identitical to the original change except
 ;; have locations of a tail appended to a head.
@@ -118,86 +116,52 @@
 		 (change-bindings original)))
        loc-tails))
 
-(define (translated-up cur-change prev-change start)
-  
-  ;; Translates locations for rules that have one to one variable bindings.
-  ;; post-rel-loc means post-relative-location, which means it's the location
-  ;; after the translation (and we want the one before the translation), and
-  ;; it's relative to the location of the rule for which the translations were
-  ;; passed.
-  (define (simple-translate-loc-up post-rel-loc translations) 
-    (if (null? translations)
-	#f
-	(let ([cur-translation (car translations)])
-	  (if (n-to-one? cur-translation)
-	      (let ([tail (match-loc post-rel-loc (car (cadr cur-translation)))])
-		(if tail
-		    (map (lambda (l) (append l tail))
-			 (car cur-translation))
-		    (simple-translate-loc-up post-rel-loc (cdr translations))))
-	      (simple-translate-loc-up post-rel-loc (cdr translations))))))
-  
-  (cond [(orthogonal? cur-change prev-change)
+;; Translates locations from a location within translations specified
+;; by from-func to the location specified by to-func.
+(define (translate-location loc translations from-func to-func)
+  (letrec ([recurse (lambda (translations)
+		      (if (null? translations)
+			  #f
+			  (let ([translation (car translations)])
+			    (if (= 1 (length (from-func translation from-func))) ;;Is the translation one-to-n?
+				(let ([tail (match-loc loc
+						       (car (from-func translation)))])
+				  (if tail
+				      (map (lambda (l) (append l tail))
+					   (to-func translation))
+				      (recurse (cdr translations))))
+				(recurse (cdr translations))))))])
+    (recurse translations)))
+;; Translates a change through another change.
+;; up? indicates whether you are translating the change up. A value
+;;     of false indicates a translation down.
+;; cur-change is the change that you want to translate.
+;; other-change is the change that you want to translate through.
+;; new-parent is the alternative that the translated change will be
+;;     applied to.
+(define (translate up? cur-change other-change new-parent)
+  (cond [(orthogonal? cur-change other-change)
 	 (list cur-change)]
-	[(is-inside? (change-location cur-change) (change-location prev-change))
-	 (let* ([translations (rule-location-translations (change-rule prev-change))]
-		[relative-location (match-loc (change-location cur-change) (change-location prev-change))]
-		[new-rel-locs (simple-translate-loc-up relative-location
-						       translations)])
-	   (if new-rel-locs ;simple-translate-loc returns false if it hits a case it can't translate.
-	       (loc-translated-changes new-rel-locs (change-location prev-change) cur-change)
+	[(is-inside? (change-location cur-change) (change-location other-change))
+	 (let* ([translations (rule-location-translations (change-rule other-change))]
+		[relative-location (match-loc (change-location cur-change)
+					      (change-location other-change))]
+		[new-rel-locs (translate-location relative-location
+						  translations
+						  (if up? cadr car)
+						  (if up? car cadr))])
+	   (if new-rel-locs ; if translate-location returns false, we can't translate.
+	       (loc-translated-changes new-rel-locs (change-location other-change) cur-change)
 	       #f))]
-	[(is-inside? (change-location prev-change) (change-location cur-change))
-	 (let* ([rule* (change-rule cur-change)] ;The rule doesn't change
-		[loc* (change-location cur-change)] ;The location doesn't change if prev-change is inside cur-change
+	[(is-inside? (change-location other-change) (change-location cur-change))
+	 (let* ([rule* (change-rule cur-change)]
+		[loc* (change-location cur-change)]
 		[bindings* (pattern-match (rule-input (change-rule cur-change))
-					  (location-get (change-location cur-change) (alt-program start)))])
-	   (if bindings* ;In this branch, a false value for bindings* is the way we find out we can't translate.
+					  (location-get (change-location cur-change)
+							(alt-program new-parent)))])
+	   (if bindings* ; if pattern-match returns false, we can't translate.
 	       (list (change rule* loc* bindings*))
-	       #f))]
-	[#t (error "Something has gone horribly wrong")])) ;The way orthogonal? and is-inside? are defined, it should be that for all
-                                                           ;a and all b, either (orthogonal? a b), (is-inside? a b), or (is-inside? b a)
-	    
-(define (translated-down cur-change next-change start)
-  
-  ;; Translates locations for rules that have one to one variable bindings.
-  ;; pre-rel-loc means pre-relative-location, which means it's the location
-  ;; before the translation (and we want the one after the translation), and
-  ;; it's relative to the location of the rule for which the translations were
-  ;; passed.
-  (define (simple-translate-loc-down pre-rel-loc translations)
-    (if (null? translations)
-	#f
-	(let ([cur-translation (car translations)])
-	  (if (one-to-n? cur-translation)
-	      (let ([tail (match-loc pre-rel-loc (caar cur-translation))])
-		(if tail
-		    (map (lambda (l) (append l tail))
-			 (cadr cur-translation))
-		    (simple-translate-loc-down pre-rel-loc (cdr translations))))
-	      (simple-translate-loc-down pre-rel-loc (cdr translations))))))
-  
-  (cond [(orthogonal? cur-change next-change)
-	 (list cur-change)]
-	[(is-inside? (change-location cur-change) (change-location next-change))
-	 (let* ([translations (rule-location-translations (change-rule next-change))]
-		[new-rel-locs (simple-translate-loc-down (match-loc (change-location cur-change)
-								   (change-location next-change))
-							 translations)])
-	   (if new-rel-locs ;simple-translate-loc returns false if it hits a case it can't translate.
-	       (loc-translated-changes new-rel-locs (change-location next-change) cur-change)
-	       #f))]
-	[(is-inside? (change-location next-change) (change-location cur-change))
-	 (let* ([rule* (change-rule cur-change)] ;The rule doesn't change
-		[loc* (change-location cur-change)] ;The location doesn't change if prev-change is inside cur-change
-		[bindings* (pattern-match (rule-input (change-rule cur-change))
-					  (location-get (change-location cur-change) (alt-program start)))])
-	   (if bindings* ;In this branch, a false value for bindings* is the way we find out we can't translate.
-	       (list (change rule* loc* bindings*))
-	       #f))]
-	[#t (error "Something has gone horribly wrong")])) ;The way orthogonal? and is-inside? are defined, it should be that for all
-                                                           ;a and all b, either (orthogonal? a b), (is-inside? a b), or (is-inside? b a)
-
+	       #f))]))
 
 ;;Returns whether or not two changes are orthogonal.
 ;;Orthogonal changes can be rearranged without changing
