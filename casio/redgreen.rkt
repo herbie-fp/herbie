@@ -22,7 +22,7 @@
   
   ;; If we're the first or second alt then we can't be moved back any farther.
   (define (done altn)
-    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f)))
+    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (green? (alt-prev altn))))
 
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
