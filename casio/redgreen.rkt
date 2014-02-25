@@ -24,23 +24,6 @@
   (define (done altn)
     (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f)))
 
-  ;; Returns (alt-change altn) translated up one change. The result is a
-  ;; list of changes, since sometimes translating a change splits it.
-  (define (get-upstream altn)
-    (translate #t
-	       (alt-change altn)
-	       (alt-change (alt-prev altn))
-	       (alt-prev (alt-prev altn))))
-
-  ;; Returns (alt-change (alt-prev altn)) translated down one change.
-  ;; The result is a list of changes, since sometimes translating a change
-  ;; splits it.
-  (define (get-downstream altn)
-    (translate #f
-	       (alt-change (alt-prev altn))
-	       (alt-change altn)
-	       (alt-prev (alt-prev altn))))
-
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
   ;; change has been moved down as far as possible.
