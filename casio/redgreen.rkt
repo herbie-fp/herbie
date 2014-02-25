@@ -9,42 +9,11 @@
 (provide green? remove-red green-threshold)
 
 (define green-threshold (make-parameter 0))
-
-(define (error-sum alt)
-  (apply + (alt-errors alt)))
-
-(define (real-number? x)
-  (not (or (infinite? x) (nan? x))))
-
-(define (diff-errors altn1 altn2)
-  (let ((errors1 (alt-errors altn1))
-	(errors2 (alt-errors altn2)))
-    (let ([diff (for/list ([error1 errors1] [error2 errors2])
-		  (cond [(and (real-number? error1) (real-number? error2))
-			 (- (abs error1) (abs error2))]
-			[(and (not (real-number? error1)) (real-number? error2))
-			 +inf.0]
-			[(and (real-number? error1) (not (real-number? error2)))
-			 -inf.0]
-			[#t 0.0]))])
-      (letrec ([count (lambda (acc infs diff)
-			(cond [(null? diff)
-			       (cond [(> 0 infs) -inf.0]
-				     [(< 0 infs) +inf.0]
-				     [#t acc])]
-			      [(real-number? (car diff))
-			       (count (+ acc (car diff)) infs (cdr diff))]
-			      [#t (count acc
-					 (if (> 0 (car diff))
-					     (+ 1 infs)
-					     (- 1 infs))
-					 (cdr diff))]))])
-	(count 0 0 diff)))))
 	     
 (define (green? altn)
   (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
        (> (green-threshold)
-	  (diff-errors altn (alt-prev altn)))))
+	  (errors-difference (alt-errors altn) (alt-errors (alt-prev altn))))))
 
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
