@@ -26,8 +26,8 @@
         (display val)
         (print val)))
   (newline))
-  ;;(when (not (null? args)) ;;What's the point of this?
-    ;;(car args)))
+  (when (not (null? args)) ;;What's the point of this?
+    (car args)))
 
 (define (->flonum x)
   (cond
