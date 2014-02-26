@@ -24,10 +24,22 @@
   (define (done altn)
     (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (green? (alt-prev altn))))
 
+  ;; Given that "salmon" is blocked from translating further by
+  ;; the change in front of it, try to move that change forward,
+  ;; and then try to move the salmon forward again.
+  (define (move-dam salmon is-head?)
+    (let* ([dam (alt-prev salmon)]
+	   [new-next (swim-upstream dam #f)])
+      (if (eq? new-next dam)
+	  salmon
+	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head?))))
+  
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
-  ;; change has been moved down as far as possible.
-  (define (swim-upstream salmon)
+  ;; change has been moved down as far as possible. is-head? is a value
+  ;; indicating whether we should throw away the changes that have been
+  ;; moved past the current change.
+  (define (swim-upstream salmon is-head?)
     (when (*debug*) (println salmon " is swimming."))
     (if (done salmon) salmon
 	(let* ([grandparent (alt-prev (alt-prev salmon))]
@@ -36,41 +48,19 @@
 					    (alt-change (alt-prev salmon))
 					    grandparent)])
 	  (if upstream-changes
-	      (let* ([moved-salmon (apply-changes grandparent upstream-changes)]
-		     [downstream-changes (translate #f
-						    (alt-change (alt-prev salmon))
-						    (alt-change salmon)
-						    moved-salmon)])
-		(if downstream-changes
-		    (let ([new-salmon (swim-upstream moved-salmon)])
-		      (apply-changes new-salmon downstream-changes))
-		    (let* ([dam (alt-prev salmon)]
-			   [new-next (swim-upstream dam)])
-		      (if (eq? new-next dam)
-			  salmon
-			  (swim-upstream (alt-apply new-next (alt-change salmon)))))))
-	      salmon))))
-
-  ;; Takes the head of an alternative history and returns a history
-  ;; head which has the same change as the head passed, but with a
-  ;; history that has as many items as possible removed from it without
-  ;; compromising the head.
-  (define (swim-head-upstream head-salmon)
-    (if (done head-salmon) head-salmon
-	(let* ([grandparent (alt-prev (alt-prev head-salmon))]
-	       [upstream-changes (translate #t (alt-change head-salmon)
-					    (alt-change (alt-prev head-salmon))
-					    grandparent)])
-	  (if upstream-changes
-	      (let* ([moved-salmon (apply-changes grandparent upstream-changes)])
-		(swim-head-upstream moved-salmon))
-	      (let* ([dam (alt-prev head-salmon)]
-		     [new-next (swim-upstream dam)])
-		(if (eq? new-next dam)
-		    head-salmon
-		    (swim-head-upstream (alt-apply new-next (alt-change head-salmon)))))))))
-  
-  (swim-head-upstream altn))
+	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
+		(if is-head?
+		    (swim-upstream moved-salmon #t)
+		    (let ([downstream-changes (translate #f
+							 (alt-change (alt-prev salmon))
+							 (alt-change salmon)
+							 moved-salmon)])
+		      (if downstream-changes
+			  (let ([new-salmon (swim-upstream moved-salmon #f)])
+			    (apply-changes new-salmon downstream-changes))
+			  (move-dam salmon #f)))))
+	      (move-dam salmon is-head?)))))
+  (swim-upstream altn #t))
 
 ;; Simple location match utility function. If 'a' is a continutation of 'b',
 ;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
