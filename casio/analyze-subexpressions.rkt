@@ -8,7 +8,7 @@
 (require casio/alternative)
 (require casio/redgreen)
 
-(provide improve-by-analysis)
+(provide improve-by-analysis analyze-local-error)
 
 (struct annotation (expr exact-value approx-value local-error total-error loc) #:transparent)
 
@@ -84,6 +84,12 @@
          ; TODO: Eliminate this ad-hoc solution.
          [lst* (filter (λ (x) (< (cadr x) 1)) lst)])
     (argmax cadr (if (null? lst*) lst lst*))))
+
+(define (analyze-local-error altn)
+  (let* ([input (pick-bad-input altn)]
+	 [annot (analyze-expressions (alt-program altn) (caddr input))]
+	 [loc (find-most-local-error annot)])
+    loc))
 
 (define (step alt input)
   (let* ([annot (analyze-expressions (alt-program alt) input)]
