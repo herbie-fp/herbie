@@ -138,27 +138,43 @@
 
 ; Now we define some rules
 
+; Commutativity
+(define-rule   +-commutative     (+ a b)               (+ b a))
+(define-rule   *-commutative     (* a b)               (* b a))
 ; Associativity
 (define-rule   associate-+-lft   (+ a (+ b c))         (+ (+ a b) c))
 (define-rule   associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c)))
 (define-rule   associate---lft   (+ a (- b c))         (- (+ a b) c))
 (define-rule   associate---rgt   (- (+ a b) c)         (+ a (- b c)))
+(define-rule   associate-*-lft   (* a (* b c))         (* (* a b) c))
+(define-rule   associate-*-rgt   (* (* a b) c)         (* a (* b c)))
+(define-rule   associate-/-lft   (* a (/ b c))         (/ (* a b) c))
+(define-rule   associate-/-rgt   (/ (* a b) c)         (* a (/ b c)))
 ; Distributivity
-(define-rule   distribute-in     (* a (+ b c))         (+ (* a b) (* a c)))
-(define-rule   distribute-out    (+ (* a b) (* a c))   (* a (+ b c)))
-; Commutativity
-(define-rule   +-commutative     (+ a b)               (+ b a))
-(define-rule   *-commutative     (* a b)               (* b a))
+(define-rule   distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c)))
+(define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a)))
+(define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c)))
+(define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c)))
 ; Identity
 (define-rule   +-identity        (+ a 0)               a)
 (define-rule   +-inverses        (- a a)               0)
 (define-rule   *-identity        (* a 1)               a)
 (define-rule   *-inverses        (/ a a)               1)
+; Dealing with fractions
+(define-rule   div-sub           (/ (- a b) c)         (- (/ a c) (/ b c)))
+(define-rule   sub-div           (- (/ a c) (/ b c))   (/ (- a b) c))
+(define-rule   frac-sub          (- (/ a b) (/ c d))   (/ (- (* a d) (* b c)) (* b d)))
 ; Square root  
 (define-rule   add-square-sqrt   x                     (square (sqrt x)))
 (define-rule   add-sqrt-square   x                     (sqrt (square x)))
 (define-rule   rem-square-sqrt   (square (sqrt x))     x)
 (define-rule   rem-sqrt-square   (sqrt (square x))     x)
+(define-rule   square-mult       (square x)            (* x x))
+(define-rule   square-unmult     (* x x)               (square x))
+(define-rule   square-prod       (square (* x y))      (* (square x) (square y)))
+(define-rule   square-unprod     (* (square x) (square y)) (square (* x y)))
+(define-rule   square-div        (square (/ x y))      (/ (square x) (square y)))
+(define-rule   square-undiv      (/ (square x) (square y)) (square (/ x y)))
 ; Exponentials
 (define-rule   add-exp-log       x                     (exp (log x)))
 (define-rule   add-log-exp       x                     (log (exp x)))
