@@ -1,7 +1,11 @@
 #lang racket
 
+(require casio/alternative)
+(require casio/programs)
 (require casio/main)
 (require rackunit)
+
+(define *num-iterations* (make-parameter 10))
 
 (define (unfold-let expr)
   (match expr
@@ -34,12 +38,6 @@
    [#t
     expr]))
 
-(define (bench-results name inerr outerr)
-  (printf "~a orders: ~s\n"
-          (/ (round (* (- (/ (log (/ outerr (max inerr 1e-16)))
-                             (log 10))) 10)) 10)
-          name))
-
 (define (compile-program prog)
   (expand-associativity (unfold-let prog)))
 
@@ -49,24 +47,25 @@
   (syntax-case stx ()
     [(_ vars name input output)
      #`(let* ([prog `(lambda vars ,(compile-program 'input))]
-              [opts (improve prog 10)])
-	 (if (member 'output (map program-body opts))
-	     (exit 0)
+              [altn (improve prog (*num-iterations*))])
+	 (if (member 'output (program-body (alt-program altn)))
+	     #t
 	     (begin
 	       (printf "failure on ~a\ninput: ~a\ndesired output: ~a\nactual output: ~a\n"
-		       'name 'input 'output (map program-body opts))
-	       (exit 1))))]))
+		       'name 'input 'output altn)
+	       #f)))]))
 
-;(define-syntax (casio-bench stx)
-;  (syntax-case stx ()
-;    [(_ vars name input)
-;     #`(let* ([pts (make-points (length 'vars))]
-;              [prog `(lambda vars ,(unfold-let 'input))]
-;              [exacts (make-exacts prog pts)])
-;         (let-values ([(done opts) (improve prog 5)]
-;                      [(prog) (car (sort done #:key alternative-score list<))]
-;                      [(prog-score prog-specials) (max-error prog pts exacts)]
-;                      [(goal-score goal-specials) (max-error output pts exacts)])
-;           (bench-results name prog-score goal-score)))]))
+(define (bench-results name inerr outerr)
+  (printf "~a orders: ~s\n"
+          (/ (round (* (- (/ (log (/ outerr (max inerr 1e-16)))
+                             (log 10))) 10)) 10)
+          name))
 
-(provide casio-test casio-bench cotan)
+(define-syntax (casio-bench stx)
+  (syntax-case stx ()
+    [(_ vars name input)
+     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
+              [altn (improve prog (*num-iterations*))])
+	 'ok #;(bench-results name prog altn))]))
+
+(provide casio-test casio-bench)
