@@ -10,7 +10,7 @@
 (define *strategies* (list improve-by-analysis brute-force-search))
 
 (define (improve prog max-iters)
-  (set! *log* '())
+  (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     (let loop ([strats *strategies*] [alt0 (make-alt prog)])
@@ -44,4 +44,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide (all-defined-out))
+(provide improve *strategies*)
