@@ -17,6 +17,15 @@
     [x
      x]))
 
+(define (expand-associativity expr)
+  (match expr
+    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
+     (list op (expand-associativity (cons op a)) (expand-associativity b))]
+    [(list op a ...)
+     (cons op (map expand-associativity a))]
+    [_
+     expr]))
+
 (define ((replace-var var val) expr)
   (cond
    [(eq? expr var) val]
@@ -31,12 +40,15 @@
                              (log 10))) 10)) 10)
           name))
 
+(define (compile-program prog)
+  (expand-associativity (unfold-let prog)))
+
 (define-binary-check (check-member (lambda (x y) (member y x)) elt lst))
 
 (define-syntax (casio-test stx)
   (syntax-case stx ()
     [(_ vars name input output)
-     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
+     #`(let* ([prog `(lambda vars ,(compile-program 'input))]
               [opts (improve prog 10)])
 	 (if (member 'output (map program-body opts))
 	     (exit 0)
