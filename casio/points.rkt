@@ -108,9 +108,11 @@
       (for/list ([error1 errors1] [error2 errors2])
         (cond
          [(and (reasonable-error? error1) (reasonable-error? error2))
-          (if (and (= error1 0) (= error2 0))
-              0.0
-              (log (/ error1 error2)))]
+          (cond
+           [(and (= error1 0) (= error2 0)) 0.0]
+           [(= error1 0) -inf.0]
+           [(= error2 0) +inf.0]
+           [#t (log (/ error1 error2))])]
          [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
           -inf.0]
          [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
