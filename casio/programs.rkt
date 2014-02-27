@@ -4,8 +4,9 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct program-induct location-do location-get
-         eval-prog operations mode:bf mode:fl)
+         location-induct location-map program-induct
+	 location-do location-get eval-prog operations
+	 mode:bf mode:fl)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -57,12 +58,14 @@
   (cond
    [(null? loc)
     (f prog)]
+   [(not (pair? prog))
+    (error "Bad location: cannot enter " prog "any further.")]
    [(eq? (car loc) 'car)
     (cons (location-do (cdr loc) (car prog) f) (cdr prog))]
    [(eq? (car loc) 'cdr)
     (cons (car prog) (location-do (cdr loc) (cdr prog) f))]
    [#t
-    (error "Unknown location" loc)]))
+    (error "Bad token in location " loc ". Allowed tokens are car and cdr")]))
 
 (define (location-get loc prog)
   ; Clever continuation usage to early-return
