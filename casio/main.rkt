@@ -13,20 +13,30 @@
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
-    (let loop ([strats *strategies*] [alt0 (make-alt prog)])
-      (if (null? strats)
-          alt0
-          (let ([alt1 ((car strats) alt0 max-iters)])
-            (debug (car strats) "->" alt1 #:from 'improve)
-            (if (and (green? alt1) (not (eq? alt1 alt0)))
-                (loop *strategies* (remove-red alt1))
-                (loop (cdr strats) alt1)))))))
+    (let ([orig (make-alt prog)])
+      (let loop ([strats *strategies*] [alt0 orig])
+	(if (null? strats)
+	    (values alt0 orig)
+	    (let ([alt1 ((car strats) alt0 max-iters)])
+	      (debug (car strats) "->" alt1 #:from 'improve)
+	      (if (and (green? alt1) (not (eq? alt1 alt0)))
+		  (loop *strategies* (remove-red alt1))
+		  (loop (cdr strats) alt1))))))))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
 ;; PROGRAM-A and PROGRAM-B are two example programs to test.
 ;; (explore prog iters) returns a list of alternatives found
 ;; (improve prog iters) prints the found alternatives
+(define (print-improve prog max-iters)
+  (let-values ([(end start) (improve prog max-iters)])
+    (println start)
+    (println end)
+    (println "Improvement by an average of "
+	     (/ (apply + (filter ordinary-float?
+				 (errors-difference (alt-errors start) (alt-errors end))))
+		       (log 2))
+	     " bits of precision")))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))

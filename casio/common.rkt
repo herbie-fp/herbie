@@ -15,8 +15,9 @@
         (display val)
         (write val)))
   (newline)
-  (when (not (null? args))
-    (last args)))
+  (let ([possible-returns (filter (negate string?) args)])
+    (when (not (null? possible-returns))
+      (last possible-returns))))
 
 (define *debug* (make-parameter #f))
 (define *log* '())
