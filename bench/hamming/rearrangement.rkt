@@ -9,9 +9,7 @@
 
 (casio-bench (x)
   "Hamming (NMSE) example 3.2, sin(x) / x"
-  (if (= x 0)
-      1
-      (/ (sin x) x)))
+  (/ (sin x) x))
 
 (casio-test (x eps)
   "Hamming (NMSE) example 3.3, sin(x + ε) - sin(x)"
@@ -47,11 +45,11 @@
   (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1)))
   (/ 2 (* x (- (* x x) 1))))
 
-(casio-test (x)
+(casio-bench (x)
   "Hamming (NMSE) problem 3.3.4, ³√(x + 1) - ³√x"
   (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3))))
 
-(casio-test (x eps)
+(casio-bench (x eps)
   "Hamming (NMSE) problem 3.3.5, cos(x + ε) - cos(x)"
   (- (cos (+ x eps)) (cos x)))
 
