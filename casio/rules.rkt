@@ -156,10 +156,14 @@
 (define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c)))
 (define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c)))
 ; Identity
-(define-rule   +-identity        (+ a 0)               a)
+(define-rule   +-lft-identity    (+ 0 a)               a)
+(define-rule   +-rgt-identity    (+ a 0)               a)
 (define-rule   +-inverses        (- a a)               0)
-(define-rule   *-identity        (* a 1)               a)
+(define-rule   sub-neg           (- a b)               (+ a (- b)))
+(define-rule   *-lft-identity    (* 1 a)               a)
+(define-rule   *-rgt-identity    (* a 1)               a)
 (define-rule   *-inverses        (/ a a)               1)
+(define-rule   sub-neg           (/ a b)               (* a (/ b)))
 ; Dealing with fractions
 (define-rule   div-sub           (/ (- a b) c)         (- (/ a c) (/ b c)))
 (define-rule   sub-div           (- (/ a c) (/ b c))   (/ (- a b) c))
