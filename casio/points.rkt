@@ -94,6 +94,7 @@
 (define errors-compare-cache (make-hasheq))
 
 (define (reasonable-error? x)
+  ; TODO : Why do we need the 100% error case?
   (not (or (= x 1.0) (infinite? x) (nan? x))))
 
 (define (errors-compare errors1 errors2)
