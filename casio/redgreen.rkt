@@ -96,7 +96,7 @@
 		      (if (null? translations)
 			  #f
 			  (let ([translation (car translations)])
-			    (if (= 1 (length (from-func translation from-func))) ;;Is the translation one-to-n?
+			    (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
 				(let ([tail (match-loc loc
 						       (car (from-func translation)))])
 				  (if tail
