@@ -7,6 +7,7 @@
 (require casio/common)
 
 (provide green? remove-red green-threshold)
+(provide (all-defined-out)) 
 
 (define green-threshold (make-parameter 0))
 	     
@@ -174,14 +175,3 @@
   (if (< 2 (length args))
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))
-
-;; Pipes an initial values through a list of funcs.
-(define (pipe initial funcs)
-  ((apply compose (reverse funcs)) initial))
-
-;;Applies a list of changes to an alternative.
-(define (apply-changes altn changes)
-  (pipe altn (map (lambda (change)
-		    (lambda (altn)
-		      (alt-apply altn change)))
-		  changes)))
