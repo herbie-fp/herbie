@@ -23,6 +23,17 @@
          [errs (errors prog (*points*) (*exacts*))])
     (alt prog errs (program-cost prog) cng altn)))
 
+;; Pipes an initial values through a list of funcs.
+(define (pipe initial funcs)
+  ((apply compose (reverse funcs)) initial))
+
+;;Applies a list of changes to an alternative.
+(define (apply-changes altn changes)
+  (pipe altn (map (lambda (change)
+		    (lambda (altn)
+		      (alt-apply altn change)))
+		  changes)))
+
 (define (alt-rewrite-tree alt #:root [root-loc '()])
   (let ([subtree (location-get root-loc (alt-program alt))])
     (map (curry alt-apply alt) (rewrite-tree subtree #:root root-loc))))
