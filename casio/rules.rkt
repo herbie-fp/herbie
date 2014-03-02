@@ -136,6 +136,7 @@
         [bnd (change-bindings cng)])
     (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
 
+
 ; Now we define some rules
 
 ; Commutativity

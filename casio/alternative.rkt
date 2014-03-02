@@ -5,7 +5,7 @@
 (require casio/rules)
 (require racket/pretty)
 
-(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression)
+(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression apply-changes)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
