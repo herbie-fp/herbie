@@ -6,12 +6,16 @@
 (require casio/points)
 (require casio/common)
 
-(provide simplify)
+(provide (all-defined-out))
 
 (define (simplify altn)
-  (let* ([change (alt-change altn)]
-	 [location (change-location change)]
-	 [rule (change-rule change)])
+  (let ([slocations (if (alt-prev altn)
+			(rule-slocations (change-rule (alt-change altn)))
+			'(()))]
+	 [location (if (alt-prev altn)
+		       (change-location (alt-change altn))
+		       '(cdr cdr car))])
+    (when (*debug*) (println "Simplifying " (alt-program altn)))
     (define (simplify-at-locations slocations prog preerrors changes)
       (if (null? slocations)
 	  changes
@@ -19,7 +23,7 @@
 		 [partly-simplified-prog (location-do full-location
 						      prog
 						      simplify-expression)]
-		 [post-errors (errors partly-simplified-prog)])
+		 [post-errors (errors partly-simplified-prog (*points*) (*exacts*))])
 	    (if (< 0 (apply + (errors-difference post-errors preerrors)))
 		(simplify-at-locations (cdr slocations)
 					partly-simplified-prog
@@ -37,7 +41,7 @@
 					prog
 					preerrors
 					changes)))))
-    (let* ([simplifying-changes (simplify-at-locations (rule-slocations rule)
+    (let* ([simplifying-changes (simplify-at-locations slocations
 						     (alt-program altn)
 						     (alt-errors altn)
 						     '())])
@@ -50,8 +54,8 @@
   (define (get-duplicated-vars expr)
     (cond [(null? expr) '()]
 	  [(symbol? expr) (list expr)]
-	  [(list? expr) (map append (map get-contained-vars
-					 (cdr expr)))]))
+	  [(list? expr) (apply append (map get-duplicated-vars
+					   (cdr expr)))]))
   (remove-duplicates (get-duplicated-vars expr)))
 
 (define func-inverses
@@ -60,7 +64,7 @@
 
 (define (rm-fns-&-invs prog)
   (define (rm-fn-&-inv expr)
-    (when (*debug*) (println "Attempting to remove functions with their inverses from: " expr))
+;;    (when (*debug*) (println "Attempting to remove functions with their inverses from: " expr))
     (define (reverse-alist l)
       (map (lambda (pair) (cons (cdr pair) (car pair)))
 	   l))

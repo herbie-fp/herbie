@@ -62,4 +62,4 @@
    giving up after `iters` iterations without progress"
 
   (debug alt0 "for" iters #:from 'bfs #:tag 'enter)
-  (search-options (list alt0) '() iters))
+  (search-options (list (simplify (alt0))) '() iters))

@@ -7,13 +7,14 @@
 (require casio/programs)
 (require casio/alternative)
 (require casio/redgreen)
+(require casio/simplify)
 
 (provide improve-by-analysis analyze-local-error)
 
 (struct annotation (expr exact-value approx-value local-error total-error loc) #:transparent)
 
 (define (real-op->bigfloat-op op)
-  (list-ref (hash-ref operations op) mode:bf))
+  (list-ref (hash-ref operations op) mode:bf)) 
 
 (define (real-op->float-op op)
   (list-ref (hash-ref operations op) mode:fl))
@@ -92,7 +93,8 @@
     loc))
 
 (define (step alt input)
-  (let* ([annot (analyze-expressions (alt-program alt) input)]
+  (let* ([alt* alt]
+	 [annot (analyze-expressions (alt-program alt*) input)]
          [loc (find-most-local-error annot)])
     (if loc
         (alt-rewrite-expression alt #:destruct #t #:root loc)
@@ -112,12 +114,12 @@
   (debug alt0 "for" iters #:from 'iba #:tag 'enter)
   (define input (pick-bad-input alt0))
 
-  (let loop ([altn alt0] [left iters])
+  (let loop ([altn (simplify alt0)] [left iters])
     (cond
      [(<= left 0) altn]
      [(green? altn) altn]
      [#t
-      (let* ([alts (step altn (caddr input))])
+      (let* ([alts (map simplify (step altn (caddr input)))])
         (if (null? alts)
             altn
             (begin
