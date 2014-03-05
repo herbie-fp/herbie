@@ -17,41 +17,31 @@
 	 [location (if (alt-prev altn)
 		       (change-location (alt-change altn))
 		       '(cdr cdr car))])
-    (when (*debug*) (println "Simplifying " (alt-program altn) " at " (map (lambda (l) (append location l))
-									   slocations)))
-    (define (simplify-at-locations slocations prog preerrors changes)
+    ;;(when (*debug*) (println "Simplifying " (alt-program altn) " at " (map (lambda (l) (append location l))
+;;									   slocations)))
+    (define (simplify-at-locations slocations alt)
       (if (null? slocations)
-	  changes
+	  alt
 	  (let* ([full-location (append location (car slocations))]
 		 [partly-simplified-prog (location-do full-location
-						      prog
+						      (alt-program alt)
 						      simplify-expression)]
-		 [post-errors (if (or (null? partly-simplified-prog) (not (pair? partly-simplified-prog)))
-				  (map (lambda (x) 0) *points*)
-				  (errors partly-simplified-prog (*points*) (*exacts*)))])
-	    (when (*debug*) (println "Simplified to: " partly-simplified-prog))
-	    (if (< 0 (errors-diff-score post-errors preerrors))
+		 [new-rule (rule 'simplify
+				 (location-get full-location
+					       (alt-program alt))
+				 (location-get full-location
+					       partly-simplified-prog)
+				 '())]
+		 [new-change (change new-rule full-location (map (lambda (x) (cons x x))
+								 (get-contained-vars (alt-program altn))))]
+		 [new-alt (alt-apply alt new-change)])
+	    ;;(when (*debug*) (println "Simplified to: " partly-simplified-prog))
+	    (if (green? new-alt)
 		(simplify-at-locations (cdr slocations)
-					partly-simplified-prog
-					post-errors
-					(let* ([new-rule (rule 'simplify
-							       (location-get full-location
-									     prog)
-							       (location-get full-location
-									     partly-simplified-prog)
-							       '())]
-					       [new-change (change new-rule full-location (map (lambda (x) (cons x x))
-											       (get-contained-vars prog)))])
-					  (cons new-change changes)))
+					new-alt)
 		(simplify-at-locations (cdr slocations)
-					prog
-					preerrors
-					changes)))))
-    (let* ([simplifying-changes (simplify-at-locations slocations
-						     (alt-program altn)
-						     (alt-errors altn)
-						     '())])
-      (apply-changes altn simplifying-changes))))
+					alt)))))
+    (simplify-at-locations slocations altn)))
 
 (define (simplify-expression expr)
   (decanonicalize (resolve-terms (canonicalize (rm-fns-&-invs expr)))))
