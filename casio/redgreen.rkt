@@ -12,7 +12,7 @@
 	     
 (define (green? altn)
   (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
-       (> (green-threshold)
+       (< (green-threshold)
 	  (errors-diff-score (alt-errors altn) (alt-errors (alt-prev altn))))))
 
 (define (errors-diff-score e1 e2)
