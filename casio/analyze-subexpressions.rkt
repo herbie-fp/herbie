@@ -14,7 +14,7 @@
 (struct annotation (expr exact-value approx-value local-error total-error loc) #:transparent)
 
 (define (real-op->bigfloat-op op)
-  (list-ref (hash-ref operations op) mode:bf)) 
+  (list-ref (hash-ref operations op) mode:bf))
 
 (define (real-op->float-op op)
   (list-ref (hash-ref operations op) mode:fl))
@@ -93,8 +93,7 @@
     loc))
 
 (define (step alt input)
-  (let* ([alt* alt]
-	 [annot (analyze-expressions (alt-program alt*) input)]
+  (let* ([annot (analyze-expressions (alt-program alt) input)]
          [loc (find-most-local-error annot)])
     (if loc
         (alt-rewrite-expression alt #:destruct #t #:root loc)
