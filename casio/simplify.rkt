@@ -236,20 +236,20 @@
 	  [(member (cadr (car inverted-factors)) factors)
 	   (cancel-factors (remove (cadr (car inverted-factors)) factors) (cdr inverted-factors))] ; If there is a factor to cancel, cancel it.
 	  [#t (cancel-factors (cons (car inverted-factors) factors) (cdr inverted-factors))])) ; Otherwise, just add this non-cancelable factor to the factors we return at the end.
-  (if (atomic? term)
-      term ;If our term is atomic, then we're done.
-      (let-values ([(inverted non-inverted) (partition (lambda (element)
-							 (and (not (atomic? element))
-							      (eq? (car element) '/)))
-						       (if (number? (cadr term))
-							   (cddr term)
-							   (cdr term)))]) ; Partition the elements into inverted and non-inverted
-	(let ([new-factors (cancel-factors non-inverted inverted)]) ; The newly canceled factors
-	  (if (null? new-factors)
-	      1 ; If all the factors canceled, we just return 1, the multiplicative identity
-	      (if (number? (cadr term))
-		  (list* '* (cadr term) new-factors) ;; Return the factors
-		  (list* '* new-factors)))))))
+  (cond [(atomic? term) term] ; If our term is atomic, we're done
+	[(eq? (car term) '-) (list '- (resolve-factors (cadr term)))] ; If our term is negated, return the positive version resolved, negated.
+	[#t (let-values ([(inverted non-inverted) (partition (lambda (element)
+							       (and (not (atomic? element))
+								    (eq? (car element) '/)))
+							     (if (number? (cadr term))
+								 (cddr term)
+								 (cdr term)))]) ; Partition the elements into inverted and non-inverted
+	      (let ([new-factors (cancel-factors non-inverted inverted)]) ; The newly canceled factors
+		(if (null? new-factors)
+		    1 ; If all the factors canceled, we just return 1, the multiplicative identity
+		    (if (number? (cadr term))
+			(list* '* (cadr term) new-factors) ;; Return the factors
+			(list* '* new-factors)))))]))
 
 ;; Get the atoms of a term. Terms are made up of atoms multiplied together.
 (define (term-atoms expr)
