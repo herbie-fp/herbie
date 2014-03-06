@@ -139,10 +139,10 @@
 								     b))
 							      a)))]
 	  [`(* (+ . ,as) ,b) (cons '+ (map (lambda (a)
-					   `(* ,a ,b))
+					     (canonicalize `(* ,a ,b)))
 					 as))]
 	  [`(* ,a (+ ,bs)) (cons '+ (map (lambda (b)
-					   `(* ,a ,b))
+					   (canonicalize `(* ,a ,b)))
 					 bs))]
 	  [`(* (* . ,a) (* . ,b)) (cons '* (append a b))]
 	  [`(* ,a (* . ,b)) (list* '* a b)]
@@ -157,7 +157,7 @@
 	  [`(/ ,a (* ,b . ,c)) `(* (/ ,a ,b) . ,(map (lambda (v) (canonicalize `(/ 1 ,v)))
 						    c))]
 	  [`(/ (* ,a . ,b) ,c) `(* (/ ,a ,c) . ,b)]
-	  [`(/ (+ ,as) ,c) (cons '+ (map (lambda (v) `(/ ,v ,c))
+	  [`(/ (+ ,as) ,c) (cons '+ (map (lambda (v) (canonicalize `(/ ,v ,c)))
 					 as))]
 	  [`(/ ,a ,b) (canonicalize `(* ,a (/ 1 ,b)))]
 	  [`(square (* . ,as)) (cons '* (map (lambda (v) `(square ,v))
@@ -178,7 +178,7 @@
 			 (map decanonicalize (cdr cexpr)))]) ; Decanonicalize each item in the list first
 	;; Try to decanonicalize with our decanonicalizing rules
 	(match expr*
-	  [`(+ ,a ,b ,c . ,n) (foldl (lambda (t acc) `(+ ,acc t))
+	  [`(+ ,a ,b ,c . ,n) (foldl (lambda (t acc) `(+ ,acc ,t))
 				     a
 				     (list* b c n))]
 	  [`(* 1 ,a) a]
