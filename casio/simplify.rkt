@@ -60,7 +60,7 @@
 ;; Simplify an expression
 (define (simplify-expression expr)
   ;; To simplify an expression, we first remove functions with their inverses, then we canonicalize, then resolve terms, then decanonicalize
-  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-all-factors (canonicalize (rm-fns-&-invs expr)))))))
+  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-all-factors (mcanonicalize (rm-fns-&-invs expr)))))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
@@ -118,48 +118,56 @@
 	    expr*))
       top-expr))
 
+;; Set up a memoized version of canonicalize, since I think canonicalize would benifit from it.
+(define canonicalize-table (make-hash))
+(define (mcanonicalize expr)
+  (hash-ref canonicalize-table expr
+	    (let ([value (canonicalize expr)])
+	      (hash-set! canonicalize-table expr value)
+	      value)))
+
 ;; Take an expression, and turn it into canonical form. Canonical form has the additions on the outside, subtractions
 ;; one-level in, then multiplication, division. Inside that should be any expressions that the simplifier considers
 ;; atoms, or items that it can't simplify.
 (define (canonicalize expr)
   (if (pair? expr)
       (let ([expr* (cons (car expr)
-			 (map canonicalize (cdr expr)))]) ;; First, try to canonicalize all subexpressions.
+			 (map mcanonicalize (cdr expr)))]) ;; First, try to canonicalize all subexpressions.
 	;; Then, try to canonicalize with our canonicalization rules
 	(match expr*
 	  [`(+ (+ . ,a) (+ . ,b)) (cons '+ (append a b))]
 	  [`(+ ,a (+ . ,b)) (list* '+ a b)]
 	  [`(+ (+ . ,a) ,b) (cons '+ (append a (list b)))]
-	  [`(- (+ . ,a)) (cons '+ (map (lambda (expr) (list '- (canonicalize expr)))
+	  [`(- (+ . ,a)) (cons '+ (map (lambda (expr) (list '- (mcanonicalize expr)))
        			       a))]
-	  [`(- ,a ,b) (canonicalize `(+ ,a (- ,b)))]
+	  [`(- ,a ,b) (mcanonicalize `(+ ,a (- ,b)))]
 	  [`(* (+ . ,a) (+ . ,b)) (cons '+ (apply append (map (lambda (an)
 								(map (lambda (bn)
 								       `(* ,an ,bn))
 								     b))
 							      a)))]
 	  [`(* (+ . ,as) ,b) (cons '+ (map (lambda (a)
-					     (canonicalize `(* ,a ,b)))
+					     (mcanonicalize `(* ,a ,b)))
 					 as))]
 	  [`(* ,a (+ ,bs)) (cons '+ (map (lambda (b)
-					   (canonicalize `(* ,a ,b)))
+					   (mcanonicalize `(* ,a ,b)))
 					 bs))]
 	  [`(* (* . ,a) (* . ,b)) (cons '* (append a b))]
 	  [`(* ,a (* . ,b)) (list* '* a b)]
 	  [`(* (* . ,a) ,b) (cons '* (append a (list b)))]
 	  [`(/ 1 (/ 1 ,a)) a]
 	  [`(/ 1 ,a) `(/ 1 ,a)]
-	  [`(/ ,a ,b) (canonicalize `(* ,a (/ 1 ,b)))]
+	  [`(/ ,a ,b) (mcanonicalize `(* ,a (/ 1 ,b)))]
 	  [`(/ (* ,a) (* ,b)) (list '* (let loop ([exprs1 a] [exprs2 b])
-					 (cond [(null? a) (map (lambda (v) (canonicalize `(/ 1 ,b))))]
+					 (cond [(null? a) (map (lambda (v) (mcanonicalize `(/ 1 ,b))))]
 					       [(null? b) a]
 					       [#t (cons (/ (car a) (car b)) (loop (cdr a) (cdr b)))])))]
-	  [`(/ ,a (* ,b . ,c)) `(* (/ ,a ,b) . ,(map (lambda (v) (canonicalize `(/ 1 ,v)))
+	  [`(/ ,a (* ,b . ,c)) `(* (/ ,a ,b) . ,(map (lambda (v) (mcanonicalize `(/ 1 ,v)))
 						    c))]
 	  [`(/ (* ,a . ,b) ,c) `(* (/ ,a ,c) . ,b)]
-	  [`(/ (+ ,as) ,c) (cons '+ (map (lambda (v) (canonicalize `(/ ,v ,c)))
+	  [`(/ (+ ,as) ,c) (cons '+ (map (lambda (v) (mcanonicalize `(/ ,v ,c)))
 					 as))]
-	  [`(/ ,a ,b) (canonicalize `(* ,a (/ 1 ,b)))]
+	  [`(/ ,a ,b) (mcanonicalize `(* ,a (/ 1 ,b)))]
 	  [`(square (* . ,as)) (cons '* (map (lambda (v) `(square ,v))
 					   as))]
 	  [`(square (/ ,a ,b)) `(/ (square ,a) (square ,b))]
