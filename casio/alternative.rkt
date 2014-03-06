@@ -3,6 +3,7 @@
 (require casio/programs)
 (require casio/points)
 (require casio/rules)
+(require casio/common)
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression apply-changes)
@@ -22,10 +23,6 @@
   (let* ([prog (change-apply cng (alt-program altn))]
          [errs (errors prog (*points*) (*exacts*))])
     (alt prog errs (program-cost prog) cng altn)))
-
-;; Pipes an initial values through a list of funcs.
-(define (pipe initial funcs)
-  ((apply compose (reverse funcs)) initial))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)

@@ -6,7 +6,7 @@
 (require casio/alternative)
 ;; We need programs for location-do and location-get
 (require casio/programs)
-;; We need this for print debugging
+;; We need this for print debugging, and for pipe
 (require casio/common)
 ;; We need this to know whether a simplification caused a green change
 (require casio/redgreen)
@@ -71,30 +71,38 @@
 					   (cdr expr)))])) ; If we're at a list, get the vars from all of it's items, and append them together.
   (remove-duplicates (get-duplicated-vars expr))) ; Get the list with duplicates, and remove the duplicates.
 
-;; A list of functions with their inverses for removal
-(define func-inverses
-  '((exp . log)
-    (square . sqrt)
-    (- . -)))
-
 ;; Remove any pairs of functions with their inverses from a program
 (define (rm-fns-&-invs prog)
   ;; Try to remove a top-level function with it's inverse.
   (define (rm-fn-&-inv expr)
-    ;; (when (*debug*) (println "Attempting to remove functions with their inverses from: " expr))
-    ;; Take an alist, and return a new one where the values in the old alist are mapped to the keys.
-    (define (reverse-alist l)
-      (map (lambda (pair) (cons (cdr pair) (car pair)))
-	   l))
-    (let* ([all-invs (append func-inverses (reverse-alist func-inverses))] ; Get an alist which maps every function to it's inverse.
-	   [inv (let ([item (assoc (car expr) all-invs)]) (when item (cdr item)))]) ; Try to get the inverse of the outer function
-      (if (and inv (pair? (cadr expr)) (eq? (caadr expr) inv))
-	  ;; If we've found an inverse, there is an inner function, and the inner function matches the inverse, strip off both functions
-	  (cadadr expr)
-	  ;; If any of those are false, we can't remove anything from here.
-	  expr)))
+    (attempt-apply-all remove-inverses-rules expr))
   ;; For every list in the program (working from the outside inwards), try to remove function inverses.
   (for-lists prog rm-fn-&-inv))
+
+;; Gets all the rules which remove a function and it's inverse.
+(define remove-inverses-rules
+  (filter (lambda (rule) ; We filter through the total list of rules
+	    (let ([input (rule-input rule)]
+		  [output (rule-output rule)])
+	      (and (list? input)
+		   (list? (cadr input)) ; The input has to match the form (f (g x)),
+		   (eq? (cadadr input) output)))) ; And the output has to be x
+	  *rules*))
+
+;;Try to apply a list of rules to an expression. 
+(define (attempt-apply-all rules expr)
+  (pipe expr (map (lambda (rule)
+		    (lambda (expr)
+		      (attempt-apply rule expr)))
+		  rules)))
+
+;; Try to apply a rule to an expression. If it fails, just return the expression.
+(define (attempt-apply arule expr)
+  ;; Try to get the bindings.
+  (let ([match  (pattern-match (rule-input arule) expr)])
+    (if match ; If we have bindings, apply them. Otherwise, jut return the expression.
+	(pattern-substitute (rule-output arule) match)
+	expr)))
 
 ;; Given an expression and a function, apply that function to every list in the expression, working inwards.
 (define (for-lists top-expr f)
