@@ -59,7 +59,7 @@
 ;; Simplify an expression
 (define (simplify-expression expr)
   ;; To simplify an expression, we first remove functions with their inverses, then we canonicalize, then resolve terms, then decanonicalize
-  (decanonicalize (resolve-terms (resolve-factors (canonicalize (rm-fns-&-invs expr))))))
+  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-factors (canonicalize (rm-fns-&-invs expr)))))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
