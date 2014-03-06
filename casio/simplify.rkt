@@ -14,7 +14,7 @@
 (require racket/match)
 
 ;; Simplify is the only thing we need to export
-(provide simplify)
+(provide (all-defined-out))
 
 ;; Simplifies an alternative if simplification would result in a green change,
 ;; without undoing the most recent change.
@@ -47,7 +47,8 @@
 		 [new-change (change new-rule full-location (map (lambda (x) (cons x x))
 								 (get-contained-vars (alt-program altn))))] ; Create a change from the old alt
 		                                                                                            ; to a new-simplified alt
-		 [new-alt (alt-apply alt new-change)]) ; Create a new alt that's simplified.
+		 [new-alt (if (*debug*) (println (alt-apply alt new-change))
+			      (alt-apply alt new-change))]) ; Create a new alt that's simplified.
 	    ;;(when (*debug*) (println "Simplified to: " partly-simplified-prog))
 	    (if (green? new-alt)
 		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
@@ -59,7 +60,7 @@
 ;; Simplify an expression
 (define (simplify-expression expr)
   ;; To simplify an expression, we first remove functions with their inverses, then we canonicalize, then resolve terms, then decanonicalize
-  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-factors (canonicalize (rm-fns-&-invs expr)))))))
+  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-all-factors (canonicalize (rm-fns-&-invs expr)))))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
@@ -190,28 +191,41 @@
 
 ;; Take a canonicalized expression, and add all like terms
 (define (resolve-terms expr)
-  ;; For each term, attempt to resolve it with the others.
-  (let loop ([terms (cdr expr)] [acc '()])
-    ;; If we still have terms left
-    (if (null? terms)
-	;; If we're out of terms, our acc is empty, just return the zero expression.
-	;; If we have only one term, just return that term. If we have more terms,
-	;; make an addition.
-	(cond [(null? acc) 0]
-	      [(= 1 (length acc)) (car acc)]
-	      [#t (cons '+ acc)])
-	(let* ([cur-term (car terms)] ; Grab the first term
-	       [mterms (filter (lambda (t) 
-				 (equal? (term-atoms t)
-					 (term-atoms cur-term)))
-			       (cdr terms))]) ; Grab every term that matches the current term
-	  (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
-	      (loop (cdr terms) (cons cur-term acc))
-	      ;; If we did get terms, remove the matching terms from the terms we have left.
-	      (loop (remove* mterms (cdr terms))
-		    ;; And combine the matching terms and the term they matched with, and append it to the accumulator
-		    (append (combine-like-terms (cons (car terms) mterms))
-			    acc)))))))
+  (if (prog? expr) (resolve-terms (caddr expr))
+      ;; For each term, attempt to resolve it with the others.
+      (let loop ([terms (cdr expr)] [acc '()])
+	;; If we still have terms left
+	(if (null? terms)
+	    ;; If we're out of terms, our acc is empty, just return the zero expression.
+	    ;; If we have only one term, just return that term. If we have more terms,
+	    ;; make an addition.
+	    (cond [(null? acc) 0]
+		  [(= 1 (length acc)) (car acc)]
+		  [#t (cons '+ acc)])
+	    (let* ([cur-term (car terms)] ; Grab the first term
+		   [mterms (filter (lambda (t) 
+				     (equal? (term-atoms t)
+					     (term-atoms cur-term)))
+				   (cdr terms))]) ; Grab every term that matches the current term
+	      (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
+		  (loop (cdr terms) (cons cur-term acc))
+		  ;; If we did get terms, remove the matching terms from the terms we have left.
+		  (loop (remove* mterms (cdr terms))
+			;; And combine the matching terms and the term they matched with, and append it to the accumulator
+			(append (combine-like-terms (cons (car terms) mterms))
+				acc))))))))
+
+;; For every term in a canonicalized program, resolve it's factors.
+(define (resolve-all-factors expr)
+  (cond [(atomic? expr) expr]
+	[(eq? (car expr) '*) (resolve-factors expr)]
+	[(eq? (car expr) '+)
+	 (let ([terms (if (prog? expr)
+			  (cdaddr expr)
+			  (cdr expr))])
+	   (cons '+ (map resolve-factors
+			 terms)))]
+	[#t expr]))
 
 ;; Cancel appropriate factors
 (define (resolve-factors term)
@@ -222,30 +236,31 @@
 	  [(member (cadr (car inverted-factors)) factors)
 	   (cancel-factors (remove (cadr (car inverted-factors)) factors) (cdr inverted-factors))] ; If there is a factor to cancel, cancel it.
 	  [#t (cancel-factors (cons (car inverted-factors) factors) (cdr inverted-factors))])) ; Otherwise, just add this non-cancelable factor to the factors we return at the end.
-  (let-values ([(inverted non-inverted) (partition (lambda (element)
-						     (and (not (atomic element))
-							  (eq? (car element) '/)))
-						   (if (number? (cadr term))
-						       (cddr term)
-						       (cdr term)))]) ; Partition the elements into inverted and non-inverted
-    (let ([new-factors (cancel-factors non-inverted inverted)]) ; The newly canceled factors
-      (if (null? new-factors)
-	  1 ; If all the factors canceled, we just return 1, the multiplicative identity
-	  (if (number? (cadr term))
-	      (list* '* (cadr term) new-factors) ;; Return the factors
-	      (list* '* new-factors))))))
-	
+  (if (atomic? term)
+      term ;If our term is atomic, then we're done.
+      (let-values ([(inverted non-inverted) (partition (lambda (element)
+							 (and (not (atomic? element))
+							      (eq? (car element) '/)))
+						       (if (number? (cadr term))
+							   (cddr term)
+							   (cdr term)))]) ; Partition the elements into inverted and non-inverted
+	(let ([new-factors (cancel-factors non-inverted inverted)]) ; The newly canceled factors
+	  (if (null? new-factors)
+	      1 ; If all the factors canceled, we just return 1, the multiplicative identity
+	      (if (number? (cadr term))
+		  (list* '* (cadr term) new-factors) ;; Return the factors
+		  (list* '* new-factors)))))))
 
 ;; Get the atoms of a term. Terms are made up of atoms multiplied together.
 (define (term-atoms expr)
   ;;(when (*debug*) (println "getting atoms for " expr))
-  (if (atomic expr)
+  (if (atomic? expr)
       ;; If we're already at an atom, just return a list of that atom
       (list expr)
       (let ([positive-term (if (eq? (car expr) '-)
 			       (cadr expr)
 			       expr)]) ; If we have a negated term, turn it positive for now.
-	(if (atomic positive-term)
+	(if (atomic? positive-term)
 	    ;; If we had just started with an atom negated, just return the atom.
 	    (list positive-term)
 	    (sort (if (real? (cadr positive-term))
@@ -255,7 +270,7 @@
 		      (cdr positive-term)) atom<?)))))
 
 ;; Return whether or not the expression is atomic, meaning it can't be broken down into arithmetic.
-(define (atomic expr)
+(define (atomic? expr)
   (or (real? expr) ; Numbers are atomic
       (symbol? expr) ; as are variables
       (not (or (eq? (car expr) ; Or everything that hasn't been broken down by the canonicalizing into an operator
@@ -266,6 +281,10 @@
 		    '/)
 	       (eq? (car expr)
 		    '*)))))
+;; Returns whether or not the given expression is a full program
+(define (prog? expr)
+  (or (eq? (car expr) 'lambda)
+      (eq? (car expr) 'λ)))
 
 ;; Combine al terms that are combinable.
 (define (combine-like-terms terms)
@@ -275,7 +294,7 @@
 			     ;;(when (*debug*) (println "adding factor: " t))
 			     (+ acc
 				(cond [(real? t) t]
-				      [(atomic t) 1]
+				      [(atomic? t) 1]
 				      [(and (eq? (car t) '-) (not (pair? (cadr t))))
 				       -1]
 				      [(and (eq? (car t) '-) (real? (cadadr t)))
@@ -286,8 +305,8 @@
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
     (cond [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of a single constant term.
 	  [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
-	  [(and (atomic (car terms)) (= 1 new-factor)) (car terms)] ; If we have a single atom with a factor of one, just return that atom
-	  [(atomic (car terms)) `((* ,new-factor ,(car terms)))] ; If the terms are a single atom, just return the factor multiplied by the atom
+	  [(and (atomic? (car terms)) (= 1 new-factor)) (car terms)] ; If we have a single atom with a factor of one, just return that atom
+	  [(atomic? (car terms)) `((* ,new-factor ,(car terms)))] ; If the terms are a single atom, just return the factor multiplied by the atom
 	  [(= 1 new-factor) (if (= 1 (length terms)) ; If the factor is one, just return the atoms multiplied together
 				(cddar terms)
 				`((* . ,(cddar terms))))]
