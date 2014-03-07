@@ -241,8 +241,8 @@
   (define (cancel-factors factors inverted-factors)
     (cond [(null? factors) inverted-factors] ; If there are no factors, we just return the inverted factors
 	  [(null? inverted-factors) factors] ; If there are no inverted factors left, return the factors
-	  [(member (cadr (car inverted-factors)) factors)
-	   (cancel-factors (remove (cadr (car inverted-factors)) factors) (cdr inverted-factors))] ; If there is a factor to cancel, cancel it.
+	  [(member (caddr (car inverted-factors)) factors)
+	   (cancel-factors (remove (caddr (car inverted-factors)) factors) (cdr inverted-factors))] ; If there is a factor to cancel, cancel it.
 	  [#t (cancel-factors (cons (car inverted-factors) factors) (cdr inverted-factors))])) ; Otherwise, just add this non-cancelable factor to the factors we return at the end.
   (cond [(atomic? term) term] ; If our term is atomic, we're done
 	[(eq? (car term) '-) (list '- (resolve-factors (cadr term)))] ; If our term is negated, return the positive version resolved, negated.
