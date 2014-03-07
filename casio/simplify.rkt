@@ -14,7 +14,7 @@
 (require racket/match)
 
 ;; Simplify is the only thing we need to export
-(provide (all-defined-out))
+(provide simplify)
 
 ;; Simplifies an alternative if simplification would result in a green change,
 ;; without undoing the most recent change.
