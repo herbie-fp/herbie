@@ -5,7 +5,6 @@
 (require casio/rules)
 (require casio/programs)
 (require casio/alternative)
-(require casio/brute-force) ; For alternative<?
 (require casio/analyze-subexpressions)
 (require casio/main)
 
@@ -49,10 +48,12 @@
   (values (apply append lists) alts locs))
 
 (define ((sh/only . alts*) alts locs)
-  (values (void) (apply append alts*) (filter (lambda (x) (memq (car x) alts*)) locs)))
+  (values (void) (remove-duplicates (apply append alts*))
+	  (filter (lambda (x) (memq (car x) alts*)) locs)))
 
 (define ((sh/also . alts*) alts locs)
-  (values (void) (remove-duplicates (apply append alts alts*)) locs))
+  (values (void) (remove-duplicates (apply append alts alts*))
+	  locs))
 
 (define ((sh/analyze alt) alts locs)
   (values (void) alts (remove-duplicates (cons (cons alt (analyze-local-error alt)) locs))))
@@ -114,7 +115,7 @@
 	(display "casio> ")
 	(let ([cmd (read)])
 	  (if (equal? cmd '(done))
-	      (car alts*)
+	      (car alts)
 	      (let-values ([(ret alts* locs*) (eval-expr cmd alts locs)])
 		(cond
 		 [(void? ret)
@@ -123,6 +124,6 @@
 		  (for ([elt ret])
 		    (println "  " elt))
 		  (println "; Use (only ...) or (also ...) to consider new alternatives")]
-		 [else (println elt)])
+		 [else (println ret)])
 
 		(toploop (sort alts* alternative<?) locs*))))))))
