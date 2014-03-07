@@ -141,6 +141,8 @@
 	  [`(- (+ . ,a)) (cons '+ (map (lambda (expr) (list '- (mcanonicalize expr)))
        			       a))]
 	  [`(- ,a ,b) (mcanonicalize `(+ ,a (- ,b)))]
+	  [`(* ,a (/ 1 ,a)) 1]
+	  [`(* (/ 1 ,a) ,a) 1]
 	  [`(* (+ . ,a) (+ . ,b)) (cons '+ (apply append (map (lambda (an)
 								(map (lambda (bn)
 								       `(* ,an ,bn))
@@ -156,6 +158,7 @@
 	  [`(* ,a (* . ,b)) (list* '* a b)]
 	  [`(* (* . ,a) ,b) (cons '* (append a (list b)))]
 	  [`(/ 1 (/ 1 ,a)) a]
+	  [`(/ ,a ,a) 1]
 	  [`(/ 1 ,a) `(/ 1 ,a)]
 	  [`(/ ,a ,b) (mcanonicalize `(* ,a (/ 1 ,b)))]
 	  [`(/ (* ,a) (* ,b)) (list '* (let loop ([exprs1 a] [exprs2 b])
@@ -199,29 +202,30 @@
 
 ;; Take a canonicalized expression, and add all like terms
 (define (resolve-terms expr)
-  (if (prog? expr) (resolve-terms (caddr expr))
-      ;; For each term, attempt to resolve it with the others.
-      (let loop ([terms (cdr expr)] [acc '()])
-	;; If we still have terms left
-	(if (null? terms)
-	    ;; If we're out of terms, our acc is empty, just return the zero expression.
-	    ;; If we have only one term, just return that term. If we have more terms,
-	    ;; make an addition.
-	    (cond [(null? acc) 0]
-		  [(= 1 (length acc)) (car acc)]
-		  [#t (cons '+ acc)])
-	    (let* ([cur-term (car terms)] ; Grab the first term
-		   [mterms (filter (lambda (t) 
-				     (equal? (term-atoms t)
-					     (term-atoms cur-term)))
-				   (cdr terms))]) ; Grab every term that matches the current term
-	      (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
-		  (loop (cdr terms) (cons cur-term acc))
-		  ;; If we did get terms, remove the matching terms from the terms we have left.
-		  (loop (remove* mterms (cdr terms))
-			;; And combine the matching terms and the term they matched with, and append it to the accumulator
-			(append (combine-like-terms (cons (car terms) mterms))
-				acc))))))))
+  (cond [(atomic? expr) expr]
+	[(prog? expr) (resolve-terms (caddr expr))]
+	;; For each term, attempt to resolve it with the others.
+	[#t (let loop ([terms (cdr expr)] [acc '()])
+	      ;; If we still have terms left
+	      (if (null? terms)
+		  ;; If we're out of terms, our acc is empty, just return the zero expression.
+		  ;; If we have only one term, just return that term. If we have more terms,
+		  ;; make an addition.
+		  (cond [(null? acc) 0]
+			[(= 1 (length acc)) (car acc)]
+			[#t (cons '+ acc)])
+		  (let* ([cur-term (car terms)] ; Grab the first term
+			 [mterms (filter (lambda (t) 
+					   (equal? (term-atoms t)
+						   (term-atoms cur-term)))
+					 (cdr terms))]) ; Grab every term that matches the current term
+		    (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
+			(loop (cdr terms) (cons cur-term acc))
+			;; If we did get terms, remove the matching terms from the terms we have left.
+			(loop (remove* mterms (cdr terms))
+			      ;; And combine the matching terms and the term they matched with, and append it to the accumulator
+			      (append (combine-like-terms (cons (car terms) mterms))
+				      acc))))))]))
 
 ;; For every term in a canonicalized program, resolve it's factors.
 (define (resolve-all-factors expr)
@@ -291,8 +295,9 @@
 		    '*)))))
 ;; Returns whether or not the given expression is a full program
 (define (prog? expr)
-  (or (eq? (car expr) 'lambda)
-      (eq? (car expr) 'λ)))
+  (and (not (atomic? expr))
+       (or (eq? (car expr) 'lambda)
+	   (eq? (car expr) 'λ))))
 
 ;; Combine al terms that are combinable.
 (define (combine-like-terms terms)
