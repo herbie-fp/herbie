@@ -5,14 +5,22 @@
 (require casio/rules)
 (require racket/pretty)
 
-(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression)
+(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
+	 alternative<? alternative<>?)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
            (write (alt-program alt) port)
-           (display ">" port))])
+           (display ">" port))]
+	#:methods gen:equal+hash
+	[(define (equal-proc alt1 alt2 recursive)
+	   (recursive (alt-program alt1) (alt-program alt2)))
+	 (define (hash-proc altn recursive)
+	   (recursive (alt-program altn)))
+	 (define (hash2-proc altn recursive)
+	   (recursive (alt-program altn)))])
 
 (define (make-alt prog)
  (let* ([errs (errors prog (*points*) (*exacts*))])
@@ -31,3 +39,18 @@
   (let ([subtree (location-get root-loc (alt-program alt))])
     (map (curry alt-apply alt)
          (rewrite-expression subtree #:destruct destruct? #:root root-loc))))
+
+(define (alternative<>? alt1 alt2)
+  "Compare two alternatives; return if incomparable.
+   Compares first by a lattice order on points, then by program cost."
+
+  (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
+    (and (member '< comparisons) (member '> comparisons))))
+
+(define (alternative<? alt1 alt2)
+  "Compare two alternatives.
+   Compares first by a lattice order on points, then by program cost."
+
+  (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
+    (or (andmap (negate (curry eq? '>)) comparisons)
+        (< (alt-cost alt1) (alt-cost alt2)))))
