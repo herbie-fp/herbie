@@ -7,6 +7,7 @@
 (require casio/programs)
 (require casio/alternative)
 (require casio/redgreen)
+(require casio/simplify)
 
 (provide improve-by-analysis analyze-local-error)
 
@@ -112,12 +113,12 @@
   (debug alt0 "for" iters #:from 'iba #:tag 'enter)
   (define input (pick-bad-input alt0))
 
-  (let loop ([altn alt0] [left iters])
+  (let loop ([altn (simplify alt0)] [left iters])
     (cond
      [(<= left 0) altn]
      [(green? altn) altn]
      [#t
-      (let* ([alts (step altn (caddr input))])
+      (let* ([alts (map simplify (step altn (caddr input)))])
         (if (null? alts)
             altn
             (begin

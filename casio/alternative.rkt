@@ -3,10 +3,15 @@
 (require casio/programs)
 (require casio/points)
 (require casio/rules)
+(require casio/common)
 (require racket/pretty)
 
+<<<<<<< HEAD
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
 	 alternative<? alternative<>?)
+=======
+(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression apply-changes)
+>>>>>>> simplification
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
@@ -30,6 +35,13 @@
   (let* ([prog (change-apply cng (alt-program altn))]
          [errs (errors prog (*points*) (*exacts*))])
     (alt prog errs (program-cost prog) cng altn)))
+
+;;Applies a list of changes to an alternative.
+(define (apply-changes altn changes)
+  (pipe altn (map (lambda (change)
+		    (lambda (altn)
+		      (alt-apply altn change)))
+		  changes)))
 
 (define (alt-rewrite-tree alt #:root [root-loc '()])
   (let ([subtree (location-get root-loc (alt-program alt))])
