@@ -5,6 +5,7 @@
 (require casio/programs)
 (require casio/alternative)
 (require casio/redgreen)
+(require casio/simplify)
 
 (provide brute-force-search)
 
@@ -12,7 +13,7 @@
 ;; This is an A* search internally.
 
 (define (generate-alternatives alt)
-  (remove-duplicates (alt-rewrite-tree alt)))
+  (map simplify (remove-duplicates (alt-rewrite-tree alt))))
 
 (define (step options done iters)
   (define (duplicate? altn)
@@ -42,4 +43,4 @@
    giving up after `iters` iterations without progress"
 
   (debug alt0 "for" iters #:from 'bfs #:tag 'enter)
-  (search-options (list alt0) '() iters))
+  (search-options (list (simplify alt0)) '() iters))

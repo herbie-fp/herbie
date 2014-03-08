@@ -4,7 +4,7 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan square ordinary-float?
-         list= list< enumerate take-up-to *debug* debug debug-reset)
+         list= list< enumerate take-up-to *debug* debug debug-reset pipe)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -84,3 +84,7 @@
   ; This is unnecessarily slow. It is O(l), not O(k).
   ; To be honest, it just isn't that big a deal for now.
   (take l (min k (length l))))
+
+;; Pipes an initial values through a list of funcs.
+(define (pipe initial funcs)
+  ((apply compose (reverse funcs)) initial))

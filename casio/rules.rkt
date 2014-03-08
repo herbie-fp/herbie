@@ -2,7 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *rules* pattern-match rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule))
+(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule))
 
 ;; Our own pattern matcher.
 ;
@@ -73,7 +73,7 @@
 
 ; Now for rules.
 
-(struct rule (name input output)
+(struct rule (name input output slocations)
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (display "#<rule " port)
@@ -84,8 +84,10 @@
 
 (define-syntax (define-rule stx)
   (syntax-case stx ()
+    [(_ name input output #:simplify slocations)
+     #'(set! *rules* (cons (rule 'name 'input 'output 'slocations) *rules*))]
     [(_ name input output)
-     #'(set! *rules* (cons (rule 'name 'input 'output) *rules*))]))
+     #'(set! *rules* (cons (rule 'name 'input 'output '()) *rules*))]))
 
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
@@ -136,25 +138,26 @@
         [bnd (change-bindings cng)])
     (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
 
+
 ; Now we define some rules
 
 ; Commutativity
 (define-rule   +-commutative     (+ a b)               (+ b a))
 (define-rule   *-commutative     (* a b)               (* b a))
 ; Associativity
-(define-rule   associate-+-lft   (+ a (+ b c))         (+ (+ a b) c))
-(define-rule   associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c)))
-(define-rule   associate---lft   (+ a (- b c))         (- (+ a b) c))
-(define-rule   associate---rgt   (- (+ a b) c)         (+ a (- b c)))
-(define-rule   associate-*-lft   (* a (* b c))         (* (* a b) c))
-(define-rule   associate-*-rgt   (* (* a b) c)         (* a (* b c)))
-(define-rule   associate-/-lft   (* a (/ b c))         (/ (* a b) c))
-(define-rule   associate-/-rgt   (/ (* a b) c)         (* a (/ b c)))
+(define-rule   associate-+-lft   (+ a (+ b c))         (+ (+ a b) c)     #:simplify ((cdr car)))
+(define-rule   associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c))     #:simplify ((cdr cdr car)))
+(define-rule   associate---lft   (+ a (- b c))         (- (+ a b) c)     #:simplify ((cdr car)))
+(define-rule   associate---rgt   (- (+ a b) c)         (+ a (- b c))     #:simplify ((cdr cdr car)))
+(define-rule   associate-*-lft   (* a (* b c))         (* (* a b) c)     #:simplify ((cdr car)))
+(define-rule   associate-*-rgt   (* (* a b) c)         (* a (* b c))     #:simplify ((cdr cdr car)))
+(define-rule   associate-/-lft   (* a (/ b c))         (/ (* a b) c)     #:simplify ((cdr car)))
+(define-rule   associate-/-rgt   (/ (* a b) c)         (* a (/ b c))     #:simplify ((cdr cdr car)))
 ; Distributivity
-(define-rule   distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c)))
-(define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a)))
-(define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c)))
-(define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c)))
+(define-rule   distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c))     #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a))     #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c))           #:simplify ((cdr cdr car)))
+(define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))           #:simplify ((cdr cdr car)))
 ; Identity
 (define-rule   +-lft-identity    (+ 0 a)               a)
 (define-rule   +-rgt-identity    (+ a 0)               a)
@@ -165,9 +168,9 @@
 (define-rule   *-inverses        (/ a a)               1)
 (define-rule   sub-neg           (/ a b)               (* a (/ b)))
 ; Dealing with fractions
-(define-rule   div-sub           (/ (- a b) c)         (- (/ a c) (/ b c)))
-(define-rule   sub-div           (- (/ a c) (/ b c))   (/ (- a b) c))
-(define-rule   frac-sub          (- (/ a b) (/ c d))   (/ (- (* a d) (* b c)) (* b d)))
+(define-rule   div-sub           (/ (- a b) c)         (- (/ a c) (/ b c))                  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   sub-div           (- (/ a c) (/ b c))   (/ (- a b) c)                        #:simplify ((cdr car)))
+(define-rule   frac-sub          (- (/ a b) (/ c d))   (/ (- (* a d) (* b c)) (* b d))      #:simplify ((cdr car)))
 ; Square root  
 (define-rule   add-square-sqrt   x                     (square (sqrt x)))
 (define-rule   add-sqrt-square   x                     (sqrt (square x)))
@@ -175,15 +178,15 @@
 (define-rule   rem-sqrt-square   (sqrt (square x))     x)
 (define-rule   square-mult       (square x)            (* x x))
 (define-rule   square-unmult     (* x x)               (square x))
-(define-rule   square-prod       (square (* x y))      (* (square x) (square y)))
-(define-rule   square-unprod     (* (square x) (square y)) (square (* x y)))
-(define-rule   square-div        (square (/ x y))      (/ (square x) (square y)))
-(define-rule   square-undiv      (/ (square x) (square y)) (square (/ x y)))
+(define-rule   square-prod       (square (* x y))      (* (square x) (square y))     #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   square-unprod     (* (square x) (square y)) (square (* x y))          #:simplify ((cdr car)))
+(define-rule   square-div        (square (/ x y))      (/ (square x) (square y))     #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   square-undiv      (/ (square x) (square y)) (square (/ x y))          #:simplify ((cdr car)))
 ; Exponentials
 (define-rule   add-exp-log       x                     (exp (log x)))
 (define-rule   add-log-exp       x                     (log (exp x)))
 (define-rule   rem-exp-log       (exp (log x))         x)
 (define-rule   rem-log-exp       (log (exp x))         x)
 ; Multiplying by x / x
-(define-rule   flip-+            (+ a b)               (/ (- (square a) (square b)) (- a b)))
-(define-rule   flip--            (- a b)               (/ (- (square a) (square b)) (+ a b)))
+(define-rule   flip-+            (+ a b)               (/ (- (square a) (square b)) (- a b))   #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   flip--            (- a b)               (/ (- (square a) (square b)) (+ a b))   #:simplify ((cdr car) (cdr cdr car)))
