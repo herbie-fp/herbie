@@ -57,11 +57,6 @@
 					alt)))))
     (simplify-at-locations slocations altn))) ; Call the recursive function with our given altn and it's simplification locations
 
-;; Simplify an expression
-(define (simplify-expression expr)
-  ;; To simplify an expression, we first remove functions with their inverses, then we canonicalize, then resolve terms, then decanonicalize
-  (decanonicalize (rm-fns-&-invs (resolve-terms (resolve-all-factors (mcanonicalize (rm-fns-&-invs expr)))))))
-
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
   ;; Get a list that of the vars, with each var repeated for each time it appears
@@ -72,22 +67,10 @@
 					   (cdr expr)))])) ; If we're at a list, get the vars from all of it's items, and append them together.
   (remove-duplicates (get-duplicated-vars expr))) ; Get the list with duplicates, and remove the duplicates.
 
-;; Remove any pairs of functions with their inverses from a program
-(define (rm-fns-&-invs prog)
-  ;; Try to remove a top-level function with it's inverse.
-  (define (rm-fn-&-inv expr)
-    (attempt-apply-all remove-inverses-rules expr))
-  ;; For every list in the program (working from the outside inwards), try to remove function inverses.
-  (for-lists prog rm-fn-&-inv))
-
-;; Gets all the rules which remove a function and it's inverse.
-(define remove-inverses-rules
+;; Gets all the rules which reduce an expression
+(define reduction-rules
   (filter (lambda (rule) ; We filter through the total list of rules
-	    (let ([input (rule-input rule)]
-		  [output (rule-output rule)])
-	      (and (list? input)
-		   (list? (cadr input)) ; The input has to match the form (f (g x)),
-		   (eq? (cadadr input) output)))) ; And the output has to be x
+	    (symbol? (rule-output rule)))
 	  *rules*))
 
 ;;Try to apply a list of rules to an expression. 
@@ -118,129 +101,32 @@
 	    expr*))
       top-expr))
 
-;; Set up a memoized version of canonicalize, since I think canonicalize would benifit from it.
-(define canonicalize-table (make-hash))
-(define (mcanonicalize expr)
-  (hash-ref canonicalize-table expr
-	    (let ([value (canonicalize expr)])
-	      (hash-set! canonicalize-table expr value)
-	      value)))
-
-;; Take an expression, and turn it into canonical form. Canonical form has the additions on the outside, subtractions
-;; one-level in, then multiplication, division. Inside that should be any expressions that the simplifier considers
-;; atoms, or items that it can't simplify.
-(define (canonicalize expr)
-  (if (pair? expr)
-      (let ([expr* (cons (car expr)
-			 (map mcanonicalize (cdr expr)))]) ;; First, try to canonicalize all subexpressions.
-	;; Then, try to canonicalize with our canonicalization rules
-	(match expr*
-	  [`(+ (+ . ,a) (+ . ,b)) (cons '+ (append a b))]
-	  [`(+ ,a (+ . ,b)) (list* '+ a b)]
-	  [`(+ (+ . ,a) ,b) (cons '+ (append a (list b)))]
-	  [`(- (+ . ,a)) (cons '+ (map (lambda (expr) (list '- (mcanonicalize expr)))
-       			       a))]
-	  [`(- ,a ,b) (mcanonicalize `(+ ,a (- ,b)))]
-	  [`(* ,a (/ 1 ,a)) 1]
-	  [`(* (/ 1 ,a) ,a) 1]
-	  [`(* (+ . ,a) (+ . ,b)) (cons '+ (apply append (map (lambda (an)
-								(map (lambda (bn)
-								       `(* ,an ,bn))
-								     b))
-							      a)))]
-	  [`(* (+ . ,as) ,b) (cons '+ (map (lambda (a)
-					     (mcanonicalize `(* ,a ,b)))
-					 as))]
-	  [`(* ,a (+ ,bs)) (cons '+ (map (lambda (b)
-					   (mcanonicalize `(* ,a ,b)))
-					 bs))]
-	  [`(* (* . ,a) (* . ,b)) (cons '* (append a b))]
-	  [`(* ,a (* . ,b)) (list* '* a b)]
-	  [`(* (* . ,a) ,b) (cons '* (append a (list b)))]
-	  [`(/ 1 (/ 1 ,a)) a]
-	  [`(/ ,a ,a) 1]
-	  [`(/ 1 ,a) `(/ 1 ,a)]
-	  [`(/ ,a ,b) (mcanonicalize `(* ,a (/ 1 ,b)))]
-	  [`(/ (* ,a) (* ,b)) (list '* (let loop ([exprs1 a] [exprs2 b])
-					 (cond [(null? a) (map (lambda (v) (mcanonicalize `(/ 1 ,b))))]
-					       [(null? b) a]
-					       [#t (cons (/ (car a) (car b)) (loop (cdr a) (cdr b)))])))]
-	  [`(/ ,a (* ,b . ,c)) `(* (/ ,a ,b) . ,(map (lambda (v) (mcanonicalize `(/ 1 ,v)))
-						    c))]
-	  [`(/ (* ,a . ,b) ,c) `(* (/ ,a ,c) . ,b)]
-	  [`(/ (+ ,as) ,c) (cons '+ (map (lambda (v) (mcanonicalize `(/ ,v ,c)))
-					 as))]
-	  [`(/ ,a ,b) (mcanonicalize `(* ,a (/ 1 ,b)))]
-	  [`(square (* . ,as)) (cons '* (map (lambda (v) `(square ,v))
-					   as))]
-	  [`(square (/ ,a ,b)) `(/ (square ,a) (square ,b))]
-	  [`(sqrt (* . ,as)) (cons '* (map (lambda (v) `(sqrt ,v))
-					   as))]
-	  [`(sqrt (/ ,a ,b)) `(/ (sqrt a) (sqrt b))]
-	  [a a]))
-      ;; If this isn't a list, than the expression is as canonical as we're going to get.
-      expr))
-
-;; Turn a expression from canonical form into a simpler more readable expression
-(define (decanonicalize cexpr)
-  ;; Only try to decanonicalize cexpr if it's a pair?
-  (if (pair? cexpr)
-      (let ([expr* (cons (car cexpr)
-			 (map decanonicalize (cdr cexpr)))]) ; Decanonicalize each item in the list first
-	;; Try to decanonicalize with our decanonicalizing rules
-	(match expr*
-	  [`(+ ,a ,b ,c . ,n) (foldl (lambda (t acc) `(+ ,acc ,t))
-				     a
-				     (list* b c n))]
-	  [`(* 1 ,a) a]
-	  [`(+ ,a (- ,b)) `(- ,a ,b)]
-	  [`(+ (- ,a) ,b) `(- ,b ,a)]
-	  [`(* ,a (/ 1 ,b)) `(/ ,a ,b)]
-	  [`(* (/ 1 ,a) ,b) `(/ ,b ,a)]
-	  [a a]))
-      cexpr))
-
 ;; Take a canonicalized expression, and add all like terms
-(define (resolve-terms expr)
-  (cond [(atomic? expr) expr]
-	[(prog? expr) (resolve-terms (caddr expr))]
-	;; For each term, attempt to resolve it with the others.
-	[#t (let loop ([terms (cdr expr)] [acc '()])
-	      ;; If we still have terms left
-	      (if (null? terms)
-		  ;; If we're out of terms, our acc is empty, just return the zero expression.
-		  ;; If we have only one term, just return that term. If we have more terms,
-		  ;; make an addition.
-		  (cond [(null? acc) 0]
-			[(= 1 (length acc)) (car acc)]
-			[#t (cons '+ acc)])
-		  (let* ([cur-term (car terms)] ; Grab the first term
-			 [mterms (filter (lambda (t) 
-					   (equal? (term-atoms t)
-						   (term-atoms cur-term)))
-					 (cdr terms))]) ; Grab every term that matches the current term
-		    (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
-			(loop (cdr terms) (cons cur-term acc))
-			;; If we did get terms, remove the matching terms from the terms we have left.
-			(loop (remove* mterms (cdr terms))
-			      ;; And combine the matching terms and the term they matched with, and append it to the accumulator
-			      (append (combine-like-terms (cons (car terms) mterms))
-				      acc))))))]))
-
-;; For every term in a canonicalized program, resolve it's factors.
-(define (resolve-all-factors expr)
-  (cond [(atomic? expr) expr]
-	[(eq? (car expr) '*) (resolve-factors expr)]
-	[(eq? (car expr) '+)
-	 (let ([terms (if (prog? expr)
-			  (cdaddr expr)
-			  (cdr expr))])
-	   (cons '+ (map resolve-factors
-			 terms)))]
-	[#t expr]))
+(define (resolve-terms terms)
+  ;; For each term, attempt to resolve it with the others.
+  (let loop ([unresolved-terms terms] [acc '()])
+    ;; If we still have terms left
+    (if (null? unresolved-terms)
+	;; If we're out of terms, our acc is empty, just return the zero expression.
+	;; If we have only one term, just return that term. If we have more terms,
+	;; make an addition.
+	(if (null? acc) 0 acc)
+	(let* ([cur-term (car unresolved-terms)]
+	       [rest-terms (cdr unresolved-terms)]
+	       [mterms (filter (lambda (t) 
+				 (equal? (term-atoms t)
+					 (term-atoms cur-term)))
+			       rest-terms)]) ; Grab every term that matches the current term
+	  (if (= 0 (length mterms)) ; If we didn't get any terms, just add it to the accumulator, and recurse on the rest.
+	      (loop rest-terms (cons cur-term acc))
+	      ;; If we did get terms, remove the matching terms from the terms we have left.
+	      (loop (remove* mterms rest-terms)
+		    ;; And combine the matching terms and the term they matched with, and append it to the accumulator
+		    (append (combine-like-terms (cons cur-term mterms))
+			    acc)))))))
 
 ;; Cancel appropriate factors
-(define (resolve-factors term)
+(define (resolve-factors factors)
   ;; Cancel factors, given some inverted factors and non-inverted factors
   (define (cancel-factors factors inverted-factors)
     (cond [(null? factors) inverted-factors] ; If there are no factors, we just return the inverted factors
@@ -248,38 +134,21 @@
 	  [(member (caddr (car inverted-factors)) factors)
 	   (cancel-factors (remove (caddr (car inverted-factors)) factors) (cdr inverted-factors))] ; If there is a factor to cancel, cancel it.
 	  [#t (cancel-factors (cons (car inverted-factors) factors) (cdr inverted-factors))])) ; Otherwise, just add this non-cancelable factor to the factors we return at the end.
-  (cond [(atomic? term) term] ; If our term is atomic, we're done
-	[(eq? (car term) '-) (list '- (resolve-factors (cadr term)))] ; If our term is negated, return the positive version resolved, negated.
-	[#t (let-values ([(inverted non-inverted) (partition (lambda (element)
-							       (and (not (atomic? element))
-								    (eq? (car element) '/)))
-							     (if (number? (cadr term))
-								 (cddr term)
-								 (cdr term)))]) ; Partition the elements into inverted and non-inverted
-	      (let ([new-factors (cancel-factors non-inverted inverted)]) ; The newly canceled factors
-		(if (null? new-factors)
-		    1 ; If all the factors canceled, we just return 1, the multiplicative identity
-		    (if (number? (cadr term))
-			(list* '* (cadr term) new-factors) ;; Return the factors
-			(list* '* new-factors)))))]))
+  (let-values ([(inverted non-inverted) (partition (lambda (element)
+						     (and (not (atomic? element))
+							  (eq? (car element) '/)))
+						   factors)]) ; Partition the elements into inverted and non-inverted
+    (cancel-factors non-inverted inverted))) ;; Return the newly cancelled factors
 
 ;; Get the atoms of a term. Terms are made up of atoms multiplied together.
 (define (term-atoms expr)
   ;;(when (*debug*) (println "getting atoms for " expr))
-  (if (atomic? expr)
-      ;; If we're already at an atom, just return a list of that atom
-      (list expr)
-      (let ([positive-term (if (eq? (car expr) '-)
-			       (cadr expr)
-			       expr)]) ; If we have a negated term, turn it positive for now.
-	(if (atomic? positive-term)
-	    ;; If we had just started with an atom negated, just return the atom.
-	    (list positive-term)
-	    (sort (if (real? (cadr positive-term))
-		      ;; If the term has a constant factor, return everything past it.
-		      (cddr positive-term)
-		      ;; If the term doesn't have a constnat factor, return everything but the plus sign.
-		      (cdr positive-term)) atom<?)))))
+  (cond [(number? expr) '()] ; All constants can be combined
+	[(symbol? expr) (list expr)] ; If the expression is a single variable, then that's it's only atom
+	[(number? (cadr expr)) (cddr expr)] ; If the second item is a number, return everything past it
+	[(eq? '- (car expr)) (term-atoms (cadr expr))] ; If the term is negated, get the atoms from it's positive version
+	[(eq? '* (car expr)) (cdr expr)] ; If we have a term of the form (* x y z ...), so just return everything past the '*
+	[#t (list expr)])) ; Otherwise, we can't break down this term any further.
 
 ;; Return whether or not the expression is atomic, meaning it can't be broken down into arithmetic.
 (define (atomic? expr)
@@ -299,34 +168,28 @@
        (or (eq? (car expr) 'lambda)
 	   (eq? (car expr) 'λ))))
 
-;; Combine al terms that are combinable.
+;; Get the constant factor of a given term.
+(define (factor term)
+  (cond [(real? term) term]
+	[(atomic? term) 1]
+	[(eq? '- (car term)) (- (factor (cadr term)))]
+	[(real? (cadr term)) (cadr term)]
+	[#t 1]))
+
+;; Combine all terms that are combinable, and return a result of a list of one or zero terms
 (define (combine-like-terms terms)
   ;;(when (*debug*) (println "combining: " terms))
   ;; Get the combined constant factor.
   (let ([new-factor (foldr (lambda (t acc)
 			     ;;(when (*debug*) (println "adding factor: " t))
-			     (+ acc
-				(cond [(real? t) t]
-				      [(atomic? t) 1]
-				      [(and (eq? (car t) '-) (not (pair? (cadr t))))
-				       -1]
-				      [(and (eq? (car t) '-) (real? (cadadr t)))
-				       (- (cadadr t))]
-				      [(eq? (car t) '-) -1]
-				      [(real? (cadr t)) (cadr t)]
-				      [#t 1])))
+			     (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
-    (cond [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of a single constant term.
-	  [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
-	  [(and (atomic? (car terms)) (= 1 new-factor)) (car terms)] ; If we have a single atom with a factor of one, just return that atom
-	  [(atomic? (car terms)) `((* ,new-factor ,(car terms)))] ; If the terms are a single atom, just return the factor multiplied by the atom
-	  [(= 1 new-factor) (if (= 1 (length terms)) ; If the factor is one, just return the atoms multiplied together
-				(cddar terms)
-				`((* . ,(cddar terms))))]
-	  [(= -1 new-factor) (list (list '- (if (= 1 (length (cddar terms))) ; If we have a factor of negate one, invert the atoms multiplied together
-						(caddar terms)
-						(cons '* (cddar terms)))))]
-	  [#t `((* ,new-factor . ,(cddar terms)))]))) ; Otherwise, return the constant factor and the terms multiplied together
+    (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
+	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of a single constant term.
+	  [#t (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
+		(cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
+		      [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
+		      [#t (list* '* new-factor body)]))]))) ; Otherwise, mutliply together the factor and the body.
 
 ;; Provide sorting for symbols so that we can canonically order variables and other atoms
 (define (symbol<? sym1 sym2)
@@ -347,3 +210,62 @@
 		      [#t (if (eq? (car avars) (car bvars))
 			      (loop (cdr avars) (cdr bvars))
 			      (symbol<? (car avars) (car bvars)))])))]))
+
+;; Sorts expressions. Expressions are sorted by their first atom.
+(define (expr<? expr1 expr2)
+  ;; Get the first atom of an expression recursively
+  (define (first-atom expr)
+    (if (atomic? expr)
+	expr
+	(first-atom (car expr))))
+  ;; Sort the expressions by their first atom
+  (atom<? (first-atom expr1) (first-atom expr2)))
+
+;; Create an addition expression from a list of terms.
+(define (addition terms)
+  (let ([terms* (resolve-terms (sort terms expr<?))])
+    (cond [(null? terms*) 0]
+	  [(= 1 (length terms*)) (car terms*)]
+	  [#t (cons '+ terms*)])))
+
+;; Create a multiplication expression fro a list of factors
+(define (multiplication factors)
+  (let ([factors* (resolve-factors (sort factors expr<?))])
+    (cond [(null? factors*) 1]
+	  [(= 1 (length factors*)) (car factors*)]
+	  [#t (cons '* factors*)])))
+
+;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
+(define (single-simplify expr)
+  (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
+    (match expr*
+      [`(- ,a ,a) 0] ; A number minus itself is zero
+      [`(- ,a ,b) (simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
+      [`(- 0) 0] ; Negative zero is still zero
+      [`(- (- ,a)) a] ; Double negate is positive
+      [`(/ ,a ,a) 1] ; A number divided by itself is 1
+      [`(+ ,a 0) a] ; Additive Identity
+      [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
+      [`(* ,a 1) a] ; Multiplicitive Identity
+      [`(/ 1 1) 1] ; Get rid of any one-over-ones
+      [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
+      [`(/ ,a ,b) (simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
+      [`(+ (+ . ,a) (+ . ,b)) (addition (append a b))] ; These next three rules flatten out addition
+      [`(+ (+ . ,a) ,b) (addition (cons b a))]
+      [`(+ ,a (+ . ,b)) (addition (cons a b))]
+      [`(+ . ,a) (addition a)] ; Sort addition in canonical order and attempt to cancel terms
+      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; These next four are the same as the above four, for multiplication
+      [`(* (* . ,a) ,b) (multiplication (cons b a))]
+      [`(* ,a (* . ,b)) (multiplication (cons a b))]
+      [`(* . ,a) (multiplication a)]
+      [a a]))) ; Finally, if we don't have any other match, return ourselves.
+
+;; Simplify an arbitrary expression to the best of our abilities.
+(define (simplify-expression expr)
+  ;; If the expression is a literal or a variable, there's nothing to be done
+  (if (list? expr)
+      ;; First, attempt to simplify all subexpressions. Then, to a top level simplify on the resulting expression.
+      (let ([expr* (cons (car expr)
+			 (map simplify-expression (cdr expr)))])
+	(single-simplify expr*))
+      expr))
