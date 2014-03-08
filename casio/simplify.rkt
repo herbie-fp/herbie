@@ -14,7 +14,7 @@
 (require racket/match)
 
 ;; Simplify is the only thing we need to export
-(provide simplify)
+(provide simplify simplify-expression)
 
 ;; Simplifies an alternative if simplification would result in a green change,
 ;; without undoing the most recent change.
@@ -185,7 +185,8 @@
 			     (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
     (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
-	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of a single constant term.
+	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
+	  [(symbol? (car terms)) (list (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms))))]
 	  [#t (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
 		(cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
 		      [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
