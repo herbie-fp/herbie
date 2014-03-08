@@ -235,6 +235,13 @@
 	  [(= 1 (length factors*)) (car factors*)]
 	  [#t (cons '* factors*)])))
 
+;; Memoize single simplify, it seems to cut down the total time taken by about 80-90%
+(define simplification-table (make-hash))
+
+(define (msingle-simplify expr)
+  (hash-ref! simplification-table expr
+	     (lambda () (single-simplify expr))))
+
 ;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
 (define (single-simplify expr)
   (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
@@ -267,5 +274,5 @@
       ;; First, attempt to simplify all subexpressions. Then, to a top level simplify on the resulting expression.
       (let ([expr* (cons (car expr)
 			 (map simplify-expression (cdr expr)))])
-	(single-simplify expr*))
+	(msingle-simplify expr*))
       expr))
