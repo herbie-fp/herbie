@@ -7,7 +7,7 @@
 (require casio/redgreen)
 (require casio/analyze-subexpressions)
 
-(define *strategies* (list improve-by-analysis brute-force-search))
+(define *strategies* (list brute-force-search))
 
 (define (improve prog max-iters)
   (debug-reset)
