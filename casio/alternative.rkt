@@ -6,12 +6,9 @@
 (require casio/common)
 (require racket/pretty)
 
-<<<<<<< HEAD
+
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 alternative<? alternative<>?)
-=======
-(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression apply-changes)
->>>>>>> simplification
+	 apply-changes alternative<? alternative<>?)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
