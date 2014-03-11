@@ -236,38 +236,6 @@
 	  [(= 1 (length factors*)) (car factors*)]
 	  [#t (cons '* factors*)])))
 
-;; Takes terms and creates an addition expression where each addition only adds two things
-(define (decanonicalize-addition terms)
-  (define (f terms acc)
-    (if (null? terms) acc
-	(f (cdr terms) (single-decanonicalize (list '+ (car terms) acc)))))
-  (f (cddr terms) (single-decanonicalize `(+ ,(cadr terms) ,(car terms)))))
-
-;; Takes a list of factors and creates a multiplication expression where each multiplication only multiplies two things.
-(define (decanonicalize-multiplication factors)
-  (define (f factors acc)
-    (if (null? factors) acc
-	(f (cdr factors) (single-decanonicalize (list '* (car factors) acc)))))
-  (f (cddr factors) (single-decanonicalize `(* ,(cadr factors) ,(car factors)))))
-
-;; Decanonicalize the top level operator of an expression
-(define (single-decanonicalize expr)
-  (match expr
-    [`(+ ,a (- ,b)) `(- ,a ,b)]
-    [`(+ (- ,a) ,b) `(- ,b ,a)]
-    [`(+ ,a ,b ,c . ,n) (decanonicalize-addition (reverse (list* a b c n)))]
-    [`(* ,a (/ 1 ,b)) `(/ ,a ,b)]
-    [`(* (/ 1 ,a) ,b) `(/ ,b ,a)]
-    [`(* ,a ,b ,c . ,n) (decanonicalize-multiplication (reverse (list* a b c n)))]
-    [a a]))
-
-;; Turn an expression outputed by the simplifier into a form more friendly to the rest of casio.
-(define (decanonicalize expr)
-  (if (list? expr)
-      (let ([expr* (cons (car expr) (map decanonicalize (cdr expr)))])
-	(single-decanonicalize expr*))
-      expr))
-
 ;; Memoize single simplify, it seems to cut down the total time taken by about 80-90%
 (define simplification-table (make-hash))
 
