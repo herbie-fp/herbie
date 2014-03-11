@@ -10,6 +10,8 @@
 (require casio/common)
 ;; We need this to know whether a simplification caused a green change
 (require casio/redgreen)
+;; We use make-exacts to precompute functions of constants.
+(require casio/points)
 ;; We grab pattern matching for our canonicalizing rules.
 (require racket/match)
 
@@ -279,7 +281,8 @@
 
 ;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
 (define (single-simplify expr)
-  (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
+  (let ([expr* (try-precompute (attempt-apply-all reduction-rules
+						  expr))]) ; First attempt to reduce the expression using our reduction rules.
     (match expr*
       [`(- ,a ,a) 0] ; A number minus itself is zero
       [`(- ,a ,b) (inner-simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
@@ -310,6 +313,12 @@
       (let ([expr* (cons (car expr)
 			 (map inner-simplify-expression (cdr expr)))])
 	(msingle-simplify expr*))
+      expr))
+
+;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
+(define (try-precompute expr)
+  (if (andmap number? (cdr expr))
+      (car (make-exacts `(lambda () ,expr) '(()))) ; A little hacky, but it makes for pretty good code reuse.
       expr))
 
 (define (simplify-expression expr)
