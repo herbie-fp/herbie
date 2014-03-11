@@ -300,10 +300,21 @@
       [`(+ (+ . ,a) ,b) (addition (cons b a))]
       [`(+ ,a (+ . ,b)) (addition (cons a b))]
       [`(+ . ,a) (addition a)] ; Sort addition in canonical order and attempt to cancel terms
-      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; These next four are the same as the above four, for multiplication
+      ;; Distribute addition (and by extension, subtraction) out of multiplication. We do this before flattening multiplication,
+      ;; because it would be a lot harder to write these rules for arbitrary length multiplication. We do this after flattening
+      ;; addition, because it ensures we cancel all terms without the need to recurse. Finally, we do this after turning subtractions
+      ;; into additions so that subtractions also get distributed.
+      [`(* (+ . ,as) (+ . ,bs)) (addition (map (lambda (b) (map (lambda (a) (multiplication (list a b))) as)) bs))]
+      [`(* ,a (+ . ,bs)) (addition (map (lambda (b) (multiplication (list a b))) bs))]
+      [`(* (+ . ,as) ,b) (addition (map (lambda (a) (multiplication (list a b))) as))]
+      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; Flatten out multiplication
       [`(* (* . ,a) ,b) (multiplication (cons b a))]
       [`(* ,a (* . ,b)) (multiplication (cons a b))]
       [`(* . ,a) (multiplication a)]
+      [`(log (* . ,as)) (addition (map (lambda (a) (inner-simplify-expression `(log ,a))) as))] ; Log of product is sum of logs
+      [`(exp (+ . ,as)) (multiplication (map (lambda (a) (inner-simplify-expression `(exp ,a))) as))] ; Same thing for exponents
+      [`(square (* . ,as)) (multiplication (map (lambda (a) (list 'square a)) as))] ;; Product of powers.
+      [`(sqrt (* . ,as)) (multiplication (map (lambda (a) (list 'sqrt a)) as))]
       [a a]))) ; Finally, if we don't have any other match, return ourselves.
 
 ;; Simplify an arbitrary expression to the best of our abilities.
