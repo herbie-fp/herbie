@@ -318,7 +318,10 @@
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr)
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (car (make-exacts `(lambda () ,expr) '(()))) ; A little hacky, but it makes for pretty good code reuse.
+      (let ([value (car (make-exacts `(lambda () ,expr) '(())))]) ; A little hacky, but it makes for pretty good code reuse.
+	(if (rational? value)
+	    value
+	    expr)) ; There are situations, such as 0/0, where precomputing would get us a bad value, but just simplifying causes it to cancel.n
       expr))
 
 (define (simplify-expression expr)
