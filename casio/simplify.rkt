@@ -222,6 +222,40 @@
   ;; Sort the expressions by their first atom
   (atom<? (first-atom expr1) (first-atom expr2)))
 
+;; Takes terms and creates an addition expression where each addition only adds two things
+(define (decanonicalize-addition terms)
+  (define (f terms acc)
+    (if (null? terms)
+	 acc
+	 (f (cdr terms) (single-decanonicalize (list '+ (car terms) acc)))))
+  (f (cddr terms) (single-decanonicalize `(+ ,(cadr terms) ,(car terms)))))
+
+;; Takes a list of factors and creates a multiplication expression where each multiplication only multiplies two things.
+(define (decanonicalize-multiplication factors)
+  (define (f factors acc)
+    (if (null? factors) acc
+	(f (cdr factors) (single-decanonicalize (list '* (car factors) acc)))))
+  (f (cddr factors) (single-decanonicalize `(* ,(cadr factors) ,(car factors)))))
+
+;; Decanonicalize the top level operator of an expression
+(define (single-decanonicalize expr)
+  (match expr
+    [`(+ ,a (- ,b)) `(- ,a ,b)]
+    [`(+ (- ,a) ,b) `(- ,b ,a)]
+    [`(+ ,a ,b ,c . ,n) (decanonicalize-addition (reverse (list* a b c n)))]
+    [`(* ,a (/ 1 ,b)) `(/ ,a ,b)]
+    [`(* (/ 1 ,a) ,b) `(/ ,b ,a)]
+    [`(* ,a ,b ,c . ,n) (decanonicalize-multiplication (reverse (list* a b c n)))]
+    [a a]))
+
+;; Turn an expression outputed by the simplifier into a form more friendly to the rest of casio.
+(define (decanonicalize expr)
+  (if (list? expr)
+      (let ([expr* (cons (car expr) (map decanonicalize (cdr expr)))])
+	(single-decanonicalize expr*))
+      expr))
+
+
 ;; Create an addition expression from a list of terms.
 (define (addition terms)
   (let ([terms* (resolve-terms (sort terms expr<?))])
@@ -248,7 +282,7 @@
   (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
     (match expr*
       [`(- ,a ,a) 0] ; A number minus itself is zero
-      [`(- ,a ,b) (simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
+      [`(- ,a ,b) (inner-simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
       [`(- 0) 0] ; Negative zero is still zero
       [`(- (- ,a)) a] ; Double negate is positive
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
@@ -257,7 +291,7 @@
       [`(* ,a 1) a] ; Multiplicitive Identity
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
-      [`(/ ,a ,b) (simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
+      [`(/ ,a ,b) (inner-simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
       [`(+ (+ . ,a) (+ . ,b)) (addition (append a b))] ; These next three rules flatten out addition
       [`(+ (+ . ,a) ,b) (addition (cons b a))]
       [`(+ ,a (+ . ,b)) (addition (cons a b))]
@@ -269,11 +303,14 @@
       [a a]))) ; Finally, if we don't have any other match, return ourselves.
 
 ;; Simplify an arbitrary expression to the best of our abilities.
-(define (simplify-expression expr)
+(define (inner-simplify-expression expr)
   ;; If the expression is a literal or a variable, there's nothing to be done
   (if (list? expr)
       ;; First, attempt to simplify all subexpressions. Then, to a top level simplify on the resulting expression.
       (let ([expr* (cons (car expr)
-			 (map simplify-expression (cdr expr)))])
+			 (map inner-simplify-expression (cdr expr)))])
 	(msingle-simplify expr*))
       expr))
+
+(define (simplify-expression expr)
+  (decanonicalize (inner-simplify-expression expr)))
