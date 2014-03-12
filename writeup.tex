@@ -1,0 +1,740 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\title{Casio Writeup (Working Title)}
+
+\begin{document}
+
+\maketitle
+
+\section{Casio}
+
+In the real world, 
+we find ourselves dealing a lot with formulas 
+on floating point numbers. 
+And as programmers, 
+we know that these floating point calculations 
+are inherently inprecise. 
+Programs can be rewritten by an expert to reduce their floating point error, 
+but such numerical experts are often out of the budget of teams wishing to use these rewrites, 
+and floating point calculations can be very large and complex. 
+Casio aims to automate this process of rewriting floating point expressions 
+to reduce their total error. 
+From here on I will refer to the floating point expressions 
+which casio operates on 
+as "programs."
+
+Casio on a whole operates through a set of "stategies", 
+each of which operates by making simple rewrites according to a set of rewrite rules. 
+Rewrite rules are mathamatically sound transformations across the reals, 
+such as (- a b) -> (/ (- (square a) (square b)) (+ a b)), 
+or x -> (exp (log x)). 
+Each strategy attempts to apply the best rewrites 
+and reduce program error. 
+Strategies include algebriac simplification of the program, 
+searching through the expression tree to find the node with the greatest local error 
+and attempting to use rewrite rules to destruct that node, 
+and, if all else fails, 
+brute force searching through the space of equivilent programs 
+using the total error of each alternative program 
+as a heurestic to guide the search.
+
+\section{Red Elimination}
+
+Each strategy employed by casio 
+has it's own merits and pitfalls, 
+and each strategy has the potential 
+to produce the optimal set of changes on certain programs, 
+while producing non-optimal changes on others. 
+Sometimes, a strategy will pick a change 
+that does not contribute to the reduction of error, 
+before picking a change that does. 
+In the brute force search this was initially quite common, 
+with many results differing from the optimal result 
+by a (log (exp x)) inserted in the place of x 
+somewhere in the program. 
+Even when we apply changes based on which will destruct a node 
+that is evaluated to have the most local error, 
+that local error could jump to somewhere else in the tree, 
+and when that node is optimized, 
+it might turn out that the destruction of the first node was unneccessary. 
+Thus, it is advantages for Casio 
+to implement what we call Red Elimination, 
+the elimination of changes, after the fact, 
+that did not contribute to the reduction of errors.
+
+Red Elimination works by classifying changes made to a program by Casio in one of three classes: 
+red, orange, and green. 
+Green changes are the simplest to define and identify: 
+a given change is green if it immediately reduces the total error in the program. 
+That is, if we measure the error of a program to be some e, 
+then we make a change, 
+and then we measure the error of the program to be e', 
+where e' < e, 
+then the change we made was a green change. 
+Each version of the program carries with it 
+it's total error across the sample points, 
+so detecting green changes is a simple operation. 
+But changes do not exist in isolation. 
+Many times, the program is initially not in a form 
+that makes the eventual green changes immediately possible. 
+Changes that do not themselves reduce error, 
+but help transform the program into a form 
+that allows for one or more green changes, 
+are classified as orange changes. 
+Sometimes there are many orange changes needed 
+before casio can make a green change, 
+and determining which of many potential orange changes 
+to make is one of the hardest parts of Casio's operation.
+
+Finally, there exist red changes, 
+changes which Casio makes to a program 
+that turn out to be completely unecessary 
+for the creation of the eventual green changes. 
+Red Elimination attempts to identify these red changes, 
+and once identified, 
+remove them entirely from the current version of the program. 
+After each green change is found, 
+Casio uses Red Elimination to eliminate red changes from the change history, 
+so that at any given invocation of Red Elimination, 
+red changes only exist between the most recent change, 
+a green change, 
+and the green change that came before it.
+
+To eliminate these red changes, 
+Red Elimination develops the notion of translating changes through one another. 
+Simply put, 
+given a program such as (lambda (x) (- (+ 1 x) x)), 
+casio might make the changes (lambda (x) (- (+ 1 x) x)) -> 
+(lambda (x) (- (+ 1 (log (exp x))) x)) -> 
+(lambda (x) (+ 1 (- (log (exp x)) x))). 
+The second change, 
+the reassociation, is a green change, 
+since it causes the x's to immediately cancel, 
+and ensure that the program always returns one, 
+instead of the zero that the original form might return 
+given a large enough x. 
+If we name the first change a, 
+and the second change b, 
+we might write this as (lambda (x) (- (+ 1 x) x)) -a> 
+(lambda (x) (- (+ 1 (log (exp x))) x)) -b> 
+(lambda (x) (+ 1 (- (log (exp x)) x))), 
+or (lambda (x) (- (+ 1 x) x)) -ab> 
+(lambda (x) (+ 1 (- (log (exp x)) x))). 
+If, as in this case, 
+the changes can be translated through one another, 
+there also exist changes a' and b', 
+such that (lambda (x) (- (+ 1 x) x)) -b'a'> 
+(lambda (x) (+ 1 (- (log (exp x)) x))) 
+or (lambda (x) (- (+ 1 x) x) -b'> 
+(lambda (x) (+ 1 (- x x))) -a'> 
+(lambda (x) (+ 1 (- (log (exp x)) x))).
+
+It should be clear from inspection that, in fact, 
+b' is a valid green change on the initial program, 
+without having to involve a' or a at all. 
+In Red Elimination terminology, 
+a was a red change, 
+and we were able to eliminate it 
+by translating it through the green change, 
+and then simply cutting it off. 
+While many cases that Red Elimination hopes to handle 
+are not this simple, 
+the principle remains the same: 
+If we can translate a change 
+forward in the change history 
+until it is past the most recent green change, 
+then that change is a red change, 
+and we can eliminate it by simply cutting it off 
+once it has been translated through. 
+If we can not translate the change through the green change, 
+then that change is an orange change, 
+and it is necessary for the existence of the green change.
+
+Red Elimination thus consists of two parts: 
+an algorithm which, given two changes, 
+attempts to translate them through each other, 
+and an algorithm which uses this translation capability 
+to attempt to move all changes since the preceding green change 
+forward in the change history 
+through the current green change. 
+If the former cannot translate the changes, 
+then it returns false, 
+and the latter knows that these changes block one another.
+
+\subsection{(translate): Attempting to Translate A Pair of Changes}
+
+Before we can discuss the nitty-gritty of translating changes through each other, 
+it is important to establish the representation that Casio uses for changes 
+and the definition of equivilent changes, 
+so that we know that a and a' are equivilent. 
+To Casio, changes are represented as a location in the expression tree, 
+a "rule," or mathematically sound transformation across the reals, 
+and bindings for this rule. 
+Rules have input and output patterns, 
+such as (+ a (+ b c)) -> (+ (+ a b) c), 
+and when they are applied, 
+any expressions can be substituted for the rule variables 
+(a, b, and c in this case). 
+For instance, 
+the above rule could be applied 
+to (+ (/ x y) (+ 1 (- y))) 
+to make (+ (+ (/ x y) 1) (- y)), 
+with the substitutions a = (/ x y), b = 1 and c = (- y). 
+These substitutions are called "bindings", 
+and they are the third part of the change structure.
+
+For two changes to be considered equivilent, 
+they must have the same rule, 
+and share either their location, 
+or their bindings. 
+If the changes do not share their locations, 
+then the transformation from the original changes location 
+to the new changes location must be a reasonable translation 
+of the location across the intervening change. 
+This definition of equivilence, 
+while at first a little abstract, 
+becomes more concrete in the implementation. 
+This definition of equivilence is created to ensure 
+that any change equivilent to a green change 
+is also itself a green change, 
+so that any valid translation of a green change 
+through another change 
+will not strip the "greenness" from the change.
+
+When attempting to translate two changes, 
+we classify the relationship between those two changes 
+into three categories: 
+independent changes, 
+binding-contained changes, 
+and dependent changes. 
+Independent changes are changes whose locations 
+are entirely seperate from each other. 
+That is, 
+two independent changes operate 
+on entirely seperate parts 
+of the expression tree. 
+For example, 
+the changes (lambda (x y) (+ y x)) -a> 
+(lambda (x y) (+ (log (exp y)) x)) -b> 
+(lambda (x y) (+ (log (exp y)) (square (sqrt x)))) 
+are independent, 
+because a operates 
+on the first argument to the addition, 
+y, 
+and b operates 
+on the second argument to the addition, 
+x, 
+and they never interfere with each other. 
+Binding-contained changes are changes 
+for which one of the changes locations 
+is entirely contained within the bindings of the other change. 
+For example, 
+the changes (lambda (x y) (+ y x)) -a> 
+(lambda (x y) (+ (log (exp x)) y)) -b> 
+(lambda (x y) (+ (square (sqrt (log (exp x)))) y)) 
+are binding-contained changes, 
+because a ends up entirely contained within the bindings of b. 
+That is, 
+in the change structure for a, 
+we have the rule (square (sqrt z)) -> 
+z, 
+and the bindings z = (log (exp x)). 
+Dependent changes are any pair of changes 
+that are neither independent nor binding-contained. 
+For example, 
+the changes (lambda (x) (- (+ 1 x) x)) -a> 
+(lambda (x) (+ 1 (- x x))) -b> 
+(lambda (x) (+ 1 0)) are dependent changes. 
+You can verify this through inspection, 
+noting that there is no way 
+for us to cancel the x's 
+before we reassociate 
+to bring them into the same subexpression. 
+It can also be verified deterministically. 
+We can see that the changes are not independent, 
+as the location of the first, 
+the whole subexpression, 
+contains the location of the second, 
+the second argument to the addition. 
+We can also see that the changes are not binding contained, 
+as the first change has rule (- (+ a b) c) -> (+ a (- b c)) 
+with bindings a = 1, 
+b = x, 
+c = x, 
+and the second change has rule (- a a) -> 0, 
+with bindings a = x.
+
+Of our three types of change pairs, 
+independent changes are the simplest to translate. 
+In fact, 
+translation of two independent changes 
+requires no modification of either change structure. 
+Given the above example of independent changes, 
+we can see that the changes could be applied 
+in either order 
+without changing the bindings 
+or the locations of the changes. 
+Binding-contained changes are trickier, 
+and require some manipulation to translate. 
+More specifically, 
+the change that contains the other in it's 
+bindings must have it's bindings translated 
+to translate, 
+and the change that is contained 
+must have it's location translated 
+to translate. 
+Finally, dependent changes cannot be translated at all, 
+and return false. 
+Changes that are dependent 
+are blocked from moving past each other.
+
+\subsection{(remove-red): Using Translation to Eliminate Red Changes}
+
+Once we have translation of pairs of changes established, 
+the question becomes how do we use this pairwise translation 
+to eliminate as many changes 
+as possible from our change history? 
+Instead of thinking of moving changes 
+forward in the change history 
+to surpass the green change, 
+the problem becomes simpler 
+if we think of it the other way around: 
+attempting to move green changes 
+as far backward 
+in the change history as possible. 
+The algorithm we use for this problem 
+is fairly simple in principle: 
+First, attempt to move the green change back one change. 
+If this is sucessful, 
+throw out the change that the green change moved through, 
+and recurse on the new change history. 
+If this translation is unsucessful, 
+then the green change is directly dependent 
+on the change immediately before it. 
+As a result, 
+this change is an orange change, 
+and will (besides for a few special cases) 
+remain within the change history. 
+But, there may be other 
+red changes that occur before this orange change, 
+so we then recurse on the orange change, 
+trying to move it back in the change history 
+as much as possible. 
+When this recursion returns, 
+we first test to see if the orange change 
+was moved back at all, 
+and if so, 
+we recurse on the current change history 
+to continue to move the green change back. 
+The recursive call is somewhat different however, 
+when it operates on a non-green change (any orange change), 
+as instead of throwing away changes 
+that we move past, 
+we must keep them in the change history 
+as they are still in front of the green change.
+
+A simple visual example 
+might help to further illustrate this process.
+* We start with a change history 
+with some of each type of change. 
+For convenience, 
+only the part of the history 
+between the head green change 
+and the previous green change 
+is shown, 
+as the algorithm only operates 
+on that part of the 
+change history. 
+Red changes are to be represented as -r>, 
+orange changes as -o>, 
+and green changes as -G>. 
+A star above a change denotes 
+that it is the change we are currently operating on.
+
+     	   	  	 	      	     *
+-G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -r> -G>
+
+
+* The second to last change is red, 
+and thus can be translated 
+through the green change 
+and thrown away.
+
+      	     	     	       	    	 *
+-G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -G>
+
+
+* The next change is orange, 
+so we cannot translate the green change 
+through it. 
+However, we can attempt 
+to translate the orange change 
+backwards in the change history 
+to further eliminate reds.
+
+      	   	     	     	     *
+-G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -G>
+
+
+* The change before that orange is red, 
+so we can move through it.
+      	     	    	 	 *
+-G> -r> -r> -o> -r> -o> -o> -r> -o> -r> -G>
+
+* Still recursing on the orange change, 
+we can move it back another red change.
+  		     	     *
+-G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+* Now, we've hit a change we can't translate through, 
+so we recurse on the blocking change.
+       	     	   	 *
+-G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+* This change is also blocked, 
+so we recurse again.
+       	      	     *
+-G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+* This change can be moved back, 
+so we do so.
+       	      	 *
+-G> -r> -r> -o> -o> -r> -o> -o> -r> -r> -G>
+
+* And now it's blocked, 
+so we once again recurse.
+      	     *
+-G> -r> -r> -o> -o> -r> -o> -o> -r> -r> -G>
+
+* This change can be moved back twice 
+(for simplicities sake, 
+I will begin showing multiple trivial steps as one step)
+     *
+-G> -o> -r> -r> -o> -r> -o> -o> -r> -r> -G>
+
+* We've hit the beginning, 
+so we return to the change that called us.
+  	    	 *
+-G> -o> -r> -r> -o> -r> -o> -o> -r> -r> -G>
+
+* We can now see that the change before us 
+is not the change that was before us 
+before the recursive call, 
+so we attempt to move backwards, 
+and can succeed for two iterations.
+
+     	 *
+-G> -o> -o> -r> -r> -r> -o> -o> -r> -r> -G>
+
+
+* This change will recurse again, 
+but the recursion will immediately return 
+with the same previous change 
+as we had before, 
+so this change is done 
+and returns to it's calling change.
+
+       	      	   	 *
+-G> -o> -o> -r> -r> -r> -o> -o> -r> -r> -G>
+
+
+* This change moves back three steps 
+before finishing in the same way as it's predecessor
+
+       	      	    	     *
+-G> -o> -o> -o> -r> -r> -r> -o> -r> -r> -G>
+
+    	    	    	    	    	 *
+-G> -o> -o> -o> -o> -r> -r> -r> -r> -r> -G>
+
+    	    	     *
+-G> -o> -o> -o> -o> -G>
+
+
+* And so the process finishes, 
+with all red changes eliminated.
+
+In short, 
+Red Elimination allows us to eliminate
+ red changes from our change history 
+and contributes to the final outputted 
+program having the least error possible 
+while remaining as simple 
+and close to the input program 
+as possible.
+
+\section{Simplification}
+
+Most of Casio's strategies 
+operate by making incremental changes 
+to programs using our rewrite rules. 
+This approach works well 
+because it allows us to reevaluate the program 
+at every step 
+and make sure that we are guiding our search 
+towards our goal. 
+There is one strategy, however, 
+that doesn't make incremental changes, 
+but instead tries to make 
+large scale transformation of programs. 
+This strategy, simplification, 
+doesn't need to evaluate 
+the program at every step 
+because instead of being guided 
+by the larger abstract goal 
+to reduce error, 
+the simplification process only seeks 
+to make a program as simple as possible, 
+under the assumption that 
+simpler is (almost) always better.
+
+Simplifying, 
+as it currently stands 
+operates on the basic principle 
+that making a change to the 
+simplest possible version of a program, 
+and then simplifying the resulting program 
+in such a way that 
+it does not destruct the change, 
+is the best way to determine 
+whether a change is beneficial 
+to the program. 
+More concretely, 
+the motivating example during 
+the development of simplification follows:
+
+Suppose we start with program (lambda (x) (- (sqrt (+ x 1)) (sqrt x))). 
+We know that there is an improved program, 
+(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))), 
+which is equivilent over the reals, 
+and as such is the ideal output 
+for casio given the initial program. 
+The trick is teaching casio 
+to find this program. 
+Given our existing rewrite rules, 
+the ideal transformation is 
+(lambda (x) (- (sqrt (+ x 1)) (sqrt x))) -> 
+(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ (- (+ x 1) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ (- (+ x 1) x) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ (- (+ 1 x) x) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ (+ 1 (- x x)) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ (+ 1 0) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
+(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))). 
+However, this is a lot of steps, 
+and the likelyhood that these steps 
+would happen through brute force 
+is pretty small, 
+given the number of possible 
+changes to search. 
+Our focused search strategy, 
+where we select the node 
+with the most error 
+and attempt to destruct it, 
+fares slightly better, 
+as it immediately sees that the subtraction is the problem 
+and returns the first step as one 
+of a pretty small set of possible steps. 
+Unfortunately, 
+from there it again sees the subtraction as problematic, 
+and attempts to destruct it again. 
+The problem is slightly easier than it might at first appear, 
+because once we reassociate the x's to cancel, 
+the error is immediately reduced 
+and a green change is achieved, 
+so the last two steps are not strictly necessary. 
+But, it would still be nice to have those last two steps, 
+as they result in a more readable program 
+as well as a program that is cheaper to execute. 
+It is here that a controlled form 
+of simplification is beneficial.
+
+We can look at getting the ideal output
+ of this program 
+in two parts. 
+The first part destructs the minus, 
+turning the program into 
+(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))). 
+The second part is all about simplifying 
+the top half of that division 
+down to a simple constant, 
+1. 
+We can see 
+that a quick simplification 
+speeds up the process 
+and makes us a lot more likely 
+to achieve our goal program. 
+However, the initial program, 
+(lambda (x) (- (sqrt (+ x 1)) (sqrt x))), 
+is actually much simpler 
+than it's error-reduced form, 
+(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))). 
+A perfect simplifier 
+would revert any improvements we make 
+to the intial program 
+back to the initial program, 
+since that is the simplest form, 
+if we allowed it to simplify the whole expression. 
+Because of this, 
+we add two restrictions 
+to our simplification strategy: 
+If the simplified form 
+does not have better error 
+than the unsimplified form, 
+then we throw out 
+the simplified form, 
+and we only simplify 
+at predetermined simplification locations.
+
+\subsection{Simplification Locations}
+
+In our motivating example, 
+a simplification of the whole expression 
+would revert our change 
+and give us a bad result, 
+but simplification of just the numerator 
+of the division gives us a program with less error. 
+We generalize that for any given change, 
+there are certain locations 
+for which it would be beneficial to simplify. 
+These locations are determined 
+by the rule which the change applies. 
+The change 
+(lambda (x) (- (sqrt (+ x 1)) (sqrt x))) -> 
+(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) 
+applies the rule 
+(- a b) -> 
+(/ (- (square a) (square b)) (+ a b)). 
+In this change, 
+the division is what is important 
+and should be preserved, 
+so the simplification locations 
+for the rule are the numerator 
+and denominator of the division. 
+Attempting to simplify at both these locations, 
+for any invocation of this rule, 
+could possibly create green changes 
+(as seen in motivating example), 
+and furthermore, 
+we assert that there are no simplifications 
+that would cause a green change 
+which will not be found 
+by simplifying at these locations.
+
+\subsection{(simplify-expression): Quickly Simplifying Most Expressions}
+
+Once we know where to simplify, 
+and we have systems in place 
+to throw out our simplifications 
+if they don't produce a green change, 
+all that's left is to simplify the given subexpressions. 
+Simplification is accomplished 
+by a recursive function 
+which works from the leaf nodes 
+of the expression up, 
+simplifying as it goes. 
+Every time it reaches a node, it:
+
+1. Attempts to apply all reduction rules. 
+Reduction rules are defined as all rules 
+in our rewrite-rules 
+that take the form (f x) -> x, 
+such as (log (exp x)) -> x, 
+or (sqrt (square x)) -> x.
+
+2. Attempts to precompute functions of constants. 
+If the expression 
+is of the form (f c1 c2 c3 ...), 
+where c1-cn are constants, 
+then the value of the function invocation 
+is known at compile time. 
+Therefore, we can further simplify the expression 
+by calculating the value of the function 
+in arbitrary precision 
+(the details of which are out of the scope of this section), 
+and then substituting that value 
+in for the function invocation 
+(unless the value is a non-number, 
+such as NaN, 
+in which case we leave the function invocation 
+as it is.)
+
+3. Attempts to apply one 
+of a set of simplification rules 
+depending on the form of the expression. 
+These simplification rules 
+all act to attempt to cancel terms and factors 
+where cancellable terms and factors are present, 
+and to change the expression into a canonical form 
+so that more cancelation may happen 
+farther up the tree. 
+Two of the simplification rules 
+also include a recursive call to simplify, 
+to work subtractions and divisions down the tree.
+We demonstrate the effectiveness of this algorithm 
+with a simple example:
+
+Given the expression 
+(square (+ (+ (sqrt x) (square (sqrt x))) (- (- (+ x 1) 1))))
+We first simplify the subexpressions, 
+of which there is only one, 
+(+ (+ (sqrt x) (square (sqrt x))) (- (- (+ x 1) 1))).
+We simplify the subexpressions of that, 
+(+ (sqrt x) (square (sqrt x))) 
+and (- (- (+ x 1) 1)).
+Starting with the first, 
+we simplify it's subexpressions 
+(sqrt x) and 
+(square (sqrt x)),
+Starting with the first, 
+we simplify it's subexpression, 
+x, 
+and just get x back. 
+Therefore, 
+(sqrt x) 
+is fully simplified.
+Moving on to 
+(square (sqrt x)), 
+recursing down 
+gets us just (sqrt x) 
+(as shown by the last step), 
+but we have a reduction rule 
+that will turn (square (sqrt x)) into x, 
+so we apply that.
+Now we have the (+ (sqrt x) (square (sqrt x))) 
+simplified to (+ (sqrt x) x).
+Moving on to (- (- (+ x 1) 1)), 
+there is only one subexpression, 
+(- (+ x 1) 1)
+Both subexpressions 
+are in simplest form, 
+so they are left. 
+The toplevel expression, 
+however, 
+is rewritten to (+ x 1 (- 1)), 
+flattening the addition 
+and changing the subtraction 
+to a negated addition. 
+Then, the terms are resolved, 
+resulting in just x.
+Moving up one level, 
+we know have (- x) instad of (- (- (+ x 1) 1)).
+Our total expression now looks like 
+(square (+ (+ (sqrt x) x) (- x))). 
+The addition is flattened out 
+giving us (square (+ (sqrt x) x (- x))), 
+and the terms are cancelled, 
+resulting in (square (sqrt x)). 
+Finally, we have a reduction rule for this, 
+so the final output is x.
+
+With our simplification algorithm, 
+(- (sqrt (+ x 1)) (sqrt x)) 
+is rewritten to 
+(/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
+ in a single iteration 
+plus a simplification.
+
+\end{document}
