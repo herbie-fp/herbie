@@ -380,24 +380,24 @@ is shown,
 as the algorithm only operates 
 on that part of the 
 change history. 
-Red changes are to be represented as -r>, 
-orange changes as -o>, 
-and green changes as -G>. 
-A star above a change denotes 
+Red changes are to be represented as $r_n$, 
+orange changes as $o_n$, 
+and green changes as $G_n$. 
+A strong arrow denotes 
 that it is the change we are currently operating on.
 
-     	   	  	 	      	     *
--G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -r> -G>
-
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\to o_2\to r_3 
+\to r_4\to o_3\to r_5 \insetarrow{G_1}\]
 
 * The second to last change is red, 
 and thus can be translated 
 through the green change 
 and thrown away.
 
-      	     	     	       	    	 *
--G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -G>
-
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\to o_2\to r_3 
+\to r_4\to o_3\insetarrow{G_1}\]
 
 * The next change is orange, 
 so we cannot translate the green change 
@@ -407,50 +407,66 @@ to translate the orange change
 backwards in the change history 
 to further eliminate reds.
 
-      	   	     	     	     *
--G> -r> -r> -o> -r> -o> -o> -r> -r> -o> -G>
-
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\to o_2\to r_3 
+\to r_4\insetarrow{o_3} G_1\]
 
 * The change before that orange is red, 
 so we can move through it.
-      	     	    	 	 *
--G> -r> -r> -o> -r> -o> -o> -r> -o> -r> -G>
+
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\to o_2\to r_3 
+\insetarrow{o_3} r_4 \to G_1\]
 
 * Still recursing on the orange change, 
 we can move it back another red change.
-  		     	     *
--G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\to o_2 \insetarrow{o_3} 
+r_3 \to r_4 \to G_1\]
 
 * Now, we've hit a change we can't translate through, 
 so we recurse on the blocking change.
-       	     	   	 *
--G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\to o_1\insetarrow{o_2} o_3 
+\to r_3 \to r_4 \to G_1\]
 
 * This change is also blocked, 
 so we recurse again.
-       	      	     *
--G> -r> -r> -o> -r> -o> -o> -o> -r> -r> -G>
+
+\[G_0\to r_0\to r_1\to o_0 
+\to r_2\insetarrow{o_1} o_2 \to o_3 
+\to r_3 \to r_4 \to G_1\]
 
 * This change can be moved back, 
 so we do so.
-       	      	 *
--G> -r> -r> -o> -o> -r> -o> -o> -r> -r> -G>
+
+\[G_0\to r_0\to r_1\to o_0 
+\insetarrow{o_1} r_2 \to o_2 \to o_3 
+\to r_3 \to r_4 \to G_1\]
 
 * And now it's blocked, 
 so we once again recurse.
-      	     *
--G> -r> -r> -o> -o> -r> -o> -o> -r> -r> -G>
+
+\[G_0\to r_0\to r_1\insetarrow{o_0} 
+o_1\to r_2 \to o_2 \to o_3 
+\to r_3 \to r_4 \to G_1\]
 
 * This change can be moved back twice 
 (for simplicities sake, 
 I will begin showing multiple trivial steps as one step)
-     *
--G> -o> -r> -r> -o> -r> -o> -o> -r> -r> -G>
+
+\[G_0\insetarrow{o_0}r_0\to r_1 
+\to o_1\to r_2 \to o_2 \to o_3 
+\to r_3\to r_4 \to G_1\]
 
 * We've hit the beginning, 
 so we return to the change that called us.
-  	    	 *
--G> -o> -r> -r> -o> -r> -o> -o> -r> -r> -G>
+
+\[G_0\to o_0\to r_0\to r_1 
+\insetarrow{o_1} r_2 \to o_2 \to o_3 
+\to r_3\to r_4 \to G_1\]
 
 * We can now see that the change before us 
 is not the change that was before us 
@@ -458,9 +474,9 @@ before the recursive call,
 so we attempt to move backwards, 
 and can succeed for two iterations.
 
-     	 *
--G> -o> -o> -r> -r> -r> -o> -o> -r> -r> -G>
-
+\[G_0\to o_0\insetarrow{o_1} r_0
+\to r_1 \to r_2 \to o_2 \to o_3 
+\to r_3\to r_4 \to G_1\]
 
 * This change will recurse again, 
 but the recursion will immediately return 
@@ -469,22 +485,23 @@ as we had before,
 so this change is done 
 and returns to it's calling change.
 
-       	      	   	 *
--G> -o> -o> -r> -r> -r> -o> -o> -r> -r> -G>
-
+\[G_0\to o_0\to o_1\to r_0
+\to r_1 \to r_2 \insetarrow{o_2} o_3 
+\to r_3\to r_4 \to G_1\]
 
 * This change moves back three steps 
 before finishing in the same way as it's predecessor
 
-       	      	    	     *
--G> -o> -o> -o> -r> -r> -r> -o> -r> -r> -G>
-
-    	    	    	    	    	 *
--G> -o> -o> -o> -o> -r> -r> -r> -r> -r> -G>
-
-    	    	     *
--G> -o> -o> -o> -o> -G>
-
+\begin{align*}
+&G_0\to o_0\to o_1\to o_2
+\to r_0\to r_1 \to r_2 \insetarrow{o_3} 
+r_3\to r_4 \to G_1\\
+&G_0\to o_0\to o_1\to o_2
+\to o_3 \to r_0 \to r_1\to r_2
+\to r_3 \to r_4 \insetarrow{G_1}\\
+&G_0\to o_0\to o_1\to o_2
+\to o_3 \insetarrow{G_1}
+\end{align*}
 
 * And so the process finishes, 
 with all red changes eliminated.
