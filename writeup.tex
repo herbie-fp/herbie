@@ -389,8 +389,8 @@ that it is the change we are currently operating on.
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
 \to r_4\to o_3\to r_5 \insetarrow{G_1}\]
-
-* The second to last change is red, 
+\begin{itemize}
+\item The second to last change is red, 
 and thus can be translated 
 through the green change 
 and thrown away.
@@ -399,7 +399,7 @@ and thrown away.
 \to r_2\to o_1\to o_2\to r_3 
 \to r_4\to o_3\insetarrow{G_1}\]
 
-* The next change is orange, 
+\item The next change is orange, 
 so we cannot translate the green change 
 through it. 
 However, we can attempt 
@@ -411,49 +411,49 @@ to further eliminate reds.
 \to r_2\to o_1\to o_2\to r_3 
 \to r_4\insetarrow{o_3} G_1\]
 
-* The change before that orange is red, 
+\item The change before that orange is red, 
 so we can move through it.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
 \insetarrow{o_3} r_4 \to G_1\]
 
-* Still recursing on the orange change, 
+\item Still recursing on the orange change, 
 we can move it back another red change.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2 \insetarrow{o_3} 
 r_3 \to r_4 \to G_1\]
 
-* Now, we've hit a change we can't translate through, 
+\item Now, we've hit a change we can't translate through, 
 so we recurse on the blocking change.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\insetarrow{o_2} o_3 
 \to r_3 \to r_4 \to G_1\]
 
-* This change is also blocked, 
+\item This change is also blocked, 
 so we recurse again.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\insetarrow{o_1} o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
-* This change can be moved back, 
+\item This change can be moved back, 
 so we do so.
 
 \[G_0\to r_0\to r_1\to o_0 
 \insetarrow{o_1} r_2 \to o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
-* And now it's blocked, 
+\item And now it's blocked, 
 so we once again recurse.
 
 \[G_0\to r_0\to r_1\insetarrow{o_0} 
 o_1\to r_2 \to o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
-* This change can be moved back twice 
+\item This change can be moved back twice 
 (for simplicities sake, 
 I will begin showing multiple trivial steps as one step)
 
@@ -461,14 +461,14 @@ I will begin showing multiple trivial steps as one step)
 \to o_1\to r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
-* We've hit the beginning, 
+\item We've hit the beginning, 
 so we return to the change that called us.
 
 \[G_0\to o_0\to r_0\to r_1 
 \insetarrow{o_1} r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
-* We can now see that the change before us 
+\item We can now see that the change before us 
 is not the change that was before us 
 before the recursive call, 
 so we attempt to move backwards, 
@@ -478,7 +478,7 @@ and can succeed for two iterations.
 \to r_1 \to r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
-* This change will recurse again, 
+\item This change will recurse again, 
 but the recursion will immediately return 
 with the same previous change 
 as we had before, 
@@ -489,7 +489,7 @@ and returns to it's calling change.
 \to r_1 \to r_2 \insetarrow{o_2} o_3 
 \to r_3\to r_4 \to G_1\]
 
-* This change moves back three steps 
+\item This change moves back three steps 
 before finishing in the same way as it's predecessor
 
 \begin{align*}
@@ -503,8 +503,9 @@ r_3\to r_4 \to G_1\\
 \to o_3 \insetarrow{G_1}
 \end{align*}
 
-* And so the process finishes, 
+\item And so the process finishes, 
 with all red changes eliminated.
+\end{itemize}
 
 In short, 
 Red Elimination allows us to eliminate
@@ -692,14 +693,15 @@ of the expression up,
 simplifying as it goes. 
 Every time it reaches a node, it:
 
-1. Attempts to apply all reduction rules. 
+\begin{enumerate}
+\item Attempts to apply all reduction rules. 
 Reduction rules are defined as all rules 
 in our rewrite-rules 
 that take the form $f(x) \to x$, 
 such as $\lnexp{x} \to x$, 
 or $\sqrt{x^2} \to x$.
 
-2. Attempts to precompute functions of constants. 
+\item Attempts to precompute functions of constants. 
 If the expression 
 is of the form $f(c_1 c_2 c_3... c_n)$, 
 where $c_1$--$c_n$ are constants, 
@@ -716,7 +718,7 @@ such as NaN,
 in which case we leave the function invocation 
 as it is.)
 
-3. Attempts to apply one 
+\item Attempts to apply one 
 of a set of simplification rules 
 depending on the form of the expression. 
 These simplification rules 
@@ -728,17 +730,21 @@ farther up the tree.
 Two of the simplification rules 
 also include a recursive call to simplify, 
 to work subtractions and divisions down the tree.
+\end{enumerate}
+
 We demonstrate the effectiveness of this algorithm 
 with a simple example:
 
-Given the expression
-$((\sqrt{x} + \sqrsqrt{x}) + -((x + 1) - 1))^2$
-We first simplify the leaf nodes,
-$((\sqrt{x} + x) -x)^2$
-then move one level up, 
-$\sqrt{x}^2$
-and finally simplify the top level,
+\begin{enumerate}
+\item Given the expression
+$((\sqrt{x} + \sqrsqrt{x}) + -((x + 1) - 1))^2$,
+\item We first simplify the leaf nodes,
+$((\sqrt{x} + x) -x)^2$,
+\item then move one level up, 
+$\sqrt{x}^2$,
+\item and finally simplify the top level,
 $x$.
+\end{enumerate}
 
 With our simplification algorithm, 
 we can rewrite several classes of program
