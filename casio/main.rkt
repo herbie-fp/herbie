@@ -12,6 +12,9 @@
 (define (improve prog max-iters)
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
+  (improve-on-points prog max-iters points exacts))
+
+(define (improve-on-points prog max-iters points exacts)
   (parameterize ([*points* points] [*exacts* exacts])
     (let ([orig (make-alt prog)])
       (let loop ([strats *strategies*] [alt0 orig])
