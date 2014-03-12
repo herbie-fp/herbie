@@ -9,6 +9,8 @@
 (require casio/simplify)
 (require casio/main)
 
+(provide shell)
+
 (define ((sh/keep . kept) alts locs)
   (let* ([alts* (filter (curryr memq kept) alts)]
 	 [locs* (filter (lambda (x) (memq (car x) alts*)) locs)])
