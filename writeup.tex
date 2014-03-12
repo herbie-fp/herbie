@@ -4,6 +4,10 @@
 
 \title{Casio Writeup (Working Title)}
 
+\newcommand{\insetarrow}[1]{=#1\Rightarrow}
+\newcommand{\lnexp}[1]{ln\left(e^{#1}\right)}
+\newcommand{\sqrsqrt}[1]{\sqrt{#1}^2}
+
 \begin{document}
 
 \maketitle
@@ -28,8 +32,8 @@ as "programs."
 Casio on a whole operates through a set of "stategies", 
 each of which operates by making simple rewrites according to a set of rewrite rules. 
 Rewrite rules are mathamatically sound transformations across the reals, 
-such as (- a b) -> (/ (- (square a) (square b)) (+ a b)), 
-or x -> (exp (log x)). 
+such as $a - b \to \frac{a^2 - b^2}{a + b}$, 
+or $x \to e^{ln(x)}$. 
 Each strategy attempts to apply the best rewrites 
 and reduce program error. 
 Strategies include algebriac simplification of the program, 
@@ -52,7 +56,7 @@ that does not contribute to the reduction of error,
 before picking a change that does. 
 In the brute force search this was initially quite common, 
 with many results differing from the optimal result 
-by a (log (exp x)) inserted in the place of x 
+by a $\lnexp{x}$ inserted in the place of $x$ 
 somewhere in the program. 
 Even when we apply changes based on which will destruct a node 
 that is evaluated to have the most local error, 
@@ -68,10 +72,10 @@ Red Elimination works by classifying changes made to a program by Casio in one o
 red, orange, and green. 
 Green changes are the simplest to define and identify: 
 a given change is green if it immediately reduces the total error in the program. 
-That is, if we measure the error of a program to be some e, 
+That is, if we measure the error of a program to be some $\epsilon$, 
 then we make a change, 
-and then we measure the error of the program to be e', 
-where e' < e, 
+and then we measure the error of the program to be $\epsilon'$, 
+where $\epsilon' < \epsilon$, 
 then the change we made was a green change. 
 Each version of the program carries with it 
 it's total error across the sample points, 
@@ -99,41 +103,58 @@ After each green change is found,
 Casio uses Red Elimination to eliminate red changes from the change history, 
 so that at any given invocation of Red Elimination, 
 red changes only exist between the most recent change, 
-a green change, 
+a green change,
 and the green change that came before it.
 
 To eliminate these red changes, 
 Red Elimination develops the notion of translating changes through one another. 
 Simply put, 
-given a program such as (lambda (x) (- (+ 1 x) x)), 
-casio might make the changes (lambda (x) (- (+ 1 x) x)) -> 
-(lambda (x) (- (+ 1 (log (exp x))) x)) -> 
-(lambda (x) (+ 1 (- (log (exp x)) x))). 
+given a program such as $(1 + x) - x$, 
+casio might make the changes
+
+\begin{align*}
+(1 + x) - x
+&\to (1 + \lnexp{x}) - x\\
+&\to 1 + (\lnexp{x} - x)
+\end{align*}
+
 The second change, 
 the reassociation, is a green change, 
-since it causes the x's to immediately cancel, 
+since it causes the $x$'s to immediately cancel, 
 and ensure that the program always returns one, 
 instead of the zero that the original form might return 
-given a large enough x. 
-If we name the first change a, 
-and the second change b, 
-we might write this as (lambda (x) (- (+ 1 x) x)) -a> 
-(lambda (x) (- (+ 1 (log (exp x))) x)) -b> 
-(lambda (x) (+ 1 (- (log (exp x)) x))), 
-or (lambda (x) (- (+ 1 x) x)) -ab> 
-(lambda (x) (+ 1 (- (log (exp x)) x))). 
+given a large enough $x$. 
+If we name the first change $a$, 
+and the second change $b$, 
+we might write this as 
+
+\begin{align*}
+(1 + x) - x&\insetarrow{a} (1 + \lnexp{x}) - x\\
+&\insetarrow{b} 1 + (\lnexp{x} - x)
+\end{align*}
+
+or 
+
+\[(1 + x) - x \insetarrow{ab} 1 + (\lnexp{x} - x)\]
+
 If, as in this case, 
 the changes can be translated through one another, 
 there also exist changes a' and b', 
-such that (lambda (x) (- (+ 1 x) x)) -b'a'> 
-(lambda (x) (+ 1 (- (log (exp x)) x))) 
-or (lambda (x) (- (+ 1 x) x) -b'> 
-(lambda (x) (+ 1 (- x x))) -a'> 
-(lambda (x) (+ 1 (- (log (exp x)) x))).
+such that 
+
+\[(1 + x) - x \insetarrow{b'a'} 1 + (\lnexp{x} - x)\]
+
+or
+
+\begin{align*}
+(1 + x) - x &\insetarrow{b'} 1 + (x - x) \\
+&\insetarrow{a'} 1 + \lnexp{x} - x)
+\end{align*}
+
 
 It should be clear from inspection that, in fact, 
-b' is a valid green change on the initial program, 
-without having to involve a' or a at all. 
+$b'$ is a valid green change on the initial program, 
+without having to involve $a'$ or $a$ at all. 
 In Red Elimination terminology, 
 a was a red change, 
 and we were able to eliminate it 
@@ -163,7 +184,7 @@ If the former cannot translate the changes,
 then it returns false, 
 and the latter knows that these changes block one another.
 
-\subsection{(translate): Attempting to Translate A Pair of Changes}
+\subsection{(translate): Attempting to Translate Change Pairs}
 
 Before we can discuss the nitty-gritty of translating changes through each other, 
 it is important to establish the representation that Casio uses for changes 
@@ -173,15 +194,15 @@ To Casio, changes are represented as a location in the expression tree,
 a "rule," or mathematically sound transformation across the reals, 
 and bindings for this rule. 
 Rules have input and output patterns, 
-such as (+ a (+ b c)) -> (+ (+ a b) c), 
+such as $a + (b + c) \to (a + b) + c$,
 and when they are applied, 
 any expressions can be substituted for the rule variables 
-(a, b, and c in this case). 
+($a$, $b$, and $c$ in this case). 
 For instance, 
 the above rule could be applied 
-to (+ (/ x y) (+ 1 (- y))) 
-to make (+ (+ (/ x y) 1) (- y)), 
-with the substitutions a = (/ x y), b = 1 and c = (- y). 
+to $\frac{x}{y} + (1 + -y)$ 
+to make $(\frac{x}{y} + 1) + -y$, 
+with the substitutions $a = \frac{x}{y}$, $b = 1$ and $c = -y$. 
 These substitutions are called "bindings", 
 and they are the third part of the change structure.
 
@@ -216,40 +237,52 @@ two independent changes operate
 on entirely seperate parts 
 of the expression tree. 
 For example, 
-the changes (lambda (x y) (+ y x)) -a> 
-(lambda (x y) (+ (log (exp y)) x)) -b> 
-(lambda (x y) (+ (log (exp y)) (square (sqrt x)))) 
+the changes 
+
+\begin{align*}
+y + x &\insetarrow{a} \lnexp{y} + x \\
+&\insetarrow{b} \lnexp{y} + \sqrt{x}^2
+\end{align*}
+
 are independent, 
-because a operates 
+because $a$ operates 
 on the first argument to the addition, 
-y, 
-and b operates 
+$y$, 
+and $b$ operates 
 on the second argument to the addition, 
-x, 
+$x$, 
 and they never interfere with each other. 
 Binding-contained changes are changes 
 for which one of the changes locations 
 is entirely contained within the bindings of the other change. 
 For example, 
-the changes (lambda (x y) (+ y x)) -a> 
-(lambda (x y) (+ (log (exp x)) y)) -b> 
-(lambda (x y) (+ (square (sqrt (log (exp x)))) y)) 
+the changes 
+
+\begin{align*}
+y + x &\insetarrow{a} \lnexp{y} + x \\
+&\insetarrow{b} \sqrt{\lnexp{y}}^2 + x
+\end{align*}
+
 are binding-contained changes, 
-because a ends up entirely contained within the bindings of b. 
+because a ends up entirely contained within the bindings of $b$. 
 That is, 
-in the change structure for a, 
-we have the rule (square (sqrt z)) -> 
-z, 
-and the bindings z = (log (exp x)). 
+in the change structure for $a$, 
+we have the rule $\sqrt{z}^2 \to z$,
+and the bindings $z = ln\left(e^x\right)$.
 Dependent changes are any pair of changes 
 that are neither independent nor binding-contained. 
 For example, 
-the changes (lambda (x) (- (+ 1 x) x)) -a> 
-(lambda (x) (+ 1 (- x x))) -b> 
-(lambda (x) (+ 1 0)) are dependent changes. 
+the changes 
+
+\begin{align*}
+(1 + x) - x &\insetarrow{a} 1 + (x - x) \\
+&\insetarrow{b} 1 + 0
+\end{align*}
+
+are dependent changes. 
 You can verify this through inspection, 
 noting that there is no way 
-for us to cancel the x's 
+for us to cancel the $x$'s 
 before we reassociate 
 to bring them into the same subexpression. 
 It can also be verified deterministically. 
@@ -259,12 +292,12 @@ the whole subexpression,
 contains the location of the second, 
 the second argument to the addition. 
 We can also see that the changes are not binding contained, 
-as the first change has rule (- (+ a b) c) -> (+ a (- b c)) 
-with bindings a = 1, 
-b = x, 
-c = x, 
-and the second change has rule (- a a) -> 0, 
-with bindings a = x.
+as the first change has rule $(a + b) - c \to a + (b - c)$
+with bindings $a = 1$, 
+$b = x$, 
+$c = x$, 
+and the second change has rule $a - a \to 0$, 
+with bindings $a = x$.
 
 Of our three types of change pairs, 
 independent changes are the simplest to translate. 
@@ -458,7 +491,7 @@ with all red changes eliminated.
 
 In short, 
 Red Elimination allows us to eliminate
- red changes from our change history 
+red changes from our change history 
 and contributes to the final outputted 
 program having the least error possible 
 while remaining as simple 
@@ -505,9 +538,9 @@ More concretely,
 the motivating example during 
 the development of simplification follows:
 
-Suppose we start with program (lambda (x) (- (sqrt (+ x 1)) (sqrt x))). 
+Suppose we start with program $\sqrt{x+1} - \sqrt{x}$. 
 We know that there is an improved program, 
-(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))), 
+$\frac{1}{\sqrt{x+1} + \sqrt{x}}$, 
 which is equivilent over the reals, 
 and as such is the ideal output 
 for casio given the initial program. 
@@ -515,14 +548,17 @@ The trick is teaching casio
 to find this program. 
 Given our existing rewrite rules, 
 the ideal transformation is 
-(lambda (x) (- (sqrt (+ x 1)) (sqrt x))) -> 
-(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ (- (+ x 1) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ (- (+ x 1) x) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ (- (+ 1 x) x) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ (+ 1 (- x x)) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ (+ 1 0) (+ (sqrt (+ x 1)) (sqrt x)))) -> 
-(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))). 
+
+\begin{align*}
+\sqrt{x + 1} - \sqrt{x} &\to \frac{\sqrsqrt{x + 1} - \sqrsqrt{x}}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{(x + 1) - \sqrsqrt{x}}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{(x + 1) - x}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{(1 + x) - x}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{1 + (x - x)}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{1 + 0}{\sqrt{x + 1} + \sqrt{x}}\\
+&\to \frac{1}{\sqrt{x + 1} + \sqrt{x}}
+\end{align*}
+
 However, this is a lot of steps, 
 and the likelyhood that these steps 
 would happen through brute force 
@@ -555,22 +591,24 @@ We can look at getting the ideal output
  of this program 
 in two parts. 
 The first part destructs the minus, 
-turning the program into 
-(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))). 
+turning the program into
+
+\[\frac{\sqrsqrt{x + 1} - \sqrsqrt{x}}{\sqrt{x + 1} + \sqrt{x}}\]
+
 The second part is all about simplifying 
 the top half of that division 
 down to a simple constant, 
-1. 
+$1$. 
 We can see 
 that a quick simplification 
 speeds up the process 
 and makes us a lot more likely 
 to achieve our goal program. 
 However, the initial program, 
-(lambda (x) (- (sqrt (+ x 1)) (sqrt x))), 
+$\sqrt{x + 1} - \sqrt{x}$, 
 is actually much simpler 
-than it's error-reduced form, 
-(lambda (x) (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))). 
+than it's error-reduced form,
+$\frac{1}{\sqrt{x + 1} + \sqrt{x}}$
 A perfect simplifier 
 would revert any improvements we make 
 to the intial program 
@@ -601,12 +639,12 @@ there are certain locations
 for which it would be beneficial to simplify. 
 These locations are determined 
 by the rule which the change applies. 
-The change 
-(lambda (x) (- (sqrt (+ x 1)) (sqrt x))) -> 
-(lambda (x) (/ (- (square (sqrt (+ x 1))) (square (sqrt x))) (+ (sqrt (+ x 1)) (sqrt x)))) 
+The change
+
+\[\sqrt{x + 1} - \sqrt{x} \to \frac{\sqrsqrt{x + 1} - \sqrsqrt{x}}{\sqrt{x + 1} + \sqrt{x}}\]
+
 applies the rule 
-(- a b) -> 
-(/ (- (square a) (square b)) (+ a b)). 
+$a - b \to  \frac{a^2 - b^2}{a + b}$. 
 In this change, 
 the division is what is important 
 and should be preserved, 
@@ -640,14 +678,14 @@ Every time it reaches a node, it:
 1. Attempts to apply all reduction rules. 
 Reduction rules are defined as all rules 
 in our rewrite-rules 
-that take the form (f x) -> x, 
-such as (log (exp x)) -> x, 
-or (sqrt (square x)) -> x.
+that take the form $f(x) \to x$, 
+such as $\lnexp{x} \to x$, 
+or $\sqrt{x^2} \to x$.
 
 2. Attempts to precompute functions of constants. 
 If the expression 
-is of the form (f c1 c2 c3 ...), 
-where c1-cn are constants, 
+is of the form $f(c_1 c_2 c_3... c_n)$, 
+where $c_1$--$c_n$ are constants, 
 then the value of the function invocation 
 is known at compile time. 
 Therefore, we can further simplify the expression 
@@ -676,65 +714,17 @@ to work subtractions and divisions down the tree.
 We demonstrate the effectiveness of this algorithm 
 with a simple example:
 
-Given the expression 
-(square (+ (+ (sqrt x) (square (sqrt x))) (- (- (+ x 1) 1))))
-We first simplify the subexpressions, 
-of which there is only one, 
-(+ (+ (sqrt x) (square (sqrt x))) (- (- (+ x 1) 1))).
-We simplify the subexpressions of that, 
-(+ (sqrt x) (square (sqrt x))) 
-and (- (- (+ x 1) 1)).
-Starting with the first, 
-we simplify it's subexpressions 
-(sqrt x) and 
-(square (sqrt x)),
-Starting with the first, 
-we simplify it's subexpression, 
-x, 
-and just get x back. 
-Therefore, 
-(sqrt x) 
-is fully simplified.
-Moving on to 
-(square (sqrt x)), 
-recursing down 
-gets us just (sqrt x) 
-(as shown by the last step), 
-but we have a reduction rule 
-that will turn (square (sqrt x)) into x, 
-so we apply that.
-Now we have the (+ (sqrt x) (square (sqrt x))) 
-simplified to (+ (sqrt x) x).
-Moving on to (- (- (+ x 1) 1)), 
-there is only one subexpression, 
-(- (+ x 1) 1)
-Both subexpressions 
-are in simplest form, 
-so they are left. 
-The toplevel expression, 
-however, 
-is rewritten to (+ x 1 (- 1)), 
-flattening the addition 
-and changing the subtraction 
-to a negated addition. 
-Then, the terms are resolved, 
-resulting in just x.
-Moving up one level, 
-we know have (- x) instad of (- (- (+ x 1) 1)).
-Our total expression now looks like 
-(square (+ (+ (sqrt x) x) (- x))). 
-The addition is flattened out 
-giving us (square (+ (sqrt x) x (- x))), 
-and the terms are cancelled, 
-resulting in (square (sqrt x)). 
-Finally, we have a reduction rule for this, 
-so the final output is x.
+Given the expression
+$((\sqrt{x} + \sqrsqrt{x}) + -((x + 1) - 1))^2$
+We first simplify the leaf nodes,
+$((\sqrt{x} + x) -x)^2$
+then move one level up, 
+$\sqrt{x}^2$
+and finally simplify the top level,
+$x$.
 
 With our simplification algorithm, 
-(- (sqrt (+ x 1)) (sqrt x)) 
-is rewritten to 
-(/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
- in a single iteration 
-plus a simplification.
+we can rewrite several classes of program
+in fewer iterations
 
 \end{document}
