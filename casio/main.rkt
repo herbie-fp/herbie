@@ -32,41 +32,53 @@
   (parameterize ([*points* points] [*exacts* exacts])
     ; Save original program
     (let ([orig (make-alt prog)])
-      (let loop ([alts (list orig)] [olds (list)] [iter max-iters])
-	; Invariant: (sorted? alts alternative<?)
+      (let loop ([alts (list orig)] [olds (list)] [trace (list)]
+		 [iter max-iters])
 	; Invariant: (no-duplicates? alts)
-	; Invariant: (sorted? olds alternative<?)
 	; Invariant: (no-duplicates? olds)
 	(cond
 	 [(= iter 0)
-	  (values (car alts) orig)]
+	  (let ([sorted (sort (append alts olds trace) alternative<?)])
+	    (debug "Done:" (car sorted) #:from 'improve)
+	    (values (car sorted) orig))]
 	 [(and (null? alts) (not (null? olds)))
 	  ; We've exhausted all "intelligent" things to do
+	  (debug "Resorting to brute force"
+		 #:from 'improve)
 	  (let* ([old (car olds)]
-		 [old* (cdr olds)])
-	    (debug "No alternatives left; resorting to brute force"
-		   #:from 'improve)
-	    (loop (sort (rewrite-brute-force old) alternative<?)
-		  old* (- iter 1)))]
+		 [old* (cdr olds)]
+		 [alts* (rewrite-brute-force old)]
+		 [greens (filter green? alts*)])
+	    (cond
+	     [(null? greens)
+	      (debug "Produced" (length alts*) "alternatives, none green"
+		     #:from 'improve #:tag 'info)
+	      (loop alts* old* (cons old trace) (- iter 1))]
+	     [else
+	      (debug "Discovered" (length greens) "green changes"
+		     #:from 'improve #:tag 'info)
+	      (loop greens (list) (append olds alts alts* trace)
+		    (- iter 1))]))]
 	 [(and (null? alts) (null? olds))
 	  (error "(improve) cannot proceed: no olds or alts")]
 	 [else
+	  (debug "Step:" (car alts) #:from 'improve)
 	  (let* ([altn (car alts)]
 		 [alts* (cdr alts)]
 		 [next (map try-simplify (try-analyze altn))]
 		 [greens (filter green? next)])
-	    (debug "Trying to improve" altn #:from 'improve)
 	    (cond
 	     [(null? greens)
-	      (let ([next-alts (sort (append alts* next) alternative<?)]
-		    [next-olds (sort (cons altn olds) alternative<?)])
-		(debug "Produced" (length next) "alternatives; none green"
+	      (let ([next-alts (append alts* next)]
+		    [next-olds (cons altn olds)])
+		(debug "Produced" (length next) "alternatives, none green"
 		       #:from 'improve #:tag 'info)
-		(loop next-alts next-olds (- iter 1)))]
+		(loop next-alts next-olds trace (- iter 1)))]
 	     [else 
-	      (debug "Found" (length greens) "green changes:" greens
+	      (debug "Discovered" (length greens) "green changes"
 		     #:from 'improve #:tag 'info)
-	      (loop (sort greens alternative<?) (list) (- iter 1))]))])))))
+	      (loop (sort greens alternative<?) (list)
+		    (append alts olds next) (- iter 1))]))])))))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
