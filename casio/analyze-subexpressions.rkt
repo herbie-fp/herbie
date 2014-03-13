@@ -79,7 +79,7 @@
 
   (define (search-annot found annot)
     (when (interesting-error? (annotation-local-error annot))
-      (found (cons
+      (found (list
               (annotation-loc annot)
               (summarize-error (annotation-local-error annot)))))
     (search-expression found (annotation-expr annot)))
