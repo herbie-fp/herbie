@@ -33,6 +33,7 @@
   (when (*debug*)
       (display (hash-ref *tags* tag "; "))
       (write from)
+      (display ": ")
       (for/list ([arg args])
         (display " ")
         ((if (string? arg) display write) arg))
