@@ -15,13 +15,13 @@
   (parameterize ([*points* points] [*exacts* exacts])
     (let ([orig (make-alt prog)])
       (let loop ([strats *strategies*] [alt0 orig])
-	(if (null? strats)
-	    (values alt0 orig)
-	    (let ([alt1 ((car strats) alt0 max-iters)])
-	      (debug (car strats) "->" alt1 #:from 'improve)
-	      (if (and (green? alt1) (not (eq? alt1 alt0)))
-		  (loop *strategies* (remove-red alt1))
-		  (loop (cdr strats) alt1))))))))
+ 	(if (null? strats)
+ 	    (values alt0 orig)
+ 	    (let ([alt1 ((car strats) alt0 max-iters)])
+ 	      (debug (car strats) "->" alt1 #:from 'improve)
+ 	      (if (and (green? alt1) (not (eq? alt1 alt0)))
+ 		  (loop *strategies* (remove-red alt1))
+ 		  (loop (cdr strats) alt1))))))))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
@@ -30,8 +30,8 @@
 ;; (improve prog iters) prints the found alternatives
 (define (print-improve prog max-iters)
   (let-values ([(end start) (improve prog max-iters)])
-    (println start)
-    (println end)
+    (println "Started at: " start)
+    (println "Ended at:   " end)
     (println "Improvement by an average of "
 	     (/ (apply + (filter ordinary-float?
 				 (errors-difference (alt-errors start) (alt-errors end))))

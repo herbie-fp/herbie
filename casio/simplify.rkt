@@ -27,8 +27,11 @@
 	[location (if (alt-prev altn)
 		      (change-location (alt-change altn))
 		      '(cdr cdr car))])
-    ;;(when (*debug*) (println "Simplifying " (alt-program altn) " at " (map (lambda (l) (append location l))
-;;									   slocations)))
+
+    (debug "Simplifying" (alt-program altn)
+	   "at" (map (curry append location) slocations)
+	   #:from 'simplify #:tag 'enter)
+
     ;; Try to create a new, simplified alt, by simplifying at all the slocations
     (define (simplify-at-locations slocations alt)
       (if (null? slocations)
@@ -47,9 +50,8 @@
 		 [new-change (change new-rule full-location (map (lambda (x) (cons x x))
 								 (get-contained-vars (alt-program altn))))] ; Create a change from the old alt
 		                                                                                            ; to a new-simplified alt
-		 [new-alt (if (*debug*) (println (alt-apply alt new-change))
-			      (alt-apply alt new-change))]) ; Create a new alt that's simplified.
-	    ;;(when (*debug*) (println "Simplified to: " partly-simplified-prog))
+		 [new-alt (alt-apply alt new-change)]) ; Create a new alt that's simplified.
+	    (debug "Simplified to" new-alt #:from 'simplify #:tag 'info)
 	    (if (green? new-alt)
 		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
 					new-alt)
@@ -142,7 +144,6 @@
 
 ;; Get the atoms of a term. Terms are made up of atoms multiplied together.
 (define (term-atoms expr)
-  ;;(when (*debug*) (println "getting atoms for " expr))
   (cond [(number? expr) '()] ; All constants can be combined
 	[(symbol? expr) (list expr)] ; If the expression is a single variable, then that's it's only atom
 	[(number? (cadr expr)) (cddr expr)] ; If the second item is a number, return everything past it
@@ -178,11 +179,9 @@
 
 ;; Combine all terms that are combinable, and return a result of a list of one or zero terms
 (define (combine-like-terms terms)
-  ;;(when (*debug*) (println "combining: " terms))
+  (debug "Combining terms" terms #:from 'combine-like-terms #:tag 'enter)
   ;; Get the combined constant factor.
-  (let ([new-factor (foldr (lambda (t acc)
-			     ;;(when (*debug*) (println "adding factor: " t))
-			     (+ acc (factor t)))
+  (let ([new-factor (foldr (lambda (t acc) (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
     (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
 	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
