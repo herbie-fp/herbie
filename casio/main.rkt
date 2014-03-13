@@ -6,82 +6,67 @@
 (require casio/brute-force)
 (require casio/redgreen)
 (require casio/analyze-subexpressions)
+(require casio/simplify)
 
-(define *analyses* (list analyze-local-error))
-(define *strategies* (list brute-force-search))
+(define (rewrite-local-error altn loc)
+  (alt-rewrite-expression altn #:root loc #:destruct #t))
 
-(define (analyze altn)
-  (apply append
-         (for/list ([anal *analyses*])
-           (for/list ([know (anal altn)])
-             (list* anal altn know)))))
+(define (rewrite-brute-force altn)
+  (alt-rewrite-tree altn))
 
-(define (make-steps altns knows)
-  (append
-   (for/list ([altn altns])
-     (list alt-rewrite-tree altn '(cdr cdr car)))
-   (for/list ([know knows])
-     (cond
-      [(eq? (car know) analyze-local-error)
-       (list alt-rewrite-expression (second know) #t '(cdr cdr car))]
-      [else (error "Unknown analysis" (car know))]))))
+(define (try-analyze altn)
+  (let ([locs (map car (analyze-local-error altn))])
+    (apply append
+	   (for/list ([loc locs])
+	     (rewrite-local-error altn loc)))))
 
-(define (apply-step step)
-  (cond
-    [(eq? (car step) alt-rewrite-tree)
-     (alt-rewrite-tree (second step) #:root (third step))]
-    [(eq? (car step) alt-rewrite-expression)
-     (alt-rewrite-expression (second step) #:destruct (third step)
-                             #:root (fourth step))]
-    [else (error "Unknown step type" (car step))]))
-
-(define (step<? s1 s2)
-  (cond
-   [(and (eq? (car s1) alt-rewrite-expression)
-         (eq? (car s2) alt-rewrite-tree))
-    #t]
-   [(and (eq? (car s1) alt-rewrite-tree)
-         (eq? (car s2) alt-rewrite-expression))
-    #f]
-   [(and (eq? (car s1) alt-rewrite-expression)
-         (eq? (car s2) alt-rewrite-expression))
-    (< (length (fourth s1)) (length (fourth s2)))]
-   [(and (eq? (car s1) alt-rewrite-tree)
-         (eq? (car s2) alt-rewrite-tree))
-    (> (length (third s1)) (length (third s2)))]
-   [else (error "Cannot compare steps" s1 s2)]))
-
-(define (choose-alt alts)
-  (car (sort alts alternative<?)))
-
-(define (choose-step steps)
-  (let ([steps* (sort steps step<?)])
-    (values (car steps*) (cdr steps*))))
-
-(define (initial altn)
-  (let ([know0 (analyze altn)])
-    (values (list altn) know0 (make-steps (list altn) know0))))
-
-(define combine (compose remove-duplicates append))
+(define (try-simplify altn)
+  (let ([simpl-altn (simplify altn)])
+    (if (alternative<? simpl-altn altn)
+	simpl-altn
+	altn)))
 
 (define (improve prog max-iters)
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     ; Save original program
-    (let*-values ([(orig) (make-alt prog)]
-                  [(alts0 know0 steps0) (initial orig)])
-      (let loop ([alts alts0] [knows know0] [steps steps0]
-                 [iters max-iters])
-	(if (or (null? steps) (<= iters 0))
-            (choose-alt alts)
-            (let*-values ([(step steps) (choose-step steps)]
-                          [(alt*) (apply-step step)]
-                          [(know*) (apply append (map analyze alt*))]
-                          [(step*) (make-steps alt* know*)])
-              (debug step max-iters #:from 'improve)
-              (loop (combine alt* alts) (combine know* knows)
-                    (combine step* steps) (- iters 1))))))))
+    (let ([orig (make-alt prog)])
+      (let loop ([alts (list orig)] [olds (list)] [iter max-iters])
+	; Invariant: (sorted? alts alternative<?)
+	; Invariant: (no-duplicates? alts)
+	; Invariant: (sorted? olds alternative<?)
+	; Invariant: (no-duplicates? olds)
+	(cond
+	 [(= iter 0)
+	  (values (car alts) orig)]
+	 [(and (null? alts) (not (null? olds)))
+	  ; We've exhausted all "intelligent" things to do
+	  (let* ([old (car olds)]
+		 [old* (cdr olds)])
+	    (debug "No alternatives left; resorting to brute force"
+		   #:from 'improve)
+	    (loop (sort (rewrite-brute-force old) alternative<?)
+		  old* (- iter 1)))]
+	 [(and (null? alts) (null? olds))
+	  (error "(improve) cannot proceed: no olds or alts")]
+	 [else
+	  (let* ([altn (car alts)]
+		 [alts* (cdr alts)]
+		 [next (map try-simplify (try-analyze altn))]
+		 [greens (filter green? next)])
+	    (debug "Trying to improve" altn #:from 'improve)
+	    (cond
+	     [(null? greens)
+	      (let ([next-alts (sort (append alts* next) alternative<?)]
+		    [next-olds (sort (cons altn olds) alternative<?)])
+		(debug "Produced" (length next) "alternatives; none green"
+		       #:from 'improve #:tag 'info)
+		(loop next-alts next-olds (- iter 1)))]
+	     [else 
+	      (debug "Found" (length greens) "green changes:" greens
+		     #:from 'improve #:tag 'info)
+	      (loop (sort greens alternative<?) (list) (- iter 1))]))])))))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
@@ -114,4 +99,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve *strategies*)
+(provide improve)
