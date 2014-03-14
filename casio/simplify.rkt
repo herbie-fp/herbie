@@ -289,6 +289,7 @@
       [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
       [`(* ,a 1) a] ; Multiplicitive Identity
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
+      [`(/ 1 (/ 1 ,a)) a] ; Double inversion
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
       [`(/ ,a ,b) (inner-simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
       [`(+ (+ . ,a) (+ . ,b)) (addition (append a b))] ; These next three rules flatten out addition
