@@ -92,11 +92,12 @@
   (let-values ([(end start) (improve prog max-iters)])
     (println "Started at: " start)
     (println "Ended at:   " end)
-    (println "Improvement by an average of "
-	     (/ (apply + (filter ordinary-float?
-				 (errors-difference (alt-errors start) (alt-errors end))))
-		       (log 2))
-	     " bits of precision")))
+    (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
+      (println "Improvement by an average of "
+	       (/ (apply + (filter ordinary-float? diff))
+		  (log 2) (length diff))
+	       " bits of precision"))
+    (void)))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
