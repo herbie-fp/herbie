@@ -22,7 +22,7 @@
 
 (define (try-simplify altn)
   (let ([simpl-altn (simplify altn)])
-    (if (alternative<? simpl-altn altn)
+    (if (much-better? simpl-altn altn)
 	simpl-altn
 	altn)))
 
@@ -38,7 +38,8 @@
 	; Invariant: (no-duplicates? olds)
 	(cond
 	 [(= iter 0)
-	  (let ([sorted (sort (append alts olds trace) alternative<?)])
+	  (let ([sorted (sort (reverse (append alts olds trace))
+			      much-better?)])
 	    (debug "Done:" (car sorted) #:from 'improve)
 	    (values (car sorted) orig))]
 	 [(and (null? alts) (not (null? olds)))
@@ -48,7 +49,8 @@
 	  (let* ([old (car olds)]
 		 [old* (cdr olds)]
 		 [alts* (rewrite-brute-force old)]
-		 [greens (filter green? alts*)])
+		 [greens
+		  (map remove-red (filter (curryr much-better? old) alts*))])
 	    (cond
 	     [(null? greens)
 	      (debug "Produced" (length alts*) "alternatives, none green"
@@ -66,7 +68,8 @@
 	  (let* ([altn (car alts)]
 		 [alts* (cdr alts)]
 		 [next (map try-simplify (try-analyze altn))]
-		 [greens (filter green? next)])
+		 [greens
+		  (map remove-red (filter (curryr much-better? altn) next))])
 	    (cond
 	     [(null? greens)
 	      (let ([next-alts (append alts* next)]
