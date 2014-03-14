@@ -111,8 +111,12 @@
          [(and (reasonable-error? error1) (reasonable-error? error2))
           (cond
            [(and (= error1 0) (= error2 0)) 0.0]
-           [(= error1 0) -inf.0]
-           [(= error2 0) +inf.0]
+	   ; You might think these should be -inf.0 and +inf.0,
+	   ; but that lead to stupid behavior;
+	   ; a least-significant-bit error versus no error
+	   ; would be very heavily weighed
+           [(= error1 0) (log (/ 1e-16 error2))]
+           [(= error2 0) (log (/ error1 1e-16))]
            [#t (log (/ error1 error2))])]
          [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
           -inf.0]

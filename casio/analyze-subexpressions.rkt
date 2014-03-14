@@ -9,7 +9,7 @@
 (require casio/redgreen)
 (require casio/simplify)
 
-(provide improve-by-analysis analyze-local-error)
+(provide analyze-local-error)
 
 (struct annotation (expr exact-value approx-value local-error total-error loc) #:transparent)
 
@@ -19,134 +19,71 @@
 (define (real-op->float-op op)
   (list-ref (hash-ref operations op) mode:fl))
 
+(define (transpose l)
+  (apply map list l))
+
 (define (analyze-expressions prog inputs)
-  (define varmap (map cons (program-variables prog) inputs))
+  (define varmap
+    (for/list ([inps inputs])
+      (map cons (program-variables prog) inps)))
+
+  (define (repeat c)
+    (map (λ (x) c) inputs))
 
   (location-induct
    prog
 
    #:constant
    (λ (c loc)
-      (let* ([exact (bf c)] [approx ((*precision*) c)]
-             [error (relative-error (->flonum exact) approx)])
+      (let* ([exact (repeat (bf c))] [approx (repeat ((*precision*) c))]
+             [error (repeat (relative-error (->flonum exact) approx))])
         (annotation c exact approx error error loc)))
 
    #:variable
    (λ (v loc)
-      (let* ([var (cdr (assoc v varmap))]
-             [exact (bf var)] [approx ((*precision*) var)]
-             [error (relative-error (->flonum exact) approx)])
+      (let* ([var (for/list ([vmap varmap]) (cdr (assoc v vmap)))]
+             [exact (map bf var)] [approx (map (*precision*) var)]
+             [error (map relative-error (map ->flonum exact) approx)])
         (annotation v exact approx error error loc)))
 
    #:primitive
    (λ (expr loc)
       (let* ([exact-op (real-op->bigfloat-op (car expr))]
              [approx-op (real-op->float-op (car expr))]
-             [exact-inputs (map annotation-exact-value (cdr expr))]
-             [semiapprox-inputs (map ->flonum exact-inputs)]
-             [approx-inputs (map annotation-approx-value (cdr expr))]
-             [exact-ans (apply exact-op exact-inputs)]
-             [semiapprox-ans (apply approx-op semiapprox-inputs)]
-             [approx-ans (apply approx-op approx-inputs)]
-             [local-error (relative-error (->flonum exact-ans)
-                                          semiapprox-ans)]
-             [cumulative-error (relative-error (->flonum exact-ans)
-                                               approx-ans)])
+             [exact-inputs
+              (transpose (map annotation-exact-value (cdr expr)))]
+             [semiapprox-inputs (map (curry map ->flonum) exact-inputs)]
+             [approx-inputs
+              (transpose (map annotation-approx-value (cdr expr)))]
+             [exact-ans (map (curry apply exact-op) exact-inputs)]
+             [semiapprox-ans
+              (map (curry apply approx-op) semiapprox-inputs)]
+             [approx-ans
+              (map (curry apply approx-op) approx-inputs)]
+             [local-error
+              (map relative-error (map ->flonum exact-ans) semiapprox-ans)]
+             [cumulative-error
+              (map relative-error (map ->flonum exact-ans) approx-ans)])
         (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
 
-(define (find-most-local-error annot-prog)
-  (define (search-expression expr)
-    (if (list? expr)
-        (let continue ([expr (cdr expr)] [err 0] [loc #f])
-          (cond
-           [(null? expr) (values err loc)]
-           [#t
-            (let-values ([(err* loc*) (search-annot (car expr))])
-              (if (> err* err)
-                  (continue (cdr expr) err* loc*)
-                  (continue (cdr expr) err loc)))]))
-        (values 0 #f)))
+(define (interesting-error? l)
+  (ormap (curry < 0) l))
 
-  (define (search-annot annot)
-    (let-values ([(err* loc*)
-                  (search-expression (annotation-expr annot))])
-      ; Why >=? Because all else equal, we're more interested in small subexpressions
-      (if (>= err* (annotation-local-error annot))
-          (values err* loc*)
-          (values (annotation-local-error annot) (annotation-loc annot)))))
+(define (find-interesting-locations annot-prog)
+  (define (search-expression found expr)
+    (when (list? expr)
+      (map (curry search-annot found) (cdr expr))))
 
-  (let-values ([(err loc) (search-annot (program-body annot-prog))])
-    (if (= err 0) #f loc)))
+  (define (search-annot found annot)
+    (when (interesting-error? (annotation-local-error annot))
+      (found (list
+              (annotation-loc annot)
+              (annotation-local-error annot))))
+    (search-expression found (annotation-expr annot)))
 
-(define (pick-bad-input alt)
-  (let* ([lst (enumerate (alt-errors alt) (*points*) (*exacts*))]
-         ; We filter out very large errors.
-         ; Those usually result in overfitting.
-         ; TODO: Eliminate this ad-hoc solution.
-         [lst* (filter (λ (x) (< (cadr x) 1)) lst)])
-    (argmax cadr (if (null? lst*) lst lst*))))
+  (reap [sow]
+    (search-annot sow (program-body annot-prog))))
 
 (define (analyze-local-error altn)
-  (let* ([input (pick-bad-input altn)]
-	 [annot (analyze-expressions (alt-program altn) (caddr input))]
-	 [loc (find-most-local-error annot)])
-    loc))
-
-(define (step alt input)
-  (let* ([annot (analyze-expressions (alt-program alt) input)]
-         [loc (find-most-local-error annot)])
-    (if loc
-        (alt-rewrite-expression alt #:destruct #t #:root loc)
-        '())))
-
-(define (alt-error-at alt idx)
-  (list-ref (alt-errors alt) idx))
-
-(define (alt<-at? idx alt1 alt2)
-  "Compare two alternatives.
-   Compares first by a lattice order on points, then by program cost."
-  (eq? (list-ref (errors-compare (alt-errors alt1) (alt-errors alt2))
-                 idx)
-       '<))
-
-(define (improve-by-analysis alt0 iters)
-  (debug alt0 "for" iters #:from 'iba #:tag 'enter)
-  (define input (pick-bad-input alt0))
-
-  (let loop ([altn (simplify alt0)] [left iters])
-    (cond
-     [(<= left 0) altn]
-     [(green? altn) altn]
-     [#t
-      (let* ([alts (map simplify (step altn (caddr input)))])
-        (if (null? alts)
-            altn
-            (begin
-              (let ([altn* (argmin (curryr alt-error-at (car input)) alts)])
-
-                (debug (alt-change altn*) #:from (list 'iba left))
-                (loop altn* (- left 1))))))])))
-
-(define (strip-off-top loc)
-  (let ([loc* (reverse loc)])
-    (match loc*
-      [`(car cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'cdr 'car rest)))]
-      [`(car cdr cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'car rest)))]
-      [#t
-       (error "Wat?")])))
-
-(define (correlate-binary-ops alt0)
-  (define input (pick-bad-input alt0))
-
-  (let* ([annot (analyze-expressions (alt-program alt0) (caddr input))]
-         [loc (find-most-local-error annot)])
-    (if loc
-        (let-values ([(parent other) (strip-off-top loc)])
-          (if (= (length (location-get parent (alt-program alt0))) 3)
-              (alt-rewrite-tree alt0 #:root other)
-              alt0))
-        alt0)))
+  (find-interesting-locations
+   (analyze-expressions (alt-program altn) (*points*))))
