@@ -6,14 +6,17 @@
 (require casio/programs)
 (require casio/common)
 
-(provide green? remove-red green-threshold errors-diff-score)
+(provide green-threshold much-better? green? remove-red)
 
 (define green-threshold (make-parameter 0))
+
+(define (much-better? alt1 alt2)
+  (< (green-threshold)
+     (errors-diff-score (alt-errors alt1) (alt-errors alt2))))
 	     
 (define (green? altn)
-  (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
-       (< (green-threshold)
-	  (errors-diff-score (alt-errors altn) (alt-errors (alt-prev altn))))))
+  ; The initial alternative is not green-tipped by convention
+  (and (alt-prev altn) (much-better? altn (alt-prev altn))))
 
 (define (errors-diff-score e1 e2)
   (let ([d (errors-difference e1 e2)])
