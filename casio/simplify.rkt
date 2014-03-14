@@ -290,9 +290,12 @@
       [`(- (- ,a)) a] ; Double negate is positive
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
       [`(+ ,a 0) a] ; Additive Identity
+      [`(+ 0 ,a) a]
       [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
+      [`(* 0 ,a) 0]
       [`(* ,a 1) a] ; Multiplicitive Identity
       [`(* ,a ,a) `(square ,a)] ; This rule should help square and sqrts cancel more often.
+      [`(* 1 ,a) a]
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
       [`(/ ,a ,b) (inner-simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
