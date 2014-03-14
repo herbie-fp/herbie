@@ -6,7 +6,7 @@
 (require casio/alternative)
 (require casio/brute-force)
 (require casio/redgreen)
-(require casio/analyze-subexpressions)
+(require casio/analyze-local-error)
 (require casio/simplify)
 
 (define (rewrite-local-error altn loc)
