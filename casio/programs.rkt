@@ -4,7 +4,8 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct location-map program-induct
+         location-induct location-map location-parent
+	 program-induct
 	 location-do location-get eval-prog operations
 	 mode:bf mode:fl)
 
@@ -21,7 +22,7 @@
 				    (cons 'cdr location))))])
     (reverse (loc-map list fun '() '()))))
 
-(define (loc-parent loc)
+(define (location-parent loc)
   (let ([loc* (reverse loc)])
     (match loc*
       [`(car cdr car . ,rest)
@@ -30,8 +31,8 @@
       [`(car cdr cdr car . ,rest)
        (values (reverse (cons 'car rest))
                (reverse (list* 'car 'cdr 'car rest)))]
-      [#t
-       (error "Wat?")])))
+      [_
+       (values #f #f)])))
 
 (define (location-induct
 	 prog

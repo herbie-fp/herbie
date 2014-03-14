@@ -2,6 +2,7 @@
 
 (require casio/common)
 (require casio/points)
+(require casio/programs)
 (require casio/alternative)
 (require casio/brute-force)
 (require casio/redgreen)
@@ -16,9 +17,18 @@
 
 (define (try-analyze altn)
   (let ([locs (map car (analyze-local-error altn))])
-    (apply append
-	   (for/list ([loc locs])
-	     (rewrite-local-error altn loc)))))
+    (append
+     (apply append
+	    (for/list ([loc locs])
+	      (rewrite-local-error altn loc)))
+     (apply append
+	    (for/list ([loc locs])
+	      (let-values ([(parent other) (location-parent loc)])
+		(if (and
+		     parent
+		     (= (length (location-get parent (alt-program altn))) 3))
+		    (alt-rewrite-expression altn #:root other)
+		    '())))))))
 
 (define (try-simplify altn)
   (let ([simpl-altn (simplify altn)])
