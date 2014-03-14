@@ -69,9 +69,6 @@
 (define (interesting-error? l)
   (ormap (curry < 0) l))
 
-(define (summarize-error l)
-  (apply + (filter ordinary-float? l)))
-
 (define (find-interesting-locations annot-prog)
   (define (search-expression found expr)
     (when (list? expr)
@@ -81,7 +78,7 @@
     (when (interesting-error? (annotation-local-error annot))
       (found (list
               (annotation-loc annot)
-              (summarize-error (annotation-local-error annot)))))
+              (annotation-local-error annot))))
     (search-expression found (annotation-expr annot)))
 
   (reap [sow]
