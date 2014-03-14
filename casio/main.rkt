@@ -36,6 +36,12 @@
 	simpl-altn
 	altn)))
 
+(define (simplify-unless-bad altn)
+  (let ([simpl-altn (simplify altn)])
+    (if (much-better? altn simpl-altn)
+	altn
+	simpl-altn)))
+
 (define (improve prog max-iters)
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
@@ -48,10 +54,11 @@
 	; Invariant: (no-duplicates? olds)
 	(cond
 	 [(= iter 0)
-	  (let ([sorted (sort (reverse (append alts olds trace))
-			      much-better?)])
-	    (debug "Done:" (car sorted) #:from 'improve)
-	    (values (car sorted) orig))]
+	  (let* ([sorted (sort (reverse (append alts olds trace))
+			       much-better?)]
+		 [result (simplify-unless-bad (car sorted))])
+	    (debug "Done:" result #:from 'improve)
+	    (values result orig))]
 	 [(and (null? alts) (not (null? olds)))
 	  ; We've exhausted all "intelligent" things to do
 	  (debug "Resorting to brute force"
