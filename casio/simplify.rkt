@@ -10,6 +10,8 @@
 (require casio/common)
 ;; We need this to know whether a simplification caused a green change
 (require casio/redgreen)
+;; We use make-exacts to precompute functions of constants.
+(require casio/points)
 ;; We grab pattern matching for our canonicalizing rules.
 (require racket/match)
 
@@ -278,7 +280,8 @@
 
 ;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
 (define (single-simplify expr)
-  (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
+  (let ([expr* (try-precompute (attempt-apply-all reduction-rules
+						  expr))]) ; First attempt to reduce the expression using our reduction rules.
     (match expr*
       [`(- ,a ,a) 0] ; A number minus itself is zero
       [`(- ,a ,b) (inner-simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
@@ -286,8 +289,12 @@
       [`(- (- ,a)) a] ; Double negate is positive
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
       [`(+ ,a 0) a] ; Additive Identity
+      [`(+ 0 ,a) a]
       [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
+      [`(* 0 ,a) 0]
       [`(* ,a 1) a] ; Multiplicitive Identity
+      [`(* ,a ,a) `(square ,a)] ; This rule should help square and sqrts cancel more often.
+      [`(* 1 ,a) a]
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
       [`(/ 1 (/ 1 ,a)) a] ; Double inversion
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
@@ -296,10 +303,21 @@
       [`(+ (+ . ,a) ,b) (addition (cons b a))]
       [`(+ ,a (+ . ,b)) (addition (cons a b))]
       [`(+ . ,a) (addition a)] ; Sort addition in canonical order and attempt to cancel terms
-      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; These next four are the same as the above four, for multiplication
+      ;; Distribute addition (and by extension, subtraction) out of multiplication. We do this before flattening multiplication,
+      ;; because it would be a lot harder to write these rules for arbitrary length multiplication. We do this after flattening
+      ;; addition, because it ensures we cancel all terms without the need to recurse. Finally, we do this after turning subtractions
+      ;; into additions so that subtractions also get distributed.
+      [`(* (+ . ,as) (+ . ,bs)) (addition (map (lambda (b) (map (lambda (a) (multiplication (list a b))) as)) bs))]
+      [`(* ,a (+ . ,bs)) (addition (map (lambda (b) (multiplication (list a b))) bs))]
+      [`(* (+ . ,as) ,b) (addition (map (lambda (a) (multiplication (list a b))) as))]
+      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; Flatten out multiplication
       [`(* (* . ,a) ,b) (multiplication (cons b a))]
       [`(* ,a (* . ,b)) (multiplication (cons a b))]
       [`(* . ,a) (multiplication a)]
+      [`(log (* . ,as)) (addition (map (lambda (a) (inner-simplify-expression `(log ,a))) as))] ; Log of product is sum of logs
+      [`(exp (+ . ,as)) (multiplication (map (lambda (a) (inner-simplify-expression `(exp ,a))) as))] ; Same thing for exponents
+      [`(square (* . ,as)) (multiplication (map (lambda (a) (list 'square a)) as))] ;; Product of powers.
+      [`(sqrt (* . ,as)) (multiplication (map (lambda (a) (list 'sqrt a)) as))]
       [a a]))) ; Finally, if we don't have any other match, return ourselves.
 
 ;; Simplify an arbitrary expression to the best of our abilities.
@@ -310,6 +328,15 @@
       (let ([expr* (cons (car expr)
 			 (map inner-simplify-expression (cdr expr)))])
 	(msingle-simplify expr*))
+      expr))
+
+;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
+(define (try-precompute expr)
+  (if (and (list? expr) (andmap number? (cdr expr)))
+      (let ([value (car (make-exacts `(lambda () ,expr) '(())))]) ; A little hacky, but it makes for pretty good code reuse.
+	(if (rational? value)
+	    value
+	    expr)) ; There are situations, such as 0/0, where precomputing would get us a bad value, but just simplifying causes it to cancel.n
       expr))
 
 (define (simplify-expression expr)
