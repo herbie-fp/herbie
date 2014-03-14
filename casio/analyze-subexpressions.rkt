@@ -90,15 +90,3 @@
 (define (analyze-local-error altn)
   (find-interesting-locations
    (analyze-expressions (alt-program altn) (*points*))))
-
-(define (strip-off-top loc)
-  (let ([loc* (reverse loc)])
-    (match loc*
-      [`(car cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'cdr 'car rest)))]
-      [`(car cdr cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'car rest)))]
-      [#t
-       (error "Wat?")])))

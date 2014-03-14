@@ -21,6 +21,17 @@
 				    (cons 'cdr location))))])
     (reverse (loc-map list fun '() '()))))
 
+(define (loc-parent loc)
+  (let ([loc* (reverse loc)])
+    (match loc*
+      [`(car cdr car . ,rest)
+       (values (reverse (cons 'car rest))
+               (reverse (list* 'car 'cdr 'cdr 'car rest)))]
+      [`(car cdr cdr car . ,rest)
+       (values (reverse (cons 'car rest))
+               (reverse (list* 'car 'cdr 'car rest)))]
+      [#t
+       (error "Wat?")])))
 
 (define (location-induct
 	 prog
