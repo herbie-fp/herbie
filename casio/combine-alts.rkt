@@ -43,7 +43,17 @@
 (define (get-splitpoint alt0 alt1)
   (let* ([err-diff (errors-compare (alt-errors alt0) (alt-errors alt1))]
 	 [split-index (splitindex-from-difflist err-diff)])
-    (/ (+ (list-ref *points* split-index) (list-ref *points* (+ 1 split-index))) 2)))
+    (bfind-splitpoint (alt-program alt0) (alt-program alt1) (list-ref *points* split-index) (list-ref *points* (+ 1 split-index)))))
+
+(define (bfind-splitpoint prog1 prog2 start end)
+  (if (= start end)
+      start
+      (let* ([midpoint (/ (+ start end) 2)]
+	     [exact (make-exacts prog1 (list midpoint))])
+	(if (> (abs (- ((eval-prog prog1 mode:fl) midpoint) exact))
+	       (abs (- ((eval-prog prog2 mode:fl) midpoint) exact)))
+	    (bfind-splitpoint prog1 prog2 midpoint end)
+	    (bfind-splitpoint prog1 prog2 start midpoint)))))
 
 (define (splitindex-from-difflist difflist)
   (let loop ([cur-index 0] [more-count 0] [diff-rest difflist])
