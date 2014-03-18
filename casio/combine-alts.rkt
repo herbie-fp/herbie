@@ -72,7 +72,7 @@
   (let loop ([cur-index 0] [regime '=] [opp-count 0]
 	     [diff-rest difflist] [acc '()] [cur-region-size 0])
     (cond [(null? diff-rest)
-	   (cons cur-index acc)]
+	   (if (= cur-index (- (length difflist) 1)) acc (cons cur-index acc))]
 	  [(eq? (car diff-rest) '=)
 	   (loop cur-index regime opp-count (cdr diff-rest) acc (+ 1 cur-region-size))]
 	  [(and (eq? (car diff-rest) regime) (> 1 opp-count) (<= min-region-size cur-region-size))
@@ -80,12 +80,12 @@
 	  [(eq? (car diff-rest) regime)
 	   (loop cur-index regime (- opp-count 1) (cdr diff-rest) acc (+ 1 cur-region-size))]
 	  [(not (eq? (car diff-rest) regime))
-	   (if (< min-region-size opp-count)
+	   (if (< (- min-region-size 2) opp-count)
 	       (loop (- (length difflist) (length diff-rest))
 		     (if (eq? regime '<) '> '<)
 		     0
 		     (cdr diff-rest)
-		     (cons cur-index acc)
+		     (if (= cur-index 0) acc (cons cur-index acc))
 		     opp-count)
 	       (loop cur-index
 		     regime
