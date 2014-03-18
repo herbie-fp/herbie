@@ -67,7 +67,9 @@
 			    (apply-changes new-salmon downstream-changes))
 			  (move-dam salmon #f)))))
 	      (move-dam salmon is-head?)))))
-  (swim-upstream altn #t))
+  (let ([result (swim-upstream altn #t)])
+    (debug #:from red-elimination "Eliminated " (- (length (alt-changes altn)) (length (altn-changes result))) " changes.")
+    result))
 
 ;; Simple location match utility function. If 'a' is a continutation of 'b',
 ;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
