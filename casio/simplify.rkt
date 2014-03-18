@@ -49,10 +49,14 @@
 				 (location-get full-location
 					       partly-simplified-prog)
 				 '())] ; Create a new rule for the simplification
-		 [new-change (change new-rule full-location (map (lambda (x) (cons x x))
-								 (get-contained-vars (alt-program altn))))] ; Create a change from the old alt
-		                                                                                            ; to a new-simplified alt
-		 [new-alt (alt-apply alt new-change)]) ; Create a new alt that's simplified.
+		 [new-change (let ([result (change new-rule full-location (map (lambda (x) (cons x x))
+									       (get-contained-vars (alt-program altn))))])
+			       ;;(debug #:from 'simplification "Created change " result " from " (rule-input new-rule) " to " (rule-output new-rule))
+			       result)] ; Create a change from the old alt
+					; to a new-simplified alt
+		 [new-alt (let ([result (alt-apply alt new-change)])
+			    ;;(debug #:from 'simplification "Simplified to " result)
+			    result)]) ; Create a new alt that's simplified.
 	    (debug "Simplified to" new-alt #:from 'simplify #:tag 'info)
 	    (if (green? new-alt)
 		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
@@ -126,7 +130,7 @@
 	      ;; If we did get terms, remove the matching terms from the terms we have left.
 	      (loop (remove* mterms rest-terms)
 		    ;; And combine the matching terms and the term they matched with, and append it to the accumulator
-		    (append (combine-like-terms (cons cur-term mterms))
+		    (cons (combine-like-terms (cons cur-term mterms))
 			    acc)))))))
 
 ;; Cancel appropriate factors
@@ -187,11 +191,12 @@
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
     (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
 	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
-	  [(symbol? (car terms)) (list (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms))))]
-	  [#t (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
-		(cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
-		      [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
-		      [#t (list* '* new-factor body)]))]))) ; Otherwise, mutliply together the factor and the body.
+	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
+	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
+				   (cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
+					 [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
+					 [#t (list* '* new-factor body)]))] ; Otherwise, mutliply together the factor and the body.
+	  [#t (list '* new-factor (car terms))])))
 
 ;; Provide sorting for symbols so that we can canonically order variables and other atoms
 (define (symbol<? sym1 sym2)
@@ -292,6 +297,7 @@
       [`(+ 0 ,a) a]
       [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
       [`(* 0 ,a) 0]
+      [`(/ 0 ,a) 0] ; Dividing zero by anything yields zero.
       [`(* ,a 1) a] ; Multiplicitive Identity
       [`(* ,a ,a) `(square ,a)] ; This rule should help square and sqrts cancel more often.
       [`(* 1 ,a) a]
