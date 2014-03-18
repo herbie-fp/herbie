@@ -23,22 +23,6 @@
 				      (append '(cdr cdr car cdr cdr cdr car) (change-location chng))
 				      (change-bindings chng)))
 			    (alt-changes alt1))))))
-
-(define (build-alt initial changes)
-  (if (null? changes)
-      initial
-      (build-alt (alt-apply initial (car changes)) (cdr changes))))
-
-(define (alt-initial altn)
-  (if (alt-prev altn)
-      (alt-initial (alt-prev altn))
-      altn))
-
-(define (alt-changes altn)
-  (let loop ([cur-alt altn] [acc '()])
-    (if (alt-prev cur-alt)
-	(loop (alt-prev cur-alt) (cons (alt-change cur-alt) acc))
-	acc)))
     
 (define (get-splitpoint alt0 alt1)
   (let* ([err-diff (errors-compare (alt-errors alt0) (alt-errors alt1))]
