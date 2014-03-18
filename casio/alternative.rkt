@@ -8,7 +8,7 @@
 
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 apply-changes alternative<? alternative<>?)
+	 apply-changes alternative<? alternative<>? build-alt alt-changes alt-initial)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
