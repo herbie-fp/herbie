@@ -388,85 +388,85 @@ and green changes as $G_n$.
 A star above the change
 that it is the change we are currently operating on.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2\to r_3 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to o_2\to r_3
 \to r_4\to o_3\to r_5 \to \stackrel{*}{G_1}\]
-\item The second to last change is red, 
-and thus can be translated 
-through the green change 
+\item The second to last change is red,
+and thus can be translated
+through the green change
 and thrown away.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2\to r_3 
-\to r_4\to o_3\to \stackrel{*}{G_1}]
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to o_2\to r_3
+\to r_4\to o_3\to \stackrel{*}{G_1}\]
 
-\item The next change is orange, 
-so we cannot translate the green change 
-through it. 
-However, we can attempt 
-to translate the orange change 
-backwards in the change history 
+\item The next change is orange,
+so we cannot translate the green change
+through it.
+However, we can attempt
+to translate the orange change
+backwards in the change history
 to further eliminate reds.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2\to r_3 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to o_2\to r_3
 \to r_4\to \stackrel{*}{o_3}\to G_1\]
 
 \item The change before that orange is red, 
 so we can move through it.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2\to r_3 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to o_2\to r_3
 \to \stackrel{*}{o_3}\to r_4 \to G_1\]
 
 \item Still recursing on the orange change, 
 we can move it back another red change.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2 \to 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to o_2 \to
 \stackrel{*}{o_3}\to r_3 \to r_4 \to G_1\]
 
 \item Now, we've hit a change we can't translate through, 
 so we recurse on the blocking change.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to \stackrel{*}{o_2}\to o_3 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to o_1\to \stackrel{*}{o_2}\to o_3
 \to r_3 \to r_4 \to G_1\]
 
 \item This change is also blocked, 
 so we recurse again.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to r_2\to \stackrel{*}{o_1}\to o_2 \to o_3 
+\[G_0\to r_0\to r_1\to o_0
+\to r_2\to \stackrel{*}{o_1}\to o_2 \to o_3
 \to r_3 \to r_4 \to G_1\]
 
 \item This change can be moved back, 
 so we do so.
 
-\[G_0\to r_0\to r_1\to o_0 
-\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3 
+\[G_0\to r_0\to r_1\to o_0
+\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3
 \to r_3 \to r_4 \to G_1\]
 
 \item And now it's blocked, 
 so we once again recurse.
 
-\[G_0\to r_0\to r_1\to \stackrel{*}{o_0} 
-\too_1\to r_2 \to o_2 \to o_3 
+\[G_0\to r_0\to r_1\to \stackrel{*}{o_0}
+\to o_1\to r_2 \to o_2 \to o_3
 \to r_3 \to r_4 \to G_1\]
 
 \item This change can be moved back twice 
 (for simplicities sake, 
 I will begin showing multiple trivial steps as one step)
 
-\[G_0\to \stackrel{*}{o_0}\tor_0\to r_1 
-\to o_1\to r_2 \to o_2 \to o_3 
+\[G_0\to \stackrel{*}{o_0}\to r_0\to r_1
+\to o_1\to r_2 \to o_2 \to o_3
 \to r_3\to r_4 \to G_1\]
 
 \item We've hit the beginning, 
 so we return to the change that called us.
 
-\[G_0\to o_0\to r_0\to r_1 
-\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3 
+\[G_0\to o_0\to r_0\to r_1
+\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3
 \to r_3\to r_4 \to G_1\]
 
 \item We can now see that the change before us 
@@ -476,7 +476,7 @@ so we attempt to move backwards,
 and can succeed for two iterations.
 
 \[G_0\to o_0\to \stackrel{*}{o_1} r_0
-\to r_1 \to r_2 \to o_2 \to o_3 
+\to r_1 \to r_2 \to o_2 \to o_3
 \to r_3\to r_4 \to G_1\]
 
 \item This change will recurse again, 
@@ -487,7 +487,7 @@ so this change is done
 and returns to it's calling change.
 
 \[G_0\to o_0\to o_1\to r_0
-\to r_1 \to r_2 \to \stackrel{*}{o_2}\to o_3 
+\to r_1 \to r_2 \to \stackrel{*}{o_2}\to o_3
 \to r_3\to r_4 \to G_1\]
 
 \item This change moves back three steps 
@@ -495,7 +495,7 @@ before finishing in the same way as it's predecessor
 
 \begin{align*}
 &G_0\to o_0\to o_1\to o_2
-\to r_0\to r_1 \to r_2 \to \stackrel{*}{o_3}\to 
+\to r_0\to r_1 \to r_2 \to \stackrel{*}{o_3}\to
 r_3\to r_4 \to G_1\\
 &G_0\to o_0\to o_1\to o_2
 \to o_3 \to r_0 \to r_1\to r_2
