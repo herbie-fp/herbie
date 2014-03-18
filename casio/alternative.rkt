@@ -39,6 +39,25 @@
 		      (alt-apply altn change)))
 		  changes)))
 
+;; Builds an alt from an initial alt and a list of changes.
+(define (build-alt initial changes)
+  (if (null? changes)
+      initial
+      (build-alt (alt-apply initial (car changes)) (cdr changes))))
+
+;; Gets the initial version of the current alt.
+(define (alt-initial altn)
+  (if (alt-prev altn)
+      (alt-initial (alt-prev altn))
+      altn))
+
+;; Get a list of every change that's happened to the current alt, in application order.
+(define (alt-changes altn)
+  (let loop ([cur-alt altn] [acc '()])
+    (if (alt-prev cur-alt)
+	(loop (alt-prev cur-alt) (cons (alt-change cur-alt) acc))
+	acc)))
+
 (define (alt-rewrite-tree alt #:root [root-loc '()])
   (let ([subtree (location-get root-loc (alt-program alt))])
     (map (curry alt-apply alt) (rewrite-tree subtree #:root root-loc))))
