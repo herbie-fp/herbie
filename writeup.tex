@@ -4,8 +4,8 @@
 
 \title{Casio Writeup (Working Title)}
 
-\newcommand{\insetarrow}[1]{=#1\Rightarrow}
-\newcommand{\lnexp}[1]{ln\left(e^{#1}\right)}
+\newcommand{\insetarrow}[1]{\stackrel{#1}{\Rightarrow}}
+\newcommand{\lnexp}[1]{\ln{\left(e^{#1}\right)}}
 \newcommand{\sqrsqrt}[1]{\sqrt{#1}^2}
 
 \begin{document}
@@ -27,13 +27,14 @@ Casio aims to automate this process of rewriting floating point expressions
 to reduce their total error. 
 From here on I will refer to the floating point expressions 
 which casio operates on 
-as "programs."
+as ``programs.''
 
-Casio on a whole operates through a set of "stategies", 
+Casio on a whole operates through a set of ``stategies'', 
 each of which operates by making simple rewrites according to a set of rewrite rules. 
 Rewrite rules are mathamatically sound transformations across the reals, 
 such as $a - b \to \frac{a^2 - b^2}{a + b}$, 
-or $x \to e^{ln(x)}$. 
+or $x \to e^{\ln{x}}$
+\footnote{Special cases such as when $a = -b$ or $x < 0$ are accounted for seperately.}.
 Each strategy attempts to apply the best rewrites 
 and reduce program error. 
 Strategies include algebriac simplification of the program, 
@@ -191,7 +192,7 @@ it is important to establish the representation that Casio uses for changes
 and the definition of equivilent changes, 
 so that we know that a and a' are equivilent. 
 To Casio, changes are represented as a location in the expression tree, 
-a "rule," or mathematically sound transformation across the reals, 
+a ``rule,'' or mathematically sound transformation across the reals, 
 and bindings for this rule. 
 Rules have input and output patterns, 
 such as $a + (b + c) \to (a + b) + c$,
@@ -203,7 +204,7 @@ the above rule could be applied
 to $\frac{x}{y} + (1 + -y)$ 
 to make $(\frac{x}{y} + 1) + -y$, 
 with the substitutions $a = \frac{x}{y}$, $b = 1$ and $c = -y$. 
-These substitutions are called "bindings", 
+These substitutions are called ``bindings'', 
 and they are the third part of the change structure.
 
 For two changes to be considered equivilent, 
@@ -222,7 +223,7 @@ that any change equivilent to a green change
 is also itself a green change, 
 so that any valid translation of a green change 
 through another change 
-will not strip the "greenness" from the change.
+will not strip the ``greenness'' from the change.
 
 When attempting to translate two changes, 
 we classify the relationship between those two changes 
@@ -370,7 +371,8 @@ as they are still in front of the green change.
 
 A simple visual example 
 might help to further illustrate this process.
-* We start with a change history 
+\begin{itemize}
+\item We start with a change history 
 with some of each type of change. 
 For convenience, 
 only the part of the history 
@@ -383,13 +385,12 @@ change history.
 Red changes are to be represented as $r_n$, 
 orange changes as $o_n$, 
 and green changes as $G_n$. 
-A strong arrow denotes 
+A star above the change
 that it is the change we are currently operating on.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
-\to r_4\to o_3\to r_5 \insetarrow{G_1}\]
-\begin{itemize}
+\to r_4\to o_3\to r_5 \to \stackrel{*}{G_1}\]
 \item The second to last change is red, 
 and thus can be translated 
 through the green change 
@@ -397,7 +398,7 @@ and thrown away.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
-\to r_4\to o_3\insetarrow{G_1}\]
+\to r_4\to o_3\to \stackrel{*}{G_1}]
 
 \item The next change is orange, 
 so we cannot translate the green change 
@@ -409,55 +410,55 @@ to further eliminate reds.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
-\to r_4\insetarrow{o_3} G_1\]
+\to r_4\to \stackrel{*}{o_3}\to G_1\]
 
 \item The change before that orange is red, 
 so we can move through it.
 
 \[G_0\to r_0\to r_1\to o_0 
 \to r_2\to o_1\to o_2\to r_3 
-\insetarrow{o_3} r_4 \to G_1\]
+\to \stackrel{*}{o_3}\to r_4 \to G_1\]
 
 \item Still recursing on the orange change, 
 we can move it back another red change.
 
 \[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\to o_2 \insetarrow{o_3} 
-r_3 \to r_4 \to G_1\]
+\to r_2\to o_1\to o_2 \to 
+\stackrel{*}{o_3}\to r_3 \to r_4 \to G_1\]
 
 \item Now, we've hit a change we can't translate through, 
 so we recurse on the blocking change.
 
 \[G_0\to r_0\to r_1\to o_0 
-\to r_2\to o_1\insetarrow{o_2} o_3 
+\to r_2\to o_1\to \stackrel{*}{o_2}\to o_3 
 \to r_3 \to r_4 \to G_1\]
 
 \item This change is also blocked, 
 so we recurse again.
 
 \[G_0\to r_0\to r_1\to o_0 
-\to r_2\insetarrow{o_1} o_2 \to o_3 
+\to r_2\to \stackrel{*}{o_1}\to o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
 \item This change can be moved back, 
 so we do so.
 
 \[G_0\to r_0\to r_1\to o_0 
-\insetarrow{o_1} r_2 \to o_2 \to o_3 
+\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
 \item And now it's blocked, 
 so we once again recurse.
 
-\[G_0\to r_0\to r_1\insetarrow{o_0} 
-o_1\to r_2 \to o_2 \to o_3 
+\[G_0\to r_0\to r_1\to \stackrel{*}{o_0} 
+\too_1\to r_2 \to o_2 \to o_3 
 \to r_3 \to r_4 \to G_1\]
 
 \item This change can be moved back twice 
 (for simplicities sake, 
 I will begin showing multiple trivial steps as one step)
 
-\[G_0\insetarrow{o_0}r_0\to r_1 
+\[G_0\to \stackrel{*}{o_0}\tor_0\to r_1 
 \to o_1\to r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
@@ -465,7 +466,7 @@ I will begin showing multiple trivial steps as one step)
 so we return to the change that called us.
 
 \[G_0\to o_0\to r_0\to r_1 
-\insetarrow{o_1} r_2 \to o_2 \to o_3 
+\to \stackrel{*}{o_1}\to r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
 \item We can now see that the change before us 
@@ -474,7 +475,7 @@ before the recursive call,
 so we attempt to move backwards, 
 and can succeed for two iterations.
 
-\[G_0\to o_0\insetarrow{o_1} r_0
+\[G_0\to o_0\to \stackrel{*}{o_1} r_0
 \to r_1 \to r_2 \to o_2 \to o_3 
 \to r_3\to r_4 \to G_1\]
 
@@ -486,7 +487,7 @@ so this change is done
 and returns to it's calling change.
 
 \[G_0\to o_0\to o_1\to r_0
-\to r_1 \to r_2 \insetarrow{o_2} o_3 
+\to r_1 \to r_2 \to \stackrel{*}{o_2}\to o_3 
 \to r_3\to r_4 \to G_1\]
 
 \item This change moves back three steps 
@@ -494,13 +495,13 @@ before finishing in the same way as it's predecessor
 
 \begin{align*}
 &G_0\to o_0\to o_1\to o_2
-\to r_0\to r_1 \to r_2 \insetarrow{o_3} 
+\to r_0\to r_1 \to r_2 \to \stackrel{*}{o_3}\to 
 r_3\to r_4 \to G_1\\
 &G_0\to o_0\to o_1\to o_2
 \to o_3 \to r_0 \to r_1\to r_2
-\to r_3 \to r_4 \insetarrow{G_1}\\
+\to r_3 \to r_4 \to \stackrel{*}{G_1}\\
 &G_0\to o_0\to o_1\to o_2
-\to o_3 \insetarrow{G_1}
+\to o_3 \to \stackrel{*}{G_1}
 \end{align*}
 
 \item And so the process finishes, 
@@ -558,7 +559,7 @@ the development of simplification follows:
 
 Suppose we start with program $\sqrt{x+1} - \sqrt{x}$. 
 We know that there is an improved program, 
-$\frac{1}{\sqrt{x+1} + \sqrt{x}}$, 
+$1/\sqrt{x+1} + \sqrt{x}$, 
 which is equivilent over the reals, 
 and as such is the ideal output 
 for casio given the initial program. 
@@ -703,7 +704,7 @@ or $\sqrt{x^2} \to x$.
 
 \item Attempts to precompute functions of constants. 
 If the expression 
-is of the form $f(c_1 c_2 c_3... c_n)$, 
+is of the form $f(c_1, c_2, c_3,..., c_n)$, 
 where $c_1$--$c_n$ are constants, 
 then the value of the function invocation 
 is known at compile time. 
