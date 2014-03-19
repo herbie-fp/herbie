@@ -107,11 +107,14 @@
   (let-values ([(end start) (improve prog max-iters)])
     (println "Started at: " start)
     (println "Ended at:   " end)
-    (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
-      (println "Improvement by an average of "
-	       (/ (apply + (filter ordinary-float? diff)) (length diff))
-	       " bits of precision"))
+    (println "Improvement by an average of "
+	     (improvement start end)
+	     " bits of precision")
     (void)))
+
+(define (improvement start end)
+  (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
+    (/ (apply + (filter ordinary-float? diff)) (length diff))))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
@@ -129,4 +132,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve)
+(provide improve *strategies* program-a program-b print-improve improvement)
