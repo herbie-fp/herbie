@@ -185,11 +185,11 @@
 
 ;; Combine all terms that are combinable, and return a result of a list of one or zero terms
 (define (combine-like-terms terms)
-  (debug "Combining terms" terms #:from 'combine-like-terms #:tag 'enter)
+  ;;(debug "Combining terms" terms #:from 'combine-like-terms #:tag 'enter)
   ;; Get the combined constant factor.
   (let ([new-factor (foldr (lambda (t acc) (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
-    (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
+    (cond [(= 0 new-factor) #f] ; If our terms canceled, return false.
 	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
 	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
 	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
