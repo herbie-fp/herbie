@@ -189,7 +189,7 @@
 			     ;;(when (*debug*) (println "adding factor: " t))
 			     (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
-    (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
+    (cond [(= 0 new-factor) #f] ; If our terms canceled, return an empty list.
 	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
 	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
 	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
