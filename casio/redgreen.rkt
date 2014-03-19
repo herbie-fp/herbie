@@ -50,7 +50,7 @@
 					    (alt-change salmon)
 					    (alt-change (alt-prev salmon))
 					    grandparent)])
-	  (if upstream-changes
+	  (if (and upstream-changes (list? upstream-changes))
 	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
 		(if is-head?
 		    (swim-upstream moved-salmon #t)
