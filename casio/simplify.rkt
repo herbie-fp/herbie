@@ -125,8 +125,10 @@
 	      ;; If we did get terms, remove the matching terms from the terms we have left.
 	      (loop (remove* mterms rest-terms)
 		    ;; And combine the matching terms and the term they matched with, and append it to the accumulator
-		    (cons (combine-like-terms (cons cur-term mterms))
-			    acc)))))))
+		    (let ([new-term (combine-like-terms (cons cur-term mterms))])
+		      (if new-term
+			  (cons new-term acc)
+			  acc))))))))
 
 ;; Cancel appropriate factors
 (define (resolve-factors factors)
