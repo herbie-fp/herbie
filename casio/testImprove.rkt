@@ -13,17 +13,30 @@
 	(/ (apply + acc) num-trials))))
 
 (define (test-improve prog max-iters num-trials)
-  (average-trials (lambda () (let-values ([(end start) (improve prog max-iters)])
-			       (timeout (lambda () (improvement start end))
-					(* 800 (expt 1.5 max-iters))
-					0)))
-		  num-trials))
+  (let* ([num-timeouts 0]
+	 [result (average-trials (lambda () (let-values ([(end start) (improve prog max-iters)])
+					      (timeout (lambda () (improvement start end))
+						       (* 800 (expt 1.5 max-iters))
+						       0
+						       #:timeout-proc (λ ()
+									 (newline)
+									 (println "TIMEOUT!")
+									 (set! num-timeouts
+									       (+ 1 num-timeouts))))))
+				 num-trials)])
+    (newline)
+    (display "The average improvement was ")
+    (display result)
+    (println ".")
+    (display "There were ")
+    (display num-timeouts)
+    (println " timeouts.")))
 
-(define (timeout f time-limit default-value)
+(define (timeout f time-limit default-value #:timeout-proc proc)
   (let* ([value #f]
 	 [result (engine-run time-limit
 			     (engine (lambda (_)
 				       (set! value (f)))))])
     (if result
 	value
-	default-value)))
+	(begin (proc) default-value))))
