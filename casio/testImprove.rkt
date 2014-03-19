@@ -1,6 +1,7 @@
 #lang racket
 
 (require casio/main)
+(require casio/common)
 (require racket/engine)
 
 (provide test-improve)
@@ -14,7 +15,7 @@
 (define (test-improve prog max-iters num-trials)
   (average-trials (lambda () (let-values ([(end start) (improve prog max-iters)])
 			       (timeout (lambda () (improvement start end))
-					3000
+					(* 800 (expt 1.5 max-iters))
 					0)))
 		  num-trials))
 
