@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{booktabs}
 
 \title{Casio Writeup (Working Title)}
 
@@ -790,4 +791,54 @@ With our simplification algorithm,
 we can rewrite several classes of program
 in fewer iterations.
 
+\section{Conclusions}
+To test the effectiveness 
+of both the Red Elimination 
+and the Simplication features,
+we developed a method of aggregating
+the results of sucessive calls to improve.
+Each data point is the average accuracy improvement
+of one hundred calls to improve
+with the indicated program
+and number of max iterations,
+as well as the indicated changes to improve.
+Each call to improve has a timeout of 
+$1500*1.2^{\verb|max-iters|}$ milliseconds,
+where \verb|max-iters| is the maximum number of iterations
+that the call to improve was given.
+When a call times out,
+it is discluded from the average.
+Test runs with excessive timeouts are invalid,
+and are redone.
+
+\newcommand{\ra}[1]{\renewcommand{\arraystretch}{#1}}
+\begin{table*}\centering
+\ra{0.8}
+\begin{tabular}{@{}rrrrcrrrcrrr@{}}
+\toprule&\multicolumn{2}{c}{program-a} &\multicolumn{2}{c}{program-b} &\\
+\cmidrule{2-3}\cmidrule{4-5}
+& Simplification & Without Simplification & Simplification & Without Simplification\\ \midrule
+$\verb|max-iters|=1$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=2$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=3$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=4$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=5$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=6$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=7$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=8$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=9$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+$\verb|max-iters|=10$\\
+$c$ & 0 & 0 & 463.686 & 105.51\\
+\bottomrule
+\end{tabular}
+\end{table*}
 \end{document}
