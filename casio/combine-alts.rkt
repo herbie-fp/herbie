@@ -52,6 +52,31 @@
 	  [(eq? (car diff-rest) '>)
 	   (loop cur-index (+ more-count 1) (cdr diff-rest))])))
 
+(define (get-splitpoints difflist #:min-region-size min-size #:max-splitpoints max-splits)
+  difflist)
+
+(define (diff-list-to-regions difflist)
+  (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
+    (cond [(null? restlist)
+	   (reverse (cons (cons cur-region-size cur-region) acc))]
+	  [(eq? (car restlist) cur-region)
+	   (loop (cdr restlist) (+ cur-region-size 1) cur-region acc)]
+	  [#t (loop (cdr restlist) 1 (car restlist) (if cur-region
+							(cons (cons cur-region-size cur-region) acc)
+							acc))])))
+
+(define (swallow-region pred regions)
+  (let loop ([restlist regions] [acc '()])
+    (cond [(null? (cdr restlist)) (reverse (cons (car regions)) acc)]
+	  [(pred (cadr restlist))
+	   (cond [(null? (cddr restlist))
+		  (
+		  (if (eq? '= (car restlist))
+		      (if (eq? '= (caddr restlist))
+			  (loop (cons (cons (+ (caadr restlist) (caaddr restlist)) (cdadr restlist))
+				      restlist)
+				(cons (car restlist) acc))))]
+
 (define (split-indicies-from-difflist difflist min-region-size)
   (let loop ([cur-index 0] [regime '=] [opp-count 0]
 	     [diff-rest difflist] [acc '()] [cur-region-size 0])
