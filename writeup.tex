@@ -528,51 +528,13 @@ as possible.
 
 \section{Simplification}
 
-Most of Casio's strategies 
-operate by making incremental changes 
-to programs using our rewrite rules. 
-This approach works well 
-because it allows us to reevaluate the program 
-at every step 
-and make sure that we are guiding our search 
-towards our goal. 
-There is one strategy, however, 
-that doesn't make incremental changes, 
-but instead tries to make 
-large scale transformation of programs. 
-This strategy, simplification, 
-doesn't need to evaluate 
-the program at every step 
-because instead of being guided 
-by the larger abstract goal 
-to reduce error, 
-the simplification process only seeks 
-to make a program as simple as possible, 
-under the assumption that 
-simpler is (almost) always better.
-
-Simplifying, 
-as it currently stands 
-operates on the basic principle 
-that making a change to the 
-simplest possible version of a program, 
-and then simplifying the resulting program 
-in such a way that 
-it does not destruct the change, 
-is the best way to determine 
-whether a change is beneficial 
-to the program. 
-More concretely, 
-the motivating example during 
-the development of simplification follows:
-
-Suppose we start with program $\sqrt{x+1} - \sqrt{x}$. 
+Suppose we give Casio the program $\sqrt{x+1} - \sqrt{x}$. 
 We know that there is an improved program, 
 $1/\sqrt{x+1} + \sqrt{x}$, 
 which is equivilent over the reals, 
 and as such is the ideal output 
-for casio given the initial program. 
-The trick is teaching casio 
+for Casio given the initial program. 
+The trick is teaching Casio 
 to find this program. 
 Given our existing rewrite rules, 
 the ideal transformation is 
@@ -632,36 +594,66 @@ that a quick simplification
 speeds up the process 
 and makes us a lot more likely 
 to achieve our goal program. 
-However, the initial program, 
-$\sqrt{x + 1} - \sqrt{x}$, 
-is actually much simpler 
-than it's error-reduced form,
-$\frac{1}{\sqrt{x + 1} + \sqrt{x}}$
-A perfect simplifier 
-would revert any improvements we make 
-to the intial program 
-back to the initial program, 
-since that is the simplest form, 
-if we allowed it to simplify the whole expression. 
-Because of this, 
-we add two restrictions 
-to our simplification strategy: 
-If the simplified form 
-does not have better error 
-than the unsimplified form, 
-then we throw out 
-the simplified form, 
-and we only simplify 
-at predetermined simplification locations.
+
+Most of Casio's strategies
+operate by making incremental changes 
+to programs using our rewrite rules. 
+This approach works well 
+because it allows us to reevaluate the program 
+at every step 
+and make sure that we are guiding our search 
+towards our goal. 
+There is one strategy, however, 
+that doesn't make incremental changes, 
+but instead tries to make 
+large scale transformation of programs. 
+This strategy, simplification, 
+doesn't need to evaluate 
+the program at every step 
+because instead of being guided 
+by the larger abstract goal 
+to reduce error, 
+the simplification process only seeks 
+to make a program as simple as possible, 
+under the assumption that 
+simpler is (almost) always better.
+
+Simplifying, 
+as it currently stands 
+operates on the basic principle 
+that making a change to the 
+simplest possible version of a program, 
+and then simplifying the resulting program 
+in such a way that 
+it does not destruct the change, 
+is the best way to determine 
+whether a change is beneficial 
+to the program.
+After each change made by one of the other strategies,
+Casio attempts to simplify the resulting expression,
+and keeps the simplified version
+if it has better error than the unsimplified version.
 
 \subsection{Simplification Locations}
 
-In our motivating example, 
-a simplification of the whole expression 
-would revert our change 
-and give us a bad result, 
-but simplification of just the numerator 
-of the division gives us a program with less error. 
+In the above example,
+smart simplification of the program after the first step,
+\begin{align*}
+\frac{\sqrsqrt{x+1} - \sqrsqrt{x}}{\sqrt{x+1} + \sqrt{x}}
+\to \frac{1}{\sqrt{x+1}+\sqrt{x}}
+\end{align*}
+is extremely beneficial to our search.
+However, note that the initial program, 
+$\sqrt{x+1}-\sqrt{x}$,
+is actually even simpler than it's error-reduced form,
+$\frac{1}{\sqrt{x+1}+\sqrt{x}}$.
+Therefore, a perfect simplification
+of the program after the first step
+would actually revert
+the improvements we made to the program.
+Instead, we would like our simplifier
+to only simplify
+the numerator of the division.
 We generalize that for any given change, 
 there are certain locations 
 for which it would be beneficial to simplify. 
@@ -688,6 +680,44 @@ we assert that there are no simplifications
 that would cause a green change 
 which will not be found 
 by simplifying at these locations.
+
+Other rules, like reassociation,
+also have simplification locations.
+For the rule $(a + b) - c \to a + (b - c)$,
+we simplify at the second argument of the addition,
+$(b - c)$. 
+While it may seem like the simplifier
+should try the whole expression,
+we don't want to risk undoing the reassociation.
+One might also think that the simplifier
+should also simplify the $a$,
+but Casio attempts to simplify after every step,
+so we can guarantee that the expression
+before each change is in ``beneficial simplified form,''
+meaning that if it would have been beneficial
+to simplify the expression,
+then the expression was simplified. 
+Therefore, we know that the input
+$(a + b) - c$ is in ``beneficial simplified form,''
+and by extension, each of it's subexpressions is in
+``beneficial simplified form,''
+so attempting to simplify $a$ would do nothing.
+
+For the same reason, 
+many of our rewrite rules
+don't actually have any simplification locations.
+Rules like $\lnexp{x}\to x$
+don't have simplification locations,
+because if $\lnexp{x}$ is in
+``beneficial simplified form,''
+then $x$ is also in ``beneficial simplified form,''
+so there is nothing to simplify on the output.
+Rules like $x\to\lnexp{x}$
+also don't have simplification locations,
+because simplifying the whole thing
+would simply eliminate the whole change,
+and simplifying anything smaller
+would do nothing.
 
 \subsection{(simplify-expression): Quickly Simplifying Most Expressions}
 
