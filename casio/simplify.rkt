@@ -303,11 +303,8 @@
       [`(* ,a ,a) `(sqr ,a)] ; This rule should help sqr and sqrts cancel more often.
       [`(* 1 ,a) a]
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
-<<<<<<< HEAD
       [`(/ 1 (/ 1 ,a)) a] ; Double inversion
-=======
       [`(/ ,a) `(/ 1 ,a)] ; A bit hacky, since we shouldn't be producing expressions of this form, but this is a valid expression in racket, so hey.
->>>>>>> 4d3ea7d... Fix for Simplify Crash
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
       [`(/ ,a ,b) (inner-simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
       [`(+ (+ . ,a) (+ . ,b)) (addition (append a b))] ; These next three rules flatten out addition
