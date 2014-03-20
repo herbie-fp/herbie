@@ -1,12 +1,12 @@
 #lang racket
 
+(require math/flonum)
 (require math/bigfloat)
 (require casio/common)
 (require casio/programs)
 
 (provide prepare-points *points* *exacts*
-         errors errors-compare errors-difference
-         relative-error make-exacts)
+         errors errors-compare errors-difference make-exacts)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -81,21 +81,19 @@
          [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
 
-(define (relative-error approx exact)
-  (if (and (real? approx) (real? exact))
-      (abs (/ (- exact approx) (max (abs exact) (abs approx))))
-      +nan.0))
-
 (define (errors prog points exacts)
   (let ([fn (eval-prog prog mode:fl)])
     (for/list ([point points] [exact exacts])
-      (relative-error (fn point) exact))))
+      (let ([out (fn point)])
+        (if (real? out)
+            (+ 1 (flulp-error out (->flonum exact)))
+            +inf.0)))))
 
 (define errors-compare-cache (make-hasheq))
 
 (define (reasonable-error? x)
   ; TODO : Why do we need the 100% error case?
-  (not (or (= x 1.0) (infinite? x) (nan? x))))
+  (not (or (infinite? x) (nan? x))))
 
 (define (errors-compare errors1 errors2)
   (map (λ (x) (cond [(< x 0) '<] [(> x 0) '>] [#t '=]))
@@ -115,9 +113,9 @@
 	   ; but that lead to stupid behavior;
 	   ; a least-significant-bit error versus no error
 	   ; would be very heavily weighed
-           [(= error1 0) (log (/ 1e-16 error2))]
-           [(= error2 0) (log (/ error1 1e-16))]
-           [#t (log (/ error1 error2))])]
+           [(= error1 0) (log error2)]
+           [(= error2 0) (log error1)]
+           [#t (/ (log (/ error1 error2)) (log 2))])]
          [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
           -inf.0]
          [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))

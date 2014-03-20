@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match)
+(require math/flonum)
 (require math/bigfloat)
 (require casio/common)
 (require casio/points)
@@ -36,14 +36,14 @@
    #:constant
    (λ (c loc)
       (let* ([exact (repeat (bf c))] [approx (repeat ((*precision*) c))]
-             [error (repeat (relative-error (->flonum exact) approx))])
+             [error (repeat (1+ (flulp-error (->flonum c) (->flonum c))))])
         (annotation c exact approx error error loc)))
 
    #:variable
    (λ (v loc)
       (let* ([var (for/list ([vmap varmap]) (cdr (assoc v vmap)))]
              [exact (map bf var)] [approx (map (*precision*) var)]
-             [error (map relative-error (map ->flonum exact) approx)])
+             [error (map (compose 1+ flulp-error) (map ->flonum exact) (map ->flonum approx))])
         (annotation v exact approx error error loc)))
 
    #:primitive
@@ -61,9 +61,9 @@
              [approx-ans
               (map (curry apply approx-op) approx-inputs)]
              [local-error
-              (map relative-error (map ->flonum exact-ans) semiapprox-ans)]
+              (map (compose flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
              [cumulative-error
-              (map relative-error (map ->flonum exact-ans) approx-ans)])
+              (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
         (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
 
 (define (interesting-error? l)
