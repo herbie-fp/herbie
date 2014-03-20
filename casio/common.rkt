@@ -4,7 +4,7 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan square ordinary-float?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe)
+         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -53,7 +53,12 @@
 (define (->flonum x)
   (cond
    [(real? x) ((*precision*) x)]
-   [(bigfloat? x) ((*precision*) (bigfloat->flonum x))]))
+   [(bigfloat? x) ((*precision*) (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
+        (->flonum (real-part x))
+        +nan.0)]
+   [else (error "Invalid number" x)]))
 
 ; Functions used by our benchmarks
 (define (cotan x)
@@ -68,6 +73,9 @@
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
       (and (nan? x1) (nan? x2))))
+
+(define (1+ x)
+  (+ 1 x))
 
 (define (list= l1 l2)
   (and l1 l2 (andmap =-or-nan? l1 l2)))
