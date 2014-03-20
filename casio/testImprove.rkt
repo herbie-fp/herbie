@@ -6,24 +6,28 @@
 
 (provide test-improve)
 
-(define (average-trials f num-trials)
+(define (average-trials f num-trials #:divisor-proc [divisor #f])
   (let loop ([remaining-trials num-trials] [acc '()])
+    (show-progress num-trials remaining-trials)
     (if (> remaining-trials 0)
 	(loop (- remaining-trials 1) (cons (f) acc))
-	(/ (apply + acc) num-trials))))
+	(/ (apply + acc) (if divisor
+			     (divisor)
+			     num-trials)))))
 
 (define (test-improve prog max-iters num-trials)
   (let* ([num-timeouts 0]
-	 [result (average-trials (lambda () (let-values ([(end start) (improve prog max-iters)])
-					      (timeout (lambda () (improvement start end))
-						       (* 800 (expt 1.5 max-iters))
-						       0
-						       #:timeout-proc (λ ()
-									 (newline)
-									 (println "TIMEOUT!")
-									 (set! num-timeouts
-									       (+ 1 num-timeouts))))))
-				 num-trials)])
+	 [result (average-trials (lambda () (timeout (lambda () (let-values ([(end start) (improve prog max-iters)])
+					      	     	          (improvement start end)))
+						     (* 1500 (expt 1.2 max-iters))
+						     0
+						     #:timeout-proc (λ ()
+								       (newline)
+								       (println "TIMEOUT!")
+								       (set! num-timeouts
+									     (+ 1 num-timeouts)))))
+				 num-trials
+				 (lambda () (- num-trials num-timeouts)))])
     (newline)
     (display "The average improvement was ")
     (display result)
@@ -40,3 +44,9 @@
     (if result
 	value
 	(begin (proc) default-value))))
+
+(define (show-progress total left)
+  (newline)
+  (display (* 100 (/ (- total left) total)))
+  (display "%")
+  (when (*debug*) (newline)))
