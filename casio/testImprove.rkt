@@ -27,7 +27,7 @@
 								       (set! num-timeouts
 									     (+ 1 num-timeouts)))))
 				 num-trials
-				 (lambda () (- num-trials num-timeouts)))])
+				 #:divisor-proc (lambda () (- num-trials num-timeouts)))])
     (newline)
     (display "The average improvement was ")
     (display result)
