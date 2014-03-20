@@ -824,24 +824,57 @@ and are redone.
 $\verb|max-iters|=1$\\
 $c$ & 0 & 0 & 463.686 & 105.51\\
 $\verb|max-iters|=2$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 465.827 & 85.743\\
 $\verb|max-iters|=3$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 456.990 & 105.054\\
 $\verb|max-iters|=4$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 463.383 & 78.075\\
 $\verb|max-iters|=5$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 457.553 & 70.069\\
 $\verb|max-iters|=6$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 483.286 & 73.491\\
 $\verb|max-iters|=7$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
-$\verb|max-iters|=8$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
-$\verb|max-iters|=9$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
-$\verb|max-iters|=10$\\
-$c$ & 0 & 0 & 463.686 & 105.51\\
+$c$ & 0 & 0 & 456.467 & 79.226\\
 \bottomrule
 \end{tabular}
+\label{fig:results}
+\caption{program-a is $\frac{e^x - 1}{x}$,
+and program-b is $\sqrt{x+1} - \sqrt{x}$}
 \end{table*}
+
+Several things are apparent from the results
+shown in table-\ref{fig:results}.
+The most obvious is that even with simplification,
+seven iterations is not enough
+to make any improvement on program-a.
+Casio does not yet support error corellation,
+althought it will soon in the future,
+and corellation is what is necessary
+to make progress on program-a.
+The results also show us that output of casio
+is generally tiered.
+Improvement on a program isn't made in small increments,
+but rather in larger jumps.
+In addition, we can see that the number of iterations
+didn't actually end up influencing the results that much.
+It is entirely possible that
+this result is a product of the examples we use,
+so more testing is required.
+From the results we can draw
+two conclusions about simplification in general.
+\begin{itemize}
+\item Simplification does not benefit all programs.
+\item For the programs which simplification does benefit,
+it makes it possible to achieve results which would take
+an impractical number of iterations to achieve otherwise.
+\end{itemize}
+
+With our current search techniques,
+Red Elimination doesn't fare as well.
+Cursory testing indicates that few green changes
+actually have any red changes before them to eliminate.
+As search techniques in the future get more speculative,
+the number of red changes may increase, however,
+and Red Elimination appears to be effective
+when red changes \emph{are} present.
 \end{document}
