@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require data/order)
 
-(provide reap println ->flonum *precision* cotan square ordinary-float?
+(provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+)
 
 ; Precision for approximate evaluation
@@ -63,9 +63,6 @@
 ; Functions used by our benchmarks
 (define (cotan x)
   (/ 1 (tan x)))
-
-(define (square x)
-  (* x x))
 
 (define (ordinary-float? x)
   (not (or (infinite? x) (nan? x))))
