@@ -30,16 +30,16 @@
 ;; (improve prog iters) prints the found alternatives
 (define (print-improve prog max-iters)
   (let-values ([(end start) (improve prog max-iters)])
-    (println start)
-    (println end)
+    (println "Started at: " start)
+    (println "Ended at:   " end)
     (println "Improvement by an average of "
 	     (improvement start end)
-	     " bits of precision")))
+	     " bits of precision"))
+  (void))
 
 (define (improvement start end)
-  (/ (apply + (filter ordinary-float?
-		      (errors-difference (alt-errors start) (alt-errors end))))
-     (log 2)))
+  (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
+    (/ (apply + (filter ordinary-float? diff)) (length diff))))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
