@@ -1,0 +1,11 @@
+Iters		with Simplification		without Simplification
+1		     				108.6
+2						90.127
+3						74.63422
+4						80.8
+5						86.749
+6						87.473
+7						101.74
+8						
+9
+10

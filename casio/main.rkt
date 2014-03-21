@@ -33,10 +33,13 @@
     (println start)
     (println end)
     (println "Improvement by an average of "
-	     (/ (apply + (filter ordinary-float?
-				 (errors-difference (alt-errors start) (alt-errors end))))
-		       (log 2))
+	     (improvement start end)
 	     " bits of precision")))
+
+(define (improvement start end)
+  (/ (apply + (filter ordinary-float?
+		      (errors-difference (alt-errors start) (alt-errors end))))
+     (log 2)))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
@@ -54,4 +57,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve *strategies*)
+(provide improve *strategies* program-a program-b print-improve improvement)
