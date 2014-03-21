@@ -1,6 +1,7 @@
 #lang racket
 
 (require casio/simplify)
+(require casio/common)
 
 (provide test-simplify-time)
 
