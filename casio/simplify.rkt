@@ -40,7 +40,7 @@
 	  ;; If we don't have any slocations left, just return the alt
 	  alt
 	  (let* ([full-location (append location (car slocations))] ; The full location for the simplification
-		 [partly-simplified-prog (location-do full-location 
+		 [partly-simplified-prog (location-do full-location
 						      (alt-program alt)
 						      simplify-expression)] ; Try to simplify the program at the slocation
 		 [new-rule (rule 'simplify
@@ -58,12 +58,11 @@
 			    ;;(debug #:from 'simplification "Simplified to " result)
 			    result)]) ; Create a new alt that's simplified.
 	    (debug "Simplified to" new-alt #:from 'simplify #:tag 'info)
-	    (if (green? new-alt)
-		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
-					new-alt)
-		(simplify-at-locations (cdr slocations) ; If our new alt isn't any better, recurse on the old alt for the rest of the slocations
-					alt)))))
-    (simplify-at-locations slocations altn))) ; Call the recursive function with our given altn and it's simplification locations
+            ; If our new alt is green-tipped, recurse on that for the rest of the slocations
+            (simplify-at-locations (cdr slocations) new-alt))))
+
+    ; Call the recursive function with our given altn and it's simplification locations
+    (simplify-at-locations slocations altn)))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
@@ -81,7 +80,7 @@
 	    (symbol? (rule-output rule)))
 	  *rules*))
 
-;;Try to apply a list of rules to an expression. 
+;;Try to apply a list of rules to an expression.
 (define (attempt-apply-all rules expr)
   (pipe expr (map (lambda (rule)
 		    (lambda (expr)
@@ -121,7 +120,7 @@
 	(if (null? acc) 0 acc)
 	(let* ([cur-term (car unresolved-terms)]
 	       [rest-terms (cdr unresolved-terms)]
-	       [mterms (filter (lambda (t) 
+	       [mterms (filter (lambda (t)
 				 (equal? (term-atoms t)
 					 (term-atoms cur-term)))
 			       rest-terms)]) ; Grab every term that matches the current term
