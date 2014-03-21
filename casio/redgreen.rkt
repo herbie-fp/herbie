@@ -11,8 +11,8 @@
 (define green-threshold (make-parameter 0))
 
 (define (much-better? alt1 alt2)
-  (< (green-threshold)
-     (errors-diff-score (alt-errors alt1) (alt-errors alt2))))
+  (< (errors-diff-score (alt-errors alt1) (alt-errors alt2))
+     (green-threshold)))
 	     
 (define (green? altn)
   ; The initial alternative is not green-tipped by convention
@@ -23,7 +23,7 @@
     (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
 		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
       (+ (apply + reals)
-	 (* 100 (- (length positive-infs) (length negative-infs)))))))
+	 (* 100 (- (length negative-infs) (length positive-infs)))))))
 
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
