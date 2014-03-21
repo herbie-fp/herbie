@@ -5,8 +5,8 @@
 (require casio/common)
 (require casio/programs)
 
-(provide prepare-points *points* *exacts*
-         errors errors-compare errors-difference make-exacts)
+(provide *points* *exacts* prepare-points make-exacts
+         errors errors-compare errors-difference errors-diff-score)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -123,3 +123,10 @@
          [#t
           0.0]
          [#t (error "Failed to classify error1 and error2" error1 error2)])))))
+
+(define (errors-diff-score e1 e2)
+  (let ([d (errors-difference e1 e2)])
+    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
+		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
+      (+ (apply + reals)
+	 (* 64 (- (length negative-infs) (length positive-infs)))))))
