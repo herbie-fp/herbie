@@ -6,7 +6,7 @@
 (require casio/programs)
 (require casio/common)
 
-(provide green? remove-red green-threshold errors-diff-score much-better?)
+(provide green? remove-red green-threshold much-better?)
 
 (define green-threshold (make-parameter 0))
 
@@ -15,9 +15,8 @@
      (green-threshold)))
 	     
 (define (green? altn)
-  (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
-       (< (green-threshold)
-	  (errors-diff-score (alt-errors altn) (alt-errors (alt-prev altn))))))
+  ; The initial alternative is not green-tipped by convention
+  (and (alt-prev altn) (much-better? altn (alt-prev altn))))
 
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
