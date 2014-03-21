@@ -27,6 +27,7 @@ main() {
     benchmark(fabs(x));
     benchmark(sqrt(x));
     benchmark(exp(x));
+    benchmark(pow(x, y));
     benchmark(log(x+1));
     benchmark(sin(x));
     benchmark(cos(x));
