@@ -860,6 +860,11 @@ didn't actually end up influencing the results that much.
 It is entirely possible that
 this result is a product of the examples we use,
 so more testing is required.
+It appears from this result that programs without simplification
+were able to make the first error-reducing jump,
+flipping the subtraction,
+but only with simplification did the program make the second jump,
+eliminating the error from the variables in the denominator.
 From the results we can draw
 two conclusions about simplification in general.
 \begin{itemize}
