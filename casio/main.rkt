@@ -30,17 +30,15 @@
 		    (alt-rewrite-expression altn #:root other)
 		    '())))))))
 
-(define (try-simplify altn)
+(define (try-simplify altn #:conservative [conservative #t])
   (let ([simpl-altn (simplify altn)])
-    (if (much-better? simpl-altn altn)
-	simpl-altn
-	altn)))
-
-(define (simplify-unless-bad altn)
-  (let ([simpl-altn (simplify altn)])
-    (if (much-better? altn simpl-altn)
-	altn
-	simpl-altn)))
+    (if conservative
+        (if (much-better? simpl-altn altn)
+            simpl-altn
+            altn)
+        (if (much-better? altn simpl-altn)
+            altn
+            simpl-altn))))
 
 (define (improve prog max-iters)
   (debug-reset)
@@ -56,7 +54,7 @@
 	 [(= iter 0)
 	  (let* ([sorted (sort (reverse (append alts olds trace))
 			       much-better?)]
-		 [result (simplify-unless-bad (car sorted))])
+		 [result (try-simplify (car sorted) #:conservative #f)])
 	    (debug "Done:" result #:from 'improve)
 	    (values result orig))]
 	 [(and (null? alts) (not (null? olds)))
