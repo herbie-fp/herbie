@@ -44,11 +44,14 @@
 				 (location-get full-location
 					       partly-simplified-prog)
 				 '())] ; Create a new rule for the simplification
-		 [new-change (change new-rule full-location (map (lambda (x) (cons x x))
-								 (get-contained-vars (alt-program altn))))] ; Create a change from the old alt
-		                                                                                            ; to a new-simplified alt
-		 [new-alt (if (*debug*) (println (alt-apply alt new-change))
-			      (alt-apply alt new-change))]) ; Create a new alt that's simplified.
+		 [new-change (let ([result (change new-rule full-location (map (lambda (x) (cons x x))
+									       (get-contained-vars (alt-program altn))))])
+			       ;;(debug #:from 'simplification "Created change " result " from " (rule-input new-rule) " to " (rule-output new-rule))
+			       result)] ; Create a change from the old alt
+					; to a new-simplified alt
+		 [new-alt (let ([result (alt-apply alt new-change)])
+			    ;;(debug #:from 'simplification "Simplified to " result)
+			    result)]) ; Create a new alt that's simplified.
 	    ;;(when (*debug*) (println "Simplified to: " partly-simplified-prog))
 	    (if (green? new-alt)
 		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
@@ -122,8 +125,10 @@
 	      ;; If we did get terms, remove the matching terms from the terms we have left.
 	      (loop (remove* mterms rest-terms)
 		    ;; And combine the matching terms and the term they matched with, and append it to the accumulator
-		    (append (combine-like-terms (cons cur-term mterms))
-			    acc)))))))
+		    (let ([new-term (combine-like-terms (cons cur-term mterms))])
+		      (if new-term
+			  (cons new-term acc)
+			  acc))))))))
 
 ;; Cancel appropriate factors
 (define (resolve-factors factors)
@@ -184,13 +189,14 @@
 			     ;;(when (*debug*) (println "adding factor: " t))
 			     (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
-    (cond [(= 0 new-factor) '()] ; If our terms canceled, return an empty list.
+    (cond [(= 0 new-factor) #f] ; If our terms canceled, return an empty list.
 	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
-	  [(symbol? (car terms)) (list (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms))))]
-	  [#t (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
-		(cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
-		      [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
-		      [#t (list* '* new-factor body)]))]))) ; Otherwise, mutliply together the factor and the body.
+	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
+	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
+				   (cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
+					 [(= -1 new-factor) (list '- (cons '* body))] ; If we have a factor of negative one, do the same but negate it
+					 [#t (list* '* new-factor body)]))] ; Otherwise, mutliply together the factor and the body.
+	  [#t (list '* new-factor (car terms))])))
 
 ;; Provide sorting for symbols so that we can canonically order variables and other atoms
 (define (symbol<? sym1 sym2)
@@ -288,8 +294,10 @@
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
       [`(+ ,a 0) a] ; Additive Identity
       [`(* ,a 0) 0] ; Multiplying anything by zero yields zero
+      [`(/ 0 ,a) 0] ; Dividing zero by anything yields zero.
       [`(* ,a 1) a] ; Multiplicitive Identity
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
+      [`(/ ,a) `(/ 1 ,a)] ; A bit hacky, since we shouldn't be producing expressions of this form, but this is a valid expression in racket, so hey.
       [`(/ 1 ,a) `(/ 1 ,a)] ; Catch this case here so that it doesn't fall to the next rule, resulting in infinite recursion
       [`(/ ,a ,b) (inner-simplify-expression `(* ,a (/ 1 ,b)))] ; Move the division inwards, and make a recursive call in case the division needs to be moved further inwards
       [`(+ (+ . ,a) (+ . ,b)) (addition (append a b))] ; These next three rules flatten out addition
