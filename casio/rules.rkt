@@ -183,19 +183,19 @@
   #:simplify ((cdr car) (cdr cdr car)))
 
 ; Square root
-(define-rule   add-square-sqrt   x                  (square (sqrt x)))
-(define-rule   add-sqrt-square   x                  (sqrt (square x)))
-(define-rule   rem-square-sqrt   (square (sqrt x))  x)
-(define-rule   rem-sqrt-square   (sqrt (square x))  x)
-(define-rule   square-mult       (square x)         (* x x))
-(define-rule   square-unmult     (* x x)            (square x))
-(define-rule   square-prod       (square (* x y))   (* (square x) (square y))
+(define-rule   add-sqr-sqrt      x                  (sqr (sqrt x)))
+(define-rule   add-sqrt-sqr      x                  (sqrt (sqr x)))
+(define-rule   rem-square-sqrt   (sqr (sqrt x))     x)
+(define-rule   rem-sqrt-square   (sqrt (sqr x))     x)
+(define-rule   square-mult       (sqr x)            (* x x))
+(define-rule   square-unmult     (* x x)            (sqr x))
+(define-rule   square-prod       (sqr (* x y))      (* (sqr x) (sqr y))
   #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   square-unprod     (* (square x) (square y)) (square (* x y))
+(define-rule   square-unprod     (* (sqr x) (sqr y)) (sqr (* x y))
   #:simplify ((cdr car)))
-(define-rule   square-div        (square (/ x y))   (/ (square x) (square y))
+(define-rule   square-div        (sqr (/ x y))      (/ (sqr x) (sqr y))
   #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   square-undiv      (/ (square x) (square y)) (square (/ x y))
+(define-rule   square-undiv      (/ (sqr x) (sqr y)) (sqr (/ x y))
   #:simplify ((cdr car)))
 
 ; Exponentials
@@ -209,9 +209,9 @@
 (define-rule   div-exp      (/ (exp a) (exp b))  (exp (- a b)))
 
 ; Multiplying by x / x
-(define-rule   flip-+     (+ a b)  (/ (- (square a) (square b)) (- a b))
+(define-rule   flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))
   #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   flip--     (- a b)  (/ (- (square a) (square b)) (+ a b))
+(define-rule   flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))
   #:simplify ((cdr car) (cdr cdr car)))
 (define-rule   clear-num  (/ a b)  (/ 1 (/ b a))
   #:simplify ((cdr cdr car)))
