@@ -109,8 +109,7 @@
     (println "Ended at:   " end)
     (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
       (println "Improvement by an average of "
-	       (/ (apply + (filter ordinary-float? diff))
-		  (log 2) (length diff))
+	       (/ (apply + (filter ordinary-float? diff)) (length diff))
 	       " bits of precision"))
     (void)))
 

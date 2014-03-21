@@ -108,6 +108,7 @@
            [sqrt    ,bfsqrt  ,sqrt    1]
            [sqr     ,bfsqr   ,sqr     1]
            [exp     ,bfexp   ,exp     270]
+           [expt    ,bfexpt  ,expt    640]
            [log     ,bflog   ,log     300]
            [sin     ,bfsin   ,sin     145]
            [cos     ,bfcos   ,cos     185]
