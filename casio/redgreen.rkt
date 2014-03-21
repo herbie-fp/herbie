@@ -47,7 +47,7 @@
   ;; indicating whether we should throw away the changes that have been
   ;; moved past the current change.
   (define (swim-upstream salmon is-head?)
-    (when (*debug*) (println salmon " is swimming."))
+    (debug salmon " is swimming." #:from 'swim-upstream #:tag 'info)
     (if (done salmon) salmon
 	(let* ([grandparent (alt-prev (alt-prev salmon))]
 	       [upstream-changes (translate #t
@@ -81,6 +81,13 @@
 	[(eq? (car a) (car b)) (match-loc (cdr a) (cdr b))]
 	[#t #f]))
 
+(define (match-loc-fst inside outside)
+  (cond [(null? outside) inside]
+	[(null? inside) #f]
+	[(eq? (car outside) (car inside))
+	 (match-loc-fst (cdr inside) (cdr outside))]
+	[#t #f]))
+
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
@@ -93,6 +100,8 @@
 ;; have locations of a tail appended to a head.
 (define (loc-translated-changes loc-tails loc-head original)
   (map (lambda (loc)
+	 (debug "Translating location" loc "onto" loc-head "in" original
+		#:from 'loc-translated-changes #:tag 'info)
 	 (change (change-rule original)
 		 (append loc-head loc)
 		 (change-bindings original)))
@@ -101,19 +110,26 @@
 ;; Translates locations from a location within translations specified
 ;; by from-func to the location specified by to-func.
 (define (translate-location loc translations from-func to-func)
-  (letrec ([recurse (lambda (translations)
-		      (if (null? translations)
-			  #f
-			  (let ([translation (car translations)])
-			    (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
-				(let ([tail (match-loc loc
-						       (car (from-func translation)))])
-				  (if tail
-				      (map (lambda (l) (append l tail))
-					   (to-func translation))
-				      (recurse (cdr translations))))
-				(recurse (cdr translations))))))])
-    (recurse translations)))
+  (debug "Translating" loc "in" translations "from" from-func "to" to-func
+	 #:from 'translate-location #:tag 'info)
+
+  (define (recurse translations)
+    (if (null? translations)
+	#f
+	(let ([translation (car translations)])
+	  (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
+	      (let ([tail (match-loc-fst loc
+				     (car (from-func translation)))])
+		(debug "Tail" tail "on" (car (from-func translation))
+		       #:from 'translate-location #:tag 'info)
+		(if tail
+		    (map (lambda (l) (append l tail))
+			 (to-func translation))
+		    (recurse (cdr translations))))
+	      (recurse (cdr translations))))))
+
+  (recurse translations))
+
 ;; Translates a change through another change.
 ;; up? indicates whether you are translating the change up. A value
 ;;     of false indicates a translation down.
@@ -122,6 +138,8 @@
 ;; new-parent is the alternative that the translated change will be
 ;;     applied to.
 (define (translate up? cur-change other-change new-parent)
+  (debug "Translate" cur-change "across" other-change "onto" new-parent
+	 #:from 'translate #:tag 'info)
   (cond [(orthogonal? cur-change other-change)
 	 (list cur-change)]
 	[(is-inside? (change-location cur-change) (change-location other-change))
