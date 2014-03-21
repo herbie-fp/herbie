@@ -106,7 +106,7 @@
            [/       ,bf/     ,/       1]
            [abs     ,bfabs   ,abs     1]
            [sqrt    ,bfsqrt  ,sqrt    1]
-           [square  ,bfsqr   ,square  1]
+           [sqr     ,bfsqr   ,sqr     1]
            [exp     ,bfexp   ,exp     270]
            [log     ,bflog   ,log     300]
            [sin     ,bfsin   ,sin     145]

@@ -301,7 +301,7 @@
       [`(* 0 ,a) 0]
       [`(/ 0 ,a) 0] ; Dividing zero by anything yields zero.
       [`(* ,a 1) a] ; Multiplicitive Identity
-      [`(* ,a ,a) `(square ,a)] ; This rule should help square and sqrts cancel more often.
+      [`(* ,a ,a) `(sqr ,a)] ; This rule should help sqr and sqrts cancel more often.
       [`(* 1 ,a) a]
       [`(/ 1 1) 1] ; Get rid of any one-over-ones
       [`(/ 1 (/ 1 ,a)) a] ; Double inversion
@@ -324,7 +324,7 @@
       [`(* . ,a) (multiplication a)]
       [`(log (* . ,as)) (addition (map (lambda (a) (inner-simplify-expression `(log ,a))) as))] ; Log of product is sum of logs
       [`(exp (+ . ,as)) (multiplication (map (lambda (a) (inner-simplify-expression `(exp ,a))) as))] ; Same thing for exponents
-      [`(square (* . ,as)) (multiplication (map (lambda (a) (list 'square a)) as))] ;; Product of powers.
+      [`(sqr (* . ,as)) (multiplication (map (lambda (a) (list 'sqr a)) as))] ;; Product of powers.
       [`(sqrt (* . ,as)) (multiplication (map (lambda (a) (list 'sqrt a)) as))]
       [a a]))) ; Finally, if we don't have any other match, return ourselves.
 
