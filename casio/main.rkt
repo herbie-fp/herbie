@@ -132,4 +132,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve *strategies* program-a program-b print-improve improvement)
+(provide improve program-a program-b print-improve improvement)
