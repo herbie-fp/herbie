@@ -22,13 +22,13 @@
 ;; recent change's rule. If passed a fitness-function, only applies
 ;; the simplification at any given location if fitness-func, when
 ;; passed the change, returns true.
-(define (simplify altn #:fitness-func [func (const #t)])
+(define (simplify altn #:fitness-func [fit? (const #t)])
 
   ;; Creates a simplifying change at the given location in the given program
   (define (make-simplification-change prog location)
     (let* ([simplified-prog (location-do location prog simplify-expression)]
-	   [new-rule (rule 'simplify (location-get full-location prog)
-			   (location-get full-location simplified-prog) '())])
+	   [new-rule (rule 'simplify (location-get location prog)
+			   (location-get location simplified-prog) '())])
 	(change new-rule location (map (lambda (x) (cons x x)) (get-contained-vars prog)))))
 
   ;; Grab the simplification locations from the rule, and then the location of the
@@ -42,10 +42,10 @@
     (debug "Simplifying" (alt-program altn)
 	   "at" (map (curry append location) slocations)
 	   #:from 'simplify #:tag 'enter)
-    
-    (apply-changes alt (filter fitness-function
-			       (map (compose (curry make-simplification-change (alt-prog alt)) (curry append location))
-				    slocations))))
+
+    (apply-changes altn (filter fit?
+			       (map (compose (curry make-simplification-change (alt-program altn)) (curry append location))
+				    slocations)))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
