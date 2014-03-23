@@ -33,10 +33,10 @@
 (define (try-simplify altn #:conservative [conservative #t])
   (simplify altn #:fitness-func (if conservative
 				    (lambda (chng)
-				      (much-better? (alt-apply altn change)
+				      (much-better? (alt-apply altn chng)
 						    altn))
 				    (lambda (chng)
-				      (not (much-better altn (alt-apply altn change))))))
+				      (not (much-better? altn (alt-apply altn chng)))))))
 
 (define (improve prog max-iters)
   (debug-reset)
