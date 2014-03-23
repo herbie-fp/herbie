@@ -52,9 +52,23 @@
 	  [(eq? (car diff-rest) '>)
 	   (loop cur-index (+ more-count 1) (cdr diff-rest))])))
 
-(define (get-splitpoints difflist #:min-region-size min-size #:max-splitpoints max-splits)
-  difflist)
+(define (get-splitpoints difflist
 
+;; Gets the indices to split a region into. By default the only requirement of these regions is that they be the most accurate
+;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a
+;; maximum number of splitindices, or a function that takes a single argument, a list of regions, and determines whether these
+;; regions are general enough. 
+(define (get-splitindices difflist #:min-region-size [min-size 3] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
+  (let loop ([regions (swallow-regions (compose (curry > min-size) car)
+				       (diff-list-to-regions difflist))]
+	     [new-min-size (+ 1 min-size)])
+    (if (and (< (length (filter (compose (compose not (curry eq? '=)) cdr) regions)) (+ 1 max-splits)) (fit? regions))
+	(regions-to-splitindices (swallow-regions (compose (curry eq? '=) cdr) regions))
+	(loop (swallow-regions (curry > new-min-size) regions) (+ 1 new-min-size)))))
+
+(define (regions-to-splitindices regions)
+  (cdr (reverse (cdr (foldl (lambda (reg acc) (cons (+ (car reg) (car acc)) acc)) '(0) regions)))))
+	 
 (define (diff-list-to-regions difflist)
   (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
     (cond [(null? restlist)
@@ -65,40 +79,29 @@
 							(cons (cons cur-region-size cur-region) acc)
 							acc))])))
 
-(define (swallow-region pred regions)
+(define (swallow-regions pred regions)
+  (define (merge-into reg1 reg2)
+    (cons (+ (car reg1) (car reg2)) (if (eq? '= (cdr reg2))
+					(cdr reg1)
+					(cdr reg2))))
+  
+  (define (merge-adjacent-regions regions)
+    (reverse (foldl (lambda (reg acc)
+		      (cond [(null? acc) (cons reg acc)]
+			    [(eq? (cdr reg) (cdr (car acc)))
+			     (cons (merge-into reg (car acc)) (cdr acc))]
+			    [#t (cons reg acc)]))
+		    '() regions)))
   (let loop ([restlist regions] [acc '()])
-    (cond [(null? (cdr restlist)) (reverse (cons (car regions)) acc)]
+    (cond [(null? (cdr restlist)) (merge-adjacent-regions (let ([first-pass (reverse (cons (car restlist) acc))])
+							    (if (and (pred (car first-pass)) (not (null? (cdr first-pass))))
+								(cons (merge-into (car first-pass) (cadr first-pass)) (cddr first-pass))
+								first-pass)))]
 	  [(pred (cadr restlist))
 	   (cond [(null? (cddr restlist))
-		  (
-		  (if (eq? '= (car restlist))
-		      (if (eq? '= (caddr restlist))
-			  (loop (cons (cons (+ (caadr restlist) (caaddr restlist)) (cdadr restlist))
-				      restlist)
-				(cons (car restlist) acc))))]
-
-(define (split-indicies-from-difflist difflist min-region-size)
-  (let loop ([cur-index 0] [regime '=] [opp-count 0]
-	     [diff-rest difflist] [acc '()] [cur-region-size 0])
-    (cond [(null? diff-rest)
-	   (if (= cur-index (- (length difflist) 1)) acc (cons cur-index acc))]
-	  [(eq? (car diff-rest) '=)
-	   (loop cur-index regime opp-count (cdr diff-rest) acc (+ 1 cur-region-size))]
-	  [(and (eq? (car diff-rest) regime) (> 1 opp-count) (<= min-region-size cur-region-size))
-	   (loop (- (length difflist) (length diff-rest)) regime opp-count (cdr diff-rest) acc (+ 1 cur-region-size))]
-	  [(eq? (car diff-rest) regime)
-	   (loop cur-index regime (- opp-count 1) (cdr diff-rest) acc (+ 1 cur-region-size))]
-	  [(not (eq? (car diff-rest) regime))
-	   (if (< (- min-region-size 2) opp-count)
-	       (loop (- (length difflist) (length diff-rest))
-		     (if (eq? regime '<) '> '<)
-		     0
-		     (cdr diff-rest)
-		     (if (= cur-index 0) acc (cons cur-index acc))
-		     opp-count)
-	       (loop cur-index
-		     regime
-		     (+ 1 opp-count)
-		     (cdr diff-rest)
-		     acc
-		     cur-region-size))])))
+		  (loop (list (merge-into (cadr restlist) (car restlist))) acc)]
+		 [(eq? '= (cdar restlist))
+		  (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist)) acc)]
+		 [#t (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist))
+			   acc)])]
+	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
