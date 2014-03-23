@@ -18,9 +18,19 @@
 ;; Simplify is the only thing we need to export
 (provide simplify simplify-expression)
 
-;; Simplifies an alternative if simplification would result in a green change,
-;; without undoing the most recent change.
-(define (simplify altn)
+;; Simplifies an alternative at the location specified by the most
+;; recent change's rule. If passed a fitness-function, only applies
+;; the simplification at any given location if fitness-func, when
+;; passed the change, returns true.
+(define (simplify altn #:fitness-func [func (const #t)])
+
+  ;; Creates a simplifying change at the given location in the given program
+  (define (make-simplification-change prog location)
+    (let* ([simplified-prog (location-do location prog simplify-expression)]
+	   [new-rule (rule 'simplify (location-get full-location prog)
+			   (location-get full-location simplified-prog) '())])
+	(change new-rule location (map (lambda (x) (cons x x)) (get-contained-vars prog)))))
+
   ;; Grab the simplification locations from the rule, and then the location of the
   ;; change, since the slocations are relative to the change.
   (let ([slocations (if (alt-prev altn)
@@ -29,40 +39,13 @@
 	[location (if (alt-prev altn)
 		      (change-location (alt-change altn))
 		      '(cdr cdr car))])
-
     (debug "Simplifying" (alt-program altn)
 	   "at" (map (curry append location) slocations)
 	   #:from 'simplify #:tag 'enter)
-
-    ;; Try to create a new, simplified alt, by simplifying at all the slocations
-    (define (simplify-at-locations slocations alt)
-      (if (null? slocations)
-	  ;; If we don't have any slocations left, just return the alt
-	  alt
-	  (let* ([full-location (append location (car slocations))] ; The full location for the simplification
-		 [partly-simplified-prog (location-do full-location
-						      (alt-program alt)
-						      simplify-expression)] ; Try to simplify the program at the slocation
-		 [new-rule (rule 'simplify
-				 (location-get full-location
-					       (alt-program alt))
-				 (location-get full-location
-					       partly-simplified-prog)
-				 '())] ; Create a new rule for the simplification
-		 [new-change (let ([result (change new-rule full-location (map (lambda (x) (cons x x))
-									       (get-contained-vars (alt-program altn))))])
-			       ;;(debug #:from 'simplification "Created change " result " from " (rule-input new-rule) " to " (rule-output new-rule))
-			       result)] ; Create a change from the old alt
-					; to a new-simplified alt
-		 [new-alt (let ([result (alt-apply alt new-change)])
-			    ;;(debug #:from 'simplification "Simplified to " result)
-			    result)]) ; Create a new alt that's simplified.
-	    (debug "Simplified to" new-alt #:from 'simplify #:tag 'info)
-            ; If our new alt is green-tipped, recurse on that for the rest of the slocations
-            (simplify-at-locations (cdr slocations) new-alt))))
-
-    ; Call the recursive function with our given altn and it's simplification locations
-    (simplify-at-locations slocations altn)))
+    
+    (apply-changes alt (filter fitness-function
+			       (map (compose (curry make-simplification-change (alt-prog alt)) (curry append location))
+				    slocations))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)

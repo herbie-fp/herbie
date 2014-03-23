@@ -31,14 +31,12 @@
 		    '())))))))
 
 (define (try-simplify altn #:conservative [conservative #t])
-  (let ([simpl-altn (simplify altn)])
-    (if conservative
-        (if (much-better? simpl-altn altn)
-            simpl-altn
-            altn)
-        (if (much-better? altn simpl-altn)
-            altn
-            simpl-altn))))
+  (simplify altn #:fitness-func (if conservative
+				    (lambda (chng)
+				      (much-better? (alt-apply altn change)
+						    altn))
+				    (lambda (chng)
+				      (not (much-better altn (alt-apply altn change))))))
 
 (define (improve prog max-iters)
   (debug-reset)
