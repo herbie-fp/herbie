@@ -52,7 +52,42 @@
 	  [(eq? (car diff-rest) '>)
 	   (loop cur-index (+ more-count 1) (cdr diff-rest))])))
 
-(define (get-splitpoints difflist
+(define (get-splitpoints alt1 alt2 #:max-splitpoints [max-splits +inf.0])
+  (let* ([difflist (errors-compare (alt-errors alt1) (alt-errors alt2))]
+	 [sindices (get-splitindices difflist)])
+    (map (lambda (i)
+	   (cond [(= 0 i) +nan.0]
+		 [(eq? '= (car (list-ref difflist i)))
+		  (list-ref *points* i)]
+		 [(eq? '= (car (list-ref difflist (- i 1))))
+		  (list-ref *points* (- i 1))]
+		 [#t (binary-search-floats (compose (curry eq? (car (list-ref difflist i))) ;;Is it the same sign as the first point?
+						    (lambda (p) ;; Get the sign of the given point
+						      (let ([points (list p)])
+							(errors-compare (let ([prog (alt-program alt1)])
+									  (errors prog points (make-exacts prog points)))
+									(let ([prog (alt-program alt2)])
+									  (errors prog points (make-exacts prog points)))))))
+					   (list-ref *points* i)
+					   (list-ref *points* (- i 1)))]))
+	 sindices)))
+					   
+									      
+		 
+;; Given two points, the first of which is pred, and the second is not,
+;; finds the point where pred becomes false, by calling split to binary
+;; search the space until (split a b) returns a or b.
+(define (binary-search pred split p1 p2)
+  (if (eq? p1 p2) p1
+      (let ([midpoint (split p1 p2)])
+	(if (pred midpoint)
+	    (binary-search pred split midpoint p2)
+	    (binary-search pred split p1 midpoint)))))
+
+;; Given two floating point numbers, the first of which is pred,
+;; and the second is not, find where pred becomes false.
+(define (binary-search-floats pred p1 p2)
+  (binary-search pred (lambda (f1 f2) (/ (+ f1 f2) 2)) p1 p2))
 
 ;; Gets the indices to split a region into. By default the only requirement of these regions is that they be the most accurate
 ;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a
@@ -67,7 +102,10 @@
 	(loop (swallow-regions (curry > new-min-size) regions) (+ 1 new-min-size)))))
 
 (define (regions-to-splitindices regions)
-  (cdr (reverse (cdr (foldl (lambda (reg acc) (cons (+ (car reg) (car acc)) acc)) '(0) regions)))))
+  (let ([with-zero (reverse (cdr (foldl (lambda (reg acc) (cons (+ (car reg) (car acc)) acc)) '(0) regions)))])
+    (if (eq? '< (caar regions))
+	with-zero
+	(cdr with-zero)))) ;;without zero
 	 
 (define (diff-list-to-regions difflist)
   (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
