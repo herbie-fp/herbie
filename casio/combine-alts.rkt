@@ -7,7 +7,7 @@
 
 (provide (all-defined-out))
 
-(define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f (lambda (x _) x)])
+(define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f identity])
   (let* ([vars (program-variables (alt-program alt0))]
 	 [split-var (list-ref vars var-index)]
 	 [condition (get-condition (sort (get-splitpoints alt0 alt1 var-index) <)
@@ -17,8 +17,8 @@
 					       (*points*))])
     `(lambda ,vars
        (if ,condition
-	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0)))
-	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1))))))))))
+	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
+	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
 (define (get-condition splitpoints var)
   (if (nan? (car splitpoints))
