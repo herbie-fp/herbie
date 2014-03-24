@@ -87,7 +87,7 @@
 (casio-bench (re im) ; real part
   "/lib/function/arithmetic/sqrt.js math.sqrt for complex arguments, real part"
   (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re)))))
-(casio (re im) ; imag part
+(casio-bench (re im) ; imag part
   "/lib/function/arithmetic/sqrt.js math.sqrt for complex arguments, imaginary part"
   (if (> im 0)
       (*  0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re))))
