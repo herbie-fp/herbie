@@ -174,7 +174,7 @@
   (let ([new-factor (foldr (lambda (t acc) (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
     (cond [(= 0 new-factor) #f] ; If our terms canceled, return false.
-	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
+	  [(real? (car terms)) new-factor] ; If the terms are constants, just return a list of that factor
 	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
 	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
 				   (cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
