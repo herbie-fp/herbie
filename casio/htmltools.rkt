@@ -27,13 +27,31 @@
     [(_ label . rest)
      #'(tag label #:args '() . rest)]))
 
+(define-syntax (unitag stx)
+  (syntax-case stx ()
+    [(_ label #:args args)
+     #'(begin (text "</" label)
+	      (for ([arg args])
+		(text " " (car arg) "=\"" (cdr arg) "\""))
+	      (text ">"))]
+    [(_ label)
+     #'(begin (text "</" label ">"))]))
+
 (define-syntax (make-tag stx)
   (syntax-case stx ()
     [(_ tagname)
      #'(define-syntax (tagname stx)
 	 (syntax-case stx ()
 	   [(_ #:args args . rest) #'(tag 'tagname #:args args . rest)]
-	   [(_ . rest) #'(tagname #:args '() . rest)]))]))
+	   [(_ . rest) #'(tag 'tagname . rest)]))]))
+
+(define-syntax (make-unitag stx)
+  (syntax-case stx ()
+    [(_ tagname)
+     #'(define-syntax (tagname stx)
+	 (syntax-case stx ()
+	   [(_ #:args args) #'(unitag 'tagname #:args args)]
+	   [(_) #'(unitag 'tagname)]))]))
 
 (define (make-table datum)
   (table #:args '((border . 1) (style . 'width:300px))
@@ -48,6 +66,8 @@
 (make-tag tr)
 (make-tag table)
 (make-tag b)
+(make-unitag br)
+
 (define (heading)
   (text "<!DOCTYPE html>") (newline))
 
