@@ -48,6 +48,8 @@
 (make-tag tr)
 (make-tag table)
 (make-tag b)
+(define (heading)
+  (text "<!DOCTYPE html>") (newline))
 
 (define-syntax (qexpand stx)
   (syntax-case stx ()
