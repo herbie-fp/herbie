@@ -10,15 +10,21 @@
 (require casio/alternative)
 (require racket/date)
 
+(define (table-row test)
+  (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
+    (let ([start-score (errors-score (alt-errors start))]
+	  [end-score (errors-score (alt-errors end))]
+	  [diff-score (errors-diff-score (alt-errors start) (alt-errors end))])
+      (list (test-name test) start-score end-score diff-score))))
+
+(define univariate-tests
+  (filter (λ (test) (= 1 (length (test-vars test))))
+	  (load-all)))
+
 (define (get-table-data)
-  (cons '("Test Name" "Errors Before Improvement" "Errors After Imrovement" "Total Improvement")
-	(map (lambda (test) (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
-			      (let ([start-error-score (errors-score (alt-errors start))]
-				    [end-error-score (errors-score (alt-errors end))]
-				    [errors-diff=score (errors-diff-score (alt-errors start) (alt-errors end))])
-				(list (test-name test) start-error-score end-error-score errors-diff-score))))
-	     (filter (lambda (test) (= 1 (length (test-vars test))))
-		     (load-all)))))
+  (cons '("Test Name" "Errors Before Improvement" "Errors After Improvement" "Total Improvement")
+	(progress-map table-row univariate-tests
+		      #:map-name 'execute-tests)))
 
 (define (make-report)
   (let ([cur-date (current-date)]
