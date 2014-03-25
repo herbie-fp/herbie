@@ -12,16 +12,16 @@
 
 (define (table-row test)
   (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
-    (let ([start-score (errors-score (alt-errors start))]
-	  [end-score (errors-score (alt-errors end))]
-	  [diff-score (errors-diff-score (alt-errors start) (alt-errors end))])
-      (list (test-name test) start-score end-score diff-score))))
+    (let ([start-errors (alt-errors start)]
+	  [end-errors (alt-errors end)])
+      (let ([diff-score (errors-diff-score start-errors end-errors)])
+	(list (test-name test) diff-score)))))
 
 (define univariate-tests
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all)))
 
-(define table-labels '("Test Name" "Errors Before Improvement" "Errors After Improvement" "Total Error Improvement"))
+(define table-labels '("Test Name" "Error Improvement"))
 
 (define (get-table-data)
   (cons table-labels
