@@ -6,7 +6,8 @@
 (require casio/programs)
 
 (provide *points* *exacts* prepare-points make-exacts
-         errors errors-compare errors-difference errors-diff-score)
+         errors errors-compare errors-difference errors-diff-score
+	 errors-score)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -120,7 +121,10 @@
 
 (define (errors-diff-score e1 e2)
   (let ([d (errors-difference e1 e2)])
-    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
-		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
-      (+ (apply + reals)
-	 (* 64 (- (length negative-infs) (length positive-infs)))))))
+    (errors-score d)))
+
+(define (errors-score e)
+  (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
+		[(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
+    (+ (apply + reals)
+       (* 64 (- (length negative-infs) (length positive-infs))))))
