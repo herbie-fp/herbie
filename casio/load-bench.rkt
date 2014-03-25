@@ -9,6 +9,8 @@
 
 (define *test-cache* (make-hash))
 
+(provide make-prog load-file load-bench load-all)
+
 (define (make-prog test)
   `(λ ,(test-vars test) ,(test-input test)))
 
