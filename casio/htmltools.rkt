@@ -1,7 +1,5 @@
 #lang racket
 
-(require casio/common)
-
 (provide (all-defined-out))
 
 ;; Simple inline printing
