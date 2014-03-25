@@ -25,7 +25,7 @@
 	      ((lambda () . rest))
 	      (text "</" label ">"))]
     [(_ label . rest)
-     #'(tag label '() . rest)]))
+     #'(tag label #:args '() . rest)]))
 
 (define-syntax (make-tag stx)
   (syntax-case stx ()
