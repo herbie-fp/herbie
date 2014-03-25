@@ -298,7 +298,7 @@
       ;; because it would be a lot harder to write these rules for arbitrary length multiplication. We do this after flattening
       ;; addition, because it ensures we cancel all terms without the need to recurse. Finally, we do this after turning subtractions
       ;; into additions so that subtractions also get distributed.
-      [`(* (+ . ,as) (+ . ,bs)) (addition (map (lambda (b) (map (lambda (a) (multiplication (list a b))) as)) bs))]
+      [`(* (+ . ,as) (+ . ,bs)) (addition (apply append (map (lambda (b) (map (lambda (a) (multiplication (list a b))) as)) bs)))]
       [`(* ,a (+ . ,bs)) (addition (map (lambda (b) (multiplication (list a b))) bs))]
       [`(* (+ . ,as) ,b) (addition (map (lambda (a) (multiplication (list a b))) as))]
       [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; Flatten out multiplication
