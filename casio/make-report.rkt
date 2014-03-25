@@ -21,10 +21,22 @@
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all)))
 
+(define table-labels '("Test Name" "Errors Before Improvement" "Errors After Improvement" "Total Error Improvement"))
+
 (define (get-table-data)
-  (cons '("Test Name" "Errors Before Improvement" "Errors After Improvement" "Total Improvement")
+  (cons table-labels
 	(progress-map table-row univariate-tests
 		      #:map-name 'execute-tests)))
+
+(define (info-stamp cur-date cur-commit cur-branch)
+  (b (text (date-year cur-date) " "
+	   (date-month cur-date) " "
+	   (date-day cur-date) ", "
+	   (date-hour cur-date) ":"
+	   (date-minute cur-date) ":"
+	   (date-second cur-date))
+     (br)(newline)
+     (text "Commit: " cur-commit " on " cur-branch)(br)))
 
 (define (make-report)
   (let ([cur-date (current-date)]
@@ -32,30 +44,28 @@
 	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))]
 	[results (get-table-data)])
     (write-file "report.html"
-		(text "<!DOCTYPE html>") (newline)
+		(heading)
 		(html (newline)
 		      (body (newline)
-			    (b (text (date-year cur-date) " "
-				     (date-month cur-date) " "
-				     (date-day cur-date) " "
-				     (date-hour cur-date) ":"
-				     (date-minute cur-date) ":"
-				     (date-second cur-date)))
+			    (info-stamp cur-date commit branch)
 			    (newline)
-			    (text " Commit: " commit " on " branch))
-		      (newline)
-		      (make-table results)
-		      (newline))
-		(newline))))
+			    (make-table results)
+			    (newline))
+		      (newline)))))
 
 (define (make-dummy-report)
-  (write-file "test.html"
-	      (text "<!DOCTYPE html>") (newline)
-	      (html (newline)
-		    (body (newline)
-			  (make-table '((1 2 3) (4 5 6) (7 8 9)))
-			  (newline))
-		    (newline))))
+  (let ([cur-date (current-date)]
+	[commit (with-output-to-string (lambda () (system "git rev-parse HEAD")))]
+	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))])
+    (write-file "test.html"
+		(heading)
+		(html (newline)
+		      (body (newline)
+			    (info-stamp cur-date commit branch)
+			    (newline)
+			    (make-table (cons table-labels '((1 2 3) (4 5 6) (7 8 9))))
+			    (newline))
+		      (newline)))))
 
 ;;(make-report)
 
