@@ -16,22 +16,30 @@
     [(_ filename . rest)
      #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
 
+;; args should be in the form of an alist
 (define-syntax (tag stx)
   (syntax-case stx ()
-    [(_ label . rest)
-     #'(begin (text "<" label ">")
+    [(_ label #:args args . rest)
+     #'(begin (text "<" label)
+	      (for ([arg args])
+		(text " " (car arg) "=\"" (cdr arg)"\""))
+	      (text ">")
 	      ((lambda () . rest))
-	      (text "</" label ">"))]))
+	      (text "</" label ">"))]
+    [(_ label . rest)
+     #'(tag label '() . rest)]))
 
 (define-syntax (make-tag stx)
   (syntax-case stx ()
     [(_ tagname)
      #'(define-syntax (tagname stx)
 	 (syntax-case stx ()
-	   [(_ . rest) #'(tag 'tagname . rest)]))]))
+	   [(_ #:args args . rest) #'(tag 'tagname #:args args . rest)]
+	   [(_ . rest) #'(tagname #:args '() . rest)]))]))
 
 (define (make-table datum)
-  (table (for/list ([row datum])
+  (table #:args '((border . 1) (style . 'width:300px))
+	 (for/list ([row datum])
 	   (tr (for/list ([item row])
 		 (td (text item)))))))
 
@@ -41,7 +49,7 @@
 (make-tag td)
 (make-tag tr)
 (make-tag table)
-(make-tag bold)
+(make-tag b)
 
 (define-syntax (qexpand stx)
   (syntax-case stx ()
