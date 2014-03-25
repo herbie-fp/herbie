@@ -73,7 +73,7 @@
   (let ([total (length l)])
     (let loop ([rest l] [acc '()] [done 0])
       (println name ": "
-	       (* 100.0 (/ done total))
+	       (quotient (* 100 done) total)
 	       "%")
       (if (null? rest)
 	  (reverse acc)
