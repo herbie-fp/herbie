@@ -57,4 +57,14 @@
 			  (newline))
 		    (newline))))
 
-(make-report)
+;;(make-report)
+
+(define (progress-map f l #:map-name [name 'progress-map])
+  (let ([total (length l)])
+    (let loop ([rest l] [acc '()] [done 0])
+      (println name ": "
+	       (* 100.0 (/ done total))
+	       "%")
+      (if (null? rest)
+	  (reverse acc)
+	  (loop (cdr rest) (cons (f (car rest)) acc) (1+ done))))))
