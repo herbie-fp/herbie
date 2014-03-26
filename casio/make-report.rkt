@@ -16,7 +16,7 @@
       (let ([start-errors (alt-errors start)]
 	    [end-errors (alt-errors end)])
 	(let ([diff-score (errors-diff-score start-errors end-errors)])
-	  (list (test-name test) (/ diff-score (length start-errors)) #f))))))
+	  (list (test-name test) (/ 100 (truncate (* 100  (/ diff-score (length start-errors)) #f)))))))))
 
 (define univariate-tests
   (filter (λ (test) (= 1 (length (test-vars test))))
