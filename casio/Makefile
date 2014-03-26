@@ -6,6 +6,7 @@ report: make-report.rkt
 	git stash
 	BRANCH=`git rev-parse --abbrev-ref HEAD`
 	git checkout gh-pages
+	git mv *-report.html reports/
 	git stash apply
 	git stage report.html
 	git commit -m "Added New Report"
