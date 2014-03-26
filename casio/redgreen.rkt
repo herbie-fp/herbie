@@ -30,19 +30,19 @@
   ;; Given that "salmon" is blocked from translating further by
   ;; the change in front of it, try to move that change forward,
   ;; and then try to move the salmon forward again.
-  (define (move-dam salmon is-head?)
+  (define (move-dam salmon is-head? dams-hit)
     (let* ([dam (alt-prev salmon)]
 	   [new-next (swim-upstream dam #f)])
-      (if (eq? new-next dam)
+      (if (or (eq? new-next dam) (member new-next dams-hit))
 	  salmon
-	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head?))))
+	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head? (cons dam dams-hit)))))
   
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
   ;; change has been moved down as far as possible. is-head? is a value
   ;; indicating whether we should throw away the changes that have been
   ;; moved past the current change.
-  (define (swim-upstream salmon is-head?)
+  (define (swim-upstream salmon is-head? dams-hit)
     (debug salmon " is swimming." #:from 'swim-upstream #:tag 'info)
     (if (done salmon) salmon
 	(let* ([grandparent (alt-prev (alt-prev salmon))]
