@@ -11,17 +11,18 @@
 (require racket/date)
 
 (define (table-row test)
-  (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
-    (let ([start-errors (alt-errors start)]
-	  [end-errors (alt-errors end)])
-      (let ([diff-score (errors-diff-score start-errors end-errors)])
-	(list (test-name test) diff-score)))))
+  (with-handlers ([(const #t) (const `(,(test-name test) "N/A" #t))])
+    (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
+      (let ([start-errors (alt-errors start)]
+	    [end-errors (alt-errors end)])
+	(let ([diff-score (errors-diff-score start-errors end-errors)])
+	  (list (test-name test) (/ diff-score (length start-errors)) #f))))))
 
 (define univariate-tests
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all)))
 
-(define table-labels '("Test Name" "Error Improvement"))
+(define table-labels '("Test Name" "Error Improvement" "Crashed?"))
 
 (define (get-table-data)
   (cons table-labels
@@ -67,14 +68,15 @@
 			    (newline))
 		      (newline)))))
 
-;;(make-report)
-
 (define (progress-map f l #:map-name [name 'progress-map])
   (let ([total (length l)])
     (let loop ([rest l] [acc '()] [done 0])
-      (println name ": "
-	       (quotient (* 100 done) total)
-	       "%")
       (if (null? rest)
 	  (reverse acc)
-	  (loop (cdr rest) (cons (f (car rest)) acc) (1+ done))))))
+	  (begin (println name ": "
+			  (quotient (* 100 done) total)
+			  "%")
+		 (loop (cdr rest) (cons (f (car rest)) acc) (1+ done)))))))
+
+
+(make-report)
