@@ -97,3 +97,12 @@
 
 ;; Flips the argument order of a two argument function.
 (define (flip-args f) (lambda (x y) (f y x)))
+
+;; A more informative andmap. If any of your results are false, this returns
+;; false. Otherwise, it acts as a normal map.
+(define (info-andmap f l)
+  (let loop ([rest l] [acc '()])
+    (if (null? rest)
+	(reverse acc)
+	(let ([result (f l)])
+	  (and result (loop (cdr rest) (cons result acc)))))))
