@@ -88,3 +88,6 @@
 ;; Pipes an initial values through a list of funcs.
 (define (pipe initial funcs)
   ((apply compose (reverse funcs)) initial))
+
+;; Flips the argument order of a two argument function.
+(define (flip-args f) (lambda (x y) (f y x)))
