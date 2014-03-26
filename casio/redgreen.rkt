@@ -32,8 +32,8 @@
   ;; and then try to move the salmon forward again.
   (define (move-dam salmon is-head?)
     (let* ([dam (alt-prev salmon)]
-	   [new-next (swim-upstream dam #f)])
-      (if (eq? new-next dam)
+	   [new-next (swim-upstream dam #f '())])
+      (if (or (eq? new-next dam) (member new-next dams-hit))
 	  salmon
 	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head?))))
   
@@ -53,17 +53,17 @@
 	  (if (and upstream-changes (list? upstream-changes))
 	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
 		(if is-head?
-		    (swim-upstream moved-salmon #t)
+		    (swim-upstream moved-salmon #t dams-hit)
 		    (let ([downstream-changes (translate #f
 							 (alt-change (alt-prev salmon))
 							 (alt-change salmon)
 							 moved-salmon)])
 		      (if downstream-changes
-			  (let ([new-salmon (swim-upstream moved-salmon #f)])
+			  (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
 			    (apply-changes new-salmon downstream-changes))
-			  (move-dam salmon #f)))))
-	      (move-dam salmon is-head?)))))
-  (swim-upstream altn #t))
+			  (move-dam salmon #f dams-hit)))))
+	      (move-dam salmon is-head? dams-hit)))))
+  (swim-upstream altn #t '()))
 
 ;; Simple location match utility function. If 'a' is a continutation of 'b',
 ;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
