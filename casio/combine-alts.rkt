@@ -77,7 +77,6 @@
 	      [(pred midpoint) (binary-search split pred midpoint p2)]
 	      [#t (binary-search split pred p1 midpoint)]))))
 
-(define (flip-args f) (lambda (x y) (f y x)))
 (define epsilon .005)
 (define (close-enough a b) (> epsilon (abs (- a b))))
 
