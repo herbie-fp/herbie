@@ -54,10 +54,11 @@
 	   [(_) #'(unitag 'tagname)]))]))
 
 (define (make-table datum)
-  (table #:args '((border . 1) (style . 'width:300px))
+  (table #:args '((border . 1) (style . 'width:300px)) (newline)
 	 (for/list ([row datum])
 	   (tr (for/list ([item row])
-		 (td (text item)))))))
+		 (td (text item)))
+	       (newline)))))
 
 (make-tag head)
 (make-tag body)
