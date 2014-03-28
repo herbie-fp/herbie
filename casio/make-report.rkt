@@ -43,8 +43,8 @@
   (string-append (number->string (date-year cur-date)) "-"
 		 (number->string (date-month cur-date)) "-"
 		 (number->string (date-day cur-date)) "--"
-		 (number->string (date-hour cur-date)) ":"
-		 (number->string (date-minute cur-date)) ":"
+		 (number->string (date-hour cur-date)) "-"
+		 (number->string (date-minute cur-date)) "-"
 		 (number->string (date-second cur-date)) "C"
 		 cur-commit "B" cur-branch))
 
