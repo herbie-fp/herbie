@@ -48,10 +48,13 @@
 		 (number->string (date-second cur-date)) "C"
 		 cur-commit "B" cur-branch))
 
+(define (strip-end string num-chars)
+  (substring string 0 (- (+ 1 num-chars) (length string))))
+
 (define (make-report)
   (let ([cur-date (current-date)]
-	[commit (with-output-to-string (lambda () (system "git rev-parse HEAD")))]
-	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))]
+	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
+	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))))]
 	[results (get-table-data)])
     (write-file (string-append (filename-stamp cur-date commit branch) "-report.html")
 		(heading)
