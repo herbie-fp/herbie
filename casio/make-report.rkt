@@ -20,7 +20,7 @@
 
 (define univariate-tests
   (filter (λ (test) (= 1 (length (test-vars test))))
-	  (load-all)))
+	  (load-all #:bench-path-string "../bench/")))
 
 (define table-labels '("Test Name" "Error Improvement" "Crashed?"))
 
