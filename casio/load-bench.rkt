@@ -62,8 +62,8 @@
     (for ([obj (directory-list p #:build? #t)])
       (walk-tree obj callback))]))
 
-(define (load-all)
-  (define bench-dir (string->path "../bench/"))
+(define (load-all #:bench-path-string [path-string "../bench/"])
+  (define bench-dir (string->path path-string))
   (apply append
          (reap [sow]
                (walk-tree bench-dir (λ (p)
