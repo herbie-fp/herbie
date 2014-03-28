@@ -16,7 +16,7 @@
       (let ([start-errors (alt-errors start)]
 	    [end-errors (alt-errors end)])
 	(let ([diff-score (errors-diff-score start-errors end-errors)])
-	  (list (test-name test) (/ 100 (truncate (* 100  (/ diff-score (length start-errors)) #f)))))))))
+	  (list (test-name test) (/ 100 (truncate (* 100  (/ diff-score (length start-errors))))) #f))))))
 
 (define univariate-tests
   (filter (λ (test) (= 1 (length (test-vars test))))
@@ -49,12 +49,12 @@
 		 cur-commit "B" cur-branch))
 
 (define (strip-end string num-chars)
-  (substring string 0 (- (+ 1 num-chars) (length string))))
+  (substring string 0 (- (string-length string) (+ 1 num-chars))))
 
 (define (make-report)
   (let ([cur-date (current-date)]
 	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
-	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))))]
+	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
 	[results (get-table-data)])
     (write-file (string-append (filename-stamp cur-date commit branch) "-report.html")
 		(heading)
