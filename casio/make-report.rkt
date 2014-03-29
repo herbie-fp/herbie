@@ -89,23 +89,26 @@
 			    (newline))
 		      (newline)))))
 
+(define (string-when test value)
+  (if test
+      value
+      ""))
+
 (define (progress-map f l #:map-name [name 'progress-map] #:item-name-func [item-name #f] #:show-time [show-time? #f])
   (let ([total (length l)])
-    (let loop ([rest l] [acc '()] [done 0] [start-time (current-inexact-milliseconds)])
+    (let loop ([rest l] [acc '()] [done 1])
       (if (null? rest)
 	  (reverse acc)
-	  (let ([cur-time (current-inexact-milliseconds)])
-	    (begin (println name
-			    (if item-name
-				(string-append "@" (item-name (car rest)))
-				"")
-			    ": "
-			    (quotient (* 100 done) total)
-			    "%"
-			    (if show-time?
-				(string-append "[" (/ 1000 (- cur-time start-time)) " seconds]")
-				""))
-		 (loop (cdr rest) (cons (f (car rest)) acc) (1+ done) cur-time)))))))
+	  (let-values ([(results cpu-mil real-mil garbage-mill) (time-apply f (list (car rest)))])
+	    (println name
+		     ": "
+		     (quotient (* 100 done) total)
+		     "%\t"
+		     (string-when item-name (item-name (car rest)))
+		     (string-when show-time? "\t\t[")
+		     (string-when show-time? (~a real-mil #:width 8))
+		     (string-when show-time? " milliseconds]"))
+	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
 
 
 (make-report
