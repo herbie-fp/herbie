@@ -22,7 +22,6 @@
 		num-bads
 		'No))))))
 
-(define univariate-tests
 (define (get-improvement start-errors end-errors)
   (let* ([diff (errors-difference start-errors end-errors)]
 	[anottated-diff (map list start-errors end-errors diff)])
@@ -32,12 +31,13 @@
 	      (length good)
 	      (length bad)))))
 
+(define (univariate-tests bench-dir)
   (filter (λ (test) (= 1 (length (test-vars test))))
-	  (load-all #:bench-path-string "../bench/")))
+	  (load-all #:bench-path-string bench-dir)))
 
 (define table-labels '("Test Name" "Error Improvement" "Points with Immeasurable Improvements" "Points with Immeasurable Regression" "Crashed?"))
 
-(define (get-table-data)
+(define (get-table-data bench-dir)
   (cons table-labels
 	(progress-map table-row univariate-tests
 		      #:map-name 'execute-tests)))
@@ -64,12 +64,12 @@
 (define (strip-end string num-chars)
   (substring string 0 (- (string-length string) (+ 1 num-chars))))
 
-(define (make-report)
+(define (make-report bench-dir)
   (let ([cur-date (current-date)]
 	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
 	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
-	[results (get-table-data)])
     (write-file (string-append (filename-stamp cur-date commit branch) "-report.html")
+	[results (get-table-data bench-dir)])
 		(heading)
 		(html (newline)
 		      (body (newline)
@@ -104,4 +104,8 @@
 		 (loop (cdr rest) (cons (f (car rest)) acc) (1+ done)))))))
 
 
-(make-report)
+(make-report
+  (command-line
+   #:program "make-report"
+   #:args (bench-dir)
+   bench-dir))
