@@ -2,17 +2,7 @@
 
 (provide (all-defined-out))
 
-;; Simple inline printing
-(define (text . args)
-  (for ([val args])
-    (if (string? val)
-	(display val)
-	(write val))))
-
-(define-syntax (write-file stx)
-  (syntax-case stx ()
-    [(_ filename . rest)
-     #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
+(require casio/tools-common)
 
 ;; args should be in the form of an alist
 (define-syntax (tag stx)
@@ -71,8 +61,3 @@
 
 (define (heading)
   (text "<!DOCTYPE html>") (newline))
-
-(define-syntax (qexpand stx)
-  (syntax-case stx ()
-    [(_ expr)
-     #'(syntax->datum (expand-once 'expr))]))
