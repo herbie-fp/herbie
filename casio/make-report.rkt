@@ -11,18 +11,31 @@
 (require racket/date)
 
 (define (table-row test)
-  (with-handlers ([(const #t) (const `(,(test-name test) "N/A" #t))])
+  (with-handlers ([(const #t) (const `(,(test-name test) "N/A" "N/A" "N/A" 'Yes))])
     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
       (let ([start-errors (alt-errors start)]
 	    [end-errors (alt-errors end)])
-	(let ([diff-score (errors-diff-score start-errors end-errors)])
-	  (list (test-name test) (/ 100 (truncate (* 100  (/ diff-score (length start-errors))))) #f))))))
+	(let-values ([(average num-goods num-bads) (get-improvement start-errors end-errors)])
+	  (list (test-name test)
+		(~a average #:width 7 #:align 'right #:pad-string "0")
+		num-goods
+		num-bads
+		'No))))))
 
 (define univariate-tests
+(define (get-improvement start-errors end-errors)
+  (let* ([diff (errors-difference start-errors end-errors)]
+	[anottated-diff (map list start-errors end-errors diff)])
+    (let*-values ([(reals infs) (partition (compose reasonable-error? caddr) diff)]
+		 [(good bad) (partition (compose positive? caddr) infs)])
+      (values (/ (apply + (map caddr reals)) (length diff))
+	      (length good)
+	      (length bad)))))
+
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all #:bench-path-string "../bench/")))
 
-(define table-labels '("Test Name" "Error Improvement" "Crashed?"))
+(define table-labels '("Test Name" "Error Improvement" "Points with Immeasurable Improvements" "Points with Immeasurable Regression" "Crashed?"))
 
 (define (get-table-data)
   (cons table-labels
