@@ -54,15 +54,6 @@
      (br)(newline)
      (text "Commit: " cur-commit " on " cur-branch)(br)))
 
-(define (filename-stamp cur-date cur-commit cur-branch)
-  (string-append (number->string (date-year cur-date)) "-"
-		 (number->string (date-month cur-date)) "-"
-		 (number->string (date-day cur-date)) "--"
-		 (number->string (date-hour cur-date)) "-"
-		 (number->string (date-minute cur-date)) "-"
-		 (number->string (date-second cur-date)) "C"
-		 cur-commit "B" cur-branch))
-
 (define (strip-end string num-chars)
   (substring string 0 (- (string-length string) (+ 1 num-chars))))
 
@@ -70,8 +61,8 @@
   (let ([cur-date (current-date)]
 	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
 	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
-    (write-file (string-append (filename-stamp cur-date commit branch) "-report.html")
 	[results (get-table-data bench-dir)])
+    (write-file "report.md"
 		(heading)
 		(html (newline)
 		      (body (newline)
