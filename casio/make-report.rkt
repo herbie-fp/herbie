@@ -11,31 +11,34 @@
 (require racket/date)
 
 (define (table-row test)
-  (with-handlers ([(const #t) (const `(,(test-name test) "N/A" "N/A" "N/A" 'Yes))])
-    (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
-      (let ([start-errors (alt-errors start)]
-	    [end-errors (alt-errors end)])
-	(let-values ([(average num-goods num-bads) (get-improvement start-errors end-errors)])
-	  (list (test-name test)
-		(~a average #:width 7 #:align 'right #:pad-string "0")
-		num-goods
-		num-bads
-		'No))))))
+  (let-values ([(improvement-cols cpu-mil real-mil garbage-mil)
+		(time-apply (lambda (test) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" Yes))])
+					     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
+					       (append (get-improvement-columns start end) (list 'No)))))
+			    (list test))])
+    (append (list (test-name test)) (car improvement-cols) (list real-mil))))
 
-(define (get-improvement start-errors end-errors)
-  (let* ([diff (errors-difference start-errors end-errors)]
-	[anottated-diff (map list start-errors end-errors diff)])
-    (let*-values ([(reals infs) (partition (compose reasonable-error? caddr) diff)]
-		 [(good bad) (partition (compose positive? caddr) infs)])
-      (values (/ (apply + (map caddr reals)) (length diff))
-	      (length good)
-	      (length bad)))))
+(define (get-improvement-columns start end)
+  (let* ([start-errors (alt-errors start)]
+	 [end-errors (alt-errors end)]
+	 [diff (errors-difference start-errors end-errors)]
+	 [annotated-diff (map list start-errors end-errors diff)])
+    (let*-values ([(reals infs) (partition (compose reasonable-error? caddr) annotated-diff)]
+		  [(good bad) (partition (compose positive? caddr) infs)])
+      (list (~a (/ (apply + (map caddr reals)) (length diff)) #:width 7 #:pad-string "0")
+	    (length good)
+	    (length bad)))))
 
 (define (univariate-tests bench-dir)
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all #:bench-path-string bench-dir)))
 
-(define table-labels '("Test Name" "Error Improvement" "Points with Immeasurable Improvements" "Points with Immeasurable Regression" "Crashed?"))
+(define table-labels '("Test Name"
+		       "Error Improvement"
+		       "Points with Immeasurable Improvement"
+		       "Points with Immeasurable Regression"
+		       "Crashed?"
+		       "Time Taken (Milliseconds)"))
 
 (define (get-table-data bench-dir)
   (cons table-labels
