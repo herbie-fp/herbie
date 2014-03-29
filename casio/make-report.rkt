@@ -39,8 +39,10 @@
 
 (define (get-table-data bench-dir)
   (cons table-labels
-	(progress-map table-row univariate-tests
-		      #:map-name 'execute-tests)))
+	(progress-map table-row (univariate-tests bench-dir)
+		      #:map-name 'execute-tests
+		      #:item-name-func test-name
+		      #:show-time #t)))
 
 (define (info-stamp cur-date cur-commit cur-branch)
   (b (text (date-year cur-date) " "
@@ -93,15 +95,23 @@
 			    (newline))
 		      (newline)))))
 
-(define (progress-map f l #:map-name [name 'progress-map])
+(define (progress-map f l #:map-name [name 'progress-map] #:item-name-func [item-name #f] #:show-time [show-time? #f])
   (let ([total (length l)])
-    (let loop ([rest l] [acc '()] [done 0])
+    (let loop ([rest l] [acc '()] [done 0] [start-time (current-inexact-milliseconds)])
       (if (null? rest)
 	  (reverse acc)
-	  (begin (println name ": "
-			  (quotient (* 100 done) total)
-			  "%")
-		 (loop (cdr rest) (cons (f (car rest)) acc) (1+ done)))))))
+	  (let ([cur-time (current-inexact-milliseconds)])
+	    (begin (println name
+			    (if item-name
+				(string-append "@" (item-name (car rest)))
+				"")
+			    ": "
+			    (quotient (* 100 done) total)
+			    "%"
+			    (if show-time?
+				(string-append "[" (/ 1000 (- cur-time start-time)) " seconds]")
+				""))
+		 (loop (cdr rest) (cons (f (car rest)) acc) (1+ done) cur-time)))))))
 
 
 (make-report
