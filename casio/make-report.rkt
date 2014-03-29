@@ -106,7 +106,9 @@
 
 
 (make-report
-  (command-line
-   #:program "make-report"
-   #:args (bench-dir)
-   bench-dir))
+ (command-line
+  #:program "make-report"
+  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+	   (*debug* #t)]
+  #:args (bench-dir)
+  bench-dir))
