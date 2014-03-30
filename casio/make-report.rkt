@@ -67,7 +67,12 @@
 	[results (get-table-data bench-dir)])
     (write-file "report.md"
 		(info-stamp cur-date commit branch)
-		(make-table table-labels results))))
+		(make-table table-labels results #:modifier-alist `((,(lambda (row)
+									(or (< 10000 (list-ref row 5))
+									    (> 0 (list-ref 1))
+									    (eq? 'Yes (list-ref row 4)))) . red)
+								    (,(lambda (row)
+									(< 5 (list-ref row 1))) . green))))))
 
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
@@ -75,7 +80,8 @@
 	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))])
     (write-file "test.md"
 		(info-stamp cur-date commit branch)
-		(make-table '(A B C) '((1 2 3) (4 5 6) (7 8 9))))))
+		(make-table '(A B C) '((1 2 3) (4 5 6) (7 8 9)) #:modifier-alist `((,(lambda (row) (> 3 (cadr row))) . green)
+										   (,(lambda (row) (< 7 (cadr row))) . red))))))
 
 (define (string-when test value)
   (if test
