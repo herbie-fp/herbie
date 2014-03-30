@@ -21,7 +21,7 @@
 
 (make-mode '** bold)
 
-(define (make-table labels data)
+(define (make-table labels data #:modifier-alist [modifiers '()])
   (text "|")
   (for/list ([label labels])
     (text label "\t\t|"))
@@ -33,5 +33,10 @@
     (newline)
     (text "|")
     (for/list ([cell datum])
-      (text cell "|")))
+      (for/list ([modifier modifiers])
+	(when ((car modifier) datum) (text "<p stye=\"color:" (cdr modifier) "\">")))
+      (text cell)
+      (for/list ([modifier modifiers])
+	(when ((car modifier) datum) (text "</p>")))
+      (text "|")))
   (void))
