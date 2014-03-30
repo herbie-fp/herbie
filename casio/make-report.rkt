@@ -1,6 +1,7 @@
 #lang racket
 
 (require casio/htmltools)
+(require casio/tools-common)
 (require casio/load-bench)
 (require casio/test)
 (require casio/common)
