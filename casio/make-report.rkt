@@ -69,7 +69,7 @@
 		(info-stamp cur-date commit branch)
 		(make-table table-labels results #:modifier-alist `((,(lambda (row)
 									(or (< 10000 (list-ref row 5))
-									    (> 0 (list-ref 1))
+									    (> 0 (list-ref row 1))
 									    (eq? 'Yes (list-ref row 4)))) . red)
 								    (,(lambda (row)
 									(< 5 (list-ref row 1))) . green))))))
