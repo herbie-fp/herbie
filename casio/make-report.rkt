@@ -1,7 +1,7 @@
 #lang racket
 
-(require casio/htmltools)
 (require casio/tools-common)
+(require casio/markdown-tools)
 (require casio/load-bench)
 (require casio/test)
 (require casio/common)
@@ -42,21 +42,20 @@
 		       "Time Taken (Milliseconds)"))
 
 (define (get-table-data bench-dir)
-  (cons table-labels
-	(progress-map table-row (univariate-tests bench-dir)
-		      #:map-name 'execute-tests
-		      #:item-name-func test-name
-		      #:show-time #t)))
+  (progress-map table-row (univariate-tests bench-dir)
+		#:map-name 'execute-tests
+		#:item-name-func test-name
+		#:show-time #t))
 
 (define (info-stamp cur-date cur-commit cur-branch)
-  (b (text (date-year cur-date) " "
-	   (date-month cur-date) " "
-	   (date-day cur-date) ", "
-	   (date-hour cur-date) ":"
-	   (date-minute cur-date) ":"
-	   (date-second cur-date))
-     (br)(newline)
-     (text "Commit: " cur-commit " on " cur-branch)(br)))
+  (bold (text (date-year cur-date) " "
+	      (date-month cur-date) " "
+	      (date-day cur-date) ", "
+	      (date-hour cur-date) ":"
+	      (date-minute cur-date) ":"
+	      (date-second cur-date))
+	(newline)
+	(text "Commit: " cur-commit " on " cur-branch)(newline)))
 
 (define (strip-end string num-chars)
   (substring string 0 (- (string-length string) (+ 1 num-chars))))
@@ -67,28 +66,16 @@
 	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
 	[results (get-table-data bench-dir)])
     (write-file "report.md"
-		(heading)
-		(html (newline)
-		      (body (newline)
-			    (info-stamp cur-date commit branch)
-			    (newline)
-			    (make-table results)
-			    (newline))
-		      (newline)))))
+		(info-stamp cur-date commit branch)
+		(make-table table-labels results))))
 
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
 	[commit (with-output-to-string (lambda () (system "git rev-parse HEAD")))]
 	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))])
-    (write-file "test.html"
-		(heading)
-		(html (newline)
-		      (body (newline)
-			    (info-stamp cur-date commit branch)
-			    (newline)
-			    (make-table (cons table-labels '((1 2 3) (4 5 6) (7 8 9))))
-			    (newline))
-		      (newline)))))
+    (write-file "test.md"
+		(info-stamp cur-date commit branch)
+		(make-table '(A B C) '((1 2 3) (4 5 6) (7 8 9))))))
 
 (define (string-when test value)
   (if test
