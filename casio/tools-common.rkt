@@ -9,9 +9,12 @@
 ;; Simple inline printing
 (define (text . args)
   (for ([val args])
-    (if (string? val)
-	(display val)
-	(write val))))
+    (cond [(string? val)
+	   (display val)]
+	  [(number? val)
+	   (display (~a val #:width 7))]
+	  [#t
+	   (write val)))))
 
 (define-syntax (write-file stx)
   (syntax-case stx ()

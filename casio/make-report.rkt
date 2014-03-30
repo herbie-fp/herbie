@@ -26,7 +26,7 @@
 	 [annotated-diff (map list start-errors end-errors diff)])
     (let*-values ([(reals infs) (partition (compose reasonable-error? caddr) annotated-diff)]
 		  [(good bad) (partition (compose positive? caddr) infs)])
-      (list (~a (/ (apply + (map caddr reals)) (length diff)) #:width 7 #:pad-string "0")
+      (list (/ (apply + (map caddr reals)) (length diff))
 	    (length good)
 	    (length bad)))))
 
