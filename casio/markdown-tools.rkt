@@ -19,7 +19,7 @@
 	   [(_ . rest)
 	    #'(mode delimitor . rest)]))]))
 
-(make-mode '* bold)
+(make-mode '** bold)
 
 (define (make-table labels data)
   (text "|")
