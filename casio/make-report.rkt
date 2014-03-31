@@ -23,10 +23,10 @@
   (let* ([start-errors (alt-errors start)]
 	 [end-errors (alt-errors end)]
 	 [diff (errors-difference start-errors end-errors)]
-	 [annotated-diff (map list start-errors end-errors diff)])
-    (let*-values ([(reals infs) (partition (compose reasonable-error? caddr) annotated-diff)]
-		  [(good bad) (partition (compose positive? caddr) infs)])
-      (list (/ (apply + (map caddr reals)) (length diff))
+	 [annotated-diff (map list diff start-errors end-errors)]) ;; We use this annotated-diff because eventually we'll want to show in some way which points have inf improvement.
+    (let*-values ([(reals infs) (partition (compose reasonable-error? car) annotated-diff)]
+		  [(good bad) (partition (compose positive? car) infs)])
+      (list (/ (apply + (map car reals)) (length reals))
 	    (length good)
 	    (length bad)))))
 
