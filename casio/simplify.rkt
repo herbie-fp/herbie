@@ -276,6 +276,7 @@
       [`(- ,a ,b) (inner-simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
       [`(- 0) 0] ; Negative zero is still zero
       [`(- (- ,a)) a] ; Double negate is positive
+      [`(- (+ . ,as)) (inner-simplify-expression (cons '+ (map (lambda (a) (list '- a)) as)))] ; Move Subtraction inwards
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
       [`(+ ,a 0) a] ; Additive Identity
       [`(+ 0 ,a) a]
