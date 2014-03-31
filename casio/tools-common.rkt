@@ -14,7 +14,7 @@
 	  [(number? val)
 	   (display (~a val #:width 7))]
 	  [#t
-	   (write val)))))
+	   (write val)])))
 
 (define-syntax (write-file stx)
   (syntax-case stx ()
