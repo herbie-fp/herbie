@@ -55,7 +55,8 @@
 	      (date-minute cur-date) ":"
 	      (date-second cur-date))
 	(newline)
-	(text "Commit: " cur-commit " on " cur-branch)(newline)))
+	(text "Commit: " cur-commit " on " cur-branch))
+  (newline))
 
 (define (strip-end string num-chars)
   (substring string 0 (- (string-length string) num-chars)))
