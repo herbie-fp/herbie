@@ -7,7 +7,7 @@ B=$(git rev-parse --abbrev-ref HEAD)
 C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
 RDIR="reports/$T-$(hostname)-$B-$C"
 mkdir "$RDIR"
-cp report.md "$RDIR/"
+cp report.md "$RDIR/report.md"
 pandoc -f markdown -t html -o report.html report.md
 
 read -p "Publish? (y/N) " yn
