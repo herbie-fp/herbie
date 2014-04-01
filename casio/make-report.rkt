@@ -58,7 +58,17 @@
 	(text "Commit: " cur-commit " on " cur-branch)(newline)))
 
 (define (strip-end string num-chars)
-  (substring string 0 (- (string-length string) (+ 1 num-chars))))
+  (substring string 0 (- (string-length string) num-chars)))
+
+(define (bad? row)
+  (or (not (number? row))
+      (< 10000 (list-ref row 5))
+      (> 0 (list-ref row 1))
+      (eq? 'Yes (list-ref row 4))))
+
+(define (good? row)
+  (and (number? row)
+       (< 5 (list-ref row 1))))
 
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
@@ -67,12 +77,8 @@
 	[results (get-table-data bench-dir)])
     (write-file "report.md"
 		(info-stamp cur-date commit branch)
-		(make-table table-labels results #:modifier-alist `((,(lambda (row)
-									(or (< 10000 (list-ref row 5))
-									    (> 0 (list-ref row 1))
-									    (eq? 'Yes (list-ref row 4)))) . red)
-								    (,(lambda (row)
-									(< 5 (list-ref row 1))) . green))))))
+		(make-table table-labels results #:modifier-alist `((,bad? . red)
+								    (,good? . green))))))
 
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
@@ -112,3 +118,4 @@
 	   (*debug* #t)]
   #:args (bench-dir)
   bench-dir))
+
