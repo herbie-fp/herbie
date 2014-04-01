@@ -105,10 +105,10 @@
 		     ": "
 		     (quotient (* 100 done) total)
 		     "%\t"
-		     (string-when item-name (item-name (car rest)))
-		     (string-when show-time? "\t\t[")
 		     (string-when show-time? (~a real-mil #:width 8))
 		     (string-when show-time? " milliseconds]"))
+		     (string-when item-name (item-name (car rest)))
+		     (string-when show-time? "\t\t[")
 	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
 
 
