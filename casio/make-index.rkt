@@ -31,7 +31,7 @@
       (date second minute hour day month year 0 0 #f 0))))
 
 (define (index-row date host-branch-commit filename)
-  (text "[" (date->string date) " on " host-branch-commit "](" filename "/report.md)"))
+  (text "[" (date->string date) " on " host-branch-commit "](" filename "/report.html)"))
 
 (make-index-page
  (command-line
