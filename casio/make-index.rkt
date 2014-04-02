@@ -5,7 +5,7 @@
 (require racket/date)
 
 (define (make-index-page foldernames)
-  (let ([sorted-files (sort (map (lambda (filename) (list (parse-datestring filename) (substring filename 12) filename))
+  (let ([sorted-files (sort (map (lambda (filename) (list (parse-datestring filename) (substring filename 13) filename))
 				 foldernames)
 			    (lambda (f1 f2)
 			      (< (string->number (substring (caddr f1) 0 12)) (string->number (substring (caddr f2) 0 12)))))])
