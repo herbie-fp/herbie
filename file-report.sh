@@ -23,7 +23,7 @@ case $yn in
     y)
 	read -p "Username: " user
 	rsync --verbose --recursive "$RDIR" "$user@$RHOST$RDIR"
-	rsync --verbose --recursive "$IDIR" "$user@$RHOST$IDER"
+	rsync --verbose --recursive "$IDIR" "$user@$RHOST$IDIR/index.*"
 	;;
     *)
 	echo "Report copied, but not published."
