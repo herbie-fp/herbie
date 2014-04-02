@@ -11,7 +11,7 @@ IDIR="reports"
 mkdir "$RDIR"
 cp report.md "$RDIR/report.md"
 cd "$RDIR/.."
-REPORTS=$(find * -maxdepth 0)
+REPORTS=$(find * -maxdepth 0 -type d)
 cd "$TOPDIR"
 racket casio/make-index.rkt $REPORTS
 cp index.md "$IDIR/index.md"
