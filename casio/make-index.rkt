@@ -5,10 +5,10 @@
 (require racket/date)
 
 (define (make-index-page foldernames)
-  (let ([sorted-files (sort (map (lambda (filename) (list (parse-datestring filename) (substring filename 12 (length filename)) filename))
+  (let ([sorted-files (sort (map (lambda (filename) (list (parse-datestring filename) (substring filename 12) filename))
 				 foldernames)
 			    (lambda (f1 f2)
-			      (< (string->number (substring (caddr f1 0 12))) (string->number (substring (caddr f2 0 12))))))])
+			      (< (string->number (substring (caddr f1) 0 12)) (string->number (substring (caddr f2) 0 12)))))])
     (write-file "index.md"
 		(for/list ([file sorted-files])
 		  (index-row (car file) (cadr file) (caddr file))
@@ -30,7 +30,7 @@
       (date second minute hour day month year 0 0 #f 0))))
 
 (define (index-row date host-branch-commit filename)
-  (text "[" (date->string) " on " host-branch-commit "](" filename "/report.md)"))
+  (text "[" (date->string date) " on " host-branch-commit "](" filename "/report.md)"))
 
 (make-index-page
  (command-line
