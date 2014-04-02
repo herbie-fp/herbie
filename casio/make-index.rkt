@@ -12,6 +12,7 @@
     (write-file "index.md"
 		(for/list ([file sorted-files])
 		  (index-row (car file) (cadr file) (caddr file))
+		  (newline)
 		  (newline)))))
 
 (define (parse-datestring filename)
