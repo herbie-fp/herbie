@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 RHOST="totalcrazyhack.net:/var/www/casio/"
+TOPDIR=$(pwd)
 
 T=$(date +"%y%m%d%H%M%S")
 B=$(git rev-parse --abbrev-ref HEAD)
@@ -9,6 +10,10 @@ RDIR="reports/$T-$(hostname)-$B-$C"
 IDIR="reports"
 mkdir "$RDIR"
 cp report.md "$RDIR/report.md"
+cd "$RDIR/.."
+REPORTS=$(find * -maxdepth 0)
+cd "$TOPDIR"
+racket casio/make-index.rkt $REPORTS
 cp index.md "$IDIR/index.md"
 pandoc -f markdown -t html -o "$RDIR/report.html" "$RDIR/report.md"
 pandoc -f markdown -t html -o "$IDIR/index.html" "$IDIR/index.md"
