@@ -14,7 +14,7 @@ read -p "Publish? (y/N) " yn
 case $yn in
     y)
 	read -p "Username: " user
-	rsync --verbose --recursive "$RDIR" "$user@$RHOST/$RDIR"
+	rsync --verbose --recursive "$RDIR" "$user@$RHOST$RDIR"
 	;;
     *)
 	echo "Report copied, but not published."
