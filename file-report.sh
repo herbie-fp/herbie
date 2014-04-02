@@ -13,7 +13,8 @@ pandoc -f markdown -t html -o report.html report.md
 read -p "Publish? (y/N) " yn
 case $yn in
     y)
-	rsync --verbose --recursive "$RDIR" "$RHOST/$RDIR"
+	read -p "Username: " user
+	rsync --verbose --recursive "$RDIR" "$user@$RHOST/$RDIR"
 	;;
     *)
 	echo "Report copied, but not published."
