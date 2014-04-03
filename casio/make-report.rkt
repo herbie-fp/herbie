@@ -56,7 +56,7 @@
 	      (date-second cur-date)))
   (newline)
   (newline)
-  (bole (text "Commit: " cur-commit " on " cur-branch))
+  (bold (text "Commit: " cur-commit " on " cur-branch))
   (newline)
   (newline))
 
