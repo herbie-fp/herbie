@@ -71,7 +71,7 @@
       (eq? 'Yes (list-ref row 4))))
 
 (define (good? row)
-  (and (number? row)
+  (and (number? (list-ref row 1))
        (< 5 (list-ref row 1))))
 
 (define (make-report bench-dir)
