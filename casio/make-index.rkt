@@ -10,6 +10,7 @@
 			    (lambda (f1 f2)
 			      (> (string->number (substring (caddr f1) 0 12)) (string->number (substring (caddr f2) 0 12)))))])
     (write-file "index.md"
+		(make-heading "Reports")
 		(for/list ([file sorted-files])
 		  (index-row (car file) (cadr file) (caddr file))
 		  (newline)
