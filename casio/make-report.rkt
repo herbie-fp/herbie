@@ -62,8 +62,9 @@
   (substring string 0 (- (string-length string) num-chars)))
 
 (define (bad? row)
-  (or (not (number? row))
+  (or (not (number? (list-ref row 5)))
       (< 10000 (list-ref row 5))
+      (not (number? (list-ref row 1)))
       (> 0 (list-ref row 1))
       (eq? 'Yes (list-ref row 4))))
 
