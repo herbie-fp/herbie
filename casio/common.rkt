@@ -4,7 +4,7 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+)
+         list= list< idx-map enumerate take-up-to *debug* debug debug-reset pipe 1+)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -80,8 +80,14 @@
 
 (define (list< list1 list2)
   "Compares lists lexicographically."
-  ; Who picked this terrible API design of returning '< or '>
+  ; Who picked this terrible API design of returning '< or '> ?
   (eq? (datum-order list1 list2) '<))
+
+(define (idx-map fun  lst #:from [start 0])
+  (let loop ([idx start] [lst lst])
+    (if (null? lst)
+        '()
+        (cons (fun (car lst) idx) (loop (+ 1 idx) (cdr lst))))))
 
 (define (enumerate . l)
   (apply map list (range (length (car l))) l))
