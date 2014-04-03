@@ -4,8 +4,7 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct location-map location-parent
-	 program-induct
+         location-induct location-parent program-induct
 	 location-do location-get eval-prog operations
 	 mode:bf mode:fl)
 
@@ -13,26 +12,17 @@
 (define program-body caddr)
 (define program-variables cadr)
 
-(define (location-map fun list)
-  (letrec ([loc-map (λ (list fun acc location)
-		       (if (null? list)
-			   acc
-			   (loc-map (cdr list) fun 
-				    (cons (fun (car list) location) acc)
-				    (cons 'cdr location))))])
-    (reverse (loc-map list fun '() '()))))
-
 (define (location-parent loc)
-  (let ([loc* (reverse loc)])
-    (match loc*
-      [`(car cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'cdr 'car rest)))]
-      [`(car cdr cdr car . ,rest)
-       (values (reverse (cons 'car rest))
-               (reverse (list* 'car 'cdr 'car rest)))]
-      [_
-       (values #f #f)])))
+  (if (null? loc)
+      (values #f #f)
+      (let-values ([(head tail) (split-at-right loc 1)])
+        (cond
+         [(= (car tail) 1)
+          (values head (append head '(1)))]
+         [(= (car tail) 2)
+          (values head (append head '(2)))]
+         [else
+          (values #f #f)]))))
 
 (define (location-induct
 	 prog
@@ -44,13 +34,13 @@
      [(real? prog) (constant prog (reverse location))]
      [(symbol? prog) (variable prog (reverse location))]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog) (list* 'car 'cdr 'cdr location))])
+      (let ([body* (inductor (program-body prog) (cons 2 location))])
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
      [(list? prog)
-      (primitive (cons (symbol-table (car prog) (reverse (cons 'car location)))
-		       (location-map (λ (prog loc)
-					(inductor prog (append (cons 'car (cons 'cdr loc)) location)))
-				     (cdr prog)))
+      (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
+		       (idx-map (λ (prog idx)
+                                   (inductor prog (cons idx location)))
+                                (cdr prog) #:from 1))
 		 (reverse location))]))
   (inductor prog '()))
 
@@ -60,11 +50,19 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity])
 
-  (define ((ignore f) x y) (f x))
+  ; Inlined for speed
+  (define (inductor prog)
+    (cond
+     [(real? prog) (constant prog)]
+     [(symbol? prog) (variable prog)]
+     [(and (list? prog) (memq (car prog) '(λ lambda)))
+      (let ([body* (inductor (program-body prog))])
+	(toplevel `(λ ,(program-variables prog) ,body*)))]
+     [(list? prog)
+      (primitive (cons (symbol-table (car prog))
+		       (map inductor (cdr prog))))]))
 
-  (location-induct prog
-    #:toplevel (ignore toplevel) #:constant (ignore constant) #:variable (ignore variable)
-    #:primitive (ignore primitive) #:symbol (ignore symbol-table)))
+  (inductor prog))
 
 (define (location-do loc prog f)
   (cond
@@ -72,12 +70,12 @@
     (f prog)]
    [(not (pair? prog))
     (error "Bad location: cannot enter " prog "any further.")]
-   [(eq? (car loc) 'car)
-    (cons (location-do (cdr loc) (car prog) f) (cdr prog))]
-   [(eq? (car loc) 'cdr)
-    (cons (car prog) (location-do (cdr loc) (cdr prog) f))]
    [#t
-    (error "Bad token in location " loc ". Allowed tokens are car and cdr")]))
+    ; Inlined loop for speed
+    (let loop ([idx (car loc)] [lst prog])
+      (if (= idx 0)
+          (cons (location-do (cdr loc) (car lst) f) (cdr lst))
+          (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
 
 (define (location-get loc prog)
   ; Clever continuation usage to early-return

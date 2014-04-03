@@ -66,19 +66,19 @@
   (swim-upstream altn #t '()))
 
 ;; Simple location match utility function. If 'a' is a continutation of 'b',
-;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
-;; 'a' after 'b', '(cdr car). Visa-versa for 'b' as a continuation of 'a'. If
+;; such as in a='(2 1) b='(2), returns the tail of
+;; 'a' after 'b', '(1). Visa-versa for 'b' as a continuation of 'a'. If
 ;; 'a' and 'b' diverge at some point before the end, returns false.
 (define (match-loc a b)
   (cond [(null? a) b]
 	[(null? b) a]
-	[(eq? (car a) (car b)) (match-loc (cdr a) (cdr b))]
+	[(= (car a) (car b)) (match-loc (cdr a) (cdr b))]
 	[#t #f]))
 
 (define (match-loc-fst inside outside)
   (cond [(null? outside) inside]
 	[(null? inside) #f]
-	[(eq? (car outside) (car inside))
+	[(= (car outside) (car inside))
 	 (match-loc-fst (cdr inside) (cdr outside))]
 	[#t #f]))
 
@@ -86,7 +86,7 @@
 (define (is-inside? a b)
   (cond [(null? a) #f]
 	[(null? b) #t]
-	[(eq? (car a) (car b)) (is-inside? (cdr a) (cdr b))]
+	[(= (car a) (car b)) (is-inside? (cdr a) (cdr b))]
 	[#t #f]))
 
 ;; Takes a list of location tails, a single location head, and an original change,
@@ -167,12 +167,10 @@
   (define (var-locs pattern loc)
     (cond
      [(list? pattern)
-	(apply alist-append (location-map (lambda (x inner-loc)
-				      (var-locs x (append loc
-							  '(cdr)
-							  inner-loc
-							  '(car))))
-				    (cdr pattern)))]
+	(apply alist-append
+               (idx-map (lambda (x idx)
+                          (var-locs x (append loc (list idx))))
+                        (cdr pattern) #:from 1))]
      [(number? pattern) '()]
      [(symbol? pattern) (list (cons pattern (list loc)))]
      [#t (error "Improper rule: " rule)]))
@@ -186,12 +184,12 @@
   (define (a-append joe bob)
     (if (null? joe)
 	bob
-	(a-append (cdr joe) (cons (cons (caar joe)
-					(let ([match (assoc (caar joe) bob)])
-					  (if match
-					      (append (cdr match) (cdar joe))
-					      (cdar joe))))
-				  bob))))
+	(a-append (cdr joe) (list* (caar joe)
+                                   (let ([match (assoc (caar joe) bob)])
+                                     (if match
+                                         (append (cdr match) (cdar joe))
+                                         (cdar joe)))
+                                   bob))))
   (if (< 2 (length args))
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))

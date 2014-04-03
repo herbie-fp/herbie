@@ -34,18 +34,20 @@
   ;; Grab the simplification locations from the rule, and then the location of the
   ;; change, since the slocations are relative to the change.
   (let ([slocations (if (alt-prev altn)
-			(rule-slocations (change-rule (alt-change altn)))
+			(map list (rule-slocations (change-rule (alt-change altn))))
 			'(()))]
 	[location (if (alt-prev altn)
 		      (change-location (alt-change altn))
-		      '(cdr cdr car))])
+		      '(2))])
     (debug "Simplifying" (alt-program altn)
 	   "at" (map (curry append location) slocations)
 	   #:from 'simplify #:tag 'enter)
 
-    (apply-changes altn (filter fit?
-			       (map (compose (curry make-simplification-change (alt-program altn)) (curry append location))
-				    slocations)))))
+    (apply-changes altn
+                   (filter fit?
+                           (map (compose (curry make-simplification-change (alt-program altn))
+                                         (curry append location))
+                                slocations)))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
