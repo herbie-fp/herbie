@@ -6,24 +6,24 @@ TOPDIR=$(pwd)
 T=$(date +"%y%m%d%H%M%S")
 B=$(git rev-parse --abbrev-ref HEAD)
 C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
-RDIR="reports/$T-$(hostname)-$B-$C"
-IDIR="reports"
+RFOLDER="reports/"
+RDIR="$RFOLDER$T-$(hostname)-$B-$C"
 mkdir "$RDIR"
 cp report.md "$RDIR/report.md"
-cd "$RDIR/.."
+cd "$RFOLDER"
 REPORTS=$(find * -maxdepth 0 -type d)
 cd "$TOPDIR"
 racket casio/make-index.rkt $REPORTS
-cp index.md "$IDIR/index.md"
+cp index.md "$RFOLDER/index.md"
 pandoc -f markdown -t html -o "$RDIR/report.html" "$RDIR/report.md"
-pandoc -f markdown -t html -o "$IDIR/index.html" "$IDIR/index.md"
+pandoc -f markdown -t html -o "$RFOLDER/index.html" "$RFOLDER/index.md"
 
 read -p "Publish? (y/N) " yn
 case $yn in
     y)
 	read -p "Username: " user
-	rsync --verbose --recursive "$RDIR" "$user@$RHOST$RDIR"
-	rsync --verbose --recursive -t "$IDIR/index.html" "$user@$RHOST$IDIR"
+	rsync --verbose --recursive "$RDIR" "$user@$RHOST$RFOLDER"
+	rsync --verbose --recursive "$RFOLDER/index.html" "$user@$RHOST$RFOLDER"
 	;;
     *)
 	echo "Report copied, but not published."
