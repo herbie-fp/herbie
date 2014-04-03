@@ -53,10 +53,10 @@
 	      (date-day cur-date) ", "
 	      (date-hour cur-date) ":"
 	      (date-minute cur-date) ":"
-	      (date-second cur-date))
-	(newline)
-	(newline)
-	(text "Commit: " cur-commit " on " cur-branch))
+	      (date-second cur-date)))
+  (newline)
+  (newline)
+  (bole (text "Commit: " cur-commit " on " cur-branch))
   (newline)
   (newline))
 
