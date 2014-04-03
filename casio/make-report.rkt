@@ -67,7 +67,7 @@
   (or (not (number? (list-ref row 5)))
       (< 10000 (list-ref row 5))
       (not (number? (list-ref row 1)))
-      (> 0 (list-ref row 1))
+      (> -1 (list-ref row 1))
       (eq? 'Yes (list-ref row 4))))
 
 (define (good? row)
