@@ -16,7 +16,7 @@ REPORTS=$(find * -maxdepth 0 -type d)
 cd "$TOPDIR"
 racket casio/make-index.rkt $REPORTS
 cp index.md "$RFOLDER/index.md"
-pandoc --css "$RFOLDER/reportStyle.css" -f markdown -t html -o "$RDIR/report.html" "$RDIR/report.md"
+pandoc --css "reportStyle.css" -f markdown -t html -o "$RDIR/report.html" "$RDIR/report.md"
 pandoc -f markdown -t html -o "$RFOLDER/index.html" "$RFOLDER/index.md"
 
 read -p "Publish? (y/N) " yn
