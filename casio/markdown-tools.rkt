@@ -21,6 +21,13 @@
 
 (make-mode '** bold)
 
+(define (make-heading heading-text)
+  (text heading-text)
+  (newline)
+  (text "=====")
+  (newline)
+  (newline))
+
 (define (make-table labels data #:modifier-alist [modifiers '()])
   (text "|")
   (for/list ([label labels])
