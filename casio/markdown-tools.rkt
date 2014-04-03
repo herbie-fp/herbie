@@ -21,6 +21,13 @@
 
 (make-mode '** bold)
 
+(define (make-heading heading-text)
+  (text heading-text)
+  (newline)
+  (text "=====")
+  (newline)
+  (newline))
+
 (define (make-table labels data #:modifier-alist [modifiers '()])
   (text "|")
   (for/list ([label labels])
@@ -33,10 +40,10 @@
     (newline)
     (text "|")
     (for/list ([cell datum])
-      ;; (for/list ([modifier modifiers])
-      ;; 	(when ((car modifier) datum) (text "<p stye=\"color:" (cdr modifier) "\">")))
+      (for/list ([modifier modifiers])
+       	(when ((car modifier) datum) (text "<span style=\"color:" (cdr modifier) "\">")))
       (text cell)
-      ;; (for/list ([modifier modifiers])
-      ;; 	(when ((car modifier) datum) (text "</p>")))
+      (for/list ([modifier modifiers])
+       	(when ((car modifier) datum) (text "</span>")))
       (text "|")))
   (void))
