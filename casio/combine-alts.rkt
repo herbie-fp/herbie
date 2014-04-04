@@ -45,7 +45,7 @@
   (let ([split-var (option-split-var opt)]
 	[condition (option-condition opt)]
 	[split-var-index (option-split-var-index opt)]
-	[vars (alt-program (option-altn1 opt))])
+	[vars (program-variables (alt-program (option-altn1 opt)))])
     (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
 							(curry (flip-args list-ref) split-var-index))
 					       (*points*))])
