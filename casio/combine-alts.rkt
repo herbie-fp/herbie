@@ -27,14 +27,14 @@
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
 (define (best-combination alts #:pre-combo-func [f identity])
-  (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))))]
+  (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))) identity)]
 	 [all-options (apply append
 			     (map (lambda (var-index)
 				    (map-pairs (curry make-option
 						      var-index)
 					       alts))
 				  var-indices))]
-	 [best-option (best all-options (compose (curry > 0) errors-diff-score))])
+	 [best-option (best all-options (lambda (opt1 opt2)
     (option->alt best-option f)))
 
 ;; Turns an option into a new alternative.
