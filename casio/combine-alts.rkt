@@ -169,9 +169,9 @@
 ;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a
 ;; maximum number of splitindices, or a function that takes a single argument, a list of regions, and determines whether these
 ;; regions are general enough. 
-(define (diff-list->splitindices difflist #:min-region-size [min-size 3] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
+(define (difflist->splitindices difflist #:min-region-size [min-size 3] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
   (let loop ([regions (swallow-regions (compose (curry > min-size) car)
-				       (diff-list->regions difflist))]
+				       (difflist->regions difflist))]
 	     [new-min-size (+ 1 min-size)])
     (if (and (<= (length (filter (compose (compose not (curry eq? '=)) cdr) regions)) (+ 1 max-splits)) (fit? regions))
 	(regions->splitindices (swallow-regions (compose (curry eq? '=) cdr) regions))
@@ -183,8 +183,8 @@
 	with-zero
 	(cdr with-zero)))) ;;without zero
 
-(define (diff-list->regions difflist)
   (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
+(define (difflist->regions difflist)
     (cond [(null? restlist)
 	   (reverse (cons (cons cur-region-size cur-region) acc))]
 	  [(eq? (car restlist) cur-region)
