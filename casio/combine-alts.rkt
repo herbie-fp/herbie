@@ -37,26 +37,38 @@
 	 [best-option (best all-options (compose (curry > 0) errors-diff-score))])
     (option->alt best-option f)))
 
+;; Turns an option into a new alternative.
 (define (option->alt opt pre-combo-func)
+  ;; Apply pre-combo-func to altn with the given points.
   (define (apply-with-points points altn)
+    ;; Parameterize the function call with *points* as the given points,
+    ;; and *exacts* as the exacts made from those points.
     (parameterize [(*points* points)
 		   (*exacts* (make-exacts (alt-program altn) points))]
       (pre-combo-func altn)))
+  ;; Pull the a bunch of information from the options struct.
   (let ([split-var (option-split-var opt)]
 	[condition (option-condition opt)]
 	[split-var-index (option-split-var-index opt)]
 	[vars (program-variables (alt-program (option-altn1 opt)))])
+    ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
     (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
 							(curry (flip-args list-ref) split-var-index))
 					       (*points*))])
+      ;; Get the improved versions of our two alts.
       (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
 	    [altn2* (apply-with-points points2 (option-altn2 opt))])
+	;; The new program is the old programs iffed together with our condition
 	(let ([program `(lambda ,vars
 			  (if ,condition
 			      (program-body (alt-program altn1*))
 			      (program-body (alt-program altn2*))))]
+	      ;; The errors are the option errors computed by make-option
 	      [errs (option-errors opt)]
+	      ;; The cost is the worst case cost, the maximum cost of our different
+	      ;; branches, plus a branch cost.
 	      [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
+	  ;; Build the alt struct and return.
 	  (alt program errs cost #f #f))))))
 
 ;; Given a list, and a function for comparing items in the list,
