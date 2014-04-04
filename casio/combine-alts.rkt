@@ -151,6 +151,7 @@
 	  [(pred midpoint) (binary-search split pred midpoint p2)]
 	  [#t (binary-search split pred p1 midpoint)]))))
 
+;; Flips the arguments of a two argument function.
 (define (flip-args f) (lambda (x y) (f y x)))
 
 ;; Given two floating point numbers, the first of which is pred,
