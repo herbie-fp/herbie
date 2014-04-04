@@ -117,27 +117,27 @@
     (append (reverse negatives) positives)))
 
 (define (get-splitpoints alt1 alt2 arg-index #:max-splitpoints [max-splits 4])
-  (let* ([difflist (errors-compare (ascending-order arg-index (alt-errors alt1))
-				   (ascending-order arg-index (alt-errors alt2)))]
-	 [sindices (difflist->splitindices difflist #:max-splitpoints max-splits)]
-	 [ascending-points (ascending-order arg-index (*points*))])
-    (map (lambda (i)
-	   (cond [(= 0 i) +nan.0]
-		 [(eq? '= (list-ref difflist i))
-		  (list-ref (list-ref ascending-points i) arg-index)]
-		 [(eq? '= (list-ref difflist (- i 1)))
-		  (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-		 [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)]
-			   [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-			   [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
-						    (lambda (p) ;; Get the sign of the given point
-						      (let ([points (list (list p))])
-							(errors-compare (let ([prog (alt-program alt1)])
-									  (errors prog points (make-exacts prog points)))
-									(let ([prog (alt-program alt2)])
-									  (errors prog points (make-exacts prog points)))))))])
-		       (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
-	 sindices)))
+  (let ([difflist (errors-compare (ascending-order arg-index (alt-errors alt1))
+				  (ascending-order arg-index (alt-errors alt2)))]
+	[ascending-points (ascending-order arg-index (*points*))])
+    (let ([sindices (difflist->splitindices difflist #:max-splitpoints max-splits)])
+      (map (lambda (i)
+	     (cond [(= 0 i) +nan.0]
+		   [(eq? '= (list-ref difflist i))
+		    (list-ref (list-ref ascending-points i) arg-index)]
+		   [(eq? '= (list-ref difflist (- i 1)))
+		    (list-ref (list-ref ascending-points (- i 1)) arg-index)]
+		   [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)] ; Get the points
+			     [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
+			     [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
+					    (lambda (p) ;; Get the sign of the given point
+					      (let ([points (list (list p))])
+						(errors-compare (let ([prog (alt-program alt1)])
+								  (errors prog points (make-exacts prog points)))
+								(let ([prog (alt-program alt2)])
+								  (errors prog points (make-exacts prog points)))))))])
+			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
+	   sindices)))
 					   
 									      
 		 
