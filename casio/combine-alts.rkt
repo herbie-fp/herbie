@@ -272,19 +272,15 @@
 ;; 4. Otherwise, regions will be swallowed by the region that comes after them.
 ;; 5. Regions are swallowed from the beginning of the list to the end.
 ;; 6. The result of one regions swallowing another has the type of the swallowing
-;;    region, unless that type is =, in which case it has the type of the swallowed
 ;;    region.
 ;; Finally, note that behavior is undefined if a region which does not satisfy
 ;; pred can satisfy pred after swallowing another region which does satisfy pred.
 (define (swallow-regions pred regions)
   ;; Returns the result of reg2 "swallowing" reg1.
   ;; The result has a size of (+ (size reg1) (size reg2)),
-  ;; and a type of (type reg2), unless (eq? '= (type reg2)),
-  ;; in which case it has a type of (type reg1).
+  ;; and a type of (type reg2).
   (define (merge-into reg1 reg2)
-    (cons (+ (car reg1) (car reg2)) (if (eq? '= (cdr reg2))
-					(cdr reg1)
-					(cdr reg2))))
+    (cons (+ (car reg1) (car reg2)) (cdr reg2)))
   ;; Returns the result of merging all adjacent regions
   ;; that have the same type.
   (define (merge-adjacent-regions regions)
