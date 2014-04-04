@@ -59,6 +59,8 @@
 	      [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
 	  (alt program errs cost #f #f))))))
 
+;; Given a list, and a function for comparing items in the list,
+;; return the "best" item b, such that for all a in the list, (not (item<? b a))
 (define (best lst item<?)
   (let loop ([best-item (car lst)] [rest (cdr lst)])
     (if (null? rest) best-item
