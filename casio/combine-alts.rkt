@@ -177,11 +177,26 @@
 	(regions->splitindices (swallow-regions (compose (curry eq? '=) cdr) regions))
 	(loop (swallow-regions (compose (curry > new-min-size) car) regions) (+ 1 new-min-size)))))
 
+;; Given a list of desired regions, returns the indices in the difflist to split at.
+;; If the initial region should be of alt2, we start with an index of zero, so the
+;; splitindices can be read as, starting with alt1, at every splitindex, switch alts.
+;; For example: an output of (4 8 12) would indicate that alt1 should be used from 0 to 4,
+;; and 8 to 12, and alt2 should be used from 4 to 8, and from 12 onwards. An output of
+;; (0 6 8 10) would indicate that alt2 should be used from 0 to 6, and 8 to 10, and alt1
+;; should be used from 6 to 8, and from 10 onwards.
 (define (regions->splitindices regions)
-  (let ([with-zero (reverse (cdr (foldl (lambda (reg acc) (cons (+ (car reg) (car acc)) acc)) '(0) regions)))])
+  ;; First construct the splitindices with the leading zero.
+  ;; We construct the splitindices by folding across the regions,
+  ;; and for each region add it's size to the previous splitindex to
+  ;; get the next splitindex.
+  (let ([with-zero (reverse (cdr (foldl (lambda (reg acc)
+					  (cons (+ (car reg) (car acc)) acc))
+					'(0) regions)))])
+    ;; If the first region should be alt2, keep the leading zero
     (if (eq? '< (cdar regions))
 	with-zero
-	(cdr with-zero)))) ;;without zero
+	;; Otherwise, discard the leading zero.
+	(cdr with-zero))))
 
 ;; Given a difflist, return a list of the regions in that difflist, in the
 ;; form of a regionlist.
