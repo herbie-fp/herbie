@@ -161,7 +161,7 @@
 								  (errors prog points (make-exacts prog points)))))))])
 			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
 			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
-	   sindices)))
+	   sindices))))
 					   
 									      
 		 
@@ -179,7 +179,7 @@
 	  ;; space between our midpoint and p2.
 	  [(pred midpoint) (binary-search split pred midpoint p2)]
 	  ;; Otherwise, search the space between our midpoint and p1.
-	  [#t (binary-search split pred p1 midpoint)]))))
+	  [#t (binary-search split pred p1 midpoint)])))
 
 ;; Flips the arguments of a two argument function.
 (define (flip-args f) (lambda (x y) (f y x)))
