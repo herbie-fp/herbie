@@ -170,11 +170,18 @@
 ;; maximum number of splitindices, or a function that takes a single argument, a list of regions, and determines whether these
 ;; regions are general enough. 
 (define (difflist->splitindices difflist #:min-region-size [min-size 3] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
+  ;; First, convert the difflist into a list of regions, and swallow any regions less than the minimum size.
+  ;; Then, keep increasing the minimum size and swallowing until we have no more than max-splits splitpoints,
+  ;; and we return true on our fitness function. Finally, swallow all the equals.
   (let loop ([regions (swallow-regions (compose (curry > min-size) car)
 				       (difflist->regions difflist))]
 	     [new-min-size (+ 1 min-size)])
+    ;; If our number of regions that are not equals is less than or equal to the maximum allowed
+    ;; (one more than the maximum number of splitpoints), and our fitness function returns true,
+    ;; then we're done, and we should swallow the equals and return.
     (if (and (<= (length (filter (compose (compose not (curry eq? '=)) cdr) regions)) (+ 1 max-splits)) (fit? regions))
 	(regions->splitindices (swallow-regions (compose (curry eq? '=) cdr) regions))
+	;; Otherwise swallow any less than our new min size, and recurse on a bigger minsize.
 	(loop (swallow-regions (compose (curry > new-min-size) car) regions) (+ 1 new-min-size)))))
 
 ;; Given a list of desired regions, returns the indices in the difflist to split at.
