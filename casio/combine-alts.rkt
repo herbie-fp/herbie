@@ -25,16 +25,33 @@
        (if ,condition
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
-
+;; Gets the best combination of two alts from a given list of alts.
+;; If passed a pre-combo-func, will apply that function to both alts
+;; that are combined, before combination. Will ONLY invoke pre-combo-func
+;; on the alts in the combination that seems best, so the pre-combo-func
+;; can be fairly costly.
 (define (best-combination alts #:pre-combo-func [f identity])
+  ;; We want to check combinations on every variable, since we don't know
+  ;; which variable would yield the best combination, so build a list
+  ;; of all the variable indices.
   (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))) identity)]
+	 ;; Get all the options. We're going to get a list of options for each variable
+	 ;; we try to split on, so append those lists together.
 	 [all-options (apply append
+			     ;; For each variable index,
 			     (map (lambda (var-index)
+				    ;; Map across every pair of alts, and
+				    ;; make them into an option with our var index.
 				    (map-pairs (curry make-option
 						      var-index)
 					       alts))
 				  var-indices))]
+	 ;; Use our best function to get the best option,
+	 ;; comparing options by checking if one option is
+	 ;; "green" over the other.
 	 [best-option (best all-options (lambda (opt1 opt2)
+					  (> 0 (errors-diff-score (option-errors opt1 opt2)))))])
+    ;; Build the option struct and return.
     (option->alt best-option f)))
 
 ;; Turns an option into a new alternative.
