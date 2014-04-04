@@ -145,12 +145,11 @@
 ;; finds the point where pred becomes false, by calling split to binary
 ;; search the space until (split a b) returns a, b, or #f.
 (define (binary-search split pred p1 p2)
-  (if (= p1 p2) p1
-      (let ([midpoint (split p1 p2)])
-	(cond [(not midpoint) p1]
-	      [(or (= p1 midpoint) (= p2 midpoint)) midpoint]
-	      [(pred midpoint) (binary-search split pred midpoint p2)]
-	      [#t (binary-search split pred p1 midpoint)]))))
+  (let ([midpoint (split p1 p2)])
+    (cond [(not midpoint) p1]
+	  [(or (= p1 midpoint) (= p2 midpoint)) midpoint]
+	  [(pred midpoint) (binary-search split pred midpoint p2)]
+	  [#t (binary-search split pred p1 midpoint)]))))
 
 (define (flip-args f) (lambda (x y) (f y x)))
 
