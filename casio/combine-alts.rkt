@@ -183,15 +183,13 @@
 	with-zero
 	(cdr with-zero)))) ;;without zero
 
-  (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
 (define (difflist->regions difflist)
+  (let loop ([restlist difflist] [cur-region-size 0] [cur-region (car difflist)] [acc '()])
     (cond [(null? restlist)
 	   (reverse (cons (cons cur-region-size cur-region) acc))]
 	  [(eq? (car restlist) cur-region)
 	   (loop (cdr restlist) (+ cur-region-size 1) cur-region acc)]
-	  [#t (loop (cdr restlist) 1 (car restlist) (if cur-region
-							(cons (cons cur-region-size cur-region) acc)
-							acc))])))
+	  [#t (loop (cdr restlist) 1 (car restlist) (cons (cons cur-region-size cur-region) acc))])))
 
 ;; Returns a regionlist that is the result of all regions in 'regions'
 ;; that return true to 'pred' being "swallowed" by the adjacent regions.
