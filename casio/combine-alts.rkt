@@ -189,6 +189,7 @@
   ;; We construct the splitindices by folding across the regions,
   ;; and for each region add it's size to the previous splitindex to
   ;; get the next splitindex.
+  ;; We pull off the last splitindex since it would just be the size of the difflist.
   (let ([with-zero (reverse (cdr (foldl (lambda (reg acc)
 					  (cons (+ (car reg) (car acc)) acc))
 					'(0) regions)))])
