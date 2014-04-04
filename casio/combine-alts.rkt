@@ -75,16 +75,27 @@
 	   (write (alt-program (option-altn2 opt)) port)
 	   (display ">" port))])
 
+;; Given two alternatives, make an option struct to represent
+;; the hypothetical combination of the two alternatives.
 (define (make-option var-index altn1 altn2)
+  ;; Both alts have the same variables presumably, since they
+  ;; are different version of the same program.
   (let* ([vars (program-variables (alt-program altn1))]
+	 ;; The split variable is the variable at the split-variable index.
 	 [split-var (list-ref vars var-index)]
+	 ;; Build our condition using our splitpoints sorted in ascending order.
 	 [condition (get-condition (sort (get-splitpoints altn1 altn2 var-index) <)
-				  split-var)]
+				   split-var)]
+	 ;; Compile our condition as a function for when we need to actually use it, instead
+	 ;; of just putting it in our output.
 	 [condition-func (eval `(lambda (,split-var) ,condition))]
+	 ;; The errors of the option are the errors of alt1 when alt1 should be used, and the errors of
+	 ;; alt2 when alt2 should be used.
 	 [errors (map (lambda (error1 error2 point) (if (condition-func (list-ref point var-index)) error1 error2))
 				 (alt-errors altn1)
 				 (alt-errors altn2)
 				 *points*)])
+    ;; Finally, build the option structure.
     (option altn1 altn2 condition errors split-var var-index)))
 
 ;; Maps the given f across every unique, unordered pair of elements of lst.
