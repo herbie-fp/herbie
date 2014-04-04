@@ -66,6 +66,7 @@
 	    (loop (car rest) (cdr rest))
 	    (loop best-item (cdr rest))))))
 
+;; A struct to represent the hypothetical combination of the two alternatives.
 (struct option (altn1 altn2 condition errors split-var split-var-index) #:transparent
 	#:methods gen:custom-write
 	[(define (write-proc opt port mode)
