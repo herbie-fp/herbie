@@ -94,16 +94,40 @@
 	acc
 	(loop (cdr rest) (append (map (curry f (car rest)) (cdr rest)) acc)))))
 
+;; Given a set of splitpoints, and the name of the var we split on,
+;; returns a racket expression which tests whether a given point should
+;; use alt1.
 (define (get-condition splitpoints var)
+  ;; If the first splitpoint is +nan.0, then alt1 should come first.
+  ;; In otherwords, if the +nan.0 is present, then our condition is the
+  ;; opposite of what it would be if +nan.0 was not present, since the
+  ;; locations of alt1 and alt2 are switched.
   (if (nan? (car splitpoints))
+      ;; We reverse the condition by appending not to a recursive call with the
+      ;; +nan.0 removed.
       (list 'not (get-condition (cdr splitpoints) var))
+      ;; Our total condition will be the or of conditions that indicate
+      ;; that the point is in each region where alt1 applies.
+      ;; We start by adding the condition that the point is before the first
+      ;; splitpoint, the first region
       (let ([conditions (cons `(> ,(car splitpoints) ,var)
+			      ;; Then, loop across the rest of the splitpoints,
+			      ;; accumulating conditions.
 			      (let loop ([rest (cdr splitpoints)] [conds '()])
+				;; If we have reached the end of the list, return our accumulator
 				(cond [(null? rest) conds]
+				      ;; If we're at the second to last tlement of the list,
+				      ;; then our last condition is the point being greater than
+				      ;; the last splitpoint (since we only get here if we have
+				      ;; an odd number of splitpoints.
 				      [(null? (cdr rest)) (cons `(< ,(car rest) ,var) conds)]
+				      ;; If we're somewhere in the list, take the next two elements,
+				      ;; and add a condition that the point is between them.
 				      [#t (loop (cddr rest) (cons `(and (< ,(car rest) ,var)
 									(> ,(cadr rest) ,var))
 								   conds))])))])
+	;; If there ended up being only one condition (a single, binary split), then we just return it.
+	;; otherwise, or together all of our conditions.
 	(if (< 1 (length conditions))
 	    (cons 'or conditions)
 	    (car conditions)))))
