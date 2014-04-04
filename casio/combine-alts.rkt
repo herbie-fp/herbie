@@ -143,7 +143,7 @@
 		 
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
-;; search the space until (split a b) returns a or b.
+;; search the space until (split a b) returns a, b, or #f.
 (define (binary-search split pred p1 p2)
   (if (= p1 p2) p1
       (let ([midpoint (split p1 p2)])
