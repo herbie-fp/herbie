@@ -116,17 +116,40 @@
 	 [negatives (drop l num-positives)])
     (append (reverse negatives) positives)))
 
+;; Given two alternatives and the index of the argument to split on,
+;; return the points at which the alts should be split. A return value
+;; starting with +nan.0 indicates that alt2 should come first, otherwise
+;; alt1 should come first. You can also optionally pass a maximum number
+;; of splitpoints to be returned.
 (define (get-splitpoints alt1 alt2 arg-index #:max-splitpoints [max-splits 4])
+  ;; Get the difflist by comparing the errors of the two alts.
+  ;; We first sort the errors in ascending order so that the difflist will be
+  ;; sequential, allowing for proper splitpoint creation.
   (let ([difflist (errors-compare (ascending-order arg-index (alt-errors alt1))
 				  (ascending-order arg-index (alt-errors alt2)))]
+	;; Sort the points in ascending order for use anywhere we need to use points, but want
+	;; them to match up with our difflist.
 	[ascending-points (ascending-order arg-index (*points*))])
+    ;; Get the split indices from the difflist with our given number of maximum splitpoints.
     (let ([sindices (difflist->splitindices difflist #:max-splitpoints max-splits)])
+      ;; Map across each splitindex, and make a splitpoint.
       (map (lambda (i)
+	     ;; If the splitindex is zero, turn it into an +nan.0, since the only place a zero
+	     ;; would appear is at the beginning, and if it appears, alt2 should come first, so
+	     ;; we want to put a +nan.0 to indicate that.
 	     (cond [(= 0 i) +nan.0]
+		   ;; If the index has an equality at it in the difflist, then at that point
+		   ;; the two alts are equal, so it's the perfect point to use as a splitpoint.
+		   ;; So just return the ascending point at that index.
 		   [(eq? '= (list-ref difflist i))
 		    (list-ref (list-ref ascending-points i) arg-index)]
+		   ;; If the index before this is equal (the one on the other side of the divide),
+		   ;; we can also just return the ascending point at that index.
 		   [(eq? '= (list-ref difflist (- i 1)))
 		    (list-ref (list-ref ascending-points (- i 1)) arg-index)]
+		   ;; Otherwise, one is better at the point before the split, and the other is
+		   ;; better at the point after the split, so we need to binary search to find
+		   ;; the splitpoint.
 		   [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)] ; Get the points
 			     [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
 			     [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
@@ -136,6 +159,7 @@
 								  (errors prog points (make-exacts prog points)))
 								(let ([prog (alt-program alt2)])
 								  (errors prog points (make-exacts prog points)))))))])
+			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
 			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
 	   sindices)))
 					   
