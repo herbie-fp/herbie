@@ -249,8 +249,8 @@
 		 ;; If the first element has type =, merge the second element into the third element, and recurse.
 		 [(eq? '= (cdar restlist))
 		  (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist)) acc)]
-		 [#t (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist))
 		 ;; Otherwise, merge the second element into the first element, and recurse.
+		 [#t (loop (list* (merge-into (cadr restlist) (car restlist)) (cddr restlist))
 			   acc)])]
 	  ;; If our second element doesn't satisfy pred, add the first element to the accumulator, and recurse on
 	  ;; the list from the second element onwards (cdr restlist)
