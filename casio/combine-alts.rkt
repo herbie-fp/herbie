@@ -4,9 +4,15 @@
 (require casio/rules)
 (require casio/points)
 (require casio/common)
+(require casio/redgreen)
 
 (provide (all-defined-out))
 
+;; This value is entirely arbitrary and should probably be changed,
+;; before it destroys something.
+(define *branch-cost* 5)
+
+;; Depreceated, but kept around for testing and reference
 (define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f identity])
   (let* ([vars (program-variables (alt-program alt0))]
 	 [split-var (list-ref vars var-index)]
@@ -19,6 +25,74 @@
        (if ,condition
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
+
+(define (best-combination alts #:pre-combo-func [f identity])
+  (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))))]
+	 [all-options (apply append
+			     (map (lambda (var-index)
+				    (map-pairs (curry make-option
+						      var-index)
+					       alts))
+				  var-indices))]
+	 [best-option (best all-options (compose (curry > 0) errors-diff-score))])
+    (option->alt best-option f)))
+
+(define (option->alt opt pre-combo-func)
+  (define (apply-with-points points altn)
+    (parameterize [(*points* points)
+		   (*exacts* (make-exacts (alt-program altn) points))]
+      (pre-combo-func altn)))
+  (let ([split-var (option-split-var opt)]
+	[condition (option-condition opt)]
+	[split-var-index (option-split-var-index opt)]
+	[vars (alt-program (option-altn1 opt))])
+    (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
+							(curry (flip-args list-ref) split-var-index))
+					       (*points*))])
+      (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
+	    [altn2* (apply-with-points points2 (option-altn2 opt))])
+	(let ([program `(lambda ,vars
+			  (if ,condition
+			      (program-body (alt-program altn1*))
+			      (program-body (alt-program altn2*))))]
+	      [errs (option-errors opt)]
+	      [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
+	  (alt program errs cost #f #f))))))
+
+(define (best lst item<?)
+  (let loop ([best-item (car lst)] [rest (cdr lst)])
+    (if (null? rest) best-item
+	(if (item<? best-item (car rest))
+	    (loop (car rest) (cdr rest))
+	    (loop best-item (cdr rest))))))
+
+(struct option (altn1 altn2 condition errors split-var split-var-index) #:transparent
+	#:methods gen:custom-write
+	[(define (write-proc opt port mode)
+	   (display "#<option " port)
+	   (write (alt-program (option-altn1 opt)) port)
+	   (display ", " port)
+	   (write (alt-program (option-altn2 opt)) port)
+	   (display ">" port))])
+
+(define (make-option var-index altn1 altn2)
+  (let* ([vars (program-variables (alt-program altn1))]
+	 [split-var (list-ref vars var-index)]
+	 [condition (get-condition (sort (get-splitpoints altn1 altn2 var-index) <)
+				  split-var)]
+	 [condition-func (eval `(lambda (,split-var) ,condition))]
+	 [errors (map (lambda (error1 error2 point) (if (condition-func (list-ref point var-index)) error1 error2))
+				 (alt-errors altn1)
+				 (alt-errors altn2)
+				 *points*)])
+    (option altn1 altn2 condition errors split-var var-index)))
+
+;; Maps the given f across every unique, unordered pair of elements of lst.
+(define (map-pairs f lst)
+  (let loop ([rest lst] [acc '()])
+    (if (null? (cdr rest))
+	acc
+	(loop (cdr rest) (append (map (curry f (car rest)) (cdr rest)) acc)))))
 
 (define (get-condition splitpoints var)
   (if (nan? (car splitpoints))
