@@ -162,6 +162,7 @@
 				   (/ (+ a b) 2)))
 		 pred p1 p2))
 
+;; Implemented here for example.
 (define binary-search-ints (curry binary-search (compose floor (compose (curry (flip-args /) 2) +))))
 
 ;; Gets the indices to split a region into. By default the only requirement of these regions is that they be the most accurate
@@ -181,7 +182,7 @@
     (if (eq? '< (cdar regions))
 	with-zero
 	(cdr with-zero)))) ;;without zero
-	 
+
 (define (diff-list-to-regions difflist)
   (let loop ([restlist difflist] [cur-region-size 0] [cur-region #f] [acc '()])
     (cond [(null? restlist)
@@ -192,12 +193,32 @@
 							(cons (cons cur-region-size cur-region) acc)
 							acc))])))
 
+;; Returns a regionlist that is the result of all regions in 'regions'
+;; that return true to 'pred' being "swallowed" by the adjacent regions.
+;; Swallowing follows these rules:
+;; 1. A regions will always be swallowed by an adjacent region
+;; 2. If one neighbor is of type =, and the other is not, then the neighbor
+;;    that is not of type = will swallow the region.
+;; 3. If a region to be swallowed is on either end of the regionlist, it will
+;;    be swalled by it's existing neighbor.
+;; 4. Otherwise, regions will be swallowed by the region that comes after them.
+;; 5. Regions are swallowed from the beginning of the list to the end.
+;; 6. The result of one regions swallowing another has the type of the swallowing
+;;    region, unless that type is =, in which case it has the type of the swallowed
+;;    region.
+;; Finally, note that behavior is undefined if a region which does not satisfy
+;; pred can satisfy pred after swallowing another region which does satisfy pred.
 (define (swallow-regions pred regions)
+  ;; Returns the result of reg2 "swallowing" reg1.
+  ;; The result has a size of (+ (size reg1) (size reg2)),
+  ;; and a type of (type reg2), unless (eq? '= (type reg2)),
+  ;; in which case it has a type of (type reg1).
   (define (merge-into reg1 reg2)
     (cons (+ (car reg1) (car reg2)) (if (eq? '= (cdr reg2))
 					(cdr reg1)
 					(cdr reg2))))
-  
+  ;; Returns the result of merging all adjacent regions
+  ;; that have the same type.
   (define (merge-adjacent-regions regions)
     (reverse (foldl (lambda (reg acc)
 		      (cond [(null? acc) (cons reg acc)]
@@ -205,16 +226,32 @@
 			     (cons (merge-into reg (car acc)) (cdr acc))]
 			    [#t (cons reg acc)]))
 		    '() regions)))
+  ;; Loop over our regions from start to end.
+  ;; Note, for any who read this code: the loop is always operating on
+  ;; the second element of restlist, that way we have access to the item
+  ;; before and after the current item, since either may be the swallower.
+  ;; The first element, if it meets pred, is swallowed at the end.
   (let loop ([restlist regions] [acc '()])
+    ;; If we are at the last element of the list, then we're done,
+    ;; since we operate on the second element of the list (which is null).
+    ;; Now that we're done, we check if the first element satisfies pred,
+    ;; and if it does, we merge it into the second element, unless there
+    ;; is only one element remaining in the list.
     (cond [(null? (cdr restlist)) (merge-adjacent-regions (let ([first-pass (reverse (cons (car restlist) acc))])
 							    (if (and (pred (car first-pass)) (not (null? (cdr first-pass))))
 								(cons (merge-into (car first-pass) (cadr first-pass)) (cddr first-pass))
 								first-pass)))]
+	  ;; If our second element satisfies pred, we have to merge it into one of it's neighbors.
 	  [(pred (cadr restlist))
+	   ;; If the second element is the last element in the list, we have to merge into the first element.
 	   (cond [(null? (cddr restlist))
 		  (loop (list (merge-into (cadr restlist) (car restlist))) acc)]
+		 ;; If the first element has type =, merge the second element into the third element, and recurse.
 		 [(eq? '= (cdar restlist))
 		  (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist)) acc)]
 		 [#t (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist))
+		 ;; Otherwise, merge the second element into the first element, and recurse.
 			   acc)])]
+	  ;; If our second element doesn't satisfy pred, add the first element to the accumulator, and recurse on
+	  ;; the list from the second element onwards (cdr restlist)
 	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
