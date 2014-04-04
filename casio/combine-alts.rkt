@@ -200,7 +200,7 @@
 ;; 2. If one neighbor is of type =, and the other is not, then the neighbor
 ;;    that is not of type = will swallow the region.
 ;; 3. If a region to be swallowed is on either end of the regionlist, it will
-;;    be swalled by it's existing neighbor.
+;;    be swallowed by it's existing neighbor.
 ;; 4. Otherwise, regions will be swallowed by the region that comes after them.
 ;; 5. Regions are swallowed from the beginning of the list to the end.
 ;; 6. The result of one regions swallowing another has the type of the swallowing
