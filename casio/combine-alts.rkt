@@ -183,12 +183,29 @@
 	with-zero
 	(cdr with-zero)))) ;;without zero
 
+;; Given a difflist, return a list of the regions in that difflist, in the
+;; form of a regionlist.
+;; A difflist is defined as a list composed of the symbols <, =, and >,
+;; indicating whether at each of a set of points, alt1 is better than alt2, worse,
+;; or the same.
+;; A regionlist is defined as a list composed of regions, where each region
+;; indicates a set of consecutive symbols in a difflist, and is of the form
+;; (size . diff-symbol).
 (define (difflist->regions difflist)
+  ;; Loop across the difflist, keeping track of the size of the current region we're
+  ;; building and the diffsymbol of that region, and accumulating the results in acc.
   (let loop ([restlist difflist] [cur-region-size 0] [cur-region (car difflist)] [acc '()])
+    ;; If we have no more elements left, add the current region we've been working on
+    ;; to our accumulator, and then reverse it (since it builds backwards), and return it.
     (cond [(null? restlist)
 	   (reverse (cons (cons cur-region-size cur-region) acc))]
+	  ;; If the next element is the same as the region we're working on, increment
+	  ;; the current region size, and recurse on the rest of the list.
 	  [(eq? (car restlist) cur-region)
 	   (loop (cdr restlist) (+ cur-region-size 1) cur-region acc)]
+	  ;; Otherwise, we've hit the end of our current region, so add the current region to
+	  ;; the accumulator, set our new region to the symbol of the current element, set
+	  ;; our size to one, and recurse.
 	  [#t (loop (cdr restlist) 1 (car restlist) (cons (cons cur-region-size cur-region) acc))])))
 
 ;; Returns a regionlist that is the result of all regions in 'regions'
