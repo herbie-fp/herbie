@@ -139,7 +139,7 @@
 	 [errors (map (lambda (error1 error2 point) (if (condition-func (list-ref point var-index)) error1 error2))
 				 (alt-errors altn1)
 				 (alt-errors altn2)
-				 *points*)])
+				 (*points*))])
     ;; Finally, build the option structure.
     (option altn1 altn2 condition errors split-var var-index)))
 
