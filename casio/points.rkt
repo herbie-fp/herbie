@@ -7,7 +7,7 @@
 
 (provide prepare-points *points* *exacts*
          errors errors-compare errors-difference
-         relative-error make-exacts errors-diff-score)
+         make-exacts errors-diff-score)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
