@@ -1,12 +1,13 @@
 #lang racket
 
+(require math/flonum)
 (require math/bigfloat)
 (require casio/common)
 (require casio/programs)
 
 (provide prepare-points *points* *exacts*
          errors errors-compare errors-difference
-         relative-error make-exacts)
+         relative-error make-exacts errors-diff-score)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -81,21 +82,19 @@
          [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
 
-(define (relative-error approx exact)
-  (if (and (real? approx) (real? exact))
-      (abs (/ (- exact approx) (max (abs exact) (abs approx))))
-      +nan.0))
-
 (define (errors prog points exacts)
   (let ([fn (eval-prog prog mode:fl)])
     (for/list ([point points] [exact exacts])
-      (relative-error (fn point) exact))))
+      (let ([out (fn point)])
+        (if (real? out)
+            (+ 1 (flulp-error out (->flonum exact)))
+            +inf.0)))))
 
 (define errors-compare-cache (make-hasheq))
 
 (define (reasonable-error? x)
   ; TODO : Why do we need the 100% error case?
-  (not (or (= x 1.0) (infinite? x) (nan? x))))
+  (not (or (infinite? x) (nan? x))))
 
 (define (errors-compare errors1 errors2)
   (map (λ (x) (cond [(< x 0) '<] [(> x 0) '>] [#t '=]))
@@ -109,11 +108,9 @@
       (for/list ([error1 errors1] [error2 errors2])
         (cond
          [(and (reasonable-error? error1) (reasonable-error? error2))
-          (cond
-           [(and (= error1 0) (= error2 0)) 0.0]
-           [(= error1 0) -inf.0]
-           [(= error2 0) +inf.0]
-           [#t (log (/ error1 error2))])]
+          (if (or (<= error1 0) (<= error2 0))
+              (error "Error values must be positive" error1 error2)
+              (/ (log (/ error1 error2)) (log 2)))]
          [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
           -inf.0]
          [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
@@ -121,3 +118,10 @@
          [#t
           0.0]
          [#t (error "Failed to classify error1 and error2" error1 error2)])))))
+
+(define (errors-diff-score e1 e2)
+  (let ([d (errors-difference e1 e2)])
+    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
+		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
+      (+ (apply + reals)
+	 (* 64 (- (length negative-infs) (length positive-infs)))))))

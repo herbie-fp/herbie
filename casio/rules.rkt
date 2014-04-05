@@ -144,6 +144,7 @@
 ; Commutativity
 (define-rule   +-commutative     (+ a b)               (+ b a))
 (define-rule   *-commutative     (* a b)               (* b a))
+
 ; Associativity
 (define-rule   associate-+-lft   (+ a (+ b c))         (+ (+ a b) c)     #:simplify ((cdr car)))
 (define-rule   associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c))     #:simplify ((cdr cdr car)))
@@ -153,11 +154,13 @@
 (define-rule   associate-*-rgt   (* (* a b) c)         (* a (* b c))     #:simplify ((cdr cdr car)))
 (define-rule   associate-/-lft   (* a (/ b c))         (/ (* a b) c)     #:simplify ((cdr car)))
 (define-rule   associate-/-rgt   (/ (* a b) c)         (* a (/ b c))     #:simplify ((cdr cdr car)))
+
 ; Distributivity
 (define-rule   distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c))     #:simplify ((cdr car) (cdr cdr car)))
 (define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a))     #:simplify ((cdr car) (cdr cdr car)))
 (define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c))           #:simplify ((cdr cdr car)))
 (define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))           #:simplify ((cdr cdr car)))
+
 ; Identity
 (define-rule   +-lft-identity    (+ 0 a)               a)
 (define-rule   +-rgt-identity    (+ a 0)               a)
@@ -166,27 +169,49 @@
 (define-rule   *-lft-identity    (* 1 a)               a)
 (define-rule   *-rgt-identity    (* a 1)               a)
 (define-rule   *-inverses        (/ a a)               1)
-(define-rule   sub-neg           (/ a b)               (* a (/ b)))
+
 ; Dealing with fractions
-(define-rule   div-sub           (/ (- a b) c)         (- (/ a c) (/ b c))                  #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   sub-div           (- (/ a c) (/ b c))   (/ (- a b) c)                        #:simplify ((cdr car)))
-(define-rule   frac-sub          (- (/ a b) (/ c d))   (/ (- (* a d) (* b c)) (* b d))      #:simplify ((cdr car)))
-; Square root  
-(define-rule   add-square-sqrt   x                     (square (sqrt x)))
-(define-rule   add-sqrt-square   x                     (sqrt (square x)))
-(define-rule   rem-square-sqrt   (square (sqrt x))     x)
-(define-rule   rem-sqrt-square   (sqrt (square x))     x)
-(define-rule   square-mult       (square x)            (* x x))
-(define-rule   square-unmult     (* x x)               (square x))
-(define-rule   square-prod       (square (* x y))      (* (square x) (square y))     #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   square-unprod     (* (square x) (square y)) (square (* x y))          #:simplify ((cdr car)))
-(define-rule   square-div        (square (/ x y))      (/ (square x) (square y))     #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   square-undiv      (/ (square x) (square y)) (square (/ x y))          #:simplify ((cdr car)))
+(define-rule   div-sub     (/ (- a b) c)        (- (/ a c) (/ b c))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)
+  #:simplify ((cdr car)))
+(define-rule   frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))
+  #:simplify ((cdr car)))
+(define-rule   frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   times-frac  (/ (* a b) (* c d))  (* (/ a c) (/ b d))
+  #:simplify ((cdr car) (cdr cdr car)))
+
+; Square root
+(define-rule   add-sqr-sqrt      x                  (sqr (sqrt x)))
+(define-rule   add-sqrt-sqr      x                  (sqrt (sqr x)))
+(define-rule   rem-square-sqrt   (sqr (sqrt x))     x)
+(define-rule   rem-sqrt-square   (sqrt (sqr x))     x)
+(define-rule   square-mult       (sqr x)            (* x x))
+(define-rule   square-unmult     (* x x)            (sqr x))
+(define-rule   square-prod       (sqr (* x y))      (* (sqr x) (sqr y))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   square-unprod     (* (sqr x) (sqr y)) (sqr (* x y))
+  #:simplify ((cdr car)))
+(define-rule   square-div        (sqr (/ x y))      (/ (sqr x) (sqr y))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   square-undiv      (/ (sqr x) (sqr y)) (sqr (/ x y))
+  #:simplify ((cdr car)))
+
 ; Exponentials
-(define-rule   add-exp-log       x                     (exp (log x)))
-(define-rule   add-log-exp       x                     (log (exp x)))
-(define-rule   rem-exp-log       (exp (log x))         x)
-(define-rule   rem-log-exp       (log (exp x))         x)
+(define-rule   add-exp-log  x                    (exp (log x)))
+(define-rule   add-log-exp  x                    (log (exp x)))
+(define-rule   rem-exp-log  (exp (log x))        x)
+(define-rule   rem-log-exp  (log (exp x))        x)
+(define-rule   exp-sum      (exp (+ a b))        (* (exp a) (exp b)))
+(define-rule   prod-exp     (* (exp a) (exp b))  (exp (+ a b)))
+(define-rule   exp-diff     (exp (- a b))        (/ (exp a) (exp b)))
+(define-rule   div-exp      (/ (exp a) (exp b))  (exp (- a b)))
+
 ; Multiplying by x / x
-(define-rule   flip-+            (+ a b)               (/ (- (square a) (square b)) (- a b))   #:simplify ((cdr car) (cdr cdr car)))
-(define-rule   flip--            (- a b)               (/ (- (square a) (square b)) (+ a b))   #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))
+  #:simplify ((cdr car) (cdr cdr car)))
+(define-rule   clear-num  (/ a b)  (/ 1 (/ b a))
+  #:simplify ((cdr cdr car)))

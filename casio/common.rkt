@@ -3,8 +3,8 @@
 (require math/bigfloat)
 (require data/order)
 
-(provide reap println ->flonum *precision* cotan square ordinary-float?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe)
+(provide reap println ->flonum *precision* cotan ordinary-float?
+         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -33,6 +33,7 @@
   (when (*debug*)
       (display (hash-ref *tags* tag "; "))
       (write from)
+      (display ": ")
       (for/list ([arg args])
         (display " ")
         ((if (string? arg) display write) arg))
@@ -53,14 +54,16 @@
 (define (->flonum x)
   (cond
    [(real? x) ((*precision*) x)]
-   [(bigfloat? x) ((*precision*) (bigfloat->flonum x))]))
+   [(bigfloat? x) ((*precision*) (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
+        (->flonum (real-part x))
+        +nan.0)]
+   [else (error "Invalid number" x)]))
 
 ; Functions used by our benchmarks
 (define (cotan x)
   (/ 1 (tan x)))
-
-(define (square x)
-  (* x x))
 
 (define (ordinary-float? x)
   (not (or (infinite? x) (nan? x))))
@@ -68,6 +71,9 @@
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
       (and (nan? x1) (nan? x2))))
+
+(define (1+ x)
+  (+ 1 x))
 
 (define (list= l1 l2)
   (and l1 l2 (andmap =-or-nan? l1 l2)))
@@ -88,3 +94,15 @@
 ;; Pipes an initial values through a list of funcs.
 (define (pipe initial funcs)
   ((apply compose (reverse funcs)) initial))
+
+;; Flips the argument order of a two argument function.
+(define (flip-args f) (lambda (x y) (f y x)))
+
+;; A more informative andmap. If any of your results are false, this returns
+;; false. Otherwise, it acts as a normal map.
+(define (info-andmap f l)
+  (let loop ([rest l] [acc '()])
+    (if (null? rest)
+	(reverse acc)
+	(let ([result (f l)])
+	  (and result (loop (cdr rest) (cons result acc)))))))

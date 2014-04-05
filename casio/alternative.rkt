@@ -6,7 +6,6 @@
 (require casio/common)
 (require racket/pretty)
 
-
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
 	 apply-changes alternative<? alternative<>? build-alt alt-initial alt-changes)
 
@@ -76,9 +75,7 @@
     (and (member '< comparisons) (member '> comparisons))))
 
 (define (alternative<? alt1 alt2)
-  "Compare two alternatives.
-   Compares first by a lattice order on points, then by program cost."
+  "Compare two alternatives by a lattice order on pointwise error."
 
   (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
-    (or (andmap (negate (curry eq? '>)) comparisons)
-        (< (alt-cost alt1) (alt-cost alt2)))))
+    (andmap (negate (curry eq? '>)) comparisons)))

@@ -2,10 +2,10 @@
 
 (require casio/alternative)
 (require casio/programs)
-(require casio/main)
-(require rackunit)
 
-(define *num-iterations* (make-parameter 10))
+(provide (struct-out test) *tests* *num-iterations* casio-test casio-bench)
+
+(define *num-iterations* (make-parameter 5))
 
 (define (unfold-let expr)
   (match expr
@@ -24,7 +24,9 @@
 (define (expand-associativity expr)
   (match expr
     [(list (? (curryr member '(+ - * /)) op) a ..2 b)
-     (list op (expand-associativity (cons op a)) (expand-associativity b))]
+     (list op
+           (expand-associativity (cons op a))
+           (expand-associativity b))]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_
@@ -41,31 +43,18 @@
 (define (compile-program prog)
   (expand-associativity (unfold-let prog)))
 
-(define-binary-check (check-member (lambda (x y) (member y x)) elt lst))
+(struct test (name vars input output))
+(define *tests* (make-parameter '()))
+
+(define (save-test t)
+  (*tests* (cons t (*tests*))))
 
 (define-syntax (casio-test stx)
   (syntax-case stx ()
     [(_ vars name input output)
-     #`(let* ([prog `(lambda vars ,(compile-program 'input))]
-              [altn (improve prog (*num-iterations*))])
-	 (if (member 'output (program-body (alt-program altn)))
-	     #t
-	     (begin
-	       (printf "failure on ~a\ninput: ~a\ndesired output: ~a\nactual output: ~a\n"
-		       'name 'input 'output altn)
-	       #f)))]))
-
-(define (bench-results name inerr outerr)
-  (printf "~a orders: ~s\n"
-          (/ (round (* (- (/ (log (/ outerr (max inerr 1e-16)))
-                             (log 10))) 10)) 10)
-          name))
+     #`(save-test (test name 'vars (compile-program 'input) (compile-program 'output)))]))
 
 (define-syntax (casio-bench stx)
   (syntax-case stx ()
     [(_ vars name input)
-     #`(let* ([prog `(lambda vars ,(unfold-let 'input))]
-              [altn (improve prog (*num-iterations*))])
-	 'ok #;(bench-results name prog altn))]))
-
-(provide casio-test casio-bench)
+     #`(save-test (test name 'vars (compile-program 'input) #f))]))
