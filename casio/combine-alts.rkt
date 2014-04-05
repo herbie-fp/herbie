@@ -26,12 +26,7 @@
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
-;; Gets the best combination of two alts from a given list of alts.
-;; If passed a pre-combo-func, will apply that function to both alts
-;; that are combined, before combination. Will ONLY invoke pre-combo-func
-;; on the alts in the combination that seems best, so the pre-combo-func
-;; can be fairly costly.
-(define (best-combination alts #:pre-combo-func [f identity])
+(define (best-option alts)
   ;; We want to check combinations on every variable, since we don't know
   ;; which variable would yield the best combination, so build a list
   ;; of all the variable indices.
@@ -61,11 +56,19 @@
 				     all-options))]
 	 ;; Use our best function to get the best option,
 	 ;; comparing options by checking if one option is
-	 ;; "green" over the other.
+	 ;; "green" over the other, on our reevaluated points.
 	 [best-option (best reevaluated-options (lambda (opt1 opt2)
-					  (> 0 (errors-diff-score (option-errors opt1 opt2)))))])
-    ;; Build the option struct and return.
-    (option->alt best-option f)))
+						  (> 0 (errors-diff-score (option-aug-errors^ opt1) (option-aug-errors^ opt2)))))])
+    ;; Build the option struct and return, using the original errors on points.
+    best-option))
+
+;; Gets the best combination of two alts from a given list of alts.
+;; If passed a pre-combo-func, will apply that function to both alts
+;; that are combined, before combination. Will ONLY invoke pre-combo-func
+;; on the alts in the combination that seems best, so the pre-combo-func
+;; can be fairly costly.
+(define (best-combination alts #:pre-combo-func [f identity])
+  (option->alt (best-option alts) f))
 
 ;; Turns an option into a new alternative.
 (define (option->alt opt pre-combo-func)
@@ -127,6 +130,8 @@
 	   (write (alt-program (option-altn2 opt)) port)
 	   (display ">" port))])
 
+(struct option-aug option (errors^))
+
 ;; Given two alternatives, make an option struct to represent
 ;; the hypothetical combination of the two alternatives.
 (define (make-option var-index altn1 altn2)
@@ -153,14 +158,15 @@
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
   (let* ([condition-func (eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
-	 [errors* (map (lambda (point exact)
+	 [errors^ (map (lambda (point exact)
 			 (car (errors (if (condition-func (list-ref point (option-split-var-index opt)))
 					  (alt-program (option-altn1 opt))
 					  (alt-program (option-altn2 opt)))
 				      (list point) (list exact))))
 		       points exacts)])
-    (option (option-altn1 opt) (option-altn2 opt) (option-condition opt)
-	    errors* (option-split-var opt) (option-split-var-index opt))))
+    (option-aug (option-altn1 opt) (option-altn2 opt) (option-condition opt)
+		(option-errors opt) (option-split-var opt) (option-split-var-index opt)
+		errors^)))
 
 ;; Maps the given f across every unique, unordered pair of elements of lst.
 (define (map-pairs f lst)
