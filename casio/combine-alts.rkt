@@ -86,32 +86,38 @@
 	[condition (option-condition opt)]
 	[split-var-index (option-split-var-index opt)]
 	[vars (program-variables (alt-program (option-altn1 opt)))])
-    ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
-    (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
-							(curry (flip-args list-ref) split-var-index))
-					       (*points*))])
-      ;; Get the improved versions of our two alts.
-      (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
-	    [altn2* (apply-with-points points2 (option-altn2 opt))])
-	;; The new program is the old programs iffed together with our condition
-	(let ([program (if (eq? (car condition) 'not)
-			   ;; If the condition is negated, it's simpler in the final program
-			   ;; to just flip the branches.
-			   `(lambda ,vars
-			      (if ,(cadr condition)
-				  ,(program-body (alt-program altn2*))
-				  ,(program-body (alt-program altn1*))))
-			   `(lambda ,vars
-			      (if ,condition
-				  ,(program-body (alt-program altn1*))
-				  ,(program-body (alt-program altn2*)))))]
-	      ;; The errors are the option errors computed by make-option
-	      [errs (option-errors opt)]
-	      ;; The cost is the worst case cost, the maximum cost of our different
-	      ;; branches, plus a branch cost.
-	      [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
-	  ;; Build the alt struct and return.
-	  (alt program errs cost #f #f))))))
+    ;; If the condition is just #t, then we want to choose the first alt on all points.
+    (cond [condition alt1]
+	  ;; If the condition is '(not #t), then we want to choose the second alt on all points.
+	  [(and (eq? (car condition) 'not) (eq? (cadr condition #t)))
+	   alt2]
+	  [#t
+	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
+	   (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
+							       (curry (flip-args list-ref) split-var-index))
+						      (*points*))])
+	     ;; Get the improved versions of our two alts.
+	     (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
+		   [altn2* (apply-with-points points2 (option-altn2 opt))])
+	       ;; The new program is the old programs iffed together with our condition
+	       (let ([program (if (eq? (car condition) 'not)
+				  ;; If the condition is negated, it's simpler in the final program
+				  ;; to just flip the branches.
+				  `(lambda ,vars
+				     (if ,(cadr condition)
+					 ,(program-body (alt-program altn2*))
+					 ,(program-body (alt-program altn1*))))
+				  `(lambda ,vars
+				     (if ,condition
+					 ,(program-body (alt-program altn1*))
+					 ,(program-body (alt-program altn2*)))))]
+		     ;; The errors are the option errors computed by make-option
+		     [errs (option-errors opt)]
+		     ;; The cost is the worst case cost, the maximum cost of our different
+		     ;; branches, plus a branch cost.
+		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
+		 ;; Build the alt struct and return.
+		 (alt program errs cost #f #f)))))))
 
 ;; Given a list, and a function for comparing items in the list,
 ;; return the "best" item b, such that for all a in the list, (not (item<? b a))
@@ -186,35 +192,39 @@
   ;; In otherwords, if the +nan.0 is present, then our condition is the
   ;; opposite of what it would be if +nan.0 was not present, since the
   ;; locations of alt1 and alt2 are switched.
-  (if (nan? (car splitpoints))
-      ;; We reverse the condition by appending not to a recursive call with the
-      ;; +nan.0 removed.
-      (list 'not (get-condition (cdr splitpoints) var))
-      ;; Our total condition will be the or of conditions that indicate
-      ;; that the point is in each region where alt1 applies.
-      ;; We start by adding the condition that the point is before the first
-      ;; splitpoint, the first region
-      (let ([conditions (cons `(> ,(car splitpoints) ,var)
-			      ;; Then, loop across the rest of the splitpoints,
-			      ;; accumulating conditions.
-			      (let loop ([rest (cdr splitpoints)] [conds '()])
-				;; If we have reached the end of the list, return our accumulator
-				(cond [(null? rest) conds]
-				      ;; If we're at the second to last tlement of the list,
-				      ;; then our last condition is the point being greater than
-				      ;; the last splitpoint (since we only get here if we have
-				      ;; an odd number of splitpoints.
-				      [(null? (cdr rest)) (cons `(< ,(car rest) ,var) conds)]
-				      ;; If we're somewhere in the list, take the next two elements,
-				      ;; and add a condition that the point is between them.
-				      [#t (loop (cddr rest) (cons `(and (< ,(car rest) ,var)
-									(> ,(cadr rest) ,var))
-								   conds))])))])
-	;; If there ended up being only one condition (a single, binary split), then we just return it.
-	;; otherwise, or together all of our conditions.
-	(if (< 1 (length conditions))
-	    (cons 'or conditions)
-	    (car conditions)))))
+  ;; If we don't have any splitpoints, then alt1 is better than alt2 at
+  ;; all of our points, so just always choose it.
+  (cond [(null? splitpoints) #t]
+	[(nan? (car splitpoints))
+	 ;; We reverse the condition by appending not to a recursive call with the
+	 ;; +nan.0 removed.
+	 (list 'not (get-condition (cdr splitpoints) var))]
+	[#t
+	 ;; Our total condition will be the or of conditions that indicate
+	 ;; that the point is in each region where alt1 applies.
+	 ;; We start by adding the condition that the point is before the first
+	 ;; splitpoint, the first region
+	 (let ([conditions (cons `(> ,(car splitpoints) ,var)
+				 ;; Then, loop across the rest of the splitpoints,
+				 ;; accumulating conditions.
+				 (let loop ([rest (cdr splitpoints)] [conds '()])
+				   ;; If we have reached the end of the list, return our accumulator
+				   (cond [(null? rest) conds]
+					 ;; If we're at the second to last tlement of the list,
+					 ;; then our last condition is the point being greater than
+					 ;; the last splitpoint (since we only get here if we have
+					 ;; an odd number of splitpoints.
+					 [(null? (cdr rest)) (cons `(< ,(car rest) ,var) conds)]
+					 ;; If we're somewhere in the list, take the next two elements,
+					 ;; and add a condition that the point is between them.
+					 [#t (loop (cddr rest) (cons `(and (< ,(car rest) ,var)
+									   (> ,(cadr rest) ,var))
+								     conds))])))])
+	   ;; If there ended up being only one condition (a single, binary split), then we just return it.
+	   ;; otherwise, or together all of our conditions.
+	   (if (< 1 (length conditions))
+	       (cons 'or conditions)
+	       (car conditions)))]))
 
 ;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
 ;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
