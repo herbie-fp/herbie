@@ -58,7 +58,9 @@
 	 ;; comparing options by checking if one option is
 	 ;; "green" over the other, on our reevaluated points.
 	 [best-option (best reevaluated-options (lambda (opt1 opt2)
-						  (> 0 (errors-diff-score (option-aug-errors^ opt1) (option-aug-errors^ opt2)))))])
+						  (let ([diff-score (errors-diff-score (option-aug-errors^ opt1) (option-aug-errors^ opt2))])
+						    (or (> 0 diff-score)
+							(and (= 0 diff-score) (> (option-cost opt1) (option-cost opt2)))))))])
     ;; Build the option struct and return, using the original errors on points.
     best-option))
 
@@ -121,7 +123,7 @@
 	    (loop best-item (cdr rest))))))
 
 ;; A struct to represent the hypothetical combination of the two alternatives.
-(struct option (altn1 altn2 condition errors split-var split-var-index) #:transparent
+(struct option (altn1 altn2 condition errors split-var split-var-index cost) #:transparent
 	#:methods gen:custom-write
 	[(define (write-proc opt port mode)
 	   (display "#<option " port)
@@ -151,9 +153,10 @@
 	 [errors (map (lambda (error1 error2 point) (if (condition-func (list-ref point var-index)) error1 error2))
 				 (alt-errors altn1)
 				 (alt-errors altn2)
-				 (*points*))])
+				 (*points*))]
+	 [cost (+ *branch-cost* (max (alt-cost altn1) (alt-cost altn2)))])
     ;; Finally, build the option structure.
-    (option altn1 altn2 condition errors split-var var-index)))
+    (option altn1 altn2 condition errors split-var var-index cost)))
 
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
@@ -166,7 +169,7 @@
 		       points exacts)])
     (option-aug (option-altn1 opt) (option-altn2 opt) (option-condition opt)
 		(option-errors opt) (option-split-var opt) (option-split-var-index opt)
-		errors^)))
+		(option-cost opt) errors^)))
 
 ;; Maps the given f across every unique, unordered pair of elements of lst.
 (define (map-pairs f lst)
