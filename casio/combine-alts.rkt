@@ -341,7 +341,7 @@
 					  (cons (+ (car reg) (car acc)) acc))
 					'(0) regions)))])
     ;; If the first region should be alt2, keep the leading zero
-    (if (eq? '< (cdar regions))
+    (if (eq? '> (cdar regions))
 	with-zero
 	;; Otherwise, discard the leading zero.
 	(cdr with-zero))))
