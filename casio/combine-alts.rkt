@@ -87,10 +87,10 @@
 	[split-var-index (option-split-var-index opt)]
 	[vars (program-variables (alt-program (option-altn1 opt)))])
     ;; If the condition is just #t, then we want to choose the first alt on all points.
-    (cond [condition alt1]
+    (cond [(eq? condition #t) (option-altn1 opt)]
 	  ;; If the condition is '(not #t), then we want to choose the second alt on all points.
 	  [(and (eq? (car condition) 'not) (eq? (cadr condition #t)))
-	   alt2]
+	   (option-altn2 opt)]
 	  [#t
 	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
 	   (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
@@ -117,7 +117,7 @@
 		     ;; branches, plus a branch cost.
 		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
 		 ;; Build the alt struct and return.
-		 (alt program errs cost #f #f)))))))
+		 (alt program errs cost #f #f))))])))
 
 ;; Given a list, and a function for comparing items in the list,
 ;; return the "best" item b, such that for all a in the list, (not (item<? b a))
