@@ -25,6 +25,7 @@
        (if ,condition
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
+
 ;; Gets the best combination of two alts from a given list of alts.
 ;; If passed a pre-combo-func, will apply that function to both alts
 ;; that are combined, before combination. Will ONLY invoke pre-combo-func
@@ -46,10 +47,22 @@
 						      var-index)
 					       alts))
 				  var-indices))]
+	 ;; We reevaluate our options on a new set of points so that options
+	 ;; that overfit will be less likely to be considered 'best'
+	 [reevaluated-options (let-values ([(points exacts) (prepare-points
+							     ;; We can just take the program from
+							     ;; the first alt, since point preparation
+							     ;; uses only the program variables
+							     ;; and exact values, neither of which
+							     ;; should vary between alts of the
+							     ;; same run.
+							     (alt-program (car alts)))])
+				(map (curry reevaluate-option-on-points points exacts)
+				     all-options))]
 	 ;; Use our best function to get the best option,
 	 ;; comparing options by checking if one option is
 	 ;; "green" over the other.
-	 [best-option (best all-options (lambda (opt1 opt2)
+	 [best-option (best reevaluated-options (lambda (opt1 opt2)
 					  (> 0 (errors-diff-score (option-errors opt1 opt2)))))])
     ;; Build the option struct and return.
     (option->alt best-option f)))
@@ -129,6 +142,18 @@
 				 *points*)])
     ;; Finally, build the option structure.
     (option altn1 altn2 condition errors split-var var-index)))
+
+;; Given an option over one set of points, reevaluate it's errors over another set of points.
+(define (reevaluate-option-on-points points exacts opt)
+  (let* ([condition-func (eval `(lambda (,(option-splitvar opt)) ,condition))]
+	 [errors* (map (lambda (point exact)
+			 (car (errors (if (condition-func (list-ref point (option-split-var-index opt)))
+					  (alt-program (option-altn1 opt))
+					  (alt-program (option-altn2 opt)))
+				      (list point) (list exact))))
+		       points exacts)])
+    (option (option-altn1 opt) (option-altn2 opt) (option-condition opt)
+	    errors* (option-split-var opt) (option-split-var-index opt))))
 
 ;; Maps the given f across every unique, unordered pair of elements of lst.
 (define (map-pairs f lst)
