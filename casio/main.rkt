@@ -42,7 +42,7 @@
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
-    (improve-with-points prog max-iters points exacts)))
+    (improve-with-points prog max-iters)))
 
 ;; This should only be called in a scope where *points* and *exacts* are
 ;; dynamically defined.
