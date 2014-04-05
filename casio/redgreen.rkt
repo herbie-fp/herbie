@@ -6,21 +6,17 @@
 (require casio/programs)
 (require casio/common)
 
-(provide green? remove-red green-threshold errors-diff-score)
+(provide green-threshold much-better? green? remove-red)
 
 (define green-threshold (make-parameter 0))
+
+(define (much-better? alt1 alt2)
+  (< (errors-diff-score (alt-errors alt1) (alt-errors alt2))
+     (green-threshold)))
 	     
 (define (green? altn)
-  (and (alt-prev altn) ; The initial alternative is not green-tipped by convention
-       (< (green-threshold)
-	  (errors-diff-score (alt-errors altn) (alt-errors (alt-prev altn))))))
-
-(define (errors-diff-score e1 e2)
-  (let ([d (errors-difference e1 e2)])
-    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
-		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
-      (+ (apply + reals)
-	 (* 100 (- (length positive-infs) (length negative-infs)))))))
+  ; The initial alternative is not green-tipped by convention
+  (and (alt-prev altn) (much-better? altn (alt-prev altn))))
 
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
@@ -34,40 +30,40 @@
   ;; Given that "salmon" is blocked from translating further by
   ;; the change in front of it, try to move that change forward,
   ;; and then try to move the salmon forward again.
-  (define (move-dam salmon is-head?)
+  (define (move-dam salmon is-head? dams-hit)
     (let* ([dam (alt-prev salmon)]
-	   [new-next (swim-upstream dam #f)])
-      (if (eq? new-next dam)
+	   [new-next (swim-upstream dam #f '())])
+      (if (or (eq? new-next dam) (member new-next dams-hit))
 	  salmon
-	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head?))))
+	  (swim-upstream (alt-apply new-next (alt-change salmon)) is-head? (cons dam dams-hit)))))
   
   ;; Takes the head of an alternative history and returns the head
   ;; of a new history containing the same changes where the leading
   ;; change has been moved down as far as possible. is-head? is a value
   ;; indicating whether we should throw away the changes that have been
   ;; moved past the current change.
-  (define (swim-upstream salmon is-head?)
-    (when (*debug*) (println salmon " is swimming."))
+  (define (swim-upstream salmon is-head? dams-hit)
+    (debug salmon " is swimming." #:from 'swim-upstream #:tag 'info)
     (if (done salmon) salmon
 	(let* ([grandparent (alt-prev (alt-prev salmon))]
 	       [upstream-changes (translate #t
 					    (alt-change salmon)
 					    (alt-change (alt-prev salmon))
 					    grandparent)])
-	  (if upstream-changes
+	  (if (and upstream-changes (list? upstream-changes))
 	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
 		(if is-head?
-		    (swim-upstream moved-salmon #t)
+		    (swim-upstream moved-salmon #t dams-hit)
 		    (let ([downstream-changes (translate #f
 							 (alt-change (alt-prev salmon))
 							 (alt-change salmon)
 							 moved-salmon)])
 		      (if downstream-changes
-			  (let ([new-salmon (swim-upstream moved-salmon #f)])
+			  (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
 			    (apply-changes new-salmon downstream-changes))
-			  (move-dam salmon #f)))))
-	      (move-dam salmon is-head?)))))
-  (swim-upstream altn #t))
+			  (move-dam salmon #f dams-hit)))))
+	      (move-dam salmon is-head? dams-hit)))))
+  (swim-upstream altn #t '()))
 
 ;; Simple location match utility function. If 'a' is a continutation of 'b',
 ;; such as in a='(cdr cdr car cdr car) b='(cdr cdr car), returns the tail of
@@ -77,6 +73,13 @@
   (cond [(null? a) b]
 	[(null? b) a]
 	[(eq? (car a) (car b)) (match-loc (cdr a) (cdr b))]
+	[#t #f]))
+
+(define (match-loc-fst inside outside)
+  (cond [(null? outside) inside]
+	[(null? inside) #f]
+	[(eq? (car outside) (car inside))
+	 (match-loc-fst (cdr inside) (cdr outside))]
 	[#t #f]))
 
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
@@ -91,6 +94,8 @@
 ;; have locations of a tail appended to a head.
 (define (loc-translated-changes loc-tails loc-head original)
   (map (lambda (loc)
+	 (debug "Translating location" loc "onto" loc-head "in" original
+		#:from 'loc-translated-changes #:tag 'info)
 	 (change (change-rule original)
 		 (append loc-head loc)
 		 (change-bindings original)))
@@ -99,19 +104,26 @@
 ;; Translates locations from a location within translations specified
 ;; by from-func to the location specified by to-func.
 (define (translate-location loc translations from-func to-func)
-  (letrec ([recurse (lambda (translations)
-		      (if (null? translations)
-			  #f
-			  (let ([translation (car translations)])
-			    (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
-				(let ([tail (match-loc loc
-						       (car (from-func translation)))])
-				  (if tail
-				      (map (lambda (l) (append l tail))
-					   (to-func translation))
-				      (recurse (cdr translations))))
-				(recurse (cdr translations))))))])
-    (recurse translations)))
+  (debug "Translating" loc "in" translations "from" from-func "to" to-func
+	 #:from 'translate-location #:tag 'info)
+
+  (define (recurse translations)
+    (if (null? translations)
+	#f
+	(let ([translation (car translations)])
+	  (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
+	      (let ([tail (match-loc-fst loc
+				     (car (from-func translation)))])
+		(debug "Tail" tail "on" (car (from-func translation))
+		       #:from 'translate-location #:tag 'info)
+		(if tail
+		    (map (lambda (l) (append l tail))
+			 (to-func translation))
+		    (recurse (cdr translations))))
+	      (recurse (cdr translations))))))
+
+  (recurse translations))
+
 ;; Translates a change through another change.
 ;; up? indicates whether you are translating the change up. A value
 ;;     of false indicates a translation down.
@@ -120,6 +132,8 @@
 ;; new-parent is the alternative that the translated change will be
 ;;     applied to.
 (define (translate up? cur-change other-change new-parent)
+  (debug "Translate" cur-change "across" other-change "onto" new-parent
+	 #:from 'translate #:tag 'info)
   (cond [(orthogonal? cur-change other-change)
 	 (list cur-change)]
 	[(is-inside? (change-location cur-change) (change-location other-change))

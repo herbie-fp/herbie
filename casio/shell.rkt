@@ -5,7 +5,8 @@
 (require casio/rules)
 (require casio/programs)
 (require casio/alternative)
-(require casio/analyze-subexpressions)
+(require casio/analyze-local-error)
+(require casio/simplify)
 (require casio/main)
 
 (provide shell)
@@ -46,6 +47,10 @@
   (let-values ([(alt loc) (get-alt-loc loc)])
     (values (alt-rewrite-expression alt #:root loc) alts locs)))
 
+(define ((sh/simpl loc) alts locs)
+  (let-values ([(alt loc) (get-alt-loc loc)])
+    (values (list (simplify alt)) alts locs)))
+
 (define ((sh/join . lists) alts locs)
   (values (apply append lists) alts locs))
 
@@ -58,12 +63,15 @@
 	  locs))
 
 (define ((sh/analyze alt) alts locs)
-  (values (void) alts (remove-duplicates (cons (cons alt (analyze-local-error alt)) locs))))
+  (let ([locs* (map car (analyze-local-error alt))])
+    (values (void) alts
+	    (remove-duplicates (append locs (map (curry cons alt) locs*))))))
 
 (define shell-ops
   `([keep ,sh/keep] [drop ,sh/drop]
     [only ,sh/only] [also ,sh/also] [@ ,sh/list] [join ,sh/join]
-    [tree ,sh/tree] [expr ,sh/expr] [analyze ,sh/analyze]))
+    [tree ,sh/tree] [expr ,sh/expr] [simpl ,sh/simpl]
+    [analyze ,sh/analyze]))
 
 (define (eval-symbol s alts locs)
   (cond
