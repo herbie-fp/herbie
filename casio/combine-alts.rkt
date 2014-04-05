@@ -89,10 +89,17 @@
       (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
 	    [altn2* (apply-with-points points2 (option-altn2 opt))])
 	;; The new program is the old programs iffed together with our condition
-	(let ([program `(lambda ,vars
-			  (if ,condition
-			      (program-body (alt-program altn1*))
-			      (program-body (alt-program altn2*))))]
+	(let ([program (if (eq? (car condition) 'not)
+			   ;; If the condition is negated, it's simpler in the final program
+			   ;; to just flip the branches.
+			   `(lambda ,vars
+			      (if ,(cdr condition)
+				  ,(program-body (alt-program altn2*))
+				  ,(program-body (alt-program altn1*))))
+			   `(lambda ,vars
+			      (if ,condition
+				  ,(program-body (alt-program altn1*))
+				  ,(program-body (alt-program altn2*)))))]
 	      ;; The errors are the option errors computed by make-option
 	      [errs (option-errors opt)]
 	      ;; The cost is the worst case cost, the maximum cost of our different
