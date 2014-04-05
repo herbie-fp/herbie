@@ -96,7 +96,7 @@
 			   ;; If the condition is negated, it's simpler in the final program
 			   ;; to just flip the branches.
 			   `(lambda ,vars
-			      (if ,(cdr condition)
+			      (if ,(cadr condition)
 				  ,(program-body (alt-program altn2*))
 				  ,(program-body (alt-program altn1*))))
 			   `(lambda ,vars
