@@ -12,6 +12,13 @@
 ;; before it destroys something.
 (define *branch-cost* 5)
 
+;; A lexically scoped predicate that is true on the top level,
+;; but if you're in code that was called because you were trying
+;; to improve one of the branches of a conditional, then it is
+;; a predicate returning true to points that will go to your part
+;; of the branch, and false to points that won't.
+(define *point-pred* (make-parameter (const #t)))
+
 ;; Depreceated, but kept around for testing and reference
 (define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f identity])
   (let* ([vars (program-variables (alt-program alt0))]
@@ -52,8 +59,14 @@
 							     ;; should vary between alts of the
 							     ;; same run.
 							     (alt-program (car alts)))])
-				(map (curry reevaluate-option-on-points points exacts)
-				     all-options))]
+				(let ([points* (filter *point-pred* points)]
+				      [exacts* (map cdr (filter car (map (lambda (point exact)
+									   (cons (*point-pred* point)
+										 exact))
+									 points
+									 exacts)))])
+				  (map (curry reevaluate-option-on-points points exacts)
+				       all-options)))]
 	 ;; Use our best function to get the best option,
 	 ;; comparing options by checking if one option is
 	 ;; "green" over the other, on our reevaluated points.
@@ -79,7 +92,10 @@
     ;; Parameterize the function call with *points* as the given points,
     ;; and *exacts* as the exacts made from those points.
     (parameterize [(*points* points)
-		   (*exacts* (make-exacts (alt-program altn) points))]
+		   (*exacts* (make-exacts (alt-program altn) points))
+		   (*point-pred* (eval `(lambda ,(program-variables (alt-program (option-altn1 opt)))
+					  (and ,(option-condition opt)
+					       (*point-pred*)))))]
       (pre-combo-func altn)))
   ;; Pull the a bunch of information from the options struct.
   (let ([split-var (option-split-var opt)]
