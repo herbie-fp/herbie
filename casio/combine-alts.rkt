@@ -164,14 +164,25 @@
     ;; Finally, build the option structure.
     (option altn1 altn2 condition errors split-var var-index cost)))
 
+;; Memoize getting errors for a particular program at a particular point, because each option
+;; has to do it for both it's alternatives, so their's a lot of overlap
+(define error-table (make-hash))
+
+(define (merror-at prog point exact)
+  (hash-ref error-table prog
+	    (curry error-at prog point exact)))
+
+(define (error-at prog point exact)
+  (car (errors prog
+	       (list point) (list exact))))
+
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
   (let* ([condition-func (eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
 	 [errors^ (map (lambda (point exact)
-			 (car (errors (if (condition-func (list-ref point (option-split-var-index opt)))
-					  (alt-program (option-altn1 opt))
-					  (alt-program (option-altn2 opt)))
-				      (list point) (list exact))))
+			 (if (condition-func (list-ref point (option-split-var-index opt)))
+			     (merror-at (alt-program (option-altn1 opt)) point exact)
+			     (merror-at (alt-program (option-altn2 opt)) point exact)))
 		       points exacts)])
     (option-aug (option-altn1 opt) (option-altn2 opt) (option-condition opt)
 		(option-errors opt) (option-split-var opt) (option-split-var-index opt)
