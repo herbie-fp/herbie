@@ -98,10 +98,12 @@
 					       (*point-pred*)))))]
       (pre-combo-func altn)))
   ;; Pull the a bunch of information from the options struct.
-  (let ([split-var (option-split-var opt)]
-	[condition (option-condition opt)]
-	[split-var-index (option-split-var-index opt)]
-	[vars (program-variables (alt-program (option-altn1 opt)))])
+  (let* ([split-var (option-split-var opt)]
+	 [condition (option-condition opt)]
+	 [condition-func (compose (eval `(lambda (,split-var) ,condition))
+				  (curry (flip-args list-ref) split-var-index))]
+	 [split-var-index (option-split-var-index opt)]
+	 [vars (program-variables (alt-program (option-altn1 opt)))])
     ;; If the condition is just #t, then we want to choose the first alt on all points.
     (cond [(eq? condition #t) (option-altn1 opt)]
 	  ;; If the condition is '(not #t), then we want to choose the second alt on all points.
@@ -109,8 +111,7 @@
 	   (option-altn2 opt)]
 	  [#t
 	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
-	   (let-values ([(points1 points2) (partition (compose (eval `(lambda (,split-var) ,condition))
-							       (curry (flip-args list-ref) split-var-index))
+	   (let-values ([(points1 points2) (partition condition-func
 						      (*points*))])
 	     ;; Get the improved versions of our two alts.
 	     (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
@@ -128,7 +129,13 @@
 					 ,(program-body (alt-program altn1*))
 					 ,(program-body (alt-program altn2*)))))]
 		     ;; The errors are the option errors computed by make-option
-		     [errs (option-errors opt)]
+		     [errs (map (lambda (point alt1-err alt2-err)
+				  (if (condition-func point)
+				      alt1-err
+				      alt2-err))
+				(*points*)
+				(alt-errors altn1*)
+				(alt-errors altn2*))]
 		     ;; The cost is the worst case cost, the maximum cost of our different
 		     ;; branches, plus a branch cost.
 		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
