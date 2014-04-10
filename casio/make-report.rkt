@@ -17,7 +17,12 @@
 					     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
 					       (append (get-improvement-columns start end) (list 'No)))))
 			    (list test))])
-    (append (list (test-name test)) (car improvement-cols) (list real-mil))))
+    (append (list (test-name test)) (car improvement-cols) (if (test-output test)
+							       (if (equal? (test-output test) (program-body (cadddar improvement-cols)))
+								   'Yes
+								   'No)
+							       "N/A")
+	    (list real-mil))))
 
 (define (get-improvement-columns start end)
   (let* ([start-errors (alt-errors start)]
@@ -39,6 +44,7 @@
 		       "Points with Immeasurable Improvement"
 		       "Points with Immeasurable Regression"
 		       "Crashed?"
+		       "Passed Test"
 		       "Time Taken (Milliseconds)"))
 
 (define (get-table-data bench-dir)
