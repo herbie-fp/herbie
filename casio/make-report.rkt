@@ -72,11 +72,11 @@
   (substring string 0 (- (string-length string) num-chars)))
 
 (define (bad? row)
-  (or (not (number? (list-ref row 5)))
-      (< 10000 (list-ref row 5))
+  (or (not (number? (list-ref row 7)))
+      (< 10000 (list-ref row 7))
       (not (number? (list-ref row 1)))
       (> -1 (list-ref row 1))
-      (eq? 'Yes (list-ref row 4))))
+      (eq? 'Yes (list-ref row 5))))
 
 (define (good? row)
   (and (not (bad? row))
