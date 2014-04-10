@@ -17,11 +17,11 @@
 					     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
 					       (append (get-improvement-columns start end) (list 'No)))))
 			    (list test))])
-    (append (list (test-name test)) (car improvement-cols) (if (test-output test)
-							       (if (equal? (test-output test) (program-body (cadddr (car improvement-cols))))
-								   'Yes
-								   'No)
-							       "N/A")
+    (append (list (test-name test)) (car improvement-cols) (list (if (test-output test)
+								     (if (equal? (test-output test) (program-body (cadddr (car improvement-cols))))
+									 'Yes
+									 'No)
+								     "N/A"))
 	    (list real-mil))))
 
 (define (get-improvement-columns start end)
