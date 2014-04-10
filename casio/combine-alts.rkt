@@ -33,6 +33,11 @@
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
+(define (plausible-alts alts)
+  (filter (lambda (alt) (apply (curry ormap (lambda args (< (car args) (apply min (cdr args)))))
+			       (cons (alt-errors alt) (map alt-errors alts))))
+	  alts))
+
 (define (best-option alts)
   ;; We want to check combinations on every variable, since we don't know
   ;; which variable would yield the best combination, so build a list
