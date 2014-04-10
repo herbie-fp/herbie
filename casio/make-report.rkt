@@ -33,16 +33,18 @@
 		  [(good bad) (partition (compose positive? car) infs)])
       (list (/ (apply + (map car reals)) (length reals))
 	    (length good)
-	    (length bad)))))
+	    (length bad)
+	    (alt-program end)))))
 
 (define (univariate-tests bench-dir)
   (filter (λ (test) (= 1 (length (test-vars test))))
 	  (load-all #:bench-path-string bench-dir)))
 
-(define table-labels '("Test Name"
+(define table-labels '("Name"
 		       "Error Improvement"
 		       "Points with Immeasurable Improvement"
 		       "Points with Immeasurable Regression"
+		       "Resulting Program"
 		       "Crashed?"
 		       "Passed Test"
 		       "Time Taken (Milliseconds)"))
