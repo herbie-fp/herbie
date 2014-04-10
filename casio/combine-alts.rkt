@@ -101,7 +101,7 @@
   (let* ([split-var (option-split-var opt)]
 	 [condition (option-condition opt)]
 	 [condition-func (compose (eval `(lambda (,split-var) ,condition))
-				  (curry (flip-args list-ref) split-var-index))]
+				  (curry (flip-args list-ref) (option-split-var-index opt)))]
 	 [split-var-index (option-split-var-index opt)]
 	 [vars (program-variables (alt-program (option-altn1 opt)))])
     ;; If the condition is just #t, then we want to choose the first alt on all points.
