@@ -49,6 +49,17 @@
 		       "Passed Test"
 		       "Time Taken (Milliseconds)"))
 
+(define (bad? row)
+  (or (not (number? (list-ref row 7)))
+      (< 10000 (list-ref row 7))
+      (not (number? (list-ref row 1)))
+      (> -1 (list-ref row 1))
+      (eq? 'Yes (list-ref row 5))))
+
+(define (good? row)
+  (and (not (bad? row))
+       (< 5 (list-ref row 1))))
+
 (define (get-table-data bench-dir)
   (progress-map table-row (univariate-tests bench-dir)
 		#:map-name 'execute-tests
@@ -70,17 +81,6 @@
 
 (define (strip-end string num-chars)
   (substring string 0 (- (string-length string) num-chars)))
-
-(define (bad? row)
-  (or (not (number? (list-ref row 7)))
-      (< 10000 (list-ref row 7))
-      (not (number? (list-ref row 1)))
-      (> -1 (list-ref row 1))
-      (eq? 'Yes (list-ref row 5))))
-
-(define (good? row)
-  (and (not (bad? row))
-       (< 5 (list-ref row 1))))
 
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
