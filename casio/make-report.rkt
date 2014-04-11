@@ -13,7 +13,7 @@
 
 (define (table-row test)
   (let-values ([(improvement-cols cpu-mil real-mil garbage-mil)
-		(time-apply (lambda (test) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" Yes))])
+		(time-apply (lambda (test) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" "N/A" Yes))])
 					     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
 					       (append (get-improvement-columns start end) (list 'No)))))
 			    (list test))])
