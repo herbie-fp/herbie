@@ -34,8 +34,12 @@
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
 (define (plausible-alts alts)
-  (filter (lambda (alt) (apply (curry ormap (lambda args (< (car args) (apply min (cdr args)))))
-			       (cons (alt-errors alt) (map alt-errors alts))))
+  (filter (lambda (alt) (apply (curry ormap (lambda (our-error . their-errors)
+					      (or (< (cdr our-error) (apply min (map cdr their-errors)))
+						  (and (= (cdr our-error) (apply min (map cdr their-errors)))
+						       (andmap (curry < (car our-error))
+							       (map car (filter their-errors)))))))
+			       (cons (cons (alt-cost alt) (alt-errors alt)) (map (lambda (alt) (cons (alt-cost alt) (alt-errors alt))) (remove alt alts)))))
 	  alts))
 
 (define (best-option alts)
