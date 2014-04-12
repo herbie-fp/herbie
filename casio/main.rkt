@@ -8,6 +8,7 @@
 (require casio/redgreen)
 (require casio/analyze-local-error)
 (require casio/simplify)
+(require casio/combine-alts)
 
 (define (rewrite-local-error altn loc)
   (alt-rewrite-expression altn #:root loc #:destruct #t))
