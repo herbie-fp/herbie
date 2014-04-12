@@ -368,9 +368,6 @@
 	  ;; Otherwise, search the space between our midpoint and p1.
 	  [#t (binary-search split pred p1 midpoint)])))
 
-;; Flips the arguments of a two argument function.
-(define (flip-args f) (lambda (x y) (f y x)))
-
 ;; Given two floating point numbers, the first of which is pred,
 ;; and the second is not, find where pred becomes false (within epsilon).
 (define (binary-search-floats pred p1 p2 epsilon)
