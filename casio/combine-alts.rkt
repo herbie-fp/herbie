@@ -34,12 +34,33 @@
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
 (define (plausible-alts alts)
-  (filter (lambda (alt) (apply (curry ormap (lambda (our-error . their-errors)
-					      (or (< (cdr our-error) (apply min (map cdr their-errors)))
-						  (and (= (cdr our-error) (apply min (map cdr their-errors)))
-						       (andmap (curry < (car our-error))
-							       (map car (filter their-errors)))))))
-			       (cons (cons (alt-cost alt) (alt-errors alt)) (map (lambda (alt) (cons (alt-cost alt) (alt-errors alt))) (remove alt alts)))))
+  ;; Returns a list of error-cost-points, which are the cost
+  ;; of the program consed on to an error point.
+  (define (make-error-cost-points altn)
+    (map (curry cons (alt-cost altn)) (alt-errors altn)))
+  ;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
+  ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
+  (define (flip-lists list-list)
+    (apply (curry map list)
+	   list-list))
+  ;; Determines whether this error-cost-point is better
+  ;; than the other error-cost-points.
+  (define (better? error-cost-point error-cost-points)
+    ;; If we have less error than the least error at this point,
+    ;; we're better.
+    (or (< (cdr error-cost-point) (apply min (map cdr error-cost-points)))
+	;; Or, if we have one of the least errors at this point, and
+	;; for every other alt that also has one of the least errors,
+	;; we have less cost than it, we're better.
+	(andmap (lambda (other-point) (or (< (cdr error-cost-point) (cdr other-point))
+					  (and (= (cdr error-cost-point) (cdr other-point))
+					       (< (car error-cost-point) (car other-point)))))
+		error-cost-points)))
+  ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
+  ;; keep it, otherwise discard it.
+  (filter (lambda (altn) (ormap better?
+				(make-error-cost-points altn)
+				(flip-lists (map make-error-cost-points (remove altn alts)))))
 	  alts))
 
 (define (best-option alts)
