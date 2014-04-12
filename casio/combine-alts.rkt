@@ -6,7 +6,7 @@
 (require casio/common)
 (require casio/redgreen)
 
-(provide (all-defined-out))
+(provide plausible-alts best-combination)
 
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
