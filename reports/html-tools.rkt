@@ -59,6 +59,7 @@
 (make-tag head)
 (make-tag body)
 (make-tag html)
+(make-tag script)
 (make-tag td)
 (make-tag tr)
 (make-tag table)
