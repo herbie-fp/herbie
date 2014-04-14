@@ -50,6 +50,12 @@
 ;; This should only be called in a scope where *points* and *exacts* are
 ;; dynamically defined.
 (define (improve-with-points altn max-iters)
+  (define (final-result alts olds trace)
+    (let* ([sorted (sort (reverse (append alts olds trace))
+			 much-better?)]
+	   [result (try-simplify (car sorted) #:conservative #f)])
+      (debug "Done:" result #:from 'improve)
+      result))
   (let loop ([alts (list altn)] [olds (list)] [trace (list)]
 	     [iter max-iters])
     ;; Invariant: (no-duplicates? alts)
@@ -58,13 +64,10 @@
      [(= iter 0)
       (let ([plausible-combinors (plausible-alts (append alts olds trace))])
 	(if (< 2 (length plausible-combinors))
-	    (let* ([sorted (sort (reverse (append alts olds trace))
-				 much-better?)]
-		   [result (try-simplify (car sorted) #:conservative #f)])
-	      (debug "Done:" result #:from 'improve)
-	      result)
-	    (best-combination plausible-combinors
-			      #:pre-combo-func (curry (flip-args improve-with-points) max-iters))))]
+	    (final-result alts olds trace)
+	    (let ([best-combo (best-combination plausible-combinors
+						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
+	      (or best-combo (final-result alt olds trace)))))]
      [(and (null? alts) (not (null? olds)))
       ;; We've exhausted all "intelligent" things to do
       (debug "Resorting to brute force"
