@@ -7,6 +7,12 @@
 ;; args should be in the form of an alist
 (define-syntax (tag stx)
   (syntax-case stx ()
+    [(_ label #:args args)
+     #'(begin (text "<" label)
+	      (for ([arg args])
+		(text " " (car arg) "=\"" (cdr arg) "\""))
+	      (text ">")
+	      (text "</" label ">"))]
     [(_ label #:args args . rest)
      #'(begin (text "<" label)
 	      (for ([arg args])
