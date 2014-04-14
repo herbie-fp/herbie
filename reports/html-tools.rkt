@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(require casio/tools-common)
+(require reports/tools-common)
 
 ;; args should be in the form of an alist
 (define-syntax (tag stx)
