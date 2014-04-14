@@ -62,6 +62,7 @@
     ;; Invariant: (no-duplicates? olds)
     (cond
      [(= iter 0)
+      (debug "Run out of iterations, trying combinations" #:from 'improve)
       (let ([plausible-combinors (plausible-alts (append alts olds trace))])
 	(if (< 2 (length plausible-combinors))
 	    (final-result alts olds trace)
