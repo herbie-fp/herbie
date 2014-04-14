@@ -134,11 +134,13 @@
 				  (curry (flip-args list-ref) (option-split-var-index opt)))]
 	 [split-var-index (option-split-var-index opt)]
 	 [vars (program-variables (alt-program (option-altn1 opt)))])
-    ;; If the condition is just #t, then we want to choose the first alt on all points.
-    (cond [(eq? condition #t) (option-altn1 opt)]
-	  ;; If the condition is '(not #t), then we want to choose the second alt on all points.
+    ;; If the condition is just #t, then this combination is no better than our input alts,
+    ;; so return false.
+    (cond [(eq? condition #t) #f]
+	  ;; If the condition is '(not #t), the same thing but with alt1 being better than
+	  ;; alt2 on all points.
 	  [(and (eq? (car condition) 'not) (eq? (cadr condition #t)))
-	   (option-altn2 opt)]
+	   #f]
 	  [#t
 	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
 	   (let-values ([(points1 points2) (partition condition-func
