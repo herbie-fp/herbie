@@ -42,59 +42,62 @@
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
-    ; Save original program
     (let ([orig (make-alt prog)])
-      (let loop ([alts (list orig)] [olds (list)] [trace (list)]
-		 [iter max-iters])
-	; Invariant: (no-duplicates? alts)
-	; Invariant: (no-duplicates? olds)
+      (values (improve-on-points orig max-iters)
+	      orig))))
+
+(define (improve-on-points orig max-iters)
+  (let loop ([alts (list orig)] [olds (list)] [trace (list)]
+	     [iter max-iters])
+					; Invariant: (no-duplicates? alts)
+					; Invariant: (no-duplicates? olds)
+    (cond
+     [(= iter 0)
+      (let* ([sorted (sort (reverse (append alts olds trace))
+			   much-better?)]
+	     [result (try-simplify (car sorted) #:conservative #f)])
+	(debug "Done:" result #:from 'improve)
+	result)]
+     [(and (null? alts) (not (null? olds)))
+					; We've exhausted all "intelligent" things to do
+      (debug "Resorting to brute force"
+	     #:from 'improve)
+      (let* ([old (car olds)]
+	     [old* (cdr olds)]
+	     [alts* (rewrite-brute-force old)]
+	     [greens
+	      (map remove-red (filter (curryr much-better? old) alts*))])
 	(cond
-	 [(= iter 0)
-	  (let* ([sorted (sort (reverse (append alts olds trace))
-			       much-better?)]
-		 [result (try-simplify (car sorted) #:conservative #f)])
-	    (debug "Done:" result #:from 'improve)
-	    (values result orig))]
-	 [(and (null? alts) (not (null? olds)))
-	  ; We've exhausted all "intelligent" things to do
-	  (debug "Resorting to brute force"
-		 #:from 'improve)
-	  (let* ([old (car olds)]
-		 [old* (cdr olds)]
-		 [alts* (rewrite-brute-force old)]
-		 [greens
-		  (map remove-red (filter (curryr much-better? old) alts*))])
-	    (cond
-	     [(null? greens)
-	      (debug "Produced" (length alts*) "alternatives, none green"
-		     #:from 'improve #:tag 'info)
-	      (loop alts* old* (cons old trace) (- iter 1))]
-	     [else
-	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info)
-	      (loop greens (list) (append olds alts alts* trace)
-		    (- iter 1))]))]
-	 [(and (null? alts) (null? olds))
-	  (error "(improve) cannot proceed: no olds or alts")]
+	 [(null? greens)
+	  (debug "Produced" (length alts*) "alternatives, none green"
+		 #:from 'improve #:tag 'info)
+	  (loop alts* old* (cons old trace) (- iter 1))]
 	 [else
-	  (debug "Step:" (car alts) #:from 'improve)
-	  (let* ([altn (car alts)]
-		 [alts* (cdr alts)]
-		 [next (map try-simplify (try-analyze altn))]
-		 [greens
-		  (map remove-red (filter (curryr much-better? altn) next))])
-	    (cond
-	     [(null? greens)
-	      (let ([next-alts (append alts* next)]
-		    [next-olds (cons altn olds)])
-		(debug "Produced" (length next) "alternatives, none green"
-		       #:from 'improve #:tag 'info)
-		(loop next-alts next-olds trace (- iter 1)))]
-	     [else 
-	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info)
-	      (loop (sort greens alternative<?) (list)
-		    (append alts olds next) (- iter 1))]))])))))
+	  (debug "Discovered" (length greens) "green changes"
+		 #:from 'improve #:tag 'info)
+	  (loop greens (list) (append olds alts alts* trace)
+		(- iter 1))]))]
+     [(and (null? alts) (null? olds))
+      (error "(improve) cannot proceed: no olds or alts")]
+     [else
+      (debug "Step:" (car alts) #:from 'improve)
+      (let* ([altn (car alts)]
+	     [alts* (cdr alts)]
+	     [next (map try-simplify (try-analyze altn))]
+	     [greens
+	      (map remove-red (filter (curryr much-better? altn) next))])
+	(cond
+	 [(null? greens)
+	  (let ([next-alts (append alts* next)]
+		[next-olds (cons altn olds)])
+	    (debug "Produced" (length next) "alternatives, none green"
+		   #:from 'improve #:tag 'info)
+	    (loop next-alts next-olds trace (- iter 1)))]
+	 [else 
+	  (debug "Discovered" (length greens) "green changes"
+		 #:from 'improve #:tag 'info)
+	  (loop (sort greens alternative<?) (list)
+		(append alts olds next) (- iter 1))]))])))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
@@ -130,4 +133,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve program-a program-b print-improve improvement)
+(provide improve program-a program-b print-improve improvement improve-on-points)
