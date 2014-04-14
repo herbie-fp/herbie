@@ -44,8 +44,8 @@
   (define-values (points exacts) (prepare-points prog))
   ; Save the original program.
   (let ([orig (make-alt prog)])
-    (values orig (parameterize ([*points* points] [*exacts* exacts])
-		   (improve-with-points orig max-iters)))))
+    (values (parameterize ([*points* points] [*exacts* exacts])
+	      (improve-with-points orig max-iters)) orig)))
 
 ;; This should only be called in a scope where *points* and *exacts* are
 ;; dynamically defined.
