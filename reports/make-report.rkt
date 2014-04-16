@@ -14,29 +14,34 @@
 
 (define *graph-folder-name-length* 8)
 
-(define (graph-folder-path tname)
-  (append "graphs/" (substring tname 0 (min (string-length tname) *graph-folder-name-length*))))
+(define disallowed-strings '("/" " " "(" ")"))
 
-;;SIDE EFFECTS
-(define (table-row test)
-  (let ([start (make-prog-test)])
-    (let*-values ([(points exacts) (prepare-points start)]
-		  [(end-list cpu-mil real-mil garbage-mill)
-		   (time-apply (lambda (orig) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" "N/A" Yes))])
-						(improve-on-points start (*num-iterations*))))
-			       (list start))])
-      (let* ([end (car end-list)]
-	     [improvement-cols (append (get-improvement-columns start end) (list 'No))]
-	     [tname (test-name test)]
-	     [dir (graph-folder-name tname)])
-	;; SIDE EFFECT
-	(make-directory dir)
-	;; SIDE EFFECT
-	(make-graph start end points exacts dir "reports/graph.js")
-	(append (list (test-name test)) (improvement-cols) (list (if (test-output test)
-								     (if (equal? (test-output test) (program-body end)) 'Yes 'No)
-								     "N/A"))
-		(list real-mil))))))
+(define (strip-string s)
+  (pipe s (map (λ (p) (λ (s) (string-replace s p "")))
+	       disallowed-strings)))
+
+(define (graph-folder-path tname)
+  (let ([stripped-tname (strip-string tname)])
+    (string-append "graphs/" (substring stripped-tname 0 (min (string-length stripped-tname) *graph-folder-name-length*)) "/")))
+
+(define (test-result test)
+  (let ([start-prog (make-prog test)])
+    (let-values ([(start-end-points-exacts cpu-mil real-mil garbage-mill)
+		  (time-apply (λ (orig)
+				 (with-handlers ([(const #t) (const (make-list 4 '()))])
+				   (let-values ([(points exacts) (prepare-points start-prog)])
+				     (let* ([start-alt (make-alt orig)]
+					    [end-alt (parameterize ([*points* points] [*exacts* exacts])
+						       (improve-on-points start-alt (*num-iterations*)))])
+				       (list start-alt end-alt points exacts))))))])
+	  (append start-end-points-exacts (list real-mil)))))
+
+(define (table-row results name)
+  (append (list name)
+	  (if (null? (car results))
+	      (append (make-list 5 "N/A") 'Yes)
+	      (append (get-improvement-columns (car results)  (cadr results)) 'No))
+	  (caddddr results)))
 
 (define (get-improvement-columns start end)
   (let* ([start-errors (alt-errors start)]
@@ -74,15 +79,16 @@
   (and (not (bad? row))
        (< 5 (list-ref row 1))))
 
-;;SIDE EFFECTS!
-(define (get-table-data tests)
-  ;; SIDE EFFECT
-  (make-directory "graphs/")
-  ;; HAS SIDE EFFECTS
-  (progress-map table-row tests
+(define (get-test-results tests)
+  (progress-map test-result tests
 		#:map-name 'execute-tests
 		#:item-name-func test-name
 		#:show-time #t))
+
+(define (get-table-data results test-names)
+  (map table-row
+       results
+       test-names))
 
 (define (info-stamp cur-date cur-commit cur-branch)
   (bold (text (date-year cur-date) " "
@@ -104,16 +110,24 @@
   (let ([cur-date (current-date)]
 	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
 	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
-	[tests (univariate-tests bench-dir)]
-	[results (get-table-data tests)])
-    (write-file "report.md"
-		(info-stamp cur-date commit branch)
-		(make-table table-labels results
-			    #:modifier-alist `((,bad? . red)
-					       (,good? . green))
-			    #:row-links (map (lambda (test) (append (graph-folder-path (test-name test)) "graph.html"))
-					     tests)))))
+	[tests (univariate-tests bench-dir)])
+    (let* ([results (get-test-results tests)]
+	   [table-data (get-table-data results (map test-name tests))])
+      (map (λ (result tname)
+	      (let ([dir (graph-folder-path tname)])
+		(when (not (directory-exists dir)) (make-directory dir))
+		(make-graph (car result) (cadr result) (caddr result) (cadddr result) dir "reports/graph.js")))
+	   results
+	   (map test-name tests))
+      (write-file "report.md"
+		  (info-stamp cur-date commit branch)
+		  (make-table table-labels table-data
+			      #:modifier-alist `((,bad? . red)
+						 (,good? . green))
+			      #:row-links (map (lambda (test) (string-append (graph-folder-path (test-name test)) "graph.html"))
+					       tests))))))
 
+;; No longer maintained
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
 	[commit (with-output-to-string (lambda () (system "git rev-parse HEAD")))]
