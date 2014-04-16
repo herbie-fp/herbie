@@ -2,6 +2,7 @@
 
 (require reports/tools-common)
 (require reports/markdown-tools)
+(require reports/make-graph)
 (require casio/load-bench)
 (require casio/test)
 (require casio/common)
@@ -11,18 +12,31 @@
 (require casio/alternative)
 (require racket/date)
 
+(define *graph-folder-name-length* 8)
+
+(define (graph-folder-path tname)
+  (append "graphs/" (substring tname 0 (min (string-length tname) *graph-folder-name-length*))))
+
+;;SIDE EFFECTS
 (define (table-row test)
-  (let-values ([(improvement-cols cpu-mil real-mil garbage-mil)
-		(time-apply (lambda (test) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" "N/A" Yes))])
-					     (let-values ([(end start) (improve (make-prog test) (*num-iterations*))])
-					       (append (get-improvement-columns start end) (list 'No)))))
-			    (list test))])
-    (append (list (test-name test)) (car improvement-cols) (list (if (test-output test)
-								     (if (equal? (test-output test) (program-body (cadddr (car improvement-cols))))
-									 'Yes
-									 'No)
+  (let ([start (make-prog-test)])
+    (let*-values ([(points exacts) (prepare-points start)]
+		  [(end-list cpu-mil real-mil garbage-mill)
+		   (time-apply (lambda (orig) (with-handlers ([(const #t) (const '("N/A" "N/A" "N/A" "N/A" Yes))])
+						(improve-on-points start (*num-iterations*))))
+			       (list start))])
+      (let* ([end (car end-list)]
+	     [improvement-cols (append (get-improvement-columns start end) (list 'No))]
+	     [tname (test-name test)]
+	     [dir (graph-folder-name tname)])
+	;; SIDE EFFECT
+	(make-directory dir)
+	;; SIDE EFFECT
+	(make-graph start end points exacts dir "graph.js")
+	(append (list (test-name test)) (improvement-cols) (list (if (test-output test)
+								     (if (equal? (test-output test) (program-body end)) 'Yes 'No)
 								     "N/A"))
-	    (list real-mil))))
+		(list real-mil))))))
 
 (define (get-improvement-columns start end)
   (let* ([start-errors (alt-errors start)]
@@ -60,8 +74,12 @@
   (and (not (bad? row))
        (< 5 (list-ref row 1))))
 
-(define (get-table-data bench-dir)
-  (progress-map table-row (univariate-tests bench-dir)
+;;SIDE EFFECTS!
+(define (get-table-data tests)
+  ;; SIDE EFFECT
+  (make-directory "graphs/")
+  ;; HAS SIDE EFFECTS
+  (progress-map table-row tests
 		#:map-name 'execute-tests
 		#:item-name-func test-name
 		#:show-time #t))
@@ -86,11 +104,15 @@
   (let ([cur-date (current-date)]
 	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
 	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
-	[results (get-table-data bench-dir)])
+	[tests (univariate-tests bench-dir)]
+	[results (get-table-data tests)])
     (write-file "report.md"
 		(info-stamp cur-date commit branch)
-		(make-table table-labels results #:modifier-alist `((,bad? . red)
-								    (,good? . green))))))
+		(make-table table-labels results
+			    #:modifier-alist `((,bad? . red)
+					       (,good? . green))
+			    #:row-links (map (lambda (test) (append (graph-folder-path (test-name test)) "graph.html"))
+					     tests)))))
 
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
@@ -123,11 +145,11 @@
 	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
 
 
-;; (make-report
-;;  (command-line
-;;   #:program "make-report"
-;;   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
-;; 	   (*debug* #t)]
-;;   #:args (bench-dir)
-;;   bench-dir))
+(make-report
+ (command-line
+  #:program "make-report"
+  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+	   (*debug* #t)]
+  #:args (bench-dir)
+  bench-dir))
 
