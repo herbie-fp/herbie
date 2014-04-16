@@ -1,4 +1,5 @@
 *
 !.gitignore
 !reportStyle.css
+!graph.js
 !*.rkt
