@@ -32,7 +32,7 @@
 	;; SIDE EFFECT
 	(make-directory dir)
 	;; SIDE EFFECT
-	(make-graph start end points exacts dir "graph.js")
+	(make-graph start end points exacts dir "reports/graph.js")
 	(append (list (test-name test)) (improvement-cols) (list (if (test-output test)
 								     (if (equal? (test-output test) (program-body end)) 'Yes 'No)
 								     "N/A"))
