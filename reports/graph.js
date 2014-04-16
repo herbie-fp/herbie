@@ -1,4 +1,4 @@
-var filename = "test.json"
+var filename = "data.json"
 
 var data = [3, 6, 2, 7, 5, 2, 1, 3, 8, 9, 2, 5, 7],
 w = 800,
