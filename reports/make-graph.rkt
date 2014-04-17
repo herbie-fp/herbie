@@ -13,17 +13,22 @@
 ;; and writes it to a file at filename. dir should
 ;; be a string.
 (define (make-graph start end points exacts dir path-to-graphscript)
-  (copy path-to-graphscript (string-append dir "graph.js"))
+  (let ([dest (string-append dir "graph.js")])
+    (when (file-exists? dest) (delete-file dest))
+    (copy-file path-to-graphscript dest))
   (make-graph-json start end (string-append dir "data.json") points exacts)
   (let-values ([(points exacts) (prepare-points (alt-program start))])
-    (write-file (string-append dir "graph.html")
-		(head (newline)
-		      (script #:args '((src . "http://d3js.org/d3.v3.min.js") (charset . "utf-8")))
-		      (newline))
-		(body (newline)
-		      (script #:args '((src . "graph.js") (charset . "utf-8")))
-		      (newline))
-		)))
+    (let ([page-path (string-append dir "graph.html")])
+      (write-file page-path
+		  (html (newline)
+			(head (newline)
+			      (script #:args '((src . "http://d3js.org/d3.v3.min.js") (charset . "utf-8")))
+			      (newline))
+			(body (newline)
+			      (script #:args '((src . "graph.js") (charset . "utf-8")))
+			      (newline))
+			(newline))
+		  ))))
 
 (define (point-filter p) (and (reasonable-error? (cadr p)) (> (cadr p) 0)))
 
