@@ -26,12 +26,12 @@
 (define-syntax (unitag stx)
   (syntax-case stx ()
     [(_ label #:args args)
-     #'(begin (text "</" label)
+     #'(begin (text "<" label)
 	      (for ([arg args])
 		(text " " (car arg) "=\"" (cdr arg) "\""))
-	      (text ">"))]
+	      (text "/>"))]
     [(_ label)
-     #'(begin (text "</" label ">"))]))
+     #'(unitag label #:args '())]))
 
 (define-syntax (make-tag stx)
   (syntax-case stx ()
@@ -64,6 +64,7 @@
 (make-tag tr)
 (make-tag table)
 (make-tag b)
+(make-unitag link)
 (make-unitag br)
 
 (define (heading)

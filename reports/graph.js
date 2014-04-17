@@ -23,7 +23,7 @@ d3.json(filename, function(error,dat){
     minX = d3.min(preerrors, function(p){return p[0];}),
     maxY = d3.max(preerrors, function(p){return p[1];}),
     minY = 0,
-    y = d3.scale.log()
+    y = d3.scale.log().clamp(true)
 	.domain([0.1, maxY])
 	.range([0 + margin, h - margin]),
     x = d3.scale.log().clamp(true)
@@ -34,56 +34,58 @@ d3.json(filename, function(error,dat){
 	.x(function(d) { return x(d[0]); })
 	.y(function(d) { return -1 * y(d[1]); })
     
-    g.append("svg:path").attr("d", line(preerrors));
-    //g.append("svg:path").attr("d", line(posterrors));
+    g.append("svg:path").attr("d", line(preerrors))
+	.attr("stroke", "blue");
+    g.append("svg:path").attr("d", line(posterrors))
+	.attr("stroke", "green");
 
-    // g.append("svg:line")
-    // 	.attr("x1", x(0))
-    // 	.attr("y1", -1 * 0)
-    // 	.attr("x2", x(w))
-    // 	.attr("y2", -1 * 0)
-    // g.append("svg:line").
-    // 	attr("x1", x(0)).
-    // 	attr("y1", -1 * 0).
-    // 	attr("x2", x(0)).
-    // 	attr("y2", -1 * y(maxY))
+    g.append("svg:line")
+    	.attr("x1", x(0))
+    	.attr("y1", -1 * 0)
+    	.attr("x2", x(w))
+    	.attr("y2", -1 * 0)
+    g.append("svg:line").
+    	attr("x1", x(0)).
+    	attr("y1", -1 * 0).
+    	attr("x2", x(0)).
+    	attr("y2", -1 * y(maxY))
 
-    // // g.selectAll(".xLabel").
-    // // 	data(x.ticks(5)).
-    // // 	enter().append("svg:text").
-    // // 	attr("class", "xLabel").
-    // // 	text(String).
-    // // 	attr("x", function(d) {return x(d) }).
-    // // 	attr("y", 0).
-    // // 	attr("text-anchor", "right")
+    g.selectAll(".xLabel").
+    	data(x.ticks(1000)).
+    	enter().append("svg:text").
+    	attr("class", "xLabel").
+    	text(String).
+    	attr("x", function(d) {return x(d) * 5}).
+    	attr("y", 0).
+    	attr("text-anchor", "right")
 
-    // g.selectAll(".yLabel").
-    // 	data(y.ticks(4)).
-    // 	enter().append("svg:text").
-    // 	attr("class", "yLabel").
-    // 	text(String).
-    // 	attr("x", 0).
-    // 	attr("y", function(d) {return -1 * y(d) }).
-    // 	attr("text-anchor", "right").
-    // 	attr("dy", 4)
+    g.selectAll(".yLabel").
+    	data(y.ticks(4)).
+    	enter().append("svg:text").
+    	attr("class", "yLabel").
+    	text(String).
+    	attr("x", 0).
+    	attr("y", function(d) {return -1 * y(d) }).
+    	attr("text-anchor", "right").
+    	attr("dy", 4)
 
-    // g.selectAll(".xTicks").
-    // 	data(x.ticks(5)).
-    // 	enter().append("svg:line").
-    // 	attr("class", "xTicks").
-    // 	attr("x1", function(d) { return x(d); }).
-    // 	attr("y1", -1 * y(0)).
-    // 	attr("x2", function(d) { return x(d); }).
-    // 	attr("y2", -1 * y(-0.3))
+    g.selectAll(".xTicks").
+    	data(x.ticks(5)).
+    	enter().append("svg:line").
+    	attr("class", "xTicks").
+    	attr("x1", function(d) { return x(d); }).
+    	attr("y1", -1 * y(0)).
+    	attr("x2", function(d) { return x(d); }).
+    	attr("y2", -1 * y(-0.3))
 
-    // g.selectAll(".yTicks").
-    // 	data(y.ticks(4)).
-    // 	enter().append("svg:line").
-    // 	attr("class", "yTicks").
-    // 	attr("y1", function(d) { return -1 * y(d+0.1); }).
-    // 	attr("x1", x(-0.3)).
-    // 	attr("y2", function(d) { return -1 * y(d+0.1); }).
-    // 	attr("x2", x(0))
+    g.selectAll(".yTicks").
+    	data(y.ticks(4)).
+    	enter().append("svg:line").
+    	attr("class", "yTicks").
+    	attr("y1", function(d) { return -1 * y(d+0.1); }).
+    	attr("x1", x(-0.3)).
+    	attr("y2", function(d) { return -1 * y(d+0.1); }).
+    	attr("x2", x(0))
 
 });
 
