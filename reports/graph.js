@@ -16,23 +16,23 @@ var g = vis.append("svg:g")
 d3.json(filename, function(error,dat){
     if (error) return console.warn(error);
     
-    var filedata = dat,
-    preerrors = filedata[0],
-    posterrors = filedata[1],
-    maxX = d3.max(preerrors, function(p){return p[0];}),
-    minX = d3.min(preerrors, function(p){return p[0];}),
-    maxY = d3.max(preerrors, function(p){return p[1];}),
-    minY = 0,
-    y = d3.scale.log().clamp(true)
+    var filedata = dat;
+    var preerrors = filedata[0];
+    var posterrors = filedata[1];
+    var maxX = d3.max(preerrors, function(p){return p[0];});
+    var minX = d3.min(preerrors, function(p){return p[0];});
+    var maxY = d3.max(preerrors, function(p){return p[1];});
+    var minY = 1;
+    var y = d3.scale.log().clamp(true)
 	.domain([0.1, maxY])
-	.range([0 + margin, h - margin]),
-    x = d3.scale.log().clamp(true)
+	.range([0 + margin, h - margin]);
+    var x = d3.scale.log().clamp(true)
 	.domain([minX , maxX])
-	.range([0 + margin, w - margin])
+	.range([0 + margin, w - margin]);
     
     var line = d3.svg.line()
 	.x(function(d) { return x(d[0]); })
-	.y(function(d) { return -1 * y(d[1]); })
+	.y(function(d) { return -1 * y(d[1]); });
     
     g.append("svg:path").attr("d", line(preerrors))
 	.attr("stroke", "blue");
@@ -41,17 +41,29 @@ d3.json(filename, function(error,dat){
 
     g.append("svg:line")
     	.attr("x1", x(0))
-    	.attr("y1", -1 * 0)
-    	.attr("x2", x(w))
-    	.attr("y2", -1 * 0)
+    	.attr("y1", -1 * 25)
+    	.attr("x2", w)
+    	.attr("y2", -1 * 25)
     g.append("svg:line").
     	attr("x1", x(0)).
-    	attr("y1", -1 * 0).
+    	attr("y1", -1 * 25).
     	attr("x2", x(0)).
-    	attr("y2", -1 * y(maxY))
+    	attr("y2", -1 * h)
+
+    var xticks = []
+    var xt = x.ticks();
+    for (var i = 0; i < xt.length / 50; i++) {
+        xticks.push(xt[50*i]);
+    }
+
+    var yticks = []
+    var yt = y.ticks();
+    for (var i = 0; i < yt.length / 20; i++) {
+        yticks.push(yt[20*i]);
+    }
 
     g.selectAll(".xLabel").
-    	data(x.ticks(1000)).
+    	data(xticks).
     	enter().append("svg:text").
     	attr("class", "xLabel").
     	text(String).
@@ -60,7 +72,7 @@ d3.json(filename, function(error,dat){
     	attr("text-anchor", "right")
 
     g.selectAll(".yLabel").
-    	data(y.ticks(4)).
+    	data(yticks).
     	enter().append("svg:text").
     	attr("class", "yLabel").
     	text(String).
@@ -70,20 +82,20 @@ d3.json(filename, function(error,dat){
     	attr("dy", 4)
 
     g.selectAll(".xTicks").
-    	data(x.ticks(5)).
+    	data(xticks).
     	enter().append("svg:line").
     	attr("class", "xTicks").
     	attr("x1", function(d) { return x(d); }).
     	attr("y1", -1 * y(0)).
     	attr("x2", function(d) { return x(d); }).
-    	attr("y2", -1 * y(-0.3))
+    	attr("y2", -1 * y(0) - 5)
 
     g.selectAll(".yTicks").
-    	data(y.ticks(4)).
+    	data(yticks).
     	enter().append("svg:line").
     	attr("class", "yTicks").
     	attr("y1", function(d) { return -1 * y(d+0.1); }).
-    	attr("x1", x(-0.3)).
+    	attr("x1", x(0) - 5).
     	attr("y2", function(d) { return -1 * y(d+0.1); }).
     	attr("x2", x(0))
 
