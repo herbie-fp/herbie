@@ -63,7 +63,7 @@
 		 [old* (cdr olds)]
 		 [alts* (rewrite-brute-force old)]
 		 [greens
-		  (map remove-red (filter (curryr much-better? old) alts*))])
+		  (map #;remove-red identity (filter (curryr much-better? old) alts*))])
 	    (cond
 	     [(null? greens)
 	      (debug "Produced" (length alts*) "alternatives, none green"
@@ -82,7 +82,7 @@
 		 [alts* (cdr alts)]
 		 [next (map try-simplify (try-analyze altn))]
 		 [greens
-		  (map remove-red (filter (curryr much-better? altn) next))])
+		  (map #;remove-red identity (filter (curryr much-better? altn) next))])
 	    (cond
 	     [(null? greens)
 	      (let ([next-alts (append alts* next)]

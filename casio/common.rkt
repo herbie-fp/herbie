@@ -9,12 +9,12 @@
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
 
-(define (println . args)
+(define (println #:port [p (current-output-port)] . args)
   (for ([val args])
     (if (string? val)
-        (display val)
-        (write val)))
-  (newline)
+        (display val p)
+        (write val p)))
+  (newline p)
   (let ([possible-returns (filter (negate string?) args)])
     (when (not (null? possible-returns))
       (last possible-returns))))

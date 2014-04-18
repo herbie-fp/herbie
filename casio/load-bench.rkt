@@ -7,6 +7,8 @@
 (require casio/alternative)
 (require casio/main)
 
+(provide load-bench load-all make-prog test-improvement test-succeeds?)
+
 (define *test-cache* (make-hash))
 
 (define (make-prog test)

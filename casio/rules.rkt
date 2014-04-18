@@ -160,6 +160,14 @@
 (define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a))     #:simplify (1 2))
 (define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c))           #:simplify (2))
 (define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))           #:simplify (2))
+(define-rule   distribute-lft1-in    (+ (* b a) a)         (* (+ b 1) a)           #:simplify (1))
+(define-rule   distribute-rgt1-in    (+ a (* c a))         (* (+ c 1) a)           #:simplify (1))
+(define-rule   distribute-lft1-in    (+ (* a b) b)         (* (+ a 1) b)           #:simplify ((cdr car)))
+(define-rule   distribute-rgt1-in    (+ b (* a b))         (* (+ a 1) b)           #:simplify ((cdr car)))
+
+; Difference of squares
+(define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify (1 2))
+(define-rule   difference-of-sqr-1   (- (sqr a) 1)         (* (+ a 1) (- a 1))     #:simplify (1 2))
 
 ; Identity
 (define-rule   +-lft-identity    (+ 0 a)               a)
@@ -204,9 +212,30 @@
 (define-rule   rem-exp-log  (exp (log x))        x)
 (define-rule   rem-log-exp  (log (exp x))        x)
 (define-rule   exp-sum      (exp (+ a b))        (* (exp a) (exp b)))
-(define-rule   prod-exp     (* (exp a) (exp b))  (exp (+ a b)))
+(define-rule   prod-exp     (* (exp a) (exp b))  (exp (+ a b))
+  #:simplify (1))
+(define-rule   exp-neg      (exp (- a))          (/ (exp a)))
+(define-rule   rec-exp      (/ (exp a))          (exp (- a)))
 (define-rule   exp-diff     (exp (- a b))        (/ (exp a) (exp b)))
-(define-rule   div-exp      (/ (exp a) (exp b))  (exp (- a b)))
+(define-rule   div-exp      (/ (exp a) (exp b))  (exp (- a b))
+  #:simplify (1))
+(define-rule   exp-prod     (exp (* a b))        (expt (exp a) b))
+(define-rule   expt-exp     (expt (exp a) b)     (exp (* a b))
+  #:simplify (1))
+(define-rule   expt-to-exp  (expt a b)           (exp (* (log a) b)))
+(define-rule   exp-to-expt  (exp (* (log a) b))  (expt a b))
+
+; Logarithms
+(define-rule   sum-log      (+ (log a) (log b))  (log (* a b))
+  #:simplify (1))
+(define-rule   log-prod     (log (* a b))        (+ (log a) (log b)))
+(define-rule   diff-log     (- (log a) (log b))  (log (/ a b))
+  #:simplify (1))
+(define-rule   log-div      (log (/ a b))        (- (log a) (log b)))
+(define-rule   neg-log      (- (log a))          (log (/ a))
+  #:simplify (1))
+(define-rule   log-rec      (log (/ a))          (- (log a))
+  #:simplify (1))
 
 ; Multiplying by x / x
 (define-rule   flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))
