@@ -141,6 +141,13 @@
 					       tests
 					       (build-list (length tests) identity)))))))
 
+(define (make-test-graph testpath)
+  (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
+	[dir "graph/"])
+    (text "Making graph...\n")
+    (when (not (directory-exists? dir)) (make-directory dir))
+    (make-graph (first result) (second result) (third result) (fourth result) dir "graph.js" "graph.css")))
+
 ;; No longer maintained
 (define (make-dummy-report)
   (let ([cur-date (current-date)]
