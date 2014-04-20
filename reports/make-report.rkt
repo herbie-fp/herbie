@@ -129,9 +129,13 @@
 		  (make-table table-labels table-data
 			      #:modifier-alist `((,bad? . red)
 						 (,good? . green))
-			      #:row-links (map (lambda (test index) (string-append (graph-folder-path (test-name test) index) "graph.html"))
-					       tests
-					       (build-list (length tests) identity)))))))
+			      #:row-links (map (λ (link result) (if (number? (cadr result))
+								    link
+								    '()))
+					       (map (lambda (test index) (string-append (graph-folder-path (test-name test) index) "graph.html"))
+						    tests
+						    (build-list (length tests) identity))
+					       results))))))
 
 ;; No longer maintained
 (define (make-dummy-report)
