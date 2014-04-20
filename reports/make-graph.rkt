@@ -37,10 +37,13 @@
 		  ))))
 
 (define (point-filter p) (and (reasonable-error? (cadr p)) (> (cadr p) 0)))
+(define (pos-negs points)
+  (let-values ([(pos negs) (partition (compose negative? car) points)])
+    (list pos negs)))
 
 (define (make-graph-json start end filename points exacts)
-  (let ([json-object `(,(filter point-filter (map list (map car points) (alt-errors start)))
-		       ,(filter point-filter (map list (map car points) (alt-errors end)))
-		       ,(filter point-filter (map list (map car points) exacts)))])
+  (let ([json-object `(,(pos-negs (filter point-filter (map list (map car points) (alt-errors start))))
+		       ,(pos-negs (filter point-filter (map list (map car points) (alt-errors end))))
+		       ,(pos-negs (filter point-filter (map list (map car points) exacts))))])
     (write-file filename
 		(write-json json-object))))
