@@ -12,6 +12,8 @@
 (require casio/alternative)
 (require racket/date)
 
+(provide (all-defined-out))
+
 (define *graph-folder-name-length* 8)
 
 (define disallowed-strings '("/" " " "(" ")"))
@@ -21,8 +23,14 @@
 	       disallowed-strings)))
 
 (define (graph-folder-path tname index)
-  (let ([stripped-tname (strip-string tname)])
-    (string-append "graphs/" (number->string index) (substring stripped-tname 0 (min (string-length stripped-tname) *graph-folder-name-length*)) "/")))
+  (let ([stripped-tname (strip-string tname)]
+	[index-label (number->string index)])
+    (string-append "graphs/" index-label
+		   (substring stripped-tname 0
+			      (min (string-length stripped-tname)
+				   (- *graph-folder-name-length*
+				      (string-length index-label))))
+		   "/")))
 
 (define (test-result test)
   (let ([start-prog (make-prog test)])
@@ -120,7 +128,7 @@
 	      (let ([dir (graph-folder-path tname index)])
 		(when (not (null? (first result)))
 		  (when (not (directory-exists? dir)) (make-directory dir))
-		  (make-graph (first result) (second result) (third result) (fourth result) dir "reports/graph.js"))))
+		  (make-graph (first result) (second result) (third result) (fourth result) dir "reports/graph.js" "reports/graph.css"))))
 	   results
 	   (map test-name tests)
 	   (build-list (length tests) identity))
@@ -136,6 +144,13 @@
 						    tests
 						    (build-list (length tests) identity))
 					       results))))))
+
+(define (make-test-graph testpath)
+  (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
+	[dir "graph/"])
+    (text "Making graph...\n")
+    (when (not (directory-exists? dir)) (make-directory dir))
+    (make-graph (first result) (second result) (third result) (fourth result) dir "graph.js" "graph.css")))
 
 ;; No longer maintained
 (define (make-dummy-report)
@@ -169,11 +184,10 @@
 	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
 
 
-(make-report
- (command-line
-  #:program "make-report"
-  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
-	   (*debug* #t)]
-  #:args (bench-dir)
-  bench-dir))
-
+;; (make-report
+;;  (command-line
+;;   #:program "make-report"
+;;   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+;; 	   (*debug* #t)]
+;;   #:args (bench-dir)
+;;   bench-dir))
