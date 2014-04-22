@@ -15,58 +15,69 @@ function takeOnly(data, n){
 }
 
 function drawLines(lines, colors, names, g){
-    var negLinePoints = lines.map( function(p){return p[0]});
-    var posLinePoints = lines.map( function(p){return p[1]});
-    var allNegLinePoints = [];
-    allNegLinePoints = allNegLinePoints.concat.apply(allNegLinePoints, negLinePoints);
-    var allPosLinePoints = [];
-    allPosLinePoints = allPosLinePoints.concat.apply(allPosLinePoints, posLinePoints);
+    var allLinePoints = []
+    allLinePoints = allLinePoints.concat.apply(allLinePoints, lines);
 
-    var maxPosX = d3.max(allPosLinePoints, function(p){return p[0];});
-    var minPosX = d3.min(allPosLinePoints, function(p){return p[0];});
-    var maxNegX = d3.max(allNegLinePoints, function(p){return p[0];});
-    var minNegX = d3.min(allNegLinePoints, function(p){return p[0];});
-    var maxY = d3.max(allNegLinePoints.concat(allPosLinePoints), function(p){return p[1]});
-    var minY = 1; // Encoding domain knowledge.
+    var maxPosX = d3.max(allLinePoints, function(p){return p[0];});
+    var minPosX = d3.min(allLinePoints.filter(function(p) { return p[0] > 0; }), function(p) {return p[0]});
+    var maxNegX = d3.max(allLinePoints.filter(function(p) { return p[0] < 0; }), function(p) {return p[0]});
+    var minNegX = d3.min(allLinePoints, function(p){return p[0];});
+    var maxY = d3.max(allLinePoints, function(p){return p[1]});
+    var minY = d3.min(allLinePoints, function(p){return p[1]});
 
     // Scales for translating points.
+
+    var posHeight = maxY - 1;
+    var negHeight = -1 - minY;
+    var totalHeight = posHeight + negHeight;
+    var negScalar = negHeight / totalHeight;
     
-    var y = d3.scale.log().clamp(true)
-	.domain([minY, maxY])
-	.range([0 + margin, h - margin]);
-    var x = d3.scale.log().clamp(true)
-	.domain([minPosX , maxPosX])
+    y = d3.scale.log().clamp(true)
+	.domain([1, posHeight])
+	.range([h * negScalar, h - margin]);
+    negY = d3.scale.log().clamp(true)
+	.domain([1 - negHeight, -1])
+	.range([0 + margin, h * negScalar])
+    var xRadius = Math.max(maxPosX - minPosX, maxNegX - minNegX);
+    x = d3.scale.log().clamp(true)
+	.domain([minPosX , minPosX + xRadius])
 	.range([(w/2), w - margin]);
-    var negX = d3.scale.log().clamp(true)
-	.domain([minNegX, maxNegX])
+    negX = d3.scale.log().clamp(true)
+	.domain([maxNegX - xRadius, maxNegX])
 	.range([0 + margin, (w/2)]);
 
     // Line functions for drawing paths.
     
-    var line = d3.svg.line()
-	.x(function(d) { return x(d[0]); })
-	.y(function(d) { return -1 * y(d[1]); });
-    var negLine = d3.svg.line()
-	.x(function(d) { return negX(d[0]); })
-	.y(function(d) { return -1 * y(d[1]); });
+    var linefunc = d3.svg.line()
+	.x(function(d) {
+	    if (d[0] < 0){
+		var result = negX(d[0]);
+	    }else{
+		var result = x(d[0]);
+	    }
+	    return result;
+	})
+	.y(function(d) {
+	    return -1 * ((d[1] < 0) ? negY(d[1]) : y(d[1]));
+	});
 
     // Draw the positive and negative paths for each given dataset.
-    var index;
-    for(index = 0; index < posLinePoints.length; ++index){
-	g.append("svg:path").attr("d", line(posLinePoints[index]))
-	    .attr("stroke", colors[index]);
-    }
-    for(index = 0; index < negLinePoints.length; ++index){
-	g.append("svg:path").attr("d", negLine(negLinePoints[index]))
-	    .attr("stroke", colors[index]);
+    var index = 0;
+    while (index < lines.length){
+    	var lineData = lines[index];
+    	var line = linefunc(lineData);
+    	var color = colors[index];
+    	g.append("svg:path").attr("d", line)
+    	    .attr("stroke", color);
+    	++index;
     }
 
     // Draw the axis
     
     g.append("svg:line")
-    	.attr("x1", negX(minNegX))
+    	.attr("x1", negX(maxNegX - xRadius))
     	.attr("y1", -1 * y(minY))
-    	.attr("x2", x(maxPosX))
+    	.attr("x2", x(minPosX + xRadius))
     	.attr("y2", -1 * y(minY))
     g.append("svg:line").
     	attr("x1", x(0)).
@@ -80,18 +91,18 @@ function drawLines(lines, colors, names, g){
     var verticleSpace = 20;
     var horizontalSpace = 10;
     for(var index = 0; index < lines.length; ++index){
-	g.append("svg:circle")
-	    .attr("cx", keyPosX)
-	    .attr("cy", keyPosY + (verticleSpace * index))
-	    .attr("r", (verticleSpace / 2) - 2)
-	    .attr("stroke", colors[index])
-	    .attr("fill", colors[index]);
+    	g.append("svg:circle")
+    	    .attr("cx", keyPosX)
+    	    .attr("cy", keyPosY + (verticleSpace * index))
+    	    .attr("r", (verticleSpace / 2) - 2)
+    	    .attr("stroke", colors[index])
+    	    .attr("fill", colors[index]);
 
-	g.append("svg:text")
-	    .attr("x", keyPosX + horizontalSpace)
-	    .attr("y", keyPosY + (verticleSpace * index) + 5)
-	    .attr("fill", "black")
-	    .text(names[index]);
+    	g.append("svg:text")
+    	    .attr("x", keyPosX + horizontalSpace)
+    	    .attr("y", keyPosY + (verticleSpace * index) + 5)
+    	    .attr("fill", "black")
+    	    .text(names[index]);
     }
 
     // Get the intervals at which to draw labels and tick marks.
