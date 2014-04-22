@@ -128,7 +128,8 @@
 	      (let ([dir (graph-folder-path tname index)])
 		(when (not (null? (first result)))
 		  (when (not (directory-exists? dir)) (make-directory dir))
-		  (make-graph (first result) (second result) (third result) (fourth result) dir "reports/graph.js" "reports/graph.css"))))
+		  (make-graph (first result) (second result) (third result) (fourth result) dir
+			      '("reports/d3.js" "reports/graph.js") '("reports/graph.css")))))
 	   results
 	   (map test-name tests)
 	   (build-list (length tests) identity))
@@ -146,7 +147,8 @@
 	[dir "graph/"])
     (text "Making graph...\n")
     (when (not (directory-exists? dir)) (make-directory dir))
-    (make-graph (first result) (second result) (third result) (fourth result) dir "graph.js" "graph.css")))
+    (make-graph (first result) (second result) (third result) (fourth result) dir
+		'("d3.js" "graph.js") '("graph.css"))))
 
 ;; No longer maintained
 (define (make-dummy-report)
