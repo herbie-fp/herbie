@@ -5,7 +5,7 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args)
+	 flip-args ascending-order)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -98,3 +98,16 @@
 
 ;; Flips the argument order of a two argument function.
 (define (flip-args f) (lambda (x y) (f y x)))
+
+;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
+;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
+(define (ascending-order var-index l)
+  ;; The number of positives looks like it can vary, so first check how many points there are with a postive
+  ;; number at position 'var-index'
+  (let* ([num-positives (length (filter (compose positive? (curry (flip-args list-ref) var-index)) (*points*)))]
+	 ;; Get the items that correspond to the positive and the negative points in two seperate lists.
+	 [positives (take l num-positives)]
+	 [negatives (drop l num-positives)])
+    ;; Reverse the negatives, since they are initially in descending order, and then
+    ;; append them to the postives to get the points in ascending order.
+    (append (reverse negatives) positives)))
