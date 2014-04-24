@@ -7,7 +7,7 @@
 
 (provide *points* *exacts* prepare-points make-exacts
          errors errors-compare errors-difference errors-diff-score
-	 errors-score reasonable-error?)
+	 errors-score reasonable-error? fn-points)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -89,6 +89,10 @@
         (if (real? out)
             (+ 1 (flulp-error out (->flonum exact)))
             +inf.0)))))
+
+(define (fn-points prog points)
+  (let ([fn (eval-prog prog mode:fl)])
+    (map fn points)))
 
 (define errors-compare-cache (make-hasheq))
 
