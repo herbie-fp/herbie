@@ -98,7 +98,9 @@
 		#:show-time #t))
 
 (define (get-table-data results tests)
-  (map table-row results tests))
+  (let ([rows (map table-row results test)])
+    (append rows
+	    `("Num Green", (length (filter good? rows))))))
 
 (define (info-stamp cur-date cur-commit cur-branch)
   (bold (text (date-year cur-date) " "
