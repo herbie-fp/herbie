@@ -65,12 +65,6 @@
   (when (file-exists? dest) (delete-file dest))
   (copy-file src dest))
 
-(define *base* 32)
-
-(define (log-base x)
-  (/ (log x)
-     (log *base*)))
-
 (define (make-log-scale min-domain max-domain min-range max-range)
   (let-values ([(log exp) (make-log-scale* min-domain max-domain min-range max-range)])
     log))
@@ -100,9 +94,11 @@
     (values (lambda (x) (+ (* a x) b))
 	    (lambda (y) (/ (- y b) a)))))
 
+
+(define *base* 2)
+(define log-base (compose (curry (flip-args /) (log *base*)) log))
+
 (define (make-log-scale* min-domain max-domain min-range max-range)
-  (define *base* 2)
-  (define log-base (compose (curry (flip-args /) (log *base*)) log))
   (if (< min-domain 1)
       (let ([translate (curry + (- 1 min-domain))])
 	(let-values ([(lscale escale) (make-log-scale* (translate min-domain) (translate max-domain) min-range max-range)])
