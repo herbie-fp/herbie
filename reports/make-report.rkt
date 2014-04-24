@@ -88,7 +88,8 @@
 
 (define (good? row)
   (and (not (bad? row))
-       (< 5 (list-ref row 1))))
+       (or (eq? 'Yes (list-ref row 5))
+	   (< 5 (list-ref row 1)))))
 
 (define (get-test-results tests)
   (progress-map test-result tests
