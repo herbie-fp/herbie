@@ -6,6 +6,7 @@
   (syntax-case stx ()
     [(_ expr)
      #'(syntax->datum (expand-once 'expr))]))
+
 ;; Simple inline printing
 (define (text . args)
   (for ([val args])
@@ -20,3 +21,8 @@
   (syntax-case stx ()
     [(_ filename . rest)
      #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
+
+(define-syntax (write-string stx)
+  (syntax-case stx ()
+    [(_ . rest)
+     #'(with-output-to-string (lambda () . rest))]))
