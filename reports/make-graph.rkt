@@ -33,10 +33,9 @@
     (parameterize ([*points* points]) ;; We need this for ordering
       (let ([ascending-points (ascending-order 0 (*points*))])
 	(define (errors->error-line errors)
-	  (filter point-filter
-		  (ys->lines (ascending-order 0 errors))))
+	  (ys->lines (ascending-order 0 errors)))
 	(define alt->error-line (compose errors->error-line alt-errors))
-	(define ys->lines (curry map cons (map car ascending-points)))
+	(define ys->lines (compose (curry filter point-filter) (curry map cons (map car ascending-points))))
 	(let ([pre-errors (alt->error-line start)]
 	      [post-errors (alt->error-line end)])
 	  (write-file page-path
