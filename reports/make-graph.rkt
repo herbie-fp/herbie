@@ -169,8 +169,8 @@
 	    [min-x (apply min xs)]
 	    [max-y (apply max ys)]
 	    [min-y (apply min ys)])
-	(let-values ([(x-log x-exp) (make-full-log-scale* min-x max-x (+ x-pos margin) (+ x-pos width (- margin)))]
-		     [(y-log y-exp) (make-full-log-scale* min-y max-y (+ y-pos margin) (+ y-pos height (- margin)))])
+	(let-values ([(x-log x-exp) (make-full-log-scale* min-x max-x margin (- width margin))]
+		     [(y-log y-exp) (make-full-log-scale* min-y max-y margin (- height margin))])
 	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
 		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))]
 		[y-log* (lambda (y) (- height (y-log y)))]
