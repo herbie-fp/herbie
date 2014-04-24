@@ -5,7 +5,7 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args ascending-order)
+	 flip-args)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
