@@ -119,7 +119,7 @@
 	[(> 0 max-domain) (let-values ([(log exp) (make-log-scale* (- max-domain) (- min-domain) (- max-range) (- min-range))])
 			    (values (lambda (x) (- (log (- x))))
 				    (lambda (y) (- (exp (- y))))))]
-	[#t (let* ([neg-scalar (/ (log-base (- min-domain))
+	[#t (let* ([neg-scalar (/ (max 0 (log-base (- min-domain)))
 				  (+ (log-base max-domain) (log-base (- min-domain))))]
 		   [zero-position (+ min-range (* neg-scalar (- max-range min-range)))])
 	      (let-values ([(pos-log pos-exp)
