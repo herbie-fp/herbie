@@ -1,6 +1,5 @@
 #lang racket
 
-(require reports/tools-common)
 (require reports/markdown-tools)
 (require reports/make-graph)
 (require casio/load-bench)
@@ -152,7 +151,7 @@
     (text "Making graph...\n")
     (when (not (directory-exists? dir)) (make-directory dir))
     (make-graph (first result) (second result) (third result) (fourth result) dir
-		'("d3.js" "graph.js") '("graph.css"))))
+	        '("graph.css"))))
 
 ;; No longer maintained
 (define (make-dummy-report)
