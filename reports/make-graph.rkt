@@ -201,10 +201,9 @@
 						  (x2 . ,(exact->inexact x)) (y2 . ,(+ x-axis-y *tick-length*))
 						  (stroke . "black")))
 				   (newline)
-				   (text-tag #:args `((x . ,(exact->inexact (- x 10)))
-						      (y . ,(+ (y-log* (max min-y 0)) *label-verticle-distance*))
-						      (fill . "black"))
-					     (display (~r (x-exp x) #:notation 'exponential #:precision 4)))
+				   (draw-text `(,(exact->inexact (- x 10)) . ,(+ x-axis-y *label-verticle-distance*))
+					      40
+					     (display (~r (x-exp x) #:notation 'exponential #:precision 2)))
 				   (newline))
 				 ;; Draw the y-axis
 				 (line #:args `((x1 . ,y-axis-x) (y1 . ,(- height margin))

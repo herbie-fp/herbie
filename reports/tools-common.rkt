@@ -13,7 +13,7 @@
     (cond [(string? val)
 	   (display val)]
 	  [(number? val)
-	   (display (~a val #:width 7))]
+	   (display (~a val #:max-width 7))]
 	  [#t
 	   (write val)])))
 
