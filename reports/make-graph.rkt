@@ -32,9 +32,11 @@
   (let ([page-path (string-append dir "graph.html")])
     (parameterize ([*points* points]) ;; We need this for ordering
       (let ([ascending-points (ascending-order 0 (*points*))])
-	(define (alt->error-line altn) (filter point-filter
-					       (map cons (map car ascending-points)
-						    (ascending-order 0 (alt-errors altn)))))
+	(define (errors->error-line errors)
+	  (filter point-filter
+		  (ys->lines (ascending-order 0 errors))))
+	(define alt->error-line (compose errors->error-line alt-errors))
+	(define ys->lines (curry map cons (map car ascending-points)))
 	(let ([pre-errors (alt->error-line start)]
 	      [post-errors (alt->error-line end)])
 	  (write-file page-path
@@ -46,11 +48,14 @@
 				    (newline))
 				  (newline)
 				  (body (newline)
-					(text (make-graph-svg (list pre-errors post-errors (errors-difference post-errors pre-errors))
+					(text (make-graph-svg (list pre-errors post-errors
+								    (errors->error-line (errors-difference (alt-errors start)
+													   (alt-errors end))))
 							      (list "yellow" "blue" "green")
 							      0 0 500 500))
 					(newline)
-					(text (make-graph-svg (list exacts (fn-points (alt-program start)) (fn-points (alt-program end)))
+					(text (make-graph-svg (map ys->lines (list exacts (fn-points (alt-program start) ascending-points)
+									       (fn-points (alt-program end) ascending-points)))
 							      (list "green" "yellow" "blue")
 							      0 550 500 500))
 					(newline))
