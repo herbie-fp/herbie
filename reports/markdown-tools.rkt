@@ -2,7 +2,7 @@
 
 (require reports/tools-common)
 
-(provide (all-defined-out))
+(provide (all-defined-out) (all-from-out reports/tools-common))
 
 (define-syntax (mode stx)
   (syntax-case stx ()
