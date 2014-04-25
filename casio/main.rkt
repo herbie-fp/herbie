@@ -51,29 +51,13 @@
 	     [iter max-iters])
 					; Invariant: (no-duplicates? alts)
 					; Invariant: (no-duplicates? olds)
-    (cond
-     [(= iter 0)
-      (let* ([sorted (sort (reverse (append alts olds trace))
-			   much-better?)]
-	     [result (try-simplify (car sorted) #:conservative #f)])
-	(debug "Done:" result #:from 'improve)
-	result)]
-     [(and (null? alts) (not (null? olds)))
-					; We've exhausted all "intelligent" things to do
-      (debug "Resorting to brute force"
-	     #:from 'improve)
-      (let* ([old (car olds)]
-	     [old* (cdr olds)]
-	     [alts* (rewrite-brute-force old)]
-	     [greens
-	      (map remove-red (filter (curryr much-better? old) alts*))])
 	(cond
 	 [(= iter 0)
 	  (let* ([sorted (sort (reverse (append alts olds trace))
 			       much-better?)]
 		 [result (try-simplify (car sorted) #:conservative #f)])
 	    (debug "Done:" result #:from 'improve)
-	    (values result orig))]
+	    result)]
 	 [(and (null? alts) (not (null? olds)))
 	  ; We've exhausted all "intelligent" things to do
 	  (debug "Resorting to brute force"
@@ -113,7 +97,7 @@
 	      (debug "Discovered" (length greens) "green changes"
 		     #:from 'improve #:tag 'info)
 	      (loop (sort greens alternative<?) (list)
-		    (append alts olds next) (- iter 1))]))])))))
+		    (append alts olds next) (- iter 1))]))])))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
