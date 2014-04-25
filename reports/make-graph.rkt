@@ -51,6 +51,7 @@
 								    (errors->error-line (errors-difference (alt-errors start)
 													   (alt-errors end))))
 							      (list "yellow" "blue" "green")
+							      (list "pre-errors" "post-errors" "improvement")
 							      0 0 800 800))
 					(newline)
 					(text (make-graph-svg (map ys->lines (list exacts (fn-points (alt-program start) ascending-points)
@@ -154,13 +155,16 @@
 		  (display "L")
 		  (print-point point))))
 
-(define (make-graph-svg lines colors x-pos y-pos width height)
+(define (make-graph-svg lines colors names x-pos y-pos width height)
   (define *num-ticks* 8)
   (define *tick-length* 20)
   (define *label-verticle-distance* 30)
   (define *text-height* 8)
   (define *text-width* 80)
   (define *margin-%* 15)
+  (define *key-verticle-spacing* 10)
+  (define *key-horizontal-spacing* 10)
+  (define *key-circle-radius* 8)
   (let ([all-points (apply append lines)]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
@@ -217,6 +221,22 @@
 					     (display (~r (y-exp y) #:notation 'exponential #:precision 4)))
 				   (newline))
 				 ;; Draw the key
+				 (for/list ([name names] [color colors] [index (build-list (length names) identity)])
+				   (let ([verticle-mod (* index (+ (arithmetic-shift *key-circle-radius* 1)
+								     *key-verticle-spacing*))])
+				     (circle #:args `((cx . ,(arithmetic-shift margin -1)) (cy . ,(+ verticle-mod
+												     (arithmetic-shift margin -1)))
+						      (r . ,*key-circle-radius*) (stroke . "black")
+						      (stroke-width . 3) (fill . ,color)))
+				     (newline)
+				     (xml-comment (text color))
+				     (newline)
+				     (text-tag #:args `((x . ,(+ (arithmetic-shift margin -1) (+ *key-circle-radius* *key-horizontal-spacing*)))
+							(y . ,(+ (arithmetic-shift margin -1)
+								 verticle-mod))
+							(fill . "black"))
+					     (text name)))
+				   (newline))
 				 ;; Draw the data.
 				 (for/list ([line lines*] [color colors])
 				   (path #:args `((d . ,(line->pathdata-string line)) (stroke . ,color)
