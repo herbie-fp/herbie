@@ -137,18 +137,17 @@
 	   results
 	   (map test-name tests)
 	   (build-list (length tests) identity))
-      (write-file "report.md"
-		  (info-stamp cur-date commit branch)
-		  (make-table table-labels table-data
-			      #:modifier-alist `((,bad? . red)
-						 (,good? . green))
-			      #:row-links (map (λ (link result) (if (number? (cadr result))
-								    link
-								    '()))
-					       (map (lambda (test index) (string-append (graph-folder-path (test-name test) index) "graph.html"))
-						    tests
-						    (build-list (length tests) identity))
-					       results))))))
+      (let* ([test-dirs (map (λ (t i) (string-append (graph-folder-path (test-name t) i) "graph.html"))
+			    tests
+			    (build-list (length tests) identity))]
+	     [links (map (λ (dir result) (if (null? (cadr result)) '() dir))
+			 test-dirs results)])
+	(write-file "report.md"
+		    (info-stamp cur-date commit branch)
+		    (make-table table-labels table-data
+				#:modifier-alist `((,bad? . red)
+						   (,good? . green))
+				#:row-links links))))))
 
 (define (make-test-graph testpath)
   (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
