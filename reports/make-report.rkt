@@ -188,10 +188,10 @@
 	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
 
 
-;; (make-report
-;;  (command-line
-;;   #:program "make-report"
-;;   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
-;; 	   (*debug* #t)]
-;;   #:args (bench-dir)
-;;   bench-dir))
+(make-report
+ (command-line
+  #:program "make-report"
+  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+	   (*debug* #t)]
+  #:args (bench-dir)
+  bench-dir))
