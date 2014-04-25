@@ -1,7 +1,7 @@
 #lang racket
 
-(require casio/tools-common)
-(require casio/markdown-tools)
+(require reports/tools-common)
+(require reports/markdown-tools)
 (require racket/date)
 
 (define (make-index-page foldernames)
