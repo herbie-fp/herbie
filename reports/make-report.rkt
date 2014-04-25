@@ -98,7 +98,7 @@
 		#:show-time #t))
 
 (define (get-table-data results tests)
-  (let ([rows (map table-row results test)])
+  (let ([rows (map table-row results tests)])
     (append rows
 	    `("Num Green", (length (filter good? rows))))))
 
