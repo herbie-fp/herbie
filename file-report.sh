@@ -21,7 +21,7 @@ case $yn in
 	read -p "Username: " user
 	rsync --verbose --recursive "$RDIR" "$user@$RHOST:$RHOSTDIR/$RFOLDER"
 	REPORTS=$(ssh $user@$RHOST "cd $RHOSTDIR/$RFOLDER; find * -maxdepth 0 -type d")
-	racket casio/make-index.rkt $REPORTS
+	racket reports/make-index.rkt $REPORTS
 	mv index.md "$RFOLDER/index.md"
 	pandoc -f markdown -t html -o "$RFOLDER/index.html" "$RFOLDER/index.md"
 	rsync --verbose --recursive "$RFOLDER/index.html" "$user@$RHOST:$RHOSTDIR/$RFOLDER"
