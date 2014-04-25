@@ -115,13 +115,15 @@
   (newline)
   (newline))
 
-(define (strip-end string num-chars)
+(define (strip-end num-chars string)
   (substring string 0 (- (string-length string) num-chars)))
+
+(define (command-result cmd) (strip-end 1 (write-string (system cmd))))
 
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
-	[commit (strip-end (write-string (system "git rev-parse HEAD")) 1)]
-	[branch (strip-end (write-string (system "git rev-parse --abbrev-ref HEAD")) 1)]
+	[commit (command-result "git rev-parse HEAD")]
+	[branch (command-result "git rev-parse --abbrev-ref HEAD")]
 	[tests (univariate-tests bench-dir)])
     (let* ([results (get-test-results tests)]
 	   [table-data (get-table-data results tests)])
