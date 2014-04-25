@@ -48,3 +48,10 @@
 	 (syntax-case stx ()
 	   [(_ #:args args) #'(unitag 'tagname #:args args)]
 	   [(_) #'(unitag 'tagname)]))]))
+
+(define-syntax (xml-comment stx)
+  (syntax-case stx ()
+    [(_ . rest)
+     #'(begin (text "<!--")
+	      ((lambda () . rest))
+	      (text "-->"))]))
