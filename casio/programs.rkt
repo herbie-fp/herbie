@@ -39,7 +39,7 @@
      [(list? prog)
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
 		       (idx-map (λ (prog idx)
-                                   (inductor prog (cons idx location)))
+				    (inductor prog (cons idx location)))
                                 (cdr prog) #:from 1))
 		 (reverse location))]))
   (inductor prog '()))
