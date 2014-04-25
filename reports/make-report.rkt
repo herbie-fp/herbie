@@ -120,8 +120,8 @@
 
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
-	[commit (strip-end (with-output-to-string (lambda () (system "git rev-parse HEAD"))) 1)]
-	[branch (strip-end (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD"))) 1)]
+	[commit (strip-end (write-string (system "git rev-parse HEAD")) 1)]
+	[branch (strip-end (write-string (system "git rev-parse --abbrev-ref HEAD")) 1)]
 	[tests (univariate-tests bench-dir)])
     (let* ([results (get-test-results tests)]
 	   [table-data (get-table-data results tests)])
