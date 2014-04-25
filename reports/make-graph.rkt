@@ -57,6 +57,7 @@
 					(text (make-graph-svg (map ys->lines (list exacts (fn-points (alt-program start) ascending-points)
 									       (fn-points (alt-program end) ascending-points)))
 							      (list "green" "yellow" "blue")
+							      (list "exacts" "pre-behavior" "post-behavior")
 							      0 900 800 800))
 					(newline))
 				  ))))))))
