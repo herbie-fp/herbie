@@ -131,7 +131,7 @@
 		(when (not (null? (first result)))
 		  (when (not (directory-exists? dir)) (make-directory dir))
 		  (make-graph (first result) (second result) (third result) (fourth result) dir
-			      '("reports/d3.js" "reports/graph.js") '("reports/graph.css")))))
+			      '("reports/graph.css")))))
 	   results
 	   (map test-name tests)
 	   (build-list (length tests) identity))
