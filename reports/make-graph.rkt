@@ -115,7 +115,6 @@
   (let-values ([(log exp) (make-full-log-scale* min-domain max-domain min-range max-range)])
     log))
 
-;; Fails on extremely unbalance domains, like (-1000000,10)
 (define (make-full-log-scale* min-domain max-domain min-range max-range)
   (cond [(< 0 min-domain) (make-log-scale* min-domain max-domain min-range max-range)]
 	[(> 0 max-domain) (let-values ([(log exp) (make-log-scale* (- max-domain) (- min-domain) (- max-range) (- min-range))])
@@ -229,8 +228,6 @@
 												     (arithmetic-shift margin -1)))
 						      (r . ,*key-circle-radius*) (stroke . "black")
 						      (stroke-width . 3) (fill . ,color)))
-				     (newline)
-				     (xml-comment (text color))
 				     (newline)
 				     (text-tag #:args `((x . ,(+ (arithmetic-shift margin -1) (+ *key-circle-radius* *key-horizontal-spacing*)))
 							(y . ,(+ (arithmetic-shift margin -1)
