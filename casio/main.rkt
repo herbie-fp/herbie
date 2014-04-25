@@ -42,12 +42,31 @@
   (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
-    ; Save original program
     (let ([orig (make-alt prog)])
-      (let loop ([alts (list orig)] [olds (list)] [trace (list)]
-		 [iter max-iters])
-	; Invariant: (no-duplicates? alts)
-	; Invariant: (no-duplicates? olds)
+      (values (improve-on-points orig max-iters)
+	      orig))))
+
+(define (improve-on-points orig max-iters)
+  (let loop ([alts (list orig)] [olds (list)] [trace (list)]
+	     [iter max-iters])
+					; Invariant: (no-duplicates? alts)
+					; Invariant: (no-duplicates? olds)
+    (cond
+     [(= iter 0)
+      (let* ([sorted (sort (reverse (append alts olds trace))
+			   much-better?)]
+	     [result (try-simplify (car sorted) #:conservative #f)])
+	(debug "Done:" result #:from 'improve)
+	result)]
+     [(and (null? alts) (not (null? olds)))
+					; We've exhausted all "intelligent" things to do
+      (debug "Resorting to brute force"
+	     #:from 'improve)
+      (let* ([old (car olds)]
+	     [old* (cdr olds)]
+	     [alts* (rewrite-brute-force old)]
+	     [greens
+	      (map remove-red (filter (curryr much-better? old) alts*))])
 	(cond
 	 [(= iter 0)
 	  (let* ([sorted (sort (reverse (append alts olds trace))
@@ -130,4 +149,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve program-a program-b print-improve improvement)
+(provide improve program-a program-b print-improve improvement improve-on-points)
