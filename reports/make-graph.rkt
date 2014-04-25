@@ -241,5 +241,6 @@
 				 ;; Draw the data.
 				 (for/list ([line lines*] [color colors])
 				   (path #:args `((d . ,(line->pathdata-string line)) (stroke . ,color)
-						  (fill . "none"))))
+						  (fill . "none")))
+				   (newline))
 				 (newline))))))))))
