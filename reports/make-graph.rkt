@@ -51,12 +51,12 @@
 								    (errors->error-line (errors-difference (alt-errors start)
 													   (alt-errors end))))
 							      (list "yellow" "blue" "green")
-							      0 0 500 500))
+							      0 0 800 800))
 					(newline)
 					(text (make-graph-svg (map ys->lines (list exacts (fn-points (alt-program start) ascending-points)
 									       (fn-points (alt-program end) ascending-points)))
 							      (list "green" "yellow" "blue")
-							      0 550 500 500))
+							      0 900 800 800))
 					(newline))
 				  ))))))))
 
@@ -160,7 +160,7 @@
   (define *label-verticle-distance* 30)
   (define *text-height* 8)
   (define *text-width* 80)
-  (define *margin-%* 10)
+  (define *margin-%* 15)
   (let ([all-points (apply append lines)]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
@@ -216,6 +216,7 @@
 						      (fill . "black"))
 					     (display (~r (y-exp y) #:notation 'exponential #:precision 4)))
 				   (newline))
+				 ;; Draw the key
 				 ;; Draw the data.
 				 (for/list ([line lines*] [color colors])
 				   (path #:args `((d . ,(line->pathdata-string line)) (stroke . ,color)
