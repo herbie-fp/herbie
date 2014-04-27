@@ -10,6 +10,8 @@
 
 (provide (all-defined-out))
 
+(struct graph-line (points color name) #:transparent)
+
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
@@ -32,12 +34,25 @@
   (let ([page-path (string-append dir "graph.html")])
     (parameterize ([*points* points]) ;; We need this for ordering
       (let ([ascending-points (ascending-order 0 (*points*))])
-	(define (errors->error-line errors)
-	  (ys->lines (ascending-order 0 errors)))
-	(define alt->error-line (compose errors->error-line alt-errors))
-	(define ys->lines (compose (curry filter point-filter) (curry map cons (map car ascending-points))))
-	(let ([pre-errors (alt->error-line start)]
-	      [post-errors (alt->error-line end)])
+	(define (errors->error-line errors color name)
+	  (ys->lines (ascending-order 0 errors) color name))
+	(define (alt->error-line alt color name)
+	  (errors->error-line (alt-errors alt)
+			      color name))
+	(define (ys->lines ys color name)
+	  (graph-line (filter point-filter (map cons (map car ascending-points) ys))
+		      color name))
+	(let ([pre-errors (alt->error-line start "blue" "pre-errors")]
+	      [post-errors (alt->error-line end "green" "post-errors" )]
+	      [improvement (errors->error-line (map (curry expt 2)
+						    (errors-difference (alt-errors start)
+								       (alt-errors end)))
+					       "yellow" "improvement")]
+	      [exacts-line (ys->lines exacts "green" "exacts")]
+	      [pre-behavior (ys->lines (fn-points (alt-program start) ascending-points)
+				       "yellow" "pre-behavior")]
+	      [post-behavior (ys->lines (fn-points (alt-program end) ascending-points)
+					"blue" "post-behavior")])
 	  (write-file page-path
 		      (html (newline)
 			    (head (newline)
@@ -47,17 +62,10 @@
 				    (newline))
 				  (newline)
 				  (body (newline)
-					(text (make-graph-svg (list pre-errors post-errors
-								    (errors->error-line (errors-difference (alt-errors start)
-													   (alt-errors end))))
-							      (list "yellow" "blue" "green")
-							      (list "pre-errors" "post-errors" "improvement")
+					(text (make-graph-svg (list pre-errors post-errors improvement)
 							      0 0 800 800))
 					(newline)
-					(text (make-graph-svg (map ys->lines (list exacts (fn-points (alt-program start) ascending-points)
-									       (fn-points (alt-program end) ascending-points)))
-							      (list "green" "yellow" "blue")
-							      (list "exacts" "pre-behavior" "post-behavior")
+					(text (make-graph-svg (list exacts-line pre-behavior post-behavior)
 							      0 900 800 800))
 					(newline))
 				  ))))))))
@@ -144,7 +152,7 @@
 					       (- 1 (neg-exp (- zero-position y)))
 					       (- (pos-exp y) 1))))])))]))
 
-(define (line->pathdata-string line)
+(define (line-points->pathdata-string line)
   (define (print-point p)
     (write (car p))
     (display ",")
@@ -155,7 +163,7 @@
 		  (display "L")
 		  (print-point point))))
 
-(define (make-graph-svg lines colors names x-pos y-pos width height)
+(define (make-graph-svg lines x-pos y-pos width height)
   (define *num-ticks* 8)
   (define *tick-length* 20)
   (define *label-verticle-distance* 30)
@@ -165,7 +173,7 @@
   (define *key-verticle-spacing* 10)
   (define *key-horizontal-spacing* 10)
   (define *key-circle-radius* 8)
-  (let ([all-points (apply append lines)]
+  (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
@@ -179,8 +187,10 @@
 		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))]
 		[y-log* (lambda (y) (- height (y-log y)))]
 		[y-exp* (lambda (x) (y-exp (- height x)))])
-	    (let ([lines* (map (lambda (line) (map (lambda (p) (cons (x-log (car p)) (y-log* (cdr p))))
-						   line))
+	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log* (cdr p))))
+							       (graph-line-points line))
+							  (graph-line-color line)
+							  (graph-line-name line)))
 			       lines)]
 		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
 		  [x-axis-y (y-log* (max 0 min-y))]
@@ -221,23 +231,24 @@
 					     (display (~r (y-exp y) #:notation 'exponential #:precision 4)))
 				   (newline))
 				 ;; Draw the key
-				 (for/list ([name names] [color colors] [index (build-list (length names) identity)])
+				 (for/list ([line lines] [index (build-list (length lines) identity)])
 				   (let ([verticle-mod (* index (+ (arithmetic-shift *key-circle-radius* 1)
 								     *key-verticle-spacing*))])
 				     (circle #:args `((cx . ,(arithmetic-shift margin -1)) (cy . ,(+ verticle-mod
 												     (arithmetic-shift margin -1)))
 						      (r . ,*key-circle-radius*) (stroke . "black")
-						      (stroke-width . 3) (fill . ,color)))
+						      (stroke-width . 3) (fill . ,(graph-line-color line))))
 				     (newline)
 				     (text-tag #:args `((x . ,(+ (arithmetic-shift margin -1) (+ *key-circle-radius* *key-horizontal-spacing*)))
 							(y . ,(+ (arithmetic-shift margin -1)
 								 verticle-mod))
 							(fill . "black"))
-					     (text name)))
+					     (text (graph-line-name line))))
 				   (newline))
 				 ;; Draw the data.
-				 (for/list ([line lines*] [color colors])
-				   (path #:args `((d . ,(line->pathdata-string line)) (stroke . ,color)
+				 (for/list ([line lines*])
+				   (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
+						  (stroke . ,(graph-line-color line))
 						  (fill . "none")))
 				   (newline))
 				 (newline))))))))))
