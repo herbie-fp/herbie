@@ -18,32 +18,56 @@
 (define (include-path dir index extension)
   (string-append dir (include-name index extension)))
 
+;; Returns the filename for an included file with the given extension
 (define (include-name index extension)
   (string-append (number->string index) "include." extension))
 
+;; Given a list of xs and a list of ys, returns the ys reordered so that,
+;; if each input y cooresponds to it's matching x, the xs that the reordered ys
+;; coorespond to are sorted in ascending order.
 (define (reorder-ys xs ys)
   (parameterize ([*points* (map list xs)])
     (ascending-order 0 ys)))
 
+;; Given a list of xs and ys where each y cooresponds to the x with the matching
+;; index, but the xs and ys are sorted in no particular order other than that,
+;; and some of the ys may be inf or nan, returns a list of points, where each point
+;; is a cons cell with (eq? (car p) x), (eq? (cdr p) y), with only reasonable-error? ys,
+;; and sorted so that the xs of the points are in ascending order.
 (define (ys->points xs ys)
   (filter good-point? (map cons (reorder-ys xs xs) (reorder-ys xs ys))))
 
+;; Given an alternative, and the xs that the alternative's errors were
+;; evaluated on, returns a list of points (see point definition above)
+;; representing the alt's errors.
 (define (alt->error-points xs altn)
   (ys->points xs (alt-errors altn)))
 
+;; Given an alternative and a list of xs, returns a list of points
+;; representing that functions behavior on those xs.
 (define (alt->behave-points xs altn)
   (ys->points xs (fn-points (alt-program altn) (map list xs))))
 
+;; Given an alternative, a list of points that that alterative's
+;; errors were evaluated on, a color, and a name, builds a graph-line
+;; that represents that alternatives errors.
 (define (alt->error-gline xs altn color name #:width [width *default-width*])
   (graph-line (alt->error-points xs altn) color name width))
 
+;; Given an alternative, a list of points, a color, and a name, builds
+;; a graph-line that represents that alternatives behavior on those points.
 (define (alt->behave-gline xs altn color name #:width [width *default-width*])
   (graph-line (alt->behave-points xs altn) color name width))
 
+;; Given a start, an end, a list of points on which both the start's errors
+;; and the end's errors were evaluated, a color and a name, builds a graph-line
+;; object that represents the error improvement between the start and end.
 (define (get-improvement-line xs start end color name #:width [width *default-width*])
   (graph-line (ys->points xs (map (curry expt 2) (errors-difference (alt-errors start) (alt-errors end))))
 	      color name width))
 
+;; Builds a graph line for exacts, given the exacts, the points,
+;; a color and a name.
 (define (get-exacts-line xs exacts color name #:width [width *default-width*])
   (graph-line (ys->points xs exacts) color name width))
 
