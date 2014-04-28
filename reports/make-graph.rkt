@@ -100,7 +100,7 @@
 			      (newline)
 			      (body (newline)
 				    (text (make-graph-svg (list pre-errors post-errors improvement-line)
-							  0 0 800 800))
+							  0 0 800 800 #:relog-ys #t))
 				    (newline)
 				    (text (make-graph-svg (list exacts-line pre-behavior post-behavior)
 							  0 900 800 800))
