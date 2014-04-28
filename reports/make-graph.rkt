@@ -24,7 +24,7 @@
     (ascending-order 0 ys)))
 
 (define (ys->points xs ys)
-  (filter good-point? (map cons xs (reorder-ys xs ys))))
+  (filter good-point? (map cons (reorder-ys xs xs) (reorder-ys xs ys))))
 
 (define (alt->error-points xs altn)
   (ys->points xs (alt-errors altn)))
