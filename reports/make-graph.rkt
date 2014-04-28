@@ -8,7 +8,9 @@
 
 (provide (all-defined-out))
 
-(struct graph-line (points color name) #:transparent)
+(struct graph-line (points color name width) #:transparent)
+
+(define *default-width* 2)
 
 (define good-point? (compose reasonable-error? cdr))
 
@@ -32,18 +34,18 @@
 (define (alt->behave-points xs altn)
   (ys->points xs (fn-points (alt-program altn) (map list xs))))
 
-(define (alt->error-gline xs altn color name)
-  (graph-line (alt->error-points xs altn) color name))
+(define (alt->error-gline xs altn color name #:width [width *default-width*])
+  (graph-line (alt->error-points xs altn) color name width))
 
-(define (alt->behave-gline xs altn color name)
-  (graph-line (alt->behave-points xs altn) color name))
+(define (alt->behave-gline xs altn color name #:width [width *default-width*])
+  (graph-line (alt->behave-points xs altn) color name width))
 
-(define (get-improvement-line xs start end color name)
+(define (get-improvement-line xs start end color name #:width [width *default-width*])
   (graph-line (ys->points xs (map (curry expt 2) (errors-difference (alt-errors start) (alt-errors end))))
-	      color name))
+	      color name width))
 
-(define (get-exacts-line xs exacts color name)
-  (graph-line (ys->points xs exacts) color name))
+(define (get-exacts-line xs exacts color name #:width [width *default-width*])
+  (graph-line (ys->points xs exacts) color name width))
 
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
@@ -58,11 +60,11 @@
   ;; Generate the html for our graph page
   (let ([page-path (string-append dir "graph.html")]
 	[xs (map car points)])
-    (let ([pre-errors (alt->error-gline xs start "blue" "pre-errors")]
-	  [post-errors (alt->error-gline xs end "green" "post-errors")]
-	  [improvement-line (get-improvement-line xs start end "yellow" "improvement")]
-	  [exacts-line (get-exacts-line xs exacts "green" "exacts")]
-	  [pre-behavior (alt->behave-gline xs start "yellow" "pre-behavior")]
+    (let ([pre-errors (alt->error-gline xs start "yellow" "pre-errors" #:width 5)]
+	  [post-errors (alt->error-gline xs end "blue" "post-errors")]
+	  [improvement-line (get-improvement-line xs start end "green" "improvement")]
+	  [exacts-line (get-exacts-line xs exacts "green" "exacts" #:width 8)]
+	  [pre-behavior (alt->behave-gline xs start "yellow" "pre-behavior" #:width 5)]
 	  [post-behavior (alt->behave-gline xs end "blue" "post-behavior")])
       (write-file page-path
 		  (html (newline)
@@ -197,7 +199,8 @@
 	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log* (cdr p))))
 							       (graph-line-points line))
 							  (graph-line-color line)
-							  (graph-line-name line)))
+							  (graph-line-name line)
+							  (graph-line-width line)))
 			       lines)]
 		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
 		  [x-axis-y (y-log* (max 0 (apply min ys)))]
@@ -256,6 +259,7 @@
 				 (for/list ([line lines*])
 				   (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
 						  (stroke . ,(graph-line-color line))
+						  (stroke-width . ,(graph-line-width line))
 						  (fill . "none")))
 				   (newline))
 				 (newline)))))))))
