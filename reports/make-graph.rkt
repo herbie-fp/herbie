@@ -188,12 +188,8 @@
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
-      (let ([max-x (apply max xs)]
-	    [min-x (apply min xs)]
-	    [max-y (apply max ys)]
-	    [min-y (apply min ys)])
-	(let-values ([(x-log x-exp) (make-full-log-scale* min-x max-x margin (- width margin))]
-		     [(y-log y-exp) (make-full-log-scale* min-y max-y margin (- height margin))])
+      (let-values ([(x-log x-exp) (data-scale* xs margin (- width margin))]
+		   [(y-log y-exp) (data-scale* ys margin (- height margin))])
 	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
 		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))]
 		[y-log* (lambda (y) (- height (y-log y)))]
@@ -204,8 +200,8 @@
 							  (graph-line-name line)))
 			       lines)]
 		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-		  [x-axis-y (y-log* (max 0 min-y))]
-		  [y-axis-x (x-log (max 0 min-x))])
+		  [x-axis-y (y-log* (max 0 (apply min ys)))]
+		  [y-axis-x (x-log (max 0 (apply min xs)))])
 	      ;; Write the outer svg tag
 	      (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
 					  (x . ,x-pos) (y . ,y-pos))
@@ -262,4 +258,4 @@
 						  (stroke . ,(graph-line-color line))
 						  (fill . "none")))
 				   (newline))
-				 (newline))))))))))
+				 (newline)))))))))
