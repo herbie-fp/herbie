@@ -86,10 +86,6 @@
   (when (file-exists? dest) (delete-file dest))
   (copy-file src dest))
 
-(define (make-log-scale min-domain max-domain min-range max-range)
-  (let-values ([(log exp) (make-log-scale* min-domain max-domain min-range max-range)])
-    log))
-
 ;; (define (make-log-scale* min-domain max-domain min-range max-range)
 ;;   (define (safe-log x) (if (= x 0) 0 (log-base x)))
 ;;   (cond [(= 0 min-range)
@@ -130,9 +126,6 @@
 	(values (compose out-linear-l log-base)
 		(compose (curry expt *base*) in-linear-e)))))
 
-(define (make-full-log-scale min-domain max-domain min-range max-range)
-  (let-values ([(log exp) (make-full-log-scale* min-domain max-domain min-range max-range)])
-    log))
 
 (define (make-full-log-scale* min-domain max-domain min-range max-range)
   (cond [(< 0 min-domain) (make-log-scale* min-domain max-domain min-range max-range)]
