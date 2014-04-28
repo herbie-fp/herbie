@@ -104,6 +104,12 @@
 				    (newline)
 				    (text (make-graph-svg (list exacts-line pre-behavior post-behavior)
 							  0 900 800 800))
+				    (newline)
+				    (br)
+				    (text "Starting Program: " (alt-program start) "\n")
+				    (br)
+				    (newline)
+				    (text "Ending Program: " (alt-program end) "\n")
 				    (newline))
 			      ))))))
 
