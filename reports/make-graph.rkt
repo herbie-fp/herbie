@@ -209,7 +209,7 @@
 (define *key-horizontal-spacing* 10)
 (define *key-circle-radius* 8)
 
-(define (make-graph-svg lines x-pos y-pos width height)
+(define (make-graph-svg lines x-pos y-pos width height #:relog-xs [relog-x #f] #:relog-ys [relog-y #f])
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
@@ -246,7 +246,7 @@
 				   (newline)
 				   (draw-text `(,(exact->inexact (- x 10)) . ,(+ x-axis-y *label-verticle-distance*))
 					      40
-					     (display (~r (x-exp x) #:notation 'exponential #:precision 2)))
+					     (display (~r (if relog-x (log-base (x-exp x)) (x-exp x)) #:notation 'exponential #:precision 2)))
 				   (newline))
 				 ;; Draw the y-axis
 				 (line #:args `((x1 . ,y-axis-x) (y1 . ,(- height margin))
@@ -260,9 +260,14 @@
 						  (stroke . "black")))
 				   (newline)
 				   (text-tag #:args `((x . ,(- y-axis-x *text-width*))
-						      (y . ,(- height (- (exact->inexact y) *text-height*)))
+						      (y . ,(- (exact->inexact y) *text-height*))
 						      (fill . "black"))
-					     (display (~r (y-exp y) #:notation 'exponential #:precision 4)))
+					     (display (if relog-y
+							  (~r (let ([exp-value (y-exp* y)])
+								(if (= exp-value 0) ;; Handle the special case
+								    0
+								    (log-base exp-value))))
+							  (~r (y-exp* y) #:notation 'exponential #:precision 4))))
 				   (newline))
 				 ;; Draw the key
 				 (for/list ([line lines] [index (build-list (length lines) identity)])
