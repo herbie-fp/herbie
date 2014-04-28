@@ -4,7 +4,6 @@
 (require casio/points)
 (require casio/common)
 (require reports/html-tools)
-(require reports/tools-common)
 (require reports/svg-tools)
 (require json)
 
