@@ -5,7 +5,6 @@
 (require casio/common)
 (require reports/html-tools)
 (require reports/svg-tools)
-(require json)
 
 (provide (all-defined-out))
 
