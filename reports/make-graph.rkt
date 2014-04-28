@@ -173,16 +173,17 @@
 		  (display "L")
 		  (print-point point))))
 
+(define *num-ticks* 8)
+(define *tick-length* 20)
+(define *label-verticle-distance* 30)
+(define *text-height* 8)
+(define *text-width* 80)
+(define *margin-%* 15)
+(define *key-verticle-spacing* 10)
+(define *key-horizontal-spacing* 10)
+(define *key-circle-radius* 8)
+
 (define (make-graph-svg lines x-pos y-pos width height)
-  (define *num-ticks* 8)
-  (define *tick-length* 20)
-  (define *label-verticle-distance* 30)
-  (define *text-height* 8)
-  (define *text-width* 80)
-  (define *margin-%* 15)
-  (define *key-verticle-spacing* 10)
-  (define *key-horizontal-spacing* 10)
-  (define *key-circle-radius* 8)
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
