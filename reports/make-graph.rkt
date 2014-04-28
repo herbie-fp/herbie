@@ -192,11 +192,11 @@
 						    (exp-scale x))))))]
 	  [(= 0 max-data) (let ([largest-non-zero (apply max (filter (compose not zero?) data))])
 			    (let-values ([(log-scale exp-scale)
-					  (make-log-scale* min-data largest-non-zero min-range max-range)])
+					  (make-log-scale* (- largest-non-zero) (- min-data) min-range max-range)])
 			      (values (lambda (x) (if (= x 0) max-range
-						      (log-scale x)))
-				      (lambda (x) (if (= x max-range) 0
-						      (exp-scale x))))))]
+						      (- (log-scale (- x)))))
+				      (lambda (y) (if (= y max-range) 0
+						      (- (exp-scale y)))))))]
 	  [#t (let ([max-neg-data (apply max (filter negative? data))]
 		    [min-pos-data (apply min (filter positive? data))])
 		(make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))])))
