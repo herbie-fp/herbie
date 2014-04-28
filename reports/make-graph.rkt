@@ -10,63 +10,76 @@
 
 (struct graph-line (points color name) #:transparent)
 
+(define good-point? (compose reasonable-error? cdr))
+
+;; Returns the full local path of the canonical location for an included file with the given extension.
+(define (include-path dir index extension)
+  (string-append dir (include-name index extension)))
+
+(define (include-name index extension)
+  (string-append (number->string index) "include." extension))
+
+(define (reorder-ys xs ys)
+  (parameterize ([*points* (map list xs)])
+    (ascending-order 0 ys)))
+
+(define (ys->points xs ys)
+  (filter good-point? (map cons xs (reorder-ys xs ys))))
+
+(define (alt->error-points xs altn)
+  (ys->points xs (alt-errors altn)))
+
+(define (alt->behave-points xs altn)
+  (ys->points xs (fn-points (alt-program altn) (map list xs))))
+
+(define (alt->error-gline xs altn color name)
+  (graph-line (alt->error-points xs altn) color name))
+
+(define (alt->behave-gline xs altn color name)
+  (graph-line (alt->behave-points xs altn) color name))
+
+(define (get-improvement-line xs start end color name)
+  (graph-line (ys->points xs (map (curry expt 2) (errors-difference (alt-errors start) (alt-errors end))))
+	      color name))
+
+(define (get-exacts-line xs exacts color name)
+  (graph-line (ys->points xs exacts) color name))
+
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
 ;; be a string.
 (define (make-graph start end points exacts dir include-css)
-  ;; Returns the full local path of the canonical location for an included file with the given extension.
-  (define (include-path index extension)
-    (string-append dir (include-name index extension)))
-
-  (define (include-name index extension)
-    (string-append (number->string index) "include." extension))
-
-  (define point-filter (compose reasonable-error? cdr))
 
   ;; Copy the css files to our graph directory 
   (for/list ([css include-css] [i (build-list (length include-css) identity)])
-    (copyr-file css (include-path i "css")))
+    (copyr-file css (include-path dir i "css")))
 
   ;; Generate the html for our graph page
-  (let ([page-path (string-append dir "graph.html")])
-    (parameterize ([*points* points]) ;; We need this for ordering
-      (let ([ascending-points (ascending-order 0 (*points*))])
-	(define (errors->error-line errors color name)
-	  (ys->lines (ascending-order 0 errors) color name))
-	(define (alt->error-line alt color name)
-	  (errors->error-line (alt-errors alt)
-			      color name))
-	(define (ys->lines ys color name)
-	  (graph-line (filter point-filter (map cons (map car ascending-points) ys))
-		      color name))
-	(let ([pre-errors (alt->error-line start "blue" "pre-errors")]
-	      [post-errors (alt->error-line end "green" "post-errors" )]
-	      [improvement (errors->error-line (map (curry expt 2)
-						    (errors-difference (alt-errors start)
-								       (alt-errors end)))
-					       "yellow" "improvement")]
-	      [exacts-line (ys->lines exacts "green" "exacts")]
-	      [pre-behavior (ys->lines (fn-points (alt-program start) ascending-points)
-				       "yellow" "pre-behavior")]
-	      [post-behavior (ys->lines (fn-points (alt-program end) ascending-points)
-					"blue" "post-behavior")])
-	  (write-file page-path
-		      (html (newline)
-			    (head (newline)
-				  ;; Include all our given css
-				  (for/list ([i (build-list (length include-css) identity)])
-				    (link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen")))
+  (let ([page-path (string-append dir "graph.html")]
+	[xs (map car points)])
+    (let ([pre-errors (alt->error-gline xs start "blue" "pre-errors")]
+	  [post-errors (alt->error-gline xs end "green" "post-errors")]
+	  [improvement-line (get-improvement-line xs start end "yellow" "improvement")]
+	  [exacts-line (get-exacts-line xs exacts "green" "exacts")]
+	  [pre-behavior (alt->behave-gline xs start "yellow" "pre-behavior")]
+	  [post-behavior (alt->behave-gline xs end "blue" "post-behavior")])
+      (write-file page-path
+		  (html (newline)
+			(head (newline)
+			      ;; Include all our given css
+			      (for/list ([i (build-list (length include-css) identity)])
+				(link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen")))
+				(newline))
+			      (newline)
+			      (body (newline)
+				    (text (make-graph-svg (list pre-errors post-errors improvement-line)
+							  0 0 800 800))
+				    (newline)
+				    (text (make-graph-svg (list exacts-line pre-behavior post-behavior)
+							  0 900 800 800))
 				    (newline))
-				  (newline)
-				  (body (newline)
-					(text (make-graph-svg (list pre-errors post-errors improvement)
-							      0 0 800 800))
-					(newline)
-					(text (make-graph-svg (list exacts-line pre-behavior post-behavior)
-							      0 900 800 800))
-					(newline))
-				  ))))))))
+			      ))))))
 
 ;; Copies a file, replacing the file at destination if it exists.
 (define (copyr-file src dest)
