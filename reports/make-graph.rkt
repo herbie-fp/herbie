@@ -116,45 +116,51 @@
 (define log-base (compose (curry (flip-args /) (log *base*)) log))
 
 (define (make-log-scale* min-domain max-domain min-range max-range)
-  (if (< min-domain 1)
-      (let ([translate (curry + (- 1 min-domain))])
-	(let-values ([(lscale escale) (make-log-scale* (translate min-domain) (translate max-domain) min-range max-range)])
-	  (values (compose lscale translate)
-		  (compose escale translate))))
-      (let-values  ([(out-linear-l in-linear-e) (linear-scale* (log-base min-domain) (log-base max-domain)
-							       min-range max-range)])
-	(values (compose out-linear-l log-base)
-		(compose (curry expt *base*) in-linear-e)))))
+  (cond [(not (= min-domain max-domain))
+	 (let-values  ([(out-linear-l in-linear-e) (linear-scale* (log-base min-domain) (log-base max-domain)
+								  min-range max-range)])
+	   (values (compose out-linear-l log-base)
+		   (compose (curry expt *base*) in-linear-e)))]
+	[(< min-domain 1)
+	 (make-log-scale* min-domain 1 min-range max-range)]
+	[(> min-domain 1)
+	 (make-log-scale* 1 min-domain min-range max-range)]
+	[#t (values (const min-range) (const 1))]))
 
+(define (make-full-log-scale* min-domain max-neg-domain min-pos-domain max-domain min-range max-range)
+  (let* ([neg-scalar (/ (max 0 (log-base (- min-domain)))
+			(+ (log-base max-domain) (log-base (- min-domain))))]
+	 [zero-position (+ min-range (* neg-scalar (- max-range min-range)))])
+    (let-values ([(pos-log pos-exp)
+		  (make-log-scale* min-pos-domain max-domain zero-position max-range)]
+		 [(neg-log neg-exp)
+		  (make-log-scale* (- max-neg-domain) (- min-domain) 0 (- zero-position min-range))])
+      (values (lambda (x) (cond [(= x 0) zero-position]
+				[(< x 0)
+				 (- zero-position (neg-log (- x)))]
+				[#t (pos-log x)]))
+	      (lambda (y) (cond [(= y zero-position) 0]
+				[(< y zero-position) (neg-exp (- zero-position y))]
+				[#t (pos-exp y)]))))))
 
-(define (make-full-log-scale* min-domain max-domain min-range max-range)
-  (cond [(< 0 min-domain) (make-log-scale* min-domain max-domain min-range max-range)]
-	[(> 0 max-domain) (let-values ([(log exp) (make-log-scale* (- max-domain) (- min-domain) (- max-range) (- min-range))])
-			    (values (lambda (x) (- (log (- x))))
-				    (lambda (y) (- (exp (- y))))))]
-	[#t (let* ([neg-scalar (/ (max 0 (log-base (- min-domain)))
-				  (+ (log-base max-domain) (log-base (- min-domain))))]
-		   [zero-position (+ min-range (* neg-scalar (- max-range min-range)))])
-	      (let-values ([(pos-log pos-exp)
-			    (make-log-scale* 1 (+ max-domain 1) zero-position max-range)]
-			   [(neg-log neg-exp)
-			    (make-log-scale* 1 (+ (- min-domain) 1) 0 (- zero-position min-range))])
-		;; It's potentially possible for the domain on one side of zero to be
-		;; so much bigger than the domain on the other side that the value of zero-position
-		;; is rounded to max-range or min-range. In this case, we want to handle it gracefully.
-		(cond [(= 0 (- zero-position max-range))
-		       (values (compose neg-log add1)
-			       (compose sub1 neg-exp))]
-		      [(= 0 (- zero-position min-range))
-		       (values (compose pos-log add1)
-			       (compose sub1 pos-exp))]
-		      [#t
-		       (values (lambda (x) (if (< x 0)
-					       (- zero-position (neg-log (- 1 x)))
-					       (pos-log (+ x 1))))
-			       (lambda (y) (if (< y zero-position)
-					       (- 1 (neg-exp (- zero-position y)))
-					       (- (pos-exp y) 1))))])))]))
+(define (data-scale* data min-range max-range)
+  (let ([min-data (apply min data)]
+	[max-data (apply max data)])
+    (cond [(positive? min-data) (make-log-scale* min-data max-data min-range max-range)]
+	  [(negative? max-data) (let-values ([(log-scale exp-scale)
+					      (make-log-scale* (- max-data) (- min-data) min-range max-range)])
+				  (values (lambda (x) (- (log-scale (- x))))
+					  (lambda (y) (- (exp-scale (- y))))))]
+	  [(= 0 min-data) (let ([smallest-nonzero (apply min (filter (compose not zero?) data))])
+			    (let-values ([(log-scale exp-scale)
+					  (make-log-scale* smallest-nonzero max-data min-range max-range)])
+			    (values (lambda (x) (if (= x 0) min-range
+						    (log-scale x)))
+				    (lambda (x) (if (= x min-range) 0
+						    (exp-scale x))))))]
+	  [#t (let ([max-neg-data (apply max (filter negative? data))]
+		    [min-pos-data (apply min (filter positive? data))])
+		(make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))])))
 
 (define (line-points->pathdata-string line)
   (define (print-point p)
