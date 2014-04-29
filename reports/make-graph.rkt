@@ -118,24 +118,6 @@
   (when (file-exists? dest) (delete-file dest))
   (copy-file src dest))
 
-;; (define (make-log-scale* min-domain max-domain min-range max-range)
-;;   (define (safe-log x) (if (= x 0) 0 (log-base x)))
-;;   (cond [(= 0 min-range)
-;; 	 ;; Special case: When the mininum range is zero, use this trick to get it all to work.
-;; 	 (let-values ([(log* exp*) (make-log-scale* min-domain max-domain (+ min-range 1) (+ max-range 1))])
-;; 	   (values (lambda (x) (- (log* x) 1))
-;; 		   (lambda (y) (exp* (+ y 1)))))]
-;; 	[(= 0 max-range)
-;; 	 ;; Special case: When the maximum range is zero, use this trick to get it all to work.
-;; 	 (let-values ([(log* exp*) (make-log-scale* min-domain max-domain (- min-range 1) (- max-range 1))])
-;; 	   (values (lambda (x) (+ (log* x) 1))
-;; 		   (lambda (y) (exp* (- y 1)))))]
-;; 	[#t (let* ([a (/ (- min-range max-range)
-;; 			 (log-base (/ min-domain max-domain)))]
-;; 		   [b (/ (expt *base* (/ min-range a)) min-domain)])
-;; 	      (values (lambda (x) (* a (safe-log (* b x))))
-;; 		      (lambda (y) (/ (expt *base* (/ y a)) b))))]))
-
 (define (linear-scale* min-domain max-domain min-range max-range)
   (let* ([a (/ (- max-range min-range)
 	       (- max-domain min-domain))]
@@ -192,9 +174,9 @@
 						    (exp-scale x))))))]
 	  [(= 0 max-data) (let ([largest-non-zero (apply max (filter (compose not zero?) data))])
 			    (let-values ([(log-scale exp-scale)
-					  (make-log-scale* (- largest-non-zero) (- min-data) min-range max-range)])
+					  (make-log-scale* (- largest-non-zero) (- min-data) max-range min-range)])
 			      (values (lambda (x) (if (= x 0) max-range
-						      (- (log-scale (- x)))))
+						      (log-scale (- x))))
 				      (lambda (y) (if (= y max-range) 0
 						      (- (exp-scale y)))))))]
 	  [#t (let ([max-neg-data (apply max (filter negative? data))]
@@ -228,19 +210,17 @@
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
       (let-values ([(x-log x-exp) (data-scale* xs margin (- width margin))]
-		   [(y-log y-exp) (data-scale* ys margin (- height margin))])
+		   [(y-log y-exp) (data-scale* ys (- height margin) margin)])
 	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
-		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))]
-		[y-log* (lambda (y) (- height (y-log y)))]
-		[y-exp* (lambda (x) (y-exp (- height x)))])
-	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log* (cdr p))))
+		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))])
+	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log (cdr p))))
 							       (graph-line-points line))
 							  (graph-line-color line)
 							  (graph-line-name line)
 							  (graph-line-width line)))
 			       lines)]
 		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-		  [x-axis-y (y-log* (max 0 (apply min ys)))]
+		  [x-axis-y (y-log (max 0 (apply min ys)))]
 		  [y-axis-x (x-log (max 0 (apply min xs)))])
 	      ;; Write the outer svg tag
 	      (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
@@ -283,11 +263,11 @@
 						      (y . ,(- (exact->inexact y) *text-height*))
 						      (fill . "black"))
 					     (display (if relog-y
-							  (~r (let ([exp-value (y-exp* y)])
+							  (~r (let ([exp-value (y-exp y)])
 								(if (= exp-value 0) ;; Handle the special case
 								    0
 								    (log-base exp-value))))
-							  (~r (y-exp* y) #:notation 'exponential #:precision 4))))
+							  (~r (y-exp y) #:notation 'exponential #:precision 4))))
 				   (newline))
 				 ;; Draw the key
 				 (for/list ([line lines] [index (build-list (length lines) identity)])
