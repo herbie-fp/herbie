@@ -210,19 +210,17 @@
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
       (let-values ([(x-log x-exp) (data-scale* xs margin (- width margin))]
-		   [(y-log y-exp) (data-scale* ys margin (- height margin))])
+		   [(y-log y-exp) (data-scale* ys (- height margin) margin)])
 	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
-		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))]
-		[y-log* (lambda (y) (- height (y-log y)))]
-		[y-exp* (lambda (x) (y-exp (- height x)))])
-	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log* (cdr p))))
+		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))])
+	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log (cdr p))))
 							       (graph-line-points line))
 							  (graph-line-color line)
 							  (graph-line-name line)
 							  (graph-line-width line)))
 			       lines)]
 		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-		  [x-axis-y (y-log* (max 0 (apply min ys)))]
+		  [x-axis-y (y-log (max 0 (apply min ys)))]
 		  [y-axis-x (x-log (max 0 (apply min xs)))])
 	      ;; Write the outer svg tag
 	      (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
@@ -258,11 +256,11 @@
 						      (y . ,(- (exact->inexact y) *text-height*))
 						      (fill . "black"))
 					     (display (if relog-y
-							  (~r (let ([exp-value (y-exp* y)])
+							  (~r (let ([exp-value (y-exp y)])
 								(if (= exp-value 0) ;; Handle the special case
 								    0
 								    (log-base exp-value))))
-							  (~r (y-exp* y) #:notation 'exponential #:precision 4))))
+							  (~r (y-exp y) #:notation 'exponential #:precision 4))))
 				   (newline))
 				 ;; Draw the key
 				 (for/list ([line lines] [index (build-list (length lines) identity)])
