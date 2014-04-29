@@ -118,6 +118,11 @@
   (when (file-exists? dest) (delete-file dest))
   (copy-file src dest))
 
+;; Creates a linear scale so that min-domain maps to min-range and max-domain maps to
+;; max-range. There are no restrictions on min-domain, max-domain, min-range, or max-range,
+;; except that min-domain not equal max-domain.
+;; This function returns two values: The scale mapping from the domain to the range,
+;; and a scale mapping the other way.
 (define (linear-scale* min-domain max-domain min-range max-range)
   (let* ([a (/ (- max-range min-range)
 	       (- max-domain min-domain))]
@@ -129,6 +134,10 @@
 (define *base* 2)
 (define log-base (compose (curry (flip-args /) (log *base*)) log))
 
+;; Make a log scale that maps min-domain to min-range, and max-domain to max-range.
+;; Both min-domain and max-domain are required to be positive, and behaviour could
+;; be undesired if min-domain and max-domain are equal, although those cases are handled.
+;; There are no restrictions on min-range or max-range.
 (define (make-log-scale* min-domain max-domain min-range max-range)
   (cond [(not (= min-domain max-domain))
 	 (let-values  ([(out-linear-l in-linear-e) (linear-scale* (log-base min-domain) (log-base max-domain)
