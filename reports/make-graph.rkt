@@ -174,9 +174,9 @@
 						    (exp-scale x))))))]
 	  [(= 0 max-data) (let ([largest-non-zero (apply max (filter (compose not zero?) data))])
 			    (let-values ([(log-scale exp-scale)
-					  (make-log-scale* (- largest-non-zero) (- min-data) min-range max-range)])
+					  (make-log-scale* (- largest-non-zero) (- min-data) max-range min-range)])
 			      (values (lambda (x) (if (= x 0) max-range
-						      (- (log-scale (- x)))))
+						      (log-scale (- x))))
 				      (lambda (y) (if (= y max-range) 0
 						      (- (exp-scale y)))))))]
 	  [#t (let ([max-neg-data (apply max (filter negative? data))]
