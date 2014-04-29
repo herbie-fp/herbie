@@ -246,6 +246,13 @@
 	      (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
 					  (x . ,x-pos) (y . ,y-pos))
 				 (newline)
+				 ;; Draw the data.
+				 (for/list ([line lines*])
+				   (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
+						  (stroke . ,(graph-line-color line))
+						  (stroke-width . ,(graph-line-width line))
+						  (fill . "none")))
+				   (newline))
 				 ;; Draw the x-axis
 				 (line #:args `((x1 . ,margin) (y1 . ,x-axis-y)
 						(x2 . ,(- width margin)) (y2 . ,x-axis-y)
@@ -297,11 +304,4 @@
 							(fill . "black"))
 					     (text (graph-line-name line))))
 				   (newline))
-				 ;; Draw the data.
-				 (for/list ([line lines*])
-				   (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
-						  (stroke . ,(graph-line-color line))
-						  (stroke-width . ,(graph-line-width line))
-						  (fill . "none")))
-				   (newline))
-				 (newline)))))))))
+				 ))))))))
