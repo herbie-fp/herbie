@@ -118,24 +118,6 @@
   (when (file-exists? dest) (delete-file dest))
   (copy-file src dest))
 
-;; (define (make-log-scale* min-domain max-domain min-range max-range)
-;;   (define (safe-log x) (if (= x 0) 0 (log-base x)))
-;;   (cond [(= 0 min-range)
-;; 	 ;; Special case: When the mininum range is zero, use this trick to get it all to work.
-;; 	 (let-values ([(log* exp*) (make-log-scale* min-domain max-domain (+ min-range 1) (+ max-range 1))])
-;; 	   (values (lambda (x) (- (log* x) 1))
-;; 		   (lambda (y) (exp* (+ y 1)))))]
-;; 	[(= 0 max-range)
-;; 	 ;; Special case: When the maximum range is zero, use this trick to get it all to work.
-;; 	 (let-values ([(log* exp*) (make-log-scale* min-domain max-domain (- min-range 1) (- max-range 1))])
-;; 	   (values (lambda (x) (+ (log* x) 1))
-;; 		   (lambda (y) (exp* (- y 1)))))]
-;; 	[#t (let* ([a (/ (- min-range max-range)
-;; 			 (log-base (/ min-domain max-domain)))]
-;; 		   [b (/ (expt *base* (/ min-range a)) min-domain)])
-;; 	      (values (lambda (x) (* a (safe-log (* b x))))
-;; 		      (lambda (y) (/ (expt *base* (/ y a)) b))))]))
-
 (define (linear-scale* min-domain max-domain min-range max-range)
   (let* ([a (/ (- max-range min-range)
 	       (- max-domain min-domain))]
