@@ -184,12 +184,13 @@
   (define (a-append joe bob)
     (if (null? joe)
 	bob
-	(a-append (cdr joe) (list* (caar joe)
+	(a-append (cdr joe) (cons
+                             (cons (caar joe)
                                    (let ([match (assoc (caar joe) bob)])
                                      (if match
                                          (append (cdr match) (cdar joe))
-                                         (cdar joe)))
-                                   bob))))
+                                         (cdar joe))))
+                             bob))))
   (if (< 2 (length args))
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))
