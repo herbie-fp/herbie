@@ -74,7 +74,7 @@
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
-;; be a string.
+;; be a string, not a path-object.
 (define (make-graph start end points exacts dir include-css)
 
   ;; Copy the css files to our graph directory 
