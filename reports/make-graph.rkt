@@ -89,9 +89,19 @@
 ;; Given a start, an end, a list of points on which both the start's errors
 ;; and the end's errors were evaluated, a color and a name, builds a graph-line
 ;; object that represents the error improvement between the start and end.
-(define (get-improvement-line xs start end color name #:width [width *default-width*])
-  (graph-line (ys->points xs (map (curry expt 2) (errors-difference (alt-errors start) (alt-errors end))))
-	      color name width))
+(define (get-improvement-lines xs start end color name #:width [width *default-width*])
+  (map (λ (points) (graph-line points color name width))
+       (tokenize-list good-point?
+		      (ys->points xs (map (curry expt 2) (handle-infs (errors-difference (alt-errors start)
+											 (alt-errors end))))))))
+
+;; Takes a list of bits improvement that may or may not include infs, and replaces all infs
+;; with cooresponding real numbers of bits lost.
+(define (handle-infs lst)
+  (map (λ (x) (cond [(not (infinite? x)) x]
+		    [(positive? x) 64]
+		    [(negative? x) -64]))
+       lst))
 
 ;; Builds a graph line for exacts, given the exacts, the points,
 ;; a color and a name.
