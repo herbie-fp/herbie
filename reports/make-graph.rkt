@@ -187,6 +187,7 @@
 	 (make-log-scale* 1 min-domain min-range max-range)]
 	[#t (values (const min-range) (const 1))]))
 
+;; min-range should be less than max-range
 (define (make-full-log-scale* min-domain max-neg-domain min-pos-domain max-domain min-range max-range)
   (let* ([neg-scalar (/ (max 0 (log-base (- min-domain)))
 			(+ (log-base max-domain) (log-base (- min-domain))))]
@@ -204,30 +205,34 @@
 				[#t (pos-exp y)]))))))
 
 (define (data-log-scale* data min-range max-range)
-  (let ([min-data (apply min data)]
-	[max-data (apply max data)])
-    (cond [(positive? min-data) (make-log-scale* min-data max-data min-range max-range)]
-	  [(negative? max-data) (let-values ([(log-scale exp-scale)
-					      (make-log-scale* (- max-data) (- min-data) min-range max-range)])
-				  (values (lambda (x) (- (log-scale (- x))))
-					  (lambda (y) (- (exp-scale (- y))))))]
-	  [(= 0 min-data) (let ([smallest-nonzero (apply min (filter (compose not zero?) data))])
-			    (let-values ([(log-scale exp-scale)
-					  (make-log-scale* smallest-nonzero max-data min-range max-range)])
-			    (values (lambda (x) (if (= x 0) min-range
-						    (log-scale x)))
-				    (lambda (x) (if (= x min-range) 0
-						    (exp-scale x))))))]
-	  [(= 0 max-data) (let ([largest-non-zero (apply max (filter (compose not zero?) data))])
-			    (let-values ([(log-scale exp-scale)
-					  (make-log-scale* (- largest-non-zero) (- min-data) max-range min-range)])
-			      (values (lambda (x) (if (= x 0) max-range
-						      (log-scale (- x))))
-				      (lambda (y) (if (= y max-range) 0
-						      (- (exp-scale y)))))))]
-	  [#t (let ([max-neg-data (apply max (filter negative? data))]
-		    [min-pos-data (apply min (filter positive? data))])
-		(make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))])))
+  (if (> min-range max-range)
+      (let-values ([(flog fexp) (data-scale* data max-range min-range)])
+	(values (λ (x) (- (+ min-range max-range) (flog x)))
+		(λ (y) (fexp (- (+ min-range max-range) y)))))
+      (let ([min-data (apply min data)]
+	    [max-data (apply max data)])
+	(cond [(positive? min-data) (make-log-scale* min-data max-data min-range max-range)]
+	      [(negative? max-data) (let-values ([(log-scale exp-scale)
+						  (make-log-scale* (- max-data) (- min-data) min-range max-range)])
+				      (values (lambda (x) (- (log-scale (- x))))
+					      (lambda (y) (- (exp-scale (- y))))))]
+	      [(= 0 min-data) (let ([smallest-nonzero (apply min (filter (compose not zero?) data))])
+				(let-values ([(log-scale exp-scale)
+					      (make-log-scale* smallest-nonzero max-data min-range max-range)])
+				  (values (lambda (x) (if (= x 0) min-range
+							  (log-scale x)))
+					  (lambda (x) (if (= x min-range) 0
+							  (exp-scale x))))))]
+	      [(= 0 max-data) (let ([largest-non-zero (apply max (filter (compose not zero?) data))])
+				(let-values ([(log-scale exp-scale)
+					      (make-log-scale* (- largest-non-zero) (- min-data) max-range min-range)])
+				  (values (lambda (x) (if (= x 0) max-range
+							  (log-scale (- x))))
+					  (lambda (y) (if (= y max-range) 0
+							  (- (exp-scale y)))))))]
+	      [#t (let ([max-neg-data (apply max (filter negative? data))]
+			[min-pos-data (apply min (filter positive? data))])
+		    (make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))]))))
 
 (define (line-points->pathdata-string line)
   (define (print-point p)
@@ -247,6 +252,11 @@
 (define *text-width* 80)
 (define *margin-%* 15)
 (define *x-label-rotation* 40)
+
+;; Returns count evenly distributed numbers from min to max,
+;; where the first number is min and the last is max.
+(define (make-ticks count min max)
+  (build-list (add1 count) (λ (n) (+ min (* n (/ max count))))))
 
 (define (make-graph-svg lines x-pos y-pos width height #:relog-xs [relog-x #f] #:relog-ys [relog-y #f])
   (let ([all-points (apply append (map graph-line-points lines))]
@@ -299,7 +309,7 @@
     (newline)))
 
 (define (graph-draw-x-ticks y-pos min-x max-x num-ticks x-pos->label)
-  (let ([x-ticks (build-list (add1 num-ticks) (lambda (n) (exact->inexact (+ min-x (* n (/ max-x num-ticks))))))])
+  (let ([x-ticks (make-ticks num-ticks min-x max-x)])
     (for/list ([x x-ticks])
       (line #:args `((x1 . ,x) (y1 . ,y-pos) (x2 . ,x) (y2 . ,(+ y-pos *tick-length*)) (stroke . "black")))
       (newline)
@@ -308,7 +318,7 @@
       (newline))))
 
 (define (graph-draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
-  (let ([y-ticks (build-list (add1 num-ticks) (λ (n) (exact->inexact (+ min-y (* n (/ max-y num-ticks))))))])
+  (let ([y-ticks (make-ticks num-ticks min-x max-x)])
     (for/list ([y y-ticks])
       (line #:args `((x1 . ,x-pos) (y1 . ,y) (x2 . ,(- x-pos *tick-length*)) (y2 . ,y) (stroke . "black")))
       (newline)
