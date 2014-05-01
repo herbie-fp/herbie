@@ -53,15 +53,16 @@
 		  (list-ref (list-ref ascending-points i) arg-index)]
 		 [(eq? '= (list-ref difflist (- i 1)))
 		  (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-		 [#t (binary-search-floats (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
+		 [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)]
+			   [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
+			   [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
 						    (lambda (p) ;; Get the sign of the given point
 						      (let ([points (list (list p))])
 							(errors-compare (let ([prog (alt-program alt1)])
 									  (errors prog points (make-exacts prog points)))
 									(let ([prog (alt-program alt2)])
-									  (errors prog points (make-exacts prog points)))))))
-					   (list-ref (list-ref ascending-points i) arg-index)
-					   (list-ref (list-ref ascending-points (- i 1)) arg-index))]))
+									  (errors prog points (make-exacts prog points)))))))])
+		       (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
 	 sindices)))
 					   
 									      
@@ -77,13 +78,16 @@
 	      [(pred midpoint) (binary-search split pred midpoint p2)]
 	      [#t (binary-search split pred p1 midpoint)]))))
 
-(define epsilon .005)
-(define (close-enough a b) (> epsilon (abs (- a b))))
+(define (flip-args f) (lambda (x y) (f y x)))
 
 ;; Given two floating point numbers, the first of which is pred,
-;; and the second is not, find where pred becomes false.
-(define binary-search-floats (curry binary-search (lambda (a b) (if (close-enough a b) #f
-								    (/ (+ a b) 2)))))
+;; and the second is not, find where pred becomes false (within epsilon).
+(define (binary-search-floats pred p1 p2 epsilon)
+  (define (close-enough a b) (> epsilon (abs (- a b))))
+  (binary-search (lambda (a b) (if (close-enough a b) #f
+				   (/ (+ a b) 2)))
+		 pred p1 p2))
+
 (define binary-search-ints (curry binary-search (compose floor (compose (curry (flip-args /) 2) +))))
 
 ;; Gets the indices to split a region into. By default the only requirement of these regions is that they be the most accurate
