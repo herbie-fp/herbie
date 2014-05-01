@@ -209,7 +209,7 @@
 
 (define (data-log-scale* data min-range max-range)
   (if (> min-range max-range)
-      (let-values ([(flog fexp) (data-scale* data max-range min-range)])
+      (let-values ([(flog fexp) (data-log-scale* data max-range min-range)])
 	(values (λ (x) (- (+ min-range max-range) (flog x)))
 		(λ (y) (fexp (- (+ min-range max-range) y)))))
       (let ([min-data (apply min data)]
@@ -321,7 +321,7 @@
       (newline))))
 
 (define (graph-draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
-  (let ([y-ticks (make-ticks num-ticks min-x max-x)])
+  (let ([y-ticks (make-ticks num-ticks min-y max-y)])
     (for/list ([y y-ticks])
       (line #:args `((x1 . ,x-pos) (y1 . ,y) (x2 . ,(- x-pos *tick-length*)) (y2 . ,y) (stroke . "black")))
       (newline)
