@@ -35,18 +35,21 @@
 ;; is a cons cell with (eq? (car p) x), (eq? (cdr p) y), with only reasonable-error? ys,
 ;; and sorted so that the xs of the points are in ascending order.
 (define (ys->points xs ys)
-  (filter good-point? (map cons (reorder-ys xs xs) (reorder-ys xs ys))))
+  (map cons (reorder-ys xs xs) (reorder-ys xs ys)))
+
+(define (ys->points* xs ys)
+  (filter good-point? (ys->points xs ys)))
 
 ;; Given an alternative, and the xs that the alternative's errors were
 ;; evaluated on, returns a list of points (see point definition above)
 ;; representing the alt's errors.
 (define (alt->error-points xs altn)
-  (ys->points xs (alt-errors altn)))
+  (ys->points* xs (alt-errors altn)))
 
 ;; Given an alternative and a list of xs, returns a list of points
 ;; representing that functions behavior on those xs.
 (define (alt->behave-points xs altn)
-  (ys->points xs (fn-points (alt-program altn) (map list xs))))
+  (ys->points* xs (fn-points (alt-program altn) (map list xs))))
 
 ;; Given an alternative, a list of points that that alterative's
 ;; errors were evaluated on, a color, and a name, builds a graph-line
