@@ -246,88 +246,118 @@
 (define *text-height* 8)
 (define *text-width* 80)
 (define *margin-%* 15)
-(define *key-verticle-spacing* 10)
-(define *key-horizontal-spacing* 10)
-(define *key-circle-radius* 8)
+(define *x-label-rotation* 40)
 
 (define (make-graph-svg lines x-pos y-pos width height #:relog-xs [relog-x #f] #:relog-ys [relog-y #f])
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
-      (let-values ([(x-log x-exp) (data-scale* xs margin (- width margin))]
-		   [(y-log y-exp) (data-scale* ys (- height margin) margin)])
-	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
-		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))])
-	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log (cdr p))))
-							       (graph-line-points line))
-							  (graph-line-color line)
-							  (graph-line-name line)
-							  (graph-line-width line)))
-			       lines)]
-		  ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-		  [x-axis-y (y-log (max 0 (apply min ys)))]
-		  [y-axis-x (x-log (max 0 (apply min xs)))])
-	      ;; Write the outer svg tag
-	      (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
-					  (x . ,x-pos) (y . ,y-pos))
-				 (newline)
-				 ;; Draw the data.
-				 (for/list ([line lines*])
-				   (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
-						  (stroke . ,(graph-line-color line))
-						  (stroke-width . ,(graph-line-width line))
-						  (fill . "none")))
-				   (newline))
-				 ;; Draw the x-axis
-				 (line #:args `((x1 . ,margin) (y1 . ,x-axis-y)
-						(x2 . ,(- width margin)) (y2 . ,x-axis-y)
-						(stroke . "black")))
-				 (newline)
-				 ;; Draw the x-ticks
-				 (for/list ([x x-ticks])
-				   (line #:args `((x1 . ,(exact->inexact x)) (y1 . ,x-axis-y)
-						  (x2 . ,(exact->inexact x)) (y2 . ,(+ x-axis-y *tick-length*))
-						  (stroke . "black")))
-				   (newline)
-				   (draw-text `(,(exact->inexact (- x 10)) . ,(+ x-axis-y *label-verticle-distance*))
-					      40
-					     (display (~r (if relog-x (log-base (x-exp x)) (x-exp x)) #:notation 'exponential #:precision 2)))
-				   (newline))
-				 ;; Draw the y-axis
-				 (line #:args `((x1 . ,y-axis-x) (y1 . ,(- height margin))
-						(x2 . ,y-axis-x) (y2 . ,margin)
-						(stroke . "black")))
-				 (newline)
-				 ;; Draw the y-ticks
-				 (for/list ([y y-ticks])
-				   (line #:args `((x1 . ,y-axis-x) (y1 . ,(exact->inexact y))
-						  (x2 . ,(- y-axis-x *tick-length*)) (y2 . ,(exact->inexact y))
-						  (stroke . "black")))
-				   (newline)
-				   (text-tag #:args `((x . ,(- y-axis-x *text-width*))
-						      (y . ,(- (exact->inexact y) *text-height*))
-						      (fill . "black"))
-					     (display (if relog-y
-							  (~r (let ([exp-value (y-exp y)])
-								(if (= exp-value 0) ;; Handle the special case
-								    0
-								    (log-base exp-value))))
-							  (~r (y-exp y) #:notation 'exponential #:precision 4))))
-				   (newline))
-				 ;; Draw the key
-				 (for/list ([line lines] [index (build-list (length lines) identity)])
-				   (let ([verticle-mod (* index (+ (arithmetic-shift *key-circle-radius* 1)
-								     *key-verticle-spacing*))])
-				     (circle #:args `((cx . ,(arithmetic-shift margin -1)) (cy . ,(+ verticle-mod
-												     (arithmetic-shift margin -1)))
-						      (r . ,*key-circle-radius*) (stroke . "black")
-						      (stroke-width . 3) (fill . ,(graph-line-color line))))
-				     (newline)
-				     (text-tag #:args `((x . ,(+ (arithmetic-shift margin -1) (+ *key-circle-radius* *key-horizontal-spacing*)))
-							(y . ,(+ (arithmetic-shift margin -1)
-								 verticle-mod))
-							(fill . "black"))
-					     (text (graph-line-name line))))
-				   (newline))
-				 ))))))))
+      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
+		   [(y-scale y-unscale) (data-log-scale* ys (- height margin) margin)])
+	(let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
+							   (graph-line-points line))
+						      (graph-line-color line)
+						      (graph-line-name line)
+						      (graph-line-width line)))
+			   lines)]
+	      ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
+	      [x-axis-y (y-scale (max 0 (apply min ys)))]
+	      [y-axis-x (x-scale (max 0 (apply min xs)))])
+	  ;; Write the outer svg tag
+	  (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
+				      (x . ,x-pos) (y . ,y-pos))
+			     (newline)
+			     ;; Draw the data.
+			     (graph-draw-lines lines*)
+			     ;; Draw the x-axis
+			     (graph-draw-x-axis margin (- width margin) x-axis-y)
+			     ;; Draw the x-ticks
+			     (graph-draw-x-ticks x-axis-y margin (- height (* 2 margin)) 8
+						 (λ (x) (~r (if relog-x (log-base (x-unscale x)) (x-unscale x))
+							    #:notation 'exponential #:precision 2)))
+			     ;; Draw the y-axis
+			     (graph-draw-y-axis y-axis-x (- height margin) margin)
+			     ;; Draw the y-ticks
+			     (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
+						 (λ (y) (if relog-y
+							    (~r (let ([exp-value (y-unscale y)])
+								  (if (= exp-value 0)
+								      0
+								      (log-base exp-value))))
+							    (~r (y-unscale y) #:notation 'exponential #:precision 4))))
+			     ;; Draw the key
+			     (graph-draw-key margin (lines->color-names lines))
+			     )))))))
+
+(define (graph-draw-lines lines)
+  (for/list ([line lines])
+    (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
+		   (stroke . ,(graph-line-color line))
+		   (stroke-width . ,(graph-line-width line))
+		   (fill . "none")))
+    (newline)))
+
+(define (graph-draw-x-ticks y-pos min-x max-x num-ticks x-pos->label)
+  (let ([x-ticks (build-list (add1 num-ticks) (lambda (n) (exact->inexact (+ min-x (* n (/ max-x num-ticks))))))])
+    (for/list ([x x-ticks])
+      (line #:args `((x1 . ,x) (y1 . ,y-pos) (x2 . ,x) (y2 . ,(+ y-pos *tick-length*)) (stroke . "black")))
+      (newline)
+      (draw-text (cons (- x (arithmetic-shift *text-width* -1)) (+ y-pos *label-verticle-distance*))
+		 *x-label-rotation* (text (x-pos->label x)))
+      (newline))))
+
+(define (graph-draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
+  (let ([y-ticks (build-list (add1 num-ticks) (λ (n) (exact->inexact (+ min-y (* n (/ max-y num-ticks))))))])
+    (for/list ([y y-ticks])
+      (line #:args `((x1 . ,x-pos) (y1 . ,y) (x2 . ,(- x-pos *tick-length*)) (y2 . ,y) (stroke . "black")))
+      (newline)
+      (draw-text (cons (- x-pos *text-width*) (- y *text-height*))
+		 0 (text (y-pos->label y)))
+      (newline))))
+
+;; Draws axis. See graph-draw-key for assumptions.
+(define (graph-draw-y-axis x-pos y1 y2)
+  (graph-draw-axis-line x-pos x-pos y1 y2))
+
+(define (graph-draw-x-axis x1 x2 y-pos)
+  (graph-draw-axis-line x1 x2 y-pos y-pos))
+
+(define (graph-draw-axis-line x1 x2 y1 y2)
+  (line #:args `((x1 . ,x1) (y1 . ,y1) (x2 . ,x2) (y2 . ,y2) (stroke . "black")))
+  (newline))
+
+;; Takes a list of lines, of which some can have the same names and colors, and returns color-name pairs
+;; (the input for graph-draw-key) cooresponding to the lines, removing duplicate color-name pairs.
+(define (lines->color-names lines)
+  (remove-duplicates (map (λ (line) (cons (graph-line-color line) (graph-line-name line)))
+			  lines)))
+
+(define *key-verticle-spacing* 10)
+(define *key-horizontal-spacing* 10)
+(define *key-circle-radius* 8)
+(define *key-outline-width* 3)
+
+;; Draws a graph-key. This function assumes that it is called within an svg
+;; tag, which is within either write-file or write-string. If this is not within
+;; an svg tag, you'll get the inner tags without context, so it might not work
+;; like you expect. If this is not within a write-file or write-string, the
+;; tags will be printed to standard out.
+;; The function accepts as an argument cons cells, of which the first item is
+;; the string representation of the color, and the second is the name associate
+;; with that color.
+;; The formatting of the graph key is controlled by some globally defined format
+;; variables, see above.
+(define (graph-draw-key margin color-names)
+  (for/list ([color-name color-names] [index (build-list (length color-names) identity)])
+    (let ([verticle-mod (* index (+ (arithmetic-shift *key-circle-radius* 1)
+				    *key-verticle-spacing*))]
+	  [half-margin (arithmetic-shift margin -1)])
+      (circle #:args `((cx . ,half-margin ) (cy . ,(+ half-margin verticle-mod))
+		       (r . ,*key-circle-radius*) (stroke . "black")
+		       (stroke-width . *key-outline-width*) (fill . ,(car color-name))))
+      (newline)
+      (text-tag #:args `((x . ,(+ half-margin *key-circle-radius* *key-horizontal-spacing*))
+			 (y . ,(+ half-margin verticle-mod)) (fill . "black"))
+		(text (cdr color-name)))
+      (newline))))
