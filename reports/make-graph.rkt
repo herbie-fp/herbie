@@ -311,7 +311,7 @@
     (for/list ([x x-ticks])
       (line #:args `((x1 . ,x) (y1 . ,y-pos) (x2 . ,x) (y2 . ,(+ y-pos *tick-length*)) (stroke . "black")))
       (newline)
-      (draw-text (cons (- x (arithmetic-shift *text-width* -1)) (+ y-pos *label-verticle-distance*))
+      (draw-text (cons x (+ y-pos *label-verticle-distance*))
 		 *x-label-rotation* (text (x-pos->label x)))
       (newline))))
 
