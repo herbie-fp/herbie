@@ -44,7 +44,7 @@
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     (let ([orig (make-alt prog)])
-      (values (improve-on-points orig max-iters)
+      (values (improve-with-points orig max-iters)
 	      orig))))
 
 ;; This should only be called in a scope where *points* and *exacts* are
@@ -160,4 +160,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve program-a program-b print-improve improvement improve-on-points)
+(provide improve program-a program-b print-improve improvement improve-with-points)
