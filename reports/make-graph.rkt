@@ -86,8 +86,8 @@
 
 ;; Given an alternative, a list of points, a color, and a name, builds
 ;; a graph-line that represents that alternatives behavior on those points.
-(define (alt->behave-gline xs altn color name #:width [width *default-width*])
-  (graph-line (alt->behave-points xs altn) color name width))
+(define (alt->behave-lines xs altn color name #:width [width *default-width*])
+  (ys->tokenized-lines xs (fn-points (alt-program altn) (map list xs)) color name width))
 
 ;; Given a start, an end, a list of points on which both the start's errors
 ;; and the end's errors were evaluated, a color and a name, builds a graph-line
@@ -106,11 +106,6 @@
 		    [(negative? x) -64]))
        lst))
 
-;; Builds a graph line for exacts, given the exacts, the points,
-;; a color and a name.
-(define (get-exacts-line xs exacts color name #:width [width *default-width*])
-  (graph-line (ys->points xs exacts) color name width))
-
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
@@ -127,9 +122,9 @@
     (let ([pre-error-lines (alt->error-lines xs start "yellow" "pre-errors" #:width 5)]
 	  [post-error-lines (alt->error-lines xs end "blue" "post-errors")]
 	  [improvement-lines (get-improvement-lines xs start end "green" "improvement")]
-	  [exacts-line (get-exacts-line xs exacts "green" "exacts" #:width 8)]
-	  [pre-behavior (alt->behave-gline xs start "yellow" "pre-behavior" #:width 5)]
-	  [post-behavior (alt->behave-gline xs end "blue" "post-behavior")])
+	  [exacts-lines (ys->tokenized-lines xs exacts "green" "exacts" 8)]
+	  [pre-behavior-lines (alt->behave-lines xs start "yellow" "pre-behavior" #:width 5)]
+	  [post-behavior-lines (alt->behave-lines xs end "blue" "post-behavior")])
       (write-file page-path
 		  (html (newline)
 			(head (newline)
@@ -142,7 +137,7 @@
 				    (text (make-graph-svg (append improvement-lines pre-error-lines post-error-lines)
 							  0 0 800 800 #:relog-ys #t))
 				    (newline)
-				    (text (make-graph-svg (list exacts-line pre-behavior post-behavior)
+				    (text (make-graph-svg (append exacts-lines pre-behavior-lines post-behavior-lines)
 							  0 900 800 800))
 				    (newline)
 				    (br)
