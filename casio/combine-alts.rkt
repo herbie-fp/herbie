@@ -145,7 +145,7 @@
 
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
-  (let* ([condition-func (eval `(lambda (,(option-splitvar opt)) ,condition))]
+  (let* ([condition-func (eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
 	 [errors* (map (lambda (point exact)
 			 (car (errors (if (condition-func (list-ref point (option-split-var-index opt)))
 					  (alt-program (option-altn1 opt))
