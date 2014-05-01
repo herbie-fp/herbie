@@ -121,9 +121,9 @@
   ;; Generate the html for our graph page
   (let ([page-path (string-append dir "graph.html")]
 	[xs (map car points)])
-    (let ([pre-errors (alt->error-gline xs start "yellow" "pre-errors" #:width 5)]
-	  [post-errors (alt->error-gline xs end "blue" "post-errors")]
-	  [improvement-line (get-improvement-line xs start end "green" "improvement")]
+    (let ([pre-error-lines (alt->error-lines xs start "yellow" "pre-errors" #:width 5)]
+	  [post-error-lines (alt->error-lines xs end "blue" "post-errors")]
+	  [improvement-lines (get-improvement-lines xs start end "green" "improvement")]
 	  [exacts-line (get-exacts-line xs exacts "green" "exacts" #:width 8)]
 	  [pre-behavior (alt->behave-gline xs start "yellow" "pre-behavior" #:width 5)]
 	  [post-behavior (alt->behave-gline xs end "blue" "post-behavior")])
@@ -136,7 +136,7 @@
 				(newline))
 			      (newline)
 			      (body (newline)
-				    (text (make-graph-svg (list pre-errors post-errors improvement-line)
+				    (text (make-graph-svg (append improvement-lines pre-error-lines post-error-lines)
 							  0 0 800 800 #:relog-ys #t))
 				    (newline)
 				    (text (make-graph-svg (list exacts-line pre-behavior post-behavior)
