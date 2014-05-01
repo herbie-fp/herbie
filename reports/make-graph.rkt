@@ -77,9 +77,12 @@
 
 ;; Returns a list of graph-lines of this alternatives error-performance.
 (define (alt->error-lines xs altn color name #:width [width *default-width*])
-  (map (lambda (points) (graph-line points color name width))
+  (ys->tokenized-lines xs (alt-errors altn) color name width))
+
+(define (ys->tokenized-lines xs ys color name width)
+  (map (λ (points) (graph-line points color name width))
        (tokenize-list good-point?
-		      (ys->points xs (alt-errors altn)))))
+		      (ys->points xs ys))))
 
 ;; Given an alternative, a list of points, a color, and a name, builds
 ;; a graph-line that represents that alternatives behavior on those points.
