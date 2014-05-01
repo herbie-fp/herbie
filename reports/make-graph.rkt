@@ -203,7 +203,7 @@
 				[(< y zero-position) (- (neg-exp (- zero-position y)))]
 				[#t (pos-exp y)]))))))
 
-(define (data-scale* data min-range max-range)
+(define (data-log-scale* data min-range max-range)
   (let ([min-data (apply min data)]
 	[max-data (apply max data)])
     (cond [(positive? min-data) (make-log-scale* min-data max-data min-range max-range)]
