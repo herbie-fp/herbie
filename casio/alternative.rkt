@@ -7,7 +7,7 @@
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 alternative<? alternative<>? apply-changes)
+	 apply-changes alternative<? alternative<>? build-alt alt-initial alt-changes)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
