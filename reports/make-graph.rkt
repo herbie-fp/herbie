@@ -200,7 +200,7 @@
 				 (- zero-position (neg-log (- x)))]
 				[#t (pos-log x)]))
 	      (lambda (y) (cond [(= y zero-position) 0]
-				[(< y zero-position) (neg-exp (- zero-position y))]
+				[(< y zero-position) (- (neg-exp (- zero-position y)))]
 				[#t (pos-exp y)]))))))
 
 (define (data-scale* data min-range max-range)
