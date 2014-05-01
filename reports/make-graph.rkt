@@ -213,6 +213,11 @@
 (define *key-horizontal-spacing* 10)
 (define *key-circle-radius* 8)
 
+;; Returns count evenly distributed numbers from min to max,
+;; where the first number is min and the last is max.
+(define (make-ticks count min max)
+  (build-list (add1 count) (λ (n) (+ min (* n (/ max count))))))
+
 (define (make-graph-svg lines x-pos y-pos width height #:relog-xs [relog-x #f] #:relog-ys [relog-y #f])
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
@@ -220,8 +225,8 @@
 	  [ys (map cdr all-points)])
       (let-values ([(x-log x-exp) (data-scale* xs margin (- width margin))]
 		   [(y-log y-exp) (data-scale* ys (- height margin) margin)])
-	  (let ([x-ticks (build-list (add1 *num-ticks*) (lambda (n) (+ margin (* n (/ (- width (* 2 margin)) *num-ticks*)))))]
-		[y-ticks (build-list (add1 *num-ticks*) (lambda (n) (- height (+ margin (* n (/ (- height (* 2 margin)) *num-ticks*))))))])
+	  (let ([x-ticks (make-ticks *num-ticks* margin (- width (* 2 margin)))]
+		[y-ticks (make-ticks *num-ticks* margin (- height (* 2 margin)))])
 	    (let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-log (car p)) (y-log (cdr p))))
 							       (graph-line-points line))
 							  (graph-line-color line)
