@@ -77,7 +77,12 @@
 
 ;; Returns a list of graph-lines of this alternatives error-performance.
 (define (alt->error-lines xs altn color name #:width [width *default-width*])
-  (ys->tokenized-lines xs (alt-errors altn) color name width))
+  (ys->tokenized-lines xs (map (λ (e) (cond [(or (nan? e) (infinite? e)) e]
+					    [(= 0 e) 0]
+					    [(= 1 e) .5]
+					    [#t (/ (log e) (log 2))]))
+			       (alt-errors altn))
+		       color name width))
 
 (define (ys->tokenized-lines xs ys color name width)
   (map (λ (points) (graph-line points color name width))
@@ -95,8 +100,8 @@
 (define (get-improvement-lines xs start end color name #:width [width *default-width*])
   (map (λ (points) (graph-line points color name width))
        (tokenize-list good-point?
-		      (ys->points xs (map (curry expt 2) (handle-infs (errors-difference (alt-errors start)
-											 (alt-errors end))))))))
+		      (ys->points xs (handle-infs (errors-difference (alt-errors start)
+								     (alt-errors end)))))))
 
 ;; Takes a list of bits improvement that may or may not include infs, and replaces all infs
 ;; with cooresponding real numbers of bits lost.
@@ -135,7 +140,7 @@
 			      (newline)
 			      (body (newline)
 				    (text (make-graph-svg (append improvement-lines pre-error-lines post-error-lines)
-							  0 0 800 800 #:relog-ys #t))
+							  0 0 800 800 #:y-scale 'lin))
 				    (newline)
 				    (text (make-graph-svg (append exacts-lines pre-behavior-lines post-behavior-lines)
 							  0 900 800 800))
