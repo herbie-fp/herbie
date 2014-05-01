@@ -57,6 +57,30 @@
 (define (alt->error-gline xs altn color name #:width [width *default-width*])
   (graph-line (alt->error-points xs altn) color name width))
 
+;; Splits a list into a lists of lists, where each list cooresponds to "tokens"
+;; in the original list, containing only items that match pred, and seperated
+;; by those items which do not match pred.
+(define (tokenize-list pred lst)
+  (let loop ([rest lst] [lists-acc '()] [cur-acc '()])
+    (if (null? rest)
+	(reverse (if (not (null? cur-acc))
+		     (cons cur-acc lists-acc)
+		     lists-acc))
+	(let ([cur-el (car rest)]
+	      [rest* (cdr rest)])
+	  (if (pred cur-el)
+	      (loop rest* lists-acc (cons cur-el cur-acc))
+	      (loop rest* (if (null? cur-acc)
+			      lists-acc
+			      (cons (reverse cur-acc) lists-acc))
+		    '()))))))
+
+;; Returns a list of graph-lines of this alternatives error-performance.
+(define (alt->error-lines xs altn color name #:width [width *default-width*])
+  (map (lambda (points) (graph-line points color name width))
+       (tokenize-list good-point?
+		      (ys->points xs (alt-errors altn)))))
+
 ;; Given an alternative, a list of points, a color, and a name, builds
 ;; a graph-line that represents that alternatives behavior on those points.
 (define (alt->behave-gline xs altn color name #:width [width *default-width*])
