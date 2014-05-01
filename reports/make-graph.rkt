@@ -246,8 +246,8 @@
 (define *num-ticks* 8)
 (define *tick-length* 20)
 (define *label-verticle-distance* 30)
-(define *text-height* 8)
-(define *text-width* 80)
+(define *text-height* 5)
+(define *text-width* 70)
 (define *margin-%* 15)
 (define *x-label-rotation* 40)
 
