@@ -6,7 +6,8 @@
 (require casio/programs)
 
 (provide *points* *exacts* prepare-points make-exacts
-         errors errors-compare errors-difference errors-diff-score)
+         errors errors-compare errors-difference errors-diff-score
+	 errors-score reasonable-error? fn-points ascending-order)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -89,6 +90,10 @@
             (+ 1 (flulp-error out (->flonum exact)))
             +inf.0)))))
 
+(define (fn-points prog points)
+  (let ([fn (eval-prog prog mode:fl)])
+    (map fn points)))
+
 (define errors-compare-cache (make-hasheq))
 
 (define (reasonable-error? x)
@@ -120,7 +125,23 @@
 
 (define (errors-diff-score e1 e2)
   (let ([d (errors-difference e1 e2)])
-    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
-		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
-      (+ (apply + reals)
-	 (* 64 (- (length negative-infs) (length positive-infs)))))))
+    (errors-score d)))
+
+(define (errors-score e)
+  (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
+		[(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
+    (+ (apply + reals)
+       (* 64 (- (length negative-infs) (length positive-infs))))))
+
+;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
+;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
+(define (ascending-order var-index l)
+  ;; The number of positives looks like it can vary, so first check how many points there are with a postive
+  ;; number at position 'var-index'
+  (let* ([num-positives (length (filter (compose positive? (curry (flip-args list-ref) var-index)) (*points*)))]
+	 ;; Get the items that correspond to the positive and the negative points in two seperate lists.
+	 [positives (take l num-positives)]
+	 [negatives (drop l num-positives)])
+    ;; Reverse the negatives, since they are initially in descending order, and then
+    ;; append them to the postives to get the points in ascending order.
+    (append (reverse negatives) positives)))
