@@ -120,6 +120,13 @@
 
 (define (command-result cmd) (strip-end 1 (write-string (system cmd))))
 
+(define (make-graph-if-valid include-css result tname index)
+  (let ([dir (graph-folder-path tname index)])
+    (when (not (null? (first result)))
+      (when (not (directory-exists? dir)) (make-directory dir))
+      (make-graph (first result) (second result) (third result)
+		  (fourth result) dir include-css))))
+
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
 	[commit (command-result "git rev-parse HEAD")]
@@ -128,12 +135,7 @@
     (let* ([results (get-test-results tests)]
 	   [table-data (get-table-data results tests)])
       (when (not (directory-exists? "graphs")) (make-directory "graphs"))
-      (map (λ (result tname index)
-	      (let ([dir (graph-folder-path tname index)])
-		(when (not (null? (first result)))
-		  (when (not (directory-exists? dir)) (make-directory dir))
-		  (make-graph (first result) (second result) (third result) (fourth result) dir
-			      '("reports/graph.css")))))
+      (map (curry make-graph-if-valid '("reports/graph.css"))
 	   results
 	   (map test-name tests)
 	   (build-list (length tests) identity))
