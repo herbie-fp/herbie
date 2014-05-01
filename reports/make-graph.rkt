@@ -202,6 +202,11 @@
 				[(< y zero-position) (- (neg-exp (- zero-position y)))]
 				[#t (pos-exp y)]))))))
 
+(define (data-lin-scale* data min-range max-range)
+  (let ([min-data (apply min data)]
+	[max-data (apply max data)])
+    (linear-scale* min-data max-data min-range max-range)))
+
 (define (data-log-scale* data min-range max-range)
   (if (> min-range max-range)
       (let-values ([(flog fexp) (data-log-scale* data max-range min-range)])
@@ -256,13 +261,15 @@
 (define (make-ticks count min max)
   (build-list (add1 count) (λ (n) (+ min (* n (/ max count))))))
 
-(define (make-graph-svg lines x-pos y-pos width height #:relog-xs [relog-x #f] #:relog-ys [relog-y #f])
+;; The options for x-scale and y-scale are 'log or 'lin, corresponding to log scale and linear scale
+;; respectively.
+(define (make-graph-svg lines x-pos y-pos width height #:x-scale [x-scale-type 'log] #:y-scale [y-scale-type 'log])
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
-      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
-		   [(y-scale y-unscale) (data-log-scale* ys (- height margin) margin)])
+      (let-values ([(x-scale x-unscale) ((if (eq? x-scale-type 'log) data-log-scale* data-lin-scale*) xs margin (- width margin))]
+		   [(y-scale y-unscale) ((if (eq? y-scale-type 'log) data-log-scale* data-lin-scale*) ys (- height margin) margin)])
 	(let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
 							   (graph-line-points line))
 						      (graph-line-color line)
@@ -282,18 +289,16 @@
 			     (graph-draw-x-axis margin (- width margin) x-axis-y)
 			     ;; Draw the x-ticks
 			     (graph-draw-x-ticks x-axis-y margin (- height (* 2 margin)) 8
-						 (λ (x) (~r (if relog-x (log-base (x-unscale x)) (x-unscale x))
-							    #:notation 'exponential #:precision 2)))
+						 (λ (x) (~r (x-unscale x)
+							    #:notation (if (eq? x-scale-type 'log) 'exponential 'positional)
+							    #:precision (if (eq? x-scale-type 'log) 2 0))))
 			     ;; Draw the y-axis
 			     (graph-draw-y-axis y-axis-x (- height margin) margin)
 			     ;; Draw the y-ticks
 			     (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-						 (λ (y) (if relog-y
-							    (~r (let ([exp-value (y-unscale y)])
-								  (if (= exp-value 0)
-								      0
-								      (log-base exp-value))))
-							    (~r (y-unscale y) #:notation 'exponential #:precision 4))))
+						 (λ (y) (~r (y-unscale y)
+							    #:notation (if (eq? y-scale-type 'log) 'exponential 'positional)
+							    #:precision (if (eq? y-scale-type 'log) 2 0))))
 			     ;; Draw the key
 			     (graph-draw-key margin (lines->color-names lines))
 			     )))))))
