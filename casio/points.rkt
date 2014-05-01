@@ -7,8 +7,7 @@
 
 (provide *points* *exacts* prepare-points make-exacts
          errors errors-compare errors-difference errors-diff-score
-	 errors-score reasonable-error? fn-points ascending-order
-	 relative-error)
+	 errors-score reasonable-error? fn-points ascending-order)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
