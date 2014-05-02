@@ -117,7 +117,11 @@
 ;; can be fairly costly.
 (define (best-combination alts #:pre-combo-func [f identity])
   (debug "Attempting to find best combination from:" alts #:from 'regime-changes)
-  (option->alt (best-option alts) f))
+  (let ([best-opt (best-option alts)])
+    (debug "Decided to use option " best-opt ", now improving sub-alts" #:from 'regime-changes)
+    (let ([result (option->alt best-opt f)])
+      (debug "Combination Result: " result #:from 'regime-changes)
+      result)))
 
 ;; Turns an option into a new alternative.
 (define (option->alt opt pre-combo-func)
