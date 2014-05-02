@@ -144,7 +144,7 @@
     (cond [(eq? condition #t) #f]
 	  ;; If the condition is '(not #t), the same thing but with alt1 being better than
 	  ;; alt2 on all points.
-	  [(and (eq? (car condition) 'not) (eq? (cadr condition #t)))
+	  [(and (eq? (car condition) 'not) (eq? (cadr condition) #t))
 	   #f]
 	  [#t
 	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
