@@ -5,7 +5,7 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map)
+	 flip-args idx-map set-debug-level!)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -28,10 +28,16 @@
           [exit . "< "]
           [info . ";; "]))
 
-(define (debug #:from from #:tag (tag #f) . args)
+(define (set-debug-level! from depth)
+  (if (or (not (*debug*)) (eq? #t (*debug*)))
+      (*debug* (list (cons from depth)))
+      (*debug* (cons (cons from depth) (*debug*)))))
+
+(define (debug #:from from #:tag (tag #f) #:depth (depth 1) . args)
   (set! *log*
         (cons (list* from tag args) *log*))
-  (when (*debug*)
+  (when (or (eq? (*debug*) #t) (and from (*debug*) (dict-has-key? (*debug*) from)
+				    (>= (dict-ref (*debug*) from) depth)))
       (display (hash-ref *tags* tag "; "))
       (write from)
       (display ": ")
