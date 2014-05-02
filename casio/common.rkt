@@ -28,18 +28,33 @@
           [exit . "< "]
           [info . ";; "]))
 
+;; To set a particular #:from max-depth, pass it in here.
+;; To turn on all messages for a particular #:from, pass in a depth of #t.
+;; To set the default, pass in a max depth with the #:from #t.
 (define (set-debug-level! from depth)
-  (if (or (not (*debug*)) (eq? #t (*debug*)))
-      (*debug* (list (cons from depth)))
-      (*debug* (cons (cons from depth) (*debug*)))))
+  (let ([existing (cond [(not (*debug*)) '((#t . 0))]
+			[(eq? #t (*debug*)) '((#t . #t))]
+			[#t (*debug*)])])
+    (*debug* (cons (cons from depth) existing))))
 
 (define (debug #:from from #:tag (tag #f) #:depth (depth 1) . args)
   (set! *log*
         (cons (list* from tag args) *log*))
-  (when (or (eq? (*debug*) #t) (and from (*debug*) (dict-has-key? (*debug*) from)
-				    (let ([max-depth (dict-ref (*debug*) from)])
-				      (and (>= max-depth depth)
-					   (> max-depth 0)))))
+  (when (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
+	    (and (*debug*) ;; If debug is false, never print
+		 (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
+				      ;; If we were given a #:from, and we have it in the dictionary,
+				      ;; look up it's max depth
+				      (dict-ref (*debug*) from)
+				      ;; Otherwise, just use whatevers default.
+				      (dict-ref (*debug*) #t))])
+		   ;; If the max depth is true, turn everything on.
+		   ;; If the max depth isn't positve, turn everything off.
+		   ;; Otherwise, if our dept is less than the max-depth,
+		   ;; return true.
+		   (or (eq? max-depth #t)
+		       (and (>= max-depth depth)
+			    (> max-depth 0))))))
       (display (hash-ref *tags* tag "; "))
       (write from)
       (display ": ")
