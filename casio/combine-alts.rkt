@@ -33,16 +33,18 @@
 	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
 	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
 
+
+;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
+;; it returns '((1 4 7) (2 5 8) (3 6 9)).
+(define (flip-lists list-list)
+  (apply (curry map list)
+	 list-list))
+
 (define (plausible-alts alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-error-cost-points altn)
     (map (curry cons (alt-cost altn)) (alt-errors altn)))
-  ;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
-  ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
-  (define (flip-lists list-list)
-    (apply (curry map list)
-	   list-list))
   ;; Determines whether this error-cost-point is better
   ;; than the other error-cost-points.
   (define (better? error-cost-point error-cost-points)
