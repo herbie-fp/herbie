@@ -64,8 +64,8 @@
      [(= iter 0)
       (debug "Run out of iterations, trying combinations" #:from 'improve)
       (let ([plausible-combinors (plausible-alts (append alts olds trace))])
-	(if (< 2 (length plausible-combinors))
 	    (final-result alts olds trace)
+	(if (> 2 (length plausible-combinors))
 	    (let ([best-combo (best-combination plausible-combinors
 						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
 	      (or best-combo (final-result alts olds trace)))))]
