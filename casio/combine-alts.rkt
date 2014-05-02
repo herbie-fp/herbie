@@ -200,6 +200,9 @@
 
 (struct option-aug option (errors^))
 
+(define (alt-with-errors altn errors)
+  (alt (alt-program altn) errors (alt-cost altn) (alt-change altn) (alt-prev altn)))
+
 ;; Given two alternatives, make an option struct to represent
 ;; the hypothetical combination of the two alternatives.
 (define (make-option var-index altn1 altn2)
