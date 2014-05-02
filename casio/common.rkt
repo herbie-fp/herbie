@@ -37,7 +37,9 @@
   (set! *log*
         (cons (list* from tag args) *log*))
   (when (or (eq? (*debug*) #t) (and from (*debug*) (dict-has-key? (*debug*) from)
-				    (>= (dict-ref (*debug*) from) depth)))
+				    (let ([max-depth (dict-ref (*debug*) from)])
+				      (and (>= max-depth depth)
+					   (> max-depth 0)))))
       (display (hash-ref *tags* tag "; "))
       (write from)
       (display ": ")
