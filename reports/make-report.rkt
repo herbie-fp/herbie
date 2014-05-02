@@ -39,7 +39,7 @@
 				   (let-values ([(points exacts) (prepare-points start-prog)])
 				     (parameterize ([*points* points] [*exacts* exacts])
 				       (let* ([start-alt (make-alt orig)]
-					      [end-alt (improve-on-points start-alt (*num-iterations*))])
+					      [end-alt (improve-with-points start-alt (*num-iterations*))])
 					 (list start-alt end-alt points exacts))))))
 			      (list start-prog))])
       (append (car start-end-points-exacts-list) (list real-mil)))))
