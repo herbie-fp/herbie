@@ -123,6 +123,17 @@
       (debug "Combination Result: " result #:from 'regime-changes)
       result)))
 
+;; This function assumes that the alts had their errors filtered by
+;; this condition func and it's negation respectively, and that
+;; their order has not changed since then.
+(define (knit-errors altn1-err altn2-err condition-func points)
+  (let loop ([rest-points points] [errs1 altn1-err] [errs2 altn2-err] [acc '()])
+    (if (null? rest-points)
+	(reverse acc)
+	(if (condition-func (car rest-points))
+	    (loop (cdr rest-points) (cdr errs1) errs2 (cons (car errs1) acc))
+	    (loop (cdr rest-points) errs1 (cdr errs2) (cons (car errs2) acc))))))
+
 ;; Turns an option into a new alternative.
 (define (option->alt opt pre-combo-func)
   ;; Apply pre-combo-func to altn with the given points.
@@ -170,13 +181,7 @@
 					 ,(program-body (alt-program altn1*))
 					 ,(program-body (alt-program altn2*)))))]
 		     ;; The errors are the option errors computed by make-option
-		     [errs (map (lambda (point alt1-err alt2-err)
-				  (if (condition-func point)
-				      alt1-err
-				      alt2-err))
-				(*points*)
-				(alt-errors altn1*)
-				(alt-errors altn2*))]
+		     [errs (knit-errors (alt-errors altn1*) (alt-errors altn2*) condition-func (*points*))]
 		     ;; The cost is the worst case cost, the maximum cost of our different
 		     ;; branches, plus a branch cost.
 		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
@@ -221,6 +226,14 @@
 	 ;; Compile our condition as a function for when we need to actually use it, instead
 	 ;; of just putting it in our output.
 	 [condition-func (eval `(lambda (,split-var) ,condition))]
+	 [error-list (flip-lists (map (λ (error1 error2 point)
+					(if (condition-func (list-ref point var-index)) (list error1 error1 #f) (list error2 #f error2)))
+				      (alt-errors altn1)
+				      (alt-errors altn2)
+				      (*points*)))]
+	 [option-errors (car error-list)]
+	 [altn1-errors (filter identity (cadr error-list))]
+	 [altn2-errors (filter identity (caddr error-list))]
 	 ;; The errors of the option are the errors of alt1 when alt1 should be used, and the errors of
 	 ;; alt2 when alt2 should be used.
 	 [errors (map (lambda (error1 error2 point) (if (condition-func (list-ref point var-index)) error1 error2))
@@ -229,7 +242,7 @@
 				 (*points*))]
 	 [cost (+ *branch-cost* (max (alt-cost altn1) (alt-cost altn2)))])
     ;; Finally, build the option structure.
-    (option altn1 altn2 condition errors split-var var-index cost)))
+    (option (alt-with-errors altn1 altn1-errors) (alt-with-errors altn2 altn2-errors) condition option-errors split-var var-index cost)))
 
 ;; Memoize getting errors for a particular program at a particular point, because each option
 ;; has to do it for both it's alternatives, so their's a lot of overlap
