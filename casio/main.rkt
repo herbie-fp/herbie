@@ -68,7 +68,7 @@
 	    (final-result alts olds trace)
 	    (let ([best-combo (best-combination plausible-combinors
 						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
-	      (or best-combo (final-result alt olds trace)))))]
+	      (or best-combo (final-result alts olds trace)))))]
      [(and (null? alts) (not (null? olds)))
       ;; We've exhausted all "intelligent" things to do
       (debug "Resorting to brute force"
