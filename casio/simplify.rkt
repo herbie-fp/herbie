@@ -41,7 +41,7 @@
 		      '(2))])
     (debug "Simplifying" (alt-program altn)
 	   "at" (map (curry append location) slocations)
-	   #:from 'simplify #:tag 'enter)
+	   #:from 'simplify #:tag 'enter #:depth 2)
 
     (apply-changes altn
                    (filter fit?
