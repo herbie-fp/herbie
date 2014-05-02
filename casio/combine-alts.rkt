@@ -16,7 +16,8 @@
 ;; but if you're in code that was called because you were trying
 ;; to improve one of the branches of a conditional, then it is
 ;; a predicate returning true to points that will go to your part
-;; of the branch, and false to points that won't.
+;; of the branch, and false to points that won't. This predicate
+;; takes the form of a racket expression which must be evaluated to be called.
 (define *point-pred* (make-parameter (const #t)))
 
 ;; Depreceated, but kept around for testing and reference
@@ -91,9 +92,9 @@
 							     ;; should vary between alts of the
 							     ;; same run.
 							     (alt-program (car alts)))])
-				(let ([points* (filter *point-pred* points)]
+				(let ([points* (filter (curry apply (eval (*point-pred*))) points)]
 				      [exacts* (map cdr (filter car (map (lambda (point exact)
-									   (cons (*point-pred* point)
+									   (cons (apply (eval (*point-pred*)) point)
 										 exact))
 									 points
 									 exacts)))])
@@ -126,9 +127,10 @@
     ;; and *exacts* as the exacts made from those points.
     (parameterize [(*points* points)
 		   (*exacts* (make-exacts (alt-program altn) points))
-		   (*point-pred* (eval `(lambda ,(program-variables (alt-program (option-altn1 opt)))
-					  (and ,(option-condition opt)
-					       (*point-pred*)))))]
+		   (*point-pred* (let ([vars (program-variables (alt-program (option-altn1 opt)))])
+				   `(lambda ,vars
+				      (and ,(option-condition opt)
+					   ,(cons (*point-pred*) vars)))))]
       (pre-combo-func altn)))
   ;; Pull the a bunch of information from the options struct.
   (let* ([split-var (option-split-var opt)]
