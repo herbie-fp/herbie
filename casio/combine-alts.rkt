@@ -250,7 +250,7 @@
     (option (alt-with-errors altn1 altn1-errors) (alt-with-errors altn2 altn2-errors) condition option-errors split-var var-index cost)))
 
 ;; Memoize getting errors for a particular program at a particular point, because each option
-;; has to do it for both it's alternatives, so their's a lot of overlap
+;; has to do it for both it's alternatives, so there's a lot of overlap
 (define error-table (make-hash))
 
 (define (merror-at prog point exact)
