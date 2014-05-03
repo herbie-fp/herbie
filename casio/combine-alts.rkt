@@ -58,14 +58,18 @@
 	;; we have less cost than it, we're better.
 	(andmap (lambda (other-point) (or (< (cdr cost-error-point) (cdr other-point))
 					  (and (= (cdr cost-error-point) (cdr other-point))
-					       (< (car cost-error-point) (car other-point)))))
+					       (<= (car cost-error-point) (car other-point)))))
 		cost-error-points)))
+  (define (same? alt1 alt2) (and (= (alt-cost alt1) (alt-cost alt2))
+				 (andmap = (alt-errors alt1) (alt-errors alt2))))
   ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
-  ;; keep it, otherwise discard it.
-  (filter (lambda (altn) (ormap better?
-				(make-cost-error-points altn)
-				(flip-lists (map make-cost-error-points (remove altn alts)))))
-	  alts))
+  ;; keep it, otherwise discard it. Then, remove duplicate alts, where alts are considered the same
+  ;; if they have the same error performance and cost.
+  (remove-duplicates (filter (lambda (altn) (ormap better?
+						   (make-cost-error-points altn)
+						   (flip-lists (map make-cost-error-points (remove altn alts)))))
+			     alts)
+		     same?))
 
 (define (best-option alts)
   ;; We want to check combinations on every variable, since we don't know
