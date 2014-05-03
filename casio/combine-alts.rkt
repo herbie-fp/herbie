@@ -44,26 +44,26 @@
 (define (plausible-alts alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
-  (define (make-error-cost-points altn)
+  (define (make-cost-error-points altn)
     (map (curry cons (alt-cost altn)) (alt-errors altn)))
   ;; Determines whether this error-cost-point is better
   ;; than the other error-cost-points.
-  (define (better? error-cost-point error-cost-points)
+  (define (better? cost-error-point cost-error-points)
     ;; If we have less error than the least error at this point,
     ;; we're better.
-    (or (< (cdr error-cost-point) (apply min (map cdr error-cost-points)))
+    (or (< (cdr cost-error-point) (apply min (map cdr cost-error-points)))
 	;; Or, if we have one of the least errors at this point, and
 	;; for every other alt that also has one of the least errors,
 	;; we have less cost than it, we're better.
-	(andmap (lambda (other-point) (or (< (cdr error-cost-point) (cdr other-point))
-					  (and (= (cdr error-cost-point) (cdr other-point))
-					       (< (car error-cost-point) (car other-point)))))
-		error-cost-points)))
+	(andmap (lambda (other-point) (or (< (cdr cost-error-point) (cdr other-point))
+					  (and (= (cdr cost-error-point) (cdr other-point))
+					       (< (car cost-error-point) (car other-point)))))
+		cost-error-points)))
   ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
   ;; keep it, otherwise discard it.
   (filter (lambda (altn) (ormap better?
-				(make-error-cost-points altn)
-				(flip-lists (map make-error-cost-points (remove altn alts)))))
+				(make-cost-error-points altn)
+				(flip-lists (map make-cost-error-points (remove altn alts)))))
 	  alts))
 
 (define (best-option alts)
