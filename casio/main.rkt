@@ -62,71 +62,55 @@
     ;; Invariant: (no-duplicates? olds)
     (cond
      [(= iter 0)
-      (debug "Run out of iterations, trying combinations" #:from 'improve)
+      (debug "Run out of iterations, trying combinations" #:from 'improve #:depth 2)
       (let ([plausible-combinors (plausible-alts (append alts olds trace))])
-	(debug "Found the plausible-combinors: " plausible-combinors #:from 'improve)
+	(debug "Found the plausible-combinors: " plausible-combinors #:from 'improve #:depth 3)
 	(if (> 2 (length plausible-combinors))
-	    (begin (debug "Not enough plausible-combinors for combination" #:from 'improve)
+	    (begin (debug "Not enough plausible-combinors for combination" #:from 'improve #:depth 3)
 		   (final-result alts olds trace))
-	    (let ([best-combo (best-combination plausible-combinors
-						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
+	    (let ([best-combo (best-combination plausible-combinors)])
+;;						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
 	      (or best-combo (final-result alts olds trace)))))]
      [(and (null? alts) (not (null? olds)))
-      ;; We've exhausted all "intelligent" things to do
+					; We've exhausted all "intelligent" things to do
       (debug "Resorting to brute force"
-	     #:from 'improve)
+	     #:from 'improve #:depth 2)
       (let* ([old (car olds)]
 	     [old* (cdr olds)]
 	     [alts* (rewrite-brute-force old)]
 	     [greens
-	      (map remove-red (filter (curryr much-better? old) alts*))])
+	      (map #;remove-red identity (filter (curryr much-better? old) alts*))])
 	(cond
-	 [(= iter 0)
-	  (let* ([sorted (sort (reverse (append alts olds trace))
-			       much-better?)]
-		 [result (try-simplify (car sorted) #:conservative #f)])
-	    (debug "Done:" result #:from 'improve)
-	    result)]
-	 [(and (null? alts) (not (null? olds)))
-	  ; We've exhausted all "intelligent" things to do
-	  (debug "Resorting to brute force"
-		 #:from 'improve #:depth 2)
-	  (let* ([old (car olds)]
-		 [old* (cdr olds)]
-		 [alts* (rewrite-brute-force old)]
-		 [greens
-		  (map #;remove-red identity (filter (curryr much-better? old) alts*))])
-	    (cond
-	     [(null? greens)
-	      (debug "Produced" (length alts*) "alternatives, none green"
-		     #:from 'improve #:tag 'info #:depth 3)
-	      (loop alts* old* (cons old trace) (- iter 1))]
-	     [else
-	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info #:depth 3)
-	      (loop greens (list) (append olds alts alts* trace)
-		    (- iter 1))]))]
-	 [(and (null? alts) (null? olds))
-	  (error "(improve) cannot proceed: no olds or alts")]
+	 [(null? greens)
+	  (debug "Produced" (length alts*) "alternatives, none green"
+		 #:from 'improve #:tag 'info #:depth 3)
+	  (loop alts* old* (cons old trace) (- iter 1))]
 	 [else
-	  (debug "Step:" (car alts) #:from 'improve #:depth 2)
-	  (let* ([altn (car alts)]
-		 [alts* (cdr alts)]
-		 [next (map try-simplify (try-analyze altn))]
-		 [greens
-		  (map #;remove-red identity (filter (curryr much-better? altn) next))])
-	    (cond
-	     [(null? greens)
-	      (let ([next-alts (append alts* next)]
-		    [next-olds (cons altn olds)])
-		(debug "Produced" (length next) "alternatives, none green"
-		       #:from 'improve #:tag 'info #:depth 3)
-		(loop next-alts next-olds trace (- iter 1)))]
-	     [else 
-	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info #:depth 3)
-	      (loop (sort greens alternative<?) (list)
-		    (append alts olds next) (- iter 1))]))])))
+	  (debug "Discovered" (length greens) "green changes"
+		 #:from 'improve #:tag 'info #:depth 3)
+	  (loop greens (list) (append olds alts alts* trace)
+		(- iter 1))]))]
+     [(and (null? alts) (null? olds))
+      (error "(improve) cannot proceed: no olds or alts")]
+     [else
+      (debug "Step:" (car alts) #:from 'improve #:depth 2)
+      (let* ([altn (car alts)]
+	     [alts* (cdr alts)]
+	     [next (map try-simplify (try-analyze altn))]
+	     [greens
+	      (map #;remove-red identity (filter (curryr much-better? altn) next))])
+	(cond
+	 [(null? greens)
+	  (let ([next-alts (append alts* next)]
+		[next-olds (cons altn olds)])
+	    (debug "Produced" (length next) "alternatives, none green"
+		   #:from 'improve #:tag 'info #:depth 3)
+	    (loop next-alts next-olds trace (- iter 1)))]
+	 [else 
+	  (debug "Discovered" (length greens) "green changes"
+		 #:from 'improve #:tag 'info #:depth 3)
+	  (loop (sort greens alternative<?) (list)
+		(append alts olds next) (- iter 1))]))])))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
