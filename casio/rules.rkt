@@ -192,7 +192,6 @@
 
 ; Square root
 (define-rule   add-sqr-sqrt      x                  (sqr (sqrt x)))
-(define-rule   add-sqrt-sqr      x                  (sqrt (sqr x)))
 (define-rule   rem-square-sqrt   (sqr (sqrt x))     x)
 (define-rule   rem-sqrt-square   (sqrt (sqr x))     x)
 (define-rule   square-mult       (sqr x)            (* x x))
