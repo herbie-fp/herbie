@@ -68,8 +68,8 @@
 	(if (> 2 (length plausible-combinors))
 	    (begin (debug "Not enough plausible-combinors for combination" #:from 'improve #:depth 3)
 		   (final-result alts olds trace))
-	    (let ([best-combo (best-combination plausible-combinors)])
-;;						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
+	    (let ([best-combo (best-combination plausible-combinors
+						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
 	      (or best-combo (final-result alts olds trace)))))]
      [(and (null? alts) (not (null? olds)))
 					; We've exhausted all "intelligent" things to do
