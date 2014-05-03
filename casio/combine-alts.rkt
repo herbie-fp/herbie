@@ -42,7 +42,7 @@
 	 list-list))
 
 (define (plausible-alts alts)
-  (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 2)
+  (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
@@ -121,11 +121,11 @@
 ;; on the alts in the combination that seems best, so the pre-combo-func
 ;; can be fairly costly.
 (define (best-combination alts #:pre-combo-func [f identity])
-  (debug "Attempting to find best combination from:" alts #:from 'regime-changes)
+  (debug "Attempting to find best combination from:" alts #:from 'regime-changes #:depth 2)
   (let ([best-opt (best-option alts)])
-    (debug "Decided to use option " best-opt ", now improving sub-alts" #:from 'regime-changes)
+    (debug "Decided to use option " best-opt ", now improving sub-alts" #:from 'regime-changes #:depth 2)
     (let ([result (option->alt best-opt f)])
-      (debug "Combination Result: " result #:from 'regime-changes)
+      (debug "Combination Result: " result #:from 'regime-changes #:depth 2)
       result)))
 
 ;; This function assumes that the alts had their errors filtered by
