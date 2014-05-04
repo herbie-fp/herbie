@@ -20,4 +20,3 @@
 			", and got:")
 	       (println (alt-program altn))
 	       (void)))))
-		      
