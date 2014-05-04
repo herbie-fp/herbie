@@ -123,6 +123,51 @@
         (when result
             (sow (change rule root-loc (cdr result))))))))
 
+(define (rewrite-expression-head expr #:root [root-loc '()])
+  (define (rewriter expr ghead glen loc)
+    (reap (sow)
+          (for ([rule *rules*])
+            (when (and (list? (rule-output rule))
+                       (or
+                        (not ghead) ; Any results work for me
+                        (and
+                         (= (length (rule-output rule)) glen)
+                         (eq? (car (rule-output rule)) ghead))))
+              (let ([options (matcher expr (rule-input rule) loc #f)])
+                (for ([option options])
+                  ; Each option is a list of change lists
+                  (sow (cons (change rule loc '((??? ???))) option))))))))
+
+  (define (matcher expr pattern loc [allow-rewriter #t])
+    ; expr pattern _ -> (list (list change))
+      (cond
+       [(symbol? pattern)
+        '(())] ; One option: doing nothing
+       [(number? pattern)
+        (if (and (number? expr) (= expr pattern))
+            '(()) ; One option: doing nothing
+            '())] ; No options
+       [(and (list? expr) (list? pattern))
+        (if (and (eq? (car pattern) (car expr))
+                 (= (length pattern) (length expr)))
+            ; Everything is terrible
+            (map (curry apply append) ; (list (list cng))
+                 (apply list-product ; (list (list (list cng)))
+                  (idx-map ; (list (list (list cng)))
+                   (λ (x i) (matcher (car x) (cdr x) (cons i loc) #t)) ; (expr * pattern) nat -> (list (list cng))
+                   (map cons (cdr expr) (cdr pattern)) ; list (expr * pattern)
+                   #:from 1)))
+            (if allow-rewriter
+                (rewriter expr (car pattern) (length pattern) loc)
+                '()))]
+       [(and (list? pattern) (not (list? expr)))
+        '()]
+       [else
+        (error "Unknown pattern" pattern)]))
+
+  ; The #f #f mean that any output result works. It's a bit of a hack
+  (rewriter expr #f #f root-loc))
+
 (define (rewrite-tree expr #:root [root-loc '()])
   (reap [sow]
     (let ([try-rewrites
