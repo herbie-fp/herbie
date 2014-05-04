@@ -7,9 +7,9 @@
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 alternative<? alternative<>? apply-changes)
+	 alternative<? alternative<>? apply-changes alt-cycles++)
 
-(struct alt (program errors cost change prev) #:transparent
+(struct alt (program errors cost change prev cycles) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
@@ -25,12 +25,16 @@
 
 (define (make-alt prog)
  (let* ([errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) #f #f)))
+    (alt prog errs (program-cost prog) #f #f 0)))
 
 (define (alt-apply altn cng)
   (let* ([prog (change-apply cng (alt-program altn))]
          [errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) cng altn)))
+    (alt prog errs (program-cost prog) (change-add-hardness cng (alt-cycles altn)) altn 0)))
+
+(define (alt-cycles++ altn)
+  (alt (alt-program altn) (alt-errors altn) (alt-cost altn)
+       (alt-change altn) (alt-prev altn) (add1 (alt-cycles altn))))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)
