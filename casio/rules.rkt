@@ -123,8 +123,9 @@
         (when result
             (sow (change rule root-loc (cdr result))))))))
 
-(define (rewrite-expression-head expr #:root [root-loc '()])
-  (define (rewriter expr ghead glen loc)
+(define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
+
+  (define (rewriter expr ghead glen loc cdepth)
     (reap (sow)
           (for ([rule *rules*])
             (when (and (list? (rule-output rule))
@@ -133,12 +134,12 @@
                         (and
                          (= (length (rule-output rule)) glen)
                          (eq? (car (rule-output rule)) ghead))))
-              (let ([options (matcher expr (rule-input rule) loc #f)])
+              (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
                 (for ([option options])
                   ; Each option is a list of change lists
                   (sow (cons (change rule loc '((??? ???))) option))))))))
 
-  (define (matcher expr pattern loc [allow-rewriter #t])
+  (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list (list change))
       (cond
        [(symbol? pattern)
@@ -154,11 +155,12 @@
             (map (curry apply append) ; (list (list cng))
                  (apply list-product ; (list (list (list cng)))
                   (idx-map ; (list (list (list cng)))
-                   (λ (x i) (matcher (car x) (cdr x) (cons i loc) #t)) ; (expr * pattern) nat -> (list (list cng))
+                   ; Note: we reset the fuel to "depth", not "cdepth"
+                   (λ (x i) (matcher (car x) (cdr x) (cons i loc) depth)) ; (expr * pattern) nat -> (list (list cng))
                    (map cons (cdr expr) (cdr pattern)) ; list (expr * pattern)
                    #:from 1)))
-            (if allow-rewriter
-                (rewriter expr (car pattern) (length pattern) loc)
+            (if (> cdepth 0)
+                (rewriter expr (car pattern) (length pattern) loc (- cdepth 1))
                 '()))]
        [(and (list? pattern) (not (list? expr)))
         '()]
@@ -166,7 +168,7 @@
         (error "Unknown pattern" pattern)]))
 
   ; The #f #f mean that any output result works. It's a bit of a hack
-  (rewriter expr #f #f root-loc))
+  (rewriter expr #f #f root-loc depth))
 
 (define (rewrite-tree expr #:root [root-loc '()])
   (reap [sow]
