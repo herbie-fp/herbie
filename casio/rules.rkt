@@ -198,7 +198,7 @@
         (error "Unknown pattern" pattern)]))
 
   ; The #f #f mean that any output result works. It's a bit of a hack
-  (rewriter expr #f #f root-loc depth))
+  (rewriter expr #f #f (reverse root-loc) depth))
 
 (define (rewrite-tree expr #:root [root-loc '()])
   (reap [sow]
