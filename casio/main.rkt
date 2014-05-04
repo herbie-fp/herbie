@@ -71,7 +71,7 @@
 	     [(null? greens)
 	      (debug "Produced" (length alts*) "alternatives, none green"
 		     #:from 'improve #:tag 'info)
-	      (loop (map alt-cycles++ alts*) (map alt-cycles++ old*) (map alt-cycles++ (cons old trace)) (- iter 1))]
+	      (loop alts* (map alt-cycles++ old*) (map alt-cycles++ (cons old trace)) (- iter 1))]
 	     [else
 	      (debug "Discovered" (length greens) "green changes"
 		     #:from 'improve #:tag 'info)
