@@ -228,6 +228,8 @@
   #:simplify (1 2))
 (define-rule   sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)
   #:simplify (1))
+(define-rule   frac-add    (+ (/ a b) (/ c d))  (/ (+ (* a d) (* b c)) (* b d))
+  #:simplify (1))
 (define-rule   frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))
   #:simplify (1))
 (define-rule   frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))
