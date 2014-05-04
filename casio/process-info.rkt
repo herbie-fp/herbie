@@ -12,7 +12,8 @@
       (println "Started with: " (alt-program altn))
       (begin (print-alt-info (alt-prev altn))
 	     (let ([chng (alt-change altn)])
-	       (println "Applied rule " (change-rule chng)
+	       (println "After considering " (change*-hardness chng)
+			" other options, applied rule " (change-rule chng)
 			" at " (change-location chng)
 			", and got " (alt-program altn))))))
 		      
