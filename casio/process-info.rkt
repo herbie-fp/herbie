@@ -15,5 +15,7 @@
 	       (println "After considering " (change*-hardness chng)
 			" other options, applied rule " (change-rule chng)
 			" at " (change-location chng)
-			", and got " (alt-program altn))))))
+			", and got:")
+	       (println (alt-program altn))
+	       (void)))))
 		      
