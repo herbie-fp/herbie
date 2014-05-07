@@ -88,7 +88,7 @@
     ;; we're better.
     (or (< (cdr cep1) (cdr cep2))
 	(and (= (cdr cep1) (cdr cep2))
-	     (< (car cep1) (car cep2)))))
+	     (<= (car cep1) (car cep2)))))
   ;; Determines whether an alt is equivilent in errors and cost.
   (define (same? alt1 alt2) (and (= (alt-cost alt1) (alt-cost alt2))
 				 (andmap = (alt-errors alt1) (alt-errors alt2))))
