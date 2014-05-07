@@ -5,7 +5,7 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map set-debug-level!)
+	 flip-args idx-map list-product set-debug-level!)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -136,3 +136,10 @@
 	(reverse acc)
 	(let ([result (f l)])
 	  (and result (loop (cdr rest) (cons result acc)))))))
+
+(define (list-product . subs)
+  (if (null? subs)
+      '(())
+      (for*/list ([fst (car subs)]
+                  [rst (apply list-product (cdr subs))])
+         (cons fst rst))))
