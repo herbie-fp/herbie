@@ -14,6 +14,7 @@
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
+(define *handle-crashes* #t)
 
 (define disallowed-strings '("/" " " "(" ")"))
 
@@ -32,15 +33,19 @@
 		   "/")))
 
 (define (test-result test)
+  (define (compute-result orig)
+    (let-values ([(points exacts) (prepare-points orig)])
+      (parameterize ([*points* points] [*exacts* exacts])
+	(let* ([start-alt (make-alt orig)]
+	       [end-alt (improve-with-points start-alt (*num-iterations*))])
+	  (list start-alt end-alt points exacts)))))
   (let ([start-prog (make-prog test)])
     (let-values ([(start-end-points-exacts-list cpu-mil real-mil garbage-mill)
 		  (time-apply (λ (orig)
-				 (with-handlers ([(const #t) (const (make-list 4 '()))])
-				   (let-values ([(points exacts) (prepare-points start-prog)])
-				     (parameterize ([*points* points] [*exacts* exacts])
-				       (let* ([start-alt (make-alt orig)]
-					      [end-alt (improve-with-points start-alt (*num-iterations*))])
-					 (list start-alt end-alt points exacts))))))
+				 (if *handle-crashes*
+				     (with-handlers ([(const #t) (λ _ (display "Crashed!\n") (make-list 4 '()))])
+				       (compute-result orig))
+				     (compute-result orig)))
 			      (list start-prog))])
       (append (car start-end-points-exacts-list) (list real-mil)))))
 
