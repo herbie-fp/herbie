@@ -10,7 +10,7 @@
 (require casio/simplify)
 
 (define (rewrite-local-error altn loc)
-  (alt-rewrite-expression altn #:root loc #:destruct #t))
+  (alt-rewrite-rm altn #:root loc))
 
 (define (rewrite-brute-force altn)
   (alt-rewrite-tree altn))
