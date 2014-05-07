@@ -41,33 +41,64 @@
   (apply (curry map list)
 	 list-list))
 
+;; This constant determines how aggressive our filtration is.
+;; Higher values mean we will filter more aggresively, and might
+;; accidentally filter out a good option.
+(define *plausibility-min-region-size* 2)
+
+;; Determines which alternatives out of a list of alternatives
+;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
   (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
     (map (curry cons (alt-cost altn)) (alt-errors altn)))
+  ;; Works like ormap, except instead of returning true if
+  ;; any invocation of pred returns true, it returns true only
+  ;; if at least reg-size invocations return true in a row.
+  (define (region-ormap pred reg-size . lsts)
+    (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
+      (cond [(= true-count reg-size) #t]
+	    [(null? rest-arg-lists) #f]
+	    [(apply pred (car rest-arg-lists))
+	     (loop (cdr rest-arg-lists) (add1 true-count))]
+	    [#t (loop (cdr rest-arg-lists) 0)])))
+
+  ;; alts -> [error]
+  (define (best-errors . alts)
+    (apply (curry map min)
+	   (map alt-errors alts)))
+  ;; alts -> [cost-error-point]
+  ;; For a list of alts, returns a list of, at each point,
+  ;; an error-cost-point representing the best error our
+  ;; alts have at that point, and the best cost of an alt
+  ;; that has that error.
+  (define (best-cost-errors . alts)
+    (map (λ (ceps)
+	   (let* ([min-err (apply min (map cdr ceps))]
+		  [best-cost (apply min (map car (filter (λ (cep) (= (cdr cep) min-err))
+							 ceps)))])
+	     (cons best-cost min-err)))
+	 (flip-lists (map make-cost-error-points alts))))
   ;; Determines whether this error-cost-point is better
-  ;; than the other error-cost-points.
-  (define (better? cost-error-point cost-error-points)
+  ;; than the other error-cost-point.
+  (define (better? cep1 cep2)
     ;; If we have less error than the least error at this point,
     ;; we're better.
-    (or (< (cdr cost-error-point) (apply min (map cdr cost-error-points)))
-	;; Or, if we have one of the least errors at this point, and
-	;; for every other alt that also has one of the least errors,
-	;; we have less cost than it, we're better.
-	(andmap (lambda (other-point) (or (< (cdr cost-error-point) (cdr other-point))
-					  (and (= (cdr cost-error-point) (cdr other-point))
-					       (<= (car cost-error-point) (car other-point)))))
-		cost-error-points)))
+    (or (< (cdr cep1) (cdr cep2))
+	(and (= (cdr cep1) (cdr cep2))
+	     (< (car cep1) (car cep2)))))
+  ;; Determines whether an alt is equivilent in errors and cost.
   (define (same? alt1 alt2) (and (= (alt-cost alt1) (alt-cost alt2))
 				 (andmap = (alt-errors alt1) (alt-errors alt2))))
   ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
   ;; keep it, otherwise discard it. Then, remove duplicate alts, where alts are considered the same
   ;; if they have the same error performance and cost.
-  (remove-duplicates (filter (lambda (altn) (ormap better?
-						   (make-cost-error-points altn)
-						   (flip-lists (map make-cost-error-points (remove altn alts)))))
+  (remove-duplicates (filter (lambda (altn) (region-ormap better?
+							  *plausibility-min-region-size*
+							  (make-cost-error-points altn)
+							  (apply best-cost-errors (remove altn alts))))
 			     alts)
 		     same?))
 
