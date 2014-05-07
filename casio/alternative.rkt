@@ -7,7 +7,7 @@
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 alternative<? alternative<>? apply-changes)
+         alt-rewrite-rm alternative<? alternative<>? apply-changes)
 
 (struct alt (program errors cost change prev) #:transparent
         #:methods gen:custom-write
@@ -47,6 +47,12 @@
   (let ([subtree (location-get root-loc (alt-program alt))])
     (map (curry alt-apply alt)
          (rewrite-expression subtree #:destruct destruct? #:root root-loc))))
+
+(define (alt-rewrite-rm alt #:root [root-loc '()])
+  (let ([subtree (location-get root-loc (alt-program alt))])
+    (map (curry apply-changes alt)
+         (map reverse
+              (rewrite-expression-head subtree #:root root-loc)))))
 
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives; return if incomparable.
