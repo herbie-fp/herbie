@@ -61,7 +61,7 @@
 	 [(and (null? alts) (not (null? olds)))
 	  ; We've exhausted all "intelligent" things to do
 	  (debug "Resorting to brute force"
-		 #:from 'improve)
+		 #:from 'improve #:depth 2)
 	  (let* ([old (car olds)]
 		 [old* (cdr olds)]
 		 [alts* (rewrite-brute-force old)]
@@ -70,17 +70,17 @@
 	    (cond
 	     [(null? greens)
 	      (debug "Produced" (length alts*) "alternatives, none green"
-		     #:from 'improve #:tag 'info)
+		     #:from 'improve #:tag 'info #:depth 3)
 	      (loop alts* old* (cons old trace) (- iter 1))]
 	     [else
 	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info)
+		     #:from 'improve #:tag 'info #:depth 3)
 	      (loop greens (list) (append olds alts alts* trace)
 		    (- iter 1))]))]
 	 [(and (null? alts) (null? olds))
 	  (error "(improve) cannot proceed: no olds or alts")]
 	 [else
-	  (debug "Step:" (car alts) #:from 'improve)
+	  (debug "Step:" (car alts) #:from 'improve #:depth 2)
 	  (let* ([altn (car alts)]
 		 [alts* (cdr alts)]
 		 [next (map try-simplify (try-analyze altn))]
@@ -91,11 +91,11 @@
 	      (let ([next-alts (append alts* next)]
 		    [next-olds (cons altn olds)])
 		(debug "Produced" (length next) "alternatives, none green"
-		       #:from 'improve #:tag 'info)
+		       #:from 'improve #:tag 'info #:depth 3)
 		(loop next-alts next-olds trace (- iter 1)))]
 	     [else 
 	      (debug "Discovered" (length greens) "green changes"
-		     #:from 'improve #:tag 'info)
+		     #:from 'improve #:tag 'info #:depth 3)
 	      (loop (sort greens alternative<?) (list)
 		    (append alts olds next) (- iter 1))]))])))
 
