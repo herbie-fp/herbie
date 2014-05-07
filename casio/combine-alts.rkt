@@ -44,7 +44,7 @@
 ;; This constant determines how aggressive our filtration is.
 ;; Higher values mean we will filter more aggresively, and might
 ;; accidentally filter out a good option.
-(define *plausibility-min-region-size* 2)
+(define *plausibility-min-region-size* 3)
 
 ;; Determines which alternatives out of a list of alternatives
 ;; are plausible for use in regime combinations.
