@@ -84,11 +84,11 @@
 	 [(null? greens)
 	  (debug "Produced" (length alts*) "alternatives, none green"
 		 #:from 'improve #:tag 'info #:depth 3)
-	  (loop alts* old* (cons old trace) (- iter 1))]
+	  (loop alts* (map alt-cycles++ old*) (map alt-cycles++ (cons old trace)) (- iter 1))]
 	 [else
 	  (debug "Discovered" (length greens) "green changes"
 		 #:from 'improve #:tag 'info #:depth 3)
-	  (loop greens (list) (append olds alts alts* trace)
+	  (loop greens (list) (map alt-cycles++ (append olds alts alts* trace))
 		(- iter 1))]))]
      [(and (null? alts) (null? olds))
       (error "(improve) cannot proceed: no olds or alts")]
@@ -105,12 +105,12 @@
 		[next-olds (cons altn olds)])
 	    (debug "Produced" (length next) "alternatives, none green"
 		   #:from 'improve #:tag 'info #:depth 3)
-	    (loop next-alts next-olds trace (- iter 1)))]
+	    (loop next-alts (map alt-cycles++ next-olds) (map alt-cycles++ trace)(- iter 1)))]
 	 [else 
 	  (debug "Discovered" (length greens) "green changes"
 		 #:from 'improve #:tag 'info #:depth 3)
 	  (loop (sort greens alternative<?) (list)
-		(append alts olds next) (- iter 1))]))])))
+		(map alt-cycles++ (append alts olds next)) (- iter 1))]))])))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
