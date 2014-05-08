@@ -2,7 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-tree change-apply (struct-out change) (struct-out rule) change-add-hardness change*-hardness)
+(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out rule) change-add-hardness change*-hardness)
 
 ;; Our own pattern matcher.
 ;
@@ -14,28 +14,32 @@
 ;
 ; Bindings are stored as association lists
 
+(define (merge-bindings . bindings)
+  ; (list bindings) -> binding
+  (foldl merge-2-bindings '() bindings))
+
+(define (merge-2-bindings binding1 binding2)
+  (define (fail . irr) #f)
+
+  ; binding binding -> binding
+  (if (and binding1 binding2)
+      (let loop ([acc binding1] [rest binding2])
+        (if (null? rest)
+            acc
+            (let* ([curr (car rest)]
+                   [lookup (assoc (car curr) acc)])
+              (if lookup
+                  (if (equal? (cdr lookup) (cdr curr))
+                      (loop acc (cdr rest))
+                      (fail "pattern-match: Variable has two different bindings"
+                            (car curr) (cdr lookup) (cdr curr)))
+                  (loop (cons curr acc) (cdr rest))))))
+      #f))
+
+; The matcher itself
+
 (define (pattern-match pattern expr)
   ; pattern expr -> bindings
-
-  (define (merge . bindings)
-    ; (list bindings) -> binding
-    (foldl merge2 '() bindings))
-
-  (define (merge2 binding1 binding2)
-    ; binding binding -> binding
-    (if (and binding1 binding2)
-        (let loop ([acc binding1] [rest binding2])
-          (if (null? rest)
-              acc
-              (let* ([curr (car rest)]
-                     [lookup (assoc (car curr) acc)])
-                (if lookup
-                    (if (equal? (cdr lookup) (cdr curr))
-                        (loop acc (cdr rest))
-                        (fail "pattern-match: Variable has two different bindings"
-                              (car curr) (cdr lookup) (cdr curr)))
-                    (loop (cons curr acc) (cdr rest))))))
-        #f))
 
   (define (fail . irr) #f)
 
@@ -51,7 +55,7 @@
    [(list? pattern)
     (if (and (list? expr) (eq? (car expr) (car pattern))
              (= (length expr) (length pattern)))
-        (apply merge
+        (apply merge-bindings
          (for/list ([pat (cdr pattern)] [subterm (cdr expr)])
            (pattern-match pat subterm)))
         (fail "pattern-match: Not a list, or wrong length, or wrong operator."
@@ -129,6 +133,79 @@
         (when result
             (sow (change rule root-loc (cdr result))))))))
 
+(define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
+
+  (define (rewriter expr ghead glen loc cdepth)
+    ; expr _ _ _ _ -> (list (list change))
+    (reap (sow)
+          (for ([rule *rules*])
+            (when (and (list? (rule-output rule))
+                       (or
+                        (not ghead) ; Any results work for me
+                        (and
+                         (= (length (rule-output rule)) glen)
+                         (eq? (car (rule-output rule)) ghead))))
+              (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
+                (for ([option options])
+                  ; Each option is a list of change lists
+                  (sow (cons (change rule (reverse loc) (cdr option))
+                             (car option)))))))))
+
+  (define (reduce-children options)
+    ; (list (list ((list change) * bindings)))
+    ; -> (list ((list change) * bindings))
+    (reap (sow)
+      (for ([children options])
+        (let ([bindings* (apply merge-bindings (map cdr children))])
+          (when bindings*
+            (sow (cons (apply append (map car children)) bindings*)))))))
+
+  (define (fix-up-variables pattern options)
+    ; pattern (list (list change)) -> (list (list change) * pattern)
+    (reap (sow)
+      (for ([cngs options])
+        (let* ([out-pattern (rule-output (change-rule (car cngs)))]
+               [result (pattern-substitute out-pattern
+                                           (change-bindings (car cngs)))]
+               [bindings* (pattern-match pattern result)])
+          (when bindings*
+            (sow (cons cngs bindings*)))))))
+
+  (define (matcher expr pattern loc cdepth)
+    ; expr pattern _ -> (list ((list change) * bindings))
+      (cond
+       [(symbol? pattern)
+        ; Do nothing, bind variable
+        (list (cons '() (list (cons pattern expr))))]
+       [(number? pattern)
+        (if (and (number? expr) (= expr pattern))
+            '((()) . ()) ; Do nothing, bind nothing
+            '())] ; No options
+       [(and (list? expr) (list? pattern))
+        (if (and (eq? (car pattern) (car expr))
+                 (= (length pattern) (length expr)))
+            ; Everything is terrible
+            (reduce-children
+              (apply list-product ; (list (list ((list cng) * bnd)))
+                (idx-map ; (list (list ((list cng) * bnd)))
+                 ; Note: we reset the fuel to "depth", not "cdepth"
+                 (λ (x i) (matcher (car x) (cdr x) (cons i loc) depth)) ; (expr * pattern) nat -> (list (list cng))
+                 (map cons (cdr expr) (cdr pattern)) ; list (expr * pattern)
+                 #:from 1)))
+            (if (> cdepth 0)
+                ; Sort of a brute force approach to getting the bindings
+                (fix-up-variables
+                 pattern
+                 (rewriter expr (car pattern) (length pattern) loc (- cdepth 1)))
+                '()))]
+       [(and (list? pattern) (not (list? expr)))
+        '()]
+       [else
+        (error "Unknown pattern" pattern)]))
+
+  ; The #f #f mean that any output result works. It's a bit of a hack
+  (rewriter expr #f #f (reverse root-loc) depth))
+
 (define (rewrite-tree expr #:root [root-loc '()])
   (reap [sow]
     (let ([try-rewrites
@@ -189,6 +266,8 @@
   #:simplify (1 2))
 (define-rule   sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)
   #:simplify (1))
+(define-rule   frac-add    (+ (/ a b) (/ c d))  (/ (+ (* a d) (* b c)) (* b d))
+  #:simplify (1))
 (define-rule   frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))
   #:simplify (1))
 (define-rule   frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))
@@ -198,7 +277,6 @@
 
 ; Square root
 (define-rule   add-sqr-sqrt      x                  (sqr (sqrt x)))
-(define-rule   add-sqrt-sqr      x                  (sqrt (sqr x)))
 (define-rule   rem-square-sqrt   (sqr (sqrt x))     x)
 (define-rule   rem-sqrt-square   (sqrt (sqr x))     x)
 (define-rule   square-mult       (sqr x)            (* x x))
