@@ -59,8 +59,9 @@
 
 (define (first-pass-filter . alts)
   (let loop ([cur-alt (car alts)] [rest-alts (cdr alts)] [acc '()])
-    (let ([rest-alts* (filter (λ (altn) (region-ormap (curry eq? '<) *plausibility-min-region-size*
-						      (errors-compare (alt-errors altn) (alt-errors cur-alt))))
+    (let ([rest-alts* (filter (λ (altn) (or (< (alt-cost altn) (alt-cost cur-alt))
+					    (region-ormap (curry eq? '<) *plausibility-min-region-size*
+							  (errors-compare (alt-errors altn) (alt-errors cur-alt)))))
 			      rest-alts)])
       (if (null? rest-alts*)
 	  acc
