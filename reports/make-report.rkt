@@ -125,12 +125,17 @@
 
 (define (command-result cmd) (strip-end 1 (write-string (system cmd))))
 
+;; Returns #t if the graph was sucessfully made, #f is we had a crash during
+;; the graph making process, or the test itself crashed.
 (define (make-graph-if-valid include-css result tname index)
   (let ([dir (graph-folder-path tname index)])
-    (when (not (null? (first result)))
-      (when (not (directory-exists? dir)) (make-directory dir))
-      (make-graph (first result) (second result) (third result)
-		  (fourth result) dir include-css))))
+    (with-handlers ([(const #t) (λ _ #f)])
+      (if (not (null? (first result)))
+	  (begin (when (not (directory-exists? dir)) (make-directory dir))
+		 (make-graph (first result) (second result) (third result)
+			     (fourth result) dir include-css)
+		 #t)
+	  #f))))
 
 (define (make-report bench-dir)
   (let ([cur-date (current-date)]
@@ -140,21 +145,21 @@
     (let* ([results (get-test-results tests)]
 	   [table-data (get-table-data results tests)])
       (when (not (directory-exists? "graphs")) (make-directory "graphs"))
-      (map (curry make-graph-if-valid '("reports/graph.css"))
-	   results
-	   (map test-name tests)
-	   (build-list (length tests) identity))
-      (let* ([test-dirs (map (λ (t i) (string-append (graph-folder-path (test-name t) i) "graph.html"))
-			    tests
-			    (build-list (length tests) identity))]
-	     [links (map (λ (dir result) (if (null? (cadr result)) '() dir))
-			 test-dirs results)])
-	(write-file "report.md"
-		    (info-stamp cur-date commit branch)
-		    (make-table table-labels table-data
-				#:modifier-alist `((,bad? . red)
-						   (,good? . green))
-				#:row-links links))))))
+      (let ([graph-results (map (curry make-graph-if-valid '("reports/graph.css"))
+				results
+				(map test-name tests)
+				(build-list (length tests) identity))])
+	(let* ([test-dirs (map (λ (t i) (string-append (graph-folder-path (test-name t) i) "graph.html"))
+			       tests
+			       (build-list (length tests) identity))]
+	       [links (map (λ (dir result) (if result dir '()))
+			   test-dirs graph-results)])
+	  (write-file "report.md"
+		      (info-stamp cur-date commit branch)
+		      (make-table table-labels table-data
+				  #:modifier-alist `((,bad? . red)
+						     (,good? . green))
+				  #:row-links links)))))))
 
 (define (make-test-graph testpath)
   (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
