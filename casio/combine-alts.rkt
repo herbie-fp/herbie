@@ -225,7 +225,7 @@
 		     ;; branches, plus a branch cost.
 		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
 		 ;; Build the alt struct and return.
-		 (alt program errs cost #f #f))))])))
+		 (alt program errs cost #f #f 0))))])))
 
 ;; Given a list, and a function for comparing items in the list,
 ;; return the "best" item b, such that for all a in the list, (not (item<? b a))
@@ -249,7 +249,7 @@
 (struct option-aug option (errors^))
 
 (define (alt-with-errors altn errors)
-  (alt (alt-program altn) errors (alt-cost altn) (alt-change altn) (alt-prev altn)))
+  (alt (alt-program altn) errors (alt-cost altn) (alt-change altn) (alt-prev altn) 0))
 
 (define my-eval
   (let ((ns (make-base-namespace)))
