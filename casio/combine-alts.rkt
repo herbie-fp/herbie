@@ -108,12 +108,14 @@
   ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
   ;; keep it, otherwise discard it. Then, remove duplicate alts, where alts are considered the same
   ;; if they have the same error performance and cost.
-  (remove-duplicates (filter (lambda (altn) (region-ormap better?
-							  *plausibility-min-region-size*
-							  (make-cost-error-points altn)
-							  (apply best-cost-errors (remove altn alts))))
-			     (apply first-pass-filter alts))
-		     same?))
+  (if (>= 1 (length alts))
+      alts
+      (remove-duplicates (filter (lambda (altn) (region-ormap better?
+							      *plausibility-min-region-size*
+							      (make-cost-error-points altn)
+							      (apply best-cost-errors (remove altn alts))))
+				 (apply first-pass-filter alts))
+			 same?)))
 
 (define (best-option alts)
   ;; We want to check combinations on every variable, since we don't know
