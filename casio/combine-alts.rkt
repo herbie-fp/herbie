@@ -57,6 +57,15 @@
 	   (loop (cdr rest-arg-lists) (add1 true-count))]
 	  [#t (loop (cdr rest-arg-lists) 0)])))
 
+(define (first-pass-filter . alts)
+  (let loop ([cur-alt (car alts)] [rest-alts (cdr alts)] [acc '()])
+    (if (null? rest-alts)
+	acc
+	(let ([rest-alts* (filter (λ (altn) (region-ormap (curry eq? '<) *plausibility-min-region-size*
+							  (errors-compare (alt-errors altn) (alt-errors cur-alt))))
+				  rest-alts)])
+	  (loop (car rest-alts*) (cdr rest-alts*) (cons cur-alt acc))))))
+
 ;; Determines which alternatives out of a list of alternatives
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
@@ -100,7 +109,7 @@
 							  *plausibility-min-region-size*
 							  (make-cost-error-points altn)
 							  (apply best-cost-errors (remove altn alts))))
-			     alts)
+			     (apply first-pass-filter alts))
 		     same?))
 
 (define (best-option alts)
