@@ -6,8 +6,8 @@
 (require casio/common)
 (require casio/redgreen)
 
-(provide plausible-alts best-combination)
-
+;;(provide plausible-alts best-combination)
+(provide (all-defined-out))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
 (define *branch-cost* 5)
@@ -64,13 +64,15 @@
 							  (errors-compare (alt-errors altn) (alt-errors cur-alt)))))
 			      rest-alts)])
       (if (null? rest-alts*)
-	  acc
+	  (begin (debug "Made it through the first filter: " acc #:from 'regime-changes #:depth 3)
+		 acc)
 	  (loop (car rest-alts*) (cdr rest-alts*) (cons cur-alt acc))))))
 
 ;; Determines which alternatives out of a list of alternatives
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
   (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
+  (*save* alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
