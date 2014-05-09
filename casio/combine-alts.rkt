@@ -65,7 +65,7 @@
 			      rest-alts)])
       (if (null? rest-alts*)
 	  (begin (debug "Made it through the first filter: " acc #:from 'regime-changes #:depth 3)
-		 acc)
+		 (cons cur-alt acc))
 	  (loop (car rest-alts*) (cdr rest-alts*) (cons cur-alt acc))))))
 
 ;; Determines which alternatives out of a list of alternatives
