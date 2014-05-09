@@ -46,6 +46,17 @@
 ;; accidentally filter out a good option.
 (define *plausibility-min-region-size* 3)
 
+;; Works like ormap, except instead of returning true if
+;; any invocation of pred returns true, it returns true only
+;; if at least reg-size invocations return true in a row.
+(define (region-ormap pred reg-size . lsts)
+  (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
+    (cond [(= true-count reg-size) #t]
+	  [(null? rest-arg-lists) #f]
+	  [(apply pred (car rest-arg-lists))
+	   (loop (cdr rest-arg-lists) (add1 true-count))]
+	  [#t (loop (cdr rest-arg-lists) 0)])))
+
 ;; Determines which alternatives out of a list of alternatives
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
@@ -54,16 +65,6 @@
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
     (map (curry cons (alt-cost altn)) (alt-errors altn)))
-  ;; Works like ormap, except instead of returning true if
-  ;; any invocation of pred returns true, it returns true only
-  ;; if at least reg-size invocations return true in a row.
-  (define (region-ormap pred reg-size . lsts)
-    (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
-      (cond [(= true-count reg-size) #t]
-	    [(null? rest-arg-lists) #f]
-	    [(apply pred (car rest-arg-lists))
-	     (loop (cdr rest-arg-lists) (add1 true-count))]
-	    [#t (loop (cdr rest-arg-lists) 0)])))
 
   ;; alts -> [error]
   (define (best-errors . alts)
