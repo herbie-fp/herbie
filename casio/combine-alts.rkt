@@ -6,8 +6,8 @@
 (require casio/common)
 (require casio/redgreen)
 
-(provide plausible-alts best-combination)
-
+;;(provide plausible-alts best-combination)
+(provide (all-defined-out))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
 (define *branch-cost* 5)
@@ -46,24 +46,37 @@
 ;; accidentally filter out a good option.
 (define *plausibility-min-region-size* 3)
 
+;; Works like ormap, except instead of returning true if
+;; any invocation of pred returns true, it returns true only
+;; if at least reg-size invocations return true in a row.
+(define (region-ormap pred reg-size . lsts)
+  (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
+    (cond [(= true-count reg-size) #t]
+	  [(null? rest-arg-lists) #f]
+	  [(apply pred (car rest-arg-lists))
+	   (loop (cdr rest-arg-lists) (add1 true-count))]
+	  [#t (loop (cdr rest-arg-lists) 0)])))
+
+(define (first-pass-filter . alts)
+  (let loop ([cur-alt (car alts)] [rest-alts (cdr alts)] [acc '()])
+    (let ([rest-alts* (filter (λ (altn) (or (< (alt-cost altn) (alt-cost cur-alt))
+					    (region-ormap (curry eq? '<) *plausibility-min-region-size*
+							  (errors-compare (alt-errors altn) (alt-errors cur-alt)))))
+			      rest-alts)])
+      (if (null? rest-alts*)
+	  (begin (debug "Made it through the first filter: " acc #:from 'regime-changes #:depth 3)
+		 (cons cur-alt acc))
+	  (loop (car rest-alts*) (cdr rest-alts*) (cons cur-alt acc))))))
+
 ;; Determines which alternatives out of a list of alternatives
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
   (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
+  (*save* alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
     (map (curry cons (alt-cost altn)) (alt-errors altn)))
-  ;; Works like ormap, except instead of returning true if
-  ;; any invocation of pred returns true, it returns true only
-  ;; if at least reg-size invocations return true in a row.
-  (define (region-ormap pred reg-size . lsts)
-    (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
-      (cond [(= true-count reg-size) #t]
-	    [(null? rest-arg-lists) #f]
-	    [(apply pred (car rest-arg-lists))
-	     (loop (cdr rest-arg-lists) (add1 true-count))]
-	    [#t (loop (cdr rest-arg-lists) 0)])))
 
   ;; alts -> [error]
   (define (best-errors . alts)
@@ -95,12 +108,14 @@
   ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
   ;; keep it, otherwise discard it. Then, remove duplicate alts, where alts are considered the same
   ;; if they have the same error performance and cost.
-  (remove-duplicates (filter (lambda (altn) (region-ormap better?
-							  *plausibility-min-region-size*
-							  (make-cost-error-points altn)
-							  (apply best-cost-errors (remove altn alts))))
-			     alts)
-		     same?))
+  (if (>= 1 (length alts))
+      alts
+      (remove-duplicates (filter (lambda (altn) (region-ormap better?
+							      *plausibility-min-region-size*
+							      (make-cost-error-points altn)
+							      (apply best-cost-errors (remove altn alts))))
+				 (apply first-pass-filter alts))
+			 same?)))
 
 (define (best-option alts)
   ;; We want to check combinations on every variable, since we don't know
