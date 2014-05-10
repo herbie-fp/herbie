@@ -6,3 +6,6 @@ report:
 clean:
 	rm -f index.md
 	find reports/* -type d -exec rm -r {} \;
+
+cost:
+	$(CC) -O0 cost.c -lm -o cost

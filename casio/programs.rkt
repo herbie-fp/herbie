@@ -93,6 +93,10 @@
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
 
+(define (if-fn test if-true if-false) (if test if-true if-false))
+(define (and-fn a b) (and a b))
+(define (or-fn  a b) (or a b))
+
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define operations
@@ -115,6 +119,13 @@
            [asin    ,bfasin  ,asin    140]
            [acos    ,bfacos  ,acos    155]
            [atan    ,bfatan  ,atan    130]
+           [if      ,if-fn   ,if-fn   1]
+           [>       ,bf>     ,>       1]
+           [<       ,bf<     ,<       1]
+           [<=      ,bf<=    ,<=      1]
+           [>=      ,bf>=    ,>=      1]
+           [and     ,and-fn  ,and-fn  1]
+           [or      ,or-fn   ,or-fn   1]
 
            ; For compiling variables
            [*var*   ,bf      ,(*precision*) 0])])
