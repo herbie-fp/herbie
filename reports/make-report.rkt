@@ -89,7 +89,7 @@
       (< 10000 (list-ref row 7))
       (not (number? (list-ref row 1)))
       (> -1 (list-ref row 1))
-      (eq? 'Yes (list-ref row 5))))
+      (eq? 'Yes (list-ref row 6))))
 
 (define (good? row)
   (and (not (bad? row))
