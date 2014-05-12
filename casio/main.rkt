@@ -56,7 +56,7 @@
 	   [result (try-simplify (car sorted) #:conservative #f)])
       (debug "Done:" result #:from 'improve)
       result))
-  (let loop ([alts (list altn)] [olds (list)] [trace (list)]
+  (let loop ([alts (list (try-simplify altn))] [olds (list)] [trace (list)]
 	     [iter max-iters])
     ;; Invariant: (no-duplicates? alts)
     ;; Invariant: (no-duplicates? olds)
