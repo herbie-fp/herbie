@@ -245,8 +245,6 @@
 (define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))           #:simplify (2))
 (define-rule   distribute-lft1-in    (+ (* b a) a)         (* (+ b 1) a)           #:simplify (1))
 (define-rule   distribute-rgt1-in    (+ a (* c a))         (* (+ c 1) a)           #:simplify (1))
-(define-rule   distribute-lft1-in    (+ (* a b) b)         (* (+ a 1) b)           #:simplify ((cdr car)))
-(define-rule   distribute-rgt1-in    (+ b (* a b))         (* (+ a 1) b)           #:simplify ((cdr car)))
 
 ; Difference of squares
 (define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify (1 2))
