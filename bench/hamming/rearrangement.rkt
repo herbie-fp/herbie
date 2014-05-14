@@ -7,8 +7,9 @@
   (- (sqrt (+ x 1)) (sqrt x))
   (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
 
-(casio-bench (x)
+(casio-test (x)
   "Hamming (NMSE) example 3.2, sin(x) / x"
+  (/ (sin x) x)
   (/ (sin x) x))
 
 (casio-test (x eps)
@@ -31,9 +32,10 @@
   (- (/ 1 (sqrt (+ x 1))) (/ 1 (sqrt x)))
   (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
 
-(casio-bench (x)
+(casio-test (x)
   "Hamming (NMSE) problem 3.3.1, 1/(x + 1) - 1/x"
-  (- (/ 1 (+ x 1)) (/ 1 x)))
+  (- (/ 1 (+ x 1)) (/ 1 x))
+  (/ -1 (* x (+ x 1))))
 
 (casio-test (x eps)
   "Hamming (NMSE) problem 3.3.2, tan(x + ε) - tan(x)"
@@ -49,13 +51,15 @@
   "Hamming (NMSE) problem 3.3.4, ³√(x + 1) - ³√x"
   (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3))))
 
-(casio-bench (x eps)
+(casio-test (x eps)
   "Hamming (NMSE) problem 3.3.5, cos(x + ε) - cos(x)"
-  (- (cos (+ x eps)) (cos x)))
+  (- (cos (+ x eps)) (cos x))
+  (+ (* (cos x) (- (cos eps) 1)) (* (sin x) (sin eps))))
 
-(casio-bench (N)
+(casio-test (N)
   "Hamming (NMSE) problem 3.3.6, ln(N + 1) - ln(N)"
-  (- (log (+ N 1)) (log N)))
+  (- (log (+ N 1)) (log N))
+  (log (+ 1 (/ 1 N))))
 
 (casio-test (x)
   "Hamming (NMSE) problem 3.3.7, e^x - 2 + e^-x"
