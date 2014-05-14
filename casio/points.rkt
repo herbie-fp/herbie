@@ -6,7 +6,8 @@
 (require casio/programs)
 
 (provide *points* *exacts* prepare-points make-exacts
-         errors errors-compare errors-difference errors-diff-score)
+         errors errors-compare errors-difference errors-diff-score
+	 errors-score reasonable-error? fn-points ascending-order)
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -89,6 +90,10 @@
             (+ 1 (flulp-error out (->flonum exact)))
             +inf.0)))))
 
+(define (fn-points prog points)
+  (let ([fn (eval-prog prog mode:fl)])
+    (map fn points)))
+
 (define errors-compare-cache (make-hasheq))
 
 (define (reasonable-error? x)
@@ -107,15 +112,9 @@
       (for/list ([error1 errors1] [error2 errors2])
         (cond
          [(and (reasonable-error? error1) (reasonable-error? error2))
-          (cond
-           [(and (= error1 0) (= error2 0)) 0.0]
-	   ; You might think these should be -inf.0 and +inf.0,
-	   ; but that lead to stupid behavior;
-	   ; a least-significant-bit error versus no error
-	   ; would be very heavily weighed
-           [(= error1 0) (log error2)]
-           [(= error2 0) (log error1)]
-           [#t (/ (log (/ error1 error2)) (log 2))])]
+          (if (or (<= error1 0) (<= error2 0))
+              (error "Error values must be positive" error1 error2)
+              (/ (log (/ error1 error2)) (log 2)))]
          [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
           -inf.0]
          [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
@@ -126,7 +125,23 @@
 
 (define (errors-diff-score e1 e2)
   (let ([d (errors-difference e1 e2)])
-    (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) d)]
-		  [(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
-      (+ (apply + reals)
-	 (* 64 (- (length negative-infs) (length positive-infs)))))))
+    (errors-score d)))
+
+(define (errors-score e)
+  (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
+		[(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
+    (+ (apply + reals)
+       (* 64 (- (length negative-infs) (length positive-infs))))))
+
+;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
+;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
+(define (ascending-order var-index l)
+  ;; The number of positives looks like it can vary, so first check how many points there are with a postive
+  ;; number at position 'var-index'
+  (let* ([num-positives (length (filter (compose positive? (curry (flip-args list-ref) var-index)) (*points*)))]
+	 ;; Get the items that correspond to the positive and the negative points in two seperate lists.
+	 [positives (take l num-positives)]
+	 [negatives (drop l num-positives)])
+    ;; Reverse the negatives, since they are initially in descending order, and then
+    ;; append them to the postives to get the points in ascending order.
+    (append (reverse negatives) positives)))

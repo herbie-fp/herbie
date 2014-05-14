@@ -10,55 +10,44 @@
 (require casio/common)
 ;; We need this to know whether a simplification caused a green change
 (require casio/redgreen)
+;; We use make-exacts to precompute functions of constants.
+(require casio/points)
 ;; We grab pattern matching for our canonicalizing rules.
 (require racket/match)
 
 ;; Simplify is the only thing we need to export
 (provide simplify simplify-expression)
 
-;; Simplifies an alternative if simplification would result in a green change,
-;; without undoing the most recent change.
-(define (simplify altn)
+;; Simplifies an alternative at the location specified by the most
+;; recent change's rule. If passed a fitness-function, only applies
+;; the simplification at any given location if fitness-func, when
+;; passed the change, returns true.
+(define (simplify altn #:fitness-func [fit? (const #t)])
+
+  ;; Creates a simplifying change at the given location in the given program
+  (define (make-simplification-change prog location)
+    (let* ([simplified-prog (location-do location prog simplify-expression)]
+	   [new-rule (rule 'simplify (location-get location prog)
+			   (location-get location simplified-prog) '())])
+	(change new-rule location (map (lambda (x) (cons x x)) (get-contained-vars prog)))))
+
   ;; Grab the simplification locations from the rule, and then the location of the
   ;; change, since the slocations are relative to the change.
   (let ([slocations (if (alt-prev altn)
-			(rule-slocations (change-rule (alt-change altn)))
+			(map list (rule-slocations (change-rule (alt-change altn))))
 			'(()))]
 	[location (if (alt-prev altn)
 		      (change-location (alt-change altn))
-		      '(cdr cdr car))])
-    ;;(when (*debug*) (println "Simplifying " (alt-program altn) " at " (map (lambda (l) (append location l))
-;;									   slocations)))
-    ;; Try to create a new, simplified alt, by simplifying at all the slocations
-    (define (simplify-at-locations slocations alt)
-      (if (null? slocations)
-	  ;; If we don't have any slocations left, just return the alt
-	  alt
-	  (let* ([full-location (append location (car slocations))] ; The full location for the simplification
-		 [partly-simplified-prog (location-do full-location 
-						      (alt-program alt)
-						      simplify-expression)] ; Try to simplify the program at the slocation
-		 [new-rule (rule 'simplify
-				 (location-get full-location
-					       (alt-program alt))
-				 (location-get full-location
-					       partly-simplified-prog)
-				 '())] ; Create a new rule for the simplification
-		 [new-change (let ([result (change new-rule full-location (map (lambda (x) (cons x x))
-									       (get-contained-vars (alt-program altn))))])
-			       ;;(debug #:from 'simplification "Created change " result " from " (rule-input new-rule) " to " (rule-output new-rule))
-			       result)] ; Create a change from the old alt
-					; to a new-simplified alt
-		 [new-alt (let ([result (alt-apply alt new-change)])
-			    ;;(debug #:from 'simplification "Simplified to " result)
-			    result)]) ; Create a new alt that's simplified.
-	    ;;(when (*debug*) (println "Simplified to: " partly-simplified-prog))
-	    (if (green? new-alt)
-		(simplify-at-locations (cdr slocations) ; If our new alt is green-tipped, recurse on that for the rest of the slocations
-					new-alt)
-		(simplify-at-locations (cdr slocations) ; If our new alt isn't any better, recurse on the old alt for the rest of the slocations
-					alt)))))
-    (simplify-at-locations slocations altn))) ; Call the recursive function with our given altn and it's simplification locations
+		      '(2))])
+    (debug "Simplifying" (alt-program altn)
+	   "at" (map (curry append location) slocations)
+	   #:from 'simplify #:tag 'enter #:depth 2)
+
+    (apply-changes altn
+                   (filter fit?
+                           (map (compose (curry make-simplification-change (alt-program altn))
+                                         (curry append location))
+                                slocations)))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
@@ -76,7 +65,7 @@
 	    (symbol? (rule-output rule)))
 	  *rules*))
 
-;;Try to apply a list of rules to an expression. 
+;;Try to apply a list of rules to an expression.
 (define (attempt-apply-all rules expr)
   (pipe expr (map (lambda (rule)
 		    (lambda (expr)
@@ -116,7 +105,7 @@
 	(if (null? acc) 0 acc)
 	(let* ([cur-term (car unresolved-terms)]
 	       [rest-terms (cdr unresolved-terms)]
-	       [mterms (filter (lambda (t) 
+	       [mterms (filter (lambda (t)
 				 (equal? (term-atoms t)
 					 (term-atoms cur-term)))
 			       rest-terms)]) ; Grab every term that matches the current term
@@ -147,7 +136,6 @@
 
 ;; Get the atoms of a term. Terms are made up of atoms multiplied together.
 (define (term-atoms expr)
-  ;;(when (*debug*) (println "getting atoms for " expr))
   (cond [(number? expr) '()] ; All constants can be combined
 	[(symbol? expr) (list expr)] ; If the expression is a single variable, then that's it's only atom
 	[(number? (cadr expr)) (cddr expr)] ; If the second item is a number, return everything past it
@@ -183,14 +171,12 @@
 
 ;; Combine all terms that are combinable, and return a result of a list of one or zero terms
 (define (combine-like-terms terms)
-  ;;(when (*debug*) (println "combining: " terms))
+  ;;(debug "Combining terms" terms #:from 'combine-like-terms #:tag 'enter)
   ;; Get the combined constant factor.
-  (let ([new-factor (foldr (lambda (t acc)
-			     ;;(when (*debug*) (println "adding factor: " t))
-			     (+ acc (factor t)))
+  (let ([new-factor (foldr (lambda (t acc) (+ acc (factor t)))
 			   0 terms)]) ; We just fold over terms, trying to combine their constant factors
-    (cond [(= 0 new-factor) #f] ; If our terms canceled, return an empty list.
-	  [(real? (car terms)) (list new-factor)] ; If the terms are constants, just return a list of that factor
+    (cond [(= 0 new-factor) #f] ; If our terms canceled, return false.
+	  [(real? (car terms)) new-factor] ; If the terms are constants, just return a list of that factor
 	  [(symbol? (car terms)) (if (= 1 new-factor) (list (car terms)) (list '* new-factor (car terms)))]
 	  [(eq? '* (caar terms)) (let ([body (if (real? (cadar terms)) (cddar terms) (cdar terms))])
 				   (cond [(= 1 new-factor) (cons '* body)] ; If we have a factor of one, return the body multiplied together
@@ -285,12 +271,14 @@
 
 ;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
 (define (single-simplify expr)
-  (let ([expr* (attempt-apply-all reduction-rules expr)]) ; First attempt to reduce the expression using our reduction rules.
+  (let ([expr* (try-precompute (attempt-apply-all reduction-rules
+						  expr))]) ; First attempt to reduce the expression using our reduction rules.
     (match expr*
       [`(- ,a ,a) 0] ; A number minus itself is zero
       [`(- ,a ,b) (inner-simplify-expression `(+ ,a (- ,b)))] ; Move the minus inwards, and make a recursive call in case the minus needs to be moved further inwards
       [`(- 0) 0] ; Negative zero is still zero
       [`(- (- ,a)) a] ; Double negate is positive
+      [`(- (+ . ,as)) (inner-simplify-expression (cons '+ (map (lambda (a) (list '- a)) as)))] ; Move Subtraction inwards
       [`(/ ,a ,a) 1] ; A number divided by itself is 1
       [`(+ ,a 0) a] ; Additive Identity
       [`(+ 0 ,a) a]
@@ -309,7 +297,14 @@
       [`(+ (+ . ,a) ,b) (addition (cons b a))]
       [`(+ ,a (+ . ,b)) (addition (cons a b))]
       [`(+ . ,a) (addition a)] ; Sort addition in canonical order and attempt to cancel terms
-      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; These next four are the same as the above four, for multiplication
+      ;; Distribute addition (and by extension, subtraction) out of multiplication. We do this before flattening multiplication,
+      ;; because it would be a lot harder to write these rules for arbitrary length multiplication. We do this after flattening
+      ;; addition, because it ensures we cancel all terms without the need to recurse. Finally, we do this after turning subtractions
+      ;; into additions so that subtractions also get distributed.
+      [`(* (+ . ,as) (+ . ,bs)) (addition (apply append (map (lambda (b) (map (lambda (a) (multiplication (list a b))) as)) bs)))]
+      [`(* ,a (+ . ,bs)) (addition (map (lambda (b) (multiplication (list a b))) bs))]
+      [`(* (+ . ,as) ,b) (addition (map (lambda (a) (multiplication (list a b))) as))]
+      [`(* (* . ,a) (* . ,b)) (multiplication (append a b))] ; Flatten out multiplication
       [`(* (* . ,a) ,b) (multiplication (cons b a))]
       [`(* ,a (* . ,b)) (multiplication (cons a b))]
       [`(* . ,a) (multiplication a)]
@@ -327,6 +322,15 @@
       (let ([expr* (cons (car expr)
 			 (map inner-simplify-expression (cdr expr)))])
 	(msingle-simplify expr*))
+      expr))
+
+;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
+(define (try-precompute expr)
+  (if (and (list? expr) (andmap number? (cdr expr)))
+      (let ([value (car (make-exacts `(lambda () ,expr) '(())))]) ; A little hacky, but it makes for pretty good code reuse.
+	(if (rational? value)
+	    value
+	    expr)) ; There are situations, such as 0/0, where precomputing would get us a bad value, but just simplifying causes it to cancel.n
       expr))
 
 (define (simplify-expression expr)

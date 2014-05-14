@@ -6,11 +6,11 @@
 (require casio/common)
 (require racket/pretty)
 
-
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-	 apply-changes alternative<? alternative<>? build-alt alt-changes alt-initial)
+         alt-rewrite-rm alternative<? alternative<>? apply-changes build-alt
+	 alt-initial alt-changes alt-cycles++)
 
-(struct alt (program errors cost change prev) #:transparent
+(struct alt (program errors cost change prev cycles) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
@@ -26,12 +26,16 @@
 
 (define (make-alt prog)
  (let* ([errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) #f #f)))
+    (alt prog errs (program-cost prog) #f #f 0)))
 
 (define (alt-apply altn cng)
   (let* ([prog (change-apply cng (alt-program altn))]
          [errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) cng altn)))
+    (alt prog errs (program-cost prog) (change-add-hardness cng (alt-cycles altn)) altn 0)))
+
+(define (alt-cycles++ altn)
+  (alt (alt-program altn) (alt-errors altn) (alt-cost altn)
+       (alt-change altn) (alt-prev altn) (add1 (alt-cycles altn))))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)
@@ -68,6 +72,12 @@
     (map (curry alt-apply alt)
          (rewrite-expression subtree #:destruct destruct? #:root root-loc))))
 
+(define (alt-rewrite-rm alt #:root [root-loc '()])
+  (let ([subtree (location-get root-loc (alt-program alt))])
+    (map (curry apply-changes alt)
+         (map reverse
+              (rewrite-expression-head subtree #:root root-loc)))))
+
 (define (alternative<>? alt1 alt2)
   "Compare two alternatives; return if incomparable.
    Compares first by a lattice order on points, then by program cost."
@@ -76,9 +86,7 @@
     (and (member '< comparisons) (member '> comparisons))))
 
 (define (alternative<? alt1 alt2)
-  "Compare two alternatives.
-   Compares first by a lattice order on points, then by program cost."
+  "Compare two alternatives by a lattice order on pointwise error."
 
   (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
-    (or (andmap (negate (curry eq? '>)) comparisons)
-        (< (alt-cost alt1) (alt-cost alt2)))))
+    (andmap (negate (curry eq? '>)) comparisons)))

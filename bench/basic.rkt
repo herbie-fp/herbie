@@ -24,10 +24,10 @@
 
 (casio-test (a)
   "Reducing (a+1)^2 - 1"
-  (- (square (+ a 1)) 1)
+  (- (sqr (+ a 1)) 1)
   (* a (+ a 2)))
 
 (casio-test (a b)
   "Reducing a^2 - b^2"
-  (- (square a) (square b))
+  (- (sqr a) (sqr b))
   (* (+ a b) (- a b)))
