@@ -41,11 +41,10 @@
 	  (list start-alt end-alt points exacts)))))
   (let ([start-prog (make-prog test)])
     (let-values ([(start-end-points-exacts-list cpu-mil real-mil garbage-mill)
-		  (time-apply (λ (orig)
-				 (if *handle-crashes*
-				     (with-handlers ([(const #t) (λ _ (display "Crashed!\n") (make-list 4 '()))])
-				       (compute-result orig))
-				     (compute-result orig)))
+		  (time-apply (if *handle-crashes* (λ (orig)
+						     (with-handlers ([(const #t) (λ _ (display "Crashed!\n") (make-list 4 '()))])
+						       (compute-result orig)))
+				  compute-result)
 			      (list start-prog))])
       (append (car start-end-points-exacts-list) (list real-mil)))))
 
@@ -86,7 +85,7 @@
 
 (define (bad? row)
   (or (not (number? (list-ref row 7)))
-      (< 10000 (list-ref row 7))
+      (< 30000 (list-ref row 7))
       (not (number? (list-ref row 1)))
       (> -1 (list-ref row 1))
       (eq? 'Yes (list-ref row 6))))
