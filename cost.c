@@ -35,4 +35,11 @@ main() {
     benchmark(asin(x));
     benchmark(acos(x));
     benchmark(atan(x));
+    benchmark((i&17)?total + x: total - y);
+    benchmark(y > total);
+    benchmark(y < total);
+    benchmark(y >= total);
+    benchmark(y <= total);
+    benchmark((i & 17) && (i & 13));
+    benchmark((i & 17) || (i & 13));
 }

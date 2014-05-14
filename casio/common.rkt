@@ -4,17 +4,19 @@
 (require data/order)
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+)
+         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
+	 flip-args idx-map list-product set-debug-level! *save*)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
+(define *save* (make-parameter #f))
 
-(define (println . args)
+(define (println #:port [p (current-output-port)] . args)
   (for ([val args])
     (if (string? val)
-        (display val)
-        (write val)))
-  (newline)
+        (display val p)
+        (write val p)))
+  (newline p)
   (let ([possible-returns (filter (negate string?) args)])
     (when (not (null? possible-returns))
       (last possible-returns))))
@@ -27,12 +29,36 @@
           [exit . "< "]
           [info . ";; "]))
 
-(define (debug #:from from #:tag (tag #f) . args)
+;; To set a particular #:from max-depth, pass it in here.
+;; To turn on all messages for a particular #:from, pass in a depth of #t.
+;; To set the default, pass in a max depth with the #:from #t.
+(define (set-debug-level! from depth)
+  (let ([existing (cond [(not (*debug*)) '((#t . 0))]
+			[(eq? #t (*debug*)) '((#t . #t))]
+			[#t (*debug*)])])
+    (*debug* (cons (cons from depth) existing))))
+
+(define (debug #:from from #:tag (tag #f) #:depth (depth 1) . args)
   (set! *log*
         (cons (list* from tag args) *log*))
-  (when (*debug*)
+  (when (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
+	    (and (*debug*) ;; If debug is false, never print
+		 (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
+				      ;; If we were given a #:from, and we have it in the dictionary,
+				      ;; look up it's max depth
+				      (dict-ref (*debug*) from)
+				      ;; Otherwise, just use whatevers default.
+				      (dict-ref (*debug*) #t))])
+		   ;; If the max depth is true, turn everything on.
+		   ;; If the max depth isn't positve, turn everything off.
+		   ;; Otherwise, if our dept is less than the max-depth,
+		   ;; return true.
+		   (or (eq? max-depth #t)
+		       (and (>= max-depth depth)
+			    (> max-depth 0))))))
       (display (hash-ref *tags* tag "; "))
       (write from)
+      (display ": ")
       (for/list ([arg args])
         (display " ")
         ((if (string? arg) display write) arg))
@@ -79,8 +105,14 @@
 
 (define (list< list1 list2)
   "Compares lists lexicographically."
-  ; Who picked this terrible API design of returning '< or '>
+  ; Who picked this terrible API design of returning '< or '> ?
   (eq? (datum-order list1 list2) '<))
+
+(define (idx-map fun  lst #:from [start 0])
+  (let loop ([idx start] [lst lst])
+    (if (null? lst)
+        '()
+        (cons (fun (car lst) idx) (loop (+ 1 idx) (cdr lst))))))
 
 (define (enumerate . l)
   (apply map list (range (length (car l))) l))
@@ -93,3 +125,22 @@
 ;; Pipes an initial values through a list of funcs.
 (define (pipe initial funcs)
   ((apply compose (reverse funcs)) initial))
+
+;; Flips the argument order of a two argument function.
+(define (flip-args f) (lambda (x y) (f y x)))
+
+;; A more informative andmap. If any of your results are false, this returns
+;; false. Otherwise, it acts as a normal map.
+(define (info-andmap f l)
+  (let loop ([rest l] [acc '()])
+    (if (null? rest)
+	(reverse acc)
+	(let ([result (f l)])
+	  (and result (loop (cdr rest) (cons result acc)))))))
+
+(define (list-product . subs)
+  (if (null? subs)
+      '(())
+      (for*/list ([fst (car subs)]
+                  [rst (apply list-product (cdr subs))])
+         (cons fst rst))))
