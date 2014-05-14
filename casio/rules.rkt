@@ -326,3 +326,9 @@
   #:simplify (1 2))
 (define-rule   clear-num  (/ a b)  (/ 1 (/ b a))
   #:simplify (2))
+
+; Trigonometry
+(define-rule   cos-sin-sum (+ (sqr (cos a)) (sqr (sin a))) 1)
+(define-rule   1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a)) #:simplify (1))
+(define-rule   1-sin-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify (1))
+
