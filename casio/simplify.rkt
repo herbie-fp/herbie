@@ -18,9 +18,20 @@
 ;; Simplify is the only thing we need to export
 (provide simplify simplify-expression)
 
-(define (simplify altn)
-  (let ([cur-body (program-body (alt-program altn))] [simplifying-changes '()])
+(define (simplify-expression expr)
+  (let ([cur-body expr] [simplifying-changes '()])
     simplifying-changes))
+
+(define (simplify altn)
+  (let* ([location (if (alt-prev altn)
+		       (change-location (alt-change altn))
+		       '(2))]
+	 [slocations (map (λ (sloc) (append location sloc))
+			  (if (alt-prev altn)
+			      (map list (rule-slocations (change-rule (alt-change altn))))
+			      '(())))])
+    (apply append (map (λ (loc) (simplify-expression (location-get loc (alt-program altn))))
+		       slocations))))
 
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule. If passed a fitness-function, only applies
