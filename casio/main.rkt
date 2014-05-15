@@ -34,9 +34,10 @@
 
 (define (analyze-and-rm altn)
   (let ([locs (map car (analyze-local-error altn))])
-    (for/list ([loc locs])
-      (let ([subtree (location-get loc (alt-program altn))])
-	(apply append (map reverse (rewrite-expression-head subtree #:root loc)))))))
+    (apply append
+	   (for/list ([loc locs])
+	     (let ([subtree (location-get loc (alt-program altn))])
+	       (map reverse (rewrite-expression-head subtree #:root loc)))))))
 
 (define (try-simplify altn #:conservative [conservative #t])
   (simplify altn #:fitness-func (if conservative
