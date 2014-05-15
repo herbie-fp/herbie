@@ -8,6 +8,7 @@
 (require casio/redgreen)
 (require casio/analyze-local-error)
 (require casio/simplify)
+(require casio/rules)
 (require casio/combine-alts)
 
 (define (rewrite-local-error altn loc)
@@ -31,6 +32,12 @@
 		    (alt-rewrite-expression altn #:root other)
 		    '())))))))
 
+(define (analyze-and-rm altn)
+  (let ([locs (map car (analyze-local-error altn))])
+    (for/list ([loc locs])
+      (let ([subtree (location-get loc (alt-program alt))])
+	(map reverse (rewrite-expression-head subtree loc #:root loc))))))
+
 (define (try-simplify altn #:conservative [conservative #t])
   (simplify altn #:fitness-func (if conservative
 				    (lambda (chng)
@@ -47,9 +54,70 @@
       (values (improve-with-points orig max-iters)
 	      orig))))
 
+(define *max-threshold* 5)
+(define *min-threshold* 1)
+
+(define (improve-with-points start-altn fuel)
+  (let ([seen-programs (make-hash)])
+    (define (split-greens-nongreens threshold alts)
+      (let-values ([(greens non-greens) (partition (λ (altn)
+						     (> (errors-diff-score (alt-errors (alt-prev altn)
+									   (alt-errors altn)))
+							threshold))
+						   alts)])
+	(values (map remove-red greens)
+		non-greens)))
+    ;; Filter out alts that we've already seen.
+    (define (filter-seen alts)
+      (filter (λ (altn)
+		(not (hash-ref seen-programs
+			       (alt-program altn)
+			       #f)))))
+    (define (step alts maybes olds green-threshold)
+      (let* ([next (best-alt alts)]
+	     [new-alts (get-children next)])
+	(let-values ([(greens non-greens) (split-greens-nongreens green-threshold new-alts)])
+	  (let ([greens-filtered (filter-seen greens)]
+		[non-greens-filtered (filter-seen non-greens)])
+	    ;; Register that we've seen these programs.
+	    (for ([altn (append greens-filtered non-greens-filtered)]) (hash-set! seen-programs (alt-program altn) #t))
+	    (values (append greens (remove next alts))
+		    (append non-greens maybes)
+		    (cons next olds))))))
+    (define (get-children altn)
+      (let* ([change-lists (analyze-and-rm altn)]
+	     [analyze-improved-alts (for/list ([chng-lst change-lists])
+				      (apply-changes altn chng-lst))])
+	(for/list ([unsimplified analyze-improved-alts])
+	  (let ([simplifying-changes (simplify unsimplified)])
+	    (apply-changes unsimplified simplifying-changes)))))
+    (define (simplify-alt altn)
+      (let ([simplifying-changes (simplify altn)])
+	(apply-changes altn simplifying-changes)))
+    (define (infer-regimes alts)
+      (let ([plausible-combinors (plausible-alts alts)])
+	(if (> 2 (length plausible-combinors))
+	    (best-alt alts)
+	    (let ([best-combo (best-combination plausible-combinors
+						#:pre-combo-func (curry (flip-args improve-with-points) fuel))])
+	      (or best-combo (best-alt alts))))))
+    (define (best-alt alts)
+      (car (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts)))
+    (define threshold-reduction (expt (/ *min-threshold* *max-threshold*) (/ fuel)))
+    (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold *max-threshold*])
+      (if (null? alts)
+	  ;; Lower the green threshold
+	  (let ([green-threshold* (* green-threshold threshold-reduction)])
+	    (if (<= green-threshold* *min-threshold*)
+		(infer-regimes (append maybes olds))
+		(let-values ([(greens* non-greens*) (split-greens-nongreens green-threshold* maybes)])
+		  (loop greens* non-greens* olds green-threshold*))))
+	  (let-values ([(alts* maybes* olds*) (step alts olds green-threshold)])
+	    (loop alts* maybes* olds*))))))
+
 ;; This should only be called in a scope where *points* and *exacts* are
 ;; dynamically defined.
-(define (improve-with-points altn max-iters)
+(define (improve-with-points-old altn max-iters)
   (define (final-result alts olds trace)
     (let* ([sorted (sort (reverse (append alts olds trace))
 			 much-better?)]
