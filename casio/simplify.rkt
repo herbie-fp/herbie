@@ -346,5 +346,5 @@
 	    expr)) ; There are situations, such as 0/0, where precomputing would get us a bad value, but just simplifying causes it to cancel.n
       expr))
 
-(define (simplify-expression expr)
+(define (simplify-expression-old expr)
   (decanonicalize (inner-simplify-expression expr)))
