@@ -55,8 +55,8 @@
       (values (improve-with-points orig max-iters)
 	      orig))))
 
-(define *max-threshold* 5)
-(define *min-threshold* 1)
+(define *max-threshold* 30)
+(define *min-threshold* 29)
 
 (define (improve-with-points start-altn fuel)
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
