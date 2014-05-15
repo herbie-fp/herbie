@@ -35,6 +35,18 @@
     (apply append (map (λ (loc) (simplify-expression (location-get loc (alt-program altn))))
 		       slocations))))
 
+(define *goal-cost-improvement* 4)
+(define (rule-cost-improvement rl)
+  (let ([orig-cost (expression-cost (rule-input rl))]
+	[new-cost (expression-cost (rule-output rl))])
+    (if (= new-cost 0) +inf.0
+	(/ orig-cost new-cost))))
+(define goal-rules (sort (filter (λ (rule)
+				   (> (rule-cost-improvement rule) *goal-cost-improvement*))
+				 *rules*)
+			 >
+			 #:key rule-cost-improvement))
+
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule. If passed a fitness-function, only applies
 ;; the simplification at any given location if fitness-func, when
