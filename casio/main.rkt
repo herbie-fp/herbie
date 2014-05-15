@@ -35,8 +35,8 @@
 (define (analyze-and-rm altn)
   (let ([locs (map car (analyze-local-error altn))])
     (for/list ([loc locs])
-      (let ([subtree (location-get loc (alt-program alt))])
-	(map reverse (rewrite-expression-head subtree loc #:root loc))))))
+      (let ([subtree (location-get loc (alt-program altn))])
+	(apply append (map reverse (rewrite-expression-head subtree #:root loc)))))))
 
 (define (try-simplify altn #:conservative [conservative #t])
   (simplify altn #:fitness-func (if conservative
@@ -64,8 +64,9 @@
     ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)
       (let-values ([(greens non-greens) (partition (λ (altn)
-						     (> (errors-diff-score (alt-errors (alt-prev altn)
-									   (alt-errors altn)))
+						     (> (/ (errors-diff-score (alt-errors (alt-prev altn))
+									      (alt-errors altn))
+							   (length (*points*)))
 							threshold))
 						   alts)])
 	(values (map remove-red greens)
@@ -75,7 +76,8 @@
       (filter (λ (altn)
 		(not (hash-ref seen-programs
 			       (alt-program altn)
-			       #f)))))
+			       #f)))
+	      alts))
     ;; Consider one alt from our list of alts to consider, and return
     ;; new versions of alts, maybes, and olds appropriately.
     (define (step alts maybes olds green-threshold)
@@ -113,7 +115,7 @@
 	      (or best-combo (best-alt alts))))))
     ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
-      (car (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts)))
+      (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts))
     ;; How much we reduce the green threshold by every time.
     (define threshold-reduction (expt (/ *min-threshold* *max-threshold*) (/ fuel)))
     ;; Main loop 2.0
@@ -125,8 +127,8 @@
 		(infer-regimes (append maybes olds))
 		(let-values ([(greens* non-greens*) (split-greens-nongreens green-threshold* maybes)])
 		  (loop greens* non-greens* olds green-threshold*))))
-	  (let-values ([(alts* maybes* olds*) (step alts olds green-threshold)])
-	    (loop alts* maybes* olds*))))))
+	  (let-values ([(alts* maybes* olds*) (step alts maybes olds green-threshold)])
+	    (loop alts* maybes* olds* green-threshold))))))
 
 ;; This should only be called in a scope where *points* and *exacts* are
 ;; dynamically defined.
