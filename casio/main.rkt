@@ -65,9 +65,7 @@
     ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)
       (let-values ([(greens non-greens) (partition (λ (altn)
-						     (> (/ (errors-diff-score (alt-errors (alt-prev altn))
-									      (alt-errors altn))
-							   (length (*points*)))
+						     (> (recent-improvement altn)
 							threshold))
 						   alts)])
 	(values (map remove-red greens)
