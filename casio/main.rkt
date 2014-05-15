@@ -80,6 +80,8 @@
     ;; Consider one alt from our list of alts to consider, and return
     ;; new versions of alts, maybes, and olds appropriately.
     (define (step alts maybes olds green-threshold)
+      (debug "Stepping, with alts " alts ", maybes " maybes ", olds " olds ", green-threshold " green-threshold
+	     #:from 'main #:depth 2)
       (let* ([next (best-alt alts)]
 	     [new-alts (get-children next)])
 	(let-values ([(greens non-greens) (split-greens-nongreens green-threshold new-alts)])
