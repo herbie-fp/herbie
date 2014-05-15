@@ -20,6 +20,7 @@
 
 (define (simplify-expression expr)
   (let ([cur-body expr] [simplifying-changes '()])
+    (debug "Attempting to simplify expression: " cur-body #:from 'simplify #:depth 3)
     simplifying-changes))
 
 (define (simplify altn)
@@ -30,6 +31,7 @@
 			  (if (alt-prev altn)
 			      (map list (rule-slocations (change-rule (alt-change altn))))
 			      '(())))])
+    (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 2)
     (apply append (map (λ (loc) (simplify-expression (location-get loc (alt-program altn))))
 		       slocations))))
 
