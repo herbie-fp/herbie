@@ -124,8 +124,8 @@
 	  (let ([green-threshold* (* green-threshold threshold-reduction)])
 	    (if (<= green-threshold* *min-threshold*)
 		(infer-regimes (append maybes olds))
-		(let-values ([(greens* non-greens*) (split-greens-nongreens green-threshold* maybes)])
-		  (loop greens* non-greens* olds green-threshold*))))
+		(let-values ([(alts* maybes*) (split-greens-nongreens green-threshold* maybes)])
+		  (loop alts* maybes* olds green-threshold*))))
 	  (let-values ([(alts* maybes* olds*) (step alts maybes olds green-threshold)])
 	    (loop alts* maybes* olds* green-threshold))))))
 
