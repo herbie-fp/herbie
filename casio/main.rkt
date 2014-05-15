@@ -58,7 +58,10 @@
 (define *min-threshold* 1)
 
 (define (improve-with-points start-altn fuel)
+  ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
+    ;; Given a threshold, split the given alts into those who improve from their parent by
+    ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)
       (let-values ([(greens non-greens) (partition (λ (altn)
 						     (> (errors-diff-score (alt-errors (alt-prev altn)
@@ -73,6 +76,8 @@
 		(not (hash-ref seen-programs
 			       (alt-program altn)
 			       #f)))))
+    ;; Consider one alt from our list of alts to consider, and return
+    ;; new versions of alts, maybes, and olds appropriately.
     (define (step alts maybes olds green-threshold)
       (let* ([next (best-alt alts)]
 	     [new-alts (get-children next)])
@@ -84,15 +89,21 @@
 	    (values (append greens (remove next alts))
 		    (append non-greens maybes)
 		    (cons next olds))))))
+    ;; Produces a list of alts from the given alt by analyzing local error,
+    ;; recursively matching against our ruleset to eliminate the source of that
+    ;; error, and simplifying the results.
     (define (get-children altn)
       (let* ([change-lists (analyze-and-rm altn)]
 	     [analyze-improved-alts (for/list ([chng-lst change-lists])
 				      (apply-changes altn chng-lst))])
 	(for/list ([unsimplified analyze-improved-alts])
 	  (simplify-alt unsimplified))))
+    ;; Simplify an alternative
     (define (simplify-alt altn)
       (let ([simplifying-changes (simplify altn)])
 	(apply-changes altn simplifying-changes)))
+    ;; Takes all the alts we have left, and attempts to combine two into
+    ;; a regime, improving the two branches if the combination was sucessful.
     (define (infer-regimes alts)
       (let ([plausible-combinors (plausible-alts alts)])
 	(if (> 2 (length plausible-combinors))
@@ -100,9 +111,12 @@
 	    (let ([best-combo (best-combination plausible-combinors
 						#:pre-combo-func (curry (flip-args improve-with-points) fuel))])
 	      (or best-combo (best-alt alts))))))
+    ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
       (car (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts)))
+    ;; How much we reduce the green threshold by every time.
     (define threshold-reduction (expt (/ *min-threshold* *max-threshold*) (/ fuel)))
+    ;; Main loop 2.0
     (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold *max-threshold*])
       (if (null? alts)
 	  ;; Lower the green threshold
