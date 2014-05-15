@@ -19,7 +19,7 @@
 (provide simplify simplify-expression)
 
 (define (simplify altn)
-  (let ([cur-body (program-body altn)] [simplifying-changes '()])
+  (let ([cur-body (program-body (alt-program altn))] [simplifying-changes '()])
     simplifying-changes))
 
 ;; Simplifies an alternative at the location specified by the most
