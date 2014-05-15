@@ -18,11 +18,15 @@
 ;; Simplify is the only thing we need to export
 (provide simplify simplify-expression)
 
+(define (simplify altn)
+  (let ([cur-body (program-body altn)] [simplifying-changes '()])
+    simplifying-changes))
+
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule. If passed a fitness-function, only applies
 ;; the simplification at any given location if fitness-func, when
 ;; passed the change, returns true.
-(define (simplify altn #:fitness-func [fit? (const #t)])
+(define (simplify-old altn #:fitness-func [fit? (const #t)])
 
   ;; Creates a simplifying change at the given location in the given program
   (define (make-simplification-change prog location)
