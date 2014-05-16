@@ -132,6 +132,12 @@
 	  (* 64 (length unreals)))
        (length (*points*)))))
 
+(define (avg-bits-error e)
+  (let-values ([(reals unreals) (partition (λ (n) (rational? n)) e)])
+    (/ (+ (apply + (map (λ (e) (/ (log e) (log 2))) reals))
+	  (* 64 (length unreals)))
+       (length (*points*)))))
+
 ;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
 ;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
 (define (ascending-order var-index l)
