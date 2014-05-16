@@ -19,9 +19,15 @@
 (provide simplify simplify-expression)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule.
 =======
+=======
+;; Given an expression, and a root loc at which to base potential change locations,
+;; returns a list of changes that would simplify that expression, based at that root
+;; loc.
+>>>>>>> Added Comments To simplify-expression and find-match-loc
 (define (simplify-expression expr)
   (let simplify-loop ([cur-body expr] [simplifying-changes '()])
     (debug "Attempting to simplify expression: " cur-body #:from 'simplify #:depth 3)
@@ -35,6 +41,11 @@
 		  (simplify-loop (change-apply new-change cur-body) (cons new-change simplifying-changes)))
 		(rule-loop (cdr rules))))))))
 
+;; Given a pattern and an expression, returns a values object with a location
+;; within the expression at which the pattern matches, and it's bindings,
+;; or (values #f #f) if there is no match. If there are multiple matches,
+;; there are no guarantees about which will be returned, although in the current
+;; implementation the bias is toward the top of the tree, and then left to right.
 (define (find-match-loc pattern expr)
   (let loop ([loc-queue '(())])
     (if (null? loc-queue)
