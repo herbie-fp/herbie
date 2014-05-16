@@ -23,6 +23,19 @@
     (debug "Attempting to simplify expression: " cur-body #:from 'simplify #:depth 3)
     simplifying-changes))
 
+(define (find-match-loc pattern expr)
+  (let loop ([loc-queue '(())])
+    (if (null? loc-queue)
+	#f
+	(let ([cur-exp (location-get (car loc-queue) expr)]
+	      [cur-loc (car loc-queue)])
+	  (if (pattern-match pattern cur-exp)
+	      cur-loc
+	      (loop (append (cdr loc-queue) (map (λ (loc-seg) (append cur-loc (list loc-seg)))
+						 (cond [(not (list? cur-exp)) '()]
+						       [(= (length cur-exp) 2) '(1)]
+						       [#t '(1 2)])))))))))
+
 (define (simplify altn)
   (let* ([location (if (alt-prev altn)
 		       (change-location (alt-change altn))
