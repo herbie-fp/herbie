@@ -62,9 +62,8 @@
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
     (define (recent-improvement altn)
-      (/ (errors-diff-score (alt-errors altn)
-			    (alt-errors (alt-prev altn)))
-	 (length (*points*))))
+      (errors-diff-score (alt-errors altn)
+			 (alt-errors (alt-prev altn))))
     ;; Given a threshold, split the given alts into those who improve from their parent by
     ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)

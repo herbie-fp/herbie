@@ -119,8 +119,8 @@
      [#t (error "Failed to classify error1 and error2" error1 error2)])))
 
 (define (errors-diff-score e1 e2)
-  (let ([es1 (errors-score e1)]
-	[es2 (errors-score e2)])
+  (let ([es1 (avg-bits-error e1)]
+	[es2 (avg-bits-error e2)])
     (- es1 es2)))
 
 (define (errors-score e)
@@ -128,6 +128,12 @@
 		[(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
     (+ (apply + reals)
        (* 64 (- (length negative-infs) (length positive-infs))))))
+
+(define (avg-bits-error e)
+  (let-values ([(reals unreals) (partition (λ (n) (rational? n)) e)])
+    (/ (+ (apply + (map (λ (e) (/ (log e) (log 2))) reals))
+	  (* 64 (length unreals)))
+       (length (*points*)))))
 
 ;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
 ;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).
