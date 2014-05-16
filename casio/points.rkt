@@ -119,8 +119,9 @@
      [#t (error "Failed to classify error1 and error2" error1 error2)])))
 
 (define (errors-diff-score e1 e2)
-  (let ([d (errors-difference e1 e2)])
-    (errors-score d)))
+  (let ([es1 (errors-score e1)]
+	[es2 (errors-score e2)])
+    (- es1 es2)))
 
 (define (errors-score e)
   (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
