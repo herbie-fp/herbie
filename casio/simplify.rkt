@@ -19,9 +19,17 @@
 (provide simplify simplify-expression)
 
 (define (simplify-expression expr)
-  (let ([cur-body expr] [simplifying-changes '()])
+  (let simplify-loop ([cur-body expr] [simplifying-changes '()])
     (debug "Attempting to simplify expression: " cur-body #:from 'simplify #:depth 3)
-    simplifying-changes))
+    ;; The absolute dumbest thing: Try to find places our goal rules already apply, and apply them.
+    (let rule-loop ([rules goal-rules])
+      (if (null? rules)
+	  (reverse simplifying-changes)
+	  (let-values ([(rule-match-loc rule-match-bindings) (find-match-loc (rule-input (car rules)) cur-body)])
+	    (if rule-match-loc
+		(let ([new-change (change (car rules) rule-match-loc rule-match-bindings)])
+		  (simplify-loop (change-apply new-change cur-body) (cons new-change simplifying-changes)))
+		(rule-loop (cdr rules))))))))
 
 (define (find-match-loc pattern expr)
   (let loop ([loc-queue '(())])
@@ -37,6 +45,10 @@
 							 [(= (length cur-exp) 2) '(1)]
 							 [#t '(1 2)]))))))))))
 
+(define (append-to-change-locations chngs loc-prefix)
+  (map (λ (chng) (change (change-rule chng) (append loc-prefix (change-location chng)) (change-bindings chng)))
+       chngs))
+
 (define (simplify altn)
   (let* ([location (if (alt-prev altn)
 		       (change-location (alt-change altn))
@@ -46,7 +58,7 @@
 			      (map list (rule-slocations (change-rule (alt-change altn))))
 			      '(())))])
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 2)
-    (apply append (map (λ (loc) (simplify-expression (location-get loc (alt-program altn))))
+    (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 		       slocations))))
 
 (define *goal-cost-improvement* 4)
