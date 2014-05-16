@@ -30,15 +30,16 @@
 (define (find-match-loc pattern expr)
   (let loop ([loc-queue '(())])
     (if (null? loc-queue)
-	#f
+	(values #f #f)
 	(let ([cur-exp (location-get (car loc-queue) expr)]
 	      [cur-loc (car loc-queue)])
-	  (if (pattern-match pattern cur-exp)
-	      cur-loc
-	      (loop (append (cdr loc-queue) (map (λ (loc-seg) (append cur-loc (list loc-seg)))
-						 (cond [(not (list? cur-exp)) '()]
-						       [(= (length cur-exp) 2) '(1)]
-						       [#t '(1 2)])))))))))
+	  (let ([bindings (pattern-match pattern cur-exp)])
+	    (if bindings
+		(values cur-loc bindings)
+		(loop (append (cdr loc-queue) (map (λ (loc-seg) (append cur-loc (list loc-seg)))
+						   (cond [(not (list? cur-exp)) '()]
+							 [(= (length cur-exp) 2) '(1)]
+							 [#t '(1 2)]))))))))))
 
 >>>>>>> Added find-match-loc
 (define (simplify altn)
