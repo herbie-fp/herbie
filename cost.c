@@ -42,4 +42,7 @@ main() {
     benchmark(y <= total);
     benchmark((i & 17) && (i & 13));
     benchmark((i & 17) || (i & 13));
+    benchmark(sinh(x));
+    benchmark(cosh(x));
+    benchmark(tanh(x));
 }
