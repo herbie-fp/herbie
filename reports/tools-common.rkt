@@ -1,11 +1,6 @@
 #lang racket
 
-(provide (all-defined-out))
-
-(define-syntax (qexpand stx)
-  (syntax-case stx ()
-    [(_ expr)
-     #'(syntax->datum (expand-once 'expr))]))
+(provide text write-file write-string copy-file-overwriting)
 
 ;; Simple inline printing
 (define (text . args)
@@ -26,3 +21,8 @@
   (syntax-case stx ()
     [(_ . rest)
      #'(with-output-to-string (lambda () . rest))]))
+
+(define (copy-file-overwriting src dest)
+  "Copies a file, replacing the file at destination if it exists."
+  (when (file-exists? dest) (delete-file dest))
+  (copy-file src dest))
