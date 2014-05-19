@@ -3,9 +3,11 @@
 
 ; All code examples from mathjs
 ; https://github.com/josdejong/mathjs/blob/master/
+; from files in
+; /lib/function/arithmetic/
 
 (casio-bench (re im)
-  "/lib/function/arithmetic/abs.js math.abs for complex arguments"
+  "math.abs on complex"
   (sqrt (+ (* re re) (* im im))))
 
 (casio-test (x)
@@ -15,14 +17,14 @@
 
 ; Manually expanded math.multiply
 (casio-bench (re im) ; real part
-  "/lib/function/arithmetic/cube.js math.cube for complex arguments, real part"
+  "math.cube on complex, real part"
   (- (* (- (* x.re x.re) (* x.im x.im)) ; x^2.re
         x.re)
      (* (+ (* x.re x.im) (* x.im x.re)) ; x^2.im
         x.im)))
 
 (casio-bench (re im) ; imag part
-  "/lib/function/arithmetic/cube.js math.cube for complex arguments, imaginary part"
+  "math.cube on complex, imaginary part"
   (+ (* (- (* x.re x.re) (* x.im x.im)) ; x^2.re
         x.im)
      (* (+ (* x.re x.im) (* x.im x.re)) ; x^2.im

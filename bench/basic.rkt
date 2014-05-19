@@ -3,22 +3,22 @@
 
 ; Some tests on Casio's ability to reassociate and cancel
 (casio-test (x y)
-  "Cancel after commute"
+  "Commute"
   (- (+ x y) (+ y x))
   0)
 
 (casio-test (x)
-  "Cancel after associate"
+  "Associate"
   (- (+ 1 x) x)
   1)
 
 (casio-test (x)
-  "Cancel after associate and commutate"
+  "Associate and commute"
   (- (+ x 1) x)
   1)
 
 (casio-test (x y z)
-  "Cancel after commute and associate"
+  "Commute and associate"
   (- (+ (+ x y) z) (+ x (+ y z)))
   0)
 
