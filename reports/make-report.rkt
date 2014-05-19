@@ -108,7 +108,7 @@
          [final-tname (substring stripped-tname 0 (min (string-length stripped-tname) name-bound))])
     (string-append index-label final-tname "/")))
 
-(struct table-row (name status delta inf- inf+ input output time))
+(struct table-row (name status delta target inf- inf+ input output time))
 
 (define (get-table-data results)
   (for/list ([result results])
@@ -125,26 +125,29 @@
                            (test-result-points result)
                            (test-result-exacts result)))]
              [diff (errors-difference start-errors end-errors)]
-             [total-score (errors-score diff)]
-             [target-score (if good-errors (errors-diff-score end-errors good-errors) #f)])
+             [total-score (/ (errors-score diff) (length diff))]
+             [target-score
+              (if good-errors
+                  (/ (errors-diff-score end-errors good-errors) (length diff)) #f)])
         (let*-values ([(reals infs) (partition reasonable-error? diff)]
                       [(good-inf bad-inf) (partition positive? infs)])
           (table-row name
                      (cond
                       [(not good-errors) "no-compare"]
-                      [(and target-score (> total-score (+ 1 target-score))) "gt-target"]
-                      [(and target-score (< (abs (- total-score target-score)) 1)) "eq-target"]
+                      [(> total-score (+ target-score 1)) "gt-target"]
+                      [(> total-score (- target-score 1)) "eq-target"]
                       [(< total-score -1) "lt-start"]
                       [(< total-score 1) "eq-start"]
-                      [(and target-score (< total-score (- target-score 1))) "lt-target"])
-                     (/ total-score (length diff))
+                      [(< total-score (- target-score 1)) "lt-target"])
+                     total-score
+                     target-score
                      (length good-inf)
                      (length bad-inf)
                      (program-body (alt-program (test-result-start-alt result)))
                      (program-body (alt-program (test-result-end-alt result)))
                      (test-result-time result))))]
      [else
-      (table-row name "crash" #f #f #f #f (test-result-time result))])))
+      (table-row name "crash" #f #f #f #f #f #f (test-result-time result))])))
 
 (define (format-time ms)
   (cond
@@ -158,12 +161,20 @@
         [branch (command-result "git rev-parse --abbrev-ref HEAD")])
 
     (define table-labels
-      '("Test" "Δ [bits]" "∞ → ℝ" "ℝ → ∞" "Input" "Output" "Time"))
+      '("Test" "Δ [bits]" "Target [bits]" "∞ → ℝ" "ℝ → ∞" "Input" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
     (copy-file-overwriting "reports/report.css"
                            (build-path dir "report.css"))
+
+    (define total-time (apply + (map table-row-time table-data)))
+    (define total-passed
+      (apply + (for/list ([row table-data])
+                 (if (member (table-row-status row) '("gt-target" "eq-target")) 1 0))))
+    (define total-available
+      (apply + (for/list ([row table-data])
+                 (if (not (equal? (table-row-status row) "no-compare")) 1 0))))
 
     (write-file file
       (printf "<!doctype html>\n")
@@ -177,6 +188,13 @@
       (printf "<dt>Date:</dt><dl>~a</dl>\n" (date->string (current-date)))
       (printf "<dt>Commit:</dt><dl>~a on ~a</dl>\n" commit branch)
       (printf "</dl>\n")
+
+      (printf "<div id='large'>\n")
+      (printf "<div>Time: <span class='number'>~a</span></div>\n"
+              (format-time total-time))
+      (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
+              total-passed total-available)
+      (printf "</div>\n")
 
       (printf "<table id='results'>\n")
       (printf "<thead><tr>")
@@ -192,13 +210,18 @@
                 (if (table-row-delta result)
                     (/ (round (* (table-row-delta result) 10)) 10)
                     ""))
+        (printf "<td>~a</td>"
+                (if (table-row-target result)
+                    (/ (round (* (table-row-target result) 10)) 10)
+                    ""))
         (printf "<td>~a</td>" (or (table-row-inf- result) ""))
         (printf "<td>~a</td>" (or (table-row-inf+ result) ""))
         (printf "<td>~a</td>" (or (table-row-input result) ""))
-        (printf "<td>~a</td>" (or (table-row-output result) ""))
+        #;(printf "<td>~a</td>" (or (table-row-output result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
-        (when link
-          (printf "<td><a href='~a'>more</a></td>" (path->string link)))
+        (if link
+          (printf "<td><a href='~a'>[MORE]</a></td>" (path->string link))
+          (printf "<td>crash</td>"))
         (printf "</tr>\n"))
       (printf "</tbody>\n")
       (printf "</table>\n")
