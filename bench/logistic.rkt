@@ -2,7 +2,7 @@
 (require casio/test)
 
 (casio-test (x y)
-  "Akshay's logistic regression example 1"
+  "Logistic regression 1"
 
   (- (/ 1 (+ 1 (exp (- x)))) y)
 
@@ -12,7 +12,7 @@
 
 
 (casio-test (x y)
-  "Akshay's logistic regression example 2"
+  "Logistic regression 2"
 
   (- (log (+ 1 (exp x))) (* x y))
 

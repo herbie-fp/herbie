@@ -3,31 +3,31 @@
 
 ; Some tests on Casio's ability to reassociate and cancel
 (casio-test (x y)
-  "Canceling after commutation"
+  "Cancel after commute"
   (- (+ x y) (+ y x))
   0)
 
 (casio-test (x)
-  "Canceling after reassociation"
+  "Cancel after associate"
   (- (+ 1 x) x)
   1)
 
 (casio-test (x)
-  "Canceling after reassociation and commutation"
+  "Cancel after associate and commutate"
   (- (+ x 1) x)
   1)
 
 (casio-test (x y z)
-  "Canceling after commutation and reassociation"
+  "Cancel after commute and associate"
   (- (+ (+ x y) z) (+ x (+ y z)))
   0)
 
 (casio-test (a)
-  "Reducing (a+1)^2 - 1"
+  "Expanding a square"
   (- (sqr (+ a 1)) 1)
   (* a (+ a 2)))
 
 (casio-test (a b)
-  "Reducing a^2 - b^2"
+  "Difference of squares"
   (- (sqr a) (sqr b))
   (* (+ a b) (- a b)))
