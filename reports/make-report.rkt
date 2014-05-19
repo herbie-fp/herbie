@@ -108,7 +108,7 @@
          [final-tname (substring stripped-tname 0 (min (string-length stripped-tname) name-bound))])
     (string-append index-label final-tname "/")))
 
-(struct table-row (name status delta inf- inf+ program time))
+(struct table-row (name status delta inf- inf+ input output time))
 
 (define (get-table-data results)
   (for/list ([result results])
@@ -140,7 +140,8 @@
                      (/ total-score (length diff))
                      (length good-inf)
                      (length bad-inf)
-                     (alt-program (test-result-end-alt result))
+                     (program-body (alt-program (test-result-start-alt result)))
+                     (program-body (alt-program (test-result-end-alt result)))
                      (test-result-time result))))]
      [else
       (table-row name "crash" #f #f #f #f (test-result-time result))])))
@@ -157,7 +158,7 @@
         [branch (command-result "git rev-parse --abbrev-ref HEAD")])
 
     (define table-labels
-      '("Test" "Δ [bits]" "∞ → ℝ" "ℝ → ∞" "Program" "Time"))
+      '("Test" "Δ [bits]" "∞ → ℝ" "ℝ → ∞" "Input" "Output" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
@@ -193,7 +194,8 @@
                     ""))
         (printf "<td>~a</td>" (or (table-row-inf- result) ""))
         (printf "<td>~a</td>" (or (table-row-inf+ result) ""))
-        (printf "<td>~a</td>" (or (table-row-program result) ""))
+        (printf "<td>~a</td>" (or (table-row-input result) ""))
+        (printf "<td>~a</td>" (or (table-row-output result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (when link
           (printf "<td><a href='~a'>more</a></td>" (path->string link)))
