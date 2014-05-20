@@ -39,7 +39,11 @@
 	      orig))))
 
 (define *max-threshold* 30)
+<<<<<<< HEAD
 (define *min-threshold* 25)
+=======
+(define *min-threshold* 20)
+>>>>>>> Reintroduced Regime Changes, Stopped From Spinning Out
 
 (define (improve-with-points max-threshold min-threshold thresh-step start-altn)
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
@@ -111,7 +115,11 @@
 	      (or best-combo (best-alt alts))))))
     ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
+<<<<<<< HEAD
       (argmin (λ (altn) (avg-bits-errors (alt-errors altn))) alts))
+=======
+      (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts))
+>>>>>>> Reintroduced Regime Changes, Stopped From Spinning Out
     ;; Main loop 2.0
     (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold max-threshold])
       (if (null? alts)
