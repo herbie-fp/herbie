@@ -92,7 +92,7 @@
 		[non-greens-filtered (filter-seen non-greens)])
 	    ;; Register that we've seen these programs.
 	    (for ([altn (append greens-filtered non-greens-filtered)]) (hash-set! seen-programs (alt-program altn) #t))
-	    (values (append greens (remove next alts))
+	    (values (append greens (map alt-cycles++ (remove next alts)))
 		    (append non-greens maybes)
 		    (cons next olds))))))
     ;; Produces a list of alts from the given alt by analyzing local error,
