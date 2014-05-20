@@ -47,9 +47,12 @@
   (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1)))
   (/ 2 (* x (- (* x x) 1))))
 
-(casio-bench (x)
+(casio-test (x)
   "NMSE problem 3.3.4"
-  (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3))))
+  (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3)))
+  (/ 1 (+ (+ (expt (+ x 1) (/ 2 3))
+             (expt (* x (+ x 1)) (/ 1 3)))
+          (expt x (/ 2 3)))))
 
 (casio-test (x eps)
   "NMSE problem 3.3.5"
