@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 RHOST="totalcrazyhack.net"
 RHOSTDIR="/var/www/casio"
@@ -8,23 +9,22 @@ T=$(date +"%y%m%d%H%M%S")
 B=$(git rev-parse --abbrev-ref HEAD)
 C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
 RFOLDER="reports"
-RDIR="$RFOLDER/$T-$(hostname)-$B-$C"
+RDIR="$T-$(hostname)-$B-$C"
+
 mkdir "$RDIR"
-mv report.md "$RDIR/report.md"
 mv graphs "$RDIR/"
-cp "$RFOLDER/reportStyle.css" "$RDIR/reportStyle.css"
-pandoc --css "reportStyle.css" -f markdown -t html -o "$RDIR/report.html" "$RDIR/report.md"
 
 read -p "Publish? (y/N) " yn
 case $yn in
     y)
 	read -p "Username: " user
 	rsync --verbose --recursive "$RDIR" "$user@$RHOST:$RHOSTDIR/$RFOLDER"
+        ssh "$user@$RHOST" chmod a+rx "$RHOSTDIR/$RFOLDER" -R
 	REPORTS=$(ssh $user@$RHOST "cd $RHOSTDIR/$RFOLDER; find * -maxdepth 0 -type d")
 	racket reports/make-index.rkt $REPORTS
-	mv index.md "$RFOLDER/index.md"
-	pandoc -f markdown -t html -o "$RFOLDER/index.html" "$RFOLDER/index.md"
-	rsync --verbose --recursive "$RFOLDER/index.html" "$user@$RHOST:$RHOSTDIR/$RFOLDER"
+	pandoc -f markdown -t html -o "index.html" "index.md"
+	rsync --verbose --recursive "index.html" "$user@$RHOST:$RHOSTDIR/$RFOLDER"
+        rm index.html
 	;;
     *)
 	echo "Report copied, but not published."

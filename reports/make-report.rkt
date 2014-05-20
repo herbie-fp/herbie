@@ -102,7 +102,7 @@
        [else #f]))))
 
 (define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/" "")]
+  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
          [index-label (number->string index)]
          [name-bound (- *graph-folder-name-length* (string-length index-label))]
          [final-tname (substring stripped-tname 0 (min (string-length stripped-tname) name-bound))])
@@ -216,8 +216,8 @@
                     ""))
         (printf "<td>~a</td>" (or (table-row-inf- result) ""))
         (printf "<td>~a</td>" (or (table-row-inf+ result) ""))
-        (printf "<td>~a</td>" (or (table-row-input result) ""))
-        #;(printf "<td>~a</td>" (or (table-row-output result) ""))
+        (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
+        #;(printf "<td><code>~a</code></td>" (or (table-row-output result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (if link
           (printf "<td><a href='~a'>[MORE]</a></td>" (path->string link))
