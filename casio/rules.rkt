@@ -259,9 +259,14 @@
 (define-rule   +-rgt-identity    (+ a 0)               a)
 (define-rule   +-inverses        (- a a)               0)
 (define-rule   sub-neg           (- a b)               (+ a (- b)))
+(define-rule   unsub-neg         (+ a (- b))           (- a b))
+(define-rule   remove-double-neg (- (- a))             a)
 (define-rule   *-lft-identity    (* 1 a)               a)
 (define-rule   *-rgt-identity    (* a 1)               a)
 (define-rule   *-inverses        (/ a a)               1)
+(define-rule   div-inv           (/ a b)               (* a (/ b)))
+(define-rule   un-div-inv        (* a (/ b))           (/ a b))
+(define-rule   remove-double-div (/ (/ a))             a)
 
 ; Dealing with fractions
 (define-rule   div-sub     (/ (- a b) c)        (- (/ a c) (/ b c))
