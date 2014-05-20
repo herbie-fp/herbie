@@ -2,7 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out change*) (struct-out rule) change-add-hardness change*-hardness)
+(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out change*) (struct-out rule) change-add-hardness changes-apply)
 
 ;; Our own pattern matcher.
 ;
@@ -220,6 +220,10 @@
         [template (rule-output (change-rule cng))]
         [bnd (change-bindings cng)])
     (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
+
+(define (changes-apply chngs prog)
+  (pipe prog (map (λ (chng) (curry change-apply chng))
+		  chngs)))
 
 
 ; Now we define some rules
