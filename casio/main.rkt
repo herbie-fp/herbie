@@ -77,7 +77,14 @@
       (let* ([next (best-alt alts)]
 	     [new-alts (get-children next)])
 	(let-values ([(greens non-greens) (split-greens-nongreens green-threshold new-alts)])
+<<<<<<< HEAD
 	  (let ([greens-filtered (filter-seen greens)])
+=======
+	  (let ([greens-filtered (filter-seen greens)]
+		[non-greens-filtered (filter-seen non-greens)])
+	    ;; Register that we've seen these programs.
+	    (for ([altn (append greens-filtered non-greens-filtered)]) (hash-set! seen-programs (alt-program altn) #t))
+>>>>>>> Added Cycles Into Main Loop
 	    (values (append greens (map alt-cycles++ (remove next alts)))
 		    (append non-greens maybes)
 		    (cons next olds))))))
