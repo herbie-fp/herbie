@@ -3,6 +3,7 @@
 (require casio/alternative)
 (require casio/points)
 (require casio/common)
+(require casio/rules)
 (require reports/html-tools)
 (require reports/svg-tools)
 
@@ -10,7 +11,7 @@
 
 (struct graph-line (points color name width) #:transparent)
 
-(define *default-width* 2)
+(define *default-width* 4)
 
 (define good-point? (compose reasonable-error? cdr))
 
@@ -122,36 +123,35 @@
     (copyr-file css (include-path dir i "css")))
 
   ;; Generate the html for our graph page
-  (let ([page-path (string-append dir "graph.html")]
-	[xs (map car points)])
-    (let ([pre-error-lines (alt->error-lines xs start "yellow" "pre-errors" #:width 5)]
-	  [post-error-lines (alt->error-lines xs end "blue" "post-errors")]
-	  [improvement-lines (get-improvement-lines xs start end "green" "improvement")]
-	  [exacts-lines (ys->tokenized-lines xs exacts "green" "exacts" 8)]
-	  [pre-behavior-lines (alt->behave-lines xs start "yellow" "pre-behavior" #:width 5)]
-	  [post-behavior-lines (alt->behave-lines xs end "blue" "post-behavior")])
-      (write-file page-path
-		  (html (newline)
-			(head (newline)
-			      ;; Include all our given css
-			      (for/list ([i (build-list (length include-css) identity)])
-				(link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen")))
-				(newline))
-			      (newline)
-			      (body (newline)
-				    (text (make-graph-svg (append improvement-lines pre-error-lines post-error-lines)
-							  0 0 800 800 #:y-scale 'lin))
-				    (newline)
-				    (text (make-graph-svg (append exacts-lines pre-behavior-lines post-behavior-lines)
-							  0 900 800 800))
-				    (newline)
-				    (br)
-				    (text "Starting Program: " (alt-program start) "\n")
-				    (br)
-				    (newline)
-				    (text "Ending Program: " (alt-program end) "\n")
-				    (newline))
-			      ))))))
+  (let* ([page-path (string-append dir "graph.html")]
+         [xs (map car points)]
+         [pre-error-lines (alt->error-lines xs start "red" "initial")]
+         [post-error-lines (alt->error-lines xs end "blue" "final")])
+    (write-file page-path
+      (printf "<!doctype html>\n")
+      (printf "<html>\n")
+      (printf "<head>")
+      (printf "<meta charset='utf-8' />")
+      (for/list ([i (range (length include-css))])
+      	(link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen"))))
+      (printf "</head>\n")
+
+      (printf "<body>\n")
+      (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400 #:y-scale 'lin))
+
+      (printf "<ol id='process-info'>\n")
+      (let loop ([altn end])
+        (cond
+         [(not (alt-prev altn))
+          (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
+         [else
+          (loop (alt-prev altn)) ; Recursively print previous alternatives
+          (printf "<li>Considered <span class='count'>~a</span> options "
+                  (change*-hardness (alt-change altn)))
+          (printf "and applied <span class='rule'>~a</span> "
+                  (rule-name (change-rule (alt-change altn))))
+          (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
+      (printf "</ol>\n"))))
 
 ;; Copies a file, replacing the file at destination if it exists.
 (define (copyr-file src dest)
