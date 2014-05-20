@@ -52,13 +52,13 @@
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     (let ([orig (make-alt prog)])
-      (values (improve-with-points orig max-iters)
+      (values (improve-with-points *max-threshold* *min-threshold* (expt (/ *min-threshold* *max-threshold*) (/ max-iters)) orig)
 	      orig))))
 
 (define *max-threshold* 30)
-(define *min-threshold* 29)
+(define *min-threshold* 20)
 
-(define (improve-with-points start-altn fuel)
+(define (improve-with-points max-threshold min-threshold thresh-step start-altn)
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
     (define (recent-improvement altn)
@@ -115,21 +115,23 @@
 	(if (> 2 (length plausible-combinors))
 	    (best-alt alts)
 	    (let ([best-combo (best-combination plausible-combinors
-						#:pre-combo-func (curry (flip-args improve-with-points) fuel))])
+						#:pre-combo-func (let ([pre-num-points (length (*points*))])
+								   (λ (altn)
+								     (let* ([post-num-points (length (*points*))]
+									    [ratio (/ pre-num-points post-num-points)])
+								       (improve-with-points (* ratio min-threshold) (* ratio max-threshold)
+											    thresh-step altn)))))])
 	      (or best-combo (best-alt alts))))))
     ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
       (argmax (λ (altn) (- (errors-score (alt-errors altn)))) alts))
-    ;; How much we reduce the green threshold by every time.
-    (define threshold-reduction (expt (/ *min-threshold* *max-threshold*) (/ fuel)))
     ;; Main loop 2.0
-    (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold *max-threshold*])
+    (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold max-threshold])
       (if (null? alts)
 	  ;; Lower the green threshold
-	  (let ([green-threshold* (* green-threshold threshold-reduction)])
-	    (if (<= green-threshold* *min-threshold*)
-		#;(infer-regimes (append maybes olds))
-		(best-alt (append maybes olds))
+	  (let ([green-threshold* (* green-threshold thresh-step)])
+	    (if (<= green-threshold* min-threshold)
+		(infer-regimes (append maybes olds))
 		(let-values ([(alts* maybes*) (split-greens-nongreens green-threshold* maybes)])
 		  (loop alts* maybes* olds green-threshold*))))
 	  (let-values ([(alts* maybes* olds*) (step alts maybes olds green-threshold)])
