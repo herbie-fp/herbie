@@ -39,8 +39,6 @@
     (*debug* (cons (cons from depth) existing))))
 
 (define (debug #:from from #:tag (tag #f) #:depth (depth 1) . args)
-  (set! *log*
-        (cons (list* from tag args) *log*))
   (when (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
 	    (and (*debug*) ;; If debug is false, never print
 		 (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
@@ -56,13 +54,14 @@
 		   (or (eq? max-depth #t)
 		       (and (>= max-depth depth)
 			    (> max-depth 0))))))
-      (display (hash-ref *tags* tag "; "))
-      (write from)
-      (display ": ")
-      (for/list ([arg args])
-        (display " ")
-        ((if (string? arg) display write) arg))
-      (newline)))
+    (set! *log* (cons (list* from tag args) *log*))
+    (display (hash-ref *tags* tag "; "))
+    (write from)
+    (display ": ")
+    (for/list ([arg args])
+      (display " ")
+      ((if (string? arg) display write) arg))
+    (newline)))
 
 (define (debug-reset)
   (set! *log* '()))
