@@ -1,16 +1,6 @@
 #lang racket
 
-(provide text write-file write-string copy-file-overwriting)
-
-;; Simple inline printing
-(define (text . args)
-  (for ([val args])
-    (cond [(string? val)
-	   (display val)]
-	  [(number? val)
-	   (display (~a val #:max-width 7))]
-	  [#t
-	   (write val)])))
+(provide write-file write-string copy-file-overwriting)
 
 (define-syntax (write-file stx)
   (syntax-case stx ()
