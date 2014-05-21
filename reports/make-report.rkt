@@ -63,22 +63,22 @@
 	       [end-alt (improve-with-points start-alt (*num-iterations*))])
 	  (list start-alt end-alt points exacts)))))
 
+  (define start-prog (make-prog test))
+
   (define (handle-crash . _)
     (println "Crashed!")
-    '(#f #f #f #f))
+    (list start-prog #f #f #f))
 
-  (let ([start-prog (make-prog test)])
+  (define-values (start-end-points-exacts cpu-ms real-ms garbage-ms)
+    (time-apply
+     (λ (orig)
+        (with-handlers ([(const *handle-crashes*) handle-crash])
+          (compute-result orig)))
+     (list start-prog)))
 
-    (define-values (start-end-points-exacts cpu-ms real-ms garbage-ms)
-      (time-apply
-       (λ (orig)
-          (with-handlers ([(const *handle-crashes*) handle-crash])
-            (compute-result orig)))
-       (list start-prog)))
-
-    (match (car start-end-points-exacts)
-      [`(,start ,end ,points ,exacts)
-       (test-result test start end points exacts real-ms)])))
+  (match (car start-end-points-exacts)
+    [`(,start ,end ,points ,exacts)
+     (test-result test start end points exacts real-ms)]))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
@@ -90,7 +90,7 @@
        [(test-result-end-alt result)
         (when (not (directory-exists? dir))
           (make-directory dir))
-        
+
         (make-graph (test-result-start-alt result)
                     (test-result-end-alt result)
                     (test-result-points result)
@@ -128,7 +128,7 @@
              [total-score (/ (errors-score diff) (length diff))]
              [target-score
               (if good-errors
-                  (/ (errors-diff-score end-errors good-errors) (length diff)) #f)])
+                  (/ (errors-diff-score start-errors good-errors) (length diff)) #f)])
         (let*-values ([(reals infs) (partition reasonable-error? diff)]
                       [(good-inf bad-inf) (partition positive? infs)])
           (table-row name
