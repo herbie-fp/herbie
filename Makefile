@@ -4,7 +4,9 @@
 all: report
 
 report: 
-	racket reports/make-report.rkt "bench/"
+	racket reports/make-report.rkt bench/
+
+publish:
 	./file-report.sh
 
 clean:
