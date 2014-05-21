@@ -8,9 +8,10 @@
   "/lib/function/arithmetic/abs.js math.abs for complex arguments"
   (sqrt (+ (* re re) (* im im))))
 
-(casio-bench (x)
-  "/lib/function/arithmetic/cube.js math.cube for real arguments"
-  (* (* x x) x))
+(casio-test (x)
+  "math.cube on real"
+  (* (* x x) x)
+  (expt x 3))
 
 ; Manually expanded math.multiply
 (casio-bench (re im) ; real part
