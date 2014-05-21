@@ -148,7 +148,7 @@
          [else
           (loop (alt-prev altn)) ; Recursively print previous alternatives
           (printf "<li>Considered <span class='count'>~a</span> options "
-                  (change*-hardness (alt-change altn)))
+                  (+ 1 (change*-hardness (alt-change altn))))
           (printf "and applied <span class='rule'>~a</span> "
                   (rule-name (change-rule (alt-change altn))))
           (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
