@@ -286,28 +286,28 @@
 	      [x-axis-y (y-scale (max 0 (apply min ys)))]
 	      [y-axis-x (x-scale (max 0 (apply min xs)))])
 	  ;; Write the outer svg tag
-	  (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
-				      (x . ,x-pos) (y . ,y-pos))
-			     (newline)
-			     ;; Draw the data.
-			     (graph-draw-lines lines*)
-			     ;; Draw the x-axis
-			     (graph-draw-x-axis margin (- width margin) x-axis-y)
-			     ;; Draw the x-ticks
-			     (graph-draw-x-ticks x-axis-y margin (- height (* 2 margin)) 8
-						 (λ (x) (~r (x-unscale x)
-							    #:notation (if (eq? x-scale-type 'log) 'exponential 'positional)
-							    #:precision (if (eq? x-scale-type 'log) 2 0))))
-			     ;; Draw the y-axis
-			     (graph-draw-y-axis y-axis-x (- height margin) margin)
-			     ;; Draw the y-ticks
-			     (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-						 (λ (y) (~r (y-unscale y)
-							    #:notation (if (eq? y-scale-type 'log) 'exponential 'positional)
-							    #:precision (if (eq? y-scale-type 'log) 2 0))))
-			     ;; Draw the key
-			     (graph-draw-key margin (lines->color-names lines))
-			     )))))))
+	  (write-string
+           (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
+                         (x . ,x-pos) (y . ,y-pos))
+                (newline)
+                ;; Draw the data.
+                (graph-draw-lines lines*)
+                ;; Draw the x-axis
+                (graph-draw-x-axis margin (- width margin) x-axis-y)
+                ;; Draw the x-ticks
+                (graph-draw-x-ticks x-axis-y margin (- width (* 2 margin)) 16
+                                    (λ (x) (~r (x-unscale x)
+                                               #:notation (if (eq? x-scale-type 'log) 'exponential 'positional)
+                                               #:precision (if (eq? x-scale-type 'log) 2 0))))
+                ;; Draw the y-axis
+                (graph-draw-y-axis y-axis-x (- height margin) margin)
+                ;; Draw the y-ticks
+                (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
+                                    (λ (y) (~r (y-unscale y)
+                                               #:notation (if (eq? y-scale-type 'log) 'exponential 'positional)
+                                               #:precision (if (eq? y-scale-type 'log) 2 0))))
+                ;; Draw the key
+                (graph-draw-key margin (lines->color-names lines)))))))))
 
 (define (graph-draw-lines lines)
   (for/list ([line lines])
