@@ -4,8 +4,8 @@
 (require casio/points)
 (require casio/common)
 (require casio/rules)
-(require reports/html-tools)
 (require reports/svg-tools)
+(require reports/tools-common)
 
 (provide (all-defined-out))
 
@@ -133,7 +133,8 @@
       (printf "<head>")
       (printf "<meta charset='utf-8' />")
       (for/list ([i (range (length include-css))])
-      	(link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen"))))
+        (printf "<link rel='stylesheet' type='text/css' href='~a' />"
+                (include-name i "css")))
       (printf "</head>\n")
 
       (printf "<body>\n")
