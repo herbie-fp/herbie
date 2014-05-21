@@ -7,7 +7,7 @@ report:
 	racket reports/make-report.rkt bench/
 
 publish:
-	./file-report.sh
+	bash reports/publish.sh
 
 clean:
 	rm -f index.md
