@@ -50,7 +50,7 @@ dd {
     text-overflow: ellipsis;
 }
 
-#results td:nth-child(1) {text-align: left; width: 30em;}
+#results td:nth-child(1) {text-align: left;}
 #results td:nth-child(6) {text-align: left; font-family: monospace;}
 #results td:nth-child(8) {text-align: center;}
 
