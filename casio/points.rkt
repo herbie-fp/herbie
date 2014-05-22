@@ -5,7 +5,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* prepare-points make-exacts
+(provide *points* *exacts* prepare-points make-exacts *max-args*
          errors errors-compare errors-difference errors-diff-score
 	 errors-score reasonable-error? fn-points ascending-order)
 
@@ -27,7 +27,8 @@
           (cons head tail)))))
 
 ; The bucket width for a given number of dimensions
-(define bucket-width-per-dim '(: 1 6 15 25 35 45))
+(define bucket-width-per-dim '(: 1 22 60))
+(define *max-args* (length bucket-width-per-dim))
 
 (define (make-points dim)
   "Make a list of flonums.  The list spans a large range of values"

@@ -17,9 +17,10 @@
 (define *graph-folder-name-length* 8)
 (define *handle-crashes* #t)
 (define *output-directory* "graphs")
+(define *max-test-args* *max-args*)
 
 (define (make-report bench-dir)
-  (let* ([tests (univariate-tests bench-dir)]
+  (let* ([tests (allowed-tests bench-dir)]
          [results (get-test-results tests)])
 
     (when (not (directory-exists? *output-directory*))
@@ -33,8 +34,8 @@
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
-(define (univariate-tests bench-dir)
-  (filter (λ (test) (= 1 (length (test-vars test))))
+(define (allowed-tests bench-dir)
+  (filter (λ (test) (<= (length (test-vars test)) *max-test-args*))
 	  (load-all #:bench-path-string bench-dir)))
 
 (define (get-test-results tests)
@@ -237,5 +238,7 @@
  (command-line
   #:program "make-report"
   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
+  #:multi [("-a") ma "How many arguments to allow"
+           (set! *max-test-args* (min (string->number ma) *max-test-args*))]
   #:args (bench-dir)
   bench-dir))
