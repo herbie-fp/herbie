@@ -120,7 +120,7 @@
 
   ;; Copy the css files to our graph directory 
   (for/list ([css include-css] [i (build-list (length include-css) identity)])
-    (copyr-file css (include-path dir i "css")))
+    (copy-file css (include-path dir i "css") #t))
 
   ;; Generate the html for our graph page
   (let* ([page-path (string-append dir "graph.html")]
@@ -153,11 +153,6 @@
                   (rule-name (change-rule (alt-change altn))))
           (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
       (printf "</ol>\n"))))
-
-;; Copies a file, replacing the file at destination if it exists.
-(define (copyr-file src dest)
-  (when (file-exists? dest) (delete-file dest))
-  (copy-file src dest))
 
 ;; Creates a linear scale so that min-domain maps to min-range and max-domain maps to
 ;; max-range. There are no restrictions on min-domain, max-domain, min-range, or max-range,
