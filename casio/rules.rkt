@@ -314,6 +314,14 @@
   #:simplify (1 2))
 (define-rule   square-undiv      (/ (sqr x) (sqr y)) (sqr (/ x y))
   #:simplify (1))
+(define-rule   sqrt-prod         (sqrt (* x y))     (* (sqrt x) (sqrt y))
+  #:simplify ((1) (2)))
+(define-rule   sqrt-unprod       (* (sqrt x) (sqrt y)) (sqrt (* x y))
+  #:simplify ((1)))
+(define-rule   sqrt-div          (sqrt (/ x y))     (/ (sqrt x) (sqrt y))
+  #:simplify ((1) (2)))
+(define-rule   sqrt-undiv        (/ (sqrt x) (sqrt y)) (sqrt (/ x y))
+  #:simplify ((1)))
 
 ; Exponentials
 (define-rule   add-exp-log  x                    (exp (log x)))
