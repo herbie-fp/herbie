@@ -128,20 +128,45 @@
 
       (printf "<body>\n")
       (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400))
-
       (printf "<ol id='process-info'>\n")
-      (let loop ([altn end])
-        (cond
-         [(not (alt-prev altn))
-          (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
-         [else
-          (loop (alt-prev altn)) ; Recursively print previous alternatives
-          (printf "<li>Considered <span class='count'>~a</span> options "
-                  (+ 1 (change*-hardness (alt-change altn))))
-          (printf "and applied <span class='rule'>~a</span> "
-                  (rule-name (change-rule (alt-change altn))))
-          (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
+      (output-history end)
       (printf "</ol>\n"))))
+
+
+(define (output-history altn #:stop-at [stop-at #f])
+  #;(println #:port (current-error-port) "Outputting history for " altn)
+  (cond
+   [(not (alt-change altn))
+    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
+   [(and stop-at (eq? stop-at altn))
+    (void)]
+   [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
+    (let* ([vars (change-bindings (alt-change altn))]
+           [lft1 (second (assoc 'lft vars))]
+           [lft2 (third  (assoc 'lft vars))]
+           [rgt1 (second (assoc 'rgt vars))]
+           [rgt2 (third  (assoc 'rgt vars))]
+           [cond (cdr (assoc 'cond vars))])
+      (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history lft1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history lft2 #:stop-at lft1)
+      (printf "</ol>\n")
+
+      (printf "<h2><code>if not <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history rgt1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history rgt2 #:stop-at rgt1)
+      (printf "</ol>\n"))]
+   [else
+    (output-history (alt-prev altn) #:stop-at stop-at)
+    (printf "<li>Considered <span class='count'>~a</span> options "
+            (+ 1 (change*-hardness (alt-change altn))))
+    (printf "and applied <span class='rule'>~a</span> "
+            (rule-name (change-rule (alt-change altn))))
+    (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
 
 ;; Creates a linear scale so that min-domain maps to min-range and max-domain maps to
 ;; max-range. There are no restrictions on min-domain, max-domain, min-range, or max-range,

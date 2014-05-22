@@ -21,14 +21,28 @@ svg {
     display: block;
 }
 
-#process-info {
+#process-info, #process-info ol {
     list-style: square;
-    border-top: 1px solid gray;
-    border-bottom: 1px solid gray;
+}
+
+#process-info h2 {
+    margin-top: 3em;
 }
 
 #process-info li {
     margin: .5em 0;
+}
+
+#process-info .regime-break {
+    list-style-type: none;
+}
+
+#process-info .regime-break:after {
+    content: "[Switched to points in regime]";
+    margin: 1.5em 5em;
+    display: block;
+    font-size: 95%;
+    color: gray;
 }
 
 #process-info .count {
