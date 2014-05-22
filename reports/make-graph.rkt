@@ -138,7 +138,7 @@
       (printf "</head>\n")
 
       (printf "<body>\n")
-      (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400 #:y-scale 'lin))
+      (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400))
 
       (printf "<ol id='process-info'>\n")
       (let loop ([altn end])
@@ -269,19 +269,21 @@
 
 ;; The options for x-scale and y-scale are 'log or 'lin, corresponding to log scale and linear scale
 ;; respectively.
-(define (make-graph-svg lines x-pos y-pos width height #:x-scale [x-scale-type 'log] #:y-scale [y-scale-type 'log])
+(define (make-graph-svg lines x-pos y-pos width height)
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
-      (let-values ([(x-scale x-unscale) ((if (eq? x-scale-type 'log) data-log-scale* data-lin-scale*) xs margin (- width margin))]
-		   [(y-scale y-unscale) ((if (eq? y-scale-type 'log) data-log-scale* data-lin-scale*) ys (- height margin) margin)])
-	(let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
-							   (graph-line-points line))
-						      (graph-line-color line)
-						      (graph-line-name line)
-						      (graph-line-width line)))
-			   lines)]
+      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
+		   [(y-scale y-unscale) (linear-scale* 0 64 (- height margin) margin)])
+	(let ([lines*
+               (map (lambda (line) (graph-line
+                                    (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
+                                         (graph-line-points line))
+                                    (graph-line-color line)
+                                    (graph-line-name line)
+                                    (graph-line-width line)))
+                    lines)]
 	      ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
 	      [x-axis-y (y-scale (max 0 (apply min ys)))]
 	      [y-axis-x (x-scale (max 0 (apply min xs)))])
@@ -296,16 +298,12 @@
                 (graph-draw-x-axis margin (- width margin) x-axis-y)
                 ;; Draw the x-ticks
                 (graph-draw-x-ticks x-axis-y margin (- width (* 2 margin)) 16
-                                    (λ (x) (~r (x-unscale x)
-                                               #:notation (if (eq? x-scale-type 'log) 'exponential 'positional)
-                                               #:precision (if (eq? x-scale-type 'log) 2 0))))
+                                    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 2)))
                 ;; Draw the y-axis
                 (graph-draw-y-axis y-axis-x (- height margin) margin)
                 ;; Draw the y-ticks
                 (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-                                    (λ (y) (~r (y-unscale y)
-                                               #:notation (if (eq? y-scale-type 'log) 'exponential 'positional)
-                                               #:precision (if (eq? y-scale-type 'log) 2 0))))
+                                    (λ (y) (~r (y-unscale y) #:notation 'positional #:precision 0)))
                 ;; Draw the key
                 (graph-draw-key margin (lines->color-names lines)))))))))
 
