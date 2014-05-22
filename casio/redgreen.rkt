@@ -65,16 +65,6 @@
 	      (move-dam salmon is-head? dams-hit)))))
   (swim-upstream altn #t '()))
 
-;; Simple location match utility function. If 'a' is a continutation of 'b',
-;; such as in a='(2 1) b='(2), returns the tail of
-;; 'a' after 'b', '(1). Visa-versa for 'b' as a continuation of 'a'. If
-;; 'a' and 'b' diverge at some point before the end, returns false.
-(define (match-loc a b)
-  (cond [(null? a) b]
-	[(null? b) a]
-	[(= (car a) (car b)) (match-loc (cdr a) (cdr b))]
-	[#t #f]))
-
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
