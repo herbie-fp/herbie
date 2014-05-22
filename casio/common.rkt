@@ -5,11 +5,9 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! *save*)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
-(define *save* (make-parameter #f))
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
