@@ -95,8 +95,7 @@
                     (test-result-end-alt result)
                     (test-result-points result)
                     (test-result-exacts result)
-                    (path->string dir)
-                    '("reports/graph.css"))
+                    (path->string dir))
 
         (build-path rdir "graph.html")]
        [else #f]))))
@@ -229,11 +228,10 @@
 
 ;(define (make-test-graph testpath)
 ;  (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
-;	[dir "../reports/graph/"])
+;	 [dir "../reports/graph/"])
 ;    (text "Making graph...\n")
 ;    (when (not (directory-exists? dir)) (make-directory dir))
-;    (make-graph (first result) (second result) (third result) (fourth result) dir
-;	        '("../reports/graph.css"))))
+;    (make-graph (first result) (second result) (third result) (fourth result) dir)))
 
 (make-report
  (command-line
