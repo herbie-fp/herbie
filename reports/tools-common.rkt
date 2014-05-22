@@ -1,6 +1,6 @@
 #lang racket
 
-(provide write-file write-string copy-file-overwriting)
+(provide write-file write-string)
 
 (define-syntax (write-file stx)
   (syntax-case stx ()
@@ -11,8 +11,3 @@
   (syntax-case stx ()
     [(_ . rest)
      #'(with-output-to-string (lambda () . rest))]))
-
-(define (copy-file-overwriting src dest)
-  "Copies a file, replacing the file at destination if it exists."
-  (when (file-exists? dest) (delete-file dest))
-  (copy-file src dest))

@@ -165,8 +165,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
-    (copy-file-overwriting "reports/report.css"
-                           (build-path dir "report.css"))
+    (copy-file "reports/report.css" (build-path dir "report.css") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed
