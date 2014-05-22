@@ -75,13 +75,6 @@
 	[(= (car a) (car b)) (match-loc (cdr a) (cdr b))]
 	[#t #f]))
 
-(define (match-loc-fst inside outside)
-  (cond [(null? outside) inside]
-	[(null? inside) #f]
-	[(eq? (car outside) (car inside))
-	 (match-loc-fst (cdr inside) (cdr outside))]
-	[#t #f]))
-
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
