@@ -5,6 +5,7 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
+	 flip-args idx-map list-product set-debug-level! match-loc-fst)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -142,3 +143,11 @@
       (for*/list ([fst (car subs)]
                   [rst (apply list-product (cdr subs))])
          (cons fst rst))))
+
+(define (match-loc-fst inside outside)
+  (cond [(null? outside) inside]
+	[(null? inside) #f]
+	[(= (car outside) (car inside))
+	 (match-loc-fst (cdr inside) (cdr outside))]
+	[#t #f]))
+
