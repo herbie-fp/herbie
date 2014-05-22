@@ -156,23 +156,6 @@
 (define (orthogonal? change-a change-b)
   (not (match-loc (change-location change-a) (change-location change-b))))
 
-(define (rule-location-translations rule)
-  (define (var-locs pattern loc)
-    (cond
-     [(list? pattern)
-	(apply alist-append
-               (idx-map (lambda (x idx)
-                          (var-locs x (append loc (list idx))))
-                        (cdr pattern) #:from 1))]
-     [(number? pattern) '()]
-     [(symbol? pattern) (list (cons pattern (list loc)))]
-     [#t (error "Improper rule: " rule)]))
-  (let ([in-locs (var-locs (rule-input rule) '())]
-	[out-locs (var-locs (rule-output rule) '())])
-    (map (lambda (x)
-	   (list (cdr x) (cdr (assoc (car x) out-locs))))
-	 in-locs)))
-
 (define (alist-append . args) 
   (define (a-append joe bob)
     (if (null? joe)
