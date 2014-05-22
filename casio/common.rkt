@@ -5,7 +5,8 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! match-loc-fst)
+	 flip-args idx-map list-product set-debug-level! match-loc-fst
+	 match-loc)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -143,6 +144,15 @@
       (for*/list ([fst (car subs)]
                   [rst (apply list-product (cdr subs))])
          (cons fst rst))))
+;; Simple location match utility function. If 'a' is a continutation of 'b',
+;; such as in a='(2 1) b='(2), returns the tail of
+;; 'a' after 'b', '(1). Visa-versa for 'b' as a continuation of 'a'. If
+;; 'a' and 'b' diverge at some point before the end, returns false.
+(define (match-loc a b)
+  (cond [(null? a) b]
+	[(null? b) a]
+	[(= (car a) (car b)) (match-loc (cdr a) (cdr b))]
+	[#t #f]))
 
 (define (match-loc-fst inside outside)
   (cond [(null? outside) inside]
