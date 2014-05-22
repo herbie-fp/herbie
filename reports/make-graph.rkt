@@ -15,14 +15,6 @@
 
 (define good-point? (compose reasonable-error? cdr))
 
-;; Returns the full local path of the canonical location for an included file with the given extension.
-(define (include-path dir index extension)
-  (string-append dir (include-name index extension)))
-
-;; Returns the filename for an included file with the given extension
-(define (include-name index extension)
-  (string-append (number->string index) "include." extension))
-
 ;; Given a list of xs and a list of ys, returns the ys reordered so that,
 ;; if each input y cooresponds to it's matching x, the xs that the reordered ys
 ;; coorespond to are sorted in ascending order.
@@ -116,11 +108,10 @@
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
 ;; be a string, not a path-object.
-(define (make-graph start end points exacts dir include-css)
+(define (make-graph start end points exacts dir)
 
   ;; Copy the css files to our graph directory 
-  (for/list ([css include-css] [i (build-list (length include-css) identity)])
-    (copy-file css (include-path dir i "css") #t))
+  (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
 
   ;; Generate the html for our graph page
   (let* ([page-path (string-append dir "graph.html")]
@@ -132,9 +123,7 @@
       (printf "<html>\n")
       (printf "<head>")
       (printf "<meta charset='utf-8' />")
-      (for/list ([i (range (length include-css))])
-        (printf "<link rel='stylesheet' type='text/css' href='~a' />"
-                (include-name i "css")))
+      (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
       (printf "</head>\n")
 
       (printf "<body>\n")
