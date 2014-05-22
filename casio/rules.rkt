@@ -2,7 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out rule) (struct-out change*) change-add-hardness  changes-apply)
+(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out rule) (struct-out change*) change-add-hardness changes-apply rule-location-translations)
 
 ;; Our own pattern matcher.
 ;
@@ -224,6 +224,23 @@
 (define (changes-apply chngs prog)
   (pipe prog (map (λ (chng) (curry change-apply chng))
 		  chngs)))
+
+(define (rule-location-translations rule)
+  (define (var-locs pattern loc)
+    (cond
+     [(list? pattern)
+	(apply alist-append
+               (idx-map (lambda (x idx)
+                          (var-locs x (append loc (list idx))))
+                        (cdr pattern) #:from 1))]
+     [(number? pattern) '()]
+     [(symbol? pattern) (list (cons pattern (list loc)))]
+     [#t (error "Improper rule: " rule)]))
+  (let ([in-locs (var-locs (rule-input rule) '())]
+	[out-locs (var-locs (rule-output rule) '())])
+    (map (lambda (x)
+	   (list (cdr x) (cdr (assoc (car x) out-locs))))
+	 in-locs)))
 
 ; Now we define some rules
 
