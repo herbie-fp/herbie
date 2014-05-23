@@ -125,6 +125,7 @@
 			      (rule-slocations (change-rule (alt-change altn)))
 			      '(())))])
 <<<<<<< HEAD
+<<<<<<< HEAD
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
     (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 						  slocations))]
@@ -165,6 +166,9 @@
 
 <<<<<<< variant A
 =======
+=======
+    (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
+>>>>>>> Tweaked Debug Info
     (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 						  slocations))]
 	   [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
