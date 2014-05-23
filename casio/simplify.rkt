@@ -348,6 +348,10 @@
 		   (let-values ([(changes atoms) (resolve-expression loc (caddr expr*))])
 		     (let ([rl (get-rule '*-lft-identity)])
 		       (values (cons (change rl loc `((a . ,(caddr expr*)))) sub-changes) atoms)))]
+		  [(and (eq? (car expr*) '*) (safe-= (caddr expr*) 1))
+		   (let-values ([(changes atoms) (resolve-expression loc (cadr expr*))])
+		     (let ([rl (get-rule '*-lft-identity)])
+		       (values (cons (change rl loc `((a . ,(cadr expr*)))) sub-changes) atoms)))]
 		  [(eq? (car expr*) '+) ;; This counld just as easily be (eq? (car expr) '+), since the operator shouldn't change.
 		   (let-values ([(changes atoms) (try-additive-cancel expr* sub-atoms loc)])
 		     (values (append changes sub-changes) atoms))]
