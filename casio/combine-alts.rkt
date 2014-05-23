@@ -72,7 +72,6 @@
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
   (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
-  (*save* alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
