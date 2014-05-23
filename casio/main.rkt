@@ -56,7 +56,7 @@
 	      orig))))
 
 (define *max-threshold* 30)
-(define *min-threshold* 20)
+(define *min-threshold* 25)
 
 (define (improve-with-points max-threshold min-threshold thresh-step start-altn)
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
