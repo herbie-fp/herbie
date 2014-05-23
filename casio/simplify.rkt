@@ -143,6 +143,7 @@
       expr))
 
 (define (simplify-expression expr)
+  (debug "Simplifying expression: " expr #:from 'simplify #:depth 2)
   (let* ([canon-changes (canonicalize expr)]
 	 [expr* (changes-apply canon-changes expr)]
 	 [resolve-changes (resolve expr*)])
