@@ -22,11 +22,11 @@
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
 ;; change history.
-(define (remove-red altn)
+(define (remove-red altn #:fitness-func [fit? green?])
   
   ;; If we're the first or second alt then we can't be moved back any farther.
   (define (done altn)
-    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (green? (alt-prev altn))))
+    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (fit? (alt-prev altn))))
 
   ;; Given that "salmon" is blocked from translating further by
   ;; the change in front of it, try to move that change forward,
