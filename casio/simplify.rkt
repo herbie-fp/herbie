@@ -186,14 +186,24 @@
 	    (alt-changes cur-alt)
 	    (let ([altn* (alt-apply cur-alt (car rest-changes))])
 	      (if (simpler? altn*)
-		  (loop (remove-red altn* #:fitness-func simpler?) (cdr rest-changes))
+		  (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
 		  (loop altn* (cdr rest-changes)))))))))
 
 (define (simpler? altn)
   (> (rule-cost-improvement (change-rule (alt-change altn)))
      *goal-cost-improvement*))
 
+<<<<<<< HEAD
 >>>>>>> Basic Simplification Done
+=======
+(define (simpler*? altn)
+  (member (change-rule (alt-change altn))
+	  goal-rules))
+
+(define (reduced? altn)
+  (> (alt-cost altn) (alt-cost (alt-prev altn))))
+
+>>>>>>> Changed Fitness Function For Speed
 (define *goal-cost-improvement* 4)
 
 (define (rule-cost-improvement rl)
@@ -231,7 +241,16 @@
 ======= end
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< variant A
+=======
+(define goal-rules (sort (filter (λ (rule)
+				   (> (rule-cost-improvement rule) *goal-cost-improvement*))
+				 *rules*)
+			 >
+			 #:key rule-cost-improvement))
+
+>>>>>>> Changed Fitness Function For Speed
 (define (alt-with-prev prev altn)
   (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
 
