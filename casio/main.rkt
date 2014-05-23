@@ -103,8 +103,8 @@
 	    (register-alt salt))
 	  simplified-alts)))
     ;; Simplify an alternative
-    (define (simplify-alt altn) altn
-      #;(let ([simplifying-changes (simplify altn)])
+    (define (simplify-alt altn)
+      (let ([simplifying-changes (simplify altn)])
 	(apply-changes altn simplifying-changes)))
     ;; Takes all the alts we have left, and attempts to combine two into
     ;; a regime, improving the two branches if the combination was sucessful.
