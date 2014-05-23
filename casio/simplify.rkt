@@ -381,7 +381,7 @@
 					       (map (λ (pos) (append loc (list pos)))
 						    (range 1 (length cur-expr)))
 					       (cdr cur-expr)))]
-	       [cur-expr* (changes-apply (drop-change-location-items sub-changes (length loc)) cur-expr)])
+	       [cur-expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) cur-expr)])
 	  (match cur-expr*
 	    [`(- (- ,a))
 	     (list* (rule-apply->change (get-rule 'remove-double-neg) loc cur-expr*)
