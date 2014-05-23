@@ -40,10 +40,14 @@
 
 (define *max-threshold* 30)
 <<<<<<< HEAD
+<<<<<<< HEAD
 (define *min-threshold* 25)
 =======
 (define *min-threshold* 20)
 >>>>>>> Reintroduced Regime Changes, Stopped From Spinning Out
+=======
+(define *min-threshold* 25)
+>>>>>>> Raised Min-Threshold
 
 (define (improve-with-points max-threshold min-threshold thresh-step start-altn)
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
