@@ -18,6 +18,7 @@
 
 (provide simplify simplify-expression)
 
+<<<<<<< HEAD
 <<<<<<< variant A
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -111,6 +112,10 @@
        chngs))
 
 ======= end
+=======
+;; Simplifies an alternative at the location specified by the most
+;; recent change's rule.
+>>>>>>> Basic Simplification Done
 (define (simplify altn)
   (let* ([location (if (alt-prev altn)
 		       (change-location (alt-change altn))
@@ -153,11 +158,38 @@
   (> (alt-cost altn) (alt-cost (alt-prev altn))))
 =======
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 2)
+<<<<<<< HEAD
     (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 		       slocations))))
 >>>>>>> Implemented Dumb Simplification
 
 <<<<<<< variant A
+=======
+    (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
+						  slocations))]
+	   [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
+					 (if (null? r-changes)
+					     '()
+					     (let ([rl (change-rule (car r-changes))])
+					       (if (> (rule-cost-improvement rl) *goal-cost-improvement*)
+						   (reverse r-changes)
+						   (loop (cdr r-changes))))))])
+      ;; We set the prev pointer to null because we only care about the changes we're applying,
+      ;; and we want to make sure to not have red elimination worry about any of the changes
+      ;; before we simplified.
+      (let loop ([cur-alt (alt-with-prev #f altn)] [rest-changes partially-filtered-changes])
+	(if (null? rest-changes)
+	    (alt-changes cur-alt)
+	    (let ([altn* (alt-apply cur-alt (car rest-changes))])
+	      (if (simpler? altn*)
+		  (loop (remove-red altn* #:fitness-func simpler?) (cdr rest-changes))
+		  (loop altn* (cdr rest-changes)))))))))
+
+(define (simpler? altn)
+  (> (rule-cost-improvement (change-rule (alt-change altn)))
+     *goal-cost-improvement*))
+
+>>>>>>> Basic Simplification Done
 (define *goal-cost-improvement* 4)
 
 (define (rule-cost-improvement rl)
@@ -165,6 +197,12 @@
 	[new-cost (expression-cost (rule-output rl))])
     (if (= new-cost 0) +inf.0
 	(/ orig-cost new-cost))))
+<<<<<<< HEAD
+=======
+
+(define (alt-with-prev prev altn)
+  (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
+>>>>>>> Basic Simplification Done
 
 (define goal-rules (sort (filter (λ (rule)
 				   (> (rule-cost-improvement rule) *goal-cost-improvement*))
@@ -188,6 +226,7 @@
 			 #:key rule-cost-improvement))
 ======= end
 
+<<<<<<< HEAD
 <<<<<<< variant A
 (define (alt-with-prev prev altn)
   (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
@@ -195,6 +234,8 @@
 (define (get-rule name)
   (car (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)))
 
+=======
+>>>>>>> Basic Simplification Done
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
   ;; Get a list that of the vars, with each var repeated for each time it appears
@@ -204,6 +245,7 @@
 	  [(list? expr) (apply append (map get-duplicated-vars
 					   (cdr expr)))])) ; If we're at a list, get the vars from all of it's items, and append them together.
   (remove-duplicates (get-duplicated-vars expr))) ; Get the list with duplicates, and remove the duplicates.
+<<<<<<< HEAD
 
 >>>>>>> variant B
 ;; Simplifies an alternative at the location specified by the most
@@ -312,6 +354,8 @@
 		      (if new-term
 			  (cons new-term acc)
 			  acc))))))))
+=======
+>>>>>>> Basic Simplification Done
 
 ;; Cancel appropriate factors
 (define (resolve-factors factors)
@@ -409,7 +453,10 @@
   ;; Sort the expressions by their first atom
   (atom<? (first-atom expr1) (first-atom expr2)))
 
+<<<<<<< HEAD
 <<<<<<< variant A
+=======
+>>>>>>> Basic Simplification Done
 ;; Return whether or not the expression is atomic, meaning it can't be broken down into arithmetic.
 (define (atomic? expr)
   (or (real? expr) ; Numbers are atomic
@@ -423,6 +470,7 @@
 	       (eq? (car expr)
 		    '*)))))
 
+<<<<<<< HEAD
 >>>>>>> variant B
 ####### Ancestor
 ;; Takes terms and creates an addition expression where each addition only adds two things
@@ -536,6 +584,8 @@
       expr))
 
 ======= end
+=======
+>>>>>>> Basic Simplification Done
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr)
   (if (and (list? expr) (andmap number? (cdr expr)))
@@ -890,7 +940,10 @@
 	    (loop (cdr rest-chngs) expr*))))))
 >>>>>>> variant B
 (define (simplify-expression expr)
-  (resolve (canonicalize expr)))
+  (let* ([canon-changes (canonicalize expr)]
+	 [expr* (changes-apply canon-changes expr)]
+	 [resolve-changes (resolve expr*)])
+    (append canon-changes resolve-changes)))
 
 (struct s-atom (var loc) #:prefab)
 (define (s-atom-has-op? op atom)
@@ -1133,6 +1186,14 @@
 		     (canonicalize-expr (append loc (list 2)) `(* ,c ,b))
 		     (rule-locs->changes loc (list (cons (get-rule '*-commutative) '() #|this is the location of the change, relative to the base location, loc|#)
 						   (cons (get-rule 'distribute-lft-in) '())) cur-expr*)
+		     sub-changes)]
+	    [`(* (- ,a) ,b)
+	     (append (canonicalize-expr (append loc (list 1)) `(* ,a ,b))
+		     (list (rule-apply->change (get-rule 'distribute-lft-neg-out) loc cur-expr*))
+		     sub-changes)]
+	    [`(* ,a (- ,b))
+	     (append (canonicalize-expr (append loc (list 1)) `(* ,a ,b))
+		     (list (rule-apply->change (get-rule 'distribute-rgt-neg-out) loc cur-expr*))
 		     sub-changes)]
 	    [`(* ,a ,b)
 	     (if (expr<? b a) (cons (rule-apply->change (get-rule '*-commutative) loc cur-expr*)
