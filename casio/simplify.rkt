@@ -26,7 +26,7 @@
 		       '(2))]
 	 [slocations (map (λ (sloc) (append location sloc))
 			  (if (alt-prev altn)
-			      (map list (rule-slocations (change-rule (alt-change altn))))
+			      (rule-slocations (change-rule (alt-change altn)))
 			      '(())))])
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 2)
     (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
