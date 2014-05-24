@@ -494,6 +494,7 @@
 		    '*)))))
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> variant B
 ####### Ancestor
 ;; Takes terms and creates an addition expression where each addition only adds two things
@@ -611,12 +612,15 @@
 >>>>>>> Basic Simplification Done
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr)
+=======
+(define (try-precompute expr loc)
+>>>>>>> Added Precomputation
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (car (make-exacts `(lambda () ,expr) '(())))]) ; A little hacky, but it makes for pretty good code reuse.
+      (let ([value (car (make-exacts `(λ () ,expr) '(())))])
 	(if (rational? value)
-	    value
-	    expr)) ; There are situations, such as 0/0, where precomputing would get us a bad value, but just simplifying causes it to cancel.
-      expr))
+	    (list (change (rule 'precompute expr value '()) loc '()))
+	    '()))
+      '()))
 
 <<<<<<< variant A
 (define (simplify-expression expr)
@@ -1159,7 +1163,9 @@
   (define (resolve-expression loc expr)
     (if (not (list? expr)) (values '() (list (s-atom expr loc))) ;; Base case.
   	(let-values ([(sub-changes sub-atoms) (resolve-subexpressions loc expr)])
-  	  (let ([expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) expr)])
+  	  (let* ([expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) expr)]
+		 [precompute-changes (try-precompute expr* loc)]
+		 [expr* (changes-apply precompute-changes expr*)])
   	    (cond [(and (eq? (car expr*) '/) (safe-= (cadr expr*) 1))
 		   (values (list (let ([rl (get-rule 'div1)])
 				   (change rl loc '())))
