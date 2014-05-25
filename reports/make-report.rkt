@@ -4,6 +4,7 @@
 (require racket/date)
 (require reports/make-graph)
 (require reports/tools-common)
+(require reports/thread-pool)
 (require casio/load-bench)
 (require casio/test)
 (require casio/common)
@@ -17,11 +18,15 @@
 (define *graph-folder-name-length* 8)
 (define *handle-crashes* #t)
 (define *output-directory* "graphs")
-(define *max-test-args* *max-args*)
 
-(define (make-report bench-dir)
-  (let* ([tests (allowed-tests bench-dir)]
-         [results (get-test-results tests)])
+(define *max-test-args* *max-args*)
+(define *max-test-threads* (max (- (processor-count) 1) 1))
+
+(define (make-report . bench-dirs)
+  (let* ([tests (allowed-tests bench-dirs)]
+         [results
+          (get-test-results tests (*num-iterations*)
+                            #:threads *max-test-threads*)])
 
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))
@@ -34,52 +39,12 @@
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
-(define (allowed-tests bench-dir)
-  (filter (λ (test) (<= (length (test-vars test)) *max-test-args*))
-	  (load-all #:bench-path-string bench-dir)))
-
-(define (get-test-results tests)
-  (progress-map get-test-result tests #:map-name "get-test-results" #:item-name-func test-name))
-
-(define (progress-map f l #:map-name [name 'progress-map] #:item-name-func [item-name #f])
-  (define total (length l))
-
-  (idx-map
-   (λ (elt idx)
-      (let-values ([(results cpu-ms real-ms garbage-ms) (time-apply f (list elt))])
-        (println name ": " (quotient (* 100 (1+ idx)) total) "%\t"
-                 "[" (~a real-ms #:width 8) " milliseconds]\t\t"
-                 (if item-name (item-name elt) ""))
-        (car results)))
-     l))
-
-(struct test-result (test start-alt end-alt points exacts time))
-
-(define (get-test-result test)
-
-  (define (compute-result orig)
-    (let-values ([(points exacts) (prepare-points orig)])
-      (parameterize ([*points* points] [*exacts* exacts])
-	(let* ([start-alt (make-alt orig)]
-	       [end-alt (improve-with-points start-alt (*num-iterations*))])
-	  (list start-alt end-alt points exacts)))))
-
-  (define start-prog (make-prog test))
-
-  (define (handle-crash . _)
-    (println "Crashed!")
-    (list start-prog #f #f #f))
-
-  (define-values (start-end-points-exacts cpu-ms real-ms garbage-ms)
-    (time-apply
-     (λ (orig)
-        (with-handlers ([(const *handle-crashes*) handle-crash])
-          (compute-result orig)))
-     (list start-prog)))
-
-  (match (car start-end-points-exacts)
-    [`(,start ,end ,points ,exacts)
-     (test-result test start end points exacts real-ms)]))
+(define (allowed-tests bench-dirs)
+  (apply append
+         (for/list ([bench-dir bench-dirs])
+           (filter (λ (test) (<= (length (test-vars test))
+                                 *max-test-args*))
+                   (load-all #:bench-path-string bench-dir)))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
@@ -88,18 +53,43 @@
          [dir (build-path *output-directory* rdir)])
     (with-handlers ([(const #f) (λ _ #f)])
       (cond
-       [(test-result-end-alt result)
+       [(test-result? result)
         (when (not (directory-exists? dir))
           (make-directory dir))
 
-        (make-graph (test-result-start-alt result)
+        (make-graph (test-result-test result)
+                    (test-result-start-alt result)
                     (test-result-end-alt result)
                     (test-result-points result)
                     (test-result-exacts result)
                     (path->string dir))
 
         (build-path rdir "graph.html")]
+       [(test-timeout? result)
+        #f]
+       [(test-failure? result)
+        (when (not (directory-exists? dir))
+          (make-directory dir))
+
+        (write-file (build-path dir "graph.html")
+          (printf "<html>\n")
+          (printf "<head><meta charset='utf-8' /><title>Exception for ~a</title></head>\n"
+                  (test-name (test-failure-test result)))
+          (printf "<body>\n")
+          (make-traceback (test-failure-exn result))
+          (printf "</body>\n")
+          (printf "</html>\n"))
+
+        (build-path rdir "graph.html")]
        [else #f]))))
+
+(define (make-traceback err)
+  (printf "<h2 id='error-message'>~a</h2>\n" (exn-message err))
+  (printf "<ol id='traceback'>\n")
+  (for ([fn&loc (continuation-mark-set->context (exn-continuation-marks err))])
+    (printf "<li><code>~a</code> in <code>~a</code> line ~a column ~a</li>\n" (car fn&loc)
+            (srcloc-source (cdr fn&loc)) (srcloc-line (cdr fn&loc)) (srcloc-column (cdr fn&loc))))
+  (printf "</ol>\n"))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
@@ -112,11 +102,10 @@
 
 (define (get-table-data results)
   (for/list ([result results])
-    (define name (test-name (test-result-test result)))
-
     (cond
-     [(test-result-end-alt result)
-      (let* ([start-errors (alt-errors (test-result-start-alt result))]
+     [(test-result? result)
+      (let* ([name (test-name (test-result-test result))]
+             [start-errors (alt-errors (test-result-start-alt result))]
              [end-errors   (alt-errors (test-result-end-alt   result))]
              [good-errors
               (and (test-output (test-result-test result))
@@ -146,8 +135,13 @@
                      (program-body (alt-program (test-result-start-alt result)))
                      (program-body (alt-program (test-result-end-alt result)))
                      (test-result-time result))))]
-     [else
-      (table-row name "crash" #f #f #f #f #f #f (test-result-time result))])))
+     [(test-failure? result)
+      (table-row (test-name (test-failure-test result)) "crash"
+                 #f #f #f #f (test-input (test-failure-test result)) #f (test-failure-time result))]
+     [(test-timeout? result)
+      (table-row (test-name (test-timeout-test result)) "timeout"
+                 #f #f #f #f (test-input (test-timeout-test result))
+                 (* 1000 60 5))])))
 
 (define (format-time ms)
   (cond
@@ -216,11 +210,10 @@
         (printf "<td>~a</td>" (or (table-row-inf- result) ""))
         (printf "<td>~a</td>" (or (table-row-inf+ result) ""))
         (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
-        #;(printf "<td><code>~a</code></td>" (or (table-row-output result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (if link
           (printf "<td><a href='~a'>[MORE]</a></td>" (path->string link))
-          (printf "<td>crash</td>"))
+          (printf "<td></td>"))
         (printf "</tr>\n"))
       (printf "</tbody>\n")
       (printf "</table>\n")
