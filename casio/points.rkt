@@ -28,7 +28,7 @@
 
 ; The bucket width for a given number of dimensions
 (define bucket-width-per-dim '(: 1 22 60))
-(define *max-args* (length bucket-width-per-dim))
+(define *max-args* (- (length bucket-width-per-dim) 1))
 
 (define (make-points dim)
   "Make a list of flonums.  The list spans a large range of values"

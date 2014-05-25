@@ -128,6 +128,7 @@
            [>=      ,bf>=    ,>=      1]
            [and     ,and-fn  ,and-fn  1]
            [or      ,or-fn   ,or-fn   1]
+           [atan2   ,bfatan2 ,atan    230]
 
            ; For compiling variables
            [*var*   ,bf      ,(*precision*) 0])])

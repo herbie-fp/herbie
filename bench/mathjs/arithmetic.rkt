@@ -16,14 +16,14 @@
   (expt x 3))
 
 ; Manually expanded math.multiply
-(casio-bench (re im) ; real part
+(casio-bench (x.re x.im) ; real part
   "math.cube on complex, real part"
   (- (* (- (* x.re x.re) (* x.im x.im)) ; x^2.re
         x.re)
      (* (+ (* x.re x.im) (* x.im x.re)) ; x^2.im
         x.im)))
 
-(casio-bench (re im) ; imag part
+(casio-bench (x.re x.im) ; imag part
   "math.cube on complex, imaginary part"
   (+ (* (- (* x.re x.re) (* x.im x.im)) ; x^2.re
         x.im)
@@ -65,10 +65,10 @@
 
 (casio-bench (re im) ; real part
   "/lib/function/arithmetic/log10.js math.log10 for complex arguments, with one argument, real part"
-  (/ (log (sqrt (+ (* re re) (* im im)))) ln10))
+  (/ (log (sqrt (+ (* re re) (* im im)))) (log 10)))
 (casio-bench (re im) ; imag part
   "/lib/function/arithmetic/log10.js math.log10 for complex arguments, with one argument, imaginary part"
-  (/ (atan2 im re) ln10))
+  (/ (atan2 im re) (log 10)))
 
 (casio-bench (x.re x.im y.re y.im) ; real part
   "/lib/function/arithmetic/multiply.js _multiplyComplex, real part"

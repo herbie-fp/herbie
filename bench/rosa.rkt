@@ -9,7 +9,7 @@
 ;
 ; E. Darulova, V. Kuncak, "Sound Compilation of Reals", POPL'14
 
-(casio-bench (u v t)
+(casio-bench (u v t1)
   "Rosa's DopplerBench"
   (/ (* (- t1) v) (* (+ t1 u) (+ t1 u))))
 
