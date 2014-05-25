@@ -227,11 +227,14 @@
 ;    (when (not (directory-exists? dir)) (make-directory dir))
 ;    (make-graph (first result) (second result) (third result) (fourth result) dir)))
 
-(make-report
+(apply
+ make-report
  (command-line
   #:program "make-report"
   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
   #:multi [("-a") ma "How many arguments to allow"
            (set! *max-test-args* (min (string->number ma) *max-test-args*))]
-  #:args (bench-dir)
+  #:multi [("-p") th "How many tests to run in parallel to use"
+           (set! *max-test-threads* (string->number th))]
+  #:args bench-dir
   bench-dir))
