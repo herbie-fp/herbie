@@ -127,11 +127,12 @@
       (printf "</head>\n")
 
       (printf "<body>\n")
+      (printf "<div id='graphs'>\n")
       (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400))
+      (printf "</div>\n")
       (printf "<ol id='process-info'>\n")
       (output-history end)
       (printf "</ol>\n"))))
-
 
 (define (output-history altn #:stop-at [stop-at #f])
   #;(println #:port (current-error-port) "Outputting history for " altn)
