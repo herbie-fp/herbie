@@ -18,7 +18,7 @@
          [z (+ ab (* 2 i))])
     (/ (+ (/ (* ab ad) z (+ z 2.0)) 1.0) 2.0)))
 
-(casio-bench (alpha beta)
+(casio-bench (alpha beta i)
   "Octave 3.8, jcobi/3"
   (let* ([ab (+ alpha beta)]
          [ad (- beta alpha)]
