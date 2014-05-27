@@ -61,13 +61,16 @@
              [approx-ans
               (map (curry apply approx-op) approx-inputs)]
              [local-error
-              (map (compose flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
+              (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
              [cumulative-error
               (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
         (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
 
 (define (interesting-error? l)
   (ormap (curry < 0) l))
+
+(define (compare-errors e1 e2)
+  (< (errors-diff-score (second e1) (second e2)) 0))
 
 (define (find-interesting-locations annot-prog)
   (define (search-expression found expr)
@@ -82,8 +85,15 @@
     (search-expression found (annotation-expr annot)))
 
   (reap [sow]
-    (search-annot sow (program-body annot-prog))))
+        (search-annot sow (program-body annot-prog))))
+
 
 (define (analyze-local-error altn)
-  (find-interesting-locations
-   (analyze-expressions (alt-program altn) (*points*))))
+  (map car
+       (take-up-to
+        (reverse
+         (sort
+          (find-interesting-locations
+           (analyze-expressions (alt-program altn) (*points*)))
+          compare-errors))
+        3)))
