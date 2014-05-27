@@ -210,8 +210,12 @@
                 (if (table-row-target result)
                     (/ (round (* (table-row-target result) 10)) 10)
                     ""))
-        (printf "<td>~a</td>" (or (table-row-inf- result) ""))
-        (printf "<td>~a</td>" (or (table-row-inf+ result) ""))
+        (printf "<td>~a</td>"
+                (let ([inf- (table-row-inf- result)])
+                  (if (and inf- (> inf- 0)) inf- "")))
+        (printf "<td>~a</td>"
+                (let ([inf+ (table-row-inf+ result)])
+                  (if (and inf+ (> inf+ 0)) inf+ "")))
         (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (if link
