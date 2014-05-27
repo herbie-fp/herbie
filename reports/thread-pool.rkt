@@ -16,6 +16,14 @@
 (struct test-failure (test exn time))
 (struct test-timeout (test) #:prefab)
 
+(define (srcloc->string sl)
+  (string-append
+   (path->string (srcloc-source sl))
+   ":"
+   (number->string (srcloc-line sl))
+   ":"
+   (number->string (srcloc-column sl))))
+
 (define (flatten-exn e)
   (list (exn-message e)
         (for/list ([tb (continuation-mark-set->context
@@ -179,11 +187,13 @@
            (place-channel-put more (cons more (car work)))
            (set! work (cdr work)))]
         ['go
-         (let sloop ([work work] [workers workers])
-           (unless (or (null? work) (null? workers))
-             (place-channel-put (car workers)
-                                (cons (car workers) (car work)))
-             (sloop (cdr work) (cdr workers))))])
+         (let sloop ([work* work] [workers workers])
+           (if (or (null? work*) (null? workers))
+               (set! work work*)
+               (begin
+                 (place-channel-put (car workers)
+                                (cons (car workers) (car work*)))
+                 (sloop (cdr work*) (cdr workers)))))])
       (loop))))
 
 (define (get-test-results progs iters
