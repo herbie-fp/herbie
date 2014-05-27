@@ -183,7 +183,7 @@
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
          (place-channel-put ch (cons id result*))
-         (when work
+         (when (not (null? work))
            (place-channel-put more (cons more (car work)))
            (set! work (cdr work)))]
         ['go
