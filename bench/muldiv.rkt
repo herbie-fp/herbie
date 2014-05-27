@@ -2,5 +2,5 @@
 (require casio/test)
 
 (casio-bench (a b c)
-  "Inspired by FT_MulDiv in Freetype"
+  "A la Freetype's FT_MulDiv"
   (/ (+ a (/ c 2)) b))
