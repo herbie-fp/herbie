@@ -198,17 +198,16 @@
   (define outs
     (for/list ([_ progs])
       (let* ([msg (place-channel-get m)]
-             [id (car msg)]
-             [tr (unmarshal-test-* (cdr msg))])
+             [id (car msg)] [tr (unmarshal-test-* (cdr msg))])
         (cond
          [(test-result? tr)
           (println "[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
                    (test-name (test-result-test tr)))]
          [(test-failure? tr)
-          (println "[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
-                   (test-name (test-result-test tr)) " [CRASH]")]
+          (println "[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
+                   (test-name (test-failure-test tr)) " [CRASH]")]
          [(test-timeout? tr)
-          (println "[    timeout ]\t" (test-name (test-result-test tr)))]
+          (println "[    timeout ]\t" (test-name (test-timeout-test tr)))]
          [else
           (error "Unknown test result type" tr)])
         (cons id tr))))
