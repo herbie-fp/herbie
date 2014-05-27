@@ -84,18 +84,20 @@
        [else #f]))))
 
 (define (make-traceback err)
-  (printf "<h2 id='error-message'>~a</h2>\n" (exn-message err))
+  (printf "<h2 id='error-message'>~a</h2>\n" (first err))
   (printf "<ol id='traceback'>\n")
-  (for ([fn&loc (continuation-mark-set->context (exn-continuation-marks err))])
-    (printf "<li><code>~a</code> in <code>~a</code> line ~a column ~a</li>\n" (car fn&loc)
-            (srcloc-source (cdr fn&loc)) (srcloc-line (cdr fn&loc)) (srcloc-column (cdr fn&loc))))
+  (for ([fn&loc (second err)])
+    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
+            (first fn&loc) (second fn&loc)))
   (printf "</ol>\n"))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
          [index-label (number->string index)]
          [name-bound (- *graph-folder-name-length* (string-length index-label))]
-         [final-tname (substring stripped-tname 0 (min (string-length stripped-tname) name-bound))])
+         [final-tname
+          (substring stripped-tname 0
+                     (min (string-length stripped-tname) name-bound))])
     (string-append index-label final-tname "/")))
 
 (struct table-row (name status delta target inf- inf+ input output time))
