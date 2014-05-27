@@ -17,7 +17,7 @@
   (alt-rewrite-tree altn))
 
 (define (try-analyze altn)
-  (let ([locs (map car (analyze-local-error altn))])
+  (let ([locs (analyze-local-error altn)])
     (append
      (apply append
 	    (for/list ([loc locs])
