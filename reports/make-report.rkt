@@ -137,10 +137,11 @@
                      (test-result-time result))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
-                 #f #f #f #f (test-input (test-failure-test result)) #f (test-failure-time result))]
+                 #f #f #f #f (test-input (test-failure-test result)) #f
+                 (test-failure-time result))]
      [(test-timeout? result)
       (table-row (test-name (test-timeout-test result)) "timeout"
-                 #f #f #f #f (test-input (test-timeout-test result))
+                 #f #f #f #f (test-input (test-timeout-test result)) #f
                  (* 1000 60 5))])))
 
 (define (format-time ms)
