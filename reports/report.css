@@ -51,7 +51,7 @@ dd {
     font-size: 15pt;
 }
 
-#results tr:hover {
+#results tr:not(:nth-child(1)):hover {
     background-color: #e0f8d8;
 }
 
