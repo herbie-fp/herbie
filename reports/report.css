@@ -51,17 +51,17 @@ dd {
     font-size: 15pt;
 }
 
-#results tr:not(:nth-child(1)):hover {
+#results tbody tr:hover {
     background-color: #e0f8d8;
 }
 
 #results td:nth-child(1) {text-align: left;}
-#results td:nth-child(6) {
+#results td:nth-child(7) {
     text-align: left;
     font-family: monospace;
     font-size: 9pt;
 }
-#results td:nth-child(8) {text-align: center;}
+#results td:nth-child(9) {text-align: center;}
 
 tr.no-compare td:nth-child(2) {background-color: #c86edf; color: #f7f7f7;}
 tr.gt-target  td:nth-child(2) {background-color: #0bd318;}
