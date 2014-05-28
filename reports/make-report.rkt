@@ -19,7 +19,7 @@
 (define *handle-crashes* #t)
 (define *output-directory* "graphs")
 
-(define *max-test-args* *max-args*)
+(define *max-test-args* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
 
 (define (make-report . bench-dirs)
@@ -42,8 +42,9 @@
 (define (allowed-tests bench-dirs)
   (apply append
          (for/list ([bench-dir bench-dirs])
-           (filter (λ (test) (<= (length (test-vars test))
-                                 *max-test-args*))
+           (filter (λ (test)
+                      (or (not *max-test-args*)
+                          (<= (length (test-vars test)) *max-test-args*)))
                    (load-all #:bench-path-string bench-dir)))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
@@ -240,7 +241,7 @@
   #:program "make-report"
   #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
   #:multi [("-a") ma "How many arguments to allow"
-           (set! *max-test-args* (min (string->number ma) *max-test-args*))]
+           (set! *max-test-args* (string->number ma))]
   #:multi [("-p") th "How many tests to run in parallel to use"
            (set! *max-test-threads* (string->number th))]
   #:args bench-dir

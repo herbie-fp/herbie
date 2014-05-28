@@ -5,42 +5,36 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* prepare-points make-exacts *max-args*
+(provide *points* *exacts* make-points make-exacts prepare-points
          errors errors-compare errors-difference errors-diff-score
 	 errors-score reasonable-error? fn-points ascending-order)
+
+(define *eval-pts* (make-parameter 500))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
-(define (exp->pt bucket-number bucket-width)
-  "Given an exponential bucket"
-  (expt 2 (- (* bucket-width (+ bucket-number (random))) 126)))
+(define (select-points num)
+  (let* ([exp-size (if (eq? (*precision*) real->double-flonum) 2048 512)]
+         [bucket-width (/ (- exp-size 2) num)]
+         [bucket-bias (- (/ exp-size 2) 1)])
+    (for/list ([i (range num)])
+      (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
-(define (list-cartesian-power lst repetitions)
-  "Returns a list, each element of which is a list
-   of `repetitions` elements of `lst`"
-
-  (if (= repetitions 1)
-      (map list lst)
-      (let ([tails (list-cartesian-power lst (- repetitions 1))])
-        (for*/list ([head lst] [tail tails])
-          (cons head tail)))))
-
-; The bucket width for a given number of dimensions
-(define bucket-width-per-dim '(: 1 22 60))
-(define *max-args* (- (length bucket-width-per-dim) 1))
-
-(define (make-points dim)
-  "Make a list of flonums.  The list spans a large range of values"
-
-  (let* ([bucket-width (list-ref bucket-width-per-dim dim)]
-         [num-buckets (floor (/ 253 bucket-width))]
-         [bucket-indices (range 0 num-buckets)]
-         [pts+ (map (curryr exp->pt bucket-width) bucket-indices)]
-         [pts (append pts+ (map - pts+))])
-    (list-cartesian-power pts dim)))
-
-(bf-precision 256)
+(define (make-points num dim)
+  "Produce approximately `num` points in the `dim`-dimensional space,
+   distributed overly-uniformly in the exponent"
+  (if (= dim 0)
+      '(())
+      (let* ([num-ticks (round (expt num (/ 1 dim)))]
+             [rest-num (/ num num-ticks)]
+             [pos-ticks (ceiling (/ num-ticks 2))]
+             [neg-ticks (- num-ticks pos-ticks)]
+             [first (append (select-points pos-ticks)
+                            (map - (select-points neg-ticks)))])
+        (apply append
+               (for/list ([rest (make-points rest-num (- dim 1))])
+                 (map (λ (x) (cons x rest)) first))))))
 
 (define (make-exacts prog pts)
   "Given a list of arguments,
@@ -75,7 +69,7 @@
    and a list of exact values for those points (each a flonum)"
 
   ; First, we generate points;
-  (let* ([pts (make-points (length (program-variables prog)))]
+  (let* ([pts (make-points (*eval-pts*) (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
          ; Then, we remove the points for which the answers
          ; are not representable
