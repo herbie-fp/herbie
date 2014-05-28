@@ -18,6 +18,7 @@
 (define *graph-folder-name-length* 8)
 (define *handle-crashes* #t)
 (define *output-directory* "graphs")
+(define *reeval-pts* 1000)
 
 (define *max-test-args* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
@@ -101,50 +102,65 @@
                      (min (string-length stripped-tname) name-bound))])
     (string-append index-label final-tname "/")))
 
-(struct table-row (name status delta target inf- inf+ input output time))
+(struct table-row
+  (name status delta target inf- inf+ delta-est input output time))
 
 (define (get-table-data results)
   (for/list ([result results])
     (cond
      [(test-result? result)
-      (let* ([name (test-name (test-result-test result))]
-             [start-errors (alt-errors (test-result-start-alt result))]
-             [end-errors   (alt-errors (test-result-end-alt   result))]
-             [good-errors
-              (and (test-output (test-result-test result))
-                   (errors (list 'λ (test-vars (test-result-test result))
-                                 (test-output (test-result-test result)))
-                           (test-result-points result)
-                           (test-result-exacts result)))]
-             [diff (errors-difference start-errors end-errors)]
-             [total-score (/ (errors-score diff) (length diff))]
-             [target-score
-              (if good-errors
-                  (/ (errors-diff-score start-errors good-errors) (length diff)) #f)])
-        (let*-values ([(reals infs) (partition reasonable-error? diff)]
-                      [(good-inf bad-inf) (partition positive? infs)])
-          (table-row name
-                     (cond
-                      [(not good-errors) "no-compare"]
-                      [(> total-score (+ target-score 1)) "gt-target"]
-                      [(> total-score (- target-score 1)) "eq-target"]
-                      [(< total-score -1) "lt-start"]
-                      [(< total-score 1) "eq-start"]
-                      [(< total-score (- target-score 1)) "lt-target"])
-                     total-score
-                     target-score
-                     (length good-inf)
-                     (length bad-inf)
-                     (program-body (alt-program (test-result-start-alt result)))
-                     (program-body (alt-program (test-result-end-alt result)))
-                     (test-result-time result))))]
+      (let-values
+          ([(pts exs)
+            (parameterize ([*eval-pts* *reeval-pts*])
+              (prepare-points (alt-program (test-result-start-alt result))))])
+        (let* ([name (test-name (test-result-test result))]
+               [start-errors
+                (errors (alt-program (test-result-start-alt result)) pts exs)]
+               [end-errors
+                (errors (alt-program (test-result-end-alt result)) pts exs)]
+               [target-errors
+                (and (test-output (test-result-test result))
+                     (errors
+                      `(λ ,(test-vars (test-result-test result))
+                          ,(test-output (test-result-test result)))
+                      pts exs))]
+
+               [result-diff (errors-difference start-errors end-errors)]
+               [result-score (errors-score result-diff)]
+               [target-score
+                (and target-errors
+                     (errors-diff-score start-errors target-errors))]
+
+               [est-score
+                (errors-diff-score
+                 (alt-errors (test-result-start-alt result))
+                 (alt-errors (test-result-end-alt result)))])
+
+          (let*-values ([(reals infs) (partition reasonable-error? result-diff)]
+                        [(good-inf bad-inf) (partition positive? infs)])
+            (table-row name
+                       (cond
+                        [(not target-score) "no-compare"]
+                        [(> result-score (+ target-score 1)) "gt-target"]
+                        [(> result-score (- target-score 1)) "eq-target"]
+                        [(< result-score -1) "lt-start"]
+                        [(< result-score 1) "eq-start"]
+                        [(< result-score (- target-score 1)) "lt-target"])
+                       result-score
+                       target-score
+                       (length good-inf)
+                       (length bad-inf)
+                       est-score
+                       (program-body (alt-program (test-result-start-alt result)))
+                       (program-body (alt-program (test-result-end-alt result)))
+                       (test-result-time result)))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
-                 #f #f #f #f (test-input (test-failure-test result)) #f
+                 #f #f #f #f #f (test-input (test-failure-test result)) #f
                  (test-failure-time result))]
      [(test-timeout? result)
       (table-row (test-name (test-timeout-test result)) "timeout"
-                 #f #f #f #f (test-input (test-timeout-test result)) #f
+                 #f #f #f #f #f (test-input (test-timeout-test result)) #f
                  (* 1000 60 5))])))
 
 (define (format-time ms)
@@ -159,7 +175,7 @@
         [branch (command-result "git rev-parse --abbrev-ref HEAD")])
 
     (define table-labels
-      '("Test" "Δ [bits]" "Target [bits]" "∞ → ℝ" "ℝ → ∞" "Input" "Time"))
+      '("Test" "Δ [bits]" "Target [bits]" "∞ → ℝ" "ℝ → ∞" "Δ Estimate" "Input" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
@@ -202,6 +218,7 @@
       (printf "<tbody>")
       (for ([result table-data] [link links])
         (printf "<tr class='~a'>" (table-row-status result))
+
         (printf "<td>~a</td>" (or (table-row-name result) ""))
         (printf "<td>~a</td>"
                 (if (table-row-delta result)
@@ -217,6 +234,11 @@
         (printf "<td>~a</td>"
                 (let ([inf+ (table-row-inf+ result)])
                   (if (and inf+ (> inf+ 0)) inf+ "")))
+        (printf "<td>~a</td>"
+                (if (table-row-delta-est result)
+                    (/ (round (* (table-row-delta-est result) 10)) 10)
+                    ""))
+
         (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (if link
@@ -227,13 +249,6 @@
       (printf "</table>\n")
       (printf "</body>\n")
       (printf "</html>\n"))))
-
-;(define (make-test-graph testpath)
-;  (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
-;	 [dir "../reports/graph/"])
-;    (text "Making graph...\n")
-;    (when (not (directory-exists? dir)) (make-directory dir))
-;    (make-graph (first result) (second result) (third result) (fourth result) dir)))
 
 (apply
  make-report
