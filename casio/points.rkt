@@ -5,7 +5,8 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* make-points make-exacts prepare-points
+(provide *points* *exacts* *eval-pts* make-points make-exacts
+         prepare-points
          errors errors-compare errors-difference errors-diff-score
 	 errors-score reasonable-error? fn-points ascending-order)
 
@@ -120,8 +121,10 @@
 (define (errors-score e)
   (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
 		[(positive-infs negative-infs) (partition (lambda (n) (> 0 n)) infs)])
-    (+ (apply + reals)
-       (* 64 (- (length negative-infs) (length positive-infs))))))
+    (/
+     (+ (apply + reals)
+        (* 64 (- (length negative-infs) (length positive-infs))))
+     (length e))))
 
 (define (avg-bits-error e)
   (let-values ([(reals unreals) (partition (λ (n) (rational? n)) e)])
