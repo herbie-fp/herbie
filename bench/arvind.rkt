@@ -9,7 +9,7 @@
 (casio-test (a b)
   "Arvind's quotient-of-sum-of-exps example"
   (/ (exp a) (+ (exp a) (exp b)))
-  (/ 1 (+ 1 (exp (- a b)))))
+  (/ 1 (+ 1 (exp (- b a)))))
 
 (casio-test (a1 a2 b1 b2)
   "Arvind's quotient-of-prods example"
