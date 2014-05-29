@@ -142,7 +142,7 @@
 
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (safe-eval expr)])
+      (let ([value (eval expr (current-namespace))])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
