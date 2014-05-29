@@ -551,6 +551,7 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> variant B
 ####### Ancestor
 ;; Takes terms and creates an addition expression where each addition only adds two things
@@ -666,13 +667,20 @@
 ======= end
 =======
 >>>>>>> Basic Simplification Done
+=======
+(define full-namespace
+  (let ([ns (make-base-namespace)])
+    (eval '(require racket) ns)
+    ns))
+
+>>>>>>> New Namespace Attempt
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr)
 =======
 (define (try-precompute expr loc)
 >>>>>>> Added Precomputation
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (eval expr (current-namespace))])
+      (let ([value (eval expr full-namespace)])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
