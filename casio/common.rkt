@@ -160,5 +160,5 @@
       (foldr (lambda (x y) (a-append x y)) '() args)))
 
 (define safe-eval
-  (let ((ns (make-base-namespace)))
+  (let ([ns (make-base-namespace)])
     (λ (expr) (eval expr ns))))
