@@ -135,7 +135,7 @@
 
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (car (make-exacts `(λ () ,expr) '(())))])
+      (let ([value (eval expr)])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
