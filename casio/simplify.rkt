@@ -339,29 +339,30 @@
     (if (not (list? expr)) (values '() (list (s-atom expr loc))) ;; Base case.
   	(let-values ([(sub-changes sub-atoms) (resolve-subexpressions loc expr)])
   	  (let* ([expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) expr)]
-		 [precompute-changes (try-precompute expr* loc)]
-		 [expr* (changes-apply precompute-changes expr*)])
-  	    (cond [(and (eq? (car expr*) '/) (safe-= (cadr expr*) 1))
-		   (values (list (let ([rl (get-rule 'div1)])
-				   (change rl loc '())))
-			   (s-atom 1 loc))]
-		  [(and (eq? (car expr*) '*) (safe-= (cadr expr*) 1))
-		   (let-values ([(changes atoms) (resolve-expression loc (caddr expr*))])
-		     (let ([rl (get-rule '*-lft-identity)])
-		       (values (cons (change rl loc `((a . ,(caddr expr*)))) sub-changes) atoms)))]
-		  [(and (eq? (car expr*) '*) (safe-= (caddr expr*) 1))
-		   (let-values ([(changes atoms) (resolve-expression loc (cadr expr*))])
-		     (let ([rl (get-rule '*-lft-identity)])
-		       (values (cons (change rl loc `((a . ,(cadr expr*)))) sub-changes) atoms)))]
-		  [(eq? (car expr*) '+) ;; This counld just as easily be (eq? (car expr) '+), since the operator shouldn't change.
-		   (let-values ([(changes atoms) (try-additive-cancel expr* sub-atoms loc)])
-		     (values (append changes sub-changes) atoms))]
-		  [(eq? (car expr*) '*)
-		   (let-values ([(changes atoms) (try-multiplicitave-cancel expr* sub-atoms loc)])
-		     (values (append changes sub-changes) atoms))]
-		  [#t
-		   (let-values ([(changes atoms) (try-reduce expr* loc)])
-		     (values (append changes sub-changes) atoms))])))))
+		 [precompute-changes (try-precompute expr* loc)])
+	    (if (not (null? precompute-changes))
+		(values (append precompute-changes sub-changes) (list (s-atom (changes-apply precompute-changes expr*) loc)))
+		(cond [(and (eq? (car expr*) '/) (safe-= (cadr expr*) 1))
+		       (values (list (let ([rl (get-rule 'div1)])
+				       (change rl loc '())))
+			       (s-atom 1 loc))]
+		      [(and (eq? (car expr*) '*) (safe-= (cadr expr*) 1))
+		       (let-values ([(changes atoms) (resolve-expression loc (caddr expr*))])
+			 (let ([rl (get-rule '*-lft-identity)])
+			   (values (cons (change rl loc `((a . ,(caddr expr*)))) sub-changes) atoms)))]
+		      [(and (eq? (car expr*) '*) (safe-= (caddr expr*) 1))
+		       (let-values ([(changes atoms) (resolve-expression loc (cadr expr*))])
+			 (let ([rl (get-rule '*-lft-identity)])
+			   (values (cons (change rl loc `((a . ,(cadr expr*)))) sub-changes) atoms)))]
+		      [(eq? (car expr*) '+) ;; This counld just as easily be (eq? (car expr) '+), since the operator shouldn't change.
+		       (let-values ([(changes atoms) (try-additive-cancel expr* sub-atoms loc)])
+			 (values (append changes sub-changes) atoms))]
+		      [(eq? (car expr*) '*)
+		       (let-values ([(changes atoms) (try-multiplicitave-cancel expr* sub-atoms loc)])
+			 (values (append changes sub-changes) atoms))]
+		      [#t
+		       (let-values ([(changes atoms) (try-reduce expr* loc)])
+			 (values (append changes sub-changes) atoms))]))))))
   (let-values ([(changes atoms) (resolve-expression '() expr)])
     (reverse changes)))
 
