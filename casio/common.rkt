@@ -5,7 +5,8 @@
 
 (provide reap println ->flonum *precision* cotan ordinary-float?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! alist-append)
+	 flip-args idx-map list-product set-debug-level! alist-append
+	 safe-eval)
 
 ; Precision for approximate evaluation
 (define *precision* (make-parameter real->double-flonum))
@@ -157,3 +158,7 @@
   (if (< 2 (length args))
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))
+
+(define safe-eval
+  (let ((ns (make-base-namespace)))
+    (λ (expr) (eval expr ns))))
