@@ -155,6 +155,12 @@
 	 [resolve-changes (resolve expr*)])
     (append canon-changes resolve-changes)))
 
+;; Simplifies an expression, and then applies the simplifying changes.
+;; for debuggging.
+(define (simplify-expression* expr)
+  (let ([simplify-changes (simplify-expression expr)])
+    (changes-apply simplify-changes expr)))
+
 (struct s-atom (var loc) #:prefab)
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
