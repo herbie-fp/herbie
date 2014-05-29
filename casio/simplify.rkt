@@ -126,6 +126,7 @@
 			      '(())))])
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
     (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 						  slocations))]
@@ -146,7 +147,32 @@
 	      (if (simpler? altn*)
 		  (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
 		  (loop altn* (cdr rest-changes)))))))))
+=======
+    (if (null? slocations) altn
+	(debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
+	(let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
+						      slocations))]
+	       [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
+					     (if (null? r-changes)
+						 '()
+						 (let ([rl (change-rule (car r-changes))])
+						   (if (> (rule-cost-improvement rl) *goal-cost-improvement*)
+						       (reverse r-changes)
+						       (loop (cdr r-changes))))))])
+	  ;; We set the prev pointer to null because we only care about the changes we're applying,
+	  ;; and we want to make sure to not have red elimination worry about any of the changes
+	  ;; before we simplified.
+	  (let loop ([cur-alt (alt-with-prev #f altn)] [rest-changes partially-filtered-changes])
+	    (if (null? rest-changes)
+		(let ([result (alt-changes cur-alt)])
+>>>>>>> Caused Simplify To Short Circuit On Nothing To Do
 		  (debug "Simplified to " cur-alt #:from 'simplify #:depth 2)
+		  result)
+		(let ([altn* (alt-apply cur-alt (car rest-changes))])
+		  (if (simpler? altn*)
+		      (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
+		      (loop altn* (cdr rest-changes))))))))))
+
 (define (simplify* altn)
   (let ([simplify-changes (simplify altn)])
     (apply-changes altn simplify-changes)))
