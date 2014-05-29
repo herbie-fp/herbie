@@ -26,6 +26,42 @@
     (append
      (apply append
 	    (for/list ([loc locs])
+<<<<<<< HEAD
+=======
+	      (rewrite-local-error altn loc)))
+     (apply append
+	    (for/list ([loc locs])
+	      (let-values ([(parent other) (location-parent loc)])
+		(if (and
+		     parent
+		     (= (length (location-get parent (alt-program altn))) 3))
+		    (alt-rewrite-expression altn #:root other)
+		    '())))))))
+
+(define (zaching-changes altn locs)
+  (map list (apply append
+		   (for/list ([loc locs])
+		     (let-values ([(parent other) (location-parent loc)])
+		       (if (and
+			    parent
+			    (= (length (location-get parent (alt-program altn))) 3))
+			   (rewrite-expression (location-get other (alt-program altn)) #:root other)
+			   '()))))))
+
+(define (analyze-and-rm altn)
+  (let ([locs (map car (analyze-local-error altn))])
+
+(define (try-simplify altn #:conservative [conservative #t])
+  (simplify altn #:fitness-func (if conservative
+				    (lambda (chng)
+				      (much-better? (alt-apply altn chng)
+						    altn))
+				    (lambda (chng)
+				      (not (much-better? altn (alt-apply altn chng)))))))
+    (append
+     (apply append
+	    (for/list ([loc locs])
+>>>>>>> Added Zaching Back In, Clearly Labeled
 	      (let ([subtree (location-get loc (alt-program altn))])
 		(map reverse (rewrite-expression-head subtree #:root loc)))))
      (zaching-changes altn locs))))
