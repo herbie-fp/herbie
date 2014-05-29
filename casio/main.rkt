@@ -212,4 +212,4 @@
 ;                   [plot-x-label #f] [plot-y-label #f])
 ;      (plot (points (map vector logs rands))))))
 
-(provide improve program-a program-b print-improve improvement improve-with-points)
+(provide improve program-a program-b print-improve improvement improve-with-points *max-threshold* *min-threshold*)
