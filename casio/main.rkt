@@ -11,27 +11,6 @@
 (require casio/rules)
 (require casio/combine-alts)
 
-(define (rewrite-local-error altn loc)
-  (alt-rewrite-rm altn #:root loc))
-
-(define (rewrite-brute-force altn)
-  (alt-rewrite-tree altn))
-
-(define (try-analyze altn)
-  (let ([locs (analyze-local-error altn)])
-    (append
-     (apply append
-	    (for/list ([loc locs])
-	      (rewrite-local-error altn loc)))
-     (apply append
-	    (for/list ([loc locs])
-	      (let-values ([(parent other) (location-parent loc)])
-		(if (and
-		     parent
-		     (= (length (location-get parent (alt-program altn))) 3))
-		    (alt-rewrite-expression altn #:root other)
-		    '())))))))
-
 (define (zaching-changes altn locs)
   (map list (apply append
 		   (for/list ([loc locs])
@@ -44,14 +23,6 @@
 
 (define (analyze-and-rm altn)
   (let ([locs (map car (analyze-local-error altn))])
-
-(define (try-simplify altn #:conservative [conservative #t])
-  (simplify altn #:fitness-func (if conservative
-				    (lambda (chng)
-				      (much-better? (alt-apply altn chng)
-						    altn))
-				    (lambda (chng)
-				      (not (much-better? altn (alt-apply altn chng)))))))
     (append
      (apply append
 	    (for/list ([loc locs])
@@ -148,71 +119,6 @@
 		  (loop alts* maybes* olds green-threshold*))))
 	  (let-values ([(alts* maybes* olds*) (step alts maybes olds green-threshold)])
 	    (loop alts* maybes* olds* green-threshold))))))
-
-;; This should only be called in a scope where *points* and *exacts* are
-;; dynamically defined.
-(define (improve-with-points-old altn max-iters)
-  (define (final-result alts olds trace)
-    (let* ([sorted (sort (reverse (append alts olds trace))
-			 much-better?)]
-	   [result (try-simplify (car sorted) #:conservative #f)])
-      (debug "Done:" result #:from 'improve)
-      result))
-  (let loop ([alts (list (try-simplify altn))] [olds (list)] [trace (list)]
-	     [iter max-iters])
-    ;; Invariant: (no-duplicates? alts)
-    ;; Invariant: (no-duplicates? olds)
-    (cond
-     [(= iter 0)
-      (debug "Run out of iterations, trying combinations" #:from 'improve #:depth 2)
-      (let ([plausible-combinors (plausible-alts (append alts olds trace))])
-	(debug "Found the plausible-combinors: " plausible-combinors #:from 'improve #:depth 3)
-	(if (> 2 (length plausible-combinors))
-	    (begin (debug "Not enough plausible-combinors for combination" #:from 'improve #:depth 3)
-		   (final-result alts olds trace))
-	    (let ([best-combo (best-combination plausible-combinors
-						#:pre-combo-func (curry (flip-args improve-with-points) max-iters))])
-	      (or best-combo (final-result alts olds trace)))))]
-     [(and (null? alts) (not (null? olds)))
-					; We've exhausted all "intelligent" things to do
-      (debug "Resorting to brute force"
-	     #:from 'improve #:depth 2)
-      (let* ([old (car olds)]
-	     [old* (cdr olds)]
-	     [alts* (rewrite-brute-force old)]
-	     [greens
-	      (map remove-red #;identity (filter (curryr much-better? old) alts*))])
-	(cond
-	 [(null? greens)
-	  (debug "Produced" (length alts*) "alternatives, none green"
-		 #:from 'improve #:tag 'info #:depth 3)
-	  (loop alts* (map alt-cycles++ old*) (map alt-cycles++ (cons old trace)) (- iter 1))]
-	 [else
-	  (debug "Discovered" (length greens) "green changes"
-		 #:from 'improve #:tag 'info #:depth 3)
-	  (loop greens (list) (map alt-cycles++ (append olds alts alts* trace))
-		(- iter 1))]))]
-     [(and (null? alts) (null? olds))
-      (error "(improve) cannot proceed: no olds or alts")]
-     [else
-      (debug "Step:" (car alts) #:from 'improve #:depth 2)
-      (let* ([altn (car alts)]
-	     [alts* (cdr alts)]
-	     [next (map try-simplify (try-analyze altn))]
-	     [greens
-	      (map remove-red #;identity (filter (curryr much-better? altn) next))])
-	(cond
-	 [(null? greens)
-	  (let ([next-alts (append alts* next)]
-		[next-olds (cons altn olds)])
-	    (debug "Produced" (length next) "alternatives, none green"
-		   #:from 'improve #:tag 'info #:depth 3)
-	    (loop next-alts (map alt-cycles++ next-olds) (map alt-cycles++ trace)(- iter 1)))]
-	 [else 
-	  (debug "Discovered" (length greens) "green changes"
-		 #:from 'improve #:tag 'info #:depth 3)
-	  (loop (sort greens alternative<?) (list)
-		(map alt-cycles++ (append alts olds next)) (- iter 1))]))])))
 
 ;; For usage at the REPL, we define a few helper functions.
 ;;
