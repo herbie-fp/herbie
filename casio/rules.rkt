@@ -352,4 +352,3 @@
 (define-rule   cos-sin-sum (+ (sqr (cos a)) (sqr (sin a))) 1)
 (define-rule   1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a)) #:simplify ((1)))
 (define-rule   1-sin-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify ((1)))
-
