@@ -146,6 +146,9 @@
 	      (if (simpler? altn*)
 		  (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
 		  (loop altn* (cdr rest-changes)))))))))
+(define (simplify* altn)
+  (let ([simplify-changes (simplify altn)])
+    (apply-changes altn simplify-changes)))
 
 (define (simpler? altn)
   (> (rule-cost-improvement (change-rule (alt-change altn)))
