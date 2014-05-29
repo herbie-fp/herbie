@@ -30,7 +30,8 @@
 			      '(())))])
     (if (null? slocations) '()
 	(begin (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
-	       (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
+	       (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations
+								       (simplify-expression (location-get loc (alt-program altn))) loc))
 							     slocations))]
 		      [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
 						    (if (null? r-changes)
@@ -140,6 +141,7 @@
 	       (eq? (car expr)
 		    '*)))))
 
+;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
       (let ([value (eval expr (current-namespace))])
