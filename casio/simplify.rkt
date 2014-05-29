@@ -146,6 +146,7 @@
 	      (if (simpler? altn*)
 		  (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
 		  (loop altn* (cdr rest-changes)))))))))
+		  (debug "Simplified to " cur-alt #:from 'simplify #:depth 2)
 (define (simplify* altn)
   (let ([simplify-changes (simplify altn)])
     (apply-changes altn simplify-changes)))
