@@ -2,11 +2,7 @@
 (require casio/common)
 (require casio/programs)
 
-<<<<<<< HEAD
 (provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out rule) (struct-out change*) change-add-hardness changes-apply rule-location-translations)
-=======
-(provide *rules* pattern-substitute pattern-match rewrite-expression rewrite-expression-head rewrite-tree change-apply (struct-out change) (struct-out rule) change-add-hardness change*-hardness changes-apply (struct-out change*))
->>>>>>> Fixed Merge Issue
 
 ;; Our own pattern matcher.
 ;
