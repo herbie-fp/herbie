@@ -239,7 +239,13 @@
 		     ;; branches, plus a branch cost.
 		     [cost (+ *branch-cost* (max (alt-cost altn1*) (alt-cost altn2*)))])
 		 ;; Build the alt struct and return.
-		 (alt program errs cost #f #f 0))))])))
+		 (alt program errs cost
+                      (make-regime-change condition (option-altn1 opt) (option-altn2 opt) altn1* altn2* program)
+                      #f 0))))])))
+
+(define (make-regime-change cond lft1 rgt1 lft2 rgt2 final-prog)
+  (let ([new-rule (rule 'regimes 'a final-prog '())])
+    (change new-rule '() `((a . ()) (cond . ,cond) (lft ,lft1 ,lft2) (rgt ,rgt1 ,rgt2)))))
 
 ;; Given a list, and a function for comparing items in the list,
 ;; return the "best" item b, such that for all a in the list, (not (item<? b a))

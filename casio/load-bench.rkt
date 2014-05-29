@@ -9,15 +9,11 @@
 
 (define *test-cache* (make-hash))
 
-(provide load-file load-bench load-all make-prog test-improvement test-succeeds?)
-
-(define (make-prog test)
-  `(λ ,(test-vars test) ,(test-input test)))
+(provide load-file load-bench load-all test-improvement test-succeeds?)
 
 (define (test-improvement test)
-  (let*-values ([(end stt) (improve (make-prog test) (*num-iterations*))]
-                [(diff) (errors-diff-score (alt-errors stt) (alt-errors end))])
-    (/ diff (length (alt-errors end)))))
+  (let*-values ([(end stt) (improve (make-prog test) (*num-iterations*))])
+    (errors-diff-score (alt-errors stt) (alt-errors end))))
 
 (define (test-succeeds? test)
   (if (test-output test)
