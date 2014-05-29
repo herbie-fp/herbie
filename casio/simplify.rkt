@@ -616,7 +616,7 @@
 (define (try-precompute expr loc)
 >>>>>>> Added Precomputation
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (eval expr)])
+      (let ([value (safe-eval expr)])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
