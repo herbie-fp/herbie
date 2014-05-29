@@ -9,8 +9,9 @@
         total += total * (expr); \
     } \
     end = clock(); \
-    printf("%s\t%f\t%d\n", #expr, total, (end - start) / 10000);
+    printf("%s\t%f\t%lu\n", #expr, total, (end - start) / 10000);
 
+int
 main() {
     double x = 1e-7;
     double total = 0;
@@ -35,6 +36,9 @@ main() {
     benchmark(asin(x));
     benchmark(acos(x));
     benchmark(atan(x));
+    benchmark(sinh(x));
+    benchmark(cosh(x));
+    benchmark(tanh(x));
     benchmark((i&17)?total + x: total - y);
     benchmark(y > total);
     benchmark(y < total);
@@ -42,4 +46,5 @@ main() {
     benchmark(y <= total);
     benchmark((i & 17) && (i & 13));
     benchmark((i & 17) || (i & 13));
+    benchmark(atan2(x, y));
 }

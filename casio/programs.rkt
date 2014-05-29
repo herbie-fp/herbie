@@ -1,5 +1,4 @@
 #lang racket
-
 (require math/bigfloat)
 (require casio/common)
 
@@ -119,6 +118,9 @@
            [asin    ,bfasin  ,asin    140]
            [acos    ,bfacos  ,acos    155]
            [atan    ,bfatan  ,atan    130]
+           [sinh    ,bfsinh  ,sinh    300]
+           [cosh    ,bfcosh  ,cosh    300]
+           [tanh    ,bftanh  ,tanh    300]
            [if      ,if-fn   ,if-fn   1]
            [>       ,bf>     ,>       1]
            [<       ,bf<     ,<       1]
@@ -126,6 +128,7 @@
            [>=      ,bf>=    ,>=      1]
            [and     ,and-fn  ,and-fn  1]
            [or      ,or-fn   ,or-fn   1]
+           [atan2   ,bfatan2 ,atan    230]
 
            ; For compiling variables
            [*var*   ,bf      ,(*precision*) 0])])

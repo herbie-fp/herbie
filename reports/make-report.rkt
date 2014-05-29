@@ -1,7 +1,10 @@
 #lang racket
 
-(require reports/markdown-tools)
+(require racket/match)
+(require racket/date)
 (require reports/make-graph)
+(require reports/tools-common)
+(require reports/thread-pool)
 (require casio/load-bench)
 (require casio/test)
 (require casio/common)
@@ -9,201 +12,252 @@
 (require casio/main)
 (require casio/programs)
 (require casio/alternative)
-(require racket/date)
 
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
 (define *handle-crashes* #t)
+(define *output-directory* "graphs")
+(define *reeval-pts* 1000)
 
-(define disallowed-strings '("/" " " "(" ")"))
+(define *max-test-args* #f)
+(define *max-test-threads* (max (- (processor-count) 1) 1))
 
-(define (strip-string s)
-  (pipe s (map (λ (p) (λ (s) (string-replace s p "")))
-	       disallowed-strings)))
+(define (make-report . bench-dirs)
+  (let* ([tests (allowed-tests bench-dirs)]
+         [results
+          (get-test-results tests (*num-iterations*)
+                            #:threads *max-test-threads*)])
 
-(define (graph-folder-path tname index)
-  (let ([stripped-tname (strip-string tname)]
-	[index-label (number->string index)])
-    (string-append "graphs/" index-label
-		   (substring stripped-tname 0
-			      (min (string-length stripped-tname)
-				   (- *graph-folder-name-length*
-				      (string-length index-label))))
-		   "/")))
+    (when (not (directory-exists? *output-directory*))
+      (make-directory *output-directory*))
 
-(define (test-result test)
-  (define (compute-result orig)
-    (let-values ([(points exacts) (prepare-points orig)])
-      (parameterize ([*points* points] [*exacts* exacts])
-	(let* ([start-alt (make-alt orig)]
-	       [end-alt (improve-with-points start-alt (*num-iterations*))])
-	  (list start-alt end-alt points exacts)))))
-  (let ([start-prog (make-prog test)])
-    (let-values ([(start-end-points-exacts-list cpu-mil real-mil garbage-mill)
-		  (time-apply (if *handle-crashes* (λ (orig)
-						     (with-handlers ([(const #t) (λ _ (display "Crashed!\n") (make-list 4 '()))])
-						       (compute-result orig)))
-				  compute-result)
-			      (list start-prog))])
-      (append (car start-end-points-exacts-list) (list real-mil)))))
+    (let* ([links
+            (map make-graph-if-valid
+                 results (map test-name tests) (range (length tests)))]
+           [table-data (get-table-data results)])
+      (make-report-page "graphs/report.html" table-data links))))
 
-(define (table-row results test)
-  (append (list (test-name test))
-	  (if (null? (car results))
-	      (append (make-list 5 "N/A") (list 'Yes))
-	      (append (get-improvement-columns (car results)  (cadr results) (test-output test)) (list 'No)))
-	  (list (fifth results))))
+(define (command-result cmd) (string-trim (write-string (system cmd))))
 
-(define (get-improvement-columns start end expected-output)
-  (let* ([start-errors (alt-errors start)]
-	 [end-errors (alt-errors end)]
-	 [diff (errors-difference start-errors end-errors)]
-	 [annotated-diff (map list diff start-errors end-errors)]) ;; We use this annotated-diff because eventually we'll want to show in some way which points have inf improvement.
-    (let*-values ([(reals infs) (partition (compose reasonable-error? car) annotated-diff)]
-		  [(good bad) (partition (compose positive? car) infs)])
-      (list (/ (apply + (map car reals)) (length reals))
-	    (length good)
-	    (length bad)
-	    (alt-program end)
-	    (if expected-output
-		(if (equal? expected-output (program-body (alt-program end))) 'Yes 'No)
-		"N/A")))))
-
-(define (univariate-tests bench-dir)
-  (filter (λ (test) (= 1 (length (test-vars test))))
-	  (load-all #:bench-path-string bench-dir)))
-
-(define table-labels '("Name"
-		       "Error Improvement"
-		       "Points with Immeasurable Improvement"
-		       "Points with Immeasurable Regression"
-		       "Resulting Program"
-		       "Passed Test"
-		       "Crashed?"
-		       "Time Taken (Milliseconds)"))
-
-(define (bad? row)
-  (or (not (number? (list-ref row 7)))
-      (< 30000 (list-ref row 7))
-      (not (number? (list-ref row 1)))
-      (> -1 (list-ref row 1))
-      (eq? 'Yes (list-ref row 6))))
-
-(define (good? row)
-  (and (not (bad? row))
-       (or (eq? 'Yes (list-ref row 5))
-	   (< 5 (list-ref row 1)))))
-
-(define (get-test-results tests)
-  (progress-map test-result tests
-		#:map-name 'execute-tests
-		#:item-name-func test-name
-		#:show-time #t))
-
-(define (get-table-data results tests)
-  (let ([rows (map table-row results tests)])
-    (append rows
-	    `("Num Green", (length (filter good? rows))))))
-
-(define (info-stamp cur-date cur-commit cur-branch)
-  (bold (text (date-year cur-date) " "
-	      (date-month cur-date) " "
-	      (date-day cur-date) ", "
-	      (date-hour cur-date) ":"
-	      (date-minute cur-date) ":"
-	      (date-second cur-date)))
-  (newline)
-  (newline)
-  (bold (text "Commit: " cur-commit " on " cur-branch))
-  (newline)
-  (newline))
-
-(define (strip-end num-chars string)
-  (substring string 0 (- (string-length string) num-chars)))
-
-(define (command-result cmd) (strip-end 1 (write-string (system cmd))))
+(define (allowed-tests bench-dirs)
+  (apply append
+         (for/list ([bench-dir bench-dirs])
+           (filter (λ (test)
+                      (or (not *max-test-args*)
+                          (<= (length (test-vars test)) *max-test-args*)))
+                   (load-all #:bench-path-string bench-dir)))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
-(define (make-graph-if-valid include-css result tname index)
-  (let ([dir (graph-folder-path tname index)])
-    (with-handlers ([(const #t) (λ _ #f)])
-      (if (not (null? (first result)))
-	  (begin (when (not (directory-exists? dir)) (make-directory dir))
-		 (make-graph (first result) (second result) (third result)
-			     (fourth result) dir include-css)
-		 #t)
-	  #f))))
+(define (make-graph-if-valid result tname index)
+  (let* ([rdir (graph-folder-path tname index)]
+         [dir (build-path *output-directory* rdir)])
+    (with-handlers ([(const #f) (λ _ #f)])
+      (cond
+       [(test-result? result)
+        (when (not (directory-exists? dir))
+          (make-directory dir))
 
-(define (make-report bench-dir)
-  (let ([cur-date (current-date)]
-	[commit (command-result "git rev-parse HEAD")]
-	[branch (command-result "git rev-parse --abbrev-ref HEAD")]
-	[tests (univariate-tests bench-dir)])
-    (let* ([results (get-test-results tests)]
-	   [table-data (get-table-data results tests)])
-      (when (not (directory-exists? "graphs")) (make-directory "graphs"))
-      (let ([graph-results (map (curry make-graph-if-valid '("reports/graph.css"))
-				results
-				(map test-name tests)
-				(build-list (length tests) identity))])
-	(let* ([test-dirs (map (λ (t i) (string-append (graph-folder-path (test-name t) i) "graph.html"))
-			       tests
-			       (build-list (length tests) identity))]
-	       [links (map (λ (dir result) (if result dir '()))
-			   test-dirs graph-results)])
-	  (write-file "report.md"
-		      (info-stamp cur-date commit branch)
-		      (make-table table-labels table-data
-				  #:modifier-alist `((,bad? . red)
-						     (,good? . green))
-				  #:row-links links)))))))
+        (make-graph (test-result-test result)
+                    (test-result-start-alt result)
+                    (test-result-end-alt result)
+                    (test-result-points result)
+                    (test-result-exacts result)
+                    (path->string dir))
 
-(define (make-test-graph testpath)
-  (let ([result (test-result (car (load-all #:bench-path-string testpath)))]
-	[dir "../reports/graph/"])
-    (text "Making graph...\n")
-    (when (not (directory-exists? dir)) (make-directory dir))
-    (make-graph (first result) (second result) (third result) (fourth result) dir
-	        '("../reports/graph.css"))))
+        (build-path rdir "graph.html")]
+       [(test-timeout? result)
+        #f]
+       [(test-failure? result)
+        (when (not (directory-exists? dir))
+          (make-directory dir))
 
-;; No longer maintained
-(define (make-dummy-report)
-  (let ([cur-date (current-date)]
-	[commit (with-output-to-string (lambda () (system "git rev-parse HEAD")))]
-	[branch (with-output-to-string (lambda () (system "git rev-parse --abbrev-ref HEAD")))])
-    (write-file "test.md"
-		(info-stamp cur-date commit branch)
-		(make-table '(A B C) '((1 2 3) (4 5 6) (7 8 9)) #:modifier-alist `((,(lambda (row) (> 3 (cadr row))) . green)
-										   (,(lambda (row) (< 7 (cadr row))) . red))))))
+        (write-file (build-path dir "graph.html")
+          (printf "<html>\n")
+          (printf "<head><meta charset='utf-8' /><title>Exception for ~a</title></head>\n"
+                  (test-name (test-failure-test result)))
+          (printf "<body>\n")
+          (make-traceback (test-failure-exn result))
+          (printf "</body>\n")
+          (printf "</html>\n"))
 
-(define (string-when test value)
-  (if test
-      value
-      ""))
+        (build-path rdir "graph.html")]
+       [else #f]))))
 
-(define (progress-map f l #:map-name [name 'progress-map] #:item-name-func [item-name #f] #:show-time [show-time? #f])
-  (let ([total (length l)])
-    (let loop ([rest l] [acc '()] [done 1])
-      (if (null? rest)
-	  (reverse acc)
-	  (let-values ([(results cpu-mil real-mil garbage-mill) (time-apply f (list (car rest)))])
-	    (println name
-		     ": "
-		     (quotient (* 100 done) total)
-		     "%\t["
-		     (string-when show-time? (~a real-mil #:width 8))
-		     (string-when show-time? " milliseconds]")
-		     (string-when show-time? "\t\t")
-		     (string-when item-name (item-name (car rest))))
-	    (loop (cdr rest) (cons (car results) acc) (1+ done)))))))
+(define (make-traceback err)
+  (printf "<h2 id='error-message'>~a</h2>\n" (first err))
+  (printf "<ol id='traceback'>\n")
+  (for ([fn&loc (second err)])
+    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
+            (first fn&loc) (second fn&loc)))
+  (printf "</ol>\n"))
 
+(define (graph-folder-path tname index)
+  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
+         [index-label (number->string index)]
+         [name-bound (- *graph-folder-name-length* (string-length index-label))]
+         [final-tname
+          (substring stripped-tname 0
+                     (min (string-length stripped-tname) name-bound))])
+    (string-append index-label final-tname "/")))
 
-(make-report
+(struct table-row
+  (name status delta target inf- inf+ delta-est input output time))
+
+(define (get-table-data results)
+  (for/list ([result results])
+    (cond
+     [(test-result? result)
+      (let-values
+          ([(pts exs)
+            (parameterize ([*eval-pts* *reeval-pts*])
+              (prepare-points (alt-program (test-result-start-alt result))))])
+        (let* ([name (test-name (test-result-test result))]
+               [start-errors
+                (errors (alt-program (test-result-start-alt result)) pts exs)]
+               [end-errors
+                (errors (alt-program (test-result-end-alt result)) pts exs)]
+               [target-errors
+                (and (test-output (test-result-test result))
+                     (errors
+                      `(λ ,(test-vars (test-result-test result))
+                          ,(test-output (test-result-test result)))
+                      pts exs))]
+
+               [result-diff (errors-difference start-errors end-errors)]
+               [result-score (errors-score result-diff)]
+               [target-score
+                (and target-errors
+                     (errors-diff-score start-errors target-errors))]
+
+               [est-score
+                (errors-diff-score
+                 (alt-errors (test-result-start-alt result))
+                 (alt-errors (test-result-end-alt result)))])
+
+          (let*-values ([(reals infs) (partition reasonable-error? result-diff)]
+                        [(good-inf bad-inf) (partition positive? infs)])
+            (table-row name
+                       (cond
+                        [(not target-score) "no-compare"]
+                        [(> result-score (+ target-score 1)) "gt-target"]
+                        [(> result-score (- target-score 1)) "eq-target"]
+                        [(< result-score -1) "lt-start"]
+                        [(< result-score 1) "eq-start"]
+                        [(< result-score (- target-score 1)) "lt-target"])
+                       result-score
+                       target-score
+                       (length good-inf)
+                       (length bad-inf)
+                       est-score
+                       (program-body (alt-program (test-result-start-alt result)))
+                       (program-body (alt-program (test-result-end-alt result)))
+                       (test-result-time result)))))]
+     [(test-failure? result)
+      (table-row (test-name (test-failure-test result)) "crash"
+                 #f #f #f #f #f (test-input (test-failure-test result)) #f
+                 (test-failure-time result))]
+     [(test-timeout? result)
+      (table-row (test-name (test-timeout-test result)) "timeout"
+                 #f #f #f #f #f (test-input (test-timeout-test result)) #f
+                 (* 1000 60 5))])))
+
+(define (format-time ms)
+  (cond
+   [(< ms 1000) (format "~a ms" (round ms))]
+   [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
+   [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
+   [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (make-report-page file table-data links)
+  (let ([commit (command-result "git rev-parse HEAD")]
+        [branch (command-result "git rev-parse --abbrev-ref HEAD")])
+
+    (define table-labels
+      '("Test" "Δ [bits]" "Target [bits]" "∞ → ℝ" "ℝ → ∞" "Δ Estimate" "Input" "Time"))
+
+    (define-values (dir _name _must-be-dir?) (split-path file))
+
+    (copy-file "reports/report.css" (build-path dir "report.css") #t)
+
+    (define total-time (apply + (map table-row-time table-data)))
+    (define total-passed
+      (apply + (for/list ([row table-data])
+                 (if (member (table-row-status row) '("gt-target" "eq-target")) 1 0))))
+    (define total-available
+      (apply + (for/list ([row table-data])
+                 (if (not (equal? (table-row-status row) "no-compare")) 1 0))))
+
+    (write-file file
+      (printf "<!doctype html>\n")
+      (printf "<head>\n")
+      (printf "<title>Casio test results</title>\n")
+      (printf "<meta charset='utf-8' />")
+      (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
+      (printf "</head>\n")
+      (printf "<body>\n")
+      (printf "<dl id='about'>\n")
+      (printf "<dt>Date:</dt><dl>~a</dl>\n" (date->string (current-date)))
+      (printf "<dt>Commit:</dt><dl>~a on ~a</dl>\n" commit branch)
+      (printf "</dl>\n")
+
+      (printf "<div id='large'>\n")
+      (printf "<div>Time: <span class='number'>~a</span></div>\n"
+              (format-time total-time))
+      (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
+              total-passed total-available)
+      (printf "</div>\n")
+
+      (printf "<table id='results'>\n")
+      (printf "<thead><tr>")
+      (for ([label table-labels])
+        (printf "<th>~a</th>" label))
+      (printf "</tr></thead>\n")
+
+      (printf "<tbody>")
+      (for ([result table-data] [link links])
+        (printf "<tr class='~a'>" (table-row-status result))
+
+        (printf "<td>~a</td>" (or (table-row-name result) ""))
+        (printf "<td>~a</td>"
+                (if (table-row-delta result)
+                    (/ (round (* (table-row-delta result) 10)) 10)
+                    ""))
+        (printf "<td>~a</td>"
+                (if (table-row-target result)
+                    (/ (round (* (table-row-target result) 10)) 10)
+                    ""))
+        (printf "<td>~a</td>"
+                (let ([inf- (table-row-inf- result)])
+                  (if (and inf- (> inf- 0)) inf- "")))
+        (printf "<td>~a</td>"
+                (let ([inf+ (table-row-inf+ result)])
+                  (if (and inf+ (> inf+ 0)) inf+ "")))
+        (printf "<td>~a</td>"
+                (if (table-row-delta-est result)
+                    (/ (round (* (table-row-delta-est result) 10)) 10)
+                    ""))
+
+        (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
+        (printf "<td>~a</td>" (format-time (table-row-time result)))
+        (if link
+          (printf "<td><a href='~a'>[MORE]</a></td>" (path->string link))
+          (printf "<td></td>"))
+        (printf "</tr>\n"))
+      (printf "</tbody>\n")
+      (printf "</table>\n")
+      (printf "</body>\n")
+      (printf "</html>\n"))))
+
+(apply
+ make-report
  (command-line
   #:program "make-report"
-  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
-	   (*debug* #t)]
-  #:args (bench-dir)
+  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
+  #:multi [("-a") ma "How many arguments to allow"
+           (set! *max-test-args* (string->number ma))]
+  #:multi [("-p") th "How many tests to run in parallel to use"
+           (set! *max-test-threads* (string->number th))]
+  #:args bench-dir
   bench-dir))

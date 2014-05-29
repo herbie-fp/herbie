@@ -3,24 +3,17 @@
 (require casio/alternative)
 (require casio/points)
 (require casio/common)
-(require reports/html-tools)
+(require casio/rules)
 (require reports/svg-tools)
+(require reports/tools-common)
 
 (provide (all-defined-out))
 
 (struct graph-line (points color name width) #:transparent)
 
-(define *default-width* 2)
+(define *default-width* 4)
 
 (define good-point? (compose reasonable-error? cdr))
-
-;; Returns the full local path of the canonical location for an included file with the given extension.
-(define (include-path dir index extension)
-  (string-append dir (include-name index extension)))
-
-;; Returns the filename for an included file with the given extension
-(define (include-name index extension)
-  (string-append (number->string index) "include." extension))
 
 ;; Given a list of xs and a list of ys, returns the ys reordered so that,
 ;; if each input y cooresponds to it's matching x, the xs that the reordered ys
@@ -115,48 +108,66 @@
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
 ;; be a string, not a path-object.
-(define (make-graph start end points exacts dir include-css)
+(define (make-graph test start end points exacts dir)
 
   ;; Copy the css files to our graph directory 
-  (for/list ([css include-css] [i (build-list (length include-css) identity)])
-    (copyr-file css (include-path dir i "css")))
+  (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
 
   ;; Generate the html for our graph page
-  (let ([page-path (string-append dir "graph.html")]
-	[xs (map car points)])
-    (let ([pre-error-lines (alt->error-lines xs start "yellow" "pre-errors" #:width 5)]
-	  [post-error-lines (alt->error-lines xs end "blue" "post-errors")]
-	  [improvement-lines (get-improvement-lines xs start end "green" "improvement")]
-	  [exacts-lines (ys->tokenized-lines xs exacts "green" "exacts" 8)]
-	  [pre-behavior-lines (alt->behave-lines xs start "yellow" "pre-behavior" #:width 5)]
-	  [post-behavior-lines (alt->behave-lines xs end "blue" "post-behavior")])
-      (write-file page-path
-		  (html (newline)
-			(head (newline)
-			      ;; Include all our given css
-			      (for/list ([i (build-list (length include-css) identity)])
-				(link #:args `((rel . "stylesheet") (type . "text/css") (href . ,(include-name i "css")) (media . "screen")))
-				(newline))
-			      (newline)
-			      (body (newline)
-				    (text (make-graph-svg (append improvement-lines pre-error-lines post-error-lines)
-							  0 0 800 800 #:y-scale 'lin))
-				    (newline)
-				    (text (make-graph-svg (append exacts-lines pre-behavior-lines post-behavior-lines)
-							  0 900 800 800))
-				    (newline)
-				    (br)
-				    (text "Starting Program: " (alt-program start) "\n")
-				    (br)
-				    (newline)
-				    (text "Ending Program: " (alt-program end) "\n")
-				    (newline))
-			      ))))))
+  (let* ([page-path (string-append dir "graph.html")]
+         [xs (map car points)]
+         [pre-error-lines (alt->error-lines xs start "red" "initial")]
+         [post-error-lines (alt->error-lines xs end "blue" "final")])
+    (write-file page-path
+      (printf "<!doctype html>\n")
+      (printf "<html>\n")
+      (printf "<head>")
+      (printf "<meta charset='utf-8' />")
+      (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
+      (printf "</head>\n")
 
-;; Copies a file, replacing the file at destination if it exists.
-(define (copyr-file src dest)
-  (when (file-exists? dest) (delete-file dest))
-  (copy-file src dest))
+      (printf "<body>\n")
+      (printf "<div id='graphs'>\n")
+      (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400))
+      (printf "</div>\n")
+      (printf "<ol id='process-info'>\n")
+      (output-history end)
+      (printf "</ol>\n"))))
+
+(define (output-history altn #:stop-at [stop-at #f])
+  #;(println #:port (current-error-port) "Outputting history for " altn)
+  (cond
+   [(not (alt-change altn))
+    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
+   [(and stop-at (eq? stop-at altn))
+    (void)]
+   [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
+    (let* ([vars (change-bindings (alt-change altn))]
+           [lft1 (second (assoc 'lft vars))]
+           [lft2 (third  (assoc 'lft vars))]
+           [rgt1 (second (assoc 'rgt vars))]
+           [rgt2 (third  (assoc 'rgt vars))]
+           [cond (cdr (assoc 'cond vars))])
+      (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history lft1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history lft2 #:stop-at lft1)
+      (printf "</ol>\n")
+
+      (printf "<h2><code>if not <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history rgt1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history rgt2 #:stop-at rgt1)
+      (printf "</ol>\n"))]
+   [else
+    (output-history (alt-prev altn) #:stop-at stop-at)
+    (printf "<li>Considered <span class='count'>~a</span> options "
+            (+ 1 (change*-hardness (alt-change altn))))
+    (printf "and applied <span class='rule'>~a</span> "
+            (rule-name (change-rule (alt-change altn))))
+    (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
 
 ;; Creates a linear scale so that min-domain maps to min-range and max-domain maps to
 ;; max-range. There are no restrictions on min-domain, max-domain, min-range, or max-range,
@@ -268,45 +279,43 @@
 
 ;; The options for x-scale and y-scale are 'log or 'lin, corresponding to log scale and linear scale
 ;; respectively.
-(define (make-graph-svg lines x-pos y-pos width height #:x-scale [x-scale-type 'log] #:y-scale [y-scale-type 'log])
+(define (make-graph-svg lines x-pos y-pos width height)
   (let ([all-points (apply append (map graph-line-points lines))]
 	[margin (* width (/ *margin-%* 100))])
     (let ([xs (map car all-points)]
 	  [ys (map cdr all-points)])
-      (let-values ([(x-scale x-unscale) ((if (eq? x-scale-type 'log) data-log-scale* data-lin-scale*) xs margin (- width margin))]
-		   [(y-scale y-unscale) ((if (eq? y-scale-type 'log) data-log-scale* data-lin-scale*) ys (- height margin) margin)])
-	(let ([lines* (map (lambda (line) (graph-line (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
-							   (graph-line-points line))
-						      (graph-line-color line)
-						      (graph-line-name line)
-						      (graph-line-width line)))
-			   lines)]
+      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
+		   [(y-scale y-unscale) (linear-scale* 0 64 (- height margin) margin)])
+	(let ([lines*
+               (map (lambda (line) (graph-line
+                                    (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
+                                         (graph-line-points line))
+                                    (graph-line-color line)
+                                    (graph-line-name line)
+                                    (graph-line-width line)))
+                    lines)]
 	      ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
 	      [x-axis-y (y-scale (max 0 (apply min ys)))]
 	      [y-axis-x (x-scale (max 0 (apply min xs)))])
 	  ;; Write the outer svg tag
-	  (write-string (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
-				      (x . ,x-pos) (y . ,y-pos))
-			     (newline)
-			     ;; Draw the data.
-			     (graph-draw-lines lines*)
-			     ;; Draw the x-axis
-			     (graph-draw-x-axis margin (- width margin) x-axis-y)
-			     ;; Draw the x-ticks
-			     (graph-draw-x-ticks x-axis-y margin (- height (* 2 margin)) 8
-						 (λ (x) (~r (x-unscale x)
-							    #:notation (if (eq? x-scale-type 'log) 'exponential 'positional)
-							    #:precision (if (eq? x-scale-type 'log) 2 0))))
-			     ;; Draw the y-axis
-			     (graph-draw-y-axis y-axis-x (- height margin) margin)
-			     ;; Draw the y-ticks
-			     (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-						 (λ (y) (~r (y-unscale y)
-							    #:notation (if (eq? y-scale-type 'log) 'exponential 'positional)
-							    #:precision (if (eq? y-scale-type 'log) 2 0))))
-			     ;; Draw the key
-			     (graph-draw-key margin (lines->color-names lines))
-			     )))))))
+	  (write-string
+           (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
+                         (x . ,x-pos) (y . ,y-pos))
+                (newline)
+                ;; Draw the data.
+                (graph-draw-lines lines*)
+                ;; Draw the x-axis
+                (graph-draw-x-axis margin (- width margin) x-axis-y)
+                ;; Draw the x-ticks
+                (graph-draw-x-ticks x-axis-y margin (- width (* 2 margin)) 16
+                                    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 2)))
+                ;; Draw the y-axis
+                (graph-draw-y-axis y-axis-x (- height margin) margin)
+                ;; Draw the y-ticks
+                (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
+                                    (λ (y) (~r (y-unscale y) #:notation 'positional #:precision 0)))
+                ;; Draw the key
+                (graph-draw-key margin (lines->color-names lines)))))))))
 
 (define (graph-draw-lines lines)
   (for/list ([line lines])
