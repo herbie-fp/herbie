@@ -11,6 +11,7 @@
 (require casio/rules)
 (require casio/combine-alts)
 
+<<<<<<< HEAD
 (define (zaching-changes altn locs)
   (map list (apply append
 		   (for/list ([loc locs])
@@ -38,6 +39,8 @@
 		    (alt-rewrite-expression altn #:root other)
 		    '())))))))
 
+=======
+>>>>>>> Removed Dead Code From Main
 (define (zaching-changes altn locs)
   (map list (apply append
 		   (for/list ([loc locs])
@@ -50,14 +53,6 @@
 
 (define (analyze-and-rm altn)
   (let ([locs (map car (analyze-local-error altn))])
-
-(define (try-simplify altn #:conservative [conservative #t])
-  (simplify altn #:fitness-func (if conservative
-				    (lambda (chng)
-				      (much-better? (alt-apply altn chng)
-						    altn))
-				    (lambda (chng)
-				      (not (much-better? altn (alt-apply altn chng)))))))
     (append
      (apply append
 	    (for/list ([loc locs])
@@ -179,7 +174,10 @@
 	  (let-values ([(alts* maybes* olds*) (step alts maybes olds green-threshold)])
 	    (loop alts* maybes* olds* green-threshold))))))
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> Removed Dead Code From Main
 ;; For usage at the REPL, we define a few helper functions.
 ;;
 ;; PROGRAM-A and PROGRAM-B are two example programs to test.
