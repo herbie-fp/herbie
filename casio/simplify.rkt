@@ -1196,7 +1196,10 @@
   	  (let* ([expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) expr)]
 		 [precompute-changes (try-precompute expr* loc)])
 	    (if (not (null? precompute-changes))
-		(values (append precompute-changes sub-changes) (list (s-atom (changes-apply precompute-changes expr*) loc)))
+		(values (append precompute-changes sub-changes) (list (s-atom (changes-apply (drop-change-location-items precompute-changes
+															 (length loc))
+											     expr*)
+									      loc)))
 		(cond [(and (eq? (car expr*) '/) (safe-= (cadr expr*) 1))
 		       (values (list (let ([rl (get-rule 'div1)])
 				       (change rl loc '())))
