@@ -26,7 +26,7 @@
 	 [split-var (list-ref vars var-index)]
 	 [condition (get-condition (sort (get-splitpoints alt0 alt1 var-index) <)
 				   split-var)])
-    (let-values ([(points0 points1) (partition (compose (my-eval `(lambda (,split-var) ,condition))
+    (let-values ([(points0 points1) (partition (compose (safe-eval `(lambda (,split-var) ,condition))
 							(curry (flip-args list-ref) var-index))
 					       (*points*))])
     `(lambda ,vars
@@ -142,9 +142,9 @@
 							     ;; should vary between alts of the
 							     ;; same run.
 							     (alt-program (car alts)))])
-				(let ([points* (filter (curry apply (my-eval (*point-pred*))) points)]
+				(let ([points* (filter (curry apply (safe-eval (*point-pred*))) points)]
 				      [exacts* (map cdr (filter car (map (lambda (point exact)
-									   (cons (apply (my-eval (*point-pred*)) point)
+									   (cons (apply (safe-eval (*point-pred*)) point)
 										 exact))
 									 points
 									 exacts)))])
@@ -200,7 +200,7 @@
   ;; Pull the a bunch of information from the options struct.
   (let* ([split-var (option-split-var opt)]
 	 [condition (option-condition opt)]
-	 [condition-func (compose (my-eval `(lambda (,split-var) ,condition))
+	 [condition-func (compose (safe-eval `(lambda (,split-var) ,condition))
 				  (curry (flip-args list-ref) (option-split-var-index opt)))]
 	 [split-var-index (option-split-var-index opt)]
 	 [vars (program-variables (alt-program (option-altn1 opt)))])
@@ -265,10 +265,6 @@
 (define (alt-with-errors altn errors)
   (alt (alt-program altn) errors (alt-cost altn) (alt-change altn) (alt-prev altn) 0))
 
-(define my-eval
-  (let ((ns (make-base-namespace)))
-    (λ (expr) (eval expr ns))))
-
 ;; Given two alternatives, make an option struct to represent
 ;; the hypothetical combination of the two alternatives.
 (define (make-option var-index altn1 altn2)
@@ -282,7 +278,7 @@
 				   split-var)]
 	 ;; Compile our condition as a function for when we need to actually use it, instead
 	 ;; of just putting it in our output.
-	 [condition-func (my-eval `(lambda (,split-var) ,condition))]
+	 [condition-func (safe-eval `(lambda (,split-var) ,condition))]
 	 [error-list (flip-lists (map (λ (error1 error2 point)
 					(if (condition-func (list-ref point var-index)) (list error1 error1 #f) (list error2 #f error2)))
 				      (alt-errors altn1)
@@ -315,7 +311,7 @@
 
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
-  (let* ([condition-func (my-eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
+  (let* ([condition-func (safe-eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
 	 [errors^ (map (lambda (point exact)
 			 (if (condition-func (list-ref point (option-split-var-index opt)))
 			     (merror-at (alt-program (option-altn1 opt)) point exact)
