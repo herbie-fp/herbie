@@ -8,7 +8,8 @@
 (provide *points* *exacts* *eval-pts* make-points make-exacts
          prepare-points
          errors errors-compare errors-difference errors-diff-score
-	 errors-score reasonable-error? fn-points ascending-order)
+	 errors-score reasonable-error? fn-points ascending-order
+	 avg-bits-error)
 
 (define *eval-pts* (make-parameter 500))
 
