@@ -115,6 +115,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 	  (let ([greens-filtered (filter-seen greens)])
+<<<<<<< HEAD
 =======
 	  (let ([greens-filtered (filter-seen greens)]
 		[non-greens-filtered (filter-seen non-greens)])
@@ -125,6 +126,8 @@
 	  (let ([greens-filtered (filter-seen greens)])
 	    ;; Register that we've seen these programs.
 >>>>>>> Made Duplicate Removal More Aggressive
+=======
+>>>>>>> Fixed Problem Where Alts That Didn't Get Simplified Were Discarded
 	    (values (append greens (map alt-cycles++ (remove next alts)))
 		    (append non-greens maybes)
 		    (cons next olds))))))
@@ -136,6 +139,9 @@
 	     [analyze-improved-alts (for/list ([chng-lst change-lists])
 				      (apply-changes altn chng-lst))])
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Fixed Problem Where Alts That Didn't Get Simplified Were Discarded
 	(let* ([unsimplified-alts (filter-seen analyze-improved-alts)]
 	       [simplified-alts (filter-seen (map simplify-alt unsimplified-alts))])
 	  (for/list ([ualt unsimplified-alts])
@@ -143,6 +149,7 @@
 	  (for/list ([salt simplified-alts])
 	    (register-alt salt))
 	  simplified-alts)))
+<<<<<<< HEAD
 =======
 	(map (λ (altn) (register-alt altn) altn)
 	     (filter-seen (for/list ([unsimplified (filter-seen analyze-improved-alts)])
@@ -150,6 +157,8 @@
 			    (let ([simplified (simplify-alt unsimplified)])
 			      simplified))))))
 >>>>>>> Made Duplicate Removal More Aggressive
+=======
+>>>>>>> Fixed Problem Where Alts That Didn't Get Simplified Were Discarded
     ;; Simplify an alternative
     (define (simplify-alt altn)
       (let ([simplifying-changes (simplify altn)])
