@@ -35,6 +35,9 @@ main() {
     benchmark(asin(x));
     benchmark(acos(x));
     benchmark(atan(x));
+    benchmark(sinh(x));
+    benchmark(cosh(x));
+    benchmark(tanh(x));
     benchmark((i&17)?total + x: total - y);
     benchmark(y > total);
     benchmark(y < total);
@@ -42,4 +45,5 @@ main() {
     benchmark(y <= total);
     benchmark((i & 17) && (i & 13));
     benchmark((i & 17) || (i & 13));
+    benchmark(atan2(x, y));
 }

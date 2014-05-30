@@ -3,65 +3,68 @@
 (require casio/test)
 
 (casio-test (x)
-  "Hamming (NMSE) example 3.1, √(x+1) - √x"
+  "NMSE example 3.1"
   (- (sqrt (+ x 1)) (sqrt x))
   (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
 
 (casio-test (x)
-  "Hamming (NMSE) example 3.2, sin(x) / x"
+  "NMSE example 3.2"
   (/ (sin x) x)
   (/ (sin x) x))
 
 (casio-test (x eps)
-  "Hamming (NMSE) example 3.3, sin(x + ε) - sin(x)"
+  "NMSE example 3.3"
   (- (sin (+ x eps)) (sin x))
   (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2)))))
 
 (casio-test (x)
-  "Hamming (NMSE) example 3.4, (1 - cos(x)) / sin(x)"
+  "NMSE example 3.4"
   (/ (- 1 (cos x)) (sin x))
   (tan (/ x 2)))
 
 (casio-test (N)
-  "Hamming (NMSE) example 3.5, atan(N + 1) - atan(N)"
+  "NMSE example 3.5"
   (- (atan (+ N 1)) (atan N))
   (atan (/ 1 (+ 1 (* N (- N 1))))))
 
 (casio-test (x)
-  "Hamming (NMSE) example 3.6, 1/√(x + 1) - 1/√x"
+  "NMSE example 3.6"
   (- (/ 1 (sqrt (+ x 1))) (/ 1 (sqrt x)))
-  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
+  (/ -1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
 
 (casio-test (x)
-  "Hamming (NMSE) problem 3.3.1, 1/(x + 1) - 1/x"
+  "NMSE problem 3.3.1"
   (- (/ 1 (+ x 1)) (/ 1 x))
   (/ -1 (* x (+ x 1))))
 
 (casio-test (x eps)
-  "Hamming (NMSE) problem 3.3.2, tan(x + ε) - tan(x)"
+  "NMSE problem 3.3.2"
   (- (tan (+ x eps)) (tan x))
   (/ (sin eps) (* (cos x) (cos (+ x eps)))))
 
 (casio-test (x)
-  "Hamming (NMSE) problem 3.3.3, 1/(x + 1) - 2/x + 1/(x - 1)"
+  "NMSE problem 3.3.3"
   (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1)))
   (/ 2 (* x (- (* x x) 1))))
 
-(casio-bench (x)
-  "Hamming (NMSE) problem 3.3.4, ³√(x + 1) - ³√x"
-  (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3))))
+(casio-test (x)
+  "NMSE problem 3.3.4"
+  (- (expt (+ x 1) (/ 1 3)) (expt x (/ 1 3)))
+  (/ 1 (+ (+ (expt (+ x 1) (/ 2 3))
+             (expt (* x (+ x 1)) (/ 1 3)))
+          (expt x (/ 2 3)))))
 
 (casio-test (x eps)
-  "Hamming (NMSE) problem 3.3.5, cos(x + ε) - cos(x)"
+  "NMSE problem 3.3.5"
   (- (cos (+ x eps)) (cos x))
   (+ (* (cos x) (- (cos eps) 1)) (* (sin x) (sin eps))))
 
 (casio-test (N)
-  "Hamming (NMSE) problem 3.3.6, ln(N + 1) - ln(N)"
+  "NMSE problem 3.3.6"
   (- (log (+ N 1)) (log N))
   (log (+ 1 (/ 1 N))))
 
 (casio-test (x)
-  "Hamming (NMSE) problem 3.3.7, e^x - 2 + e^-x"
+  "NMSE problem 3.3.7"
   (+ (- (exp x) 2) (exp (- x)))
   (* 4 (expt (sinh (/ x 2)) 2)))

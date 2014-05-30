@@ -265,10 +265,6 @@
 ;; Memoize single simplify, it seems to cut down the total time taken by about 80-90%
 (define simplification-table (make-hash))
 
-(define (msingle-simplify expr)
-  (hash-ref! simplification-table expr
-	     (lambda () (single-simplify expr))))
-
 ;; Simplify an expression, with the assumption that all of it's subexpressions are already simplified.
 (define (single-simplify expr)
   (let ([expr* (try-precompute (attempt-apply-all reduction-rules
@@ -321,7 +317,7 @@
       ;; First, attempt to simplify all subexpressions. Then, to a top level simplify on the resulting expression.
       (let ([expr* (cons (car expr)
 			 (map inner-simplify-expression (cdr expr)))])
-	(msingle-simplify expr*))
+	(single-simplify expr*))
       expr))
 
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.

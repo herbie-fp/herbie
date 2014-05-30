@@ -10,3 +10,50 @@ text {
     font-family: Arial;
     font-size: 9pt;
 }
+
+body {
+    padding: 1em;
+}
+
+svg {
+    width: 800px;
+    margin: 0 auto;
+    display: block;
+}
+
+#process-info, #process-info ol {
+    list-style: square;
+}
+
+#process-info h2 {
+    margin-top: 3em;
+}
+
+#process-info li {
+    margin: .5em 0;
+}
+
+#process-info .regime-break {
+    list-style-type: none;
+}
+
+#process-info .regime-break:after {
+    content: "[Switched to points in regime]";
+    margin: 1.5em 5em;
+    display: block;
+    font-size: 95%;
+    color: gray;
+}
+
+#process-info .count {
+    font-weight: bold;
+}
+
+#process-info .rule {
+    text-decoration: underline;
+}
+
+#process-info code {
+    display: block;
+    margin: .5em 0 .5em 1em;
+}
