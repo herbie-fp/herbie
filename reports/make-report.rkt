@@ -1,6 +1,5 @@
 #lang racket
 
-(require racket/match)
 (require racket/date)
 (require reports/make-graph)
 (require reports/tools-common)
@@ -16,7 +15,6 @@
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
-(define *handle-crashes* #t)
 (define *output-directory* "graphs")
 (define *reeval-pts* 1000)
 
