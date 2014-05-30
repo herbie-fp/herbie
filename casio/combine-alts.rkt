@@ -120,7 +120,7 @@
   ;; We want to check combinations on every variable, since we don't know
   ;; which variable would yield the best combination, so build a list
   ;; of all the variable indices.
-  (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))) identity)]
+  (let* ([var-indices (range (length (program-variables (alt-program (car alts)))))]
 	 ;; Get all the options. We're going to get a list of options for each variable
 	 ;; we try to split on, so append those lists together.
 	 [all-options (apply append
