@@ -22,11 +22,11 @@
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
 ;; change history.
-(define (remove-red altn #:fitness-func [fit? green?])
+(define (remove-red altn #:fitness-func [fit? green?] #:aggressive [aggress? #f])
   
   ;; If we're the first or second alt then we can't be moved back any farther.
   (define (done altn)
-    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (fit? (alt-prev altn))))
+    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (and (not aggress?) (fit? (alt-prev altn)))))
 
   ;; Given that "salmon" is blocked from translating further by
   ;; the change in front of it, try to move that change forward,
@@ -45,25 +45,27 @@
   ;; moved past the current change.
   (define (swim-upstream salmon is-head? dams-hit)
     (debug salmon " is swimming." #:from 'swim-upstream #:tag 'info)
-    (if (done salmon) salmon
-	(let* ([grandparent (alt-prev (alt-prev salmon))]
-	       [upstream-changes (translate #t
-					    (alt-change salmon)
-					    (alt-change (alt-prev salmon))
-					    grandparent)])
-	  (if (and upstream-changes (list? upstream-changes))
-	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
-		(if is-head?
-		    (swim-upstream moved-salmon #t dams-hit)
-		    (let ([downstream-changes (translate #f
-							 (alt-change (alt-prev salmon))
-							 (alt-change salmon)
-							 moved-salmon)])
-		      (if downstream-changes
-			  (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
-			    (apply-changes new-salmon downstream-changes))
-			  (move-dam salmon #f dams-hit)))))
-	      (move-dam salmon is-head? dams-hit)))))
+    (cond [(done salmon) salmon]
+	  [(fit? (alt-prev salmon)) (move-dam salmon is-head? dams-hit)]
+	  [#t
+	   (let* ([grandparent (alt-prev (alt-prev salmon))]
+		  [upstream-changes (translate #t
+					       (alt-change salmon)
+					       (alt-change (alt-prev salmon))
+					       grandparent)])
+	     (if (and upstream-changes (list? upstream-changes))
+		 (let ([moved-salmon (apply-changes grandparent upstream-changes)])
+		   (if is-head?
+		       (swim-upstream moved-salmon #t dams-hit)
+		       (let ([downstream-changes (translate #f
+							    (alt-change (alt-prev salmon))
+							    (alt-change salmon)
+							    moved-salmon)])
+			 (if downstream-changes
+			     (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
+			       (apply-changes new-salmon downstream-changes))
+			     (move-dam salmon #f dams-hit)))))
+		 (move-dam salmon is-head? dams-hit)))]))
   (swim-upstream altn #t '()))
 
 ;; Takes a list of location tails, a single location head, and an original change,
