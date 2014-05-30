@@ -17,11 +17,14 @@
 (require racket/match)
 
 (provide simplify simplify-expression)
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 <<<<<<< variant A
 <<<<<<< HEAD
 <<<<<<< HEAD
+=======
+>>>>>>> Fixed Small Issue With Alts Being Too Eagerly Simplified
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule.
 =======
@@ -117,6 +120,12 @@
 ;; recent change's rule.
 >>>>>>> Basic Simplification Done
 (define (simplify altn)
+  (define (eliminate-dead-head altn)
+      (let loop ([cur-alt altn] [cur-prev (alt-prev altn)])
+	(cond [(not cur-prev) cur-alt]
+	      [(> (alt-cost cur-alt) (alt-cost cur-prev))
+	       (loop cur-prev (alt-prev cur-prev))]
+	      [#t (loop cur-alt (alt-prev cur-prev))])))
   (let* ([location (if (alt-prev altn)
 		       (change-location (alt-change altn))
 		       '(2))]
@@ -176,6 +185,7 @@
 =======
     (if (null? slocations) '()
 	(begin (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
+<<<<<<< HEAD
 	       (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations (simplify-expression (location-get loc (alt-program altn))) loc))
 							     slocations))]
 		      [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
@@ -185,6 +195,11 @@
 							  (if (> (rule-cost-improvement rl) *goal-cost-improvement*)
 							      (reverse r-changes)
 							      (loop (cdr r-changes))))))])
+=======
+	       (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations
+								       (simplify-expression (location-get loc (alt-program altn))) loc))
+							     slocations))])
+>>>>>>> Fixed Small Issue With Alts Being Too Eagerly Simplified
 		 ;; We set the prev pointer to null because we only care about the changes we're applying,
 		 ;; and we want to make sure to not have red elimination worry about any of the changes
 		 ;; before we simplified.
@@ -201,8 +216,8 @@
 >>>>>>> Fixed API Inconsistency
 =======
 		 (let* ([stripped-alt (alt-with-prev #f altn)]
-			[simplified-alt (apply-changes stripped-alt partially-filtered-changes)]
-			[re-alt (remove-red simplified-alt #:fitness-func reduced? #:aggressive #t)])
+			[simplified-alt (apply-changes stripped-alt unfiltered-changes)]
+			[re-alt (remove-red (eliminate-dead-head simplified-alt) #:fitness-func reduced? #:aggressive #f)])
 		   (debug "Simplified to " re-alt #:from 'simplify #:depth 2)
 		   (alt-changes re-alt)))))))
 >>>>>>> Fixed Change Elimination Bug In Simplify
@@ -220,6 +235,7 @@
 	  goal-rules))
 
 (define (reduced? altn)
+<<<<<<< HEAD
   (> (alt-cost altn) (alt-cost (alt-prev altn))))
 =======
     (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 2)
@@ -266,6 +282,9 @@
 
 (define (reduced? altn)
   (> (alt-cost altn) (alt-cost (alt-prev altn))))
+=======
+  (< (alt-cost altn) (alt-cost (alt-prev altn))))
+>>>>>>> Fixed Small Issue With Alts Being Too Eagerly Simplified
 
 >>>>>>> Changed Fitness Function For Speed
 (define *goal-cost-improvement* 4)
