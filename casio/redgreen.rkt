@@ -78,7 +78,7 @@
 (define (match-loc-fst inside outside)
   (cond [(null? outside) inside]
 	[(null? inside) #f]
-	[(eq? (car outside) (car inside))
+	[(= (car outside) (car inside))
 	 (match-loc-fst (cdr inside) (cdr outside))]
 	[#t #f]))
 

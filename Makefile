@@ -1,15 +1,11 @@
 
-.PHONY: report clean all link
-
-all: report
+.PHONY: report publish link clean 
 
 report: 
-	racket reports/make-report.rkt "bench/"
-	./file-report.sh
+	racket reports/make-report.rkt bench/
 
-clean:
-	rm -f index.md
-	find reports/* -type d -exec rm -r {} \;
+publish:
+	bash reports/publish.sh
 
 link:
 	raco link casio
@@ -17,3 +13,9 @@ link:
 
 cost:
 	$(CC) -O0 cost.c -lm -o cost
+
+
+clean:
+	rm -f index.html
+	rm -f cost
+	rm -rf graphs/

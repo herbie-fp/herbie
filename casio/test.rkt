@@ -3,7 +3,7 @@
 (require casio/alternative)
 (require casio/programs)
 
-(provide (struct-out test) *tests* *num-iterations* casio-test casio-bench)
+(provide (struct-out test) *tests* *num-iterations* casio-test casio-bench make-prog)
 
 (define *num-iterations* (make-parameter 5))
 
@@ -43,7 +43,10 @@
 (define (compile-program prog)
   (expand-associativity (unfold-let prog)))
 
-(struct test (name vars input output))
+(define (make-prog test)
+  `(λ ,(test-vars test) ,(test-input test)))
+
+(struct test (name vars input output) #:prefab)
 (define *tests* (make-parameter '()))
 
 (define (save-test t)

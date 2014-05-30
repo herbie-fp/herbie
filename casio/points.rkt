@@ -5,7 +5,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* prepare-points make-exacts
+(provide *points* *exacts* prepare-points make-exacts *max-args*
          errors errors-compare errors-difference errors-diff-score
 	 errors-score reasonable-error? fn-points ascending-order)
 
@@ -27,7 +27,8 @@
           (cons head tail)))))
 
 ; The bucket width for a given number of dimensions
-(define bucket-width-per-dim '(: 1 6 15 25 35 45))
+(define bucket-width-per-dim '(: 1 22 60))
+(define *max-args* (- (length bucket-width-per-dim) 1))
 
 (define (make-points dim)
   "Make a list of flonums.  The list spans a large range of values"
@@ -94,8 +95,6 @@
   (let ([fn (eval-prog prog mode:fl)])
     (map fn points)))
 
-(define errors-compare-cache (make-hasheq))
-
 (define (reasonable-error? x)
   ; TODO : Why do we need the 100% error case?
   (not (or (infinite? x) (nan? x))))
@@ -105,23 +104,19 @@
        (errors-difference errors1 errors2)))
 
 (define (errors-difference errors1 errors2)
-  (hash-ref!
-   (hash-ref! errors-compare-cache errors1 make-hasheq)
-   errors2
-   (λ ()
-      (for/list ([error1 errors1] [error2 errors2])
-        (cond
-         [(and (reasonable-error? error1) (reasonable-error? error2))
-          (if (or (<= error1 0) (<= error2 0))
-              (error "Error values must be positive" error1 error2)
-              (/ (log (/ error1 error2)) (log 2)))]
-         [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
-          -inf.0]
-         [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
-          +inf.0]
-         [#t
-          0.0]
-         [#t (error "Failed to classify error1 and error2" error1 error2)])))))
+  (for/list ([error1 errors1] [error2 errors2])
+    (cond
+     [(and (reasonable-error? error1) (reasonable-error? error2))
+      (if (or (<= error1 0) (<= error2 0))
+          (error "Error values must be positive" error1 error2)
+          (/ (log (/ error1 error2)) (log 2)))]
+     [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
+      -inf.0]
+     [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
+      +inf.0]
+     [#t
+      0.0]
+     [#t (error "Failed to classify error1 and error2" error1 error2)])))
 
 (define (errors-diff-score e1 e2)
   (let ([d (errors-difference e1 e2)])

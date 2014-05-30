@@ -1,7 +1,6 @@
 #lang racket
 
 (require reports/tools-common)
-(require reports/markdown-tools)
 (require racket/date)
 
 (define (make-index-page foldernames)
@@ -10,12 +9,18 @@
 						  foldernames))
 			    (lambda (f1 f2)
 			      (> (string->number (substring (caddr f1) 0 12)) (string->number (substring (caddr f2) 0 12)))))])
-    (write-file "index.md"
-		(make-heading "Reports")
-		(for/list ([file sorted-files])
-		  (index-row (car file) (cadr file) (caddr file))
-		  (newline)
-		  (newline)))))
+    (write-file "index.html"
+      (printf "<!doctype html>\n")
+      (printf "<html>")
+      (printf "<head><meta charset='utf-8' /><title>Casio Reports</title></head>\n")
+      (printf "<body>\n")
+      (printf "<h1>Reports</h1>\n")
+      (printf "<ul id='reports'>\n")
+      (for/list ([file sorted-files])
+        (printf "<li><a href='~a/report.html'>Report at ~a on ~a</a></li>\n"
+                (third file) (date->string (first file)) (second file)))
+      (printf "</ul>\n")
+      (printf "</body>\n"))))
 
 (define (parse-datestring filename)
   (let ([year-string (substring filename 0 2)]
@@ -31,9 +36,6 @@
 	  [minute (string->number minute-string)]
 	  [second (string->number second-string)])
       (date second minute hour day month year 0 0 #f 0))))
-
-(define (index-row date host-branch-commit filename)
-  (text "[" (date->string date) " on " host-branch-commit "](" filename "/report.html)"))
 
 (make-index-page
  (command-line

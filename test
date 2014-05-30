@@ -1,8 +1,0 @@
-#!/bin/bash
-find bench -name '*rkt' -exec grep -q casio-test {} \; \( \( -execdir timeout 5s racket {} \; -exec echo {} Success \; \) -o -exec echo {} Failure \; \) > log 2>&1
-f=$(grep Failure log | wc -l) 
-echo $f failures and $(grep Success log | wc -l) successes.
-if [ $f -ne 0 ] ; then 
-  echo "list of failures:"
-  grep Failure log
-fi
