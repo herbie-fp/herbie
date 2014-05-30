@@ -416,12 +416,12 @@
 			      [p2 (list-ref second-point arg-index)]
 			      [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
 					     (lambda (p) ;; Get the sign of the given point
-					       (let ([points (list (point-with-dim arg-index first-point p))])(list p))
-					       (errors-compare (let ([prog (alt-program alt1)])
-								 (errors prog points (make-exacts prog points)))
-							       (let ([prog (alt-program alt2)])
-								 (errors prog points (make-exacts prog points))))))])
-		       ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
+					       (let ([points (list (point-with-dim arg-index first-point p))])
+						 (errors-compare (let ([prog (alt-program alt1)])
+								   (errors prog points (make-exacts prog points)))
+								 (let ([prog (alt-program alt2)])
+								   (errors prog points (make-exacts prog points)))))))])
+			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
 			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
 	   sindices))))
 
