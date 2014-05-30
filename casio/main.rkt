@@ -111,7 +111,7 @@
 	      (or best-combo (best-alt alts))))))
     ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
-      (argmin (λ (altn) (avg-bits-errors (alt-errors altn))) alts))
+      (argmin (λ (altn) (avg-bits-error (alt-errors altn))) alts))
     ;; Main loop 2.0
     (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold max-threshold])
       (if (null? alts)
