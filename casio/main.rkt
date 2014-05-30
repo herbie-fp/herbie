@@ -63,6 +63,8 @@
 			       (alt-program altn)
 			       #f)))
 	      alts))
+    (define (register-alt altn)
+      (hash-set! seen-programs (alt-program altn) #t))
     ;; Consider one alt from our list of alts to consider, and return
     ;; new versions of alts, maybes, and olds appropriately.
     (define (step alts maybes olds green-threshold)
@@ -71,10 +73,8 @@
       (let* ([next (best-alt alts)]
 	     [new-alts (get-children next)])
 	(let-values ([(greens non-greens) (split-greens-nongreens green-threshold new-alts)])
-	  (let ([greens-filtered (filter-seen greens)]
-		[non-greens-filtered (filter-seen non-greens)])
+	  (let ([greens-filtered (filter-seen greens)])
 	    ;; Register that we've seen these programs.
-	    (for ([altn (append greens-filtered non-greens-filtered)]) (hash-set! seen-programs (alt-program altn) #t))
 	    (values (append greens (map alt-cycles++ (remove next alts)))
 		    (append non-greens maybes)
 		    (cons next olds))))))
@@ -85,8 +85,11 @@
       (let* ([change-lists (analyze-and-rm altn)]
 	     [analyze-improved-alts (for/list ([chng-lst change-lists])
 				      (apply-changes altn chng-lst))])
-	(for/list ([unsimplified analyze-improved-alts])
-	  (simplify-alt unsimplified))))
+	(map (λ (altn) (register-alt altn) altn)
+	     (filter-seen (for/list ([unsimplified (filter-seen analyze-improved-alts)])
+			    (register-alt unsimplified)
+			    (let ([simplified (simplify-alt unsimplified)])
+			      simplified))))))
     ;; Simplify an alternative
     (define (simplify-alt altn)
       (let ([simplifying-changes (simplify altn)])
