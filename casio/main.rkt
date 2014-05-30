@@ -74,7 +74,6 @@
 	     [new-alts (get-children next)])
 	(let-values ([(greens non-greens) (split-greens-nongreens green-threshold new-alts)])
 	  (let ([greens-filtered (filter-seen greens)])
-	    ;; Register that we've seen these programs.
 	    (values (append greens (map alt-cycles++ (remove next alts)))
 		    (append non-greens maybes)
 		    (cons next olds))))))
@@ -85,11 +84,13 @@
       (let* ([change-lists (analyze-and-rm altn)]
 	     [analyze-improved-alts (for/list ([chng-lst change-lists])
 				      (apply-changes altn chng-lst))])
-	(map (λ (altn) (register-alt altn) altn)
-	     (filter-seen (for/list ([unsimplified (filter-seen analyze-improved-alts)])
-			    (register-alt unsimplified)
-			    (let ([simplified (simplify-alt unsimplified)])
-			      simplified))))))
+	(let* ([unsimplified-alts (filter-seen analyze-improved-alts)]
+	       [simplified-alts (filter-seen (map simplify-alt unsimplified-alts))])
+	  (for/list ([ualt unsimplified-alts])
+	    (register-alt ualt))
+	  (for/list ([salt simplified-alts])
+	    (register-alt salt))
+	  simplified-alts)))
     ;; Simplify an alternative
     (define (simplify-alt altn)
       (let ([simplifying-changes (simplify altn)])
