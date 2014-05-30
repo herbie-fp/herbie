@@ -17,10 +17,15 @@
 (require racket/match)
 
 (provide simplify simplify-expression)
-
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule.
 (define (simplify altn)
+  (define (eliminate-dead-head altn)
+      (let loop ([cur-alt altn] [cur-prev (alt-prev altn)])
+	(cond [(not cur-prev) cur-alt]
+	      [(> (alt-cost cur-alt) (alt-cost cur-prev))
+	       (loop cur-prev (alt-prev cur-prev))]
+	      [#t (loop cur-alt (alt-prev cur-prev))])))
   (let* ([location (if (alt-prev altn)
 		       (change-location (alt-change altn))
 		       '(2))]
@@ -32,20 +37,13 @@
 	(begin (debug "Simplify " altn " at locations " slocations #:from 'simplify #:tag 'enter #:depth 1)
 	       (let* ([unfiltered-changes (apply append (map (λ (loc) (append-to-change-locations
 								       (simplify-expression (location-get loc (alt-program altn))) loc))
-							     slocations))]
-		      [partially-filtered-changes (let loop ([r-changes (reverse unfiltered-changes)])
-						    (if (null? r-changes)
-							'()
-							(let ([rl (change-rule (car r-changes))])
-							  (if (> (rule-cost-improvement rl) *goal-cost-improvement*)
-							      (reverse r-changes)
-							      (loop (cdr r-changes))))))])
+							     slocations))])
 		 ;; We set the prev pointer to null because we only care about the changes we're applying,
 		 ;; and we want to make sure to not have red elimination worry about any of the changes
 		 ;; before we simplified.
 		 (let* ([stripped-alt (alt-with-prev #f altn)]
-			[simplified-alt (apply-changes stripped-alt partially-filtered-changes)]
-			[re-alt (remove-red simplified-alt #:fitness-func reduced? #:aggressive #t)])
+			[simplified-alt (apply-changes stripped-alt unfiltered-changes)]
+			[re-alt (remove-red (eliminate-dead-head simplified-alt) #:fitness-func reduced? #:aggressive #f)])
 		   (debug "Simplified to " re-alt #:from 'simplify #:depth 2)
 		   (alt-changes re-alt)))))))
 
@@ -62,7 +60,7 @@
 	  goal-rules))
 
 (define (reduced? altn)
-  (> (alt-cost altn) (alt-cost (alt-prev altn))))
+  (< (alt-cost altn) (alt-cost (alt-prev altn))))
 
 (define *goal-cost-improvement* 4)
 
