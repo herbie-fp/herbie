@@ -410,21 +410,26 @@
 		   ;; Otherwise, one is better at the point before the split, and the other is
 		   ;; better at the point after the split, so we need to binary search to find
 		   ;; the splitpoint.
-		   [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)] ; Get the points
-			     [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-			     [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
-					    (lambda (p) ;; Get the sign of the given point
-					      (let ([points (list (list p))])
-						(errors-compare (let ([prog (alt-program alt1)])
-								  (errors prog points (make-exacts prog points)))
-								(let ([prog (alt-program alt2)])
-								  (errors prog points (make-exacts prog points)))))))])
-			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
+		   [#t (let* ([first-point (list-ref ascending-points i)]
+			      [second-point (list-ref ascending-points (sub1 i))]
+			      [p1 (list-ref first-point arg-index)] ; Get the points
+			      [p2 (list-ref second-point arg-index)]
+			      [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
+					     (lambda (p) ;; Get the sign of the given point
+					       (let ([points (list (point-with-dim arg-index first-point p))])(list p))
+					       (errors-compare (let ([prog (alt-program alt1)])
+								 (errors prog points (make-exacts prog points)))
+							       (let ([prog (alt-program alt2)])
+								 (errors prog points (make-exacts prog points))))))])
+		       ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
 			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
 	   sindices))))
-					   
-									      
-		 
+
+(define (point-with-dim index point val)
+  (map (λ (pval pindex) (if (= pindex index) val pval))
+       point
+       (range (length point))))
+
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
 ;; search the space until (split a b) returns a, b, or #f.
