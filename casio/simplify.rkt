@@ -188,6 +188,7 @@
 		 ;; We set the prev pointer to null because we only care about the changes we're applying,
 		 ;; and we want to make sure to not have red elimination worry about any of the changes
 		 ;; before we simplified.
+<<<<<<< HEAD
 		 (let loop ([cur-alt (alt-with-prev #f altn)] [rest-changes partially-filtered-changes])
 		   (if (null? rest-changes)
 		       (let ([result (alt-changes cur-alt)])
@@ -198,6 +199,13 @@
 			     (loop (remove-red altn* #:fitness-func reduced?) (cdr rest-changes))
 			     (loop altn* (cdr rest-changes)))))))))))
 >>>>>>> Fixed API Inconsistency
+=======
+		 (let* ([stripped-alt (alt-with-prev #f altn)]
+			[simplified-alt (apply-changes stripped-alt partially-filtered-changes)]
+			[re-alt (remove-red simplified-alt #:fitness-func reduced? #:aggressive #t)])
+		   (debug "Simplified to " re-alt #:from 'simplify #:depth 2)
+		   (alt-changes re-alt)))))))
+>>>>>>> Fixed Change Elimination Bug In Simplify
 
 (define (simplify* altn)
   (let ([simplify-changes (simplify altn)])
