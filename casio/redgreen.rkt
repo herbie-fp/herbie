@@ -5,6 +5,7 @@
 (require casio/rules)
 (require casio/programs)
 (require casio/common)
+(require casio/locations)
 
 (provide green-threshold much-better? green? remove-red)
 
@@ -21,11 +22,11 @@
 ;; Terminology clarification: the "stream" in this metaphor flows from the original program to our passed alternative.
 ;; "Upstream" and "up" both mean backwards in the change history, "downstream" and "down" both mean forward in the
 ;; change history.
-(define (remove-red altn)
+(define (remove-red altn #:fitness-func [fit? green?] #:aggressive [aggress? #f])
   
   ;; If we're the first or second alt then we can't be moved back any farther.
   (define (done altn)
-    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (green? (alt-prev altn))))
+    (or (eq? (alt-prev altn) #f) (eq? (alt-prev (alt-prev altn)) #f) (and (not aggress?) (fit? (alt-prev altn)))))
 
   ;; Given that "salmon" is blocked from translating further by
   ;; the change in front of it, try to move that change forward,
@@ -44,50 +45,28 @@
   ;; moved past the current change.
   (define (swim-upstream salmon is-head? dams-hit)
     (debug salmon " is swimming." #:from 'swim-upstream #:tag 'info)
-    (if (done salmon) salmon
-	(let* ([grandparent (alt-prev (alt-prev salmon))]
-	       [upstream-changes (translate #t
-					    (alt-change salmon)
-					    (alt-change (alt-prev salmon))
-					    grandparent)])
-	  (if (and upstream-changes (list? upstream-changes))
-	      (let ([moved-salmon (apply-changes grandparent upstream-changes)])
-		(if is-head?
-		    (swim-upstream moved-salmon #t dams-hit)
-		    (let ([downstream-changes (translate #f
-							 (alt-change (alt-prev salmon))
-							 (alt-change salmon)
-							 moved-salmon)])
-		      (if downstream-changes
-			  (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
-			    (apply-changes new-salmon downstream-changes))
-			  (move-dam salmon #f dams-hit)))))
-	      (move-dam salmon is-head? dams-hit)))))
+    (cond [(done salmon) salmon]
+	  [(fit? (alt-prev salmon)) (move-dam salmon is-head? dams-hit)]
+	  [#t
+	   (let* ([grandparent (alt-prev (alt-prev salmon))]
+		  [upstream-changes (translate #t
+					       (alt-change salmon)
+					       (alt-change (alt-prev salmon))
+					       grandparent)])
+	     (if (and upstream-changes (list? upstream-changes))
+		 (let ([moved-salmon (apply-changes grandparent upstream-changes)])
+		   (if is-head?
+		       (swim-upstream moved-salmon #t dams-hit)
+		       (let ([downstream-changes (translate #f
+							    (alt-change (alt-prev salmon))
+							    (alt-change salmon)
+							    moved-salmon)])
+			 (if downstream-changes
+			     (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
+			       (apply-changes new-salmon downstream-changes))
+			     (move-dam salmon #f dams-hit)))))
+		 (move-dam salmon is-head? dams-hit)))]))
   (swim-upstream altn #t '()))
-
-;; Simple location match utility function. If 'a' is a continutation of 'b',
-;; such as in a='(2 1) b='(2), returns the tail of
-;; 'a' after 'b', '(1). Visa-versa for 'b' as a continuation of 'a'. If
-;; 'a' and 'b' diverge at some point before the end, returns false.
-(define (match-loc a b)
-  (cond [(null? a) b]
-	[(null? b) a]
-	[(= (car a) (car b)) (match-loc (cdr a) (cdr b))]
-	[#t #f]))
-
-(define (match-loc-fst inside outside)
-  (cond [(null? outside) inside]
-	[(null? inside) #f]
-	[(= (car outside) (car inside))
-	 (match-loc-fst (cdr inside) (cdr outside))]
-	[#t #f]))
-
-;; Returns true if location 'a' is inside location 'b', false otherwise.
-(define (is-inside? a b)
-  (cond [(null? a) #f]
-	[(null? b) #t]
-	[(= (car a) (car b)) (is-inside? (cdr a) (cdr b))]
-	[#t #f]))
 
 ;; Takes a list of location tails, a single location head, and an original change,
 ;; and returns a list of changes that are identitical to the original change except
@@ -100,29 +79,6 @@
 		 (append loc-head loc)
 		 (change-bindings original)))
        loc-tails))
-
-;; Translates locations from a location within translations specified
-;; by from-func to the location specified by to-func.
-(define (translate-location loc translations from-func to-func)
-  (debug "Translating" loc "in" translations "from" from-func "to" to-func
-	 #:from 'translate-location #:tag 'info)
-
-  (define (recurse translations)
-    (if (null? translations)
-	#f
-	(let ([translation (car translations)])
-	  (if (= 1 (length (from-func translation))) ;;Is the translation one-to-n?
-	      (let ([tail (match-loc-fst loc
-				     (car (from-func translation)))])
-		(debug "Tail" tail "on" (car (from-func translation))
-		       #:from 'translate-location #:tag 'info)
-		(if tail
-		    (map (lambda (l) (append l tail))
-			 (to-func translation))
-		    (recurse (cdr translations))))
-	      (recurse (cdr translations))))))
-
-  (recurse translations))
 
 ;; Translates a change through another change.
 ;; up? indicates whether you are translating the change up. A value
@@ -162,35 +118,3 @@
 ;;any of the characteristics of the change object.
 (define (orthogonal? change-a change-b)
   (not (match-loc (change-location change-a) (change-location change-b))))
-
-(define (rule-location-translations rule)
-  (define (var-locs pattern loc)
-    (cond
-     [(list? pattern)
-	(apply alist-append
-               (idx-map (lambda (x idx)
-                          (var-locs x (append loc (list idx))))
-                        (cdr pattern) #:from 1))]
-     [(number? pattern) '()]
-     [(symbol? pattern) (list (cons pattern (list loc)))]
-     [#t (error "Improper rule: " rule)]))
-  (let ([in-locs (var-locs (rule-input rule) '())]
-	[out-locs (var-locs (rule-output rule) '())])
-    (map (lambda (x)
-	   (list (cdr x) (cdr (assoc (car x) out-locs))))
-	 in-locs)))
-
-(define (alist-append . args) 
-  (define (a-append joe bob)
-    (if (null? joe)
-	bob
-	(a-append (cdr joe) (cons
-                             (cons (caar joe)
-                                   (let ([match (assoc (caar joe) bob)])
-                                     (if match
-                                         (append (cdr match) (cdar joe))
-                                         (cdar joe))))
-                             bob))))
-  (if (< 2 (length args))
-      (car args)
-      (foldr (lambda (x y) (a-append x y)) '() args)))
