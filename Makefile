@@ -19,3 +19,8 @@ clean:
 	rm -f index.html
 	rm -f cost
 	rm -rf graphs/
+	rm doc/tr-14wi.pdf
+
+doc/tr-14wi.pdf: doc/tr-14wi.tex
+	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
+	rm doc/tr-14wi.aux doc/tr-14wi.log
