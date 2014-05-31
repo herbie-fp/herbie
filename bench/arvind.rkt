@@ -9,7 +9,7 @@
 (casio-test (a b)
   "Quotient of sum of exps"
   (/ (exp a) (+ (exp a) (exp b)))
-  (/ 1 (+ 1 (exp (- a b)))))
+  (/ 1 (+ 1 (exp (- b a)))))
 
 (casio-test (a1 a2 b1 b2)
   "Quotient of products"
