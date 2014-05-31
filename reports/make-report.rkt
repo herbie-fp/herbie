@@ -2,17 +2,16 @@
 
 (require racket/match)
 (require racket/date)
-(require reports/make-graph)
-(require reports/tools-common)
-(require reports/thread-pool)
-(require casio/load-bench)
+(require casio/load-tests)
 (require casio/test)
 (require casio/common)
 (require casio/points)
 (require casio/main)
 (require casio/programs)
 (require casio/alternative)
-
+(require reports/make-graph)
+(require reports/tools-common)
+(require reports/thread-pool)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -46,7 +45,7 @@
            (filter (λ (test)
                       (or (not *max-test-args*)
                           (<= (length (test-vars test)) *max-test-args*)))
-                   (load-all #:bench-path-string bench-dir)))))
+                   (load-tests bench-dir)))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
