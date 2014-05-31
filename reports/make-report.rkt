@@ -1,6 +1,5 @@
 #lang racket
 
-(require racket/match)
 (require racket/date)
 (require casio/load-tests)
 (require casio/test)

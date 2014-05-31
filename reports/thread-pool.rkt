@@ -7,7 +7,7 @@
 (require casio/alternative)
 (require casio/test)
 (require casio/main)
-(require casio/rules)
+(require casio/matcher)
 
 (provide (struct-out test-result) (struct-out test-failure)
          (struct-out test-timeout) get-test-results)
