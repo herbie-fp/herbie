@@ -7,7 +7,7 @@
 (require casio/redgreen)
 (require casio/analyze-local-error)
 (require casio/simplify)
-(require casio/rules)
+(require casio/matcher)
 (require casio/combine-alts)
 
 (define (zaching-changes altn locs)
