@@ -136,7 +136,7 @@
                  (alt-errors (test-result-start-alt result))
                  (alt-errors (test-result-end-alt result)))])
 
-          (let*-values ([(reals infs) (partition reasonable-error? result-diff)]
+          (let*-values ([(reals infs) (partition ordinary-float? result-diff)]
                         [(good-inf bad-inf) (partition positive? infs)])
             (table-row name
                        (cond

@@ -3,7 +3,7 @@
 (require casio/alternative)
 (require casio/points)
 (require casio/common)
-(require casio/rules)
+(require casio/matcher)
 (require reports/svg-tools)
 (require reports/tools-common)
 
@@ -13,7 +13,7 @@
 
 (define *default-width* 4)
 
-(define good-point? (compose reasonable-error? cdr))
+(define good-point? (compose ordinary-float? cdr))
 
 ;; Given a list of xs and a list of ys, returns the ys reordered so that,
 ;; if each input y cooresponds to it's matching x, the xs that the reordered ys
@@ -25,7 +25,7 @@
 ;; Given a list of xs and ys where each y cooresponds to the x with the matching
 ;; index, but the xs and ys are sorted in no particular order other than that,
 ;; and some of the ys may be inf or nan, returns a list of points, where each point
-;; is a cons cell with (eq? (car p) x), (eq? (cdr p) y), with only reasonable-error? ys,
+;; is a cons cell with (eq? (car p) x), (eq? (cdr p) y), with only ordinary-float? ys,
 ;; and sorted so that the xs of the points are in ascending order.
 (define (ys->points xs ys)
   (map cons (reorder-ys xs xs) (reorder-ys xs ys)))
