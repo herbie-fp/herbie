@@ -136,4 +136,7 @@
 		  (println "; Use (only ...) or (also ...) to consider new alternatives")]
 		 [else (println ret)])
 
-		(toploop (sort alts* alternative<?) locs*))))))))
+		(toploop (sort alts* <
+                               #:key (λ (altn)
+                                        (avg-bits-error (alt-errors altn))))
+                         locs*))))))))
