@@ -2,7 +2,7 @@
 
 (require casio/programs)
 (require casio/points)
-(require casio/rules)
+(require casio/matcher)
 (require casio/common)
 (require racket/pretty)
 

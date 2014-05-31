@@ -1,7 +1,7 @@
 #lang racket
 
 ;; We need rules for extracting the slocations from the rules
-(require casio/rules)
+(require casio/matcher)
 ;; We need alternative for it's structure accessors and alt apply
 (require casio/alternative)
 ;; We need programs for location-do and location-get

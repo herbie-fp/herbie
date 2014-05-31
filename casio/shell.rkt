@@ -2,7 +2,7 @@
 
 (require casio/common)
 (require casio/points)
-(require casio/rules)
+(require casio/matcher)
 (require casio/programs)
 (require casio/alternative)
 (require casio/analyze-local-error)

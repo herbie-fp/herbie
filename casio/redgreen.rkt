@@ -2,7 +2,7 @@
 
 (require casio/points)
 (require casio/alternative)
-(require casio/rules)
+(require casio/matcher)
 (require casio/programs)
 (require casio/common)
 (require casio/locations)

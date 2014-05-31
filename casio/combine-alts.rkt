@@ -1,7 +1,7 @@
 #lang racket
 (require casio/alternative)
 (require casio/programs)
-(require casio/rules)
+(require casio/matcher)
 (require casio/points)
 (require casio/common)
 (require casio/redgreen)
