@@ -5,10 +5,10 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *eval-pts* make-points make-exacts
-         prepare-points
+(provide *points* *exacts* *eval-pts*
+         make-points make-exacts prepare-points
          errors errors-compare errors-difference errors-diff-score
-	 errors-score reasonable-error? fn-points ascending-order
+	 errors-score fn-points ascending-order
 	 avg-bits-error)
 
 (define *eval-pts* (make-parameter 500))
@@ -91,10 +91,6 @@
   (let ([fn (eval-prog prog mode:fl)])
     (map fn points)))
 
-(define (reasonable-error? x)
-  ; TODO : Why do we need the 100% error case?
-  (not (or (infinite? x) (nan? x))))
-
 (define (errors-compare errors1 errors2)
   (map (λ (x) (cond [(< x 0) '<] [(> x 0) '>] [#t '=]))
        (errors-difference errors1 errors2)))
@@ -102,13 +98,13 @@
 (define (errors-difference errors1 errors2)
   (for/list ([error1 errors1] [error2 errors2])
     (cond
-     [(and (reasonable-error? error1) (reasonable-error? error2))
+     [(and (ordinary-float? error1) (ordinary-float? error2))
       (if (or (<= error1 0) (<= error2 0))
           (error "Error values must be positive" error1 error2)
           (/ (log (/ error1 error2)) (log 2)))]
-     [(or (and (reasonable-error? error1) (not (reasonable-error? error2))))
+     [(or (and (ordinary-float? error1) (not (ordinary-float? error2))))
       -inf.0]
-     [(or (and (not (reasonable-error? error1)) (reasonable-error? error2)))
+     [(or (and (not (ordinary-float? error1)) (ordinary-float? error2)))
       +inf.0]
      [#t
       0.0]
