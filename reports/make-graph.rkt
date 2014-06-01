@@ -14,6 +14,7 @@
 (define *line-width* 4)
 (define *point-width* 4)
 (define *point-opacity* .02)
+(define *tick-length* 10)
 
 (define err (current-error-port))
 
@@ -34,14 +35,15 @@
     (printf "<body>\n")
     (printf "<div id='graphs'>\n")
     (for ([idx (range (length (test-vars test)))])
-
-      (let ([x-scale (make-x-scale idx points 10 790)]
-            [y-scale (make-y-scale 275 50)])
-        (printf "<svg width='800' height='400'>\n")
+      (let-values ([(x-scale x-unscale)
+                    (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
+                   [(y-scale y-unscale) (linear-scale* 0 64 175.0 20.0)])
+        (printf "<svg width='500' height='300'>\n")
         (draw-line idx points start-errs x-scale y-scale "red")
-        (draw-line idx points target-errs x-scale y-scale "green")
+        (when target-errs
+          (draw-line idx points target-errs x-scale y-scale "green"))
         (draw-line idx points end-errs x-scale y-scale "blue")
-        (draw-axes points)
+        (draw-axes x-scale x-unscale y-scale y-unscale)
         (draw-key (list-ref (test-vars test) idx)))
       (printf "</svg>\n"))
     (printf "</div>\n")
@@ -120,16 +122,7 @@
 ;                ;; Draw the key
 ;                (graph-draw-key margin (lines->color-names lines)))))))))
 
-(define (make-x-scale idx points min max)
-  (let-values ([(x-scale x-unscale)
-                (data-log-scale* (map (curryr list-ref idx) points) min max)])
-    x-scale))
-
-(define (make-y-scale min max)
-  (let-values ([(y-scale y-unscale) (linear-scale* 0 64 min max)])
-    y-scale))
-
-(define (line-points->pathdata-string line)
+(define (points->pathdata line)
   (write-string
    (let loop ([pts line] [restart #t])
      (cond
@@ -154,7 +147,7 @@
             (x-scale (list-ref pt idx)) (y-scale ex)
             *point-width* color *point-opacity*))
   (printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
-          (line-points->pathdata-string
+          (points->pathdata
            (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
                                     (map cons exs pts))])
              (let ([x-value (list-ref (car gp) (+ 1 idx))]
@@ -163,8 +156,31 @@
                      (y-scale (ulps->bits y-value))))))
           color *line-width*))
 
-(define (draw-axes points) 'ok)
-(define (draw-key name) 'ok)
+(define (draw-axes x-scale x-unscale y-scale y-unscale)
+  (graph-draw-x-axis 10 490 175)
+  (graph-draw-y-axis (max 10 (min 790 (x-scale 0))) 175 20)
+
+  (graph-draw-x-ticks 175 10.0 480.0 16
+    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 0)))
+
+  (graph-draw-y-ticks (max 10 (min 490 (x-scale 0))) 175.0 20.0 8
+    (λ (y) (~r (y-unscale y) #:precision 0))))
+
+(define (draw-key name)
+  (printf "<g class='legend'>\n")
+  (printf "<text x='10' y='15' fill='black' class='title'>~a</text>"
+          name)
+
+  (printf "<circle cx='50' cy='10' r='5' fill='red'/>")
+  (printf "<text x='57' y='13' fill='black'>Input</text>")
+
+  (printf "<circle cx='100' cy='10' r='5' fill='blue'/>")
+  (printf "<text x='107' y='13' fill='black'>Output</text>")
+
+  (printf "<circle cx='155' cy='10' r='5' fill='green'/>")
+  (printf "<text x='162' y='13' fill='black'>Target</text>") 
+
+  (printf "</g>"))
 
 (define (median l)
   (let ([len (length l)] [sl (sort l <)])
@@ -349,22 +365,20 @@
 			[min-pos-data (apply min (filter positive? data))])
 		    (make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))]))))
 
-(define *num-ticks* 8)
-(define *tick-length* 20)
-(define *label-verticle-distance* 30)
-(define *text-height* 5)
-(define *text-width* 70)
+(define *label-verticle-distance* 20)
+(define *text-height* 8)
+(define *text-width* 25)
 (define *margin-%* 15)
 (define *x-label-rotation* 40)
 
 ;; Returns count evenly distributed numbers from min to max,
 ;; where the first number is min and the last is max.
 (define (make-ticks count min max)
-  (build-list (add1 count) (λ (n) (+ min (* n (/ max count))))))
+  (build-list (add1 count) (λ (n) (+ min (* n (/ (- max min) count))))))
 
 (define (graph-draw-lines lines)
   (for/list ([line lines])
-    (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
+    (path #:args `((d . ,(points->pathdata (graph-line-points line)))
 		   (stroke . ,(graph-line-color line))
 		   (stroke-width . ,(graph-line-width line))
 		   (fill . "none")))
@@ -381,10 +395,10 @@
 
 (define (graph-draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
   (let ([y-ticks (make-ticks num-ticks min-y max-y)])
-    (for/list ([y y-ticks])
+    (for/list ([y (cdr y-ticks)])
       (line #:args `((x1 . ,x-pos) (y1 . ,y) (x2 . ,(- x-pos *tick-length*)) (y2 . ,y) (stroke . "black")))
       (newline)
-      (draw-text (cons (- x-pos *text-width*) (- y *text-height*))
+      (draw-text (cons (- x-pos *text-width*) (+ y (/ *text-height* 2)))
 		 0 (text (y-pos->label y)))
       (newline))))
 
