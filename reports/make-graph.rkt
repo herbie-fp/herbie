@@ -11,7 +11,7 @@
 
 (provide make-graph)
 
-(define *line-width* 4)
+(define *line-width* 3)
 (define *point-width* 4)
 (define *point-opacity* .02)
 (define *tick-length* 10)
@@ -85,43 +85,6 @@
             (rule-name (change-rule (alt-change altn))))
     (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
 
-;(define (make-graph-svg var idx points start-errs end-errs target-errs)
-;  (let ([all-points (apply append (map graph-line-points lines))]
-;	[margin (* width (/ *margin-%* 100))])
-;    (let ([xs (map car all-points)]
-;	  [ys (map cdr all-points)])
-;      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
-;		   [(y-scale y-unscale) (linear-scale* 0 64 (- height margin) margin)])
-;	(let ([lines*
-;               (map (lambda (line) (graph-line
-;                                    (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
-;                                         (graph-line-points line))
-;                                    (graph-line-color line)
-;                                    (graph-line-name line)
-;                                    (graph-line-width line)))
-;                    lines)]
-;	      ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-;	      [x-axis-y (y-scale (max 0 (apply min ys)))]
-;	      [y-axis-x (x-scale (max 0 (apply min xs)))])
-;	  ;; Write the outer svg tag
-;	  (write-string
-;           (svg #:args `((width . ,(number->string width)) (height . ,(number->string height)))
-;                (newline)
-;                ;; Draw the data.
-;                (graph-draw-lines lines*)
-;                ;; Draw the x-axis
-;                (graph-draw-x-axis margin (- width margin) x-axis-y)
-;                ;; Draw the x-ticks
-;                (graph-draw-x-ticks x-axis-y margin (- width (* 2 margin)) 16
-;                                    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 2)))
-;                ;; Draw the y-axis
-;                (graph-draw-y-axis y-axis-x (- height margin) margin)
-;                ;; Draw the y-ticks
-;                (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-;                                    (λ (y) (~r (y-unscale y) #:notation 'positional #:precision 0)))
-;                ;; Draw the key
-;                (graph-draw-key margin (lines->color-names lines)))))))))
-
 (define (points->pathdata line)
   (write-string
    (let loop ([pts line] [restart #t])
@@ -149,7 +112,8 @@
   (printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
           (points->pathdata
            (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
-                                    (map cons exs pts))])
+                                    (sort (map cons exs pts) <
+                                          #:key (curryr list-ref (+ 1 idx))))])
              (let ([x-value (list-ref (car gp) (+ 1 idx))]
                    [y-value (median (map car gp))])
                (cons (x-scale x-value)
@@ -157,14 +121,16 @@
           color *line-width*))
 
 (define (draw-axes x-scale x-unscale y-scale y-unscale)
-  (graph-draw-x-axis 10 490 175)
-  (graph-draw-y-axis (max 10 (min 790 (x-scale 0))) 175 20)
+  (let ([pos-0 (with-handlers ([(const #t) (λ (e) 10)])
+                 (max 10 (min 790 (x-scale 0))))])
+    (graph-draw-x-axis 10 490 175)
+    (graph-draw-y-axis pos-0 175 20)
+    
+    (graph-draw-x-ticks 175 10.0 480.0 16
+      (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 0)))
 
-  (graph-draw-x-ticks 175 10.0 480.0 16
-    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 0)))
-
-  (graph-draw-y-ticks (max 10 (min 490 (x-scale 0))) 175.0 20.0 8
-    (λ (y) (~r (y-unscale y) #:precision 0))))
+    (graph-draw-y-ticks pos-0 175.0 20.0 8
+      (λ (y) (~r (y-unscale y) #:precision 0)))))
 
 (define (draw-key name)
   (printf "<g class='legend'>\n")
@@ -186,7 +152,8 @@
   (let ([len (length l)] [sl (sort l <)])
     (if (odd? len)
         (list-ref sl (/ (- len 1) 2))
-        (/ (+ (list-ref sl (/ len 2)) (list-ref sl (+ (/ len 2) 1))) 2))))
+        (/ (+ (list-ref sl (/ len 2)) (list-ref sl (- (/ len 2) 1)))
+           2))))
 
 (struct graph-line (points color name width) #:transparent)
 
