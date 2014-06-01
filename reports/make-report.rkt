@@ -16,7 +16,6 @@
 
 (define *graph-folder-name-length* 8)
 (define *output-directory* "graphs")
-(define *reeval-pts* 1000)
 
 (define *max-test-args* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
@@ -107,32 +106,21 @@
   (for/list ([result results])
     (cond
      [(test-result? result)
-      (let-values
-          ([(pts exs)
-            (parameterize ([*eval-pts* *reeval-pts*])
-              (prepare-points (alt-program (test-result-start-alt result))))])
-        (let* ([name (test-name (test-result-test result))]
-               [start-errors
-                (errors (alt-program (test-result-start-alt result)) pts exs)]
-               [end-errors
-                (errors (alt-program (test-result-end-alt result)) pts exs)]
-               [target-errors
-                (and (test-output (test-result-test result))
-                     (errors
-                      `(λ ,(test-vars (test-result-test result))
-                          ,(test-output (test-result-test result)))
-                      pts exs))]
+      (let* ([name (test-name (test-result-test result))]
+             [start-errors  (test-result-start-error  result)]
+             [end-errors    (test-result-end-error    result)]
+             [target-errors (test-result-target-error result)]
 
-               [result-diff (errors-difference start-errors end-errors)]
-               [result-score (errors-score result-diff)]
-               [target-score
-                (and target-errors
-                     (errors-diff-score start-errors target-errors))]
+             [result-diff (errors-difference start-errors end-errors)]
+             [result-score (errors-score result-diff)]
+             [target-score
+              (and target-errors
+                   (errors-diff-score start-errors target-errors))]
 
-               [est-score
-                (errors-diff-score
-                 (alt-errors (test-result-start-alt result))
-                 (alt-errors (test-result-end-alt result)))])
+             [est-score
+              (errors-diff-score
+               (alt-errors (test-result-start-alt result))
+               (alt-errors (test-result-end-alt result)))])
 
           (let*-values ([(reals infs) (partition reasonable-error? result-diff)]
                         [(good-inf bad-inf) (partition positive? infs)])
@@ -151,7 +139,7 @@
                        est-score
                        (program-body (alt-program (test-result-start-alt result)))
                        (program-body (alt-program (test-result-end-alt result)))
-                       (test-result-time result)))))]
+                       (test-result-time result))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
                  #f #f #f #f #f (test-input (test-failure-test result)) #f
