@@ -57,11 +57,12 @@
           (make-directory dir))
 
         (make-graph (test-result-test result)
-                    (test-result-start-alt result)
                     (test-result-end-alt result)
-                    (test-result-points result)
-                    (test-result-exacts result)
-                    (path->string dir))
+                    (test-result-newpoints result)
+                    (test-result-start-error result)
+                    (test-result-end-error result)
+                    (test-result-target-error result)
+                    dir)
 
         (build-path rdir "graph.html")]
        [(test-timeout? result)
