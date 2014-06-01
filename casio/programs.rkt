@@ -86,12 +86,13 @@
 (define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (list-ref (hash-ref operations '*var*) mode)]
+  (let* ([real->precision (list-ref (hash-ref operations #f) mode)]
          [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [fn (eval prog* eval-prog-ns)])
     (lambda (pts)
-      (->flonum (apply fn (map real->precision pts))))))
+      (with-handlers ([(const #t) (λ (e) +nan.0)])
+        (->flonum (apply fn (map real->precision pts)))))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn a b) (and a b))
@@ -132,7 +133,7 @@
            [atan2   ,bfatan2 ,atan    230]
 
            ; For compiling variables
-           [*var*   ,bf      ,(*precision*) 0])])
+           [#f   ,bf      ,real->double-flonum 0])])
 
     ; Munge the table above into a hash table.
     (let ([hash (make-hasheq)])

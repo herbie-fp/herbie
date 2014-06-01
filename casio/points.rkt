@@ -10,15 +10,15 @@
          errors errors-compare errors-difference errors-diff-score
 	 errors-score reasonable-error? fn-points ascending-order)
 
-(define *eval-pts* (make-parameter 500))
+(define *eval-pts* (make-parameter 512))
+(define *exp-size* (make-parameter 256))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
 (define (select-points num)
-  (let* ([exp-size (if (eq? (*precision*) real->double-flonum) 2048 512)]
-         [bucket-width (/ (- exp-size 2) num)]
-         [bucket-bias (- (/ exp-size 2) 1)])
+  (let ([bucket-width (/ (- (*exp-size*) 2) num)]
+        [bucket-bias (- (/ (*exp-size*) 2) 1)])
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
@@ -63,8 +63,12 @@
    using true arbitrary precision.  That is, we increase the bits
    available until the exact values converge.
    Not guaranteed to terminate."
-  (let ([f (eval-prog prog mode:bf)])
-    (make-exacts* f pts 64 16 (map (const #f) pts))))
+  (let* ([f (eval-prog prog mode:bf)] [res (map f pts)])
+    (let loop ([prev res] [prec 64])
+      (let ([res (map f pts)])
+        (if (andmap =-or-nan? prev res)
+            res
+            (loop res (+ prec 16)))))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal"
