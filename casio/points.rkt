@@ -57,18 +57,16 @@
       (loop (cdr pts) (cdr new) (cdr prev)
             good (cons (cons (car pts) (car new)) bad))])))
 
+(bf-precision 256)
+
 (define (make-exacts prog pts)
-  "Given a list of arguments,
-   produce a list of exact evaluations of a program-at those arguments
-   using true arbitrary precision.  That is, we increase the bits
-   available until the exact values converge.
-   Not guaranteed to terminate."
-  (let* ([f (eval-prog prog mode:bf)] [res (map f pts)])
-    (let loop ([prev res] [prec 64])
-      (let ([res (map f pts)])
-        (if (andmap =-or-nan? prev res)
-            res
-            (loop res (+ prec 16)))))))
+  (let ([f (eval-prog prog mode:bf)])
+    (let loop ([prec 64] [prev #f])
+      (bf-precision prec)
+      (let ([curr (map f pts)])
+        (if (list= prev curr)
+            curr
+            (loop (+ prec 16) curr))))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal"
