@@ -1,9 +1,6 @@
-path {
-    fill: none;
-}
-
-line {
-    stroke: black;
+body {
+    width: 1024px;
+    margin: 0 auto;
 }
 
 text {
@@ -18,19 +15,19 @@ text.title {
     font-weight: bold;
 }
 
-body {
-    padding: 1em;
+svg {
+    margin: 0;
+    padding: 0;
 }
 
-svg {
-    width: 800px;
-    height: 400px;
-    margin: 0 auto;
-    display: block;
+#graphs {
+    float: right;
+    width: 500px;
 }
 
 #process-info, #process-info ol {
     list-style: square;
+    width: 500px;
 }
 
 #process-info h2 {
