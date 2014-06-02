@@ -11,15 +11,15 @@
 	 errors-score reasonable-error? fn-points ascending-order
 	 avg-bits-error)
 
-(define *eval-pts* (make-parameter 500))
+(define *eval-pts* (make-parameter 512))
+(define *exp-size* (make-parameter 256))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
 (define (select-points num)
-  (let* ([exp-size (if (eq? (*precision*) real->double-flonum) 2048 512)]
-         [bucket-width (/ (- exp-size 2) num)]
-         [bucket-bias (- (/ exp-size 2) 1)])
+  (let ([bucket-width (/ (- (*exp-size*) 2) num)]
+        [bucket-bias (- (/ (*exp-size*) 2) 1)])
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
@@ -34,16 +34,33 @@
              [neg-ticks (- num-ticks pos-ticks)]
              [first (append (select-points pos-ticks)
                             (map - (select-points neg-ticks)))])
-        (apply append
-               (for/list ([rest (make-points rest-num (- dim 1))])
-                 (map (λ (x) (cons x rest)) first))))))
+        (sort
+         (apply append
+                (for/list ([rest (make-points rest-num (- dim 1))])
+                  (map (λ (x) (cons x rest)) first)))
+         < #:key car))))
+
+(define (make-exacts* f pts start-prec inc-prec prev)
+  (bf-precision start-prec)
+  (let loop ([pts pts] [new (map f pts)] [prev prev] [good '()] [bad '()])
+    (cond
+     [(null? pts)
+      (let* ([bad-pts (map car bad)] [bad-ans (map cdr bad)]
+             [new-ans
+              (if (null? bad-pts)
+                  '()
+                  (make-exacts* f bad-pts (+ start-prec inc-prec) inc-prec bad-ans))])
+        (map cdr (sort (append good (map cons bad-pts new-ans)) < #:key caar)))]
+     [(and (car prev) (or (and (nan? (car prev)) (nan? (car new))) (= (car prev) (car new))))
+      (loop (cdr pts) (cdr new) (cdr prev)
+            (cons (cons (car pts) (car new)) good) bad)]
+     [else
+      (loop (cdr pts) (cdr new) (cdr prev)
+            good (cons (cons (car pts) (car new)) bad))])))
+
+(bf-precision 256)
 
 (define (make-exacts prog pts)
-  "Given a list of arguments,
-   produce a list of exact evaluations of a program-at those arguments
-   using true arbitrary precision.  That is, we increase the bits
-   available until the exact values converge.
-   Not guaranteed to terminate."
   (let ([f (eval-prog prog mode:bf)])
     (let loop ([prec 64] [prev #f])
       (bf-precision prec)
