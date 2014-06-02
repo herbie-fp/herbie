@@ -4,14 +4,158 @@
 (require casio/points)
 (require casio/common)
 (require casio/rules)
+(require casio/test)
 (require reports/svg-tools)
 (require reports/tools-common)
+(require unstable/list)
 
-(provide (all-defined-out))
+(provide make-graph)
+
+(define *line-width* 3)
+(define *point-width* 4)
+(define *point-opacity* .02)
+(define *tick-length* 10)
+
+(define err (current-error-port))
+
+(define (make-graph test end-alt points start-errs end-errs target-errs dir)
+
+  ;; Copy the css files to our graph directory 
+  (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
+
+  ;; Generate the html for our graph page
+  (write-file (build-path dir "graph.html")
+    (printf "<!doctype html>\n")
+    (printf "<html>\n")
+    (printf "<head>")
+    (printf "<meta charset='utf-8' />")
+    (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
+    (printf "</head>\n")
+
+    (printf "<body>\n")
+    (printf "<div id='graphs'>\n")
+    (for ([idx (range (length (test-vars test)))])
+      (let-values ([(x-scale x-unscale)
+                    (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
+                   [(y-scale y-unscale) (linear-scale* 0 64 175.0 20.0)])
+        (printf "<svg width='500' height='300'>\n")
+        (draw-line idx points start-errs x-scale y-scale "red")
+        (when target-errs
+          (draw-line idx points target-errs x-scale y-scale "green"))
+        (draw-line idx points end-errs x-scale y-scale "blue")
+        (draw-axes x-scale x-unscale y-scale y-unscale)
+        (draw-key (list-ref (test-vars test) idx)))
+      (printf "</svg>\n"))
+    (printf "</div>\n")
+    (printf "<ol id='process-info'>\n")
+    (output-history end-alt)
+    (printf "</ol>\n")))
+
+(define (output-history altn #:stop-at [stop-at #f])
+  (cond
+   [(not (alt-change altn))
+    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
+   [(and stop-at (eq? stop-at altn))
+    (void)]
+   [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
+    (let* ([vars (change-bindings (alt-change altn))]
+           [lft1 (second (assoc 'lft vars))]
+           [lft2 (third  (assoc 'lft vars))]
+           [rgt1 (second (assoc 'rgt vars))]
+           [rgt2 (third  (assoc 'rgt vars))]
+           [cond (cdr (assoc 'cond vars))])
+      (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history lft1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history lft2 #:stop-at lft1)
+      (printf "</ol>\n")
+
+      (printf "<h2><code>if not <span class='condition'>~a</span></code></h2>\n" cond)
+      (printf "<ol>\n")
+      (output-history rgt1)
+      (printf "<li class='regime-break'></li>\n")
+      (output-history rgt2 #:stop-at rgt1)
+      (printf "</ol>\n"))]
+   [else
+    (output-history (alt-prev altn) #:stop-at stop-at)
+    (printf "<li>Considered <span class='count'>~a</span> options "
+            (+ 1 (change*-hardness (alt-change altn))))
+    (printf "and applied <span class='rule'>~a</span> "
+            (rule-name (change-rule (alt-change altn))))
+    (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
+
+(define (points->pathdata line)
+  (write-string
+   (let loop ([pts line] [restart #t])
+     (cond
+      [(null? pts)
+       (void)]
+      [(nan? (cdar pts))
+       (loop (cdr pts) #t)]
+      [else
+       (printf (if restart "M~a,~a" "L~a,~a")
+               (caar pts) (cdar pts))
+       (loop (cdr pts) #f)]))))
+
+(define (ulps->bits x)
+  (cond
+   [(nan? x) +nan.0]
+   [(infinite? x) 64]
+   [else (/ (log x) (log 2))]))
+
+(define (draw-line idx pts exs x-scale y-scale color)
+  #;(for ([pt pts] [ex exs])
+    (printf "<circle cx='~a' cy='~a' r='~a' fill='~a' opacity='~a'/>\n"
+            (x-scale (list-ref pt idx)) (y-scale ex)
+            *point-width* color *point-opacity*))
+  (printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
+          (points->pathdata
+           (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
+                                    (sort (map cons exs pts) <
+                                          #:key (curryr list-ref (+ 1 idx))))])
+             (let ([x-value (list-ref (car gp) (+ 1 idx))]
+                   [y-value (median (map car gp))])
+               (cons (x-scale x-value)
+                     (y-scale (ulps->bits y-value))))))
+          color *line-width*))
+
+(define (draw-axes x-scale x-unscale y-scale y-unscale)
+  (let ([pos-0 (with-handlers ([(const #t) (λ (e) 10)])
+                 (max 10 (min 790 (x-scale 0))))])
+    (graph-draw-x-axis 10 490 175)
+    (graph-draw-y-axis pos-0 175 20)
+    
+    (graph-draw-x-ticks 175 10.0 480.0 16
+      (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 0)))
+
+    (graph-draw-y-ticks pos-0 175.0 20.0 8
+      (λ (y) (~r (y-unscale y) #:precision 0)))))
+
+(define (draw-key name)
+  (printf "<g class='legend'>\n")
+  (printf "<text x='10' y='15' fill='black' class='title'>~a</text>"
+          name)
+
+  (printf "<circle cx='50' cy='10' r='5' fill='red'/>")
+  (printf "<text x='57' y='13' fill='black'>Input</text>")
+
+  (printf "<circle cx='100' cy='10' r='5' fill='blue'/>")
+  (printf "<text x='107' y='13' fill='black'>Output</text>")
+
+  (printf "<circle cx='155' cy='10' r='5' fill='green'/>")
+  (printf "<text x='162' y='13' fill='black'>Target</text>") 
+
+  (printf "</g>"))
+
+(define (median l)
+  (let ([len (length l)] [sl (sort l <)])
+    (if (odd? len)
+        (list-ref sl (/ (- len 1) 2))
+        (/ (+ (list-ref sl (/ len 2)) (list-ref sl (- (/ len 2) 1)))
+           2))))
 
 (struct graph-line (points color name width) #:transparent)
-
-(define *default-width* 4)
 
 (define good-point? (compose reasonable-error? cdr))
 
@@ -47,7 +191,7 @@
 ;; Given an alternative, a list of points that that alterative's
 ;; errors were evaluated on, a color, and a name, builds a graph-line
 ;; that represents that alternatives errors.
-(define (alt->error-gline xs altn color name #:width [width *default-width*])
+(define (alt->error-gline xs altn color name #:width [width *line-width*])
   (graph-line (alt->error-points xs altn) color name width))
 
 ;; Splits a list into a lists of lists, where each list cooresponds to "tokens"
@@ -69,7 +213,7 @@
 		    '()))))))
 
 ;; Returns a list of graph-lines of this alternatives error-performance.
-(define (alt->error-lines xs altn color name #:width [width *default-width*])
+(define (alt->error-lines xs altn color name #:width [width *line-width*])
   (ys->tokenized-lines xs (map (λ (e) (cond [(or (nan? e) (infinite? e)) e]
 					    [(= 0 e) 0]
 					    [(= 1 e) .5]
@@ -84,91 +228,26 @@
 
 ;; Given an alternative, a list of points, a color, and a name, builds
 ;; a graph-line that represents that alternatives behavior on those points.
-(define (alt->behave-lines xs altn color name #:width [width *default-width*])
+(define (alt->behave-lines xs altn color name #:width [width *line-width*])
   (ys->tokenized-lines xs (fn-points (alt-program altn) (map list xs)) color name width))
 
 ;; Given a start, an end, a list of points on which both the start's errors
 ;; and the end's errors were evaluated, a color and a name, builds a graph-line
 ;; object that represents the error improvement between the start and end.
-(define (get-improvement-lines xs start end color name #:width [width *default-width*])
+(define (get-improvement-lines xs start end color name #:width [width *line-width*])
   (map (λ (points) (graph-line points color name width))
        (tokenize-list good-point?
-		      (ys->points xs (handle-infs (errors-difference (alt-errors start)
-								     (alt-errors end)))))))
+		      (ys->points xs (map ulps->bits
+                                          (errors-difference (alt-errors start)
+                                                             (alt-errors end)))))))
 
 ;; Takes a list of bits improvement that may or may not include infs, and replaces all infs
 ;; with cooresponding real numbers of bits lost.
-(define (handle-infs lst)
-  (map (λ (x) (cond [(not (infinite? x)) x]
-		    [(positive? x) 64]
-		    [(negative? x) -64]))
-       lst))
 
 ;; Makes a graph of the error-performance of a run
 ;; with starting alt 'start' and ending alt 'end',
 ;; and writes it to a file at filename. dir should
 ;; be a string, not a path-object.
-(define (make-graph test start end points exacts dir)
-
-  ;; Copy the css files to our graph directory 
-  (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
-
-  ;; Generate the html for our graph page
-  (let* ([page-path (string-append dir "graph.html")]
-         [xs (map car points)]
-         [pre-error-lines (alt->error-lines xs start "red" "initial")]
-         [post-error-lines (alt->error-lines xs end "blue" "final")])
-    (write-file page-path
-      (printf "<!doctype html>\n")
-      (printf "<html>\n")
-      (printf "<head>")
-      (printf "<meta charset='utf-8' />")
-      (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
-      (printf "</head>\n")
-
-      (printf "<body>\n")
-      (printf "<div id='graphs'>\n")
-      (printf "~a\n" (make-graph-svg (append pre-error-lines post-error-lines) 0 0 800 400))
-      (printf "</div>\n")
-      (printf "<ol id='process-info'>\n")
-      (output-history end)
-      (printf "</ol>\n"))))
-
-(define (output-history altn #:stop-at [stop-at #f])
-  #;(println #:port (current-error-port) "Outputting history for " altn)
-  (cond
-   [(not (alt-change altn))
-    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
-   [(and stop-at (eq? stop-at altn))
-    (void)]
-   [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
-    (let* ([vars (change-bindings (alt-change altn))]
-           [lft1 (second (assoc 'lft vars))]
-           [lft2 (third  (assoc 'lft vars))]
-           [rgt1 (second (assoc 'rgt vars))]
-           [rgt2 (third  (assoc 'rgt vars))]
-           [cond (cdr (assoc 'cond vars))])
-      (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" cond)
-      (printf "<ol>\n")
-      (output-history lft1)
-      (printf "<li class='regime-break'></li>\n")
-      (output-history lft2 #:stop-at lft1)
-      (printf "</ol>\n")
-
-      (printf "<h2><code>if not <span class='condition'>~a</span></code></h2>\n" cond)
-      (printf "<ol>\n")
-      (output-history rgt1)
-      (printf "<li class='regime-break'></li>\n")
-      (output-history rgt2 #:stop-at rgt1)
-      (printf "</ol>\n"))]
-   [else
-    (output-history (alt-prev altn) #:stop-at stop-at)
-    (printf "<li>Considered <span class='count'>~a</span> options "
-            (+ 1 (change*-hardness (alt-change altn))))
-    (printf "and applied <span class='rule'>~a</span> "
-            (rule-name (change-rule (alt-change altn))))
-    (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
-
 ;; Creates a linear scale so that min-domain maps to min-range and max-domain maps to
 ;; max-range. There are no restrictions on min-domain, max-domain, min-range, or max-range,
 ;; except that min-domain not equal max-domain.
@@ -253,73 +332,20 @@
 			[min-pos-data (apply min (filter positive? data))])
 		    (make-full-log-scale* min-data max-neg-data min-pos-data max-data min-range max-range))]))))
 
-(define (line-points->pathdata-string line)
-  (define (print-point p)
-    (write (car p))
-    (display ",")
-    (write (cdr p)))
-  (write-string (display "M")
-		(print-point (car line))
-		(for/list ([point (cdr line)])
-		  (display "L")
-		  (print-point point))))
-
-(define *num-ticks* 8)
-(define *tick-length* 20)
-(define *label-verticle-distance* 30)
-(define *text-height* 5)
-(define *text-width* 70)
+(define *label-verticle-distance* 20)
+(define *text-height* 8)
+(define *text-width* 25)
 (define *margin-%* 15)
 (define *x-label-rotation* 40)
 
 ;; Returns count evenly distributed numbers from min to max,
 ;; where the first number is min and the last is max.
 (define (make-ticks count min max)
-  (build-list (add1 count) (λ (n) (+ min (* n (/ max count))))))
-
-;; The options for x-scale and y-scale are 'log or 'lin, corresponding to log scale and linear scale
-;; respectively.
-(define (make-graph-svg lines x-pos y-pos width height)
-  (let ([all-points (apply append (map graph-line-points lines))]
-	[margin (* width (/ *margin-%* 100))])
-    (let ([xs (map car all-points)]
-	  [ys (map cdr all-points)])
-      (let-values ([(x-scale x-unscale) (data-log-scale* xs margin (- width margin))]
-		   [(y-scale y-unscale) (linear-scale* 0 64 (- height margin) margin)])
-	(let ([lines*
-               (map (lambda (line) (graph-line
-                                    (map (lambda (p) (cons (x-scale (car p)) (y-scale (cdr p))))
-                                         (graph-line-points line))
-                                    (graph-line-color line)
-                                    (graph-line-name line)
-                                    (graph-line-width line)))
-                    lines)]
-	      ;; The y-coordinate of the x-axis, and the x-coordinate of the y-axis respectively.
-	      [x-axis-y (y-scale (max 0 (apply min ys)))]
-	      [y-axis-x (x-scale (max 0 (apply min xs)))])
-	  ;; Write the outer svg tag
-	  (write-string
-           (svg #:args `((width . ,(number->string width)) (height . ,(number->string height))
-                         (x . ,x-pos) (y . ,y-pos))
-                (newline)
-                ;; Draw the data.
-                (graph-draw-lines lines*)
-                ;; Draw the x-axis
-                (graph-draw-x-axis margin (- width margin) x-axis-y)
-                ;; Draw the x-ticks
-                (graph-draw-x-ticks x-axis-y margin (- width (* 2 margin)) 16
-                                    (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 2)))
-                ;; Draw the y-axis
-                (graph-draw-y-axis y-axis-x (- height margin) margin)
-                ;; Draw the y-ticks
-                (graph-draw-y-ticks y-axis-x margin (- height (* 2 margin)) 8
-                                    (λ (y) (~r (y-unscale y) #:notation 'positional #:precision 0)))
-                ;; Draw the key
-                (graph-draw-key margin (lines->color-names lines)))))))))
+  (build-list (add1 count) (λ (n) (+ min (* n (/ (- max min) count))))))
 
 (define (graph-draw-lines lines)
   (for/list ([line lines])
-    (path #:args `((d . ,(line-points->pathdata-string (graph-line-points line)))
+    (path #:args `((d . ,(points->pathdata (graph-line-points line)))
 		   (stroke . ,(graph-line-color line))
 		   (stroke-width . ,(graph-line-width line))
 		   (fill . "none")))
@@ -336,10 +362,10 @@
 
 (define (graph-draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
   (let ([y-ticks (make-ticks num-ticks min-y max-y)])
-    (for/list ([y y-ticks])
+    (for/list ([y (cdr y-ticks)])
       (line #:args `((x1 . ,x-pos) (y1 . ,y) (x2 . ,(- x-pos *tick-length*)) (y2 . ,y) (stroke . "black")))
       (newline)
-      (draw-text (cons (- x-pos *text-width*) (- y *text-height*))
+      (draw-text (cons (- x-pos *text-width*) (+ y (/ *text-height* 2)))
 		 0 (text (y-pos->label y)))
       (newline))))
 
