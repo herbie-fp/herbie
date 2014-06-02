@@ -106,7 +106,7 @@
          `([+       ,bf+     ,fl+     1]
            [-       ,bf-     ,-       1]
            [*       ,bf*     ,fl*     1]
-           [/       ,bf/     ,fl/     1]
+           [/       ,bf/     ,/       1]
            [abs     ,bfabs   ,flabs   1]
            [sqrt    ,bfsqrt  ,flsqrt  1]
            [sqr     ,bfsqr   ,sqr     1]
