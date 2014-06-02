@@ -6,7 +6,7 @@
 (provide program-body program-variables program-cost
          location-induct location-parent program-induct
 	 location-do location-get eval-prog operations
-	 mode:bf mode:fl expression-cost)
+	 mode:bf mode:fl compile expression-cost)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -89,7 +89,9 @@
   (let* ([real->precision (list-ref (hash-ref operations #f) mode)]
          [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
-         [fn (eval prog* eval-prog-ns)])
+         [prog-opt `(λ ,(program-variables prog*)
+                       ,(compile (program-body prog*)))]
+         [fn (eval prog-opt eval-prog-ns)])
     (lambda (pts)
       (with-handlers ([(const #t) (λ (e) +nan.0)])
         (->flonum (apply fn (map real->precision pts)))))))
@@ -153,25 +155,27 @@
 (define (program-cost prog)
   (expression-cost (program-body prog)))
 
-(define (expression-cost expr)
+(define (compile expr)
   (define assignments '())
   (define compilations (make-hash))
 
   ;; TODO : use one of Racket's memoization libraries
-  (define (compile expr)
+  (define (compile-one expr)
     (if (list? expr)
         (let ([memo (hash-ref compilations expr #f)])
           (or memo
               (let* ([fn (car expr)] [children (cdr expr)]
-                     [newexpr (cons fn (map compile children))]
+                     [newexpr (cons fn (map compile-one children))]
                      [register (gensym "r")])
                 (hash-set! compilations expr register)
-                (set! assignments (cons (cons register newexpr) assignments))
+                (set! assignments (cons (list register newexpr) assignments))
                 register)))
         expr))
 
-  (compile expr)
+  (let ([reg (compile-one expr)])
+    `(let* ,(reverse assignments) ,reg)))
 
-  (for/sum ([step assignments])
-    (let ([fn (cadr step)])
+(define (expression-cost expr)
+  (for/sum ([step (second (compile expr))])
+    (let ([fn (caadr step)])
       (list-ref (hash-ref operations fn) 2))))
