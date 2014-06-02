@@ -3,6 +3,11 @@ body {
     margin: 0 auto;
 }
 
+#graphs {
+    float: right;
+    width: 500px;
+}
+
 text {
     font-family: Arial;
     font-size: 10px;
@@ -15,14 +20,8 @@ text.title {
     font-weight: bold;
 }
 
-svg {
-    margin: 0;
-    padding: 0;
-}
-
-#graphs {
-    float: right;
-    width: 500px;
+line {
+    stroke: black;
 }
 
 #process-info, #process-info ol {
