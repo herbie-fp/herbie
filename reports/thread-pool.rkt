@@ -220,6 +220,8 @@
 (define (get-test-results progs iters
          #:threads [threads (max (- (processor-count) 1) 1)])
   (define m (make-manager))
+  (define cnt 0)
+  (define total (length progs))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
@@ -230,15 +232,16 @@
     (for/list ([_ progs])
       (let* ([msg (place-channel-get m)]
              [id (car msg)] [tr (unmarshal-test-* (cdr msg))])
+        (set! cnt (+ 1 cnt))
         (cond
          [(test-result? tr)
-          (println "[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
-                   (test-name (test-result-test tr)))]
+          (println cnt "/" total "\t[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
+           (test-name (test-result-test tr)))]
          [(test-failure? tr)
-          (println "[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
+          (println cnt "/" total "\t[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
                    (test-name (test-failure-test tr)) " [CRASH]")]
          [(test-timeout? tr)
-          (println "[    timeout ]\t" (test-name (test-timeout-test tr)))]
+          (println cnt "/" total "\t[    timeout ]\t" (test-name (test-timeout-test tr)))]
          [else
           (error "Unknown test result type" tr)])
         (cons id tr))))
