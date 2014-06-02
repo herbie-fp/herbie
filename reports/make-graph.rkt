@@ -1,11 +1,10 @@
 #lang racket
 
-(require casio/alternative)
-(require casio/points)
 (require casio/common)
+(require casio/points)
 (require casio/matcher)
+(require casio/alternative)
 (require casio/test)
-(require reports/tools-common)
 (require unstable/list)
 
 (provide make-graph)

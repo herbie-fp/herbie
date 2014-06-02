@@ -6,7 +6,7 @@
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
 	 flip-args idx-map list-product set-debug-level! alist-append
-	 safe-eval)
+	 safe-eval write-file write-string)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -159,3 +159,13 @@
 (define safe-eval
   (let ([ns (make-base-namespace)])
     (λ (expr) (eval expr ns))))
+
+(define-syntax (write-file stx)
+  (syntax-case stx ()
+    [(_ filename . rest)
+     #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
+
+(define-syntax (write-string stx)
+  (syntax-case stx ()
+    [(_ . rest)
+     #'(with-output-to-string (lambda () . rest))]))

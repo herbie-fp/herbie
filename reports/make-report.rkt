@@ -1,15 +1,14 @@
 #lang racket
 
 (require racket/date)
-(require casio/load-tests)
-(require casio/test)
 (require casio/common)
-(require casio/points)
-(require casio/main)
 (require casio/programs)
+(require casio/points)
 (require casio/alternative)
+(require casio/main)
+(require casio/test)
+(require casio/load-tests)
 (require reports/make-graph)
-(require reports/tools-common)
 (require reports/thread-pool)
 (provide (all-defined-out))
 
