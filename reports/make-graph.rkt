@@ -15,9 +15,9 @@
 
 (define *tick-length* 10)
 (define *label-shift* 10)
-(define *label-rotation* 10)
+(define *label-rotation* 40)
 (define *label-height* 8)
-(define *label-width* 25)
+(define *label-width* 15)
 
 (define (make-graph test end-alt points start-errs end-errs target-errs dir)
 
@@ -30,6 +30,7 @@
     (printf "<html>\n")
     (printf "<head>")
     (printf "<meta charset='utf-8' />")
+    (printf "<title>Results for ~a</title>" (test-name test))
     (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
     (printf "</head>\n")
 
@@ -255,17 +256,19 @@
   (for/list ([x (make-ticks num-ticks min-x max-x)])
     (printf "<line x1='~a' y1='~a' x2='~a' y2='~a' class='tick' />\n"
             x y-pos x (+ y-pos *tick-length*))
-    (printf "<text x='~a' y='~a' class='x-label'>~a</text>\n"
-            x (+ y-pos *tick-length* *label-shift*) (x-pos->label x))))
+    (printf "<text x='~a' y='~a' transform='rotate(~a,~a,~a)' class='x-label'>~a</text>\n"
+            x (+ y-pos *tick-length* *label-shift*)
+            *label-rotation* x (+ y-pos *tick-length* *label-shift*)
+            (x-pos->label x))))
 
 (define (draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
   (for/list ([y (cdr (make-ticks num-ticks min-y max-y))])
     (printf "<line x1='~a' y1='~a' x2='~a' y2='~a' class='tick' />\n"
             x-pos y (- x-pos *tick-length*) y)
     (let ([x (- x-pos *label-width* *tick-length* *label-shift*)]
-          [y (+ y (/ *label-height* 2))]))
-    (printf "<text x='~a' y='~a' transform='rotate(~a,~a,~a)' class='y-label'>~a</text>\n"
-            x y *label-rotation* x y (y-pos->label y))))
+          [y (+ y (/ *label-height* 2))])
+      (printf "<text x='~a' y='~a' class='y-label'>~a</text>\n"
+              x y (y-pos->label y)))))
 
 ;; Draws axis. See graph-draw-key for assumptions.
 (define (draw-y-axis x-pos y1 y2)
