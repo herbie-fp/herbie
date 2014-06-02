@@ -1,7 +1,7 @@
 #lang racket
 (require casio/alternative)
 (require casio/programs)
-(require casio/rules)
+(require casio/matcher)
 (require casio/points)
 (require casio/common)
 (require casio/redgreen)
@@ -20,26 +20,10 @@
 ;; takes the form of a racket expression which must be evaluated to be called.
 (define *point-pred* (make-parameter (const #t)))
 
-;; Depreceated, but kept around for testing and reference
-(define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f identity])
-  (let* ([vars (program-variables (alt-program alt0))]
-	 [split-var (list-ref vars var-index)]
-	 [condition (get-condition (sort (get-splitpoints alt0 alt1 var-index) <)
-				   split-var)])
-    (let-values ([(points0 points1) (partition (compose (my-eval `(lambda (,split-var) ,condition))
-							(curry (flip-args list-ref) var-index))
-					       (*points*))])
-    `(lambda ,vars
-       (if ,condition
-	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
-	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
-
-
 ;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
 (define (flip-lists list-list)
-  (apply (curry map list)
-	 list-list))
+  (apply map list list-list))
 
 ;; This constant determines how aggressive our filtration is.
 ;; Higher values mean we will filter more aggresively, and might
@@ -72,7 +56,6 @@
 ;; are plausible for use in regime combinations.
 (define (plausible-alts alts)
   (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
-  (*save* alts)
   ;; Returns a list of error-cost-points, which are the cost
   ;; of the program consed on to an error point.
   (define (make-cost-error-points altn)
@@ -121,7 +104,7 @@
   ;; We want to check combinations on every variable, since we don't know
   ;; which variable would yield the best combination, so build a list
   ;; of all the variable indices.
-  (let* ([var-indices (build-list (length (program-variables (alt-program (car alts)))) identity)]
+  (let* ([var-indices (range (length (program-variables (alt-program (car alts)))))]
 	 ;; Get all the options. We're going to get a list of options for each variable
 	 ;; we try to split on, so append those lists together.
 	 [all-options (apply append
@@ -143,9 +126,9 @@
 							     ;; should vary between alts of the
 							     ;; same run.
 							     (alt-program (car alts)))])
-				(let ([points* (filter (curry apply (my-eval (*point-pred*))) points)]
+				(let ([points* (filter (curry apply (safe-eval (*point-pred*))) points)]
 				      [exacts* (map cdr (filter car (map (lambda (point exact)
-									   (cons (apply (my-eval (*point-pred*)) point)
+									   (cons (apply (safe-eval (*point-pred*)) point)
 										 exact))
 									 points
 									 exacts)))])
@@ -201,7 +184,7 @@
   ;; Pull the a bunch of information from the options struct.
   (let* ([split-var (option-split-var opt)]
 	 [condition (option-condition opt)]
-	 [condition-func (compose (my-eval `(lambda (,split-var) ,condition))
+	 [condition-func (compose (safe-eval `(lambda (,split-var) ,condition))
 				  (curry (flip-args list-ref) (option-split-var-index opt)))]
 	 [split-var-index (option-split-var-index opt)]
 	 [vars (program-variables (alt-program (option-altn1 opt)))])
@@ -272,10 +255,6 @@
 (define (alt-with-errors altn errors)
   (alt (alt-program altn) errors (alt-cost altn) (alt-change altn) (alt-prev altn) 0))
 
-(define my-eval
-  (let ((ns (make-base-namespace)))
-    (λ (expr) (eval expr ns))))
-
 ;; Given two alternatives, make an option struct to represent
 ;; the hypothetical combination of the two alternatives.
 (define (make-option var-index altn1 altn2)
@@ -289,7 +268,7 @@
 				   split-var)]
 	 ;; Compile our condition as a function for when we need to actually use it, instead
 	 ;; of just putting it in our output.
-	 [condition-func (my-eval `(lambda (,split-var) ,condition))]
+	 [condition-func (safe-eval `(lambda (,split-var) ,condition))]
 	 [error-list (flip-lists (map (λ (error1 error2 point)
 					(if (condition-func (list-ref point var-index)) (list error1 error1 #f) (list error2 #f error2)))
 				      (alt-errors altn1)
@@ -322,7 +301,7 @@
 
 ;; Given an option over one set of points, reevaluate it's errors over another set of points.
 (define (reevaluate-option-on-points points exacts opt)
-  (let* ([condition-func (my-eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
+  (let* ([condition-func (safe-eval `(lambda (,(option-split-var opt)) ,(option-condition opt)))]
 	 [errors^ (map (lambda (point exact)
 			 (if (condition-func (list-ref point (option-split-var-index opt)))
 			     (merror-at (alt-program (option-altn1 opt)) point exact)
@@ -415,21 +394,26 @@
 		   ;; Otherwise, one is better at the point before the split, and the other is
 		   ;; better at the point after the split, so we need to binary search to find
 		   ;; the splitpoint.
-		   [#t (let ([p1 (list-ref (list-ref ascending-points i) arg-index)] ; Get the points
-			     [p2 (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-			     [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
-					    (lambda (p) ;; Get the sign of the given point
-					      (let ([points (list (list p))])
-						(errors-compare (let ([prog (alt-program alt1)])
-								  (errors prog points (make-exacts prog points)))
-								(let ([prog (alt-program alt2)])
-								  (errors prog points (make-exacts prog points)))))))])
+		   [#t (let* ([first-point (list-ref ascending-points i)]
+			      [second-point (list-ref ascending-points (sub1 i))]
+			      [p1 (list-ref first-point arg-index)] ; Get the points
+			      [p2 (list-ref second-point arg-index)]
+			      [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
+					     (lambda (p) ;; Get the sign of the given point
+					       (let ([points (list (point-with-dim arg-index first-point p))])
+						 (errors-compare (let ([prog (alt-program alt1)])
+								   (errors prog points (make-exacts prog points)))
+								 (let ([prog (alt-program alt2)])
+								   (errors prog points (make-exacts prog points)))))))])
 			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
 			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
 	   sindices))))
-					   
-									      
-		 
+
+(define (point-with-dim index point val)
+  (map (λ (pval pindex) (if (= pindex index) val pval))
+       point
+       (range (length point))))
+
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
 ;; search the space until (split a b) returns a, b, or #f.
@@ -461,7 +445,7 @@
 ;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a
 ;; maximum number of splitindices, or a function that takes a single argument, a list of regions, and determines whether these
 ;; regions are general enough. 
-(define (difflist->splitindices difflist #:min-region-size [min-size 5] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
+(define (difflist->splitindices difflist #:min-region-size [min-size 10] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
   ;; First, convert the difflist into a list of regions, and swallow any regions less than the minimum size.
   ;; Then, keep increasing the minimum size and swallowing until we have no more than max-splits splitpoints,
   ;; and we return true on our fitness function. Finally, swallow all the equals.
