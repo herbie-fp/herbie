@@ -8,7 +8,8 @@
 (provide *points* *exacts* *eval-pts* make-points make-exacts
          prepare-points
          errors errors-compare errors-difference errors-diff-score
-	 errors-score reasonable-error? fn-points ascending-order)
+	 errors-score reasonable-error? fn-points ascending-order
+	 avg-bits-error)
 
 (define *eval-pts* (make-parameter 512))
 (define *exp-size* (make-parameter 256))
@@ -131,8 +132,9 @@
      [#t (error "Failed to classify error1 and error2" error1 error2)])))
 
 (define (errors-diff-score e1 e2)
-  (let ([d (errors-difference e1 e2)])
-    (errors-score d)))
+  (let ([es1 (avg-bits-error e1)]
+	[es2 (avg-bits-error e2)])
+    (- es1 es2)))
 
 (define (errors-score e)
   (let*-values ([(reals infs) (partition (lambda (n) (rational? n)) e)]
@@ -141,6 +143,12 @@
      (+ (apply + reals)
         (* 64 (- (length negative-infs) (length positive-infs))))
      (length e))))
+
+(define (avg-bits-error e)
+  (let-values ([(reals unreals) (partition (λ (n) (rational? n)) e)])
+    (/ (+ (apply + (map (λ (e) (/ (log e) (log 2))) reals))
+	  (* 64 (length unreals)))
+       (length e))))
 
 ;; Given a list in point order (small-positive to large-positive, then small-negative to large-negative),
 ;; Reorder it into ascending order (large-negative to small-negative, small-positive to large-positive).

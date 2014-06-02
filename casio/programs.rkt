@@ -6,7 +6,7 @@
 (provide program-body program-variables program-cost
          location-induct location-parent program-induct
 	 location-do location-get eval-prog operations
-	 mode:bf mode:fl)
+	 mode:bf mode:fl expression-cost)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -151,6 +151,9 @@
 ;; and use that to estimate the cost.
 
 (define (program-cost prog)
+  (expression-cost (program-body prog)))
+
+(define (expression-cost expr)
   (define assignments '())
   (define compilations (make-hash))
 
@@ -167,7 +170,7 @@
                 register)))
         expr))
 
-  (compile (program-body prog))
+  (compile expr)
 
   (for/sum ([step assignments])
     (let ([fn (cadr step)])

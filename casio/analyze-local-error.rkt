@@ -89,11 +89,10 @@
 
 
 (define (analyze-local-error altn)
-  (map car
        (take-up-to
         (reverse
          (sort
           (find-interesting-locations
            (analyze-expressions (alt-program altn) (*points*)))
           compare-errors))
-        3)))
+        3))
