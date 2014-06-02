@@ -5,7 +5,6 @@
 (require casio/programs)
 (require casio/points)
 (require casio/alternative)
-(require casio/main)
 (require casio/test)
 (require casio/load-tests)
 (require reports/make-graph)
@@ -164,6 +163,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
+    (copy-file "reports/report.js" (build-path dir "report.js") #t)
     (copy-file "reports/report.css" (build-path dir "report.css") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
@@ -180,6 +180,8 @@
       (printf "<title>Casio test results</title>\n")
       (printf "<meta charset='utf-8' />")
       (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
+
+      (printf "<script src='report.js'></script>\n")
       (printf "</head>\n")
       (printf "<body>\n")
       (printf "<dl id='about'>\n")
