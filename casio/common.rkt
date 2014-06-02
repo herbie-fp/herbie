@@ -3,13 +3,10 @@
 (require math/bigfloat)
 (require data/order)
 
-(provide reap println ->flonum *precision* cotan ordinary-float?
+(provide reap println ->flonum cotan ordinary-float? =-or-nan?
          list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! *save*)
-
-; Precision for approximate evaluation
-(define *precision* (make-parameter real->double-flonum))
-(define *save* (make-parameter #f))
+	 flip-args idx-map list-product set-debug-level! alist-append
+	 safe-eval write-file write-string)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -77,8 +74,8 @@
 
 (define (->flonum x)
   (cond
-   [(real? x) ((*precision*) x)]
-   [(bigfloat? x) ((*precision*) (bigfloat->flonum x))]
+   [(real? x) (real->double-flonum x)]
+   [(bigfloat? x) (real->double-flonum (bigfloat->flonum x))]
    [(complex? x)
     (if (= (imag-part x) 0)
         (->flonum (real-part x))
@@ -143,3 +140,32 @@
       (for*/list ([fst (car subs)]
                   [rst (apply list-product (cdr subs))])
          (cons fst rst))))
+
+(define (alist-append . args) 
+  (define (a-append joe bob)
+    (if (null? joe)
+	bob
+	(a-append (cdr joe) (cons
+                             (cons (caar joe)
+                                   (let ([match (assoc (caar joe) bob)])
+                                     (if match
+                                         (append (cdr match) (cdar joe))
+                                         (cdar joe))))
+                             bob))))
+  (if (< 2 (length args))
+      (car args)
+      (foldr (lambda (x y) (a-append x y)) '() args)))
+
+(define safe-eval
+  (let ([ns (make-base-namespace)])
+    (λ (expr) (eval expr ns))))
+
+(define-syntax (write-file stx)
+  (syntax-case stx ()
+    [(_ filename . rest)
+     #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
+
+(define-syntax (write-string stx)
+  (syntax-case stx ()
+    [(_ . rest)
+     #'(with-output-to-string (lambda () . rest))]))
