@@ -42,7 +42,7 @@
                     [(points exacts) (prepare-points orig)])
         (parameterize ([*points* points] [*exacts* exacts])
           (let* ([start-alt (make-alt orig)]
-                 [end-alt (improve-with-points start-alt iters)])
+                 [end-alt (improve-with-points *max-threshold* *min-threshold* (expt (/ *min-threshold* *max-threshold*) (/ iters)) start-alt)])
             (list start-alt end-alt points exacts)))))
 
   (let* ([start-time (current-inexact-milliseconds)]
