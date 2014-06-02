@@ -1,5 +1,5 @@
 
-.PHONY: report publish link clean 
+.PHONY: report publish link clean loc
 
 report: 
 	racket reports/make-report.rkt bench/
@@ -20,6 +20,9 @@ clean:
 	rm -f cost
 	rm -rf graphs/
 	rm doc/tr-14wi.pdf
+
+loc:
+	find reports/ casio/ -type f -exec cat {} \; | wc -l
 
 doc/tr-14wi.pdf: doc/tr-14wi.tex
 	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
