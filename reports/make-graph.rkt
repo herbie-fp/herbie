@@ -113,13 +113,14 @@
             *point-width* color *point-opacity*))
   (printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
           (points->pathdata
-           (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
-                                    (sort (map cons exs pts) <
-                                          #:key (curryr list-ref (+ 1 idx))))])
-             (let ([x-value (list-ref (car gp) (+ 1 idx))]
-                   [y-value (median (map car gp))])
-               (cons (x-scale x-value)
-                     (y-scale (ulps->bits y-value))))))
+           (sort
+            (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
+                                     (map cons exs pts))])
+              (let ([x-value (list-ref (car gp) (+ 1 idx))]
+                    [y-value (median (map car gp))])
+                (cons (x-scale x-value)
+                      (y-scale (ulps->bits y-value)))))
+            < #:key car))
           color *line-width*))
 
 (define (draw-axes x-scale x-unscale y-scale y-unscale)
