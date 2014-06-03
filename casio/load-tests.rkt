@@ -9,7 +9,7 @@
 
 (define *test-cache* (make-hash))
 
-(provide load-file load-bench load-all test-improvement test-succeeds?)
+(provide load-tests test-improvement test-succeeds?)
 
 (define (test-improvement test)
   (let*-values ([(end stt) (improve (make-prog test) (*num-iterations*))])
@@ -30,23 +30,6 @@
         (begin (hash-set! *test-cache* p (*tests*))
                (*tests*)))))
 
-(define (load-bench . path)
-  (define bench-dir (string->path "../bench/"))
-  (when (not (directory-exists? bench-dir))
-    (error "Benchmark directory not found" (simplify-path bench-dir)))
-
-  (define subdirs (map string->path-element path))
-  (define p (apply build-path bench-dir subdirs))
-
-  (cond
-   [(directory-exists? p)
-    (let* ([fs (filter is-racket-file? (directory-list p #:build? #t))])
-      (apply append (map load-file fs)))]
-   [(file-exists? p)
-    (load-file p)]
-   [else
-    (error "Didn't find a directory or file at" (simplify-path p))]))
-
 (define (is-racket-file? f)
   (and (equal? (filename-extension f) #"rkt") (file-exists? f)))
 
@@ -58,9 +41,11 @@
     (for ([obj (directory-list p #:build? #t)])
       (walk-tree obj callback))]))
 
-(define (load-all #:bench-path-string [path-string "../bench/"])
-  (define bench-dir (string->path path-string))
+(define (load-tests [path "../bench/"])
+  (define (handle-file sow p)
+    (when (is-racket-file? p)
+      (sow (load-file p))))
+
   (apply append
          (reap [sow]
-               (walk-tree bench-dir (λ (p)
-                                       (when (is-racket-file? p) (sow (load-file p))))))))
+               (walk-tree path (curry handle-file sow)))))

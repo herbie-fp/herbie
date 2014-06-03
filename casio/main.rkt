@@ -4,11 +4,10 @@
 (require casio/points)
 (require casio/programs)
 (require casio/alternative)
-(require casio/brute-force)
 (require casio/redgreen)
 (require casio/analyze-local-error)
 (require casio/simplify)
-(require casio/rules)
+(require casio/matcher)
 (require casio/combine-alts)
 
 (define (zaching-changes altn locs)
@@ -144,18 +143,5 @@
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
-
-					;(define (plot-alternatives prog iterations)
-					; "Return a spectrum plot of the alternatives found."
-					; (let* ([alts (explore prog iterations)]
-					; [logs (map (lambda (x) (- (/ (log (alternative-error x)) (log 10)))) alts)]
-					; [rands (for/list ([i (range (length logs))]) (random))])
-					; (display "Found program with score ")
-					; (display (alternative-score (car alts)))
-					; (newline)
-					; (pretty-print (alternative-program (car alts)))
-					; (parameterize ([plot-width 800] [plot-height 100]
-					; [plot-x-label #f] [plot-y-label #f])
-					; (plot (points (map vector logs rands))))))
 
 (provide improve program-a program-b print-improve improvement improve-with-points *max-threshold* *min-threshold*)

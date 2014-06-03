@@ -53,6 +53,7 @@ dd {
 
 #results tbody tr:hover {
     background-color: #e0f8d8;
+    cursor: pointer;
 }
 
 #results td:nth-child(1) {text-align: left;}

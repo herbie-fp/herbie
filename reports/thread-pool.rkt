@@ -7,12 +7,17 @@
 (require casio/alternative)
 (require casio/test)
 (require casio/main)
-(require casio/rules)
+(require casio/matcher)
 
 (provide (struct-out test-result) (struct-out test-failure)
          (struct-out test-timeout) get-test-results)
 
-(struct test-result (test start-alt end-alt points exacts time))
+(define *reeval-pts* 5000)
+
+(struct test-result
+  (test time
+   start-alt end-alt points exacts
+   newpoints newexacts start-error end-error target-error))
 (struct test-failure (test exn time))
 (struct test-timeout (test) #:prefab)
 
@@ -50,22 +55,38 @@
       (if (engine-run (* 1000 60 5) eng)
           (match (engine-result eng)
             [`(,start ,end ,points ,exacts)
-             (test-result test start end points exacts
-                          (- (current-inexact-milliseconds) start-time))])
+             (define-values (newpoints newexacts)
+               (parameterize ([*eval-pts* *reeval-pts*])
+                 (prepare-points (alt-program start))))
+             (test-result test (- (current-inexact-milliseconds) start-time)
+                          start end points exacts
+                          newpoints newexacts
+                          (errors (alt-program start) newpoints newexacts)
+                          (errors (alt-program end) newpoints newexacts)
+                          (if (test-output test)
+                              (errors `(λ ,(test-vars test) ,(test-output test))
+                                      newpoints newexacts)
+                              #f))])
           (test-timeout test)))))
 
 (define (marshal-test-result tr)
   `(test-result ,(test-result-test tr)
+                ,(test-result-time tr)
                 ,(marshal-alt (test-result-start-alt tr))
                 ,(marshal-alt (test-result-end-alt tr))
                 ,(test-result-points tr)
                 ,(test-result-exacts tr)
-                ,(test-result-time tr)))
+                ,(test-result-newpoints tr)
+                ,(test-result-newexacts tr)
+                ,(test-result-start-error tr)
+                ,(test-result-end-error tr)
+                ,(test-result-target-error tr)))
 
 (define (unmarshal-test-result tr*)
   (match tr*
-    [`(test-result ,t ,start* ,end* ,pts ,exs ,time)
-     (test-result t (unmarshal-alt start*) (unmarshal-alt end*) pts exs time)]))
+    [`(test-result ,t ,time ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
+     (test-result t time (unmarshal-alt start*) (unmarshal-alt end*) pts exs
+                  pts* exs* startE endE targetE)]))
 
 (define (marshal-test-failure tf)
   `(test-failure ,(test-failure-test tf)
@@ -199,6 +220,8 @@
 (define (get-test-results progs iters
          #:threads [threads (max (- (processor-count) 1) 1)])
   (define m (make-manager))
+  (define cnt 0)
+  (define total (length progs))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
@@ -209,15 +232,16 @@
     (for/list ([_ progs])
       (let* ([msg (place-channel-get m)]
              [id (car msg)] [tr (unmarshal-test-* (cdr msg))])
+        (set! cnt (+ 1 cnt))
         (cond
          [(test-result? tr)
-          (println "[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
-                   (test-name (test-result-test tr)))]
+          (println cnt "/" total "\t[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
+           (test-name (test-result-test tr)))]
          [(test-failure? tr)
-          (println "[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
+          (println cnt "/" total "\t[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
                    (test-name (test-failure-test tr)) " [CRASH]")]
          [(test-timeout? tr)
-          (println "[    timeout ]\t" (test-name (test-timeout-test tr)))]
+          (println cnt "/" total "\t[    timeout ]\t" (test-name (test-timeout-test tr)))]
          [else
           (error "Unknown test result type" tr)])
         (cons id tr))))

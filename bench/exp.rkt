@@ -5,4 +5,6 @@
 (casio-test (x)
   "Kahan's exp quotient"
   (/ (- (exp x) 1) x)
-  (/ (- (exp x) 1) (log (exp x))))
+  (if (and (< x 1) (> x -1))
+      (/ (- (exp x) 1) (log (exp x)))
+      (/ (- (exp x) 1) x)))

@@ -2,12 +2,12 @@
 
 (require casio/programs)
 (require casio/points)
-(require casio/rules)
+(require casio/matcher)
 (require casio/common)
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-         alt-rewrite-rm alternative<? alternative<>? apply-changes build-alt
+         alt-rewrite-rm apply-changes build-alt
 	 alt-initial alt-changes alt-cycles++)
 
 (struct alt (program errors cost change prev cycles) #:transparent
@@ -77,16 +77,3 @@
     (map (curry apply-changes alt)
          (map reverse
               (rewrite-expression-head subtree #:root root-loc)))))
-
-(define (alternative<>? alt1 alt2)
-  "Compare two alternatives; return if incomparable.
-   Compares first by a lattice order on points, then by program cost."
-
-  (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
-    (and (member '< comparisons) (member '> comparisons))))
-
-(define (alternative<? alt1 alt2)
-  "Compare two alternatives by a lattice order on pointwise error."
-
-  (let ([comparisons (errors-compare (alt-errors alt1) (alt-errors alt2))])
-    (andmap (negate (curry eq? '>)) comparisons)))

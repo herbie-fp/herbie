@@ -1,7 +1,7 @@
 #lang racket
 (require casio/alternative)
 (require casio/programs)
-(require casio/rules)
+(require casio/matcher)
 (require casio/points)
 (require casio/common)
 (require casio/redgreen)
@@ -20,26 +20,10 @@
 ;; takes the form of a racket expression which must be evaluated to be called.
 (define *point-pred* (make-parameter (const #t)))
 
-;; Depreceated, but kept around for testing and reference
-(define (combine-two-alts var-index alt0 alt1 #:pre-combo-func [f identity])
-  (let* ([vars (program-variables (alt-program alt0))]
-	 [split-var (list-ref vars var-index)]
-	 [condition (get-condition (sort (get-splitpoints alt0 alt1 var-index) <)
-				   split-var)])
-    (let-values ([(points0 points1) (partition (compose (safe-eval `(lambda (,split-var) ,condition))
-							(curry (flip-args list-ref) var-index))
-					       (*points*))])
-    `(lambda ,vars
-       (if ,condition
-	   ,(program-body (alt-program (parameterize [(*points* points0) (*exacts* (make-exacts (alt-program alt0) points0))] (f alt0))))
-	   ,(program-body (alt-program (parameterize [(*points* points1) (*exacts* (make-exacts (alt-program alt1) points1))] (f alt1)))))))))
-
-
 ;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
 (define (flip-lists list-list)
-  (apply (curry map list)
-	 list-list))
+  (apply map list list-list))
 
 ;; This constant determines how aggressive our filtration is.
 ;; Higher values mean we will filter more aggresively, and might
