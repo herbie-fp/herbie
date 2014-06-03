@@ -17,7 +17,7 @@
 (casio-test (a b c)
   "NMSE p42"
    (let* ((d (sqrt (- (* b b) (* 4 (* a c))))))
-     (/ (+ (- b) d) (* 2 a)))
+     (/ (- (- b) d) (* 2 a)))
    (let* ((d (sqrt (- (* b b) (* 4 (* a c)))))
           (r1 (/ (+ (- b) d) (* 2 a)))
           (r2 (/ (- (- b) d) (* 2 a))))
