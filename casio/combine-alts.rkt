@@ -151,6 +151,7 @@
 ;; can be fairly costly.
 (define (best-combination alts #:pre-combo-func [f identity])
   (debug "Attempting to find best combination from:" alts #:from 'regime-changes #:depth 2)
+  (set! error-table (make-hash))
   (let ([best-opt (best-option alts)])
     (debug "Decided to use option " best-opt ", now improving sub-alts" #:from 'regime-changes #:depth 2)
     (let ([result (option->alt best-opt f)])
