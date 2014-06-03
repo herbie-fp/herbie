@@ -5,7 +5,6 @@
 (require casio/matcher)
 (require casio/alternative)
 (require casio/test)
-(require unstable/list)
 
 (provide make-graph)
 
@@ -105,6 +104,13 @@
    [(nan? x) +nan.0]
    [(infinite? x) 64]
    [else (/ (log x) (log 2))]))
+
+(define (group-by f l)
+  (let ([h (make-hash)])
+    (for ([elt l])
+      (let ([val (f elt)])
+        (hash-set! h val (cons elt (hash-ref h val '())))))
+    (hash-values h)))
 
 (define (draw-line idx pts exs x-scale y-scale color)
   #;(for ([pt pts] [ex exs])
