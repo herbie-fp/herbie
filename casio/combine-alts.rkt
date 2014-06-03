@@ -444,7 +444,7 @@
 ;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a
 ;; maximum number of splitindices, or a function that takes a single argument, a list of regions, and determines whether these
 ;; regions are general enough. 
-(define (difflist->splitindices difflist #:min-region-size [min-size 10] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
+(define (difflist->splitindices difflist #:min-region-size [min-size 20] #:max-splitpoints [max-splits +inf.0] #:fitness-func [fit? (const #t)])
   ;; First, convert the difflist into a list of regions, then swallow all '= regions, and then swallow any
   ;; regions less than the minimum size. Then, keep increasing the minimum size and swallowing until we have
   ;; no more than max-splits splitpoints, and we return true on our fitness function.
