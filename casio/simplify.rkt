@@ -413,6 +413,10 @@
 	     (append (canonicalize-expr loc `(+ ,a (- ,b)))
 		     (list (rule-apply->change (get-rule 'sub-neg) loc cur-expr*))
 		     sub-changes)]
+	    [`(- (+ ,a ,b))
+	     (append (canonicalize-expr loc `(+ (- ,a) (- ,b)))
+		     (list (rule-apply->change (get-rule 'distribute-neg-in) loc cur-expr*))
+		     sub-changes)]
 	    [`(+ ,a ,b)
 	     (if (expr<? b a) (cons (rule-apply->change (get-rule '+-commutative) loc cur-expr*)
 				    sub-changes)
