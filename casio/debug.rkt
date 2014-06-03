@@ -3,6 +3,8 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/common)
+(require casio/matcher)
+(require casio/programs)
 
 (provide (all-defined-out))
 
