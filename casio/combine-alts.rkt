@@ -512,11 +512,9 @@
 ;; that return true to 'pred' being "swallowed" by the adjacent regions.
 ;; Swallowing follows these rules:
 ;; 1. A regions will always be swallowed by an adjacent region
-;; 2. If one neighbor is of type =, and the other is not, then the neighbor
-;;    that is not of type = will swallow the region.
+;; 2. A region will be swallowed by the biggest available neighbor.
 ;; 3. If a region to be swallowed is on either end of the regionlist, it will
 ;;    be swallowed by it's existing neighbor.
-;; 4. Otherwise, regions will be swallowed by the region that comes after them.
 ;; 5. Regions are swallowed from the beginning of the list to the end.
 ;; 6. The result of one regions swallowing another has the type of the swallowing
 ;;    region.
@@ -558,7 +556,7 @@
 	   (cond [(null? (cddr restlist))
 		  (loop (list (merge-into (cadr restlist) (car restlist))) acc)]
 		 ;; If the first element has type =, merge the second element into the third element, and recurse.
-		 [(eq? '= (cdar restlist))
+		 [(< (caar restlist) (caaddr restlist))
 		  (loop (list* (car restlist) (merge-into (cadr restlist) (caddr restlist)) (cdddr restlist)) acc)]
 		 ;; Otherwise, merge the second element into the first element, and recurse.
 		 [#t (loop (list* (merge-into (cadr restlist) (car restlist)) (cddr restlist))
