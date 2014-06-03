@@ -1,28 +1,32 @@
-path {
-    fill: none;
+body {
+    width: 1024px;
+    margin: 0 auto;
+}
+
+#graphs {
+    float: right;
+    width: 500px;
+}
+
+text {
+    font-family: Arial;
+    font-size: 10px;
+    fill: black;
+}
+
+text.title {
+    fill: gray;
+    font-size: 18px;
+    font-weight: bold;
 }
 
 line {
     stroke: black;
 }
 
-text {
-    font-family: Arial;
-    font-size: 9pt;
-}
-
-body {
-    padding: 1em;
-}
-
-svg {
-    width: 800px;
-    margin: 0 auto;
-    display: block;
-}
-
 #process-info, #process-info ol {
     list-style: square;
+    width: 500px;
 }
 
 #process-info h2 {

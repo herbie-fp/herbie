@@ -68,5 +68,3 @@
     (map (lambda (x)
 	   (list (cdr x) (cdr (assoc (car x) out-locs))))
 	 in-locs)))
-
-

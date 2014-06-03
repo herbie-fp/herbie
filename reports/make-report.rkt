@@ -1,24 +1,18 @@
 #lang racket
 
-(require racket/match)
 (require racket/date)
-(require reports/make-graph)
-(require reports/tools-common)
-(require reports/thread-pool)
-(require casio/load-bench)
-(require casio/test)
 (require casio/common)
-(require casio/points)
-(require casio/main)
 (require casio/programs)
+(require casio/points)
 (require casio/alternative)
-
+(require casio/test)
+(require casio/load-tests)
+(require reports/make-graph)
+(require reports/thread-pool)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
-(define *handle-crashes* #t)
 (define *output-directory* "graphs")
-(define *reeval-pts* 1000)
 
 (define *max-test-args* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
@@ -46,7 +40,7 @@
            (filter (λ (test)
                       (or (not *max-test-args*)
                           (<= (length (test-vars test)) *max-test-args*)))
-                   (load-all #:bench-path-string bench-dir)))))
+                   (load-tests bench-dir)))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
@@ -60,11 +54,12 @@
           (make-directory dir))
 
         (make-graph (test-result-test result)
-                    (test-result-start-alt result)
                     (test-result-end-alt result)
-                    (test-result-points result)
-                    (test-result-exacts result)
-                    (path->string dir))
+                    (test-result-newpoints result)
+                    (test-result-start-error result)
+                    (test-result-end-error result)
+                    (test-result-target-error result)
+                    dir)
 
         (build-path rdir "graph.html")]
        [(test-timeout? result)
@@ -109,34 +104,23 @@
   (for/list ([result results])
     (cond
      [(test-result? result)
-      (let-values
-          ([(pts exs)
-            (parameterize ([*eval-pts* *reeval-pts*])
-              (prepare-points (alt-program (test-result-start-alt result))))])
-        (let* ([name (test-name (test-result-test result))]
-               [start-errors
-                (errors (alt-program (test-result-start-alt result)) pts exs)]
-               [end-errors
-                (errors (alt-program (test-result-end-alt result)) pts exs)]
-               [target-errors
-                (and (test-output (test-result-test result))
-                     (errors
-                      `(λ ,(test-vars (test-result-test result))
-                          ,(test-output (test-result-test result)))
-                      pts exs))]
+      (let* ([name (test-name (test-result-test result))]
+             [start-errors  (test-result-start-error  result)]
+             [end-errors    (test-result-end-error    result)]
+             [target-errors (test-result-target-error result)]
 
-               [result-diff (errors-difference start-errors end-errors)]
-               [result-score (errors-score result-diff)]
-               [target-score
-                (and target-errors
-                     (errors-diff-score start-errors target-errors))]
+             [result-diff (errors-difference start-errors end-errors)]
+             [result-score (errors-score result-diff)]
+             [target-score
+              (and target-errors
+                   (errors-diff-score start-errors target-errors))]
 
-               [est-score
-                (errors-diff-score
-                 (alt-errors (test-result-start-alt result))
-                 (alt-errors (test-result-end-alt result)))])
+             [est-score
+              (errors-diff-score
+               (alt-errors (test-result-start-alt result))
+               (alt-errors (test-result-end-alt result)))])
 
-          (let*-values ([(reals infs) (partition reasonable-error? result-diff)]
+          (let*-values ([(reals infs) (partition ordinary-float? result-diff)]
                         [(good-inf bad-inf) (partition positive? infs)])
             (table-row name
                        (cond
@@ -153,7 +137,7 @@
                        est-score
                        (program-body (alt-program (test-result-start-alt result)))
                        (program-body (alt-program (test-result-end-alt result)))
-                       (test-result-time result)))))]
+                       (test-result-time result))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
                  #f #f #f #f #f (test-input (test-failure-test result)) #f
@@ -179,6 +163,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
+    (copy-file "reports/report.js" (build-path dir "report.js") #t)
     (copy-file "reports/report.css" (build-path dir "report.css") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
@@ -195,6 +180,8 @@
       (printf "<title>Casio test results</title>\n")
       (printf "<meta charset='utf-8' />")
       (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
+
+      (printf "<script src='report.js'></script>\n")
       (printf "</head>\n")
       (printf "<body>\n")
       (printf "<dl id='about'>\n")
