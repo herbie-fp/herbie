@@ -130,7 +130,7 @@
                        (and target-score (- start-score target-score))
                        (length good-inf)
                        (length bad-inf)
-                       est-score
+                       (- est-start-score est-end-score)
                        (program-body (alt-program (test-result-start-alt result)))
                        (program-body (alt-program (test-result-end-alt result)))
                        (test-result-time result))))]
