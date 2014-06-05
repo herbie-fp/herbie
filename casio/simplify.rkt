@@ -245,7 +245,10 @@
 ;; atoms.
 (define (additive-cancel pos-atom neg-atom rest-atom-lists expr loc)
   (let-values ([(extract-pos-atom-changes expr*) (add-extract-changes expr (drop (s-atom-loc pos-atom) (length loc)))])
-    (let ([neg-atom* #|neg-atom might have moved now (probably did)|# (translate-atom-through-changes (reverse extract-pos-atom-changes) neg-atom)])
+    (let ([neg-atom* #|neg-atom might have moved now (probably did)|# (translate-atom-through-changes
+								       (append-to-change-locations (reverse extract-pos-atom-changes)
+												   loc)
+								       neg-atom)])
       (let-values ([(extract-neg-atom-changes caddrexpr*) (add-extract-changes (caddr expr*)
 									       (drop (s-atom-loc neg-atom*)
 										     (add1 (length loc))))])
