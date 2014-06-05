@@ -138,7 +138,7 @@
 	 ;; comparing options by checking if one option is
 	 ;; "green" over the other, on our reevaluated points.
 	 [best-option (best reevaluated-options (lambda (opt1 opt2)
-						  (let ([diff-score (errors-compare (option-aug-errors^ opt1) (option-aug-errors^ opt2))])
+						  (let ([diff-score (- (errors-score (option-aug-errors^ opt1)) (errors-score (option-aug-errors^ opt2)))])
 						    (or (< 0 diff-score)
 							(and (= 0 diff-score) (> (option-cost opt1) (option-cost opt2)))))))])
     ;; Build the option struct and return, using the original errors on points.

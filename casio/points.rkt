@@ -5,9 +5,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *num-points*
-         make-exacts prepare-points
-         errors errors-score errors-compare)
+(provide *points* *exacts* *num-points* make-exacts prepare-points errors errors-score)
 
 (define *num-points* (make-parameter 512))
 (define *exp-size* (make-parameter 256))
@@ -89,6 +87,3 @@
     (/ (+ (apply + (map (λ (e) (/ (log e) (log 2))) reals))
 	  (* 64 (length unreals)))
        (length e))))
-
-(define (errors-compare egood ebad)
-  (- (errors-score egood) (errors-score ebad)))

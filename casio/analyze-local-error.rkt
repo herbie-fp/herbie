@@ -66,19 +66,13 @@
               (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
         (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
 
-(define (interesting-error? l)
-  (ormap (curry < 0) l))
-
-(define (compare-errors e1 e2)
-  (< (errors-compare e1 e2) 0))
-
 (define (find-interesting-locations annot-prog)
   (define (search-expression found expr)
     (when (list? expr)
       (map (curry search-annot found) (cdr expr))))
 
   (define (search-annot found annot)
-    (when (interesting-error? (annotation-local-error annot))
+    (when (ormap (λ (x) (> x 1)) (annotation-local-error annot))
       (found (list
               (annotation-loc annot)
               (annotation-local-error annot))))
@@ -94,6 +88,6 @@
          (sort
           (find-interesting-locations
            (analyze-expressions (alt-program altn) (*points*)))
-          compare-errors
-          #:key second))
+          <
+          #:key (compose errors-score second)))
         3))

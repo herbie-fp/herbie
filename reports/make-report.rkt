@@ -109,26 +109,25 @@
              [end-errors    (test-result-end-error    result)]
              [target-errors (test-result-target-error result)]
 
-             [result-score (errors-compare start-errors end-errors)]
-             [target-score (and target-errors (errors-compare start-errors target-errors))]
+             [start-score (errors-score start-errors)]
+             [end-score (errors-score end-errors)]
+             [target-score (and target-errors (errors-score target-errors))]
 
-             [est-score
-              (errors-compare
-               (alt-errors (test-result-start-alt result))
-               (alt-errors (test-result-end-alt result)))])
+             [est-start-score (errors-score (alt-errors (test-result-start-alt result)))]
+             [est-end-score (errors-score (alt-errors (test-result-end-alt result)))])
 
           (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
                         [(good-inf bad-inf) (partition positive? infs)])
             (table-row name
                        (cond
                         [(not target-score) "no-compare"]
-                        [(> result-score (+ target-score 1)) "gt-target"]
-                        [(> result-score (- target-score 1)) "eq-target"]
-                        [(< result-score -1) "lt-start"]
-                        [(< result-score 1) "eq-start"]
-                        [(< result-score (- target-score 1)) "lt-target"])
-                       result-score
-                       target-score
+                        [(> end-score (+ target-score 1)) "gt-target"]
+                        [(> end-score (- target-score 1)) "eq-target"]
+                        [(< end-score (- start-score 1)) "lt-start"]
+                        [(< end-score (+ start-score 1)) "eq-start"]
+                        [(< end-score (- target-score 1)) "lt-target"])
+                       (- start-score end-score)
+                       (and target-score (- start-score target-score))
                        (length good-inf)
                        (length bad-inf)
                        est-score
