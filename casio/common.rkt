@@ -169,3 +169,8 @@
   (syntax-case stx ()
     [(_ . rest)
      #'(with-output-to-string (lambda () . rest))]))
+
+(define (has-duplicates? lst)
+  (cond [(null? lst) #f]
+	[(member (car lst) (cdr lst)) #t]
+	[#t (has-duplicates? (cdr lst))]))
