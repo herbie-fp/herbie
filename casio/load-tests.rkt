@@ -9,18 +9,7 @@
 
 (define *test-cache* (make-hash))
 
-(provide load-tests test-improvement test-succeeds?)
-
-(define (test-improvement test)
-  (let*-values ([(end stt) (improve (make-prog test) (*num-iterations*))])
-    (errors-diff-score (alt-errors stt) (alt-errors end))))
-
-(define (test-succeeds? test)
-  (if (test-output test)
-      (let*-values ([(end stt)
-                     (improve (make-prog test) (*num-iterations*))])
-        (equal? (test-output test) (program-body (alt-program end))))
-      (error "Not a real test case (no output given)" test)))
+(provide load-tests)
 
 (define (load-file p)
   (parameterize ([*tests* '()])

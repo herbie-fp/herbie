@@ -44,8 +44,8 @@
 (define (first-pass-filter . alts)
   (let loop ([cur-alt (car alts)] [rest-alts (cdr alts)] [acc '()])
     (let ([rest-alts* (filter (λ (altn) (or (< (alt-cost altn) (alt-cost cur-alt))
-					    (region-ormap (curry eq? '<) *plausibility-min-region-size*
-							  (errors-compare (alt-errors altn) (alt-errors cur-alt)))))
+					    (region-ormap < *plausibility-min-region-size*
+							  (alt-errors altn) (alt-errors cur-alt))))
 			      rest-alts)])
       (if (null? rest-alts*)
 	  (begin (debug "Made it through the first filter: " acc #:from 'regime-changes #:depth 3)
@@ -138,7 +138,7 @@
 	 ;; comparing options by checking if one option is
 	 ;; "green" over the other, on our reevaluated points.
 	 [best-option (best reevaluated-options (lambda (opt1 opt2)
-						  (let ([diff-score (errors-diff-score (option-aug-errors^ opt1) (option-aug-errors^ opt2))])
+						  (let ([diff-score (errors-compare (option-aug-errors^ opt1) (option-aug-errors^ opt2))])
 						    (or (< 0 diff-score)
 							(and (= 0 diff-score) (> (option-cost opt1) (option-cost opt2)))))))])
     ;; Build the option struct and return, using the original errors on points.
@@ -366,48 +366,46 @@
 ;; alt1 should come first. You can also optionally pass a maximum number
 ;; of splitpoints to be returned.
 (define (get-splitpoints alt1 alt2 arg-index #:max-splitpoints [max-splits 4])
-  ;; Get the difflist by comparing the errors of the two alts.
-  ;; We first sort the errors in ascending order so that the difflist will be
-  ;; sequential, allowing for proper splitpoint creation.
-  (let ([difflist (errors-compare (ascending-order arg-index (alt-errors alt1))
-				  (ascending-order arg-index (alt-errors alt2)))]
-	;; Sort the points in ascending order for use anywhere we need to use points, but want
-	;; them to match up with our difflist.
-	[ascending-points (ascending-order arg-index (*points*))])
-    ;; Get the split indices from the difflist with our given number of maximum splitpoints.
-    (let ([sindices (difflist->splitindices difflist #:max-splitpoints max-splits)])
-      ;; Map across each splitindex, and make a splitpoint.
-      (map (lambda (i)
-	     ;; If the splitindex is zero, turn it into an +nan.0, since the only place a zero
-	     ;; would appear is at the beginning, and if it appears, alt2 should come first, so
-	     ;; we want to put a +nan.0 to indicate that.
-	     (cond [(= 0 i) +nan.0]
-		   ;; If the index has an equality at it in the difflist, then at that point
-		   ;; the two alts are equal, so it's the perfect point to use as a splitpoint.
-		   ;; So just return the ascending point at that index.
-		   [(eq? '= (list-ref difflist i))
-		    (list-ref (list-ref ascending-points i) arg-index)]
-		   ;; If the index before this is equal (the one on the other side of the divide),
-		   ;; we can also just return the ascending point at that index.
-		   [(eq? '= (list-ref difflist (- i 1)))
-		    (list-ref (list-ref ascending-points (- i 1)) arg-index)]
-		   ;; Otherwise, one is better at the point before the split, and the other is
-		   ;; better at the point after the split, so we need to binary search to find
-		   ;; the splitpoint.
-		   [#t (let* ([first-point (list-ref ascending-points i)]
-			      [second-point (list-ref ascending-points (sub1 i))]
-			      [p1 (list-ref first-point arg-index)] ; Get the points
-			      [p2 (list-ref second-point arg-index)]
-			      [pred (compose (curry eq? (list-ref difflist i)) ;;Is it the same sign as the first point?
-					     (lambda (p) ;; Get the sign of the given point
-					       (let ([points (list (point-with-dim arg-index first-point p))])
-						 (errors-compare (let ([prog (alt-program alt1)])
-								   (errors prog points (make-exacts prog points)))
-								 (let ([prog (alt-program alt2)])
-								   (errors prog points (make-exacts prog points)))))))])
-			 ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
-			 (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))
-	   sindices))))
+  (let* ([xis (map (curryr list-ref arg-index) (*points*))]
+         [err1* (map cdr (sort (map cons xis (alt-errors alt1)) < #:key car))]
+         [err2* (map cdr (sort (map cons xis (alt-errors alt2)) < #:key car))]
+         [xis* (sort (*points*) < #:key (curryr list-ref arg-index))]
+         [difflist (for/list ([e1 err1*] [e2 err2*])
+                     (cond [(< e1 e2) '<] [(= e1 e2) '=] [(> e1 e2) '>]))]
+         [sindices (difflist->splitindices difflist #:max-splitpoints max-splits)])
+    ;; Map across each splitindex, and make a splitpoint.
+    (for/list ([i sindices])
+      ;; If the splitindex is zero, turn it into an +nan.0, since the only place a zero
+      ;; would appear is at the beginning, and if it appears, alt2 should come first, so
+      ;; we want to put a +nan.0 to indicate that.
+      (cond [(= 0 i) +nan.0]
+            ;; If the index has an equality at it in the difflist, then at that point
+            ;; the two alts are equal, so it's the perfect point to use as a splitpoint.
+            ;; So just return the ascending point at that index.
+            [(eq? '= (list-ref difflist i))
+             (list-ref (list-ref xis* i) arg-index)]
+            ;; If the index before this is equal (the one on the other side of the divide),
+            ;; we can also just return the ascending point at that index.
+            [(eq? '= (list-ref difflist (- i 1)))
+             (list-ref (list-ref xis* (- i 1)) arg-index)]
+            ;; Otherwise, one is better at the point before the split, and the other is
+            ;; better at the point after the split, so we need to binary search to find
+            ;; the splitpoint.
+            [else
+             (let* ([first-point (list-ref xis* i)]
+                    [second-point (list-ref xis* (sub1 i))]
+                    [p1 (list-ref first-point arg-index)] ; Get the points
+                    [p2 (list-ref second-point arg-index)]
+                    [pred
+                     (λ (p)
+                        (let* ([p* (point-with-dim arg-index first-point p)]
+                               [exact (car (make-exacts (alt-program alt1) (list p*)))]
+                               [e1 (error-at (alt-program alt1) p* exact)]
+                               [e2 (error-at (alt-program alt2) p* exact)]
+                               [sign (cond [(< e1 e2) '<] [(= e1 e2) '=] [(> e1 e2) '>])])
+                          (eq? sign (list-ref difflist i))))])
+               ;; Binary search the floats using an epsilon of one two-hundreth of the space in between the points.
+               (binary-search-floats pred p1 p2 (/ (- p1 p2) 200)))]))))
 
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))

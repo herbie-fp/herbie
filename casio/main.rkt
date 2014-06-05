@@ -10,6 +10,9 @@
 (require casio/matcher)
 (require casio/combine-alts)
 
+(define program-a '(λ (x) (/ (- (exp x) 1) x)))
+(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
+
 (define (zaching-changes altn locs)
   (map list (apply append
 		   (for/list ([loc locs])
@@ -44,8 +47,7 @@
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
     (define (recent-improvement altn)
-      (errors-diff-score (alt-errors altn)
-			 (alt-errors (alt-prev altn))))
+      (errors-compare (alt-errors altn) (alt-errors (alt-prev altn))))
     ;; Given a threshold, split the given alts into those who improve from their parent by
     ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)
@@ -110,7 +112,7 @@
 	      (or best-combo (best-alt alts))))))
     ;; Determine the alternative most likely to get us closer to our goal.
     (define (best-alt alts)
-      (argmin (λ (altn) (avg-bits-error (alt-errors altn))) alts))
+      (argmin (λ (altn) (errors-score (alt-errors altn))) alts))
     ;; Main loop 2.0
     (let loop ([alts (list (simplify-alt start-altn))] [maybes '()] [olds '()] [green-threshold max-threshold])
       (if (null? alts)
@@ -132,16 +134,7 @@
   (let-values ([(end start) (improve prog max-iters)])
     (println "Started at: " start)
     (println "Ended at: " end)
-    (println "Improvement by an average of "
-	     (improvement start end)
-	     " bits of precision")
+    (println "Improvement by an average of " (errors-compare start end) " bits of precision")
     (void)))
 
-(define (improvement start end)
-  (let ([diff (errors-difference (alt-errors start) (alt-errors end))])
-    (/ (apply + (filter ordinary-float? diff)) (length diff))))
-
-(define program-a '(λ (x) (/ (- (exp x) 1) x)))
-(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
-
-(provide improve program-a program-b print-improve improvement improve-with-points *max-threshold* *min-threshold*)
+(provide improve program-a program-b print-improve improve-with-points *max-threshold* *min-threshold*)

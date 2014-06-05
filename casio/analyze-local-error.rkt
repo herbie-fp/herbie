@@ -70,7 +70,7 @@
   (ormap (curry < 0) l))
 
 (define (compare-errors e1 e2)
-  (< (errors-diff-score (second e1) (second e2)) 0))
+  (< (errors-compare e1 e2) 0))
 
 (define (find-interesting-locations annot-prog)
   (define (search-expression found expr)
@@ -94,5 +94,6 @@
          (sort
           (find-interesting-locations
            (analyze-expressions (alt-program altn) (*points*)))
-          compare-errors))
+          compare-errors
+          #:key second))
         3))

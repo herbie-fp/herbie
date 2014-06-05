@@ -24,8 +24,8 @@
   (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))
 
 (define (annotated-errors-compare err1 err2)
-  (repl-print (let loop ([region #f] [rest-diff (ascending-order 0 (errors-compare err1 err2))]
-			 [rest-points (ascending-order 0 (*points*))] [acc '()])
+  (repl-print (let loop ([region #f] [rest-diff (errors-compare err1 err2)]
+			 [rest-points (*points*)] [acc '()])
 		(cond [(null? rest-diff) (reverse acc)]
 		      [(not (eq? (car rest-diff) region))
 		       (loop (car rest-diff) (cdr rest-diff)

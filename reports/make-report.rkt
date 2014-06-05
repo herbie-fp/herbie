@@ -109,18 +109,15 @@
              [end-errors    (test-result-end-error    result)]
              [target-errors (test-result-target-error result)]
 
-             [result-diff (errors-difference start-errors end-errors)]
-             [result-score (errors-score result-diff)]
-             [target-score
-              (and target-errors
-                   (errors-diff-score start-errors target-errors))]
+             [result-score (errors-compare start-errors end-errors)]
+             [target-score (and target-errors (errors-compare start-errors target-errors))]
 
              [est-score
-              (errors-diff-score
+              (errors-compare
                (alt-errors (test-result-start-alt result))
                (alt-errors (test-result-end-alt result)))])
 
-          (let*-values ([(reals infs) (partition ordinary-float? result-diff)]
+          (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
                         [(good-inf bad-inf) (partition positive? infs)])
             (table-row name
                        (cond
