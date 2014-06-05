@@ -12,8 +12,7 @@
 (define green-threshold (make-parameter 0))
 
 (define (much-better? alt1 alt2)
-  (< (errors-diff-score (alt-errors alt1) (alt-errors alt2))
-     (green-threshold)))
+  (< (errors-compare (alt-errors alt1) (alt-errors alt2)) (green-threshold)))
 	     
 (define (green? altn)
   ; The initial alternative is not green-tipped by convention

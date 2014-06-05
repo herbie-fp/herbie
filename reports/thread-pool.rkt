@@ -56,7 +56,7 @@
           (match (engine-result eng)
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
-               (parameterize ([*eval-pts* *reeval-pts*])
+               (parameterize ([*num-points* *reeval-pts*])
                  (prepare-points (alt-program start))))
              (test-result test (- (current-inexact-milliseconds) start-time)
                           start end points exacts
