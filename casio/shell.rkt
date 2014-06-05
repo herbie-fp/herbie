@@ -137,6 +137,5 @@
 		 [else (println ret)])
 
 		(toploop (sort alts* <
-                               #:key (λ (altn)
-                                        (avg-bits-error (alt-errors altn))))
+                               #:key (compose errors-score alt-errors))
                          locs*))))))))
