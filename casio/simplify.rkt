@@ -346,7 +346,7 @@
   (define (try-reduce expr loc)
     (let ([applicable-reduction (attempt-apply-all reduction-rules expr '())])
       (if (not applicable-reduction)
-	  (values '() '())
+	  (values '() (list (s-atom expr loc)))
 	  (let ([expr* (change-apply applicable-reduction expr)])
 	    (let-values ([(changes atoms) (resolve-expression loc expr*)])
 	      (values (append (append-to-change-locations (list applicable-reduction) loc) changes) atoms))))))
