@@ -38,24 +38,6 @@
                   (map (λ (x) (cons x rest)) first)))
          < #:key car))))
 
-(define (make-exacts* f pts start-prec inc-prec prev)
-  (bf-precision start-prec)
-  (let loop ([pts pts] [new (map f pts)] [prev prev] [good '()] [bad '()])
-    (cond
-     [(null? pts)
-      (let* ([bad-pts (map car bad)] [bad-ans (map cdr bad)]
-             [new-ans
-              (if (null? bad-pts)
-                  '()
-                  (make-exacts* f bad-pts (+ start-prec inc-prec) inc-prec bad-ans))])
-        (map cdr (sort (append good (map cons bad-pts new-ans)) < #:key caar)))]
-     [(and (car prev) (or (and (nan? (car prev)) (nan? (car new))) (= (car prev) (car new))))
-      (loop (cdr pts) (cdr new) (cdr prev)
-            (cons (cons (car pts) (car new)) good) bad)]
-     [else
-      (loop (cdr pts) (cdr new) (cdr prev)
-            good (cons (cons (car pts) (car new)) bad))])))
-
 (bf-precision 256)
 
 (define (make-exacts prog pts)
