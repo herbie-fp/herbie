@@ -390,6 +390,8 @@
          [difflist (for/list ([e1 err1*] [e2 err2*])
                      (cond [(< e1 e2) '<] [(= e1 e2) '=] [(> e1 e2) '>]))]
          [sindices (difflist->splitindices difflist #:max-splitpoints max-splits)])
+    (when (has-duplicates? sindices)
+      (error "Bad splitindices: Each index should only occur at maximum once. Indices found were " sindices))
     ;; Map across each splitindex, and make a splitpoint.
     (for/list ([i sindices])
       ;; If the splitindex is zero, turn it into an +nan.0, since the only place a zero
