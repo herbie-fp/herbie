@@ -215,7 +215,10 @@
 
 (define (multiplicitave-cancel vni-atom inv-atom rest-atom-lists expr loc)
   (let-values ([(extract-vni-atom-changes expr*) (mul-extract-changes expr (drop (s-atom-loc vni-atom) (length loc)))])
-    (let ([inv-atom* (translate-atom-through-changes (reverse extract-vni-atom-changes) inv-atom)])
+    (let ([inv-atom* (translate-atom-through-changes (append-to-change-locations
+						      (reverse extract-vni-atom-changes)
+						      loc)
+						     inv-atom)])
       (let-values ([(extract-inv-atom-changes caddrexpr*) (mul-extract-changes (caddr expr*)
 									       (drop (s-atom-loc inv-atom*)
 										     (add1 (length loc))))])
