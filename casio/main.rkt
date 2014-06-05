@@ -47,7 +47,7 @@
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
     (define (recent-improvement altn)
-      (errors-compare (alt-errors altn) (alt-errors (alt-prev altn))))
+      (- (errors-score (alt-errors altn)) (errors-score (alt-errors (alt-prev altn)))))
     ;; Given a threshold, split the given alts into those who improve from their parent by
     ;; at least that threshold, and those that do not.
     (define (split-greens-nongreens threshold alts)
@@ -134,7 +134,9 @@
   (let-values ([(end start) (improve prog max-iters)])
     (println "Started at: " start)
     (println "Ended at: " end)
-    (println "Improvement by an average of " (errors-compare start end) " bits of precision")
+    (println "Improvement by an average of "
+             (- (errors-score start) (errors-score end))
+             " bits of precision")
     (void)))
 
 (provide improve program-a program-b print-improve improve-with-points *max-threshold* *min-threshold*)
