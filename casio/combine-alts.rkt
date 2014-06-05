@@ -172,16 +172,29 @@
 ;; Turns an option into a new alternative.
 (define (option->alt opt pre-combo-func)
   ;; Apply pre-combo-func to altn with the given points.
-  (define (apply-with-points points altn)
+  (define (apply-with-points points exacts altn)
     ;; Parameterize the function call with *points* as the given points,
     ;; and *exacts* as the exacts made from those points.
     (parameterize [(*points* points)
-		   (*exacts* (make-exacts (alt-program altn) points))
+		   (*exacts* exacts)
 		   (*point-pred* (let ([vars (program-variables (alt-program (option-altn1 opt)))])
 				   `(lambda ,vars
 				      (and ,(option-condition opt)
 					   ,(cons (*point-pred*) vars)))))]
       (pre-combo-func altn)))
+  ;; Returns four values: A list of all points for which condition-func returns true,
+  ;; A list of the exacts which coorespond to those points, a list of all points for
+  ;; which condition-func returns false, and a list of exacts that coorespond to those
+  ;; points.
+  (define (split-points-exacts condition-func points exacts)
+    (let loop ([rest-points points] [rest-exacts exacts] [pt '()] [et '()] [pf '()] [ef '()])
+      (cond [(null? rest-points) (values pt et pf ef)]
+	    [(condition-func (car rest-points))
+	     (loop (cdr rest-points) (cdr rest-exacts) (cons (car rest-points) pt) (cons (car rest-exacts) et)
+		   pf ef)]
+	    [#t
+	     (loop (cdr rest-points) (cdr rest-exacts) pt et
+		   (cons (car rest-points) pf) (cons (car rest-exacts) ef))])))
   ;; Pull the a bunch of information from the options struct.
   (let* ([split-var (option-split-var opt)]
 	 [condition (option-condition opt)]
@@ -198,11 +211,12 @@
 	   #f]
 	  [#t
 	   ;; Partition the points into the ones that will invoke alt1, and the ones that will invoke alt2
-	   (let-values ([(points1 points2) (partition condition-func
-						      (*points*))])
+	   (let-values ([(points1 exacts1 points2 exacts2) (split-points-exacts condition-func
+										(*points*)
+										(*exacts*))])
 	     ;; Get the improved versions of our two alts.
-	     (let ([altn1* (apply-with-points points1 (option-altn1 opt))]
-		   [altn2* (apply-with-points points2 (option-altn2 opt))])
+	     (let ([altn1* (apply-with-points points1 exacts1 (option-altn1 opt))]
+		   [altn2* (apply-with-points points2 exacts2 (option-altn2 opt))])
 	       ;; The new program is the old programs iffed together with our condition
 	       (let ([program (cond [(eq? (car condition) 'not)
 				     ;; If the condition is negated, it's simpler in the final program
