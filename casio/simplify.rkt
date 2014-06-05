@@ -290,7 +290,7 @@
 											done-vni-atoms)
 										  cur-expr
 										  loc)])
-		    (let ([expr* (changes-apply (reverse new-changes) cur-expr)])
+		    (let ([expr* (changes-apply (drop-change-location-items (reverse new-changes) (length loc)) cur-expr)])
 		      (loop (car atom-lists*) (cadr atom-lists*) expr* (append new-changes changes) (caddr atom-lists*)))))))))))
 
 ;; Changes that come out of here are in reverse-applicative order.
@@ -309,7 +309,7 @@
 										  done-pos-atoms)
 									    cur-expr
 									    loc)])
-		    (let ([expr* (changes-apply (reverse new-changes) cur-expr)])
+		    (let ([expr* (changes-apply (drop-change-location-items (reverse new-changes) (length loc)) cur-expr)])
 		      (loop (car atom-lists*) (cadr atom-lists*) expr* (append new-changes changes) (caddr atom-lists*)))))))))))
 
 ;; Gets all the rules which reduce an expression
