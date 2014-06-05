@@ -38,11 +38,9 @@
                   (map (λ (x) (cons x rest)) first)))
          < #:key car))))
 
-(bf-precision 256)
-
 (define (make-exacts prog pts)
   (let ([f (eval-prog prog mode:bf)])
-    (let loop ([prec 64] [prev #f])
+    (let loop ([prec (- (bf-precision) 16)] [prev #f])
       (bf-precision prec)
       (let ([curr (map f pts)])
         (if (list= prev curr)
@@ -66,6 +64,8 @@
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
+
+  (bf-precision 80)
 
   ; First, we generate points;
   (let* ([pts (make-points (*num-points*) (length (program-variables prog)))]
@@ -91,17 +91,4 @@
        (length e))))
 
 (define (errors-compare egood ebad)
-  (/
-   (for/sum ([e+ egood] [e- ebad])
-     (cond
-      [(and (ordinary-float? e+) (ordinary-float? e-))
-       (if (or (<= e+ 0) (<= e- 0))
-           (error "Error values must be positive" e+ e-)
-           (/ (- (log e+) (log e-)) (log 2)))]
-      [(or (and (ordinary-float? e+) (not (ordinary-float? e-))))
-       -64]
-      [(or (and (not (ordinary-float? e+)) (ordinary-float? e-)))
-       +64]
-      [#t
-       0.0]))
-   (length egood)))
+  (- (errors-score egood) (errors-score ebad)))
