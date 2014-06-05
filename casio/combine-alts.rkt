@@ -176,7 +176,8 @@
     ;; and *exacts* as the exacts made from those points.
     (when (or (null? points) (null? exacts))
       (error "Condition " (option-condition opt) " encompasses all of it's points in one of it's branches."
-	     "Pointpred is " (*point-pred*)))
+	     "Pointpred is " (*point-pred*) ", min point on condition var is " (argmin (curry (flip-args list-ref) (option-split-var-index opt)) points)
+	     ", max point on condition var is " (argmax (curry (flip-args list-ref) (option-split-var-index opt)) points)))
     (parameterize [(*points* points)
 		   (*exacts* exacts)
 		   (*point-pred* (let ([vars (program-variables (alt-program (option-altn1 opt)))])
