@@ -9,7 +9,7 @@
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
  (struct-out change) change-apply changes-apply
- (struct-out change*) change-add-hardness change*-hardness)
+ (struct-out change*) change-add-hardness)
 
 ;; Our own pattern matcher.
 ;
