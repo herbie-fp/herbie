@@ -174,6 +174,8 @@
   (define (apply-with-points points exacts altn)
     ;; Parameterize the function call with *points* as the given points,
     ;; and *exacts* as the exacts made from those points.
+    (when (or (null? points) (null? exacts))
+      (error "Condition " (option-condition opt) " encompasses all of it's points in one of it's branches."))
     (parameterize [(*points* points)
 		   (*exacts* exacts)
 		   (*point-pred* (let ([vars (program-variables (alt-program (option-altn1 opt)))])
