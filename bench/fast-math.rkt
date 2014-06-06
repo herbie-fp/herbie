@@ -19,7 +19,7 @@
             (+ (* d1 10) (* d1 d2) (* d1 20))
             (* d1 (+ 30 d2)))
 
-(casio-test (d1 d2)
+(casio-test (d1 d2 d3)
             "FastMath dist3"
             (+ (* d1 d2) (* (+ d3 5) d1) (* d1 32))
             (* d1 (+ 37 d3 d2)))
