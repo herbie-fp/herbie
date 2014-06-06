@@ -44,6 +44,7 @@
 (define *min-threshold* 25)
 
 (define (improve-with-points max-threshold min-threshold thresh-step start-altn)
+  (when (null? (*points*)) (error "Must be called in a scope where *points* is a non-null list"))
   ;; We keep track of the programs we've seen so we don't consider the same program twice.
   (let ([seen-programs (make-hash)])
     (define (recent-improvement altn)
