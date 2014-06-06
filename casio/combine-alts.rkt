@@ -485,7 +485,7 @@
 	(begin (when (not (= acc (length (*points*))))
 		 (error "Total size of regions must equal number of points."))
 	       regions)
-	(begin (when (= (caar rest-regions) 0)
+	(begin (when (< (caar rest-regions) 2)
 		 (error "Regions cannot have zero size!"))
 	       (loop (+ acc (caar rest-regions)) (cdr rest-regions))))))
 
