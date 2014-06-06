@@ -485,9 +485,9 @@
 	(begin (when (not (= acc (length (*points*))))
 		 (error "Total size of regions must equal number of points."))
 	       regions)
-	(when (= (caar rest-regions) 0)
-	  (error "Regions cannot have zero size!"))
-	(loop (+ acc (caar rest-regions)) (cdr rest-regions)))))
+	(begin (when (= (caar rest-regions) 0)
+		 (error "Regions cannot have zero size!"))
+	       (loop (+ acc (caar rest-regions)) (cdr rest-regions))))))
 
 ;; Given a list of desired regions, returns the indices in the difflist to split at.
 ;; If the initial region should be of alt2, we start with an index of zero, so the
