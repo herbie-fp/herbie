@@ -478,6 +478,17 @@
 	;; Otherwise swallow any less than our new min size, and recurse on a bigger minsize.
 	(loop (swallow-regions (compose (curry > new-min-size) car) regions) (+ 1 new-min-size)))))
 
+;; Verifies that the regionlist is well formed.
+(define (verify-regions regions)
+  (let loop ([acc 0] [rest-regions regions])
+    (if (null? rest-regions)
+	(begin (when (not (= acc (length (*points*))))
+		 (error "Total size of regions must equal number of points."))
+	       regions)
+	(when (= (caar rest-regions) 0)
+	  (error "Regions cannot have zero size!"))
+	(loop (+ acc (caar rest-regions)) (cdr rest-regions)))))
+
 ;; Given a list of desired regions, returns the indices in the difflist to split at.
 ;; If the initial region should be of alt2, we start with an index of zero, so the
 ;; splitindices can be read as, starting with alt1, at every splitindex, switch alts.
@@ -492,8 +503,8 @@
   ;; get the next splitindex.
   ;; We pull off the last splitindex since it would just be the size of the difflist.
   (let ([with-zero (reverse (cdr (foldl (lambda (reg acc)
-					  (cons (+ (car reg) (car acc)) acc))
-					'(0) regions)))])
+				     (cons (+ (car reg) (car acc)) acc))
+				   '(0) (verify-regions regions))))])
     ;; If the first region should be alt2, keep the leading zero
     (if (eq? '> (cdar regions))
 	with-zero
