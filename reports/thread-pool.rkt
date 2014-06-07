@@ -6,7 +6,7 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/test)
-(require casio/main)
+(require casio/new-main)
 (require casio/matcher)
 
 (provide (struct-out test-result) (struct-out test-failure)
@@ -42,7 +42,7 @@
                     [(points exacts) (prepare-points orig)])
         (parameterize ([*points* points] [*exacts* exacts])
           (let* ([start-alt (make-alt orig)]
-                 [end-alt (improve-with-points *max-threshold* *min-threshold* (expt (/ *min-threshold* *max-threshold*) (/ iters)) start-alt)])
+                 [end-alt (improve-alt start-alt (*num-iterations*))])
             (list start-alt end-alt points exacts)))))
 
   (let* ([start-time (current-inexact-milliseconds)]
