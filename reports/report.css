@@ -15,8 +15,8 @@ dt {
     width: 7em;
 }
 
-dd {
-    display: inline;
+#flag-list kbd:not(:last-child):after {
+    content: ", ";
 }
 
 #large {
