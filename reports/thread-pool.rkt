@@ -22,12 +22,14 @@
 (struct test-timeout (test) #:prefab)
 
 (define (srcloc->string sl)
-  (string-append
-   (path->string (srcloc-source sl))
-   ":"
-   (number->string (srcloc-line sl))
-   ":"
-   (number->string (srcloc-column sl))))
+  (if sl
+      (string-append
+       (path->string (srcloc-source sl))
+       ":"
+       (number->string (srcloc-line sl))
+       ":"
+       (number->string (srcloc-column sl)))
+      "???"))
 
 (define (flatten-exn e)
   (list (exn-message e)
