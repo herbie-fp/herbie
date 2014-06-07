@@ -5,7 +5,6 @@
 (require casio/test)
 (require casio/points)
 (require casio/alternative)
-(require casio/main)
 
 (define *test-cache* (make-hash))
 
