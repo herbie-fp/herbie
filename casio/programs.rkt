@@ -93,8 +93,7 @@
                        ,(compile (program-body prog*)))]
          [fn (eval prog-opt eval-prog-ns)])
     (lambda (pts)
-      (with-handlers ([(const #t) (λ (e) +nan.0)])
-        (->flonum (apply fn (map real->precision pts)))))))
+      (->flonum (apply fn (map real->precision pts))))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn a b) (and a b))
