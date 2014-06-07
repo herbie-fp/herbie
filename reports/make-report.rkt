@@ -121,11 +121,11 @@
             (table-row name
                        (cond
                         [(not target-score) "no-compare"]
-                        [(> end-score (+ target-score 1)) "gt-target"]
-                        [(> end-score (- target-score 1)) "eq-target"]
-                        [(< end-score (- start-score 1)) "lt-start"]
-                        [(< end-score (+ start-score 1)) "eq-start"]
-                        [(< end-score (- target-score 1)) "lt-target"])
+                        [(< end-score (- target-score 1)) "gt-target"]
+                        [(< end-score (+ target-score 1)) "eq-target"]
+                        [(> end-score (+ start-score 1)) "lt-start"]
+                        [(> end-score (- start-score 1)) "eq-start"]
+                        [(> end-score (+ target-score 1)) "lt-target"])
                        (- start-score end-score)
                        (and target-score (- start-score target-score))
                        (length good-inf)
