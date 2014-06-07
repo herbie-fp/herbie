@@ -378,6 +378,30 @@
 	       (cons 'or conditions)
 	       (car conditions)))]))
 
+(struct candidate (altn1 altn2 psums))
+
+(define (ulps->bits e)
+  (if (ordinary-float? e)
+      (/ (log e) (log 2))
+      64))
+
+;; Takes a list of numbers, and returns the partial sum of those numbers.
+;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
+(define (partial-sum lst)
+  (let loop ([rest-lst (cdr lst)] [psum-acc (list (car lst))])
+    (if (null? rest-lst)
+	(reverse psum-acc)
+	(loop (cdr rest-lst)
+	      (cons (+ (car psum-acc) (car rest-lst))
+		    psum-acc)))))
+
+(define (make-candidate altn1 altn2)
+  (candidate altn1 altn2
+	     (let* ([bit-errs1 (map ulps->bits (alt-errors altn1))]
+		    [bit-errs2 (map ulps->bits (alt-errors altn2))]
+		    [diff (map - bit-errs1 bit-errs2)])
+	       (partial-sum diff))))
+
 ;; Given two alternatives and the index of the argument to split on,
 ;; return the points at which the alts should be split. A return value
 ;; starting with +nan.0 indicates that alt2 should come first, otherwise
