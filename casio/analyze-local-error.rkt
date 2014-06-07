@@ -83,6 +83,7 @@
 
 
 (define (analyze-local-error altn)
+  (map car
        (take-up-to
         (reverse
          (sort
@@ -90,4 +91,4 @@
            (analyze-expressions (alt-program altn) (*points*)))
           <
           #:key (compose errors-score second)))
-        3))
+        3)))

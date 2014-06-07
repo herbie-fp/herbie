@@ -24,7 +24,7 @@
 			   '()))))))
 
 (define (analyze-and-rm altn)
-  (let ([locs (map car (analyze-local-error altn))])
+  (let ([locs (analyze-local-error altn)])
     (append
      (apply append
 	    (for/list ([loc locs])
@@ -139,4 +139,4 @@
              " bits of precision")
     (void)))
 
-(provide improve program-a program-b print-improve improve-with-points *max-threshold* *min-threshold*)
+(provide improve improve-with-points)
