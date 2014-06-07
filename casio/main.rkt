@@ -139,4 +139,4 @@
              " bits of precision")
     (void)))
 
-(provide improve program-a program-b print-improve improve-with-points *max-threshold* *min-threshold*)
+(provide improve improve-with-points)
