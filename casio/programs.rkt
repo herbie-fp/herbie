@@ -96,8 +96,8 @@
       (->flonum (apply fn (map real->precision pts))))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn a b) (and a b))
-(define (or-fn  a b) (or a b))
+(define (and-fn . as) (andmap identity as))
+(define (or-fn  . as) (ormap identity as))
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
