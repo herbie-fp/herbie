@@ -79,8 +79,8 @@
     (for/list ([point points] [exact exacts])
       (let ([out (fn point)])
         (if (real? out)
-            (+ 1 (flulp-error out (->flonum exact)))
-            +inf.0)))))
+            (+ 1 (abs (flonums-between out exact)))
+            (+ 1 (flonum->ordinal +nan.0)))))))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
