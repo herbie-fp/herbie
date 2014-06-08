@@ -91,10 +91,8 @@
   "math.sqrt on complex, real part"
   (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re)))))
 (casio-bench (re im) ; imag part
-  "math.sqrt on complex, imaginary part"
-  (if (> im 0)
-      (*  0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re))))
-      (* -0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re))))))
+  "math.sqrt on complex, imaginary part, im > 0 branch"
+  (*  0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re)))))
 
 ; Manually expanded math.multiply
 (casio-bench (re im) ; real part
