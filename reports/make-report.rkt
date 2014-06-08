@@ -170,6 +170,9 @@
     (define total-available
       (apply + (for/list ([row table-data])
                  (if (not (equal? (table-row-status row) "no-compare")) 1 0))))
+    (define total-crashes
+      (apply + (for/list ([row table-data])
+                 (if (equal? (table-row-status row) "crash") 1 0))))
 
     (write-file file
       (printf "<!doctype html>\n")
@@ -196,6 +199,11 @@
               (format-time total-time))
       (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
               total-passed total-available)
+      (when (not (= total-crashes 0))
+        (printf "<div>Crashes: <span class='number'>~a</span></div>\n"
+                total-crashes))
+      (printf "<div>Tests: <span class='number'>~a</span></div>\n"
+              (length table-data))
       (printf "</div>\n")
 
       (printf "<table id='results'>\n")
