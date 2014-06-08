@@ -4,25 +4,13 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct location-parent program-induct
+         location-induct program-induct
 	 location-do location-get eval-prog operations
 	 mode:bf mode:fl compile expression-cost)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-
-(define (location-parent loc)
-  (if (null? loc)
-      (values #f #f)
-      (let-values ([(head tail) (split-at-right loc 1)])
-        (cond
-         [(= (car tail) 1)
-          (values head (append head '(1)))]
-         [(= (car tail) 2)
-          (values head (append head '(2)))]
-         [else
-          (values #f #f)]))))
 
 (define (location-induct
 	 prog

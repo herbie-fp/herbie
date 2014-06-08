@@ -5,6 +5,21 @@
 
 (provide (all-defined-out))
 
+(define (location-parent loc)
+  (reverse (cdr (reverse loc))))
+
+(define (location-sibling loc)
+  (if (<= (length loc) 1)
+      #f
+      (let ([loc* (reverse loc)])
+        (cond
+         [(= (car loc*) 1)
+          (reverse (cons 2 (cdr loc*)))]
+         [(= (car loc*) 2)
+          (reverse (cons 1 (cdr loc*)))]
+         [else
+          #f]))))
+
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
