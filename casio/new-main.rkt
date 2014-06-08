@@ -6,6 +6,8 @@
 (require casio/analyze-local-error)
 (require casio/simplify)
 (require casio/combine-alts)
+(require casio/locations)
+(require casio/programs)
 
 (provide *flags* improve improve-alt)
 
@@ -13,7 +15,7 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [filter   . ()]
-         [reduce   . (regimes)]
+         [reduce   . (regimes zach)]
          [setup    . (simplify)])))
 
 (define ((flag type f) a b)
@@ -45,17 +47,21 @@
 
 (define (reduce-alts alts fuel)
   (let ([combine
-         ((flag 'reduce 'regimes) regimes-alts (const #f))])
-    (or (combine alts fuel) (best-alt alts))))
+         ((flag 'reduce 'regimes) regimes-alts (const #f))]
+        [fixup
+         ((flag 'reduce 'zach) zach-alt (const '()))])
+    (let ([alts* (append alts (append-map fixup alts))])
+      (or (combine alts fuel) (best-alt alts)))))
 
 (define (generate-alts altn)
-  (apply append
-         (for/list ([loc (analyze-local-error altn)])
-           (let ([rewrite
-                  ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)]
-                 [cleanup
-                  ((flag 'generate 'simplify) simplify-alt identity)])
-             (map cleanup (rewrite altn #:root loc))))))
+  (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
+
+(define (generate-alts-at altn loc)
+  (let ([rewrite
+         ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)]
+        [cleanup
+         ((flag 'generate 'simplify) simplify-alt identity)])
+    (map cleanup (rewrite altn #:root loc))))
 
 (define (filter-alts alts)
   (if (null? alts)
@@ -76,3 +82,13 @@
 
 (define (best-alt alts)
   (argmin (compose errors-score alt-errors) alts))
+
+(define (zach-alt altn)
+  (apply append
+         (for/list ([loc (analyze-local-error altn)])
+           (let ([sibling (location-sibling loc)])
+             (if (and sibling
+                      (= (length (location-get (location-parent loc)
+                                               (alt-program altn))) 3))
+                 (generate-alts-at altn sibling)
+                 '())))))
