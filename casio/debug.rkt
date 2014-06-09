@@ -38,13 +38,19 @@
   (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))
 
 (define (annotated-errors-compare err1 err2)
-  (repl-print (let loop ([region #f] [rest-diff (map - err1 err2)]
+  (repl-print (let loop ([region #f] [rest-diff (map (λ (e1 e2)
+						      (cond [(> e1 e2) '>]
+							    [(< e1 e2) '<]
+							    [#t '=]))
+						    err1 err2)]
 			 [rest-points (*points*)] [acc '()])
 		(cond [(null? rest-diff) (reverse acc)]
-		      [(>= (* (car rest-diff) region) 0)
-		       (loop (car rest-diff) (cdr rest-diff)
-			     (cdr rest-points) (cons (cons (car rest-diff) (car rest-points)) acc))]
-		      [#t (loop region (cdr rest-diff) (cdr rest-points) (cons (car rest-diff) acc))]))))
+		      [(eq? region (car rest-diff))
+		       (loop region (cdr rest-diff)
+			     (cdr rest-points) (cons (car rest-diff) acc))]
+		      [#t (loop (car rest-diff) (cdr rest-diff)
+				(cdr rest-points) (cons (cons (car rest-points) (car rest-diff))
+							acc))]))))
 
 (define (print-alt-info altn)
   (if (not (alt-prev altn))
