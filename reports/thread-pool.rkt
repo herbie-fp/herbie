@@ -6,7 +6,7 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/test)
-(require casio/new-main)
+(require casio/main)
 (require casio/matcher)
 
 (provide (struct-out test-result) (struct-out test-failure)
