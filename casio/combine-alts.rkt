@@ -627,7 +627,7 @@
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (let ([num-candidates (length err-lsts)]
 	[num-points (length (car err-lsts))]
-	[psums (map partial-sum err-lsts)])
+	[psums (map (compose list->vector partial-sum) err-lsts)])
     ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitpoints after
     ;; however many passes if we only consider points to the left of that cse's index. Given one of these
     ;; lists, this function tries to add another splitpoint to each cse.
@@ -650,10 +650,10 @@
 				   ;; indices.
 				   (apply append (map (λ (prev-split-idx prev-entry)
 							(map (λ (cand-idx cand-psums)
-							       (let ([new-cost (- (list-ref cand-psums point-idx)
-										  (list-ref cand-psums prev-split-idx))])
 							       ;; new-cost is the cost of the new region we're adding
 							       ;; to the end of the existing region possibility.
+							       (let ([new-cost (- (vector-ref cand-psums point-idx)
+										  (vector-ref cand-psums prev-split-idx))])
 								 ;; Our total cost is the old cost plus the cost of our
 								 ;; new region,
 								 (cse (+ (cse-cost prev-entry)
