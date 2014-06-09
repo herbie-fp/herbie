@@ -72,9 +72,9 @@
     (cond
      [(list? pattern)
 	(apply alist-append
-               (idx-map (lambda (x idx)
-                          (var-locs x (append loc (list idx))))
-                        (cdr pattern) #:from 1))]
+               (enumerate #:from 1
+                          (lambda (i x) (var-locs x (append loc (list i))))
+                          (cdr pattern)))]
      [(number? pattern) '()]
      [(symbol? pattern) (list (cons pattern (list loc)))]
      [#t (error "Improper rule: " rule)]))
