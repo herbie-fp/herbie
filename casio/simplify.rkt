@@ -143,7 +143,8 @@
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (eval expr full-namespace)])
+      (let ([value (with-handlers ([(const #t) (λ (e) #f)])
+                       (eval expr full-namespace))])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
