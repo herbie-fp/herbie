@@ -41,20 +41,19 @@
 (define (improve-loop alts olds fuel)
   (if (or (<= fuel 0) (null? alts))
       (reduce-alts olds 5)
-      (let*-values ([(alts*) (append-map generate-alts alts)]
-                    [(alts* olds*) (filter-alts alts* olds)])
-        (improve-loop
-         alts*
-         olds*
-         (- fuel 1)))))
+      (improve-loop
+       (filter-alts (append-map generate-alts alts) olds)
+       (append olds alts)
+       (- fuel 1))))
 
 (define (reduce-alts alts fuel)
   (let ([combine
          ((flag 'reduce 'regimes) regimes-alts (const #f))]
         [fixup
          ((flag 'reduce 'zach) zach-alt (const '()))])
-    (let ([alts* (append alts (append-map fixup alts))])
-      (or (combine alts fuel) (best-alt alts)))))
+    (let* ([alts* (append alts (append-map fixup alts))]
+           [alts* (remove-duplicates alts* #:key alt-program)])
+      (or (combine alts* fuel) (best-alt alts*)))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -68,9 +67,8 @@
 
 (define (filter-alts alts olds)
   (if (null? alts)
-      (values alts olds)
-      (values (list (best-alt alts))
-              (reverse (remove-duplicates (reverse (append alts olds)) equal? #:key alt-program)))))
+      alts
+      (list (best-alt alts))))
 
 ;; Some helpers
 
