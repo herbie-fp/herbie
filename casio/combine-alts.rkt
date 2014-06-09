@@ -186,7 +186,7 @@
   (let* ([split-var (option-split-var opt)]
 	 [condition (option-condition opt)]
 	 [condition-func (compose (safe-eval `(lambda (,split-var) ,condition))
-				  (curry (flip-args list-ref) (option-split-var-index opt)))]
+				  (curryr list-ref (option-split-var-index opt)))]
 	 [split-var-index (option-split-var-index opt)]
 	 [vars (program-variables (alt-program (option-altn1 opt)))])
     ;; If the condition is just #t, then this combination is no better than our input alts,
@@ -438,7 +438,7 @@
 		 pred p1 p2))
 
 ;; Implemented here for example.
-(define binary-search-ints (curry binary-search (compose floor (compose (curry (flip-args /) 2) +))))
+(define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
 ;; Gets the indices to split a region into. By default the only requirement of these regions is that they be the most accurate
 ;; regions where no region is less than three points in size, but you can pass in a minimum region size (default three), a

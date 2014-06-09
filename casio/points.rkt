@@ -41,7 +41,7 @@
     (let loop ([prec (- (bf-precision) 16)] [prev #f])
       (bf-precision prec)
       (let ([curr (map f pts)])
-        (if (list= prev curr)
+        (if (and prev (andmap =-or-nan? prev curr))
             curr
             (loop (+ prec 16) curr))))))
 
