@@ -18,12 +18,6 @@
          [reduce   . (regimes zach)]
          [setup    . (simplify)])))
 
-(define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type
-                          (λ () (error "Invalid flag type" type))))
-      a
-      b))
-
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
@@ -37,6 +31,14 @@
   (let* ([clean-alt ((flag 'setup 'simplify-first) simplify-alt identity)]
          [alt* (clean-alt alt)])
     (improve-loop (list alt*) (list alt*) fuel)))
+
+;; Implementation
+
+(define ((flag type f) a b)
+  (if (member f (hash-ref (*flags*) type
+                          (λ () (error "Invalid flag type" type))))
+      a
+      b))
 
 (define (improve-loop alts olds fuel)
   (if (or (<= fuel 0) (null? alts))
