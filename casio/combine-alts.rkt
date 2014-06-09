@@ -378,30 +378,6 @@
 	       (cons 'or conditions)
 	       (car conditions)))]))
 
-(struct candidate (altn1 altn2 psums))
-
-(define (ulps->bits e)
-  (if (ordinary-float? e)
-      (/ (log e) (log 2))
-      64))
-
-;; Takes a list of numbers, and returns the partial sum of those numbers.
-;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
-(define (partial-sum lst)
-  (let loop ([rest-lst (cdr lst)] [psum-acc (list (car lst))])
-    (if (null? rest-lst)
-	(reverse psum-acc)
-	(loop (cdr rest-lst)
-	      (cons (+ (car psum-acc) (car rest-lst))
-		    psum-acc)))))
-
-(define (make-candidate altn1 altn2)
-  (candidate altn1 altn2
-	     (let* ([bit-errs1 (map ulps->bits (alt-errors altn1))]
-		    [bit-errs2 (map ulps->bits (alt-errors altn2))]
-		    [diff (map - bit-errs1 bit-errs2)])
-	       (partial-sum diff))))
-
 ;; Given two alternatives and the index of the argument to split on,
 ;; return the points at which the alts should be split. A return value
 ;; starting with +nan.0 indicates that alt2 should come first, otherwise
@@ -616,3 +592,68 @@
 	  ;; If our second element doesn't satisfy pred, add the first element to the accumulator, and recurse on
 	  ;; the list from the second element onwards (cdr restlist)
 	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
+
+(define (ulps->bits e)
+  (if (ordinary-float? e)
+      (/ (log e) (log 2))
+      64))
+
+;; Takes a list of numbers, and returns the partial sum of those numbers.
+;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
+(define (partial-sum lst)
+  (let loop ([rest-lst (cdr lst)] [psum-acc (list (car lst))])
+    (if (null? rest-lst)
+	(reverse psum-acc)
+	(loop (cdr rest-lst)
+	      (cons (+ (car psum-acc) (car rest-lst))
+		    psum-acc)))))
+
+;; Struct representing a splitpoint
+;; cidx = Candidate index: the candidate program that should be used to the left of this splitpoint
+;; pidx = Point index: The index of the point to the left of which we should split.
+;; weight = The total error-cost of the region to the left of this splitpoint
+(struct sp (cidx pidx weight) #:transparent)
+
+;; Struct representing a candidate set of splitpoints that we are considering.
+;; cost = The total error in the region to the left of our rightmost splitpoint
+;; splitpoints = The splitpoints we are considering in this candidate.
+(struct cse (cost splitpoints) #:transparent)
+
+(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-weight [min-weight 5] . err-lsts)
+  (let ([num-candidates (length err-lsts)]
+	[num-points (length (car err-lsts))]
+	[psums (map partial-sum err-lsts)])
+    (define (add-splitpoint sp-prev)
+      (map (λ (point-idx point-entry)
+	     (argmin cse-cost
+		     (cons (list-ref sp-prev point-idx)
+			   (filter (λ (cse)
+				     (< min-weight (sp-weight (car (cse-splitpoints cse)))))
+				   (apply append (map (λ (prev-split-idx prev-entry)
+							(map (λ (cand-idx cand-psums)
+							       (let ([new-cost (- (list-ref cand-psums point-idx)
+										  (list-ref cand-psums prev-split-idx))])
+								 (cse (+ (cse-cost prev-entry)
+									 new-cost)
+								      (cons (sp cand-idx (add1 point-idx) new-cost)
+									    (cse-splitpoints prev-entry)))))
+							     (range num-candidates)
+							     psums))
+						      (range point-idx)
+						      (take sp-prev point-idx)))))))
+	   (range num-points)
+	   sp-prev))
+    (let* ([sp-initial (map (λ (point-idx)
+			      (argmin cse-cost
+				      (map (λ (cand-idx cand-psums)
+					     (let ([cost (list-ref cand-psums point-idx)])
+					       (cse cost
+						    (list (sp cand-idx (add1 point-idx) cost)))))
+					   (range num-candidates)
+					   psums)))
+			    (range num-points))]
+	   [sp-final (pipe sp-initial (make-list (sub1 max-splits) add-splitpoint))])
+      (reverse (cse-splitpoints
+		(list-ref
+		 sp-final
+		 (sub1 (length sp-final))))))))
