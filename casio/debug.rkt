@@ -5,8 +5,21 @@
 (require casio/common)
 (require casio/matcher)
 (require casio/programs)
+(require casio/main)
 
 (provide (all-defined-out))
+
+(define (print-improve prog max-iters)
+  (let-values ([(pts exs) (prepare-points prog)])
+    (parameterize ([*points* pts] [*exacts* exs])
+      (let* ([start (make-alt prog)]
+             [end (improve-alt start max-iters)])
+        (println "Started at: " start)
+        (println "Ended at: " end)
+        (println "Improvement by an average of "
+                 (- (errors-score (alt-errors start)) (errors-score (alt-errors end)))
+                 " bits of precision")
+        (void)))))
 
 (define (setup prog)
   (define-values (points exacts) (prepare-points prog))
