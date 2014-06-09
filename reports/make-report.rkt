@@ -7,7 +7,7 @@
 (require casio/alternative)
 (require casio/test)
 (require casio/load-tests)
-(require casio/new-main)
+(require casio/main)
 (require reports/make-graph)
 (require reports/thread-pool)
 (provide (all-defined-out))
