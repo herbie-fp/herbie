@@ -38,9 +38,9 @@
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (idx-map (λ (prog idx)
-				    (inductor prog (cons idx location)))
-                                (cdr prog) #:from 1))
+		       (enumerate #:from 1
+                                  (λ (idx prog) (inductor prog (cons idx location)))
+                                  (cdr prog)))
 		 (reverse location))]))
   (inductor prog '()))
 
