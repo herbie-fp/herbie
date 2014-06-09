@@ -34,16 +34,19 @@
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
-  (let ([clean-alt ((flag 'setup 'simplify-first) simplify-alt identity)])
-    (improve-loop (list (clean-alt alt)) (list) fuel)))
+  (let* ([clean-alt ((flag 'setup 'simplify-first) simplify-alt identity)]
+         [alt* (clean-alt alt)])
+    (improve-loop (list alt*) (list alt*) fuel)))
 
 (define (improve-loop alts olds fuel)
   (if (or (<= fuel 0) (null? alts))
-      (reduce-alts (append alts olds) fuel)
-      (improve-loop
-       (filter-alts (append-map generate-alts alts))
-       (append alts olds)
-       (- fuel 1))))
+      (reduce-alts olds 5)
+      (let*-values ([(alts*) (append-map generate-alts alts)]
+                    [(alts* olds*) (filter-alts alts* olds)])
+        (improve-loop
+         alts*
+         olds*
+         (- fuel 1)))))
 
 (define (reduce-alts alts fuel)
   (let ([combine
@@ -63,10 +66,11 @@
          ((flag 'generate 'simplify) simplify-alt identity)])
     (map cleanup (rewrite altn #:root loc))))
 
-(define (filter-alts alts)
+(define (filter-alts alts olds)
   (if (null? alts)
-      alts
-      (list (best-alt alts))))
+      (values alts olds)
+      (values (list (best-alt alts))
+              (reverse (remove-duplicates (reverse (append alts olds)) equal? #:key alt-program)))))
 
 ;; Some helpers
 
