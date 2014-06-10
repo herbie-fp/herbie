@@ -593,10 +593,39 @@
 	  ;; the list from the second element onwards (cdr restlist)
 	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
 
+(define (pick-errors splitpoints points err-lsts)
+  (let loop ([rest-splits splitpoints] [rest-points points]
+	     [rest-errs (flip-lists err-lsts)] [acc '()])
+    (cond [(null? rest-points) (reverse acc)]
+	  [(< (list-ref (car rest-points) (sp-vidx (car rest-splits)))
+	      (sp-point (car rest-splits)))
+	   (loop rest-splits (cdr rest-points)
+		 (cdr rest-errs) (cons (list-ref (car rest-errs) (sp-cidx (car rest-splits)))
+				       acc))]
+	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
+
 (define (with-entry idx lst item)
   (if (= idx 0)
       (cons item (cdr lst))
       (with-entry (sub1 idx) (cdr lst) item)))
+
+;; Partitions a list of points and exacts into num-alts contexts,
+;; along the given splitoints.
+(define (partition-points splitpoints points exacts num-alts)
+  (let loop ([rest-splits splitpoints] [rest-points points]
+	     [rest-exacts exacts] [accs (make-list num-alts (context '() '()))])
+    (cond [(null? rest-points)
+	   (map reverse accs)]
+	  [(<= (list-ref (car rest-points) (sp-vidx (car splitpoints)))
+	       (sp-point (car splitpoints)))
+	   (loop rest-splits (cdr rest-points) (cdr rest-exacts)
+		 (let ([entry-idx (sp-cidx (car splitpoints))]
+		       [old-entry (list-ref accs entry-idx)])
+		   (with-entry entry-idx accs (context (cons (car rest-points)
+							     (context-points old-entry))
+						       (cons (car rest-exacts)
+							     (context-exacts old-entry))))))]
+	  [#t (loop (cdr rest-splits) rest-points rest-exacts accs)])))
 
 ;; Accepts points in one indexed form and returns the
 ;; proper splitpoint in float form.
