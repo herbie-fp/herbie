@@ -593,6 +593,14 @@
 	  ;; the list from the second element onwards (cdr restlist)
 	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
 
+;; Accepts points in one indexed form and returns the
+;; proper splitpoint in float form.
+;; Current implementation is a lazy version of averaging,
+;; but the intent of seperating this out into it's own function
+;; is so that we can fix that later.
+(define (split-idx->split-pnt alts points idx)
+  (/ (+ (list-ref points idx) (list-ref points (sub1 idx)))
+     2))
 (define (ulps->bits e)
   (if (ordinary-float? e)
       (/ (log e) (log 2))
