@@ -625,11 +625,25 @@
 	      (cons (+ (car psum-acc) (car rest-lst))
 		    psum-acc)))))
 
-;; Struct representing a splitpoint
-;; cidx = Candidate index: the candidate program that should be used to the left of this splitpoint
+;; Takes a splitindex structure, and turns it into a splitpoint structure when given
+;; the appropriate context parameters.
+;; var-idx: The index of the variable which we are splitting on.
+;; eval-points: The points on which the indices were found
+;; alts: The alternatives that the candidate-indices of the sidx coorespond to.
+;; sidx: The si struct to be converted.
+(define (si->sp var-idx eval-points alts sidx)
+  (sp (si-cidx sidx) var-idx (split-idx->split-pnt alts eval-points (si-pidx sidx))))
+
+;; Struct represeting a splitpoint
+;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
+;; vidx = Variable index: The index of the variable that this splitpoint should split on.
+;; point = Split Point: The point at which we should split.
+(struct sp (cidx vidx point) #:transparent)
+
+;; Struct representing a splitindex
+;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
 ;; pidx = Point index: The index of the point to the left of which we should split.
-;; weight = The total error-cost of the region to the left of this splitpoint
-(struct sp (cidx pidx) #:transparent)
+(struct si (cidx pidx) #:transparent)
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
@@ -645,9 +659,9 @@
   (let ([num-candidates (length err-lsts)]
 	[num-points (length (car err-lsts))]
 	[psums (map (compose list->vector partial-sum) err-lsts)])
-    ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitpoints after
-    ;; however many passes if we only consider points to the left of that cse's index. Given one of these
-    ;; lists, this function tries to add another splitpoint to each cse.
+    ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitindices after
+    ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
+    ;; lists, this function tries to add another splitindices to each cse.
     (define (add-splitpoint idx-offset sp-prev)
       ;; Loop over each item in sp-prev, keeping track of it's index.
       (map (λ (point-idx point-entry)
@@ -672,7 +686,7 @@
 								 new-cost)
 							      ;; And our new splitpoints are the old ones, with
 							      ;; our new one added on.
-							      (cons (sp cand-idx (add1 point-idx))
+							      (cons (si cand-idx (add1 point-idx))
 								    (cse-splitpoints prev-entry)))))
 						     (range num-candidates)
 						     psums))
@@ -691,7 +705,7 @@
 			     (map (λ (cand-idx cand-psums)
 				    (let ([cost (vector-ref cand-psums point-idx)])
 				      (cse cost
-					   (list (sp cand-idx (add1 point-idx))))))
+					   (list (si cand-idx (add1 point-idx))))))
 				  (range num-candidates)
 				  psums))))
 	       (range min-region-size num-points))]
