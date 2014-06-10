@@ -593,6 +593,11 @@
 	  ;; the list from the second element onwards (cdr restlist)
 	  [#t (loop (cdr restlist) (cons (car restlist) acc))])))
 
+(define (with-entry idx lst item)
+  (if (= idx 0)
+      (cons item (cdr lst))
+      (with-entry (sub1 idx) (cdr lst) item)))
+
 ;; Accepts points in one indexed form and returns the
 ;; proper splitpoint in float form.
 ;; Current implementation is a stupid version of averaging,
