@@ -595,7 +595,7 @@
 
 ;; Accepts points in one indexed form and returns the
 ;; proper splitpoint in float form.
-;; Current implementation is a lazy version of averaging,
+;; Current implementation is a stupid version of averaging,
 ;; but the intent of seperating this out into it's own function
 ;; is so that we can fix that later.
 (define (split-idx->split-pnt alts points idx)
