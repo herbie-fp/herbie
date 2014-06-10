@@ -700,7 +700,7 @@
 	 ;; Each call to add splitpoints will be operating on a slightly smaller list, so
 	 ;; we pass each one an index offset, calculated by pass-num * min-region-size.
 	 [sp-final (pipe sp-initial (build-list (sub1 max-splits)
-						(compose (curry curry add-splitpoint) (curry * min-region-size) add1)))]) ;; Oh shit...
+						(compose (curry curry add-splitpoint) (curry * min-region-size) add1)))]) 
       ;; Extract the splitpoints from our data structure, and reverse it.
       (reverse (cse-splitpoints
 		(list-ref
