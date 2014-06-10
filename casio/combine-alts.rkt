@@ -601,6 +601,15 @@
 (define (split-idx->split-pnt alts points idx)
   (/ (+ (list-ref points idx) (list-ref points (sub1 idx)))
      2))
+
+(define (prog-combination split-indices alts split-var points)
+  (cons 'cond
+	(append (map (λ (split-idx)
+		       (list (list '< split-var (split-idx->split-pnt alts points (sp-pidx split-idx)))
+			     (program-body (alt-program (list-ref alts (sp-cidx split-idx))))))
+		     (take split-indices (sub1 (length split-indices))))
+		(list (list #t (program-body (alt-program (list-ref alts (sp-cidx (list-ref split-indices (sub1 (length split-indices))))))))))))
+
 (define (ulps->bits e)
   (if (ordinary-float? e)
       (/ (log e) (log 2))
