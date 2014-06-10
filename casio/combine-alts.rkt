@@ -629,7 +629,7 @@
 ;; cidx = Candidate index: the candidate program that should be used to the left of this splitpoint
 ;; pidx = Point index: The index of the point to the left of which we should split.
 ;; weight = The total error-cost of the region to the left of this splitpoint
-(struct sp (cidx pidx weight) #:transparent)
+(struct sp (cidx pidx) #:transparent)
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
