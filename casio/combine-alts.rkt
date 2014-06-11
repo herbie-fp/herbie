@@ -143,6 +143,19 @@
   (+ *branch-cost*
      (apply max (map alt-cost alts))))
 
+(struct option (splitpoints errors))
+
+(define (option-on-var var-idx alts)
+  (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map alt-errors alts)))]
+	 [point-lst* (remove-duplicates point-lst #:key (λ (pe) (list-ref (car pe) var-idx)))]
+	 [points-exacts-errs (flip-lists point-lst*)]
+	 [points* (map (curryr list-ref var-idx) (car points-exacts-errs))]
+	 [exacts* (cadr points-exacts-errs)]
+	 [alt-errs* (map (curry map ulps->bits) (cddr points-exacts-errs))]
+	 [split-indices (apply err-lsts->split-indices alt-errs*)]
+	 [split-points (map (curry si->sp var-idx points* alts) split-indices)])
+    (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
+
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs (flip-lists err-lsts)] [acc '()])
