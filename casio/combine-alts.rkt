@@ -185,26 +185,24 @@
 (define (with-entry idx lst item)
   (if (= idx 0)
       (cons item (cdr lst))
-      (with-entry (sub1 idx) (cdr lst) item)))
+      (cons (car lst) (with-entry (sub1 idx) (cdr lst) item))))
 
 ;; Partitions a list of points and exacts into num-alts contexts,
 ;; along the given splitoints.
 (define (partition-points splitpoints points exacts num-alts)
   (let loop ([rest-splits splitpoints] [rest-points points]
-	     [rest-exacts exacts] [accs (make-list num-alts (alt-context '() '()))])
+	     [rest-exacts exacts] [accs (make-list num-alts (context '() '()))])
     (cond [(null? rest-points)
-	   (map (λ (context) (alt-context (reverse (alt-context-points context))
-					  (reverse (alt-context-exacts context))))
-		accs)]
+	   (map reverse accs)]
 	  [(<= (list-ref (car rest-points) (sp-vidx (car splitpoints)))
 	       (sp-point (car rest-splits)))
 	   (loop rest-splits (cdr rest-points) (cdr rest-exacts)
-		 (let* ([entry-idx (sp-cidx (car splitpoints))]
-		        [old-entry (list-ref accs entry-idx)])
-		   (with-entry entry-idx accs (alt-context (cons (car rest-points)
-								 (alt-context-points old-entry))
-							   (cons (car rest-exacts)
-								 (alt-context-exacts old-entry))))))]
+		 (let ([entry-idx (sp-cidx (car splitpoints))]
+		       [old-entry (list-ref accs entry-idx)])
+		   (with-entry entry-idx accs (context (cons (car rest-points)
+							     (context-points old-entry))
+						       (cons (car rest-exacts)
+							     (context-exacts old-entry))))))]
 	  [#t (loop (cdr rest-splits) rest-points rest-exacts accs)])))
 
 ;; Accepts points in one indexed form and returns the
