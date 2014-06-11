@@ -271,12 +271,12 @@
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
 ;; vidx = Variable index: The index of the variable that this splitpoint should split on.
 ;; point = Split Point: The point at which we should split.
-(struct sp (cidx vidx point) #:transparent)
+(struct sp (cidx vidx point) #:prefab)
 
 ;; Struct representing a splitindex
 ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
 ;; pidx = Point index: The index of the point to the left of which we should split.
-(struct si (cidx pidx) #:transparent)
+(struct si (cidx pidx) #:prefab)
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
