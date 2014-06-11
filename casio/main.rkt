@@ -103,7 +103,7 @@
       (let ([plausible-combinors (plausible-alts alts)])
 	(if (> 2 (length plausible-combinors))
 	    (best-alt alts)
-	    (let ([best-combo (best-combination plausible-combinors
+	    (let ([best-combo (combine-alts plausible-combinors
 						#:pre-combo-func (let ([pre-num-points (length (*points*))])
 								   (λ (altn)
 								     (let* ([post-num-points (length (*points*))]
