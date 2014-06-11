@@ -14,7 +14,6 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-         [filter   . ()]
          [reduce   . (regimes zach)]
          [setup    . (simplify)])))
 
