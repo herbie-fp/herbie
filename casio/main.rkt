@@ -28,7 +28,7 @@
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
-  (let* ([clean-alt ((flag 'setup 'simplify-first) simplify-alt identity)]
+  (let* ([clean-alt ((flag 'setup 'simplify) simplify-alt identity)]
          [alt* (clean-alt alt)])
     (improve-loop (list alt*) (list alt*) fuel)))
 
