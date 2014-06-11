@@ -131,6 +131,10 @@
 ;; Implemented here for example.
 (define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
+(define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
+  (let ([new-rule (rule 'regimes 'a final-prog-body '())])
+    (change new-rule '() `((a . ()) (splitpoints . ,splitpoints) (orig-alts . ,orig-alts) (improved-alts . , improved-alts)))))
+
 
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
