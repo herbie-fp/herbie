@@ -265,7 +265,9 @@
 ;; alts: The alternatives that the candidate-indices of the sidx coorespond to.
 ;; sidx: The si struct to be converted.
 (define (si->sp var-idx eval-points alts sidx)
-  (sp (si-cidx sidx) var-idx (split-idx->split-pnt alts eval-points (si-pidx sidx))))
+  (if (= (si-pidx sidx) (length eval-points))
+      (sp (si-cidx sidx) var-idx +inf.0)
+      (sp (si-cidx sidx) var-idx (split-idx->split-pnt alts eval-points (si-pidx sidx)))))
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
