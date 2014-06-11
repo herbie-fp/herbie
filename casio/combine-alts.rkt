@@ -195,7 +195,7 @@
     (cond [(null? rest-points)
 	   (map reverse accs)]
 	  [(<= (list-ref (car rest-points) (sp-vidx (car splitpoints)))
-	       (sp-point (car splitpoints)))
+	       (sp-point (car rest-splits)))
 	   (loop rest-splits (cdr rest-points) (cdr rest-exacts)
 		 (let ([entry-idx (sp-cidx (car splitpoints))]
 		       [old-entry (list-ref accs entry-idx)])
