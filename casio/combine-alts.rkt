@@ -131,6 +131,21 @@
 ;; Implemented here for example.
 (define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
+(define (combine-alts #:pre-combo-func [recurse-func identity] alts)
+  (let* ([options (build-list (length (program-variables (alt-program (car alts))))
+			      (curryr option-on-var alts))]
+	 [best-option (argmin (compose errors-score option-errors) options)]
+	 [splitpoints (option-splitpoints best-option)]
+	 [improved-alts (recurse-on-alts recurse-func alts splitpoints)]
+	 [prog-body* (prog-combination splitpoints alts)])
+    (if (= (length splitpoints) 1) #f
+	(alt `(λ ,(program-variables (alt-program (car alts)))
+		,prog-body*)
+	     (pick-errors splitpoints (*points*) (map alt-errors improved-alts))
+	     (calc-cost (used-alts improved-alts splitpoints))
+	     (make-regime-change alts improved-alts splitpoints prog-body*)
+	     #f 0))))
+
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
     (change new-rule '() `((a . ()) (splitpoints . ,splitpoints) (orig-alts . ,orig-alts) (improved-alts . , improved-alts)))))
