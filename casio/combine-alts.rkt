@@ -135,6 +135,13 @@
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
     (change new-rule '() `((a . ()) (splitpoints . ,splitpoints) (orig-alts . ,orig-alts) (improved-alts . , improved-alts)))))
 
+(define (used-alts alts splitpoints)
+  (let ([used-alt-indices (remove-duplicates (map sp-cidx splitpoints))])
+    (map (curry list-ref alts) used-alt-indices)))
+
+(define (calc-cost alts)
+  (+ *branch-cost*
+     (apply max (map alt-cost alts))))
 
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
