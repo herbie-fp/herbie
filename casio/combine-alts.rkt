@@ -225,6 +225,23 @@
 		     (take splitpoints (sub1 (length splitpoints))))
 		(list (list #t (program-body (alt-program (list-ref alts (sp-cidx (list-ref splitpoints (sub1 (length splitpoints))))))))))))
 
+(struct alt-context (points exacts))
+
+;; Recurse on the alts in altns, assuming they're the same alts list
+;; on which split-indices (more precisely, that the indices match up),
+;; by invoking recurse function with the points and exacts properly
+;; dynamically scoped for each alt.
+(define (recurse-on-alts recurse-function altns splitpoints)
+  (define (recurse-on-points altns contexts)
+    (map (λ (altn context)
+	   (parameterize ([*points* (alt-context-points context)]
+			  [*exacts* (alt-context-exacts context)])
+	     (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
+		 ;; because we refer to the alts by index a lot.
+		 (recurse-function altn))))
+	 altns
+	 contexts))
+  (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
 
 (define (ulps->bits e)
   (if (ordinary-float? e)
