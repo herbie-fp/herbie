@@ -209,6 +209,7 @@
 
 ;; Accepts points in one indexed form and returns the
 ;; proper splitpoint in float form.
+;; Does NOT support the case where (= idx (length points)).
 ;; Current implementation is a stupid version of averaging,
 ;; but the intent of seperating this out into it's own function
 ;; is so that we can fix that later.
