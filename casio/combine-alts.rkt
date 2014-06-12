@@ -288,7 +288,7 @@
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 ;; Takes two optional parameters: max-splits, the maximum number of splitpoints to return, and
 ;; min-weight, the minimum total error in a region (?).
-(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size 5] . err-lsts)
+(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size 5] #:min-weight [min-weight 5]. err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (let ([num-candidates (length err-lsts)]
@@ -303,9 +303,6 @@
 	     ;; We build a huge list of all the potential splitpoint combinations we could make,
 	     ;; and then get the one with the minimum cost.
 	     (argmin cse-cost
-		     ;; We add the possibility of not adding a splitpoint to our list so that if
-		     ;; the splitpoints that are already there are optimal, we'll keep them.
-		     (cons point-entry
 			   ;; We are building a list of considering every possible previous splitpoint,
 			   ;; and every possible additional candidate. We also keep track of all the
 			   ;; indices.
@@ -329,6 +326,12 @@
 					      (take sp-prev (- point-idx idx-offset)))))))
 	   (range (+ idx-offset min-region-size) num-points)
 	   (drop sp-prev min-region-size)))
+			 ;; We add the possibility of not adding a splitpoint to our list so that if
+			 ;; the splitpoints that are already there are optimal, we'll keep them.
+			 ;; We subtract the min-weight from this option so that we will only create
+			 ;; new regions if they are more than min-weight better than not creating that
+			 ;; region.
+			 (cons (cse (- (cse-cost point-entry) min-weight) (cse-splitpoints point-entry))
   (let* ([sp-initial
 	  ;; We get the initial set of cse's by, at every point-index,
 	  ;; accumulating the candidates that are the best we can do
