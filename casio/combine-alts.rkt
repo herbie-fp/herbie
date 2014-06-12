@@ -298,40 +298,42 @@
     ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
     ;; lists, this function tries to add another splitindices to each cse.
     (define (add-splitpoint idx-offset sp-prev)
-      ;; Loop over each item in sp-prev, keeping track of it's index.
-      (map (λ (point-idx point-entry)
-	     ;; We build a huge list of all the potential splitpoint combinations we could make,
-	     ;; and then get the one with the minimum cost.
-	     (argmin cse-cost
-			   ;; We are building a list of considering every possible previous splitpoint,
-			   ;; and every possible additional candidate. We also keep track of all the
-			   ;; indices.
-			   (apply append (map (λ (prev-split-idx prev-entry)
-						(map (λ (cand-idx cand-psums)
-						       ;; new-cost is the cost of the new region we're adding
-						       ;; to the end of the existing region possibility.
-						       (let ([new-cost (- (vector-ref cand-psums point-idx)
-									  (vector-ref cand-psums prev-split-idx))])
-							 ;; Our total cost is the old cost plus the cost of our
-							 ;; new region,
-							 (cse (+ (cse-cost prev-entry)
-								 new-cost)
-							      ;; And our new splitpoints are the old ones, with
-							      ;; our new one added on.
-							      (cons (si cand-idx (add1 point-idx))
-								    (cse-splitpoints prev-entry)))))
-						     (range num-candidates)
-						     psums))
-					      (range idx-offset point-idx)
-					      (take sp-prev (- point-idx idx-offset)))))))
-	   (range (+ idx-offset min-region-size) num-points)
-	   (drop sp-prev min-region-size)))
+      ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
+      (if (< (length sp-prev) min-region-size) sp-prev 
+	  ;; Loop over each item in sp-prev, keeping track of it's index.
+	  (map (λ (point-idx point-entry)
+		 ;; We build a huge list of all the potential splitpoint combinations we could make,
+		 ;; and then get the one with the minimum cost.
+		 (argmin cse-cost
 			 ;; We add the possibility of not adding a splitpoint to our list so that if
 			 ;; the splitpoints that are already there are optimal, we'll keep them.
 			 ;; We subtract the min-weight from this option so that we will only create
 			 ;; new regions if they are more than min-weight better than not creating that
 			 ;; region.
 			 (cons (cse (- (cse-cost point-entry) min-weight) (cse-splitpoints point-entry))
+			       ;; We are building a list of considering every possible previous splitpoint,
+			       ;; and every possible additional candidate. We also keep track of all the
+			       ;; indices.
+			       (apply append (map (λ (prev-split-idx prev-entry)
+						    (map (λ (cand-idx cand-psums)
+							   ;; new-cost is the cost of the new region we're adding
+							   ;; to the end of the existing region possibility.
+							   (let ([new-cost (- (vector-ref cand-psums point-idx)
+									      (vector-ref cand-psums prev-split-idx))])
+							     ;; Our total cost is the old cost plus the cost of our
+							     ;; new region,
+							     (cse (+ (cse-cost prev-entry)
+								     new-cost)
+								  ;; And our new splitpoints are the old ones, with
+								  ;; our new one added on.
+								  (cons (si cand-idx (add1 point-idx))
+									(cse-splitpoints prev-entry)))))
+							 (range num-candidates)
+							 psums))
+						  (range idx-offset point-idx)
+						  (take sp-prev (- point-idx idx-offset)))))))
+	       (range (+ idx-offset min-region-size) num-points)
+	       (drop sp-prev min-region-size))))
   (let* ([sp-initial
 	  ;; We get the initial set of cse's by, at every point-index,
 	  ;; accumulating the candidates that are the best we can do
