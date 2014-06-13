@@ -195,13 +195,11 @@
 	 equivilences)))
 
 (define (option-on-var var-idx alts)
-  (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map alt-errors alts)))]
-	 [point-lst* (remove-duplicates point-lst #:key (λ (pe) (list-ref (car pe) var-idx)))]
+  (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
+	 [point-lst* (sum-errors-on-points point-lst var-idx)]
 	 [points-exacts-errs (flip-lists point-lst*)]
-	 [points* (map (curryr list-ref var-idx) (car points-exacts-errs))]
-	 [exacts* (cadr points-exacts-errs)]
-	 [alt-errs* (map (curry map ulps->bits) (cddr points-exacts-errs))]
-	 [split-points (map (curry si->sp var-idx points* alts) split-indices)])
+	 [points* (car points-exacts-errs)]
+	 [alt-errs* (flip-lists (cadr points-exacts-errs))]
 	 [scaled-min-region-size (/ (* (length points*) *min-region-size*) (length (*points*)))]
 	 [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
     (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
