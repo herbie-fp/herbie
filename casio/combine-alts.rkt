@@ -167,6 +167,21 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
+;; Takes a list of items, and returns a list of lists of items, where
+;; the items are grouped by the value produced when key-func is evaluated
+;; on them.
+(define (multipartition items key-func)
+  (let loop ([rest-items items] [acc '()])
+    (if (null? rest-items) (reverse (map (compose reverse cdr) acc))
+	(let* ([key (key-func (car rest-items))]
+	       [lookup (assoc key acc)])
+	  (loop (cdr rest-items)
+		(if lookup
+		    (cons (cons (car lookup) (cons (car rest-items) (cdr lookup)))
+			  (remove lookup acc))
+		    (cons (cons key (list (car rest-items)))
+			  acc)))))))
+
 
 (define (option-on-var var-idx alts)
   (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map alt-errors alts)))]
