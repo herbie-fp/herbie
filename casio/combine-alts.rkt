@@ -136,16 +136,17 @@
   (let* ([options (build-list (length (program-variables (alt-program (car alts))))
 			      (curryr option-on-var alts))]
 	 [best-option (argmin (compose errors-score option-errors) options)]
-	 [splitpoints (option-splitpoints best-option)]
-	 [improved-alts (recurse-on-alts recurse-func alts splitpoints)]
-	 [prog-body* (prog-combination splitpoints alts)])
+	 [splitpoints (option-splitpoints best-option)])
+    (debug "Using option: " best-option #:from 'regime-changes #:depth 2)
     (if (= (length splitpoints) 1) #f
-	(alt `(λ ,(program-variables (alt-program (car alts)))
-		,prog-body*)
-	     (pick-errors splitpoints (*points*) (map alt-errors improved-alts))
-	     (calc-cost (used-alts improved-alts splitpoints))
-	     (make-regime-change alts improved-alts splitpoints prog-body*)
-	     #f 0))))
+	(let* ([improved-alts (recurse-on-alts recurse-func alts splitpoints)]
+	       [prog-body* (prog-combination splitpoints improved-alts)])
+	  (alt `(λ ,(program-variables (alt-program (car alts)))
+		  ,prog-body*)
+	       (stitch-errors splitpoints (*points*) (map alt-errors improved-alts))
+	       (calc-cost (used-alts improved-alts splitpoints))
+	       (make-regime-change alts improved-alts splitpoints prog-body*)
+	       #f 0)))))
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
