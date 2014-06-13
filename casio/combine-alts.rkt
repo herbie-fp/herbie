@@ -182,6 +182,17 @@
 		    (cons (cons key (list (car rest-items)))
 			  acc)))))))
 
+;; This function takes in a list of entries, where each entry is a list containing
+;; a point, the exact value at that point, and the errors for any number of alts
+;; at that point, and returns a list of entries, each containing the value of a point on
+;; a single dimension, and the alts errors.
+(define (sum-errors-on-points point-lst var-idx)
+  (let ([equivilences (multipartition point-lst (compose (curryr list-ref var-idx) car))])
+    (map (λ (equivilent-lst)
+	   (list (list-ref (car (car equivilent-lst)) var-idx)
+		 (apply (curry map (λ errs (apply + errs)))
+			(map cddr equivilent-lst))))
+	 equivilences)))
 
 (define (option-on-var var-idx alts)
   (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map alt-errors alts)))]
