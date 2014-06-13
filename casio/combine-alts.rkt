@@ -313,11 +313,13 @@
 (define (recurse-on-alts recurse-function altns splitpoints)
   (define (recurse-on-points altns contexts)
     (map (λ (altn context)
-	   (parameterize ([*points* (alt-context-points context)]
-			  [*exacts* (alt-context-exacts context)])
-	     (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
-		 ;; because we refer to the alts by index a lot.
-		 (recurse-function altn))))
+	   (if (= (length (*points*)) (length (alt-context-points context)))
+	       (error "Regime contains entire input space!")
+	       (parameterize ([*points* (alt-context-points context)]
+			      [*exacts* (alt-context-exacts context)])
+		 (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
+		     ;; because we refer to the alts by index a lot.
+		     (recurse-function (make-alt (alt-program altn)))))))
 	 altns
 	 contexts))
   (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
