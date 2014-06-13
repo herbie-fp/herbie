@@ -5,6 +5,7 @@
 (require casio/matcher)
 (require casio/alternative)
 (require casio/test)
+(require casio/combine-alts)
 
 (provide make-graph)
 
@@ -52,6 +53,7 @@
     (output-history end-alt)
     (printf "</ol>\n")))
 
+(struct interval (alt-idx start-point end-point vidx))
 (define (output-history altn #:stop-at [stop-at #f])
   (cond
    [(and stop-at (equal? (alt-program stop-at) (alt-program altn)))
@@ -60,24 +62,35 @@
     (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
    [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
     (let* ([vars (change-bindings (alt-change altn))]
-           [lft1 (second (assoc 'lft vars))]
-           [lft2 (third  (assoc 'lft vars))]
-           [rgt1 (second (assoc 'rgt vars))]
-           [rgt2 (third  (assoc 'rgt vars))]
-           [cond (cdr (assoc 'cond vars))])
-      (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" cond)
-      (printf "<ol>\n")
-      (output-history lft1)
-      (printf "<li class='regime-break'></li>\n")
-      (output-history lft2 #:stop-at lft1)
-      (printf "</ol>\n")
-
-      (printf "<h2><code>if not <span class='condition'>~a</span></code></h2>\n" cond)
-      (printf "<ol>\n")
-      (output-history rgt1)
-      (printf "<li class='regime-break'></li>\n")
-      (output-history rgt2 #:stop-at rgt1)
-      (printf "</ol>\n"))]
+	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)))]
+	   [splitpoints (cdr (assoc 'splitpoints vars))])
+      (let ([intervals (map (λ (start-sp end-sp)
+			      (interval (sp-cidx end-sp)
+					(sp-point start-sp)
+					(sp-point end-sp)
+					(sp-vidx end-sp)))
+			    (cons (sp -1 -1 -inf.0)
+				  (take splitpoints (sub1 (length splitpoints))))
+			    splitpoints)]
+	    [interval->string (λ (intrvl)
+				(string-append (number->string (interval-start-point intrvl)) " < "
+					       (symbol->string (list-ref vars (interval-vidx intrvl))) " < "
+					       (number->string (interval-end-point intrvl))))])
+	(for/list ([entry alt-entries] [entry-idx (range (length alt-entries))])
+	  (let ([applicable-intervals (map (λ (intrvl)
+					     (= (interval-alt-idx intrvl)
+						entry-idx))
+					   intervals)])
+	    (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n"
+		    (string-append (interval->string (car applicable-intervals))
+				   (map (λ (i)
+					  (string-append " OR " (interval->string i)))
+					(cdr applicable-intervals))))
+	    (printf "<ol>\n")
+	    (output-history (second entry))
+	    (printf "<li class='regime-break'></li>\n")
+	    (output-history (third entry) #:stop-at (second entry))
+	    (printf "</ol>\n")))))]
    [else
     (output-history (alt-prev altn) #:stop-at stop-at)
     (printf "<li>Considered <span class='count'>~a</span> options "

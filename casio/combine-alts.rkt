@@ -6,7 +6,7 @@
 (require casio/common)
 (require casio/redgreen)
 
-(provide plausible-alts combine-alts)
+(provide plausible-alts combine-alts (struct-out sp))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
 (define *branch-cost* 5)
@@ -150,11 +150,22 @@
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
-    (change new-rule '() (list* '(a . ()) `(splitpoints . ,splitpoints)
+    (change new-rule '() (list* '(a . ()) `(splitpoints . ,(coerce-indices splitpoints))
 				(map (λ (orig impr)
 				       `(alt ,orig ,impr))
-				     orig-alts
-				     improved-alts)))))
+				     (used-alts orig-alts splitpoints)
+				     (used-alts improved-alts splitpoints))))))
+
+;; Takes a list of splitpoints, `splitpoints`, whose indices originally referred to some list of alts `alts`,
+;; and changes their indices so that they make sense on a list of alts given by `(used-alts alts splitpoints)`.
+(define (coerce-indices splitpoints)
+  (let* ([used-indices (remove-duplicates (map sp-cidx splitpoints))]
+	 [mappings (map cons used-indices (range (length used-indices)))])
+    (map (λ (splitpoint)
+	   (sp (cdr (assoc (sp-cidx splitpoint) mappings))
+	       (sp-vidx splitpoint)
+	       (sp-point splitpoint)))
+	 splitpoints)))
 
 (define (used-alts alts splitpoints)
   (let ([used-alt-indices (remove-duplicates (map sp-cidx splitpoints))])
