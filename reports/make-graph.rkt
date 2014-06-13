@@ -63,7 +63,7 @@
     (void)]
    [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
     (let* ([vars (change-bindings (alt-change altn))]
-	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)))]
+	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)) vars)]
 	   [splitpoints (cdr (assoc 'splitpoints vars))])
       (let ([intervals (map (λ (start-sp end-sp)
 			      (interval (sp-cidx end-sp)
