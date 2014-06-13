@@ -6,7 +6,7 @@
 (require casio/common)
 (require casio/redgreen)
 
-(provide plausible-alts best-combination)
+(provide plausible-alts combine-alts)
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
 (define *branch-cost* 5)
