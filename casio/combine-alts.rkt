@@ -282,10 +282,10 @@
 	   (map (λ (context) (alt-context (reverse (alt-context-points context))
 					  (reverse (alt-context-exacts context))))
 		accs)]
-	  [(<= (list-ref (car rest-points) (sp-vidx (car splitpoints)))
+	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
 	       (sp-point (car rest-splits)))
 	   (loop rest-splits (cdr rest-points) (cdr rest-exacts)
-		 (let* ([entry-idx (sp-cidx (car splitpoints))]
+		 (let* ([entry-idx (sp-cidx (car rest-splits))]
 		        [old-entry (list-ref accs entry-idx)])
 		   (with-entry entry-idx accs (alt-context (cons (car rest-points)
 								 (alt-context-points old-entry))
