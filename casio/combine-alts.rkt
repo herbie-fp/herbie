@@ -150,7 +150,11 @@
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
-    (change new-rule '() `((a . ()) (splitpoints . ,splitpoints) (orig-alts . ,orig-alts) (improved-alts . , improved-alts)))))
+    (change new-rule '() (list* '(a . ()) `(splitpoints . ,splitpoints)
+				(map (λ (orig impr)
+				       `(alt ,orig ,impr))
+				     orig-alts
+				     improved-alts)))))
 
 (define (used-alts alts splitpoints)
   (let ([used-alt-indices (remove-duplicates (map sp-cidx splitpoints))])
