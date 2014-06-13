@@ -298,15 +298,16 @@
 	  [#t (loop (cdr rest-splits) rest-points rest-exacts accs)])))
 
 (define (prog-combination splitpoints alts)
-  (let loop ([rest-splits (cdr (reverse splitpoints))]
-	     [acc (program-body (alt-program (list-ref alts (sp-cidx (car splitpoints)))))])
-    (if (null? rest-splits) acc
-	(loop (cdr rest-splits)
-	      (let ([splitpoint (car rest-splits)])
-		`(if (< ,(list-ref (program-variables (alt-program (car alts))) (sp-vidx splitpoint))
-			,(sp-point splitpoint))
-		     ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
-		     ,acc))))))
+  (let ([rsplits (reverse splitpoints)])
+    (let loop ([rest-splits (cdr rsplits)]
+	       [acc (program-body (alt-program (list-ref alts (sp-cidx (car rsplits)))))])
+      (if (null? rest-splits) acc
+	  (loop (cdr rest-splits)
+		(let ([splitpoint (car rest-splits)])
+		  `(if (< ,(list-ref (program-variables (alt-program (car alts))) (sp-vidx splitpoint))
+			  ,(sp-point splitpoint))
+		       ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+		       ,acc)))))))
 
 (struct alt-context (points exacts))
 
