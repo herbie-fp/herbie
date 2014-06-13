@@ -386,7 +386,7 @@
     ;; lists, this function tries to add another splitindices to each cse.
     (define (add-splitpoint idx-offset sp-prev)
       ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-      (if (< (length sp-prev) min-region-size) sp-prev 
+      (if (< (length sp-prev) (add1 min-region-size)) sp-prev 
 	  ;; Loop over each item in sp-prev, keeping track of it's index.
 	  (map (λ (point-idx point-entry)
 		 ;; We build a huge list of all the potential splitpoint combinations we could make,
