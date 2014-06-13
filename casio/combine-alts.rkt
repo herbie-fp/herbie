@@ -202,8 +202,45 @@
 	 [alt-errs* (flip-lists (cadr points-exacts-errs))]
 	 [scaled-min-region-size (/ (* (length points*) *min-region-size*) (length (*points*)))]
 	 [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
+	 [split-points (sindices->spoints points* var-idx alts split-indices)])
     (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
 
+;; When doing the binary search, this is the value we set to all the point
+;; dimensions that we are not testing.
+(define *default-test-value* 0)
+
+;; The fraction of the space between two points that we are okay
+;; with being off the perfect splitpoint.
+(define *epsilon-fraction* (/ 1 200))
+
+(define (error-at prog point exact)
+  (car (errors prog
+(list point) (list exact))))
+
+;; Accepts a list of sindices in one indexed form and returns the
+;; proper splitpoints in float form.
+(define (sindices->spoints points var-idx alts sindices)
+  (define (sidx->spoint sidx next-sidx)
+    (let* ([alt1 (list-ref alts (si-cidx sidx))]
+	   [alt2 (list-ref alts (si-cidx next-sidx))]
+	   [p1 (list-ref points (sub1 (si-pidx sidx)))]
+	   [p2 (list-ref points (si-pidx sidx))]
+	   [pred (λ (p)
+		   (let* ([p* (point-with-dim var-idx (make-list (length (program-variables (alt-program (car alts))))
+								 *default-test-value*)
+					      p)]
+			  [exact (car (make-exacts (alt-program alt1) (list p*)))]
+			  [e1 (error-at (alt-program alt1) p* exact)]
+			  [e2 (error-at (alt-program alt2) p* exact)])
+		     (< e1 e2)))])
+      (sp (si-cidx sidx) var-idx (binary-search-floats pred p1 p2 (* (- p1 p2) *epsilon-fraction*)))))
+  (append (map sidx->spoint
+	       (take sindices (sub1 (length sindices)))
+	       (drop sindices 1))
+	  (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
+		  (sp (si-cidx last-sidx)
+		      var-idx
+		      +inf.0)))))
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs (flip-lists err-lsts)] [acc '()])
@@ -239,16 +276,6 @@
 							   (cons (car rest-exacts)
 								 (alt-context-exacts old-entry))))))]
 	  [#t (loop (cdr rest-splits) rest-points rest-exacts accs)])))
-
-;; Accepts points in one indexed form and returns the
-;; proper splitpoint in float form.
-;; Does NOT support the case where (= idx (length points)).
-;; Current implementation is a stupid version of averaging,
-;; but the intent of seperating this out into it's own function
-;; is so that we can fix that later.
-(define (split-idx->split-pnt alts points idx)
-  (/ (+ (list-ref points idx) (list-ref points (sub1 idx)))
-     2))
 
 (define (prog-combination splitpoints alts)
   (cons 'cond
@@ -291,16 +318,6 @@
 	      (cons (+ (car psum-acc) (car rest-lst))
 		    psum-acc)))))
 
-;; Takes a splitindex structure, and turns it into a splitpoint structure when given
-;; the appropriate context parameters.
-;; var-idx: The index of the variable which we are splitting on.
-;; eval-points: The points on which the indices were found
-;; alts: The alternatives that the candidate-indices of the sidx coorespond to.
-;; sidx: The si struct to be converted.
-(define (si->sp var-idx eval-points alts sidx)
-  (if (= (si-pidx sidx) (length eval-points))
-      (sp (si-cidx sidx) var-idx +inf.0)
-      (sp (si-cidx sidx) var-idx (split-idx->split-pnt alts eval-points (si-pidx sidx)))))
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
