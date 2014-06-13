@@ -160,7 +160,13 @@
   (+ *branch-cost*
      (apply max (map alt-cost alts))))
 
-(struct option (splitpoints errors))
+(struct option (splitpoints errors) #:transparent
+	#:methods gen:custom-write
+        [(define (write-proc opt port mode)
+           (display "#<option " port)
+           (write (option-splitpoints opt) port)
+           (display ">" port))])
+
 
 (define (option-on-var var-idx alts)
   (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map alt-errors alts)))]
