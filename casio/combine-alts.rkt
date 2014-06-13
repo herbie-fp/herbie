@@ -204,7 +204,7 @@
 	 [points-exacts-errs (flip-lists point-lst*)]
 	 [points* (car points-exacts-errs)]
 	 [alt-errs* (flip-lists (cadr points-exacts-errs))]
-	 [scaled-min-region-size (/ (* (length points*) *min-region-size*) (length (*points*)))]
+	 [scaled-min-region-size (quotient (* (length points*) *min-region-size*) (length (*points*)))]
 	 [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
 	 [split-points (sindices->spoints points* var-idx alts split-indices)])
     (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
