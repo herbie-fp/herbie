@@ -54,6 +54,7 @@
     (printf "</ol>\n")))
 
 (struct interval (alt-idx start-point end-point vidx))
+
 (define (output-history altn #:stop-at [stop-at #f])
   (cond
    [(not (alt-change altn))
