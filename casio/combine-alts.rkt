@@ -241,6 +241,7 @@
 		  (sp (si-cidx last-sidx)
 		      var-idx
 		      +inf.0)))))
+
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs (flip-lists err-lsts)] [acc '()])
