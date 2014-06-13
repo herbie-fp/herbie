@@ -253,6 +253,21 @@
 				       acc))]
 	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
 
+;; Assuming that the err-lsts are the errors for only the points in which that alt has the region,
+;; and they are still in ascending order, this stitches them back together into a single errors list.
+(define (stitch-errors splitpoints points err-lsts)
+  (let loop ([rest-splits splitpoints] [rest-points points]
+	     [rest-errs err-lsts] [acc '()])
+    (cond [(null? rest-points) (reverse acc)]
+	  [(< (list-ref (car rest-points) (sp-vidx (car rest-splits)))
+	      (sp-point (car rest-splits)))
+	   (let* ([cidx (sp-cidx (car rest-splits))]
+		  [entry (list-ref rest-errs cidx)])
+	     (loop rest-splits (cdr rest-points)
+		   (with-entry cidx rest-errs (cdr entry))
+		   (cons (car entry) acc)))]
+	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
+
 (define (with-entry idx lst item)
   (if (= idx 0)
       (cons item (cdr lst))
