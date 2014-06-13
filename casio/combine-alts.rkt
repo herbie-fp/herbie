@@ -318,7 +318,6 @@
 	      (cons (+ (car psum-acc) (car rest-lst))
 		    psum-acc)))))
 
-
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
 ;; vidx = Variable index: The index of the variable that this splitpoint should split on.
