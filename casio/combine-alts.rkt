@@ -10,6 +10,7 @@
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
 (define *branch-cost* 5)
+(define *min-region-size* 5)
 
 ;; A lexically scoped predicate that is true on the top level,
 ;; but if you're in code that was called because you were trying
@@ -167,8 +168,9 @@
 	 [points* (map (curryr list-ref var-idx) (car points-exacts-errs))]
 	 [exacts* (cadr points-exacts-errs)]
 	 [alt-errs* (map (curry map ulps->bits) (cddr points-exacts-errs))]
-	 [split-indices (apply err-lsts->split-indices alt-errs*)]
 	 [split-points (map (curry si->sp var-idx points* alts) split-indices)])
+	 [scaled-min-region-size (/ (* (length points*) *min-region-size*) (length (*points*)))]
+	 [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
     (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
 
 (define (pick-errors splitpoints points err-lsts)
