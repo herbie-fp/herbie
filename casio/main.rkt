@@ -29,7 +29,7 @@
 (define (improve-alt alt fuel)
   (let* ([clean-alt ((flag 'setup 'simplify) simplify-alt identity)]
          [alt* (clean-alt alt)])
-    (improve-loop (list alt*) (list alt*) fuel)))
+    (improve-loop (list alt* alt) (list alt* alt) fuel)))
 
 ;; Implementation
 
