@@ -168,6 +168,16 @@
 (struct s-var (var pow) #:prefab)
 (struct s-term (coeff vars loc) #:prefab)
 
+;; Like map, but accepts functions that return two values,
+;; and returns two values, a list of all the first values returned
+;; by each function application, and a list of all the second values
+;; returned by the function applications.
+(define (map-2values f . lsts)
+  (let loop ([rest-lsts lsts] [acc1 '()] [acc2 '()])
+    (if (null? (car rest-lsts)) (values (reverse acc1) (reverse acc2))
+	(let-values ([(val1 val2) (apply f (map car rest-lsts))])
+	  (loop (map cdr rest-lsts) (cons val1 acc1) (cons val2 acc2))))))
+
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
