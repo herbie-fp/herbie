@@ -133,6 +133,7 @@
 (define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
 (define (combine-alts #:pre-combo-func [recurse-func identity] alts)
+  (debug "Combining-alts: " alts #:from 'regime-changes #:depth 2)
   (let* ([options (build-list (length (program-variables (alt-program (car alts))))
 			      (curryr option-on-var alts))]
 	 [best-option (argmin (compose errors-score option-errors) options)]
