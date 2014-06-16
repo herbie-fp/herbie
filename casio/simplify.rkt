@@ -222,11 +222,14 @@
   ;; Top level algorithm for cancelling terms in an expression tree.
   (define (bubble-changes-and-terms loc expr)
     (if (is-leaf? expr)
-	(handle-leaf expr)
-	(let*-values ([(sub-changes sub-terms) (resolve-subs loc expr)]
+	(handle-leaf loc expr)
+	(let*-values ([(sub-changes sub-term-lsts) (resolve-subs loc expr)]
 		      [(expr*) (changes-apply sub-changes expr)]
-		      [(new-changes terms*) (handle-node loc expr* sub-terms)])
-	  (values (append sub-changes new-changes) terms*)))))
+		      [(new-changes terms*) (handle-node loc expr* sub-term-lsts)])
+	  (values (append sub-changes new-changes) terms*))))
+  (let-values ([(final-changes final-terms) (bubble-changes-and-terms '() expr)])
+    final-changes))
+
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
