@@ -208,17 +208,27 @@
   ;; Predicate to determine whether a given node is a leaf of the expression
   ;; tree.
   (define is-leaf? (compose not list?))
-  (define (handle-leaf leaf))
-  (define (handle-node loc expr sub-terms))
-  (define (resolve-subs loc expr))
   ;; Takes a leaf node and the location at which that that leaf node was found,
   ;; and returns a list of changes and terms from that leaf.
+  (define (handle-leaf loc leaf)
+    (if (number? leaf)
+	(values '() (list (s-term leaf '() loc)))
+	(values '() (list (s-term 1 (list (s-var leaf 1)) loc)))))
   ;; Takes a non-leaf node, the location at which it was found, and the terms
   ;; returned by handling it's sub-nodes, and returns a list of changes and terms
   ;; resulting from handling that node.
+  (define (handle-node loc expr sub-terms)
+    ((hash-ref *node-handlers* (car expr) (const default-node-handler)) loc expr sub-terms))
   ;; Given a location and an expression, recursively calls bubble-changes-and-terms
   ;; on each sub-node of that expression, returning a list of resulting changes
   ;; and a list of resulting terms.
+  (define (resolve-subs loc expr)
+    (let-values ([(sub-change-lsts sub-term-lsts)
+		  (map-2values bubble-changes-and-terms
+			       (map (compose (curry append loc) list)
+				    (map add1 (range (length (cdr expr)))))
+			       (cdr expr))])
+      (values (apply append sub-change-lsts) sub-term-lsts)))
   ;; Top level algorithm for cancelling terms in an expression tree.
   (define (bubble-changes-and-terms loc expr)
     (if (is-leaf? expr)
@@ -230,6 +240,17 @@
   (let-values ([(final-changes final-terms) (bubble-changes-and-terms '() expr)])
     final-changes))
 
+(define (default-node-handler loc expr sub-term-lsts)
+  (values '() (list (expr-term (cons (car expr)
+				     (map (λ (term-lst)
+					    (let ([expr-lst (map term->expr term-lst)])
+					      (if (= 1 (length expr-lst))
+						  (car expr-lst)
+						  (cons '+ expr-lst))))
+					  sub-term-lsts)) loc))))
+
+(define *node-handlers*
+  (make-immutable-hasheq))
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
