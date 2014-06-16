@@ -4,8 +4,8 @@
 (require data/order)
 
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! alist-append
+         enumerate take-up-to *debug* debug debug-reset pipe
+	 list-product set-debug-level! alist-append
 	 safe-eval write-file write-string has-duplicates?)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
