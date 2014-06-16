@@ -4,25 +4,13 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct location-parent program-induct
+         location-induct program-induct
 	 location-do location-get eval-prog operations
 	 mode:bf mode:fl compile expression-cost)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-
-(define (location-parent loc)
-  (if (null? loc)
-      (values #f #f)
-      (let-values ([(head tail) (split-at-right loc 1)])
-        (cond
-         [(= (car tail) 1)
-          (values head (append head '(1)))]
-         [(= (car tail) 2)
-          (values head (append head '(2)))]
-         [else
-          (values #f #f)]))))
 
 (define (location-induct
 	 prog
@@ -96,8 +84,8 @@
       (->flonum (apply fn (map real->precision pts))))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn a b) (and a b))
-(define (or-fn  a b) (or a b))
+(define (and-fn . as) (andmap identity as))
+(define (or-fn  . as) (ormap identity as))
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
