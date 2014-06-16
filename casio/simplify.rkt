@@ -164,6 +164,11 @@
     (changes-apply simplify-changes expr)))
 
 (struct s-atom (var loc) #:prefab)
+
+(struct s-var (var pow) #:prefab)
+(struct s-term (coeff vars) #:prefab)
+
+
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
     (and (list? expr) (eq? op (car expr)))))
