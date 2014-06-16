@@ -79,7 +79,7 @@
          [xi (/ 1 x)]
          [xi3 (* xi xi xi)]
          [xi5 (* xi3 xi xi)]
-         [xi7 (* x5 xi xi)]
+         [xi7 (* xi5 xi xi)]
          [e (exp (* x x))]
          [t (+ xi (* (/ 1 2) xi3) (* (/ 3 4) xi5) (* (/ 15 8) xi7))])
     (* ps e t)))
