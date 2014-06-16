@@ -150,7 +150,6 @@
 		  ,prog-body*)
 	       (stitch-errors splitpoints* (*points*) (map alt-errors alts*))
 	       (calc-cost alts*)
-	       ;; Make-regime-change does it's own unused filtering.
 	       (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
 	       #f 0)))))
 
