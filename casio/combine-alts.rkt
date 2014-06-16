@@ -140,21 +140,27 @@
     (debug "Using option: " best-option #:from 'regime-changes #:depth 2)
     (if (= (length splitpoints) 1) #f
 	(let* ([improved-alts (recurse-on-alts recurse-func alts splitpoints)]
-	       [prog-body* (prog-combination splitpoints improved-alts)])
+	       [prog-body* (prog-combination splitpoints improved-alts)]
+	       [alts* (used-alts improved-alts splitpoints)]
+	       ;; the splitpoints contain a reference to the alts in the form of an index. Since we filter the
+	       ;; alts based on which ones actually got used, we also want to update these indices to reflect
+	       ;; the new alts list.
+	       [splitpoints* (coerce-indices splitpoints)])
 	  (alt `(λ ,(program-variables (alt-program (car alts)))
 		  ,prog-body*)
-	       (stitch-errors splitpoints (*points*) (map alt-errors improved-alts))
-	       (calc-cost (used-alts improved-alts splitpoints))
-	       (make-regime-change alts improved-alts splitpoints prog-body*)
+	       (stitch-errors splitpoints* (*points*) (map alt-errors alts*))
+	       (calc-cost alts*)
+	       ;; Make-regime-change does it's own unused filtering.
+	       (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
 	       #f 0)))))
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
-    (change new-rule '() (list* '(a . ()) `(splitpoints . ,(coerce-indices splitpoints))
+    (change new-rule '() (list* '(a . ()) `(splitpoints . ,splitpoints)
 				(map (λ (orig impr)
 				       `(alt ,orig ,impr))
-				     (used-alts orig-alts splitpoints)
-				     (used-alts improved-alts splitpoints))))))
+				     orig-alts
+				     improved-alts)))))
 
 ;; Takes a list of splitpoints, `splitpoints`, whose indices originally referred to some list of alts `alts`,
 ;; and changes their indices so that they make sense on a list of alts given by `(used-alts alts splitpoints)`.
