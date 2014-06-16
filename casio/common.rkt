@@ -3,10 +3,10 @@
 (require math/bigfloat)
 (require data/order)
 
-(provide reap enumerate take-up-to list-product pipe alist-append
-         println *debug* debug debug-reset set-debug-level!
-         ->flonum cotan ordinary-float? =-or-nan?
-	 safe-eval write-file write-string)
+(provide reap println ->flonum cotan ordinary-float? =-or-nan?
+         enumerate take-up-to *debug* debug debug-reset pipe
+	 list-product set-debug-level! alist-append
+	 safe-eval write-file write-string has-duplicates?)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -152,3 +152,8 @@
   (syntax-case stx ()
     [(_ . rest)
      #'(with-output-to-string (lambda () . rest))]))
+
+(define (has-duplicates? lst)
+  (cond [(null? lst) #f]
+	[(member (car lst) (cdr lst)) #t]
+	[#t (has-duplicates? (cdr lst))]))
