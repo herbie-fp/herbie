@@ -84,7 +84,7 @@
 						    entry-idx))
 					      intervals)])
 	    (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n"
-		    (string-append (interval->string (car applicable-intervals))
+		    (apply (curry string-append (interval->string (car applicable-intervals)))
 				   (map (λ (i)
 					  (string-append " OR " (interval->string i)))
 					(cdr applicable-intervals))))
