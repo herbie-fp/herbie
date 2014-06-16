@@ -280,8 +280,8 @@
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs err-lsts] [acc '()])
     (cond [(null? rest-points) (reverse acc)]
-	  [(< (list-ref (car rest-points) (sp-vidx (car rest-splits)))
-	      (sp-point (car rest-splits)))
+	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
+	       (sp-point (car rest-splits)))
 	   (let* ([cidx (sp-cidx (car rest-splits))]
 		  [entry (list-ref rest-errs cidx)])
 	     (loop rest-splits (cdr rest-points)
