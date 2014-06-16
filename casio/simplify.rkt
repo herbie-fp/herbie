@@ -167,6 +167,32 @@
 
 (struct s-var (var pow) #:prefab)
 (struct s-term (coeff vars loc) #:prefab)
+;; Given an expression that does not break down,
+;; such as (f x) for some unknown f, this gives
+;; the canonical term representation of it.
+(define (expr-term atom-expr loc)
+  (s-term 1 (list (s-var atom-expr 1)) loc))
+
+(define (term->expr term)
+  (define (var->expr var)
+    (cond [(= 0 (s-var-pow var))
+	   1]
+	  [(= (/ 1 2) (s-var-pow var))
+	   `(sqrt ,(s-var-var var))]
+	  [(= 1 (s-var-pow var))
+	   (s-var-var var)]
+	  [(= 2 (s-var-pow var))
+	   `(sqr ,(s-var-var var))]
+	  [#t `(expt ,(s-var-var var))]))
+  (define (coeff_vars->expr coeff vars)
+    (cond [(= coeff 0) 0]
+	  [(null? vars) coeff]
+	  [(< coeff 0) (list '- (coeff_vars->expr (- coeff) vars))]
+	  [(= coeff 1) (if (= (length vars) 1)
+			   (var->expr (car vars))
+			   (cons '* (map var->expr vars)))]
+	  [#t (list* '* coeff (map var->expr vars))]))
+  (coeff_vars->expr (s-term-coeff term) (s-term-vars term)))
 
 ;; Like map, but accepts functions that return two values,
 ;; and returns two values, a list of all the first values returned
