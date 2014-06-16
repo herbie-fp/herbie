@@ -130,7 +130,7 @@
 		 pred p1 p2))
 
 ;; Implemented here for example.
-(define binary-search-ints (curry binary-search (compose floor (compose (curry (flip-args /) 2) +))))
+(define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
 (define (combine-alts #:pre-combo-func [recurse-func identity] alts)
   (let* ([options (build-list (length (program-variables (alt-program (car alts))))

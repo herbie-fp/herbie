@@ -5,6 +5,21 @@
 
 (provide (all-defined-out))
 
+(define (location-parent loc)
+  (reverse (cdr (reverse loc))))
+
+(define (location-sibling loc)
+  (if (<= (length loc) 1)
+      #f
+      (let ([loc* (reverse loc)])
+        (cond
+         [(= (car loc*) 1)
+          (reverse (cons 2 (cdr loc*)))]
+         [(= (car loc*) 2)
+          (reverse (cons 1 (cdr loc*)))]
+         [else
+          #f]))))
+
 ;; Returns true if location 'a' is inside location 'b', false otherwise.
 (define (is-inside? a b)
   (cond [(null? a) #f]
@@ -57,9 +72,9 @@
     (cond
      [(list? pattern)
 	(apply alist-append
-               (idx-map (lambda (x idx)
-                          (var-locs x (append loc (list idx))))
-                        (cdr pattern) #:from 1))]
+               (enumerate #:from 1
+                          (lambda (i x) (var-locs x (append loc (list i))))
+                          (cdr pattern)))]
      [(number? pattern) '()]
      [(symbol? pattern) (list (cons pattern (list loc)))]
      [#t (error "Improper rule: " rule)]))

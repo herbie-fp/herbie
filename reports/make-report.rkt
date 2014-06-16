@@ -7,6 +7,7 @@
 (require casio/alternative)
 (require casio/test)
 (require casio/load-tests)
+(require casio/main)
 (require reports/make-graph)
 (require reports/thread-pool)
 (provide (all-defined-out))
@@ -169,6 +170,9 @@
     (define total-available
       (apply + (for/list ([row table-data])
                  (if (not (equal? (table-row-status row) "no-compare")) 1 0))))
+    (define total-crashes
+      (apply + (for/list ([row table-data])
+                 (if (equal? (table-row-status row) "crash") 1 0))))
 
     (write-file file
       (printf "<!doctype html>\n")
@@ -181,8 +185,13 @@
       (printf "</head>\n")
       (printf "<body>\n")
       (printf "<dl id='about'>\n")
-      (printf "<dt>Date:</dt><dl>~a</dl>\n" (date->string (current-date)))
-      (printf "<dt>Commit:</dt><dl>~a on ~a</dl>\n" commit branch)
+      (printf "<dt>Date:</dt><dd>~a</dd>\n" (date->string (current-date)))
+      (printf "<dt>Commit:</dt><dd>~a on ~a</dd>\n" commit branch)
+      (printf "<dt>Flags:</dt><dd id='flag-list'>")
+      (for ([rec (hash->list (*flags*))])
+        (for ([fl (cdr rec)])
+          (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+      (printf "</dd>")
       (printf "</dl>\n")
 
       (printf "<div id='large'>\n")
@@ -190,6 +199,11 @@
               (format-time total-time))
       (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
               total-passed total-available)
+      (when (not (= total-crashes 0))
+        (printf "<div>Crashes: <span class='number'>~a</span></div>\n"
+                total-crashes))
+      (printf "<div>Tests: <span class='number'>~a</span></div>\n"
+              (length table-data))
       (printf "</div>\n")
 
       (printf "<table id='results'>\n")

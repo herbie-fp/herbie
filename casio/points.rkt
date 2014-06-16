@@ -41,7 +41,7 @@
     (let loop ([prec (- (bf-precision) 16)] [prev #f])
       (bf-precision prec)
       (let ([curr (map f pts)])
-        (if (list= prev curr)
+        (if (and prev (andmap =-or-nan? prev curr))
             curr
             (loop (+ prec 16) curr))))))
 
@@ -79,8 +79,8 @@
     (for/list ([point points] [exact exacts])
       (let ([out (fn point)])
         (if (real? out)
-            (+ 1 (flulp-error out (->flonum exact)))
-            +inf.0)))))
+            (+ 1 (abs (flonums-between out exact)))
+            (+ 1 (flonum->ordinal +nan.0)))))))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
