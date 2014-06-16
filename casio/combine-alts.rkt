@@ -279,6 +279,8 @@
 (define (stitch-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs err-lsts] [acc '()])
+    (when (not (= (apply + (map length err-lsts)) (length points)))
+      (error "We don't have an error cooresponding to every point!"))
     (cond [(null? rest-points) (reverse acc)]
 	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
 	       (sp-point (car rest-splits)))
