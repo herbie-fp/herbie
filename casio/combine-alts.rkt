@@ -140,19 +140,24 @@
 	 [splitpoints (option-splitpoints best-option)])
     (debug "Using option: " best-option #:from 'regime-changes #:depth 2)
     (if (= (length splitpoints) 1) #f
-	(let* ([improved-alts (recurse-on-alts recurse-func alts splitpoints)]
-	       [prog-body* (prog-combination splitpoints improved-alts)]
-	       [alts* (used-alts improved-alts splitpoints)]
+	(let* ([combining-alts (used-alts alts splitpoints)]
 	       ;; the splitpoints contain a reference to the alts in the form of an index. Since we filter the
 	       ;; alts based on which ones actually got used, we also want to update these indices to reflect
 	       ;; the new alts list.
-	       [splitpoints* (coerce-indices splitpoints)])
-	  (alt `(λ ,(program-variables (alt-program (car alts)))
-		  ,prog-body*)
-	       (stitch-errors splitpoints* (*points*) (map alt-errors alts*))
-	       (calc-cost alts*)
-	       (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
-	       #f 0)))))
+	       [splitpoints* (coerce-indices splitpoints)]
+	       [alts* (recurse-on-alts recurse-func combining-alts splitpoints*)]
+	       [prog-body* (prog-combination splitpoints* alts*)]
+	       [errors* (stitch-errors splitpoints* (*points*) (map alt-errors alts*))])
+	  ;; Sanity check to make sure that our combination is better than what came before it.
+	  (if (> (errors-score errors*) (apply max (map (compose errors-score alt-errors) alts)))
+	      (begin (debug "Combination was worse than one of the given alts!" #:from 'regime-changes #:depth 1)
+		     #f)
+	      (alt `(λ ,(program-variables (alt-program (car alts)))
+		      ,prog-body*)
+		   errors*
+		   (calc-cost alts*)
+		   (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
+		   #f 0))))))
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
