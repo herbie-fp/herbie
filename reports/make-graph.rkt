@@ -6,6 +6,7 @@
 (require casio/alternative)
 (require casio/test)
 (require casio/combine-alts)
+(require casio/programs)
 
 (provide make-graph)
 
@@ -75,13 +76,13 @@
 			    splitpoints)]
 	    [interval->string (λ (intrvl)
 				(string-append (number->string (interval-start-point intrvl)) " < "
-					       (symbol->string (list-ref vars (interval-vidx intrvl))) " < "
+					       (symbol->string (list-ref (program-variables (alt-program altn)) (interval-vidx intrvl))) " < "
 					       (number->string (interval-end-point intrvl))))])
 	(for/list ([entry alt-entries] [entry-idx (range (length alt-entries))])
-	  (let ([applicable-intervals (map (λ (intrvl)
-					     (= (interval-alt-idx intrvl)
-						entry-idx))
-					   intervals)])
+	  (let ([applicable-intervals (filter (λ (intrvl)
+						 (= (interval-alt-idx intrvl)
+						    entry-idx))
+					      intervals)])
 	    (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n"
 		    (string-append (interval->string (car applicable-intervals))
 				   (map (λ (i)
