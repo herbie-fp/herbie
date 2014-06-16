@@ -178,6 +178,18 @@
 	(let-values ([(val1 val2) (apply f (map car rest-lsts))])
 	  (loop (map cdr rest-lsts) (cons val1 acc1) (cons val2 acc2))))))
 
+(define (cancel-terms expr)
+  (define is-leaf? (compose not list?))
+  (define (handle-leaf leaf))
+  (define (handle-node loc expr sub-terms))
+  (define (resolve-subs loc expr))
+  (define (bubble-changes-and-terms loc expr)
+    (if (is-leaf? expr)
+	(handle-leaf expr)
+	(let*-values ([(sub-changes sub-terms) (resolve-subs loc expr)]
+		      [(expr*) (changes-apply sub-changes expr)]
+		      [(new-changes terms*) (handle-node loc expr* sub-terms)])
+	  (values (append sub-changes new-changes) terms*)))))
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
