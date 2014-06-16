@@ -5,6 +5,6 @@
 ; https://github.com/josdejong/mathjs/blob/master/
 
 (casio-bench (re im)
-  "/lib/function/complex/arg.js math.arg for complex arguments"
+  "math.arg on complex"
   (atan2 im re))
 
