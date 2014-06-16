@@ -80,7 +80,7 @@
   (let ([alts* (plausible-alts alts)])
     (if (> 2 (length alts*))
         #f
-        (best-combination alts*
+        (combine-alts alts*
          #:pre-combo-func (curryr improve-alt (floor (/ fuel 2)))))))
 
 (define (best-alt alts)

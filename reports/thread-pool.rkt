@@ -132,7 +132,7 @@
              ,(for/list ([b (change-bindings c)])
                 ; Nasty, nasty hack to support regimes
                 (if (eq? (rule-name (change-rule c)) 'regimes)
-                    (if (or (eq? (car b) 'lft) (eq? (car b) 'rgt))
+                    (if (eq? (car b) 'alt)
                         (cons (car b) (map marshal-alt (cdr b)))
                         b)
                     b))
@@ -142,10 +142,10 @@
              ,(for/list ([b (change-bindings c)])
                 ; Nasty, nasty hack to support regimes
                 (if (eq? (rule-name (change-rule c)) 'regimes)
-                    (if (or (eq? (car b) 'lft) (eq? (car b) 'rgt))
-                        (cons (car b) (map marshal-alt (cdr b)))
-                        b)
-                    b)))]
+		    (if (eq? (car b) 'alt)
+			(cons (car b) (map marshal-alt (cdr b)))
+			b)
+		    b)))]
    [(not c) #f]
    [else (error "Unknown change type" c)]))
 
@@ -157,7 +157,7 @@
                (for/list ([b bind])
                  ; Nasty, nasty hack to support regimes
                  (if (eq? (rule-name rule) 'regimes)
-                     (if (or (eq? (car b) 'lft) (eq? (car b) 'rgt))
+                     (if (eq? (car b) 'alt)
                          (cons (car b) (map unmarshal-alt (cdr b)))
                          b)
                      b))))]
@@ -167,7 +167,7 @@
                 (for/list ([b bind])
                   ; Nasty, nasty hack to support regimes
                   (if (eq? (rule-name rule) 'regimes)
-                      (if (or (eq? (car b) 'lft) (eq? (car b) 'rgt))
+                      (if (eq? (car b) 'alt)
                           (cons (car b) (map unmarshal-alt (cdr b)))
                           b)
                       b))
