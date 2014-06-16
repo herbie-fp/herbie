@@ -4,8 +4,8 @@
 (require data/order)
 
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
-         list= list< enumerate take-up-to *debug* debug debug-reset pipe 1+
-	 flip-args idx-map list-product set-debug-level! alist-append
+         enumerate take-up-to *debug* debug debug-reset pipe
+	 list-product set-debug-level! alist-append
 	 safe-eval write-file write-string has-duplicates?)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
@@ -35,7 +35,7 @@
 			[#t (*debug*)])])
     (*debug* (cons (cons from depth) existing))))
 
-(define (debug #:from from #:tag (tag #f) #:depth (depth 1) . args)
+(define (debug #:from from #:tag [tag #f] #:depth [depth 1] . args)
   (when (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
 	    (and (*debug*) ;; If debug is false, never print
 		 (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
@@ -93,25 +93,11 @@
   (or (= x1 x2)
       (and (nan? x1) (nan? x2))))
 
-(define (1+ x)
-  (+ 1 x))
-
-(define (list= l1 l2)
-  (and l1 l2 (andmap =-or-nan? l1 l2)))
-
-(define (list< list1 list2)
-  "Compares lists lexicographically."
-  ; Who picked this terrible API design of returning '< or '> ?
-  (eq? (datum-order list1 list2) '<))
-
-(define (idx-map fun  lst #:from [start 0])
-  (let loop ([idx start] [lst lst])
-    (if (null? lst)
+(define (enumerate #:from [start 0] fun . lsts)
+  (let loop ([idx start] [lsts (apply map list lsts)])
+    (if (null? lsts)
         '()
-        (cons (fun (car lst) idx) (loop (+ 1 idx) (cdr lst))))))
-
-(define (enumerate . l)
-  (apply map list (range (length (car l))) l))
+        (cons (apply fun idx (car lsts)) (loop (+ 1 idx) (cdr lsts))))))
 
 (define (take-up-to l k)
   ; This is unnecessarily slow. It is O(l), not O(k).
@@ -121,9 +107,6 @@
 ;; Pipes an initial values through a list of funcs.
 (define (pipe initial funcs)
   ((apply compose (reverse funcs)) initial))
-
-;; Flips the argument order of a two argument function.
-(define (flip-args f) (lambda (x y) (f y x)))
 
 ;; A more informative andmap. If any of your results are false, this returns
 ;; false. Otherwise, it acts as a normal map.

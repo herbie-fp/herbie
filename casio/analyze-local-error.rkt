@@ -36,14 +36,14 @@
    #:constant
    (λ (c loc)
       (let* ([exact (repeat (bf c))] [approx (repeat (real->double-flonum c))]
-             [error (repeat (1+ (flulp-error (->flonum c) (->flonum c))))])
+             [error (repeat (+ 1 (flulp-error (->flonum c) (->flonum c))))])
         (annotation c exact approx error error loc)))
 
    #:variable
    (λ (v loc)
       (let* ([var (for/list ([vmap varmap]) (cdr (assoc v vmap)))]
              [exact (map bf var)] [approx (map real->double-flonum var)]
-             [error (map (compose 1+ flulp-error) (map ->flonum exact) (map ->flonum approx))])
+             [error (map (compose add1 flulp-error) (map ->flonum exact) (map ->flonum approx))])
         (annotation v exact approx error error loc)))
 
    #:primitive
@@ -61,9 +61,9 @@
              [approx-ans
               (map (curry apply approx-op) approx-inputs)]
              [local-error
-              (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
+              (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
              [cumulative-error
-              (map (compose 1+ flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
+              (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
         (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
 
 (define (find-interesting-locations annot-prog)
@@ -83,6 +83,7 @@
 
 
 (define (analyze-local-error altn)
+  (map car
        (take-up-to
         (reverse
          (sort
@@ -90,4 +91,4 @@
            (analyze-expressions (alt-program altn) (*points*)))
           <
           #:key (compose errors-score second)))
-        3))
+        3)))

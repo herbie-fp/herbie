@@ -22,12 +22,14 @@
 (struct test-timeout (test) #:prefab)
 
 (define (srcloc->string sl)
-  (string-append
-   (path->string (srcloc-source sl))
-   ":"
-   (number->string (srcloc-line sl))
-   ":"
-   (number->string (srcloc-column sl))))
+  (if sl
+      (string-append
+       (path->string (srcloc-source sl))
+       ":"
+       (number->string (srcloc-line sl))
+       ":"
+       (number->string (srcloc-column sl)))
+      "???"))
 
 (define (flatten-exn e)
   (list (exn-message e)
@@ -42,7 +44,7 @@
                     [(points exacts) (prepare-points orig)])
         (parameterize ([*points* points] [*exacts* exacts])
           (let* ([start-alt (make-alt orig)]
-                 [end-alt (improve-with-points *max-threshold* *min-threshold* (expt (/ *min-threshold* *max-threshold*) (/ iters)) start-alt)])
+                 [end-alt (improve-alt start-alt (*num-iterations*))])
             (list start-alt end-alt points exacts)))))
 
   (let* ([start-time (current-inexact-milliseconds)]

@@ -4,25 +4,13 @@
 (require casio/common)
 
 (provide program-body program-variables program-cost
-         location-induct location-parent program-induct
+         location-induct program-induct
 	 location-do location-get eval-prog operations
 	 mode:bf mode:fl compile expression-cost)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-
-(define (location-parent loc)
-  (if (null? loc)
-      (values #f #f)
-      (let-values ([(head tail) (split-at-right loc 1)])
-        (cond
-         [(= (car tail) 1)
-          (values head (append head '(1)))]
-         [(= (car tail) 2)
-          (values head (append head '(2)))]
-         [else
-          (values #f #f)]))))
 
 (define (location-induct
 	 prog
@@ -38,9 +26,9 @@
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (idx-map (λ (prog idx)
-				    (inductor prog (cons idx location)))
-                                (cdr prog) #:from 1))
+		       (enumerate #:from 1
+                                  (λ (idx prog) (inductor prog (cons idx location)))
+                                  (cdr prog)))
 		 (reverse location))]))
   (inductor prog '()))
 
@@ -93,12 +81,11 @@
                        ,(compile (program-body prog*)))]
          [fn (eval prog-opt eval-prog-ns)])
     (lambda (pts)
-      (with-handlers ([(const #t) (λ (e) +nan.0)])
-        (->flonum (apply fn (map real->precision pts)))))))
+      (->flonum (apply fn (map real->precision pts))))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn a b) (and a b))
-(define (or-fn  a b) (or a b))
+(define (and-fn . as) (andmap identity as))
+(define (or-fn  . as) (ormap identity as))
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined

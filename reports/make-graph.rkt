@@ -58,10 +58,10 @@
 
 (define (output-history altn #:stop-at [stop-at #f])
   (cond
-   [(not (alt-change altn))
-    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
    [(and stop-at (equal? (alt-program stop-at) (alt-program altn)))
     (void)]
+   [(not (alt-change altn))
+    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
    [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
     (let* ([vars (change-bindings (alt-change altn))]
 	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)) vars)]

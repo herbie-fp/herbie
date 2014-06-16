@@ -143,7 +143,8 @@
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
-      (let ([value (eval expr full-namespace)])
+      (let ([value (with-handlers ([(const #t) (λ (e) #f)])
+                       (eval expr full-namespace))])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
@@ -346,7 +347,7 @@
   (define (try-reduce expr loc)
     (let ([applicable-reduction (attempt-apply-all reduction-rules expr '())])
       (if (not applicable-reduction)
-	  (values '() '())
+	  (values '() (list (s-atom expr loc)))
 	  (let ([expr* (change-apply applicable-reduction expr)])
 	    (let-values ([(changes atoms) (resolve-expression loc expr*)])
 	      (values (append (append-to-change-locations (list applicable-reduction) loc) changes) atoms))))))
