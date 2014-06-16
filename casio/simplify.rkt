@@ -205,10 +205,21 @@
 	  (loop (map cdr rest-lsts) (cons val1 acc1) (cons val2 acc2))))))
 
 (define (cancel-terms expr)
+  ;; Predicate to determine whether a given node is a leaf of the expression
+  ;; tree.
   (define is-leaf? (compose not list?))
   (define (handle-leaf leaf))
   (define (handle-node loc expr sub-terms))
   (define (resolve-subs loc expr))
+  ;; Takes a leaf node and the location at which that that leaf node was found,
+  ;; and returns a list of changes and terms from that leaf.
+  ;; Takes a non-leaf node, the location at which it was found, and the terms
+  ;; returned by handling it's sub-nodes, and returns a list of changes and terms
+  ;; resulting from handling that node.
+  ;; Given a location and an expression, recursively calls bubble-changes-and-terms
+  ;; on each sub-node of that expression, returning a list of resulting changes
+  ;; and a list of resulting terms.
+  ;; Top level algorithm for cancelling terms in an expression tree.
   (define (bubble-changes-and-terms loc expr)
     (if (is-leaf? expr)
 	(handle-leaf expr)
