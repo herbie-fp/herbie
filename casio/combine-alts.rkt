@@ -348,7 +348,11 @@
 			      [*exacts* (alt-context-exacts context)])
 		 (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
 		     ;; because we refer to the alts by index a lot.
-		     (recurse-function (make-alt (alt-program altn)))))))
+		     (let* ([orig (make-alt (alt-program altn))]
+			    [result (recurse-function orig)])
+		       (when (> (errors-score (alt-errors result)) (errors-score (alt-errors orig)))
+			 (debug "Improved Alt " result " is worse than it's original, " altn #:from 'regime-changes))
+		       result)))))
 	 altns
 	 contexts))
   (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
