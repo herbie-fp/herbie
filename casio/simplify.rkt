@@ -455,28 +455,31 @@
 		    (reverse cleanup-changes))
 	    term-combination)))
 
+(define (translate-loc-through-changes changes loc)
+  (if (null? changes) loc
+      (let ([relative-loc (match-loc loc (change-location (car changes)))])
+	(if (not relative-loc)
+	    (translate-loc-through-changes (cdr changes) loc)
+	    (if (> (length (change-location (car changes))) (length loc))
+		(error "Cannot Translate: bad locations.")
+		(let* ([new-relative-loc
+			(car (translate-location relative-loc
+						 (rule-location-translations (change-rule (car changes)))
+						 car cadr))]
+		       [new-abs-loc (append (change-location (car changes)) new-relative-loc)])
+		  (translate-loc-through-changes (cdr changes) new-abs-loc)))))))
+
+(define (translate-term-through-changes changes term)
+  (s-term (s-term-coeff term) (s-term-vars term)
+	  (translate-loc-through-changes changes (s-term-loc term))))
+
+(define (translate-atom-through-changes changes atom)
+  (s-atom (s-atom-var atom)
+	  (translate-loc-through-changes changes (s-atom-loc atom))))
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
     (and (list? expr) (eq? op (car expr)))))
-
-;; Expects changes in applicative order.
-;; Assumes that changes will have only one-to-one bindings,
-;; which all the changes we simplify with should.
-(define (translate-atom-through-changes changes atom)
-  (let loop ([rest-chng changes] [loc (s-atom-loc atom)])
-    (if (null? rest-chng) (s-atom (s-atom-var atom) loc)
-	(let ([relative-loc (match-loc loc (change-location (car rest-chng)))])
-	  (if (not relative-loc)
-	      (loop (cdr rest-chng) loc)
-	      (if (> (length (change-location (car rest-chng))) (length loc))
-		  (error "Cannot Translate: bad locations.")
-		  (let* ([new-relative-loc
-			  (car (translate-location relative-loc
-						   (rule-location-translations (change-rule (car rest-chng)))
-						   car cadr))]
-			 [new-abs-loc (append (change-location (car rest-chng)) new-relative-loc)])
-		    (loop (cdr rest-chng) new-abs-loc))))))))
 
 (define (loc->extract-changes assoc-rgt-rl assoc-lft-rl comm-rl expr loc)
   (define (apply-rule rl loc expr)
