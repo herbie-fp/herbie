@@ -284,6 +284,39 @@
 		      (cons term* terms*))
 		  (changes-apply chngs cur-expr) (append chngs changes-acc)))))))
 
+(define (late-canonicalize-term-changes loc expr)
+  (let* ([atoms (let loop ([cur-expr expr] [cur-loc loc])
+		  (if (and (list? cur-expr) (eq? '* (car cur-expr)))
+		      (append (loop (cadr cur-expr) (append cur-loc '(1)))
+			      (loop (caddr cur-expr) (append cur-loc '(2))))
+		      (list (s-atom cur-expr cur-loc))))]
+	 [sorted-atoms (sort atoms s-atom<?)]
+	 [ordering-changes (let loop ([cur-expr expr] [rest-atoms sorted-atoms]
+				      [changes-acc '()] [cur-loc loc])
+			     (if (null? rest-atoms) changes-acc
+				 (let*-values ([(extraction-changes expr*)
+						(mul-extract-changes cur-expr (drop (s-atom-loc (car rest-atoms)) (length cur-loc)))]
+					       [(rest*) (map (curry translate-atom-through-changes extraction-changes) (cdr rest-atoms))])
+				   (if (null? rest*) changes-acc
+				       (loop (caddr expr*) (cdr rest-atoms)
+					     (append extraction-changes changes-acc) (append cur-loc '(2)))))))]
+	 [precombining-constants-changes
+	  (let loop ([rest-atoms sorted-atoms] [changes-acc '()]
+		     [cur-expr (changes-apply (drop-change-location-items ordering-changes (length loc))
+					      expr)])
+	    (if (or (= 1 (length rest-atoms)) (not (number? (s-atom-var (cadr rest-atoms)))))
+		changes-acc
+		(let ([new-constant (+ (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms)))])
+		  (loop (cons (s-atom new-constant (s-atom-loc (car rest-atoms))))
+			(list* (change (rule 'precompute `(* (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms))) new-constant '())
+				       (append loc '(1))
+				       '())
+			       (change (get-rule 'associate-*-lft) loc `((a . (s-atom-var (car rest-atoms)))
+									 (b . (s-atom-var (cadr rest-atoms)))
+									 (c . (cadr (cadr cur-expr)))))
+			       (list '* new-constant (cadr (cadr cur-expr))))))))])
+    (append precombining-constants-changes ordering-changes)))
+
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
