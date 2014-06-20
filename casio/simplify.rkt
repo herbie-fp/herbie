@@ -259,7 +259,21 @@
 					  sub-term-lsts)) loc))))
 
 (define *node-handlers*
-  (make-immutable-hasheq))
+  (make-immutable-hasheq
+   `(['+ (λ (loc expr sub-term-lsts)
+	   (let ([sub-terms (apply append sub-term-lsts)])
+	     (try-combine-+ sub-terms expr loc)))]
+     ['- (λ (loc expr sub-term-lsts)
+	   (define (negate-term term)
+	     (s-term (- (s-term-coeff term)) (s-term-vars term) (s-term-loc term)))
+	   (if (= 1 (length sub-term-lsts)) (values '() (map negate-term (car sub-term-lsts)))
+	       (let* ([left-subterms (car sub-term-lsts)]
+		      [right-subterms (cadr sub-term-lsts)]
+		      [subterms (append left-subterms
+					(map negate-term
+					     right-subterms))])
+		 (try-combine-+ subterms expr loc))))])))
+
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
