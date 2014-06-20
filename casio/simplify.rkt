@@ -10,8 +10,6 @@
 (require casio/common)
 ;; We need this to know whether a simplification caused a green change
 (require casio/redgreen)
-;; We use make-exacts to precompute functions of constants.
-(require casio/points)
 (require casio/locations)
 ;; We grab pattern matching for our canonicalizing rules.
 (require racket/match)
