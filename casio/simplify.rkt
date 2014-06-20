@@ -274,6 +274,16 @@
 					     right-subterms))])
 		 (try-combine-+ subterms expr loc))))])))
 
+(define (try-combine-+ terms expr loc)
+  (let loop ([rest-terms terms] [cur-expr expr] [changes-acc '()])
+    (let ([match (find-matching-term-pair rest-terms)])
+      (if (not match) (values (reverse changes-acc) rest-terms)
+	  (let*-values ([(chngs term*) (combine-+-changes (car match) (cadr match) expr loc)]
+			[(terms*) (map translate-term-through-changes (remove* match rest-terms))])
+	    (loop (if (= 0 (s-term-coeff term*)) terms*
+		      (cons term* terms*))
+		  (changes-apply chngs cur-expr) (append chngs changes-acc)))))))
+
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
