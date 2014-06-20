@@ -163,7 +163,7 @@
   (debug "Simplifying expression: " expr #:from 'simplify #:depth 3)
   (let* ([canon-changes (canonicalize expr)]
 	 [expr* (changes-apply canon-changes expr)]
-	 [resolve-changes (resolve expr*)])
+	 [resolve-changes (cancel-terms expr*)])
     (append canon-changes resolve-changes)))
 
 ;; Simplifies an expression, and then applies the simplifying changes.
