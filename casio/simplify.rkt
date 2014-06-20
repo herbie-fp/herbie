@@ -98,6 +98,13 @@
 (define (symbol<? sym1 sym2)
   (string<? (symbol->string sym1) (symbol->string sym2)))
 
+(define (s-atom<? a1 a2)
+  (cond [(and (number? (s-atom-var a1)) (number? (s-atom-var a2)))
+	 (< (s-atom-var a1) (s-atom-var a2))]
+	[(number? (s-atom-var a1)) #t]
+	[(number? (s-atom-var a2)) #f]
+	[#t (atom<? (s-atom-var a1) (s-atom-var a2))]))
+
 ;; Provide sorting for atoms. This ordering doesn't necessarily make any sense, but it's canonical so that we can more easily compare terms
 (define (atom<? a1 a2)
   (cond [(and (symbol? a1) (symbol? a2))
