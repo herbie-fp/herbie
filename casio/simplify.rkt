@@ -60,6 +60,10 @@
 (define (reduced? altn)
   (< (alt-cost altn) (alt-cost (alt-prev altn))))
 
+(define (safe-= . args)
+  (and (andmap number? args)
+       (apply = args)))
+
 (define *goal-cost-improvement* 4)
 
 (define (rule-cost-improvement rl)
