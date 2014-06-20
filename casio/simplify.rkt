@@ -455,6 +455,15 @@
 		    (reverse cleanup-changes))
 	    term-combination)))
 
+(define (find-matching-term-pair terms)
+  (let loop ([rest-terms terms])
+    (if (null? rest-terms) #f
+	(let ([member-res (member (car rest-terms) (cdr rest-terms)
+				  (λ (t1 t2) (equal? (s-term-vars t1) (s-term-vars t2))))])
+	  (if member-res
+	      (list (car rest-terms) (car member-res))
+	      (loop (cdr rest-terms)))))))
+
 (define (translate-loc-through-changes changes loc)
   (if (null? changes) loc
       (let ([relative-loc (match-loc loc (change-location (car changes)))])
