@@ -243,7 +243,7 @@
     (if (is-leaf? expr)
 	(handle-leaf loc expr)
 	(let*-values ([(sub-changes sub-term-lsts) (resolve-subs loc expr)]
-		      [(expr*) (changes-apply sub-changes expr)]
+		      [(expr*) (changes-apply (drop-change-location-items sub-changes (length loc)) expr)]
 		      [(new-changes terms*) (handle-node loc expr* sub-term-lsts)])
 	  (values (append sub-changes new-changes) terms*))))
   (let-values ([(final-changes final-terms) (bubble-changes-and-terms '() expr)])
@@ -282,7 +282,8 @@
 			[(terms*) (map translate-term-through-changes (remove* match rest-terms))])
 	    (loop (if (= 0 (s-term-coeff term*)) terms*
 		      (cons term* terms*))
-		  (changes-apply chngs cur-expr) (append chngs changes-acc)))))))
+		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
+		  (append chngs changes-acc)))))))
 
 (define (late-canonicalize-term-changes loc expr)
   (let* ([atoms (let loop ([cur-expr expr] [cur-loc loc])
@@ -299,7 +300,8 @@
 					       [(rest*) (map (curry translate-atom-through-changes extraction-changes) (cdr rest-atoms))])
 				   (if (null? rest*) changes-acc
 				       (loop (caddr expr*) (cdr rest-atoms)
-					     (append extraction-changes changes-acc) (append cur-loc '(2)))))))]
+					     (append (append-to-change-locations extraction-changes cur-loc) changes-acc)
+					     (append cur-loc '(2)))))))]
 	 [precombining-constants-changes
 	  (let loop ([rest-atoms sorted-atoms] [changes-acc '()]
 		     [cur-expr (changes-apply (drop-change-location-items ordering-changes (length loc))
@@ -419,7 +421,7 @@
 					   changes-acc))
 				  (s-term new-coeff (s-term-vars term1) cur-loc)))]))]
 		[(expr*) (changes-apply
-			  (reverse combine-changes)
+			  (drop-change-location-items (reverse combine-changes) (length loc))
 			  expr*)]
 		[(cleanup-changes)
 		 (let loop ([cur-coeff (s-term-coeff term-combination)] [changes-acc '()]
