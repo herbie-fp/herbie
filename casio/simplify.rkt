@@ -279,7 +279,7 @@
     (let ([match (find-matching-term-pair rest-terms)])
       (if (not match) (values changes-acc rest-terms)
 	  (let*-values ([(chngs term*) (combine-+-changes (car match) (cadr match) expr loc)]
-			[(terms*) (map translate-term-through-changes (remove* match rest-terms))])
+			[(terms*) (map (curry translate-term-through-changes chngs) (remove* match rest-terms))])
 	    (loop (if (= 0 (s-term-coeff term*)) terms*
 		      (cons term* terms*))
 		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
