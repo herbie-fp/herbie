@@ -389,37 +389,38 @@
 			   (list* (let ([rl (get-rule '*-un-lft-identity)])
 				    (change rl (append cur-loc '(2)) (pattern-match (rule-input rl) (caddr cur-expr))))
 				  changes-acc))]
-		    [#t (let* ([distributed-coeffs `(,(car cur-expr) ,(cadr (cadr cur-expr)) ,(cadr (caddr cur-expr)))]
-			       [new-coeff (safe-eval distributed-coeffs)])
-			  (values (let* ([canonicalize-left-changes (late-canonicalize-term-changes (append loc '(1)) (cadr cur-expr))]
-					 [canonicalize-right-changes (late-canonicalize-term-changes (append loc '(2)) (caddr cur-expr))]
-					 [cur-expr* (changes-apply (drop-change-location-items (append canonicalize-left-changes
-												       canonicalize-right-changes)
-											       (length loc)) cur-expr)]
-					 [distribute-out-coeffs-change
-					  (let ([rl (if (eq? (car cur-expr) '+)
-							(get-rule 'distribute-rgt-out)
-							(get-rule 'distribute-rgt-out--))])
-					    (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
-					 [cur-expr* (changes-apply (drop-change-location-items (list distribute-out-coeffs-change)
-											       (length cur-loc))
-								   cur-expr*)]
-					 [commute-coeff-and-vars-change
-					  (let ([rl (get-rule '*-commutative)])
-					    (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
-					 [cur-expr* (changes-apply (drop-change-location-items (list commute-coeff-and-vars-change)
-											       (length cur-loc))
-								   cur-expr*)]
-					 [precompute-coeffs-change (change (rule 'precompute distributed-coeffs new-coeff '())
-								    (append cur-loc '(1))
-								    '())])
-				   (append (list
-					    precompute-coeffs-change
-					    commute-coeff-and-vars-change
-					    distribute-out-coeffs-change)
-					   canonicalize-right-changes
-					   canonicalize-left-changes
-					   changes-acc))
+		    [#t (let* ([canonicalize-left-changes (late-canonicalize-term-changes (append cur-loc '(1)) (cadr cur-expr))]
+			       [canonicalize-right-changes (late-canonicalize-term-changes (append cur-loc '(2)) (caddr cur-expr))]
+			       [cur-expr* (changes-apply (drop-change-location-items (append (reverse canonicalize-left-changes)
+											     (reverse canonicalize-right-changes))
+										     (length cur-loc))
+							 cur-expr)]
+			       [distributed-coeffs `(,(car cur-expr*) ,(cadr (cadr cur-expr*)) ,(cadr (caddr cur-expr*)))]
+			       [new-coeff (safe-eval distributed-coeffs)]
+			       [distribute-out-coeffs-change
+				(let ([rl (if (eq? (car cur-expr) '+)
+					      (get-rule 'distribute-rgt-out)
+					      (get-rule 'distribute-rgt-out--))])
+				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
+			       [cur-expr* (changes-apply (drop-change-location-items (list distribute-out-coeffs-change)
+										     (length cur-loc))
+							 cur-expr*)]
+			       [commute-coeff-and-vars-change
+				(let ([rl (get-rule '*-commutative)])
+				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
+			       [cur-expr* (changes-apply (drop-change-location-items (list commute-coeff-and-vars-change)
+										     (length cur-loc))
+							 cur-expr*)]
+			       [precompute-coeffs-change (change (rule 'precompute distributed-coeffs new-coeff '())
+								 (append cur-loc '(1))
+								 '())])
+			  (values (append (list
+					   precompute-coeffs-change
+					   commute-coeff-and-vars-change
+					   distribute-out-coeffs-change)
+					  canonicalize-right-changes
+					  canonicalize-left-changes
+					  changes-acc)
 				  (s-term new-coeff (s-term-vars term1) cur-loc)))]))]
 		[(expr*) (changes-apply
 			  (drop-change-location-items (reverse combine-changes) (length loc))
