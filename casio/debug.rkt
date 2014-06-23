@@ -58,3 +58,11 @@
                         ", and got:")
                (println (alt-program altn))
                (void)))))
+
+(define (incremental-changes-apply changes expr)
+  (let loop ([rest-chngs changes] [cur-expr expr])
+    (if (null? rest-chngs)
+	cur-expr
+	(begin (println cur-expr)
+	       (println (car rest-chngs))
+	       (loop (cdr rest-chngs) (change-apply (car rest-chngs) cur-expr))))))
