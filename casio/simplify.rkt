@@ -277,7 +277,7 @@
 (define (try-combine-+ terms expr loc)
   (let loop ([rest-terms terms] [cur-expr expr] [changes-acc '()])
     (let ([match (find-matching-term-pair rest-terms)])
-      (if (not match) (values (reverse changes-acc) rest-terms)
+      (if (not match) (values changes-acc rest-terms)
 	  (let*-values ([(chngs term*) (combine-+-changes (car match) (cadr match) expr loc)]
 			[(terms*) (map translate-term-through-changes (remove* match rest-terms))])
 	    (loop (if (= 0 (s-term-coeff term*)) terms*
@@ -297,7 +297,8 @@
 			     (if (null? rest-atoms) changes-acc
 				 (let*-values ([(extraction-changes expr*)
 						(mul-extract-changes cur-expr (drop (s-atom-loc (car rest-atoms)) (length cur-loc)))]
-					       [(rest*) (map (curry translate-atom-through-changes extraction-changes) (cdr rest-atoms))])
+					       [(rest*) (map (curry translate-atom-through-changes (reverse extraction-changes))
+							     (cdr rest-atoms))])
 				   (if (null? rest*) changes-acc
 				       (loop (caddr expr*) (cdr rest-atoms)
 					     (append (append-to-change-locations extraction-changes cur-loc) changes-acc)
