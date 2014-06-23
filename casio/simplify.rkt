@@ -260,10 +260,10 @@
 
 (define *node-handlers*
   (make-immutable-hasheq
-   `(['+ (λ (loc expr sub-term-lsts)
+   `([+ . ,(λ (loc expr sub-term-lsts)
 	   (let ([sub-terms (apply append sub-term-lsts)])
 	     (try-combine-+ sub-terms expr loc)))]
-     ['- (λ (loc expr sub-term-lsts)
+     [- . ,(λ (loc expr sub-term-lsts)
 	   (define (negate-term term)
 	     (s-term (- (s-term-coeff term)) (s-term-vars term) (s-term-loc term)))
 	   (if (= 1 (length sub-term-lsts)) (values '() (map negate-term (car sub-term-lsts)))
