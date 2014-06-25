@@ -320,6 +320,7 @@
 			       (list '* new-constant (cadr (cadr cur-expr))))))))])
     (append precombining-constants-changes ordering-changes)))
 
+;; Returns changes in applicative order.
 (define (combine-+-changes term1 term2 expr loc)
   ;; Returns whether or not the expression is a multiplication of
   ;; parts, where one of the parts is a constant.
