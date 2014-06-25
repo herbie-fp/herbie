@@ -490,6 +490,10 @@
   (s-atom (s-atom-var atom)
 	  (translate-loc-through-changes changes (s-atom-loc atom))))
 
+(define (translate-var-through-changes changes var)
+  (s-var (s-var-var var) (s-var-pow var)
+	 (translate-loc-through-changes changes (s-var-loc var))))
+
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
     (and (list? expr) (eq? op (car expr)))))
