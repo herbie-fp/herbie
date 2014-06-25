@@ -174,13 +174,13 @@
 
 (struct s-atom (var loc) #:prefab)
 
-(struct s-var (var pow) #:prefab)
+(struct s-var (var pow loc) #:prefab)
 (struct s-term (coeff vars loc) #:prefab)
 ;; Given an expression that does not break down,
 ;; such as (f x) for some unknown f, this gives
 ;; the canonical term representation of it.
 (define (expr-term atom-expr loc)
-  (s-term 1 (list (s-var atom-expr 1)) loc))
+  (s-term 1 (list (s-var atom-expr 1 loc)) loc))
 
 (define (term->expr term)
   (define (var->expr var)
@@ -222,7 +222,7 @@
   (define (handle-leaf loc leaf)
     (if (number? leaf)
 	(values '() (list (s-term leaf '() loc)))
-	(values '() (list (s-term 1 (list (s-var leaf 1)) loc)))))
+	(values '() (list (s-term 1 (list (s-var leaf 1 loc)) loc)))))
   ;; Takes a non-leaf node, the location at which it was found, and the terms
   ;; returned by handling it's sub-nodes, and returns a list of changes and terms
   ;; resulting from handling that node.
@@ -483,7 +483,7 @@
 		  (translate-loc-through-changes (cdr changes) new-abs-loc)))))))
 
 (define (translate-term-through-changes changes term)
-  (s-term (s-term-coeff term) (s-term-vars term)
+  (s-term (s-term-coeff term) (map translate-var-through-changes (s-term-vars term))
 	  (translate-loc-through-changes changes (s-term-loc term))))
 
 (define (translate-atom-through-changes changes atom)
