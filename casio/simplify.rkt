@@ -468,6 +468,15 @@
 	      (list (car rest-terms) (car member-res))
 	      (loop (cdr rest-terms)))))))
 
+(define (find-matching-var-pair vars)
+  (let loop ([rest-vars vars])
+    (if (null? rest-vars) #f
+	(let ([member-res (member (car rest-vars) (cdr rest-vars)
+				  (λ (v1 v2) (eq? (s-var-var v1) (s-var-var v2))))])
+	  (if member-res
+	      (list (car rest-vars) (car member-res))
+	      (loop (cdr rest-vars)))))))
+
 (define (translate-loc-through-changes changes loc)
   (if (null? changes) loc
       (let ([relative-loc (match-loc loc (change-location (car changes)))])
