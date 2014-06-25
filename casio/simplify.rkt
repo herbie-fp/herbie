@@ -283,7 +283,8 @@
 	    (loop (if (= 0 (s-term-coeff term*)) terms*
 		      (cons term* terms*))
 		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
-		  (append chngs changes-acc)))))))
+		  (append changes-acc chngs)))))))
+
 
 (define (late-canonicalize-term-changes loc expr)
   (let* ([atoms (let loop ([cur-expr expr] [cur-loc loc])
