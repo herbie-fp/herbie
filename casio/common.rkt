@@ -6,7 +6,8 @@
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
          enumerate take-up-to *debug* debug debug-reset pipe
 	 list-product set-debug-level! alist-append
-	 safe-eval write-file write-string has-duplicates?)
+	 safe-eval write-file write-string has-duplicates?
+	 with-item)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -157,3 +158,9 @@
   (cond [(null? lst) #f]
 	[(member (car lst) (cdr lst)) #t]
 	[#t (has-duplicates? (cdr lst))]))
+
+(define (with-item idx item lst)
+  (map (λ (lst-item lst-idx)
+	 (if (= lst-idx idx) item lst-item))
+       lst
+       (range (length lst))))
