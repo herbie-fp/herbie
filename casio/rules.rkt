@@ -150,6 +150,7 @@
 (define-rule   expt1/2         (sqrt a)                    (expt a 1/2))
 (define-rule   expt-plus       (* (expt a b) a)            (expt a (+ b 1)))
 (define-rule   expt-expt       (expt (expt a b) c)         (expt a (* b c)))
+(define-rule   inv-expt        (/ a)                       (expt a -1))
 
 ; Logarithms
 (define-rule   sum-log      (+ (log a) (log b))  (log (* a b))
