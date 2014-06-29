@@ -304,6 +304,75 @@
 				 (map invert-var (s-term-vars (caar sub-term-lsts)))
 				 (s-term-loc (caar sub-term-lsts)))))])))
 
+(define (cancel-coeff-changes expr loc)
+  (let* ([lc-changes (late-canonicalize-term-changes loc expr)]
+	 [expr* (changes-apply (drop-change-location-items lc-changes (length loc)) expr)]
+	 [cancel-change (let ([rl (get-rule 'mul0)])
+			  (change rl loc `((a . ,(cadr expr*)))))])
+    (values (append lc-changes (list cancel-change))
+	    (list (s-term 0 '() loc)))))
+
+(define (try-combine-* vars coeff expr loc)
+  (let loop ([rest-vars vars] [cur-expr expr] [changes-acc '()])
+    (let ([match (find-matching-var-pair rest-vars)])
+      (if (not match) (values changes-acc (list (s-term coeff rest-vars loc)))
+	  (let*-values ([(chngs var*) (combine-*-changes (car match) (cadr match) expr loc)]
+			[(vars*) (map (curry translate-var-through-changes chngs) (remove* match rest-vars))])
+	    (loop (if (= 0 (s-var-pow var*)) vars*
+		      (cons var* vars*))
+		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
+		  (append changes-acc chngs)))))))
+
+(define (combine-*-changes var1 var2 expr loc)
+  (let*-values ([(relative-var1-loc) (drop (s-var-loc var1) (length loc))]
+		[(extract-var1-changes expr*1) (mul-extract-changes expr relative-var1-loc)]
+		[(extract-var1-full-changes) (append-to-change-locations extract-var1-changes loc)]
+		[(var2*1) (translate-var-through-changes extract-var1-full-changes var2)]
+		[(relative-var2-loc) (drop (s-var-loc var2*1) (length loc))]
+		[(extract-var2-changes caddrexpr*) (mul-extract-changes (caddr expr*1) (drop relative-var2-loc 1))]
+		[(extract-var2-full-changes) (append-to-change-locations extract-var2-changes (append loc '(2)))]
+		[(expr*2) (with-item 2 caddrexpr* expr*1)]
+		[(var2*2) (translate-var-through-changes (reverse extract-var2-full-changes) var2*1)]
+		[(relative-var2-loc*) (drop (s-var-loc var2*2) (length loc))]
+		[(canon-var1-changes) (late-canonicalize-var-changes '(1) (cadr expr*2))]
+		[(canon-var2-changes) (late-canonicalize-var-changes (s-var-loc var2*2) (location-get relative-var2-loc* expr*2))]
+		[(expr*3) (changes-apply (append canon-var1-changes canon-var2-changes) expr*2)]
+		[(combine-changes var-combination)
+		 (let loop ([cur-expr expr*3] [cur-loc loc] [changes-acc '()])
+		   (if (and (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '*))
+		       (loop (list (car cur-expr) (cadr cur-expr) (cadr (caddr cur-expr)))
+			     (append cur-loc '(1))
+			     (cons (let ([rl (get-rule 'associate-*-lft)])
+				     (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
+				   changes-acc))
+		       (values (let* ([distribute-powers-change (let ([rl (get-rule 'expt-prod-up)])
+								  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))]
+				      [cur-expr* (change-apply distribute-powers-change cur-expr)]
+				      [precompute-powers-change
+				       (change (rule 'precompute `(+ ,(s-var-pow var1) ,(s-var-pow var2))
+						     (+ (s-var-pow var1) (s-var-pow var2)) '())
+					       (append cur-loc '(2)) '())])
+				 (list* precompute-powers-change distribute-powers-change changes-acc))
+			       (s-var (s-var-var var1) (+ (s-var-pow var1) (s-var-pow var2)) cur-loc))))]
+		[(expr*4) (changes-apply (reverse (drop-change-location-items combine-changes (length loc))) expr*3)]
+		[(cleanup-changes)
+		 (cond [(= (s-var-pow var-combination) 0)
+			(list* (let ([rl (get-rule 'unexpt0)])
+				 (change rl (s-var-loc var-combination) `((a . ,(s-var-var var-combination)))))
+			       (if (equal? (s-var-loc var-combination) loc) '()
+				   (list (let ([rl (get-rule '*-lft-identity)])
+					   (change rl loc `((a . ,(caddr expr*4))))))))]
+		       [(= (s-var-pow var-combination) 1)
+			(list (let ([rl (get-rule 'unexpt1)])
+				(change rl (s-var-loc var-combination) `((a . ,(s-var-var var-combination))))))]
+		       [#t '()])])
+    (values (append (reverse extract-var1-full-changes)
+		    (reverse extract-var2-full-changes)
+		    (reverse canon-var1-changes)
+		    (reverse canon-var2-changes)
+		    (reverse combine-changes)
+		    cleanup-changes)
+	    var-combination)))
 
 (define (try-combine-+ terms expr loc)
   (let loop ([rest-terms terms] [cur-expr expr] [changes-acc '()])
