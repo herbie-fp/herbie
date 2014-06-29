@@ -6,7 +6,7 @@
 (provide reap enumerate take-up-to list-product pipe alist-append
          println *debug* debug debug-reset set-debug-level!
          ->flonum cotan ordinary-float? =-or-nan?
-	 safe-eval write-file write-string)
+	 safe-eval write-file write-string with-item)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -152,3 +152,9 @@
   (syntax-case stx ()
     [(_ . rest)
      #'(with-output-to-string (lambda () . rest))]))
+
+(define (with-item idx item lst)
+  (map (λ (lst-item lst-idx)
+	 (if (= lst-idx idx) item lst-item))
+       lst
+       (range (length lst))))
