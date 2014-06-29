@@ -101,6 +101,13 @@
 (define (s-var<? v1 v2)
   (symbol<? (s-var-var v1) (s-var-var v2)))
 
+(define (s-var-equal? v1 v2)
+  (and (eq? (s-var-var v1) (s-var-var v2))
+       (= (s-var-pow v1) (s-var-pow v2))))
+
+(define (s-terms-match? t1 t2)
+  (andmap s-var-equal? (s-term-vars t1) (s-term-vars t2)))
+
 (define (s-atom<? a1 a2)
   (cond [(and (number? (s-atom-var a1)) (number? (s-atom-var a2)))
 	 (< (s-atom-var a1) (s-atom-var a2))]
