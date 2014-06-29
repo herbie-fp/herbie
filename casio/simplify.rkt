@@ -284,6 +284,26 @@
 					  (map negate-term
 					       right-subterms))])
 		   (try-combine-+ subterms expr loc))))]
+     [* . ,(λ (loc expr sub-term-lsts)
+	     (let ([vars (sort (append (if (> (car sub-term-lsts) 1) '()
+					   (s-term-vars (caar sub-term-lsts)))
+				       (if (> (cadr sub-term-lsts) 1) '()
+					   (s-term-vars (caadr sub-term-lsts))))
+			       s-var<?)]
+		   [coeff (* (if (> (car sub-term-lsts) 1) 1
+				 (s-term-coeff (caar sub-term-lsts)))
+			     (if (> (cadr sub-term-lsts) 1) '()
+				 (s-term-coeff (caadr sub-term-lsts))))])
+	       (if (= 0 coeff)
+		   (cancel-coeff-changes expr loc)
+		   (try-combine-* vars coeff expr loc))))]
+     [/ . ,(λ (loc expr sub-term-lsts)
+	     (define (invert-var var)
+	       (s-var (s-var-var var) (- (s-var-pow var)) (s-var-loc var)))
+	     (values '() (s-term (s-term-coeff (caar sub-term-lsts))
+				 (map invert-var (s-term-vars (caar sub-term-lsts)))
+				 (s-term-loc (caar sub-term-lsts)))))])))
+
 
 (define (try-combine-+ terms expr loc)
   (let loop ([rest-terms terms] [cur-expr expr] [changes-acc '()])
