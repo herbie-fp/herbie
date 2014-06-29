@@ -565,7 +565,7 @@
   (let loop ([rest-terms terms])
     (if (null? rest-terms) #f
 	(let ([member-res (member (car rest-terms) (cdr rest-terms)
-				  (λ (t1 t2) (equal? (s-term-vars t1) (s-term-vars t2))))])
+				  s-terms-match?)])
 	  (if member-res
 	      (list (car rest-terms) (car member-res))
 	      (loop (cdr rest-terms)))))))
