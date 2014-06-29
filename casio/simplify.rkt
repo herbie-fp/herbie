@@ -385,6 +385,48 @@
 		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
 		  (append changes-acc chngs)))))))
 
+(define (late-canonicalize-var-changes loc expr)
+  (define (get-merge-chngs loc expr)
+    (if (not (list? expr)) '()
+	(cond [(and (= 2 (length expr)) (eq? (car expr) '/))
+	       (append (get-merge-chngs loc `(expt ,(cadr expr) -1))
+		       (list (let ([rl (get-rule 'inv-expt)])
+			       (change rl loc `((a . ,(cadr expr)))))))]
+	      [(eq? (car expr) 'sqr)
+	       (append (get-merge-chngs loc `(expt ,(cadr expr) 2))
+		       (list (let ([rl (get-rule 'expt2)])
+			       (change rl loc `((a . ,(cadr expr)))))))]
+	      [(eq? (car expr) 'sqrt)
+	       (append (get-merge-chngs loc `(expt ,(cadr expr) 1/2))
+		       (list (let ([rl (get-rule 'expt1/2)])
+			       (change rl loc `((a . ,(cadr expr)))))))]
+	      [#t
+	       (let* ([inner-canonicalize-changes (get-merge-chngs (append loc '(1))
+								   (cadr expr))]
+		      [cadr-expr* (changes-apply (reverse (drop-change-location-items
+							       inner-canonicalize-changes (add1 (length loc)))) (cadr expr))]
+		      [expr* (with-item 1 cadr-expr* expr)]
+		      [inner-pow (if (not (list? cadr-expr*)) 1
+				     (caddr cadr-expr*))]
+		      [outer-pow (caddr expr*)]
+		      [new-pow (* inner-pow outer-pow)])
+		 (append (if (and (not (= 1 inner-pow))
+				  (or (not (integer? inner-pow))
+				      (odd? inner-pow) (and (integer? new-pow)
+							    (even? new-pow))))
+			     (list (change (rule 'precompute `(* inner-pow outer-pow) new-pow '())
+					   (append loc '(2)) '())
+				   (let ([rl (get-rule 'expt-expt)])
+				     (change rl loc (pattern-match (rule-input rl) expr*))))
+			     '())
+			 inner-canonicalize-changes))])))
+  (let* ([merge-chngs (get-merge-chngs loc expr)]
+	 [merged (changes-apply (reverse (drop-change-location-items merge-chngs (length loc))) expr)])
+    (if (not (list? merged))
+	(cons (let ([rl (get-rule 'expt1)])
+		(change rl loc `((a . ,merged))))
+	      merge-chngs)
+	merge-chngs)))
 
 (define (late-canonicalize-term-changes loc expr)
   (let* ([atoms (let loop ([cur-expr expr] [cur-loc loc])
