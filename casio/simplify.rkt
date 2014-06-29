@@ -98,6 +98,9 @@
 (define (symbol<? sym1 sym2)
   (string<? (symbol->string sym1) (symbol->string sym2)))
 
+(define (s-var<? v1 v2)
+  (symbol<? (s-var-var v1) (s-var-var v2)))
+
 (define (s-atom<? a1 a2)
   (cond [(and (number? (s-atom-var a1)) (number? (s-atom-var a2)))
 	 (< (s-atom-var a1) (s-atom-var a2))]
