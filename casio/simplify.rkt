@@ -480,7 +480,7 @@
 		[(term2*)  (translate-term-through-changes extract-term1-full-changes term2)]
 		[(extract-term2-changes caddrexpr*) (add-extract-changes (caddr expr*) (drop (s-term-loc term2*) (add1 (length loc))))]
 		[(extract-term2-full-changes) (append-to-change-locations (reverse extract-term2-changes) (append loc '(2)))]
-		[(expr*) (list (car expr*) (cadr expr*) caddrexpr*)]
+		[(expr*) (with-item 2 caddrexpr* expr*)]
 		[(combine-changes term-combination)
 		 (let loop ([cur-expr expr*] [cur-loc loc] [changes-acc '()])
 		   (cond
