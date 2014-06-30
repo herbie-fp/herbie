@@ -441,11 +441,12 @@
 			     (if (null? rest-atoms) changes-acc
 				 (let*-values ([(extraction-changes expr*)
 						(mul-extract-changes cur-expr (drop (s-atom-loc (car rest-atoms)) (length cur-loc)))]
-					       [(rest*) (map (curry translate-atom-through-changes (reverse extraction-changes))
+					       [(full-extraction-changes) (append-to-change-locations extraction-changes cur-loc)]
+					       [(rest*) (map (curry translate-atom-through-changes (reverse full-extraction-changes))
 							     (cdr rest-atoms))])
 				   (if (null? rest*) changes-acc
-				       (loop (caddr expr*) (cdr rest-atoms)
-					     (append (append-to-change-locations extraction-changes cur-loc) changes-acc)
+				       (loop (caddr expr*) rest*
+					     (append full-extraction-changes changes-acc)
 					     (append cur-loc '(2)))))))]
 	 [precombining-constants-changes
 	  (let loop ([rest-atoms sorted-atoms] [changes-acc '()]
