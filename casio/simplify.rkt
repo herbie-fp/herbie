@@ -300,10 +300,10 @@
 		   (try-combine-* vars coeff expr loc))))]
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
-	       (s-var (s-var-var var) (- (s-var-pow var)) (s-var-loc var)))
-	     (values '() (s-term (s-term-coeff (caar sub-term-lsts))
-				 (map invert-var (s-term-vars (caar sub-term-lsts)))
-				 (s-term-loc (caar sub-term-lsts)))))])))
+	       (s-var (s-var-var var) (- (s-var-pow var)) loc))
+	     (values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
+				       (map invert-var (s-term-vars (caar sub-term-lsts)))
+				       loc))))])))
 
 (define (cancel-coeff-changes expr loc)
   (let* ([lc-changes (late-canonicalize-term-changes loc expr)]
