@@ -637,7 +637,7 @@
 		  (translate-loc-through-changes (cdr changes) new-abs-loc)))))))
 
 (define (translate-term-through-changes changes term)
-  (s-term (s-term-coeff term) (map translate-var-through-changes (s-term-vars term))
+  (s-term (s-term-coeff term) (map (curry translate-var-through-changes changes) (s-term-vars term))
 	  (translate-loc-through-changes changes (s-term-loc term))))
 
 (define (translate-atom-through-changes changes atom)
