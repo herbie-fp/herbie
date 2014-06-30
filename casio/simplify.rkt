@@ -106,7 +106,8 @@
        (= (s-var-pow v1) (s-var-pow v2))))
 
 (define (s-terms-match? t1 t2)
-  (andmap s-var-equal? (s-term-vars t1) (s-term-vars t2)))
+  (and (= (length (s-term-vars t1)) (length (s-term-vars t2)))
+       (andmap s-var-equal? (s-term-vars t1) (s-term-vars t2))))
 
 (define (s-atom<? a1 a2)
   (cond [(and (number? (s-atom-var a1)) (number? (s-atom-var a2)))
