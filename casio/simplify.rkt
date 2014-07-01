@@ -238,7 +238,12 @@
   ;; returned by handling it's sub-nodes, and returns a list of changes and terms
   ;; resulting from handling that node.
   (define (handle-node loc expr sub-term-lsts)
-    ((hash-ref *node-handlers* (car expr) (const default-node-handler)) loc expr sub-term-lsts))
+    (let ([pre-chngs (try-precompute expr loc)])
+      (if (null? pre-chngs)
+	  ((hash-ref *node-handlers* (car expr) (const default-node-handler)) loc expr sub-term-lsts)
+	  (values pre-chngs
+		  (list (s-term (changes-apply (make-chngs-rel pre-chngs loc) expr)
+				'() loc))))))
   ;; Given a location and an expression, recursively calls bubble-changes-and-terms
   ;; on each sub-node of that expression, returning a list of resulting changes
   ;; and a list of resulting terms.
