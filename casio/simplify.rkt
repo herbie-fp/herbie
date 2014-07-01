@@ -537,6 +537,17 @@
 									 (c . ,(caddr (caddr cur-expr)))))
 			       changes-acc)
 			(list '* new-constant (caddr (caddr cur-expr)))))))]
+	 [expr* (changes-apply (reverse (drop-change-location-items (append precombining-constants-changes ordering-changes) (length loc))) expr)]
+	 [remove-expt-changes (cond [(and (list? expr*) (eq? (car expr*) 'expt) (safe-= 1 (caddr expr*)))
+				     (list (let ([rl (get-rule 'unexpt1)])
+					     (change rl loc `((a . ,(cadr expr*))))))]
+				    [(and (list? expr*) (eq? (car expr*) '*) (safe-= 1 (cadr expr*))
+					  (list? (caddr expr*)) (eq? (car (caddr expr*)) 'expt)
+					  (safe-= 1 (caddr (caddr expr*))))
+				     (list (let ([rl (get-rule 'unexpt1)])
+					     (change rl (append loc '(2)) `((a . ,(cadr (caddr expr*)))))))]
+				    [#t '()])])
+    (append remove-expt-changes precombining-constants-changes ordering-changes)))
 
 ;; Returns changes in applicative order.
 (define (combine-+-changes term1 term2 expr loc)
