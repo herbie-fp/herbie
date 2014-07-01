@@ -275,6 +275,60 @@
 					      (cons '+ expr-lst))))
 				      sub-term-lsts)) loc))))
 
+(define (handle-expt loc expr sub-term-lsts)
+  (if (is-pow? expr)
+      (handle-pow loc expr sub-term-lsts (caddr expr))
+      (s-term 1 (s-var expr 1 loc (car sub-term-lsts) '()) loc)))
+
+(define (is-pow? expr)
+  (and (list? expr)
+       (or (eq? (car expr) 'sqr)
+	   (eq? (car expr) 'sqrt)
+	   (and (eq? (car expr) 'expt)
+		(number? (caddr expr))))))
+
+(define-syntax-rule (matches? pattern expr)
+  (match expr
+    [pattern #t]
+    [_ #f]))
+
+(define (drop-term-loc i n term)
+  (s-term (s-term-coeff term)
+	  (map (curry drop-var-loc i n)
+	       (s-term-vars term))
+	  (append (take (s-term-loc term) i)
+		  (drop (s-term-loc term) (+ i n)))))
+
+(define (drop-var-loc i n var)
+  (s-var (s-var-var var)
+	 (s-var-pow var)
+	 (append (take (s-var-loc var) i)
+		 (drop (s-var-loc var) (+ i n)))
+	 (map (curry drop-term-loc n) (s-var-inner-terms var))))
+
+(define (handle-pow loc expr sub-term-lsts pow)
+  (cond [(is-pow? (cadr expr))
+	 (let* ([canon-changes (reverse (late-canonicalize-var-changes loc expr))]
+		[rel-canon-changes (drop-change-location-items canon-changes (length loc))]
+		[expr* (changes-apply rel-canon-changes expr)]
+		[inner-var (car (s-term-vars (caar sub-term-lsts)))])
+	   (cond [(matches? `(expt ,a 1) expr*)
+		  (values (append canon-changes
+				  (list (let ([rl (get-rule 'unexpt1)])
+					  (change rl loc `((a . ,(cadr expr*)))))))
+			  (map (curry drop-term-loc (length loc) 2) (s-var-inner-terms inner-var)))]
+		 [(matches? `(expt (expt ,a ,b) ,c) expr*)
+		  (values '()
+			  (list (s-term 1 (list (s-var (s-var-var inner-var) (* (s-var-pow inner-var) pow)
+						       loc (s-var-inner-terms inner-var)))
+					loc)))]
+		 [#t (values canon-changes
+			     (list (s-term 1 (list (s-var (s-var-var inner-var) (* (s-var-pow inner-var) pow)
+							  loc (map (curry drop-term-loc (length loc) 1)
+								   (s-var-inner-terms inner-var))))
+					   loc)))]))]
+	[#t (values '() (list (s-term 1 (list (s-var (cadr expr) pow loc (car sub-term-lsts))) loc)))]))
+
 (define *node-handlers*
   (make-immutable-hasheq
    `([+ . ,(λ (loc expr sub-term-lsts)
