@@ -523,16 +523,20 @@
 					      expr)])
 	    (if (or (= 1 (length rest-atoms)) (not (number? (s-atom-var (cadr rest-atoms)))))
 		changes-acc
-		(let ([new-constant (+ (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms)))])
-		  (loop (cons (s-atom new-constant (s-atom-loc (car rest-atoms))))
+		(let ([new-constant (* (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms)))])
+		  (loop (cons (s-atom new-constant (s-atom-loc (car rest-atoms)))
+			      (map (λ (atom) (s-atom (s-atom-var atom)
+						     (append (take (s-atom-loc atom) (length loc))
+							     (drop (s-atom-loc atom) (add1 (length loc))))))
+				   (cddr rest-atoms)))
 			(list* (change (rule 'precompute `(* (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms))) new-constant '())
 				       (append loc '(1))
 				       '())
-			       (change (get-rule 'associate-*-lft) loc `((a . (s-atom-var (car rest-atoms)))
-									 (b . (s-atom-var (cadr rest-atoms)))
-									 (c . (cadr (cadr cur-expr)))))
-			       (list '* new-constant (cadr (cadr cur-expr))))))))])
-    (append precombining-constants-changes ordering-changes)))
+			       (change (get-rule 'associate-*-lft) loc `((a . ,(s-atom-var (car rest-atoms)))
+									 (b . ,(s-atom-var (cadr rest-atoms)))
+									 (c . ,(caddr (caddr cur-expr)))))
+			       changes-acc)
+			(list '* new-constant (caddr (caddr cur-expr)))))))]
 
 ;; Returns changes in applicative order.
 (define (combine-+-changes term1 term2 expr loc)
