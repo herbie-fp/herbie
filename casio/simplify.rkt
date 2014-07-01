@@ -282,7 +282,7 @@
 	       (try-combine-+ sub-terms expr loc)))]
      [- . ,(λ (loc expr sub-term-lsts)
 	     (define (negate-term term)
-	       (s-term (- (s-term-coeff term)) (s-term-vars term) (s-term-loc term)))
+	       (s-term (- (s-term-coeff term)) (s-term-vars term) loc))
 	     (if (= 1 (length sub-term-lsts)) (values '() (map negate-term (car sub-term-lsts)))
 		 (let* ([left-subterms (car sub-term-lsts)]
 			[right-subterms (cadr sub-term-lsts)]
@@ -340,9 +340,9 @@
 		[(expr*2) (with-item 2 caddrexpr* expr*1)]
 		[(var2*2) (translate-var-through-changes (reverse extract-var2-full-changes) var2*1)]
 		[(relative-var2-loc*) (drop (s-var-loc var2*2) (length loc))]
-		[(canon-var1-changes) (late-canonicalize-var-changes '(1) (cadr expr*2))]
+		[(canon-var1-changes) (late-canonicalize-var-changes (append loc '(1)) (cadr expr*2))]
 		[(canon-var2-changes) (late-canonicalize-var-changes (s-var-loc var2*2) (location-get relative-var2-loc* expr*2))]
-		[(expr*3) (changes-apply (append canon-var1-changes canon-var2-changes) expr*2)]
+		[(expr*3) (changes-apply (make-chngs-rel (append canon-var1-changes canon-var2-changes) loc) expr*2)]
 		[(combine-changes var-combination)
 		 (let loop ([cur-expr expr*3] [cur-loc loc] [changes-acc '()])
 		   (if (and (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '*))
@@ -353,7 +353,7 @@
 				   changes-acc))
 		       (values (let* ([distribute-powers-change (let ([rl (get-rule 'expt-prod-up)])
 								  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))]
-				      [cur-expr* (change-apply distribute-powers-change cur-expr)]
+				      [cur-expr* (changes-apply (make-chngs-rel (list distribute-powers-change) loc) cur-expr)]
 				      [precompute-powers-change
 				       (change (rule 'precompute `(+ ,(s-var-pow var1) ,(s-var-pow var2))
 						     (+ (s-var-pow var1) (s-var-pow var2)) '())
@@ -582,7 +582,7 @@
 			    [cur-expr expr*])
 		   (cond [(and (list? cur-expr) (eq? (car cur-expr) '+))
 			  (let* ([inner-cleanup-changes (loop cur-coeff changes-acc (append cur-loc '(1)) cur-vars (cadr cur-expr))]
-				 [inner-expr* (changes-apply (drop-change-location-items inner-cleanup-changes (length loc)) expr*)])
+				 [inner-expr* (changes-apply (drop-change-location-items inner-cleanup-changes (add1 (length loc))) (cadr cur-expr))])
 			    (if (safe-= inner-expr* 0)
 				(append (list (let ([rl (get-rule '+-lft-identity)])
 						(change rl cur-loc
