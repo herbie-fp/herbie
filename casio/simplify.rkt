@@ -329,6 +329,11 @@
 		  (changes-apply (drop-change-location-items chngs (length loc)) cur-expr)
 		  (append changes-acc chngs)))))))
 
+(define (make-chngs-rel chngs loc)
+  (drop-change-location-items chngs (length loc)))
+(define (make-chngs-full chngs loc)
+  (append-to-change-locations chngs loc))
+
 (define (combine-*-changes var1 var2 expr loc)
   (let*-values ([(relative-var1-loc) (drop (s-var-loc var1) (length loc))]
 		[(extract-var1-changes expr*1) (mul-extract-changes expr relative-var1-loc)]
