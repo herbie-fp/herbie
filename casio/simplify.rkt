@@ -496,6 +496,12 @@
 			   (cons (let ([rl (get-rule 'associate-+-lft)])
 				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
 				 changes-acc))]
+		    [(andmap number? (cdr cur-expr))
+		     (let* ([val (eval cur-expr full-namespace)]
+			    [rl (rule 'precompute cur-expr val '())])
+		       (values (cons (change rl cur-loc '())
+				     changes-acc)
+			       (s-term val '() cur-loc)))]
 		    [(and (list? (cadr cur-expr)) (eq? (caadr cur-expr) '-)
 			  (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '-))
 		     (loop (list (car cur-expr) (cadadr cur-expr) (cadr (caddr cur-expr)))
