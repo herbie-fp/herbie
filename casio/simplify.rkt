@@ -362,7 +362,12 @@
 	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
 	     (values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
 				       (map invert-var (s-term-vars (caar sub-term-lsts)))
-				       loc))))])))
+				       loc))))]
+     [expt . ,handle-expt]
+     [sqr . ,(λ (loc expr sub-term-lsts)
+	       (handle-pow loc expr sub-term-lsts 2))]
+     [sqrt . ,(λ (loc expr sub-term-lsts)
+		(handle-pow loc expr sub-term-lsts 1/2))])))
 
 (define (cancel-coeff-changes expr loc)
   (let* ([lc-changes (late-canonicalize-term-changes loc expr)]
