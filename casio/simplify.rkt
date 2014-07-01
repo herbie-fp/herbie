@@ -185,13 +185,13 @@
 
 (struct s-atom (var loc) #:prefab)
 
-(struct s-var (var pow loc) #:prefab)
+(struct s-var (var pow loc inner-terms) #:prefab)
 (struct s-term (coeff vars loc) #:prefab)
 ;; Given an expression that does not break down,
 ;; such as (f x) for some unknown f, this gives
 ;; the canonical term representation of it.
 (define (expr-term atom-expr loc)
-  (s-term 1 (list (s-var atom-expr 1 loc)) loc))
+  (s-term 1 (list (s-var atom-expr 1 loc '())) loc))
 
 (define (term->expr term)
   (define (var->expr var)
@@ -233,7 +233,7 @@
   (define (handle-leaf loc leaf)
     (if (number? leaf)
 	(values '() (list (s-term leaf '() loc)))
-	(values '() (list (s-term 1 (list (s-var leaf 1 loc)) loc)))))
+	(values '() (list (s-term 1 (list (s-var leaf 1 loc '())) loc)))))
   ;; Takes a non-leaf node, the location at which it was found, and the terms
   ;; returned by handling it's sub-nodes, and returns a list of changes and terms
   ;; resulting from handling that node.
@@ -300,7 +300,7 @@
 		   (try-combine-* vars coeff expr loc))))]
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
-	       (s-var (s-var-var var) (- (s-var-pow var)) loc))
+	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
 	     (values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
 				       (map invert-var (s-term-vars (caar sub-term-lsts)))
 				       loc))))])))
@@ -354,7 +354,7 @@
 						     (+ (s-var-pow var1) (s-var-pow var2)) '())
 					       (append cur-loc '(2)) '())])
 				 (list* precompute-powers-change distribute-powers-change changes-acc))
-			       (s-var (s-var-var var1) (+ (s-var-pow var1) (s-var-pow var2)) cur-loc))))]
+			       (s-var (s-var-var var1) (+ (s-var-pow var1) (s-var-pow var2)) cur-loc (s-var-inner-terms var1)))))]
 		[(expr*4) (changes-apply (reverse (drop-change-location-items combine-changes (length loc))) expr*3)]
 		[(cleanup-changes)
 		 (cond [(= (s-var-pow var-combination) 0)
@@ -647,7 +647,8 @@
 
 (define (translate-var-through-changes changes var)
   (s-var (s-var-var var) (s-var-pow var)
-	 (translate-loc-through-changes changes (s-var-loc var))))
+	 (translate-loc-through-changes changes (s-var-loc var))
+	 (s-var-inner-terms var)))
 
 (define (s-atom-has-op? op atom)
   (let ([expr (s-atom-var atom)])
