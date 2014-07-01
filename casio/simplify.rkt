@@ -595,7 +595,7 @@
 				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
 				changes-acc)]
 			 [(= 1 cur-coeff)
-			  (cons (let ([rl (get-rule '*-lft-identity)])
+ 			  (cons (let ([rl (get-rule '*-lft-identity)])
 				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
 				changes-acc)]
 			 [#t '()]))])
