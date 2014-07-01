@@ -443,7 +443,7 @@
   (let loop ([rest-terms terms] [cur-expr expr] [changes-acc '()])
     (let ([match (find-matching-term-pair rest-terms)])
       (if (not match) (values changes-acc rest-terms)
-	  (let*-values ([(chngs term*) (combine-+-changes (car match) (cadr match) expr loc)]
+	  (let*-values ([(chngs term*) (combine-+-changes (car match) (cadr match) cur-expr loc)]
 			[(terms*) (map (curry translate-term-through-changes chngs) (remove* match rest-terms))])
 	    (loop (if (= 0 (s-term-coeff term*)) terms*
 		      (cons term* terms*))
