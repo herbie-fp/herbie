@@ -266,14 +266,7 @@
     final-changes))
 
 (define (default-node-handler loc expr sub-term-lsts)
-  (values '()
-	  (list (expr-term (cons (car expr)
-				 (map (λ (term-lst)
-					(let ([expr-lst (map term->expr term-lst)])
-					  (if (= 1 (length expr-lst))
-					      (car expr-lst)
-					      (cons '+ expr-lst))))
-				      sub-term-lsts)) loc))))
+  (values '() (list (s-term 1 (list (s-var expr 1 loc (car sub-term-lsts))) loc))))
 
 (define (handle-expt loc expr sub-term-lsts)
   (if (is-pow? expr)
