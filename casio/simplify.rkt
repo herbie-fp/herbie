@@ -360,7 +360,21 @@
      [sqr . ,(λ (loc expr sub-term-lsts)
 	       (handle-pow loc expr sub-term-lsts 2))]
      [sqrt . ,(λ (loc expr sub-term-lsts)
-		(handle-pow loc expr sub-term-lsts 1/2))])))
+		(handle-pow loc expr sub-term-lsts 1/2))]
+     [exp . ,(λ (loc expr sub-term-lsts)
+	       (if (matches? `(exp (log ,a)) expr)
+		   (values (list (let ([rl (get-rule 'rem-exp-log)])
+				   (change rl loc `((x . ,(cadr (cadr expr)))))))
+			   (map (curry drop-term-loc (length loc) 2)
+				(s-var-inner-terms (car (s-term-vars (caar sub-term-lsts))))))
+		   (default-node-handler loc expr sub-term-lsts)))]
+     [log . ,(λ (loc expr sub-term-lsts)
+	       (if (matches? `(log (exp ,a)) expr)
+		   (values (list (let ([rl (get-rule 'rem-log-exp)])
+				   (change rl loc `((x . ,(cadr (cadr expr)))))))
+			   (map (curry drop-term-loc (length loc) 2)
+				(s-var-inner-terms (car (s-term-vars (caar sub-term-lsts))))))
+		   (default-node-handler loc expr sub-term-lsts)))])))
 
 (define (cancel-coeff-changes expr loc)
   (let* ([lc-changes (late-canonicalize-term-changes loc expr)]
