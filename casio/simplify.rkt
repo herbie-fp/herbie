@@ -718,8 +718,8 @@
 (define (find-matching-term-pair terms)
   (let loop ([rest-terms terms])
     (if (null? rest-terms) #f
-	(let ([member-res (member (car rest-terms) (cdr rest-terms)
-				  s-terms-match?)])
+	(let ([member-res (memf (curry s-terms-match? (car rest-terms))
+				(cdr rest-terms))])
 	  (if member-res
 	      (list (car rest-terms) (car member-res))
 	      (loop (cdr rest-terms)))))))
