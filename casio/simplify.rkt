@@ -727,8 +727,10 @@
 (define (find-matching-var-pair vars)
   (let loop ([rest-vars vars])
     (if (null? rest-vars) #f
-	(let ([member-res (member (car rest-vars) (cdr rest-vars)
-				  (λ (v1 v2) (eq? (s-var-var v1) (s-var-var v2))))])
+	(let ([member-res (memf (λ (v2)
+				  (eq? (s-var-var (car rest-vars))
+				       (s-var-var v2)))
+				(cdr rest-vars))])
 	  (if member-res
 	      (list (car rest-vars) (car member-res))
 	      (loop (cdr rest-vars)))))))
