@@ -297,7 +297,7 @@
 	 (s-var-pow var)
 	 (append (take (s-var-loc var) i)
 		 (drop (s-var-loc var) (+ i n)))
-	 (map (curry drop-term-loc n) (s-var-inner-terms var))))
+	 (map (curry drop-term-loc i n) (s-var-inner-terms var))))
 
 (define (handle-pow loc expr sub-term-lsts pow)
   (cond [(is-pow? (cadr expr))
@@ -450,7 +450,7 @@
 
 (define (late-canonicalize-var-changes loc expr)
   (define (get-merge-chngs loc expr)
-    (if (not (list? expr)) '()
+    (if (not (is-pow? expr)) '()
 	(cond [(and (= 2 (length expr)) (eq? (car expr) '/))
 	       (append (get-merge-chngs loc `(expt ,(cadr expr) -1))
 		       (list (let ([rl (get-rule 'inv-expt)])
@@ -469,7 +469,7 @@
 		      [cadr-expr* (changes-apply (reverse (drop-change-location-items
 							       inner-canonicalize-changes (add1 (length loc)))) (cadr expr))]
 		      [expr* (with-item 1 cadr-expr* expr)]
-		      [inner-pow (if (not (list? cadr-expr*)) 1
+		      [inner-pow (if (not (is-pow? cadr-expr*)) 1
 				     (caddr cadr-expr*))]
 		      [outer-pow (caddr expr*)]
 		      [new-pow (* inner-pow outer-pow)])
