@@ -309,7 +309,14 @@
 		  (values (append canon-changes
 				  (list (let ([rl (get-rule 'unexpt1)])
 					  (change rl loc `((a . ,(cadr expr*)))))))
-			  (map (curry drop-term-loc (length loc) 2) (s-var-inner-terms inner-var)))]
+			  (map (curry drop-term-loc (length loc) 1)
+			       (if (null? (s-var-inner-terms inner-var))
+				   (map (λ (t) (s-term 1 (map (λ (v) (s-var (s-var-var v) 1 (s-var-loc v) (s-var-inner-terms v)))
+							      (s-term-vars t))
+						       (s-term-loc t)))
+					(car sub-term-lsts))
+				   (map (curry drop-term-loc (length loc) 1)
+					(s-var-inner-terms inner-var)))))]
 		 [(matches? `(expt (expt ,a ,b) ,c) expr*)
 		  (values '()
 			  (list (s-term 1 (list (s-var (s-var-var inner-var) (* (s-var-pow inner-var) pow)
@@ -320,7 +327,13 @@
 							  loc (map (curry drop-term-loc (length loc) 1)
 								   (s-var-inner-terms inner-var))))
 					   loc)))]))]
-	[#t (values '() (list (s-term 1 (list (s-var (cadr expr) pow loc (car sub-term-lsts))) loc)))]))
+	[#t (values '() (if (< 1 (length (car sub-term-lsts)))
+			    (list (s-term 1 (list (s-var (cadr expr) pow loc (car sub-term-lsts))) loc))
+			    (let ([inner-vars (s-term-vars (caar sub-term-lsts))])
+			      (list (s-term 1 (map (λ (v)
+						     (drop-var-loc (length loc) 1 (s-var (s-var-var v) (* pow (s-var-pow v))
+											 (s-var-loc v) (s-var-inner-terms v))))
+						   inner-vars) loc)))))]))
 
 (define *node-handlers*
   (make-immutable-hasheq
