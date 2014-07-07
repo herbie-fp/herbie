@@ -950,6 +950,12 @@
 		     (rule-locs->changes loc (list (cons (get-rule '*-commutative) '() #|this is the location of the change, relative to the base location, loc|#)
 						   (cons (get-rule 'distribute-lft-in) '())) cur-expr*)
 		     sub-changes)]
+	    [`(* (- ,a) (- ,b))
+	     (append (canonicalize-expr loc `(* ,a ,b))
+		     (list (rule-apply->change (get-rule 'remove-double-neg) loc `(- (- (* ,a ,b))))
+			   (rule-apply->change (get-rule 'distribute-lft-neg-out) (append loc (list 1)) `(* (- ,a) ,b))
+			   (rule-apply->change (get-rule 'distribute-rgt-neg-out) loc cur-expr*))
+		     sub-changes)]
 	    [`(* (- ,a) ,b)
 	     (append (canonicalize-expr (append loc (list 1)) `(* ,a ,b))
 		     (list (rule-apply->change (get-rule 'distribute-lft-neg-out) loc cur-expr*))
