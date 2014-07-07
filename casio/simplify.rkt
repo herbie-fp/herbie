@@ -401,6 +401,83 @@
 (define (drop-range i n lst)
   (append (take lst i) (drop lst (+ i n))))
 
+;; These changes come out in applicative order.
+(define (distribute-neg-in expr sub-terms loc)
+  (match expr
+    [`(- (+ ,a ,b))
+     (let*-values ([(lft-terms rgt-terms) (partition (compose (curry = 1) cadr
+							      (curryr drop (length loc)) s-term-loc)
+						     sub-terms)]
+		   [(lft-chngs lft-terms*) (distribute-neg-in `(- ,a) lft-terms (append loc '(1)))]
+		   [(rgt-chngs rgt-terms*) (distribute-neg-in `(- ,b)
+							      (map (curry swap-tloc-elements (length loc) (add1 (length loc)))
+								   rgt-terms)
+							      (append loc '(2)))])
+       (values (append (list (let ([rl (get-rule 'distribute-neg-in)])
+			       (change rl loc `((a . ,a)
+						(b . ,b)))))
+		       lft-chngs
+		       rgt-chngs)
+	       (append lft-terms* rgt-terms*)))]
+    [`(- (- ,a))
+     (values (list (let ([rl (get-rule 'remove-double-neg)])
+		     (change rl loc `((a . ,a)))))
+	     (if (= 1 (length sub-terms))
+		 (list (varmap (λ (v)
+				 (s-var-with-loc (drop-range (length loc) 2 (s-var-loc v)) v))
+			       (s-term-with-loc* loc (negate-coeff (car sub-terms)))))
+		 (error "Bad distribution of negatives: " expr)))]
+    [`(- ,a)
+     (if (number? a)
+	 (values (list (let ([rl (rule 'precompute `(- ,a) (- a) '())])
+			 (change rl loc '())))
+		 (list (s-term (- a) '() loc)))
+	 (values '()
+		 (if (= 1 (length sub-terms))
+		     (list (s-term-with-loc* (let ([oloc (s-term-loc (car sub-terms))])
+					       (take oloc (sub1 (length oloc))))
+					     (negate-coeff (car sub-terms))))
+		     (error "Bad distribution of negatives: " expr))))]
+    [_ (values '() sub-terms)]))
+
+(define (distribute-inv-in expr sub-vars loc)
+  (match expr
+    [`(/ (* ,a ,b))
+     (let*-values ([(lft-vars rgt-vars) (partition (compose (curry = 1) cadr
+							    (curryr drop (length loc)) s-var-loc)
+						   sub-vars)]
+		   [(lft-chngs lft-vars*) (distribute-inv-in `(/ ,a) lft-vars (append loc '(1)))]
+		   [(rgt-chngs rgt-vars*) (distribute-inv-in `(/ ,b)
+							     (map (curry swap-vloc-elements (length loc) (add1 (length loc)))
+								  rgt-vars)
+							     (append loc '(2)))])
+       (values (append (list (let ([rl (get-rule 'distribute-inv-in)])
+			       (change rl loc `((a . ,a)
+						(b . ,b)))))
+		       lft-chngs
+		       rgt-chngs)
+	       (append lft-vars* rgt-vars*)))]
+    [`(/ (/ ,a))
+     (values (list (let ([rl (get-rule 'remove-double-div)])
+		     (change rl loc `((a . ,a)))))
+	     (if (= 1 (length sub-vars))
+		 (list (s-var-with-loc (let ([oloc (s-var-loc (car sub-vars))])
+					   (take oloc (sub1 (length oloc))))
+				       (invert-var (car sub-vars))))
+		 (error "Bad distribution of inverses: " expr)))]
+    [`(/ ,a)
+     (if (number? a)
+	 (values (list (let ([rl (rule 'precompute `(/ ,a) (/ a) '())])
+			 (change rl loc '())))
+		 (list (s-term (/ a) '() loc)))
+	 (values '()
+		 (if (= 1 (length sub-vars))
+		     (list (s-var-with-loc (let ([oloc (s-var-loc (car sub-vars))])
+					     (take oloc (sub1 (length oloc))))
+					   (invert-var (car sub-vars))))
+		     (error "Bad distribution of inverses: " expr))))]
+    [_ (values '() sub-vars)]))
+
 (define *node-handlers*
   (make-immutable-hasheq
    `([+ . ,(λ (loc expr sub-term-lsts)
