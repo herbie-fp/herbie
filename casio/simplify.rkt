@@ -666,7 +666,7 @@
 				     (list (let ([rl (get-rule 'unexpt1)])
 					     (change rl (append loc '(2)) `((a . ,(cadr (caddr expr*)))))))]
 				    [#t '()])])
-    (append remove-expt-changes precombining-constants-changes ordering-changes)))
+    (append remove-expt-changes precombining-constants-changes ordering-changes canon-v-changes)))
 
 ;; Returns changes in applicative order.
 (define (combine-+-changes term1 term2 expr loc)
