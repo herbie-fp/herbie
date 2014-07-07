@@ -339,6 +339,68 @@
 											 (s-var-loc v) (s-var-inner-terms v))))
 						   inner-vars) loc)))))]))
 
+(define (negate-coeff term)
+  (s-term (- (s-term-coeff term))
+	  (s-term-vars term)
+	  (s-term-loc term)))
+
+(define (invert-var var)
+  (s-var (s-var-var var)
+	 (- (s-var-pow var))
+	 (s-var-loc var)
+	 (s-var-inner-terms var)))
+
+(define (s-term-with-loc loc term)
+  (s-term (s-term-coeff term)
+	  (map (λ (v)
+		 (s-var-with-loc
+		  (append loc
+			  (drop (s-var-loc v) (length (s-term-loc term))))
+		  v))
+	       (s-term-vars term)) loc))
+
+;; Functionally mutate the terms location, without updating it's vars.
+(define (s-term-with-loc* loc term)
+  (s-term (s-term-coeff term)
+	  (s-term-vars term) loc))
+
+(define (s-var-with-loc loc var)
+  (s-var (s-var-var var) (s-var-pow var)
+	 loc (map (λ (t)
+		    (s-term-with-loc
+		     (append loc
+			     (drop (s-term-loc t)
+				   (length (s-var-loc var))))
+		     t))
+		  (s-var-inner-terms var))))
+
+(define (s-term-with-vars term vars)
+  (s-term (s-term-coeff term) vars (s-term-loc term)))
+
+(define (varmap f term . lsts)
+  (s-term-with-vars term (apply (curry map f (s-term-vars term)) lsts)))
+
+(define (swap-tloc-elements i j term)
+  (s-term-with-loc
+   (let* ([old-loc (s-term-loc term)]
+	  [old-i-item (list-ref old-loc i)]
+	  [old-j-item (list-ref old-loc j)])
+     (with-item i old-j-item
+		(with-item j old-i-item old-loc)))
+   term))
+
+(define (swap-vloc-elements i j var)
+  (s-var-with-loc
+   (let* ([old-loc (s-var-loc var)]
+	  [old-i-item (list-ref old-loc i)]
+	  [old-j-item (list-ref old-loc j)])
+     (with-item i old-j-item
+		(with-item j old-i-item old-loc)))
+   var))
+
+(define (drop-range i n lst)
+  (append (take lst i) (drop lst (+ i n))))
+
 (define *node-handlers*
   (make-immutable-hasheq
    `([+ . ,(λ (loc expr sub-term-lsts)
