@@ -512,16 +512,16 @@
 (define (combine-*-changes var1 var2 expr loc)
   (let*-values ([(relative-var1-loc) (drop (s-var-loc var1) (length loc))]
 		[(extract-var1-changes expr*1) (mul-extract-changes expr relative-var1-loc)]
-		[(extract-var1-full-changes) (append-to-change-locations extract-var1-changes loc)]
+		[(extract-var1-full-changes) (reverse (append-to-change-locations extract-var1-changes loc))]
 		[(var2*1) (translate-var-through-changes extract-var1-full-changes var2)]
 		[(relative-var2-loc) (drop (s-var-loc var2*1) (length loc))]
 		[(extract-var2-changes caddrexpr*) (mul-extract-changes (caddr expr*1) (drop relative-var2-loc 1))]
-		[(extract-var2-full-changes) (append-to-change-locations extract-var2-changes (append loc '(2)))]
+		[(extract-var2-full-changes) (reverse (append-to-change-locations extract-var2-changes (append loc '(2))))]
 		[(expr*2) (with-item 2 caddrexpr* expr*1)]
-		[(var2*2) (translate-var-through-changes (reverse extract-var2-full-changes) var2*1)]
+		[(var2*2) (translate-var-through-changes extract-var2-full-changes var2*1)]
 		[(relative-var2-loc*) (drop (s-var-loc var2*2) (length loc))]
-		[(canon-var1-changes) (late-canonicalize-var-changes (append loc '(1)) (cadr expr*2))]
-		[(canon-var2-changes) (late-canonicalize-var-changes (s-var-loc var2*2) (location-get relative-var2-loc* expr*2))]
+		[(canon-var1-changes) (reverse (late-canonicalize-var-changes (append loc '(1)) (cadr expr*2)))]
+		[(canon-var2-changes) (reverse (late-canonicalize-var-changes (s-var-loc var2*2) (location-get relative-var2-loc* expr*2)))]
 		[(expr*3) (changes-apply (make-chngs-rel (append canon-var1-changes canon-var2-changes) loc) expr*2)]
 		[(combine-changes var-combination)
 		 (let loop ([cur-expr expr*3] [cur-loc loc] [changes-acc '()])
@@ -552,10 +552,10 @@
 			(list (let ([rl (get-rule 'unexpt1)])
 				(change rl (s-var-loc var-combination) `((a . ,(s-var-var var-combination))))))]
 		       [#t '()])])
-    (values (append (reverse extract-var1-full-changes)
-		    (reverse extract-var2-full-changes)
-		    (reverse canon-var1-changes)
-		    (reverse canon-var2-changes)
+    (values (append extract-var1-full-changes
+		    extract-var2-full-changes
+		    canon-var1-changes
+		    canon-var2-changes
 		    (reverse combine-changes)
 		    cleanup-changes)
 	    var-combination)))
