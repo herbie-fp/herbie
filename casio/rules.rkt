@@ -54,6 +54,7 @@
 (define-rule   distribute-rgt-neg-out (* a (- b))          (- (* a b)))
 (define-rule   distribute-neg-in     (- (+ a b))           (+ (- a) (- b)))
 (define-rule   distribute-neg-out    (+ (- a) (- b))       (- (+ a b)))
+(define-rule   distribute-inv-in     (/ (* a b))           (* (/ a) (/ b)))
 
 ; Difference of squares
 (define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify ((1) (2)))
@@ -117,6 +118,7 @@
   #:simplify ((1) (2)))
 (define-rule   sqrt-undiv        (/ (sqrt x) (sqrt y)) (sqrt (/ x y))
   #:simplify ((1)))
+(define-rule   sqr-neg           (sqr (- x))        (sqr x))
 
 ; Exponentials
 (define-rule   add-exp-log  x                    (exp (log x)))
