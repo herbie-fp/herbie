@@ -978,6 +978,11 @@
 		     (canonicalize-expr (append loc (list 2)) `(sqr ,b))
 		     (list (rule-apply->change (get-rule 'square-prod) loc cur-expr*))
 		     sub-changes)]
+	    [`(expt (* ,a ,b) ,c)
+	     (append (canonicalize-expr (append loc (list 1)) `(expt ,a ,c))
+		     (canonicalize-expr (append loc (list 2)) `(expt ,b ,c))
+		     (list (rule-apply->change (get-rule 'unexpt-prod-down) loc cur-expr*))
+		     sub-changes)]
 	    [`(sqrt (* ,a ,b))
 	     (append (canonicalize-expr (append loc (list 1)) `(sqrt ,a))
 		     (canonicalize-expr (append loc (list 2)) `(sqrt ,b))
