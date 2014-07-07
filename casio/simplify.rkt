@@ -620,6 +620,9 @@
 		      (append (loop (cadr cur-expr) (append cur-loc '(1)))
 			      (loop (caddr cur-expr) (append cur-loc '(2))))
 		      (list (s-atom cur-expr cur-loc))))]
+	 [canon-v-changes (apply append (map (λ (atom) (late-canonicalize-var-changes (s-atom-loc atom)
+										      (s-atom-var atom)))
+					     atoms))]
 	 [sorted-atoms (sort atoms s-atom<?)]
 	 [ordering-changes (let loop ([cur-expr expr] [rest-atoms sorted-atoms]
 				      [changes-acc '()] [cur-loc loc])
