@@ -405,7 +405,16 @@
   (make-immutable-hasheq
    `([+ . ,(λ (loc expr sub-term-lsts)
 	     (let ([sub-terms (apply append sub-term-lsts)])
-	       (try-combine-+ sub-terms expr loc)))]
+	       (match expr
+		 [`(+ 0 ,a) (values (list (let ([rl (get-rule '+-lft-identity)])
+					    (change rl loc `((a . ,a)))))
+				    (map (curry drop-term-loc (length loc) 1)
+					 sub-terms))]
+		 [`(+ ,a 0) (values (list (let ([rl (get-rule '+-rgt-identity)])
+					    (change rl loc `((a . ,a)))))
+				    (map (curry drop-term-loc (length loc) 1)
+					 sub-terms))]
+		 [_ (try-combine-+ sub-terms expr loc)])))]
      [- . ,(λ (loc expr sub-term-lsts)
 	     (define (negate-term term)
 	       (s-term (- (s-term-coeff term)) (s-term-vars term) loc))
@@ -417,18 +426,39 @@
 					       right-subterms))])
 		   (try-combine-+ subterms expr loc))))]
      [* . ,(λ (loc expr sub-term-lsts)
-	     (let ([vars (sort (append (if (> (length (car sub-term-lsts)) 1) '()
-					   (s-term-vars (caar sub-term-lsts)))
-				       (if (> (length (cadr sub-term-lsts)) 1) '()
-					   (s-term-vars (caadr sub-term-lsts))))
-			       s-var<?)]
-		   [coeff (* (if (> (length (car sub-term-lsts)) 1) 1
-				 (s-term-coeff (caar sub-term-lsts)))
-			     (if (> (length (cadr sub-term-lsts)) 1) '()
-				 (s-term-coeff (caadr sub-term-lsts))))])
-	       (if (= 0 coeff)
-		   (cancel-coeff-changes expr loc)
-		   (try-combine-* vars coeff expr loc))))]
+	     (match expr
+	       [`(* 0 ,a)
+		(values (list (let ([rl (get-rule 'mul0)])
+				(change rl loc `((a . ,a)))))
+			'())]
+	       [`(* ,a 0)
+		(values (list (let ([rl (get-rule '*-commutative)])
+				(change rl loc `((a . ,a) (b . 0))))
+			      (let ([rl (get-rule 'mul0)])
+				(change rl loc `((a . ,a)))))
+			'())]
+	       [`(* 1 ,a)
+		(values (list (let ([rl (get-rule '*-lft-identity)])
+				(change rl loc `((a . ,a)))))
+			(map (curry drop-term-loc (length loc) 1) (cadr sub-term-lsts)))]
+	       [`(* ,a 1)
+		(values (list (let ([rl (get-rule '*-commutative)])
+				(change rl loc `((a . ,a) (b . 1))))
+			      (let ([rl (get-rule '*-lft-identity)])
+				(change rl loc `((a . ,a)))))
+			(map (curry drop-term-loc (length loc) 1) (car sub-term-lsts)))]
+	       [_ (let ([vars (sort (append (if (> (length (car sub-term-lsts)) 1) '()
+						(s-term-vars (caar sub-term-lsts)))
+					    (if (> (length (cadr sub-term-lsts)) 1) '()
+						(s-term-vars (caadr sub-term-lsts))))
+				    s-var<?)]
+			[coeff (* (if (> (length (car sub-term-lsts)) 1) 1
+				      (s-term-coeff (caar sub-term-lsts)))
+				  (if (> (length (cadr sub-term-lsts)) 1) 1
+				      (s-term-coeff (caadr sub-term-lsts))))])
+		    (if (= 0 coeff)
+			(cancel-coeff-changes expr loc)
+			(try-combine-* vars coeff expr loc)))]))]
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
 	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
