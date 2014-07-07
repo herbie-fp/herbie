@@ -462,9 +462,20 @@
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
 	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
-	     (values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
-				       (map invert-var (s-term-vars (caar sub-term-lsts)))
-				       loc))))]
+	     (cond [(< 1 (length sub-term-lsts))
+		    (error "Binary division should not appear in canonicalized expressions!: " expr)]
+		   [(= 1 (length (car sub-term-lsts)))
+		    (if (< 1 (length (s-term-vars (caar sub-term-lsts))))
+			(let-values ([(chngs vars*) (distribute-inv-in expr (s-term-vars (caar sub-term-lsts)))])
+			  (values chngs
+				  (s-term (/ (s-term-coeff (caar sub-term-lsts)))
+					  vars*
+					  loc)))
+			(values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
+						  (map invert-var (s-term-vars (caar sub-term-lsts)))
+						  loc))))]
+		   [#t (values
+			'() (list (s-term 1 (list (s-var (cadr expr) -1 loc (car sub-term-lsts))) loc)))]))]
      [expt . ,handle-expt]
      [sqr . ,(λ (loc expr sub-term-lsts)
 	       (handle-pow loc expr sub-term-lsts 2))]
