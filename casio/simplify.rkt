@@ -893,111 +893,6 @@
 (define add-extract-changes (curry loc->extract-changes (get-rule 'associate-+-rgt) (get-rule 'associate-+-lft) (get-rule '+-commutative)))
 (define mul-extract-changes (curry loc->extract-changes (get-rule 'associate-*-rgt) (get-rule 'associate-*-lft) (get-rule '*-commutative)))
 
-(define (multiplicitave-cancel vni-atom inv-atom rest-atom-lists expr loc)
-  (let-values ([(extract-vni-atom-changes expr*) (mul-extract-changes expr (drop (s-atom-loc vni-atom) (length loc)))])
-    (let ([inv-atom* (translate-atom-through-changes (append-to-change-locations
-						      (reverse extract-vni-atom-changes)
-						      loc)
-						     inv-atom)])
-      (let-values ([(extract-inv-atom-changes caddrexpr*) (mul-extract-changes (caddr expr*)
-									       (drop (s-atom-loc inv-atom*)
-										     (add1 (length loc))))])
-	(let* ([expr* (list (car expr*) (cadr expr*) (caddr expr*))]
-	       [cancel-changes (let ([cancelling-loc (if (equal? caddrexpr* (s-atom-var inv-atom)) '() '(1))])
-				 (append (if (equal? cancelling-loc '())
-					     '()
-					     (list (let ([rl (get-rule '*-lft-identity)])
-						     (change rl '() `((a . ,(caddr caddrexpr*)))))))
-					 (list (let ([rl (get-rule '*-inverses)])
-						 (change rl cancelling-loc `((a . ,(s-atom-var vni-atom)))))
-					       (let ([rl (get-rule 'un-div-inv)]
-						     [var (s-atom-var vni-atom)])
-						 (change rl cancelling-loc `((a . ,var) (b . ,var)))))
-					 (if (equal? cancelling-loc '())
-					     '()
-					     (list (let ([rl (get-rule 'associate-*-lft)])
-						     (change rl '() (pattern-match (rule-input rl) expr*)))))))]
-	       [all-changes (append-to-change-locations (append cancel-changes
-								(append-to-change-locations extract-inv-atom-changes '(2))
-								extract-vni-atom-changes) loc)]
-	       [new-atom-lists (map (λ (list) (map (curry translate-atom-through-changes (reverse all-changes)) list)) rest-atom-lists)])
-	  (values all-changes new-atom-lists))))))
-
-;; Positive atom should come first, then negative atom.
-;; Returns a list of cancelling changes, and the new
-;; atoms.
-(define (additive-cancel pos-atom neg-atom rest-atom-lists expr loc)
-  (let-values ([(extract-pos-atom-changes expr*) (add-extract-changes expr (drop (s-atom-loc pos-atom) (length loc)))])
-    (let ([neg-atom* #|neg-atom might have moved now (probably did)|# (translate-atom-through-changes
-								       (append-to-change-locations (reverse extract-pos-atom-changes)
-												   loc)
-								       neg-atom)])
-      (let-values ([(extract-neg-atom-changes caddrexpr*) (add-extract-changes (caddr expr*)
-									       (drop (s-atom-loc neg-atom*)
-										     (add1 (length loc))))])
-	(let* ([expr* (list (car expr*) (cadr expr*) caddrexpr*)]
-	       [cancel-changes (let ([cancelling-loc (if (equal? caddrexpr* (s-atom-var neg-atom)) '() '(1))])
-				 (append (if (equal? cancelling-loc '())
-					     '()
-					     (list (let ([rl (get-rule '+-lft-identity)])
-						     (change rl '() `((a . ,(caddr caddrexpr*)))))))
-					 (list (let ([rl (get-rule '+-inverses)])
-						 (change rl cancelling-loc `((a . ,(s-atom-var pos-atom)))))
-					       (let ([rl (get-rule 'unsub-neg)])
-						 (change rl cancelling-loc `((a . ,(s-atom-var pos-atom)) (b . ,(s-atom-var pos-atom))))))
-					 (if (equal? cancelling-loc '())
-					     '()
-					     (list (let ([rl (get-rule 'associate-+-lft)])
-						     (change rl '() (pattern-match (rule-input rl) expr*)))))))]
-	       [all-changes (append-to-change-locations (append cancel-changes
-								(append-to-change-locations extract-neg-atom-changes '(2))
-								extract-pos-atom-changes) loc)]
-	       [new-atom-lists (map (λ (list) (map (curry translate-atom-through-changes (reverse all-changes)) list)) rest-atom-lists)])
-	  (values all-changes new-atom-lists))))))
-
-(define (try-multiplicitave-cancel expr atoms loc)
-  (let-values ([(inv-atoms vni-atoms) (partition (curry s-atom-has-op? '/) atoms)])
-    (let loop ([rest-vni vni-atoms] [rest-inv inv-atoms] [cur-expr expr] [changes '()] [done-vni-atoms '()])
-      (if (null? rest-vni) (values changes (append rest-inv done-vni-atoms))
-	  (let ([matching-invs (filter (compose (curry equal? `(/ ,(s-atom-var (car rest-vni)))) s-atom-var) rest-inv)])
-	    (if (null? matching-invs)
-		(loop (cdr rest-vni) rest-inv cur-expr changes (cons (car rest-vni) done-vni-atoms))
-		(let ([cancelling-inv (argmin (compose length s-atom-loc) matching-invs)])
-		  (let*-values ([(new-changes atom-lists*) (multiplicitave-cancel (car rest-vni)
-										  cancelling-inv
-										  (list (cdr rest-vni)
-											(remove cancelling-inv rest-inv)
-											done-vni-atoms)
-										  cur-expr
-										  loc)])
-		    (let ([expr* (changes-apply (drop-change-location-items (reverse new-changes) (length loc)) cur-expr)])
-		      (loop (car atom-lists*) (cadr atom-lists*) expr* (append new-changes changes) (caddr atom-lists*)))))))))))
-
-;; Changes that come out of here are in reverse-applicative order.
-(define (try-additive-cancel expr atoms loc)
-  (let-values ([(neg-atoms pos-atoms) (partition (curry s-atom-has-op? '-) atoms)])
-    (let loop ([rest-pos pos-atoms] [rest-neg neg-atoms] [cur-expr expr] [changes '()] [done-pos-atoms '()])
-      (if (null? rest-pos) (values changes (append rest-neg done-pos-atoms))
-	  (let ([matching-negs (filter (compose (curry equal? `(- ,(s-atom-var (car rest-pos)))) s-atom-var) rest-neg)])
-	    (if (null? matching-negs)
-		(loop (cdr rest-pos) rest-neg cur-expr changes (cons (car rest-pos) done-pos-atoms))
-		(let ([cancelling-neg (argmin (compose length s-atom-loc) matching-negs)])
-		  (let*-values ([(new-changes atom-lists*) (additive-cancel (car rest-pos)
-									    cancelling-neg
-									    (list (cdr rest-pos)
-										  (remove cancelling-neg rest-neg)
-										  done-pos-atoms)
-									    cur-expr
-									    loc)])
-		    (let ([expr* (changes-apply (drop-change-location-items (reverse new-changes) (length loc)) cur-expr)])
-		      (loop (car atom-lists*) (cadr atom-lists*) expr* (append new-changes changes) (caddr atom-lists*)))))))))))
-
-;; Gets all the rules which reduce an expression
-(define reduction-rules
-  (filter (lambda (rule) ; We filter through the total list of rules
-	    (symbol? (rule-output rule)))
-	  *rules*))
-
 ;;Try to apply a list of rules to an expression.
 (define (attempt-apply-all rules expr loc)
   (ormap (curry attempt-apply expr loc) rules))
@@ -1009,65 +904,6 @@
   (let ([match (pattern-match (rule-input arule) expr)])
     (and match ; If we have bindings, apply them. Otherwise, jut return the expression.
 	 (change arule loc match))))
-
-(define (resolve expr)
-  (define (resolve-subexpressions loc expr)
-    (let loop ([subexprs (cdr expr)] [changes-acc '()] [atoms-acc '()] [pos 1])
-      (if (null? subexprs)
-	  (values changes-acc atoms-acc)
-	  (let-values ([(new-changes new-atoms)
-			(resolve-expression (append loc (list pos)) (car subexprs))])
-	    (let ([carsubexprs* (changes-apply (reverse (drop-change-location-items new-changes (add1 (length loc)))) (car subexprs))])
-	      (loop (cdr subexprs) (append new-changes changes-acc)
-		    (if (and (list? carsubexprs*) (eq? (car expr) (car carsubexprs*)))
-			(append new-atoms atoms-acc)
-			(cons (s-atom carsubexprs* (append loc (list pos))) atoms-acc))
-		    (add1 pos)))))))
-  (define (try-reduce expr loc)
-    (let ([applicable-reduction (attempt-apply-all reduction-rules expr '())])
-      (if (not applicable-reduction)
-	  (values '() (list (s-atom expr loc)))
-	  (let ([expr* (change-apply applicable-reduction expr)])
-	    (let-values ([(changes atoms) (resolve-expression loc expr*)])
-	      (values (append (append-to-change-locations (list applicable-reduction) loc) changes) atoms))))))
-  (define (safe-= expr val)
-    (and (number? expr) (= expr val)))
-  ;; resolve-expression returns two values: The changes that should be made at this level or below,
-  ;; and a list of s-atoms that exist at this level or below, but only within the current
-  ;; operator.
-  (define (resolve-expression loc expr)
-    (if (not (list? expr)) (values '() (list (s-atom expr loc))) ;; Base case.
-	(let-values ([(sub-changes sub-atoms) (resolve-subexpressions loc expr)])
-	  (let* ([expr* (changes-apply (reverse (drop-change-location-items sub-changes (length loc))) expr)]
-		 [precompute-changes (try-precompute expr* loc)])
-	    (if (not (null? precompute-changes))
-		(values (append precompute-changes sub-changes) (list (s-atom (changes-apply (drop-change-location-items precompute-changes
-															 (length loc))
-											     expr*)
-									      loc)))
-		(cond [(and (eq? (car expr*) '/) (safe-= (cadr expr*) 1))
-		       (values (list (let ([rl (get-rule 'div1)])
-				       (change rl loc '())))
-			       (s-atom 1 loc))]
-		      [(and (eq? (car expr*) '*) (safe-= (cadr expr*) 1))
-		       (let-values ([(changes atoms) (resolve-expression loc (caddr expr*))])
-			 (let ([rl (get-rule '*-lft-identity)])
-			   (values (cons (change rl loc `((a . ,(caddr expr*)))) sub-changes) atoms)))]
-		      [(and (eq? (car expr*) '*) (safe-= (caddr expr*) 1))
-		       (let-values ([(changes atoms) (resolve-expression loc (cadr expr*))])
-			 (let ([rl (get-rule '*-lft-identity)])
-			   (values (cons (change rl loc `((a . ,(cadr expr*)))) sub-changes) atoms)))]
-		      [(eq? (car expr*) '+) ;; This counld just as easily be (eq? (car expr) '+), since the operator shouldn't change.
-		       (let-values ([(changes atoms) (try-additive-cancel expr* sub-atoms loc)])
-			 (values (append changes sub-changes) atoms))]
-		      [(eq? (car expr*) '*)
-		       (let-values ([(changes atoms) (try-multiplicitave-cancel expr* sub-atoms loc)])
-			 (values (append changes sub-changes) atoms))]
-		      [#t
-		       (let-values ([(changes atoms) (try-reduce expr* loc)])
-			 (values (append changes sub-changes) atoms))]))))))
-  (let-values ([(changes atoms) (resolve-expression '() expr)])
-    (reverse changes)))
 
 (define (canonicalize expr)
   ;; Creates a change object for applying the given rule
@@ -1103,10 +939,6 @@
 	     (append (canonicalize-expr loc `(+ (- ,a) (- ,b)))
 		     (list (rule-apply->change (get-rule 'distribute-neg-in) loc cur-expr*))
 		     sub-changes)]
-	    [`(+ ,a ,b)
-	     (if (expr<? b a) (cons (rule-apply->change (get-rule '+-commutative) loc cur-expr*)
-				    sub-changes)
-		 sub-changes)]
 	    [`(* ,a (+ ,b ,c))
 	     (append (canonicalize-expr (append loc (list 1)) `(* ,a ,b))
 		     (canonicalize-expr (append loc (list 2)) `(* ,a ,c))
@@ -1126,14 +958,17 @@
 	     (append (canonicalize-expr (append loc (list 1)) `(* ,a ,b))
 		     (list (rule-apply->change (get-rule 'distribute-rgt-neg-out) loc cur-expr*))
 		     sub-changes)]
-	    [`(* ,a ,b)
-	     (if (expr<? b a) (cons (rule-apply->change (get-rule '*-commutative) loc cur-expr*)
-				    sub-changes)
-		 sub-changes)]
 	    [`(/ ,a ,b)
 	     (append (canonicalize-expr loc `(* ,a (/ ,b)))
 		     (list (rule-apply->change (get-rule 'div-inv) loc cur-expr*))
 		     sub-changes)]
+	    [`(/ (* ,a ,b))
+	     (append (canonicalize-expr loc `(* (/ ,a) (/ ,b)))
+		     (list (rule-apply->change (get-rule 'distribute-inv-in) loc cur-expr*))
+		     sub-changes)]
+	    [`(/ (/ ,a))
+	     (cons (rule-apply->change (get-rule 'remove-double-div) loc cur-expr*)
+		   sub-changes)]
 	    [`(* ,a ,a)
 	     (append (canonicalize-expr loc `(sqr a))
 		     (list (rule-apply->change (get-rule 'square-unmult) loc cur-expr*))
