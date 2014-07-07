@@ -275,7 +275,8 @@
 		 (map (curry drop-term-loc (length loc) 1) (car sub-term-lsts)))]
 	[(is-pow? expr)
 	 (handle-pow loc expr sub-term-lsts (caddr expr))]
-	[#t (s-term 1 (s-var expr 1 loc (car sub-term-lsts)) loc)]))
+	[#t (values '()
+		    (list (s-term 1 (list (s-var expr 1 loc (car sub-term-lsts))) loc)))]))
 
 (define (is-pow? expr)
   (and (list? expr)
