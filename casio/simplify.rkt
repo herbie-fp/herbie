@@ -321,8 +321,8 @@
 					(car sub-term-lsts))))]
 		 [(matches? `(expt (expt ,a ,b) ,c) expr*)
 		  (values '()
-			  (list (s-term 1 (list (s-var (s-var-var inner-var) (* (s-var-pow inner-var) pow)
-						       loc (s-var-inner-terms inner-var)))
+			  (list (s-term 1 (list (s-var (cadr expr) pow
+						       loc (caar sub-term-lsts)))
 					loc)))]
 		 [#t (values canon-changes
 			     (list (s-term 1 (list (s-var (s-var-var inner-var) (* (s-var-pow inner-var) pow)
