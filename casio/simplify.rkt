@@ -865,14 +865,23 @@
 			       [precompute-coeffs-change (change (rule 'precompute distributed-coeffs new-coeff '())
 								 (append cur-loc '(1))
 								 '())])
-			  (values (append (list
-					   precompute-coeffs-change
-					   commute-coeff-and-vars-change
-					   distribute-out-coeffs-change)
-					  canonicalize-right-changes
-					  canonicalize-left-changes
-					  changes-acc)
-				  (s-term new-coeff (s-term-vars term1) cur-loc)))]))]
+			  (let ([chngs (append (list
+						precompute-coeffs-change
+						commute-coeff-and-vars-change
+						distribute-out-coeffs-change)
+					       canonicalize-right-changes
+					       canonicalize-left-changes
+					       changes-acc)])
+			    (values chngs
+				    (s-term new-coeff
+					    (let ([tloc (s-term-loc term1)])
+					      (map (λ (v)
+						     (let* ([rel-vloc (drop (s-var-loc v) (length tloc))]
+							    [new-vloc (append cur-loc '(2) rel-vloc)])
+						       (s-var (s-var-var v) (s-var-pow v) new-vloc
+							      (s-var-inner-terms v))))
+						   (s-term-vars term1)))
+					    cur-loc))))]))]
 		[(expr*) (changes-apply
 			  (drop-change-location-items (reverse combine-changes) (length loc))
 			  expr*)]
