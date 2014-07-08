@@ -55,6 +55,8 @@
 (define-rule   distribute-neg-in     (- (+ a b))           (+ (- a) (- b)))
 (define-rule   distribute-neg-out    (+ (- a) (- b))       (- (+ a b)))
 (define-rule   distribute-inv-in     (/ (* a b))           (* (/ a) (/ b)))
+(define-rule   distribute-inv-neg    (/ (- a))             (- (/ a)))
+(define-rule   distribute-neg-inv    (- (/ a))             (/ (- a)))
 
 ; Difference of squares
 (define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify ((1) (2)))
