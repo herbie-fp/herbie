@@ -711,7 +711,7 @@
 		      (append (loop (cadr cur-expr) (append cur-loc '(1)))
 			      (loop (caddr cur-expr) (append cur-loc '(2))))
 		      (list (s-atom cur-expr cur-loc))))]
-	 [canon-v-changes (apply append (map (λ (atom) (if (number? atom) '()
+	 [canon-v-changes (apply append (map (λ (atom) (if (number? (s-atom-var atom)) '()
 							   (late-canonicalize-var-changes (s-atom-loc atom)
 											  (s-atom-var atom))))
 					     atoms))]
