@@ -713,7 +713,7 @@
 							   (late-canonicalize-var-changes (s-atom-loc atom)
 											  (s-atom-var atom))))
 					     atoms))]
-	 [expr* (changes-apply (make-chngs-rel canon-v-changes loc) expr)]
+	 [expr* (changes-apply (make-chngs-rel (reverse canon-v-changes) loc) expr)]
 	 [atoms* (map (λ (a) (s-atom (location-get (drop (s-atom-loc a) (length loc)) expr*)
 				     (s-atom-loc a)))
 		      atoms)]
