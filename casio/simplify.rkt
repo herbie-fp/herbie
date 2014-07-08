@@ -713,8 +713,12 @@
 							   (late-canonicalize-var-changes (s-atom-loc atom)
 											  (s-atom-var atom))))
 					     atoms))]
-	 [sorted-atoms (sort atoms s-atom<?)]
-	 [ordering-changes (let loop ([cur-expr expr] [rest-atoms sorted-atoms]
+	 [expr* (changes-apply (make-chngs-rel canon-v-changes loc) expr)]
+	 [atoms* (map (λ (a) (s-atom (location-get (drop (s-atom-loc a) (length loc)) expr*)
+				     (s-atom-loc a)))
+		      atoms)]
+	 [sorted-atoms (sort atoms* s-atom<?)]
+	 [ordering-changes (let loop ([cur-expr expr*] [rest-atoms sorted-atoms]
 				      [changes-acc '()] [cur-loc loc])
 			     (if (null? rest-atoms) changes-acc
 				 (let*-values ([(extraction-changes expr*)
@@ -729,7 +733,7 @@
 	 [precombining-constants-changes
 	  (let loop ([rest-atoms sorted-atoms] [changes-acc '()]
 		     [cur-expr (changes-apply (drop-change-location-items ordering-changes (length loc))
-					      expr)])
+					      expr*)])
 	    (if (or (= 1 (length rest-atoms)) (not (number? (s-atom-var (cadr rest-atoms)))))
 		changes-acc
 		(let ([new-constant (* (s-atom-var (car rest-atoms)) (s-atom-var (cadr rest-atoms)))])
@@ -746,7 +750,7 @@
 									 (c . ,(caddr (caddr cur-expr)))))
 			       changes-acc)
 			(list '* new-constant (caddr (caddr cur-expr)))))))]
-	 [expr* (changes-apply (reverse (drop-change-location-items (append precombining-constants-changes ordering-changes) (length loc))) expr)]
+	 [expr* (changes-apply (reverse (drop-change-location-items (append precombining-constants-changes ordering-changes) (length loc))) expr*)]
 	 [remove-expt-changes (cond [(and (list? expr*) (eq? (car expr*) 'expt) (safe-= 1 (caddr expr*)))
 				     (list (let ([rl (get-rule 'unexpt1)])
 					     (change rl loc `((a . ,(cadr expr*))))))]
