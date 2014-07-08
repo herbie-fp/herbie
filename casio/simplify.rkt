@@ -547,7 +547,7 @@
 		    (error "Binary division should not appear in canonicalized expressions!: " expr)]
 		   [(= 1 (length (car sub-term-lsts)))
 		    (if (< 1 (length (s-term-vars (caar sub-term-lsts))))
-			(let-values ([(chngs vars*) (distribute-inv-in expr (s-term-vars (caar sub-term-lsts)) loc])
+			(let-values ([(chngs vars*) (distribute-inv-in expr (s-term-vars (caar sub-term-lsts)) loc)])
 			  (values chngs
 				  (s-term (/ (s-term-coeff (caar sub-term-lsts)))
 					  vars*
