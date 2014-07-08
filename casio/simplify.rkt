@@ -457,6 +457,12 @@
 		       lft-chngs
 		       rgt-chngs)
 	       (append lft-vars* rgt-vars*)))]
+    [`(/ (- ,a))
+     (let-values ([(inner-chngs inner-vars) (distribute-inv-in `(/ ,a) sub-vars (append loc '(1)))])
+       (values (cons (let ([rl (get-rule 'distribute-inv-neg)])
+		       (change rl loc `((a . ,a))))
+		     inner-chngs)
+	       inner-vars))]
     [`(/ (/ ,a))
      (values (list (let ([rl (get-rule 'remove-double-div)])
 		     (change rl loc `((a . ,a)))))
