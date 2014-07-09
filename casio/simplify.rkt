@@ -496,11 +496,11 @@
 		 [`(+ 0 ,a) (values (list (let ([rl (get-rule '+-lft-identity)])
 					    (change rl loc `((a . ,a)))))
 				    (map (curry drop-term-loc (length loc) 1)
-					 sub-terms))]
+					 (cadr sub-term-lsts)))]
 		 [`(+ ,a 0) (values (list (let ([rl (get-rule '+-rgt-identity)])
 					    (change rl loc `((a . ,a)))))
 				    (map (curry drop-term-loc (length loc) 1)
-					 sub-terms))]
+					 (car sub-term-lsts)))]
 		 [_ (try-combine-+ sub-terms expr loc)])))]
      [- . ,(λ (loc expr sub-term-lsts)
 	     (define (negate-term term)
