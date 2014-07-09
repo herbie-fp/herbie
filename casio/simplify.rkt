@@ -374,6 +374,10 @@
 		     t))
 		  (s-var-inner-terms var))))
 
+(define (s-var-with-loc* loc var)
+  (s-var (s-var-var var) (s-var-pow var)
+	 loc (s-var-inner-terms var)))
+
 (define (s-term-with-vars term vars)
   (s-term (s-term-coeff term) vars (s-term-loc term)))
 
@@ -478,9 +482,9 @@
 		 (list (s-term (/ a) '() loc)))
 	 (values '()
 		 (if (= 1 (length sub-vars))
-		     (list (s-var-with-loc (let ([oloc (s-var-loc (car sub-vars))])
-					     (take oloc (sub1 (length oloc))))
-					   (invert-var (car sub-vars))))
+		     (list (s-var-with-loc* (let ([oloc (s-var-loc (car sub-vars))])
+					      (take oloc (sub1 (length oloc))))
+					    (invert-var (car sub-vars))))
 		     (error "Bad distribution of inverses: " expr))))]
     [_ (values '() sub-vars)]))
 
