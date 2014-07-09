@@ -404,7 +404,12 @@
 
 (define (drop-range i n lst)
   (append (take lst i) (drop lst (+ i n))))
+(define (dropr n lst)
+  (take lst (sub1 (length lst))))
 
+;; Inserts the elements of a into b at index i.
+(define (insert i a b)
+  (append (take b i) a (drop b i)))
 ;; These changes come out in applicative order.
 (define (distribute-neg-in expr sub-terms loc)
   (match expr
