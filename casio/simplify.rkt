@@ -561,9 +561,9 @@
 		    (if (< 1 (length (s-term-vars (caar sub-term-lsts))))
 			(let-values ([(chngs vars*) (distribute-inv-in expr (s-term-vars (caar sub-term-lsts)) loc)])
 			  (values chngs
-				  (s-term (/ (s-term-coeff (caar sub-term-lsts)))
-					  vars*
-					  loc)))
+				  (list (s-term (/ (s-term-coeff (caar sub-term-lsts)))
+						vars*
+						loc))))
 			(values '() (list (s-term (s-term-coeff (caar sub-term-lsts))
 						  (map invert-var (s-term-vars (caar sub-term-lsts)))
 						  loc))))]
