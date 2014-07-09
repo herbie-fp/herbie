@@ -449,6 +449,39 @@
 		     (error "Bad distribution of negatives: " expr))))]
     [_ (values '() sub-terms)]))
 
+(define (distribute-mul-in expr sub-vars loc)
+  (match expr
+    [`(* (- ,a) (- ,b))
+     (values (list (let ([rl (get-rule 'distribute-lft-neg-out)])
+		     (change rl loc `((a . ,a)
+				      (b . (- ,b)))))
+		   (let ([rl (get-rule 'distribute-rgt-neg-out)])
+		     (change rl (append loc '(1)) `((a . ,a)
+						    (b . ,b))))
+		   (let ([rl (get-rule 'remove-double-neg)])
+		     (change rl loc `((a . (* ,a ,b))))))
+	     (map (λ (v) (s-var-with-loc (drop-range (add1 (length loc)) 1 (s-var-loc v))))
+		  sub-vars))]
+    [`(* (- ,a) ,b)
+     (values (list (let ([rl (get-rule 'distribute-lft-neg-out)])
+		     (change rl loc `((a . ,a)
+				      (b . ,b)))))
+	     (map (λ (v) (if (= 2 (list-ref (s-var-loc v) (length loc)))
+			     (s-var-with-loc (insert (length loc) '(1) (s-var-loc v))
+					     v)
+			     v))
+		  sub-vars))]
+    [`(* ,a (- ,b))
+     (values (list (let ([rl (get-rule 'distribute-rgt-neg-out)])
+		     (change rl loc `((a . ,a)
+				      (b . ,b)))))
+	     (map (λ (v) (if (= 1 (list-ref (s-var-loc v) (length loc)))
+			     (s-var-with-loc (insert (length loc) '(1) (s-var-loc v))
+					     v)
+			     (swap-vloc-elements (length loc) (add1 (length loc)) v)))
+		  sub-vars))]
+    [_ (values '() sub-vars)]))
+
 (define (distribute-inv-in expr sub-vars loc)
   (match expr
     [`(/ (* ,a ,b))
@@ -556,7 +589,14 @@
 				      (s-term-coeff (caadr sub-term-lsts))))])
 		    (if (= 0 coeff)
 			(cancel-coeff-changes expr loc)
-			(try-combine-* vars coeff expr loc)))]))]
+			(let*-values ([(dist-chngs vars*) (distribute-mul-in expr vars loc)]
+				      [(expr*) (changes-apply (make-chngs-rel dist-chngs loc) expr)]
+				      [(combine-chngs terms*) (if (eq? (car expr*) '*)
+								  (try-combine-* vars* coeff expr* loc)
+								  (try-combine-* vars* coeff (cadr expr*) (append loc '(1))))])
+			  (values (append dist-chngs combine-chngs)
+				  (map (λ (t) (s-term-with-loc* (dropr 1 (s-term-loc t)) t))
+				       terms*)))))]))]
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
 	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
