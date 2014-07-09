@@ -593,10 +593,13 @@
 				      [(expr*) (changes-apply (make-chngs-rel dist-chngs loc) expr)]
 				      [(combine-chngs terms*) (if (eq? (car expr*) '*)
 								  (try-combine-* vars* coeff expr* loc)
-								  (try-combine-* vars* coeff (cadr expr*) (append loc '(1))))])
+								  (try-combine-* vars* coeff (cadr expr*) (append loc '(1))))]
+				      [(terms**) (if (eq? (car expr*) '*)
+						     terms*
+						     (map (λ (t) (s-term-with-loc* (dropr 1 (s-term-loc t)) t))
+							  terms*))])
 			  (values (append dist-chngs combine-chngs)
-				  (map (λ (t) (s-term-with-loc* (dropr 1 (s-term-loc t)) t))
-				       terms*)))))]))]
+				  terms**))))]))]
      [/ . ,(λ (loc expr sub-term-lsts)
 	     (define (invert-var var)
 	       (s-var (s-var-var var) (- (s-var-pow var)) loc (s-var-inner-terms var)))
