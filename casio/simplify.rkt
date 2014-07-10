@@ -832,105 +832,105 @@
 		[(expr*) (with-item 2 caddrexpr* expr*)]
 		[(combine-changes term-combination)
 		 (let loop ([cur-expr expr*] [cur-loc loc] [changes-acc '()])
-		   (cond
-		    [(and (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '+))
-		     (loop (list (car cur-expr) (cadr cur-expr) (cadr (caddr cur-expr)))
+		   (match cur-expr
+		    [`(+ ,a (+ ,b ,c))
+		     (loop (list '+ a b)
 			   (append cur-loc '(1))
 			   (cons (let ([rl (get-rule 'associate-+-lft)])
-				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
+				   (change rl cur-loc `((a . ,a) (b . ,b) (c . ,c))))
 				 changes-acc))]
-		    [(andmap number? (cdr cur-expr))
-		     (let* ([val (eval cur-expr full-namespace)]
+		    [`(+ ,a ,b) #:when (and (number? a) (number? b))
+		     (let* ([val (+ a b)]
 			    [rl (rule 'precompute cur-expr val '())])
 		       (values (cons (change rl cur-loc '())
 				     changes-acc)
 			       (s-term val '() cur-loc)))]
-		    [(and (list? (cadr cur-expr)) (eq? (caadr cur-expr) '-)
-			  (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '-))
 		     (loop (list (car cur-expr) (cadadr cur-expr) (cadr (caddr cur-expr)))
 			   (append cur-loc '(1))
 			   (cons (let ([rl (get-rule 'distribute-neg-out)])
 				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
 				 changes-acc))]
-		    [(and (list? (cadr cur-expr)) (eq? (caadr cur-expr) '-))
-		     (loop (list (car cur-expr) (caddr cur-expr) (cadr cur-expr))
+		    [`(+ (- ,a) (- ,b))
+		    [`(+ (- ,a) ,b)
+		     (loop `(+ ,b (- ,a))
 			   cur-loc
 			   (cons (let ([rl (get-rule '+-commutative)])
-				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
+				   (change rl cur-loc `((a . (- ,a)) (b . ,b))))
 				 changes-acc))]
-		    [(and (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '-))
-		     (loop (list '- (cadr cur-expr) (cadr (caddr cur-expr)))
+		    [`(+ ,a (- ,b))
+		     (loop `(- ,a ,b)
 			   cur-loc
 			   (cons (let ([rl (get-rule 'unsub-neg)])
-				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
+				   (change rl cur-loc `((a . ,a) (b . ,b))))
 				 changes-acc))]
-		    [(not (or (proper-term? (cadr cur-expr)) (proper-term? (caddr cur-expr))))
-		     (if (eq? (car cur-expr) '-)
-			 (values (append (list (change (get-rule '+-inverses) cur-loc `((a . ,(cadr cur-expr)))))
-					 (late-canonicalize-term-changes (append cur-loc '(1)) (cadr cur-expr))
-					 (late-canonicalize-term-changes (append cur-loc '(2)) (caddr cur-expr))
+		    [`(,op ,a ,b) #:when (not (or (proper-term? a) (proper-term? b)))
+		     (if (eq? op '-)
+			 (values (append (list (change (get-rule '+-inverses) cur-loc `((a . ,a))))
+					 (late-canonicalize-term-changes (append cur-loc '(1)) a)
+					 (late-canonicalize-term-changes (append cur-loc '(2)) b)
 					 changes-acc)
 				 (s-term 0 '() cur-loc))
-			 (loop `(+ (* 1 ,(cadr cur-expr)) (* 1 ,(caddr cur-expr)))
+			 (loop `(+ (* 1 ,a) (* 1 ,b))
 			       cur-loc
 			       (let ([rl (get-rule '*-un-lft-identity)])
-				 (list* (change rl (append cur-loc '(1)) (pattern-match (rule-input rl) (cadr cur-expr)))
-					(change rl (append cur-loc '(2)) (pattern-match (rule-input rl) (caddr cur-expr)))
+				 (list* (change rl (append cur-loc '(1)) `((a . ,a)))
+					(change rl (append cur-loc '(2)) `((a . ,b)))
 					changes-acc))))]
-		    [(not (proper-term? (cadr cur-expr)))
-		     (loop `(,(car cur-expr) (* 1 ,(cadr cur-expr)) ,(caddr cur-expr))
+		    [`(,op ,a ,b) #:when (not (proper-term? a))
+		     (loop `(,op (* 1 ,a) ,b)
 			   cur-loc
 			   (list* (let ([rl (get-rule '*-un-lft-identity)])
-				    (change rl (append cur-loc '(1)) (pattern-match (rule-input rl) (cadr cur-expr))))
+				    (change rl (append cur-loc '(1)) `((a . ,a))))
 				  changes-acc))]
-		    [(not (proper-term? (caddr cur-expr)))
-		     (loop `(,(car cur-expr) ,(cadr cur-expr) (* 1 ,(caddr cur-expr)))
+		    [`(,op ,a ,b) #:when (not (proper-term? b))
+		     (loop `(,op ,a (* 1 ,b))
 			   cur-loc
 			   (list* (let ([rl (get-rule '*-un-lft-identity)])
-				    (change rl (append cur-loc '(2)) (pattern-match (rule-input rl) (caddr cur-expr))))
+				    (change rl (append cur-loc '(2)) `((a . ,b))))
 				  changes-acc))]
-		    [#t (let* ([canonicalize-left-changes (late-canonicalize-term-changes (append cur-loc '(1)) (cadr cur-expr))]
-			       [canonicalize-right-changes (late-canonicalize-term-changes (append cur-loc '(2)) (caddr cur-expr))]
-			       [cur-expr* (changes-apply (drop-change-location-items (append (reverse canonicalize-left-changes)
-											     (reverse canonicalize-right-changes))
-										     (length cur-loc))
-							 cur-expr)]
-			       [distributed-coeffs `(,(car cur-expr*) ,(cadr (cadr cur-expr*)) ,(cadr (caddr cur-expr*)))]
-			       [new-coeff (safe-eval distributed-coeffs)]
-			       [distribute-out-coeffs-change
-				(let ([rl (if (eq? (car cur-expr) '+)
-					      (get-rule 'distribute-rgt-out)
-					      (get-rule 'distribute-rgt-out--))])
-				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
-			       [cur-expr* (changes-apply (drop-change-location-items (list distribute-out-coeffs-change)
-										     (length cur-loc))
-							 cur-expr*)]
-			       [commute-coeff-and-vars-change
-				(let ([rl (get-rule '*-commutative)])
-				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
-			       [cur-expr* (changes-apply (drop-change-location-items (list commute-coeff-and-vars-change)
-										     (length cur-loc))
-							 cur-expr*)]
-			       [precompute-coeffs-change (change (rule 'precompute distributed-coeffs new-coeff '())
-								 (append cur-loc '(1))
-								 '())])
-			  (let ([chngs (append (list
-						precompute-coeffs-change
-						commute-coeff-and-vars-change
-						distribute-out-coeffs-change)
-					       canonicalize-right-changes
-					       canonicalize-left-changes
-					       changes-acc)])
-			    (values chngs
-				    (s-term new-coeff
-					    (let ([tloc (s-term-loc term1)])
-					      (map (λ (v)
-						     (let* ([rel-vloc (drop (s-var-loc v) (length tloc))]
-							    [new-vloc (append cur-loc '(2) rel-vloc)])
-						       (s-var (s-var-var v) (s-var-pow v) new-vloc
-							      (s-var-inner-terms v))))
-						   (s-term-vars term1)))
-					    cur-loc))))]))]
+		    [`(,op ,t1 ,t2)
+		     (let* ([canonicalize-left-changes (late-canonicalize-term-changes (append cur-loc '(1)) t1)]
+			    [canonicalize-right-changes (late-canonicalize-term-changes (append cur-loc '(2)) t2)]
+			    [cur-expr* (changes-apply (drop-change-location-items (append (reverse canonicalize-left-changes)
+											  (reverse canonicalize-right-changes))
+										  (length cur-loc))
+						      cur-expr)]
+			    [distributed-coeffs `(,(car cur-expr*) ,(cadr (cadr cur-expr*)) ,(cadr (caddr cur-expr*)))]
+			    [new-coeff (safe-eval distributed-coeffs)]
+			    [distribute-out-coeffs-change
+			     (let ([rl (if (eq? (car cur-expr) '+)
+					   (get-rule 'distribute-rgt-out)
+					   (get-rule 'distribute-rgt-out--))])
+			       (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
+			    [cur-expr* (changes-apply (drop-change-location-items (list distribute-out-coeffs-change)
+										  (length cur-loc))
+						      cur-expr*)]
+			    [commute-coeff-and-vars-change
+			     (let ([rl (get-rule '*-commutative)])
+			       (change rl cur-loc (pattern-match (rule-input rl) cur-expr*)))]
+			    [cur-expr* (changes-apply (drop-change-location-items (list commute-coeff-and-vars-change)
+										  (length cur-loc))
+						      cur-expr*)]
+			    [precompute-coeffs-change (change (rule 'precompute distributed-coeffs new-coeff '())
+							      (append cur-loc '(1))
+							      '())])
+		       (let ([chngs (append (list
+					     precompute-coeffs-change
+					     commute-coeff-and-vars-change
+					     distribute-out-coeffs-change)
+					    canonicalize-right-changes
+					    canonicalize-left-changes
+					    changes-acc)])
+			 (values chngs
+				 (s-term new-coeff
+					 (let ([tloc (s-term-loc term1)])
+					   (map (λ (v)
+						  (let* ([rel-vloc (drop (s-var-loc v) (length tloc))]
+							 [new-vloc (append cur-loc '(2) rel-vloc)])
+						    (s-var (s-var-var v) (s-var-pow v) new-vloc
+							   (s-var-inner-terms v))))
+						(s-term-vars term1)))
+					 cur-loc))))]))]
 		[(expr*) (changes-apply
 			  (drop-change-location-items (reverse combine-changes) (length loc))
 			  expr*)]
