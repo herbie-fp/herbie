@@ -845,12 +845,14 @@
 		       (values (cons (change rl cur-loc '())
 				     changes-acc)
 			       (s-term val '() cur-loc)))]
-		     (loop (list (car cur-expr) (cadadr cur-expr) (cadr (caddr cur-expr)))
-			   (append cur-loc '(1))
-			   (cons (let ([rl (get-rule 'distribute-neg-out)])
-				   (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
-				 changes-acc))]
 		    [`(+ (- ,a) (- ,b))
+		     (let-values ([(inner-chngs inner-term)
+				   (loop `(+ ,a ,b)
+					 (append cur-loc '(1))
+					 (cons (let ([rl (get-rule 'distribute-neg-out)])
+						 (change rl cur-loc `((a . ,a) (b . ,b))))
+					       changes-acc))])
+		       (values inner-chngs (s-term-with-loc* (dropr 1 (s-term-loc inner-term)) inner-term)))]
 		    [`(+ (- ,a) ,b)
 		     (loop `(+ ,b (- ,a))
 			   cur-loc
