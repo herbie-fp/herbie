@@ -839,12 +839,6 @@
 			   (cons (let ([rl (get-rule 'associate-+-lft)])
 				   (change rl cur-loc `((a . ,a) (b . ,b) (c . ,c))))
 				 changes-acc))]
-		    [`(+ ,a ,b) #:when (and (number? a) (number? b))
-		     (let* ([val (+ a b)]
-			    [rl (rule 'precompute cur-expr val '())])
-		       (values (cons (change rl cur-loc '())
-				     changes-acc)
-			       (s-term val '() cur-loc)))]
 		    [`(+ (- ,a) (- ,b))
 		     (let-values ([(inner-chngs inner-term)
 				   (loop `(+ ,a ,b)
@@ -866,7 +860,13 @@
 				   (change rl cur-loc `((a . ,a) (b . ,b))))
 				 changes-acc))]
 		    [`(,op ,t1 ,t2)
-		     (cond [(not (or (proper-term? t1) (proper-term? t2)))
+		     (cond [(and (number? t1) (number? t2))
+			    (let* ([val (+ t1 t2)]
+				   [rl (rule 'precompute cur-expr val '())])
+			      (values (cons (change rl cur-loc '())
+					    changes-acc)
+				      (s-term val '() cur-loc)))]
+			   [(not (or (proper-term? t1) (proper-term? t2)))
 			    (if (eq? op '-)
 				(values (append (list (change (get-rule '+-inverses) cur-loc `((a . ,t1))))
 						(late-canonicalize-term-changes (append cur-loc '(1)) t1)
