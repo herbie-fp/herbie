@@ -865,31 +865,31 @@
 			   (cons (let ([rl (get-rule 'unsub-neg)])
 				   (change rl cur-loc `((a . ,a) (b . ,b))))
 				 changes-acc))]
-		    [`(,op ,a ,b)
-		     (cond [(not (or (proper-term? a) (proper-term? b)))
+		    [`(,op ,t1 ,t2)
+		     (cond [(not (or (proper-term? t1) (proper-term? t2)))
 			    (if (eq? op '-)
-				(values (append (list (change (get-rule '+-inverses) cur-loc `((a . ,a))))
-						(late-canonicalize-term-changes (append cur-loc '(1)) a)
-						(late-canonicalize-term-changes (append cur-loc '(2)) b)
+				(values (append (list (change (get-rule '+-inverses) cur-loc `((a . ,t1))))
+						(late-canonicalize-term-changes (append cur-loc '(1)) t1)
+						(late-canonicalize-term-changes (append cur-loc '(2)) t2)
 						changes-acc)
 					(s-term 0 '() cur-loc))
-				(loop `(+ (* 1 ,a) (* 1 ,b))
+				(loop `(+ (* 1 ,t1) (* 1 ,t2))
 				      cur-loc
 				      (let ([rl (get-rule '*-un-lft-identity)])
-					(list* (change rl (append cur-loc '(1)) `((a . ,a)))
-					       (change rl (append cur-loc '(2)) `((a . ,b)))
+					(list* (change rl (append cur-loc '(1)) `((a . ,t1)))
+					       (change rl (append cur-loc '(2)) `((a . ,t2)))
 					       changes-acc))))]
-			   [(not (proper-term? a))
-			    (loop `(,op (* 1 ,a) ,b)
+			   [(not (proper-term? t1))
+			    (loop `(,op (* 1 ,t1) ,t2)
 				  cur-loc
 				  (list* (let ([rl (get-rule '*-un-lft-identity)])
-					   (change rl (append cur-loc '(1)) `((a . ,a))))
+					   (change rl (append cur-loc '(1)) `((a . ,t1))))
 					 changes-acc))]
-			   [(not (proper-term? b))
-			    (loop `(,op ,a (* 1 ,b))
+			   [(not (proper-term? t2))
+			    (loop `(,op ,t1 (* 1 ,t2))
 				  cur-loc
 				  (list* (let ([rl (get-rule '*-un-lft-identity)])
-					   (change rl (append cur-loc '(2)) `((a . ,b))))
+					   (change rl (append cur-loc '(2)) `((a . ,t1))))
 					 changes-acc))]
 			   [#t
 			    (let* ([canonicalize-left-changes (late-canonicalize-term-changes (append cur-loc '(1)) t1)]
