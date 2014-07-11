@@ -7,7 +7,7 @@
          enumerate take-up-to *debug* debug debug-reset pipe
 	 list-product set-debug-level! alist-append
 	 safe-eval write-file write-string has-duplicates?
-	 with-item)
+	 with-item *log-dir*)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -20,9 +20,16 @@
       (last possible-returns))))
 
 (define *debug* (make-parameter #f))
-(when (not (directory-exists? "../logs"))
-  (make-directory "../logs"))
-(define *log-path* (make-parameter (string-append "../logs/" (number->string (current-seconds)) ".log")))
+
+(define *log-dir* (make-parameter "../logs"))
+(define *log-path* (make-parameter '()))
+(define (log-path)
+  (when (not (directory-exists? (*log-dir*)))
+    (make-directory (*log-dir*)))
+  (when (null? (*log-path*))
+    (*log-path* (string-append (*log-dir*) "/" (number->string (current-seconds)) ".log")))
+  (*log-path*))
+
 (define *log* '())
 
 (define *tags*
@@ -60,7 +67,7 @@
   (when (should-print-debug? from depth)
     (debug-print from tag args (current-output-port)))
   (set! *log* (cons (list* from tag args) *log*))
-  (call-with-output-file (*log-path*) #:exists 'append
+  (call-with-output-file (log-path) #:exists 'append
 			 (curry debug-print from tag args)))
 
 (define (debug-print from tag args port)
