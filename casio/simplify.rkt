@@ -172,10 +172,18 @@
 
 (define (simplify-expression expr)
   (debug "Simplifying expression: " expr #:from 'simplify #:depth 3)
-  (let* ([canon-changes (canonicalize expr)]
-	 [expr* (changes-apply canon-changes expr)]
-	 [resolve-changes (cancel-terms expr*)])
-    (append canon-changes resolve-changes)))
+  (with-handlers ([exn:fail? (λ (exn)
+			       (debug #:from 'simplify #:depth 1
+				      "!!CRASH!!"
+				      "Simplifying expression: " expr
+				      (exn-message exn)
+				      (for/list ([tb (continuation-mark-set->context
+						      (exn-continuation-marks exn))])
+					(list (car tb) (srcloc->string (cdr tb))))))])
+    (let* ([canon-changes (canonicalize expr)]
+	   [expr* (changes-apply canon-changes expr)]
+	   [resolve-changes (cancel-terms expr*)])
+      (append canon-changes resolve-changes))))
 
 ;; Simplifies an expression, and then applies the simplifying changes.
 ;; for debuggging.
