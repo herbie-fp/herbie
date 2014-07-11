@@ -189,7 +189,8 @@
 				      (exn-message exn)
 				      (for/list ([tb (continuation-mark-set->context
 						      (exn-continuation-marks exn))])
-					(list (car tb) (srcloc->string (cdr tb))))))])
+					(list (car tb) (srcloc->string (cdr tb)))))
+			       expr)])
     (let* ([canon-changes (canonicalize expr)]
 	   [expr* (changes-apply canon-changes expr)]
 	   [resolve-changes (cancel-terms expr*)])
