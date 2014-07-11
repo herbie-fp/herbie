@@ -21,6 +21,9 @@
 (require casio/programs)
 
 (struct annotation (expr loc type coeffs) #:transparent)
+(struct lp (loc period) #:prefab)
+
+(provide periodic-locs (struct-out lp))
 
 (define (constant? a) (eq? (annotation-type a) 'constant))
 (define (linear? a)   (eq? (annotation-type a) 'linear))
@@ -59,6 +62,22 @@
                        (map coeffs (filter periodic? (cdr expr)))))]
    [else
     (annotation expr loc 'other #f)]))
+
+(define (periodic-locs prog)
+  (define (lp-loc-cons loc-el locp)
+    (lp (cons loc-el (lp-loc locp)) (lp-period locp)))
+  (define (annot->plocs annot)
+    (cond [(periodic? annot)
+	   `(,(lp '() (coeffs annot)))]
+	  [(linear? annot)
+	   '()]
+	  [#t (apply append
+		     (let ([inner-annots (cdr (annotation-expr annot))])
+		       (map (λ (lps base-loc)
+			      (map (curry lp-loc-cons base-loc) lps))
+			    (map annot->plocs inner-annots)
+			    (map add1 (range (length inner-annots))))))]))
+  (map (curry lp-loc-cons 2) (annot->plocs (program-body (periodicity prog)))))
 
 (define (periodicity prog)
   (define vars (program-variables prog))
