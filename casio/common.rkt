@@ -20,6 +20,9 @@
       (last possible-returns))))
 
 (define *debug* (make-parameter #f))
+(when (not (directory-exists? "../logs"))
+  (make-directory "../logs"))
+(define *log-path* (make-parameter (string-append "../logs/" (number->string (current-seconds)) ".log")))
 (define *log* '())
 
 (define *tags*
@@ -57,6 +60,8 @@
   (when (should-print-debug? from depth)
     (debug-print from tag args (current-output-port)))
   (set! *log* (cons (list* from tag args) *log*))
+  (call-with-output-file (*log-path*) #:exists 'append
+			 (curry debug-print from tag args)))
 
 (define (debug-print from tag args port)
   (display (hash-ref *tags* tag "; ") port)
