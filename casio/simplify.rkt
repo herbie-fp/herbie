@@ -170,6 +170,16 @@
 	    '()))
       '()))
 
+(define (srcloc->string sl)
+  (if sl
+      (string-append
+       (path->string (srcloc-source sl))
+       ":"
+       (number->string (srcloc-line sl))
+       ":"
+       (number->string (srcloc-column sl)))
+      "???"))
+
 (define (simplify-expression expr)
   (debug "Simplifying expression: " expr #:from 'simplify #:depth 3)
   (with-handlers ([exn:fail? (λ (exn)
