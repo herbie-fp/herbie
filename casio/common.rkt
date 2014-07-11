@@ -6,7 +6,8 @@
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
          enumerate take-up-to *debug* debug debug-reset pipe
 	 list-product set-debug-level! alist-append
-	 safe-eval write-file write-string has-duplicates?)
+	 safe-eval write-file write-string has-duplicates?
+	 with-item *log-dir*)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -19,6 +20,16 @@
       (last possible-returns))))
 
 (define *debug* (make-parameter #f))
+
+(define *log-dir* (make-parameter "../logs"))
+(define *log-path* (make-parameter '()))
+(define (log-path)
+  (when (not (directory-exists? (*log-dir*)))
+    (make-directory (*log-dir*)))
+  (when (null? (*log-path*))
+    (*log-path* (string-append (*log-dir*) "/" (number->string (current-seconds)) ".log")))
+  (*log-path*))
+
 (define *log* '())
 
 (define *tags*
@@ -35,30 +46,38 @@
 			[#t (*debug*)])])
     (*debug* (cons (cons from depth) existing))))
 
+(define (should-print-debug? from depth)
+  (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
+      (and (*debug*) ;; If debug is false, never print
+	   (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
+				;; If we were given a #:from, and we have it in the dictionary,
+				;; look up it's max depth
+				(dict-ref (*debug*) from)
+				;; Otherwise, just use whatevers default.
+				(dict-ref (*debug*) #t))])
+	     ;; If the max depth is true, turn everything on.
+	     ;; If the max depth isn't positve, turn everything off.
+	     ;; Otherwise, if our dept is less than the max-depth,
+	     ;; return true.
+	     (or (eq? max-depth #t)
+		 (and (>= max-depth depth)
+		      (> max-depth 0)))))))
+
 (define (debug #:from from #:tag [tag #f] #:depth [depth 1] . args)
-  (when (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
-	    (and (*debug*) ;; If debug is false, never print
-		 (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
-				      ;; If we were given a #:from, and we have it in the dictionary,
-				      ;; look up it's max depth
-				      (dict-ref (*debug*) from)
-				      ;; Otherwise, just use whatevers default.
-				      (dict-ref (*debug*) #t))])
-		   ;; If the max depth is true, turn everything on.
-		   ;; If the max depth isn't positve, turn everything off.
-		   ;; Otherwise, if our dept is less than the max-depth,
-		   ;; return true.
-		   (or (eq? max-depth #t)
-		       (and (>= max-depth depth)
-			    (> max-depth 0))))))
-    (set! *log* (cons (list* from tag args) *log*))
-    (display (hash-ref *tags* tag "; "))
-    (write from)
-    (display ": ")
-    (for/list ([arg args])
-      (display " ")
-      ((if (string? arg) display write) arg))
-    (newline)))
+  (when (should-print-debug? from depth)
+    (debug-print from tag args (current-output-port)))
+  (set! *log* (cons (list* from tag args) *log*))
+  (call-with-output-file (log-path) #:exists 'append
+			 (curry debug-print from tag args)))
+
+(define (debug-print from tag args port)
+  (display (hash-ref *tags* tag "; ") port)
+  (write from port)
+  (display ": " port)
+  (for/list ([arg args])
+    (display " " port)
+    ((if (string? arg) display write) arg port))
+  (newline port))
 
 (define (debug-reset)
   (set! *log* '()))
@@ -157,3 +176,9 @@
   (cond [(null? lst) #f]
 	[(member (car lst) (cdr lst)) #t]
 	[#t (has-duplicates? (cdr lst))]))
+
+(define (with-item idx item lst)
+  (map (λ (lst-item lst-idx)
+	 (if (= lst-idx idx) item lst-item))
+       lst
+       (range (length lst))))

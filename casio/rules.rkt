@@ -43,7 +43,9 @@
 (define-rule   distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c))     #:simplify ((1) (2)))
 (define-rule   distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a))     #:simplify ((1) (2)))
 (define-rule   distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c))           #:simplify ((2)))
+(define-rule   distribute-lft-out--  (- (* a b) (* a c))   (* a (- b c))           #:simplify ((2)))
 (define-rule   distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))           #:simplify ((2)))
+(define-rule   distribute-rgt-out--  (- (* b a) (* c a))   (* a (- b c))           #:simplify ((2)))
 (define-rule   distribute-lft1-in    (+ (* b a) a)         (* (+ b 1) a)           #:simplify ((1)))
 (define-rule   distribute-rgt1-in    (+ a (* c a))         (* (+ c 1) a)           #:simplify ((1)))
 (define-rule   distribute-lft-neg-in (- (* a b))           (* (- a) b))
@@ -51,6 +53,10 @@
 (define-rule   distribute-lft-neg-out (* (- a) b)          (- (* a b)))
 (define-rule   distribute-rgt-neg-out (* a (- b))          (- (* a b)))
 (define-rule   distribute-neg-in     (- (+ a b))           (+ (- a) (- b)))
+(define-rule   distribute-neg-out    (+ (- a) (- b))       (- (+ a b)))
+(define-rule   distribute-inv-in     (/ (* a b))           (* (/ a) (/ b)))
+(define-rule   distribute-inv-neg    (/ (- a))             (- (/ a)))
+(define-rule   distribute-neg-inv    (- (/ a))             (/ (- a)))
 
 ; Difference of squares
 (define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify ((1) (2)))
@@ -66,6 +72,7 @@
 (define-rule   sub0-neg          (- 0 b)               (- b))
 (define-rule   remove-double-neg (- (- a))             a)
 (define-rule   *-lft-identity    (* 1 a)               a)
+(define-rule   *-un-lft-identity a                     (* 1 a))
 (define-rule   *-rgt-identity    (* a 1)               a)
 (define-rule   *-inverses        (/ a a)               1)
 (define-rule   div-inv           (/ a b)               (* a (/ b)))
@@ -113,6 +120,7 @@
   #:simplify ((1) (2)))
 (define-rule   sqrt-undiv        (/ (sqrt x) (sqrt y)) (sqrt (/ x y))
   #:simplify ((1)))
+(define-rule   sqr-neg           (sqr (- x))        (sqr x))
 
 ; Exponentials
 (define-rule   add-exp-log  x                    (exp (log x)))
@@ -136,6 +144,7 @@
 (define-rule   exp-to-expt     (exp (* (log a) b))         (expt a b))
 (define-rule   expt-prod-up    (* (expt a b) (expt a c))   (expt a (+ b c)))
 (define-rule   expt-prod-down  (* (expt b a) (expt c a))   (expt (* b c) a))
+(define-rule   unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a)))
 (define-rule   expt1           a                           (expt a 1))
 (define-rule   unexpt1         (expt a 1)                  a)
 (define-rule   unexpt0         (expt a 0)                  1)
@@ -144,6 +153,8 @@
 (define-rule   unexpt1/2       (expt a 1/2)                (sqrt a))
 (define-rule   expt1/2         (sqrt a)                    (expt a 1/2))
 (define-rule   expt-plus       (* (expt a b) a)            (expt a (+ b 1)))
+(define-rule   expt-expt       (expt (expt a b) c)         (expt a (* b c)))
+(define-rule   inv-expt        (/ a)                       (expt a -1))
 
 ; Logarithms
 (define-rule   sum-log      (+ (log a) (log b))  (log (* a b))
