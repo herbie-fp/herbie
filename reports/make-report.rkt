@@ -256,5 +256,7 @@
            (set! *max-test-args* (string->number ma))]
   #:multi [("-p") th "How many tests to run in parallel to use"
            (set! *max-test-threads* (string->number th))]
+  #:multi [("-l") ll "The folder to place the debug log in"
+	   (*log-dir* ll)]
   #:args bench-dir
   bench-dir))
