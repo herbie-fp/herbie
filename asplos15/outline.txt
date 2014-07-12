@@ -1,0 +1,92 @@
+Abstract
+
+  Floating point is imprecise.
+  Rounding errors can lead to surprising and incorrect results.
+  Numerical methods provides many techniques to help.
+  Not universally studied and experts are expensive.
+  Even experts have little tool support.
+  More non-CS people are writing scientific code.
+  Hand optimization is slow, difficult, and expensive.
+  Even with LA package, still need to apply it correctly.
+
+  Introduce Casio to help improve floating point precision.
+  Synthesis technique performs heuristic search to improve precision.
+  Able to automatically discover and apply many classic tricks from NM.
+  Suggests multiple alternatives to experts and helps diagnose problems.
+  Guaranteed equivalent over reals ( :\  ??? ).
+  Thorough evaluation.
+
+Intro
+
+  No one automatically improves precision.
+    (Why? This makes me nervous.)
+  But we do!
+  Recap Abstract in slow motion.
+
+Overview
+
+  Casio pipeline.
+  Example program.
+  Trace of Casio improving that program.
+
+Synthesis in Casio
+
+  Constraints
+    Equivalent over reals.
+    Matches programmer expectations.
+
+  Focus
+    Find high local error and focus search around those program points.
+
+  Recursive Matcher
+    Only apply rules that can match in some sequence.
+
+  Regimes
+    Different versions have different precision at different points.
+
+  Periodicity
+    Previous techniques don't do well with periodic functions.
+
+  Interpolation / Taylor Series
+    What if we give up on guarantee?
+    Interpolation / Taylor series do some things well?
+
+Evaluation
+
+  Microbenchmarks
+    From NM textbooks and real programs.
+
+  StokeFP for Precision
+    Change cost function, but still low level?
+
+  Brute Force
+    Dumbest possible thing maybe does OK
+
+  Casio + StokeFP
+    Can we recover some of the performance lost?
+
+  Benchmarks
+    Real apps from physics where precision matters
+
+Related Work
+
+  StokeFP
+    don't pay for the precision you don't need
+
+  Eva
+    prove that you have the precision you think you do
+
+  POPL 13
+    find inputs that cause overflow and friends
+
+Future Work
+
+  Verify that we never hurt precision.
+  More heuristics.
+  Loops.
+  Arrays.
+
+Conclusion
+
+  Presented Casio which improved precision.
+  No one else does it.
