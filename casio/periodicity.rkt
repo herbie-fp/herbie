@@ -39,7 +39,7 @@
     (cond
      [(null? a) b]
      [(null? b) a]
-     [(symbol=? (caar a) (caar b))
+     [(eq? (caar a) (caar b))
       (cons (cons (caar a) (merge (cdar a) (cdar b)))
             (merge-2 (cdr a) (cdr b)))]
      [(symbol<? (caar a) (caar b))
