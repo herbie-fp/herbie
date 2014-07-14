@@ -124,7 +124,8 @@
           [`(- ,a)
            (cond
             [(linear? a)
-             (out 'linear (alist-map - (coeffs a)))])]
+             (out 'linear (alist-map - (coeffs a)))]
+	    [else #f])]
           [`(- ,a ,b)
            (cond
             [(and (constant? a) (linear? b))
