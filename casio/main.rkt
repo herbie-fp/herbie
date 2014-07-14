@@ -8,6 +8,7 @@
 (require casio/combine-alts)
 (require casio/locations)
 (require casio/programs)
+(require casio/periodicity)
 
 (provide *flags* improve improve-alt)
 
@@ -15,7 +16,7 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach)]
-         [setup    . (simplify)])))
+         [setup    . (simplify periodicity)])))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
@@ -27,9 +28,8 @@
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
-  (let* ([clean-alt ((flag 'setup 'simplify) simplify-alt identity)]
-         [alt* (clean-alt alt)])
-    (improve-loop (list alt* alt) (list alt* alt) fuel)))
+  (let ([alt* (setup-alt alt fuel)])
+    (improve-loop (list alt*) (list alt*) fuel)))
 
 ;; Implementation
 
@@ -38,6 +38,16 @@
                           (λ () (error "Invalid flag type" type))))
       a
       b))
+
+(define (setup-alt altn fuel)
+  (let ([maybe-period ((flag 'setup 'periodicity)
+		       (curry optimize-periodicity
+			      (λ (altn)
+				 ;; We call improve-loop directly because we don't want simplify or periodicity running on our
+				 ;; subexpressions.
+				(improve-loop (list altn) (list altn) fuel))) identity)]
+	[maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
+    (maybe-simplify (maybe-period altn))))
 
 (define (improve-loop alts olds fuel)
   (if (or (<= fuel 0) (null? alts))
