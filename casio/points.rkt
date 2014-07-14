@@ -37,12 +37,13 @@
          < #:key car))))
 
 (define (make-period-points num periods)
-  (apply list-product
-	 (map (λ (per)
-		(let ([bucket-width (/ per num)])
-		  (for/list ([i num])
-		    (+ (* i bucket-width) (* bucket-width (random))))))
-	      periods)))
+  (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
+    (apply list-product
+	   (map (λ (prd)
+		  (let ([bucket-width (/ prd points-per-dim)])
+		    (for/list ([i (range points-per-dim)])
+		      (+ (* i bucket-width) (* bucket-width (random))))))
+		periods))))
 
 (define (make-exacts prog pts)
   (let ([f (eval-prog prog mode:bf)])
