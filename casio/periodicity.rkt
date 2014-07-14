@@ -19,11 +19,15 @@
 (require racket/match)
 (require casio/common)
 (require casio/programs)
+(require casio/rules)
+(require casio/alternative)
+(require casio/points)
+(require casio/matcher)
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)
 
-(provide periodic-locs (struct-out lp))
+(provide optimize-periodicity (struct-out lp))
 
 (define (constant? a) (eq? (annotation-type a) 'constant))
 (define (linear? a)   (eq? (annotation-type a) 'linear))
@@ -164,3 +168,42 @@
             [else #f])]
 
           [_ #f])))))
+
+(define *min-period-expr-cost* 0)
+(define *max-period-coeff* 20)
+
+(define (optimize-periodicity improve-func altn)
+  (debug "Optimizing " altn " for periodicity..." #:from 'periodicity #:depth 2)
+  (let* ([plocs (periodic-locs (alt-program altn))]
+	 [oalts (map (λ (ploc)
+		       (let* ([vars (map car (lp-periods ploc))]
+			      [program `(λ ,vars ,(location-get (lp-loc ploc) (alt-program altn)))])
+			 (debug "Looking at subexpression " program #:from 'periodicity #:depth 4)
+			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*)
+				 (< (program-cost program) *min-period-expr-cost*))
+			     altn
+			     (let-values ([(ppoints pexacts) (prepare-points-period program
+										    (map (compose (curry * pi) cdr) (lp-periods ploc)))])
+			       (parameterize ([*points* ppoints] [*exacts* pexacts])
+				 (improve-func altn))))))
+		     plocs)]
+	 ;; Substitute (mod x period) for x.
+	 [oexprs (map (λ (expr periods)
+			(program-induct expr #:variable (λ (v)
+							  (let ([period-coeff (cdr (assoc v periods))])
+							    `(mod ,v ,(if (= 1 period-coeff) pi `(* ,period-coeff ,pi)))))))
+		      (map (compose program-body alt-program) oalts)
+		      (map lp-periods plocs))]
+	 [final-oalt (pipe altn (map (λ (oexpr ploc)
+				       (λ (altn)
+					 (alt-apply altn (let ([rl (rule 'periodicity
+									 (location-get (lp-loc ploc) (alt-program altn))
+									 oexpr
+									 '())])
+							   (change rl (lp-loc ploc)
+								   (map (λ (v) (cons v v))
+									(map car (lp-periods ploc))))))))
+				     oexprs
+				     plocs))])
+    (debug "Periodicity result: " final-oalt #:from 'periodicity #:depth 2)
+    final-oalt))
