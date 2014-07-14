@@ -169,4 +169,64 @@ This matching algorithm, which we call recursive rewrite pattern matching,
 \casio uses recursive-rewrite pattern matching
   after focusing on an expression.
 
+\subsection{Regime inference}
+
+Often two real-equivalent programs have incomparable precision---%
+  one performs better on some inputs, but worse on others.
+A striking example of this phenomenon occurs with the expression $(e^x - 1) / x$.
+The best program real-equivalent to the above
+  uses the three implementations
+\begin{align*}
+  \frac{e^x - 1}{x} & \frac{e^x - 1}{\log e^x} &
+  \frac{e^x}{x} - \frac1x & \frac{e^x - 1}{\sqrt{x}^2} 
+\end{align*}
+  each for different ranges of values for the variable $x$.
+\casio must automatically infer the regimes
+  into which the input subdivides,
+  and must choose which programs to run on each region.
+In doing this, \casio must not add too many branches,
+  since each branch is computationally expensive.
+
+\casio infers regimes using a dynamic programming algorithm.
+First, \casio chooses a variable to infer regimes on
+  (that is, regime inference works on one dimension at a time).
+Then, it computes the best set of at most $k$ regimes
+  for the region $(-\infty, t)$, where $t$ is a sampled point,
+  with regimes $(t_0, t_1)$ evaluated by their total error
+  in the region $t_0 < x < t_1$.
+This is computed iteratively in $k$;
+  to find the best set of up to $k$ regimes,
+  for each possible $t_1$, each possible $t_0$ is considered,
+  each regime $(t_0, t_1)$ is considered,
+  and the best is added on to the best set of up to $k-1$ regimes
+  (see Algorithm~\ref{sec:regimes}).
+This algorithm runs in $O(n^2 k c)$ time,
+  where $n$ is the number of points,
+  $k$ is the maximum number of regimes,
+  and $c$ is the number of candidate programs.
+We have found this to be sufficiently fast;
+  this algorithm produces the optimal set of up to $k$ regimes.
+\casio caps $k$ at 5.
+Regime endpoints are chosen to be between sampled points;
+  to determine where exactly the split point between regimes should go,
+  \casio uses a binary search on that variable.
+
+This regimes algorithm finds regimes that improve
+  the precision of many of \casio's inputs.
+Sometimes, like in the above example,
+  finding many regimes is necessary to achieve significant improvement
+  in precision.
+However, regimes can also produce mild improvement
+  that has not, to our knowledge, been noticed before.
+For example, in the $\sqrt{x+1} - \sqrt{x}$ example mentioned above,
+  \casio produces the more precise program
+\[
+\frac{1}{\sqrt{x+1} + \sqrt{x}}
+\]
+  but only uses it for values of $x$ greater than approximately $0.002$.
+The original program turns out to be superior for smaller input values,
+  though both programs are very accurate and the improvement is slight.
+\casio's regime inference automatically notices this fact
+  and generates an accurate branch condition.
+
 \end{document}
