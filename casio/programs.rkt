@@ -124,7 +124,7 @@
 		       (bf- bigx (bf* bigmod (bffloor (bf/ bigx bigmod)))))
 		             ,(λ (fx fmod)
 				(fl- fx (fl* fmod (flfloor (fl/ fx fmod)))))
-			              5]
+			              1]
 
            ; For compiling variables
            [#f   ,bf      ,real->double-flonum 0])])
