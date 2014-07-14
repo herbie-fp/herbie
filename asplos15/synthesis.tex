@@ -45,8 +45,10 @@ To allow this class of transformations,
   which can greatly improve the precision of a program,
   we require that the output program
   only equal the input program where both are defined.
+We calls programs that are equal they are defined \emph{real-equivalent} programs.
 
-This constraint influences the architecture of \casio.
+This constraint that \casio only outputs real-equivalent programs
+  influences \casio's architecture.
 Since \casio must not change the real-number semantics of programs
   (except by changing where the program is defined),
   it is natural to structure \casio
@@ -104,7 +106,8 @@ To avoid biasing \casio's focusing algorithm
 Local error is defined at each operator
   as the error between
   the exact operator, applied to exactly-evaluated inputs
-  and the inexact operator, applied to exactly-evaluated inputs.
+  and the inexact operator, applied to exactly-evaluated inputs;
+  see Algorithm~\ref{alg:focus}.
 By exactly evaluating inputs,
   \casio avoids penalizing the output of operators
   for errors in computing their inputs.
@@ -126,5 +129,44 @@ Thus, the subtraction operator has high local error,
   while the other operators have very low error.
 As a result, \casio easily finds the correct location
   to rewrite this program.
+
+\subsection{Recursive rewrite pattern matching}
+
+After an expression is focused upon,
+  \casio must determine how to rewrite that expression.
+A common problem is that an expression may require multiple rewrites
+  to enable a rewrite that actually improves precision.
+For example, consider the expression
+\[
+ \left(\frac{1}{x-1} - \frac{2}{x} \right) + \frac{1}{x+1}.
+\]
+\casio correctly identifies the $(+)$ operator
+  to have the most local error (due to cancellation).
+To improve the precision of this program,
+  all of the fractions must be placed under a common denominator,
+  and then the numerator must be simplified.
+\casio has rules for fraction addition and subtraction;
+  however, doing a single fraction addition or subtraction
+  does not significantly change the precision of the program,
+  since precision loss is caused by a cancellation
+  that occurs when \emph{all} values are added together.
+In order to improve the precision of this program,
+  \casio must use the fraction addition/subtraction rules twice:
+  once on the parenthesized subtraction,
+  then again for the remaining addition.
+Note that the first rewrite occurs not at the focused-upon operator,
+  but on a child expression; however, this rewrite
+  is necessary for enabling the later rewrite.
+
+\casio uses a special pattern-matching algorithm
+  to automatically find and solve instances like the above,
+  where subexpressions must be rewritten
+  to allow a rewrite of the parent expression.
+Pseudo-code for this algorithm is sketched in Algorithm~\ref{alg:rm}.
+This matching algorithm, which we call recursive rewrite pattern matching,
+  allows \casio to automatically derive
+  stretches of \todo{How many} rewrites at once.
+\casio uses recursive-rewrite pattern matching
+  after focusing on an expression.
 
 \end{document}
