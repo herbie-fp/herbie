@@ -21,7 +21,7 @@
 (require casio/programs)
 
 (struct annotation (expr loc type coeffs) #:transparent)
-(struct lp (loc period) #:prefab)
+(struct lp (loc periods) #:prefab)
 
 (provide periodic-locs (struct-out lp))
 
@@ -65,7 +65,7 @@
 
 (define (periodic-locs prog)
   (define (lp-loc-cons loc-el locp)
-    (lp (cons loc-el (lp-loc locp)) (lp-period locp)))
+    (lp (cons loc-el (lp-loc locp)) (lp-periods locp)))
   (define (annot->plocs annot)
     (cond [(periodic? annot)
 	   `(,(lp '() (coeffs annot)))]
