@@ -185,7 +185,7 @@
 			     (let-values ([(ppoints pexacts) (prepare-points-period program
 										    (map (compose (curry * pi) cdr) (lp-periods ploc)))])
 			       (parameterize ([*points* ppoints] [*exacts* pexacts])
-				 (improve-func altn))))))
+				 (improve-func (make-alt program)))))))
 		     plocs)]
 	 ;; Substitute (mod x period) for x.
 	 [oexprs (map (λ (expr periods)
