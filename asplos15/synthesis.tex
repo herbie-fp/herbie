@@ -1,0 +1,130 @@
+\documentclass[paper.tex]{subfiles}
+\begin{document}
+
+\section{Synthesis in \casio}
+
+At a high level, \casio translates mathematical \emph{formulas}
+  into floating-point \emph{programs}.
+\casio translates using a heuristic search algorithm
+  that attempts to find a sequence of changes
+  that produces the largest improvement in precision.
+Unlike conventional compilers,
+  \casio is free to translate while changing
+  the semantics of the translated program.
+
+\subsection{Constraints on \casio}
+
+Though \casio can change the answer produced by a program,
+  it is not free to return arbitrary answers.
+The main constraint on \casio
+  is that, \emph{viewed as a real-number formula},
+  the output of \casio must equal its input.
+We can formalize this notion by defining
+  two semantics for mathematical expressions:
+  a real-number semantics,
+  where each constant and variable is a real number
+  and each operator a function from reals to reals;
+  and a floating-point semantics,
+  where each constant and variable is truncated
+  to a floating-point number
+  and where each function is replaced by its floating-point version.
+Then we may require that \casio's transformations
+  must preserve the real-number semantics of programs,
+  though it may change their floating-point semantics.
+
+In fact, this constraint is too strong,
+  as it prevents transformations that change
+  the region a program is defined on.
+For example, output of the transformation
+\[
+  x + y \leadsto \frac{x^2 - y^2}{x - y}
+\]
+  is equal to its input, except where $x = y$.
+For that particular input, the output program is not defined.
+To allow this class of transformations,
+  which can greatly improve the precision of a program,
+  we require that the output program
+  only equal the input program where both are defined.
+
+This constraint influences the architecture of \casio.
+Since \casio must not change the real-number semantics of programs
+  (except by changing where the program is defined),
+  it is natural to structure \casio
+  as applying a sequence of rewrite rules,
+  each of which satisfy the above property.
+These rules are specified by pattern matching;
+  for example, the transformation above is a rule,
+  with $x$ and $y$ matching arbitrary subexpressions.
+\casio contains 109 rules,
+  including those for
+  the commutativity, associativity, distributivity, and identity
+  of basic arithmetic operators;
+  fraction arithmetic;
+  laws of squares, square roots, exponents, and logarithms;
+  and some basic facts of trigonometry.
+Each of these rules is a basic fact of algebra;
+  it incorporates no understanding of numerical methods.
+In preparing the rules,
+  care was taken to ensure that rules
+  do not change the real-number semantics of programs.
+This was usually easy, but required some care
+  to avoid false ``identities'' such as $\sqrt{x^2} = x$
+  (this identity being false for negative $x$).
+
+The simplest method for improving precision
+  would be to apply these rewrite rules at random,
+  keeping more-precise variants.
+This method does not work.
+Too much time is spent on rewrites
+  that have no effect on program precision.
+Often, multiple rewrites without any effect
+  are necessary to enable a rewrite that significantly improves precision.
+The simplistic random-rewrite approach struggles with these cases.
+To improve precision, important subexpressions
+  must be found and focused on.
+
+  \todo{Evaluating programs by sample points}
+
+  \todo{Measuring error with floats-between}
+
+\subsection{Focusing with local error}
+
+\casio must focus on those expressions
+  where a rewrite will effect the largest improvement in precision.
+This measure must be approximated.
+By looking at the error of each expression,
+  \casio can determine which expressions
+  have the most room for improvement.
+However, expressions where children have high error
+  usually have high error themselves by
+  the garbage-in garbage-out principle.
+To avoid biasing \casio's focusing algorithm
+  toward larger expressions, \casio focuses
+  based not on error, but on \emph{local error}.
+Local error is defined at each operator
+  as the error between
+  the exact operator, applied to exactly-evaluated inputs
+  and the inexact operator, applied to exactly-evaluated inputs.
+By exactly evaluating inputs,
+  \casio avoids penalizing the output of operators
+  for errors in computing their inputs.
+
+\casio computes the local error of every operator at every sample point,
+  and chooses to focus on the three expressions
+  whose operators have the highest local error.
+In many cases, this leads \casio to precisely the correct location
+  to apply a rewrite.
+For example, consider the program $\sqrt{x+1} - \sqrt{x}$.
+This program is imprecise when $x$ is large,
+  because $\sqrt{x+1}$ and $\sqrt{x}$ are large and close-by,
+  causing cancellation error.
+For large inputs, both $\sqrt{x+1}$ and $\sqrt{x}$
+  are computed with little error.
+However, the subtraction, even with exact inputs,
+  produces large errors due to cancellation.
+Thus, the subtraction operator has high local error,
+  while the other operators have very low error.
+As a result, \casio easily finds the correct location
+  to rewrite this program.
+
+\end{document}

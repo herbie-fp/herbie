@@ -47,6 +47,9 @@ Synthesis in Casio
   Periodicity
     Previous techniques don't do well with periodic functions.
 
+  Zaching
+    Exploit power of computers to try some “dumb” alternatives
+
   Interpolation / Taylor Series
     What if we give up on guarantee?
     Interpolation / Taylor series do some things well?
