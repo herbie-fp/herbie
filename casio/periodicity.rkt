@@ -73,7 +73,7 @@
   (define (annot->plocs annot)
     (cond [(periodic? annot)
 	   `(,(lp '() (coeffs annot)))]
-	  [(linear? annot)
+	  [(or (linear? annot) (constant? annot))
 	   '()]
 	  [#t (apply append
 		     (let ([inner-annots (cdr (annotation-expr annot))])
