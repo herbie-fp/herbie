@@ -31,7 +31,9 @@
 
 (define (constant? a) (eq? (annotation-type a) 'constant))
 (define (linear? a)   (eq? (annotation-type a) 'linear))
-(define (periodic? a) (eq? (annotation-type a) 'periodic))
+(define (periodic? a) (or (eq? (annotation-type a) 'periodic) (interesting? a)))
+(define (interesting? a) (eq? (annotation-type a) 'interesting))
+(define (other? a) (eq? (annotation-type a) 'other))
 (define coeffs annotation-coeffs)
 
 (define (alist-merge merge . as)
@@ -60,6 +62,11 @@
    [(andmap constant? (cdr expr))
     (annotation expr loc 'constant
                 (safe-eval (cons (car expr) (map coeffs (cdr expr)))))]
+   [(or (and (andmap periodic? (cdr expr)) (= 3 (length expr)))
+	(ormap interesting? (cdr expr)))
+    (annotation expr loc 'interesting
+		(apply alist-merge lcm
+		       (map coeffs (filter periodic? (cdr expr)))))]
    [(andmap (λ (x) (or (periodic? x) (constant? x))) (cdr expr))
     (annotation expr loc 'periodic
                 (apply alist-merge lcm
@@ -71,16 +78,16 @@
   (define (lp-loc-cons loc-el locp)
     (lp (cons loc-el (lp-loc locp)) (lp-periods locp)))
   (define (annot->plocs annot)
-    (cond [(periodic? annot)
+    (cond [(interesting? annot)
 	   `(,(lp '() (coeffs annot)))]
-	  [(or (linear? annot) (constant? annot))
-	   '()]
-	  [#t (apply append
-		     (let ([inner-annots (cdr (annotation-expr annot))])
-		       (map (λ (lps base-loc)
-			      (map (curry lp-loc-cons base-loc) lps))
-			    (map annot->plocs inner-annots)
-			    (map add1 (range (length inner-annots))))))]))
+	  [(other? annot)
+	   (apply append
+		  (let ([inner-annots (cdr (annotation-expr annot))])
+		    (map (λ (lps base-loc)
+			   (map (curry lp-loc-cons base-loc) lps))
+			 (map annot->plocs inner-annots)
+			 (map add1 (range (length inner-annots))))))]
+	  [else '()]))
   (map (curry lp-loc-cons 2) (annot->plocs (program-body (periodicity prog)))))
 
 (define (periodicity prog)
