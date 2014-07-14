@@ -18,6 +18,7 @@ main() {
     int i;
     clock_t start, end;
     double y = 1.517;
+    double nothing;
 
     benchmark(0);
     benchmark(x + y);
@@ -47,4 +48,5 @@ main() {
     benchmark((i & 17) && (i & 13));
     benchmark((i & 17) || (i & 13));
     benchmark(atan2(x, y));
+    benchmark(modf(x / y, &nothing));
 }
