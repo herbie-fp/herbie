@@ -120,6 +120,11 @@
            [and     ,and-fn  ,and-fn  1]
            [or      ,or-fn   ,or-fn   1]
            [atan2   ,bfatan2 ,atan    230]
+	   [mod     ,(λ (bigx bigmod)
+		       (bf- bigx (bf* bigmod (bffloor (bf/ bigx bigmod)))))
+		             ,(λ (fx fmod)
+				(fl- fx (fl* fmod (flfloor (fl/ fx fmod)))))
+			              5]
 
            ; For compiling variables
            [#f   ,bf      ,real->double-flonum 0])])
