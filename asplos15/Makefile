@@ -7,7 +7,6 @@ FIGS = $(wildcard im/*.pdf_tex im/*.pdf im/*.png)
 all: paper.pdf
 
 paper.pdf: $(TEX) $(BIB) $(FIGS) jpaper.cls
-	echo $(FIGS)
 	pdflatex paper
 	bibtex paper
 	pdflatex paper
