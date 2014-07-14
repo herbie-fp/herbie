@@ -7,7 +7,7 @@
          enumerate take-up-to *debug* debug debug-reset pipe
 	 list-product set-debug-level! alist-append
 	 safe-eval write-file write-string has-duplicates?
-	 with-item *log-dir*)
+	 with-item *log-dir* symbol<?)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -182,3 +182,7 @@
 	 (if (= lst-idx idx) item lst-item))
        lst
        (range (length lst))))
+
+;; Provide sorting for symbols so that we can canonically order variables and other atoms
+(define (symbol<? sym1 sym2)
+  (string<? (symbol->string sym1) (symbol->string sym2)))
