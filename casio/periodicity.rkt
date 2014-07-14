@@ -177,7 +177,6 @@
 
           [_ #f])))))
 
-(define *min-period-expr-cost* 0)
 (define *max-period-coeff* 20)
 
 (define (optimize-periodicity improve-func altn)
@@ -187,8 +186,7 @@
 		       (let* ([vars (map car (lp-periods ploc))]
 			      [program `(λ ,vars ,(location-get (lp-loc ploc) (alt-program altn)))])
 			 (debug "Looking at subexpression " program #:from 'periodicity #:depth 4)
-			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*)
-				 (< (program-cost program) *min-period-expr-cost*))
+			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
 			     (let-values ([(ppoints pexacts) (prepare-points-period program
 										    (map (compose (curry * pi) cdr) (lp-periods ploc)))])
