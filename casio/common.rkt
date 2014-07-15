@@ -160,6 +160,7 @@
 
 (define safe-eval
   (let ([ns (make-base-namespace)])
+    (eval '(require racket) ns)
     (λ (expr) (eval expr ns))))
 
 (define-syntax (write-file stx)
