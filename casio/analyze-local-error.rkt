@@ -48,28 +48,37 @@
 
    #:primitive
    (λ (expr loc)
-      (let* ([exact-op (real-op->bigfloat-op (car expr))]
-             [approx-op (real-op->float-op (car expr))]
-             [exact-inputs
-              (transpose (map annotation-exact-value (cdr expr)))]
-             [semiapprox-inputs (map (curry map ->flonum) exact-inputs)]
-             [approx-inputs
-              (transpose (map annotation-approx-value (cdr expr)))]
-             [exact-ans (map (curry apply exact-op) exact-inputs)]
-             [semiapprox-ans
-              (map (curry apply approx-op) semiapprox-inputs)]
-             [approx-ans
-              (map (curry apply approx-op) approx-inputs)]
-             [local-error
-              (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
-             [cumulative-error
-              (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
-        (annotation expr exact-ans approx-ans local-error cumulative-error loc)))))
+     (if (eq? (car expr) 'if)
+	 (let ([value (annotation-exact-value (caddr expr))])
+	   (annotation expr value value (make-list (length value) 0)
+		       (map max
+			    (annotation-total-error (caddr expr))
+			    (annotation-total-error (cadddr expr)))
+		       loc))
+	 (let* ([exact-op (real-op->bigfloat-op (car expr))]
+		[approx-op (real-op->float-op (car expr))]
+		[exact-inputs
+		 (transpose (map annotation-exact-value (cdr expr)))]
+		[semiapprox-inputs (map (curry map ->flonum) exact-inputs)]
+		[approx-inputs
+		 (transpose (map annotation-approx-value (cdr expr)))]
+		[exact-ans (map (curry apply exact-op) exact-inputs)]
+		[semiapprox-ans
+		 (map (curry apply approx-op) semiapprox-inputs)]
+		[approx-ans
+		 (map (curry apply approx-op) approx-inputs)]
+		[local-error
+		 (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum semiapprox-ans))]
+		[cumulative-error
+		 (map (compose add1 flulp-error) (map ->flonum exact-ans) (map ->flonum approx-ans))])
+	   (annotation expr exact-ans approx-ans local-error cumulative-error loc))))))
 
 (define (find-interesting-locations annot-prog)
   (define (search-expression found expr)
     (when (list? expr)
-      (map (curry search-annot found) (cdr expr))))
+      (if (eq? (car expr) 'if)
+	  (map (curry search-annot found) (cddr expr))
+	  (map (curry search-annot found) (cdr expr)))))
 
   (define (search-annot found annot)
     (when (ormap (λ (x) (> x 1)) (annotation-local-error annot))
