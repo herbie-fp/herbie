@@ -391,8 +391,7 @@
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 ;; Takes two optional parameters: max-splits, the maximum number of splitpoints to return, and
 ;; min-weight, the minimum total error in a region (?).
-(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size *min-region-size*]
-				 #:min-weight [min-weight 10] err-lsts)
+(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size *min-region-size*] err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (let ([num-candidates (length err-lsts)]
@@ -414,7 +413,7 @@
 			 ;; We subtract the min-weight from this option so that we will only create
 			 ;; new regions if they are more than min-weight better than not creating that
 			 ;; region.
-			 (cons (cse (- (cse-cost point-entry) min-weight) (cse-splitpoints point-entry))
+			 (cons (cse (- (cse-cost point-entry) num-points) (cse-splitpoints point-entry))
 			       ;; We are building a list of considering every possible previous splitpoint,
 			       ;; and every possible additional candidate. We also keep track of all the
 			       ;; indices.
