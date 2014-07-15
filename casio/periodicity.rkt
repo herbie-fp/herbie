@@ -152,7 +152,7 @@
             [else #f])]
 
           ; Periodic functions record their period
-          ;         AS A MULTIPLE OF PI
+          ;         AS A MULTIPLE OF 2*PI
           ; This prevents problems from round-off
           [`(sin ,a)
            (cond
@@ -189,7 +189,7 @@
 			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
 			     (let-values ([(ppoints pexacts) (prepare-points-period program
-										    (map (compose (curry * pi) cdr) (lp-periods ploc)))])
+										    (map (compose (curry * 2 pi) cdr) (lp-periods ploc)))])
 			       (parameterize ([*points* ppoints] [*exacts* pexacts])
 				 (improve-func (make-alt program)))))))
 		     plocs)]
@@ -197,7 +197,7 @@
 	 [oexprs (map (λ (expr periods)
 			(program-induct expr #:variable (λ (v)
 							  (let ([period-coeff (cdr (assoc v periods))])
-							    `(mod ,v ,(if (= 1 period-coeff) pi `(* ,period-coeff ,pi)))))))
+							    `(mod ,v ,(if (= 1/2 period-coeff) pi `(* ,(* 2 period-coeff) ,pi)))))))
 		      (map (compose program-body alt-program) oalts)
 		      (map lp-periods plocs))]
 	 [final-oalt (pipe altn (map (λ (oexpr ploc)
