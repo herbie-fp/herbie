@@ -394,9 +394,10 @@
 (define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size *min-region-size*] err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
-  (let ([num-candidates (length err-lsts)]
-	[num-points (length (car err-lsts))]
-	[psums (map (compose list->vector partial-sum) err-lsts)])
+  (let* ([num-candidates (length err-lsts)]
+	 [num-points (length (car err-lsts))]
+	 [psums (map (compose list->vector partial-sum) err-lsts)]
+	 [min-weight (/ num-points 2)])
     ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitindices after
     ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
     ;; lists, this function tries to add another splitindices to each cse.
@@ -413,7 +414,7 @@
 			 ;; We subtract the min-weight from this option so that we will only create
 			 ;; new regions if they are more than min-weight better than not creating that
 			 ;; region.
-			 (cons (cse (- (cse-cost point-entry) num-points) (cse-splitpoints point-entry))
+			 (cons (cse (- (cse-cost point-entry) min-weight) (cse-splitpoints point-entry))
 			       ;; We are building a list of considering every possible previous splitpoint,
 			       ;; and every possible additional candidate. We also keep track of all the
 			       ;; indices.
