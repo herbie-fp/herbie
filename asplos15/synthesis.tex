@@ -231,6 +231,56 @@ The original program turns out to be superior for smaller input values,
 \casio's regime inference automatically notices this fact
   and generates an accurate branch condition.
 
+\subsection{Periodic Functions}
+
+Regimes inference works well when the regimes
+  are large contiguous ranges in a variable.
+Periodic functions, on the other hand, often require periodic regimes.
+For example, the two real-equivalent formulas
+\[
+\frac{1 - \cos x}{\sin x} = \frac{\sin x}{1 + \cos x}
+\]
+  need regimes, wherein the second will be used
+  near even multiples of $\pi$, and the first near odd multiples.
+Regime inference cannot infer such regimes; furthermore,
+  periodic functions can be evaluated more accurately
+  if they are evaluated on points uniformly sampled in their period.
+For these two reasons, \casio uses a static analysis
+  to detect periodic functions, and analyze them specially.
+
+To detect periodic functions, \casio uses a symbolic execution,
+  where each expression is classified as
+  a constant (of known value); a linear function (of known coefficients);
+  a periodic function (of known period); or other.
+Addition, subtraction, multiplication, and division
+  combine linear functions with each other or with constants
+  into linear functions.
+Trigonometric functions turn linear arguments
+  into periodic outputs.
+And any expression whose arguments are periodic
+  is itself periodic, where the period is computed
+  by taking the least common multiple of the periods of all children.
+Expressions whose arguments include
+  both periodic and non-periodic expressions
+  are placed in the ``other'' class.
+This analysis is conservative; for example, the period of $(\sin x)^2$
+  is computed as $2 \pi$, whereas in fact it is $\pi$.
+However, every expression that it declares as periodic
+  is in fact periodic with the given period.
+
+Once periodic functions have been found,
+  \casio extracts the largest periodic expressions
+  and executes a full \casio run on each expression,
+  with points chosen uniformly on $[0, t)$,
+  where $t$ is the period.
+If the resulting program includes branches introduced by regimes,
+  the condition in each branch is changed via the substitution
+  $x \mapsto \mathsf{mod}(x, t)$, for each variable $x$ with period $t$.
+The body of the branch is not changed,
+  because for large inputs, expressions like
+  $\sin \mathsf{mod}(x, 2\pi)$
+  are less accurate than the real-equivalent $\sin x$.
+
 \subsection{Correlated Error}
 
 \casio's focusing mechanism usually correctly detects
