@@ -28,8 +28,8 @@
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
-  (let ([alt* (setup-alt alt fuel)])
-    (improve-loop (list alt*) (list alt*) fuel)))
+  (let ([alts* (setup-alt alt fuel)])
+    (improve-loop alts* alts* fuel)))
 
 ;; Implementation
 
@@ -47,7 +47,7 @@
 				 ;; subexpressions.
 				(improve-loop (list altn) (list altn) fuel))) identity)]
 	[maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
-    (maybe-simplify (maybe-period altn))))
+    (list (maybe-simplify (maybe-period altn)))))
 
 (define (improve-loop alts olds fuel)
   (if (or (<= fuel 0) (null? alts))
@@ -91,7 +91,7 @@
     (if (> 2 (length alts*))
         #f
         (combine-alts alts*
-         #:pre-combo-func (curryr improve-alt (floor (/ fuel 2)))))))
+         #:pre-combo-func (λ (altn) (improve-loop (list altn) (list altn) (/ fuel 2)))))))
 
 (define (best-alt alts)
   (argmin (compose errors-score alt-errors) alts))
