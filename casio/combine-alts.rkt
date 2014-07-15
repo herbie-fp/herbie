@@ -9,7 +9,7 @@
 (provide plausible-alts combine-alts (struct-out sp))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
-(define *branch-cost* 5)
+(define *branch-cost* 20)
 (define *min-region-size* 5)
 
 ;; A lexically scoped predicate that is true on the top level,
