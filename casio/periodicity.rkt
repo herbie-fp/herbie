@@ -194,11 +194,8 @@
 				 (improve-func (make-alt program)))))))
 		     plocs)]
 	 ;; Substitute (mod x period) for x.
-	 [oexprs (map (λ (expr periods)
-			(program-induct expr #:variable (λ (v)
-							  (let ([period-coeff (cdr (assoc v periods))])
-							    `(mod ,v ,(if (= 1/2 period-coeff) pi `(* ,(* 2 period-coeff) ,pi)))))))
-		      (map (compose program-body alt-program) oalts)
+	 [oexprs (map coerce-conditions
+		      (map alt-program oalts)
 		      (map lp-periods plocs))]
 	 [final-oalt (pipe altn (map (λ (oexpr ploc)
 				       (λ (altn)
@@ -213,3 +210,14 @@
 				     plocs))])
     (debug "Periodicity result: " final-oalt #:from 'periodicity #:depth 2)
     final-oalt))
+
+(define (coerce-conditions prog periods)
+  (let loop ([cur-body (program-body prog)])
+    (match cur-body
+      [`(if ,cond ,a ,b)
+       `(if ,(program-induct cond
+			     #:variable (λ (v)
+					  (let ([period-coeff (cdr (assoc v periods))])
+					    `(mod ,v ,(if (= 1/2 period-coeff) pi `(* ,(* 2 period-coeff) ,pi))))))
+	    ,(loop a) ,(loop b))]
+      [_ cur-body])))
