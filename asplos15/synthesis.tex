@@ -89,6 +89,8 @@ To improve precision, important subexpressions
 
   \todo{Measuring error with floats-between}
 
+  \todo{Main loop}
+
 \subsection{Focusing with local error}
 
 \casio must focus on those expressions
@@ -228,5 +230,31 @@ The original program turns out to be superior for smaller input values,
   though both programs are very accurate and the improvement is slight.
 \casio's regime inference automatically notices this fact
   and generates an accurate branch condition.
+
+\subsection{Correlated Error}
+
+\casio's focusing mechanism usually correctly detects
+  the best expression to rewrite.
+However, it is based on an assumption:
+  that the way to improve the precision of a program
+  is to improve the precision of each expression in it.
+This assumption ignores the possibility
+  that two expressions could both have error,
+  but error that correlates and somehow cancels
+  when the two expressions are combined.
+A case where this occurs is the formula $(e^x - 1) / x$.
+This formula is inaccurate for $x$ near $0$,
+  because cancellation occurs in $e^x - 1$.
+However, if the denominator is transformed from $x$ into $\log e^x$,
+  the same cancellation will occur in the denominator,
+  leading to a result of approximately $1$, which is correct.
+
+To support this type of precision optimization,
+  \casio will, after the main rewrite loop is complete,
+  find all remaining expressions with error,
+  and try rewrite sibling expressions, siblings of parents, and so on.
+This produces many candidates, but since it is done only once
+  and after the main rewrite loop is complete, the cost is small.
+We've found this optimization to be useful in only a small number of cases.
 
 \end{document}
