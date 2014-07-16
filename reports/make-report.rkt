@@ -110,7 +110,7 @@
     (string-append index-label final-tname "/")))
 
 (struct table-row
-  (name status delta target inf- inf+ delta-est input output time))
+  (name status start result target inf- inf+ result-est input output time))
 
 (define (get-table-data results)
   (for/list ([result results])
@@ -138,21 +138,22 @@
                         [(> end-score (+ start-score 1)) "lt-start"]
                         [(> end-score (- start-score 1)) "eq-start"]
                         [(> end-score (+ target-score 1)) "lt-target"])
-                       (- start-score end-score)
-                       (and target-score (- start-score target-score))
+                       start-score
+                       end-score
+                       (and target-score target-score)
                        (length good-inf)
                        (length bad-inf)
-                       (- est-start-score est-end-score)
+                       est-end-score
                        (program-body (alt-program (test-result-start-alt result)))
                        (program-body (alt-program (test-result-end-alt result)))
                        (test-result-time result))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
-                 #f #f #f #f #f (test-input (test-failure-test result)) #f
+                 #f #f #f #f #f #f (test-input (test-failure-test result)) #f
                  (test-failure-time result))]
      [(test-timeout? result)
       (table-row (test-name (test-timeout-test result)) "timeout"
-                 #f #f #f #f #f (test-input (test-timeout-test result)) #f
+                 #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
                  (* 1000 60 5))])))
 
 (define (format-time ms)
@@ -167,7 +168,7 @@
         [branch (command-result "git rev-parse --abbrev-ref HEAD")])
 
     (define table-labels
-      '("Test" "Δ [bits]" "Target [bits]" "∞ → ℝ" "ℝ → ∞" "Δ Estimate" "Input" "Time"))
+      '("Test" "Start [bits]" "Result [bits]" "Target [bits]" "∞ ↔ ℝ" "Input" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
@@ -184,6 +185,9 @@
     (define total-crashes
       (apply + (for/list ([row table-data])
                  (if (equal? (table-row-status row) "crash") 1 0))))
+
+    (define (display-bits r)
+      (if r (/ (round (* r 10)) 10) ""))
 
     (write-file file
       (printf "<!doctype html>\n")
@@ -228,24 +232,21 @@
         (printf "<tr class='~a'>" (table-row-status result))
 
         (printf "<td>~a</td>" (or (table-row-name result) ""))
-        (printf "<td>~a</td>"
-                (if (table-row-delta result)
-                    (/ (round (* (table-row-delta result) 10)) 10)
-                    ""))
-        (printf "<td>~a</td>"
-                (if (table-row-target result)
-                    (/ (round (* (table-row-target result) 10)) 10)
-                    ""))
-        (printf "<td>~a</td>"
+        (printf "<td>~a</td>" (display-bits (table-row-start result)))
+
+        (if (and (table-row-result result) (table-row-result-est result)
+                 (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
+            (printf "<td class='bad-est'>[~a ≉] ~a </td>"
+                    (display-bits (table-row-result-est result))
+                    (display-bits (table-row-result result)))
+            (printf "<td>~a</td>" (display-bits (table-row-result result))))
+
+        (printf "<td>~a</td>" (display-bits (table-row-target result)))
+        (printf "<td>~a~a</td>"
                 (let ([inf- (table-row-inf- result)])
-                  (if (and inf- (> inf- 0)) inf- "")))
-        (printf "<td>~a</td>"
+                  (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
                 (let ([inf+ (table-row-inf+ result)])
-                  (if (and inf+ (> inf+ 0)) inf+ "")))
-        (printf "<td>~a</td>"
-                (if (table-row-delta-est result)
-                    (/ (round (* (table-row-delta-est result) 10)) 10)
-                    ""))
+                  (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
 
         (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
