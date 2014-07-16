@@ -82,7 +82,10 @@
   (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
 
 (define (get-rule name)
-  (car (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)))
+  (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)])
+    (if (null? results)
+	(error "Could not find a rule by the name" name)
+	(car results))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
