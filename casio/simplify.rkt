@@ -187,8 +187,10 @@
 			       '())])
     (let* ([canon-changes (canonicalize expr)]
 	   [expr* (changes-apply canon-changes expr)]
-	   [resolve-changes (cancel-terms expr*)])
-      (append canon-changes resolve-changes))))
+	   [resolve-changes (cancel-terms expr*)]
+	   [expr* (changes-apply resolve-changes expr*)]
+	   [normalize-changes (normalize expr*)])
+      (append canon-changes resolve-changes normalize-changes))))
 
 ;; Simplifies an expression, and then applies the simplifying changes.
 ;; for debuggging.
@@ -1212,3 +1214,41 @@
 	    (println (car rest-chngs) "->")
 	    (println expr*)
 	    (loop (cdr rest-chngs) expr*))))))
+
+(define (normalize expr)
+  (define (make-changes expr . rule-names)
+    (let loop ([cur-expr expr] [rest-rules (map get-rule rule-names)] [acc '()])
+      (if (null? rest-rules) (reverse acc)
+	  (let* ([rl (car rest-rules)]
+		 [chng (change rl '()
+			       (pattern-match (rule-input rl) cur-expr))])
+	    (loop (change-apply chng expr) (cdr rest-rules)
+		  (cons chng acc))))))
+  (define (sub-normalize expr)
+    (apply append
+	   (enumerate (λ (idx item)
+			(append-to-change-locations (normalize item) (list (add1 idx))))
+		      (cdr expr))))
+  (let* ([sub-changes (if (list? expr) (sub-normalize expr) '())]
+	 [expr* (changes-apply sub-changes expr)]
+	 [make-changes* (curry make-changes expr*)])
+    (append
+     sub-changes
+     (match expr*
+       [`(+ (- ,a) (- ,b))
+	(make-changes* 'distribute-neg-out)]
+       [`(+ ,a (- ,b))
+	(make-changes* 'unsub-neg)]
+       [`(- (, a) ,b)
+	(make-changes* '+-commutative 'unsub-neg)]
+       [`(* (/ ,a) (/ ,b))
+	(make-changes* 'distribute-inv-out)]
+       [`(* ,a (/ ,b))
+	(make-changes* 'un-div-inv)]
+       [`(* (/ ,a) ,b)
+	(make-changes* '*-commutative 'un-div-inv)]
+       [_ '()]))))
+
+(define (tchngs f expr)
+  (let ([changes (f expr)])
+    (changes-apply changes expr)))
