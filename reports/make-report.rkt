@@ -36,12 +36,23 @@
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
 (define (allowed-tests bench-dirs)
-  (apply append
-         (for/list ([bench-dir bench-dirs])
-           (filter (λ (test)
-                      (or (not *max-test-args*)
-                          (<= (length (test-vars test)) *max-test-args*)))
-                   (load-tests bench-dir)))))
+  (reverse
+   (sort
+    (apply append
+           (for/list ([bench-dir bench-dirs])
+             (filter (λ (test)
+                        (or (not *max-test-args*)
+                            (<= (length (test-vars test)) *max-test-args*)))
+                     (load-tests bench-dir))))
+    test<?)))
+
+(define (test<? t1 t2)
+  (cond
+   ((or (and (test-output t1) (test-output t2))
+        (and (not (test-output t1)) (not (test-output t2))))
+    (string<? (test-name t1) (test-name t2)))
+   (else
+    (test-output t1))))
 
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
