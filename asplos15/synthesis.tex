@@ -107,7 +107,39 @@ These techniques, combined, are \casio.
 
 \todo{Filter by best-at-point}
 
-  \todo{Main loop}
+\subsection{Evaluating error of expressions}
+
+As \casio discovers and applies rewrites,
+  it needs to know if it is improving precision.
+This can be done statically using interval~\cite{} or affine arithmetic~\cite{},
+  or using an SMT solver to get tighter bounds~\cite{}.
+However, affine and interval arithmetic give
+  very conservative estimates of error~\cite{},
+  and SMT techniques are slow.
+Instead, \casio estimates error by simply sampling many possible inputs
+  and computing the average difference between a floating-point
+  and arbitrary-precision evaluation on those points.
+Arbitrary-precision arithmetic is slow,
+  so arbitrary-precision results are computed only once per run;
+  each rewrite need only be evaluated in floating-point
+  and compared to the already-computed arbitrary-precision results.
+\casio selects 500 points, distributed approximately uniformly
+  over the \emph{set} of floating-point numbers
+  (this leads to a near-uniform distribution over the exponent).
+Experiments show that the estimate computed from 500 points
+  is rarely more than one bit of error removed from the true answer.
+
+Once sample points are chosen
+  and exact and floating-point answers are computed,
+  some measure of error is necessary to compare the two.
+Mathematically-natural measures include absolute and relative error.
+However, both of these measures are ill-suited
+  to measuring error between floating-point values~\cite{}.
+We follow \textsc{Stoke}~\cite{} in defining the error between $x$ and $y$
+  by the number of floating-point values in the range $[x, y]$.
+This measure of error is uniform over the input space,
+  avoiding problems with denormal floating-point values,
+  and avoiding any special handling for infinities.
 
 \subsection{Focusing with local error}
 
