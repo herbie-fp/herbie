@@ -189,8 +189,8 @@
 	   [expr* (changes-apply canon-changes expr)]
 	   [resolve-changes (cancel-terms expr*)]
 	   [expr* (changes-apply resolve-changes expr*)]
-	   [normalize-changes (normalize expr*)])
-      (append canon-changes resolve-changes normalize-changes))))
+	   [cleanup-changes (cleanup expr*)])
+      (append canon-changes resolve-changes cleanup-changes))))
 
 ;; Simplifies an expression, and then applies the simplifying changes.
 ;; for debuggging.
@@ -1234,6 +1234,12 @@
 		      (append-to-change-locations (f item) (list (add1 idx))))
 		    (cdr expr))))
 
+(define (cleanup expr)
+  (let* ([normalize-chngs (normalize expr)]
+	 [expr* (changes-apply normalize-chngs expr)]
+	 [ci-chngs (coerce-inverses expr*)])
+    (append normalize-chngs ci-chngs)))
+
 (define (normalize expr)
   (let* ([sub-changes (if (list? expr) (sub-apply-chng normalize expr) '())]
 	 [expr* (changes-apply sub-changes expr)]
@@ -1253,6 +1259,17 @@
 	(make-changes* 'un-div-inv)]
        [`(* (/ ,a) ,b)
 	(make-changes* '*-commutative 'un-div-inv)]
+       [_ '()]))))
+
+(define (coerce-inverses expr)
+  (let* ([sub-changes (if (list? expr) (sub-apply-chng coerce-inverses expr) '())]
+	 [expr* (changes-apply sub-changes expr)]
+	 [make-changes* (curry make-changes expr*)])
+    (append
+     sub-changes
+     (match expr*
+       [`(/ ,a)
+	(make-changes* 'un-lft-identity 'un-div-inv)]
        [_ '()]))))
 
 (define (tchngs f expr)
