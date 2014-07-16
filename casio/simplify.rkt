@@ -1269,7 +1269,7 @@
      sub-changes
      (match expr*
        [`(/ ,a)
-	(make-changes* 'un-lft-identity 'un-div-inv)]
+	(make-changes* '*-un-lft-identity 'un-div-inv)]
        [_ '()]))))
 
 (define (tchngs f expr)
