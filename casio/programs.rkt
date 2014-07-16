@@ -11,12 +11,13 @@
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
+(define preds '(or and < > <= >= =))
 
 (define (location-induct
 	 prog
 	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
 	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
-	 #:symbol [symbol-table (λ (sym location) sym)])
+	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
   (define (inductor prog location)
     (cond
      [(real? prog) (constant prog (reverse location))]
@@ -24,6 +25,12 @@
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog) (cons 2 location))])
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
+     [(and (list? prog) (memq (car prog) preds))
+      (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
+		       (enumerate #:from 1
+				  (λ (idx prog) (inductor prog (cons idx location)))
+				  (cdr prog)))
+		 (reverse location))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
 		       (enumerate #:from 1
@@ -36,7 +43,7 @@
          prog
          #:toplevel [toplevel identity] #:constant [constant identity]
          #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity])
+         #:symbol [symbol-table identity] #:predicate [predicate identity])
 
   ; Inlined for speed
   (define (inductor prog)
@@ -46,6 +53,9 @@
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog))])
 	(toplevel `(λ ,(program-variables prog) ,body*)))]
+     [(and (list? prog) (memq (car prog) preds))
+      (predicate (cons (symbol-table (car prog))
+		       (map inductor (cdr prog))))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog))
 		       (map inductor (cdr prog))))]))
@@ -120,6 +130,11 @@
            [and     ,and-fn  ,and-fn  1]
            [or      ,or-fn   ,or-fn   1]
            [atan2   ,bfatan2 ,atan    230]
+	   [mod     ,(λ (bigx bigmod)
+		       (bf- bigx (bf* bigmod (bffloor (bf/ bigx bigmod)))))
+		             ,(λ (fx fmod)
+				(fl- fx (fl* fmod (flfloor (fl/ fx fmod)))))
+			              1]
 
            ; For compiling variables
            [#f   ,bf      ,real->double-flonum 0])])

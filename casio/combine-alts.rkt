@@ -9,7 +9,7 @@
 (provide plausible-alts combine-alts (struct-out sp))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
-(define *branch-cost* 5)
+(define *branch-cost* 20)
 (define *min-region-size* 5)
 
 ;; A lexically scoped predicate that is true on the top level,
@@ -391,13 +391,13 @@
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 ;; Takes two optional parameters: max-splits, the maximum number of splitpoints to return, and
 ;; min-weight, the minimum total error in a region (?).
-(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size *min-region-size*]
-				 #:min-weight [min-weight 10] err-lsts)
+(define (err-lsts->split-indices #:max-splits [max-splits 5] #:min-region-size [min-region-size *min-region-size*] err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
-  (let ([num-candidates (length err-lsts)]
-	[num-points (length (car err-lsts))]
-	[psums (map (compose list->vector partial-sum) err-lsts)])
+  (let* ([num-candidates (length err-lsts)]
+	 [num-points (length (car err-lsts))]
+	 [psums (map (compose list->vector partial-sum) err-lsts)]
+	 [min-weight (/ num-points 2)])
     ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitindices after
     ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
     ;; lists, this function tries to add another splitindices to each cse.

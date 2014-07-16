@@ -94,10 +94,6 @@
 					   (cdr expr)))])) ; If we're at a list, get the vars from all of it's items, and append them together.
   (remove-duplicates (get-duplicated-vars expr))) ; Get the list with duplicates, and remove the duplicates.
 
-;; Provide sorting for symbols so that we can canonically order variables and other atoms
-(define (symbol<? sym1 sym2)
-  (string<? (symbol->string sym1) (symbol->string sym2)))
-
 (define (s-var<? v1 v2)
   (expr<? (s-var-var v1) (s-var-var v2)))
 
@@ -155,16 +151,11 @@
 	       (eq? (car expr)
 		    '*)))))
 
-(define full-namespace
-  (let ([ns (make-base-namespace)])
-    (eval '(require racket) ns)
-    ns))
-
 ;; Given an expression, returns a constant if that expression is just a function of constants, the original expression otherwise.
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
       (let ([value (with-handlers ([(const #t) (λ (e) #f)])
-                       (eval expr full-namespace))])
+                       (safe-eval expr))])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))

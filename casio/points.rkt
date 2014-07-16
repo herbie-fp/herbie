@@ -5,7 +5,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *num-points* make-exacts prepare-points errors errors-score)
+(provide *points* *exacts* *num-points* make-exacts prepare-points prepare-points-period errors errors-score)
 
 (define *num-points* (make-parameter 512))
 (define *exp-size* (make-parameter 256))
@@ -36,6 +36,15 @@
                   (map (λ (x) (cons x rest)) first)))
          < #:key car))))
 
+(define (make-period-points num periods)
+  (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
+    (apply list-product
+	   (map (λ (prd)
+		  (let ([bucket-width (/ prd points-per-dim)])
+		    (for/list ([i (range points-per-dim)])
+		      (+ (* i bucket-width) (* bucket-width (random))))))
+		periods))))
+
 (define (make-exacts prog pts)
   (let ([f (eval-prog prog mode:bf)])
     (let loop ([prec (- (bf-precision) 16)] [prev #f])
@@ -57,6 +66,14 @@
   (filter ordinary-float? exacts))
 
 ; These definitions in place, we finally generate the points.
+
+(define (prepare-points-period prog periods)
+  (bf-precision 80)
+  (let* ([pts (make-period-points (*num-points*) periods)]
+	 [exacts (make-exacts prog pts)]
+	 [pts* (filter-points pts exacts)]
+	 [exacts* (filter-exacts pts exacts)])
+    (values pts* exacts*)))
 
 (define (prepare-points prog)
   "Given a program, return two lists:
