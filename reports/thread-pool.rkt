@@ -187,6 +187,8 @@
   (place ch
     (let loop ()
       (match (place-channel-get ch)
+	[`(*log-dir* ,log-dir)
+	 (*log-dir* log-dir)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -201,7 +203,11 @@
       ; Message handler
       (match (apply sync ch workers)
         ['make-worker
-         (set! workers (cons (make-worker) workers))]
+	 (let ([new-worker (make-worker)])
+	   (place-channel-put new-worker `(*log-dir* ,(*log-dir*)))
+	   (set! workers (cons new-worker workers)))]
+	[`(*log-dir* ,log-dir)
+	 (*log-dir* log-dir)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -224,6 +230,8 @@
   (define m (make-manager))
   (define cnt 0)
   (define total (length progs))
+
+  (place-channel-put m `(*log-dir* ,(*log-dir*)))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
