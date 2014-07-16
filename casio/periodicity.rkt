@@ -193,7 +193,7 @@
 			       (parameterize ([*points* ppoints] [*exacts* pexacts])
 				 (improve-func (make-alt program)))))))
 		     plocs)]
-	 ;; Substitute (mod x period) for x.
+	 ;; Substitute (mod x period) for x in any conditionals
 	 [oexprs (map coerce-conditions
 		      (map alt-program oalts)
 		      (map lp-periods plocs))]
