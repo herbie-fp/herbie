@@ -1215,21 +1215,27 @@
 	    (println expr*)
 	    (loop (cdr rest-chngs) expr*))))))
 
+;; Makes top level changes to the given expressions with the given rules, specified by name.
+(define (make-changes expr . rule-names)
+  (let loop ([cur-expr expr] [rest-rules (map get-rule rule-names)] [acc '()])
+    (if (null? rest-rules) (reverse acc)
+	(let* ([rl (car rest-rules)]
+	       [chng (change rl '()
+			     (pattern-match (rule-input rl) cur-expr))])
+	  (loop (change-apply chng expr) (cdr rest-rules)
+		(cons chng acc))))))
+
+;; Takes a function f (expr) -> [chng] and applies it to
+;; the subexpressions in this expression, appending the correct
+;; change prefixes to the results.
+(define (sub-apply-chng f expr)
+  (apply append
+	 (enumerate (λ (idx item)
+		      (append-to-change-locations (f item) (list (add1 idx))))
+		    (cdr expr))))
+
 (define (normalize expr)
-  (define (make-changes expr . rule-names)
-    (let loop ([cur-expr expr] [rest-rules (map get-rule rule-names)] [acc '()])
-      (if (null? rest-rules) (reverse acc)
-	  (let* ([rl (car rest-rules)]
-		 [chng (change rl '()
-			       (pattern-match (rule-input rl) cur-expr))])
-	    (loop (change-apply chng expr) (cdr rest-rules)
-		  (cons chng acc))))))
-  (define (sub-normalize expr)
-    (apply append
-	   (enumerate (λ (idx item)
-			(append-to-change-locations (normalize item) (list (add1 idx))))
-		      (cdr expr))))
-  (let* ([sub-changes (if (list? expr) (sub-normalize expr) '())]
+  (let* ([sub-changes (if (list? expr) (sub-apply-chng normalize expr) '())]
 	 [expr* (changes-apply sub-changes expr)]
 	 [make-changes* (curry make-changes expr*)])
     (append
