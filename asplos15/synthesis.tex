@@ -76,14 +76,18 @@ This was usually easy, but required some care
 The simplest method for improving precision
   would be to apply these rewrite rules at random,
   keeping more-precise variants.
-This method does not work.
-Too much time is spent on rewrites
+This method does not work:
+  too much time is spent on rewrites
   that have no effect on program precision.
 Often, multiple rewrites without any effect
   are necessary to enable a rewrite that significantly improves precision.
+Sometimes, even after the correct rewrite is found,
+  terms need to be canceled before precision is gained.
 The simplistic random-rewrite approach struggles with these cases.
 To improve precision, important subexpressions
-  must be found and focused on.
+  must be found and focused on;
+  sequences of rewrites need to be considered as a unit;
+  and cancellation needs to occur automatically.
 
 \casio's core is a simple loop
   which threads together several techniques described below.
@@ -93,7 +97,7 @@ In each iteration, \casio generates candidates
   by focusing on the expressions where a rewrite
   will lead to the biggest improvement;
   applying a sequence of rewrites to that expression;
-  and simplifying the result.
+  and simplifying the result to cancel like terms.
 Then the best candidate is chosen for the next iteration.
 Before entering the main loop,
   \casio analyzes the program for periodic subexpressions
