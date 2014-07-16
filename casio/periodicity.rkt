@@ -199,13 +199,12 @@
 		      (map lp-periods plocs))]
 	 [final-oalt (pipe altn (map (λ (oexpr ploc)
 				       (λ (altn)
-					 (alt-apply altn (let ([rl (rule 'periodicity
-									 (location-get (lp-loc ploc) (alt-program altn))
-									 oexpr
-									 '())])
-							   (change rl (lp-loc ploc)
-								   (map (λ (v) (cons v v))
-									(map car (lp-periods ploc))))))))
+					 (let ([pre-expr (location-get (lp-loc ploc) (alt-program altn))])
+					   (if (equal? pre-expr oexpr) altn
+					       (let ([rl (rule 'periodicity pre-expr oexpr '())]
+						     [bindings (map (λ (v) (cons v v))
+								    (map car (lp-periods ploc)))])
+						 (alt-apply altn (change rl (lp-loc ploc) bindings)))))))
 				     oexprs
 				     plocs))])
     (debug "Periodicity result: " final-oalt #:from 'periodicity #:depth 2)
