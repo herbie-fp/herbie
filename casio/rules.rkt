@@ -55,6 +55,7 @@
 (define-rule   distribute-neg-in     (- (+ a b))           (+ (- a) (- b)))
 (define-rule   distribute-neg-out    (+ (- a) (- b))       (- (+ a b)))
 (define-rule   distribute-inv-in     (/ (* a b))           (* (/ a) (/ b)))
+(define-rule   distribute-inv-out    (* (/ a) (/ b))       (/ (* a b)))
 (define-rule   distribute-inv-neg    (/ (- a))             (- (/ a)))
 (define-rule   distribute-neg-inv    (- (/ a))             (/ (- a)))
 

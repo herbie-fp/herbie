@@ -82,7 +82,10 @@
   (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
 
 (define (get-rule name)
-  (car (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)))
+  (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)])
+    (if (null? results)
+	(error "Could not find a rule by the name" name)
+	(car results))))
 
 ;; Return the variables that are in the expression
 (define (get-contained-vars expr)
@@ -184,8 +187,10 @@
 			       '())])
     (let* ([canon-changes (canonicalize expr)]
 	   [expr* (changes-apply canon-changes expr)]
-	   [resolve-changes (cancel-terms expr*)])
-      (append canon-changes resolve-changes))))
+	   [resolve-changes (cancel-terms expr*)]
+	   [expr* (changes-apply resolve-changes expr*)]
+	   [cleanup-changes (cleanup expr*)])
+      (append canon-changes resolve-changes cleanup-changes))))
 
 ;; Simplifies an expression, and then applies the simplifying changes.
 ;; for debuggging.
@@ -1209,3 +1214,64 @@
 	    (println (car rest-chngs) "->")
 	    (println expr*)
 	    (loop (cdr rest-chngs) expr*))))))
+
+;; Makes top level changes to the given expressions with the given rules, specified by name.
+(define (make-changes expr . rule-names)
+  (let loop ([cur-expr expr] [rest-rules (map get-rule rule-names)] [acc '()])
+    (if (null? rest-rules) (reverse acc)
+	(let* ([rl (car rest-rules)]
+	       [chng (change rl '()
+			     (pattern-match (rule-input rl) cur-expr))])
+	  (loop (change-apply chng expr) (cdr rest-rules)
+		(cons chng acc))))))
+
+;; Takes a function f (expr) -> [chng] and applies it to
+;; the subexpressions in this expression, appending the correct
+;; change prefixes to the results.
+(define (sub-apply-chng f expr)
+  (apply append
+	 (enumerate (λ (idx item)
+		      (append-to-change-locations (f item) (list (add1 idx))))
+		    (cdr expr))))
+
+(define (cleanup expr)
+  (let* ([normalize-chngs (normalize expr)]
+	 [expr* (changes-apply normalize-chngs expr)]
+	 [ci-chngs (coerce-inverses expr*)])
+    (append normalize-chngs ci-chngs)))
+
+(define (normalize expr)
+  (let* ([sub-changes (if (list? expr) (sub-apply-chng normalize expr) '())]
+	 [expr* (changes-apply sub-changes expr)]
+	 [make-changes* (curry make-changes expr*)])
+    (append
+     sub-changes
+     (match expr*
+       [`(+ (- ,a) (- ,b))
+	(make-changes* 'distribute-neg-out)]
+       [`(+ ,a (- ,b))
+	(make-changes* 'unsub-neg)]
+       [`(- (, a) ,b)
+	(make-changes* '+-commutative 'unsub-neg)]
+       [`(* (/ ,a) (/ ,b))
+	(make-changes* 'distribute-inv-out)]
+       [`(* ,a (/ ,b))
+	(make-changes* 'un-div-inv)]
+       [`(* (/ ,a) ,b)
+	(make-changes* '*-commutative 'un-div-inv)]
+       [_ '()]))))
+
+(define (coerce-inverses expr)
+  (let* ([sub-changes (if (list? expr) (sub-apply-chng coerce-inverses expr) '())]
+	 [expr* (changes-apply sub-changes expr)]
+	 [make-changes* (curry make-changes expr*)])
+    (append
+     sub-changes
+     (match expr*
+       [`(/ ,a)
+	(make-changes* '*-un-lft-identity 'un-div-inv)]
+       [_ '()]))))
+
+(define (tchngs f expr)
+  (let ([changes (f expr)])
+    (changes-apply changes expr)))
