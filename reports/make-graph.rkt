@@ -22,9 +22,6 @@
 
 (define (make-graph test end-alt points start-errs end-errs target-errs dir)
 
-  ;; Copy the css files to our graph directory 
-  (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
-
   ;; Generate the html for our graph page
   (write-file (build-path dir "graph.html")
     (printf "<!doctype html>\n")
@@ -32,7 +29,7 @@
     (printf "<head>")
     (printf "<meta charset='utf-8' />")
     (printf "<title>Results for ~a</title>" (test-name test))
-    (printf "<link rel='stylesheet' type='text/css' href='graph.css' />")
+    (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
     (printf "</head>\n")
 
     (printf "<body>\n")
