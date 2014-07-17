@@ -62,8 +62,7 @@
    [(andmap constant? (cdr expr))
     (annotation expr loc 'constant
                 (safe-eval (cons (car expr) (map coeffs (cdr expr)))))]
-   [(or (and (andmap periodic? (cdr expr)) (= 3 (length expr)))
-	(ormap interesting? (cdr expr)))
+   [(and (andmap periodic? (cdr expr)) (= 3 (length expr)))
     (annotation expr loc 'interesting
 		(apply alist-merge lcm
 		       (map coeffs (filter periodic? (cdr expr)))))]
