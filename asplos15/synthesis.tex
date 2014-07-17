@@ -76,20 +76,74 @@ This was usually easy, but required some care
 The simplest method for improving precision
   would be to apply these rewrite rules at random,
   keeping more-precise variants.
-This method does not work.
-Too much time is spent on rewrites
+This method does not work:
+  too much time is spent on rewrites
   that have no effect on program precision.
 Often, multiple rewrites without any effect
   are necessary to enable a rewrite that significantly improves precision.
+Sometimes, even after the correct rewrite is found,
+  terms need to be canceled before precision is gained.
 The simplistic random-rewrite approach struggles with these cases.
 To improve precision, important subexpressions
-  must be found and focused on.
+  must be found and focused on;
+  sequences of rewrites need to be considered as a unit;
+  and cancellation needs to occur automatically.
 
-  \todo{Evaluating programs by sample points}
+\casio's core is a simple loop
+  which threads together several techniques described below.
+The loop tracks a single program,
+  real-equivalent to the input program.
+In each iteration, \casio generates candidates
+  by focusing on the expressions where a rewrite
+  will lead to the biggest improvement;
+  applying a sequence of rewrites to that expression;
+  and simplifying the result to cancel like terms.
+Then the best candidate is chosen for the next iteration.
+Before entering the main loop,
+  \casio analyzes the program for periodic subexpressions
+  and attempts to optimize them separately.
+After the main loop completes,
+  \casio aggregates all candidates generated
+  throughout the course of the loop,
+  and infers branch conditions
+  to execute different candidates for different inputs.
+These techniques, combined, are \casio.
 
-  \todo{Measuring error with floats-between}
+\todo{Filter by best-at-point}
 
-  \todo{Main loop}
+\subsection{Evaluating error of expressions}
+
+As \casio discovers and applies rewrites,
+  it needs to know if it is improving precision.
+This can be done statically using interval~\cite{} or affine arithmetic~\cite{},
+  or using an SMT solver to get tighter bounds~\cite{}.
+However, affine and interval arithmetic give
+  very conservative estimates of error~\cite{},
+  and SMT techniques are slow.
+Instead, \casio estimates error by simply sampling many possible inputs
+  and computing the average difference between a floating-point
+  and arbitrary-precision evaluation on those points.
+Arbitrary-precision arithmetic is slow,
+  so arbitrary-precision results are computed only once per run;
+  each rewrite need only be evaluated in floating-point
+  and compared to the already-computed arbitrary-precision results.
+\casio selects 500 points, distributed approximately uniformly
+  over the \emph{set} of floating-point numbers
+  (this leads to a near-uniform distribution over the exponent).
+Experiments show that the estimate computed from 500 points
+  is rarely more than one bit of error removed from the true answer.
+
+Once sample points are chosen
+  and exact and floating-point answers are computed,
+  some measure of error is necessary to compare the two.
+Mathematically-natural measures include absolute and relative error.
+However, both of these measures are ill-suited
+  to measuring error between floating-point values~\cite{}.
+We follow \textsc{Stoke}~\cite{} in defining the error between $x$ and $y$
+  by the number of floating-point values in the range $[x, y]$.
+This measure of error is uniform over the input space,
+  avoiding problems with denormal floating-point values,
+  and avoiding any special handling for infinities.
 
 \subsection{Focusing with local error}
 
@@ -171,6 +225,10 @@ This matching algorithm, which we call recursive rewrite pattern matching,
 \casio uses recursive-rewrite pattern matching
   after focusing on an expression.
 
+\subsection{Simplification}
+
+\todo{Simplification}
+
 \subsection{Regime inference}
 
 Often two real-equivalent programs have incomparable precision---%
@@ -248,10 +306,10 @@ Regime inference cannot infer such regimes; furthermore,
 For these two reasons, \casio uses a static analysis
   to detect periodic functions, and analyze them specially.
 
-To detect periodic functions, \casio uses a symbolic execution,
+To detect periodic functions, \casio uses an abstract interpretation,
   where each expression is classified as
   a constant (of known value); a linear function (of known coefficients);
-  a periodic function (of known period); or other.
+  a periodic function (of known period); or a general function.
 Addition, subtraction, multiplication, and division
   combine linear functions with each other or with constants
   into linear functions.
@@ -262,7 +320,7 @@ And any expression whose arguments are periodic
   by taking the least common multiple of the periods of all children.
 Expressions whose arguments include
   both periodic and non-periodic expressions
-  are placed in the ``other'' class.
+  are placed in the general class.
 This analysis is conservative; for example, the period of $(\sin x)^2$
   is computed as $2 \pi$, whereas in fact it is $\pi$.
 However, every expression that it declares as periodic
