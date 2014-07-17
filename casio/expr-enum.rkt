@@ -2,6 +2,7 @@
 
 (require casio/common)
 (require casio/simplify)
+(require casio/matcher)
 
 (struct oprtr (symbol n-args))
 
@@ -15,7 +16,7 @@
 (define (gen-expr n vars)
   (if (= n 0)
       (append vars *constants*)
-      (remove-duplicates (map simplify-expression*
+      (remove-duplicates (map (λ (expr) (changes-apply (simplify-expression expr) expr))
 			      (apply append
 				     (for/list ([op *operators*])
 				       (map (curry cons (oprtr-symbol op))
