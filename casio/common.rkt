@@ -4,8 +4,8 @@
 (require data/order)
 
 (provide reap println ->flonum cotan ordinary-float? =-or-nan?
-         enumerate take-up-to *debug* debug debug-reset pipe
-	 list-product set-debug-level! alist-append
+         enumerate take-up-to argmins list-product alist-append
+         *debug* debug debug-reset set-debug-level! pipe
 	 safe-eval write-file write-string has-duplicates?
 	 with-item *log-dir* symbol<?)
 
@@ -142,6 +142,21 @@
       (for*/list ([fst (car subs)]
                   [rst (apply list-product (cdr subs))])
          (cons fst rst))))
+
+(define (argmins f lst)
+  (let loop ([lst lst] [best-score #f] [best-elts '()])
+    (if (null? lst)
+        best-elts
+        (let* ([elt (car lst)] [lst* (cdr lst)] [score (f elt)])
+          (cond
+           [(not best-score)
+            (loop lst* score (list elt))]
+           [(< score best-score)
+            (loop lst* score (list elt))]
+           [(> score best-score)
+            (loop lst* best-score best-elts)]
+           [(= score best-score)
+            (loop lst* best-score (cons elt best-elts))])))))
 
 (define (alist-append . args) 
   (define (a-append joe bob)
