@@ -28,4 +28,4 @@
 
 (casio-bench (x)
   "Hyperbolic arc-(co)secant"
-  (* (log (+ (/ 1 x) (/ (sqrt (- 1 (sqr x))) x)))))
+  (log (+ (/ 1 x) (/ (sqrt (- 1 (sqr x))) x))))

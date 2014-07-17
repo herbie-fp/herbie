@@ -16,7 +16,7 @@
          [exp- (exp (- (* pi/4 f)))])
     (- (* (/ pi/4) (log (/ (+ exp+ exp-) (- exp+ exp-)))))))
 
-(casio-bench (f B x)
+(casio-bench (F B x)
   "VandenBroeck and Keller, Equation (23)"
   (+ (- (* x (cotan B))) (* (/ F (sin B)) (expt (+ (sqr F) 2 (* 2 x)) (- (/ 1 2))))))
 
