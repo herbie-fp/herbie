@@ -176,6 +176,7 @@
 
     (copy-file "reports/report.js" (build-path dir "report.js") #t)
     (copy-file "reports/report.css" (build-path dir "report.css") #t)
+    (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed
