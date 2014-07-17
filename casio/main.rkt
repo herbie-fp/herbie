@@ -94,7 +94,7 @@
          #:pre-combo-func (λ (altn) (improve-loop (list altn) (list altn) (/ fuel 2)))))))
 
 (define (best-alt alts)
-  (argmin (compose errors-score alt-errors) alts))
+  (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
 
 (define (zach-alt altn)
   (apply append

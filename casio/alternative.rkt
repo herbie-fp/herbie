@@ -8,7 +8,7 @@
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
          alt-rewrite-rm apply-changes build-alt
-	 alt-initial alt-changes alt-cycles++)
+	 alt-initial alt-changes alt-cycles++ alt-history-length)
 
 (struct alt (program errors cost change prev cycles) #:transparent
         #:methods gen:custom-write
@@ -77,3 +77,8 @@
     (map (curry apply-changes alt)
          (map reverse
               (rewrite-expression-head subtree #:root root-loc)))))
+
+(define (alt-history-length alt)
+  (if (alt-prev alt)
+      (+ 1 (alt-history-length (alt-prev alt)))
+      0))
