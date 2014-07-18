@@ -179,6 +179,12 @@
   #:simplify ((2)))
 
 ; Trigonometry
-(define-rule   cos-sin-sum (+ (sqr (cos a)) (sqr (sin a))) 1)
+(define-rule   cos-sin-sum (+ (sqr (cos a))    (sqr (sin a))) 1)
 (define-rule   1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a)) #:simplify ((1)))
 (define-rule   1-sin-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify ((1)))
+(define-rule   sin-neg     (sin (- x))         (- (sin x)))
+(define-rule   cos-neg     (cos (- x))         (cos x))
+(define-rule   sin-sum     (sin (+ x y))       (+ (* (sin x) (cos y)) (* (cos x) (sin y))))
+(define-rule   cos-sum     (cos (+ x y))       (- (* (cos x) (cos y)) (* (sin x) (sin y))))
+(define-rule   sin-diff    (sin (- x y))       (- (* (sin x) (cos y)) (* (cos x) (sin y))))
+(define-rule   cos-diff    (cos (- x y))       (+ (* (cos x) (cos y)) (* (sin x) (sin y))))
