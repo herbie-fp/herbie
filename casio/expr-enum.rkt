@@ -1,6 +1,8 @@
 #lang racket
 
 (require casio/common)
+(require casio/points)
+(require casio/programs)
 
 (struct oprtr (symbol n-args))
 
@@ -79,3 +81,23 @@
 					 (apply list-product
 						(make-list (oprtr-n-args op)
 							   sub-gens))))))))))
+
+(define (score-prog points exacts prog)
+  (+ (errors-score (errors prog points exacts))
+     (program-cost prog)))
+
+(define (program-constants prog)
+  (define (expr-constants expr)
+    (cond [(number? expr) (list expr)]
+	  [(list? expr) (apply append (map expr-constants (cdr expr)))]
+	  [#t '()]))
+  (expr-constants (program-body prog)))
+
+(define (closest-expr prog n)
+  (define-values (pts exs) (prepare-points prog))
+  (argmin (λ (prog) (errors-score (errors prog pts exs)))
+	  (let* ([vars (program-variables prog)]
+		 [consts (program-constants prog)]
+		 [psuedo-vars (append vars consts)])
+	    (map (λ (expr) `(λ ,vars ,expr))
+		 (gen-expr n psuedo-vars)))))
