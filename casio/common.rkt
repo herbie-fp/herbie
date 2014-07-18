@@ -173,9 +173,10 @@
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))
 
-(define safe-eval
-  (let ([ns (current-namespace)])
-    (λ (expr) (eval expr ns))))
+(define-namespace-anchor common-eval-ns-anchor)
+(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
+
+(define (safe-eval expr) (eval expr common-eval-ns))
 
 (define-syntax (write-file stx)
   (syntax-case stx ()

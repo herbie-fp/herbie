@@ -80,16 +80,13 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define-namespace-anchor eval-prog-ns-anchor)
-(define eval-prog-ns (namespace-anchor->namespace eval-prog-ns-anchor))
-
 (define (eval-prog prog mode)
   (let* ([real->precision (list-ref (hash-ref operations #f) mode)]
          [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [prog-opt `(λ ,(program-variables prog*)
                        ,(compile (program-body prog*)))]
-         [fn (eval prog-opt eval-prog-ns)])
+         [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
 
