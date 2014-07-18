@@ -4,7 +4,7 @@
 
 (struct oprtr (symbol n-args))
 
-(define *constants* `(1 0))
+(define *constants* `(1))
 (define *operators* (list (oprtr '+ 2) (oprtr '- 2) (oprtr '- 1)
 			  (oprtr '* 2) (oprtr '/ 2) (oprtr '/ 1)
 			  (oprtr 'sqr 1) (oprtr 'sqrt 1) (oprtr 'exp 1)
