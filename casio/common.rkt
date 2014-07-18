@@ -174,8 +174,7 @@
       (foldr (lambda (x y) (a-append x y)) '() args)))
 
 (define safe-eval
-  (let ([ns (make-base-namespace)])
-    (eval '(require racket) ns)
+  (let ([ns (current-namespace)])
     (λ (expr) (eval expr ns))))
 
 (define-syntax (write-file stx)
