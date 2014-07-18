@@ -47,10 +47,12 @@
     [`(+ ,a ,b) (if (expr<? a b)
 		    `(+ ,a ,b)
 		    `(+ ,b ,a))]
-    [_ expr]))
+    [_ (if (andmap number? (cdr expr))
+	   (safe-eval expr)
+	   expr)]))
 
 (define (filter-exprs exprs)
-  (filter (λ (expr) (not (and (number? expr) (nan? expr))))
+  (filter (λ (expr) (not (and (number? expr) (or (not (real? expr)) (nan? expr)))))
 	  (remove-duplicates exprs)))
 
 (define (expr<? expr1 expr2)
