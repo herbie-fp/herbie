@@ -20,11 +20,6 @@
 ;; takes the form of a racket expression which must be evaluated to be called.
 (define *point-pred* (make-parameter (const #t)))
 
-;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
-;; it returns '((1 4 7) (2 5 8) (3 6 9)).
-(define (flip-lists list-list)
-  (apply map list list-list))
-
 ;; This constant determines how aggressive our filtration is.
 ;; Higher values mean we will filter more aggresively, and might
 ;; accidentally filter out a good option.

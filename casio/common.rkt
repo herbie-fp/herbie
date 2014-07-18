@@ -7,7 +7,8 @@
          enumerate take-up-to argmins list-product alist-append
          *debug* debug debug-reset set-debug-level! pipe
 	 safe-eval write-file write-string has-duplicates?
-	 with-item *log-dir* symbol<?)
+	 with-item *log-dir* symbol<? common-eval-ns
+	 flip-lists)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -202,3 +203,8 @@
 ;; Provide sorting for symbols so that we can canonically order variables and other atoms
 (define (symbol<? sym1 sym2)
   (string<? (symbol->string sym1) (symbol->string sym2)))
+
+;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
+;; it returns '((1 4 7) (2 5 8) (3 6 9)).
+(define (flip-lists list-list)
+  (apply map list list-list))
