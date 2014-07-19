@@ -57,9 +57,9 @@
 (casio-test (x eps)
   "NMSE problem 3.3.5"
   (- (cos (+ x eps)) (cos x))
-  (if (and (< eps 1) (> eps -1))
-      (+ (* (cos x) (- (cos eps) 1)) (* (sin x) (sin eps)))
-      (- (cos (+ x eps)) (cos x))))
+  (if (> (cos eps) .9)
+      (- (cos (+ x eps)) (cos x))
+      (- (* (cos x) (- (cos eps) 1)) (* (sin x) (sin eps)))))
 
 (casio-test (N)
   "NMSE problem 3.3.6"
