@@ -227,7 +227,26 @@ This matching algorithm, which we call recursive rewrite pattern matching,
 
 \subsection{Simplification}
 
-\todo{Simplification}
+In improving the precision of a formula,
+  \casio will often generate intermediate expressions
+  which include terms that cancel.
+For example, in improving $\sqrt{x+1} - \sqrt{x}$,
+  \casio will first apply the rewrite \texttt{flip--},
+  producing $(\sqrt{x+1}^2 - \sqrt{x}^2) / (\sqrt{x+1} + \sqrt{x})$.
+The numerator of this fraction simplifies to just $1$;
+  this simplification is necessary to recover maximal precision
+  from this formula.
+\casio uses a simplification pass
+  to automatically carry out these simplifications.
+This simplification pass automatically
+  removes expressions such as $\sqrt{x}^2$,
+  cancels like terms as in $x - x$,
+  and combines terms as in $x + x$.
+A separate simplification pass is necessary
+  because automatically discovering
+  the correct reassociation of additions and subtractions
+  to allow a cancellation
+  is difficult by heuristics alone.
 
 \subsection{Regime inference}
 
