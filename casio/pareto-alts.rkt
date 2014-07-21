@@ -36,6 +36,13 @@
 	 [atab*2 (rm-alts atab*1 useless-alts)])
     atab*2))
 
+(define (atab-all-alts atab)
+  (map dalt-altn (hash-keys (alt-table-alts->points atab))))
+
+(define (atab-not-done-alts atab)
+  (map dalt-altn (filter (negate dalt-done?)
+			 (hash-keys (alt-table-alts->points atab)))))
+
 ;; Helper Functions
 
 (define (alternate . lsts)
@@ -52,12 +59,6 @@
   (pipe hash (map (curry curryr hash-remove) keys)))
 
 ;; Implementation
-
-(define (atab->alts atab)
-  (hash-keys (alt-table-alts->points atab)))
-
-(define (atab->pnts atab)
-  (hash-keys (alt-table-points->alts atab)))
 
 (define (best-at-points points->alts daltn)
   (filter identity
