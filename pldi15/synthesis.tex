@@ -90,14 +90,18 @@ To improve precision, important subexpressions
   and cancellation needs to occur automatically.
 
 \casio's core is a simple loop
-  which threads together several techniques described below.
-The loop tracks a single program,
-  real-equivalent to the input program.
-In each iteration, \casio generates candidates
-  by focusing on the expressions where a rewrite
-  will lead to the biggest improvement;
-  applying a sequence of rewrites to that expression;
-  and simplifying the result to cancel like terms.
+  which threads together several rewrite techniques,
+  each described below.
+The loop tracks a set of \emph{alternatives},
+  each a program real-equivalent to the input.
+This set of alternatives only contains
+  programs that have the lowest error on at least one point
+  of all candidate programs generated so far.
+In each iteration, \casio generates new candidates
+  by choosing one alternative that has not been chosen before;
+  finding expressions where a rewrite may lead improvement;
+  applying a sequence of rewrites to those expressions;
+  and simplifying the result, canceling like terms.
 Then the best candidate is chosen for the next iteration.
 Before entering the main loop,
   \casio analyzes the program for periodic subexpressions
@@ -144,6 +148,11 @@ We follow \textsc{Stoke}~\cite{} in defining the error between $x$ and $y$
 This measure of error is uniform over the input space,
   avoiding problems with denormal floating-point values,
   and avoiding any special handling for infinities.
+Casio evaluates the input program in arbitrary precision at every sample point,
+  and casting the result to floating point; this is the exact solution.
+Any candidate program can then be evaluated in floating point
+  and compared to the exact solution at that point,
+  to compute the candidate program's error at that point.
 
 \subsection{Focusing with local error}
 
@@ -227,26 +236,27 @@ This matching algorithm, which we call recursive rewrite pattern matching,
 
 \subsection{Simplification}
 
-In improving the precision of a formula,
-  \casio will often generate intermediate expressions
-  which include terms that cancel.
-For example, in improving $\sqrt{x+1} - \sqrt{x}$,
-  \casio will first apply the rewrite \texttt{flip--},
-  producing $(\sqrt{x+1}^2 - \sqrt{x}^2) / (\sqrt{x+1} + \sqrt{x})$.
-The numerator of this fraction simplifies to just $1$;
-  this simplification is necessary to recover maximal precision
-  from this formula.
-\casio uses a simplification pass
-  to automatically carry out these simplifications.
-This simplification pass automatically
-  removes expressions such as $\sqrt{x}^2$,
-  cancels like terms as in $x - x$,
-  and combines terms as in $x + x$.
-A separate simplification pass is necessary
-  because automatically discovering
-  the correct reassociation of additions and subtractions
-  to allow a cancellation
-  is difficult by heuristics alone.
+\todo{Simplification}
+
+\subsection{Storing Alternatives}
+
+Between iterations of the core loop,
+  \casio stores the set of programs
+  that have the lowest error (of all generated candidates)
+  at at least one point.
+To update this set efficiently, \casio stores
+  a map from points to a set of alternatives that do best at that point,
+  and a map from alternatives to the points they do best at.
+A candidate is added to this data structure
+  only if it is better at some point
+  than the alternatives currently stored for that point.
+The alternatives that are no longer best at this point
+  are removed from the data structure
+  if there are no more points that they are best at.
+This ensures that a minimal number of alternatives are stored.
+This update rule is also biased toward keeping alternatives
+  that were already focused and rewritten;
+  this minimizes the amount of work that \casio does.
 
 \subsection{Regime inference}
 
