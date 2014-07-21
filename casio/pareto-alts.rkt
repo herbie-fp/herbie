@@ -4,7 +4,8 @@
 (require casio/alternative)
 
 (provide make-alt-table atab-add-altn
-	 atab-all-alts atab-not-done-alts)
+	 atab-all-alts atab-not-done-alts
+	 atab-add-altns)
 
 ;; Public API
 
@@ -17,6 +18,10 @@
 					 (map (λ (err) (point-rec err (list initial-dalt)))
 					      (alt-errors initial-alt))))
 	       (hash initial-dalt points))))
+
+(define (atab-add-altns atab altns)
+  (pipe atab (map (curry curryr atab-add-altn)
+		  altns)))
 
 (define (atab-add-altn atab altn)
   (let* ([pnts->alts (alt-table-points->alts atab)]

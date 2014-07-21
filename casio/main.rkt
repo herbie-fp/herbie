@@ -9,6 +9,7 @@
 (require casio/locations)
 (require casio/programs)
 (require casio/periodicity)
+(require casio/pareto-alts)
 
 (provide *flags* improve improve-alt)
 
@@ -28,8 +29,8 @@
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
-  (let ([alts* (setup-alt alt fuel)])
-    (improve-loop alts* alts* fuel)))
+  (let ([alt-table (setup-alt alt fuel)])
+    (improve-loop alt-table fuel)))
 
 ;; Implementation
 
@@ -45,16 +46,15 @@
 			      (λ (altn)
 				 ;; We call improve-loop directly because we don't want simplify or periodicity running on our
 				 ;; subexpressions.
-				(improve-loop (list altn) (list altn) fuel))) identity)]
+				(improve-loop (make-alt-table (*points*) altn) fuel))) identity)]
 	[maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
-    (list (maybe-simplify (maybe-period altn)))))
+    (make-alt-table (*points*) (maybe-simplify (maybe-period altn)))))
 
-(define (improve-loop alts olds fuel)
-  (if (or (<= fuel 0) (null? alts))
-      (reduce-alts olds 5)
+(define (improve-loop table fuel)
+  (if (or (<= fuel 0) (null? (atab-not-done-alts table)))
+      (reduce-alts (atab-all-alts table) fuel)
       (improve-loop
-       (filter-alts (append-map generate-alts alts) olds)
-       (append olds alts)
+       (atab-add-altns table (append-map generate-alts (atab-not-done-alts table)))
        (- fuel 1))))
 
 (define (reduce-alts alts fuel)
@@ -91,7 +91,7 @@
     (if (> 2 (length alts*))
         #f
         (combine-alts alts*
-         #:pre-combo-func (λ (altn) (improve-loop (list altn) (list altn) (/ fuel 2)))))))
+         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))))
 
 (define (best-alt alts)
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
