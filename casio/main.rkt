@@ -54,7 +54,8 @@
   (if (or (<= fuel 0) (null? (atab-not-done-alts table)))
       (reduce-alts (atab-all-alts table) fuel)
       (improve-loop
-       (atab-add-altns table (append-map generate-alts (atab-not-done-alts table)))
+       (let-values ([(picked table*) (atab-pick-alt table)])
+	 (atab-add-altns table* (append-map generate-alts (list picked))))
        (- fuel 1))))
 
 (define (reduce-alts alts fuel)
@@ -87,11 +88,8 @@
   (apply-changes altn (simplify altn)))
 
 (define (regimes-alts alts fuel)
-  (let ([alts* (plausible-alts alts)])
-    (if (> 2 (length alts*))
-        #f
-        (combine-alts alts*
-         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))))
+  (combine-alts alts
+		#:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))
 
 (define (best-alt alts)
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
