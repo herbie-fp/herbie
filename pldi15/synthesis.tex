@@ -278,8 +278,8 @@ A striking example of this phenomenon occurs with the expression $(e^x - 1) / x$
 The best program real-equivalent to the above
   uses the three implementations
 \begin{align*}
-  \frac{e^x - 1}{x} & \frac{e^x - 1}{\log e^x} &
-  \frac{e^x}{x} - \frac1x & \frac{e^x - 1}{\sqrt{x}^2} 
+  \frac{e^x - 1}{x} && \frac{e^x - 1}{\log e^x} &&
+  \frac{e^x}{x} - \frac1x && \frac{e^x - 1}{\sqrt{x}^2} 
 \end{align*}
   each for different ranges of values for the variable $x$.
 \casio must automatically infer the regimes
@@ -315,20 +315,10 @@ Regime endpoints are chosen to be between sampled points;
 This regimes algorithm finds regimes that improve
   the precision of many of \casio's inputs.
 Sometimes, like in the above example,
-  finding many regimes is necessary to achieve significant improvement
-  in precision.
-However, regimes can also produce mild improvement
-  that has not, to our knowledge, been noticed before.
-For example, in the $\sqrt{x+1} - \sqrt{x}$ example mentioned above,
-  \casio produces the more precise program
-\[
-\frac{1}{\sqrt{x+1} + \sqrt{x}}
-\]
-  but only uses it for values of $x$ greater than approximately $0.002$.
-The original program turns out to be superior for smaller input values,
-  though both programs are very accurate and the improvement is slight.
-\casio's regime inference automatically notices this fact
-  and generates an accurate branch condition.
+  finding regimes is necessary to achieve
+  a significant improvement in precision.
+\casio's regime inference does this automatically
+  and generates an appropriate branch condition.
 
 \subsection{Periodic Functions}
 
