@@ -3,16 +3,13 @@
 (require casio/common)
 (require casio/alternative)
 
-(provide (all-defined-out))
+(provide make-alt-table atab-add-altn
+	 atab-all-alts atab-not-done-alts)
 
-;; The structs we'll need
-
-(struct dalt (altn done?) #:prefab)
-(struct point-rec (berr altns) #:prefab)
+;; Public API
 
 (struct alt-table (points->alts alts->points) #:prefab)
 
-;; Public API
 (define (make-alt-table points initial-alt)
   (let ([initial-dalt (dalt initial-alt #f)])
     (alt-table (make-immutable-hash (map cons
@@ -59,6 +56,9 @@
   (pipe hash (map (curry curryr hash-remove) keys)))
 
 ;; Implementation
+
+(struct dalt (altn done?) #:prefab)
+(struct point-rec (berr altns) #:prefab)
 
 (define (best-at-points points->alts daltn)
   (filter identity
