@@ -3,9 +3,9 @@
 (require casio/common)
 (require casio/alternative)
 
-(provide make-alt-table atab-add-altn
-	 atab-all-alts atab-not-done-alts
-	 atab-add-altns atab-pick-alt)
+(provide make-alt-table atab-all-alts
+	 atab-add-altns atab-pick-alt
+	 atab-completed?)
 
 ;; Public API
 
@@ -46,9 +46,8 @@
 (define (atab-all-alts atab)
   (hash-keys (alt-table-alts->points atab)))
 
-(define (atab-not-done-alts atab)
-  (filter (curry hash-ref (alt-table-alts->done? atab))
-	  (atab-all-alts atab)))
+(define (atab-completed? atab)
+  (andmap identity (hash-values (alt-table-alts->done? atab))))
 
 ;; Helper Functions
 
@@ -162,3 +161,24 @@
 	 [alts->done?* (hash-remove* (alt-table-alts->done? atab)
 				     altns)])
     (alt-table pnts->alts* alts->pnts* alts->done?*)))
+
+(define (atab-add-altn atab altn)
+  (let* ([pnts->alts (alt-table-points->alts atab)]
+	 [alts->pnts (alt-table-alts->points atab)]
+	 [best-pnts (best-at-points pnts->alts altn)])
+    (if (null? best-pnts)
+	atab
+	(let* ([tied-pnts (tied-at-points pnts->alts altn)]
+	       [alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
+	       [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
+	       [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
+	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
+	       [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
+	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
+	       [useless-alts (find-useless atab*1)]
+	       [atab*2 (rm-alts atab*1 useless-alts)])
+	  atab*2))))
+
+(define (atab-not-done-alts atab)
+  (filter (negate (curry hash-ref (alt-table-alts->done? atab)))
+	  (atab-all-alts atab)))
