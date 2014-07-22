@@ -26,17 +26,19 @@
 (define (atab-add-altn atab altn)
   (let* ([pnts->alts (alt-table-points->alts atab)]
 	 [alts->pnts (alt-table-alts->points atab)]
-	 [best-pnts (best-at-points pnts->alts altn)]
-	 [tied-pnts (tied-at-points pnts->alts altn)]
-	 [alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
-	 [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
-	 [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
-	 [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
-	 [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
-	 [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
-	 [useless-alts (find-useless atab*1)]
-	 [atab*2 (rm-alts atab*1 useless-alts)])
-    atab*2))
+	 [best-pnts (best-at-points pnts->alts altn)])
+    (if (null? best-pnts)
+	atab
+	(let* ([tied-pnts (tied-at-points pnts->alts altn)]
+	       [alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
+	       [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
+	       [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
+	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
+	       [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
+	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
+	       [useless-alts (find-useless atab*1)]
+	       [atab*2 (rm-alts atab*1 useless-alts)])
+	  atab*2))))
 
 (define (atab-pick-alt atab #:picking-func [pick car])
   (let* ([picked (pick (atab-not-done-alts atab))]
