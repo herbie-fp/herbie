@@ -11,7 +11,7 @@
 
 (casio-bench (f)
   "VandenBroeck and Keller, Equation (20)"
-  (let* ([pi/4 (/ 3.141592653589793 4)]
+  (let* ([pi/4 (/ pi 4)]
          [exp+ (exp (* pi/4 f))]
          [exp- (exp (- (* pi/4 f)))])
     (- (* (/ pi/4) (log (/ (+ exp+ exp-) (- exp+ exp-)))))))

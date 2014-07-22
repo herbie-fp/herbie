@@ -11,8 +11,7 @@
 
 (casio-bench (v)
   "Falkner and Boettcher, Equation (22+)"
-  (let* ([pi 3.141592653589793])
-    (/ 4 (* 3 pi (- 1 (sqr v)) (sqrt (- 2 (* 6 (sqr v))))))))
+  (/ 4 (* 3 pi (- 1 (sqr v)) (sqrt (- 2 (* 6 (sqr v)))))))
 
 (casio-bench (a k m)
   "Falkner and Boettcher, Appendix A"

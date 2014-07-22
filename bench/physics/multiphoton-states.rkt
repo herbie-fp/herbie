@@ -7,8 +7,7 @@
 
 (casio-bench (k n)
   "Migdal et al, Equation (51)"
-  (let* ([pi 3.141592653589793])
-    (* (/ (sqrt k)) (expt (* 2 pi n) (/ (- 1 k) 2)))))
+  (* (/ (sqrt k)) (expt (* 2 pi n) (/ (- 1 k) 2))))
 
 (casio-bench (a1 a2 th)
   "Migdal et al, Equation (64)"

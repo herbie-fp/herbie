@@ -1,9 +1,10 @@
 #lang racket
 
+(require math/flonum)
 (require math/bigfloat)
 (require data/order)
 
-(provide reap println ->flonum cotan ordinary-float? =-or-nan?
+(provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append
          *debug* debug debug-reset set-debug-level! pipe
 	 safe-eval write-file write-string has-duplicates?
@@ -83,14 +84,11 @@
 (define (debug-reset)
   (set! *log* '()))
 
-(define-syntax (reap stx)
-  "A reap/sow abstraction for filters and maps."
-  (syntax-case stx ()
-    [(_ [sow] body ...)
-     #'(let* ([store '()]
-              [sow (λ (elt) (set! store (cons elt store)) elt)])
-         body ...
-         (reverse store))]))
+(define-syntax-rule (reap [sow] body ...)
+  (let* ([store '()]
+         [sow (λ (elt) (set! store (cons elt store)) elt)])
+    body ...
+    (reverse store)))
 
 (define (->flonum x)
   (cond
@@ -100,11 +98,39 @@
     (if (= (imag-part x) 0)
         (->flonum (real-part x))
         +nan.0)]
+   [(eq? x 'pi) pi]
+   [(eq? x 'e) (exp 1)]
    [else (error "Invalid number" x)]))
 
-; Functions used by our benchmarks
+(define (->bf x)
+  (cond
+   [(real? x) (bf x)]
+   [(bigfloat? x) x]
+   [(complex? x)
+    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+   [(eq? x 'pi) pi.bf]
+   [(eq? x 'e) (bfexp 1.bf)]
+   [else (error "Invalid number" x)]))
+
+; Functions and constants used in our language
 (define (cotan x)
   (/ 1 (tan x)))
+
+(define (bfmod x mod)
+  (bf- x (bf* mod (bffloor (bf/ x mod)))))
+
+(define (flmod x mod)
+  (fl- x (fl* mod (flfloor (fl/ x mod)))))
+
+(define e
+  (exp 1))
+
+(define-syntax-rule (define-table name [key values ...] ...)
+  (define name
+    (let ([hash (make-hasheq)])
+      (for ([rec (list (list 'key values ...) ...)])
+        (hash-set! hash (car rec) (cdr rec)))
+      hash)))
 
 (define (ordinary-float? x)
   (not (or (infinite? x) (nan? x))))
