@@ -183,8 +183,7 @@
 	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
 	       [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
 	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
-	       [useless-alts (find-useless atab*1)]
-	       [atab*2 (rm-alts atab*1 useless-alts)])
+	       [atab*2 (minimize-alts atab*1)])
 	  atab*2))))
 
 (define (atab-not-done-alts atab)
