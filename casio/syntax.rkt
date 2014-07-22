@@ -43,10 +43,7 @@
   [atan2    bfatan2   atan      230]
   [mod      bfmod     flmod     1])
 
-(define-table constants
-  [pi       (λ () pi.bf)           (λ () pi)]
-  [e        (λ () (bfexp 1.bf))    (λ () (exp 1))]
-  [#f       bf                     real->double-flonum])
+(define constants '(pi e))
 
 (define mode:bf 0)
 (define mode:fl 1)

@@ -4,7 +4,7 @@
 (require math/bigfloat)
 (require data/order)
 
-(provide reap define-table println ->flonum cotan bfmod flmod e ordinary-float? =-or-nan?
+(provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append
          *debug* debug debug-reset set-debug-level! pipe
 	 safe-eval write-file write-string has-duplicates?
@@ -98,9 +98,21 @@
     (if (= (imag-part x) 0)
         (->flonum (real-part x))
         +nan.0)]
+   [(eq? x 'pi) pi]
+   [(eq? x 'e) (exp 1)]
    [else (error "Invalid number" x)]))
 
-; Functions used by our benchmarks
+(define (->bf x)
+  (cond
+   [(real? x) (bf x)]
+   [(bigfloat? x) x]
+   [(complex? x)
+    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+   [(eq? x 'pi) pi.bf]
+   [(eq? x 'e) (bfexp 1.bf)]
+   [else (error "Invalid number" x)]))
+
+; Functions and constants used in our language
 (define (cotan x)
   (/ 1 (tan x)))
 

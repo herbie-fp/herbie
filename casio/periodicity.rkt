@@ -97,7 +97,8 @@
 
    #:constant
    (λ (c loc)
-      (annotation c loc 'constant c))
+      ; TODO : Do something more intelligent with 'pi
+      (annotation (if (rational? c) c (->flonum c)) loc 'constant c))
 
    #:variable
    (λ (x loc)

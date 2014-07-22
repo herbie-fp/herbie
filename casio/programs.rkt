@@ -20,10 +20,18 @@
 	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
 	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
 	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
+
+  (define vars (program-variables prog))
+
   (define (inductor prog location)
     (cond
-     [(real? prog) (constant prog (reverse location))]
-     [(symbol? prog) (variable prog (reverse location))]
+     [(real? prog)
+      (constant prog (reverse location))]
+     [(symbol? prog)
+      (cond
+       [(member prog vars) (variable prog (reverse location))]
+       [(member prog constants) (constant prog (reverse location))]
+       [else (error "Unknown variable" prog)])]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog) (cons 2 location))])
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
@@ -47,11 +55,17 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity] #:predicate [predicate identity])
 
+  (define vars (program-variables prog))
+
   ; Inlined for speed
   (define (inductor prog)
     (cond
      [(real? prog) (constant prog)]
-     [(symbol? prog) (variable prog)]
+     [(symbol? prog)
+      (cond
+       [(member prog vars) (variable prog)]
+       [(member prog constants) (constant prog)]
+       [else (error "Unknown variable" prog)])]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog))])
 	(toplevel `(λ ,(program-variables prog) ,body*)))]
@@ -83,19 +97,9 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (list-ref (hash-ref constants #f) mode)]
-         [op->precision
-          (λ (op) (list-ref (hash-ref operations op) mode))]
-         [variable->precision
-          (λ (var)
-             (cond
-              [(member var (program-variables prog)) var]
-              [(hash-has-key? constants var)
-               ((list-ref (hash-ref constants var) mode))]
-              [else var]))]
-         [prog*
-          (program-induct prog #:constant real->precision #:symbol op->precision
-                          #:variable variable->precision)]
+  (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
+         [op->precision (λ (op) (list-ref (hash-ref operations op) mode))]
+         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
