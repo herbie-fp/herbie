@@ -188,4 +188,4 @@
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alts->done? atab)))
-	  (atab-all-alts atab)))
+	  (hash-keys (alt-table-alts->points atab))))
