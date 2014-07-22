@@ -8,7 +8,6 @@
   "Jmat.Real.gamma, branch z > 0.5"
   (let* ([z* (- z 1)]
          [g 7]
-         [pi 3.141592653589793]
          [x (+ 0.99999999999980993
                (/ 676.5203681218851 (+ z* 1))
                (/ -1259.1392167224028 (+ z* 2))
@@ -25,7 +24,6 @@
   "Jmat.Real.gamma, branch z < 0.5"
   (let* ([z* (- (- 1 z) 1)]
          [g 7]
-         [pi 3.141592653589793]
          [x (+ 0.99999999999980993
                (/ 676.5203681218851 (+ z* 1))
                (/ -1259.1392167224028 (+ z* 2))
@@ -64,7 +62,7 @@
 
 (casio-bench (x)
   "Jmat.Real.erfi, branch x <= 0.5"
-  (let* ([sqrtpi 1.7724538509055159]
+  (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
          [x3 (* x x x)]
          [x5 (* x3 x x)]
@@ -74,7 +72,7 @@
 
 (casio-bench (x)
   "Jmat.Real.erfi, branch x >= 5"
-  (let* ([sqrtpi 1.7724538509055159]
+  (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
          [xi (/ 1 x)]
          [xi3 (* xi xi xi)]

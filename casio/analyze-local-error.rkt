@@ -35,16 +35,21 @@
 
    #:constant
    (λ (c loc)
-      (let* ([exact (repeat (bf c))] [approx (repeat (real->double-flonum c))]
-             [error (repeat (+ 1 (flulp-error (->flonum c) (->flonum c))))])
+      (let* ([exact (repeat (bf c))] [approx (repeat (real->double-flonum c))] [error (repeat 0)])
         (annotation c exact approx error error loc)))
 
    #:variable
    (λ (v loc)
-      (let* ([var (for/list ([vmap varmap]) (cdr (assoc v vmap)))]
-             [exact (map bf var)] [approx (map real->double-flonum var)]
-             [error (map (compose add1 flulp-error) (map ->flonum exact) (map ->flonum approx))])
-        (annotation v exact approx error error loc)))
+      (cond
+       [(member v (program-variables prog))
+        (let* ([var (for/list ([vmap varmap]) (cdr (assoc v vmap)))]
+               [exact (map bf var)] [approx (map real->double-flonum var)]
+               [error (map (compose add1 flonums-between) (map ->flonum exact) (map ->flonum approx))])
+          (annotation v exact approx error error loc))]
+       [(hash-has-key? constants v)
+        (let* ([exact ((list-ref (hash-ref constants v) mode:bf))]
+               [approx ((list-ref (hash-ref constants v) mode:fl))])
+            (annotation v (repeat exact) (repeat approx) (repeat 0) (repeat 0) loc))]))
 
    #:primitive
    (λ (expr loc)
