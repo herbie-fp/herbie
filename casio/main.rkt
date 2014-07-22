@@ -93,8 +93,11 @@
   (apply-changes altn (simplify altn)))
 
 (define (regimes-alts alts fuel)
-  (combine-alts alts
-		#:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))
+  (let ([alts* (plausible-alts alts)])
+    (if (> 2 (length alts*))
+        #f
+        (combine-alts alts*
+         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))))
 
 (define (best-alt alts)
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
