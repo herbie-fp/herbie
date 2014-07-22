@@ -12,12 +12,13 @@
 (struct alt-table (points->alts alts->points alts->done?) #:prefab)
 
 (define (make-alt-table points initial-alt)
-  (alt-table (make-immutable-hash (map cons
-				       points
-				       (map (λ (err) (point-rec err (list initial-alt)))
-					    (alt-errors initial-alt))))
-	     (hash initial-alt points)
-	     (hash initial-alt #f)))
+  (check-completeness-invariant
+   (alt-table (make-immutable-hash (map cons
+					points
+					(map (λ (err) (point-rec err (list initial-alt)))
+					     (alt-errors initial-alt))))
+	      (hash initial-alt points)
+	      (hash initial-alt #f))))
 
 (define (atab-add-altns atab altns)
   (pipe atab (map (curry curryr atab-add-altn)
@@ -133,8 +134,9 @@
   (define (get-essential pnts->alts)
     (remove-duplicates (filter identity
 			       (map (λ (pnt-rec) (let ([altns (point-rec-altns pnt-rec)])
-						   (if (> (length altns) 1)
-						       #f (car altns))))
+						   (cond [(> (length altns) 1) #f]
+							 [(= (length altns) 1) (car altns)]
+							 [else (error "This point has no alts which are best at it!" pnt-rec)])))
 				    (hash-values pnts->alts)))))
   (define (get-tied-alts essential-alts alts->pnts pnts->alts)
     (let ([tied-pnts (remove* (apply append (map (curry hash-ref alts->pnts) essential-alts))
@@ -150,10 +152,10 @@
 	   [essential-alts (get-essential pnts->alts)]
 	   [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
       (if (null? tied-alts) cur-atab
-	  (let ([atab* (rm-alts cur-atab (list (worst tied-alts)))])
+	  (let ([atab* (rm-alts cur-atab (worst tied-alts))])
 	    (loop atab*))))))
 
-(define (rm-alts atab altns)
+(define (rm-alts atab . altns)
   (let* ([rel-points (remove-duplicates
 		      (apply append
 			     (map (curry hash-ref (alt-table-alts->points atab))
@@ -184,8 +186,17 @@
 	       [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
 	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
 	       [atab*2 (minimize-alts atab*1)])
-	  atab*2))))
+	  (check-completeness-invariant atab*2)))))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alts->done? atab)))
 	  (hash-keys (alt-table-alts->points atab))))
+
+;; The completeness invariant states that at any time, for every point there exists some
+;; alt that is best at it.
+(define (check-completeness-invariant atab)
+  (if (andmap (negate (compose null? point-rec-altns
+			       (curry hash-ref (alt-table-points->alts atab))))
+	      (hash-keys (alt-table-points->alts atab)))
+      atab
+      (error "Completeness invariant violated.")))
