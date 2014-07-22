@@ -2,11 +2,13 @@
 (require math/bigfloat)
 (require math/flonum)
 (require casio/common)
+(require casio/syntax)
 
 (provide program-body program-variables program-cost
          location-induct program-induct
 	 location-do location-get eval-prog operations
-	 mode:bf mode:fl compile expression-cost)
+	 mode:bf mode:fl compile expression-cost
+         (all-from-out casio/syntax))
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -18,10 +20,18 @@
 	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
 	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
 	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
+
+  (define vars (program-variables prog))
+
   (define (inductor prog location)
     (cond
-     [(real? prog) (constant prog (reverse location))]
-     [(symbol? prog) (variable prog (reverse location))]
+     [(real? prog)
+      (constant prog (reverse location))]
+     [(symbol? prog)
+      (cond
+       [(member prog vars) (variable prog (reverse location))]
+       [(member prog constants) (constant prog (reverse location))]
+       [else (error "Unknown variable" prog)])]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog) (cons 2 location))])
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
@@ -45,11 +55,17 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity] #:predicate [predicate identity])
 
+  (define vars (program-variables prog))
+
   ; Inlined for speed
   (define (inductor prog)
     (cond
      [(real? prog) (constant prog)]
-     [(symbol? prog) (variable prog)]
+     [(symbol? prog)
+      (cond
+       [(member prog vars) (variable prog)]
+       [(member prog constants) (constant prog)]
+       [else (error "Unknown variable" prog)])]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog))])
 	(toplevel `(λ ,(program-variables prog) ,body*)))]
@@ -81,69 +97,13 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (list-ref (hash-ref operations #f) mode)]
-         [op->precision (lambda (op) (list-ref (hash-ref operations op) mode))]
+  (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
+         [op->precision (λ (op) (list-ref (hash-ref operations op) mode))]
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
-         [prog-opt `(λ ,(program-variables prog*)
-                       ,(compile (program-body prog*)))]
+         [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
-
-(define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn . as) (andmap identity as))
-(define (or-fn  . as) (ormap identity as))
-
-; Table defining costs and translations to bigfloat and regular float
-; See "costs.c" for details of how these costs were determined
-(define operations
-  (let ([table
-         ;  op       bf       fl      cost
-         `([+       ,bf+     ,fl+     1]
-           [-       ,bf-     ,-       1]
-           [*       ,bf*     ,fl*     1]
-           [/       ,bf/     ,/       1]
-           [abs     ,bfabs   ,flabs   1]
-           [sqrt    ,bfsqrt  ,flsqrt  1]
-           [sqr     ,bfsqr   ,sqr     1]
-           [exp     ,bfexp   ,flexp   270]
-           [expt    ,bfexpt  ,flexpt  640]
-           [log     ,bflog   ,fllog   300]
-           [sin     ,bfsin   ,flsin   145]
-           [cos     ,bfcos   ,flcos   185]
-           [tan     ,bftan   ,fltan   160]
-           [cotan   ,bfcot   ,cotan   160]
-           [asin    ,bfasin  ,flasin  140]
-           [acos    ,bfacos  ,flacos  155]
-           [atan    ,bfatan  ,flatan  130]
-           [sinh    ,bfsinh  ,flsinh  300]
-           [cosh    ,bfcosh  ,flcosh  300]
-           [tanh    ,bftanh  ,fltanh  300]
-           [if      ,if-fn   ,if-fn   1]
-           [>       ,bf>     ,fl>     1]
-           [<       ,bf<     ,fl<     1]
-           [<=      ,bf<=    ,fl<=    1]
-           [>=      ,bf>=    ,fl>=    1]
-           [and     ,and-fn  ,and-fn  1]
-           [or      ,or-fn   ,or-fn   1]
-           [atan2   ,bfatan2 ,atan    230]
-	   [mod     ,(λ (bigx bigmod)
-		       (bf- bigx (bf* bigmod (bffloor (bf/ bigx bigmod)))))
-		             ,(λ (fx fmod)
-				(fl- fx (fl* fmod (flfloor (fl/ fx fmod)))))
-			              1]
-
-           ; For compiling variables
-           [#f   ,bf      ,real->double-flonum 0])])
-
-    ; Munge the table above into a hash table.
-    (let ([hash (make-hasheq)])
-      (for ([rec table])
-        (hash-set! hash (car rec) (cdr rec)))
-      hash)))
-
-(define mode:bf 0)
-(define mode:fl 1)
 
 ;; We want to weigh our heuristic search by the program cost.
 ;; Simplest would be to simply compute the size of the tree as a
