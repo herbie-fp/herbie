@@ -129,23 +129,29 @@
 				(cons altn (point-rec-altns old-val)))))
 	  pnts))))
 
-(define (find-useless atab)
-  (let* ([essential-alts (remove-duplicates
-			  (filter identity
-				  (map (λ (pnt-rec)
-					 (let ([altns (point-rec-altns pnt-rec)])
-					   (if (> (length altns) 1)
-					       #f (car altns))))
-				       (hash-values (alt-table-points->alts atab)))))]
-	 [ambigiously-tied-pnts
-	  (remove* (apply append (map (curry hash-ref (alt-table-alts->points atab))
-				      essential-alts))
-		   (hash-keys (alt-table-points->alts atab)))]
-	 [ambigiously-tied-alts
-	  (remove-duplicates (apply append (map (compose point-rec-altns (curry hash-ref (alt-table-points->alts atab)))
-						ambigiously-tied-pnts)))])
-    (remove* (append essential-alts ambigiously-tied-alts)
-	     (hash-keys (alt-table-alts->points atab)))))
+(define (minimize-alts atab)
+  (define (get-essential pnts->alts)
+    (remove-duplicates (filter identity
+			       (map (λ (pnt-rec) (let ([altns (point-rec-altns pnt-rec)])
+						   (if (> (length altns) 1)
+						       #f (car altns))))
+				    (hash-values pnts->alts)))))
+  (define (get-tied-alts essential-alts alts->pnts pnts->alts)
+    (let ([tied-pnts (remove* (apply append (map (curry hash-ref alts->pnts) essential-alts))
+			      (hash-keys pnts->alts))])
+      (remove-duplicates
+       (apply append (map (compose point-rec-altns (curry hash-ref pnts->alts))
+			  tied-pnts)))))
+  (define (worst altns) ;; Sort of hacky but good enough for now
+    (argmax (λ (altn) (+ (* 100 (alt-cost altn)) (alt-history-length altn))) altns))
+  (let loop ([cur-atab atab])
+    (let* ([alts->pnts (alt-table-alts->points cur-atab)]
+	   [pnts->alts (alt-table-points->alts cur-atab)]
+	   [essential-alts (get-essential pnts->alts)]
+	   [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
+      (if (null? tied-alts) cur-atab
+	  (let ([atab* (rm-alts cur-atab (list (worst tied-alts)))])
+	    (loop atab*))))))
 
 (define (rm-alts atab altns)
   (let* ([rel-points (remove-duplicates
