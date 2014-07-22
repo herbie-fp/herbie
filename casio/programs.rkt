@@ -6,8 +6,8 @@
 
 (provide program-body program-variables program-cost
          location-induct program-induct
-	 location-do location-get eval-prog operations
-	 mode:bf mode:fl compile expression-cost
+	 location-do location-get eval-prog
+	 mode:bf mode:fl compile expression-cost compile->c
          (all-from-out casio/syntax))
 
 ; Programs are just lambda expressions
@@ -133,6 +133,53 @@
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
+
+(define (compile->c prog [fname "f"])
+  (define fmod-used? #f)
+  (define vars (program-variables prog))
+  (define body (compile (program-body prog)))
+
+  (define (value->c expr)
+    (cond
+     [(member expr (program-variables prog)) expr]
+     [(member expr constants) (->flonum expr)]
+     [(symbol? expr) expr]
+     [else (->flonum expr)]))
+
+  (define (app->c expr)
+    (if (list? expr)
+        (let* ([rec (list-ref (hash-ref operations (car expr)) 3)]
+           [args (map value->c (cdr expr))])
+
+          (when (eq? (car expr) 'mod)
+            (set! fmod-used? #t))
+
+          (cond
+           [(string? rec) (apply format rec args)]
+           [(list? rec) (apply format (list-ref rec (length args)) args)]
+           [(procedure? rec) (apply rec args)]
+           [else (error "Unknown C syntax entry" expr rec)]))
+
+        (value->c expr)))
+
+  ; TODO : Better handling of IF statements
+  (with-output-to-string
+    (λ ()
+       (printf "double ~a(~a) {\n" fname
+               (string-join (for/list ([var vars]) (format "double ~a" var)) ", "))
+
+       (for/list ([assignment (cadr body)])
+         (printf "        double ~a = ~a;\n" (car assignment)
+                 (app->c (cadr assignment))))
+
+       (printf "        return ~a;\n" (value->c (caddr body)))
+       (printf "}\n")
+
+       (when fmod-used?
+         (printf "\ndouble fmod2(double n, double d) {\n")
+         (printf "        double r = fmod(n, d);\n")
+         (printf "        return r < 0 ? r + d : r;\n")
+         (printf "}\n")))))
 
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])
