@@ -210,13 +210,15 @@
     (debug "Periodicity result: " final-oalt #:from 'periodicity #:depth 2)
     final-oalt))
 
+(define (symbol-mod v periods)
+  (if (assoc v periods)
+      `(mod ,v ,(if (= 1/2 period-coeff) pi `(* ,(* 2 period-coeff) ,pi)))
+      v))
+
 (define (coerce-conditions prog periods)
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(program-induct cond
-			     #:variable (λ (v)
-					  (let ([period-coeff (cdr (assoc v periods))])
-					    `(mod ,v ,(if (= 1/2 period-coeff) pi `(* ,(* 2 period-coeff) ,pi))))))
+       `(if ,(program-induct cond #:variable symbol-mod)
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))

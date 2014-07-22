@@ -200,8 +200,7 @@
            (λ (expr loc)
               (map sow (rewrite-expression expr #:root (append root-loc loc)))
               expr)])
-      (location-induct expr
-        #:constant try-rewrites #:variable try-rewrites #:primitive try-rewrites))))
+      (location-induct expr #:variable try-rewrites #:primitive try-rewrites))))
 
 (define (change-apply cng prog)
   (let ([loc (change-location cng)]
