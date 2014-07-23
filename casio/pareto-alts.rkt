@@ -2,6 +2,7 @@
 
 (require casio/common)
 (require casio/alternative)
+(require casio/points)
 
 (provide make-alt-table atab-all-alts
 	 atab-add-altns atab-pick-alt
@@ -80,24 +81,22 @@
 
 (define (best-at-points points->alts altn)
   (filter identity
-	  (map (λ (table-rec altn-err)
-		 (let* ([pnt (car table-rec)]
-			[pnt-rec (cdr table-rec)]
+	  (map (λ (pnt altn-err)
+		 (let* ([pnt-rec (hash-ref points->alts pnt)]
 			[table-err (point-rec-berr pnt-rec)])
 		   (if (< altn-err table-err)
 		       pnt #f)))
-	       (hash->list points->alts)
+	       (*points*)
 	       (alt-errors altn))))
 
 (define (tied-at-points points->alts altn)
   (filter identity
-	  (map (λ (table-rec altn-err)
-		 (let* ([pnt (car table-rec)]
-			[pnt-rec (cdr table-rec)]
+	  (map (λ (pnt altn-err)
+		 (let* ([pnt-rec (hash-ref points->alts pnt)]
 			[table-err (point-rec-berr pnt-rec)])
 		   (if (= altn-err table-err)
 		       pnt #f)))
-	       (hash->list points->alts)
+	       (*points*)
 	       (alt-errors altn))))
 
 (define (remove-chnged-pnts points->alts alts->points chnged-pnts)
@@ -111,7 +110,7 @@
 
 (define (override-at-pnts points->alts pnts altn)
   (let ([pnt->alt-err (make-immutable-hash (map cons
-						(hash-keys points->alts)
+						(*points*)
 						(alt-errors altn)))])
     (hash-set-lsts
      points->alts pnts
@@ -120,7 +119,7 @@
 
 (define (append-at-pnts points->alts pnts altn)
   (let ([pnt->alt-err (make-immutable-hash (map cons
-						(hash-keys points->alts)
+						(*points*)
 						(alt-errors altn)))])
     (hash-set-lsts
      points->alts pnts
