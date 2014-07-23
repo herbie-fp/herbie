@@ -79,25 +79,22 @@
 
 (struct point-rec (berr altns) #:prefab)
 
-(define (best-at-points points->alts altn)
-  (filter identity
-	  (map (λ (pnt altn-err)
-		 (let* ([pnt-rec (hash-ref points->alts pnt)]
-			[table-err (point-rec-berr pnt-rec)])
-		   (if (< altn-err table-err)
-		       pnt #f)))
-	       (*points*)
-	       (alt-errors altn))))
-
-(define (tied-at-points points->alts altn)
-  (filter identity
-	  (map (λ (pnt altn-err)
-		 (let* ([pnt-rec (hash-ref points->alts pnt)]
-			[table-err (point-rec-berr pnt-rec)])
-		   (if (= altn-err table-err)
-		       pnt #f)))
-	       (*points*)
-	       (alt-errors altn))))
+(define (best-and-tied-at-points points->alts altn)
+  (let loop ([rest-points (*points*)] [rest-errs (alt-errors altn)]
+	     [best-acc '()] [tied-acc '()])
+    (if (null? rest-points) (values best-acc tied-acc)
+	(let* ([pnt (car rest-points)]
+	       [pnt-rec (hash-ref points->alts pnt)]
+	       [table-err (point-rec-berr pnt-rec)]
+	       [altn-err (car rest-errs)])
+	  (cond [(< altn-err table-err)
+		 (loop (cdr rest-points) (cdr rest-errs)
+		       (cons pnt best-acc) tied-acc)]
+		[(= altn-err table-err)
+		 (loop (cdr rest-points) (cdr rest-errs)
+		       best-acc (cons pnt tied-acc))]
+		[else (loop (cdr rest-points) (cdr rest-errs)
+			    best-acc tied-acc)])))))
 
 (define (remove-chnged-pnts points->alts alts->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref points->alts) chnged-pnts)]
@@ -171,13 +168,12 @@
     (alt-table pnts->alts* alts->pnts* alts->done?*)))
 
 (define (atab-add-altn atab altn)
-  (let* ([pnts->alts (alt-table-points->alts atab)]
-	 [alts->pnts (alt-table-alts->points atab)]
-	 [best-pnts (best-at-points pnts->alts altn)])
+  (let*-values ([(pnts->alts) (alt-table-points->alts atab)]
+		[(alts->pnts) (alt-table-alts->points atab)]
+		[(best-pnts tied-pnts) (best-and-tied-at-points pnts->alts altn)])
     (if (null? best-pnts)
 	atab
-	(let* ([tied-pnts (tied-at-points pnts->alts altn)]
-	       [alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
+	(let* ([alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
 	       [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
 	       [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
 	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
