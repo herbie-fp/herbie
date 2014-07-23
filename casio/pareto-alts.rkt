@@ -12,13 +12,12 @@
 (struct alt-table (points->alts alts->points alts->done?) #:prefab)
 
 (define (make-alt-table points initial-alt)
-  (check-completeness-invariant
    (alt-table (make-immutable-hash (map cons
 					points
 					(map (λ (err) (point-rec err (list initial-alt)))
 					     (alt-errors initial-alt))))
 	      (hash initial-alt points)
-	      (hash initial-alt #f))))
+	      (hash initial-alt #f)))
 
 (define (atab-add-altns atab altns)
   (pipe atab (map (curry curryr atab-add-altn)
