@@ -186,7 +186,7 @@
 	       [alts->done?* (hash-set (alt-table-alts->done? atab) altn #f)]
 	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?*)]
 	       [atab*2 (minimize-alts atab*1)])
-	  (check-completeness-invariant atab*2)))))
+	  atab*2))))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alts->done? atab)))
@@ -194,9 +194,36 @@
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.
-(define (check-completeness-invariant atab)
+(define (check-completeness-invariant atab #:message [message ""])
   (if (andmap (negate (compose null? point-rec-altns
 			       (curry hash-ref (alt-table-points->alts atab))))
 	      (hash-keys (alt-table-points->alts atab)))
       atab
-      (error "Completeness invariant violated.")))
+      (error (string-append "Completeness invariant violated. " message))))
+
+;; The reflexive invariant is this: a) For every alternative, for every point it maps to,
+;; those points also map back to the alternative. b) For every point, for every alternative
+;; it maps to, those alternatives also map back to the point.
+(define (check-reflexive-invariant atab #:message [message ""])
+  (if (and (andmap (λ (altn)
+		     (andmap (λ (pnt)
+			       (member altn (point-rec-altns (hash-ref (alt-table-points->alts atab) pnt))))
+			     (hash-ref (alt-table-alts->points atab) altn)))
+		   (hash-keys (alt-table-alts->done? atab)))
+	   (andmap (λ (pnt)
+		     (andmap (λ (altn)
+			       (member pnt (hash-ref (alt-table-alts->points atab) altn)))
+			     (point-rec-altns (hash-ref (alt-table-points->alts atab) pnt))))
+		   (hash-keys (alt-table-points->alts atab))))
+      atab
+      (error (string-append "Reflexive invariant violated. " message))))
+
+(define (assert-points-orphaned alts->pnts opnts all-pnts #:message [msg ""])
+  (hash-for-each alts->pnts
+		 (λ (altn pnts)
+		   (when (ormap (curryr member pnts) opnts)
+		     (error (string-append "Assert Failed: The given points were not orphaned. " msg)))))
+  (let ([hopefully-unorphaned-points (remove* opnts all-pnts)]
+	[actually-unorphaned-points (remove-duplicates (apply append (hash-values alts->pnts)))])
+    (when (ormap (negate (curryr member actually-unorphaned-points)) hopefully-unorphaned-points)
+      (error (string-append "Assert Failed: Points other than the given points were orphaned. " msg)))))
