@@ -2,7 +2,46 @@
 \begin{document}
 
 \begin{abstract}
-  Casio is awesome.
+
+  Floating point computation is a well known approach to approximating real
+computation in the bounded context of practical hardware.  Recent advances
+provide techniques to trade-off accuracy for improved speed and power usage
+at the cost of precision.  However, this work is often carried out under
+the assumption that the original floating program is the ``ground truth'',
+that is, that it is already an acceptable approximation of the original
+real computation the programmer had in mind.  Unfortunately, approximating
+real computation in floating point presents many subtle challenges which,
+if not accounted for, can yield arbitrarily large errors.  This limits the
+value of recent advances improving the runtime and power efficiency of such
+computations: the wrong answer is simply arrived at more quickly using
+fewer joules (watts? ugh).
+
+The field of numerical methods provides a rich set of techniques for
+improving the numerical accuracy and precision of real computations
+approximated in floating point.  Unfortunately, applying these techniques
+has traditionally demanded extensive training and expensive manual analysis
+and optimization of numerical programs.  As more and more scientists write
+numerical programs, this lack of accuracy becomes increasingly troubling.
+These non-expert programmers usually lack the training and time necessary
+to employ numerical methods in their code, and often may not even be aware
+of the subtle challenges this domain presents.
+
+We present a new tool, \casio, which synthesizes floating point programs
+which better approximate the real computations programmers have in mind.
+Casio works by performing a heuristic search over the space of programs
+equivalent to the input program over the reals.  Each step of the search
+attempts to apply identity transformations over the reals that have been
+shown valuable in the numerical methods literature.  Casio also searches
+for alternate representations of programs that may be challenging for even
+for numerical methods experts to develop, for example, special casing
+variants of the program to input domains with better precision for that
+variant.
+
+We evaluate \casio on a number of examples drawn from numerical methods
+textbooks, scientific journal articles, and math libraries.  We find that
+\casio is often able to improve the precision of these examples
+considerably.
+
 \end{abstract}
 
 \end{document}
