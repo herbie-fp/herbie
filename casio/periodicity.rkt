@@ -98,7 +98,8 @@
    #:constant
    (λ (c loc)
       ; TODO : Do something more intelligent with 'pi
-      (annotation (if (rational? c) c (->flonum c)) loc 'constant c))
+      (let ([val (if (rational? c) c (->flonum c))])
+	(annotation val loc 'constant val)))
 
    #:variable
    (λ (x loc)
@@ -220,6 +221,6 @@
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(program-induct cond #:variable symbol-mod)
+       `(if ,(expression-induct cond (progran-variables prog) #:variable symbol-mod)
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))
