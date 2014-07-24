@@ -3,6 +3,79 @@
 
 \section{Background}
 
+Most continuous mathematics uses the real number system,
+  but this system cannot be represented faithfully
+  in a bounded number of bits.
+Computer programs that aim to represent continuous mathematics
+  instead use floating point arithmetic.
+Since this representation cannot perfectly match real numbers,
+  programmers who use floating point numbers
+  must avoid a variety of subtle misbehaviors
+  lest the program compute answers
+  unrelated to the real-number computation it attempts to model.
+This section describes floating point numbers
+  and the difficulties in using them to describe
+  real-number continuous calculations.
 
+\subsection{Floating point numbers}
+
+Floating point numbers represent a subset of real numbers,
+  distributed approximately exponentially, the numbers of the form
+\[ \pm (1 + m) 2^e, \]
+  where $m$, the \emph{mantissa}, is a fixed-width number in $[0, 1]$,
+  and $e$, the \emph{exponent}, is a fixed-width signed integer.
+Normal floating point numbers are thus represented by
+  a sign bit, exponent, and mantissa.
+Floating point can also represent a few special values:
+  \emph{denormal} numbers of form $\pm m 2^{e_{\text{min}}}$,
+  positive and negative \emph{infinity}, \emph{negative zero},
+  and the \emph{not-a-number} error value.
+\casio is mainly concerned with \emph{precision},
+  not in avoiding exceptional values,
+  so we will mainly not be concerned with these special values.
+We write $\R(x)$ for the real number represented
+  by the floating point number $x$.
+
+The mantissa and exponent of a floating point value
+  are fixed-width field; the width of these fields
+  is set by the \emph{floating point number system} in use.
+The floating point number system is a triple $(N_e, N_m, \F)$,
+  where $N_e$ is the number of bits available for the exponent,
+  and $N_m$ is the number of bits available for the mantissa.
+$\F$ is a \emph{rounding mode}---%
+  a function from real numbers to floating-point values
+  such that $\F(\R(x)) = x$.
+Rounding modes might round values
+  not exactly representable as a floating-point value
+  up, or may round to the closest floating-point value
+  with a least-significant bit of zero,
+  or any of a number of other rounding modes.
+For example, IEEE double-precision allocates
+  52 bits for the mantissa ($N_m = 52$)
+  and 11 bits for the exponent ($N_e = 11$);
+  together with a sign bit, this accounts for 64 bits.
+It allows applications to choose between rounding up, down, or to zero;
+  or rounding to the mathematically closer value, with ties breaking
+  either toward the value with a zero least significant bit,
+  or away from zero.
+We denote by $\mathbf{FP}(N_e, N_m, \F)$
+  the floating point number system with $N_e$ and $N_m$ as given.
+
+Primitive arithmetic operators on floating point numbers
+  such as addition and multiplication
+  are guaranteed to produce accurate results.
+For example, the floating point sum
+  $x \oplus y$ of floating point values $x$ and $y$
+  is guaranteed to be equal to the real-number sum
+  of $x$ and $y$, rounded: $\F(\R(x) + \R(y))$.
+Operators such as exponentiation, and trigonometric functions
+  are implemented by libraries, and do not carry such guarantees.
+An implementation of a mathematical function $f(x_1, x_2, \dotsc)$
+  usually guarantees that its result
+  is among the $u$ closest floating point values
+  to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
+$u$ is typically less than 8; that is,
+  a library implementation usually guarantees that all
+  but the two or three least-significant bits are correct.
 
 \end{document}
