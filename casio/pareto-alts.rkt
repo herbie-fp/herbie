@@ -136,8 +136,8 @@
       (remove-duplicates
        (apply append (map (compose point-rec-altns (curry hash-ref pnts->alts))
 			  tied-pnts)))))
-  (define (worst altns) ;; Sort of hacky but good enough for now
-    (argmax (λ (altn) (+ (* 100 (alt-cost altn)) (alt-history-length altn))) altns))
+  (define (worst altns)
+    (argmax alt-history-length (argmaxs alt-cost altns)))
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alts->points cur-atab)]
 	   [pnts->alts (alt-table-points->alts cur-atab)]
