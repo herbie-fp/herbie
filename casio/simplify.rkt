@@ -1259,6 +1259,8 @@
 	(make-changes* 'un-div-inv)]
        [`(* (/ ,a) ,b)
 	(make-changes* '*-commutative 'un-div-inv)]
+       [`(expt x 1)
+	(make-changes* 'unexpt1)]
        [_ '()]))))
 
 (define (coerce-inverses expr)

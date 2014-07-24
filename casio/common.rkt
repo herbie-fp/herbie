@@ -9,7 +9,7 @@
          *debug* debug debug-reset set-debug-level! pipe
 	 safe-eval write-file write-string has-duplicates?
 	 with-item *log-dir* symbol<? common-eval-ns
-	 flip-lists)
+	 flip-lists argmaxs)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -184,6 +184,9 @@
             (loop lst* best-score best-elts)]
            [(= score best-score)
             (loop lst* best-score (cons elt best-elts))])))))
+
+(define (argmaxs f lst)
+  (argmins (λ (x) (- (f x))) lst))
 
 (define (alist-append . args) 
   (define (a-append joe bob)
