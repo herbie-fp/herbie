@@ -54,10 +54,10 @@
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-regimes-alts table) fuel)]
+	 (reduce-alts (atab-all-alts table) fuel)]
 	[(atab-completed? table)
 	 (debug "Ran out of unexpanded alts in alt table, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-regimes-alts table) fuel)]
+	 (reduce-alts (atab-all-alts table) fuel)]
 	[#t
 	 (improve-loop
 	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
@@ -97,7 +97,7 @@
   chngs)
 
 (define (verify-alt-chng-bindings altn #:message [msg ""])
-  (verify-chng-bindings (alt-changes altn) #:message msg))
+  (verify-chng-bindings (alt-changes altn) #:message msg)
   altn)
 
 (define (simplify-alt altn)
