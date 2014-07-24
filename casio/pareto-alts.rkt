@@ -115,15 +115,12 @@
 	  pnts))))
 
 (define (append-at-pnts points->alts pnts altn)
-  (let ([pnt->alt-err (make-immutable-hash (map cons
-						(*points*)
-						(alt-errors altn)))])
-    (hash-set-lsts
-     points->alts pnts
-     (map (λ (pnt) (let ([old-val (hash-ref points->alts pnt)])
-		     (point-rec (point-rec-berr old-val)
-				(cons altn (point-rec-altns old-val)))))
-	  pnts))))
+  (hash-set-lsts
+   points->alts pnts
+   (map (λ (pnt) (let ([old-val (hash-ref points->alts pnt)])
+		   (point-rec (point-rec-berr old-val)
+			      (cons altn (point-rec-altns old-val)))))
+	pnts)))
 
 (define (minimize-alts atab)
   (define (get-essential pnts->alts)
