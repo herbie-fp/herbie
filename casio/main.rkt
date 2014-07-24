@@ -10,6 +10,7 @@
 (require casio/programs)
 (require casio/periodicity)
 (require casio/pareto-alts)
+(require casio/matcher)
 
 (provide *flags* improve improve-alt)
 
@@ -53,13 +54,13 @@
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-all-alts table) fuel)]
+	 (reduce-alts (atab-regimes-alts table) fuel)]
 	[(atab-completed? table)
 	 (debug "Ran out of unexpanded alts in alt table, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-all-alts table) fuel)]
+	 (reduce-alts (atab-regimes-alts table) fuel)]
 	[#t
 	 (improve-loop
-	  (let-values ([(picked table*) (atab-pick-alt table)])
+	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
 	    (atab-add-altns table* (append-map generate-alts (list picked))))
 	  (- fuel 1))]))
 
@@ -70,7 +71,7 @@
          ((flag 'reduce 'zach) zach-alt (const '()))])
     (let* ([alts* (append alts (append-map fixup alts))]
            [alts* (remove-duplicates alts* #:key alt-program)])
-      (or (combine alts* fuel) (best-alt alts*)))))
+      (verify-alt-chng-bindings (or (combine alts* fuel) (best-alt alts*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -88,6 +89,16 @@
       (list (best-alt alts))))
 
 ;; Some helpers
+
+(define (verify-chng-bindings chngs #:message [msg ""])
+  (for/list ([chng chngs])
+    (when (not (change-bindings chng))
+      (error (string-append "Change has improper bindings! rule: " (~a (change-rule chng)) msg))))
+  chngs)
+
+(define (verify-alt-chng-bindings altn #:message [msg ""])
+  (verify-chng-bindings (alt-changes altn) #:message msg))
+  altn)
 
 (define (simplify-alt altn)
   (apply-changes altn (simplify altn)))
