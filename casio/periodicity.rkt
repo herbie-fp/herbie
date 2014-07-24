@@ -221,6 +221,6 @@
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(expression-induct cond (progran-variables prog) #:variable symbol-mod)
+       `(if ,(expression-induct cond (program-variables prog) #:variable symbol-mod)
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))
