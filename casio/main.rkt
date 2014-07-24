@@ -100,6 +100,8 @@
          #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))))
 
 (define (best-alt alts)
+  (when (null? alts)
+    (error "Trying to find the best of no alts!"))
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
 
 (define (zach-alt altn)
