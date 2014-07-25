@@ -953,33 +953,28 @@
 			  (drop-change-location-items (reverse combine-changes) (length loc))
 			  expr*)]
 		[(cleanup-changes)
-		 (let loop ([cur-coeff (s-term-coeff term-combination)] [changes-acc '()]
+		 (let loop ([cur-coeff (s-term-coeff term-combination)]
 			    [cur-loc loc] [cur-vars (s-term-vars term-combination)]
 			    [cur-expr expr*])
-		   (cond [(and (list? cur-expr) (eq? (car cur-expr) '+))
-			  (let* ([inner-cleanup-changes (loop cur-coeff changes-acc (append cur-loc '(1)) cur-vars (cadr cur-expr))]
-				 [inner-expr* (changes-apply (drop-change-location-items inner-cleanup-changes (add1 (length loc))) (cadr cur-expr))])
-			    (if (safe-= inner-expr* 0)
-				(append (list (let ([rl (get-rule '+-lft-identity)])
-						(change rl cur-loc
-							(pattern-match (rule-input rl)
-								       (list (car cur-expr) inner-expr* (caddr cur-expr))))))
-					inner-cleanup-changes
-					changes-acc)
-				(append inner-cleanup-changes changes-acc)))]
-			 [(= -1 cur-coeff)
-			  (cons (let ([rl (get-rule 'mul-1-neg)])
-				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
-				changes-acc)]
-			 [(and (= 0 cur-coeff) (not (null? cur-vars)))
-			  (cons (let ([rl (get-rule 'mul0)])
-				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
-				changes-acc)]
-			 [(= 1 cur-coeff)
- 			  (cons (let ([rl (get-rule '*-lft-identity)])
-				  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
-				changes-acc)]
-			 [#t '()]))])
+		   (match cur-expr
+		     [`(+ ,a ,b)
+		      (let* ([inner-cleanup-changes (loop cur-coeff (append cur-loc '(1)) cur-vars a)]
+			     [inner-expr* (changes-apply (make-chngs-rel inner-cleanup-changes (append cur-loc '(1))) a)])
+			(append (if (safe-= inner-expr* 0)
+				    (list (let ([rl (get-rule '+-lft-identity)])
+					    (change rl cur-loc `((a . ,b)))))
+				    '())
+				inner-cleanup-changes))]
+		     [`(* -1 ,a)
+		      (list (let ([rl (get-rule 'mul-1-neg)])
+			      (change rl cur-loc `((a . ,a)))))]
+		     [`(* 0 ,a)
+		      (list (let ([rl (get-rule 'mul0)])
+			      (change rl cur-loc `((a . ,a)))))]
+		     [`(* 1 ,a)
+		      (list (let ([rl (get-rule '*-lft-identity)])
+			      (change rl cur-loc (pattern-match (rule-input rl) cur-expr))))]
+		     [_ '()]))])
     (values (append extract-term1-full-changes
 		    extract-term2-full-changes
 		    (reverse combine-changes)
