@@ -5,7 +5,7 @@
 (require casio/syntax)
 
 (provide program-body program-variables program-cost
-         location-induct program-induct
+         location-induct program-induct expression-induct
 	 location-do location-get eval-prog
 	 mode:bf mode:fl compile expression-cost compile->c
          (all-from-out casio/syntax))
@@ -48,6 +48,17 @@
                                   (cdr prog)))
 		 (reverse location))]))
   (inductor prog '()))
+
+(define (expression-induct
+	 expr vars
+         #:toplevel [toplevel identity] #:constant [constant identity]
+         #:variable [variable identity] #:primitive [primitive identity]
+         #:symbol [symbol-table identity] #:predicate [predicate identity])
+  (program-body (program-induct
+		 `(λ ,vars ,expr)
+		 #:toplevel toplevel #:constant constant
+		 #:variable variable #:primitive primitive
+		 #:symbol symbol-table #:predicate predicate)))
 
 (define (program-induct
          prog
