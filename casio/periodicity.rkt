@@ -98,7 +98,8 @@
    #:constant
    (λ (c loc)
       ; TODO : Do something more intelligent with 'pi
-      (annotation (if (rational? c) c (->flonum c)) loc 'constant c))
+      (let ([val (if (rational? c) c (->flonum c))])
+	(annotation val loc 'constant val)))
 
    #:variable
    (λ (x loc)
@@ -212,7 +213,7 @@
 
 (define (symbol-mod v periods)
   (if (assoc v periods)
-      (let ([coeff (cdr (assoc v))])
+      (let ([coeff (cdr (assoc v periods))])
         `(mod ,v ,(if (= 1/2 coeff) pi `(* ,(* 2 coeff) ,pi))))
       v))
 
@@ -220,6 +221,6 @@
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(program-induct cond #:variable symbol-mod)
+       `(if ,(expression-induct cond (program-variables prog) #:variable (curryr symbol-mod periods))
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))
