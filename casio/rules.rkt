@@ -62,6 +62,7 @@
 ; Difference of squares
 (define-rule   difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))     #:simplify ((1) (2)))
 (define-rule   difference-of-sqr-1   (- (sqr a) 1)         (* (+ a 1) (- a 1))     #:simplify ((1) (2)))
+(define-rule   difference-of-sqr--1  (+ (sqr a) -1)        (* (+ a 1) (- a 1))     #:simplify ((1) (2)))
 
 ; Identity
 (define-rule   +-lft-identity    (+ 0 a)               a)
@@ -181,7 +182,9 @@
 ; Trigonometry
 (define-rule   cos-sin-sum (+ (sqr (cos a))    (sqr (sin a))) 1)
 (define-rule   1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a)) #:simplify ((1)))
-(define-rule   1-sin-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify ((1)))
+(define-rule   1-sub-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify ((1)))
+(define-rule   -1-add-cos  (+ (sqr (cos a)) -1) (sqr (sin a)) #:simplify ((1)))
+(define-rule   -1-add-sin  (+ (sqr (sin a)) -1) (sqr (cos a)) #:simplify ((1)))
 (define-rule   sin-neg     (sin (- x))         (- (sin x)))
 (define-rule   cos-neg     (cos (- x))         (cos x))
 (define-rule   sin-sum     (sin (+ x y))       (+ (* (sin x) (cos y)) (* (cos x) (sin y))))
