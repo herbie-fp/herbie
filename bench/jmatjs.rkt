@@ -45,7 +45,7 @@
   (let* ([ew (exp wj)])
     (- wj (/ (- (* wj ew) x) (+ ew (* wj ew)))))
   (let* ([ew (exp wj)])
-    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* jw ew)))))))
+    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew)))))))
 
 (casio-bench (x)
   "Jmat.Real.dawson"
