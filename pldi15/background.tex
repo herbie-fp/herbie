@@ -78,4 +78,37 @@ $u$ is typically less than 8; that is,
   a library implementation usually guarantees that all
   but the two or three least-significant bits are correct.
 
+\subtitle{Floating point precision problems}
+
+Even though primitive floating-point operations have minimal error,
+  formulas that combine these operators can nonetheless
+  have very significant error.
+The simplest instance of this phenomenon is the formula $x - (x + 1)$.
+For large values of $x$ (those larger than $2^{N_m}$), $x \oplus 1 = x$;
+  so, $x \ominus (x \oplus 1) = 0$, even though $x - (x + 1) = -1$.
+This particular problem is easy to avoid, by replacing $x - (x + 1)$
+  with the equivalent $-1$.
+The same phenomenon, however, occurs with more complex formulas
+  such as $\sqrt{x+1} - \sqrt{x}$;
+  for values of $x$ greater than 1, this expression
+  has error proportional to $x \epsilon$,
+  where $\epsilon$ is the smallest floating-point value
+  greater than $1$.
+Even simple expressions such as $\cos(x) - 1$ can be inaccurate---%
+  $\cos(x) - 1$ has large error for values of $x$ near multiples of $2\pi$,
+  and is better evaluated as $-\sin(x)^2 / (1 + \cos x)$ at such values.
+Even well-known formulas such as the quadratic formula
+  suffer from these problems.
+
+To avoid such problems, programmers must rearrange formulas
+  so that the result is equivalent to the original
+  (as a formula about the real numbers)
+  yet achieves less error when evaluated
+  with floating-point values and operators.
+This rearrangement relies on identities
+  true of real-number formulas yet false on floating-point numbers.
+For example, the identities $x - y = (x^2 - y^2) / (x + y)$
+  and $\sin(x)^2 + \cos(x)^2 = 1$
+  allow converting $\cos x - 1$ to $- \sin(x)^2 / (1 + \cos x)$.
+
 \end{document}
