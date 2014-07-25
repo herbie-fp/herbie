@@ -40,10 +40,12 @@
   "Jmat.Real.lambertw, estimator"
   (- (log x) (log (log x))))
 
-(casio-bench (wj x)
+(casio-test (wj x)
   "Jmat.Real.lambertw, newton loop step"
   (let* ([ew (exp wj)])
-    (- wj (/ (- (* wj ew) x) (+ ew (* wj ew))))))
+    (- wj (/ (- (* wj ew) x) (+ ew (* wj ew)))))
+  (let* ([ew (exp wj)])
+    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* jw ew)))))))
 
 (casio-bench (x)
   "Jmat.Real.dawson"
