@@ -12,7 +12,7 @@
 (provide (struct-out test-result) (struct-out test-failure)
          (struct-out test-timeout) get-test-results)
 
-(define *reeval-pts* 5000)
+(define *reeval-pts* 8000)
 
 (struct test-result
   (test time
