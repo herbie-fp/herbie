@@ -14,9 +14,12 @@
   "Hyperbolic secant"
   (/ 2 (+ (exp x) (exp (- x)))))
 
-(casio-bench (x)
+(casio-test (x)
   "Hyperbolic arcsine"
-  (log (+ x (sqrt (+ (sqr x) 1)))))
+  (log (+ x (sqrt (+ (sqr x) 1))))
+  (if (< x 0)
+      (log (/ -1 (- x (sqrt (+ (sqr x) 1)))))
+      (log (+ x (sqrt (+ (sqr x) 1))))))
 
 (casio-bench (x)
   "Hyperbolic arc-cosine"
