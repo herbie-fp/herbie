@@ -31,7 +31,9 @@
 
 ; Suggested by Harley
 
-(casio-bench (e+ e- t s)
+(casio-test (e+ e- t s)
   "Harley's example"
+  (/ (* (expt (/ (+ 1 (exp (- s)))) e+) (expt (- 1 (/ (+ 1 (exp (- s))))) e-))
+     (* (expt (/ (+ 1 (exp (- t)))) e+) (expt (- 1 (/ (+ 1 (exp (- t))))) e-)))
   (* (expt (/ (+ 1 (exp (- t))) (+ 1 (exp (- s)))) e+)
      (expt (/ (+ 1 (exp t)) (+ 1 (exp s))) e-)))
