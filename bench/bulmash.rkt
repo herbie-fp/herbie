@@ -1,5 +1,5 @@
 #lang racket
-(require 'casio/test)
+(require casio/test)
 
 (casio-bench (NdChar Ec Vef EDonor mu KbT NaChar Ev EAccept)
   "Bulmash initializePoisson"
