@@ -692,21 +692,31 @@
 		[(expr*3) (changes-apply (make-chngs-rel (append canon-var1-changes canon-var2-changes) loc) expr*2)]
 		[(combine-changes var-combination)
 		 (let loop ([cur-expr expr*3] [cur-loc loc] [changes-acc '()])
-		   (if (and (list? (caddr cur-expr)) (eq? (caaddr cur-expr) '*))
-		       (loop (list (car cur-expr) (cadr cur-expr) (cadr (caddr cur-expr)))
-			     (append cur-loc '(1))
-			     (cons (let ([rl (get-rule 'associate-*-lft)])
-				     (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))
-				   changes-acc))
-		       (values (let* ([distribute-powers-change (let ([rl (get-rule 'expt-prod-up)])
-								  (change rl cur-loc (pattern-match (rule-input rl) cur-expr)))]
-				      [cur-expr* (changes-apply (make-chngs-rel (list distribute-powers-change) loc) cur-expr)]
-				      [precompute-powers-change
-				       (change (rule 'precompute `(+ ,(s-var-pow var1) ,(s-var-pow var2))
-						     (+ (s-var-pow var1) (s-var-pow var2)) '())
-					       (append cur-loc '(2)) '())])
-				 (list* precompute-powers-change distribute-powers-change changes-acc))
-			       (s-var (s-var-var var1) (+ (s-var-pow var1) (s-var-pow var2)) cur-loc (s-var-inner-terms var1)))))]
+		   (match cur-expr
+		     [`(* ,a (* ,b ,c))
+		      (loop `(* (* ,a ,b) ,c)
+			    (append cur-loc '(1))
+			    (list (let ([rl (get-rule 'associate-*-lft)])
+				    (change rl cur-loc `((a . ,a) (b . ,b) (c . ,c))))))]
+		     [`(* (expt ,a ,b) (expt ,a ,c))
+		      (let* ([distribute-powers-change (let ([rl (get-rule 'expt-prod-up)])
+							 (change rl cur-loc `((a . ,a) (b . ,b) (c . ,c))))]
+			     [precompute-powers-change (let ([rl (rule 'precompute `(+ ,b ,c)
+								       (+ b c) '())])
+							 (change rl (append cur-loc '(2)) '()))])
+			(values (list* precompute-powers-change distribute-powers-change changes-acc)
+				(s-var a (+ b c) cur-loc (s-var-inner-terms var1))))]
+		     [`(* (expt ,a ,b) ,a)
+		      (loop `(* (expt ,a ,b) (expt ,a 1)) cur-loc
+			    (cons (let ([rl (get-rule 'expt1)])
+				    (change rl (append cur-loc '(2)) `((a . ,a))))
+				  changes-acc))]
+		     [`(* ,a (expt ,a ,b))
+		      (loop `(* (expt ,a 1) (expt ,a ,b)) cur-loc
+			    (cons (let ([rl (get-rule 'expt1)])
+				    (change rl (append cur-loc '(1)) `((a . ,a))))
+				  changes-acc))]
+		     [_ (error "Expression did not match any cases for var combining. Expression was: " cur-expr)]))]
 		[(expr*4) (changes-apply (reverse (drop-change-location-items combine-changes (length loc))) expr*3)]
 		[(cleanup-changes)
 		 (cond [(= (s-var-pow var-combination) 0)
@@ -993,9 +1003,8 @@
 (define (find-matching-var-pair vars)
   (let loop ([rest-vars vars])
     (if (null? rest-vars) #f
-	(let ([member-res (memf (λ (v2)
-				  (eq? (s-var-var (car rest-vars))
-				       (s-var-var v2)))
+	(let ([member-res (memf (compose (curry equal? (s-var-var (car rest-vars)))
+					 s-var-var)
 				(cdr rest-vars))])
 	  (if member-res
 	      (list (car rest-vars) (car member-res))
