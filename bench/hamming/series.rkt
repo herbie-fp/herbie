@@ -17,9 +17,10 @@
   "NMSE example 3.10"
   (/ (log (- 1 x)) (log (+ 1 x))))
 
-(casio-bench (x)
+(casio-test (x)
   "NMSE problem 3.4.1"
-  (/ (- 1 (cos x)) (expt x 2)))
+  (/ (- 1 (cos x)) (expt x 2))
+  (/ (sqr (sin x)) (* (+ 1 (cos x)) (sqr x))))
 
 (casio-bench (a b eps)
   "NMSE problem 3.4.2"
