@@ -2,7 +2,6 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require data/order)
 
 (provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append
@@ -208,15 +207,11 @@
 
 (define (safe-eval expr) (eval expr common-eval-ns))
 
-(define-syntax (write-file stx)
-  (syntax-case stx ()
-    [(_ filename . rest)
-     #'(with-output-to-file filename (lambda () . rest) #:exists 'replace)]))
+(define-syntax-rule (write-file filename . rest)
+   (with-output-to-file filename (lambda () . rest) #:exists 'replace))
 
-(define-syntax (write-string stx)
-  (syntax-case stx ()
-    [(_ . rest)
-     #'(with-output-to-string (lambda () . rest))]))
+(define-syntax (write-string . rest)
+  (with-output-to-string (lambda () . rest)))
 
 (define (has-duplicates? lst)
   (cond [(null? lst) #f]
