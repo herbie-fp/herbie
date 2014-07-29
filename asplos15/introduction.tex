@@ -4,8 +4,56 @@
 \section{Introduction}
 \label{sec:intro}
 
+From physical control systems to financial trading algorithms, many
+applications are designed to compute over real numbers.  However,
+practical concerns such as timeliness and space efficiency typically
+force these applications to approximate their real computations using
+hardware-supported floating point operations.  Unfortunately, the
+finite precision offered by floating point computations leads to
+rounding error; for many computations even miniscule errors can
+propagate to produce completely incorrect results.
+
+Even when applications can afford to simulate arbitrary precision
+floats in software, choosing the correct precision requires
+sophisticated error analysis techniques from the numerical methods
+community.  The same dilemmas also arise when applications restrict
+themselves to hardware-supported representations: they must choose
+between float, double, and extended precision which present
+significant tradeoffs between speed, space, and precision.
+Unfortunately, while most programmers are instilled with a sort of
+superstitious unease about the use of floating point, very few possess
+the background required to tackle these challenges.
+
+The research community has responded to the ubiquity and diabolical
+subtlety of floating point computation with several of techniques to
+address the challenges of imprecision.  In general, progress is made
+by automating analyses and optimizations which were traditionally
+carried out manually by a numerical methods expert.  Several
+techniques exist to automatically analyze floating point precision
+errors CITE CITE CITE and help the developer choose an appropriate
+precision CITE CITE CITE \todo{Precimonious.  Lam from UMD.  lots of
+  other automated error analysis}.  Hardware-supported floating point
+representations come in coarse, exponentially growing sizes.  Recent
+work from the approximate computing community helps avoid paying speed
+and energy overheads for precision the developer may not
+need. \todo{STOKE. Luis. Martin.}  New verification techniques help
+the programmer ensure they have all the bits they think they need
+\todo{eva}.  Testing for overflow, underflow, error \todo{popl13}.
+
+However, to the best of our knowledge, one traditional task of the
+numerical methods expert remains manual: rewriting the floating
+program to \textit{improve} precision.  This has many benefits.
+
+We do a clever search.
+
+Contributions.
+
+Outline.
+
+----
+
 Approximating real computations with floating point is one of the oldest
-forms of approximating computing.  Unfortunately, providing good
+forms of approximate computing.  Unfortunately, providing good
 approximations is often incredibly difficult due to the subtleties of how
 rounding error can propagate through a computation.  The problem is that we
 are victims of our success: in practice floating point often works quite
