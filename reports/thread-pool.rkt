@@ -187,8 +187,11 @@
   (place ch
     (let loop ()
       (match (place-channel-get ch)
-	[`(*log-dir* ,log-dir)
-	 (*log-dir* log-dir)]
+	[`(log-dir ,log-dir)
+         (when (not (directory-exists? log-dir))
+           (make-directory log-dir))
+	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
+           (*debug* (open-output-file filename #:exists 'replace)))]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -197,6 +200,7 @@
 
 (define (make-manager)
   (place ch
+    (define log-dir #f)
     (define workers '())
     (define work '())
     (let loop ()
@@ -204,10 +208,10 @@
       (match (apply sync ch workers)
         ['make-worker
 	 (let ([new-worker (make-worker)])
-	   (place-channel-put new-worker `(*log-dir* ,(*log-dir*)))
+	   (place-channel-put new-worker `(log-dir ,log-dir))
 	   (set! workers (cons new-worker workers)))]
-	[`(*log-dir* ,log-dir)
-	 (*log-dir* log-dir)]
+	[`(log-dir ,ld)
+	 (set! log-dir ld)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -226,12 +230,13 @@
       (loop))))
 
 (define (get-test-results progs iters
-         #:threads [threads (max (- (processor-count) 1) 1)])
+                          #:threads [threads (max (- (processor-count) 1) 1)]
+                          #:log-dir log-dir)
   (define m (make-manager))
   (define cnt 0)
   (define total (length progs))
 
-  (place-channel-put m `(*log-dir* ,(*log-dir*)))
+  (place-channel-put m `(log-dir ,log-dir))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))

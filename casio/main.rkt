@@ -24,7 +24,6 @@
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
 (define (improve prog fuel)
-  (debug-reset)
   (let-values ([(pts exs) (prepare-points prog)])
     (parameterize ([*points* pts] [*exacts* exs])
       (improve-alt (make-alt prog) fuel))))

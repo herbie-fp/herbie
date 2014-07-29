@@ -5,9 +5,9 @@
 
 (provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append
-         *debug* debug debug-reset set-debug-level! pipe
+         *debug* debug pipe
 	 safe-eval write-file write-string has-duplicates?
-	 with-item *log-dir* symbol<? common-eval-ns
+	 with-item symbol<? common-eval-ns
 	 flip-lists argmaxs)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
@@ -22,66 +22,20 @@
 
 (define *debug* (make-parameter #f))
 
-(define *log-dir* (make-parameter "../logs"))
-(define *log-path* (make-parameter '()))
-(define (log-path)
-  (when (not (directory-exists? (*log-dir*)))
-    (make-directory (*log-dir*)))
-  (when (null? (*log-path*))
-    (*log-path* (string-append (*log-dir*) "/" (number->string (current-seconds)) ".log")))
-  (*log-path*))
-
-(define *log* '())
-
 (define *tags*
-  #hasheq([enter . "> "]
-          [exit . "< "]
-          [info . ";; "]))
+  #hasheq([misc . ";  "] [enter . ">  "] [exit . "<  "] [info . ";; "]
+          [error . "!! "]))
 
-;; To set a particular #:from max-depth, pass it in here.
-;; To turn on all messages for a particular #:from, pass in a depth of #t.
-;; To set the default, pass in a max depth with the #:from #t.
-(define (set-debug-level! from depth)
-  (let ([existing (cond [(not (*debug*)) '((#t . 0))]
-			[(eq? #t (*debug*)) '((#t . #t))]
-			[#t (*debug*)])])
-    (*debug* (cons (cons from depth) existing))))
+(define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 0] . args)
+  (when (port? *debug*)
+    (println #:port *debug* #:end "\t"
+             (hash-ref *tags* tag ";  ")
+             from (if (> 0 depth) (format ":~a" depth) ""))
+    (for/list ([arg args])
+      (display " " *debug*)
+      ((if (string? arg) display write) arg *debug*))
+    (newline *debug*)))
 
-(define (should-print-debug? from depth)
-  (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
-      (and (*debug*) ;; If debug is false, never print
-	   (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
-				;; If we were given a #:from, and we have it in the dictionary,
-				;; look up it's max depth
-				(dict-ref (*debug*) from)
-				;; Otherwise, just use whatevers default.
-				(dict-ref (*debug*) #t))])
-	     ;; If the max depth is true, turn everything on.
-	     ;; If the max depth isn't positve, turn everything off.
-	     ;; Otherwise, if our dept is less than the max-depth,
-	     ;; return true.
-	     (or (eq? max-depth #t)
-		 (and (>= max-depth depth)
-		      (> max-depth 0)))))))
-
-(define (debug #:from from #:tag [tag #f] #:depth [depth 1] . args)
-  (when (should-print-debug? from depth)
-    (debug-print from tag args (current-output-port)))
-  (set! *log* (cons (list* from tag args) *log*))
-  (call-with-output-file (log-path) #:exists 'append
-			 (curry debug-print from tag args)))
-
-(define (debug-print from tag args port)
-  (display (hash-ref *tags* tag "; ") port)
-  (write from port)
-  (display ": " port)
-  (for/list ([arg args])
-    (display " " port)
-    ((if (string? arg) display write) arg port))
-  (newline port))
-
-(define (debug-reset)
-  (set! *log* '()))
 
 (define-syntax-rule (reap [sow] body ...)
   (let* ([store '()]
@@ -210,7 +164,7 @@
 (define-syntax-rule (write-file filename . rest)
    (with-output-to-file filename (lambda () . rest) #:exists 'replace))
 
-(define-syntax (write-string . rest)
+(define-syntax-rule (write-string . rest)
   (with-output-to-string (lambda () . rest)))
 
 (define (has-duplicates? lst)
