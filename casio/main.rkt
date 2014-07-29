@@ -82,10 +82,6 @@
          ((flag 'generate 'simplify) simplify-alt identity)])
     (map cleanup (rewrite altn #:root loc))))
 
-(define (filter-alts alts olds)
-  (if (null? alts)
-      alts
-      (list (best-alt alts))))
 (define (simplify-alt altn)
   (apply-changes altn (simplify altn)))
 
