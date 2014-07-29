@@ -72,6 +72,7 @@
                     (test-result-start-error result)
                     (test-result-end-error result)
                     (test-result-target-error result)
+		    (test-result-bits result)
                     dir)
 
         (build-path rdir "graph.html")]
@@ -264,19 +265,21 @@
       (printf "</body>\n")
       (printf "</html>\n"))))
 
-(apply
- make-report
- (command-line
-  #:program "make-report"
-  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
-  #:multi [("-a") ma "How many arguments to allow"
-           (set! *max-test-args* (string->number ma))]
-  #:multi [("-p") th "How many tests to run in parallel to use"
-           (set! *max-test-threads* (string->number th))]
-  #:multi [("-r") rs "The random seed vector to use in point generation"
-	   (vector->pseudo-random-generator! (current-pseudo-random-generator)
-					     (read (open-input-string rs)))]
-  #:args bench-dir
+(define benches
+  (command-line
+   #:program "make-report"
+   #:once-each
+   [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+    (*debug* #t)]
+   [("-a") ma "How many arguments to allow"
+    (set! *max-test-args* (string->number ma))]
+   [("-p") th "How many tests to run in parallel to use"
+    (set! *max-test-threads* (string->number th))]
+   [("-r") rs "The random seed vector to use in point generation"
+    (vector->pseudo-random-generator!
+     (current-pseudo-random-generator)
+     (read (open-input-string rs)))]
+   #:args bench-dir
   bench-dir))
 
 (apply make-report benches)
