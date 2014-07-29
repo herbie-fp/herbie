@@ -21,7 +21,7 @@
   [sqrt     bfsqrt    flsqrt    1      "sqrt(~a)"]
   [sqr      bfsqr     sqr       1      (λ (x) (format "~a * ~a" x x))]
   [exp      bfexp     flexp     270    "exp(~a)"]
-  [expt     bfexpt    flexpt    640    "pow(~a)"]
+  [expt     bfexpt    flexpt    640    "pow(~a, ~a)"]
   [log      bflog     fllog     300    "log(~a)"]
   [sin      bfsin     flsin     145    "sin(~a)"]
   [cos      bfcos     flcos     185    "cos(~a)"]
