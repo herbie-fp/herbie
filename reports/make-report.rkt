@@ -165,7 +165,9 @@
 
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
-        [branch (command-result "git rev-parse --abbrev-ref HEAD")])
+        [branch (command-result "git rev-parse --abbrev-ref HEAD")]
+	[seed (~a (psuedo-random-generator->vector
+		   (current-psuedo-random-generator)))])
 
     (define table-labels
       '("Test" "Start [bits]" "Result [bits]" "Target [bits]" "∞ ↔ ℝ" "Input" "Time"))
@@ -203,6 +205,7 @@
       (printf "<dl id='about'>\n")
       (printf "<dt>Date:</dt><dd>~a</dd>\n" (date->string (current-date)))
       (printf "<dt>Commit:</dt><dd>~a on ~a</dd>\n" commit branch)
+      (printf "<dt>Seed Data:</dt><dd>~a</dd>\n" seed)
       (printf "<dt>Flags:</dt><dd id='flag-list'>")
       (for ([rec (hash->list (*flags*))])
         (for ([fl (cdr rec)])
