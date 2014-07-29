@@ -13,6 +13,7 @@
          (struct-out test-timeout) get-test-results)
 
 (define *reeval-pts* 8000)
+(define *seed* #f)
 
 (struct test-result
   (test time
@@ -38,7 +39,9 @@
           (list (car tb) (srcloc->string (cdr tb))))))
 
 (define (get-test-result test iters)
-
+  (current-pseudo-random-generator
+   (vector->pseudo-random-generator
+    *seed*))
   (define (compute-result _)
       (let*-values ([(orig) (make-prog test)]
                     [(points exacts) (prepare-points orig)])
@@ -193,8 +196,9 @@
 	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))]
 	[`(rand ,vec)
-	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
-					    vec)]
+	 (set! *seed* vec)
+	 (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					   vec)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
