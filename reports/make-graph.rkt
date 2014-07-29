@@ -20,7 +20,7 @@
 (define *label-height* 8)
 (define *label-width* 15)
 
-(define (make-graph test end-alt points start-errs end-errs target-errs dir)
+(define (make-graph test end-alt points start-errs end-errs target-errs bits dir)
 
   ;; Generate the html for our graph page
   (write-file (build-path dir "graph.html")
@@ -33,6 +33,7 @@
     (printf "</head>\n")
 
     (printf "<body>\n")
+    (printf "<p>Needed ~a bits to evaluate</p>" bits)
     (printf "<div id='graphs'>\n")
     (for ([idx (range (length (test-vars test)))])
       (let-values ([(x-scale x-unscale)

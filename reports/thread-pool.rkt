@@ -2,6 +2,7 @@
 
 (require racket/place)
 (require racket/engine)
+(require math/bigfloat)
 (require casio/common)
 (require casio/points)
 (require casio/alternative)
@@ -16,7 +17,7 @@
 (define *seed* #f)
 
 (struct test-result
-  (test time
+  (test time bits
    start-alt end-alt points exacts
    newpoints newexacts start-error end-error target-error))
 (struct test-failure (test exn time))
@@ -43,12 +44,12 @@
    (vector->pseudo-random-generator
     *seed*))
   (define (compute-result _)
-      (let*-values ([(orig) (make-prog test)]
-                    [(points exacts) (prepare-points orig)])
-        (parameterize ([*points* points] [*exacts* exacts])
-          (let* ([start-alt (make-alt orig)]
-                 [end-alt (improve-alt start-alt (*num-iterations*))])
-            (list start-alt end-alt points exacts)))))
+    (let*-values ([(orig) (make-prog test)]
+		  [(points exacts) (prepare-points orig)])
+      (parameterize ([*points* points] [*exacts* exacts])
+	(let* ([start-alt (make-alt orig)]
+	       [end-alt (improve-alt start-alt (*num-iterations*))])
+	  (list start-alt end-alt points exacts)))))
 
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
@@ -64,6 +65,7 @@
                (parameterize ([*num-points* *reeval-pts*])
                  (prepare-points (alt-program start))))
              (test-result test (- (current-inexact-milliseconds) start-time)
+			  (bf-precision)
                           start end points exacts
                           newpoints newexacts
                           (errors (alt-program start) newpoints newexacts)
@@ -77,6 +79,7 @@
 (define (marshal-test-result tr)
   `(test-result ,(test-result-test tr)
                 ,(test-result-time tr)
+		,(test-result-bits tr)
                 ,(marshal-alt (test-result-start-alt tr))
                 ,(marshal-alt (test-result-end-alt tr))
                 ,(test-result-points tr)
@@ -89,8 +92,8 @@
 
 (define (unmarshal-test-result tr*)
   (match tr*
-    [`(test-result ,t ,time ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
-     (test-result t time (unmarshal-alt start*) (unmarshal-alt end*) pts exs
+    [`(test-result ,t ,time ,bits ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
+     (test-result t time bits (unmarshal-alt start*) (unmarshal-alt end*) pts exs
                   pts* exs* startE endE targetE)]))
 
 (define (marshal-test-failure tf)
