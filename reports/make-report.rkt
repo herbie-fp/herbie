@@ -272,5 +272,8 @@
            (set! *max-test-args* (string->number ma))]
   #:multi [("-p") th "How many tests to run in parallel to use"
            (set! *max-test-threads* (string->number th))]
+  #:multi [("-r") rs "The random seed vector to use in point generation"
+	   (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					     (read (open-input-string rs)))]
   #:args bench-dir
   bench-dir))
