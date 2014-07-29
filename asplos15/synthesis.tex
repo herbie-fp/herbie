@@ -152,6 +152,26 @@ Any candidate program can then be evaluated in floating point
   and compared to the exact solution at that point,
   to compute the candidate program's error at that point.
 
+\begin{figure}
+\begin{align*}
+  \FP_{64}, \FP_\infty &: \|FloatingPointSystem| \\
+  \Err &\:x\:y \ceq \#\{ z : \FP_{64}\:|\:x \le z \le y \} \\
+  \\
+  \Var &\ceq \{ x, y, z, \dotsc \} \\
+  \Op &\ceq \{ \|exp|, \|pow|, \|log|, \dotsc \} \\
+  \Expr &\ceq c \I x \I f(e_1, \dotsc, e_k) \\
+  & c : \RR, x : \Var, f : \Op, e_i : \Expr \\
+  \|eval|_t &: (\Var \to \RR) \to \Expr \to \FP_t
+\end{align*}
+\caption{Common variables. $\FP_{64}$ and $\FP_\infty$ represent
+  the types of 64-bit floating point and arbitrary-precision values.
+  $\Err$ measures the error between two real values
+  as the number of floating point values between them.
+  $\Expr$ represents the type of mathematical expressions,
+  and $\|eval|_t$ evaluates expressions in $\FP_t$ arithmetic.}
+\label{alg:defs}
+\end{figure}
+
 \subsection{Focusing with local error}
 
 \casio must focus on those expressions
@@ -193,16 +213,24 @@ Thus, the subtraction operator has high local error,
 As a result, \casio easily finds the correct location
   to rewrite this program.
 
-\begin{alltt}
-  \textbf{def} local-error (expr : Expr) : \NN \ceq
-    match expr with
-      c \tto 0
-      x \tto 0
-      f(\(e_1, \ldots, e_k\)) \tto
-        r_a \ceq f.approx (eval \(e_1\) \textbf{AP}) \ldots (eval \(e_k\) \textbf{AP})
-        r_e \ceq f.exact (eval \(e_1\) \textbf{AP}) \ldots (eval \(e_k\) \textbf{AP})
-        \(\delta\) r_e r_a
-\end{alltt}
+\begin{figure}
+\begin{align*}
+  \|localerror| &: (\Var \to \RR) \to \Expr \to \NN \\
+  \|localerror| &\:\Gamma\:c \ceq 1 \\
+  \|localerror| &\:\Gamma\:x \ceq 1 \\
+  \|localerror| &\:\Gamma\:f(e_1, e_2, \ldots, e_k) \ceq \\
+  & e_i' \ceq \|eval|_\infty\:\Gamma\:e_i \\
+  & r_{64} \ceq f_{64}\:(\F_{64}\:e_1')\:\ldots\:(\F_{64}:e_k') \\
+  & r_\infty \ceq \F_{64}\:(f_\infty\:e_1'\:\ldots\:e_k') \\
+  & \Err\:r_{64}\:r_\infty \\
+\end{align*}
+\caption{Computation of local error.
+  Given a set of variable bindings and an expression,
+  the local error evaluates all subexpressions in arbitrary precision and returns
+  the difference between the arbitrary-precision and floating-point operators
+  applied to this exact input.}
+\label{alg:focus}
+\end{figure}
 
 \subsection{Recursive rewrite pattern matching}
 
@@ -242,6 +270,36 @@ This matching algorithm, which we call recursive rewrite pattern matching,
   stretches of \todo{How many} rewrites at once.
 \casio uses recursive-rewrite pattern matching
   after focusing on an expression.
+
+\begin{figure}
+\begin{align*}
+  \Pat &\ceq c | x | f(p_1, \dotsc, p_k) \\
+  & c : \Expr, x : \Var_p, f : \Op, p_k : \Pat \\
+  \mathbf{rules} &: (\Pat \times \Pat)\:\|set| \\
+  \|match| &: \Pat \to \Expr \to (\Var_p \to \Expr) \\
+  \|subst| &: \Pat \to (\Var_p \to \Expr) \to \Expr \\
+  \\
+  \|rr'| &: \Expr \to \Pat \to (\Expr \times (\Var_p \to Expr))\:\|set| \\
+  \|rr'| &\:e\:e \ceq [ (e, \cdot) ] \\
+  \|rr'| &\:e\:x' \ceq [ (e, x \mapsto e) ] \\
+  \|rr'| &\:f(e_1, \dotsc, e_k)\:f(p_1, \dotsc, p_k) \ceq \\
+  & \{ ( f(e_1', \dotsc, e_k'), \cup_i \Gamma_i) \I \\
+  & \; (e_i', \Gamma_i) \in \|rr'|\:e_i\:p_i, \|compatible|\:\Gamma_i \} \\
+  \|rr'| &\:f(e_1, \dotsc, e_k)\:f'(p_1, \dotsc, p_l) \ceq \\
+  & \cup \{ \|rr'|\:(\|subst|\:b\:(\cup_i \Gamma_i))\:f'(p_1, \dotsc, p_l) \I \\
+  & \quad (e_i', \Gamma_i) \in \|rr'|\:e_i\:a_i, \|compatible|\:\Gamma_i, \\
+  & \quad (a, b) \in \mathbf{rules}, a \sim f(a_1, \dotsc, a_k) \}
+\end{align*}
+\caption{Recrusive rewrite pattern matching.
+  Given a set of from/to patterns in \textbf{rules}
+  (which can be matched against and substituted into
+  by \|match| and \|subst|),
+  $(\|rr'|\:e\:p)$ returns a set of expressions
+  each of which match $p$, and each of which is obtained from $e$
+  by applying a sequence of rules from \textbf{rules},
+  with at most one rule applied to any node in the expression tree.}
+\label{alg:rm}
+\end{figure}
 
 \subsection{Simplification}
 
@@ -375,10 +433,10 @@ Once periodic functions have been found,
   where $t$ is the period.
 If the resulting program includes branches introduced by regimes,
   the condition in each branch is changed via the substitution
-  $x \mapsto \mathsf{mod}(x, t)$, for each variable $x$ with period $t$.
+  $x \mapsto \|mod|(x, t)$, for each variable $x$ with period $t$.
 The body of the branch is not changed,
   because for large inputs, expressions like
-  $\sin \mathsf{mod}(x, 2\pi)$
+  $\sin \|mod|(x, 2\pi)$
   are less accurate than the real-equivalent $\sin x$.
 
 \subsection{Correlated Error}
