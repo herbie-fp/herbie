@@ -113,6 +113,27 @@ After the main loop completes,
   to execute different candidates for different inputs.
 These techniques, combined, are \casio.
 
+\begin{figure}
+\begin{align*}
+  \|start| &\:e\ceq \\
+  & pts, exs \ceq \|pickPoints|\:e \\
+  & e' \ceq \|simplify|\:e \\
+  & e'' \ceq \|mapPeriod|\;e'\;\|main-loop| \\
+  & t \ceq \|makeTable|\;e''\\
+  & \|loop|\:t\\
+  \\
+  \|loop| &\:t\:\ceq \\
+  & \mathbf{if}\:t.\|done|\:\mathbf{then}\:\|finish|\:t\:\mathbf{else} \\
+  & e, t' \ceq \|pick|\;t \\
+  & es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
+  & \|loop|\:(t' + es) \\
+  \\
+  \|finish| &\;t \ceq \\
+  & \|regimes|\:(\cup\{\|uncorrelated|\;e \I e \in t \})
+\end{align*}
+
+\end{figure}
+
 \subsection{Evaluating error of expressions}
 
 As \casio discovers and applies rewrites,
