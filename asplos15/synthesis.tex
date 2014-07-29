@@ -2,8 +2,7 @@
 \begin{document}
 
 \section{Synthesis in \casio}
-\label{sec:synthesis}
-
+\label{sec:synthesis} 
 At a high level, \casio translates mathematical \emph{formulas}
   into floating-point \emph{programs}.
 \casio translates using a heuristic search algorithm
@@ -193,6 +192,17 @@ Thus, the subtraction operator has high local error,
   while the other operators have very low error.
 As a result, \casio easily finds the correct location
   to rewrite this program.
+
+\begin{alltt}
+  \textbf{def} local-error (expr : Expr) : \NN \ceq
+    match expr with
+      c \tto 0
+      x \tto 0
+      f(\(e_1, \ldots, e_k) \tto
+        r_a \ceq f.approx (eval \(e_1\) \textbf{AP}) \ldots (eval \(e_k\) \textbf{AP})
+        r_e \ceq f.exact (eval \(e_1\) \textbf{AP}) \ldots (eval \(e_k\) \textbf{AP})
+        \(\delta\) r_e r_a
+\end{alltt}
 
 \subsection{Recursive rewrite pattern matching}
 
