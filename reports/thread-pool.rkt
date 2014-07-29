@@ -193,8 +193,8 @@
 	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))]
 	[`(rand ,vec)
-	 (current-psuedo-random-generator
-	  (vector->psuedo-random-generator vec))]
+	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					    vec)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -216,7 +216,8 @@
 						  (current-pseudo-random-generator))))
 	   (set! workers (cons new-worker workers)))]
 	[`(rand ,vec)
-	  (vector->pseudo-random-generator! vec)]
+	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					    vec)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
