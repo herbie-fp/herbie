@@ -71,7 +71,7 @@
          ((flag 'reduce 'zach) zach-alt (const '()))])
     (let* ([alts* (append alts (append-map fixup alts))]
            [alts* (remove-duplicates alts* #:key alt-program)])
-      (verify-alt-chng-bindings (or (combine alts* fuel) (best-alt alts*))))))
+      (or (combine alts* fuel) (best-alt alts*)))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -87,19 +87,6 @@
   (if (null? alts)
       alts
       (list (best-alt alts))))
-
-;; Some helpers
-
-(define (verify-chng-bindings chngs #:message [msg ""])
-  (for/list ([chng chngs])
-    (when (not (change-bindings chng))
-      (error (string-append "Change has improper bindings! rule: " (~a (change-rule chng)) msg))))
-  chngs)
-
-(define (verify-alt-chng-bindings altn #:message [msg ""])
-  (verify-chng-bindings (alt-changes altn) #:message msg)
-  altn)
-
 (define (simplify-alt altn)
   (apply-changes altn (simplify altn)))
 
