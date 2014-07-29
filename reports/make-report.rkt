@@ -10,6 +10,7 @@
 (require casio/main)
 (require reports/make-graph)
 (require reports/thread-pool)
+(require reports/cmdline)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -277,3 +278,5 @@
 					     (read (open-input-string rs)))]
   #:args bench-dir
   bench-dir))
+
+(apply make-report benches)
