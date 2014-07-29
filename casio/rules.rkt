@@ -191,3 +191,6 @@
 (define-rule   cos-sum     (cos (+ x y))       (- (* (cos x) (cos y)) (* (sin x) (sin y))))
 (define-rule   sin-diff    (sin (- x y))       (- (* (sin x) (cos y)) (* (cos x) (sin y))))
 (define-rule   cos-diff    (cos (- x y))       (+ (* (cos x) (cos y)) (* (sin x) (sin y))))
+(define-rule   diff-atan   (- (atan x) (atan y)) (atan (/ (- x y) (+ 1 (* x y)))) #:simplify ((1)))
+(define-rule   quot-tan    (/ (sin x) (cos x)) (tan x))
+(define-rule   tan-quot    (tan x)             (/ (sin x) (cos x)))
