@@ -166,8 +166,8 @@
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
         [branch (command-result "git rev-parse --abbrev-ref HEAD")]
-	[seed (~a (psuedo-random-generator->vector
-		   (current-psuedo-random-generator)))])
+	[seed (~a (pseudo-random-generator->vector
+		   (current-pseudo-random-generator)))])
 
     (define table-labels
       '("Test" "Start [bits]" "Result [bits]" "Target [bits]" "∞ ↔ ℝ" "Input" "Time"))
