@@ -192,6 +192,9 @@
            (make-directory log-dir))
 	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))]
+	[`(rand ,vec)
+	 (current-psuedo-random-generator
+	  (vector->psuedo-random-generator vec))]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -209,9 +212,14 @@
         ['make-worker
 	 (let ([new-worker (make-worker)])
 	   (place-channel-put new-worker `(log-dir ,log-dir))
+	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
+						  (current-pseudo-random-generator))))
 	   (set! workers (cons new-worker workers)))]
 	[`(log-dir ,ld)
 	 (set! log-dir ld)]
+	[`(rand ,vec)
+	 (current-psuedo-random-generator
+	  (vector->psuedo-random-generator vec))]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -237,6 +245,8 @@
   (define total (length progs))
 
   (place-channel-put m `(log-dir ,log-dir))
+  (place-channel-put m `(rand ,(psuedo-random-generator->vector
+				(current-psuedo-random-generator))))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
