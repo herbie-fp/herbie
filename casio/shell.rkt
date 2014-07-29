@@ -100,7 +100,6 @@
     (values (eval-symbol expr alts locs) alts locs)]))
 
 (define (shell prog)
-  (debug-reset)
   (define-values (points exacts) (prepare-points prog))
   (parameterize ([*points* points] [*exacts* exacts])
     (let ([orig (make-alt prog)])

@@ -19,12 +19,10 @@
 (define *max-test-threads* (max (- (processor-count) 1) 1))
 
 (define (make-report . bench-dirs)
-  ;; This shouldn't be like this. We should change it.
-  (*log-dir* "logs")
   (let* ([tests (allowed-tests bench-dirs)]
          [results
           (get-test-results tests (*num-iterations*)
-                            #:threads *max-test-threads*)])
+                            #:threads *max-test-threads* #:log-dir "logs")])
 
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))
