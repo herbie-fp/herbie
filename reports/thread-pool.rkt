@@ -215,11 +215,8 @@
 	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
 						  (current-pseudo-random-generator))))
 	   (set! workers (cons new-worker workers)))]
-	[`(log-dir ,ld)
-	 (set! log-dir ld)]
 	[`(rand ,vec)
-	 (current-psuedo-random-generator
-	  (vector->psuedo-random-generator vec))]
+	  (vector->pseudo-random-generator! vec)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
