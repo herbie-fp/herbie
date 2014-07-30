@@ -222,6 +222,8 @@
 	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
 						  (current-pseudo-random-generator))))
 	   (set! workers (cons new-worker workers)))]
+	[`(log-dir ,log-directory)
+	 (set! log-dir log-directory)]
 	[`(rand ,vec)
 	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
 					    vec)]
@@ -250,8 +252,8 @@
   (define total (length progs))
 
   (place-channel-put m `(log-dir ,log-dir))
-  (place-channel-put m `(rand ,(psuedo-random-generator->vector
-				(current-psuedo-random-generator))))
+  (place-channel-put m `(rand ,(pseudo-random-generator->vector
+				(current-pseudo-random-generator))))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
