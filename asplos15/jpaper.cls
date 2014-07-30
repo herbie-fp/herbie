@@ -41,7 +41,7 @@
 \RequirePackage[usenames,dvipsnames,svgnames,table]{xcolor}
 
 % Basic text typesetting options.
-\RequirePackage{mathptmx}
+%\RequirePackage{mathptmx}
 \RequirePackage[scaled=0.833]{helvet}
 \RequirePackage[scaled=0.875]{couriers}
 \setlength{\parindent}{1em}
