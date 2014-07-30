@@ -8,10 +8,9 @@ From physical control systems to financial forecasting, many
 applications are designed to compute over real numbers.  However,
 practical concerns such as latency and memory usage typically force
 applications to approximate their results using hardware-supported
-floating point operations.  Unfortunately, the finite precision
-offered by floating point computations leads to rounding error; for
-many computations even miniscule errors can propagate to produce
-completely inaccurate results.
+floating point operations.  Unfortunately, finite precision leads to
+rounding error; for many computations, even miniscule errors can
+propagate to produce completely incorrect results.
 
 \todo{examples where this is real bad}
 
@@ -19,38 +18,46 @@ For decades researchers have developed techniques to analyze and
 mitigate rounding error, including sophisticated forward and backward
 error analysis \todo{cite}, robust multi-precision floating point
 representations designed for efficient hardware implementation
-\todo{cite}, arbitrary precision floating point libraries \todo{cite},
-and numerous optimizations aimed at improving accuracy \todo{cite}.
+\todo{cite}, and numerous program transformations to reduce error
+\todo{cite}.  Unfortunately, manually applying these techniques
+requires substantial background which few programmers can afford.
 
-% Many developers are instilled with a sort of superstitious unease
-% concerning floating point.
+In practice, developers have few tools to address rounding error.  A
+common strategy is simply increasing precision, for example by
+replacing 32-bit floats with 64-bit floats.  While increasing
+precision may help by shifting error to lower order bits, the program
+can still exhibit unacceptable rounding error.  Furthermore increasing
+precision typically doubles floating point memory and latency costs.
+Once a programmer has exhausted the available, hardware-supported
+precision, she can switch to an arbitrary precision floating point
+library.  However, such libraries still have rounding error and impose
+prohibitive overhead for many applications. \todo{massage} \todo{back
+  these points up with examples from evaluation}
 
-Unfortunately, few programmers possess the background necessary to
-manually apply these advanced techniques, or, as in the case of
-arbitrary precision floating point libraries, the technique is
-prohibitively expensive.  In practice, the most common strategy to
-avoid numerical inaccuracy is simply increasing precision, for example
-by replacing 32-bit precision floats with 64-bit precision floats.
-This strategy suffers from two primary drawbacks.  First, increasing
-precision typically doubles a program's memory usage and can quadruple
-it's latency for floating point.  Second, for real computations
-naively translated to floating point, accuracy often does not scale
-well with precision.  \todo{back these points up with examples from
-  evaluation}
+% In practice, many developers have little recourse when they encounter
+% unacceptable rounding error.  A common strategy is simply increasing
+% precision, for example by replacing 32-bit floats with 64-bit floats.
+% This strategy suffers from two primary drawbacks.  First, increasing
+% precision typically doubles a program's memory usage and can quadruple
+% its latency for floating point.  Second, for naive translations from
+% real computations to floating point, increased precision often simply
+% shifts error instead of eliminating it \todo{massage}. \todo{back
+%   these points up with examples from evaluation}
 
 To address these challenges, we present \casio, a technique to
-automatically synthesize accurate, hardware-supported floating point
-code from real computations.  Given an input program $P$ over the
-reals, \casio performs a heuristic search for a program $P'$ which is
-equivalent to $P$ over the reals and minimizes rounding error.  At
-each step of the search, \casio automatically analyzes a candidate
-program for sources of inaccuracy, applies potentially
-accuracy-improving rewrites drawn from the numerical methods
-literature, and estimates the rounding error of the resulting program.
-By searching through thousands of candidate programs, our prototype
-implementation is able to \todo{impressive summary of evaluation}.
-Furthermore, \casio improves accuracy automatically, requiring no
-training or intervention from the programmer.
+automatically synthesize hardware-supported floating point code with
+low rounding error \todo{massage} from real computations.  Given an
+input program $P$ over the reals, \casio performs a heuristic search
+for a program $P'$ which is equivalent to $P$ over the reals and
+minimizes rounding error.  At each step of the search, \casio
+automatically analyzes a candidate program for sources of error,
+applies potentially error-reducing rewrites drawn from the numerical
+methods literature, and estimates the rounding error of the resulting
+program.  By searching through thousands of candidate programs, our
+prototype implementation is able to \todo{impressive summary of
+  evaluation}.  Furthermore, \casio reduces rounding error
+automatically, requiring no training or intervention from the
+programmer.
 
 \casio complements several concurrent efforts to improve floating
 point computation.  Our technique is parameterized by error estimation
@@ -63,18 +70,35 @@ numerical methods textbooks, mathematical libraries drawn from the
 Web, and recent scientific articles.  Our results show that \casio
 \todo{results}.  We also evaluated \casio on two large applications
 \todo{do it}.  Finally, \casio has already been found useful by
-colleagues in machine learning who were able to significantly improve
-the accuracy of their learning algorithm something something.
+colleagues in machine learning who were able to significantly reduce
+the rounding error of their learning algorithm something something.
 
 In summary, this paper makes three primary contributions:
 \begin{enumerate}
 \item To the best of our knowledge, the first automated technique to
-  improve floating point accuracy.
+  mitigate rounding error.
 \item The perspective that approximation work should be done vs. real computation.
 \item Thorough evaluation and framework for others to build upon.
 \end{enumerate}
 
-The rest of the paper is organized as follows.  \cref{sec:background} provides a brief survey of the relevant background on floating computation.  \cref{sec:overview} illustrates \casio on a representative example and describes the high level \casio workflow.  \cref{sec:synthesis} details \casio's heuristic search and error estimation techniques.  \cref{sec:evaluation} evaluates \casio's effectiveness across a suite of microbenchmarks, two large applications, and the effort to build and run \casio.  \cref{sec:relatedwork} surveys the most closely related work and \cref{sec:futurework} considers future work and concludes.
+The rest of the paper is organized as follows.  \cref{sec:background}
+provides a brief survey of the relevant background on floating
+computation.  \cref{sec:overview} illustrates \casio on a
+representative example and describes the high level \casio workflow.
+\cref{sec:synthesis} details \casio's heuristic search and error
+estimation techniques.  \cref{sec:evaluation} evaluates \casio's
+effectiveness across a suite of microbenchmarks, two large
+applications, and the effort to build and run \casio.
+\cref{sec:relatedwork} surveys the most closely related work and
+\cref{sec:futurework} considers future work and concludes.
+
+
+% Many developers are instilled with a sort of superstitious unease
+% concerning floating point.
+
+% Arbitrary precision floating point libraries \todo{cite}.  In the case
+% of arbitrary precision floating point libraries, the technique is
+% prohibitively expensive.
 
 
 % In response to the ubiquity and subtlety of floating point
