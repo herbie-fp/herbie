@@ -7,124 +7,171 @@
 From physical control systems to financial forecasting, many
 applications are designed to compute over real numbers.  However,
 practical concerns such as latency and memory usage typically force
-these applications to approximate their results using
-hardware-supported floating point operations.  Unfortunately, the
-finite precision offered by floating point computations can lead to
-rounding error; for many computations even miniscule errors can
-propagate to produce completely incorrect results.
+applications to approximate their results using hardware-supported
+floating point operations.  Unfortunately, the finite precision
+offered by floating point computations leads to rounding error; for
+many computations even miniscule errors can propagate to produce
+completely inaccurate results.
 
-In response to the ubiquity and subtlety of floating point
-computation, the numerical methods community has developed a host of
-powerful techniques to analyze and mitigate numerical inaccuracies.
-These approaches rely on a deep understanding of the floating point
-representation, sophisticated error analyses to choose an appropriate
-precision, and optimizations to improve accuracy when additional
-precision is unavailable or too expensive in terms of space or time.
-Unfortunately, while most programmers are instilled with a sort of
-superstitious unease concerning floating point, very few possess the
-background required to manually apply traditional numerical methods
-techniques. \todo{prev sentence bad flow, but so funny}
+\todo{examples where this is real bad}
 
-To ease the programmer's burden, researchers have begun automating
-some of the important tasks for ensuring numerical accuracy.  The
-resulting tools not only make the hard won knowledge of the numerical
-methods community more generally accessible to non-experts, but also
-help make experts more effective.  In particular, researchers have
-developed techniques to automatically measure error, automatically
-choose between available hardware-supported precisions, and optimize
-computations to avoid expensive operations for precision that is not
-required.
+For decades researchers have developed techniques to analyze and
+mitigate rounding error, including sophisticated forward and backward
+error analysis \todo{cite}, robust multi-precision floating point
+representations designed for efficient hardware implementation
+\todo{cite}, arbitrary precision floating point libraries \todo{cite},
+and numerous optimizations aimed at improving accuracy \todo{cite}.
 
-In practice, programmers often attempt to avoid numerical inaccuracy
-by simply increasing precision, for example by replacing 32-bit floats
-with 64-bit floats.  However, choosing the right representation is
-hard.  Speed and space and precision tradeoffs.  Choosing right
-tradeoff requires error analysis.  Several techniques exist to
-automatically analyze floating point precision errors CITE CITE CITE
-and help the developer choose an appropriate precision CITE CITE CITE
-\todo{Precimonious.  Lam from UMD.  lots of other automated error
-  analysis}.  Note that, even when applications can afford to simulate
-arbitrary precision floats in software, these challenges still arise.
+% Many developers are instilled with a sort of superstitious unease
+% concerning floating point.
 
-Hardware-supported floating point representations come in coarse,
-exponentially growing sizes.  Recent work from the approximate
-computing community helps avoid paying speed and energy overheads for
-precision the developer may not need. \todo{STOKE. Luis. Martin.}  New
-verification techniques help the programmer ensure they have all the
-bits they think they need \todo{eva}.  Testing for overflow,
-underflow, error \todo{popl13}.
+Unfortunately, few programmers possess the background necessary to
+manually apply these advanced techniques, or, as in the case of
+arbitrary precision floating point libraries, the technique is
+prohibitively expensive.  In practice, the most common strategy to
+avoid numerical inaccuracy is simply increasing precision, for example
+by replacing 32-bit precision floats with 64-bit precision floats.
+This strategy suffers from two primary drawbacks.  First, increasing
+precision typically doubles a program's memory usage and can quadruple
+it's latency for floating point.  Second, for real computations
+naively translated to floating point, accuracy often does not scale
+well with precision.  \todo{back these points up with examples from
+  evaluation}
 
-However, to the best of our knowledge, one traditional task of the
-numerical methods expert remains manual: rewriting the floating
-program to \textit{improve} precision.  This has many benefits.
+To address these challenges, we present \casio, a technique to
+automatically synthesize accurate, hardware-supported floating point
+code from real computations.  Given an input program $P$ over the
+reals, \casio performs a heuristic search for a program $P'$ which is
+equivalent to $P$ over the reals and minimizes rounding error.  At
+each step of the search, \casio automatically analyzes a candidate
+program for sources of inaccuracy, applies potentially
+accuracy-improving rewrites drawn from the numerical methods
+literature, and estimates the rounding error of the resulting program.
+By searching through thousands of candidate programs, our prototype
+implementation is able to \todo{impressive summary of evaluation}.
+Furthermore, \casio improves accuracy automatically, requiring no
+training or intervention from the programmer.
 
-Our insight is to search for programs which are equivalent over the
-reals but induce lower error over floats.  We use a database of common
-mathematical identities and apply in a hill climbing search.  It's
-stupid, but it works super well.
+\casio complements several concurrent efforts to improve floating
+point computation.  Our technique is parameterized by error estimation
+so we can adopt state of the art techniques as they are developed.
+STOKE can work as a post processing pass.  Approximate computing
+people can something something.
 
-We evaluate on a bunch of stuff.
-
-Good anecdote about Harley.
+We evaluated \casio on a large suite of microbenchmarks drawn from
+numerical methods textbooks, mathematical libraries drawn from the
+Web, and recent scientific articles.  Our results show that \casio
+\todo{results}.  We also evaluated \casio on two large applications
+\todo{do it}.  Finally, \casio has already been found useful by
+colleagues in machine learning who were able to significantly improve
+the accuracy of their learning algorithm something something.
 
 In summary, this paper makes three primary contributions:
 \begin{enumerate}
-\item contribution 1
-\item contribution 2
-\item contribution 3
+\item To the best of our knowledge, the first automated technique to
+  improve floating point accuracy.
+\item The perspective that approximation work should be done vs. real computation.
+\item Thorough evaluation and framework for others to build upon.
 \end{enumerate}
 
-The rest of the paper is organized as follows: OUTLINE
+The rest of the paper is organized as follows.  \cref{sec:background} provides a brief survey of the relevant background on floating computation.  \cref{sec:overview} illustrates \casio on a representative example and describes the high level \casio workflow.  \cref{sec:synthesis} details \casio's heuristic search and error estimation techniques.  \cref{sec:evaluation} evaluates \casio's effectiveness across a suite of microbenchmarks, two large applications, and the effort to build and run \casio.  \cref{sec:relatedwork} surveys the most closely related work and \cref{sec:futurework} considers future work and concludes.
 
-----
 
-Approximating real computations with floating point is one of the oldest
-forms of approximate computing.  Unfortunately, providing good
-approximations is often incredibly difficult due to the subtleties of how
-rounding error can propagate through a computation.  The problem is that we
-are victims of our success: in practice floating point often works quite
-well, to the degree that most programmers simply think of floating point
-computation as real computation.  Unfortunately, when those computations go
-wrong, they can go horribly, horribly wrong.  Figuring out why requires
-deep understanding of floating point, which is rare and expensive.
+% In response to the ubiquity and subtlety of floating point
+% computation, the numerical methods community has developed a host of
+% powerful techniques to analyze and mitigate numerical inaccuracies.
+% These approaches rely on a deep understanding of the floating point
+% representation, sophisticated error analyses to choose an appropriate
+% precision, and optimizations to improve accuracy when additional
+% precision is unavailable or too expensive in terms of space or time.
+% Unfortunately, while most programmers are instilled with a sort of
+% superstitious unease concerning floating point, very few possess the
+% background required to manually apply the traditional numerical
+% methods techniques that address these challenges.
 
-Floating point computation is a well known approach to approximating real
-computation in the bounded context of practical hardware.  Recent advances
-provide techniques to trade-off accuracy for improved speed and power usage
-at the cost of precision.  However, this work is often carried out under
-the assumption that the original floating program is the ``ground truth'',
-that is, that it is already an acceptable approximation of the original
-real computation the programmer had in mind.  Unfortunately, approximating
-real computation in floating point presents many subtle challenges which,
-if not accounted for, can yield arbitrarily large errors.  This limits the
-value of recent advances improving the runtime and power efficiency of such
-computations: the wrong answer is simply arrived at more quickly using
-fewer joules (watts? ugh).
+% To ease the programmer's burden, researchers have developed automated
+% techniques to mitigate some challenges in achieving numerical
+% accuracy.  The resulting tools not only make the hard won knowledge of
+% the numerical methods community more generally accessible to
+% non-experts, but also help make experts more effective.  In
+% particular, researchers have developed techniques to automatically
+% measure error, automatically choose between available
+% hardware-supported precisions, and optimize computations to avoid
+% expensive operations for precision that is not required.
 
-The field of numerical methods provides a rich set of techniques for
-improving the numerical accuracy and precision of real computations
-approximated in floating point.  Unfortunately, applying these techniques
-has traditionally demanded extensive training and expensive manual analysis
-and optimization of numerical programs.  As more and more scientists write
-numerical programs, this lack of accuracy becomes increasingly troubling.
-These non-expert programmers usually lack the training and time necessary
-to employ numerical methods in their code, and often may not even be aware
-of the subtle challenges this domain presents.
+% In practice, programmers often attempt to avoid numerical inaccuracy
+% by simply increasing precision, for example by replacing 32-bit floats
+% with 64-bit floats.  However, choosing the right representation is
+% difficult.  Speed and space and precision tradeoffs.  Choosing right
+% tradeoff requires error analysis.  Several techniques exist to
+% automatically analyze floating point precision errors CITE CITE CITE
+% and help the developer choose an appropriate precision CITE CITE CITE
+% \todo{Precimonious.  Lam from UMD.  lots of other automated error
+%   analysis}.  Note that, even when applications can afford to simulate
+% arbitrary precision floats in software, these challenges still arise.
 
-We present a new tool, \casio, which synthesizes floating point programs
-which better approximate the real computations programmers have in mind.
-Casio works by performing a heuristic search over the space of programs
-equivalent to the input program over the reals.  Each step of the search
-attempts to apply identity transformations over the reals that have been
-shown valuable in the numerical methods literature.  Casio also searches
-for alternate representations of programs that may be challenging for even
-for numerical methods experts to develop, for example, special casing
-variants of the program to input domains with better precision for that
-variant.
+% Hardware-supported floating point representations come in coarse,
+% exponentially growing sizes.  Recent work from the approximate
+% computing community helps avoid paying speed and energy overheads for
+% precision the developer may not need. \todo{STOKE. Luis. Martin.}  New
+% verification techniques help the programmer ensure they have all the
+% bits they think they need \todo{eva}.  Testing for overflow,
+% underflow, error \todo{popl13}.
 
-We evaluate \casio on a number of examples drawn from numerical methods
-textbooks, scientific journal articles, and math libraries.  We find that
-\casio is often able to improve the precision of these examples
-considerably.
+% However, to the best of our knowledge, one traditional task of the
+% numerical methods expert remains manual: rewriting the floating
+% program to \textit{improve} precision.  This has many benefits.
+
+
+% ----
+
+% Approximating real computations with floating point is one of the oldest
+% forms of approximate computing.  Unfortunately, providing good
+% approximations is often incredibly difficult due to the subtleties of how
+% rounding error can propagate through a computation.  The problem is that we
+% are victims of our success: in practice floating point often works quite
+% well, to the degree that most programmers simply think of floating point
+% computation as real computation.  Unfortunately, when those computations go
+% wrong, they can go horribly, horribly wrong.  Figuring out why requires
+% deep understanding of floating point, which is rare and expensive.
+
+% Floating point computation is a well known approach to approximating real
+% computation in the bounded context of practical hardware.  Recent advances
+% provide techniques to trade-off accuracy for improved speed and power usage
+% at the cost of precision.  However, this work is often carried out under
+% the assumption that the original floating program is the ``ground truth'',
+% that is, that it is already an acceptable approximation of the original
+% real computation the programmer had in mind.  Unfortunately, approximating
+% real computation in floating point presents many subtle challenges which,
+% if not accounted for, can yield arbitrarily large errors.  This limits the
+% value of recent advances improving the runtime and power efficiency of such
+% computations: the wrong answer is simply arrived at more quickly using
+% fewer joules (watts? ugh).
+
+% The field of numerical methods provides a rich set of techniques for
+% improving the numerical accuracy and precision of real computations
+% approximated in floating point.  Unfortunately, applying these techniques
+% has traditionally demanded extensive training and expensive manual analysis
+% and optimization of numerical programs.  As more and more scientists write
+% numerical programs, this lack of accuracy becomes increasingly troubling.
+% These non-expert programmers usually lack the training and time necessary
+% to employ numerical methods in their code, and often may not even be aware
+% of the subtle challenges this domain presents.
+
+% We present a new tool, \casio, which synthesizes floating point programs
+% which better approximate the real computations programmers have in mind.
+% Casio works by performing a heuristic search over the space of programs
+% equivalent to the input program over the reals.  Each step of the search
+% attempts to apply identity transformations over the reals that have been
+% shown valuable in the numerical methods literature.  Casio also searches
+% for alternate representations of programs that may be challenging for even
+% for numerical methods experts to develop, for example, special casing
+% variants of the program to input domains with better precision for that
+% variant.
+
+% We evaluate \casio on a number of examples drawn from numerical methods
+% textbooks, scientific journal articles, and math libraries.  We find that
+% \casio is often able to improve the precision of these examples
+% considerably.
 
 \end{document}
