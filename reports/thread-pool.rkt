@@ -2,6 +2,7 @@
 
 (require racket/place)
 (require racket/engine)
+(require math/bigfloat)
 (require casio/common)
 (require casio/points)
 (require casio/alternative)
@@ -13,9 +14,10 @@
          (struct-out test-timeout) get-test-results)
 
 (define *reeval-pts* 8000)
+(define *seed* #f)
 
 (struct test-result
-  (test time
+  (test time bits
    start-alt end-alt points exacts
    newpoints newexacts start-error end-error target-error))
 (struct test-failure (test exn time))
@@ -38,14 +40,16 @@
           (list (car tb) (srcloc->string (cdr tb))))))
 
 (define (get-test-result test iters)
-
+  (current-pseudo-random-generator
+   (vector->pseudo-random-generator
+    *seed*))
   (define (compute-result _)
-      (let*-values ([(orig) (make-prog test)]
-                    [(points exacts) (prepare-points orig)])
-        (parameterize ([*points* points] [*exacts* exacts])
-          (let* ([start-alt (make-alt orig)]
-                 [end-alt (improve-alt start-alt (*num-iterations*))])
-            (list start-alt end-alt points exacts)))))
+    (let*-values ([(orig) (make-prog test)]
+		  [(points exacts) (prepare-points orig)])
+      (parameterize ([*points* points] [*exacts* exacts])
+	(let* ([start-alt (make-alt orig)]
+	       [end-alt (improve-alt start-alt (*num-iterations*))])
+	  (list start-alt end-alt points exacts)))))
 
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
@@ -61,6 +65,7 @@
                (parameterize ([*num-points* *reeval-pts*])
                  (prepare-points (alt-program start))))
              (test-result test (- (current-inexact-milliseconds) start-time)
+			  (bf-precision)
                           start end points exacts
                           newpoints newexacts
                           (errors (alt-program start) newpoints newexacts)
@@ -74,6 +79,7 @@
 (define (marshal-test-result tr)
   `(test-result ,(test-result-test tr)
                 ,(test-result-time tr)
+		,(test-result-bits tr)
                 ,(marshal-alt (test-result-start-alt tr))
                 ,(marshal-alt (test-result-end-alt tr))
                 ,(test-result-points tr)
@@ -86,8 +92,8 @@
 
 (define (unmarshal-test-result tr*)
   (match tr*
-    [`(test-result ,t ,time ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
-     (test-result t time (unmarshal-alt start*) (unmarshal-alt end*) pts exs
+    [`(test-result ,t ,time ,bits ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
+     (test-result t time bits (unmarshal-alt start*) (unmarshal-alt end*) pts exs
                   pts* exs* startE endE targetE)]))
 
 (define (marshal-test-failure tf)
@@ -192,6 +198,10 @@
            (make-directory log-dir))
 	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))]
+	[`(rand ,vec)
+	 (set! *seed* vec)
+	 (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					   vec)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -209,9 +219,14 @@
         ['make-worker
 	 (let ([new-worker (make-worker)])
 	   (place-channel-put new-worker `(log-dir ,log-dir))
+	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
+						  (current-pseudo-random-generator))))
 	   (set! workers (cons new-worker workers)))]
-	[`(log-dir ,ld)
-	 (set! log-dir ld)]
+	[`(log-dir ,log-directory)
+	 (set! log-dir log-directory)]
+	[`(rand ,vec)
+	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
+					    vec)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -237,6 +252,8 @@
   (define total (length progs))
 
   (place-channel-put m `(log-dir ,log-dir))
+  (place-channel-put m `(rand ,(pseudo-random-generator->vector
+				(current-pseudo-random-generator))))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))

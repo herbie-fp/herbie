@@ -10,6 +10,7 @@
 (require casio/main)
 (require reports/make-graph)
 (require reports/thread-pool)
+(require reports/cmdline)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -71,6 +72,7 @@
                     (test-result-start-error result)
                     (test-result-end-error result)
                     (test-result-target-error result)
+		    (test-result-bits result)
                     dir)
 
         (build-path rdir "graph.html")]
@@ -165,7 +167,9 @@
 
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
-        [branch (command-result "git rev-parse --abbrev-ref HEAD")])
+        [branch (command-result "git rev-parse --abbrev-ref HEAD")]
+	[seed (~a (pseudo-random-generator->vector
+		   (current-pseudo-random-generator)))])
 
     (define table-labels
       '("Test" "Start [bits]" "Result [bits]" "Target [bits]" "∞ ↔ ℝ" "Input" "Time"))
@@ -203,6 +207,7 @@
       (printf "<dl id='about'>\n")
       (printf "<dt>Date:</dt><dd>~a</dd>\n" (date->string (current-date)))
       (printf "<dt>Commit:</dt><dd>~a on ~a</dd>\n" commit branch)
+      (printf "<dt>Seed Data:</dt><dd>~a</dd>\n" seed)
       (printf "<dt>Flags:</dt><dd id='flag-list'>")
       (for ([rec (hash->list (*flags*))])
         (for ([fl (cdr rec)])
@@ -260,14 +265,21 @@
       (printf "</body>\n")
       (printf "</html>\n"))))
 
-(apply
- make-report
- (command-line
-  #:program "make-report"
-  #:multi [("-d") "Turn On Debug Messages (Warning: Very Verbose)" (*debug* #t)]
-  #:multi [("-a") ma "How many arguments to allow"
-           (set! *max-test-args* (string->number ma))]
-  #:multi [("-p") th "How many tests to run in parallel to use"
-           (set! *max-test-threads* (string->number th))]
-  #:args bench-dir
+(define benches
+  (command-line
+   #:program "make-report"
+   #:once-each
+   [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+    (*debug* #t)]
+   [("-a") ma "How many arguments to allow"
+    (set! *max-test-args* (string->number ma))]
+   [("-p") th "How many tests to run in parallel to use"
+    (set! *max-test-threads* (string->number th))]
+   [("-r") rs "The random seed vector to use in point generation"
+    (vector->pseudo-random-generator!
+     (current-pseudo-random-generator)
+     (read (open-input-string rs)))]
+   #:args bench-dir
   bench-dir))
+
+(apply make-report benches)
