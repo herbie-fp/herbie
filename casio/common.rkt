@@ -8,7 +8,8 @@
          *debug* debug pipe
 	 safe-eval write-file write-string has-duplicates?
 	 with-item symbol<? common-eval-ns
-	 flip-lists argmaxs)
+	 flip-lists argmaxs
+	 binary-search-floats)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -186,3 +187,30 @@
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
 (define (flip-lists list-list)
   (apply map list list-list))
+
+;; Given two points, the first of which is pred, and the second is not,
+;; finds the point where pred becomes false, by calling split to binary
+;; search the space until (split a b) returns a, b, or #f.
+(define (binary-search split pred p1 p2)
+  ;; Get the midpoint using our given split function
+  (let ([midpoint (split p1 p2)])
+    ;; If the split function returned false, we're done.
+    (cond [(not midpoint) p1]
+	  ;; If our midpoint is one of our points, we're done.
+	  [(or (= p1 midpoint) (= p2 midpoint)) midpoint]
+	  ;; If our predicate is still true of our midpoint, search the
+	  ;; space between our midpoint and p2.
+	  [(pred midpoint) (binary-search split pred midpoint p2)]
+	  ;; Otherwise, search the space between our midpoint and p1.
+	  [#t (binary-search split pred p1 midpoint)])))
+
+;; Given two floating point numbers, the first of which is pred,
+;; and the second is not, find where pred becomes false (within epsilon).
+(define (binary-search-floats pred p1 p2 epsilon)
+  (define (close-enough a b) (> epsilon (abs (- a b))))
+  (binary-search (lambda (a b) (if (close-enough a b) #f
+				   (/ (+ a b) 2)))
+		 pred p1 p2))
+
+;; Implemented here for example.
+(define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
