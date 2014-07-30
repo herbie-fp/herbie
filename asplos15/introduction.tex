@@ -6,29 +6,34 @@
 
 From physical control systems to financial forecasting, many
 applications are designed to compute over real numbers.  However,
-practical concerns such as timeliness and space efficiency typically
-force these applications to approximate their results using
+practical concerns such as latency and memory usage typically force
+these applications to approximate their results using
 hardware-supported floating point operations.  Unfortunately, the
-finite precision offered by floating point computations leads to
+finite precision offered by floating point computations can lead to
 rounding error; for many computations even miniscule errors can
 propagate to produce completely incorrect results.
 
-\fun{In response to the ubiquity and diabolical subtlety of floating
-  point computation,} the numerical methods community provides a host
-of powerful techniques to analyze and mitigate such numerical
-inaccuracies.  These approaches rely on a deep understanding of the
-floating point representation, sophisticated error analyses, and
-optimizations to avoid expensive operations where high accuracy is
-unnecessary or to improve accuracy where it is
-essential. Unfortunately, while most programmers are instilled with a
-sort of superstitious unease about the use of floating point, very few
-possess the background required to manually employ numerical methods
-techniqes.
+In response to the ubiquity and subtlety of floating point
+computation, the numerical methods community has developed a host of
+powerful techniques to analyze and mitigate numerical inaccuracies.
+These approaches rely on a deep understanding of the floating point
+representation, sophisticated error analyses to choose an appropriate
+precision, and optimizations to improve accuracy when additional
+precision is unavailable or too expensive in terms of space or time.
+Unfortunately, while most programmers are instilled with a sort of
+superstitious unease concerning floating point, very few possess the
+background required to manually apply traditional numerical methods
+techniques. \todo{prev sentence bad flow, but so funny}
 
-Fortunately, simplified versions of many numerical methods techniques
-are being automated, thus making the hard won knowledge of that
-community more generally accessible to non-experts and providing tools
-to make even experts more effective.
+To ease the programmer's burden, researchers have begun automating
+some of the important tasks for ensuring numerical accuracy.  The
+resulting tools not only make the hard won knowledge of the numerical
+methods community more generally accessible to non-experts, but also
+help make experts more effective.  In particular, researchers have
+developed techniques to automatically measure error, automatically
+choose between available hardware-supported precisions, and optimize
+computations to avoid expensive operations for precision that is not
+required.
 
 In practice, programmers often attempt to avoid numerical inaccuracy
 by simply increasing precision, for example by replacing 32-bit floats
@@ -40,7 +45,6 @@ and help the developer choose an appropriate precision CITE CITE CITE
 \todo{Precimonious.  Lam from UMD.  lots of other automated error
   analysis}.  Note that, even when applications can afford to simulate
 arbitrary precision floats in software, these challenges still arise.
-
 
 Hardware-supported floating point representations come in coarse,
 exponentially growing sizes.  Recent work from the approximate
@@ -54,11 +58,23 @@ However, to the best of our knowledge, one traditional task of the
 numerical methods expert remains manual: rewriting the floating
 program to \textit{improve} precision.  This has many benefits.
 
-We do a clever search.
+Our insight is to search for programs which are equivalent over the
+reals but induce lower error over floats.  We use a database of common
+mathematical identities and apply in a hill climbing search.  It's
+stupid, but it works super well.
 
-Contributions.
+We evaluate on a bunch of stuff.
 
-Outline.
+Good anecdote about Harley.
+
+In summary, this paper makes three primary contributions:
+\begin{enumerate}
+\item contribution 1
+\item contribution 2
+\item contribution 3
+\end{enumerate}
+
+The rest of the paper is organized as follows: OUTLINE
 
 ----
 
