@@ -17,6 +17,7 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
+	 [evaluate . ()]
          [reduce   . (regimes zach)]
          [setup    . (simplify periodicity)])))
 
@@ -24,7 +25,9 @@
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
 (define (improve prog fuel)
-  (let-values ([(pts exs) (prepare-points prog)])
+  (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
+				  prepare-points prepare-points-uniform)]
+	       [(pts exs) (point-preparer prog)])
     (parameterize ([*points* pts] [*exacts* exs])
       (improve-alt (make-alt prog) fuel))))
 
