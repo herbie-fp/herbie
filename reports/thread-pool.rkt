@@ -45,7 +45,9 @@
     *seed*))
   (define (compute-result _)
     (let*-values ([(orig) (make-prog test)]
-		  [(points exacts) (prepare-points orig)])
+		  [(point-preparer) ((flag 'evaluate 'exponent-points)
+				     prepare-points prepare-points-uniform)]
+		  [(points exacts) (point-preparer orig)])
       (parameterize ([*points* points] [*exacts* exacts])
 	(let* ([start-alt (make-alt orig)]
 	       [end-alt (improve-alt start-alt (*num-iterations*))])
