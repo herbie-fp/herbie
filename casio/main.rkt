@@ -12,7 +12,8 @@
 (require casio/pareto-alts)
 (require casio/matcher)
 
-(provide *flags* improve improve-alt toggle-flag!)
+(provide improve improve-alt
+	 *flags* toggle-flag! flag)
 
 (define *flags*
   (make-parameter
