@@ -96,8 +96,15 @@
          [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
 
+(define (prepare-points-period prog periods)
+  (bf-precision 80)
+  (let* ([pts (make-period-points (*num-points*) periods)]
+	 [exacts (make-exacts prog pts)]
+	 [pts* (filter-points pts exacts)]
+	 [exacts* (filter-exacts pts exacts)])
+    (values pts* exacts*)))
+
 (define prepare-points (curry prepare-distributed-points make-points))
-(define prepare-points-period (curry prepare-distributed-points make-period-points))
 (define prepare-points-uniform (curry prepare-distributed-points make-points-uniform))
 
 (define (errors prog points exacts)
