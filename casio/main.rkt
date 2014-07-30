@@ -12,7 +12,7 @@
 (require casio/pareto-alts)
 (require casio/matcher)
 
-(provide *flags* improve improve-alt)
+(provide *flags* improve improve-alt toggle-flag!)
 
 (define *flags*
   (make-parameter
@@ -20,6 +20,14 @@
 	 [evaluate . ()]
          [reduce   . (regimes zach)]
          [setup    . (simplify periodicity)])))
+
+(define (toggle-flag! category flag)
+  (*flags*
+   (hash-update (*flags*) category
+		(λ (flag-list)
+		  (if (member flag flag-list)
+		      (remove flag flag-list)
+		      (cons flag flag-list))))))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
