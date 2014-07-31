@@ -181,7 +181,8 @@
 	 (match test-obj
 	   [(struct test (name vars input output))
 	    (write `(,name ,input #f ,output))])])
-      (newline))))
+      (newline)))
+  (void))
 
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
