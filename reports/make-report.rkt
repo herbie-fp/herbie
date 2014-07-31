@@ -32,7 +32,8 @@
             (map make-graph-if-valid
                  results (map test-name tests) (range (length tests)))]
            [table-data (get-table-data results)])
-      (make-report-page "graphs/report.html" table-data links))))
+      (make-report-page "graphs/report.html" table-data links)
+      (make-data-file "graphs/results.dat" results))))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
@@ -164,6 +165,14 @@
    [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (make-data-file file results)
+  (write-file file
+    (for/list ([result results])
+      (write `(,(alt-program (test-result-start-alt result))
+	       ,(alt-program (test-result-end-alt result))
+	       ,(test-result-bits result)))
+      (newline))))
 
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
