@@ -6,10 +6,15 @@
 \todo{compiler flags order of magnitude speed up !!!}
 
 In addition to the previously discussed examples,
-we evaluated \casio on all the examples present
-in Numerical Methods for Scientists and Engineers, chapter 3.
-While \casio's behavior is sometimes inconsistent on these examples,
-it regularly finds solutions which match or exceed the solutions presented in the book.
-\todo{summary of evaulation results}
+we evaluated \casio on benchmarks drawn from
+numerical methods textbooks, popular math libraries, 
+physics papers from Physical Review A, and standard definitions of mathematical functions.
+\todo{reference results}
+Beginning from the naive implementation as an AST,
+\casio regularly finds vast improvements behavior for those expressions which have high error.
+In many cases, the accuracy of the programs outputted by casio 
+exceeds that of rewrites provided by numerical methods textbooks.
+In many cases, \casio discovers rewrites of a complexity 
+such that a human would be unlikely to discover rewrites of equivilent accuracy.
 
 \end{document}
