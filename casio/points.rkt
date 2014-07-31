@@ -5,7 +5,10 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *num-points* make-exacts prepare-points prepare-points-period errors errors-score)
+(provide *points* *exacts* *num-points*
+	 make-exacts
+	 prepare-points prepare-points-period prepare-points-uniform
+	 errors errors-score)
 
 (define *num-points* (make-parameter 512))
 (define *exp-size* (make-parameter 256))
@@ -19,22 +22,33 @@
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
-(define (make-points num dim)
-  "Produce approximately `num` points in the `dim`-dimensional space,
-   distributed overly-uniformly in the exponent"
-  (if (= dim 0)
-      '(())
-      (let* ([num-ticks (round (expt num (/ 1 dim)))]
-             [rest-num (/ num num-ticks)]
-             [pos-ticks (ceiling (/ num-ticks 2))]
-             [neg-ticks (- num-ticks pos-ticks)]
-             [first (append (reverse (map - (select-points neg-ticks)))
-                            (select-points pos-ticks))])
-        (sort
-         (apply append
-                (for/list ([rest (make-points rest-num (- dim 1))])
-                  (map (λ (x) (cons x rest)) first)))
-         < #:key car))))
+(define (select-points-uniform num)
+  (let ([bucket-width (/ (expt 2 (*exp-size*)) num)])
+    (for/list ([i (range num)])
+      (* bucket-width (+ i (random))))))
+
+(define-values (make-points make-points-uniform)
+  (letrec ([make-points-inner
+	    (λ (num dim selector)
+	      (if (= dim 0)
+		  '(())
+		  (let* ([num-ticks (round (expt num (/ 1 dim)))]
+			 [rest-num (/ num num-ticks)]
+			 [pos-ticks (ceiling (/ num-ticks 2))]
+			 [neg-ticks (- num-ticks pos-ticks)]
+			 [first (append (reverse (map - (selector neg-ticks)))
+					(selector pos-ticks))])
+		    (sort (apply append
+				 (for/list ([rest (make-points-inner rest-num (- dim 1) selector)])
+				   (map (λ (x) (cons x rest)) first)))
+			  < #:key car))))])
+    (values
+     ;; Produce approximately `num` points in the `dim`-dimensional space,
+     ;; distributed overly-uniformly in the exponent
+     (curryr make-points-inner select-points)
+     ;; Produce approximately `num` points in the `dim`-dimensional space,
+     ;; distributed overly-uniformly.
+     (curryr make-points-inner select-points-uniform))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
@@ -67,6 +81,21 @@
 
 ; These definitions in place, we finally generate the points.
 
+(define (prepare-distributed-points point-maker prog)
+  "Given a program, return two lists:
+   a list of input points (each a list of flonums)
+   and a list of exact values for those points (each a flonum)"
+  
+  (bf-precision 80)
+  ; First, we generate points;
+  (let* ([pts (point-maker (*num-points*) (length (program-variables prog)))]
+         [exacts (make-exacts prog pts)]
+         ; Then, we remove the points for which the answers
+         ; are not representable
+         [pts* (filter-points pts exacts)]
+         [exacts* (filter-exacts pts exacts)])
+    (values pts* exacts*)))
+
 (define (prepare-points-period prog periods)
   (bf-precision 80)
   (let* ([pts (make-period-points (*num-points*) periods)]
@@ -75,21 +104,8 @@
 	 [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
 
-(define (prepare-points prog)
-  "Given a program, return two lists:
-   a list of input points (each a list of flonums)
-   and a list of exact values for those points (each a flonum)"
-
-  (bf-precision 80)
-
-  ; First, we generate points;
-  (let* ([pts (make-points (*num-points*) (length (program-variables prog)))]
-         [exacts (make-exacts prog pts)]
-         ; Then, we remove the points for which the answers
-         ; are not representable
-         [pts* (filter-points pts exacts)]
-         [exacts* (filter-exacts pts exacts)])
-    (values pts* exacts*)))
+(define prepare-points (curry prepare-distributed-points make-points))
+(define prepare-points-uniform (curry prepare-distributed-points make-points-uniform))
 
 (define (errors prog points exacts)
   (let ([fn (eval-prog prog mode:fl)])

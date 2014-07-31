@@ -288,6 +288,11 @@
     (vector->pseudo-random-generator!
      (current-pseudo-random-generator)
      (read (open-input-string rs)))]
+   [("-f") tf "Toggle flags, specified in the form category:flag"
+    (let ([split-strings (string-split tf ":")])
+      (when (not (= 2 (length split-strings)))
+	(error "Badly formatted input " tf))
+      (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
    #:args bench-dir
   bench-dir))
 
