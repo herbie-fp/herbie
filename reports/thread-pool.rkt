@@ -191,14 +191,14 @@
     [`(rule ,name ,inp ,out ,sloc)
      (rule name inp out sloc)]))
 
-(define (make-worker)
+(define (make-worker id)
   (place ch
     (let loop ()
       (match (place-channel-get ch)
 	[`(log-dir ,log-dir)
          (when (not (directory-exists? log-dir))
            (make-directory log-dir))
-	 (let ([filename (format "~a/~a.log" log-dir (current-seconds))])
+	 (let ([filename (format "~a/~a#~a.log" log-dir id (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))]
 	[`(rand ,vec)
 	 (set! *seed* vec)
@@ -215,11 +215,13 @@
     (define log-dir #f)
     (define workers '())
     (define work '())
+    (define next-wid 0)
     (let loop ()
       ; Message handler
       (match (apply sync ch workers)
         ['make-worker
-	 (let ([new-worker (make-worker)])
+	 (let ([new-worker (make-worker (begin0 next-wid
+					  (set! next-wid (add1 next-wid))))])
 	   (place-channel-put new-worker `(log-dir ,log-dir))
 	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
 						  (current-pseudo-random-generator))))
