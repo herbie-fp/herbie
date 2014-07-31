@@ -12,19 +12,31 @@
 (require casio/pareto-alts)
 (require casio/matcher)
 
-(provide *flags* improve improve-alt)
+(provide improve improve-alt
+	 *flags* toggle-flag! flag)
 
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
+	 [evaluate . (exponent-points)]
          [reduce   . (regimes zach)]
          [setup    . (simplify periodicity)])))
+
+(define (toggle-flag! category flag)
+  (*flags*
+   (hash-update (*flags*) category
+		(λ (flag-list)
+		  (if (member flag flag-list)
+		      (remove flag flag-list)
+		      (cons flag flag-list))))))
 
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
 (define (improve prog fuel)
-  (let-values ([(pts exs) (prepare-points prog)])
+  (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
+				  prepare-points prepare-points-uniform)]
+	       [(pts exs) (point-preparer prog)])
     (parameterize ([*points* pts] [*exacts* exs])
       (improve-alt (make-alt prog) fuel))))
 
