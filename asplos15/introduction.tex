@@ -73,15 +73,27 @@ Web, and recent scientific articles.  Our results show that \casio
 colleagues in machine learning who were able to significantly reduce
 the rounding error of their learning algorithm something something.
 
-In summary, this paper makes three primary contributions:
+In summary, this paper presents a program transformation technique to
+reduce rounding error of programs running on floating point hardware
+by automatically applying technique from the numerical methods
+literature.  To achieve this goal required three primary
+contributions:
 \begin{enumerate}
-\item A program transformation technique to reduce rounding error of
-  programs running on floating point hardware by automatically
-  applying technique from the numerical methods literature.
-\item The perspective that approximation work should be done vs. real
-  computation.
-\item Thorough evaluation and framework for others to build upon.
+\item A goal directed search for floating point accuracy, guided by
+  techniques to estimate rounding error and where it arises and
+  heuristics to manage the high branching factor
+\item An approach to detecting regime changes, including periodic
+  shifts, where the error behavior of floating point programs shifts
+  and techniques to combine multiple versions of a floating point
+  program to best reduce overall error
+\item A technique to iteratively local, simple, domain specific
+  rewrites drawn from the numerical methods literature, which, when
+  combined with the above search techniques lead to the emergence of
+  traditional error-reducing program transformations
 \end{enumerate}
+Furthermore, we evaluate our technique on \todo{microbenchmarks and
+  application}.  Our implementation also serves as a foundation for
+other to build upon.
 
 The rest of the paper is organized as follows.  \cref{sec:background}
 provides a brief survey of the relevant background on floating
