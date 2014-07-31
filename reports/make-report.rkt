@@ -169,9 +169,18 @@
 (define (make-data-file file results)
   (write-file file
     (for/list ([result results])
-      (write `(,(alt-program (test-result-start-alt result))
-	       ,(alt-program (test-result-end-alt result))
-	       ,(test-result-bits result)))
+      (match result
+	[(test-result test time bits
+		      start-alt end-alt points exacts
+		      new-points new-exacts start-error
+		      end-error target-error)
+	 (match test
+	   [(test name vars input output)
+	    (write `(,name ,input ,(alt-program end-alt) ,output))])]
+	[(test-failure test exn time)
+	 (match test
+	   [(test name vars input output)
+	    (write `(,name ,input #f ,output))])])
       (newline))))
 
 (define (make-report-page file table-data links)
