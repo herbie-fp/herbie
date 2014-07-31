@@ -18,7 +18,7 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-	 [evaluate . ()]
+	 [evaluate . (exponent-points)]
          [reduce   . (regimes zach)]
          [setup    . (simplify periodicity)])))
 
