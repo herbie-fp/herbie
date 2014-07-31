@@ -3,36 +3,38 @@
 
 \begin{abstract}
 
-From physical control systems to financial forecasting, many
-applications are designed to compute over real numbers.  However,
-practical concerns such as latency and memory usage typically force
-applications to approximate their results using hardware-supported
-floating point operations.  Unfortunately, finite precision leads to
-rounding error; for many computations, even miniscule errors can
-propagate to produce completely incorrect results.
+  From control to forecasting,
+    many systems need to model mathematics which uses the real numbers.
+  Practical concerns force these applications
+    to use hardware-supported floating point.
+  The finite precision provided by this approximation
+    leads to rounding error.
+  Rounding errors in intermediate steps can compound,
+    causing programs to produce completely incorrect results.
+  While techniques to combat this problem
+    are well studied in the numerical methods literature,
+    applying these techniques is difficult.
+  In practice, developers must move to a larger representation,
+    but this is often insufficient and costly.
 
-In summary, this paper presents a program transformation technique to
-reduce rounding error of programs running on floating point hardware
-by automatically applying technique from the numerical methods
-literature.  To achieve this goal required three primary
-contributions:
-\begin{enumerate}
-\item A goal directed search for floating point accuracy, guided by
-  techniques to estimate rounding error and where it arises and
-  heuristics to manage the high branching factor
-\item An approach to detecting regime changes, including periodic
-  shifts, where the error behavior of floating point programs shifts
-  and techniques to combine multiple versions of a floating point
-  program to best reduce overall error
-\item A technique to iteratively local, simple, domain specific
-  rewrites drawn from the numerical methods literature, which, when
-  combined with the above search techniques lead to the emergence of
-  traditional error-reducing program transformations
-\end{enumerate}
-Furthermore, we evaluate our technique on \todo{microbenchmarks and
-  application}.  Our implementation also serves as a foundation for
-other to build upon.
-
+  We introduce \Casio, a better way
+    of reducing floating point rounding error.
+  \Casio automatically transforms a floating point computation
+    to more accurately represent the underlying real-number computation.
+  \Casio performs a heuristic search over program transformations,
+    composing local rewrites out of which
+    traditional error-reducing transformations emerge.
+  This search is directed by techniques from numerical methods
+    to estimate rounding error and its causes.
+  \Casio automatically detects regimes where error behavior differs,
+    and combines multiple programs to reduce error across all regimes.
+  We evaluate \Casio on microbenchmarks drawn from
+    numerical methods textbooks,
+    mathematical libraries,
+    and recent scientific articles.
+  Our implementation also serves as a foundation
+    for others to build upon.
+ \end{abstract}
 
 
 
