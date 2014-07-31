@@ -80,16 +80,14 @@ literature.  To achieve this goal required three primary
 contributions:
 \begin{enumerate}
 \item A goal directed search for floating point accuracy, guided by
-  techniques to estimate rounding error and where it arises and
-  heuristics to manage the high branching factor
-\item An approach to detecting regime changes, including periodic
-  shifts, where the error behavior of floating point programs shifts
-  and techniques to combine multiple versions of a floating point
-  program to best reduce overall error
-\item A technique to iteratively local, simple, domain specific
-  rewrites drawn from the numerical methods literature, which, when
-  combined with the above search techniques lead to the emergence of
-  traditional error-reducing program transformations
+  techniques that estimate rounding error and its causes,
+  and heuristics to manage the high branching factor of this search.
+\item An approach to detecting regimes where error behavior changes,
+  and techniques that combine multiple versions of a floating point
+  program to best reduce error over all regimes.
+\item A technique that iteratively applies local, domain specific rewrites,
+  causing traditional error-reducing program transformations
+  to emerge combinatorially.
 \end{enumerate}
 Furthermore, we evaluate our technique on \todo{microbenchmarks and
   application}.  Our implementation also serves as a foundation for
