@@ -33,7 +33,7 @@
                  results (map test-name tests) (range (length tests)))]
            [table-data (get-table-data results)])
       (make-report-page "graphs/report.html" table-data links)
-      (make-data-file "graphs/results.dat" results))))
+      (make-data-file "graphs/results.rktdat" results))))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
