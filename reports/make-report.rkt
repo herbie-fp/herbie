@@ -170,16 +170,16 @@
   (write-file file
     (for/list ([result results])
       (match result
-	[(test-result test time bits
+	[(test-result test-obj time bits
 		      start-alt end-alt points exacts
 		      new-points new-exacts start-error
 		      end-error target-error)
-	 (match test
-	   [(test name vars input output)
+	 (match test-obj
+	   [(struct test (name vars input output))
 	    (write `(,name ,input ,(alt-program end-alt) ,output))])]
-	[(test-failure test exn time)
-	 (match test
-	   [(test name vars input output)
+	[(test-failure test-obj exn time)
+	 (match test-obj
+	   [(struct test (name vars input output))
 	    (write `(,name ,input #f ,output))])])
       (newline))))
 
