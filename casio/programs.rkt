@@ -152,7 +152,7 @@
 
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])
-    (if (list? step)
+    (if (list? (second step))
         (let ([fn (caadr step)])
           (list-ref (hash-ref operations fn) 2))
         1)))
