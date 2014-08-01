@@ -3,15 +3,19 @@
 
 \section{Background}
 
-Continuous mathematics is based on the real number system.
+Traditional, continous mathematics uses the real number system,
+  and is used to represent real-world quantities
+  and properties of their interactions.
 Unfortunately, this system cannot be represented faithfully
-  in a bounded number of bits.
+  in a bounded number of bits, 
+  such as is available in computer hardware.
 Computer programs that aim to approximate continuous mathematics
   instead use floating point arithmetic.
 Because such a representation cannot perfectly match the real numbers,
   programmers must avoid a variety of subtle misbehaviors.
-Without care, the program may compute values
-  unrelated to the real-number phenomena it attempts to model.
+Without care, programs manipulating these floating point numbers
+  may compute values that misrepresent
+  the real-number phenomena they attempt to model.
 This section describes floating point numbers
   and the difficulties in using them to describe
   real-number continuous calculations.
@@ -31,10 +35,10 @@ Floating point can also represent a few special values:
   \emph{denormal} numbers of form $\pm m 2^{e_{\text{min}}}$,
   positive and negative \emph{infinity}, positive and negative \emph{zero},
   and \emph{not-a-number} error values.
-\casio is mainly concerned with \emph{precision},
-  not in avoiding exceptional values (explored in previous work~\cite{}).
-So, normal floating point numbers will be the focus.
-We write $\R(x)$ for the real number represented
+Because casio \casio is mainly concerned with \emph{precision},
+  and not with avoiding exceptional values (explored in previous work~\cite{}),
+  we restrict our domain to the normal floating point numbers.
+The notation $\R(x)$ indicates the real number represented
   by the floating point number $x$.
 
 The mantissa and exponent of a floating point value
@@ -118,7 +122,7 @@ The terms $\epsilon_2$ and $(x+1)\epsilon_1\epsilon_2$ are small
 Thus, for large values of $x$,
   the expression $(x \oplus 1) \ominus x$ may have very large error.
 Depending on the rounding mode, it may equal $0$,
-  or some very large quantity.
+  or it might represent some relatively large quantity.
 
 The same phenomenon, however, occurs with more complex formulas.
 Consider $\sqrt{x \oplus 1} \ominus \sqrt{x}$:
@@ -135,17 +139,19 @@ The quadratic formula \[\frac{-b + \sqrt{b^2 + 4 a c}}{2 a}\]
 
 \subsection{Rearrangement}
 
-To avoid such problems, programmers rearrange formulas
-  into one equivalent in the real numbers)
-  yet with less error when evaluated
+To mitigate such problems, programmers can rewrite formulas
+  into implementations equivalent on the real numbers,
+  but with less error when evaluated
   with floating-point values and operators.
 This rearrangement relies on identities
-  true of real-number formulas yet false on floating-point numbers.
+  true of real-number formulas,
+  yet false on floating-point numbers.
 For example, the identities $x - y = (x^2 - y^2) / (x + y)$
   and $\sin(x)^2 + \cos(x)^2 = 1$,
   both true of real values and false for floating point computation,
   allow converting $\cos x - 1$ to $- \sin(x)^2 / (1 + \cos x)$.
-The latter expression is much more accurate.
+The latter expression is accurate over
+  a greater range of floating point values.
 The expression $\sqrt{x+1} - \sqrt{x}$ can be converted
   to $1 / (\sqrt{x+1} + \sqrt{x})$ by similar means.
 In both cases, the resulting expression shows minimal error
