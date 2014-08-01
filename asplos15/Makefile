@@ -13,5 +13,5 @@ paper.pdf: $(TEX) $(BIB) $(FIGS) jpaper.cls
 	pdflatex paper
 
 clean:
-	rm -f *.aux *.bbl *.blg *.log *.out
+	rm -f *.aux *.bbl *.blg *.log *.out paper.pdf
 
