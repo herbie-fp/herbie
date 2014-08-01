@@ -180,8 +180,13 @@
 	[(test-failure test-obj exn time)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output))])])
-      (newline))))
+	    (write `(,name ,input #f ,output))])]
+	[(test-timeout test-obj)
+	 (match test-obj
+	   [(struct test (name vars input output))
+	    (write `(,name input #f ,output))])])
+      (newline)))
+  (void))
 
 (define (make-report-page file table-data links)
   (let ([commit (command-result "git rev-parse HEAD")]
