@@ -176,7 +176,7 @@
 		      end-error target-error)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input ,(alt-program end-alt) ,output))])]
+	    (write `(,name ,input ,(alt-program end-alt) ,output ,bits))])]
 	[(test-failure test-obj exn time)
 	 (match test-obj
 	   [(struct test (name vars input output))
