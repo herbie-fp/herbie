@@ -3,3 +3,6 @@ cost
 index.html
 graphs
 logs
+compile/*.o
+compile/test_*
+compile/out_*
