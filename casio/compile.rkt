@@ -161,7 +161,7 @@
    (printf "static mpfr_t ~a;\n\n" (string-join (map symbol->string (map car (cadr body))) ", "))
 
    (printf "void setup_mpfr() {\n")
-   (printf "        mpfr_set_default_prec(~a);\n" bits)
+   (printf "        mpfr_set_default_prec(~a);\n" (* 2 bits))
    (for ([reg (map car (cadr body))])
      (printf "        mpfr_init(~a);\n" reg))
    (printf "}\n\n")
