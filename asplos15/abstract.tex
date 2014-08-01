@@ -3,31 +3,33 @@
 
 \begin{abstract}
 
-  Many algorithms are designed to compute over real numbers, but
+  Many algorithms are designed to compute over real numbers. However,
   performance considerations force practical implementations to
   approximate their computations using hardware-supported, finite
-  precision floating point.  Unfortunately, finite precision leads to
-  rounding error, which can compound to produce completely incorrect
-  results.  If the largest hardware-supported precision cannot produce
-  sufficiently accurate results, developers are typically forced to
-  incur the costs of simulating arbitrary precision floating point in
-  software.  While the numerical methods literature provides
-  techniques to mitigate rounding error without increasing precision,
-  manually applying these techniques requires substantial expertise.
+  precision floating point.  Unfortunately, this approximation
+  introduces rounding error, which can compound to produce completely
+  incorrect results.  If the largest hardware-supported precision
+  cannot produce sufficiently accurate results, developers are
+  typically forced to incur the costs of simulating arbitrary
+  precision floating point in software.  While the numerical methods
+  literature provides techniques to mitigate rounding error without
+  increasing precision, manually applying these techniques requires
+  substantial expertise.
 
   We introduce \casio, an \textit{automated} technique to mitigate
   rounding error without resorting to software floating point.  \casio
   applies numerical methods techniques to transform floating point
   computations to more accurately approximate their ideal real-number
-  computations.  \casio performs a heuristic search over program
-  transformations, composing simple, local rewrites to automatically
-  achieve results similar to traditional error-reducing
-  transformations.  This search is directed by methods to estimate
-  rounding error and its sources.  \casio automatically detects
-  regimes where error behavior differs, and combines multiple programs
-  to reduce error across all regimes.  We evaluate \casio on
-  microbenchmarks drawn from numerical methods textbooks, mathematical
-  libraries, and recent scientific articles. % \todo{results}
+  computations.  This transformation is found by a heuristic search
+  composing simple, local rewrites, automatically achieving results
+  similar to traditional error-reducing transformations.  This search
+  is directed by methods which estimate rounding error and its
+  sources.  \casio also automatically detects regimes where error
+  behavior differs, and combines multiple programs to reduce error
+  across all regimes.  We evaluate \casio on microbenchmarks drawn
+  from numerical methods textbooks, mathematical libraries, and recent
+  scientific articles, demonstrating that \casio substantially reduces
+  error completely automatically while imposing modest overhead.
 
 \end{abstract}
 
