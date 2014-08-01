@@ -191,7 +191,7 @@
     [`(rule ,name ,inp ,out ,sloc)
      (rule name inp out sloc)]))
 
-(define (make-worker id)
+(define (make-worker)
   (place ch
     (let loop ()
       (match (place-channel-get ch)
