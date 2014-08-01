@@ -3,40 +3,45 @@
 
 \begin{abstract}
 
-  Many systems are designed to compute over real numbers, but latency
-  and memory usage constraints force practical implementations to
-  approximate their results using hardware-supported, finite precision
-  floating point.  Unfortunately, finite precision leads to rounding
-  error, which can compound in intermediate operations to produce
-  completely incorrect results.  Such incorrect results are difficult
-  to detect and debug, leading, among other dire consequences, to the
-  retraction of numerous scientific articles.
-
-  The numerical methods literature provides many techniques to
-  mitigate rounding error, but they require substantial expertise to
-  apply manually.  In practice, developers primarily mitigate rounding
-  error by increasing precision at the cost of additional latency and
-  memory usage.  However, once the largest hardware-supported
-  precision has been reached, the developer typically has few tools to
-  reduce rounding error while keeping all floating point operations in
-  hardware.
+  Many algorithms are designed to compute over real numbers, but
+  performance considerations force practical implementations to
+  approximate their computations using hardware-supported, finite
+  precision floating point.  Unfortunately, finite precision leads to
+  rounding error, which can compound to produce completely incorrect
+  results.  If the largest hardware-supported precision cannot produce
+  sufficiently accurate results, developers are typically forced to
+  incur the costs of simulating arbitrary precision floating point in
+  software.  While the numerical methods literature provides
+  techniques to mitigate rounding error without increasing precision,
+  manually applying these techniques requires substantial expertise.
 
   We introduce \casio, an \textit{automated} technique to mitigate
-  rounding error that does not rely on increasing precision.  \casio
-  automatically transforms a floating point computation to more
-  accurately approximate the underlying real-number computation.
-  \casio performs a heuristic search over program transformations,
-  composing simple, local rewrites to automatically achieve results
-  similar to traditional error-reducing transformations.  This search
-  is directed by methods to estimate rounding error and its sources.
-  \casio automatically detects regimes where error behavior differs,
-  and combines multiple programs to reduce error across all regimes.
-  We evaluate \casio on microbenchmarks drawn from numerical methods
-  textbooks, mathematical libraries, and recent scientific
-  articles. % \todo{results}
+  rounding error without resorting to software floating point.  \casio
+  applies numerical methods techniques to transform floating point
+  computations to more accurately approximate their ideal real-number
+  computations.  \casio performs a heuristic search over program
+  transformations, composing simple, local rewrites to automatically
+  achieve results similar to traditional error-reducing
+  transformations.  This search is directed by methods to estimate
+  rounding error and its sources.  \casio automatically detects
+  regimes where error behavior differs, and combines multiple programs
+  to reduce error across all regimes.  We evaluate \casio on
+  microbenchmarks drawn from numerical methods textbooks, mathematical
+  libraries, and recent scientific articles. % \todo{results}
 
 \end{abstract}
 
+% Furthermore, such incorrect results are difficult to
+%   detect and debug. 
+
+  % The numerical methods literature provides techniques to mitigate
+  % rounding error.  Unfortunately, manually applying these techniques
+  % requires substantial expertise.  In practice, developers often
+  % address rounding error by increasing precision at the cost of
+  % performance and memory usage.  However, once the largest
+  % hardware-supported precision has been reached, the developer
+  % typically has few tools to reduce rounding error while keeping all
+  % floating point operations in hardware.
 
 
 
