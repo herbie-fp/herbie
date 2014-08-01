@@ -176,15 +176,15 @@
 		      end-error target-error)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input ,(alt-program end-alt) ,output ,bits))])]
+	    (write `(,name (λ ,vars ,input) ,(alt-program end-alt) (λ ,vars ,output) ,bits))])]
 	[(test-failure test-obj exn time)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output))])]
+	    (write `(,name ,input #f ,output #f))])]
 	[(test-timeout test-obj)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name input #f ,output))])])
+	    (write `(,name input #f ,output #f))])])
       (newline)))
   (void))
 

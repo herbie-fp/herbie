@@ -5,4 +5,5 @@ graphs
 logs
 compile/*.o
 compile/test_*
-compile/out_*
+compile/tc*.c
+compile/tc*.out
