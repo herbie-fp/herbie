@@ -5,7 +5,7 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *num-points*
+(provide *points* *exacts* *num-points* *exp-size*
 	 make-exacts
 	 prepare-points prepare-points-period prepare-points-uniform
 	 errors errors-score)
