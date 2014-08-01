@@ -140,7 +140,12 @@
                 (hash-set! compilations expr register)
                 (set! assignments (cons (list register newexpr) assignments))
                 register)))
-        expr))
+        (let ([memo (hash-ref compilations expr #f)])
+          (or memo
+              (let* ([register (gensym "r")])
+                (hash-set! compilations expr register)
+                (set! assignments (cons (list register expr) assignments))
+                register)))))
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
