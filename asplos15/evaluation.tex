@@ -6,10 +6,54 @@
 \todo{compiler flags order of magnitude speed up !!!}
 
 In addition to the previously discussed examples,
-we evaluated \casio on all the examples present
-in Numerical Methods for Scientists and Engineers, chapter 3.
-While \casio's behavior is sometimes inconsistent on these examples,
-it regularly finds solutions which match or exceed the solutions presented in the book.
-\todo{summary of evaulation results}
+we evaluated \casio on benchmarks drawn from
+numerical methods textbooks,
+physics papers from Physical Review A,
+and standard definitions of mathematical functions from several sources,
+including existing mathematic libraries.
+\todo{reference results}
+Beginning from the naive implementation as an AST,
+\casio regularly finds vast improvements behavior for those expressions which have high error.
+In many cases, the accuracy of the programs outputted by casio 
+exceeds that of rewrites provided by numerical methods textbooks.
+In many cases, \casio discovers rewrites of a complexity 
+such that a human would be unlikely to discover rewrites of equivilent accuracy.
+
+\subsection{Numerical Methods for Scientists and Engineers}
+
+To test the effectiveness of the search done by \casio,
+we took the numerical methods examples from
+Numerical Methods for Scientists and Engineers (NMSE) chapter 3.
+Some of these examples also included suggested solution,
+against which we compared the results of our search.
+In many cases, \casio is able to programs which have
+similar error behavior to the suggested solutions,
+and in some cases \casio is able to surpass the
+example solutions, resulting in a program with even less error.
+
+\subsection{Physical Review A}
+
+As part of our benchmarks, we searched through Physical Review A Volume 89
+and handpicked formulas which appeared as though
+their naive, direct implementation would have high error.
+Our set is by no means comprehensive,
+as the content we would need to review is significantly large,
+but our results show that someone wishing to replicate the results of these papers
+would face significant numerical challenges that \casio can help mitigate,
+if they were to implement the formulas directly as written.
+
+\subsection{Standard Mathematical Functions}
+
+We acquired benchmarks based on standard mathematical functions from two sources.
+Firstly, \todo{tell them we used javascript libraries without telling them we used javascript libraries.}.
+Although this code was likely not analyzed for numerical accuracy,
+and even in some cases cites sources such as wikipedia for their formulas,
+this code is significant in that it is an example of ``real-world code.''
+Secondly, we took the definitions of the hyperbolic functions from their mathematical definitions.
+These code snippets are significant in that
+they represent the naive approach that a programmer might take
+when attempting to implement these functions in their own code,
+and would be able to safely use if they were using a tool like casio
+in their code pipeline.
 
 \end{document}
