@@ -4,7 +4,7 @@ SLOW_FLAGS=-Wall -Wextra -Wpedantic -O0 -g
 ITERS=1000000
 
 %.bin: test.c %.o
-	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
+	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=`grep f_if tc101.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c`
 
 test_%.slow: test.c %.slow.o
 	gcc $(FLAGS) $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr

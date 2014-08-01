@@ -186,7 +186,7 @@
   (newline)
   (display (compile->mpfr iprog bits "f_im")))
 
-(define (do-all results-file)
+(define (do-all results-file [output "/home/pavpan/casio/compile/tc~a.c"])
   (let ([fd (open-input-file results-file)])
     (let loop ([idx 0])
       (let ([line (read fd)])
@@ -199,7 +199,6 @@
                    [bits (fifth line)])
               (when oprog
                 (printf "Outputing ~a to tc~a.c (~a)\n" name idx bits)
-                (write-file (format "../compile/tc~a.c" idx)
-                 (compile->all name `(λ ,(program-variables oprog) ,iprog)
-                               oprog bits)))
+                (write-file (format output idx)
+                 (compile->all name iprog oprog bits)))
               (loop (+ 1 idx))))))))
