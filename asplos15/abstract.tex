@@ -5,13 +5,13 @@
 
   From scientific computing to finance, many applications depend on
   hardware-supported floating point arithmetic. Developers of these
-  applications typically use floating point to approximate computation
-  over real numbers.  Unfortunately, this approximation introduces
-  rounding error, which can compound to produce completely incorrect
-  results.  If the largest hardware-supported precision cannot produce
-  sufficiently accurate results, developers are typically forced to
-  incur the costs of simulating arbitrary precision floating point in
-  software.  While the numerical methods literature provides
+  applications typically use floating point to efficiently approximate
+  computation over real numbers.  Unfortunately, this approximation
+  introduces rounding error, which can compound to produce completely
+  incorrect results.  If the largest hardware-supported precision
+  cannot produce sufficiently accurate results, developers may be
+  forced to incur the costs of simulating arbitrary precision floating
+  point in software.  While the numerical methods literature provides
   techniques to mitigate rounding error without increasing precision,
   manually applying these techniques requires substantial expertise.
 
@@ -19,39 +19,23 @@
   error without resorting to software floating point.  Given a real
   number formula, \casio combines three novel techniques to search for
   a floating point implementation that improves accuracy: (1) an
-  approach to estimating error and its causes, and is tailored to
+  approach to estimating error and its causes which is tailored to
   managing the high branching factor of \casio's search; (2) an
   approach to detecting regimes where error behavior changes, allowing
-  \casio to combine multiple programs and reduce error over all
-  regimes; (3) a technique that iteratively applies local, domain
-  specific rewrites, causing traditional error-reducing program
-  transformations to fall out naturally. We evaluate \casio on
-  microbenchmarks drawn from numerical methods textbooks, mathematical
-  libraries, and recent scientific articles, demonstrating that \casio
-  substantially reduces error while imposing modest overhead.
-
-
-
-% ---
-
-%   \casio
-%   applies numerical methods techniques to transform floating point
-%   computations to more accurately approximate their ideal real-number
-%   computations.  This transformation is found by a heuristic search
-%   composing simple, local rewrites, automatically achieving results
-%   similar to traditional error-reducing transformations.  This search
-%   is directed by methods which estimate rounding error and its
-%   sources.  \casio also automatically detects regimes where error
-%   behavior differs, and combines multiple programs to reduce error
-%   across all regimes.  We evaluate \casio on microbenchmarks drawn
-%   from numerical methods textbooks, mathematical libraries, and recent
-%   scientific articles, demonstrating that \casio substantially reduces
-%   error completely automatically while imposing modest overhead.
+  \casio to combine multiple programs and reduce overall error; (3) a
+  technique that iteratively applies local, domain specific rewrites,
+  from which traditional error-reducing program transformations fall
+  out naturally. We evaluate \casio on benchmarks drawn from numerical
+  methods textbooks, mathematical libraries, and recent scientific
+  articles, demonstrating that \casio substantially reduces error
+  while imposing modest overhead.
 
 \end{abstract}
 
 % Furthermore, such incorrect results are difficult to
 %   detect and debug. 
+
+% ideal real number computation
 
   % The numerical methods literature provides techniques to mitigate
   % rounding error.  Unfortunately, manually applying these techniques
@@ -61,8 +45,6 @@
   % hardware-supported precision has been reached, the developer
   % typically has few tools to reduce rounding error while keeping all
   % floating point operations in hardware.
-
-
 
 %   Floating point computation is a well known approach to approximating real
 % computation in the bounded context of practical hardware.  Recent advances
