@@ -180,7 +180,11 @@
 	[(test-failure test-obj exn time)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output))])])
+	    (write `(,name ,input #f ,output))])]
+	[(test-timeout test-obj)
+	 (match test-obj
+	   [(struct test (name vars input output))
+	    (write `(,name input #f ,output))])])
       (newline)))
   (void))
 
