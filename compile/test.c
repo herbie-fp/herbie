@@ -88,10 +88,6 @@ int main(int argc, char** argv) {
         TEST(im, iter);
         SAVE(iter);
 
-        mpfr_printf("2: %.20g\n", sqrttest_im(2000000.0));
-        mpfr_printf("2: %.20g\n", sqrttest_id(2000000.0));
-        mpfr_printf("2: %.20g\n", sqrttest_od(2000000.0));
-
         TEST(id, iter);
         CHECK(id, iter);
 
