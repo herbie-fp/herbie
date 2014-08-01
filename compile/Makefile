@@ -1,8 +1,9 @@
 FLAGS=-std=c11
-FAST_FLAGS=-ffast-math -march=native -mtune=intel -mfpmath=both -O4
+FAST_FLAGS=-ffast-math -march=native -mtune=native -mfpmath=both -O4
 SLOW_FLAGS=-Wall -Wextra -Wpedantic -O0 -g
+ITERS=1000000
 
-test_%: test.c %.o
+%.bin: test.c %.o
 	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
 
 test_%.slow: test.c %.slow.o
@@ -13,3 +14,9 @@ test_%.slow: test.c %.slow.o
 
 %.slow.o: %.c Makefile
 	gcc $(FLAGS) $(SLOW_FLAGS) -c $< -o $@
+
+%.out: %.bin
+	./$< $(ITERS) > $@
+
+alltc:
+	for f in tc*.c; do make $${f%.c}.out; done

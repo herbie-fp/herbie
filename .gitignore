@@ -4,6 +4,6 @@ index.html
 graphs
 logs
 compile/*.o
-compile/test_*
+compile/*.bin
 compile/tc*.c
 compile/tc*.out
