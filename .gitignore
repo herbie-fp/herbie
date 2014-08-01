@@ -3,3 +3,8 @@ cost
 index.html
 graphs
 logs
+/bench/harley/state.o
+/bench/harley/main.o
+/bench/harley/infer
+/bench/harley/data/strengths.csv
+/bench/harley/data/cooc.csv
