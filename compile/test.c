@@ -1,4 +1,4 @@
-#include <math.h>
+#include <tgmath.h>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,55 +9,64 @@
 
 void setup_mpfr();
 
-double NAME_id(double);
-double NAME_od(double);
-double NAME_im(double);
+float f_if(float);
+float f_id(float);
+float f_il(float);
+float f_of(float);
+float f_od(float);
+float f_ol(float);
+float f_im(float);
 
-unsigned long long int ulp(double x, double y) {
-        int64_t xx = *((int64_t*) &x);
-        xx = xx < 0 ? LLONG_MIN - xx : xx;
+unsigned long long int ulp(float x, float y) {
+        unsigned int xx = *((unsigned int*) &x);
+        xx = xx < 0 ? INT_MIN - xx : xx;
 
-        int64_t yy = *((int64_t*)&y);
-        yy = yy < 0 ? LLONG_MIN - yy : yy;
+        unsigned int yy = *((unsigned int*)&y);
+        yy = yy < 0 ? INT_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
 }
 
-double rand_double() {
-        long long int c0 = rand()&0xffff;
-        long long int c1 = rand()&0xffff;
-        long long int c2 = rand()&0xffff;
-        long long int c3 = rand()&0xffff;
-        long long int c = ((c3<<48) | (c2<<32) | (c1<<16) | c0);
-        return *(double*)&c;
+float rand_float() {
+        unsigned int c0 = rand()&0xffff;
+        unsigned int c1 = rand()&0xffff;
+        unsigned int c = ((c1<<16) | c0);
+        return *(float*)&c;
 }
 
-double *get_random(int nums) {
+float *get_random(int nums) {
         int i;
-        double *arr = malloc(sizeof(double) * nums);
+        float *arr = malloc(sizeof(float) * nums);
         for (i = 0; i < nums; i++) {
-                arr[i] = rand_double();
+                arr[i] = rand_float();
         }
         return arr;
 }
 
-#define ID(x) x
-
 #define SETUP()                                 \
-        clock_t start, end;                     \
+        clock_t start, end, zero;               \
         int i;                                  \
         unsigned long long int max = 0;         \
         double total = 0;                       \
+        float *rands, *out, *correct;           \
         setup_mpfr();
-        
 
-#define TEST(type, iter)                                  \
+#define CALIBRATE(iter)                                         \
         start = clock();                                        \
         for (i = 0; i < iter; i++) {                            \
-                out[i] = NAME##_##type (rands[i]);              \
+                out[i] = 1 / rands[i];                          \
         }                                                       \
         end = clock();                                          \
-        printf("%s: %lu\n", #type, (end - start) / 1000);
+        zero = end - start;                                     \
+        printf("cal: time %lu\n", zero / 100);
+
+#define TEST(type, iter)                                        \
+        start = clock();                                        \
+        for (i = 0; i < iter; i++) {                            \
+                out[i] = f_##type (rands[i]);              \
+        }                                                       \
+        end = clock();                                          \
+        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
 
 #define CHECK(type, iter)                                         \
         max = total = 0;                                          \
@@ -70,12 +79,12 @@ double *get_random(int nums) {
 
 #define SAMPLE(iter) \
         srand(time(NULL)); \
-        double *rands = get_random(iter); \
-        double *out = malloc(sizeof(double) * iter);
+        rands = get_random(iter); \
+        out = malloc(sizeof(float) * iter);
 
 #define SAVE(iter) \
-        double *correct = malloc(sizeof(double) * iter); \
-        memcpy((void *) correct, (void *) out, sizeof(double) * iter)
+        correct = malloc(sizeof(float) * iter); \
+        memcpy((void *) correct, (void *) out, sizeof(float) * iter)
 
 int main(int argc, char** argv) {
         SETUP();
@@ -84,15 +93,28 @@ int main(int argc, char** argv) {
         if (argc > 1) iter = atoi(argv[1]);
 
         SAMPLE(iter);
+        CALIBRATE(iter);
 
         TEST(im, iter);
         SAVE(iter);
 
+        TEST(if, iter);
+        CHECK(if, iter);
+
         TEST(id, iter);
         CHECK(id, iter);
 
+        TEST(il, iter);
+        CHECK(il, iter);
+
+        TEST(of, iter);
+        CHECK(of, iter);
+
         TEST(od, iter);
         CHECK(od, iter);
+
+        TEST(ol, iter);
+        CHECK(ol, iter);
 
         return 0;
         
