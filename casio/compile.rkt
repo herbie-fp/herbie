@@ -51,7 +51,7 @@
 (define (if? l)
   (and (list? l) (eq? (car l) 'if)))
 
-(define (compile->c prog [fname "f"])
+(define (compile->c prog [type "double"] [fname "f"])
   (define fmod-used? #f)
   (define vars (program-variables prog))
   (define body (compile (program-body prog)))
@@ -73,22 +73,22 @@
         (value->c expr)))
 
   (write-string
-   (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "double ~a" var)) ", "))
+   (printf "float ~a(~a) {\n" fname
+           (string-join (for/list ([var vars]) (format "float ~a" var)) ", "))
 
    (for/list ([assignment (cadr body)])
      (if (comparison? (cadr assignment))
          (printf "        bool ~a = ~a;\n" (car assignment)
                  (app->c (cadr assignment)))
-         (printf "        double ~a = ~a;\n" (car assignment)
+         (printf "        ~a ~a = ~a;\n" type (car assignment)
                  (app->c (cadr assignment)))))
 
    (printf "        return ~a;\n" (value->c (caddr body)))
    (printf "}\n")
 
    (when fmod-used?
-     (printf "\ndouble fmod2(double n, double d) {\n")
-     (printf "        double r = fmod(n, d);\n")
+     (printf "\nlong double fmod2(long double n, long double d) {\n")
+     (printf "        double r = fmodl(n, d);\n")
      (printf "        return r < 0 ? r + d : r;\n")
      (printf "}\n"))))
 
@@ -151,7 +151,7 @@
       (let ([register (gensym "r")])
         (format "mpfr_init_set_str(~a, \"~a\", 10, MPFR_RNDN)" out expr))]
      [(member expr (program-variables prog))
-      (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out expr)]
+      (format "mpfr_set_flt(~a, ~a, MPFR_RNDN)" out expr)]
      [(member expr constants)
       (apply-converter (hash-ref constants->mpfr expr) (list out))]
      [(symbol? expr)
@@ -161,19 +161,20 @@
    (printf "static mpfr_t ~a;\n\n" (string-join (map symbol->string (map car (cadr body))) ", "))
 
    (printf "void setup_mpfr() {\n")
-   (printf "        mpfr_set_default_prec(~a);\n" (* 2 bits))
+   ; Some guard bits added, just in case
+   (printf "        mpfr_set_default_prec(~a);\n" (+ bits 8))
    (for ([reg (map car (cadr body))])
      (printf "        mpfr_init(~a);\n" reg))
    (printf "}\n\n")
 
-   (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "double ~a" var)) ", "))
+   (printf "float ~a(~a) {\n" fname
+           (string-join (for/list ([var vars]) (format "float ~a" var)) ", "))
 
    (for ([assignment (cadr body)])
      (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
 
 
-  (printf "        return mpfr_get_d(~a, MPFR_RNDN);\n" (caddr body))
+  (printf "        return mpfr_get_flt(~a, MPFR_RNDN);\n" (caddr body))
   (printf "}\n")
 
   (when fmod-used?
@@ -182,13 +183,16 @@
     (printf "        if (mpfr_cmp_ui(r, 0) < 0) mpfr_add(r, r, d, MPFR_RNDN);\n")
     (printf "}\n"))))
 
-(define (do-compile iprog oprog bits path fname)
-  (write-file (string-append path fname ".c")
-   (printf "#include <math.h>\n")
-   (printf "#include <gmp.h>\n")
-   (printf "#include <mpfr.h>\n\n")
-   (display (compile->c iprog (string-append fname "_id")))
-   (newline)
-   (display (compile->c oprog (string-append fname "_od")))
-   (newline)
-   (display (compile->mpfr iprog bits (string-append fname "_im")))))
+(define (compile->all iprog oprog bits)
+  (printf "#include <tgmath.h>\n")
+  (printf "#include <gmp.h>\n")
+  (printf "#include <mpfr.h>\n\n")
+  (display (compile->c iprog "float" "f_if"))
+  (display (compile->c iprog "double" "f_id"))
+  (display (compile->c iprog "long double" "f_il"))
+  (newline)
+  (display (compile->c oprog "float" "f_of"))
+  (display (compile->c oprog "double" "f_od"))
+  (display (compile->c oprog "long double" "f_ol"))
+  (newline)
+  (display (compile->mpfr iprog bits "f_im")))
