@@ -7,10 +7,9 @@
 From scientific computing to financial forecasting, many applications
 depend on hardware-supported floating point arithmetic. Developers of
 these applications typically use floating point to efficiently
-approximate computation over real numbers.  Unfortunately,
-approximating real numbers with finite precision introduces rounding
-error.  For many computations, even miniscule errors can compound to
-produce completely incorrect results.
+approximate computation over real numbers.  Unfortunately, such finite
+approximations introduce rounding error.  For many computations, even
+miniscule errors can compound to produce completely incorrect results.
 
 The consequences of rounding error can be dire. \todo{examples where
   this is real bad -- retracted scientific articles}
@@ -20,16 +19,16 @@ common strategy is simply increasing precision, for example by
 replacing 32-bit floats with 64-bit floats.  While increasing
 precision may help by shifting error to lower order bits, the program
 can still exhibit unacceptable rounding error.  Furthermore increasing
-precision typically doubles floating point memory and performance
-overhead. If the largest hardware-supported precision cannot produce
-sufficiently accurate results, developers may be forced to incur the
-high costs of simulating arbitrary precision floating point in
-software.  In our experiments, one such library imposed \todo{mpfr
-  overhead} runtime overhead to achieve \todo{NNN} bits of accuracy
-which required \todo{NNN} bits of precision on average. Even this
-approach is not a panacea, as the developer must still determine the
-precision sufficient to provide the desired accuracy, a task that
-requires expertise and manual effort.
+precision typically doubles floating point space and time costs. If
+the largest hardware-supported precision cannot produce sufficiently
+accurate results, developers may be forced to incur the high costs of
+simulating arbitrary precision floating point in software.  In our
+experiments, one such library imposed \todo{mpfr overhead} runtime
+overhead to achieve \todo{NNN} bits of accuracy which required
+\todo{NNN} bits of precision on average. Even this approach is not a
+panacea, as the developer must still determine the precision
+sufficient to provide the desired accuracy, a task that requires
+expertise and manual effort.
 
 The numerical methods literature provides numerous techniques to
 analyze and mitigate rounding error, including sophisticated forward
@@ -76,25 +75,25 @@ textbooks, mathematical libraries, and recent scientific articles,
 demonstrating that \casio substantially reduces error while imposing
 modest overhead.
 
-In summary, this paper presents a program transformation technique to
-reduce rounding error of programs running on floating point hardware
-by automatically applying technique from the numerical methods
-literature.  To achieve this goal required three primary
-contributions:
+In summary, this paper presents \casio, an \textit{automated}
+technique to improve accuracy by applying transformations inspired by
+the numerical methods literature. To achieve this goal required three
+primary contributions:
 \begin{enumerate}
 \item A goal directed search for floating point accuracy, guided by
   techniques that estimate rounding error and its causes,
-  and heuristics to manage the high branching factor of this search.
+  and heuristics to manage the high branching factor of this search
 \item An approach to detecting regimes where error behavior changes,
   and techniques that combine multiple versions of a floating point
-  program to best reduce error over all regimes.
+  program to best reduce error over all regimes
 \item A technique that iteratively applies local, domain specific rewrites,
   causing traditional error-reducing program transformations
-  to emerge combinatorially.
+  to fall our naturally
 \end{enumerate}
 Furthermore, we evaluate our technique on \todo{microbenchmarks and
-  application}.  Our implementation also serves as a foundation for
-other to build upon.
+  application} and demonstrate that we can substantially improve
+accuracy while imposing only modest overhead.  Our implementation also
+serves as a foundation for other to build upon.
 
 The rest of the paper is organized as follows.  \Cref{sec:background}
 provides a brief survey of the relevant background on floating
