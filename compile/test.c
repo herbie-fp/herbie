@@ -13,13 +13,13 @@
 
 void setup_mpfr();
 
-float f_if(float);
-float f_id(float);
-float f_il(float);
-float f_of(float);
-float f_od(float);
-float f_ol(float);
-float f_im(float);
+float f_if();
+float f_id();
+float f_il();
+float f_of();
+float f_od();
+float f_ol();
+float f_im();
 
 unsigned long long int ulp(float x, float y) {
         unsigned int xx = *((unsigned int*) &x);
@@ -58,9 +58,7 @@ float *get_random(int nums) {
 #define CALIBRATE(iter)                                         \
         start = clock();                                        \
         for (i = 0; i < iter; i++) {                            \
-                for (j = 0; j < NARGS; j++) {                   \
-                        out[i] += 1 / rands[NARGS*i + j];       \
-                }                                               \
+                out[i] = 1 / rands[NARGS*i];                    \
         }                                                       \
         end = clock();                                          \
         zero = end - start;                                     \
@@ -74,50 +72,50 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start - zero) / 100);
-#elif nargs == 2
-#define test(type, iter)                                                \
+#elif NARGS == 2
+#define TEST(type, iter)                                                \
         start = clock();                                                \
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[2*i], rands[2*i + 1]);         \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
-#elif nargs == 3
-#define test(type, iter)                                                \
+        printf("%s: time %lu\n", #type, (end - start) / 100);
+#elif NARGS == 3
+#define TEST(type, iter)                                                \
         start = clock();                                                \
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[3*i], rands[3*i + 1], rands[3*i + 2]); \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
-#elif nargs == 4
-#define test(type, iter)                                                \
+        printf("%s: time %lu\n", #type, (end - start) / 100);
+#elif NARGS == 4
+#define TEST(type, iter)                                                \
         start = clock();                                                \
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[4*i], rands[4*i + 1], rands[4*i + 2], rands[4*i + 3]); \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
-#elif nargs == 5
-#define test(type, iter)                                                \
+        printf("%s: time %lu\n", #type, (end - start) / 100);
+#elif NARGS == 5
+#define TEST(type, iter)                                                \
         start = clock();                                                \
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[5*i], rands[5*i + 1], rands[5*i + 2], \
                                    rands[5*i + 3], rands[5*i + 4]);     \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
-#elif nargs == 6
-#define test(type, iter)                                                \
+        printf("%s: time %lu\n", #type, (end - start) / 100);
+#elif NARGS == 6
+#define TEST(type, iter)                                                \
         start = clock();                                                \
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[6*i], rands[6*i + 1], rands[6*i + 2], \
                                    rands[6*i + 3], rands[6*i + 4], rands[6*i + 5]); \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
+        printf("%s: time %lu\n", #type, (end - start) / 100);
 #else
-#define test(type, iter) abort();
+#define TEST(type, iter) abort();
 #endif
 
 #define CHECK(type, iter)                                               \
@@ -126,21 +124,28 @@ float *get_random(int nums) {
                 if (correct[i] == correct[i]) {                         \
                         unsigned long long int error = ulp(out[i], correct[i]); \
                         if (error > max) max = error;                   \
-                        total += log(error + 1.0) / iter / log(2);      \
+                        total += log(error + 1.0) / log(2);             \
                 }                                                       \
         }                                                               \
-        printf("%s: max %f avg %f\n", #type, log(max + 1.0) / log(2), total);
+        printf("%s: max %f avg %f\n", #type, log(max + 1.0) / log(2), total / count);
 
-#define SAMPLE(iter) \
-        srand(time(NULL)); \
-        rands = get_random(iter); \
+#define SAMPLE(iter)                                                    \
+        srand(time(NULL));                                              \
+        rands = get_random(iter);                                       \
         out = malloc(sizeof(float) * iter);
 
-#define SAVE(iter) \
-        correct = malloc(sizeof(float) * iter); \
-        memcpy((void *) correct, (void *) out, sizeof(float) * iter)
+#define SAVE(iter)                                                      \
+        correct = malloc(sizeof(float) * iter);                         \
+        memcpy((void *) correct, (void *) out, sizeof(float) * iter);   \
+        count = 0;                                                      \
+        for (i = 0; i < iter; i++) {                                    \
+                if (correct[i] == correct[i]) {                         \
+                        count += 1;                                     \
+                }                                                       \
+        }                                                               
 
 int main(int argc, char** argv) {
+        int count;
         SETUP();
         
         int iter = 1000000;
