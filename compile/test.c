@@ -22,6 +22,9 @@ float f_ol();
 float f_im();
 
 unsigned long long int ulp(float x, float y) {
+        if (x == 0.0f) {x = fabs(x);} // Negative 0
+        if (y == 0.0f) {y = fabs(y);} // Negative 0
+
         unsigned int xx = *((unsigned int*) &x);
         xx = xx < 0 ? INT_MIN - xx : xx;
 
