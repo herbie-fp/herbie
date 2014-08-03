@@ -52,7 +52,7 @@ float *get_random(int nums) {
 
 #define SETUP()                                 \
         clock_t start, end, zero;               \
-        int i, j;                               \
+        int i, j, maxi;                         \
         unsigned long long int max = 0;         \
         double total = 0;                       \
         float *rands, *out, *correct;           \
@@ -122,15 +122,23 @@ float *get_random(int nums) {
 #endif
 
 #define CHECK(type, iter)                                               \
+        maxi = -1;                                                      \
         max = total = 0;                                                \
         for (i = 0; i < iter; i++) {                                    \
                 if (correct[i] == correct[i]) {                         \
                         unsigned long long int error = ulp(out[i], correct[i]); \
-                        if (error > max) max = error;                   \
+                        if (error > max) { maxi = i; max = error; }     \
                         total += log(error + 1.0) / log(2);             \
                 }                                                       \
         }                                                               \
-        printf("%s: max %f avg %f\n", #type, log(max + 1.0) / log(2), total / count);
+        printf("%s: max %f avg %f\n", #type, log(max + 1.0) / log(2), total / count); \
+        if (max > 0) {                                                  \
+                printf("\tat ");                                         \
+                for (int j = 0; j < NARGS; j++) {                       \
+                        printf("%g ", rands[maxi*NARGS + j]);           \
+                }                                                       \
+                printf(" (%g not %g)\n", out[maxi], correct[maxi]);     \
+        }
 
 #define SAMPLE(iter)                                                    \
         srand(time(NULL));                                              \
@@ -145,12 +153,12 @@ float *get_random(int nums) {
                 if (correct[i] == correct[i]) {                         \
                         count += 1;                                     \
                 }                                                       \
-        }                                                               
+        }
 
 int main(int argc, char** argv) {
         int count;
         SETUP();
-        
+
         int iter = 1000000;
         if (argc > 1) iter = atoi(argv[1]);
 
@@ -179,5 +187,5 @@ int main(int argc, char** argv) {
         CHECK(ol, iter);
 
         return 0;
-        
+
 }
