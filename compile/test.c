@@ -21,9 +21,22 @@ float f_od();
 float f_ol();
 float f_im();
 
-unsigned long long int ulp(float x, float y) {
-        if (x == 0.0f) {x = fabs(x);} // Negative 0
-        if (y == 0.0f) {y = fabs(y);} // Negative 0
+unsigned int ulp(float x, float y) {
+        if (x == 0 && y == 0) { // Treat zeros specially
+                if ((1 / x > 0) != (1 / y > 0)) {
+                        // Ding us a little for -0 vs 0
+                        return 1;
+                } else {
+                        return 0;
+                }
+        }
+
+        if (x == 0) x = fabs(x); // Otherwise, -0 == 0
+        if (y == 0) y = fabs(y); // Otherwise, -0 == 0
+
+        if (x != x && y != y) return 0;
+        if (x != x) return INT_MIN;
+        if (y != y) return INT_MIN;
 
         unsigned int xx = *((unsigned int*) &x);
         xx = xx < 0 ? INT_MIN - xx : xx;
@@ -74,7 +87,8 @@ float *get_random(int nums) {
                 out[i] = f_##type (rands[i]);                           \
         }                                                               \
         end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start - zero) / 100);
+        printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #elif NARGS == 2
 #define TEST(type, iter)                                                \
         start = clock();                                                \
@@ -83,6 +97,7 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #elif NARGS == 3
 #define TEST(type, iter)                                                \
         start = clock();                                                \
@@ -91,6 +106,7 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #elif NARGS == 4
 #define TEST(type, iter)                                                \
         start = clock();                                                \
@@ -99,6 +115,7 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #elif NARGS == 5
 #define TEST(type, iter)                                                \
         start = clock();                                                \
@@ -108,6 +125,7 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #elif NARGS == 6
 #define TEST(type, iter)                                                \
         start = clock();                                                \
@@ -117,6 +135,7 @@ float *get_random(int nums) {
         }                                                               \
         end = clock();                                                  \
         printf("%s: time %lu\n", #type, (end - start) / 100);
+
 #else
 #define TEST(type, iter) abort();
 #endif
