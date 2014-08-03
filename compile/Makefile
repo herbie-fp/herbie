@@ -10,7 +10,7 @@ test_%.slow: test.c %.slow.o
 	gcc $(FLAGS) $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
 
 %.o: %.c Makefile
-	gcc -ffast-math $(FLAGS) $(FAST_FLAGS) -c $< -o $@
+	gcc $(FLAGS) $(FAST_FLAGS) -c $< -o $@
 
 %.slow.o: %.c Makefile
 	gcc $(FLAGS) $(SLOW_FLAGS) -c $< -o $@
