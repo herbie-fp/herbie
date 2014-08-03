@@ -1,5 +1,5 @@
 FLAGS=-std=c11
-FAST_FLAGS=-march=native -mtune=native -mfpmath=both -O4
+FAST_FLAGS=-march=native -mtune=native -mfpmath=both -O4 -flto
 SLOW_FLAGS=-Wall -Wextra -Wpedantic -O0 -g
 ITERS=1000000
 
