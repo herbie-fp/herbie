@@ -4,4 +4,98 @@
 \section{Related Work}
 \label{sec:relatedwork}
 
+\casio builds upon decades of work in numerical analysis,
+  along with recent advances in the analysis
+  of floating point computations.
+
+\paragraph{Standards}
+Floating point computation is defined in the IEEE 754 standard,
+  originally in 754-1985~\cite{ieee85-standard}
+  and most recently 754-2008~\cite{ieee08-standard}.
+This standard specifies the sizes, binary layout, and rounding modes
+  for floating point numbers of various sizes,
+  along with the required behavior of primitive operations.
+However, programming languages often
+  do not require compilers to follow the standard exactly.
+For example, C~\cite{c99} allows intermediate results
+  to be computed in extended precision,
+  and only truncated when stored into memory~\cite{toplas08-pitfalls-verifying}.
+This makes verification and analysis difficult
+  for floating point computations.
+
+\paragraph{Numerical analysis}
+
+Numerical analysis studies how to use computers
+  to perform mathematical computations.
+This body of work includes a vast literature
+  on how to evaluate simple mathematical functions.
+The technique of rearranging formulas into more-accurate forms
+  appears in D.~Goldberg's survey~\cite{acm91-every-scientist},
+  as well as common textbooks~\cite{book87-nmse}.
+It is extensively discussed by W.~Kahan in the context
+  of several simple geometric problems in~\cite{berkeley00-needle-like}.
+Such rearrangement is largely discussed as a manual activity,
+  done by a numerical methods expert.
+\casio uses the techniques invented in this literature,
+  but acts automatically, avoiding the need for an expert.
+
+It is difficult to know the precision of intermediate results
+  necessary to accurately evaluate a function~\cite{ensl03-table-maker}.
+Recent work on this problem allowed the creation of MPFR,
+  an arbitrary-precision floating point library
+  which correctly rounds exponential, trigonometric, and other basic functions~\cite{acm07-mpfr}.
+However, composing these functions can still lead to error.
+\casio uses MPFR internally to determine
+  the exact output of a computation,
+  to compare candidate programs for accuracy.
+
+\paragraph{Verification}
+Recent work in the program verification community
+  has allowed formal verification of numerical programs.
+The triangle area computation discussed by Kahan, for example,
+  was proven to be accurate by S. Boldo in 2013~\cite{arith13-area-triangle}
+  in the interactive theorem prover Coq.
+Larger computations have also be proven accurate,
+  such as programs for computing discriminants~\cite{ieee09-discriminant-proven}
+  or for solving simple partial differential equations~\cite{jar13-wave-equation-prove}.
+These proofs were all done in interactive theorem provers.
+Automatic proofs have been explored in Rosa~\cite{popl14-rosa},
+  which provided a language for specifying accuracy requirements
+  and applied SMT solvers to automatically prove
+  that programs attained them.
+\casio does not verify the accuracy of programs it produces;
+  the existing tools could be used to do that.
+Ariadne~\cite{popl13-ariadne} also applied SMT solvers
+  to detect inputs which could cause floating point overflow.
+However, their technique could not conclusively prove
+  the absence of floating point exceptions,
+  as it approximates floating point arithmetic by real arithmetic.
+\casio focuses on the problem of floating point accuracy,
+  instead of overflow.
+
+\paragraph{STOKE}
+The Stoke super-optimizer supports
+  optimizing floating point programs while guaranteeing
+  that the resulting accuracy is acceptable~\cite{pldi14-stoke}.
+Stoke uses a stochastic search over assembly programs
+  to find faster implementations of a given function
+  which can then be proven equivalent to the original.
+When optimizing a program that uses floating point operations,
+  Stoke allows the user to specify a maximum allowable error
+  and produces programs whose output is equivalent to the original,
+  up to this allowable error.
+Stoke measures error compared to the program given as input;
+  thus, it assumes the input program accurately represents
+  the computation the program intended to perform.
+If the input program is inaccurate, Stoke can at best guarantee
+  that the accuracy of the optimized result is not much worse.
+On the other hand, \casio attempts to improve the input program,
+  so that it better represents
+  the real number formula that it implements,
+  a different technique is needed.
+We suspect that Stoke and \casio may complement each other,
+  with \casio improving the accuracy of a program,
+  so that its error (relative to a real number computation) is acceptable,
+  and Stoke then optimizing the program within the given error bounds.
+
 \end{document}
