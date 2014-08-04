@@ -7,15 +7,16 @@
 Given the complexities of error in floating point computation,
   producing the minimal-error program
   for a given real number formula
-  seems out of reach%
+  is impractical.
   \footnote{\cite{} show it this task to be NP-hard}.
 Instead, \casio performs a heuristic search over programs,
   aiming for minimal error.
-\casio's search proceeds by applying local program transformations.
+Instead of attempting to transform the whole program,
+  \casio's search proceeds by applying local program transformations.
 Each transformation corresponds to a identity of real number formulas,
   but does not necessarily preserve the semantics of the program
   as evaluated with floating-point operators.
-\casio contains 119 rules,
+\casio contains 122 rewrite rules,
   most describing basic arithmetic facts
   such as the commutativity of addition,
   others demonstrating trigonometric facts
@@ -26,16 +27,22 @@ Each transformation corresponds to a identity of real number formulas,
   that apply goal-directed rewrite rules;
   and pursuing different programs
   for different parts of the input space.
-\casio encodes goal-directed rewrites in its
-  focusing, recursive-rewrite, and simplification systems.
-To pursue different programs for different inputs, \casio uses
-  candidate tables, regime inference, and periodicity analysis.
+At each step of it's goal directed search,
+  \casio focuses on expressions with high error,
+  uses it's recursive-rewriter to destruct the operator of that expression,
+  and them simplifies the expression.
+To pursue different programs for different inputs,
+  \casio holds on to all potentially relevant alts in candidate tables,
+  combines incomparable candidates using regime inference,
+  and analyzes periodic subexpressions for periodic regime boundries.
 These two core ideas combine the better parts
   of brute-force and targetted search.
 By applying high-level strategies,
-  \casio gains the speed and domain-specificity of targetted search.
+  \casio is able to explore deeply into the search space
+  without running into exponential slowdown.
 But like brute-force search,
-  \casio pursue strategies in parallel, selecting whichever works best.
+  \casio pursues multiple alternative transformations in parallel, 
+  selecting whichever produces the best result.
 
 To demonstrate the method by which
   \casio improves the precision of floating point programs,
@@ -48,14 +55,14 @@ This forumla is imprecise for negative $x$,
   especially if $x$ is large and $y$ is small.
 Improving the precision of this formula
   involves most of the major systems;
-  each of \casio's major systems is described in detail
+  each of these systems is described in detail
   in Section~\ref{sec:synthesis}.
 
 \casio begins the process of improving~\eqref{eq:ex}
   by identifying subexpressions
   which likely need transformation.
 The imprecision arises from the addition $\sqrt{x^2 + y^2} + x$:
-  for negative $x$,
+  for negative $x$, and a small $y$,
   the two summands are approximately equal in magnitude,
   leading to a cancellation.
 \casio notices this same fact
@@ -72,13 +79,15 @@ For the complex square root example,
   the addition $\sqrt{x^2 + y^2} + x$ produces the most local error
   for large negative values of $x$.
 This information is passed to \casio's recursive rewrite step,
-  directing rewrites toward improving a particular expression.
+  directing rewrites toward improving this particular expression.
 
 Once problematic expressions are identified,
   local transformations are applied at that expression.
-\casio's uses a recursive rewrite algorithm for doing this:
-  if a rewrite rule does not apply,
-  children of the expressions are recursively rewritten
+\casio uses a recursive rewrite algorithm for doing this:
+  if a rewrite rule does not immediately pattern match on the expression,
+  but destructs the correct operator,
+  and matches the number of arguments,
+  the children of the expression are recursively rewritten
   in an attempt to make the rule match.
 This rewrite step produces several candidate programs
   for each expression focused upon.
@@ -113,7 +122,7 @@ Simplification automatically performs all the steps necessary
 \end{equation}
 This new program has no imprecision for negative $x$,
   but it is imprecise for positive $x$.
-Regime inference is now used to combine both programs
+Regime inference will now be used to combine both programs
   into one that is precise for all $x$.
 
 In this example, as in many,
@@ -127,7 +136,8 @@ Regime inference creates this condition
   by considering all generated programs
   that are best on at least one sample point,
   and then using the sample points to divide each input variable
-  into several regions, with one program per region.
+  into several regions, with one program per region,
+  although some programs may cover multiple non-adjacent regions.
 In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
   regime inference correctly decides
   to use \eqref{eq:ex} for positive values of $x$
@@ -140,7 +150,7 @@ The final program produced by \casio is
 \end{cases}
 \]
 
-This example was drawn from a open-source mathematics library.
+The preceding example was drawn from a open-source mathematics library.
 However, most numerical programs are not library functions
   but are instead simulations or data analysis scripts
   used by scientists, engineers, and mathematicians
@@ -166,15 +176,21 @@ To avoid these problems,
 Upon hearing of his troubles,
   we fed the original, simple implementation to \casio.
 \casio produced a program with 4 bits average error:
-  \todo{Our better version of Harley's program}.
+  \begin{equation}
+  e^{e_+\ln{\frac{1+e^{-t}}{1+e^{-s}}} +
+     e_-\ln{\frac{1-\frac{1}{1+e^{-s}}}
+                 {1-\frac{1}{1+e^{-t}}}}}}
+  \end{equation}
 \casio obviated the need for manual algebraic manipulation,
   and produce superior results with no manual steps.
-We have found the produced program difficult to understand,
-  and our attempts to simplify it
-  have lead to greatly increasing its error.
+The low-error program that \casio produced was of a complexity level
+  such that human analysts would be unlikely to reproduce the result. 
+Furthermore, our attempts to simplify the program
+  into a form more likely to be found by human analysts
+  have only been able to do so by greatly increasing it's error.
 By properly targetting its search,
-  \casio is able to consider more likely alternatives
+  \casio is able to consider a greater number of viable alternatives
   than human analysts are able to,
-  and produced better results.
+  and is capable of producing better results.
 
 \end{document}
