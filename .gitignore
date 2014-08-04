@@ -8,3 +8,7 @@ logs
 /bench/harley/infer
 /bench/harley/data/strengths.csv
 /bench/harley/data/cooc.csv
+compile/*.o
+compile/*.bin
+compile/tc*.c
+compile/tc*.out
