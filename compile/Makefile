@@ -18,5 +18,6 @@ ITERS=1000000
 %.out: %.bin
 	./$< $(ITERS) > $@
 
-alltc:
-	for f in tc*.c; do make $${f%.c}.out; done
+.PHONY: all
+
+all: tc*.out
