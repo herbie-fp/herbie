@@ -302,6 +302,9 @@
     (vector->pseudo-random-generator!
      (current-pseudo-random-generator)
      (read (open-input-string rs)))]
+   [("-n") fu "The amount of 'fuel' to use"
+    (*num-iterations* fu)]
+   #:multi
    [("-f") tf "Toggle flags, specified in the form category:flag"
     (let ([split-strings (string-split tf ":")])
       (when (not (= 2 (length split-strings)))
