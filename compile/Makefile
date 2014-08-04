@@ -18,4 +18,6 @@ ITERS=1000000
 %.out: %.bin
 	./$< $(ITERS) > $@
 
-alltc: tc*.out
+.PHONY: all
+
+all: tc*.out
