@@ -184,7 +184,7 @@
 	[(test-timeout test-obj)
 	 (match test-obj
 	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output #f ,timeout))])])
+	    (write `(,name ,input #f ,output #f timeout))])])
       (newline)))
   (void))
 
