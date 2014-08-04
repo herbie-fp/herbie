@@ -29,7 +29,7 @@ Each transformation corresponds to a identity of real number formulas,
 \casio encodes goal-directed rewrites in its
   focusing, recursive-rewrite, and simplification systems.
 To pursue different programs for different inputs, \casio uses
-  candidate tables, branch inference, and periodicity analysis.
+  candidate tables, regime inference, and periodicity analysis.
 These two core ideas combine the better parts
   of brute-force and targetted search.
 By applying high-level strategies,
@@ -113,23 +113,23 @@ Simplification automatically performs all the steps necessary
 \end{equation}
 This new program has no imprecision for negative $x$,
   but it is imprecise for positive $x$.
-Branch inference is now used to combine both programs
+Regime inference is now used to combine both programs
   into one that is precise for all $x$.
 
 In this example, as in many,
-  no single branch-free program is precise for all input values.
+  no single-regime program is precise for all input values.
 To compute a formula precisely, the data must select
   which program to use for the formula's evaluation.
-\casio's branch inference system
+\casio's regime inference system
   computes the branch condition
   that selects between several programs depending on the input data.
-Branch inference creates this condition
+Regime inference creates this condition
   by considering all generated programs
   that are best on at least one sample point,
   and then using the sample points to divide each input variable
   into several regions, with one program per region.
 In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
-  branch inference correctly decides
+  regime inference correctly decides
   to use \eqref{eq:ex} for positive values of $x$
   and \eqref{eq:ex3} for negative values.
 The final program produced by \casio is

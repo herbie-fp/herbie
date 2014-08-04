@@ -110,8 +110,8 @@ Before entering the main loop,
 After the main loop completes,
   \casio aggregates all candidates generated
   throughout the course of the loop,
-  and infers branch conditions
-  to execute different candidates for different inputs.
+  and infers regimes of input values for which
+  to execute different candidates.
 These techniques, combined, are \casio.
 
 \begin{figure}
@@ -381,7 +381,7 @@ The best program real-equivalent to the above
 \casio must automatically infer the regimes
   into which the input subdivides,
   and must choose which programs to run on each region.
-In doing this, \casio must not add too many branches,
+In doing this, \casio must not find too many regimes,
   since each branch is computationally expensive.
 
 \casio infers regimes using a dynamic programming algorithm.
@@ -458,13 +458,13 @@ Once periodic functions have been found,
   and executes a full \casio run on each expression,
   with points chosen uniformly on $[0, t)$,
   where $t$ is the period.
-If the resulting program includes branches introduced by regimes,
-  the condition in each branch is changed via the substitution
+If the resulting program includes branches introduced by regime inference,
+  each branch condition is changed by the substitution
   $x \mapsto \|mod|(x, t)$, for each variable $x$ with period $t$.
-The body of the branch is not changed,
-  because for large inputs, expressions like
+The program in each regime is not changed,
+  because for large inputs, expressions such as
   $\sin \|mod|(x, 2\pi)$
-  are less accurate than the real-equivalent $\sin x$.
+  are less accurate than $\sin x$.
 
 \subsection{Correlated Error}
 
