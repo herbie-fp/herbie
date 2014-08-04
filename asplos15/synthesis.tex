@@ -312,16 +312,19 @@ This matching algorithm, which we call recursive rewrite pattern matching,
   \|rr'| &\:f(e_1, \dotsc, e_k)\:f'(p_1, \dotsc, p_l) \ceq \\
   & \cup \{ \|rr'|\:(\|subst|\:b\:(\cup_i \Gamma_i))\:f'(p_1, \dotsc, p_l) \I \\
   & \quad (e_i', \Gamma_i) \in \|rr'|\:e_i\:a_i, \|compatible|\:\Gamma_i, \\
-  & \quad (a, b) \in \mathbf{rules}, a \sim f(a_1, \dotsc, a_k) \}
+  & \quad (a, b) \in \mathbf{rules}, a \sim f(a_1, \dotsc, a_k) \} \\
+  \\
+  \|rr| &\:e\ceq \cup \{ \|rr'|\:e\:p \I (p, q) \in \mathbf{rules} \}
 \end{align*}
 \caption{Recrusive rewrite pattern matching.
   Given a set of from/to patterns in \textbf{rules}
   (which can be matched against and substituted into
   by \|match| and \|subst|),
   $(\|rr'|\:e\:p)$ returns a set of expressions
-  each of which match $p$, and each of which is obtained from $e$
+  each of which match the pattern $p$, and each of which is obtained from $e$
   by applying a sequence of rules from \textbf{rules},
-  with at most one rule applied to any node in the expression tree.}
+  with at most one rule applied to any node in the expression tree.
+  $(\|rr|\:e)$ returns the set of such rewritten expresisons for any pattern.}
 \label{alg:rm}
 \end{figure}
 
