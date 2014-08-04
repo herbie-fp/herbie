@@ -74,7 +74,7 @@
         (value->c expr)))
 
   (write-string
-   (printf "float ~a(~a) {\n" fname
+   (printf "double ~a(~a) {\n" fname
            (string-join (for/list ([var vars]) (format "float ~a" (fix-name var))) ", "))
 
    (for/list ([assignment (cadr body)])
@@ -152,14 +152,14 @@
      (printf "        mpfr_init(~a);\n" reg))
    (printf "}\n\n")
 
-   (printf "float ~a(~a) {\n" fname
+   (printf "double ~a(~a) {\n" fname
            (string-join (for/list ([var vars]) (format "float ~a" (fix-name var))) ", "))
 
    (for ([assignment (cadr body)])
      (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
 
 
-  (printf "        return mpfr_get_flt(~a, MPFR_RNDN);\n" (caddr body))
+  (printf "        return mpfr_get_d(~a, MPFR_RNDN);\n" (caddr body))
   (printf "}\n\n")))
 
 (define (compile->all name iprog oprog bits)
