@@ -195,15 +195,20 @@
   (place ch
     (let loop ()
       (match (place-channel-get ch)
-	[`(log-dir ,log-dir ,wid)
-         (when (not (directory-exists? log-dir))
-           (make-directory log-dir))
-	 (let ([filename (format "~a/~a#~a.log" log-dir wid (current-seconds))])
-           (*debug* (open-output-file filename #:exists 'replace)))]
-	[`(rand ,vec)
+	[`(init
+	   log-dir ,log-directory
+	   wid ,worker-id
+	   rand ,vec
+	   flags ,flag-table)
+
+	 (when (not (directory-exists? log-directory))
+           (make-directory log-directory))
+	 (let ([filename (format "~a/~a#~a.log" log-directory worker-id (current-seconds))])
+           (*debug* (open-output-file filename #:exists 'replace)))
+
 	 (set! *seed* vec)
-	 (vector->pseudo-random-generator! (current-pseudo-random-generator)
-					   vec)]
+
+	 (*flags* flag-table)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -221,17 +226,23 @@
       (match (apply sync ch workers)
         ['make-worker
 	 (let ([new-worker (make-worker)])
-	   (place-channel-put new-worker `(log-dir ,log-dir
-						   ,(begin0 next-wid
-						      (set! next-wid (add1 next-wid)))))
-	   (place-channel-put new-worker `(rand ,(pseudo-random-generator->vector
-						  (current-pseudo-random-generator))))
+	   (place-channel-put new-worker
+			      `(init log-dir ,log-dir
+				     wid ,(begin0 next-wid
+						(set! next-wid (add1 next-wid)))
+				     rand ,(pseudo-random-generator->vector
+					    (current-pseudo-random-generator))
+				     flags ,(*flags*)))
 	   (set! workers (cons new-worker workers)))]
-	[`(log-dir ,log-directory)
-	 (set! log-dir log-directory)]
-	[`(rand ,vec)
-	  (vector->pseudo-random-generator! (current-pseudo-random-generator)
-					    vec)]
+	[`(init
+	   log-dir ,log-directory
+	   rand ,vec
+	   flags ,flag-table)
+	 (set! log-dir log-directory)
+	 (vector->pseudo-random-generator!
+	  (current-pseudo-random-generator)
+	  vec)
+	 (*flags* flag-table)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -256,9 +267,10 @@
   (define cnt 0)
   (define total (length progs))
 
-  (place-channel-put m `(log-dir ,log-dir))
-  (place-channel-put m `(rand ,(pseudo-random-generator->vector
-				(current-pseudo-random-generator))))
+  (place-channel-put m `(init log-dir ,log-dir
+			      rand ,(pseudo-random-generator->vector
+				     (current-pseudo-random-generator))
+			      flags ,(*flags*)))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
