@@ -6,8 +6,8 @@ ITERS=1000000
 %.bin: test.c %.o
 	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-test_%.slow: test.c %.slow.o
-	gcc $(FLAGS) $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
+%.slow.bin: test.c %.slow.o
+	gcc $(FLAGS) $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 %.o: %.c Makefile
 	gcc $(FLAGS) $(FAST_FLAGS) -c $< -o $@
