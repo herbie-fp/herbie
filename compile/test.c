@@ -12,41 +12,43 @@
 #endif
 
 #if NARGS == 1
-#define ARGS float, float, float, float
+#define ARGS float
 #elif NARGS == 2
-#define ARGS float, float, float, float
+#define ARGS float, float
 #elif NARGS == 3
-#define ARGS float, float, float, float
+#define ARGS float, float, float
 #elif NARGS == 4
 #define ARGS float, float, float, float
 #elif NARGS == 5
-#define ARGS float, float, float, float
+#define ARGS float, float, float, float, float
 #elif NARGS == 6
-#define ARGS float, float, float, float
+#define ARGS float, float, float, float, float, float
+#else
+#define ARGS
 #endif
 
 void setup_mpfr(void);
-float f_if(ARGS);
-float f_id(ARGS);
-float f_il(ARGS);
-float f_of(ARGS);
-float f_od(ARGS);
-float f_ol(ARGS);
-float f_im(ARGS);
+double f_if(ARGS);
+double f_id(ARGS);
+double f_il(ARGS);
+double f_of(ARGS);
+double f_od(ARGS);
+double f_ol(ARGS);
+double f_im(ARGS);
 
-unsigned int ulp(float x, float y) {
+unsigned long long ulp(double x, double y) {
         if (x == 0) x = fabs(x); // -0 == 0
         if (y == 0) y = fabs(y); // -0 == 0
 
         if (x != x && y != y) return 0;
-        if (x != x) return INT_MIN;
-        if (y != y) return INT_MIN;
+        if (x != x) return LLONG_MIN;
+        if (y != y) return LLONG_MIN;
 
-        unsigned int xx = *((unsigned int*) &x);
-        xx = xx < 0 ? INT_MIN - xx : xx;
+        long long xx = *((unsigned long long*) &x);
+        xx = xx < 0 ? LLONG_MIN - xx : xx;
 
-        unsigned int yy = *((unsigned int*)&y);
-        yy = yy < 0 ? INT_MIN - yy : yy;
+        long long yy = *((unsigned long long*)&y);
+        yy = yy < 0 ? LLONG_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
 }
@@ -69,11 +71,12 @@ float *get_random(int nums) {
 
 #define SETUP()                                 \
         clock_t start, end, zero;               \
-        int i, j, maxi;                         \
+        int i, maxi;                            \
         unsigned long long int max = 0;         \
         double total = 0;                       \
         float *rands, *out, *correct;           \
-        setup_mpfr();
+        setup_mpfr();                           \
+        printf("test,           time,           max,            avg\n", zero);
 
 #define CALIBRATE(iter)                                         \
         start = clock();                                        \
@@ -81,8 +84,7 @@ float *get_random(int nums) {
                 out[i] = 1 / rands[NARGS*i];                    \
         }                                                       \
         end = clock();                                          \
-        zero = end - start;                                     \
-        printf("cal: time %lu\n", zero / 100);
+        zero = end - start;
 
 #if NARGS == 1
 #define TEST(type, iter)                                                \
@@ -90,8 +92,7 @@ float *get_random(int nums) {
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[i]);                           \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #elif NARGS == 2
 #define TEST(type, iter)                                                \
@@ -99,8 +100,7 @@ float *get_random(int nums) {
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[2*i], rands[2*i + 1]);         \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #elif NARGS == 3
 #define TEST(type, iter)                                                \
@@ -108,8 +108,7 @@ float *get_random(int nums) {
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[3*i], rands[3*i + 1], rands[3*i + 2]); \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #elif NARGS == 4
 #define TEST(type, iter)                                                \
@@ -117,8 +116,7 @@ float *get_random(int nums) {
         for (i = 0; i < iter; i++) {                                    \
                 out[i] = f_##type (rands[4*i], rands[4*i + 1], rands[4*i + 2], rands[4*i + 3]); \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #elif NARGS == 5
 #define TEST(type, iter)                                                \
@@ -127,8 +125,7 @@ float *get_random(int nums) {
                 out[i] = f_##type (rands[5*i], rands[5*i + 1], rands[5*i + 2], \
                                    rands[5*i + 3], rands[5*i + 4]);     \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #elif NARGS == 6
 #define TEST(type, iter)                                                \
@@ -137,8 +134,7 @@ float *get_random(int nums) {
                 out[i] = f_##type (rands[6*i], rands[6*i + 1], rands[6*i + 2], \
                                    rands[6*i + 3], rands[6*i + 4], rands[6*i + 5]); \
         }                                                               \
-        end = clock();                                                  \
-        printf("%s: time %lu\n", #type, (end - start) / 100);
+        end = clock();
 
 #else
 #define TEST(type, iter) abort();
@@ -148,20 +144,21 @@ float *get_random(int nums) {
         maxi = -1;                                                      \
         max = total = 0;                                                \
         for (i = 0; i < iter; i++) {                                    \
-                if (correct[i] == correct[i]) {                         \
+                if (correct[i] != 0 && correct[i] == correct[i]) {      \
                         unsigned long long int error = ulp(out[i], correct[i]); \
                         if (error > max) { maxi = i; max = error; }     \
                         total += log(error + 1.0) / log(2);             \
                 }                                                       \
         }                                                               \
-        printf("%s: max %f avg %f\n", #type, log(max + 1.0) / log(2), total / count); \
-        if (max > 0) {                                                  \
-                printf("\tat ");                                         \
+        printf("%s  ,%15lu,%15g,%15g\n", #type, end - start,       \
+               log(max + 1.0) / log(2), total / count);                 \
+        if (max > 0) {/*                                                  \
+                printf("\tat ");                                        \
                 for (int j = 0; j < NARGS; j++) {                       \
                         printf("%g ", rands[maxi*NARGS + j]);           \
                 }                                                       \
                 printf(" (%g not %g)\n", out[maxi], correct[maxi]);     \
-        }
+                      */}
 
 #define SAMPLE(iter)                                                    \
         srand(time(NULL));                                              \
@@ -172,8 +169,9 @@ float *get_random(int nums) {
         correct = malloc(sizeof(float) * iter);                         \
         memcpy((void *) correct, (void *) out, sizeof(float) * iter);   \
         count = 0;                                                      \
+        printf("im  ,%15lu,%15g,%15g\n", end - start, 0.0, 0.0);      \
         for (i = 0; i < iter; i++) {                                    \
-                if (correct[i] == correct[i]) {                         \
+                if (correct[i] != 0 && correct[i] == correct[i]) {      \
                         count += 1;                                     \
                 }                                                       \
         }
