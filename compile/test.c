@@ -11,28 +11,32 @@
 #define NARGS 1
 #endif
 
-void setup_mpfr();
+#if NARGS == 1
+#define ARGS float, float, float, float
+#elif NARGS == 2
+#define ARGS float, float, float, float
+#elif NARGS == 3
+#define ARGS float, float, float, float
+#elif NARGS == 4
+#define ARGS float, float, float, float
+#elif NARGS == 5
+#define ARGS float, float, float, float
+#elif NARGS == 6
+#define ARGS float, float, float, float
+#endif
 
-float f_if();
-float f_id();
-float f_il();
-float f_of();
-float f_od();
-float f_ol();
-float f_im();
+void setup_mpfr(void);
+float f_if(ARGS);
+float f_id(ARGS);
+float f_il(ARGS);
+float f_of(ARGS);
+float f_od(ARGS);
+float f_ol(ARGS);
+float f_im(ARGS);
 
 unsigned int ulp(float x, float y) {
-        if (x == 0 && y == 0) { // Treat zeros specially
-                if ((1 / x > 0) != (1 / y > 0)) {
-                        // Ding us a little for -0 vs 0
-                        return 1;
-                } else {
-                        return 0;
-                }
-        }
-
-        if (x == 0) x = fabs(x); // Otherwise, -0 == 0
-        if (y == 0) y = fabs(y); // Otherwise, -0 == 0
+        if (x == 0) x = fabs(x); // -0 == 0
+        if (y == 0) y = fabs(y); // -0 == 0
 
         if (x != x && y != y) return 0;
         if (x != x) return INT_MIN;
