@@ -6,7 +6,7 @@
 
 At a high level, \casio translates mathematical \emph{formulas}
   into floating-point \emph{programs}.
-\casio translates using a heuristic search algorithm
+\casio accomplishes this translation using a heuristic search algorithm
   that attempts to find a sequence of changes
   that produces the largest improvement in precision.
 Unlike conventional compilers,
@@ -46,19 +46,17 @@ To allow this class of transformations,
   which can greatly improve the precision of a program,
   we require that the output program
   only equal the input program where both are defined.
-We calls programs that are equal they are defined \emph{real-equivalent} programs.
+We call programs that are equal they are defined \emph{real-equivalent} programs.
 
-This constraint that \casio only outputs real-equivalent programs
-  influences \casio's architecture.
 Since \casio must not change the real-number semantics of programs
   (except by changing where the program is defined),
   it is natural to structure \casio
   as applying a sequence of rewrite rules,
   each of which satisfy the above property.
-These rules are specified by pattern matching;
+These rules are specified as input and output patterns;
   for example, the transformation above is a rule,
   with $x$ and $y$ matching arbitrary subexpressions.
-\casio contains 109 rules,
+\casio contains 122 rules,
   including those for
   the commutativity, associativity, distributivity, and identity
   of basic arithmetic operators;
@@ -74,12 +72,15 @@ This was usually easy, but required some care
   to avoid false ``identities'' such as $\sqrt{x^2} = x$
   (this identity being false for negative $x$).
 
-The simplest method for improving precision
-  would be to apply these rewrite rules at random,
-  keeping more-precise variants.
-This method does not work:
+The simplest, most obvious approach to a rewrite based system
+  is a hill-climbing brute force search,
+  where one applies rewrite rules at random,
+  keeping the transformations where error behavior is improved.
+Unfortunately, this method is not effective:
   too much time is spent on rewrites
-  that have no effect on program precision.
+  that have no effect on program precision,
+  and sequences of rewrites that would improve precision
+  are often not found, since intermediary steps do not neccessarily improve error.
 Often, multiple rewrites without any effect
   are necessary to enable a rewrite that significantly improves precision.
 Sometimes, even after the correct rewrite is found,
@@ -101,7 +102,8 @@ This set of alternatives only contains
 In each iteration, \casio generates new candidates
   by choosing one alternative that has not been chosen before;
   finding expressions where a rewrite may lead improvement;
-  applying a sequence of rewrites to those expressions;
+  selecting the rewrite-rules which match the error-causing operator
+  and applying a sequence of rewrites to enable the application of that rule;
   and simplifying the result, canceling like terms.
 Then the best candidate is chosen for the next iteration.
 Before entering the main loop,
@@ -112,7 +114,7 @@ After the main loop completes,
   throughout the course of the loop,
   and infers regimes of input values for which
   to execute different candidates.
-These techniques, combined, are \casio.
+Together, these techniques make up \casio.
 
 \begin{figure}
 \begin{align*}
@@ -154,8 +156,16 @@ Arbitrary-precision arithmetic is slow,
 \casio selects 500 points, distributed approximately uniformly
   over the \emph{set} of floating-point numbers
   (this leads to a near-uniform distribution over the exponent).
-  \todo{explain why we don't use near-uniform distribution over the reals,
-  (only +nan.0, +infs over selected points, bad evaluation of error and bad results.)}
+While it may seem intuitive to instead select points
+  distributed near-uniform over the reals instead,
+  there are several problems with this approach:
+firstly, we found during evaluation
+  that distributing uniformly across the reals
+  yields only points of the upper two or three orders of magnitude,
+  which for some functions produces results
+  that are unilaterally out of bounds of floating points;
+secondly, even for functions that have reasonable results for large input values,
+  sampling only these large exponents yields to a misrepresentative error evaluation.
 Experiments show that the estimate computed from 500 points
   is rarely more than one bit of error removed from the true answer.
 
