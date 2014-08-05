@@ -12,4 +12,7 @@ compile/*.o
 compile/*.bin
 compile/tc*.c
 compile/tc*.out
+compile/tc*.cv_*.bin
+compile/tc*.cv_*.csv
+compile/tc*.cv_*.png
 compile/*.rktdat

@@ -69,14 +69,14 @@ float *get_random(int nums) {
         return arr;
 }
 
-#define SETUP()                                 \
-        clock_t start, end, zero;               \
-        int i, maxi;                            \
-        unsigned long long int max = 0;         \
-        double total = 0;                       \
-        float *rands, *out, *correct;           \
-        setup_mpfr();                           \
-        printf("test,           time,           max,            avg\n", zero);
+#define SETUP()                                   \
+        clock_t start, end, zero;                 \
+        int i, j, k;                              \
+        double total, r1, r2, r1old;              \
+        float *rands, *out, *correct;             \
+        int count, mcount;                        \
+        srand(time(NULL));                        \
+        setup_mpfr();
 
 #define CALIBRATE(iter)                                         \
         start = clock();                                        \
@@ -140,28 +140,7 @@ float *get_random(int nums) {
 #define TEST(type, iter) abort();
 #endif
 
-#define CHECK(type, iter)                                               \
-        maxi = -1;                                                      \
-        max = total = 0;                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                if (1 / correct[i] != 0 && correct[i] == correct[i]) {  \
-                        unsigned long long int error = ulp(out[i], correct[i]); \
-                        if (error > max) { maxi = i; max = error; }     \
-                        total += log(error + 1.0) / log(2);             \
-                }                                                       \
-        }                                                               \
-        printf("%s  ,%15lu,%15g,%15g\n", #type, end - start,            \
-               log(max + 1.0) / log(2), total / count);                 \
-        if (max > 0) {/*                                                  \
-                printf("\tat ");                                        \
-                for (int j = 0; j < NARGS; j++) {                       \
-                        printf("%g ", rands[maxi*NARGS + j]);           \
-                }                                                       \
-                printf(" (%g not %g)\n", out[maxi], correct[maxi]);     \
-                      */}
-
 #define SAMPLE(iter)                                                    \
-        srand(time(NULL));                                              \
         rands = get_random(iter);                                       \
         out = malloc(sizeof(float) * iter);
 
@@ -169,44 +148,48 @@ float *get_random(int nums) {
         correct = malloc(sizeof(float) * iter);                         \
         memcpy((void *) correct, (void *) out, sizeof(float) * iter);   \
         count = 0;                                                      \
-        printf("im  ,%15lu,%15g,%15g\n", end - start, 0.0, 0.0);        \
         for (i = 0; i < iter; i++) {                                    \
                 if (1 / correct[i] != 0 && correct[i] == correct[i]) {  \
                         count += 1;                                     \
-                }                                                       \
+                } /*else { printf("Bad point %g\n", correct[i]); }*/    \
         }
 
 int main(int argc, char** argv) {
-        int count;
         SETUP();
 
-        int iter = 1000000;
+        int iter, repet;
+        iter = 100000;
+        repet = 100;
         if (argc > 1) iter = atoi(argv[1]);
+        if (argc > 2) repet = atoi(argv[2]);
 
-        SAMPLE(iter);
-        CALIBRATE(iter);
+        printf("pts,repet,avg,se\n");
+        for (j = 2; j < iter; j *= 2) {
+                r1 = r2 = 0;
+                mcount = -1;
+                for (k = 0; k < repet; k++) {
+                        SAMPLE(j);
+                        TEST(im, j);
+                        SAVE(j);
 
-        TEST(im, iter);
-        SAVE(iter);
+                        TEST(if, j);
+                        total = 0;
+                        for (i = 0; i < j; i++) {
+                                if (1 / correct[i] != 0 && correct[i] == correct[i]) {
+                                        unsigned long long int error = ulp(out[i], correct[i]);
+                                        total += log(error + 1.0) / log(2);
+                                }
+                        }
+                        r1old = r1;
+                        r1 += (total / count - r1) / (k + 1);
+                        r2 += (total / count - r1old) * (total / count - r1);
+                        if (mcount == -1 || count < mcount) mcount = count;
 
-        TEST(if, iter);
-        CHECK(if, iter);
-
-        TEST(id, iter);
-        CHECK(id, iter);
-
-        TEST(il, iter);
-        CHECK(il, iter);
-
-        TEST(of, iter);
-        CHECK(of, iter);
-
-        TEST(od, iter);
-        CHECK(od, iter);
-
-        TEST(ol, iter);
-        CHECK(ol, iter);
-
-        return 0;
-
+                        free(rands);
+                        free(out);
+                        free(correct);
+                }
+                printf("%i,%i,%g,%g\n", mcount, repet,
+                       r1, sqrt(r2 / (repet - 1.5)) / sqrt(repet));
+        }
 }
