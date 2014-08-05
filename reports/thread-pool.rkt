@@ -199,7 +199,8 @@
 	   log-dir ,log-directory
 	   wid ,worker-id
 	   rand ,vec
-	   flags ,flag-table)
+	   flags ,flag-table
+	   num-iters ,iterations)
 
 	 (when (not (directory-exists? log-directory))
            (make-directory log-directory))
@@ -208,7 +209,8 @@
 
 	 (set! *seed* vec)
 
-	 (*flags* flag-table)]
+	 (*flags* flag-table)
+	 (*num-iterations* iterations)]
         [`(,self ,id ,test ,iters)
          (let ([result (get-test-result test iters)])
            (place-channel-put ch
@@ -232,17 +234,20 @@
 						(set! next-wid (add1 next-wid)))
 				     rand ,(pseudo-random-generator->vector
 					    (current-pseudo-random-generator))
-				     flags ,(*flags*)))
+				     flags ,(*flags*)
+				     num-iters (*num-iterations*)))
 	   (set! workers (cons new-worker workers)))]
 	[`(init
 	   log-dir ,log-directory
 	   rand ,vec
-	   flags ,flag-table)
+	   flags ,flag-table
+	   num-iters ,iterations)
 	 (set! log-dir log-directory)
 	 (vector->pseudo-random-generator!
 	  (current-pseudo-random-generator)
 	  vec)
-	 (*flags* flag-table)]
+	 (*flags* flag-table)
+	 (*num-iterations* iterations)]
         [`(do ,id ,test ,iters)
          (set! work (cons `(,id ,test ,iters) work))]
         [`(done ,id ,more ,result*)
@@ -270,7 +275,8 @@
   (place-channel-put m `(init log-dir ,log-dir
 			      rand ,(pseudo-random-generator->vector
 				     (current-pseudo-random-generator))
-			      flags ,(*flags*)))
+			      flags ,(*flags*)
+			      num-iters ,(*num-iterations*)))
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
