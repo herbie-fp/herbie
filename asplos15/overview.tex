@@ -162,27 +162,31 @@ The expressions encountered in these programs are more complex
 A colleague of ours had difficulties with the numerical precision
   of a estimator in a machine learning task.
 He needed to compute the expression
-  \todo{Harley's equation here}
+\begin{align*}
+\mathsf{ans} &= \frac{p(e_-,e_+|s)}{p(e_-,e_+|t)} \\
+p(e_-, e_+|x) &= (\operatorname{sig} x)^{e_+} (1 - \operatorname{sig} x)^{e_-} \\
+\operatorname{sig}x &= 1 / (1 - e^{-x})
+\end{align*}
   and found that the simple encoding of this formula as a program
   lead to spurious results and violated invariants in later code.
 Our estimates suggests that this simple encoding produces
-  as many as thirty bits of error, averaged over floating point values.
+  seventeen bits of error, averaged over floating point values.
 To avoid these problems,
   our colleague manually manipulated the expression
   into a form that seemed not to cause similar problems;
   our estimates suggest that this improved variant
-  had 10 bits of average error.
+  had ten bits of average error.
 
 Upon hearing of his troubles,
   we fed the original, simple implementation to \casio.
-\casio produced a program with 4 bits average error:
-  \begin{equation}
-  e^{e_+\ln{\frac{1+e^{-t}}{1+e^{-s}}} +
+\casio produced a program with four bits average error:
+  \begin{equation*}
+  \operatorname{exp}\left(e_+\ln{\frac{1+e^{-t}}{1+e^{-s}}} +
      e_-\ln{\frac{1-\frac{1}{1+e^{-s}}}
-                 {1-\frac{1}{1+e^{-t}}}}}
-  \end{equation}
+                 {1-\frac{1}{1+e^{-t}}}}\right)
+  \end{equation*}
 \casio obviated the need for manual algebraic manipulation,
-  and produce superior results with no manual steps.
+  and produced superior results with no manual steps.
 The low-error program that \casio produced was of a complexity level
   such that human analysts would be unlikely to reproduce the result. 
 Furthermore, our attempts to simplify the program
