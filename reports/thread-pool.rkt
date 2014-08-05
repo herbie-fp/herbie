@@ -235,7 +235,7 @@
 				     rand ,(pseudo-random-generator->vector
 					    (current-pseudo-random-generator))
 				     flags ,(*flags*)
-				     num-iters (*num-iterations*)))
+				     num-iters ,(*num-iterations*)))
 	   (set! workers (cons new-worker workers)))]
 	[`(init
 	   log-dir ,log-directory
