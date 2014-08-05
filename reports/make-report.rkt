@@ -303,7 +303,7 @@
      (current-pseudo-random-generator)
      (read (open-input-string rs)))]
    [("-n") fu "The amount of 'fuel' to use"
-    (*num-iterations* fu)]
+    (*num-iterations* (string->number fu))]
    #:multi
    [("-f") tf "Toggle flags, specified in the form category:flag"
     (let ([split-strings (string-split tf ":")])
