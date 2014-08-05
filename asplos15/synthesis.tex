@@ -208,9 +208,8 @@ Any candidate program can then be evaluated in floating point
 
 \subsection{Focusing with local error}
 
-\casio must focus on those expressions
-  where a rewrite will effect the largest improvement in precision.
-This measure must be approximated.
+In order to most effectively apply rewrites that reduce error,
+  \casio attempts to identity the expressions that cause the error.
 By looking at the error of each expression,
   \casio can determine which expressions
   have the most room for improvement.
