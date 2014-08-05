@@ -4,60 +4,53 @@
 \section{Introduction}
 \label{sec:introduction}
 
-From scientific computing to financial forecasting, many applications
-depend on hardware-supported floating point arithmetic. Developers of
-these applications typically use floating point to efficiently
-approximate computation over real numbers.  Unfortunately, such finite
-approximations introduce rounding error.  For many computations, even
-miniscule errors can compound to produce completely incorrect results.
+Many applications that depend on floating point arithmetic must also
+produce accurate results, from custom fluid dynamics simulators to
+statistical analysis packages used across the sciences.  These
+applications rely on hardware implementations of floating point to
+efficiently approximate computations over real numbers.
+Unfortunately, such approximations introduce rounding error which can
+lead to \textit{inaccuracy}, where floating point results differ
+substantially from their ideal real number results.
 
-The consequences of rounding error can be dire. \todo{examples where
-  this is real bad -- retracted scientific articles}
+Floating point inaccuracy is notoriously difficult to detect and
+debug, leading to numerous expensive failures. \todo{retraction of
+  scientific articles} \todo{missile navigation fail} \todo{legal
+  restrictions on floating point accuracy}.
 
-In practice, developers have few tools to address rounding error.  A
-common strategy is simply increasing precision, for example by
-replacing 32-bit floats with 64-bit floats.  While increasing
-precision may help by shifting error to lower order bits, the program
-can still exhibit unacceptable rounding error.  Furthermore increasing
-precision typically doubles floating point space and time costs. If
-the largest hardware-supported precision cannot produce sufficiently
-accurate results, developers may be forced to incur the high costs of
-simulating arbitrary precision floating point in software.  In our
-experiments, one such library imposed \todo{mpfr overhead} runtime
-overhead to achieve \todo{NNN} bits of accuracy which required
-\todo{NNN} bits of precision on average. Even this approach is not a
-panacea, as the developer must still determine the precision
-sufficient to provide the desired accuracy, a task that requires
-expertise and manual effort.
+In practice, developers often respond to floating point inaccuracy by
+increasing \textit{precision}, the size of the floating point
+representation.  For example, a developer might try to shift error to
+lower order bits by replacing all 32-bit floats with 64-bit floats.
+Unfortunately, even the largest hardware-supported precision may not
+provide sufficient accuracy for floating point code translated
+directly from a formula over the reals.  Once the hardware's available
+precision has been exhausted, increasing precision further requires
+simulating arbitrary precision floating point arithmetic in software,
+incurring multiple orders of magnitude slowdown.
 
 The numerical methods literature provides numerous techniques to
-analyze and mitigate rounding error, including sophisticated forward
-and backward error analysis \todo{cite}, robust floating point
-representations offering multiple precisions and designed for
-efficient hardware implementation \todo{cite}, and numerous program
-transformations to reduce error \todo{cite} without increasing
-precision.  Unfortunately, applying these techniques requires deep
-expertise and substantial manual effort.  Numerical methods techniques
-rely on a deep understanding of the floating point representation,
-sophisticated error analyses to choose an appropriate precision, and
-program transformations to improve accuracy when additional precision
-is unavailable or too expensive.
+analyze and mitigate rounding error.  In particular, forward and
+backward error analysis \todo{cite} coupled with various program
+transformations \todo{cite} can be applied to improve accuracy without
+increasing precision.  Unfortunately, applying these techniques often
+requires deep expertise and substantial manual effort.
 
-To address these challenges, we introduce \casio, an
-\textit{automated} technique to mitigate rounding error without
-resorting to software floating point.  Given a real number formula,
-\casio combines three novel techniques to search for a floating point
-implementation that improves accuracy: (1) an approach to estimating
-error and its causes which is tailored to managing the high branching
-factor of \casio's search; (2) an approach to detecting regimes where
-error behavior changes which allows \casio to combine multiple
-programs and reduce overall error; (3) a technique that iteratively
-applies local, domain specific rewrites, from which traditional
-error-reducing program transformations fall out naturally.  At each
-step of the search, \casio automatically analyzes a candidate program
-for sources of error, applies potentially error-reducing rewrites
-inspired by the numerical methods literature, and estimates the
-rounding error of the resulting program.  By searching through
+As a first step toward addressing these challenges, we introduce
+\casio, an \textit{automated} technique to mitigate rounding error
+without resorting to software floating point.  Given a real number
+formula, \casio combines three novel techniques to search for a
+floating point implementation that improves accuracy: (1) an approach
+to estimating error and its causes which is tailored to managing the
+high branching factor of \casio's search; (2) an approach to detecting
+regimes where error behavior changes which allows \casio to combine
+multiple programs and reduce overall error; (3) a technique that
+iteratively applies local, domain specific rewrites, from which
+traditional error-reducing program transformations fall out naturally.
+At each step of the search, \casio automatically analyzes a candidate
+program for sources of error, applies potentially error-reducing
+rewrites inspired by the numerical methods literature, and estimates
+the rounding error of the resulting program.  By searching through
 thousands of candidate programs, our prototype implementation is able
 to \todo{impressive summary of evaluation}.  Furthermore, \casio
 reduces rounding error automatically, requiring no training or manual

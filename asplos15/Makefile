@@ -15,6 +15,9 @@ paper.pdf: $(TEX) $(BIB) $(FIGS) jpaper.cls
 clean:
 	rm -f *.aux *.bbl *.blg *.log *.out paper.pdf
 
+publish:
+	cp paper.pdf ~/Dropbox/Public/casio.pdf
+
 rebib:
 	@ pdflatex paper > /dev/null
 	@ bibtex paper > /dev/null
