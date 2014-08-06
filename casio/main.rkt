@@ -102,7 +102,7 @@
     (if (> 2 (length alts*))
         #f
         (combine-alts alts*
-         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (/ fuel 2)))))))
+         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))))))
 
 (define (best-alt alts)
   (when (null? alts)
