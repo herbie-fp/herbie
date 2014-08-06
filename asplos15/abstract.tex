@@ -4,16 +4,16 @@
 \begin{abstract}
 
   Many applications from science and engineering depend on floating
-  point arithmetic implemented in hardware to efficiently approximate
-  computations over real numbers.  Unfortunately, such approximations
-  introduce rounding error which can accumulate to produce
-  unacceptable results.  When the largest hardware-supported precision
-  does not provide sufficient accuracy, developers may be forced to
-  simulate arbitrary precision floating point arithmetic in software,
-  incurring orders of magnitude slowdown.  While the numerical methods
-  literature provides techniques to mitigate rounding error without
-  increasing precision, applying these techniques often requires deep
-  expertise and substantial manual effort.
+  point hardware to efficiently approximate computations over real
+  numbers.  Unfortunately, such approximations introduce rounding
+  error which can accumulate to produce unacceptable results.  When
+  the largest hardware-supported precision does not provide sufficient
+  accuracy, developers may be forced to simulate arbitrary precision
+  floating point arithmetic in software, incurring orders of magnitude
+  slowdown.  While the numerical methods literature provides
+  techniques to mitigate rounding error without increasing precision,
+  these techniques often require understanding the details of floating
+  point and manually rearranging computations.
 
   We introduce \casio, an \textit{automated} approach to improving
   floating point accuracy by searching for error-reducing program
@@ -21,10 +21,10 @@
   estimate rounding error and its sources, as well as an approach to
   detect input regimes with distinct error behavior and select the
   best program variant for each regime.  We evaluate \casio on
-  benchmarks drawn from numerical methods textbooks and demonstrate
-  that it can substantially reduce error. We also consider \casio's
-  broader applicability by improving accuracy of expressions from a
-  mathematical library as well as formulas from recent scientific
+  examples from numerical methods textbooks and demonstrate that it
+  can effectively reduce rounding error. We also consider \casio's
+  broader applicability by improving the accuracy of expressions from
+  a mathematical library as well as formulas from recent scientific
   articles.
 
 \end{abstract}
