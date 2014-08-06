@@ -213,6 +213,7 @@
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
+;; Assumption: soundness. More specifically, that the two alts are equivilent across the reals.
 (define (sindices->spoints points var-idx alts sindices)
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
