@@ -52,6 +52,25 @@
 				(cdr rest-points) (cons (cons (car rest-points) (car rest-diff))
 							acc))]))))
 
+(define (compare-alts . altns)
+  (repl-print (let loop ([cur-region-idx -1] [rest-lsts (map alt-errors altns)]
+			 [rest-points (*points*)] [acc '()])
+		(if (null? rest-points)
+		    (reverse acc)
+		    (let ([best-idx
+			   (let ([errs (map car rest-lsts)])
+			     (argmin (λ (idx) (list-ref errs idx))
+				    (range (length errs))))])
+		      (if (= best-idx cur-region-idx)
+			  (loop cur-region-idx (map cdr rest-lsts)
+				(cdr rest-points)
+				(cons best-idx acc))
+			  (loop best-idx (map cdr rest-lsts)
+				(cdr rest-points)
+				(cons (list best-idx (list-ref altns best-idx)
+					    (car rest-points))
+				      acc))))))))
+
 (define (print-alt-info altn)
   (if (not (alt-prev altn))
       (println "Started with: " (alt-program altn))
