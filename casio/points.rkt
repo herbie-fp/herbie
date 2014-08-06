@@ -10,7 +10,7 @@
 	 prepare-points prepare-points-period prepare-points-uniform
 	 errors errors-score)
 
-(define *num-points* (make-parameter 512))
+(define *num-points* (make-parameter 1024))
 (define *exp-size* (make-parameter 256))
 
 (define *points* (make-parameter '()))
