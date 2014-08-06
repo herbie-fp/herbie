@@ -311,7 +311,7 @@
   (define (recurse-on-points altns contexts)
     (map (λ (altn context)
 	   (if (= (length (*points*)) (length (alt-context-points context)))
-	       (error "Regime contains entire input space!")
+	       altn #;(error "Regime contains entire input space!")
 	       (parameterize ([*points* (alt-context-points context)]
 			      [*exacts* (alt-context-exacts context)])
 		 (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
