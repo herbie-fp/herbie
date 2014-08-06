@@ -229,13 +229,13 @@ By exactly evaluating inputs,
   for errors in computing their inputs.
 
 \casio computes the local error of every operator at every sample point,
-  and chooses to focus on the three expressions
+  and ``focuses'' on the three expressions
   whose operators have the highest local error.
 In many cases, this leads \casio to precisely the correct location
   to apply a rewrite.
 For example, consider the program $\sqrt{x+1} - \sqrt{x}$.
 This program is imprecise when $x$ is large,
-  because $\sqrt{x+1}$ and $\sqrt{x}$ are large and close-by,
+  because $\sqrt{x+1}$ and $\sqrt{x}$ are large similar quantities,
   causing cancellation error.
 For large inputs, both $\sqrt{x+1}$ and $\sqrt{x}$
   are computed with little error.
@@ -243,8 +243,9 @@ However, the subtraction, even with exact inputs,
   produces large errors due to cancellation.
 Thus, the subtraction operator has high local error,
   while the other operators have very low error.
-As a result, \casio easily finds the correct location
-  to rewrite this program.
+Upon analyzing this expression, 
+  \casio identifies the subtraction as the location with the most local error,
+  and ``focuses'' it's rewrites at that location.
 
 \begin{figure}
 \begin{align*}
@@ -268,7 +269,7 @@ As a result, \casio easily finds the correct location
 \subsection{Recursive rewrite pattern matching}
 
 After an expression is focused upon,
-  \casio must determine how to rewrite that expression.
+  \casio determines how to rewrite that expression.
 A common problem is that an expression may require multiple rewrites
   to enable a rewrite that actually improves precision.
 For example, consider the expression
