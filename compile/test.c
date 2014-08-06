@@ -69,75 +69,46 @@ float *get_random(int nums) {
         return arr;
 }
 
-#define SETUP()                                 \
-        clock_t start, end, zero;               \
-        int i, maxi;                            \
-        unsigned long long int max = 0;         \
-        double total = 0;                       \
-        float *rands, *out, *correct;           \
-        setup_mpfr();                           \
-        printf("test,           time,           max,            avg\n", zero);
+#define SETUP()                                                         \
+        struct timespec start, end;                                     \
+        double time, zero;                                              \
+        int i, maxi;                                                    \
+        unsigned long long int max = 0;                                 \
+        double total = 0;                                               \
+        float *rands, *out, *correct;                                   \
+        setup_mpfr();                                                   \
+        printf("test,           time,           max,            avg\n");
 
 #define CALIBRATE(iter)                                         \
-        start = clock();                                        \
+        clock_gettime(CLOCK_MONOTONIC, &start);                 \
         for (i = 0; i < iter; i++) {                            \
                 out[i] = 1 / rands[NARGS*i];                    \
         }                                                       \
-        end = clock();                                          \
-        zero = end - start;
+        clock_gettime(CLOCK_MONOTONIC, &end);              \
+        zero = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
+
+#define TEST(type, iter)                                                \
+        clock_gettime(CLOCK_MONOTONIC, &start);                         \
+        for (i = 0; i < iter; i++) {                                    \
+                out[i] = EVAL(f_##type);                                \
+        }                                                               \
+        clock_gettime(CLOCK_MONOTONIC, &end);                           \
+        time = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec) - zero;
 
 #if NARGS == 1
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[i]);                           \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[i])
 #elif NARGS == 2
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[2*i], rands[2*i + 1]);         \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[2*i], rands[2*i + 1])
 #elif NARGS == 3
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[3*i], rands[3*i + 1], rands[3*i + 2]); \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[3*i], rands[3*i + 1], rands[3*i + 2])
 #elif NARGS == 4
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[4*i], rands[4*i + 1], rands[4*i + 2], rands[4*i + 3]); \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[4*i], rands[4*i + 1], rands[4*i + 2], rands[4*i + 3])
 #elif NARGS == 5
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[5*i], rands[5*i + 1], rands[5*i + 2], \
-                                   rands[5*i + 3], rands[5*i + 4]);     \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[5*i], rands[5*i + 1], rands[5*i + 2], rands[5*i + 3], rands[5*i + 4])
 #elif NARGS == 6
-#define TEST(type, iter)                                                \
-        start = clock();                                                \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = f_##type (rands[6*i], rands[6*i + 1], rands[6*i + 2], \
-                                   rands[6*i + 3], rands[6*i + 4], rands[6*i + 5]); \
-        }                                                               \
-        end = clock();
-
+#define EVAL(f) f(rands[6*i], rands[6*i + 1], rands[6*i + 2], rands[6*i + 3], rands[6*i + 4], rands[6*i + 5])
 #else
-#define TEST(type, iter) abort();
+#define EVAL(f) abort()
 #endif
 
 #define CHECK(type, iter)                                               \
@@ -150,9 +121,9 @@ float *get_random(int nums) {
                         total += log(error + 1.0) / log(2);             \
                 }                                                       \
         }                                                               \
-        printf("%s  ,%15lu,%15g,%15g\n", #type, end - start,            \
+        printf("%s  ,%15lu,%15g,%15g\n", #type, time,                   \
                log(max + 1.0) / log(2), total / count);                 \
-        if (max > 0) {/*                                                  \
+        if (max > 0) {/*                                                \
                 printf("\tat ");                                        \
                 for (int j = 0; j < NARGS; j++) {                       \
                         printf("%g ", rands[maxi*NARGS + j]);           \
@@ -183,6 +154,8 @@ int main(int argc, char** argv) {
         int iter = 1000000;
         if (argc > 1) iter = atoi(argv[1]);
 
+        printf("// %s\n", name);
+
         SAMPLE(iter);
         CALIBRATE(iter);
 
@@ -197,6 +170,9 @@ int main(int argc, char** argv) {
 
         TEST(il, iter);
         CHECK(il, iter);
+
+        TEST(om, iter);
+        CHECK(om, iter);
 
         TEST(of, iter);
         CHECK(of, iter);
