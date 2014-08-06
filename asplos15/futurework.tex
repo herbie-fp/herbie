@@ -4,12 +4,35 @@
 \section{Future Work}
 \label{sec:futurework}
 
-full compiler pass
+As this paper shows, \casio is a useful tool
+  for mitigating floating point rounding error.
+We hope to continue to improve \casio,
+  making it a more useful tool for scientists and engineers,
+  and working toward automating numerical analysis
+  for use by non-experts.
 
-performance / accuracy tradeoffs
+We hope to integrate \casio
+  into a compiler pass, allowing it run transparently
+  as part of a compilation pipeline.
+This would make \casio significantly easier to use,
+  as it would obviate the need to isolate and input floating point computations.
+Since compilers must optimize for speed as well as numerical accuracy,
+  we would like to allow the user to specify a trade off
+  between the speed of the resulting program and its accuracy.
+We are also working to extend \casio
+  to work on a broader class of programs
+  by supporting complex number and matrix operations,
+  and by recognizing and handling error accumulation
+  across loops.
 
-unsound rewrites
-
-loops / matrices / complex
+We would also like to allow \casio to output programs
+  that are not real-equivalent to the original program.
+This would allow using Taylor expansions and interpolation
+  to improve the accuracy of input programs.
+While real-equivalent guarantees that \casio preserves
+  the programmer's intent,
+  some programs cannot be improved at all,
+  or can be improved more efficiently,
+  by making unsound transformations.
 
 \end{document}
