@@ -50,7 +50,7 @@
 				     prepare-points prepare-points-uniform)]
 		  [(points exacts) (point-preparer orig)]
 		  [(more-pts more-exs) (parameterize ([*num-points* 8192])
-				       (prepare-points prog))])
+				       (point-preparer orig))])
       (parameterize ([*points* points] [*exacts* exacts]
 		     [*more-points* more-pts] [*more-exacts* more-exs])
 	(let* ([start-alt (make-alt orig)]
