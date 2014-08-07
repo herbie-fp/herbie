@@ -118,18 +118,27 @@ After the main loop completes,
 \begin{figure}
 \begin{footnotesize}
 \begin{align*}
-  \|casio|&(e) \ceq \\
-  & pts, exs \ceq \|pickPoints|(e) \\
-  & e' \ceq \|simplify|(e) \\
-  & e'' \ceq \|mapPeriod|(e') \\
-  & t \ceq \|makeTable|(e'') \\
-  & \|while|(\|not| \; t.\|done|) \\
-  & \;\;\;\; e, t' \ceq \|pick|\;t \\
-  & \;\;\;\; es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
-  & \|regimes|\:(\cup\{\|uncorrelated|\;e \I e \in t \})
+  &\!def!\:\|casio|(e) \ceq \\
+  &\> pts, exs \ceq \|pickPoints|(e) \\
+  &\> e' \ceq \|simplify|(e) \\
+  &\> t \ceq \|makeTable|(e'') \\
+  &\> \|while|(\|not| \; t.\|done|) \\
+  &\> \> e, t' \ceq \|pick|\;t \\
+  &\> \> es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
+  &\> \> t \ceq t' \cup es \\
+  &\> \|regimes|\:(\cup\{\|correlate|\;e \I e \in t \})
 \end{align*}
 \end{footnotesize}
-\caption{\todo{caption}}
+\caption{The \casio main loop.
+  \casio initializes its sample points, exact outputs,
+    and candidate program table $t$, and enters the main loop.
+  At each step through the loop, a candidate $e$ is chosen from $t$,
+    and explored by focusing on expressions with local errors,
+    rewriting those expressions, and simplifying the results.
+  When all candidates have been explored,
+    regime inference is used to combine the found candidates.
+  Extra candidates are generated at the end by attempting to correlated error.}
+\label{alg:main}
 \end{figure}
 
 \subsection{Evaluating error of expressions}
@@ -181,16 +190,18 @@ Experiments show that the estimate computed from 500 points
   candidate program's error at that point.
 
 \begin{figure}
+\begin{footnotesize}
 \begin{align*}
-  \FP_{64}, \FP_\infty &: \|FloatingPointSystem| \\
-  \Err &\:x\:y \ceq \#\{ z : \FP_{64}\:|\:x \le z \le y \} \\
+  &\!type!\:\FP_{64}, \FP_\infty : \|FloatingPointSystem| \\
+  &\!type!\:\Var \ceq \{ x, y, z, \dotsc \} \\
+  &\!type!\:\Op \ceq \{ \|exp|, \|pow|, \|log|, \dotsc \} \\
+  &\!type!\:\Expr \ceq c \I x \I f(e_1, \dotsc, e_k) \\
+  &\> c : \RR, x : \Var, f : \Op, e_i : \Expr \\
   \\
-  \Var &\ceq \{ x, y, z, \dotsc \} \\
-  \Op &\ceq \{ \|exp|, \|pow|, \|log|, \dotsc \} \\
-  \Expr &\ceq c \I x \I f(e_1, \dotsc, e_k) \\
-  & c : \RR, x : \Var, f : \Op, e_i : \Expr \\
-  \|eval|_t &: (\Var \to \RR) \to \Expr \to \FP_t
+  &\!def!\:\|eval|_t(ctx, e)\ceq \dotsb : (\Var \to \RR) \to \Expr \to \FP_t \\
+  &\!def!\:\Err(x, y) \ceq \#\{ z : \FP_{64}\:|\:x \le z \le y \}
 \end{align*}
+\end{footnotesize}
 \caption{Common variables. $\FP_{64}$ and $\FP_\infty$ represent
   the types of 64-bit floating point and arbitrary-precision values.
   $\Err$ measures the error between two real values
@@ -241,16 +252,19 @@ Upon analyzing this expression,
   and ``focuses'' it's rewrites at that location.
 
 \begin{figure}
+\begin{footnotesize}
 \begin{align*}
-  \|localerror| &: (\Var \to \RR) \to \Expr \to \NN \\
-  \|localerror| &\:\Gamma\:c \ceq 1 \\
-  \|localerror| &\:\Gamma\:x \ceq 1 \\
-  \|localerror| &\:\Gamma\:f(e_1, e_2, \ldots, e_k) \ceq \\
-  & e_i' \ceq \|eval|_\infty\:\Gamma\:e_i \\
-  & r_{64} \ceq f_{64}\:(\F_{64}\:e_1')\:\ldots\:(\F_{64}:e_k') \\
-  & r_\infty \ceq \F_{64}\:(f_\infty\:e_1'\:\ldots\:e_k') \\
-  & \Err\:r_{64}\:r_\infty \\
+  &\!def!\:\|localerror|(ctx, e) \ceq \\
+  &\> \!match!\:e \\
+  &\> \> c \tto 1 \\
+  &\> \> x \tto 1 \\
+  &\> \> f(e_1, \dotsc, e_k) \tto \\
+  &\> \> \>  e_i' \ceq \|eval|_\infty(ctx, e_i) \\
+  &\> \> \>  r_{64} \ceq f_{64}(\F_{64}(e_1'), \dotsc, \F_{64}(e_k')) \\
+  &\> \> \>  r_\infty \ceq \F_{64}(f_\infty(e_1', \dotsc, e_k')) \\
+  &\> \> \>  \Err(r_{64}, r_\infty) \\
 \end{align*}
+\end{footnotesize}
 \caption{Computation of local error.
   Given a set of variable bindings and an expression,
   the local error evaluates all subexpressions in arbitrary precision and returns
