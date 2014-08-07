@@ -63,8 +63,8 @@ def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[]):
 def draw_point(p):
     print "\\draw[fill=black] (%f,%f) circle (%s);" % (p[0], p[1], PT_WEIGHT)
 
-def draw_rect(ll,ur):
-    print "\\draw (%f,%f) rectangle (%f,%f);" % (ll[0], ll[1], ur[0], ur[1])
+def draw_rect(ll,ur, opts=""):
+    print "\\draw[%s] (%f,%f) rectangle (%f,%f);" % (opts, ll[0], ll[1], ur[0], ur[1])
 
 def draw_histo(data, n_buckets=10):
     data.sort()
@@ -247,6 +247,46 @@ def draw_sample_points(data):
               v_ticks=v_ticks)
     end_picture()
 
+def draw_improvement_rectangles(iname, oname):
+    left = [64.0 - x for x in read_improvement_data(iname)]
+    right = [64.0 - x for x in read_improvement_data(oname)]
+    assert len(left) == len(right)
+
+    data = zip(left, right)
+
+    data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
+
+    begin_picture()
+
+    n = len(data)
+
+    hi = max(max([p[0] for p in data]), max([p[1] for p in data]))
+
+    def to_plot_space(p):
+        x = PLOT_X * (float(p[0]) / hi)
+        y = PLOT_Y * (float(p[1]) / (n + 1))
+        return (x,y)
+
+    for i in range(n):
+        l = data[i][0]
+        r = data[i][1]
+
+        if abs(l - r) < 0.5:
+            draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
+        elif l <= r:
+            draw_rect(to_plot_space((l, i + 0.75)),
+                      to_plot_space((r, i + 1.25)))
+        else:
+            draw_rect(to_plot_space((r, i + 0.75)),
+                      to_plot_space((l, i + 1.25)), "fill=red")
+
+
+    draw_axes(h_capt="Bits correct",
+              v_capt="Benchmark",
+              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, 65, 8)]
+    )
+    end_picture()
+
 def read_simple_data_file(name):
     ans = []
     with open(name) as f:
@@ -271,8 +311,15 @@ def read_sample_points(name):
 
         return ans
 
+def read_improvement_data(name):
+    column = 3
+    with open(name, 'rb') as f:
+        reader = csv.reader(f)
 
-
+        ans = []
+        for row in reader:
+            ans.append(float(row[column]))
+    return ans
 
 import sys
 
@@ -287,7 +334,6 @@ if __name__ == '__main__':
         print "which graph to make?"
         usage()
         sys.exit(1)
-
     if sys.argv[1] == "bits":
         begin_doc()
         draw_mpfr_bits_cdf(read_simple_data_file('mpfr-bits.csv'))
@@ -299,6 +345,14 @@ if __name__ == '__main__':
     elif sys.argv[1] == "err":
         begin_doc()
         draw_sample_points(read_sample_points('sample-points.csv'))
+        end_doc()
+    elif sys.argv[1] == "rect-f":
+        begin_doc()
+        draw_improvement_rectangles('all.if.csv', 'all.of.csv')
+        end_doc()
+    elif sys.argv[1] == "rect-d":
+        begin_doc()
+        draw_improvement_rectangles('all.id.csv', 'all.od.csv')
         end_doc()
     else:
         print "unknown option: " + sys.argv[1]
