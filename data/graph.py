@@ -197,9 +197,19 @@ def draw_time_cdf(data):
 mpfr_data = [336,336,208,208,304,528,528,336,208,80,208,336,208,336,336,208,320,208,336,208,528,528,208,336,336,320,80,208]
 
 time_data = [13.3,5.3,300,174,44.5,44,102,48.2,22.3,300,192,32.4,282,14.9,30.7,126,40.2,25.1,28.3,11.6,41.8,78,144,144,96,53.3,41.3,66,29.5]
+
+def read_simple_data_file(name):
+    ans = []
+    with open(name) as f:
+        for line in f:
+            ans.append(float(line))
+    return ans
+
+
 if __name__ == '__main__':
     begin_doc()
-    #draw_mpfr_bits_cdf(mpfr_data)
+    #draw_mpfr_bits_cdf(read_simple_data_file('mpfr-bits.csv'))
     #draw_histo(mpfr_data)
-    draw_time_cdf(time_data)
+    draw_time_cdf(read_simple_data_file('casio-runtime.csv'))
     end_doc()
+    #print read_mpfr()
