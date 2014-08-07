@@ -16,17 +16,22 @@
   floating point arithmetic and also manually rearranging
   computations.
 
-  We introduce \casio, which \textit{automatically} improves floating
-  point accuracy by searching for error-reducing program
-  transformations.  This search is guided by techniques for estimating
-  rounding error and its sources, as well as mechanisms which detect
-  input regimes with distinct error behavior and select the best
-  program variant for each regime.  We evaluate \casio on examples
-  from a classic numerical methods textbook and demonstrate that it
-  can effectively reduce rounding error. We also consider \casio's
-  broader applicability by improving the accuracy of expressions from
-  a mathematical library as well as formulas from recent scientific
-  articles.
+  We introduce \casio, which automatically improves floating point
+  accuracy by searching for error-reducing program transformations.
+  This search is guided by techniques for estimating rounding error,
+  \jdiff{and its sources, as well as mechanisms which detect input
+    regimes with distinct error behavior and}{ finding its sources,
+    and dividing the input space into regimes with distinct error
+    behavior, allowing \casio to} select the best program variant for
+  each regime.  We evaluate \casio on examples from a classic
+  numerical methods textbook and \jdiff{demonstrate that it can
+    effectively reduce rounding error}{find that it reduces average
+    error by \todo{some quantitative measure}.}. We also
+  \jdiff{consider \casio's broader applicability by improving the
+    accuracy of expressions from a mathematical library as well as
+    formulas from recent scientific articles}{present a series of case
+    studies using a formulas found in the wild to show that \casio has
+    broad applicability}.
 
 \end{abstract}
 
