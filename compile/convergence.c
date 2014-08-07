@@ -27,7 +27,8 @@
 #define ARGS
 #endif
 
-void setup_mpfr(void);
+void setup_mpfr_f_im(void);
+void setup_mpfr_f_om(void);
 double f_if(ARGS);
 double f_id(ARGS);
 double f_il(ARGS);
@@ -35,6 +36,7 @@ double f_of(ARGS);
 double f_od(ARGS);
 double f_ol(ARGS);
 double f_im(ARGS);
+double f_om(ARGS);
 
 unsigned long long ulp(double x, double y) {
         if (x == 0) x = fabs(x); // -0 == 0
@@ -76,7 +78,7 @@ float *get_random(int nums) {
         float *rands, *out, *correct;             \
         int count, mcount;                        \
         srand(time(NULL));                        \
-        setup_mpfr();
+        setup_mpfr_f_im();
 
 #define CALIBRATE(iter)                                         \
         start = clock();                                        \
