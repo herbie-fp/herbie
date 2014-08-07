@@ -6,22 +6,23 @@
   Many applications from science and engineering depend on floating
   point hardware to efficiently approximate computations over real
   numbers.  Unfortunately, such approximations introduce rounding
-  error which can accumulate to produce unacceptable results.  When
+  error, which can accumulate to produce unacceptable results.  When
   the largest hardware-supported precision does not provide sufficient
   accuracy, developers may be forced to simulate arbitrary precision
   floating point arithmetic in software, incurring orders of magnitude
   slowdown.  While the numerical methods literature provides
   techniques to mitigate rounding error without increasing precision,
-  these techniques often require understanding the details of floating
-  point and manually rearranging computations.
+  these techniques often require both understanding the details of
+  floating point arithmetic and also manually rearranging
+  computations.
 
-  We introduce \casio, an \textit{automated} approach to improving
-  floating point accuracy by searching for error-reducing program
-  transformations.  \casio's search is guided by techniques to
-  estimate rounding error and its sources, as well as an approach to
-  detect input regimes with distinct error behavior and select the
-  best program variant for each regime.  We evaluate \casio on
-  examples from numerical methods textbooks and demonstrate that it
+  We introduce \casio, which \textit{automatically} improves floating
+  point accuracy by searching for error-reducing program
+  transformations.  This search is guided by techniques for estimating
+  rounding error and its sources, as well as mechanisms which detect
+  input regimes with distinct error behavior and select the best
+  program variant for each regime.  We evaluate \casio on examples
+  from a classic numerical methods textbook and demonstrate that it
   can effectively reduce rounding error. We also consider \casio's
   broader applicability by improving the accuracy of expressions from
   a mathematical library as well as formulas from recent scientific
