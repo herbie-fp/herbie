@@ -54,9 +54,8 @@ space.  At each step of its goal directed search, \casio focuses on
 expressions with high error, uses its recursive-rewriter to destruct
 the operator of that expression, and them simplifies the expression.
 To pursue different programs for different inputs, \casio holds on to
-all potentially relevant alternatives in candidate tables, combines
-incomparable candidates using regime inference, and analyzes periodic
-subexpressions for periodic regime boundries.  These two core ideas
+all potentially relevant alternatives in candidate tables, and combines
+incomparable candidates using regime inference.  These two core ideas
 combine the better parts of brute-force and targeted search.  By
 applying high-level strategies, \casio is able to explore deeply into
 the search space without running into exponential slowdown.  But like
