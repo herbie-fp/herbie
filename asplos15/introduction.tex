@@ -34,17 +34,25 @@ incurring orders of magnitude slowdown\footnote{Even arbitrary
   the developer must still carefully select a precision that provides
   sufficient accuracy.}.
 
-\todo{Pavel here} The numerical methods literature provides numerous
-techniques to analyze and mitigate rounding error without increasing
-precision. \todo{matrices, loops, stability, interpolation} In
-particular, forward and backward error analysis \todo{cite} coupled
-with various program transformations \todo{cite} can be applied to
-improve accuracy without increasing precision.  Unfortunately,
-applying these techniques often requires deep expertise and
-substantial manual effort.
+The numerical methods literature provides numerous techniques
+  to analyze and mitigate rounding error without increasing precision.
+Forward and backward error analysis \todo{cite}
+  can be applied to measure the error of a program,
+  and various program transformations \todo{cite}
+  can be applied to improve accuracy.
+Numerical methods is a vast field, which can also
+  support programmers in the accuracy of matrix computations,
+  avoid accumulating error in a loop,
+  and replace unsable algorithms with numerically stable ones.
+Unfortunately, these techniques require deep expertise
+  and substantial manual effort.
+Ideally, these analysis and program transformations
+  would be handled automatically.
 
-We introduce \casio, a first step toward automatically improving
-floating point accuracy.  \casio searches for error-reducing program
+As a first step toward this dream, we introduce \casio,
+  a technique for automatically mitigating rounding error
+  in floating point computations.
+\casio searches for error-reducing program
 transformations by combining three novel techniques.  First, \casio
 estimates which operations are responsible for rounding error by
 carefully sampling floating point inputs and comparing the results of
