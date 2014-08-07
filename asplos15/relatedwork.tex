@@ -28,7 +28,7 @@ This makes verification and analysis difficult
 Numerical analysis studies how to use computers
   to perform mathematical computations.
 This body of work includes a vast literature
-  on how to evaluate simple mathematical functions.
+  on how to evaluate mathematical functions.
 The technique of rearranging formulas into more-accurate forms
   appears in D.~Goldberg's survey~\cite{acm91-every-scientist},
   as well as common textbooks~\cite{book87-nmse}.
@@ -54,7 +54,7 @@ Recent work in the program verification community
   has allowed formal verification of numerical programs.
 The triangle area computation discussed by Kahan, for example,
   was proven to be accurate by S. Boldo in 2013~\cite{arith13-area-triangle}
-  in the interactive theorem prover Coq.
+  in the interactive proof assistant Coq.
 Larger computations have also be proven accurate,
   such as programs for computing discriminants~\cite{ieee09-discriminant-proven}
   or for solving simple partial differential equations~\cite{jar13-wave-equation-prove}.
@@ -78,8 +78,7 @@ The Stoke super-optimizer supports
   optimizing floating point programs while guaranteeing
   that the resulting accuracy is acceptable~\cite{pldi14-stoke}.
 Stoke uses a stochastic search over assembly programs
-  to find faster implementations of a given function
-  which can then be proven equivalent to the original.
+  to find faster implementations of a given function.
 When optimizing a program that uses floating point operations,
   Stoke allows the user to specify a maximum allowable error
   and produces programs whose output is equivalent to the original,

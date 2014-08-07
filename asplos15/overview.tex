@@ -4,45 +4,37 @@
 \section{Overview}
 \label{sec:overview}
 
-Given the complexities of error in floating point computation,
-  producing the minimal-error program
-  for a given real number formula
-  is impractical
-  \footnote{\cite{} show it this task to be NP-hard}.
-Instead, \casio performs a heuristic search over programs,
-  aiming for minimal error.
-Instead of attempting to transform the whole program,
-  \casio's search proceeds by applying local program transformations.
-Each transformation corresponds to a identity of real number formulas,
-  but does not necessarily preserve the semantics of the program
-  as evaluated with floating-point operators.
-\casio contains 122 rewrite rules,
-  most describing basic arithmetic facts
-  such as the commutativity of addition,
-  others demonstrating trigonometric facts
-  such as the sine and cosine angle addition identities.
+\todo{use quadratic?}
 
-\casio's heuristic search is organized by two core ideas:
-  high-level and domain-specific strategies
-  that apply goal-directed rewrite rules;
-  and pursuing different programs
-  for different parts of the input space.
-At each step of it's goal directed search,
-  \casio focuses on expressions with high error,
-  uses it's recursive-rewriter to destruct the operator of that expression,
-  and them simplifies the expression.
-To pursue different programs for different inputs,
-  \casio holds on to all potentially relevant alts in candidate tables,
-  combines incomparable candidates using regime inference,
-  and analyzes periodic subexpressions for periodic regime boundries.
-These two core ideas combine the better parts
-  of brute-force and targeted search.
-By applying high-level strategies,
-  \casio is able to explore deeply into the search space
-  without running into exponential slowdown.
-But like brute-force search,
-  \casio pursues multiple alternative transformations in parallel, 
-  selecting whichever produces the best result.
+Given the subtlety floating point error, producing the minimal-error
+program for a given real number formula is intractable
+\footnote{\cite{} show this task is NP-hard}.  Instead, \casio
+performs a heuristic search over programs, aiming for minimal error.
+Instead of attempting to transform the whole program, \casio's search
+proceeds by applying local program transformations.  Each
+transformation corresponds to a identity of real number formulas, but
+does not necessarily preserve the semantics of the program as
+evaluated with floating-point operators.  \casio contains \nRewrites
+rewrite rules, most describing basic arithmetic facts such as the
+commutativity of addition, others demonstrating trigonometric facts
+such as the sine and cosine angle addition identities.
+
+\casio's heuristic search is organized by two core ideas: high-level
+and domain-specific strategies that apply goal-directed rewrite rules;
+and pursuing different programs for different parts of the input
+space.  At each step of its goal directed search, \casio focuses on
+expressions with high error, uses its recursive-rewriter to destruct
+the operator of that expression, and them simplifies the expression.
+To pursue different programs for different inputs, \casio holds on to
+all potentially relevant alternatives in candidate tables, combines
+incomparable candidates using regime inference, and analyzes periodic
+subexpressions for periodic regime boundries.  These two core ideas
+combine the better parts of brute-force and targeted search.  By
+applying high-level strategies, \casio is able to explore deeply into
+the search space without running into exponential slowdown.  But like
+brute-force search, \casio pursues multiple alternative
+transformations in parallel, selecting whichever produces the best
+result.
 
 To demonstrate the method by which
   \casio improves the precision of floating point programs,
@@ -51,7 +43,7 @@ To demonstrate the method by which
   \frac1{\sqrt2} \sqrt{\sqrt{x^2 + y^2} + x},
 \end{equation}
   which computes the real part of $\sqrt{x + i y}$.
-This forumla is imprecise for negative $x$,
+This forumla is inaccurate for negative $x$,
   especially if $x$ is large and $y$ is small.
 Improving the precision of this formula
   involves most of the major systems;
@@ -69,6 +61,7 @@ The imprecision arises from the addition $\sqrt{x^2 + y^2} + x$:
   by analyzing the behavior of the program on sample inputs.
 For each expression in the program,
   \casio computes the exact value of its children
+  \todo{to 64 bits? on floats / doubles?}
   using arbitrary-precision arithmetic.
 A \emph{locally approximate} result is then computed
   by applying a floating-point operator to exact arguments.
@@ -107,7 +100,7 @@ This candidate does not have improved precision,
 To discover this cancellation,
   \casio cannot use focusing and recursive rewrite
   because there are too many intermediate steps:
-  removing the unnecessary $\sqrt{-}^2$,
+  removing the unnecessary square root squared,
   commuting the addition $x^2 + y^2$,
   and reassociating the subtraction $(y^2 + x^2) - x^2$.
 Discovering such a long sequence of undirected steps
@@ -121,13 +114,13 @@ Simplification automatically performs all the steps necessary
   \frac1{\sqrt2} \sqrt{\frac{y^2}{\sqrt{x^2 + y^2} - x}}.
 \end{equation}
 This new program has no imprecision for negative $x$,
-  but it is imprecise for positive $x$.
+  but it is inaccurate for positive $x$.
 Regime inference will now be used to combine both programs
-  into one that is precise for all $x$.
+  into one that is inaccurate for all $x$.
 
 In this example, as in many,
-  no single-regime program is precise for all input values.
-To compute a formula precisely, the data must select
+  no single-regime program is inaccurate for all input values.
+To compute a formula inaccurate, the data must select
   which program to use for the formula's evaluation.
 \casio's regime inference system
   computes the branch condition
@@ -145,8 +138,8 @@ In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
 The final program produced by \casio is
 \[
 \begin{cases}
-  \frac1{\sqrt2} \sqrt{\sqrt{x^2 + y^2} + x} & x \ge 0 \\
-  \frac1{\sqrt2} \sqrt{\frac{y^2}{\sqrt{x^2 + y^2} - x}} & x < 0 \\
+  \frac1{\sqrt2} \sqrt{\sqrt{x^2 + y^2} + x} & \mathtt{if} \;\; x \ge 0 \\[8pt]
+  \frac1{\sqrt2} \sqrt{\frac{y^2}{\sqrt{x^2 + y^2} - x}} & \mathtt{otherwise} \\
 \end{cases}
 \]
 
@@ -169,7 +162,7 @@ p(e_-, e_+|x) &= (\operatorname{sig} x)^{e_+} (1 - \operatorname{sig} x)^{e_-} \
 \end{align*}
   and found that the simple encoding of this formula as a program
   lead to spurious results and violated invariants in later code.
-Our estimates suggests that this simple encoding produces
+Our estimates suggest that this simple encoding produces
   seventeen bits of error, averaged over floating point values.
 To avoid these problems,
   our colleague manually manipulated the expression
@@ -191,7 +184,7 @@ The low-error program that \casio produced was of a complexity level
   such that human analysts would be unlikely to reproduce the result. 
 Furthermore, our attempts to simplify the program
   into a form more likely to be found by human analysts
-  have only been able to do so by greatly increasing it's error.
+  have only been able to do so by greatly increasing its error.
 By properly targetting its search,
   \casio is able to consider a greater number of viable alternatives
   than human analysts are able to,

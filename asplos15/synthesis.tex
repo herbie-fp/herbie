@@ -1,19 +1,17 @@
 \documentclass[paper.tex]{subfiles}
 \begin{document}
 
-\section{Synthesis in \casio}
+\section{Improving Accuracy with  \casio}
 \label{sec:synthesis}
 
-At a high level, \casio translates mathematical \emph{formulas}
-  into floating-point \emph{programs}.
-\casio accomplishes this translation using a heuristic search algorithm
-  that attempts to find a sequence of changes
-  that produces the largest improvement in precision.
-Unlike conventional compilers,
-  \casio is free to translate while changing
-  the semantics of the translated program.
+\casio improve accuracy using a heuristic search that attempts to find
+a sequence of changes that produce the largest improvement in
+accuracy.  Unlike conventional compilers, \casio is free to translate
+while changing the semantics of the translated program.
 
 \subsection{Constraints on \casio}
+
+Because we sample, we require soundness over reals.
 
 Though \casio can change the answer produced by a program,
   it is not free to return arbitrary answers.
@@ -33,7 +31,7 @@ Then we may require that \casio's transformations
   must preserve the real-number semantics of programs,
   though it may change their floating-point semantics.
 
-In fact, this constraint is too strong,
+We slightly relax this constraint,
   as it prevents transformations that change
   the region a program is defined on.
 For example, output of the transformation
@@ -43,7 +41,7 @@ For example, output of the transformation
   is equal to its input, except where $x = y$.
 For that particular input, the output program is not defined.
 To allow this class of transformations,
-  which can greatly improve the precision of a program,
+  which can greatly improve the accuracy of a program,
   we require that the output program
   only equal the input program where both are defined.
 We call programs that are equal they are defined \emph{real-equivalent} programs.
@@ -52,17 +50,18 @@ Since \casio must not change the real-number semantics of programs
   (except by changing where the program is defined),
   it is natural to structure \casio
   as applying a sequence of rewrite rules,
-  each of which satisfy the above property.
+  each of which preserve real equivalence.
 These rules are specified as input and output patterns;
   for example, the transformation above is a rule,
   with $x$ and $y$ matching arbitrary subexpressions.
-\casio contains 122 rules,
+\casio contains \nRewrites rules,
   including those for
   the commutativity, associativity, distributivity, and identity
   of basic arithmetic operators;
   fraction arithmetic;
   laws of squares, square roots, exponents, and logarithms;
   and some basic facts of trigonometry.
+
 Each of these rules is a basic fact of algebra;
   it incorporates no understanding of numerical methods.
 In preparing the rules,
@@ -78,15 +77,16 @@ The simplest, most obvious approach to a rewrite based system
   keeping the transformations where error behavior is improved.
 Unfortunately, this method is not effective:
   too much time is spent on rewrites
-  that have no effect on program precision,
-  and sequences of rewrites that would improve precision
+  that have no effect on program accuracy,
+  and sequences of rewrites that would improve accuracy
   are often not found, since intermediary steps do not neccessarily improve error.
+
 Often, multiple rewrites without any effect
-  are necessary to enable a rewrite that significantly improves precision.
+  are necessary to enable a rewrite that significantly improves accuracy.
 Sometimes, even after the correct rewrite is found,
-  terms need to be canceled before precision is gained.
+  terms need to be canceled before accuracy is gained.
 The simplistic random-rewrite approach struggles with these cases.
-To improve precision, important subexpressions
+To improve accuracy, important subexpressions
   must be found and focused on;
   sequences of rewrites need to be considered as a unit;
   and cancellation needs to occur automatically.
@@ -95,13 +95,13 @@ To improve precision, important subexpressions
   which threads together several rewrite techniques,
   each described below.
 The loop tracks a set of \emph{alternatives},
-  each a program real-equivalent to the input.
+  program variants each real-equivalent to the input.
 This set of alternatives only contains
   programs that have the lowest error on at least one point
   of all candidate programs generated so far.
 In each iteration, \casio generates new candidates
   by choosing one alternative that has not been chosen before;
-  finding expressions where a rewrite may lead improvement;
+  finding expressions where a rewrite may lead to improvement;
   selecting the rewrite-rules which match the error-causing operator
   and applying a sequence of rewrites to enable the application of that rule;
   and simplifying the result, canceling like terms.
@@ -114,38 +114,33 @@ After the main loop completes,
   throughout the course of the loop,
   and infers regimes of input values for which
   to execute different candidates.
-Together, these techniques make up \casio.
 
 \begin{figure}
+\begin{footnotesize}
 \begin{align*}
-  \|start| &\:e\ceq \\
-  & pts, exs \ceq \|pickPoints|\:e \\
-  & e' \ceq \|simplify|\:e \\
-  & e'' \ceq \|mapPeriod|\;e'\;\|main-loop| \\
-  & t \ceq \|makeTable|\;e''\\
-  & \|loop|\:t\\
-  \\
-  \|loop| &\:t\:\ceq \\
-  & \mathbf{if}\:t.\|done|\:\mathbf{then}\:\|finish|\:t\:\mathbf{else} \\
-  & e, t' \ceq \|pick|\;t \\
-  & es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
-  & \|loop|\:(t' + es) \\
-  \\
-  \|finish| &\;t \ceq \\
+  \|casio|&(e) \ceq \\
+  & pts, exs \ceq \|pickPoints|(e) \\
+  & e' \ceq \|simplify|(e) \\
+  & e'' \ceq \|mapPeriod|(e') \\
+  & t \ceq \|makeTable|(e'') \\
+  & \|while|(\|not| \; t.\|done|) \\
+  & \;\;\;\; e, t' \ceq \|pick|\;t \\
+  & \;\;\;\; es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
   & \|regimes|\:(\cup\{\|uncorrelated|\;e \I e \in t \})
 \end{align*}
-
+\end{footnotesize}
+\caption{\todo{caption}}
 \end{figure}
 
 \subsection{Evaluating error of expressions}
 
 As \casio discovers and applies rewrites,
-  it needs to know if it is improving precision.
+  it needs to know if it is improving accuracy.
 This can be done statically using interval~\cite{} or affine arithmetic~\cite{},
   or using an SMT solver to get tighter bounds~\cite{}.
 However, affine and interval arithmetic give
   very conservative estimates of error~\cite{},
-  and SMT techniques are slow.
+  and current SMT solver based techniques impose significant overhead.
 Instead, \casio estimates error by simply sampling many possible inputs
   and computing the average difference between a floating-point
   and arbitrary-precision evaluation on those points.
@@ -153,7 +148,7 @@ Arbitrary-precision arithmetic is slow,
   so arbitrary-precision results are computed only once per run;
   each rewrite need only be evaluated in floating-point
   and compared to the already-computed arbitrary-precision results.
-\casio selects 500 points, distributed approximately uniformly
+\casio selects \nSample points, distributed approximately uniformly
   over the \emph{set} of floating-point numbers
   (this leads to a near-uniform distribution over the exponent).
 While it may seem intuitive to instead select points
@@ -169,22 +164,21 @@ secondly, even for functions that have reasonable results for large input values
 Experiments show that the estimate computed from 500 points
   is rarely more than one bit of error removed from the true answer.
 
-Once sample points are chosen
-  and exact and floating-point answers are computed,
-  some measure of error is necessary to compare the two.
-Mathematically-natural measures include absolute and relative error.
-However, both of these measures are ill-suited
-  to measuring error between floating-point values~\cite{}.
-We follow \textsc{Stoke}~\cite{} in defining the error between $x$ and $y$
-  by the number of floating-point values in the range $[x, y]$.
-This measure of error is uniform over the input space,
-  avoiding problems with denormal floating-point values,
-  and avoiding any special handling for infinities.
-Casio evaluates the input program in arbitrary precision at every sample point,
-  and casting the result to floating point; this is the exact solution.
-Any candidate program can then be evaluated in floating point
-  and compared to the exact solution at that point,
-  to compute the candidate program's error at that point.
+  Once sample points are chosen and exact and floating-point answers
+  are computed, some measure of error is necessary to compare the two.
+  Mathematically-natural measures include absolute and relative error.
+  However, both of these measures are ill-suited to measuring error
+  between floating-point values~\cite{}.  We follow
+  \textsc{Stoke}~\cite{} in defining the error between $x$ and $y$ by
+  the number of floating-point values in the range $[x, y]$.  This
+  measure of error is uniform over the input space, avoiding problems
+  with denormal floating-point values, and avoiding any special
+  handling for infinities.  Casio evaluates the input program in
+  arbitrary precision at every sample point, and cast the result to
+  floating point; \casio considers this the exact solution.  Any
+  candidate program can then be evaluated in floating point and
+  compared to the exact solution at that point, to compute the
+  candidate program's error at that point.
 
 \begin{figure}
 \begin{align*}
@@ -209,13 +203,12 @@ Any candidate program can then be evaluated in floating point
 \subsection{Focusing with local error}
 
 In order to most effectively apply rewrites that reduce error,
-  \casio attempts to identity the expressions that cause the error.
+  \casio attempts to identify the expressions that cause the error.
 By looking at the error of each expression,
   \casio can determine which expressions
   have the most room for improvement.
 However, expressions where children have high error
-  usually have high error themselves by
-  the garbage-in garbage-out principle.
+  usually have high error themselves.
 To avoid biasing \casio's focusing algorithm
   toward larger expressions, \casio focuses
   based not on error, but on \emph{local error}.
@@ -231,7 +224,7 @@ By exactly evaluating inputs,
 \casio computes the local error of every operator at every sample point,
   and ``focuses'' on the three expressions
   whose operators have the highest local error.
-In many cases, this leads \casio to precisely the correct location
+In many cases, this leads \casio to precisely identify the correct location
   to apply a rewrite.
 For example, consider the program $\sqrt{x+1} - \sqrt{x}$.
 This program is imprecise when $x$ is large,
@@ -271,22 +264,22 @@ Upon analyzing this expression,
 After an expression is focused upon,
   \casio determines how to rewrite that expression.
 A common problem is that an expression may require multiple rewrites
-  to enable a rewrite that actually improves precision.
+  to enable a rewrite that actually improves accuracy.
 For example, consider the expression
 \[
  \left(\frac{1}{x-1} - \frac{2}{x} \right) + \frac{1}{x+1}.
 \]
 \casio correctly identifies the $(+)$ operator
   to have the most local error (due to cancellation).
-To improve the precision of this program,
+To improve the accuracy of this program,
   all of the fractions must be placed under a common denominator,
   and then the numerator must be simplified.
 \casio has rules for fraction addition and subtraction;
   however, doing a single fraction addition or subtraction
-  does not significantly change the precision of the program,
-  since precision loss is caused by a cancellation
+  does not significantly change the accuracy of the program,
+  since accuracy loss is caused by a cancellation
   that occurs when \emph{all} values are added together.
-In order to improve the precision of this program,
+In order to improve the accuracy of this program,
   \casio must use the fraction addition/subtraction rules twice:
   once on the parenthesized subtraction,
   then again for the remaining addition.
@@ -385,7 +378,7 @@ This update rule is also biased toward keeping alternatives
 
 \subsection{Regime inference}
 
-Often two real-equivalent programs have incomparable precision---%
+Often two real-equivalent programs have incomparable accuracy---%
   one performs better on some inputs, but worse on others.
 A striking example of this phenomenon occurs with the expression $(e^x - 1) / x$.
 The best program real-equivalent to the above
@@ -426,7 +419,7 @@ This algorithm runs in $O(n^2 k c)$ time,
   and $c$ is the number of candidate programs.
 We have found this to be sufficiently fast,
   and this algorithm produces the optimal set of up to $k$ regimes.
-Currently, the implementation of \casio caps $k$ at 5,
+Currently, the implementation of \casio limits $k$ to \nRegimes,
   since it is unlikely that producing more than 4 branches
   will improve error behavior enough to justify the added performance cost.
 Once \casio has determined that branch should be placed
@@ -435,9 +428,9 @@ Once \casio has determined that branch should be placed
   find the exact value to split on.
 
 This regimes algorithm finds regimes that improve
-  the precision of many of \casio's inputs.
+  the accuracy of many of \casio's inputs.
 Sometimes, like in the above example,
-  significant improvements in precision simply cannot be achieved
+  significant improvements in accuracy simply cannot be achieved
   without the use of branches.
 \casio's regime inference does this automatically
   and generates an appropriate branch condition.
@@ -502,8 +495,8 @@ The program in each regime is not changed,
 Rewriting expressions where local error is high
   is usually the correct approach.
 This is based on the assumption
-  that the way to improve the precision of a program
-  is to improve the precision of each expression in it.
+  that the way to improve the accuracy of a program
+  is to improve the accuracy of each expression in it.
 In some cases, however, it is beneficial not to reduce the error in affected expression,
   but instead to introduce similar error in a sister expression,
   so that the the error in one expression
