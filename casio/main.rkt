@@ -15,8 +15,6 @@
 (provide improve improve-alt
 	 *flags* toggle-flag! flag)
 
-(define *orig-altn* #f)
-
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
@@ -38,13 +36,15 @@
 (define (improve prog fuel)
   (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
 				  prepare-points prepare-points-uniform)]
-	       [(pts exs) (point-preparer prog)])
-    (parameterize ([*points* pts] [*exacts* exs])
+		[(pts exs) (point-preparer prog)]
+		[(more-pts more-exs) (parameterize ([*num-points* 8192])
+				       (prepare-points prog))])
+    (parameterize ([*points* pts] [*exacts* exs]
+		   [*more-points* more-pts] [*more-exacts* more-exs])
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
   (let ([alt-table (setup-alt alt fuel)])
-    (set! *orig-altn* alt)
     (improve-loop alt-table fuel)))
 
 ;; Implementation
@@ -86,7 +86,10 @@
     (let* ([alts* (append alts (append-map fixup alts))]
            [alts* (remove-duplicates alts* #:key alt-program)])
       (let ([combo (combine alts* fuel)])
-	(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
+	(if combo
+	    (best-alt-final (cons combo alts*))
+	    (best-alt-final alts*))))))
+	#;(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -120,10 +123,7 @@
 	  (argmins alt-cost
 		   (argmins (compose errors-score
 				     (λ (altn)
-				       (let-values ([(more-pts more-exs)
-						     (parameterize ([*num-points* 8192])
-						       (prepare-points (alt-program altn)))])
-					 (errors (alt-program altn) more-pts more-exs))))
+				       (errors (alt-program altn) (*more-points*) (*more-exacts*))))
 			    alts))))
 
 (define (zach-alt altn)
