@@ -108,13 +108,16 @@
   [sinh     "mpfr_sinh(~a, ~a, MPFR_RNDN)"]
   [cosh     "mpfr_cosh(~a, ~a, MPFR_RNDN)"]
   [tanh     "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
-  [if       "if (~a) { ~a; } else { ~a; }"]
-  [>        "mpfr_cmp(~a, ~a) > 0"]
-  [<        "mpfr_cmp(~a, ~a) < 0"]
-  [<=       "mpfr_cmp(~a, ~a) <= 0"]
-  [>=       "mpfr_cmp(~a, ~a) >= 0"]
-  [and      "~a && ~a"]
-  [or       "~a || ~a"]
+  [if       (λ (r c a b)
+               (format
+                "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }"
+                c r a r b))]
+  [>        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)"]
+  [<        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)"]
+  [<=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)"]
+  [>=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)"]
+  [and      "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
+  [or       "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
   [atan2    "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
   [mod      "mpfr_fmod2(~a, ~a, ~a)"])
 
@@ -145,7 +148,7 @@
   (write-string
    (printf "static mpfr_t ~a;\n\n" (string-join (map symbol->string (map car (cadr body))) ", "))
 
-   (printf "void setup_mpfr() {\n")
+   (printf "void setup_mpfr_~a() {\n" fname)
    ; Some guard bits added, just in case
    (printf "        mpfr_set_default_prec(~a);\n" (+ bits 8))
    (for ([reg (map car (cadr body))])
@@ -168,7 +171,7 @@
   (printf "#include <mpfr.h>\n")
   (printf "#include <stdio.h>\n")
   (printf "#include <stdbool.h>\n\n")
-  (printf "const char name[] = \"~a\";\n\n" name)
+  (printf "char *name = \"~a\";\n\n" name)
   (display (compile->c iprog "float" "f_if"))
   (display (compile->c iprog "double" "f_id"))
   (display (compile->c iprog "long double" "f_il"))
