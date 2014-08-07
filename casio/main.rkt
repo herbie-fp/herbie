@@ -15,6 +15,8 @@
 (provide improve improve-alt
 	 *flags* toggle-flag! flag)
 
+(define *orig-altn* #f)
+
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
@@ -42,6 +44,7 @@
 
 (define (improve-alt alt fuel)
   (let ([alt-table (setup-alt alt fuel)])
+    (set! *orig-altn* alt)
     (improve-loop alt-table fuel)))
 
 ;; Implementation
@@ -82,7 +85,8 @@
          ((flag 'reduce 'zach) zach-alt (const '()))])
     (let* ([alts* (append alts (append-map fixup alts))]
            [alts* (remove-duplicates alts* #:key alt-program)])
-      (or (combine alts* fuel) (best-alt alts*)))))
+      (let ([combo (combine alts* fuel)])
+	(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -108,6 +112,19 @@
   (when (null? alts)
     (error "Trying to find the best of no alts!"))
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
+
+(define (best-alt-final alts)
+  (when (null? alts)
+    (error "Something has gone horribly wrong"))
+  (argmin alt-history-length
+	  (argmins alt-cost
+		   (argmins (compose errors-score
+				     (λ (altn)
+				       (let-values ([(more-pts more-exs)
+						     (parameterize ([*num-points* 8192])
+						       (prepare-points (alt-program altn)))])
+					 (errors (alt-program altn) more-pts more-exs))))
+			    alts))))
 
 (define (zach-alt altn)
   (apply append
