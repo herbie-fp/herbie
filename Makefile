@@ -1,7 +1,8 @@
 
 .PHONY: report publish link clean loc
 
-report: 
+report:
+	rm -r graphs/*
 	racket reports/make-report.rkt bench/hamming/
 
 publish:
