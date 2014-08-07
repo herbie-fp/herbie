@@ -52,7 +52,7 @@ and domain-specific strategies that apply goal-directed rewrite rules;
 and pursuing different programs for different parts of the input
 space.  At each step of its goal directed search, \casio focuses on
 expressions with high error, uses its recursive-rewriter to destruct
-the operator of that expression, and them simplifies the expression.
+the operators of those expressions, and them simplifies the results.
 To pursue different programs for different inputs, \casio holds on to
 all potentially relevant alternatives in candidate tables, and combines
 incomparable candidates using regime inference.  These two core ideas
@@ -87,8 +87,7 @@ The imprecision arises from the addition $\sqrt{x^2 + y^2} + x$:
 \casio notices this same fact
   by analyzing the behavior of the program on sample inputs.
 For each expression in the program,
-  \casio computes the exact value of its children
-  \todo{to 64 bits? on floats / doubles?}
+  \casio computes the exact value of its children to 64 bits
   using arbitrary-precision arithmetic.
 A \emph{locally approximate} result is then computed
   by applying a floating-point operator to exact arguments.
@@ -106,7 +105,6 @@ Once problematic expressions are identified,
 \casio uses a recursive rewrite algorithm for doing this:
   if a rewrite rule does not immediately pattern match on the expression,
   but destructs the correct operator,
-  and matches the number of arguments,
   the children of the expression are recursively rewritten
   in an attempt to make the rule match.
 This rewrite step produces several candidate programs
@@ -132,8 +130,8 @@ To discover this cancellation,
   and reassociating the subtraction $(y^2 + x^2) - x^2$.
 Discovering such a long sequence of undirected steps
   by enumerating all sequences of rewrites
-  would take too long.
-Instead, \casio has a simplification pass
+  is impractical;
+  instead, \casio has a simplification pass
   specialized toward cancelling like terms.
 Simplification automatically performs all the steps necessary
   to transform the candidate~\eqref{eq:ex2} into
@@ -147,12 +145,13 @@ Regime inference will now be used to combine both programs
 
 In this example, as in many,
   no single-regime program is inaccurate for all input values.
-To compute a formula inaccurate, the data must select
-  which program to use for the formula's evaluation.
+To compute the forumula with the greatest accuracy,
+  the implementation of the forumula must depend upon the input values.
 \casio's regime inference system
   computes the branch condition
-  that selects between several programs depending on the input data.
-Regime inference creates this condition
+  that selects between several implementations depending on the input data.
+\casio's regime inference subsystem
+  infers the best branch condition
   by considering all generated programs
   that are best on at least one sample point,
   and then using the sample points to divide each input variable
