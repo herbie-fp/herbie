@@ -6,7 +6,7 @@ PLOT_Y = 6
 PT_WEIGHT = "1pt"
 
 def begin_doc():
-    print """\\documentclass{article}
+    print """\\documentclass{standalone}
 \\usepackage{tikz}
 \\begin{document}"""
 
