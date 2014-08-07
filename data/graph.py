@@ -194,6 +194,63 @@ def draw_time_cdf(data):
 
     end_picture()
 
+def draw_overhead_cdf(iname, oname):
+    left = read_time_data(iname)
+    right = read_time_data(oname)
+
+    assert len(left) == len(right)
+
+    data = [y / x for (x,y) in zip(left, right)]
+
+    data.sort()
+    n = len(data)
+    hi = data[-1] * 1.05
+
+    def to_plot_space(pt):
+        x = PLOT_X * (float(pt[0]) / hi)
+        y = PLOT_Y * (float(pt[1]) / n)
+        return (x,y)
+
+    begin_picture()
+
+    pts = [(0,0)]
+    for (i,d) in enumerate(data):
+        x = d
+        y = i+1
+        pts.append((x,y))
+    pts.append((hi, pts[-1][1]))
+
+    for i in range(1, len(pts)):
+        prev = pts[i-1]
+        cur = pts[i]
+
+        mid = (cur[0], prev[1])
+        draw_line(to_plot_space(prev), to_plot_space(mid))
+        draw_line(to_plot_space(mid), to_plot_space(cur))
+
+
+    h_ticks = []
+    for i in [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
+        xp = to_plot_space((i,0))[0]
+        h_ticks.append((xp, i))
+
+
+    v_ticks = [(0,"0\\%")]
+    for i in range(1,5):
+        v_ticks.append((to_plot_space((0,(float(n)/4)*i))[1], "%d\\%%" % ((100 / 4)*i)))
+
+    draw_axes(h_capt="Casio overhead (ratio)",
+              v_capt="\\% of benchmarks",
+              h_ticks=h_ticks,
+              v_ticks=v_ticks)
+
+    end_picture()
+    #print left
+    #print right
+    #print data
+
+
+
 from math import *
 
 def draw_sample_points(data):
@@ -287,6 +344,9 @@ def draw_improvement_rectangles(iname, oname):
     )
     end_picture()
 
+
+
+
 def read_simple_data_file(name):
     ans = []
     with open(name) as f:
@@ -311,6 +371,17 @@ def read_sample_points(name):
 
         return ans
 
+def read_time_data(name):
+    column = 1
+
+    with open(name, 'rb') as f:
+        reader = csv.reader(f)
+
+        ans = []
+        for row in reader:
+            ans.append(float(row[column]))
+        return ans
+
 def read_improvement_data(name):
     column = 3
     with open(name, 'rb') as f:
@@ -330,7 +401,8 @@ def usage():
     print "\terr\thow does casio depend on number of points sampled?"
     print "\trect-f\thow does casio improve precision (float)"
     print "\trect-d\thow does casio improve precision (double)"
-
+    print "\toverhead-f\thow does casio change performance (float)"
+    print "\toverhead-d\thow does casio change performance (double)"
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -356,6 +428,14 @@ if __name__ == '__main__':
     elif sys.argv[1] == "rect-d":
         begin_doc()
         draw_improvement_rectangles('all.id.csv', 'all.od.csv')
+        end_doc()
+    elif sys.argv[1] == "overhead-d":
+        begin_doc()
+        draw_overhead_cdf('all.id.csv', 'all.od.csv')
+        end_doc()
+    elif sys.argv[1] == "overhead-f":
+        begin_doc()
+        draw_overhead_cdf('all.if.csv', 'all.of.csv')
         end_doc()
     else:
         print "unknown option: " + sys.argv[1]
