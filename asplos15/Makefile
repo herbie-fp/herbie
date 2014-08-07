@@ -1,6 +1,6 @@
 TEX = $(wildcard *.tex)
 BIB = references.bib
-FIGS = $(wildcard im/*.pdf_tex im/*.pdf im/*.png)
+FIGS = $(wildcard fig/*.pdf_tex fig/*.pdf fig/*.png)
 
 .PHONY: all clean rebib
 
