@@ -256,13 +256,13 @@ Upon analyzing this expression,
 \begin{align*}
   &\!def!\:\|localerror|(ctx, e) \ceq \\
   &\> \!match!\:e \\
-  &\> \> c \tto 1 \\
-  &\> \> x \tto 1 \\
-  &\> \> f(e_1, \dotsc, e_k) \tto \\
-  &\> \> \>  e_i' \ceq \|eval|_\infty(ctx, e_i) \\
-  &\> \> \>  r_{64} \ceq f_{64}(\F_{64}(e_1'), \dotsc, \F_{64}(e_k')) \\
-  &\> \> \>  r_\infty \ceq \F_{64}(f_\infty(e_1', \dotsc, e_k')) \\
-  &\> \> \>  \Err(r_{64}, r_\infty) \\
+  &\> c \tto 1 \\
+  &\> x \tto 1 \\
+  &\> f(e_1, \dotsc, e_k) \tto \\
+  &\> \>  e_i' \ceq \|eval|_\infty(ctx, e_i) \\
+  &\> \>  r_{64} \ceq f_{64}(\F_{64}(e_1'), \dotsc, \F_{64}(e_k')) \\
+  &\> \>  r_\infty \ceq \F_{64}(f_\infty(e_1', \dotsc, e_k')) \\
+  &\> \>  \Err(r_{64}, r_\infty) \\
 \end{align*}
 \end{footnotesize}
 \caption{Computation of local error.
@@ -314,24 +314,25 @@ This matching algorithm, which we call recursive rewrite pattern matching,
 
 \begin{figure}
 \begin{align*}
-  \Pat &\ceq c | x | f(p_1, \dotsc, p_k) \\
-  & c : \Expr, x : \Var_p, f : \Op, p_k : \Pat \\
-  \mathbf{rules} &: (\Pat \times \Pat)\:\|set| \\
-  \|match| &: \Pat \to \Expr \to (\Var_p \to \Expr) \\
-  \|subst| &: \Pat \to (\Var_p \to \Expr) \to \Expr \\
+  &\!type!\:\Pat \ceq c | x | f(p_1, \dotsc, p_k) \\
+  &\> c : \Expr, x : \Var_p, f : \Op, p_k : \Pat \\
+  &\!const!\:\|rules| \ceq \dotsb : (\Pat \times \Pat)\:\|set| \\
+  &\!def!\:\|match| \ceq \dotsb : \Pat \to \Expr \to (\Var_p \to \Expr) \\
+  &\!def!\:\|subst| \ceq \dotsb : \Pat \to (\Var_p \to \Expr) \to \Expr \\
   \\
-  \|rr'| &: \Expr \to \Pat \to (\Expr \times (\Var_p \to Expr))\:\|set| \\
-  \|rr'| &\:e\:e \ceq [ (e, \cdot) ] \\
-  \|rr'| &\:e\:x' \ceq [ (e, x \mapsto e) ] \\
-  \|rr'| &\:f(e_1, \dotsc, e_k)\:f(p_1, \dotsc, p_k) \ceq \\
-  & \{ ( f(e_1', \dotsc, e_k'), \cup_i \Gamma_i) \I \\
-  & \; (e_i', \Gamma_i) \in \|rr'|\:e_i\:p_i, \|compatible|\:\Gamma_i \} \\
-  \|rr'| &\:f(e_1, \dotsc, e_k)\:f'(p_1, \dotsc, p_l) \ceq \\
-  & \cup \{ \|rr'|\:(\|subst|\:b\:(\cup_i \Gamma_i))\:f'(p_1, \dotsc, p_l) \I \\
-  & \quad (e_i', \Gamma_i) \in \|rr'|\:e_i\:a_i, \|compatible|\:\Gamma_i, \\
-  & \quad (a, b) \in \mathbf{rules}, a \sim f(a_1, \dotsc, a_k) \} \\
+  &\!def!\:\|rr'|(e, p) \ceq \\
+  &\> \!match!\:(e, p) \\
+  &\>  (e, e) \tto \{ (e, \cdot) \} \\
+  &\>  (e, x) \tto \{ (e, x \mapsto e) \} \\
+  &\>  (f(e_1, \dotsc, e_k), f(p_1, \dotsc, p_k)) \tto \\
+  &\> \> \{ ( f(e_1', \dotsc, e_k'), \cup_i \Gamma_i) \I \\
+  &\> \> \; (e_i', \Gamma_i) \in \|rr'|\:e_i\:p_i, \|compatible|\:\Gamma_i \} \\
+  &\> (f(e_1, \dotsc, e_k), f'(p_1, \dotsc, p_l)) \tto \\
+  &\> \> \cup \{ \|rr'|\:(\|subst|\:b\:(\cup_i \Gamma_i))\:f'(p_1, \dotsc, p_l) \I \\
+  &\> \> \quad (e_i', \Gamma_i) \in \|rr'|\:e_i\:a_i, \|compatible|\:\Gamma_i, \\
+  &\> \> \quad (a, b) \in \|rules|, a \sim f(a_1, \dotsc, a_k) \} \\
   \\
-  \|rr| &\:e\ceq \cup \{ \|rr'|\:e\:p \I (p, q) \in \mathbf{rules} \}
+  &\!def!\:\|rr|(e) \ceq \cup \{ \|rr'|\:e\:p \I (p, q) \in \|rules| \}
 \end{align*}
 \caption{Recrusive rewrite pattern matching.
   Given a set of from/to patterns in \textbf{rules}
