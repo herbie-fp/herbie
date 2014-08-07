@@ -1,0 +1,58 @@
+#include <stdbool.h>
+id ,    2.29284e+07,          61.96,        23.6275
+#include <stdbool.h>
+id ,    1.16845e+08,        61.9474,        23.7428
+#include <stdbool.h>
+id ,     1.4158e+08,        62.9986,        38.8034
+#include <stdbool.h>
+id ,    1.46613e+08,        61.9307,         24.248
+#include <stdbool.h>
+id ,    7.02703e+07,        62.9159,        50.1729
+#include <stdbool.h>
+id ,    8.05283e+07,        61.9972,        27.4526
+#include <stdbool.h>
+id ,    2.34793e+07,         63.648,        31.7368
+#include <stdbool.h>
+id ,    2.28892e+07,        61.9218,         30.591
+#include <stdbool.h>
+id ,    1.23102e+08,             63,        40.5542
+#include <stdbool.h>
+id ,    2.51044e+07,        61.9218,        29.8499
+#include <stdbool.h>
+id ,    1.45858e+08,        63.0031,        23.8065
+#include <stdbool.h>
+id ,    1.91187e+08,        62.9986,         29.295
+#include <stdbool.h>
+id ,    8.69811e+07,        61.9601,        27.2541
+#include <stdbool.h>
+id ,    1.30323e+07,         62.135,        18.2438
+#include <stdbool.h>
+id ,    1.30559e+07,        62.1285,        18.2357
+#include <stdbool.h>
+id ,    1.02632e+08,        63.6466,        41.4449
+#include <stdbool.h>
+id ,    2.69813e+07,        61.9218,        45.7979
+#include <stdbool.h>
+id ,    4.90868e+07,             63,         28.679
+#include <stdbool.h>
+id ,    1.88608e+08,             63,        27.1216
+#include <stdbool.h>
+id ,    2.14868e+08,             63,        38.9645
+#include <stdbool.h>
+id ,    1.59158e+08,        61.9592,        27.3475
+#include <stdbool.h>
+id ,    5.96486e+07,        61.9233,        27.2024
+#include <stdbool.h>
+id ,    2.99557e+07,        61.8848,         23.839
+#include <stdbool.h>
+id ,    1.07107e+07,        62.1297,        18.1005
+#include <stdbool.h>
+id ,    1.01254e+07,         62.131,        18.1164
+#include <stdbool.h>
+id ,        -118398,        61.8423,        23.2676
+#include <stdbool.h>
+id ,    1.69697e+08,        63.0216,        29.3804
+#include <stdbool.h>
+id ,    2.56865e+06,        62.8824,        26.9636
+#include <stdbool.h>
+#include <mpfr.h>

@@ -1,0 +1,36 @@
+        float r2125 = 1.0;
+        float r3095 = 1.0;
+        float r3179 = eps;
+        float r3394 = 1.0;
+        float r3485 = exp(r3484);
+        float r3623 = x;
+        float r3682 = exp(r3681);
+        float r3733 = x;
+        float r3783 = x;
+        float r3898 = exp(r3897);
+        float r3993 = 1.0;
+        float r2179 = eps;
+        float r4083 = x;
+        float r4153 = b_2F2;
+        float r4341 = b_2F2;
+        float r4529 = a;
+        float r4667 = x;
+        float r4721 = x;
+        float r4841 = sin(r4840);
+        float r4893 = 1.0;
+        float r2260 = x;
+        float r2318 = 1.0;
+        float r2372 = x;
+        float r2446 = -r2445;
+        float r2596 = -r2595;
+        float r2720 = x;
+        float r2771 = eps;
+        float r2991 = x;
+
+#include <stdbool.h>
+char *name = "NMSE problem 3.4.1";
+#include <mpfr.h>
+        float r3622 = 1.0;
+double f_if(float x) {
+        float r3993 = 1.0;
+

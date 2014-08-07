@@ -1,0 +1,62 @@
+double f_if(float x) {
+od ,    2.26429e+07,              2,       0.394097
+double f_if(float x) {
+od ,    2.83448e+08,        58.3298,        22.8384
+double f_if(float x, float eps) {
+od ,    8.04061e+08,        62.9223,        24.9863
+double f_if(float N) {
+od ,    3.85438e+08,             63,         22.942
+double f_if(float x) {
+od ,    2.04939e+08,        61.9218,        47.6521
+double f_if(float x) {
+od ,    5.88412e+07,        61.9972,        26.2172
+double f_if(float x) {
+od ,    3.72993e+07,         63.648,        28.8268
+double f_if(float a, float x) {
+od ,    2.28457e+07,        61.9218,         30.591
+double f_if(float x) {
+od ,    4.00286e+08,             63,        36.8566
+double f_if(float x) {
+od ,    3.08931e+07,        58.4376,        27.6285
+double f_if(float N) {
+od ,    1.94146e+08,        63.0031,        23.3477
+double f_if(float x, float eps) {
+od ,    3.40161e+08,        61.9204,        15.6445
+double f_if(float x) {
+od ,    2.98225e+08,        62.9632,        26.7043
+double f_if(float a, float b_2F2, float c) {
+od ,    3.06421e+07,        63.6302,        18.2479
+double f_if(float a, float b_2F2, float c) {
+od ,    3.02876e+07,        63.6296,        18.2772
+double f_if(float a, float b, float eps) {
+od ,    1.02126e+08,        63.6466,        41.4449
+double f_if(float x) {
+od ,    1.99651e+08,        61.9218,        43.0523
+double f_if(float x) {
+od ,    8.20209e+07,             63,        25.0396
+double f_if(float x) {
+od ,    1.83778e+08,             63,        26.8784
+double f_if(float x, float n) {
+od ,    1.44441e+08,         63.946,        38.9147
+double f_if(float x) {
+od ,    1.17709e+08,        36.9372,       0.520533
+double f_if(float N) {
+od ,    2.23255e+07,              1,       0.083121
+double f_if(float x) {
+od ,    3.73925e+07,        61.8802,        18.6237
+double f_if(float a, float b, float c) {
+od ,    1.91471e+07,        61.9724,       0.260984
+double f_if(float a, float b, float c) {
+od ,    1.76696e+07,        63.1329,        18.1641
+double f_if(float x) {
+od ,     -3.044e+06,        1.58496,       0.085877
+double f_if(float x, float eps) {
+od ,    5.81521e+08,        63.0364,        26.9881
+double f_if(float x) {
+od ,   -3.13168e+06,        61.8811,        24.4991
+
+#include <stdbool.h>
+char *name = "NMSE problem 3.3.7";
+#include <mpfr.h>
+double f_if(float x) {
+
