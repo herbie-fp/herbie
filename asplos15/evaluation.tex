@@ -4,95 +4,27 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate \casio on benchmarks drawn from a numerical methods
-textbook.  The results demonstrate the \casio substantially improves
-the accuracy of many of these expressions, without significantly
-slowing execution.  In all cases, the programs produced by \casio run
-orders of magnitude faster than software floating point.  In some
-cases, the accuracy of the programs outputted by \casio exceeds that
-of rewrites provided by numerical methods textbooks.  We also
-separately evaluate our error estimation technique and our regime
-inference algorithm, and describe several case studies using \casio.
+We evaluate \casio on benchmarks drawn from Hamming's \emph{Numerical
+  Methods for Scientists and Engineers}~\cite{book87-nmse}, a standard
+numerical analysis textbook.  Our evaluation includes every worked
+example and problem, twenty-eight in total, from Chapter~3, which
+discusses manually rearranging formulas to improve accuracy, the same
+task that \casio automates.
 
-All experiments were carried out on \todo{describe machine}.
-\todo{compiler flags order of magnitude speed up !!!}
+All experiments were carried out on an Intel Core~i5-3317U with 4GB
+RAM running Fedora Linux 19, PLT Racket 5.3.6, and GCC 4.9.1.  When
+compiling programs to C for performance measurements, we used GCC
+flags \texttt{-march=native}, \texttt{-mtune=native},
+\texttt{-mfpmath=both}, \texttt{-O3}, and \texttt{-flto}.
 
-\subsection{Evaluating \casio end-to-end}
-
-\paragraph{Benchmarks}
-We chose benchmarks from Hamming's \emph{Numerical Methods for
-  Scientists and Engineers}~\cite{book87-nmse}, a standard textbook in
-numerical analysis\footnote{NMSE was the top result for ``numerical
-  methods'' on Amazon at the time of writing.}.  These tests measure
-\casio's performance on standard examples from numerical analysis.  To
-avoid sampling bias, we include every worked example and problem from
-Chapter~3, which discusses manually rearranging formulas to more
-accurately evaluate them---%
-the same task that \casio performs automatically.  These total
-twenty-nine benchmarks, of which twenty-seven had a large rounding
-error%
-\footnote{The other two are examples of programs which appear to need
-  rearrangement, but in fact do not need it.}.
-
-\begin{figure}
-\label{fig:eval-casio-time}
-\includegraphics[width=0.9\columnwidth]{fig/eval-casio-time.pdf}
-\caption{\todo{caption}}
-\end{figure}
-
-\paragraph{\casio configuration}
-\casio was run on each benchmark in a standard configuration%
-  \footnote{including regime inference and
-    the normal number of sample points.}.
-The main loop was capped at five iterations.
-Figure~\ref{fig:eval-casio-time} is a cumulative density function
-  for \casio's runtime on these benchmarks.
-For 17 of 29 tests, \casio runs in under one minute.
-
-\begin{figure}
-\label{fig:eval-mpfr-bits}
-\includegraphics[width=0.9\columnwidth]{fig/eval-mpfr-bits.pdf}
-\caption{\todo{caption}}
-\end{figure}
-
-\paragraph{Measuring accuracy and speed}
-The accuracy and speed was measured,
-  both for the original program in each benchmark,
-  and for \casio's output.
-Examples were compiled to C,
-  which was then compiled by the GNU Compiler Collection
-  with flags optimizing for performance without loss of accuracy%
-  \footnote{Version $4.9.1$ of \texttt{gcc} was used, with flags
-    \texttt{-march=native}, \texttt{-mtune=native},
-    \texttt{-mfpmath=both}, \texttt{-O3}, and \texttt{-flto}.
-    Experiments were run on an Intel Core~i5-3317U processor.}.
-\todo{What about \texttt{-ffast-math}?}
-Both the input and output program were run
-  with single, double, and extended double (32, 64, and 80 bits)
-  intermediates.
-Each program was run on the same set of 1,000,000 points
-  drawn randomly from the set of single-precision floating point numbers.
-Results were compared with a ground truth computed via
-  the MPFR arbitrary-precision library~\cite{acm07-mpfr}.
-Figure~\ref{fig:eval-mpfr-bits} is a cumulative density function
-  for the number of bits necessary to exactly evaluate the benchmarks.
-The error of an output computed in floating-point,
-  was taken to be the base-2 logarithm of the number
-  of 64-bit floating point values%
-  \footnote{Inputs are single precision values,
-    while outputs are double precision.
-    Single precision for inputs avoids handicapping implementations
-    that use single precision for intermediate values.
-    Double precision for outputs allows measuring error
-    more accurately than single precision would.},
-  between the exact and inexact answer:
-  the bits in error for the approximate output, compared to the exact answer.
-This error was averaged over all points for which the exact answer
-  was a finite floating point value,
-  resulting in a simple number which can be used for comparing implementations.
-Sampling one million points
-  is a very accurate measure of the average error,
-  as demonstrated in Section~\ref{sec:eval-eval}.
+Overall, our results demonstrate that \casio can improve accuracy for
+many of our benchmarks, often without significantly slowing execution.
+In all cases, the programs produced by \casio run orders of magnitude
+faster than software floating point.  In some cases, the accuracy of
+the programs output by \casio even exceeds that solutions provided by
+experts in numerical methods textbooks.  We also separately evaluate
+our error estimation technique and our regime inference algorithm, and
+describe several case studies using \casio.
 
 \begin{figure}
 \label{fig:eval-rect-f}
@@ -106,22 +38,85 @@ Sampling one million points
 \caption{\todo{caption}}
 \end{figure}
 
-\paragraph{Results}
-Our results are shown in Figure~\ref{fig:eval-rect-f} and
-Figure~\ref{fig:eval-rect-d} for 32-bit single precision floats and
-64-bit double precision floats, respectively.  These results show that
-\casio can successfully improve many of the examples from NMSE.  Of
-the eleven benchmarks that \casio does not improve, eight have
-solutions which are not real-equivalent to the input (taylor
+\para{Accuracy} Our results are shown in Figure~\ref{fig:eval-rect-f}
+and Figure~\ref{fig:eval-rect-d} for 32-bit single precision floats
+and 64-bit double precision floats, respectively.  These results show
+that \casio can successfully improve many of the examples from NMSE.
+Of the eleven benchmarks that \casio does not improve, eight have
+solutions which are not real-equivalent to the input (Taylor
 expansions are used to recover precision near 0).  These benchmarks
 are impossible for \casio to improve without supporting unsound
 rewrites.
 
-The timing measurements demonstrate that \casio does not significantly
-hurt the speed of the original program.  \casio incurs an average
-overhead of \todo{N}\%.  In \todo{N} of the 29 benchmarks, \casio's
-error with single precision floating point is greater than the
-original program's accuracy with double precision.
+\begin{figure}
+\label{fig:eval-overhead-f}
+\includegraphics[width=0.9\columnwidth]{fig/eval-overhead-f.pdf}
+\caption{\todo{caption}}
+\end{figure}
+
+\begin{figure}
+\label{fig:eval-overhead-d}
+\includegraphics[width=0.9\columnwidth]{fig/eval-overhead-d.pdf}
+\caption{\todo{caption}}
+\end{figure}
+
+\para{Overhead} We also measured performance overhead.  The timing
+measurements demonstrate that \casio does not significantly hurt the
+speed of the original program.  \casio incurs an average overhead of
+\todo{N}\%.  In \todo{N} of the 29 benchmarks, \casio's error with
+single precision floating point is greater than the original program's
+accuracy with double precision.
+
+\begin{figure}
+\label{fig:eval-casio-time}
+\includegraphics[width=0.9\columnwidth]{fig/eval-casio-time.pdf}
+\caption{\todo{caption}}
+\end{figure}
+
+\para{Runtime}
+\casio was run on each benchmark in a standard configuration%
+\footnote{including regime inference and the normal number of sample
+  points.}.  The main loop was capped at five iterations.
+Figure~\ref{fig:eval-casio-time} is a cumulative density function for
+\casio's runtime on these benchmarks.  For 17 of 29 tests, \casio runs
+in under one minute.
+
+\begin{figure}
+\label{fig:eval-mpfr-bits}
+\includegraphics[width=0.9\columnwidth]{fig/eval-mpfr-bits.pdf}
+\caption{\todo{caption}}
+\end{figure}
+
+\para{Error Estimation}
+The accuracy and speed was measured, both for the original program in
+each benchmark, and for \casio's output.  Examples were compiled to C,
+which was then compiled by the GNU Compiler Collection with flags
+optimizing for performance without loss of accuracy%
+\footnote{Version $4.9.1$ of \texttt{gcc} was used, with flags
+  \texttt{-march=native}, \texttt{-mtune=native},
+  \texttt{-mfpmath=both}, \texttt{-O3}, and \texttt{-flto}.
+  Experiments were run on an Intel Core~i5-3317U processor.}.
+\todo{What about \texttt{-ffast-math}?}  Both the input and output
+program were run with single, double, and extended double (32, 64, and
+80 bits) intermediates.  Each program was run on the same set of
+1,000,000 points drawn randomly from the set of single-precision
+floating point numbers.  Results were compared with a ground truth
+computed via the MPFR arbitrary-precision library~\cite{acm07-mpfr}.
+Figure~\ref{fig:eval-mpfr-bits} is a cumulative density function for
+the number of bits necessary to exactly evaluate the benchmarks.  The
+error of an output computed in floating-point, was taken to be the
+base-2 logarithm of the number of 64-bit floating point values%
+\footnote{Inputs are single precision values, while outputs are double
+  precision.  Single precision for inputs avoids handicapping
+  implementations that use single precision for intermediate values.
+  Double precision for outputs allows measuring error more accurately
+  than single precision would.}, between the exact and inexact answer:
+the bits in error for the approximate output, compared to the exact
+answer.  This error was averaged over all points for which the exact
+answer was a finite floating point value, resulting in a simple number
+which can be used for comparing implementations.  Sampling one million
+points is a very accurate measure of the average error, as
+demonstrated in Section~\ref{sec:eval-eval}.
 
 \begin{figure}
 \label{fig:eval-err}
@@ -137,7 +132,8 @@ representative of all benchmarks.  In all cases, average error
 improved when inputs that would produce wholly incorrect results were
 changed to producing relatively accurate results.
 
-\subsection{Evaluating point evaluation}\label{sec:eval-eval}
+\subsection{Error Evaluation}
+\label{sec:eval-eval}
 
 The tests above evaluated \casio by comparing the average error of its
 input and output.  Average error was computed by sampling one million
@@ -162,129 +158,110 @@ both \casio's input and output in arbitrary precision.  In every case,
 the answers were identical, showing that arbitrary precision
 evaluation is accurate. Thus our rewrite are sound.
 
-We have run \casio with sample points being drawn
-  uniformly in the range $[-\|max|_{32}, \|max|_{32}]$,
-  where $\|max|_{32}$ is the largest finite value
-  representable in 32 bit floating point.
-\casio was only able to solve five benchmarks from NMSE,
-  of which two were benchmarks where no improvement is possible
-  and the other three of which use periodicity analysis
-  and thus use a separate point-sampling mechanism.
-This suggests that the uniformity over floating point representations,
-  instead of over the range of values,
-  is the correct measure to use for guiding \casio's search.
+We have run \casio with sample points being drawn uniformly in the
+range $[-\|max|_{32}, \|max|_{32}]$, where $\|max|_{32}$ is the
+largest finite value representable in 32 bit floating point.  \casio
+was only able to solve five benchmarks from NMSE, of which two were
+benchmarks where no improvement is possible and the other three of
+which use periodicity analysis and thus use a separate point-sampling
+mechanism.  This suggests that the uniformity over floating point
+representations, instead of over the range of values, is the correct
+measure to use for guiding \casio's search.
 
-\subsection{Evaluating regime inference} \label{sec:eval-regimes}
+\subsection{Regime Inference} \label{sec:eval-regimes}
 
-Two experiments evaluate \casio's regime inference.
-The first is an end-to-end test,
-  running \casio on its standard benchmarks but with regime inference turned off.
-Comparing the results of \casio with and without regime inference
-  measures the effectiveness of regime inference.
-Regime inference adds branches to eight of the 29 benchmarks;
-  Figure~\ref{fig:eval-regimes-e2e} shows
-  \casio's accuracy and speed on these eight benchmarks,
-  with and without regime inference.
-The results show that for these test cases, regime inference
-  significantly improves the accuracy of \casio's results.
-However, it also makes the resulting programs slower.
-Regime inference infers branches of the form $a_< < x_i < a_>$,
-  for variables $x_i$.
-Since points are selected randomly, these branches are
-  impossible for the processor to predict,
-  leading to the large performance cost.
-Practical use may lead to the inferred branch being predictable;
-  so, the performance cost of regime inference
-  as displayed in Figure~\ref{fig:eval-regimes-e2e},
-  is a worst-case cost.
+Two experiments evaluate \casio's regime inference.  The first is an
+end-to-end test, running \casio on its standard benchmarks but with
+regime inference turned off.  Comparing the results of \casio with and
+without regime inference measures the effectiveness of regime
+inference.  Regime inference adds branches to eight of the 29
+benchmarks; Figure~\ref{fig:eval-regimes-e2e} shows \casio's accuracy
+and speed on these eight benchmarks, with and without regime
+inference.  The results show that for these test cases, regime
+inference significantly improves the accuracy of \casio's results.
+However, it also makes the resulting programs slower.  Regime
+inference infers branches of the form $a_< < x_i < a_>$, for variables
+$x_i$.  Since points are selected randomly, these branches are
+impossible for the processor to predict, leading to the large
+performance cost.  Practical use may lead to the inferred branch being
+predictable; so, the performance cost of regime inference as displayed
+in Figure~\ref{fig:eval-regimes-e2e}, is a worst-case cost.
 
-A second experiment measures regime inference in isolation.
-An input point $p$ is chosen
-  and regimes is asked to combine the constant candidate programs
-  $10$, $20$, $30$, $40$, $50$, and $60$
-  to most accurately compute $(\|if|\:x < p\:\|then|\:a\:\|else|\:b)$.
-  \todo{Actually, we use different functions}
-Regime inference must infer a branch of the form $x < p'$,
-  with the correct candidate programs on each side of this branch;
-  then, the difference between the computed value $p'$ and the ground truth $p$
-  measures regime inference's ability to accurately infer branch conditions.
-This experiment was repeated 100 times.
-In each case, regime inference inferred a branch of the correct form;
-  the difference between $p$ and $p'$ averages \todo{N}\%
-  (max \todo{N}\%, min \todo{N}\%).
-This suggests that regime inference infers branch conditions
-  very accurately.
+A second experiment measures regime inference in isolation.  An input
+point $p$ is chosen and regimes is asked to combine the constant
+candidate programs $10$, $20$, $30$, $40$, $50$, and $60$ to most
+accurately compute $(\|if|\:x < p\:\|then|\:a\:\|else|\:b)$.
+\todo{Actually, we use different functions} Regime inference must
+infer a branch of the form $x < p'$, with the correct candidate
+programs on each side of this branch; then, the difference between the
+computed value $p'$ and the ground truth $p$ measures regime
+inference's ability to accurately infer branch conditions.  This
+experiment was repeated 100 times.  In each case, regime inference
+inferred a branch of the correct form; the difference between $p$ and
+$p'$ averages \todo{N}\% (max \todo{N}\%, min \todo{N}\%).  This
+suggests that regime inference infers branch conditions very
+accurately.
 
 \subsection{Wider applicability}
 
-To test \casio's applicability beyond its standard benchmark suite,
-  we gathered mathematical formulas from a variety of sources
-  and tested both their numerical accuracy
-  and \casio's ability to improve it.
-These sources included several papers from Volume 89 of Physical Review;
-  standard definitions of mathematical functions,
-  such as hyperbolic trigonometric functions,
-  arithmetic on complex numbers;
-  and approximations to special functions like \|erf| and $\zeta$.
-Of the 68 formulas gathered, we found that
-  20 exhibited significant floating point inaccuracies.
-For these 20 examples, \casio was able to improve 6
-  with no modifications and without enlarging its database of rules.
-This is yet another confirmation
-  that rounding error can arise in the daily practice of scientists and engineers.
-However, it is important to note that for these examples
-  we have not determined if inaccuracies arise for valid inputs;
-  and, for formulas \casio was unable to improve,
-  whether a real-equivalent formula with lower error exists.
+To test \casio's applicability beyond its standard benchmark suite, we
+gathered mathematical formulas from a variety of sources and tested
+both their numerical accuracy and \casio's ability to improve it.
+These sources included several papers from Volume 89 of Physical
+Review; standard definitions of mathematical functions, such as
+hyperbolic trigonometric functions, arithmetic on complex numbers; and
+approximations to special functions like \|erf| and $\zeta$.  Of the
+68 formulas gathered, we found that 20 exhibited significant floating
+point inaccuracies.  For these 20 examples, \casio was able to improve
+6 with no modifications and without enlarging its database of rules.
+This is yet another confirmation that rounding error can arise in the
+daily practice of scientists and engineers.  However, it is important
+to note that for these examples we have not determined if inaccuracies
+arise for valid inputs; and, for formulas \casio was unable to
+improve, whether a real-equivalent formula with lower error exists.
 
 \subsection{Case Study: Computing Probabilities}
-Many numerical programs are not library functions or textbooks examples, 
-  but are instead simulations or data analysis scripts
-  used by scientists, engineers, and mathematicians
-  in the course of their work.
-The expressions encountered in these programs are more complex
-  and less structured than examples like~\eqref{eq:ex}.
-\casio has demonstrated success in improving precision
-  in these more-difficult cases.
 
-A colleague of ours had difficulties with the numerical precision
-  of a estimator in a machine learning task.
-He needed to compute the expression
+Many numerical programs are not library functions or textbooks
+examples, but are instead simulations or data analysis scripts used by
+scientists, engineers, and mathematicians in the course of their work.
+The expressions encountered in these programs are more complex and
+less structured than examples like~\eqref{eq:ex}.  \casio has
+demonstrated success in improving precision in these more-difficult
+cases.
+
+A colleague of ours had difficulties with the numerical precision of a
+estimator in a machine learning task.  He needed to compute the
+expression
 \begin{align*}
 \mathsf{ans} &= \frac{p(e_-,e_+|s)}{p(e_-,e_+|t)} \\
 p(e_-, e_+|x) &= (\operatorname{sig} x)^{e_+} (1 - \operatorname{sig} x)^{e_-} \\
 \operatorname{sig}x &= 1 / (1 - e^{-x})
 \end{align*}
-  and found that the simple encoding of this formula as a program
-  lead to spurious results and violated invariants in later code.
-Our estimates suggest that this simple encoding produces
-  seventeen bits of error, averaged over floating point values.
-To avoid these problems,
-  our colleague manually manipulated the expression
-  into a form that seemed not to cause similar problems;
-  our estimates suggest that this improved variant
-  had ten bits of average error.
+and found that the simple encoding of this formula as a program lead
+to spurious results and violated invariants in later code.  Our
+estimates suggest that this simple encoding produces seventeen bits of
+error, averaged over floating point values.  To avoid these problems,
+our colleague manually manipulated the expression into a form that
+seemed not to cause similar problems; our estimates suggest that this
+improved variant had ten bits of average error.
 
-Upon hearing of his troubles,
-  we fed the original, simple implementation to \casio.
-\casio produced a program with four bits average error:
-  \begin{equation*}
+Upon hearing of his troubles, we fed the original, simple
+implementation to \casio.  \casio produced a program with four bits
+average error:
+\begin{equation*}
   \operatorname{exp}\left(e_+\ln{\frac{1+e^{-t}}{1+e^{-s}}} +
      e_-\ln{\frac{1-\frac{1}{1+e^{-s}}}
                  {1-\frac{1}{1+e^{-t}}}}\right)
-  \end{equation*}
-\casio obviated the need for manual algebraic manipulation,
-  and produced superior results with no manual steps.
-The low-error program that \casio produced was of a complexity level
-  such that human analysts would be unlikely to reproduce the result. 
-Furthermore, our attempts to simplify the program
-  into a form more likely to be found by human analysts
-  have only been able to do so by greatly increasing its error.
-By properly targetting its search,
-  \casio is able to consider a greater number of viable alternatives
-  than human analysts are able to,
-  and is capable of producing better results.
-
-\todo{Smooth over}
+\end{equation*}
+\casio obviated the need for manual algebraic manipulation, and
+produced superior results with no manual steps.  The low-error program
+that \casio produced was of a complexity level such that human
+analysts would be unlikely to reproduce the result.  Furthermore, our
+attempts to simplify the program into a form more likely to be found
+by human analysts have only been able to do so by greatly increasing
+its error.  By properly targetting its search, \casio is able to
+consider a greater number of viable alternatives than human analysts
+are able to, and is capable of producing better results.
 
 \end{document}
