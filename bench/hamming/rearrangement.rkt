@@ -7,11 +7,6 @@
   (- (sqrt (+ x 1)) (sqrt x))
   (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
 
-(casio-test (x)
-  "NMSE example 3.2"
-  (/ (sin x) x)
-  (/ (sin x) x))
-
 (casio-test (x eps)
   "NMSE example 3.3"
   (- (sin (+ x eps)) (sin x))

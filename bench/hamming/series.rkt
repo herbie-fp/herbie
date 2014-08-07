@@ -3,7 +3,7 @@
 
 (casio-bench (x)
   "NMSE example 3.7"
-  (- (exp x) x))
+  (- (exp x) 1))
 
 (casio-bench (N)
   "NMSE example 3.8"
