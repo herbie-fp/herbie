@@ -48,8 +48,11 @@
     (let*-values ([(orig) (make-prog test)]
 		  [(point-preparer) ((flag 'evaluate 'exponent-points)
 				     prepare-points prepare-points-uniform)]
-		  [(points exacts) (point-preparer orig)])
-      (parameterize ([*points* points] [*exacts* exacts])
+		  [(points exacts) (point-preparer orig)]
+		  [(more-pts more-exs) (parameterize ([*num-points* 8192])
+				       (prepare-points prog))])
+      (parameterize ([*points* points] [*exacts* exacts]
+		     [*more-points* more-pts] [*more-exacts* more-exs])
 	(let* ([start-alt (make-alt orig)]
 	       [end-alt (improve-alt start-alt (*num-iterations*))])
 	  (list start-alt end-alt points exacts)))))
