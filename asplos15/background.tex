@@ -1,175 +1,157 @@
 \documentclass[paper.tex]{subfiles}
 \begin{document}
 
-\section{Background}
+\section{Floating Point Background}
 \label{sec:background}
 
-Traditional, continous mathematics uses the real number system,
-  and is used to represent real-world quantities
-  and properties of their interactions.
-Unfortunately, this system cannot be represented faithfully
-  in a bounded number of bits, 
-  such as is available in computer hardware.
-Computer programs that aim to approximate continuous mathematics
-  instead use floating point arithmetic.
-Because such a representation cannot perfectly match the real numbers,
-  programmers must avoid a variety of subtle misbehaviors.
-Without care, programs manipulating these floating point numbers
-  may compute values that misrepresent
-  the real-number phenomena they attempt to model.
-This section describes floating point numbers
-  and the difficulties in using them to describe
-  real-number continuous calculations.
+% Traditional, continous mathematics uses the real number system,
+%   and is used to represent real-world quantities
+%   and properties of their interactions.
+% Unfortunately, this system cannot be represented faithfully
+%   in a bounded number of bits, 
+%   such as is available in computer hardware.
+% Computer programs that aim to approximate continuous mathematics
+%   instead use floating point arithmetic.
+% Because such a representation cannot perfectly match the real numbers,
+%   programmers must avoid a variety of subtle misbehaviors.
+% Without care, programs manipulating these floating point numbers
+%   may compute values that misrepresent
+%   the real-number phenomena they attempt to model.
+% This section describes floating point numbers
+%   and the difficulties in using them to describe
+%   real-number continuous calculations.
 
-\subsection{Floating point numbers}
+Floating point numbers encode real numbers of the form:
+\[ \pm (1 + m) \times 2^e \]%
+where $m$, the \emph{mantissa}, is a fixed-width number in $[0, 1]$,
+and $e$, the \emph{exponent}, is a fixed-width signed integer.  For
+example, IEEE double-precision floats are represented by a sign bit, a
+52 bit mantissa, and an 11 bit exponent.  Floating point can also
+represent a few special values: positive and negative \emph{infinity},
+positive and negative \emph{zero}, \emph{not-a-number} error values,
+and \emph{denormal} numbers of form $\pm m \times 2^{e_{\text{min}}}$.
+Note that floating point numbers are distributed roughly exponentially
+to help prevent underflow and overflow.
 
-Floating point numbers represent a subset of real numbers:
-  numbers of the form
-\[ \pm (1 + m) 2^e, \]
-  where $m$, the \emph{mantissa}, is a fixed-width number in $[0, 1]$,
-  and $e$, the \emph{exponent}, is a fixed-width signed integer.
-These numbers are approximately exponentially distributed;
-  thus, floating point arithmetic does not have a preferred scale.
-Normal floating point numbers are represented by
-  a sign bit, their exponent, and their mantissa.
-Floating point can also represent a few special values:
-  \emph{denormal} numbers of form $\pm m 2^{e_{\text{min}}}$,
-  positive and negative \emph{infinity}, positive and negative \emph{zero},
-  and \emph{not-a-number} error values.
-Because casio \casio is mainly concerned with \emph{precision},
-  and not with avoiding exceptional values (explored in previous work~\cite{}),
-  we restrict our domain to the normal floating point numbers.
-The notation $\R(x)$ indicates the real number represented
-  by the floating point number $x$.
+% Because casio \casio is primarily concerned with accuracy, and not
+% with avoiding exceptional values (explored in previous
+% work~\todo{cite{}}), we restrict our domain to the normal floating
+% point numbers.
 
-The mantissa and exponent of a floating point value
-  are fixed-width field; the width of these fields
-  is set by the \emph{floating point number system} in use.
-The floating point number system is a triple $(N_e, N_m, \F)$,
-  where $N_e$ is the number of bits available for the exponent,
-  and $N_m$ is the number of bits available for the mantissa.
-$\F$ is a \emph{rounding mode}---%
-  a function from real numbers to floating-point values
-  such that $\F(\R(x)) = x$
-  and such that $\R(\F(x))$ is close to $x$.
-For example, IEEE double-precision allocates
-  52 bits for the mantissa ($N_m = 52$)
-  and 11 bits for the exponent ($N_e = 11$);
-  together with a sign bit, this accounts for 64 bits.
-It allows applications to choose between rounding up, down, or to zero;
-  or rounding to the mathematically closer value, with ties breaking
-  either toward the value with a zero least significant bit,
-  or away from zero.
-We denote by $\mathbf{FP}(N_e, N_m, \F)$
-  the floating point number system with given $N_e$, $N_m$, and $\F$.
+The notation $\R(x)$ indicates the real number represented by the
+floating point number $x$.  $\F$ is a \emph{rounding mode}---%
+a function from real numbers to floating-point values such that
+$\F(\R(x)) = x$ and such that $\R(\F(x))$ is close to $x$.  It allows
+applications to choose between rounding up, down, or to zero; or
+rounding to the mathematically closer value, with ties breaking either
+toward the value with a zero least significant bit, or away from zero.
+
+% The mantissa and exponent of a floating point value
+%   are fixed-width field; the width of these fields
+%   is set by the \emph{floating point number system} in use.
+% The floating point number system is a triple $(N_e, N_m, \F)$,
+%   where $N_e$ is the number of bits available for the exponent,
+%   and $N_m$ is the number of bits available for the mantissa.
+% $\F$ is a \emph{rounding mode}---%
+%   a function from real numbers to floating-point values
+%   such that $\F(\R(x)) = x$
+%   and such that $\R(\F(x))$ is close to $x$.
+% For example, IEEE double-precision allocates
+%   52 bits for the mantissa ($N_m = 52$)
+%   and 11 bits for the exponent ($N_e = 11$);
+%   together with a sign bit, this accounts for 64 bits.
+% It allows applications to choose between rounding up, down, or to zero;
+%   or rounding to the mathematically closer value, with ties breaking
+%   either toward the value with a zero least significant bit,
+%   or away from zero.
+% We denote by $\mathbf{FP}(N_e, N_m, \F)$
+%   the floating point number system with given $N_e$, $N_m$, and $\F$.
 
 \subsection{Error of primitive operations}
 
-Primitive arithmetic operators on floating point numbers
-  such as addition and multiplication
-  are guaranteed to produce accurate results.
-For example, the floating point sum
-  $x \oplus y$ of floating point values $x$ and $y$
-  is guaranteed to be equal to the real-number sum
-  of $x$ and $y$, rounded: $\F(\R(x) + \R(y))$.
-Note that this guarantees that floating point addition
-  is commutative and has inverses (since $0$ is exactly representable).
-Operators such as exponentiation or the trigonometric functions
-  are implemented by libraries, and do not carry such guarantees.
-An implementation of a mathematical function $f(x_1, x_2, \dotsc)$
-  usually guarantees that its result
-  is among the $u$ closest floating point values
-  to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
-$u$ is called the ``uncertainty in the last place'',
-  and is typically less than 8; that is,
-  a library implementation usually guarantees that all
-  but the two or three least-significant bits are correct.
+Primitive arithmetic operators on floating point numbers such as
+addition and multiplication are guaranteed to produce accurate
+results.  For example, the floating point sum $x + y$ of floating
+point values $x$ and $y$ is guaranteed to be equal to the real-number
+sum of $x$ and $y$, rounded: $\F(\R(x) + \R(y))$.  Note that this
+guarantees that floating point addition is commutative and has
+inverses (since $0$ is exactly representable).  Operators such as
+exponentiation or the trigonometric functions are implemented by
+libraries, and do not provide such accuracy guarantees.  An
+implementation of a mathematical function $f(x_1, x_2, \dotsc)$
+usually guarantees that its result is among the $u$ closest floating
+point values to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
+$u$ is called the ``uncertainty in the last place'', and is typically
+less than 8; that is, a library implementation usually guarantees that
+all but the two or three least-significant bits are correct.
 
-Since a floating point value can only exactly represent
-  an number of the form $\pm(1 + m) 2^e$,
-  the conversion $\F$ inherent in primitive arithmetic operations
-  must introduce some error.
-For real numbers neither too large nor too small---%
-  that is, whose logarithm in base 2 is within the range
-  $(-2^{N_e-1}, 2^{N_e-1} - 1)$---%
-  this error is only due to insufficient precision in the mantissa.
-Thus, the relative error is on the order of $2^{-N_m}$.
-We write $\F(x) = x + x\epsilon$,
-  where $\epsilon$ is of absolute value less than $2^{-N_m}$,
-  and where applications of $\F$ to different inputs
-  will result in different errors $\epsilon$.
+Since a floating point value can only exactly represent a real number
+of the form $\pm(1 + m) \times 2^e$, the conversion $\F$ inherent in
+primitive arithmetic operations must introduce some error.  For real
+numbers neither too large nor too small---%
+that is, whose logarithm in base 2 is within the range $(-2^{N_e-1},
+2^{N_e-1} - 1)$---%
+this error is only due to insufficient precision in the mantissa.
+Thus, the relative error is on the order of $2^{-N_m}$ \todo{what is
+  relative error}.  We write $\F(x) = x + x\epsilon$, where $\epsilon$
+is of absolute value less than $2^{-N_m}$, and where applications of
+$\F$ to different inputs will result in different errors $\epsilon$.
 The addition $x \oplus y$ of two floating point values $x$ and $y$
-  thus has value $x + y + (x + y)\epsilon$.
-Since $\epsilon$ is a very small quantity,
-  this is normally very accurate.
-However, because each application of $\F$
-  introduces a new error $\epsilon$,
-  the error in a floating-point computation is non-compositional.
+thus has value $x + y + (x + y)\epsilon$.  Since $\epsilon$ is a very
+small quantity, this is normally very accurate.  However, because each
+application of $\F$ introduces a new error $\epsilon$, the error in a
+floating-point computation is non-compositional.
 
 \subsection{Compound error}
 
-Even though primitive floating-point operations have minimal error,
-  formulas that combine these operators can nonetheless
-  have very significant error.
-For example, consider the expression $(x \oplus 1.0) \ominus x$.
-The addition on the left produces a value equal to
-  $x + 1 + (x + 1)\epsilon_1$.
-($1.0$ is exactly representable, so $\F(1.0) = 1$.)
-Then the subtraction produces
-  $1 + (x + 1) \epsilon_1 + \epsilon_2  + (x + 1) \epsilon_1 \epsilon_2$.
-The terms $\epsilon_2$ and $(x+1)\epsilon_1\epsilon_2$ are small
-  compared to the true value $1$,
-  but $(x + 1) \epsilon_1$ may not be.
-Thus, for large values of $x$,
-  the expression $(x \oplus 1) \ominus x$ may have very large error.
-Depending on the rounding mode, it may equal $0$,
-  or it might represent some relatively large quantity.
+Even though primitive floating-point operations are accurate, formulas
+that combine these operators can nonetheless exhibit arbitrarily bad
+error behavior.  For example, consider the expression $(x \oplus 1.0)
+\ominus x$.  The addition on the left produces a value equal to $x + 1
++ (x + 1)\epsilon_1$.  ($1.0$ is exactly representable, so $\F(1.0) =
+1$.)  Then the subtraction produces $1 + (x + 1) \epsilon_1 +
+\epsilon_2 + (x + 1) \epsilon_1 \epsilon_2$.  The terms $\epsilon_2$
+and $(x+1)\epsilon_1\epsilon_2$ are small compared to the true value
+$1$, but $(x + 1) \epsilon_1$ may not be.  Thus, for large values of
+$x$, the expression $(x \oplus 1) \ominus x$ may have very large
+error.  Depending on the rounding mode, it may equal $0$, or it might
+represent some relatively large quantity.
 
-The same phenomenon, however, occurs with more complex formulas.
-Consider $\sqrt{x \oplus 1} \ominus \sqrt{x}$:
-  for values of $x$ greater than 1, this expression
-  has error proportional to $\sqrt{x} \epsilon$
-  and actual value proportional to $\sqrt{x}^{-1}$.
-Thus, the relative error of such an expression grows with $x$.
-Even simple expressions such as $\cos(x) - 1$ can be inaccurate---%
-  $\cos(x) - 1$ has large error for values of $x$ near 0,
-  since $\cos(x)$ is very close to $1$ for this input.
-The quadratic formula \[\frac{-b + \sqrt{b^2 + 4 a c}}{2 a}\]
-  suffers from similar problems when $a$ and $c$ are small,
-  due to cancellation when computing $-b + \sqrt{b^2 + 4 a c}$.
+This same phenomenon also occurs with more complex formulas.  Consider
+$\sqrt{x \oplus 1} \ominus \sqrt{x}$: for values of $x$ greater than
+1, this expression has error proportional to $\sqrt{x} \epsilon$ and
+actual value proportional to $\sqrt{x}^{-1}$.  Thus, the relative
+error of such an expression grows with $x$.  Even simple expressions
+such as $\cos(x) - 1$ can be inaccurate---%
+$\cos(x) - 1$ has large error for values of $x$ near 0, since
+$\cos(x)$ is very close to $1$ for this input.  The quadratic
+formula \[\frac{-b + \sqrt{b^2 + 4 a c}}{2 a}\] suffers from similar
+problems when $a$ and $c$ are small, due to cancellation when
+computing $-b + \sqrt{b^2 + 4 a c}$.
 
 \subsection{Rearrangement}
 
-To mitigate such problems, programmers can rewrite formulas
-  into implementations equivalent on the real numbers,
-  but with less error when evaluated
-  with floating-point values and operators.
-This rearrangement relies on identities
-  true of real-number formulas,
-  yet false on floating-point numbers.
-For example, the identities $x - y = (x^2 - y^2) / (x + y)$
-  and $\sin(x)^2 + \cos(x)^2 = 1$,
-  both true of real values and false for floating point computation,
-  allow converting $\cos x - 1$ to $- \sin(x)^2 / (1 + \cos x)$.
-The latter expression is accurate over
-  a greater range of floating point values.
-The expression $\sqrt{x+1} - \sqrt{x}$ can be converted
-  to $1 / (\sqrt{x+1} + \sqrt{x})$ by similar means.
-In both cases, the resulting expression shows minimal error
-  because similar quantities are no longer subtracted;
-  yet, both are equivalent to the original as real-number formulas.
+To mitigate such problems, programmers can rearrange formulas to
+reduce error.  Such rearrangement often relies on identities true for
+real-number formulas, yet false on floating-point numbers.  For
+example, the identities $x - y = (x^2 - y^2) / (x + y)$ and $\sin(x)^2
++ \cos(x)^2 = 1$, both true of real values and false for floating
+point computation, allow converting $\cos x - 1$ to $- \sin(x)^2 / (1
++ \cos x)$.  The latter expression is accurate over a greater range of
+floating point values.  The expression $\sqrt{x+1} - \sqrt{x}$ can be
+converted to $1 / (\sqrt{x+1} + \sqrt{x})$ by similar means.  In both
+cases, the resulting expression shows minimal error because similar
+quantities are no longer subtracted; yet, both are equivalent to the
+original as real-number formulas.
 
-The necessary rewrites can be unintuitive.
-William Kahan provides the example~\cite{}
-  of computing $(e^x - 1) / x$.
-For $x$ near $0$, $e^x$ is close to $1$ and so cancellation occurs.
-However, there is no obvious way to eliminate the cancellation
-  without changing the real-number meaning of the expression.
-The unintuitive trick is to rewriting the denominator
-  from $x$ to $\log e^x$.
-This causes the denominator to suffer
-  from the same cancellation as the numerator;
-  when the two are divided,
-  the errors interfere and the correct answer is produced.
+The necessary rewrites can be unintuitive.  William Kahan provides the
+example~\cite{} of computing $(e^x - 1) / x$.  For $x$ near $0$, $e^x$
+is close to $1$ and so cancellation occurs.  However, there is no
+obvious way to eliminate the cancellation without changing the
+real-number meaning of the expression.  The unintuitive trick is to
+rewriting the denominator from $x$ to $\log e^x$.  This causes the
+denominator to suffer from the same cancellation as the numerator;
+when the two are divided, the errors interfere and the correct answer
+is produced.
 
 \end{document}
