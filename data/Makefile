@@ -11,6 +11,8 @@ help:
 update:
 	$(MAKE) time && cp time.pdf ../asplos15/fig/eval-casio-time.pdf
 	$(MAKE) bits && cp bits.pdf ../asplos15/fig/eval-mpfr-bits.pdf
+	$(MAKE) err && cp err.pdf ../asplos15/fig/eval-err.pdf
 	$(MAKE) rect-f && cp rect-f.pdf ../asplos15/fig/eval-rect-f.pdf
 	$(MAKE) rect-d && cp rect-d.pdf ../asplos15/fig/eval-rect-d.pdf
-	$(MAKE) err && cp err.pdf ../asplos15/fig/eval-err.pdf
+	$(MAKE) overhead-f && cp overhead-f.pdf ../asplos15/fig/eval-overhead-f.pdf
+	$(MAKE) overhead-d && cp overhead-d.pdf ../asplos15/fig/eval-overhead-d.pdf
