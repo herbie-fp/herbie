@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include <tgmath.h>
 #include <time.h>
 #include <stdlib.h>
@@ -27,14 +28,17 @@
 #define ARGS
 #endif
 
-void setup_mpfr(void);
+void setup_mpfr_f_im(void);
+void setup_mpfr_f_om(void);
 double f_if(ARGS);
 double f_id(ARGS);
 double f_il(ARGS);
+double f_im(ARGS);
 double f_of(ARGS);
 double f_od(ARGS);
 double f_ol(ARGS);
-double f_im(ARGS);
+double f_om(ARGS);
+extern char *name;
 
 unsigned long long ulp(double x, double y) {
         if (x == 0) x = fabs(x); // -0 == 0
@@ -71,13 +75,13 @@ float *get_random(int nums) {
 
 #define SETUP()                                                         \
         struct timespec start, end;                                     \
-        double time, zero;                                              \
+        double rtime, zero;                                              \
         int i, maxi;                                                    \
         unsigned long long int max = 0;                                 \
         double total = 0;                                               \
         float *rands, *out, *correct;                                   \
-        setup_mpfr();                                                   \
-        printf("test,           time,           max,            avg\n");
+        setup_mpfr_f_im();                                              \
+        setup_mpfr_f_om();
 
 #define CALIBRATE(iter)                                         \
         clock_gettime(CLOCK_MONOTONIC, &start);                 \
@@ -93,7 +97,7 @@ float *get_random(int nums) {
                 out[i] = EVAL(f_##type);                                \
         }                                                               \
         clock_gettime(CLOCK_MONOTONIC, &end);                           \
-        time = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec) - zero;
+        rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec) - zero;
 
 #if NARGS == 1
 #define EVAL(f) f(rands[i])
@@ -121,15 +125,8 @@ float *get_random(int nums) {
                         total += log(error + 1.0) / log(2);             \
                 }                                                       \
         }                                                               \
-        printf("%s  ,%15lu,%15g,%15g\n", #type, time,                   \
-               log(max + 1.0) / log(2), total / count);                 \
-        if (max > 0) {/*                                                \
-                printf("\tat ");                                        \
-                for (int j = 0; j < NARGS; j++) {                       \
-                        printf("%g ", rands[maxi*NARGS + j]);           \
-                }                                                       \
-                printf(" (%g not %g)\n", out[maxi], correct[maxi]);     \
-                      */}
+        printf("%s  ,%15g,%15g,%15g\n", #type, rtime,                   \
+               log(max + 1.0) / log(2), total / count);
 
 #define SAMPLE(iter)                                                    \
         srand(time(NULL));                                              \
@@ -140,7 +137,7 @@ float *get_random(int nums) {
         correct = malloc(sizeof(float) * iter);                         \
         memcpy((void *) correct, (void *) out, sizeof(float) * iter);   \
         count = 0;                                                      \
-        printf("im  ,%15lu,%15g,%15g\n", end - start, 0.0, 0.0);        \
+        printf("im  ,%15g,%15g,%15g\n", rtime, 0.0, 0.0);        \
         for (i = 0; i < iter; i++) {                                    \
                 if (1 / correct[i] != 0 && correct[i] == correct[i]) {  \
                         count += 1;                                     \
@@ -155,6 +152,7 @@ int main(int argc, char** argv) {
         if (argc > 1) iter = atoi(argv[1]);
 
         printf("// %s\n", name);
+        printf("test,           time,           max,            avg\n");
 
         SAMPLE(iter);
         CALIBRATE(iter);
