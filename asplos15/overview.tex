@@ -6,14 +6,42 @@
 
 \todo{use quadratic?}
 
+We introduce \casio, which \textit{automatically} improves floating
+point accuracy by searching for error-reducing program
+transformations.  This search is guided by techniques for estimating
+rounding error and its sources, as well as mechanisms which detect
+input regimes with distinct error behavior and select the best program
+variant for each regime.  We evaluate \casio on examples from a
+classic numerical methods textbook and demonstrate that it can
+effectively reduce rounding error. We also consider \casio's broader
+applicability by improving the accuracy of expressions from a
+mathematical library as well as formulas from recent scientific
+articles.
+
+As a first step toward addressing these challenges, we introduce
+\casio, a technique for automatically mitigating rounding error in
+floating point computations.  \casio searches for error-reducing
+program transformations by combining three novel techniques.  First,
+\casio estimates which operations are responsible for rounding error
+by sampling floating point inputs and comparing the results of
+intermediate operations against accurate results computed using
+arbitrary precision floating point.  Second, \casio applies various
+rewrites based on the error's source, measures their individual
+effects on accuracy, and chooses a subset of program variants to
+continue improving.  Third, \casio detects input regimes where error
+behavior changes and combines multiple program variants to reduce
+overall error.  By combining these techniques, \casio improves
+accuracy without requiring the programmer to learn the details of
+floating point arithmetic or manually rearrange computations.
+
 Given the subtlety floating point error, producing the minimal-error
 program for a given real number formula is intractable
 \footnote{\cite{} show this task is NP-hard}.  Instead, \casio
 performs a heuristic search over programs, aiming for minimal error.
 Instead of attempting to transform the whole program, \casio's search
-proceeds by applying local program transformations.  Each
-transformation corresponds to a identity of real number formulas, but
-does not necessarily preserve the semantics of the program as
+proceeds by applying local program transformations.  \todo{sampling}
+Each transformation corresponds to a identity of real number formulas,
+but does not necessarily preserve the semantics of the program as
 evaluated with floating-point operators.  \casio contains \nRewrites
 rewrite rules, most describing basic arithmetic facts such as the
 commutativity of addition, others demonstrating trigonometric facts

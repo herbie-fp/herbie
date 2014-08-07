@@ -8,35 +8,33 @@ doug dad soundness prevents overfitting
 
 \todo{compiler flags order of magnitude speed up !!!}
 
-We evaluated \casio on benchmarks drawn from
-  a standard numerical methods textbooks.
-The results demonstrate the \casio substantially improves
-  the accuracy of many of these expressions,
-  without significantly slowing execution.
-In all cases, the programs produced by \casio run
-  orders of magnitude faster than software floating point.
-In some cases, the accuracy of the programs outputted by \casio 
-  exceeds that of rewrites provided by numerical methods textbooks.
-We also separately evaluate our error estimation technique
-  and our regime inference algorithm,
-  and describe several case studies using \casio.
+We evaluate \casio on benchmarks drawn from a numerical methods
+textbook.  The results demonstrate the \casio substantially improves
+the accuracy of many of these expressions, without significantly
+slowing execution.  In all cases, the programs produced by \casio run
+orders of magnitude faster than software floating point.  In some
+cases, the accuracy of the programs outputted by \casio exceeds that
+of rewrites provided by numerical methods textbooks.  We also
+separately evaluate our error estimation technique and our regime
+inference algorithm, and describe several case studies using \casio.
 
 \subsection{Evaluating \casio end-to-end}
 
 \paragraph{Benchmarks}
-We chose benchmarks from Richard Hamming's
-  \emph{Numerical Methods for Scientists and Engineers}~\cite{book87-nmse},
-  a standard practitioner's textbook in numerical analysis%
-  \footnote{It is also the first result on Amazon, at the time of writing, for ``numerical methods''.}.
-These tests measure \casio's performance on standard examples
-  from numerical analysis.
-To avoid sampling bias, we include every worked example and problem from Chapter~3,
-  which discusses manually rearranging formulas to more accurately evaluate them---%
-  the same task that \casio performs automatically.
-These total twenty-nine benchmarks,
-  of which twenty-seven had a large rounding error%
-  \footnote{The other two are examples of programs
-  which appear to need rearrangement, but in fact do not need it.}.
+We chose benchmarks from Hamming's \emph{Numerical Methods for
+  Scientists and Engineers}~\cite{book87-nmse}, a standard
+practitioner's textbook in numerical analysis%
+\footnote{It is also the first result on Amazon, at the time of
+  writing, for ``numerical methods''.}.  These tests measure \casio's
+performance on standard examples from numerical analysis.  To avoid
+sampling bias, we include every worked example and problem from
+Chapter~3, which discusses manually rearranging formulas to more
+accurately evaluate them---%
+the same task that \casio performs automatically.  These total
+twenty-nine benchmarks, of which twenty-seven had a large rounding
+error%
+\footnote{The other two are examples of programs which appear to need
+  rearrangement, but in fact do not need it.}.
 
 \paragraph{\casio configuration}
 \casio was run on each benchmark in a standard configuration%
@@ -88,61 +86,51 @@ Sampling one million points
 
 \paragraph{Results}
 Results for all benchmarks are listed in Figure~\ref{fig:evalgraph}.
-These results show that \casio can successfully improve
-  many of the examples from NMSE.
-Of the eleven benchmarks that \casio does not improve,
-  eight have solutions which are not real-equivalent to the input
-  (taylor expansions are used to recover precision near 0).
-These benchmarks are impossible for \casio to improve
-  without supporting unsound rewrites.
+These results show that \casio can successfully improve many of the
+examples from NMSE.  Of the eleven benchmarks that \casio does not
+improve, eight have solutions which are not real-equivalent to the
+input (taylor expansions are used to recover precision near 0).  These
+benchmarks are impossible for \casio to improve without supporting
+unsound rewrites.
 
-The timing measurements demonstrate
-  that \casio does not significantly hurt the speed of the original program.
-\casio incurs an average overhead of \todo{N}\%.
-In \todo{N} of the 29 benchmarks,
-  \casio's error with single precision floating point
-  is greater than the original program's accuracy with double precision.
+The timing measurements demonstrate that \casio does not significantly
+hurt the speed of the original program.  \casio incurs an average
+overhead of \todo{N}\%.  In \todo{N} of the 29 benchmarks, \casio's
+error with single precision floating point is greater than the
+original program's accuracy with double precision.
 
-Average error is a course measure of floating point accuracy.
-\casio presents programmers with a graph of error versus input value.
-Due to the limitations of our graphing software,
-  only 8000 points are used for these plots.
-Figure~\ref{fig:errorvinput} shows these plots for
-  \todo{1d program} and \todo{2d program}.
-These examples are representative of all benchmarks.
-In all cases, average error improved
-  when inputs that would produce wholly incorrect results
-  were changed to producing relatively accurate results.
+Average error is a coarse measure of floating point accuracy.  \casio
+presents programmers with a graph of error versus input value.  These
+plots display 8000 points.  Figure~\ref{fig:errorvinput} shows these
+plots for \todo{1d program} and \todo{2d program}.  These examples are
+representative of all benchmarks.  In all cases, average error
+improved when inputs that would produce wholly incorrect results were
+changed to producing relatively accurate results.
 
 \subsection{Evaluating point evaluation}\label{sec:eval-eval}
 
-The tests above evaluated \casio by comparing the average error
-  of its input and output.
-Average error was computed by sampling one million points
-  and computing the average error across the sample.
-To demonstrate that this results in an accurate estimate of average error,
-  we computed average error with the number of points $N$ varying
-  between 1 and 10,000.
-For each $N$, the experiment was repeated 100 times
-  with different sampled points.
-The standard error of the mean of these 100 repetitions, for each value of $N$,
-  measures the accuracy of our computation of average error.
-Figure~\ref{fig:eval-eval} is a representative result;
-  it was generated from the the quadratic formula example
-  described in Section~\ref{sec:overview},
-  but every test case generated a qualitatively similar result.
-In each case, sampling a thousand points gave a result
-  with standard error of approximately $0.1$ bits.
-This demonstrates that the numbers given above
-  are accurate.
+The tests above evaluated \casio by comparing the average error of its
+input and output.  Average error was computed by sampling one million
+points and computing the average error across the sample.  To
+demonstrate that this accurately estimates average error, we computed
+average error with the number of points $N$ varying between 1 and
+10,000.  For each $N$, the experiment was repeated 100 times with
+different sampled points.  The standard error of the mean of these 100
+repetitions, for each value of $N$, measures the accuracy of our
+computation of average error.  Figure~\ref{fig:eval-eval} is a
+representative result; it was generated from the the quadratic formula
+example described in Section~\ref{sec:overview}, but every test case
+generated a qualitatively similar result.  In each case, sampling a
+thousand points gave a result with standard error of approximately
+$0.1$ bits.  This demonstrates that the numbers given above are
+accurate.
 
-To ensure that our evaluation in arbitrary precision is accurate
-  (that is, to ensure that we use a sufficiently large number of bits
-  to evaluate the results accurately),
-  we computed the exact answer for both \casio's input and output
-  in arbitrary precision.
-In every case, the answers were identical,
-  showing that arbitrary precision evaluation is accurate.
+To ensure that our evaluation in arbitrary precision is accurate (that
+is, to ensure that we use a sufficiently large number of bits to
+evaluate the results accurately), we computed the exact answer for
+both \casio's input and output in arbitrary precision.  In every case,
+the answers were identical, showing that arbitrary precision
+evaluation is accurate. Thus our rewrite are sound.
 
 We have run \casio with sample points being drawn
   uniformly in the range $[-\|max|_{32}, \|max|_{32}]$,
@@ -218,5 +206,9 @@ However, it is important to note that for these examples
   we have not determined if inaccuracies arise for valid inputs;
   and, for formulas \casio was unable to improve,
   whether a real-equivalent formula with lower error exists.
+
+\subsection{Case Study: Computing Probabilities}
+
+\todo{Harley anecdote}
 
 \end{document}

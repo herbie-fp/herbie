@@ -34,6 +34,23 @@ $\R(\F(x))$ is ``close'' to $x$\footnote{Applications can choose
   mathematically closer value, with ties breaking either toward the
   value with a zero least significant bit, or away from zero}.
 
+Since a floating point value can only exactly represent a real number
+of the form $\pm(1 + m) \times 2^e$, the conversion $\F$ inherent in
+primitive arithmetic operations must introduce some error.  For real
+numbers neither too large nor too small---%
+that is, whose logarithm in base 2 is within the range $(-2^{N_e-1},
+2^{N_e-1} - 1)$---%
+this error is only due to insufficient precision in the mantissa.
+Thus, the relative error is on the order of $2^{-N_m}$ \todo{what is
+  relative error}.  We write $\F(x) = x + x\epsilon$, where $\epsilon$
+is of absolute value less than $2^{-N_m}$, and where applications of
+$\F$ to different inputs will result in different errors $\epsilon$.
+The addition $x + y$ of two floating point values $x$ and $y$
+thus has value $x + y + (x + y)\epsilon$.  Since $\epsilon$ is a very
+small quantity, this is normally very accurate.  However, because each
+application of $\F$ introduces a new error $\epsilon$, the error in a
+floating-point computation is non-compositional.
+
 \subsection{Error of primitive operations}
 
 Primitive arithmetic operators on floating point numbers such as
@@ -51,23 +68,6 @@ point values to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
 $u$ is called the ``uncertainty in the last place'', and is typically
 less than 8; that is, a library implementation usually guarantees that
 all but the two or three least-significant bits are correct.
-
-Since a floating point value can only exactly represent a real number
-of the form $\pm(1 + m) \times 2^e$, the conversion $\F$ inherent in
-primitive arithmetic operations must introduce some error.  For real
-numbers neither too large nor too small---%
-that is, whose logarithm in base 2 is within the range $(-2^{N_e-1},
-2^{N_e-1} - 1)$---%
-this error is only due to insufficient precision in the mantissa.
-Thus, the relative error is on the order of $2^{-N_m}$ \todo{what is
-  relative error}.  We write $\F(x) = x + x\epsilon$, where $\epsilon$
-is of absolute value less than $2^{-N_m}$, and where applications of
-$\F$ to different inputs will result in different errors $\epsilon$.
-The addition $x + y$ of two floating point values $x$ and $y$
-thus has value $x + y + (x + y)\epsilon$.  Since $\epsilon$ is a very
-small quantity, this is normally very accurate.  However, because each
-application of $\F$ introduces a new error $\epsilon$, the error in a
-floating-point computation is non-compositional.
 
 \subsection{Compound error}
 

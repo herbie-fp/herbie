@@ -16,11 +16,14 @@ differ substantially.
 % The efficiency provided by hardware implemented floating point
 % enables these applications to effectively process large datasets.
 
-Floating point inaccuracy is notoriously difficult to detect and debug
-\todo{cite kahan}.  Rounding errors have lead to the retraction of
-numerous scientific articles \todo{cite}, legal regulations in finance
-\todo{cite}, distorted stock market indices \todo{cite}, and skewed
-election results \todo{cite}.
+Floating point inaccuracy is notoriously difficult to detect and
+debug~\cite{berkeley00-needle-like, kahan-java-hurts}.  Rounding
+errors have lead to irreproducibility and even retraction of
+scientific articles~\cite{num-issues-in-stat, num-replication,
+  stat-robustness}, legal regulations in finance~\cite{euro-rounding},
+distorted stock market indices~\cite{distort-stock,
+  wall-street-distort-stock}, and skewed election
+results~\cite{round-elections}.
 
 In practice, developers often respond to rounding error by increasing
 \textit{precision}, the size of the floating point representation.
@@ -34,28 +37,24 @@ incurring orders of magnitude slowdown\footnote{Even arbitrary
   developer must still carefully select a precision that provides
   sufficient accuracy.}.
 
-The numerical methods literature provides numerous techniques
-  to analyze and mitigate rounding error without increasing precision.
-Forward and backward error analysis \todo{cite}
-  can be applied to measure the error of a program,
-  and various program transformations \todo{cite}
-  can be applied to improve accuracy.
-Numerical methods is a vast field, which can also
-  support programmers in the accuracy of matrix computations,
-  avoid accumulating error in a loop,
-  and replace unsable algorithms with numerically stable ones.
-Unfortunately, these techniques require deep expertise
-  and substantial manual effort.
-Ideally, these analysis and program transformations
-  would be handled automatically.
+The numerical methods literature provides techniques to analyze and
+mitigate rounding error without increasing precision.  Forward and
+backward error analysis \todo{cite} can be applied to measure the
+error of a program, and various program transformations \todo{cite}
+can be applied to improve accuracy.  Numerical methods is a vast
+field, which can also support programmers in the accuracy of matrix
+computations, avoid accumulating error in a loop, and replacing
+unstable algorithms with numerically stable ones.  Unfortunately,
+these techniques often require both understanding the subtle details
+of floating point arithmetic and also manually rearranging
+computations.
 
-As a first step toward this dream, we introduce \casio,
-  a technique for automatically mitigating rounding error
-  in floating point computations.
-\casio searches for error-reducing program
-transformations by combining three novel techniques.  First, \casio
-estimates which operations are responsible for rounding error by
-sampling floating point inputs and comparing the results of
+As a first step toward addressing these challenges, we introduce
+\casio, a technique for automatically mitigating rounding error in
+floating point computations.  \casio searches for error-reducing
+program transformations by combining three novel techniques.  First,
+\casio estimates which operations are responsible for rounding error
+by sampling floating point inputs and comparing the results of
 intermediate operations against accurate results computed using
 arbitrary precision floating point.  Second, \casio applies various
 rewrites based on the error's source, measures their individual
