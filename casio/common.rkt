@@ -28,14 +28,14 @@
           [error . "!! "]))
 
 (define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 0] . args)
-  (when (port? *debug*)
-    (println #:port *debug* #:end "\t"
+  (when (port? (*debug*))
+    (println #:port (*debug*) #:end "\t"
              (hash-ref *tags* tag ";  ")
              from (if (> 0 depth) (format ":~a" depth) ""))
     (for/list ([arg args])
-      (display " " *debug*)
-      ((if (string? arg) display write) arg *debug*))
-    (newline *debug*)))
+      (display " " (*debug*))
+      ((if (string? arg) display write) arg (*debug*)))
+    (newline (*debug*))))
 
 
 (define-syntax-rule (reap [sow] body ...)
