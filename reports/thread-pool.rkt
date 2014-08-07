@@ -15,7 +15,7 @@
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
-(define *timeout* (* 1000 60 10))
+(define *timeout* (* 1000 60 20))
 
 (struct test-result
   (test time bits
