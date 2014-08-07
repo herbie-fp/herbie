@@ -328,6 +328,9 @@ def usage():
     print "\tbits\thow many bits of precision needed per benchmark?"
     print "\ttime\thow long does casio take?"
     print "\terr\thow does casio depend on number of points sampled?"
+    print "\trect-f\thow does casio improve precision (float)"
+    print "\trect-d\thow does casio improve precision (double)"
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
