@@ -15,6 +15,7 @@
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
+(define *timeout* (* 1000 60 20))
 
 (struct test-result
   (test time bits
@@ -60,7 +61,7 @@
          [eng (engine compute-result)])
 
     (with-handlers ([(const #t) handle-crash])
-      (if (engine-run (* 1000 60 5) eng)
+      (if (engine-run *timeout* eng)
           (match (engine-result eng)
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
