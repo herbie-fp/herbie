@@ -89,7 +89,7 @@
 	(if combo
 	    (best-alt-final (cons combo alts*))
 	    (best-alt-final alts*))))))
-	#;(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
+	;;(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
