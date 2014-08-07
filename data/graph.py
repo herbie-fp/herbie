@@ -99,7 +99,7 @@ def draw_histo(data, n_buckets=10):
     for i in range(1,len(corners)):
         prev = corners[i-1]
         cur = corners[i]
-        draw_rect((prev[0], 0), cur)
+        draw_rect(to_plot_space((prev[0], 0)), to_plot_space(cur))
     end_picture()
 
 def draw_mpfr_bits_cdf(data):
@@ -152,7 +152,7 @@ def draw_time_cdf(data):
     data.sort()
 
     n = len(data)
-    hi = data[-1] * 1.15
+    hi = data[-1] * 1.05
 
     def to_plot_space(pt):
         x = PLOT_X * (float(pt[0]) / hi)
@@ -178,7 +178,7 @@ def draw_time_cdf(data):
 
 
     h_ticks = []
-    for i in range(0,351,50):
+    for i in range(0,1101,100):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -194,9 +194,58 @@ def draw_time_cdf(data):
 
     end_picture()
 
-mpfr_data = [336,336,208,208,304,528,528,336,208,80,208,336,208,336,336,208,320,208,336,208,528,528,208,336,336,320,80,208]
+from math import *
 
-time_data = [13.3,5.3,300,174,44.5,44,102,48.2,22.3,300,192,32.4,282,14.9,30.7,126,40.2,25.1,28.3,11.6,41.8,78,144,144,96,53.3,41.3,66,29.5]
+def draw_sample_points(data):
+    data = [(log10(x), log10(y)) for (x,y) in data]
+    hix = max([x for (x,y) in data])
+    hiy = max([y for (x,y) in data])
+
+    lox = min([x for (x,y) in data])
+    loy = min([y for (x,y) in data])
+
+    def to_plot_space(pt):
+        bump = 0.05
+        scale = 0.93
+        x = PLOT_X * scale * (((pt[0] - lox) / (hix - lox)) + bump)
+        y = PLOT_Y * scale * (((pt[1] - loy) / (hiy - loy)) + bump)
+        return (x,y)
+
+    begin_picture()
+    for p in data:
+        draw_point(to_plot_space(p))
+
+    h_ticks = []
+    def xlabel(x):
+        if x == 1 or x == 5000:
+            return True
+        if x % 10 != 0:
+            return False
+        return xlabel(x//10)
+
+    for i in range(1,11) + range(10,101,10) + \
+             range(100,1001,100) + range(1000,5001,1000):
+        x = i
+        xp = to_plot_space((log10(x), 0))[0]
+
+        h_ticks.append((xp, str(x) if xlabel(x) else None))
+
+
+    v_ticks = []
+
+    def ylabel(y):
+        return y == 0.1 or y == 1.0 or y == 4.0
+
+    for i in range(1,11) + range(10,41,10):
+        y = i / 10.0
+        yp = to_plot_space((0, log10(y)))[1]
+        v_ticks.append((yp, str(y) if ylabel(y) else None))
+
+    draw_axes(h_capt="\\# points sampled",
+              v_capt="Standard error",
+              h_ticks=h_ticks,
+              v_ticks=v_ticks)
+    end_picture()
 
 def read_simple_data_file(name):
     ans = []
@@ -205,11 +254,53 @@ def read_simple_data_file(name):
             ans.append(float(line))
     return ans
 
+import csv
+def read_sample_points(name):
+    with open(name, 'rb') as f:
+        reader = csv.reader(f)
+        header = reader.next()
+        pts_col = header.index('pts')
+        se_col = header.index('se')
+
+        ans = []
+        for row in reader:
+            p = float(row[pts_col])
+            s = float(row[se_col])
+            if p > 0:
+                ans.append((p,s))
+
+        return ans
+
+
+
+
+import sys
+
+def usage():
+    print "Usage:"
+    print "\tbits\thow many bits of precision needed per benchmark?"
+    print "\ttime\thow long does casio take?"
+    print "\terr\thow does casio depend on number of points sampled?"
 
 if __name__ == '__main__':
-    begin_doc()
-    #draw_mpfr_bits_cdf(read_simple_data_file('mpfr-bits.csv'))
-    #draw_histo(mpfr_data)
-    draw_time_cdf(read_simple_data_file('casio-runtime.csv'))
-    end_doc()
-    #print read_mpfr()
+    if len(sys.argv) < 2:
+        print "which graph to make?"
+        usage()
+        sys.exit(1)
+
+    if sys.argv[1] == "bits":
+        begin_doc()
+        draw_mpfr_bits_cdf(read_simple_data_file('mpfr-bits.csv'))
+        end_doc()
+    elif sys.argv[1] == "time":
+        begin_doc()
+        draw_time_cdf(read_simple_data_file('casio-runtime.csv'))
+        end_doc()
+    elif sys.argv[1] == "err":
+        begin_doc()
+        draw_sample_points(read_sample_points('sample-points.csv'))
+        end_doc()
+    else:
+        print "unknown option: " + sys.argv[1]
+        usage()
+        sys.exit(1)
