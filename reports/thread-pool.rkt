@@ -126,15 +126,15 @@
 
 (define (marshal-alt a)
   (if a
-      `(alt ,(alt-program a) ,(alt-errors a) ,(alt-cost a)
+      `(alt ,(alt-program a) ,(alt-cost a)
             ,(marshal-change (alt-change a)) ,(marshal-alt (alt-prev a))
             ,(alt-cycles a))
       #f))
 
 (define (unmarshal-alt a*)
   (match a*
-    [`(alt ,prog ,err ,cost ,cng ,prev ,cyc)
-     (alt prog err cost (unmarshal-change cng) (unmarshal-alt prev) cyc)]
+    [`(alt ,prog ,cost ,cng ,prev ,cyc)
+     (alt prog cost (unmarshal-change cng) (unmarshal-alt prev) cyc)]
     [#f #f]))
 
 (define (marshal-change c)

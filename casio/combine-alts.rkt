@@ -114,18 +114,12 @@
 	       ;; the new alts list.
 	       [splitpoints* (coerce-indices splitpoints)]
 	       [alts* (recurse-on-alts recurse-func combining-alts splitpoints*)]
-	       [prog-body* (prog-combination splitpoints* alts*)]
-	       [errors* (stitch-errors splitpoints* (*points*) (map alt-errors alts*))])
-	  ;; Sanity check to make sure that our combination is better than what came before it.
-	  (if (> (errors-score errors*) (apply max (map (compose errors-score alt-errors) alts)))
-	      (begin (debug "Combination was worse than one of the given alts!" #:from 'regime-changes #:depth 1)
-		     #f)
-	      (alt `(λ ,(program-variables (alt-program (car alts)))
-		      ,prog-body*)
-		   errors*
-		   (calc-cost alts*)
-		   (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
-		   #f 0))))))
+	       [prog-body* (prog-combination splitpoints* alts*)])
+          (alt `(λ ,(program-variables (alt-program (car alts)))
+                   ,prog-body*)
+               (calc-cost alts*)
+               (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
+               #f 0)))))
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
@@ -246,23 +240,6 @@
 	   (loop rest-splits (cdr rest-points)
 		 (cdr rest-errs) (cons (list-ref (car rest-errs) (sp-cidx (car rest-splits)))
 				       acc))]
-	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
-
-;; Assuming that the err-lsts are the errors for only the points in which that alt has the region,
-;; and they are still in ascending order, this stitches them back together into a single errors list.
-(define (stitch-errors splitpoints points err-lsts)
-  (let loop ([rest-splits splitpoints] [rest-points points]
-	     [rest-errs err-lsts] [acc '()])
-    (when (not (= (apply + (map length err-lsts)) (length points)))
-      (list (expt 2 100)))#;(error "We don't have an error cooresponding to every point!")
-    (cond [(null? rest-points) (reverse acc)]
-	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
-	       (sp-point (car rest-splits)))
-	   (let* ([cidx (sp-cidx (car rest-splits))]
-		  [entry (list-ref rest-errs cidx)])
-	     (loop rest-splits (cdr rest-points)
-		   (with-entry cidx rest-errs (cdr entry))
-		   (cons (car entry) acc)))]
 	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
 
 (define (with-entry idx lst item)
