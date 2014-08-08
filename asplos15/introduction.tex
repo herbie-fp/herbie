@@ -26,7 +26,7 @@ unacceptable margin.
 In practice, developers often respond to rounding error by increasing
 \textit{precision}, the size of the floating point representation.
 For example, a developer might try to shift error to lower order bits
-by replacing all 32-bit, single precision floats with 64-bit, double
+by replacing all 32-bit single precision floats with 64-bit double
 precision floats.  Unfortunately, even the largest hardware-supported
 precision may still exhibit unacceptable rounding error, and further
 increases to precision require simulating arbitrary precision floating
@@ -40,9 +40,6 @@ mitigate rounding error without increasing precision.  Forward and
 backward error analysis~\cite{higham-book, kahan-error-survey} can be
 applied to measure the error of a program, and various program
 transformations~\cite{book87-nmse} can be applied to improve accuracy.
-Numerical methods is a vast field, which can also support programmers
-in the accuracy of matrix computations, avoid accumulating error in a
-loop, and replacing unstable algorithms with numerically stable ones.
 Unfortunately, these techniques often require both understanding the
 subtle details of floating point arithmetic and also manually
 rearranging computations.
@@ -61,8 +58,7 @@ than the original program. Third, \casio detects when two or more
 program variants have complementary error behavior on different parts
 of the input space and combines these programs to improve overall
 accuracy. Thus \casio improves accuracy automatically, without
-requiring the programmer to learn the details of floating point
-arithmetic or manually rearrange computations.
+requiring training or manual effort from the programmer.
 
 We evaluate \casio on examples drawn from a classic numerical methods
 textbook and consider its broader applicability to floating point
