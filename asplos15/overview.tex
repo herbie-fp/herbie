@@ -4,8 +4,6 @@
 \section{Overview}
 \label{sec:overview}
 
-\todo{use quadratic?}
-
 We introduce \casio, which \textit{automatically} improves floating
 point accuracy by searching for error-reducing program
 transformations.  This search is guided by techniques for estimating
@@ -64,15 +62,16 @@ transformations in parallel, selecting whichever produces the best
 result.
 
 To demonstrate the method by which
-  \casio improves the precision of floating point programs,
+  \casio improves the accuracy of floating point programs,
   this section steps through \casio as run on the formula
 \begin{equation}\label{eq:ex}
-  \frac1{\sqrt2} \sqrt{\sqrt{x^2 + y^2} + x},
+  \frac{-b - \sqrt{b*b - 4*a*c}}
+       {2*a}
 \end{equation}
-  which computes the real part of $\sqrt{x + i y}$.
-This forumla is inaccurate for negative $x$,
-  especially if $x$ is large and $y$ is small.
-Improving the precision of this formula
+  which computes one of the roots of the quadratic formula.
+This forumla is inaccurate for negative $b$,
+  especially if $a$ and $c$ are close to zero.
+Improving the accuracy of this formula
   involves most of the major systems;
   each of these systems is described in detail
   in Section~\ref{sec:synthesis}.
@@ -80,10 +79,13 @@ Improving the precision of this formula
 \casio begins the process of improving~\eqref{eq:ex}
   by identifying subexpressions
   which likely need transformation.
-The imprecision arises from the addition $\sqrt{x^2 + y^2} + x$:
-  for negative $x$, and a small $y$,
-  the two summands are approximately equal in magnitude,
-  leading to a cancellation.
+The inaccuracy arises from the subtraction $-b - \sqrt{b^2 - 4*a*c}$:
+  for fairly small values of $a$ and $c$,
+  $\sqrt{b^2 - 4*a*c}$ is approximately equal to $\sqrt{b^2} \mapsto \abs{b}$
+  and for negative $b$, $\abs{b} = -b$;
+  therefore, for negative $b$ and small values of $a$ and $c$
+  the two operands are approximately equal,
+  leading to cancellation error.
 \casio notices this same fact
   by analyzing the behavior of the program on sample inputs.
 For each expression in the program,
@@ -94,9 +96,9 @@ A \emph{locally approximate} result is then computed
 By comparing this locally approximate result to the exact result,
   \casio obtains a measure of how much each operator
   contributed to the expression's overall error.
-For the complex square root example,
-  the addition $\sqrt{x^2 + y^2} + x$ produces the most local error
-  for large negative values of $x$.
+For the quadratic example,
+  \casio notices that the previously described subtraction in the numerator 
+  produces the most local error for negative values of $b$
 This information is passed to \casio's recursive rewrite step,
   directing rewrites toward improving this particular expression.
 
@@ -109,25 +111,28 @@ Once problematic expressions are identified,
   in an attempt to make the rule match.
 This rewrite step produces several candidate programs
   for each expression focused upon.
-For example, rewriting at the addition discussed above
-  produces seven candidate programs;
-  two other expressions with nonzero local error produce 17 more.
-Of these, one candidate applies the identity
-  $x + y = (x^2 - y^2) / (x - y)$ to the problematic addition.
+For example, rewriting at the subtraction discussed above
+  produces ten candidate programs;
+  two other expressions with nonzero local error produce twenty-six more.
+Of the candidates produced from rewriting at the subtraction,
+  one applies the identity
+  $x - y = (x^2 - y^2) / (x + y)$ to the problematic subtraction.
 This transforms \eqref{eq:ex} into
 \begin{equation} \label{eq:ex2}
-  \frac1{\sqrt2} \sqrt{\frac{\sqrt{x^2 + y^2}^2 - x^2}{\sqrt{x^2 + y^2} - x}}.
+  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4*a*c}^2}
+             {(-b) + \sqrt{b^2 - 4*a*c}}}
+       {2 * a}
 \end{equation}
 This candidate does not have improved precision,
   but it does introduce the possibility
-  of cancelling the two $x^2$ terms.
+  of cancelling the two $b^2$ terms.
 
 To discover this cancellation,
   \casio cannot use focusing and recursive rewrite
   because there are too many intermediate steps:
   removing the unnecessary square root squared,
-  commuting the addition $x^2 + y^2$,
-  and reassociating the subtraction $(y^2 + x^2) - x^2$.
+  removing the cancelled negation of $(-b)^2$,
+  and reassociating the subtraction $b^2 - (b^2 - 4*a*c)$.
 Discovering such a long sequence of undirected steps
   by enumerating all sequences of rewrites
   is impractical;
@@ -136,12 +141,16 @@ Discovering such a long sequence of undirected steps
 Simplification automatically performs all the steps necessary
   to transform the candidate~\eqref{eq:ex2} into
 \begin{equation} \label{eq:ex3}
-  \frac1{\sqrt2} \sqrt{\frac{y^2}{\sqrt{x^2 + y^2} - x}}.
+  \frac{\frac{4*a*c}
+             {(-b) + \sqrt{b^2 - 4*a*c}}}
+       {2*a}
 \end{equation}
-This new program has no imprecision for negative $x$,
-  but it is inaccurate for positive $x$.
+Further simplification does not impact the error behavior of the function,
+  so it is not performed.
+This new program has no imprecision for negative $b$,
+  but it is inaccurate for positive $b$.
 Regime inference will now be used to combine both programs
-  into one that is inaccurate for all $x$.
+  into one that is inaccurate for all $b$.
 
 In this example, as in many,
   no single-regime program is inaccurate for all input values.
@@ -159,13 +168,16 @@ To compute the forumula with the greatest accuracy,
   although some programs may cover multiple non-adjacent regions.
 In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
   regime inference correctly decides
-  to use \eqref{eq:ex} for positive values of $x$
+  to use \eqref{eq:ex} for positive values of $b$
   and \eqref{eq:ex3} for negative values.
 The final program produced by \casio is
 \[
 \begin{cases}
-  \frac1{\sqrt2} \sqrt{\sqrt{x^2 + y^2} + x} & \mathtt{if} \;\; x \ge 0 \\[8pt]
-  \frac1{\sqrt2} \sqrt{\frac{y^2}{\sqrt{x^2 + y^2} - x}} & \mathtt{otherwise} \\
+  \frac{\frac{4*a*c}
+             {-b + \sqrt{b^2 - 4*a*c}}}
+       {2*a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
+  \frac{-b - \sqrt{b^2 - 4*a*c}}
+       {2*a} & \mathtt{otherwise} \\
 \end{cases}
 \]
 \end{document}
