@@ -24,19 +24,26 @@
 (define *debug* (make-parameter #f))
 
 (define *tags*
-  #hasheq([misc . ";  "] [enter . ">  "] [exit . "<  "] [info . ";; "]
-          [error . "!! "]))
+  #hasheq([misc  . "[misc]"]
+          [enter . "[enter]"]
+          [exit  . "[exit]"]
+          [info  . "[info]"]
+          [error . "[ERROR]"]))
 
 (define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 0] . args)
   (when (port? (*debug*))
-    (println #:port (*debug*) #:end "\t"
-             (hash-ref *tags* tag ";  ")
-             from (if (> 0 depth) (format ":~a" depth) ""))
+    (display (current-inexact-milliseconds) (*debug*))
+    (println #:port (*debug*) #:end "\n"
+             (string-append " " (hash-ref *tags* tag "[???]"))
+             (string-append " " from)
+             (if (< 0 depth) (format " (depth ~a)" depth) ""))
     (for/list ([arg args])
-      (display " " (*debug*))
+      (display "  " (*debug*))
       ((if (string? arg) display write) arg (*debug*)))
-    (newline (*debug*))))
-
+    (newline (*debug*)))
+    ; is flushing a nop on the debug port?
+    ; does not cause writes in case of crashes...
+    (flush-output (*debug*)))
 
 (define-syntax-rule (reap [sow] body ...)
   (let* ([store '()]
