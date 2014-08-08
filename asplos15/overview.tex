@@ -12,8 +12,8 @@ To demonstrate the method by which \casio improves the accuracy of
 floating point programs, this section steps through \casio as run on
 the formula
 \begin{equation}\label{eq:ex}
-  \frac{-b - \sqrt{b*b - 4*a*c}}
-       {2*a}
+  \frac{-b - \sqrt{b^2 - 4ac}}
+       {2a}
 \end{equation}
 which computes one of the roots of the quadratic formula.  This
 forumla is inaccurate for negative $b$, especially if $a$ and $c$ are
@@ -23,8 +23,8 @@ Section~\ref{sec:synthesis}.
 
 \casio begins the process of improving~\eqref{eq:ex} by identifying
 subexpressions which likely need transformation.  The inaccuracy
-arises from the subtraction $-b - \sqrt{b^2 - 4*a*c}$: for fairly
-small values of $a$ and $c$, $\sqrt{b^2 - 4*a*c}$ is approximately
+arises from the subtraction $-b - \sqrt{b^2 - 4ac}$: for fairly
+small values of $a$ and $c$, $\sqrt{b^2 - 4ac}$ is approximately
 equal to $\sqrt{b^2} \mapsto |b|$ and for negative $b$, $|b| = -b$;
 therefore, for negative $b$ and small values of $a$ and $c$ the two
 operands are approximately equal, leading to cancellation error.
@@ -54,8 +54,8 @@ candidates produced from rewriting at the subtraction, one applies the
 identity $x - y = (x^2 - y^2) / (x + y)$ to the problematic
 subtraction.  This transforms \eqref{eq:ex} into
 \begin{equation} \label{eq:ex2}
-  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4*a*c}^2}
-             {(-b) + \sqrt{b^2 - 4*a*c}}}
+  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4ac}^2}
+             {(-b) + \sqrt{b^2 - 4ac}}}
        {2 * a}
 \end{equation}
 This candidate does not have improved precision, but it does introduce
@@ -64,16 +64,14 @@ the possibility of cancelling the two $b^2$ terms.
 To discover this cancellation, \casio cannot use focusing and
 recursive rewrite because there are too many intermediate steps:
 removing the unnecessary square root squared, removing the cancelled
-negation of $(-b)^2$, and reassociating the subtraction $b^2 - (b^2 -
-4*a*c)$.  Discovering such a long sequence of undirected steps by
+negation of $(-b)^2$, and reassociating the subtraction $b^2 - (b^2 - 4ac)$.
+Discovering such a long sequence of undirected steps by
 enumerating all sequences of rewrites is impractical; instead, \casio
 has a simplification pass specialized toward cancelling like terms.
 Simplification automatically performs all the steps necessary to
 transform the candidate~\eqref{eq:ex2} into
 \begin{equation} \label{eq:ex3}
-  \frac{\frac{4*a*c}
-             {(-b) + \sqrt{b^2 - 4*a*c}}}
-       {2*a}
+  \frac{\frac{4ac} {(-b) + \sqrt{b^2 - 4ac}}} {2a}
 \end{equation}
 Further simplification does not impact the error behavior of the
 function, so it is not performed.  This new program has no imprecision
@@ -97,11 +95,11 @@ values of $b$ and \eqref{eq:ex3} for negative values.  The final
 program produced by \casio is
 \[
 \begin{cases}
-  \frac{\frac{4*a*c}
-             {-b + \sqrt{b^2 - 4*a*c}}}
-       {2*a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
-  \frac{-b - \sqrt{b^2 - 4*a*c}}
-       {2*a} & \mathtt{otherwise} \\
+  \frac{\frac{4ac}
+             {-b + \sqrt{b^2 - 4ac}}}
+       {2a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
+  \frac{-b - \sqrt{b^2 - 4ac}}
+       {2a} & \mathtt{otherwise} \\
 \end{cases}
 \]
 
