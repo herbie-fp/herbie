@@ -51,8 +51,11 @@ produced from rewriting at the subtraction, one applies the identity
 $x - y = (x^2 - y^2) / (x + y)$ to the problematic subtraction.  This
 transforms \eqref{eq:ex} into
 \begin{equation} \label{eq:ex2}
-  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4ac}^2}
-             {(-b) + \sqrt{b^2 - 4ac}}}
+  \frac{\displaystyle\phantom{\hspace{0.5cm}}
+    \frac{(-b)^2 - \sqrt{b^2 - 4ac}^2}
+    {(-b) + \sqrt{b^2 - 4ac}}
+    \phantom{\hspace{0.5cm}}
+  }
        {2a}
 \end{equation}
 This candidate does not have improved precision, but does introduce
@@ -68,7 +71,10 @@ has a simplification pass specialized toward cancelling like terms.
 Simplification automatically performs all the steps necessary to
 transform the candidate~\eqref{eq:ex2} into
 \begin{equation} \label{eq:ex3}
-  \frac{\frac{4ac} {(-b) + \sqrt{b^2 - 4ac}}} {2a}
+  \frac{\displaystyle\phantom{\hspace{0.5cm}}
+    \frac{4ac} {(-b) + \sqrt{b^2 - 4ac}}
+    \phantom{\hspace{0.5cm}}
+  } {2a}
 \end{equation}
 Further simplification does not impact the error behavior of the
 function, so it is not performed.  This new program has no imprecision
@@ -92,11 +98,17 @@ decides to use \eqref{eq:ex} for positive values of $b$ and
 \casio is
 \[
 \begin{cases}
-  \frac{\frac{4ac}
-             {-b + \sqrt{b^2 - 4ac}}}
-       {2a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
-  \frac{-b - \sqrt{b^2 - 4ac}}
-       {2a} & \mathtt{otherwise} \\
+  \frac{\displaystyle
+    \phantom{\hspace{0.5cm}}
+    \frac{4ac}
+    {\displaystyle-b + \sqrt{b^2 - 4ac}}
+    \phantom{\hspace{0.5cm}}}
+  {\displaystyle 2a}
+  & \text{if $x \ge 0$} \\[8pt]
+
+  \hfill \frac{\displaystyle -b - \sqrt{b^2 - 4ac}}
+    {\displaystyle 2a}
+    & \text{otherwise} \\
 \end{cases}
 \]
 
