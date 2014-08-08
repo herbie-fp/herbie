@@ -189,7 +189,7 @@ the answers were identical, showing that arbitrary precision
 evaluation is accurate. Thus our rewrite are sound.
 
 We have run \casio with sample points being drawn uniformly in the
-range $[-\|max|_{32}, \|max|_{32}]$, where $\|max|_{32}$ is the
+range $[-\mathsf{max}_{32}, \mathsf{max}_{32}]$, where $\mathsf{max}_{32}$ is the
 largest finite value representable in 32 bit floating point.  \casio
 was only able to solve five benchmarks from NMSE, of which two were
 benchmarks where no improvement is possible and the other three of
@@ -220,7 +220,7 @@ in Figure~\ref{fig:eval-regimes-e2e}, is a worst-case cost.
 A second experiment measures regime inference in isolation.  An input
 point $p$ is chosen and regimes is asked to combine the constant
 candidate programs $10$, $20$, $30$, $40$, $50$, and $60$ to most
-accurately compute $(\|if|\:x < p\:\|then|\:a\:\|else|\:b)$.
+accurately compute $(\mathsf{if}\:x < p\:\mathsf{then}\:a\:\mathsf{else}\:b)$.
 \todo{Actually, we use different functions} Regime inference must
 infer a branch of the form $x < p'$, with the correct candidate
 programs on each side of this branch; then, the difference between the
@@ -240,7 +240,7 @@ both their numerical accuracy and \casio's ability to improve it.
 These sources included several papers from Volume 89 of Physical
 Review; standard definitions of mathematical functions, such as
 hyperbolic trigonometric functions, arithmetic on complex numbers; and
-approximations to special functions like \|erf| and $\zeta$.  Of the
+approximations to special functions like \textsf{erf} and $\zeta$.  Of the
 68 formulas gathered, we found that 20 exhibited significant floating
 point inaccuracies.  For these 20 examples, \casio was able to improve
 6 with no modifications and without enlarging its database of rules.

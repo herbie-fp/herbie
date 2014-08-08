@@ -121,15 +121,15 @@ After the main loop completes,
 \begin{figure}
 \begin{footnotesize}
 \begin{align*}
-  &\!def!\:\|casio|(e) \ceq \\
-  &\> pts, exs \ceq \|pickPoints|(e) \\
-  &\> e' \ceq \|simplify|(e) \\
-  &\> t \ceq \|makeTable|(e'') \\
-  &\> \|while|(\|not| \; t.\|done|) \\
-  &\> \> e, t' \ceq \|pick|\;t \\
-  &\> \> es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
+  &\!def!\:\mathsf{casio}(e) \ceq \\
+  &\> pts, exs \ceq \mathsf{pickPoints}(e) \\
+  &\> e' \ceq \mathsf{simplify}(e) \\
+  &\> t \ceq \mathsf{makeTable}(e'') \\
+  &\> \mathsf{while}(\mathsf{not} \; t.\mathsf{done}) \\
+  &\> \> e, t' \ceq \mathsf{pick}\;t \\
+  &\> \> es \ceq \mathsf{map}\:\mathsf{simplify}\:(\mathsf{map}\:\mathsf{rr}\:(\mathsf{focus}\;e)) \\
   &\> \> t \ceq t' \cup es \\
-  &\> \!return!\:\|regimes|\:(\cup\{\|correlate|\;e \I e \in t \})
+  &\> \!return!\:\mathsf{regimes}\:(\cup\{\mathsf{correlate}\;e \I e \in t \})
 \end{align*}
 \end{footnotesize}
 \caption{The \casio main loop.
@@ -233,8 +233,8 @@ The error in computing each subexpression
 The local error of an expression
   is the error in its output if it were called with exactly-computed inputs:
 \begin{align*}
-  &\!def!\:\|localerror|(ctx, f(e_1, \dotsc, e_k)) \ceq \\
-  &\> e_i' \ceq \|eval|_\infty(ctx, e_i) \\
+  &\!def!\:\mathsf{localerror}(ctx, f(e_1, \dotsc, e_k)) \ceq \\
+  &\> e_i' \ceq \mathsf{eval}_\infty(ctx, e_i) \\
   &\> r_{64} \ceq f_{64}(\F_{64}(e_1'), \dotsc, \F_{64}(e_k')) \\
   &\> r_\infty \ceq \F_{64}(f_\infty(e_1', \dotsc, e_k')) \\
   &\> \!return!\:\Err(r_{64}, r_\infty)
@@ -372,16 +372,16 @@ Once \casio has determined that branch should be placed
 \begin{figure}
 \begin{footnotesize}
 \begin{align*}
-  &\!def!\:\|regimes|(\{p_1, \dotsc, p_c\}) \ceq \\
+  &\!def!\:\mathsf{regimes}(\{p_1, \dotsc, p_c\}) \ceq \\
   &\> N \ceq \text{Sampled points} \\
   &\> r_{t,0} \ceq p_{i_1}, \text{ where } p_{i_1} \text{ best on } [0, x_t] \\
-  &\> \varepsilon_{t,0} \ceq \|avgerror|(r_{t,0}, [0, t]) \\
+  &\> \varepsilon_{t,0} \ceq \mathsf{avgerror}(r_{t,0}, [0, t]) \\
   &\> \!for!\:k \in \{1, \dotsc, \nRegimes \} \\
   &\> \> r_{t,k} \ceq \min_s \{ (r_{s,k}, p_k) | \\
   &\> \> \> p_k \text{ best on } [x_s, x_t], \\
   &\> \> \> r_{s,k} = [r_{s',k-1}, p_{k-1}], \\
-  &\> \> \> \left(\sum_{i = s}^t \|error|(p_k, i)\right) >
-  N + \left(\sum_{i = s}^t \|error|(p_{k - 1}, i)\right) \} \\
+  &\> \> \> \left(\sum_{i = s}^t \mathsf{error}(p_k, i)\right) >
+  N + \left(\sum_{i = s}^t \mathsf{error}(p_{k - 1}, i)\right) \} \\
   &\> r_{t,\star} \{ (r_{t,\nRegimes}, p_k) | p_k \text{ best on } [x_t, \infty] \} \\
   &\> \!return!\:r_{t,\star}, \text{ for } r_{t, \star} \text{ best of all } t
 \end{align*}
