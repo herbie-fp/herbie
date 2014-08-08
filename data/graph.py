@@ -227,8 +227,9 @@ def draw_overhead_cdf(iname, oname):
 
     data.sort()
     n = len(data)
-    hi = data[-1] * 1.05
+    hi = data[-1] * 1.15
 
+    xscale = 0.95
     def to_plot_space(pt):
         x = PLOT_X * (float(pt[0]) / hi)
         y = PLOT_Y * (float(pt[1]) / n)
@@ -253,7 +254,7 @@ def draw_overhead_cdf(iname, oname):
 
 
     h_ticks = []
-    for i in [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
+    for i in [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]:
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -414,6 +415,24 @@ def read_improvement_data(name):
             ans.append(float(row[column]))
     return ans
 
+def summary(data):
+    data.sort()
+    s = sum(data)
+    print 'min:\t' + str(min(data))
+    print 'mean:\t' + str(float(s)/len(data))
+    print 'median:\t' + str(data[len(data)/2])
+
+    g = 1
+    c = 0
+    for x in data:
+        if x > 0:
+            g *= x
+            c += 1
+    g **= 1.0/c
+    print 'g-mean:\t' + str(g)
+
+    print 'max:\t' + str(max(data))
+
 import sys
 
 def usage():
@@ -488,6 +507,29 @@ if __name__ == '__main__':
         begin_doc()
         draw_overhead_cdf('regimes.if.csv', 'regimes.of.csv')
         end_doc()
+    elif sys.argv[1] == "improve-summary":
+        left = read_improvement_data('regimes.id.csv')
+        right = read_improvement_data('regimes.od.csv')
+        assert len(left) == len(right)
+
+        data = []
+
+        for (x,y) in zip(left, right):
+            if y <= x:
+                data.append(x-y)
+            else:
+                data.append(0)
+        summary(data)
+    elif sys.argv[1] == "overhead-summary":
+        left = read_time_data('regimes.id.csv')
+        right = read_time_data('regimes.od.csv')
+        assert len(left) == len(right)
+
+        data = []
+        for (x,y) in zip(left, right):
+            data.append(y / x)
+
+        summary(data)
     else:
         print "unknown option: " + sys.argv[1]
         usage()

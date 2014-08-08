@@ -28,26 +28,23 @@ methods textbooks.  We also separately evaluate our error estimation
 technique and our regime inference algorithm, and describe several
 case studies using \casio.
 
-\begin{figure*}
-  \begin{tabular}{cc}
-    \includegraphics[width=0.9\columnwidth]{fig/eval-rect-f.pdf}
-    &
+\begin{figure}
+  \centering
     \includegraphics[width=0.9\columnwidth]{fig/eval-rect-d.pdf}
-  \end{tabular}
-  \caption{Accuracy Results. Each row of the figure represents a
-    single benchmark. For each benchmark, the accuracy of the input
-    program is drawn as the left edge of a rectangle, and the accuracy
-    of \casio's output is drawn as the right edge.  The benchmarks are
-    sorted from top to bottom in increasing order of the accuracy of
-    \casio's output. The horizontal axis measures accuracy in terms of
-    the number of bits of output that agree with the exact result,
-    averaged across one million input points. The left half of the
-    figure shows results for single precision 32-bit floats, and the
-    right half shows results for double precision 64-bit floats. For
-    those inputs which \casio is not able to improve by at least half
-    a bit, a dot is drawn at the input accuracy level. }
+    \caption{Accuracy Results. Each row of the figure represents a
+      single benchmark. For each benchmark, the accuracy of the input
+      program is drawn as the left edge of a rectangle, and the
+      accuracy of \casio's output is drawn as the right edge.  The
+      benchmarks are sorted from top to bottom in increasing order of
+      the accuracy of \casio's output. The horizontal axis measures
+      accuracy in terms of the number of bits of output that agree
+      with the exact result, averaged across one million input
+      points. Target programs were evaluated using double precision
+      64-bit floats. For those inputs which \casio is not able to
+      improve by at least half a bit, a dot is drawn at the input
+      accuracy level. }
   \label{fig:eval-rect}
-\end{figure*}
+\end{figure}
 
 \para{Accuracy} Our results for both 32-bit single precision floats
 and 64-bit double precision floats are shown in
@@ -59,20 +56,15 @@ currently improve these benchmarks, adding support for unsound
 rewrites such as Taylor expansions is an interesting direction for
 future work.
 
-\begin{figure*}
-  \begin{tabular}{cc}
-    \includegraphics[width=0.9\columnwidth]{fig/eval-overhead-f.pdf}
-    &
-    \includegraphics[width=0.9\columnwidth]{fig/eval-overhead-d.pdf}
-  \end{tabular}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.9\columnwidth]{fig/eval-overhead-d.pdf}
   \caption{Cumulative distribution of overhead induced by \casio. The
     horizontal axis shows the ratio between the performance of the
-    output and input programs. The plot on the left shows results for
-    single precision, while the plot on the right shows results for
-    double precision. Programs are timed running on one million
-    randomly chosen points.}
+    output and input programs. Programs run using double precision
+    floats and compute on one million randomly chosen points.}
   \label{fig:eval-overhead}
-\end{figure*}
+\end{figure}
 
 \para{Overhead} We also measured performance overhead. \casio incurs
 an average overhead of \todo{N}\%.  In \todo{N} of the 29 benchmarks,
