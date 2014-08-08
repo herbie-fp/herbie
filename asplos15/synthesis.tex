@@ -4,23 +4,18 @@
 \section{Improving Accuracy with  \casio}
 \label{sec:synthesis}
 
-\todo{Given the subtlety floating point error, producing the
-  minimal-error program for a given real number formula is intractable
-  \footnote{\todo{\cite{}} shows this task is NP-hard}.}
-
-\todo{\casio contains \nRewrites rewrite rules, most describing basic
-arithmetic facts such as the commutativity of addition, others
-demonstrating trigonometric facts such as the sine and cosine angle
-addition identities.}
-
-\casio improves program accuracy via a heuristic search
-  over programs that compute the same value in different ways.
-Unlike conventional compilers, \casio is free
-  to translate while changing the semantics of the translated program.
+Tools to improve program behavior are typically required to preserve
+the semantics of the input program. For \casio this constraint is not
+satisfiable: in general, given a program over real numbers, there is
+no completely equivalent program over floating numbers due to rounding
+error.  Even finding floating point programs with minimal rounding
+error is intractable~\cite{fp-np}.  Thus, our first obligation is to
+develop a notion of \textit{correctness} for accuracy improving
+transformations.
 
 \subsection{Equivalent input and output}
 
-\casio guides this search process by sampling many input points
+\casio's search is guided by sampling many input points
   and evaluating candidate programs on these points.
 Since \casio's search is guided by sampled points,
   there is a danger that \casio might overfit,
