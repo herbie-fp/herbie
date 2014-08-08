@@ -4,43 +4,112 @@
 \section{Overview}
 \label{sec:overview}
 
-We introduce \casio, which \textit{automatically} improves floating
-point accuracy by searching for error-reducing program
-transformations.  This search is guided by techniques for estimating
-rounding error and its sources, as well as mechanisms which detect
-input regimes with distinct error behavior and select the best program
-variant for each regime.  We evaluate \casio on examples from a
-classic numerical methods textbook and demonstrate that it can
-effectively reduce rounding error. We also consider \casio's broader
-applicability by improving the accuracy of expressions from a
-mathematical library as well as formulas from recent scientific
-articles.
+In this section we overview \casio's automated search for
+accuracy-improving transformations using a familiar and representative
+example: the quadratic formula.
 
-As a first step toward addressing these challenges, we introduce
-\casio, a technique for automatically mitigating rounding error in
-floating point computations.  \casio searches for error-reducing
-program transformations by combining three novel techniques.  First,
-\casio estimates which operations are responsible for rounding error
-by sampling floating point inputs and comparing the results of
-intermediate operations against accurate results computed using
-arbitrary precision floating point.  Second, \casio applies various
-rewrites based on the error's source, measures their individual
-effects on accuracy, and chooses a subset of program variants to
-continue improving.  Third, \casio detects input regimes where error
-behavior changes and combines multiple program variants to reduce
-overall error.  By combining these techniques, \casio improves
-accuracy without requiring the programmer to learn the details of
-floating point arithmetic or manually rearrange computations.
+To demonstrate the method by which \casio improves the accuracy of
+floating point programs, this section steps through \casio as run on
+the formula
+\begin{equation}\label{eq:ex}
+  \frac{-b - \sqrt{b*b - 4*a*c}}
+       {2*a}
+\end{equation}
+which computes one of the roots of the quadratic formula.  This
+forumla is inaccurate for negative $b$, especially if $a$ and $c$ are
+close to zero.  Improving the accuracy of this formula involves most
+of the major systems; each of these systems is described in detail in
+Section~\ref{sec:synthesis}.
 
-Given the subtlety floating point error, producing the minimal-error
-program for a given real number formula is intractable
-\footnote{\cite{} show this task is NP-hard}.  Instead, \casio
-performs a heuristic search over programs, aiming for minimal error.
+\casio begins the process of improving~\eqref{eq:ex} by identifying
+subexpressions which likely need transformation.  The inaccuracy
+arises from the subtraction $-b - \sqrt{b^2 - 4*a*c}$: for fairly
+small values of $a$ and $c$, $\sqrt{b^2 - 4*a*c}$ is approximately
+equal to $\sqrt{b^2} \mapsto |b|$ and for negative $b$, $|b| = -b$;
+therefore, for negative $b$ and small values of $a$ and $c$ the two
+operands are approximately equal, leading to cancellation error.
+\casio notices this same fact by analyzing the behavior of the program
+on sample inputs.  For each expression in the program, \casio computes
+the exact value of its children to 64 bits using arbitrary-precision
+arithmetic.  A \emph{locally approximate} result is then computed by
+applying a floating-point operator to exact arguments.  By comparing
+this locally approximate result to the exact result, \casio obtains a
+measure of how much each operator contributed to the expression's
+overall error.  For the quadratic example, \casio notices that the
+previously described subtraction in the numerator produces the most
+local error for negative values of $b$ This information is passed to
+\casio's recursive rewrite step, directing rewrites toward improving
+this particular expression.
+
+Once problematic expressions are identified, local transformations are
+applied at that expression.  \casio uses a recursive rewrite algorithm
+for doing this: if a rewrite rule does not immediately pattern match
+on the expression, but destructs the correct operator, the children of
+the expression are recursively rewritten in an attempt to make the
+rule match.  This rewrite step produces several candidate programs for
+each expression focused upon.  For example, rewriting at the
+subtraction discussed above produces ten candidate programs; two other
+expressions with nonzero local error produce twenty-six more.  Of the
+candidates produced from rewriting at the subtraction, one applies the
+identity $x - y = (x^2 - y^2) / (x + y)$ to the problematic
+subtraction.  This transforms \eqref{eq:ex} into
+\begin{equation} \label{eq:ex2}
+  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4*a*c}^2}
+             {(-b) + \sqrt{b^2 - 4*a*c}}}
+       {2 * a}
+\end{equation}
+This candidate does not have improved precision, but it does introduce
+the possibility of cancelling the two $b^2$ terms.
+
+To discover this cancellation, \casio cannot use focusing and
+recursive rewrite because there are too many intermediate steps:
+removing the unnecessary square root squared, removing the cancelled
+negation of $(-b)^2$, and reassociating the subtraction $b^2 - (b^2 -
+4*a*c)$.  Discovering such a long sequence of undirected steps by
+enumerating all sequences of rewrites is impractical; instead, \casio
+has a simplification pass specialized toward cancelling like terms.
+Simplification automatically performs all the steps necessary to
+transform the candidate~\eqref{eq:ex2} into
+\begin{equation} \label{eq:ex3}
+  \frac{\frac{4*a*c}
+             {(-b) + \sqrt{b^2 - 4*a*c}}}
+       {2*a}
+\end{equation}
+Further simplification does not impact the error behavior of the
+function, so it is not performed.  This new program has no imprecision
+for negative $b$, but it is inaccurate for positive $b$.  Regime
+inference will now be used to combine both programs into one that is
+inaccurate for all $b$.
+
+In this example, as in many, no single-regime program is inaccurate
+for all input values.  To compute the forumula with the greatest
+accuracy, the implementation of the forumula must depend upon the
+input values.  \casio's regime inference system computes the branch
+condition that selects between several implementations depending on
+the input data.  \casio's regime inference subsystem infers the best
+branch condition by considering all generated programs that are best
+on at least one sample point, and then using the sample points to
+divide each input variable into several regions, with one program per
+region, although some programs may cover multiple non-adjacent
+regions.  In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
+regime inference correctly decides to use \eqref{eq:ex} for positive
+values of $b$ and \eqref{eq:ex3} for negative values.  The final
+program produced by \casio is
+\[
+\begin{cases}
+  \frac{\frac{4*a*c}
+             {-b + \sqrt{b^2 - 4*a*c}}}
+       {2*a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
+  \frac{-b - \sqrt{b^2 - 4*a*c}}
+       {2*a} & \mathtt{otherwise} \\
+\end{cases}
+\]
+
 Instead of attempting to transform the whole program, \casio's search
 proceeds by applying local program transformations.  \todo{sampling}
 Each transformation corresponds to a identity of real number formulas,
 but does not necessarily preserve the semantics of the program as
-evaluated with floating-point operators.  \casio contains \nRewrites 
+evaluated with floating-point operators.  \casio contains \nRewrites
 rewrite rules, most describing basic arithmetic facts such as the
 commutativity of addition, others demonstrating trigonometric facts
 such as the sine and cosine angle addition identities.
@@ -61,123 +130,5 @@ brute-force search, \casio pursues multiple alternative
 transformations in parallel, selecting whichever produces the best
 result.
 
-To demonstrate the method by which
-  \casio improves the accuracy of floating point programs,
-  this section steps through \casio as run on the formula
-\begin{equation}\label{eq:ex}
-  \frac{-b - \sqrt{b*b - 4*a*c}}
-       {2*a}
-\end{equation}
-  which computes one of the roots of the quadratic formula.
-This forumla is inaccurate for negative $b$,
-  especially if $a$ and $c$ are close to zero.
-Improving the accuracy of this formula
-  involves most of the major systems;
-  each of these systems is described in detail
-  in Section~\ref{sec:synthesis}.
 
-\casio begins the process of improving~\eqref{eq:ex}
-  by identifying subexpressions
-  which likely need transformation.
-The inaccuracy arises from the subtraction $-b - \sqrt{b^2 - 4*a*c}$:
-  for fairly small values of $a$ and $c$,
-  $\sqrt{b^2 - 4*a*c}$ is approximately equal to $\sqrt{b^2} \mapsto |b|$
-  and for negative $b$, $|b| = -b$;
-  therefore, for negative $b$ and small values of $a$ and $c$
-  the two operands are approximately equal,
-  leading to cancellation error.
-\casio notices this same fact
-  by analyzing the behavior of the program on sample inputs.
-For each expression in the program,
-  \casio computes the exact value of its children to 64 bits
-  using arbitrary-precision arithmetic.
-A \emph{locally approximate} result is then computed
-  by applying a floating-point operator to exact arguments.
-By comparing this locally approximate result to the exact result,
-  \casio obtains a measure of how much each operator
-  contributed to the expression's overall error.
-For the quadratic example,
-  \casio notices that the previously described subtraction in the numerator 
-  produces the most local error for negative values of $b$
-This information is passed to \casio's recursive rewrite step,
-  directing rewrites toward improving this particular expression.
-
-Once problematic expressions are identified,
-  local transformations are applied at that expression.
-\casio uses a recursive rewrite algorithm for doing this:
-  if a rewrite rule does not immediately pattern match on the expression,
-  but destructs the correct operator,
-  the children of the expression are recursively rewritten
-  in an attempt to make the rule match.
-This rewrite step produces several candidate programs
-  for each expression focused upon.
-For example, rewriting at the subtraction discussed above
-  produces ten candidate programs;
-  two other expressions with nonzero local error produce twenty-six more.
-Of the candidates produced from rewriting at the subtraction,
-  one applies the identity
-  $x - y = (x^2 - y^2) / (x + y)$ to the problematic subtraction.
-This transforms \eqref{eq:ex} into
-\begin{equation} \label{eq:ex2}
-  \frac{\frac{(-b)^2 - \sqrt{b^2 - 4*a*c}^2}
-             {(-b) + \sqrt{b^2 - 4*a*c}}}
-       {2 * a}
-\end{equation}
-This candidate does not have improved precision,
-  but it does introduce the possibility
-  of cancelling the two $b^2$ terms.
-
-To discover this cancellation,
-  \casio cannot use focusing and recursive rewrite
-  because there are too many intermediate steps:
-  removing the unnecessary square root squared,
-  removing the cancelled negation of $(-b)^2$,
-  and reassociating the subtraction $b^2 - (b^2 - 4*a*c)$.
-Discovering such a long sequence of undirected steps
-  by enumerating all sequences of rewrites
-  is impractical;
-  instead, \casio has a simplification pass
-  specialized toward cancelling like terms.
-Simplification automatically performs all the steps necessary
-  to transform the candidate~\eqref{eq:ex2} into
-\begin{equation} \label{eq:ex3}
-  \frac{\frac{4*a*c}
-             {(-b) + \sqrt{b^2 - 4*a*c}}}
-       {2*a}
-\end{equation}
-Further simplification does not impact the error behavior of the function,
-  so it is not performed.
-This new program has no imprecision for negative $b$,
-  but it is inaccurate for positive $b$.
-Regime inference will now be used to combine both programs
-  into one that is inaccurate for all $b$.
-
-In this example, as in many,
-  no single-regime program is inaccurate for all input values.
-To compute the forumula with the greatest accuracy,
-  the implementation of the forumula must depend upon the input values.
-\casio's regime inference system
-  computes the branch condition
-  that selects between several implementations depending on the input data.
-\casio's regime inference subsystem
-  infers the best branch condition
-  by considering all generated programs
-  that are best on at least one sample point,
-  and then using the sample points to divide each input variable
-  into several regions, with one program per region,
-  although some programs may cover multiple non-adjacent regions.
-In the case of programs \eqref{eq:ex} and \eqref{eq:ex3},
-  regime inference correctly decides
-  to use \eqref{eq:ex} for positive values of $b$
-  and \eqref{eq:ex3} for negative values.
-The final program produced by \casio is
-\[
-\begin{cases}
-  \frac{\frac{4*a*c}
-             {-b + \sqrt{b^2 - 4*a*c}}}
-       {2*a} & \mathtt{if} \;\; x \ge 0 \\[8pt]
-  \frac{-b - \sqrt{b^2 - 4*a*c}}
-       {2*a} & \mathtt{otherwise} \\
-\end{cases}
-\]
 \end{document}
