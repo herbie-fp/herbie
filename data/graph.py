@@ -1,7 +1,21 @@
 # python2 graph.py > tmp.tex ; pdflatex tmp.tex ; open tmp.pdf
 
 PLOT_X = 8
-PLOT_Y = 6
+PLOT_Y = 5
+
+plot_stack = []
+
+def push_plot_params(x,y):
+    global PLOT_X
+    global PLOT_Y
+    plot_stack.append((PLOT_X, PLOT_Y))
+    PLOT_X = x
+    PLOT_Y = y
+
+def pop_plot_params():
+    global PLOT_X
+    global PLOT_Y
+    (PLOT_X, PLOT_Y) = plot_stack.pop()
 
 PT_WEIGHT = "1pt"
 
@@ -32,10 +46,10 @@ def draw_line(start, end, label=None, direction="left", opts=""):
     if label is not None:
         print "\\coordinate (%s) at (%f, %f) {};" % (c, start[0], start[1])
         anchor = "east" if direction == "left" else "north"
-        print "\\node [%s of=%s,anchor=%s,node distance=0cm] {\\tiny %s};" % (direction, c, anchor, label)
+        print "\\node [%s of=%s,anchor=%s,node distance=0cm] {\\small %s};" % (direction, c, anchor, label)
 
 
-def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[]):
+def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[], v_axis=True, title=None):
     axes_eps = 0.1
     tick_eps = 0.1
     axes_border = 1.05
@@ -45,13 +59,20 @@ def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[]):
     h_lab = fresh()
     v_lab = fresh()
 
+    if title is not None:
+        print "\\node at (%f, %f) {%s};" % (axes_x / 2, axes_y, title)
+
     print "\\draw[->] (-%f, 0) -- coordinate (%s) (%f, 0);" % (axes_eps, h_lab, axes_x)
     if h_capt is not None:
         print "\\node [below of=%s] {%s};" % (h_lab, h_capt)
 
-    print "\\draw[->] (0, -%f) -- coordinate (%s) (0, %f);" % (axes_eps, v_lab, axes_y)
-    if v_capt is not None:
-        print "\\node [left of=%s,anchor=south, rotate=90] {%s};" % (v_lab, v_capt)
+    if not v_axis:
+        if v_capt is not None:
+            print "\\node [anchor=south, rotate=90] at (%f,%f) {%s};" % (0, axes_y/2.0, v_capt)
+    else:
+        print "\\draw[->] (0, -%f) -- coordinate (%s) (0, %f);" % (axes_eps, v_lab, axes_y)
+        if v_capt is not None:
+            print "\\node [left of=%s,anchor=south, rotate=90] {%s};" % (v_lab, v_capt)
 
     for (x,label) in h_ticks:
         draw_line((x, -tick_eps), (x, tick_eps), label, "below")
@@ -131,7 +152,7 @@ def draw_mpfr_bits_cdf(data):
         draw_line(to_plot_space(mid), to_plot_space(cur)) #, opts="thick")
 
     h_ticks = []
-    for i in range(0,551,50):
+    for i in range(0,601,50):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -154,8 +175,10 @@ def draw_time_cdf(data):
     n = len(data)
     hi = data[-1] * 1.05
 
+    xscale = 1.0
+
     def to_plot_space(pt):
-        x = PLOT_X * (float(pt[0]) / hi)
+        x = PLOT_X * xscale * (float(pt[0]) / hi)
         y = PLOT_Y * (float(pt[1]) / n)
         return (x,y)
 
@@ -178,7 +201,7 @@ def draw_time_cdf(data):
 
 
     h_ticks = []
-    for i in range(0,1101,100):
+    for i in range(0,226,25):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -263,9 +286,10 @@ def draw_sample_points(data):
 
     def to_plot_space(pt):
         bump = 0.05
-        scale = 0.93
-        x = PLOT_X * scale * (((pt[0] - lox) / (hix - lox)) + bump)
-        y = PLOT_Y * scale * (((pt[1] - loy) / (hiy - loy)) + bump)
+        xscale = 0.95
+        yscale = 0.88
+        x = PLOT_X * xscale * (((pt[0] - lox) / (hix - lox)) + bump)
+        y = PLOT_Y * yscale * (((pt[1] - loy) / (hiy - loy)) + bump)
         return (x,y)
 
     begin_picture()
@@ -274,26 +298,30 @@ def draw_sample_points(data):
 
     h_ticks = []
     def xlabel(x):
-        if x == 1 or x == 5000:
+        if x == 1 or x == 30000:
             return True
+        if x == 10000:
+            return False
         if x % 10 != 0:
             return False
         return xlabel(x//10)
 
     for i in range(1,11) + range(10,101,10) + \
-             range(100,1001,100) + range(1000,5001,1000):
+             range(100,1001,100) + range(1000,9001,1000) + \
+             range(10000,30001,10000):
         x = i
-        xp = to_plot_space((log10(x), 0))[0]
+        xp = to_plot_space((log10(x) + lox, 0))[0]
 
         h_ticks.append((xp, str(x) if xlabel(x) else None))
 
 
-    v_ticks = []
+    v_ticks = [(0,'0')]
 
     def ylabel(y):
-        return y == 0.1 or y == 1.0 or y == 4.0
+        return y == 0.1 or y == 1.0 or y == 2.0
 
-    for i in range(1,11) + range(10,41,10):
+
+    for i in range(1,11) + range(10,21,10):
         y = i / 10.0
         yp = to_plot_space((0, log10(y)))[1]
         v_ticks.append((yp, str(y) if ylabel(y) else None))
@@ -304,15 +332,7 @@ def draw_sample_points(data):
               v_ticks=v_ticks)
     end_picture()
 
-def draw_improvement_rectangles(iname, oname):
-    left = [64.0 - x for x in read_improvement_data(iname)]
-    right = [64.0 - x for x in read_improvement_data(oname)]
-    assert len(left) == len(right)
-
-    data = zip(left, right)
-
-    data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
-
+def draw_improvement_rectangles(data, v_capt=None, title=None):
     begin_picture()
 
     n = len(data)
@@ -339,8 +359,10 @@ def draw_improvement_rectangles(iname, oname):
 
 
     draw_axes(h_capt="Bits correct",
-              v_capt="Benchmark",
-              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, 65, 8)]
+              v_capt=v_capt,
+              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, 65, 8)],
+              v_axis=False,
+              title=title
     )
     end_picture()
 
@@ -421,21 +443,50 @@ if __name__ == '__main__':
         begin_doc()
         draw_sample_points(read_sample_points('sample-points.csv'))
         end_doc()
-    elif sys.argv[1] == "rect-f":
-        begin_doc()
-        draw_improvement_rectangles('all.if.csv', 'all.of.csv')
-        end_doc()
     elif sys.argv[1] == "rect-d":
         begin_doc()
-        draw_improvement_rectangles('all.id.csv', 'all.od.csv')
+        push_plot_params(8, 8)
+
+        left = [64.0 - x for x in read_improvement_data('regimes.id.csv')]
+        right = [64.0 - x for x in read_improvement_data('regimes.od.csv')]
+        assert len(left) == len(right)
+
+        data = zip(left, right)
+
+        data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
+
+        draw_improvement_rectangles(data, title="Double Precision")
+        pop_plot_params()
+        end_doc()
+    elif sys.argv[1] == "rect-f":
+        begin_doc()
+        push_plot_params(8, 8)
+
+        leftd = [64.0 - x for x in read_improvement_data('regimes.id.csv')]
+        rightd = [64.0 - x for x in read_improvement_data('regimes.od.csv')]
+        leftf = [64.0 - x for x in read_improvement_data('regimes.if.csv')]
+        rightf = [64.0 - x for x in read_improvement_data('regimes.of.csv')]
+
+        assert \
+            len(leftd) == len(rightd) and \
+            len(rightd) == len(leftf) and \
+            len(leftf) == len(rightf)
+
+        data = zip(leftd, rightd, leftf, rightf)
+
+        data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
+        data = list(map(lambda p: (p[2], p[3]), data))
+
+        draw_improvement_rectangles(data, title="Single Precision", v_capt="Benchmark")
+        pop_plot_params()
         end_doc()
     elif sys.argv[1] == "overhead-d":
         begin_doc()
-        draw_overhead_cdf('all.id.csv', 'all.od.csv')
+        draw_overhead_cdf('regimes.id.csv', 'regimes.od.csv')
         end_doc()
     elif sys.argv[1] == "overhead-f":
         begin_doc()
-        draw_overhead_cdf('all.if.csv', 'all.of.csv')
+        draw_overhead_cdf('regimes.if.csv', 'regimes.of.csv')
         end_doc()
     else:
         print "unknown option: " + sys.argv[1]
