@@ -18,11 +18,11 @@ flags \texttt{-march=native}, \texttt{-mtune=native},
 \texttt{-mfpmath=both}, \texttt{-O3}, and \texttt{-flto}.
 
 Overall, our results demonstrate that \casio can improve accuracy for
-many of our benchmarks (\todo{quantitative result here}), often
-without significantly slowing execution (\todo{quantitative result
-  here}).  In all cases, the programs produced by \casio run orders of
-magnitude faster than software floating point (\todo{quantitative
-  result here}).  In some cases, the accuracy of the programs output
+21 out of our 29 benchmark, often
+without significantly slowing execution (average 45\% overhead).
+In all cases, the programs produced by \casio run orders of
+magnitude faster than software floating point
+(a slowdown of two or more orders of magnitude).  In some cases, the accuracy of the programs output
 by \casio even exceeds that solutions provided by experts in numerical
 methods textbooks.  We also separately evaluate our error estimation
 technique and our regime inference algorithm, and describe several
@@ -46,12 +46,13 @@ case studies using \casio.
   \label{fig:eval-rect}
 \end{figure}
 
-\para{Accuracy} Our results for both 32-bit single precision floats
-and 64-bit double precision floats are shown in
-Figure~\ref{fig:eval-rect}. \todo{more discussion of actual data}. Of
-the eleven benchmarks that \casio does not improve, eight have
-solutions which are not real-equivalent to the input because they use
-Taylor expansions to recover precision near 0. While \casio cannot
+\para{Accuracy} Our results for are shown in
+Figure~\ref{fig:eval-rect}.
+\casio improves the program's accuracy for 21 out of 28 programs;
+for 20 programs, this is an improvement of at least one bit.
+Of the seven benchmarks that \casio does not improve,
+  NMSE suggests solutions which are not real-equivalent to the input
+  because they use Taylor expansions to recover precision near 0. While \casio cannot
 currently improve these benchmarks, adding support for unsound
 rewrites such as Taylor expansions is an interesting direction for
 future work.
@@ -66,10 +67,11 @@ future work.
   \label{fig:eval-overhead}
 \end{figure}
 
-\para{Overhead} We also measured performance overhead. \casio incurs
-an average overhead of \todo{N}\%.  In \todo{N} of the 29 benchmarks,
-\casio's error with single precision floating point is greater than
-the original program's accuracy with double precision.
+\para{Overhead}
+We also the performance of both the original program and the program
+produced by \casio. On average, the program produced by \casio is 45\% slower,
+much smaller than a slowdown of two orders of magnitude for using
+software arbitrary precision.
 
 \begin{figure}
 \includegraphics[width=0.9\columnwidth]{fig/eval-casio-time.pdf}
@@ -81,7 +83,7 @@ the original program's accuracy with double precision.
 
 \para{Runtime}
 \casio was run on each benchmark in a standard configuration%
-\footnote{including regime inference and the normal number of sample
+\footnote{Including regime inference and the normal number of sample
   points.}.  The main loop was capped at \nIters iterations.
 Figure~\ref{fig:eval-casio-time} is a cumulative distribution function for
 \casio's runtime on these benchmarks.  For 15 of 29 tests, \casio runs
@@ -105,9 +107,8 @@ optimizing for performance without loss of accuracy%
   \texttt{-march=native}, \texttt{-mtune=native},
   \texttt{-mfpmath=both}, \texttt{-O3}, and \texttt{-flto}.
   Experiments were run on an Intel Core~i5-3317U processor.}.
-\todo{What about \texttt{-ffast-math}?}  Both the input and output
-program were run with single, double, and extended double (32, 64, and
-80 bits) intermediates.  Each program was run on the same set of
+Both the input and output
+program were run with double precision intermediates.  Each program was run on the same set of
 1,000,000 points drawn randomly from the set of single-precision
 floating point numbers.  Results were compared with a ground truth
 computed via the MPFR arbitrary-precision library~\cite{acm07-mpfr}.
@@ -126,14 +127,6 @@ answer was a finite floating point value, resulting in a simple number
 which can be used for comparing implementations.  Sampling one million
 points is a very accurate measure of the average error, as
 demonstrated in Section~\ref{sec:eval-eval}.
-
-Average error is a coarse measure of floating point accuracy.  \casio
-presents programmers with a graph of error versus input value.  These
-plots display 8000 points.  Figure~\ref{fig:err-distr} shows these
-plots for \todo{1d program} and \todo{2d program}.  These examples are
-representative of all benchmarks.  In all cases, average error
-improved when inputs that would produce wholly incorrect results were
-changed to producing relatively accurate results.
 
 \subsection{Error Evaluation}
 \label{sec:eval-eval}
@@ -172,17 +165,7 @@ is, to ensure that we use a sufficiently large number of bits to
 evaluate the results accurately), we computed the exact answer for
 both \casio's input and output in arbitrary precision.  In every case,
 the answers were identical, showing that arbitrary precision
-evaluation is accurate. Thus our rewrite are sound.
-
-We have run \casio with sample points being drawn uniformly in the
-range $[-\mathsf{max}_{32}, \mathsf{max}_{32}]$, where $\mathsf{max}_{32}$ is the
-largest finite value representable in 32 bit floating point.  \casio
-was only able to solve five benchmarks from NMSE, of which two were
-benchmarks where no improvement is possible and the other three of
-which use periodicity analysis and thus use a separate point-sampling
-mechanism.  This suggests that the uniformity over floating point
-representations, instead of over the range of values, is the correct
-measure to use for guiding \casio's search.
+evaluation is accurate.
 
 \subsection{Regime Inference} \label{sec:eval-regimes}
 
