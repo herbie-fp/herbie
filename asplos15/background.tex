@@ -9,116 +9,114 @@
 \section{Floating Point Background}
 \label{sec:background}
 
-Floating point numbers represent the subset of real numbers of the
-form:
-\[ \pm (1 + m) \times 2^e \]%
+Floating point numbers are a bounded-size approximation
+  to the set of real numbers.
+Floating point numbers represent real numbers of the form
+\[ \pm (1 + m) 2^e, \]%
 where $m$, the \emph{mantissa}, is a fixed-width number in $[0, 1]$,
 and $e$, the \emph{exponent}, is a fixed-width signed
 integer\footnote{IEEE 754 floating point also represents a few special
   values: positive and negative \emph{infinity}, positive and negative
   \emph{zero}, \emph{not-a-number} error values, and \emph{denormal}
-  numbers of form $\pm m \times 2^{e_{\text{min}}}$.}.  For example,
-IEEE 754 double-precision floats are represented by a sign bit, a 52
-bit mantissa, and an 11 bit exponent.  Note that, to help prevent
-underflow and overflow, floating point numbers are distributed roughly
-exponentially, which must taken into account when sampling floating
-point values.
+  numbers of form $\pm m 2^{e_{\text{min}}}$.}.
+Floating point numbers come in a variety of precisions;
+  for example, IEEE 754 double-precision floats are represented by a sign bit,
+  a 52 bit mantissa, and an 11 bit exponent,
+  while single-precision floats are represented by a sign bit,
+  a 23 bit mantissa, and an 8 bit exponent.
+Note that, to help prevent underflow and overflow,
+  floating point numbers are distributed roughly exponentially;
+  this must taken into account when sampling floating point values.
 
 Floating point operations are executed under a \textit{rounding mode},
-a function from real numbers to floating-point numbers. Let $F(r)$
-denote the rounded floating point value of real number $r$ and $R(f)$
-denote the real number corresponding to the floating point value
-$f$. The rounding mode guarantees both $\F(\R(x)) = x$ and that
-$\R(\F(x))$ is ``close'' to $x$\footnote{Applications can choose
+  a function from real to floating-point numbers.
+Let $F(r)$ denote the rounded floating point value of real number $r$
+and $R(f)$ denote the real number represented by
+  the floating point value $f$.
+The rounding mode guarantees both $\F(\R(x)) = x$ and that
+  $\R(\F(x))$ is ``close'' to $x$\footnote{Applications can choose
   between either rounding up, down, or toward zero; or rounding to the
-  mathematically closer value, with ties breaking either toward the
+  mathematically closest value, with ties breaking either toward the
   value with a zero least significant bit, or away from zero}.
 
-Since a floating point value can only exactly represent a real number
-of the form $\pm(1 + m) \times 2^e$, the conversion $\F$ inherent in
-primitive arithmetic operations must introduce some error.  For real
-numbers neither too large nor too small---%
-that is, whose logarithm in base 2 is within the range $(-2^{N_e-1},
-2^{N_e-1} - 1)$---%
-this error is only due to insufficient precision in the mantissa.
-Thus, the relative error is on the order of $2^{-N_m}$ \todo{what is
-  relative error}.  We write $\F(x) = x + x\epsilon$, where $\epsilon$
-is of absolute value less than $2^{-N_m}$, and where applications of
-$\F$ to different inputs will result in different errors $\epsilon$.
-The addition $x + y$ of two floating point values $x$ and $y$
-thus has value $x + y + (x + y)\epsilon$.  Since $\epsilon$ is a very
-small quantity, this is normally very accurate.  However, because each
-application of $\F$ introduces a new error $\epsilon$, the error in a
-floating-point computation is non-compositional.
-
 \subsection{Error of primitive operations}
+
+Since a floating point value can only exactly represent
+  a real number of the form $\pm(1 + m) \times 2^e$,
+  the conversion $\F$ inherent in primitive arithmetic operations must introduce some error.
+For real numbers neither too large nor too small---%
+  that is, whose logarithm in base 2 is within the range
+  $(-2^{N_e-1}, 2^{N_e-1} - 1)$---%
+  this error is only due to insufficient precision in the mantissa.
+Thus, the error is approximately $2^{-N_m}$ times smaller
+  than the output itself.
+We write $\F(x) = x + x\epsilon$, where $\epsilon$
+  is of absolute value less than $2^{-N_m}$, and where applications of
+  $\F$ to different inputs will result in different errors $\epsilon$.
 
 Primitive arithmetic operators on floating point numbers such as
 addition and multiplication are guaranteed to produce accurate
 results.  For example, the floating point sum $x + y$ of floating
 point values $x$ and $y$ is guaranteed to be equal to the real-number
-sum of $x$ and $y$, rounded: $\F(\R(x) + \R(y))$.  Note that this
+sum of $x$ and $y$, rounded: $\F(\R(x) + \R(y))$.  This also
 guarantees that floating point addition is commutative and has
-inverses (since $0$ is exactly representable).  Operators such as
-exponentiation or the trigonometric functions are implemented by
-libraries, and do not provide such accuracy guarantees.  An
-implementation of a mathematical function $f(x_1, x_2, \dotsc)$
-usually guarantees that its result is among the $u$ closest floating
-point values to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
-$u$ is called the ``uncertainty in the last place'', and is typically
-less than 8; that is, a library implementation usually guarantees that
-all but the two or three least-significant bits are correct.
+inverses (since $0$ is exactly representable).  
+The addition $x + y$ of two floating point values $x$ and $y$
+  thus has value $x + y + (x + y)\epsilon$.
+Since $\epsilon$ is a very small quantity, this is normally very accurate.
+However, because each application of $\F$ introduces a new error $\epsilon$,
+  the error in a floating-point computation is non-compositional.
 
-\subsection{Compound error}
+\subsection{Accumulating error}
 
-Even though primitive floating-point operations are accurate, formulas
-that combine these operators can nonetheless exhibit arbitrarily bad
-error behavior.  For example, consider the expression $(x + 1.0)
-\ominus x$.  The addition on the left produces a value equal to $x + 1
-+ (x + 1)\epsilon_1$.  ($1.0$ is exactly representable, so $\F(1.0) =
-1$.)  Then the subtraction produces $1 + (x + 1) \epsilon_1 +
-\epsilon_2 + (x + 1) \epsilon_1 \epsilon_2$.  The terms $\epsilon_2$
-and $(x+1)\epsilon_1\epsilon_2$ are small compared to the true value
-$1$, but $(x + 1) \epsilon_1$ may not be.  Thus, for large values of
-$x$, the expression $(x \oplus 1) \ominus x$ may have very large
-error.  Depending on the rounding mode, it may equal $0$, or it might
-represent some relatively large quantity.
+Operators such as exponentiation or the trigonometric functions
+  are not computed by hardware
+  and must be implemented by libraries.
+Due to the table maker's dilemma~\cite{ensl03-table-maker},
+  these more complex functions cannot provide similar accuracy.
+Instead, an implementation of a mathematical function $f(x_1, x_2, \dotsc)$
+  typically guarantees that its result is among
+  the $u$ closest floating point values
+  to the exact result $\F(f(\R(x_1), \R(x_2), \dotsc)))$.
+$u$ is typically less than 8;
+  that is, a library implementation usually guarantees that
+  all but the two or three least-significant bits are correct.
 
-This same phenomenon also occurs with more complex formulas.  Consider
-$\sqrt{x + 1} - \sqrt{x}$: for values of $x$ greater than
-1, this expression has error proportional to $\sqrt{x} \epsilon$ and
-actual value proportional to $1 / \sqrt{x}$.  Thus, the relative
-error of such an expression grows with $x$.  Even simple expressions
-such as $\cos(x) - 1$ can be inaccurate---%
-$\cos(x) - 1$ has large error for values of $x$ near 0, since
-$\cos(x)$ is very close to $1$ for this input.  The quadratic
-formula \[\frac{-b + \sqrt{b^2 + 4 a c}}{2 a}\] suffers from similar
-problems when $a$ and $c$ are small, due to cancellation when
-computing $-b + \sqrt{b^2 + 4 a c}$.
+Even though primitive floating-point operations are largely accurate,
+  formulas that combine these operators
+  can nonetheless exhibit arbitrarily large inaccuracies.
+For example, consider the expression $(x + 1) - x$.
+The addition on the left produces $x + 1 + (x + 1)\epsilon_1$.
+($1.0$ is exactly representable, so $\F(1.0) = 1$.)
+Then the subtraction then produces
+$1 + (x + 1) \epsilon_1 + \epsilon_2 + (x + 1) \epsilon_1 \epsilon_2$.
+The terms $\epsilon_2$ and $(x+1)\epsilon_1\epsilon_2$
+  are small compared to the true value $1$,
+  but $(x + 1) \epsilon_1$ may not be if $x$ is very large.
+Thus, for large values of $x$, the expression $(x + 1) - x$
+  may have very large error.
+Depending on the rounding mode, it may equal $0$, or it might
+  represent some relatively large quantity.
+The same phenomenon occurs with real-world formulas,
+  such as the quadratic formula (see Section~\ref{sec:overview}).
 
 \subsection{Rearrangement}
 
-Programmers can rearrange computations to reduce error.  Such
-rearrangement often relies on identities true for real-number
-formulas, yet false on floating-point numbers.  For example, the
-identities $x - y = (x^2 - y^2) / (x + y)$ and $\sin(x)^2 + \cos(x)^2
-= 1$, both true of real values and false for floating point
-computation, allow converting $\cos x - 1$ to $- \sin(x)^2 / (1 + \cos
-x)$.  The latter expression is accurate over a greater range of
-floating point values.  The expression $\sqrt{x+1} - \sqrt{x}$ can be
-converted to $1 / (\sqrt{x+1} + \sqrt{x})$ by similar means.  In both
-cases, the resulting expression is more accurate because similar
-quantities are no longer subtracted; yet, both are equivalent to the
-original as real-number formulas.
+To compute formulas which combine primitive operators,
+  programmers must their rearrange computations
+  to avoid accumulating error.
+These rearrangements rely on identities which are
+  true for real-number formulas, yet false on floating-point numbers.
+For example, the identity $(x + y) + z = x + (y + z)$
+  is true of real numbers and false for floats;
+  applying it allows converting $(1 + x) - x$ into $1$,
+  which is exactly accurate.
 
 The necessary rewrites can be unintuitive.  William Kahan provides the
-example~\cite{} of computing $(e^x - 1) / x$.  For $x$ near $0$, $e^x$
-is close to $1$ and so cancellation occurs.  However, there is no
-obvious way to eliminate the cancellation without changing the
-real-number meaning of the expression.  The unintuitive trick is to
-rewriting the denominator from $x$ to $\log e^x$.  By correlating the
-error, the denominator to suffer from the same cancellation as the
-numerator; when the two are divided, the errors interfere and accuracy
-is improved.
+example~\cite{kahan-java-hurts} of computing $(e^x - 1) / x$.
+The unintuitive trick is to change the denominator from $x$ to $\log e^x$.
+Such changes can stymie backward error analysis
+  and similar numerical tools~\cite{kahan-java-hurts},
+  making them difficult to find even for experts.
 
 \end{document}
