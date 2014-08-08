@@ -171,31 +171,36 @@ evaluation is accurate.
 
 Two experiments evaluate \casio's regime inference.  The first is an
 end-to-end test, running \casio on its standard benchmarks but with
-regime inference turned off.  Comparing the results of \casio with and
+regime inference turned off.
+Comparing the results of \casio with and
 without regime inference measures the effectiveness of regime
-inference.  Regime inference adds branches to eight of the 29
+inference.
+The same sample points were used to make the results directly comparable.
+Regime inference adds branches to four of the 29
 benchmarks; Figure~\ref{fig:eval-regimes-e2e} shows \casio's accuracy
-and speed on these eight benchmarks, with and without regime
+and speed on these four benchmarks, with and without regime
 inference.  The results show that for these test cases, regime
-inference significantly improves the accuracy of \casio's results.
-However, it also makes the resulting programs slower.  Regime
-inference infers branches of the form $a_< < x_i < a_>$, for variables
-$x_i$.  Since points are selected randomly, these branches are
-impossible for the processor to predict, leading to the large
-performance cost.  Practical use may lead to the inferred branch being
-predictable; so, the performance cost of regime inference as displayed
-in Figure~\ref{fig:eval-regimes-e2e}, is a worst-case cost.
+inference makes a significant improvements to the program's accuracy.
+However, the added branches also make the resulting programs slower.
+Regime inference infers branches of the form $a_< < x_i < a_>$, with
+$x_i$ a program variable.
+Since points are selected randomly, these branches are
+impossible for the processor to predict;
+in practical use, where points are not randomly chosen,
+the overhead may be lower.
+Users may opt to disable regime inference if this performance cost is unacceptable.
 
-A second experiment measures regime inference in isolation.  An input
-point $p$ is chosen and regimes is asked to combine the simple
-candidate programs $sqrt(x)$, $sin(x)$, $cos(x)$, $log(x)$, $sqr(x)$,
+A second experiment measured regime inference in isolation.
+An input point $p$ is chosen and regimes is asked to combine the simple
+programs $sqrt(x)$, $sin(x)$, $cos(x)$, $log(x)$, $sqr(x)$,
 and $abs(x) + 10$, to most accurately compute $(\mathsf{if}\:x <
 p\:\mathsf{then}\:a\:\mathsf{else}\:b)$, for $a$ and $b$ chosen from
-the candidate programs.  Regime inference must infer a branch of the
+the same candidate programs.  Regime inference must infer a branch of the
 form $x < p'$, with the correct candidate programs on each side of
-this branch; then, the difference between the computed value $p'$ and
+this branch, to succeed.
+The difference between the computed value $p'$ and
 the ground truth $p$ measures regime inference's ability to accurately
-infer branch conditions.  This experiment was repeated 100 times.  In
+infer branch conditions.  This experiment was repeated 40 times.  In
 each case, regime inference inferred a branch of the correct form; the
 difference between $p$ and $p'$ varied between 0 and 1 bits of error.
 This suggests that regime inference infers branch conditions very
