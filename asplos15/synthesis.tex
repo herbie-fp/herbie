@@ -344,14 +344,14 @@ The process that automatically detects
   some peculiar behavior of the sampled points.
 To avoid overfitting and generating slow programs,
   \casio observes two constraints on the regimes it infers:
-  it infers no more than \nRegimes\ per input variable;
+  it infers no more than \nRegimesper input variable;
   and, it infers the existence of a regime
   only if it improves average accuracy by at least one bit.
 
 The simplest way to infer regimes would be to try
   to place a regime boundary between every set
-  of \nRegimes\ pairs of consecutive sample points.
-Unfortunately, with \nSample\ sample points,
+  of \nRegimes pairs of consecutive sample points.
+Unfortunately, with \nSample sample points,
   this brute-force approach would be incredibly expensive
   (there are nine trillion such sets of five pairs).
 Instead, \casio uses dynamic programming
