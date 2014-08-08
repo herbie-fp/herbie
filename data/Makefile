@@ -16,3 +16,4 @@ update:
 	$(MAKE) rect-d && cp rect-d.pdf ../asplos15/fig/eval-rect-d.pdf
 #(MAKE) overhead-f && cp overhead-f.pdf ../asplos15/fig/eval-overhead-f.pdf
 	$(MAKE) overhead-d && cp overhead-d.pdf ../asplos15/fig/eval-overhead-d.pdf
+	$(MAKE) regimes && cp regimes.pdf ../asplos15/fig/eval-regimes-e2e.pdf

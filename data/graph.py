@@ -368,6 +368,78 @@ def draw_improvement_rectangles(data, v_capt=None, title=None):
     end_picture()
 
 
+def regimes(title=None, v_capt=None):
+    left = [64.0 - x for x in read_improvement_data('noregimes.id.csv')]
+    other_left = [64.0 - x for x in read_improvement_data('regimes.id.csv')]
+    mid = [64.0 - x for x in read_improvement_data('noregimes.od.csv')]
+    right = [64.0 - x for x in read_improvement_data('regimes.od.csv')]
+
+    true_left = [(x+y)/2 for (x,y) in zip(left,other_left)]
+
+    
+    n = len(true_left)
+    assert len(mid) == n and len(right) == n
+
+
+    data1 = []
+    data2 = []
+
+    for i in range(n):
+        l = true_left[i]
+        m = mid[i]
+        r = right[i]
+
+        if abs(r - m) > 1:
+            data1.append((l, m))
+            data2.append((m, r))
+
+
+    hi = max(max([p[1] for p in data1]), max([p[1] for p in data2]))
+
+    n = len(data1)
+    assert n == len(data2)
+
+    def to_plot_space(p):
+        x = PLOT_X * (float(p[0]) / hi)
+        y = PLOT_Y * (float(p[1]) / (n + 1))
+        return (x,y)
+
+    begin_picture()
+    for i in range(n):
+        l = data1[i][0]
+        r = data1[i][1]
+
+        if abs(l - r) < 0.5:
+            pass
+            #draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
+        elif l <= r:
+            draw_rect(to_plot_space((l, i + 0.75)),
+                      to_plot_space((r, i + 1.25)))
+        else:
+            draw_rect(to_plot_space((r, i + 0.75)),
+                      to_plot_space((l, i + 1.25)), "fill=red")
+
+        l = data2[i][0]
+        r = data2[i][1]
+
+        if abs(l - r) < 0.5:
+            pass
+            #draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
+        elif l <= r:
+            draw_rect(to_plot_space((l, i + 0.75)),
+                      to_plot_space((r, i + 1.25)))
+        else:
+            draw_rect(to_plot_space((r, i + 0.75)),
+                      to_plot_space((l, i + 1.25)), "fill=red")
+
+
+    draw_axes(h_capt="Bits Correct",
+              v_capt=v_capt,
+              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, 65, 8)],
+              v_axis=False,
+              title=title
+    )
+    end_picture()
 
 
 def read_simple_data_file(name):
@@ -530,6 +602,14 @@ if __name__ == '__main__':
             data.append(y / x)
 
         summary(data)
+    elif sys.argv[1] == "regimes":
+        begin_doc()
+        regimes()
+        end_doc()
+
+        
+
+        
     else:
         print "unknown option: " + sys.argv[1]
         usage()

@@ -169,6 +169,19 @@ evaluation is accurate.
 
 \subsection{Regime Inference} \label{sec:eval-regimes}
 
+\begin{figure}
+\includegraphics[width=0.9\columnwidth]{fig/eval-regimes-e2e.pdf}
+\caption{Evaluation of regimes inference. For each of the four
+  programs for which regimes improve accuracy significantly, a
+  rectangle is drawn. The left edge of the rectangle is the unimproved
+  program. The middle line, if any, is \casio's output without
+  regimes. The right line is \casio's output with regimes. If no
+  middle line is visible, \casio without regimes was not able to
+  improve the program.}
+\label{fig:eval-regimes-e2e}
+\end{figure}
+
+
 Two experiments evaluate \casio's regime inference.  The first is an
 end-to-end test, running \casio on its standard benchmarks but with
 regime inference turned off.
