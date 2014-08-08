@@ -204,18 +204,18 @@ predictable; so, the performance cost of regime inference as displayed
 in Figure~\ref{fig:eval-regimes-e2e}, is a worst-case cost.
 
 A second experiment measures regime inference in isolation.  An input
-point $p$ is chosen and regimes is asked to combine the constant
-candidate programs $10$, $20$, $30$, $40$, $50$, and $60$ to most
-accurately compute $(\mathsf{if}\:x < p\:\mathsf{then}\:a\:\mathsf{else}\:b)$.
-\todo{Actually, we use different functions} Regime inference must
-infer a branch of the form $x < p'$, with the correct candidate
-programs on each side of this branch; then, the difference between the
-computed value $p'$ and the ground truth $p$ measures regime
-inference's ability to accurately infer branch conditions.  This
-experiment was repeated 100 times.  In each case, regime inference
-inferred a branch of the correct form; the difference between $p$ and
-$p'$ averages \todo{N}\% (max \todo{N}\%, min \todo{N}\%).  This
-suggests that regime inference infers branch conditions very
+point $p$ is chosen and regimes is asked to combine the simple
+candidate programs $sqrt(x)$, $sin(x)$, $cos(x)$, $log(x)$, $sqr(x)$,
+and $abs(x) + 10$, to most accurately compute $(\mathsf{if}\:x <
+p\:\mathsf{then}\:a\:\mathsf{else}\:b)$, for $a$ and $b$ chosen from
+the candidate programs.  Regime inference must infer a branch of the
+form $x < p'$, with the correct candidate programs on each side of
+this branch; then, the difference between the computed value $p'$ and
+the ground truth $p$ measures regime inference's ability to accurately
+infer branch conditions.  This experiment was repeated 100 times.  In
+each case, regime inference inferred a branch of the correct form; the
+difference between $p$ and $p'$ varied between 0 and 1 bits of error.
+This suggests that regime inference infers branch conditions very
 accurately.
 
 \subsection{Wider applicability}
