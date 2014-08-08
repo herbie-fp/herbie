@@ -1,8 +1,11 @@
 
 .PHONY: report publish link clean loc
 
+all:
+	$(MAKE) link
+	$(MAKE) report
+
 report:
-	rm -r graphs/*
 	racket reports/make-report.rkt bench/hamming/
 
 publish:
@@ -15,12 +18,10 @@ link:
 cost:
 	$(CC) -O0 cost.c -lm -o cost
 
-
 clean:
 	rm -f index.html
 	rm -f cost
 	rm -rf graphs/
-	rm doc/tr-14wi.pdf
 
 loc:
 	find reports/ casio/ -type f -exec cat {} \; | wc -l
