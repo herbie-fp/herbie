@@ -79,7 +79,7 @@
 			 #:key rule-cost-improvement))
 
 (define (alt-with-prev prev altn)
-  (alt (alt-program altn) (alt-errors altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
+  (alt (alt-program altn) (alt-cost altn) (alt-change altn) prev (alt-cycles altn)))
 
 (define (get-rule name)
   (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)])
