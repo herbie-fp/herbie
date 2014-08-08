@@ -129,7 +129,7 @@ After the main loop completes,
   &\> \> e, t' \ceq \|pick|\;t \\
   &\> \> es \ceq \|map|\:\|simplify|\:(\|map|\:\|rr|\:(\|focus|\;e)) \\
   &\> \> t \ceq t' \cup es \\
-  &\> \|regimes|\:(\cup\{\|correlate|\;e \I e \in t \})
+  &\> \!return!\:\|regimes|\:(\cup\{\|correlate|\;e \I e \in t \})
 \end{align*}
 \end{footnotesize}
 \caption{The \casio main loop.
@@ -369,7 +369,37 @@ Once \casio has determined that branch should be placed
   it uses a binary search on the chosen variable to 
   find the exact value location of the regime boundary.
 
-\todo{Figure fig:regimes}
+\begin{figure}
+\begin{footnotesize}
+\begin{align*}
+  &\!def!\:\|regimes|(\{p_1, \dotsc, p_c\}) \ceq \\
+  &\> N \ceq \text{Sampled points} \\
+  &\> r_{t,0} \ceq p_{i_1}, \text{ where } p_{i_1} \text{ best on } [0, x_t] \\
+  &\> \varepsilon_{t,0} \ceq \|avgerror|(r_{t,0}, [0, t]) \\
+  &\> \!for!\:k \in \{1, \dotsc, \nRegimes \} \\
+  &\> \> r_{t,k} \ceq \min_s \{ (r_{s,k}, p_k) | \\
+  &\> \> \> p_k \text{ best on } [x_s, x_t], \\
+  &\> \> \> r_{s,k} = [r_{s',k-1}, p_{k-1}], \\
+  &\> \> \> \left(\sum_{i = s}^t \|error|(p_k, i)\right) >
+  N + \left(\sum_{i = s}^t \|error|(p_{k - 1}, i)\right) \} \\
+  &\> r_{t,\star} \{ (r_{t,\nRegimes}, p_k) | p_k \text{ best on } [x_t, \infty] \} \\
+  &\> \!return!\:r_{t,\star}, \text{ for } r_{t, \star} \text{ best of all } t
+\end{align*}
+\end{footnotesize}
+\caption{A dynamic programming algorithm for regime inference.
+  For $k \in \{0,\dotsc,\nRegimes\}$ and $t \in \{1, \dotsc, N\}$,
+    the best way to split $(-\infty, x_t]$ into up to $k$ regimes is computed
+    by considering, for all $s$,
+    the best way of splitting $(-\infty, x_s]$ into regimes
+    along with the best program on $[x_s, x_t]$.
+  The best way of splitting $(-\infty, \infty)$ into regimes
+    is the best way, over all $t$, of splitting $(-\infty, x_t)$ into regimes
+    plus the best possible program on $(x_t, \infty)$.
+  After the regimes are found,
+    each boundary is improved by a binary-search
+    between the two sampled points that it lies between.}
+\label{alg:main}
+\end{figure}
 
 \subsection{Candidate programs table}
 
@@ -408,7 +438,7 @@ This assumption is often true in practice;
   but instead to introduce error into a different expression,
   so that the errors cancel.
 A simple example of this approach,
-  presented by William Kahan \todo{kahan-java-hurts},
+  presented by William Kahan~\cite{kahan-java-hurts},
   is the formula $(e^x - 1) / x$.
 This formula is inaccurate for $x$ near $0$,
   because of rounding error when computing $e^x$.
