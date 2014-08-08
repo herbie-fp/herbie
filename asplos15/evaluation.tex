@@ -230,7 +230,7 @@ demonstrated success in improving precision in these more-difficult
 cases.
 
 A colleague of ours had difficulties with the numerical precision of a
-estimator in a machine learning task.  He needed to compute the
+MCMC update rule in a clustering algorithm.  He needed to compute the
 expression
 \begin{align*}
 \mathsf{ans} &= \frac{p(e_-,e_+|s)}{p(e_-,e_+|t)} \\
@@ -245,20 +245,19 @@ our colleague manually manipulated the expression into a form that
 seemed not to cause similar problems; our estimates suggest that this
 improved variant had ten bits of average error.
 
-Upon hearing of his troubles, we fed the original, simple
-implementation to \casio.  \casio produced a program with four bits
-average error:
+Upon hearing of his troubles, we fed the original, naive
+implementation to \casio.
+\casio produced a program with four bits average error:
 \begin{equation*}
   \operatorname{exp}\left(e_+\ln{\frac{1+e^{-t}}{1+e^{-s}}} +
      e_-\ln{\frac{1-\frac{1}{1+e^{-s}}}
                  {1-\frac{1}{1+e^{-t}}}}\right)
 \end{equation*}
 \casio obviated the need for manual algebraic manipulation, and
-produced superior results with no manual steps.  The low-error program
-that \casio produced was of a complexity level such that human
+produced superior results with no manual steps.
+The low-error program that \casio produced was so complex that human
 analysts would be unlikely to reproduce the result.  Furthermore, our
-attempts to simplify the program into a form more likely to be found
-by human analysts have only been able to do so by greatly increasing
+attempts to simplify the program into a more understandable form have only been able to do so by greatly increasing
 its error.  By properly targetting its search, \casio is able to
 consider a greater number of viable alternatives than human analysts
 are able to, and is capable of producing better results.
