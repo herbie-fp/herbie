@@ -1,0 +1,88 @@
+char *name = "NMSE example 3.1";
+om ,    2.24973e+09,              0,              0
+om ,    2.24973e+09,              0,              0
+char *name = "NMSE problem 3.3.4";
+om ,    1.25168e+11,         58.442,        44.5176
+om ,    1.25168e+11,         58.442,        44.5176
+char *name = "NMSE problem 3.3.5";
+om ,    1.32118e+11,              1,    0.000454589
+om ,    1.32118e+11,              1,    0.000454589
+char *name = "NMSE problem 3.3.6";
+om ,    2.73672e+10,              0,              0
+om ,    2.73672e+10,              0,              0
+char *name = "NMSE problem 3.3.7";
+om ,    6.50442e+09,              0,              0
+om ,    6.50442e+09,              0,              0
+char *name = "NMSE problem 3.4.1";
+om ,    1.58769e+10,              0,              0
+om ,    1.58769e+10,              0,              0
+char *name = "NMSE section 3.11";
+om ,    1.10623e+10,              0,              0
+om ,    1.10623e+10,              0,              0
+char *name = "NMSE section 3.5";
+om ,    1.16178e+10,              0,              0
+om ,    1.16178e+10,              0,              0
+char *name = "NMSE example 3.10";
+om ,    4.59703e+10,              0,              0
+om ,    4.59703e+10,              0,              0
+char *name = "NMSE example 3.7";
+om ,    7.47449e+09,              0,              0
+om ,    7.47449e+09,              0,              0
+char *name = "NMSE example 3.8";
+om ,    5.89245e+10,              0,              0
+om ,    5.89245e+10,              0,              0
+char *name = "NMSE example 3.3";
+om ,    6.48952e+10,              0,              0
+om ,    6.48952e+10,              0,              0
+char *name = "NMSE example 3.9";
+om ,    2.02436e+11,              0,              0
+om ,    2.02436e+11,              0,              0
+char *name = "NMSE problem 3.2.1";
+om ,    8.46686e+09,              0,              0
+om ,    8.46686e+09,              0,              0
+char *name = "NMSE problem 3.2.1";
+om ,    6.76521e+09,              0,              0
+om ,    6.76521e+09,              0,              0
+char *name = "NMSE problem 3.4.2";
+om ,     2.9187e+10,              0,              0
+om ,     2.9187e+10,              0,              0
+char *name = "NMSE problem 3.4.3";
+om ,    4.63557e+10,              0,              0
+om ,    4.63557e+10,              0,              0
+char *name = "NMSE problem 3.4.4";
+om ,    1.35868e+10,              0,              0
+om ,    1.35868e+10,              0,              0
+char *name = "NMSE problem 3.4.5";
+om ,    3.07769e+10,              0,              0
+om ,    3.07769e+10,              0,              0
+char *name = "NMSE problem 3.4.6";
+om ,    5.57398e+10,              0,              0
+om ,    5.57398e+10,              0,              0
+char *name = "NMSE example 3.4";
+om ,    4.58444e+10,              0,              0
+om ,    4.58444e+10,              0,              0
+char *name = "NMSE example 3.5";
+om ,    3.44341e+10,              0,              0
+om ,    3.44341e+10,              0,              0
+char *name = "NMSE example 3.6";
+om ,     3.1055e+09,              0,              0
+om ,     3.1055e+09,              0,              0
+char *name = "NMSE p42";
+om ,    7.37428e+09,              0,              0
+om ,    7.37428e+09,              0,              0
+char *name = "NMSE p42";
+om ,    6.83152e+09,        5.61471,    1.21024e-05
+om ,    6.83152e+09,        5.61471,    1.21024e-05
+char *name = "NMSE problem 3.3.1";
+om ,    2.12967e+09,              0,              0
+om ,    2.12967e+09,              0,              0
+char *name = "NMSE problem 3.3.2";
+om ,    5.46615e+10,              0,              0
+om ,    5.46615e+10,              0,              0
+char *name = "NMSE problem 3.3.3";
+om ,    3.07144e+09,              0,              0
+om ,    3.07144e+09,              0,              0
+
+#include <stdbool.h>
+char *name = "NMSE problem 3.3.5";
+#include <mpfr.h>
