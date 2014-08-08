@@ -6,11 +6,10 @@
 
 We evaluate \casio on benchmarks drawn from Hamming's \emph{Numerical
   Methods for Scientists and Engineers}~\cite{book87-nmse}, a standard
-numerical analysis textbook.  Our evaluation includes
-\jdiff{every}{all twenty-eight} worked example\jdiff{}{s} and
-problem\jdiff{}{s}\jdiff{, twenty-eight in total,}{} from Chapter~3,
-which discusses manually rearranging formulas to improve accuracy, the
-same task that \casio automates.
+numerical analysis textbook.  Our evaluation includes all twenty-eight
+worked examples and problems from Chapter~3, which discusses manually
+rearranging formulas to improve accuracy, the same task that \casio
+automates.
 
 All experiments were carried out on an Intel Core~i5-3317U with 4GB
 RAM running Fedora Linux 19, PLT Racket 5.3.6, and GCC 4.9.1.  When
@@ -52,16 +51,13 @@ case studies using \casio.
 
 \para{Accuracy} Our results for both 32-bit single precision floats
 and 64-bit double precision floats are shown in
-Figure~\ref{fig:eval-rect} .  \jdiff{These results show that \casio
-  can successfully improve many of the examples from NMSE.}{}
-\todo{more discussion of actual data}. Of the eleven benchmarks that \casio
-does not improve, eight have solutions which are not real-equivalent
-to the input \jdiff{(Taylor expansions are used to recover precision near 0).
-These benchmarks are impossible for \casio to improve without
-supporting unsound rewrites.}{because they use Taylor expansions to recover precision
-near 0. While \casio cannot currently improve these benchmarks, adding
-support for unsound rewrites such as Taylor expansions is an
-interesting direction for future work.}
+Figure~\ref{fig:eval-rect}. \todo{more discussion of actual data}. Of
+the eleven benchmarks that \casio does not improve, eight have
+solutions which are not real-equivalent to the input because they use
+Taylor expansions to recover precision near 0. While \casio cannot
+currently improve these benchmarks, adding support for unsound
+rewrites such as Taylor expansions is an interesting direction for
+future work.
 
 \begin{figure*}
   \begin{tabular}{cc}
@@ -78,12 +74,10 @@ interesting direction for future work.}
   \label{fig:eval-overhead}
 \end{figure*}
 
-\para{Overhead} We also measured performance overhead.  \jdiff{The timing
-measurements demonstrate that \casio does not significantly hurt the
-speed of the original program.}{} \casio incurs an average overhead of
-\todo{N}\%.  In \todo{N} of the 29 benchmarks, \casio's error with
-single precision floating point is greater than the original program's
-accuracy with double precision.
+\para{Overhead} We also measured performance overhead. \casio incurs
+an average overhead of \todo{N}\%.  In \todo{N} of the 29 benchmarks,
+\casio's error with single precision floating point is greater than
+the original program's accuracy with double precision.
 
 \begin{figure}
 \includegraphics[width=0.9\columnwidth]{fig/eval-casio-time.pdf}
@@ -160,7 +154,7 @@ changed to producing relatively accurate results.
   horizontal axis shows the sample size. The vertical axis shows
   standard error of the mean of the error estimates produced by the
   one hundred runs. By default, \casio runs the search with a sample
-  size of 500, which has a standard error of approximately 0.1.}
+  size of 1024, which has a standard error of approximately 0.1.}
 
 \label{fig:eval-err}
 \end{figure}
