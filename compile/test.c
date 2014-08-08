@@ -118,7 +118,7 @@ float *get_random(int nums) {
                 out[i] = EVAL(f_##type);                                \
         }                                                               \
         clock_gettime(CLOCK_MONOTONIC, &end);                           \
-        rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec) - zero;
+        rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
 
 #if NARGS == 1
 #define EVAL(f) f(rands[i])
