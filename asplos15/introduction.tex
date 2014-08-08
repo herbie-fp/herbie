@@ -4,7 +4,6 @@
 \section{Introduction}
 \label{sec:introduction}
 
-\note{jrw moved this paragraph up!}
 Floating point inaccuracy is notoriously difficult to detect and
 debug~\cite{berkeley00-needle-like, kahan-java-hurts}.  Rounding
 errors have lead to irreproducibility and even retraction of
@@ -12,20 +11,14 @@ scientific articles~\cite{num-issues-in-stat, num-replication,
   stat-robustness}, legal regulations in finance~\cite{euro-rounding},
 distorted stock market indices~\cite{distort-stock,
   wall-street-distort-stock}, and skewed election
-results~\cite{round-elections}.
-Many applications\jdiff{}{, from physical simulators to statistical
-  packages,} \jdiff{that}{} depend on floating point arithmetic
-\jdiff{must}{to} produce accurate results\jdiff{, including fluid
-  dynamics simulators and statistical packages used across the
-  sciences}{}.  These applications typically \jdiff{rely on}{use}
-floating point hardware to efficiently approximate computations over
-real numbers.  \jdiff{Unfortunately, such approximations}{While such
-  approximations make these computations feasible, they also}
-introduce rounding error\jdiff{}{,} which can lead to unacceptable
-\textit{accuracy}, \jdiff{where floating point and ideal real number
-  results differ substantially}{that is, the approximate results may
-  differ from the ideal real number results by an unacceptable
-  margin}.
+results~\cite{round-elections}.  Many applications that must produce
+accurate results, including physical simulators and statistical
+packages, depend on floating point hardware to efficiently approximate
+computations over real numbers.  While such approximations make these
+computations feasible, they also introduce rounding error, which can
+lead to unacceptable \textit{accuracy}, that is, the approximate
+results may differ from the ideal real number results by an
+unacceptable margin.
 
 % The efficiency provided by hardware implemented floating point
 % enables these applications to effectively process large datasets.
@@ -33,11 +26,11 @@ introduce rounding error\jdiff{}{,} which can lead to unacceptable
 In practice, developers often respond to rounding error by increasing
 \textit{precision}, the size of the floating point representation.
 For example, a developer might try to shift error to lower order bits
-by replacing all 32-bit~floats with 64-bit~floats\jdiff{}{ that is,
-  double precision floats}.  Unfortunately, even the largest
-hardware-supported precision may still exhibit unacceptable rounding
-error, and further increases to precision require simulating arbitrary
-precision floating point in software, incurring orders of magnitude
+by replacing all 32-bit, single precision floats with 64-bit, double
+precision floats.  Unfortunately, even the largest hardware-supported
+precision may still exhibit unacceptable rounding error, and further
+increases to precision require simulating arbitrary precision floating
+point in software, incurring orders of magnitude
 slowdown\footnote{Even arbitrary precision floating point can exhibit
   rounding error, and so the developer must still carefully select a
   precision that provides sufficient accuracy.}.
@@ -58,25 +51,18 @@ As a first step toward addressing these challenges, we introduce
 \casio, a technique for automatically mitigating rounding error in
 floating point computations.  \casio searches for error-reducing
 program transformations by combining three novel techniques.  First,
-\casio \jdiff{estimates}{determines} which operations are responsible
-for rounding error by sampling floating point inputs and comparing the
-results of intermediate operations against accurate results computed
-using arbitrary precision floating point.  Second, \casio applies
-\jdiff{various rewrites based on the error's source, measures their
-  individual effects on accuracy, and chooses a subset of program
-  variants to continue improving}{a database of rewrite rules to the
-  error's source to produce program variants that are evaluated to
-  determine which variants have higher accuracy than the original
-  program}. Third, \casio detects \jdiff{input regimes where error
-  behavior changes and combines multiple program variants to reduce
-  overall error}{when two or more program variants have complementary
-  error behavior on different parts of the input space and combines
-  these programs to improve overall accuracy}.
-
-\jdiff{By combining these techniques,}{Thus} \casio improves
-accuracy automatically, without requiring the programmer to learn the
-details of floating point arithmetic or manually rearrange
-computations.
+\casio determines which operations are responsible for rounding error
+by sampling floating point inputs and comparing the results of
+intermediate operations against accurate results computed using
+arbitrary precision floating point.  Second, \casio applies a database
+of rewrite rules to the error's source to produce program variants
+that are evaluated to determine which variants have higher accuracy
+than the original program. Third, \casio detects when two or more
+program variants have complementary error behavior on different parts
+of the input space and combines these programs to improve overall
+accuracy. Thus \casio improves accuracy automatically, without
+requiring the programmer to learn the details of floating point
+arithmetic or manually rearrange computations.
 
 We evaluate \casio on examples drawn from a classic numerical methods
 textbook and consider its broader applicability to floating point
@@ -90,23 +76,36 @@ in machine learning who were able to significantly reduce rounding
 error that arose when computing probabilities in a clustering
 algorithm.
 
-\note{jrw thinks this summary section should be struck, but then the
-  transition into the outline is awkward.} In summary, \casio
-contributes three novel techniques to automatically improve floating
-point accuracy:
-\begin{enumerate}
-\item A goal directed search for accuracy-improving program
-  transformations, guided by techniques that estimate rounding error
-  and its sources;
-\item A technique that iteratively applies local, error-specific
-  rewrites, causing traditional error-reducing program transformations
-  to fall out naturally;
-\item Approaches to both detecting regimes where error behavior
-  changes and also combining multiple program variants to reduce
-  overall error.
-\end{enumerate}
+\medskip
 
-The rest of the paper is organized as follows.  \Cref{sec:background}
+\noindent The contributions of this paper include:
+\begin{itemize}
+\item The first automated approach to improving floating accuracy by
+  rearranging computations;
+\item A definition of \textit{real-equivalence} which provides
+  correctness criteria for accuracy-improving transformations;
+\item A heuristic search for accuracy-improving program
+  transformations whose sampling-based approach relies on
+  real-equivalence to avoid overfitting.
+\end{itemize}
+
+% In summary, \casio contributes three novel techniques to automatically
+% improve floating point accuracy:
+% \begin{itemize}
+% \item A goal directed search for accuracy-improving program
+%   transformations, guided by techniques that estimate rounding error
+%   and its sources;
+% \item A technique that iteratively applies local, error-specific
+%   rewrites, causing traditional error-reducing program transformations
+%   to fall out naturally;
+% \item Approaches to both detecting regimes where error behavior
+%   changes and also combining multiple program variants to reduce
+%   overall error.
+% \end{itemize}
+
+\medskip
+
+\noindent The rest of the paper is organized as follows.  \Cref{sec:background}
 provides a brief background on floating point arithmetic.
 \Cref{sec:overview} illustrates \casio on a representative example and
 describes the high level \casio workflow.  \Cref{sec:synthesis}
