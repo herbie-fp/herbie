@@ -325,15 +325,21 @@
 		[rel-canon-changes (drop-change-location-items canon-changes (length loc))]
 		[expr* (changes-apply rel-canon-changes expr)]
 		[inner-var (car (s-term-vars (caar sub-term-lsts)))])
-	   (cond [(matches? `(expt ,a 1) expr*)
+	   (cond [(matches? `(expt (+ ,a ,b) 1) expr*)
+		  (values (append canon-changes
+				  (list (let ([rl (get-rule 'unexpt1)])
+					  (change rl loc `((a . ,(cadr expr*)))))))
+			  (map (curry drop-term-loc (length loc) 2)
+			       (s-var-inner-terms inner-var)))]
+		 [(matches? `(expt ,a 1) expr*)
 		  (values (append canon-changes
 				  (list (let ([rl (get-rule 'unexpt1)])
 					  (change rl loc `((a . ,(cadr expr*)))))))
 			  (map (curry drop-term-loc (length loc) 1)
-				   (map (λ (t) (s-term 1 (map (λ (v) (s-var (s-var-var v) 1 (s-var-loc v) (s-var-inner-terms v)))
-							      (s-term-vars t))
-						       (s-term-loc t)))
-					(car sub-term-lsts))))]
+			       (map (λ (t) (s-term 1 (map (λ (v) (s-var (s-var-var v) 1 (s-var-loc v) (s-var-inner-terms v)))
+							  (s-term-vars t))
+						   (s-term-loc t)))
+				    (car sub-term-lsts))))]
 		 [(matches? `(expt (expt ,a ,b) ,c) expr*)
 		  (values '()
 			  (list (s-term 1 (list (s-var (cadr expr) pow
