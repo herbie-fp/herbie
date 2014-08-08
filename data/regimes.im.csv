@@ -1,57 +1,28 @@
-#include <mpfr.h>
-im  ,    1.64365e+09,              0,              0
-#include <mpfr.h>
-im  ,    7.22465e+10,              0,              0
-#include <mpfr.h>
-im  ,    1.95451e+10,              0,              0
-#include <mpfr.h>
-im  ,    3.17221e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.02044e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.57584e+10,              0,              0
-#include <mpfr.h>
-im  ,    1.00953e+10,              0,              0
-#include <mpfr.h>
-im  ,    8.81335e+09,              0,              0
-#include <mpfr.h>
-im  ,    3.88719e+10,              0,              0
-#include <mpfr.h>
-im  ,    6.08748e+09,              0,              0
-#include <mpfr.h>
-im  ,    3.60875e+10,              0,              0
-#include <mpfr.h>
-im  ,     3.5564e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.91304e+10,              0,              0
-#include <mpfr.h>
-im  ,    6.23027e+09,              0,              0
-#include <mpfr.h>
-im  ,    5.55526e+09,              0,              0
-#include <mpfr.h>
-im  ,    2.60375e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.01185e+10,              0,              0
-#include <mpfr.h>
-im  ,    1.43938e+10,              0,              0
-#include <mpfr.h>
-im  ,    4.59261e+10,              0,              0
-#include <mpfr.h>
-im  ,    6.35031e+10,              0,              0
-#include <mpfr.h>
-im  ,    4.31112e+10,              0,              0
-#include <mpfr.h>
-im  ,    6.59689e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.82496e+09,              0,              0
-#include <mpfr.h>
-im  ,    6.94159e+09,              0,              0
-#include <mpfr.h>
-im  ,    4.68838e+09,              0,              0
-#include <mpfr.h>
-im  ,    2.11941e+09,              0,              0
-#include <mpfr.h>
-im  ,    3.30577e+10,              0,              0
-#include <mpfr.h>
-im  ,    2.20447e+09,              0,              0
-#include <mpfr.h>
+im  ,    1.48453e+09,              0,              0
+im  ,    6.34452e+10,              0,              0
+im  ,    2.85161e+10,              0,              0
+im  ,    3.33975e+10,              0,              0
+im  ,     1.9026e+10,              0,              0
+im  ,    1.96556e+10,              0,              0
+im  ,    1.02726e+10,              0,              0
+im  ,     8.3121e+09,              0,              0
+im  ,    3.50791e+10,              0,              0
+im  ,    9.61193e+09,              0,              0
+im  ,    3.44965e+10,              0,              0
+im  ,    3.12542e+10,              0,              0
+im  ,     2.8871e+10,              0,              0
+im  ,    5.86785e+09,              0,              0
+im  ,    7.61619e+09,              0,              0
+im  ,    2.73541e+10,              0,              0
+im  ,     2.2091e+10,              0,              0
+im  ,    1.49283e+10,              0,              0
+im  ,    4.02006e+10,              0,              0
+im  ,    8.20367e+10,              0,              0
+im  ,    3.83253e+10,              0,              0
+im  ,    5.58106e+10,              0,              0
+im  ,    1.99385e+09,              0,              0
+im  ,    6.87296e+09,              0,              0
+im  ,    6.99781e+09,              0,              0
+im  ,    1.38103e+09,              0,              0
+im  ,    3.01458e+10,              0,              0
+im  ,    3.99875e+09,              0,              0
