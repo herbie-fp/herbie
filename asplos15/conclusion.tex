@@ -4,9 +4,41 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Furthermore, the \casio infrastructure provides a foundation for
-others to build upon and explore alternate techniques to mitigate
-rounding error, improve numerical stability, and develop interactive
-numerical tools.
+Approximations of real computations through floating point hardware
+  are necessary in scientific computing simulations, data analysis,
+  and a variety of other applications used by scientists,
+  engineers, and mathmeticians.
+These approximations, however, accumulate rounding error,
+  and can produce wholly inaccurate results.
+While increasing precision can provide additional accuracy to a point,
+  slow software-simulated arbitrary precision floating point
+  was often the only method available to developers to increase accuracy
+  to the desired level,
+  unless they happen to be deeply knowledgable in floating point behavior,
+  and numerical methods techniques to deal with it.
+
+Through \casio, developers can now easily improve the accuracy
+  of their floating point calculations
+  without any special knowledge of the intricacies of floating point.
+\casio automatically improve the accuracy of its input
+  by searching for real-equivilent, error reduced implementations,
+  through estimation of rounding error and its sources,
+  and analysis of complementary implementations across the input space.
+\casio is often able to significantly improve
+  benchmarks taken from Numerical Methods for Scientists and Engineers,
+  as well as real world formulas.
+
+\casio is the first tool
+  which can improve the accuracy of floating point programs
+  by rearranging their computations
+  without requiring input from a numerical methods expert.
+\casio also defines the first correctness criteria for
+  this class of transformation,
+  and guides it's search through a sampling based approach.
+Furthermore, the \casio infrastructure provides
+  a foundation for others to build upon
+  and explore alternate techniques to mitigate rounding error,
+  improve numerical stability,
+  and develop interactive numerical tools.
 
 \end{document}
