@@ -208,7 +208,7 @@
 
 	 (when (not (directory-exists? log-directory))
            (make-directory log-directory))
-	 (let ([filename (format "~a/~a#~a.log" log-directory worker-id (current-seconds))])
+	 (let ([filename (format "~a/~a-~a.log" log-directory worker-id (current-seconds))])
            (*debug* (open-output-file filename #:exists 'replace)))
 
 	 (set! *seed* vec)
