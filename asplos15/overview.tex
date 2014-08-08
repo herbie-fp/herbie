@@ -81,8 +81,8 @@ Improving the accuracy of this formula
   which likely need transformation.
 The inaccuracy arises from the subtraction $-b - \sqrt{b^2 - 4*a*c}$:
   for fairly small values of $a$ and $c$,
-  $\sqrt{b^2 - 4*a*c}$ is approximately equal to $\sqrt{b^2} \mapsto \abs{b}$
-  and for negative $b$, $\abs{b} = -b$;
+  $\sqrt{b^2 - 4*a*c}$ is approximately equal to $\sqrt{b^2} \mapsto |b|$
+  and for negative $b$, $|b| = -b$;
   therefore, for negative $b$ and small values of $a$ and $c$
   the two operands are approximately equal,
   leading to cancellation error.
