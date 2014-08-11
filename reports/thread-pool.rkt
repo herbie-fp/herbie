@@ -19,7 +19,7 @@
 
 (struct test-result
   (test time bits
-   start-alt end-alt points exacts
+   start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error))
 (struct test-failure (test exn time))
 (struct test-timeout (test) #:prefab)
@@ -41,9 +41,8 @@
           (list (car tb) (srcloc->string (cdr tb))))))
 
 (define (get-test-result test iters)
-  (current-pseudo-random-generator
-   (vector->pseudo-random-generator
-    *seed*))
+  (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
+
   (define (compute-result _)
     (let*-values ([(orig) (make-prog test)]
 		  [(point-preparer) ((flag 'evaluate 'exponent-points)
@@ -73,6 +72,8 @@
              (test-result test (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)
                           start end points exacts
+                          (errors (alt-program start) points exacts)
+                          (errors (alt-program end) points exacts)
                           newpoints newexacts
                           (errors (alt-program start) newpoints newexacts)
                           (errors (alt-program end) newpoints newexacts)
@@ -90,6 +91,8 @@
                 ,(marshal-alt (test-result-end-alt tr))
                 ,(test-result-points tr)
                 ,(test-result-exacts tr)
+                ,(test-result-start-est-error tr)
+                ,(test-result-end-est-error tr)
                 ,(test-result-newpoints tr)
                 ,(test-result-newexacts tr)
                 ,(test-result-start-error tr)
@@ -98,9 +101,9 @@
 
 (define (unmarshal-test-result tr*)
   (match tr*
-    [`(test-result ,t ,time ,bits ,start* ,end* ,pts ,exs ,pts* ,exs* ,startE ,endE ,targetE)
+    [`(test-result ,t ,time ,bits ,start* ,end* ,pts ,exs ,estartE ,eendE ,pts* ,exs* ,startE ,endE ,targetE)
      (test-result t time bits (unmarshal-alt start*) (unmarshal-alt end*) pts exs
-                  pts* exs* startE endE targetE)]))
+                  estartE eendE pts* exs* startE endE targetE)]))
 
 (define (marshal-test-failure tf)
   `(test-failure ,(test-failure-test tf)
@@ -131,6 +134,7 @@
       #f))
 
 (define (unmarshal-alt a*)
+  (match a*
     [`(alt ,prog ,cng ,prev ,cyc)
      (alt prog (unmarshal-change cng) (unmarshal-alt prev) cyc)]
     [#f #f]))

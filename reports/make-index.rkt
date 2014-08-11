@@ -3,12 +3,8 @@
 (require racket/date)
 (require casio/common)
 
-(define (make-index-page foldernames)
-  (let ([sorted-files (sort (filter identity (map (lambda (filename) (with-handlers ([(const #t) (const #f)])
-								       (list (parse-datestring filename) (substring filename 13) filename)))
-						  foldernames))
-			    (lambda (f1 f2)
-			      (> (string->number (substring (caddr f1) 0 12)) (string->number (substring (caddr f2) 0 12)))))])
+(define (make-index-page folders)
+  (let* ([sorted-folders (sort folders > #:key (compose string->number first (curryr string-split "-")))])
     (write-file "index.html"
       (printf "<!doctype html>\n")
       (printf "<html>")
@@ -16,26 +12,17 @@
       (printf "<body>\n")
       (printf "<h1>Reports</h1>\n")
       (printf "<ul id='reports'>\n")
-      (for/list ([file sorted-files])
-        (printf "<li><a href='~a/report.html'>Report at ~a on ~a</a></li>\n"
-                (third file) (date->string (first file)) (second file)))
+      (for/list ([folder sorted-folders])
+        (match (string-split folder "-")
+          [`(,timestamp ,hostname ... ,branch ,commit)
+           (printf "<li><a href='~a/report.html'>Report on ~a in ~a (<code>~a</code>) by <code>~a</code></a></li>\n"
+                   folder
+                   (date->string (seconds->date (string->number timestamp)))
+                   branch
+                   commit
+                   (string-join hostname "-"))]))
       (printf "</ul>\n")
       (printf "</body>\n"))))
-
-(define (parse-datestring filename)
-  (let ([year-string (substring filename 0 2)]
-	[month-string (substring filename 2 4)]
-	[day-string (substring filename 4 6)]
-	[hour-string (substring filename 6 8)]
-	[minute-string (substring filename 8 10)]
-	[second-string (substring filename 10 12)])
-    (let ([year (+ 2000 (string->number year-string))]
-	  [month (string->number month-string)]
-	  [day (string->number day-string)]
-	  [hour (string->number hour-string)]
-	  [minute (string->number minute-string)]
-	  [second (string->number second-string)])
-      (date second minute hour day month year 0 0 #f 0))))
 
 (make-index-page
  (command-line

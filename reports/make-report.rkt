@@ -128,8 +128,8 @@
              [end-score (errors-score end-errors)]
              [target-score (and target-errors (errors-score target-errors))]
 
-             [est-start-score (errors-score (alt-errors (test-result-start-alt result)))]
-             [est-end-score (errors-score (alt-errors (test-result-end-alt result)))])
+             [est-start-score (errors-score (test-result-start-est-error result))]
+             [est-end-score (errors-score (test-result-end-est-error result))])
 
           (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
                         [(good-inf bad-inf) (partition positive? infs)])
@@ -171,7 +171,7 @@
     (for/list ([result results])
       (match result
 	[(test-result test-obj time bits
-		      start-alt end-alt points exacts
+		      start-alt end-alt points exacts start-est-error end-est-error
 		      new-points new-exacts start-error
 		      end-error target-error)
 	 (match test-obj
