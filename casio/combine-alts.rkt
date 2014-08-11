@@ -117,7 +117,6 @@
 	       [prog-body* (prog-combination splitpoints* alts*)])
           (alt `(λ ,(program-variables (alt-program (car alts)))
                    ,prog-body*)
-               (calc-cost alts*)
                (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
                #f 0)))))
 
@@ -143,10 +142,6 @@
 (define (used-alts alts splitpoints)
   (let ([used-alt-indices (remove-duplicates (map sp-cidx splitpoints))])
     (map (curry list-ref alts) used-alt-indices)))
-
-(define (calc-cost alts)
-  (+ *branch-cost*
-     (apply max (map alt-cost alts))))
 
 (struct option (splitpoints errors) #:transparent
 	#:methods gen:custom-write
