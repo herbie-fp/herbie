@@ -7,10 +7,10 @@
 (require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-         alt-rewrite-rm apply-changes build-alt
+         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt
 	 alt-initial alt-changes alt-cycles++ alt-history-length)
 
-(struct alt (program errors cost change prev cycles) #:transparent
+(struct alt (program change prev cycles) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
@@ -25,16 +25,20 @@
 	   (recursive (alt-program altn)))])
 
 (define (make-alt prog)
- (let* ([errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) #f #f 0)))
+  (alt prog #f #f 0))
+
+(define (alt-errors altn)
+  (errors (alt-program altn) (*points*) (*exacts*)))
+
+(define (alt-cost altn)
+  (program-cost (alt-program altn)))
 
 (define (alt-apply altn cng)
-  (let* ([prog (change-apply cng (alt-program altn))]
-         [errs (errors prog (*points*) (*exacts*))])
-    (alt prog errs (program-cost prog) (change-add-hardness cng (alt-cycles altn)) altn 0)))
+  (let* ([prog (change-apply cng (alt-program altn))])
+    (alt prog (change-add-hardness cng (alt-cycles altn)) altn 0)))
 
 (define (alt-cycles++ altn)
-  (alt (alt-program altn) (alt-errors altn) (alt-cost altn)
+  (alt (alt-program altn)
        (alt-change altn) (alt-prev altn) (add1 (alt-cycles altn))))
 
 ;;Applies a list of changes to an alternative.
