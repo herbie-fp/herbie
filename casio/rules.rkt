@@ -2,8 +2,12 @@
 
 ;; Arithmetic identities for rewriting programs.
 
+(require rackunit)
 (require casio/common)
-(provide (struct-out rule) *rules*)
+(require casio/programs)
+(require casio/points)
+
+(provide (struct-out rule) *rules* rules-tests)
 
 ; A rule has a name and an input and output pattern.
 ; It also has a relative path into the output where simplification
@@ -103,7 +107,7 @@
 ; Square root
 (define-rule   add-sqr-sqrt      x                  (sqr (sqrt x)))
 (define-rule   rem-square-sqrt   (sqr (sqrt x))     x)
-(define-rule   rem-sqrt-square   (sqrt (sqr x))     x)
+(define-rule   rem-sqrt-square   (sqrt (sqr x))     (abs x))
 (define-rule   square-mult       (sqr x)            (* x x))
 (define-rule   square-unmult     (* x x)            (sqr x))
 (define-rule   square-prod       (sqr (* x y))      (* (sqr x) (sqr y))
@@ -183,14 +187,27 @@
 (define-rule   cos-sin-sum (+ (sqr (cos a))    (sqr (sin a))) 1)
 (define-rule   1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a)) #:simplify ((1)))
 (define-rule   1-sub-sin   (- 1 (sqr (sin a))) (sqr (cos a)) #:simplify ((1)))
-(define-rule   -1-add-cos  (+ (sqr (cos a)) -1) (sqr (sin a)) #:simplify ((1)))
-(define-rule   -1-add-sin  (+ (sqr (sin a)) -1) (sqr (cos a)) #:simplify ((1)))
+(define-rule   -1-add-cos  (+ (sqr (cos a)) -1) (- (sqr (sin a))) #:simplify ((1)))
+(define-rule   -1-add-sin  (+ (sqr (sin a)) -1) (- (sqr (cos a))) #:simplify ((1)))
 (define-rule   sin-neg     (sin (- x))         (- (sin x)))
 (define-rule   cos-neg     (cos (- x))         (cos x))
 (define-rule   sin-sum     (sin (+ x y))       (+ (* (sin x) (cos y)) (* (cos x) (sin y))))
 (define-rule   cos-sum     (cos (+ x y))       (- (* (cos x) (cos y)) (* (sin x) (sin y))))
 (define-rule   sin-diff    (sin (- x y))       (- (* (sin x) (cos y)) (* (cos x) (sin y))))
 (define-rule   cos-diff    (cos (- x y))       (+ (* (cos x) (cos y)) (* (sin x) (sin y))))
-(define-rule   diff-atan   (- (atan x) (atan y)) (atan (/ (- x y) (+ 1 (* x y)))) #:simplify ((1)))
+(define-rule   diff-atan   (- (atan x) (atan y)) (atan2 (- x y) (+ 1 (* x y))) #:simplify ((1)))
 (define-rule   quot-tan    (/ (sin x) (cos x)) (tan x))
 (define-rule   tan-quot    (tan x)             (/ (sin x) (cos x)))
+
+(define rules-tests
+  (test-suite "Test rewrite rules for soundness"
+   (for ([rule *rules*])
+     (let ([name (rule-name rule)] [p1 (rule-input rule)] [p2 (rule-output rule)])
+       (test-case (~a (rule-name rule))
+         (let*-values ([(fv) (free-variables p1)]
+                       [(pts exs1) (prepare-points `(λ ,fv ,p1))]
+                       [(exs2) (make-exacts `(λ ,fv ,p2) pts)])
+           (for ([pt pts] [ex1 exs1] [ex2 exs2])
+             (with-check-info (['point pt] ['prog1 p1] ['prog2 p2])
+               (when (and (ordinary-float? ex1) (ordinary-float? ex2))
+                 (check-= ex1 ex2 0))))))))))

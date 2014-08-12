@@ -8,7 +8,8 @@
          location-induct program-induct expression-induct
 	 location-do location-get eval-prog
 	 mode:bf mode:fl compile expression-cost
-         (all-from-out casio/syntax))
+         (all-from-out casio/syntax)
+         free-variables)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -88,6 +89,18 @@
 		       (map inductor (cdr prog))))]))
 
   (inductor prog))
+
+(define (free-variables prog [bound constants])
+  (filter (λ (v) (not (member v bound)))
+          (match prog
+            [(? real?) '()]
+            [(? symbol?) (list prog)]
+            [`(λ ,vars ,body)
+             (free-variables body (append vars constants))]
+            [`(lambda ,vars ,body)
+             (free-variables body (append vars constants))]
+            [`(,f ,args ...)
+             (remove-duplicates (append-map (curryr free-variables bound) args))])))
 
 (define (location-do loc prog f)
   (cond
