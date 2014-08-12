@@ -64,12 +64,12 @@
 
 (define (make-exacts prog pts)
   (let ([f (eval-prog prog mode:bf)])
-    (let loop ([prec (- (bf-precision) 16)] [prev #f])
+    (let loop ([prec (- (bf-precision) 64)] [prev #f])
       (bf-precision prec)
       (let ([curr (map f pts)])
         (if (and prev (andmap =-or-nan? prev curr))
             curr
-            (loop (+ prec 16) curr))))))
+            (loop (+ prec 64) curr))))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal"
