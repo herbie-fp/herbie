@@ -27,9 +27,8 @@
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))
 
-    (let* ([table-data (get-table-data results)])
-      (make-report-page "graphs/report.html" table-data)
-      (make-data-file "graphs/results.rktdat" results))))
+    (make-report-page "graphs/report.html" results)
+    #;(make-data-file "graphs/results.rktdat" results)))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
@@ -54,54 +53,6 @@
     ; Put things with an output first
     (test-output t1)]))
 
-(struct table-row
-  (name status start result target inf- inf+ result-est input output time link))
-
-(define (get-table-data results)
-  (for/list ([result results])
-    (cond
-     [(test-result? result)
-      (let* ([name (test-name (test-result-test result))]
-             [start-errors  (test-result-start-error  result)]
-             [end-errors    (test-result-end-error    result)]
-             [target-errors (test-result-target-error result)]
-
-             [start-score (errors-score start-errors)]
-             [end-score (errors-score end-errors)]
-             [target-score (and target-errors (errors-score target-errors))]
-
-             [est-start-score (errors-score (test-result-start-est-error result))]
-             [est-end-score (errors-score (test-result-end-est-error result))])
-
-          (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
-                        [(good-inf bad-inf) (partition positive? infs)])
-            (table-row name
-                       (cond
-                        [(not target-score) "no-compare"]
-                        [(< end-score (- target-score 1)) "gt-target"]
-                        [(< end-score (+ target-score 1)) "eq-target"]
-                        [(> end-score (+ start-score 1)) "lt-start"]
-                        [(> end-score (- start-score 1)) "eq-start"]
-                        [(> end-score (+ target-score 1)) "lt-target"])
-                       start-score
-                       end-score
-                       (and target-score target-score)
-                       (length good-inf)
-                       (length bad-inf)
-                       est-end-score
-                       (program-body (alt-program (test-result-start-alt result)))
-                       (program-body (alt-program (test-result-end-alt result)))
-                       (test-result-time result)
-                       (test-result-rdir result))))]
-     [(test-failure? result)
-      (table-row (test-name (test-failure-test result)) "crash"
-                 #f #f #f #f #f #f (test-input (test-failure-test result)) #f
-                 (test-failure-time result) (test-failure-rdir result))]
-     [(test-timeout? result)
-      (table-row (test-name (test-timeout-test result)) "timeout"
-                 #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-                 (* 1000 60 5) #f)])))
-
 (define (format-time ms)
   (cond
    [(< ms 1000) (format "~a ms" (round ms))]
@@ -109,7 +60,7 @@
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
 
-(define (make-data-file file results)
+#;(define (make-data-file file results)
   (write-file file
     (for/list ([result results])
       (match result

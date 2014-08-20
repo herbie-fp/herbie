@@ -3,8 +3,8 @@
 (require racket/place)
 (require racket/engine)
 (require math/bigfloat)
-(require (prefix-in srfi: srfi/48)) ;; avoid shadowing racket's format
 (require casio/common)
+(require casio/programs)
 (require casio/points)
 (require casio/alternative)
 (require casio/test)
@@ -12,8 +12,7 @@
 (require casio/matcher)
 (require reports/make-graph)
 
-(provide (struct-out test-result) (struct-out test-failure)
-         (struct-out test-timeout) get-test-results)
+(provide (struct-out table-row) get-test-results)
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
@@ -137,11 +136,59 @@
         (build-path rdir "graph.html")]
        [else #f]))))
 
+(struct table-row
+  (name status start result target inf- inf+ result-est vars input output time link) #:prefab)
+
+(define (get-table-data result)
+  (cond
+   [(test-result? result)
+    (let* ([name (test-name (test-result-test result))]
+           [start-errors  (test-result-start-error  result)]
+           [end-errors    (test-result-end-error    result)]
+           [target-errors (test-result-target-error result)]
+
+           [start-score (errors-score start-errors)]
+           [end-score (errors-score end-errors)]
+           [target-score (and target-errors (errors-score target-errors))]
+
+           [est-start-score (errors-score (test-result-start-est-error result))]
+           [est-end-score (errors-score (test-result-end-est-error result))])
+
+      (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
+                    [(good-inf bad-inf) (partition positive? infs)])
+        (table-row name
+                   (cond
+                    [(not target-score) "no-compare"]
+                    [(< end-score (- target-score 1)) "gt-target"]
+                    [(< end-score (+ target-score 1)) "eq-target"]
+                    [(> end-score (+ start-score 1)) "lt-start"]
+                    [(> end-score (- start-score 1)) "eq-start"]
+                    [(> end-score (+ target-score 1)) "lt-target"])
+                   start-score
+                   end-score
+                   (and target-score target-score)
+                   (length good-inf)
+                   (length bad-inf)
+                   est-end-score
+                   (program-variables (alt-program (test-result-start-alt result)))
+                   (program-body (alt-program (test-result-start-alt result)))
+                   (program-body (alt-program (test-result-end-alt result)))
+                   (test-result-time result)
+                   (test-result-rdir result))))]
+   [(test-failure? result)
+    (table-row (test-name (test-failure-test result)) "crash"
+               #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
+               (test-failure-time result) (test-failure-rdir result))]
+   [(test-timeout? result)
+    (table-row (test-name (test-timeout-test result)) "timeout"
+               #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
+               (* 1000 60 5) #f)]))
+
 (define (run-casio index test iters)
   (let* ([rdir (graph-folder-path (test-name test) index)]
          [result (get-test-result test iters rdir)])
     (make-graph-if-valid result (test-name test) index rdir)
-    result))
+    (get-table-data result)))
 
 (define (marshal-test-result tr)
   `(test-result ,(test-result-test tr)
@@ -282,7 +329,7 @@
         [`(,self ,id ,test ,iters)
          (let ([result (run-casio id test iters)])
            (place-channel-put ch
-             `(done ,id ,self ,(marshal-test-* result))))])
+             `(done ,id ,self ,result)))])
       (loop))))
 
 (define (make-manager)
@@ -353,22 +400,17 @@
   (place-channel-put m 'go)
   (define outs
     (for/list ([_ progs])
-      (let* ([msg (place-channel-get m)]
-             [id (car msg)] [tr (unmarshal-test-* (cdr msg))])
+      (let* ([msg (place-channel-get m)] [id (car msg)] [tr (cdr msg)])
         (set! cnt (+ 1 cnt))
         (cond
-         [(test-result? tr)
-          (println cnt "/" total "\t[ "
-		   (srfi:format "~8,3F" (/ (test-result-time tr) 1000.0)) "s ]\t"
-		   (test-name (test-result-test tr)))]
-         [(test-failure? tr)
-          (println cnt "/" total "\t[ "
-		   (srfi:format "~8,3F" (/ (test-failure-time tr) 1000.0)) "s ]\t"
-                   (test-name (test-failure-test tr)) " [CRASH]")]
-         [(test-timeout? tr)
-          (println cnt "/" total "\t[    timeout ]\t" (test-name (test-timeout-test tr)))]
+         [(equal? (table-row-status tr) "crash")
+          (println cnt "/" total "\t[ " (~a (table-row-time tr) #:width 8)"ms ]\t"
+                   (table-row-name tr) " [CRASH]")]
+         [(equal? (table-row-status tr) "timeout")
+          (println cnt "/" total "\t[    timeout ]\t" (table-row-name tr))]
          [else
-          (error "Unknown test result type" tr)])
+          (println cnt "/" total "\t[ " (~a (table-row-time tr) #:width 8)"ms ]\t"
+           (table-row-name tr))])
         (cons id tr))))
   ; The use of > instead of < is a cleverness:
   ; the list of tests is accumulated in reverse, this reverses again.
