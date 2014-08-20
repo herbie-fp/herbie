@@ -10,6 +10,7 @@
 (require casio/test)
 (require casio/main)
 (require casio/matcher)
+(require reports/make-graph)
 
 (provide (struct-out test-result) (struct-out test-failure)
          (struct-out test-timeout) get-test-results)
@@ -19,10 +20,10 @@
 (define *timeout* (* 1000 60 20))
 
 (struct test-result
-  (test time bits
+  (test rdir time bits
    start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error))
-(struct test-failure (test exn time))
+(struct test-failure (test exn time rdir))
 (struct test-timeout (test) #:prefab)
 
 (define (srcloc->string sl)
@@ -41,7 +42,7 @@
                         (exn-continuation-marks e))])
           (list (car tb) (srcloc->string (cdr tb))))))
 
-(define (get-test-result test iters)
+(define (get-test-result test iters rdir)
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
 
   (define (compute-result _)
@@ -60,7 +61,7 @@
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
           (λ (exn)
-             (test-failure test (flatten-exn exn) (- (current-inexact-milliseconds) start-time)))]
+             (test-failure test (flatten-exn exn) (- (current-inexact-milliseconds) start-time) rdir))]
          [eng (engine compute-result)])
 
     (with-handlers ([(const #t) handle-crash])
@@ -70,7 +71,8 @@
              (define-values (newpoints newexacts)
                (parameterize ([*num-points* *reeval-pts*])
                  (prepare-points (alt-program start))))
-             (test-result test (- (current-inexact-milliseconds) start-time)
+             (test-result test rdir
+                          (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)
                           start end points exacts
                           (errors (alt-program start) points exacts)
@@ -84,8 +86,66 @@
                               #f))])
           (test-timeout test)))))
 
+(define (make-traceback err)
+  (printf "<h2 id='error-message'>~a</h2>\n" (first err))
+  (printf "<ol id='traceback'>\n")
+  (for ([fn&loc (second err)])
+    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
+            (first fn&loc) (second fn&loc)))
+  (printf "</ol>\n"))
+
+(define (graph-folder-path tname index)
+  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
+         [index-label (number->string index)])
+    (string-append index-label stripped-tname)))
+
+;; Returns #t if the graph was sucessfully made, #f is we had a crash during
+;; the graph making process, or the test itself crashed.
+(define (make-graph-if-valid result tname index rdir)
+  (let* ([dir (build-path "graphs" rdir)]) ; TODO : Hard-coded folder name
+    (with-handlers ([(const #f) (λ _ #f)])
+      (cond
+       [(test-result? result)
+        (when (not (directory-exists? dir))
+          (make-directory dir))
+
+        (make-graph (test-result-test result)
+                    (test-result-end-alt result)
+                    (test-result-newpoints result)
+                    (test-result-start-error result)
+                    (test-result-end-error result)
+                    (test-result-target-error result)
+		    (test-result-bits result)
+                    dir)
+
+        (build-path rdir "graph.html")]
+       [(test-timeout? result)
+        #f]
+       [(test-failure? result)
+        (when (not (directory-exists? dir))
+          (make-directory dir))
+
+        (write-file (build-path dir "graph.html")
+          (printf "<html>\n")
+          (printf "<head><meta charset='utf-8' /><title>Exception for ~a</title></head>\n"
+                  (test-name (test-failure-test result)))
+          (printf "<body>\n")
+          (make-traceback (test-failure-exn result))
+          (printf "</body>\n")
+          (printf "</html>\n"))
+
+        (build-path rdir "graph.html")]
+       [else #f]))))
+
+(define (run-casio index test iters)
+  (let* ([rdir (graph-folder-path (test-name test) index)]
+         [result (get-test-result test iters rdir)])
+    (make-graph-if-valid result (test-name test) index rdir)
+    result))
+
 (define (marshal-test-result tr)
   `(test-result ,(test-result-test tr)
+                ,(test-result-rdir tr)
                 ,(test-result-time tr)
 		,(test-result-bits tr)
                 ,(marshal-alt (test-result-start-alt tr))
@@ -102,19 +162,20 @@
 
 (define (unmarshal-test-result tr*)
   (match tr*
-    [`(test-result ,t ,time ,bits ,start* ,end* ,pts ,exs ,estartE ,eendE ,pts* ,exs* ,startE ,endE ,targetE)
-     (test-result t time bits (unmarshal-alt start*) (unmarshal-alt end*) pts exs
+    [`(test-result ,t ,rdir ,time ,bits ,start* ,end* ,pts ,exs ,estartE ,eendE ,pts* ,exs* ,startE ,endE ,targetE)
+     (test-result t rdir time bits (unmarshal-alt start*) (unmarshal-alt end*) pts exs
                   estartE eendE pts* exs* startE endE targetE)]))
 
 (define (marshal-test-failure tf)
   `(test-failure ,(test-failure-test tf)
                  ,(test-failure-exn tf)
-                 ,(test-failure-time tf)))
+                 ,(test-failure-time tf)
+                 ,(test-failure-rdir tf)))
 
 (define (unmarshal-test-failure tf*)
   (match tf*
-    [`(test-failure ,test ,exn ,time)
-     (test-failure test exn time)]))
+    [`(test-failure ,test ,exn ,time ,rdir)
+     (test-failure test exn time rdir)]))
 
 (define (marshal-test-* t)
   (cond
@@ -219,7 +280,7 @@
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
         [`(,self ,id ,test ,iters)
-         (let ([result (get-test-result test iters)])
+         (let ([result (run-casio id test iters)])
            (place-channel-put ch
              `(done ,id ,self ,(marshal-test-* result))))])
       (loop))))

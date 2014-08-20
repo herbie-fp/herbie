@@ -8,7 +8,6 @@
 (require casio/test)
 (require casio/load-tests)
 (require casio/main)
-(require reports/make-graph)
 (require reports/thread-pool)
 (require reports/cmdline)
 (provide (all-defined-out))
@@ -28,11 +27,8 @@
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))
 
-    (let* ([links
-            (map make-graph-if-valid
-                 results (map test-name tests) (range (length tests)))]
-           [table-data (get-table-data results)])
-      (make-report-page "graphs/report.html" table-data links)
+    (let* ([table-data (get-table-data results)])
+      (make-report-page "graphs/report.html" table-data)
       (make-data-file "graphs/results.rktdat" results))))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
@@ -50,70 +46,16 @@
 
 (define (test<? t1 t2)
   (cond
-   ((or (and (test-output t1) (test-output t2))
-        (and (not (test-output t1)) (not (test-output t2))))
-    (string<? (test-name t1) (test-name t2)))
-   (else
-    (test-output t1))))
-
-;; Returns #t if the graph was sucessfully made, #f is we had a crash during
-;; the graph making process, or the test itself crashed.
-(define (make-graph-if-valid result tname index)
-  (let* ([rdir (graph-folder-path tname index)]
-         [dir (build-path *output-directory* rdir)])
-    (with-handlers ([(const #f) (λ _ #f)])
-      (cond
-       [(test-result? result)
-        (when (not (directory-exists? dir))
-          (make-directory dir))
-
-        (make-graph (test-result-test result)
-                    (test-result-end-alt result)
-                    (test-result-newpoints result)
-                    (test-result-start-error result)
-                    (test-result-end-error result)
-                    (test-result-target-error result)
-		    (test-result-bits result)
-                    dir)
-
-        (build-path rdir "graph.html")]
-       [(test-timeout? result)
-        #f]
-       [(test-failure? result)
-        (when (not (directory-exists? dir))
-          (make-directory dir))
-
-        (write-file (build-path dir "graph.html")
-          (printf "<html>\n")
-          (printf "<head><meta charset='utf-8' /><title>Exception for ~a</title></head>\n"
-                  (test-name (test-failure-test result)))
-          (printf "<body>\n")
-          (make-traceback (test-failure-exn result))
-          (printf "</body>\n")
-          (printf "</html>\n"))
-
-        (build-path rdir "graph.html")]
-       [else #f]))))
-
-(define (make-traceback err)
-  (printf "<h2 id='error-message'>~a</h2>\n" (first err))
-  (printf "<ol id='traceback'>\n")
-  (for ([fn&loc (second err)])
-    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (first fn&loc) (second fn&loc)))
-  (printf "</ol>\n"))
-
-(define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
-         [index-label (number->string index)]
-         [name-bound (- *graph-folder-name-length* (string-length index-label))]
-         [final-tname
-          (substring stripped-tname 0
-                     (min (string-length stripped-tname) name-bound))])
-    (string-append index-label final-tname "/")))
+   [(and (test-output t1) (test-output t2))
+    (string<? (test-name t1) (test-name t2))]
+   [(and (not (test-output t1)) (not (test-output t2)))
+    (string<? (test-name t1) (test-name t2))]
+   [else
+    ; Put things with an output first
+    (test-output t1)]))
 
 (struct table-row
-  (name status start result target inf- inf+ result-est input output time))
+  (name status start result target inf- inf+ result-est input output time link))
 
 (define (get-table-data results)
   (for/list ([result results])
@@ -149,15 +91,16 @@
                        est-end-score
                        (program-body (alt-program (test-result-start-alt result)))
                        (program-body (alt-program (test-result-end-alt result)))
-                       (test-result-time result))))]
+                       (test-result-time result)
+                       (test-result-rdir result))))]
      [(test-failure? result)
       (table-row (test-name (test-failure-test result)) "crash"
                  #f #f #f #f #f #f (test-input (test-failure-test result)) #f
-                 (test-failure-time result))]
+                 (test-failure-time result) (test-failure-rdir result))]
      [(test-timeout? result)
       (table-row (test-name (test-timeout-test result)) "timeout"
                  #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-                 (* 1000 60 5))])))
+                 (* 1000 60 5) #f)])))
 
 (define (format-time ms)
   (cond
@@ -170,14 +113,14 @@
   (write-file file
     (for/list ([result results])
       (match result
-	[(test-result test-obj time bits
+	[(test-result test-obj rdir time bits
 		      start-alt end-alt points exacts start-est-error end-est-error
 		      new-points new-exacts start-error
 		      end-error target-error)
 	 (match test-obj
 	   [(struct test (name vars input output))
 	    (write `(,name (λ ,vars ,input) ,(alt-program end-alt) (λ ,vars ,output) ,bits ,time))])]
-	[(test-failure test-obj exn time)
+	[(test-failure test-obj exn time rdir)
 	 (match test-obj
 	   [(struct test (name vars input output))
 	    (write `(,name ,input #f ,output #f ,time))])]
@@ -188,7 +131,7 @@
       (newline)))
   (void))
 
-(define (make-report-page file table-data links)
+(define (make-report-page file table-data)
   (let ([commit (command-result "git rev-parse HEAD")]
         [branch (command-result "git rev-parse --abbrev-ref HEAD")]
 	[seed (~a (pseudo-random-generator->vector
@@ -257,7 +200,7 @@
       (printf "</tr></thead>\n")
 
       (printf "<tbody>")
-      (for ([result table-data] [link links])
+      (for ([result table-data])
         (printf "<tr class='~a'>" (table-row-status result))
 
         (printf "<td>~a</td>" (or (table-row-name result) ""))
@@ -279,8 +222,8 @@
 
         (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
-        (if link
-          (printf "<td><a href='~a'>[MORE]</a></td>" (path->string link))
+        (if (table-row-link result)
+          (printf "<td><a href='~a/graph.html'>[MORE]</a></td>" (table-row-link result))
           (printf "<td></td>"))
         (printf "</tr>\n"))
       (printf "</tbody>\n")
