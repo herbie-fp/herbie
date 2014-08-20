@@ -13,6 +13,7 @@
 
 (define *num-points* (make-parameter 1024))
 (define *exp-size* (make-parameter 256))
+(define *precision-step* (make-parameter 8))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
@@ -62,14 +63,34 @@
 		      (+ (* i bucket-width) (* bucket-width (random))))))
 		periods))))
 
-(define (make-exacts prog pts)
-  (let ([f (eval-prog prog mode:bf)])
-    (let loop ([prec (- (bf-precision) 64)] [prev #f])
+(define (select-every skip l)
+  (let loop ([l l] [count skip])
+    (cond
+     [(null? l) '()]
+     [(= count 0)
+      (cons (car l) (loop (cdr l) skip))]
+     [else
+      (loop (cdr l) (- count 1))])))
+
+(define (make-exacts* prog pts)
+  (let ([f (eval-prog prog mode:bf)] [n (length pts)])
+    (let loop ([prec (- (bf-precision) (*precision-step*))]
+               [prev #f])
       (bf-precision prec)
       (let ([curr (map f pts)])
         (if (and prev (andmap =-or-nan? prev curr))
             curr
-            (loop (+ prec 64) curr))))))
+            (loop (+ prec (*precision-step*)) curr))))))
+
+(define (make-exacts prog pts)
+  (define n (length pts))
+  (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
+    (cond
+     [(>= n* n)
+      (make-exacts* prog pts)]
+     [else
+      (make-exacts* prog (select-every (round (/ n n*)) pts))
+      (loop (* n* 2))])))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal"
