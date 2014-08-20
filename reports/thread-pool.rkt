@@ -22,8 +22,8 @@
   (test rdir time bits
    start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error))
-(struct test-failure (test exn time rdir))
-(struct test-timeout (test) #:prefab)
+(struct test-failure (test bits exn time rdir))
+(struct test-timeout (test bits) #:prefab)
 
 (define (srcloc->string sl)
   (if sl
@@ -60,7 +60,8 @@
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
           (λ (exn)
-             (test-failure test (flatten-exn exn) (- (current-inexact-milliseconds) start-time) rdir))]
+             (test-failure test (bf-precision)
+                           (flatten-exn exn) (- (current-inexact-milliseconds) start-time) rdir))]
          [eng (engine compute-result)])
 
     (with-handlers ([(const #t) handle-crash])
@@ -83,7 +84,7 @@
                               (errors `(λ ,(test-vars test) ,(test-output test))
                                       newpoints newexacts)
                               #f))])
-          (test-timeout test)))))
+          (test-timeout test (bf-precision))))))
 
 (define (make-traceback err)
   (printf "<h2 id='error-message'>~a</h2>\n" (first err))
@@ -137,7 +138,7 @@
        [else #f]))))
 
 (struct table-row
-  (name status start result target inf- inf+ result-est vars input output time link) #:prefab)
+  (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (define (get-table-data result)
   (cond
@@ -174,15 +175,16 @@
                    (program-body (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-end-alt result)))
                    (test-result-time result)
+                   (test-result-bits result)
                    (test-result-rdir result))))]
    [(test-failure? result)
     (table-row (test-name (test-failure-test result)) "crash"
                #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
-               (test-failure-time result) (test-failure-rdir result))]
+               (test-failure-time result) (test-failure-bits result) (test-failure-rdir result))]
    [(test-timeout? result)
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-               (* 1000 60 5) #f)]))
+               *timeout* (test-failure-bits result) #f)]))
 
 (define (run-casio index test iters)
   (let* ([rdir (graph-folder-path (test-name test) index)]
