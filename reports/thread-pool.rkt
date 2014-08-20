@@ -3,6 +3,7 @@
 (require racket/place)
 (require racket/engine)
 (require math/bigfloat)
+(require (prefix-in srfi: srfi/48)) ;; avoid shadowing racket's format
 (require casio/common)
 (require casio/points)
 (require casio/alternative)
@@ -296,10 +297,12 @@
         (set! cnt (+ 1 cnt))
         (cond
          [(test-result? tr)
-          (println cnt "/" total "\t[ " (~a (test-result-time tr) #:width 8)"ms ]\t"
-           (test-name (test-result-test tr)))]
+          (println cnt "/" total "\t[ "
+		   (srfi:format "~8,3F" (/ (test-result-time tr) 1000.0)) "s ]\t"
+		   (test-name (test-result-test tr)))]
          [(test-failure? tr)
-          (println cnt "/" total "\t[ " (~a (test-failure-time tr) #:width 8)"ms ]\t"
+          (println cnt "/" total "\t[ "
+		   (srfi:format "~8,3F" (/ (test-failure-time tr) 1000.0)) "s ]\t"
                    (test-name (test-failure-test tr)) " [CRASH]")]
          [(test-timeout? tr)
           (println cnt "/" total "\t[    timeout ]\t" (test-name (test-timeout-test tr)))]

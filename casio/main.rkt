@@ -18,7 +18,7 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-	 [evaluate . (exponent-points)]
+         [evaluate . (exponent-points)]
          [reduce   . (regimes zach)]
          [setup    . (simplify periodicity)])))
 
@@ -30,8 +30,9 @@
 		      (remove flag flag-list)
 		      (cons flag flag-list))))))
 
-(define program-a '(λ (x) (/ (- (exp x) 1) x)))
-(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
+; TODO remove? grep suggests these are dead
+; (define program-a '(λ (x) (/ (- (exp x) 1) x)))
+; (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
 (define (improve prog fuel)
   (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
