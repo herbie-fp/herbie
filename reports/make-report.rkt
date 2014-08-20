@@ -16,7 +16,7 @@
 (define *graph-folder-name-length* 8)
 (define *output-directory* "graphs")
 
-(define *max-test-args* #f)
+(define *max-test-arity* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
 
 (define (make-report . bench-dirs)
@@ -43,8 +43,8 @@
     (apply append
            (for/list ([bench-dir bench-dirs])
              (filter (λ (test)
-                        (or (not *max-test-args*)
-                            (<= (length (test-vars test)) *max-test-args*)))
+                        (or (not *max-test-arity*)
+                            (<= (length (test-vars test)) *max-test-arity*)))
                      (load-tests bench-dir))))
     test<?)))
 
@@ -294,8 +294,8 @@
    #:once-each
    [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
     (*debug* #t)]
-   [("-a") ma "How many arguments to allow"
-    (set! *max-test-args* (string->number ma))]
+   [("-a") ma "Restrict maximum arity"
+    (set! *max-test-arity* (string->number ma))]
    [("-p") th "How many tests to run in parallel to use"
     (set! *max-test-threads* (string->number th))]
    [("-r") rs "The random seed vector to use in point generation"
