@@ -22,7 +22,7 @@
   (let* ([tests (allowed-tests bench-dirs)]
          [results
           (get-test-results tests (*num-iterations*)
-                            #:threads *max-test-threads* #:log-dir "logs")])
+                            #:threads *max-test-threads* #:dir *output-directory*)])
 
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))

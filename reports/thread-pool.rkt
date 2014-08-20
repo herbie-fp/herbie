@@ -16,6 +16,7 @@
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
+(define *dir* #f)
 (define *timeout* (* 1000 60 20))
 
 (struct test-result
@@ -52,7 +53,8 @@
 		  [(more-pts more-exs) (parameterize ([*num-points* 8192])
 				       (point-preparer orig))])
       (parameterize ([*points* points] [*exacts* exacts]
-		     [*more-points* more-pts] [*more-exacts* more-exs])
+		     [*more-points* more-pts] [*more-exacts* more-exs]
+                     [*debug* (open-output-file (build-path *dir* rdir "debug.log") #:exists 'replace)])
 	(let* ([start-alt (make-alt orig)]
 	       [end-alt (improve-alt start-alt (*num-iterations*))])
 	  (list start-alt end-alt points exacts)))))
@@ -102,7 +104,7 @@
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
 (define (make-graph-if-valid result tname index rdir)
-  (let* ([dir (build-path "graphs" rdir)]) ; TODO : Hard-coded folder name
+  (let* ([dir (build-path *dir* rdir)]) ; TODO : Hard-coded folder name
     (with-handlers ([(const #f) (λ _ #f)])
       (cond
        [(test-result? result)
@@ -184,32 +186,33 @@
    [(test-timeout? result)
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-               *timeout* (test-failure-bits result) #f)]))
+               *timeout* (test-timeout-bits result) #f)]))
 
 (define (run-casio index test iters)
   (let* ([rdir (graph-folder-path (test-name test) index)]
-         [result (get-test-result test iters rdir)])
-    (make-graph-if-valid result (test-name test) index rdir)
-    (get-table-data result)))
+         [rdir* (build-path *dir* rdir)])
+    (when (not (directory-exists? rdir*))
+      (make-directory rdir*))
+    (let ([result (get-test-result test iters rdir)])
+      (make-graph-if-valid result (test-name test) index rdir)
+      (get-table-data result))))
 
 (define (make-worker)
   (place ch
     (let loop ()
       (match (place-channel-get ch)
 	[`(init
-	   log-dir ,log-directory
+	   dir ,dir
 	   wid ,worker-id
 	   rand ,vec
 	   flags ,flag-table
 	   num-iters ,iterations)
 
-	 (when (not (directory-exists? log-directory))
-           (make-directory log-directory))
-	 (let ([filename (format "~a/~a-~a.log" log-directory worker-id (current-seconds))])
-           (*debug* (open-output-file filename #:exists 'replace)))
+	 (when (not (directory-exists? dir))
+           (make-directory dir))
 
+         (set! *dir* dir)
 	 (set! *seed* vec)
-
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
         [`(,self ,id ,test ,iters)
@@ -220,7 +223,7 @@
 
 (define (make-manager)
   (place ch
-    (define log-dir #f)
+    (define dir #f)
     (define workers '())
     (define work '())
     (define next-wid 0)
@@ -230,7 +233,7 @@
         ['make-worker
 	 (let ([new-worker (make-worker)])
 	   (place-channel-put new-worker
-			      `(init log-dir ,log-dir
+			      `(init dir ,dir
 				     wid ,(begin0 next-wid
 						(set! next-wid (add1 next-wid)))
 				     rand ,(pseudo-random-generator->vector
@@ -239,11 +242,11 @@
 				     num-iters ,(*num-iterations*)))
 	   (set! workers (cons new-worker workers)))]
 	[`(init
-	   log-dir ,log-directory
+	   dir ,dir*
 	   rand ,vec
 	   flags ,flag-table
 	   num-iters ,iterations)
-	 (set! log-dir log-directory)
+	 (set! dir dir*)
 	 (vector->pseudo-random-generator!
 	  (current-pseudo-random-generator)
 	  vec)
@@ -268,12 +271,12 @@
 
 (define (get-test-results progs iters
                           #:threads [threads (max (- (processor-count) 1) 1)]
-                          #:log-dir log-dir)
+                          #:dir dir)
   (define m (make-manager))
   (define cnt 0)
   (define total (length progs))
 
-  (place-channel-put m `(init log-dir ,log-dir
+  (place-channel-put m `(init dir ,dir
 			      rand ,(pseudo-random-generator->vector
 				     (current-pseudo-random-generator))
 			      flags ,(*flags*)
