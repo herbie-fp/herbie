@@ -28,7 +28,7 @@
       (make-directory *output-directory*))
 
     (make-report-page "graphs/report.html" results)
-    #;(make-data-file "graphs/results.rktdat" results)))
+    (make-data-file "graphs/results.rktdat" results)))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
@@ -60,25 +60,12 @@
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
 
-#;(define (make-data-file file results)
+(define (make-data-file file results)
   (write-file file
     (for/list ([result results])
       (match result
-	[(test-result test-obj rdir time bits
-		      start-alt end-alt points exacts start-est-error end-est-error
-		      new-points new-exacts start-error
-		      end-error target-error)
-	 (match test-obj
-	   [(struct test (name vars input output))
-	    (write `(,name (λ ,vars ,input) ,(alt-program end-alt) (λ ,vars ,output) ,bits ,time))])]
-	[(test-failure test-obj exn time rdir)
-	 (match test-obj
-	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output #f ,time))])]
-	[(test-timeout test-obj)
-	 (match test-obj
-	   [(struct test (name vars input output))
-	    (write `(,name ,input #f ,output #f timeout))])])
+        [(table-row name status start result target inf- inf+ result-est vars input output time bits link)
+         (write `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time))])
       (newline)))
   (void))
 
