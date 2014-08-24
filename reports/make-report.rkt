@@ -8,6 +8,7 @@
 (require casio/test)
 (require casio/load-tests)
 (require casio/main)
+(require casio/texify)
 (require reports/thread-pool)
 (require reports/cmdline)
 (provide (all-defined-out))
@@ -106,6 +107,8 @@
       (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
 
       (printf "<script src='report.js'></script>\n")
+      (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
+              "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
       (printf "</head>\n")
       (printf "<body>\n")
       (printf "<dl id='about'>\n")
@@ -158,7 +161,7 @@
                 (let ([inf+ (table-row-inf+ result)])
                   (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
 
-        (printf "<td><code>~a</code></td>" (or (table-row-input result) ""))
+        (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result)) ""))
         (printf "<td>~a</td>" (format-time (table-row-time result)))
         (if (table-row-link result)
           (printf "<td><a href='~a/graph.html'>[MORE]</a></td>" (table-row-link result))
