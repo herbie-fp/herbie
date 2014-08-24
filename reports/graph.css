@@ -1,7 +1,15 @@
 body {
     width: 1024px;
-    margin: 0 auto;
+    margin: 1em auto;
+    font-family: sans;
 }
+
+dt {
+    font-weight: bold;
+    float: left;
+    width: 7em;
+}
+
 
 #graphs {
     float: right;

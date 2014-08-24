@@ -31,9 +31,13 @@
     (printf "<title>Results for ~a</title>" (test-name test))
     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
     (printf "</head>\n")
-
     (printf "<body>\n")
-    (printf "<p>Needed ~a bits to evaluate</p>" bits)
+
+    (printf "<dl id='about'>\n")
+    (printf "<dt>Log:</dt><dd><a href='debug.log'>here</a></dd>\n")
+    (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+    (printf "</dl>\n")
+
     (printf "<div id='graphs'>\n")
     (for ([idx (range (length (test-vars test)))])
       (let-values ([(x-scale x-unscale)
@@ -48,6 +52,7 @@
         (draw-key (list-ref (test-vars test) idx)))
       (printf "</svg>\n"))
     (printf "</div>\n")
+
     (printf "<ol id='process-info'>\n")
     (output-history end-alt)
     (printf "</ol>\n")))
