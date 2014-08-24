@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/pretty)
 (require casio/common)
 (require casio/points)
 (require casio/matcher)
@@ -64,7 +65,8 @@
    [(and stop-at (equal? (alt-program stop-at) (alt-program altn)))
     (void)]
    [(not (alt-change altn))
-    (printf "<li>Started with <code>~a</code></li>\n" (alt-program altn))]
+    (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
+            (pretty-format (alt-program altn) 65))]
    [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
     (let* ([vars (change-bindings (alt-change altn))]
 	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)) vars)]
@@ -102,7 +104,8 @@
             (+ 1 (change*-hardness (alt-change altn))))
     (printf "and applied <span class='rule'>~a</span> "
             (rule-name (change-rule (alt-change altn))))
-    (printf "to get <code>~a</code></li>\n" (alt-program altn))]))
+    (printf "to get <code><pre>~a</pre></code></li>\n"
+            (pretty-format (alt-program altn) 65))]))
 
 (define (points->pathdata line)
   (write-string

@@ -65,7 +65,6 @@ line {
     text-decoration: underline;
 }
 
-#process-info code {
-    display: block;
+#process-info pre {
     margin: .5em 0 .5em 1em;
 }
