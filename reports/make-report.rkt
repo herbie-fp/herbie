@@ -170,7 +170,14 @@
       (printf "</tbody>\n")
       (printf "</table>\n")
       (printf "</body>\n")
-      (printf "</html>\n"))))
+      (printf "</html>\n"))
+
+    ; Delete old files
+    (let* ([expected-dirs (map string->path (filter identity (map table-row-link table-data)))]
+           [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
+           [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
+      (for ([subdir extra-dirs])
+        (delete-directory/files (build-path dir subdir))))))
 
 (define benches
   (command-line
