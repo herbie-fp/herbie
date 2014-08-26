@@ -76,12 +76,11 @@
       (println "Started with: " (alt-program altn))
       (begin (print-alt-info (alt-prev altn))
              (let ([chng (alt-change altn)])
-               (println "After considering " (change*-hardness chng)
-                        " other options, applied rule " (change-rule chng)
+               (println "Applied rule " (change-rule chng)
                         " at " (change-location chng)
-                        " [ " (location-get (change-location chng) (alt-program (alt-prev altn))) " ]"
-                        ", and got:")
-               (println (alt-program altn))
+                        " [ " (location-get (change-location chng)
+                                            (alt-program (alt-prev altn)))
+                        " ], and got:" (alt-program altn))
                (void)))))
 
 (define (incremental-changes-apply changes expr)

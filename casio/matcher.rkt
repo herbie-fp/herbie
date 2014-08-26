@@ -8,8 +8,7 @@
  (all-from-out casio/rules)
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
- (struct-out change) change-apply changes-apply
- (struct-out change*) change-add-hardness)
+ (struct-out change) change-apply changes-apply)
 
 ;; Our own pattern matcher.
 ;
@@ -107,12 +106,6 @@
                  (write (cdr bind) port)
                  (display ", " port))))
            (display ">" port))])
-
-(struct change* change (hardness))
-
-(define (change-add-hardness chng hardness)
-  (change* (change-rule chng) (change-location chng)
-	   (change-bindings chng) hardness))
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (reap [sow]

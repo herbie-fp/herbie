@@ -4,13 +4,17 @@
 (require casio/points)
 (require casio/matcher)
 (require casio/common)
-(require racket/pretty)
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
          alt-errors alt-cost alt-rewrite-rm apply-changes build-alt
-	 alt-initial alt-changes alt-cycles++ alt-history-length)
+	 alt-initial alt-changes alt-history-length)
 
-(struct alt (program change prev cycles) #:transparent
+;; Alts are a lightweight audit trail for Casio.
+;; An alt records a low-level view of how Casio got
+;; from one program to another.
+;; They are a labeled linked list of changes.
+
+(struct alt (program change prev) #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
@@ -25,7 +29,7 @@
 	   (recursive (alt-program altn)))])
 
 (define (make-alt prog)
-  (alt prog #f #f 0))
+  (alt prog #f #f))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*points*) (*exacts*)))
@@ -34,12 +38,7 @@
   (program-cost (alt-program altn)))
 
 (define (alt-apply altn cng)
-  (let* ([prog (change-apply cng (alt-program altn))])
-    (alt prog (change-add-hardness cng (alt-cycles altn)) altn 0)))
-
-(define (alt-cycles++ altn)
-  (alt (alt-program altn)
-       (alt-change altn) (alt-prev altn) (add1 (alt-cycles altn))))
+  (alt (change-apply cng (alt-program altn)) cng altn))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)

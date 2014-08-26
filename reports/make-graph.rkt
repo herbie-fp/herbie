@@ -100,9 +100,7 @@
 	    (printf "</ol>\n")))))]
    [else
     (output-history (alt-prev altn) #:stop-at stop-at)
-    (printf "<li>Considered <span class='count'>~a</span> options "
-            (+ 1 (change*-hardness (alt-change altn))))
-    (printf "and applied <span class='rule'>~a</span> "
+    (printf "<li>Applied <span class='rule'>~a</span> "
             (rule-name (change-rule (alt-change altn))))
     (printf "to get <code><pre>~a</pre></code></li>\n"
             (pretty-format (alt-program altn) 65))]))
