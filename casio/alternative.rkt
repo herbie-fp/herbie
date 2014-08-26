@@ -7,7 +7,7 @@
 
 (provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
          alt-errors alt-cost alt-rewrite-rm apply-changes build-alt
-	 alt-initial alt-changes alt-history-length)
+	 alt-initial alt-changes alt-history-length make-combining-alt alt-with-prev)
 
 ;; Alts are a lightweight audit trail for Casio.
 ;; An alt records a low-level view of how Casio got
@@ -85,3 +85,9 @@
   (if (alt-prev alt)
       (+ 1 (alt-history-length (alt-prev alt)))
       0))
+
+(define (alt-with-prev prev altn)
+  (alt (alt-program altn) (alt-change altn) prev))
+
+(define (make-combining-alt new-program orig-alts new-alts splitpoints)
+  (alt new-program (make-change-combining new-program orig-alts new-alts splitpoints) #f))
