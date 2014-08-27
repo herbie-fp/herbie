@@ -4,7 +4,7 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/analyze-local-error)
-(require casio/simplify)
+(require casio/cancellation)
 (require casio/combine-alts)
 (require casio/locations)
 (require casio/programs)
@@ -100,7 +100,12 @@
     (map cleanup (rewrite altn #:root loc))))
 
 (define (simplify-alt altn)
-  (apply-changes altn (simplify altn)))
+  (let* ([new-prog (simplify (program-body (alt-program altn)))]
+         [new-rule (rule 'simplify 'a 'b '())]
+         [new-change (change new-rule '(2)
+                             `((a . ,(program-body (alt-program altn)))
+                               (b . ,new-prog)))])
+    (apply-changes altn (list new-change))))
 
 (define (regimes-alts alts fuel)
   (let ([alts* (plausible-alts alts)])
