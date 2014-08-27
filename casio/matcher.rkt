@@ -8,7 +8,7 @@
  (all-from-out casio/rules)
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
- (struct-out change) change-apply changes-apply make-change-combining)
+ (struct-out change) change-apply changes-apply)
 
 ;; Our own pattern matcher.
 ;
@@ -106,13 +106,6 @@
                  (write (cdr bind) port)
                  (display ", " port))))
            (display ">" port))])
-
-(struct change-combining change
-        (orig-alts new-alts splitpoints))
-
-(define (make-change-combining new-program orig-alts new-alts splitpoints)
-  (let ([new-rule (rule 'regimes 'a new-program '())])
-    (change-combining new-rule '() '() orig-alts new-alts splitpoints)))
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (reap [sow]

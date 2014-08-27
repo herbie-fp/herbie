@@ -115,9 +115,18 @@
 	       [splitpoints* (coerce-indices splitpoints)]
 	       [alts* (recurse-on-alts recurse-func combining-alts splitpoints*)]
 	       [prog-body* (prog-combination splitpoints* alts*)])
-          (make-combining-alt
-           `(λ ,(program-variables (alt-program (car alts))) ,prog-body*)
-           (used-alts alts splitpoints) alts* splitpoints*)))))
+          (alt `(λ ,(program-variables (alt-program (car alts)))
+                   ,prog-body*)
+               (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
+               #f)))))
+
+(define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
+  (let ([new-rule (rule 'regimes 'a final-prog-body '())])
+    (change new-rule '() (list* '(a . ()) `(splitpoints . ,splitpoints)
+				(map (λ (orig impr)
+				       `(alt ,orig ,impr))
+				     orig-alts
+				     improved-alts)))))
 
 ;; Takes a list of splitpoints, `splitpoints`, whose indices originally referred to some list of alts `alts`,
 ;; and changes their indices so that they make sense on a list of alts given by `(used-alts alts splitpoints)`.
