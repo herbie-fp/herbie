@@ -177,10 +177,10 @@
 (define (simplify-expression expr)
   (debug "Simplifying expression: " expr #:from 'simplify #:depth 3)
   (with-handlers ([exn:fail? (λ (exn)
-			       (debug #:from 'simplify #:depth 1
-				      "!!CRASH!!"
-				      "Simplifying expression: " expr
-				      (exn-message exn)
+			       (debug #:from 'simplify #:tag 'error #:depth 1
+				      "!!CRASH!!\n"
+				      "Simplifying expression: " expr "\n"
+				      (exn-message exn) "\n"
 				      (for/list ([tb (continuation-mark-set->context
 						      (exn-continuation-marks exn))])
 					(list (car tb) (srcloc->string (cdr tb)))))
