@@ -5,6 +5,8 @@
 (require casio/matcher)
 (require casio/common)
 
+(provide simplify)
+
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
@@ -12,29 +14,31 @@
 (define fn-inverses
   (map rule-input (filter (λ (rule) (symbol? (rule-output rule))) *rules*)))
 
-#;(define (has-duplicates? l)
-  (not (equal? l (remove-duplicates l))))
-
 (define (simplify expr)
+  (let ([simpl (simplify* expr)])
+    (debug #:from 'simplify "Simplify" expr "into" simpl)
+    simpl))
+
+(define (simplify* expr)
   (match expr
     [(? real?) expr]
     [(? symbol?) expr]
     [`(,op ,args ...)
-     (simplify-node `(,op ,@(map simplify args)))]
+     (simplify-node `(,op ,@(map simplify* args)))]
     [`(λ ,vars ,body)
-     `(λ ,vars ,(simplify body))]
+     `(λ ,vars ,(simplify* body))]
     [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify body))]))
+     `(λ ,vars ,(simplify* body))]))
 
 (define (simplify-node expr)
   (match expr
     [(? real?) expr]
     [(? symbol?) expr]
-    [(or `(+ ,summands ...) `(- ,summands ...))
+    [(or `(+ ,_ ...) `(- ,_ ...))
      (let* ([labels (combining-labels (gather-additive-terms expr))]
             [terms (combine-aterms (gather-additive-terms expr #:expand labels))])
        (make-addition-node terms))]
-    [(or `(* ,summands ...) `(/ ,summands ...))
+    [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
      (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
        (make-multiplication-node terms))]
     [else
@@ -62,21 +66,21 @@
       [`(- ,arg ,args ...)
        (append (recurse arg)
                (map negate-term (append-map recurse args)))]
-      
+
       [`(* ,args ...)
        (if (or (not expand) (memq label expand))
            (for/list ([term-list (apply list-product (map recurse args))])
              (list* (apply * (map car term-list))
                     (simplify-node (cons '* (map cadr term-list)))
                     (cons label (append-map cddr term-list))))
-           `((1 ,expr)))]
+           `((1 ,label)))]
       [`(/ ,arg) ; Prevent fall-through to the next case
        `((1 ,expr))]
       [`(/ ,arg ,args ...)
        (if (or (not expand) (memq label expand))
            (let ([nums (recurse arg)])
              (for/list ([term nums])
-               (cons (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term)))))
+               (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term)))))
            `((1 ,expr)))]
 
       [`(sqr ,arg)
@@ -96,6 +100,9 @@
   (match expr
     [(? real?) `(,expr)]
     [(? symbol?) `(1 (1 . ,expr))]
+    [`(- ,arg)
+     (let ([terms (gather-multiplicative-terms arg)])
+       (cons (- (car terms)) (cdr terms)))]
     [`(* ,args ...)
      (let ([terms (map gather-multiplicative-terms args)])
        (cons (apply * (map car terms)) (apply append (map cdr terms))))]
@@ -106,8 +113,20 @@
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
        (cons (apply / (car num) (map car dens))
-             (append (map cdr num)
+             (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
+    [`(sqr ,arg)
+     (let ([terms (gather-multiplicative-terms arg)])
+       (cons (sqr (car terms))
+             (for/list ([term (cdr terms)])
+               (cons (* 2 (car term)) (cdr term)))))]
+    [`(sqrt ,arg)
+     (let ([terms (gather-multiplicative-terms arg)])
+       (if (negative? (car terms))
+           `(1 (1 . ,expr))
+           (cons (sqrt (car terms))
+                 (for/list ([term (cdr terms)])
+                   (cons (/ (car term) 2) (cdr term))))))]
     [else
      `(1 (1 . ,expr))]))
 
@@ -150,8 +169,21 @@
     [`(-1 . ,x) `(- ,x)]
     [`(,coeff . ,x) `(* ,coeff ,x)]))
 
-;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node terms)
+  (let-values ([(pos neg) (partition (compose positive? car) terms)])
+    (cond
+     [(and (null? pos) (null? neg))
+      0]
+     [(null? pos)
+      `(- ,(make-addition-node* (map negate-term neg)))]
+     [(null? neg)
+      (make-addition-node* pos)]
+     [else
+      `(- ,(make-addition-node* pos)
+          ,(make-addition-node* (map negate-term neg)))])))
+
+;; TODO : Use (- x y) when it is simpler
+(define (make-addition-node* terms)
   (match terms
     ['() 0]
     [`(,term)
@@ -163,15 +195,38 @@
   (match term
     [`(1 . ,x) x]
     [`(-1 . ,x) `(/ 1 ,x)]
+    [`(2 . ,x) `(sqr ,x)]
+    [`(-2 . ,x) `(/ 1 (sqr ,x))]
+    [`(1/2 . ,x) `(sqrt ,x)]
+    [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,pow . ,x) `(expt ,x ,pow)]))
 
 (define (make-multiplication-node term)
   (match term
     [`(0 ,terms ...) 0]
-    [`(1 ,terms ...) (make-multiplication-node* terms)]
-    [`(,a ,terms ...) (list '* a (make-multiplication-node* terms))]))
+    [`(1 ,terms ...)
+     (let-values ([(pos neg) (partition (compose positive? car) terms)])
+       (cond
+        [(and (null? pos) (null? neg)) 1]
+        [(null? pos)
+         `(/ 1 ,(make-multiplication-node* (map negate-term neg)))]
+        [(null? neg)
+         (make-multiplication-node* pos)]
+        [else
+         `(/ ,(make-multiplication-node* pos)
+             ,(make-multiplication-node* (map negate-term neg)))]))]
+    [`(,a ,terms ...)
+     (let-values ([(pos neg) (partition (compose positive? car) terms)])
+       (cond
+        [(and (null? pos) (null? neg)) a]
+        [(null? pos)
+         `(/ ,a ,(make-multiplication-node* (map negate-term neg)))]
+        [(null? neg)
+         `(* ,a ,(make-multiplication-node* pos))]
+        [else
+         `(/ (* ,a ,(make-multiplication-node* pos))
+             ,(make-multiplication-node* (map negate-term neg)))]))]))
 
-;; TODO : Use (/ a b) when it is simpler
 (define (make-multiplication-node* terms)
   (match terms
     ['() 1]
