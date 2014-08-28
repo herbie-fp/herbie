@@ -5,8 +5,11 @@
 (require casio/matcher)
 (require casio/common)
 
-(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt
+(provide (struct-out alt-delta) (struct-out alt-event)
+         make-alt alt? alt-program alt-change alt-prev alt-add-event
+         make-regime-alt
+         alt-apply alt-rewrite-tree alt-rewrite-expression
+         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt alt-set-prev
 	 alt-initial alt-changes alt-history-length)
 
 ;; Alts are a lightweight audit trail for Casio.
@@ -14,15 +17,42 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (program change prev) #:transparent
+(struct alt-delta (program change prev)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (display "#<alt " port)
+           (display "#<alt-delta " port)
+           (write (alt-program alt) port)
+           (display ">" port))])
+
+(struct alt-event (program event prevs)
+        #:methods gen:custom-write
+        [(define (write-proc alt port mode)
+           (display "#<alt-event " port)
            (write (alt-program alt) port)
            (display ">" port))])
 
 (define (make-alt prog)
-  (alt prog #f #f))
+  (alt-event prog 'start '()))
+
+(define (alt? altn)
+  (or (alt-delta? altn) (alt-event? altn)))
+
+(define (alt-program altn)
+  (match altn
+    [(alt-delta prog _ _) prog]
+    [(alt-event prog _ _) prog]))
+
+(define (alt-change altn)
+  (match altn
+    [(alt-delta _ cng _) cng]
+    [(alt-event _ _ '()) #f]
+    [(alt-event _ _ `(,prev ,_ ...)) (alt-change prev)]))
+
+(define (alt-prev altn)
+  (match altn
+    [(alt-delta _ _ prev) prev]
+    [(alt-event _ _ '()) #f]
+    [(alt-event _ _ `(,prev ,_ ...)) (alt-prev prev)]))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*points*) (*exacts*)))
@@ -31,7 +61,7 @@
   (program-cost (alt-program altn)))
 
 (define (alt-apply altn cng)
-  (alt (change-apply cng (alt-program altn)) cng altn))
+  (alt-delta (change-apply cng (alt-program altn)) cng altn))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)
@@ -78,3 +108,12 @@
   (if (alt-prev alt)
       (+ 1 (alt-history-length (alt-prev alt)))
       0))
+
+(define (alt-set-prev altn prev)
+  (alt-delta (alt-program altn) (alt-change altn) prev))
+
+(define (alt-add-event altn event)
+  (alt-event (alt-program altn) event (list altn)))
+
+(define (make-regime-alt new-prog altns splitpoints)
+  (alt-event new-prog (list 'regimes splitpoints) altns))

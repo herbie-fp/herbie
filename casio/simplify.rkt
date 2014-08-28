@@ -39,7 +39,7 @@
 		 ;; We set the prev pointer to null because we only care about the changes we're applying,
 		 ;; and we want to make sure to not have red elimination worry about any of the changes
 		 ;; before we simplified.
-		 (let* ([stripped-alt (alt-with-prev #f altn)]
+		 (let* ([stripped-alt (alt-set-prev altn #f)]
 			[simplified-alt (apply-changes stripped-alt unfiltered-changes)]
 			[re-alt (remove-red (eliminate-dead-head simplified-alt) #:fitness-func reduced? #:aggressive #f)])
 		   (debug "Simplified to " re-alt #:from 'simplify #:depth 2)
@@ -77,9 +77,6 @@
 				 *rules*)
 			 >
 			 #:key rule-cost-improvement))
-
-(define (alt-with-prev prev altn)
-  (alt (alt-program altn) (alt-change altn) prev))
 
 (define (get-rule name)
   (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)])

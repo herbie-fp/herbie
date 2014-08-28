@@ -18,7 +18,7 @@
 (define *reeval-pts* 8000)
 (define *seed* #f)
 (define *dir* #f)
-(define *timeout* (* 1000 60 20))
+(define *timeout* (* 1000 60 2))
 (define *profile?* #f)
 
 (struct test-result

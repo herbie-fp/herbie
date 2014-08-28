@@ -32,9 +32,9 @@
 		      (remove flag flag-list)
 		      (cons flag flag-list))))))
 
-; TODO remove? grep suggests these are dead
-; (define program-a '(λ (x) (/ (- (exp x) 1) x)))
-; (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
+; For debugging
+(define program-a '(λ (x) (/ (- (exp x) 1) x)))
+(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
 (define (improve prog fuel)
   (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
@@ -87,9 +87,8 @@
            [alts* (atab-all-alts table*)])
       (let ([combo (combine alts* fuel)])
 	(if combo
-	    (best-alt-final (cons combo alts*))
-	    (best-alt-final alts*))))))
-	;;(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
+	    (best-alt (cons combo alts*))
+	    (best-alt alts*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -99,10 +98,11 @@
          ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)]
         [cleanup
          ((flag 'generate 'simplify) simplify-alt identity)])
-    (map cleanup (rewrite altn #:root loc))))
+    (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
 
 (define (simplify-alt altn)
-  (((flag 'simplify 'new-simplify) simplify-alt-new simplify-alt-old) altn))
+  (((flag 'simplify 'new-simplify) simplify-alt-new simplify-alt-old)
+   (alt-add-event altn '(start simplify))))
 
 (define (simplify-alt-old altn)
   (apply-changes altn (simplify-old altn)))
@@ -119,20 +119,13 @@
   (let ([alts* (plausible-alts alts)])
     (if (> 2 (length alts*))
         #f
-        (combine-alts alts*
+        (combine-alts (map (curryr alt-add-event '(start regimes)) alts*)
          #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))))))
 
 (define (best-alt alts)
   (when (null? alts)
     (error "Trying to find the best of no alts!"))
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
-
-(define (best-alt-final alts)
-  (when (null? alts)
-    (error "Something has gone horribly wrong"))
-  (argmin alt-history-length
-	  (argmins alt-cost
-		   (argmins (compose errors-score alt-errors) alts))))
 
 (define (zach-alt altn)
   (apply append
@@ -141,5 +134,5 @@
              (if (and sibling
                       (= (length (location-get (location-parent loc)
                                                (alt-program altn))) 3))
-                 (generate-alts-at altn sibling)
+                 (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
                  '())))))
