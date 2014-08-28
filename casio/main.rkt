@@ -37,11 +37,8 @@
 (define (improve prog fuel)
   (let*-values ([(point-preparer) ((flag 'evaluate 'exponent-points)
 				  prepare-points prepare-points-uniform)]
-		[(pts exs) (point-preparer prog)]
-		[(more-pts more-exs) (parameterize ([*num-points* 8192])
-				       (prepare-points prog))])
-    (parameterize ([*points* pts] [*exacts* exs]
-		   [*more-points* more-pts] [*more-exacts* more-exs])
+		[(pts exs) (point-preparer prog)])
+    (parameterize ([*points* pts] [*exacts* exs])
       (improve-alt (make-alt prog) fuel))))
 
 (define (improve-alt alt fuel)
@@ -122,10 +119,7 @@
     (error "Something has gone horribly wrong"))
   (argmin alt-history-length
 	  (argmins alt-cost
-		   (argmins (compose errors-score
-				     (λ (altn)
-				       (errors (alt-program altn) (*more-points*) (*more-exacts*))))
-			    alts))))
+		   (argmins (compose errors-score alt-errors) alts))))
 
 (define (zach-alt altn)
   (apply append

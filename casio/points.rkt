@@ -6,7 +6,6 @@
 (require casio/programs)
 
 (provide *points* *exacts* *num-points* *exp-size*
-	 *more-points* *more-exacts*
 	 make-exacts
 	 prepare-points prepare-points-period prepare-points-uniform
 	 errors errors-score)
@@ -17,8 +16,6 @@
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
-(define *more-points* (make-parameter '()))
-(define *more-exacts* (make-parameter '()))
 
 (define (select-points num)
   (let ([bucket-width (/ (- (*exp-size*) 2) num)]
