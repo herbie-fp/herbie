@@ -5,10 +5,14 @@
 (require racket/set)
 
 (define prog '(- (sqrt (+ x 1)) (sqrt x)))
+
+(define *eg* #f)
+
 (provide (struct-out egraph) enode-vars mk-egraph iterate-egraph
 	 graphviz-e get-rule)
+(provide (all-defined-out))
 
-(struct enode (vars) #:mutable)
+(struct enode (children parent expr) #:mutable)
 (struct egraph (top exprs ens cnt) #:mutable)
 
 (define (mk-enode eg expr)
@@ -17,66 +21,99 @@
       (let ([en (hash-ref (egraph-exprs eg) expr #f)])
         (if en
             en
-            (let ([en* (enode (list expr))])
+            (let ([en* (enode '() #f expr)])
               (hash-set! (egraph-exprs eg) expr en*)
               (hash-set! (egraph-ens eg) en* (egraph-cnt eg))
               (set-egraph-cnt! eg (+ (egraph-cnt eg) 1))
               en*)))))
 
-(define (enode-add! eg e var)
-  (when (not (member var (enode-vars e)))
-    (if (enode? var)
-	(error "!!!")
-	(hash-set! (egraph-exprs eg) var e))
-    (set-egraph-cnt! eg (+ (egraph-cnt eg) 1))
-    (set-enode-vars! e (cons var (enode-vars e)))))
+(define (enode-rep en)
+  (let ([parent (enode-parent en)])
+    (if (not parent)
+	en
+	(let ([ancestor (let get-ancestor ([cur en])
+			  (if (enode-parent cur)
+			      (get-ancestor (enode-parent cur))
+			      cur))])
+	  (set-enode-parent en ancestor)
+	  ancestor))))
+
+(define (enode-sisters en)
+  (enode-children (enode-rep en)))
+
+(define (enode-vars en)
+  (map enode-expr (enode-sisters en)))
+
+(define (enode-merge! en1 en2)
+  (let ([en-parent (enode (list* en1 en2 (append (enode-children en1) (enode-children en2))) #f #f)])
+    (set-enode-parent! en1 en-parent)
+    (set-enode-parent! en2 en-parent)
+    en-parent))
 
 (define (egraph-replace! eg enfind enreplace)
+  (check-egraph eg #:mesg "Before replace")
   (when (not (eq? enfind enreplace))
     (when (eq? (egraph-top eg) enfind)
       (set-egraph-top! eg enreplace))
-    (let enode-replace! ([seen '()] [cur-en (egraph-top eg)])
-      (when (not (member cur-en seen))
-	(set-enode-vars!
-	 cur-en
-	 (for/list ([var (enode-vars cur-en)])
-	   (if (list? var)
-	       (list* (car var)
-		      (map (λ (en)
-			     (if (eq? en enfind)
-				 enreplace en))
-			   (cdr var)))
-	       var)))
-	(for ([var (enode-vars cur-en)])
-	  (when (list? var)
-	    (map (curry enode-replace! (cons cur-en seen))
-		 (cdr var))))))
-    (hash-remove! (egraph-ens eg) enfind)
+    (for-egraph eg
+     (λ (en)
+       (set-enode-vars!
+	en
+	(for/list ([var (enode-vars en)])
+	  (if (list? var)
+	      (list* (car var)
+		     (map (λ (en)
+			    (if (eq? en enfind)
+				enreplace en))
+			  (cdr var)))
+	      var)))))
     (let ([exprs (egraph-exprs eg)])
       (for ([expr (hash-keys exprs)])
+	(println "expr: " (expr->string expr))
 	(let ([nd (hash-ref exprs expr)])
-	  (cond [(eq? nd enfind)
-		 (hash-set! exprs expr enreplace)]
-		[(and (list? expr) (ormap (curry eq? enfind) (cdr expr)))
-		 (hash-remove! exprs expr)
-		 (hash-set! exprs
-			    (cons
-			     (car expr)
-			     (for/list ([en (cdr expr)])
-			       (if (eq? en enfind)
-				   enreplace
-				   en)))
-			    nd)]
-		[#t '()]))))))
+	  (when (eq? nd enfind)
+	    (hash-set! exprs expr enreplace)
+	    (set! nd enreplace))
+	  (when (list? expr) #;(and (list? expr) (ormap (curry eq? enfind) (cdr expr)))
+	    (println "hi " (expr->string expr))
+	    (hash-remove! exprs expr)
+	    (hash-set! exprs
+		       (cons
+			(car expr)
+			(for/list ([en (cdr expr)])
+			  (if (eq? en enfind)
+			      enreplace
+			      en)))
+		       nd)))))
+    (println "enfind: " (node->string enfind))
+    (hash-remove! (egraph-ens eg) enfind)
+    (check-egraph eg #:mesg "After replace")))
 
+(define (node->string en)
+  (with-output-to-string
+    (λ _
+      (display "#<enode ")
+      (write (hash-ref (egraph-ens *eg*) en #f))
+      (display ">"))))
+
+(define (expr->string expr)
+  (if (list? expr)
+      (~a (cons (car expr)
+		(map node->string
+		     (cdr expr))))
+      (~a expr)))
+  
 (define (enode-merge! eg enfrom eninto)
+  (check-egraph eg #:mesg "Before set")
   (set-enode-vars!
    eninto
    ;; This ordering is important: We're putting the enfrom vars first
    ;; because it is usually the shorter route and thus the one we want to pick.
    (remove-duplicates (append (enode-vars enfrom)
 			      (enode-vars eninto))))
-  (egraph-replace! eg enfrom eninto))
+  (check-egraph eg #:mesg "After set")
+  (egraph-replace! eg enfrom eninto)
+  (check-egraph eg #:mesg "After merge"))
 
 (define (mk-egraph p)
   (define (go eg expr)
@@ -87,6 +124,7 @@
   (let* ([eg (egraph #f (make-hash) (make-hasheq) 0)]
          [en (go eg p)])
     (set-egraph-top! eg en)
+    (set! *eg* eg)
     eg))
 
 (define (list-cartesian-product . lsts)
@@ -114,7 +152,6 @@
                       #f)
                   (loop (cons curr acc) (cdr rest))))))
       #f))
-
 
 (define (match-e pat e)
   (cond
@@ -168,12 +205,18 @@
 	(if (enode? var)
 	    (enode-merge!
 	     eg var en)
-	    (enode-add! eg en var))))))
+	    (enode-merge!
+	     eg (mk-enode eg var) en))
 
 (define (one-iter eg rules)
   (let ([start-size (egraph-cnt eg)])
     (for ([r rules])
-      (for-egraph eg (λ (en) (at-node eg r en))))
+      (for-egraph eg (λ (en)
+		       (when (not (eq? eg *eg*))
+			 (error "---"))
+		       (when (not (in-table en))
+			 (error "+++"))
+		       (at-node eg r en))))
     (> (egraph-cnt eg) start-size)))
 
 (define (iterate-egraph eg rules n)
@@ -207,3 +250,48 @@
                                        (println #:port p "en" nid " -> var" vid "en" nid " [arrowstyle=none] ;"))
                                     (enode-vars en))))
          (println #:port p "}"))))
+
+(define (in-table en)
+  (hash-ref (egraph-ens *eg*) en #f))
+
+(define (check-egraph eg #:mesg [message ""] #:die [die? #t])
+  (define (enode-children en)
+    (apply append
+	   (for/list ([var (enode-vars en)])
+	     (if (list? var)
+		 (cdr var)
+		 '()))))
+  
+  (define (fail . mesgs)
+    (let ([msg (apply string-append
+		      message
+		      "> "
+		      (for/list ([msg mesgs])
+			(if (string? msg)
+			    msg
+			    (~a msg))))])
+      (if die?
+	  (error msg) (eprintf msg))))
+  
+  (let check-node ([seen '()] [en (egraph-top eg)])
+    (when (not (in-table en))
+      (fail "Found a node reachable from head that isn't in the egraph node table!"
+	    " Seen: "
+	    (apply append
+		   (for/list ([s seen])
+		     (~a " " (hash-ref (egraph-ens eg) s #f)))))
+    (when (not (member en seen))
+      (map (curry check-node (cons en seen)) (enode-children en))))
+    (hash-map (egraph-exprs eg)
+	      (λ (expr nd)
+		(when (not (in-table nd))
+		  (fail
+		   "Expression " (expr->string expr)
+		   " is associated with a node that is not in the table, "
+		   (node->string nd)))
+		(when (list? expr)
+		  (for ([subnd (cdr expr)])
+		    (when (not (in-table subnd))
+		      (fail
+		       "Part of expression " (expr->string expr)
+		       " is not in the table!"))))))))
