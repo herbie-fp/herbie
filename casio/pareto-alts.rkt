@@ -21,8 +21,7 @@
 	      (hash initial-alt #f)))
 
 (define (atab-add-altns atab altns)
-  (pipe atab (map (curry curryr atab-add-altn)
-		  altns)))
+  (pipe atab (map (curry curryr atab-add-altn) altns)))
 
 (define (atab-pick-alt atab #:picking-func [pick car])
   (let* ([picked (pick (atab-not-done-alts atab))]
@@ -52,8 +51,7 @@
 	(loop (map cdr rest-lsts) (append (reverse (map car rest-lsts)) acc)))))
 
 (define (hash-set-lsts hash keys values)
-  (apply (curry hash-set* hash)
-	 (alternate keys values)))
+  (apply hash-set* hash (alternate keys values)))
 
 (define (hash-remove* hash keys)
   (pipe hash (map (curry curryr hash-remove) keys)))
@@ -81,7 +79,7 @@
 
 (define (remove-chnged-pnts points->alts alts->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref points->alts) chnged-pnts)]
-	 [chnged-altns (remove-duplicates (apply append (map point-rec-altns chnged-entries)))])
+	 [chnged-altns (remove-duplicates (append-map point-rec-altns chnged-entries))])
     (hash-set-lsts
      alts->points chnged-altns
      (map (λ (altn)
@@ -113,14 +111,13 @@
 							 [(= (length altns) 1) (car altns)]
 							 [else (error "This point has no alts which are best at it!" pnt-rec)])))
 				    (hash-values pnts->alts)))))
+
   (define (get-tied-alts essential-alts alts->pnts pnts->alts)
-    (let ([tied-pnts (remove* (apply append (map (curry hash-ref alts->pnts) essential-alts))
-			      (hash-keys pnts->alts))])
-      (remove-duplicates
-       (apply append (map (compose point-rec-altns (curry hash-ref pnts->alts))
-			  tied-pnts)))))
+    (remove* essential-alts (hash-keys alts->pnts)))
+
   (define (worst altns)
     (argmax alt-history-length (argmaxs alt-cost altns)))
+
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alts->points cur-atab)]
 	   [pnts->alts (alt-table-points->alts cur-atab)]
@@ -191,6 +188,16 @@
 		   (hash-keys (alt-table-points->alts atab))))
       atab
       (error (string-append "Reflexive invariant violated. " message))))
+
+;; The minimality invariant states that every alt must be untied and best on at least one point.
+(define (check-minimality-invariant atab #:message [message ""])
+  (hash-for-each (alt-table-alts->points atab)
+                 (λ (k v)
+                    (let ([cnt (for/list ([pt v])
+                                 (length (point-rec-altns (hash-ref (alt-table-points->alts atab) pt))))])
+                      (when (not (= (apply min cnt) 1))
+                        (error (string-append "Minimality invariant violated. " message)))))))
+
 
 (define (assert-points-orphaned alts->pnts opnts all-pnts #:message [msg ""])
   (hash-for-each alts->pnts
