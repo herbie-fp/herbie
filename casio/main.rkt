@@ -4,7 +4,8 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/analyze-local-error)
-(require casio/cancellation)
+(require (rename-in casio/cancellation [simplify simplify-new]))
+(require (rename-in casio/simplify [simplify simplify-old]))
 (require casio/combine-alts)
 (require casio/locations)
 (require casio/programs)
@@ -20,6 +21,7 @@
    #hash([generate . (simplify rm)]
          [evaluate . (exponent-points)]
          [reduce   . (regimes zach)]
+         [simplify . (new-simplify)]
          [setup    . (simplify periodicity)])))
 
 (define (toggle-flag! category flag)
@@ -100,7 +102,13 @@
     (map cleanup (rewrite altn #:root loc))))
 
 (define (simplify-alt altn)
-  (let* ([new-prog (simplify (program-body (alt-program altn)))]
+  (((flag 'simplify 'new-simplify) simplify-alt-new simplify-alt-old) altn))
+
+(define (simplify-alt-old altn)
+  (apply-changes altn (simplify-old altn)))
+
+(define (simplify-alt-new altn)
+  (let* ([new-prog (simplify-new (program-body (alt-program altn)))]
          [new-rule (rule 'simplify 'a 'b '())]
          [new-change (change new-rule '(2)
                              `((a . ,(program-body (alt-program altn)))
