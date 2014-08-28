@@ -7,7 +7,7 @@
 
 (casio-bench (v t)
   "Falkner and Boettcher, Equation (20:1,3)"
-  (/ (- 1 (* 5 (sqr v))) (* 3.141592653589793 t (sqrt (* 2 (- 1 (* 3 (sqr v))))) (- 1 (sqr v)))))
+  (/ (- 1 (* 5 (sqr v))) (* pi t (sqrt (* 2 (- 1 (* 3 (sqr v))))) (- 1 (sqr v)))))
 
 (casio-bench (v)
   "Falkner and Boettcher, Equation (22+)"

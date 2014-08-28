@@ -7,7 +7,7 @@
 
 (casio-bench (F l)
   "VandenBroeck and Keller, Equation (6)"
-  (- (* 3.141592653589793 l) (* (/ (sqr F)) (tan (* 3.141592653589793 l)))))
+  (- (* pi l) (* (/ (sqr F)) (tan (* pi l)))))
 
 (casio-bench (f)
   "VandenBroeck and Keller, Equation (20)"

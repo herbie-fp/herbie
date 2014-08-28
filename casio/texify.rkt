@@ -29,18 +29,18 @@
   [sqr      "{~a}^2" #f #f]
   [exp      "e^{~a}" #f #t]
   [expt     "{~a}^{~a}" #f #f]
-  [log      "\\log ~a" 'fn #t]
-  [sin      "\\sin ~a" 'fn #t]
-  [cos      "\\cos ~a" 'fn #t]
-  [tan      "\\tan ~a" 'fn #t]
-  [cotan    "\\cot ~a" 'fn #t]
-  [asin     "\\sin^{-1} ~a" 'fn #t]
-  [acos     "\\cos^{-1} ~a" 'fn #t]
-  [atan     "\\tan^{-1} ~a" 'fn #t]
-  [sinh     "\\sinh ~a" 'fn #t]
-  [cosh     "\\cosh ~a" 'fn #t]
-  [tanh     "\\tanh ~a" 'fn #t]
-  [atan2    "\\tan^{-1}_* \frac{~a}{~a}" 'fn #t]
+  [log      "\\log ~a" 'fn #f]
+  [sin      "\\sin ~a" 'fn #f]
+  [cos      "\\cos ~a" 'fn #f]
+  [tan      "\\tan ~a" 'fn #f]
+  [cotan    "\\cot ~a" 'fn #f]
+  [asin     "\\sin^{-1} ~a" 'fn #f]
+  [acos     "\\cos^{-1} ~a" 'fn #f]
+  [atan     "\\tan^{-1} ~a" 'fn #f]
+  [sinh     "\\sinh ~a" 'fn #f]
+  [cosh     "\\cosh ~a" 'fn #f]
+  [tanh     "\\tanh ~a" 'fn #f]
+  [atan2    "\\tan^{-1}_2 \\frac{~a}{~a}" 'fn #t]
   [if       "~a ? ~a : ~a" #t #t]
   [>        "~a > ~a" #f #t]
   [<        "~a < ~a" #f #t]
@@ -51,7 +51,7 @@
   [mod      "~a \\modb ~a" #t #f])
 
 (define parens-precedence
-  '(#t fn + * #f))
+  '(#t + * fn #f))
 
 (define (parens-< a b)
   (let loop ([l parens-precedence])
