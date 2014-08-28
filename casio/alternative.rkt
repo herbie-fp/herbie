@@ -5,8 +5,8 @@
 (require casio/matcher)
 (require casio/common)
 
-(provide (struct-out alt) make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
-         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt
+(provide (struct-out alt) alt-prev make-alt alt-apply alt-rewrite-tree alt-rewrite-expression
+         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt alt-with-prev
 	 alt-initial alt-changes alt-history-length)
 
 ;; Alts are a lightweight audit trail for Casio.
@@ -14,7 +14,7 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (program change prev) #:transparent
+(struct alt (program change prevs event)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
@@ -22,7 +22,12 @@
            (display ">" port))])
 
 (define (make-alt prog)
-  (alt prog #f #f))
+  (alt prog #f '() 'start))
+
+(define (alt-prev altn)
+  (match (alt-prevs altn)
+    [`() #f]
+    [`(,fst ,_ ...) fst]))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*points*) (*exacts*)))
@@ -31,7 +36,7 @@
   (program-cost (alt-program altn)))
 
 (define (alt-apply altn cng)
-  (alt (change-apply cng (alt-program altn)) cng altn))
+  (alt (change-apply cng (alt-program altn)) cng (list altn) #f))
 
 ;;Applies a list of changes to an alternative.
 (define (apply-changes altn changes)
@@ -78,3 +83,6 @@
   (if (alt-prev alt)
       (+ 1 (alt-history-length (alt-prev alt)))
       0))
+
+(define (alt-with-prev prev altn)
+  (alt (alt-program altn) (alt-change altn) (list prev) #f))

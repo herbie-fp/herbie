@@ -118,7 +118,8 @@
           (alt `(λ ,(program-variables (alt-program (car alts)))
                    ,prog-body*)
                (make-regime-change (used-alts alts splitpoints) alts* splitpoints* prog-body*)
-               #f)))))
+               (used-alts alts splitpoints)
+               (list 'regimes splitpoints*))))))
 
 (define (make-regime-change orig-alts improved-alts splitpoints final-prog-body)
   (let ([new-rule (rule 'regimes 'a final-prog-body '())])
