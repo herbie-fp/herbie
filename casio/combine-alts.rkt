@@ -288,8 +288,7 @@
 		       result)))))
 	 altns
 	 contexts))
-  (recurse-on-points (for/list ([altn altns]) (alt-event (alt-program altn) 'new-points (list altn)))
-                     (partition-points splitpoints (*points*) (*exacts*) (length altns))))
+  (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
 
 (define (ulps->bits e)
   (if (ordinary-float? e)

@@ -70,9 +70,9 @@
      (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
              (pretty-format (alt-program altn) 65))]
 
-    [(alt-event prog 'new-points `(,prev))
+    [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
-     (printf "<li class='regime-break'></li>\n")]
+     (printf "<li class='event'>Using strategy <code>~a</code></li>\n" strategy)]
 
     [(alt-event _ `(regimes ,splitpoints) prevs)
      (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]

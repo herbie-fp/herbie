@@ -45,12 +45,8 @@ line {
     margin: .5em 0;
 }
 
-#process-info .regime-break {
+#process-info .event {
     list-style-type: none;
-}
-
-#process-info .regime-break:after {
-    content: "[Switched to points in regime]";
     margin: 1.5em 5em;
     display: block;
     font-size: 95%;

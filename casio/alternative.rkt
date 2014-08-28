@@ -6,7 +6,7 @@
 (require casio/common)
 
 (provide (struct-out alt-delta) (struct-out alt-event)
-         make-alt alt? alt-program alt-change alt-prev
+         make-alt alt? alt-program alt-change alt-prev alt-add-event
          make-regime-alt
          alt-apply alt-rewrite-tree alt-rewrite-expression
          alt-errors alt-cost alt-rewrite-rm apply-changes build-alt alt-set-prev
@@ -111,6 +111,9 @@
 
 (define (alt-set-prev altn prev)
   (alt-delta (alt-program altn) (alt-change altn) prev))
+
+(define (alt-add-event altn event)
+  (alt-event (alt-program altn) event (list altn)))
 
 (define (make-regime-alt new-prog altns splitpoints)
   (alt-event new-prog (list 'regimes splitpoints) altns))

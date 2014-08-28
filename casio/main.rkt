@@ -97,16 +97,16 @@
          ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)]
         [cleanup
          ((flag 'generate 'simplify) simplify-alt identity)])
-    (map cleanup (rewrite altn #:root loc))))
+    (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
 
 (define (simplify-alt altn)
-  (apply-changes altn (simplify altn)))
+  (apply-changes (alt-add-event altn '(start simplify)) (simplify altn)))
 
 (define (regimes-alts alts fuel)
   (let ([alts* (plausible-alts alts)])
     (if (> 2 (length alts*))
         #f
-        (combine-alts alts*
+        (combine-alts (map (curryr alt-add-event '(start regimes)) alts*)
          #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))))))
 
 (define (best-alt alts)
@@ -128,5 +128,5 @@
              (if (and sibling
                       (= (length (location-get (location-parent loc)
                                                (alt-program altn))) 3))
-                 (generate-alts-at altn sibling)
+                 (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
                  '())))))
