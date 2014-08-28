@@ -21,7 +21,7 @@
 (define *label-height* 8)
 (define *label-width* 15)
 
-(define (make-graph test end-alt points start-errs end-errs target-errs bits dir)
+(define (make-graph test end-alt points start-errs end-errs target-errs bits dir profile?)
 
   ;; Generate the html for our graph page
   (write-file (build-path dir "graph.html")
@@ -35,7 +35,11 @@
     (printf "<body>\n")
 
     (printf "<dl id='about'>\n")
-    (printf "<dt>Log:</dt><dd><a href='debug.log'>here</a></dd>\n")
+    (printf "<dt>Logs:</dt>")
+    (printf "<dd><a href='debug.txt'>Debug output</a>")
+    (when profile?
+      (printf ", <a href='profile.txt'>Profiling report</a>"))
+    (printf "</dd>\n")
     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
     (printf "</dl>\n")
 

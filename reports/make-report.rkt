@@ -19,10 +19,13 @@
 (define *max-test-arity* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
 
+(define *profile?* #f)
+
 (define (make-report . bench-dirs)
   (let* ([tests (allowed-tests bench-dirs)]
          [results
           (get-test-results tests (*num-iterations*)
+                            #:profile *profile?*
                             #:threads *max-test-threads* #:dir *output-directory*)])
 
     (when (not (directory-exists? *output-directory*))
@@ -187,7 +190,9 @@
     (*debug* #t)]
    [("-a") ma "Restrict maximum arity"
     (set! *max-test-arity* (string->number ma))]
-   [("-p") th "How many tests to run in parallel to use"
+   [("-p") "Whether to profile each test"
+    (set! *profile?* #t)]
+   [("-t") th "How many tests to run in parallel to use"
     (set! *max-test-threads* (string->number th))]
    [("-r") rs "The random seed vector to use in point generation"
     (vector->pseudo-random-generator!

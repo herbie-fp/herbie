@@ -1,5 +1,6 @@
 #lang racket
 
+(require profile)
 (require racket/place)
 (require racket/engine)
 (require math/bigfloat)
@@ -18,6 +19,7 @@
 (define *seed* #f)
 (define *dir* #f)
 (define *timeout* (* 1000 60 20))
+(define *profile?* #f)
 
 (struct test-result
   (test rdir time bits
@@ -45,13 +47,22 @@
 (define (get-test-result test iters rdir)
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
 
-  (define (compute-result _)
+  (define (run-casio _)
+    (if *profile?*
+        (parameterize ([current-output-port (open-output-file (build-path *dir* rdir "profile.txt")
+                                                              #:exists 'replace)])
+          (let ([res #f])
+            (profile (set! res (compute-result)))
+            res))
+        (compute-result)))
+
+  (define (compute-result)
     (let*-values ([(orig) (make-prog test)]
 		  [(point-preparer) ((flag 'evaluate 'exponent-points)
 				     prepare-points prepare-points-uniform)]
 		  [(points exacts) (point-preparer orig)])
       (parameterize ([*points* points] [*exacts* exacts]
-                     [*debug* (open-output-file (build-path *dir* rdir "debug.log") #:exists 'replace)])
+                     [*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
 	(let* ([start-alt (make-alt orig)]
 	       [end-alt (improve-alt start-alt (*num-iterations*))])
 	  (list start-alt end-alt points exacts)))))
@@ -61,7 +72,7 @@
           (λ (exn)
              (test-failure test (bf-precision)
                            (flatten-exn exn) (- (current-inexact-milliseconds) start-time) rdir))]
-         [eng (engine compute-result)])
+         [eng (engine run-casio)])
 
     (with-handlers ([(const #t) handle-crash])
       (if (engine-run *timeout* eng)
@@ -115,7 +126,8 @@
                     (test-result-end-error result)
                     (test-result-target-error result)
 		    (test-result-bits result)
-                    dir)
+                    dir
+                    *profile?*)
 
         (build-path rdir "graph.html")]
        [(test-timeout? result)
@@ -203,13 +215,15 @@
 	   wid ,worker-id
 	   rand ,vec
 	   flags ,flag-table
-	   num-iters ,iterations)
+	   num-iters ,iterations
+           profile? ,profile?)
 
 	 (when (not (directory-exists? dir))
            (make-directory dir))
 
          (set! *dir* dir)
 	 (set! *seed* vec)
+         (set! *profile?* profile?)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
         [`(,self ,id ,test ,iters)
@@ -236,17 +250,20 @@
 				     rand ,(pseudo-random-generator->vector
 					    (current-pseudo-random-generator))
 				     flags ,(*flags*)
-				     num-iters ,(*num-iterations*)))
+				     num-iters ,(*num-iterations*)
+                                     profile? ,*profile?*))
 	   (set! workers (cons new-worker workers)))]
 	[`(init
 	   dir ,dir*
 	   rand ,vec
 	   flags ,flag-table
-	   num-iters ,iterations)
+	   num-iters ,iterations
+           profile? ,profile?)
 	 (set! dir dir*)
 	 (vector->pseudo-random-generator!
 	  (current-pseudo-random-generator)
 	  vec)
+         (set! *profile?* profile?)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
         [`(do ,id ,test ,iters)
@@ -268,16 +285,20 @@
 
 (define (get-test-results progs iters
                           #:threads [threads (max (- (processor-count) 1) 1)]
-                          #:dir dir)
+                          #:dir dir #:profile [profile? #f])
   (define m (make-manager))
   (define cnt 0)
   (define total (length progs))
 
-  (place-channel-put m `(init dir ,dir
-			      rand ,(pseudo-random-generator->vector
-				     (current-pseudo-random-generator))
-			      flags ,(*flags*)
-			      num-iters ,(*num-iterations*)))
+  (define config
+    `(init dir ,dir
+           rand ,(pseudo-random-generator->vector
+                  (current-pseudo-random-generator))
+           flags ,(*flags*)
+           num-iters ,(*num-iterations*)
+           profile? ,profile?))
+
+  (place-channel-put m config)
 
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
