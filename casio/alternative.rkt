@@ -19,14 +19,7 @@
         [(define (write-proc alt port mode)
            (display "#<alt " port)
            (write (alt-program alt) port)
-           (display ">" port))]
-	#:methods gen:equal+hash
-	[(define (equal-proc alt1 alt2 recursive)
-	   (recursive (alt-program alt1) (alt-program alt2)))
-	 (define (hash-proc altn recursive)
-	   (recursive (alt-program altn)))
-	 (define (hash2-proc altn recursive)
-	   (recursive (alt-program altn)))])
+           (display ">" port))])
 
 (define (make-alt prog)
   (alt prog #f #f))
