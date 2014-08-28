@@ -64,50 +64,42 @@
 
 (struct interval (alt-idx start-point end-point vidx))
 
-(define (output-history altn #:stop-at [stop-at #f])
-  (cond
-   [(and stop-at (equal? (alt-program stop-at) (alt-program altn)))
-    (void)]
-   [(not (alt-change altn))
-    (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
-            (pretty-format (alt-program altn) 65))]
-   [(eq? (rule-name (change-rule (alt-change altn))) 'regimes)
-    (let* ([vars (change-bindings (alt-change altn))]
-	   [alt-entries (filter (λ (binding) (eq? (car binding) 'alt)) vars)]
-	   [splitpoints (cdr (assoc 'splitpoints vars))])
-      (let ([intervals (map (λ (start-sp end-sp)
-			      (interval (sp-cidx end-sp)
-					(sp-point start-sp)
-					(sp-point end-sp)
-					(sp-vidx end-sp)))
-			    (cons (sp -1 -1 -inf.0)
-				  (take splitpoints (sub1 (length splitpoints))))
-			    splitpoints)]
-	    [interval->string (λ (intrvl)
-				(string-append (number->string (interval-start-point intrvl)) " < "
-					       (symbol->string (list-ref (program-variables (alt-program altn)) (interval-vidx intrvl))) " < "
-					       (number->string (interval-end-point intrvl))))])
-	(for/list ([entry alt-entries] [entry-idx (range (length alt-entries))])
-	  (let ([applicable-intervals (filter (λ (intrvl)
-						 (= (interval-alt-idx intrvl)
-						    entry-idx))
-					      intervals)])
-	    (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n"
-		    (apply (curry string-append (interval->string (car applicable-intervals)))
-				   (map (λ (i)
-					  (string-append " OR " (interval->string i)))
-					(cdr applicable-intervals))))
-	    (printf "<ol>\n")
-	    (output-history (second entry))
-	    (printf "<li class='regime-break'></li>\n")
-	    (output-history (third entry) #:stop-at (second entry))
-	    (printf "</ol>\n")))))]
-   [else
-    (output-history (alt-prev altn) #:stop-at stop-at)
-    (printf "<li>Applied <span class='rule'>~a</span> "
-            (rule-name (change-rule (alt-change altn))))
-    (printf "to get <code><pre>~a</pre></code></li>\n"
-            (pretty-format (alt-program altn) 65))]))
+(define (output-history altn)
+  (match altn
+    [(alt-event _ 'start _)
+     (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
+             (pretty-format (alt-program altn) 65))]
+
+    [(alt-event prog 'new-points `(,prev))
+     (output-history prev)
+     (printf "<li class='regime-break'></li>\n")]
+
+    [(alt-event _ `(regimes ,splitpoints) prevs)
+     (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]
+            [vars (program-variables (alt-program altn))]
+            [intervals
+             (for/list ([start-sp start-sps] [end-sp splitpoints])
+               (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-vidx end-sp)))]
+            [interval->string
+             (λ (ival)
+                (format "~a < ~a < ~a" (interval-start-point ival)
+                        (list-ref vars (interval-vidx ival)) (interval-end-point ival)))])
+       (for/list ([entry prevs] [entry-idx (range (length prevs))])
+         (let* ([entry-ivals
+                 (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
+                [condition
+                 (string-join (map interval->string entry-ivals) " or ")])
+           (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" condition)
+           (printf "<ol>\n")
+           (output-history entry)
+           (printf "</ol>\n"))))]
+
+    [(alt-delta prog cng prev)
+     (output-history prev)
+     (printf "<li>Applied <span class='rule'>~a</span> "
+             (rule-name (change-rule cng)))
+     (printf "to get <code><pre>~a</pre></code></li>\n"
+             (pretty-format prog 65))]))
 
 (define (points->pathdata line)
   (write-string
