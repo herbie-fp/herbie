@@ -4,7 +4,6 @@
 (require casio/matcher)
 (require casio/points)
 (require casio/common)
-(require casio/redgreen)
 
 (provide plausible-alts combine-alts (struct-out sp))
 ;; This value is entirely arbitrary and should probably be changed,

@@ -85,9 +85,8 @@
            [alts* (atab-all-alts table*)])
       (let ([combo (combine alts* fuel)])
 	(if combo
-	    (best-alt-final (cons combo alts*))
-	    (best-alt-final alts*))))))
-	;;(best-alt-final (list (or combo (best-alt alts*)) *orig-altn*))))))
+	    (best-alt (cons combo alts*))
+	    (best-alt alts*))))))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
@@ -113,13 +112,6 @@
   (when (null? alts)
     (error "Trying to find the best of no alts!"))
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
-
-(define (best-alt-final alts)
-  (when (null? alts)
-    (error "Something has gone horribly wrong"))
-  (argmin alt-history-length
-	  (argmins alt-cost
-		   (argmins (compose errors-score alt-errors) alts))))
 
 (define (zach-alt altn)
   (apply append

@@ -6,7 +6,6 @@
 (require casio/points)
 (require casio/programs)
 (require casio/alternative)
-(require casio/redgreen)
 (require casio/simplify)
 
 (provide analyze-local-error)
