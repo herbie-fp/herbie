@@ -66,23 +66,23 @@
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-all-alts table) fuel)]
+	 (reduce-alts table fuel)]
 	[(atab-completed? table)
 	 (debug "Ran out of unexpanded alts in alt table, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts (atab-all-alts table) fuel)]
+	 (reduce-alts table fuel)]
 	[#t
 	 (improve-loop
 	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
 	    (atab-add-altns table* (append-map generate-alts (list picked))))
 	  (- fuel 1))]))
 
-(define (reduce-alts alts fuel)
+(define (reduce-alts table fuel)
   (let ([combine
          ((flag 'reduce 'regimes) regimes-alts (const #f))]
         [fixup
          ((flag 'reduce 'zach) zach-alt (const '()))])
-    (let* ([alts* (append alts (append-map fixup alts))]
-           [alts* (remove-duplicates alts* #:key alt-program)])
+    (let* ([table* (atab-add-altns table (append-map fixup (atab-all-alts table)))]
+           [alts* (atab-all-alts table*)])
       (let ([combo (combine alts* fuel)])
 	(if combo
 	    (best-alt-final (cons combo alts*))
