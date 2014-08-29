@@ -115,8 +115,13 @@
   (define (get-tied-alts essential-alts alts->pnts pnts->alts)
     (remove* essential-alts (hash-keys alts->pnts)))
 
-  (define (worst altns)
-    (argmax alt-history-length (argmaxs alt-cost altns)))
+  (define (worst atab altns)
+    (let* ([alts->pnts (curry hash-ref (alt-table-alts->points atab))]
+           [alts->done? (curry hash-ref (alt-table-alts->done? atab))])
+      ; There must always be a not-done tied alt,
+      ; since before adding any alts there weren't any tied alts
+      (let ([undone-altns (filter (compose not alts->done?) altns)])
+        (argmin (compose length alts->pnts) (if (null? undone-altns) altns undone-altns)))))
 
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alts->points cur-atab)]
@@ -124,7 +129,7 @@
 	   [essential-alts (get-essential pnts->alts)]
 	   [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
       (if (null? tied-alts) cur-atab
-	  (let ([atab* (rm-alts cur-atab (worst tied-alts))])
+	  (let ([atab* (rm-alts cur-atab (worst cur-atab tied-alts))])
 	    (loop atab*))))))
 
 (define (rm-alts atab . altns)
