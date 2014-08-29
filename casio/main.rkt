@@ -20,7 +20,7 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [evaluate . (exponent-points)]
-         [reduce   . (regimes zach)]
+         [reduce   . (regimes zach prefilter recurse)]
          [simplify . (simplify-pavel)]
          [setup    . (simplify periodicity)])))
 
@@ -118,11 +118,14 @@
         (apply alt-apply altn (list new-change)))))
 
 (define (regimes-alts alts fuel)
-  (let ([alts* (plausible-alts alts)])
+  (let* ([filter-func ((flag 'reduce 'prefilter) plausible-alts identity)]
+         [recurse-func ((flag 'reduce 'recurse)
+                        (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))
+                        identity)]
+         [alts* (map (curryr alt-add-event '(start regimes)) (filter-func alts))])
     (if (> 2 (length alts*))
         #f
-        (combine-alts (map (curryr alt-add-event '(start regimes)) alts*)
-         #:pre-combo-func (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))))))
+        (combine-alts alts* #:pre-combo-func recurse-func))))
 
 (define (best-alt alts)
   (when (null? alts)
