@@ -28,22 +28,6 @@
 (struct test-failure (test bits exn time rdir))
 (struct test-timeout (test bits) #:prefab)
 
-(define (srcloc->string sl)
-  (if sl
-      (string-append
-       (path->string (srcloc-source sl))
-       ":"
-       (number->string (srcloc-line sl))
-       ":"
-       (number->string (srcloc-column sl)))
-      "???"))
-
-(define (flatten-exn e)
-  (list (exn-message e)
-        (for/list ([tb (continuation-mark-set->context
-                        (exn-continuation-marks e))])
-          (list (car tb) (srcloc->string (cdr tb))))))
-
 (define (get-test-result test iters rdir)
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
 
@@ -70,8 +54,8 @@
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
           (λ (exn)
-             (test-failure test (bf-precision)
-                           (flatten-exn exn) (- (current-inexact-milliseconds) start-time) rdir))]
+             (test-failure test (bf-precision) exn
+                           (- (current-inexact-milliseconds) start-time) rdir))]
          [eng (engine run-casio)])
 
     (with-handlers ([(const #t) handle-crash])
@@ -96,12 +80,22 @@
                               #f))])
           (test-timeout test (bf-precision))))))
 
+(define (srcloc->string sl)
+  (if sl
+      (string-append
+       (path->string (srcloc-source sl))
+       ":"
+       (number->string (srcloc-line sl))
+       ":"
+       (number->string (srcloc-column sl)))
+      "???"))
+
 (define (make-traceback err)
-  (printf "<h2 id='error-message'>~a</h2>\n" (first err))
+  (printf "<h2 id='error-message'>~a</h2>\n" (exn-message err))
   (printf "<ol id='traceback'>\n")
-  (for ([fn&loc (second err)])
+  (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
     (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (first fn&loc) (second fn&loc)))
+            (car tb) (srcloc->string (cdr tb))))
   (printf "</ol>\n"))
 
 (define (graph-folder-path tname index)
