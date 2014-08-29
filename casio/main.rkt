@@ -105,7 +105,7 @@
    (alt-add-event altn '(start simplify))))
 
 (define (simplify-alt-old altn)
-  (apply-changes altn (simplify-old altn)))
+  (apply alt-apply altn (simplify-old altn)))
 
 (define (simplify-alt-new altn)
   (let* ([new-prog (simplify-pavel (program-body (alt-program altn)))]
@@ -113,7 +113,7 @@
          [new-change (change new-rule '(2)
                              `((a . ,(program-body (alt-program altn)))
                                (b . ,new-prog)))])
-    (apply-changes altn (list new-change))))
+    (apply alt-apply altn (list new-change))))
 
 (define (regimes-alts alts fuel)
   (let ([alts* (plausible-alts alts)])

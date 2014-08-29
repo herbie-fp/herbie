@@ -53,7 +53,7 @@
 					       (alt-change (alt-prev salmon))
 					       grandparent)])
 	     (if (and upstream-changes (list? upstream-changes))
-		 (let ([moved-salmon (apply-changes grandparent upstream-changes)])
+		 (let ([moved-salmon (apply alt-apply grandparent upstream-changes)])
 		   (if is-head?
 		       (swim-upstream moved-salmon #t dams-hit)
 		       (let ([downstream-changes (translate #f
@@ -62,7 +62,7 @@
 							    moved-salmon)])
 			 (if downstream-changes
 			     (let ([new-salmon (swim-upstream moved-salmon #f dams-hit)])
-			       (apply-changes new-salmon downstream-changes))
+			       (apply alt-apply new-salmon downstream-changes))
 			     (move-dam salmon #f dams-hit)))))
 		 (move-dam salmon is-head? dams-hit)))]))
   (swim-upstream altn #t '()))

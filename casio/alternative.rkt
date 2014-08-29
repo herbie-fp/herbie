@@ -9,7 +9,7 @@
          make-alt alt? alt-program alt-change alt-prev alt-add-event
          make-regime-alt
          alt-apply alt-rewrite-tree alt-rewrite-expression
-         alt-errors alt-cost alt-rewrite-rm apply-changes build-alt alt-set-prev
+         alt-errors alt-cost alt-rewrite-rm alt-set-prev
 	 alt-initial alt-changes alt-history-length)
 
 ;; Alts are a lightweight audit trail for Casio.
@@ -60,21 +60,10 @@
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
 
-(define (alt-apply altn cng)
-  (alt-delta (change-apply cng (alt-program altn)) cng altn))
-
-;;Applies a list of changes to an alternative.
-(define (apply-changes altn changes)
-  (pipe altn (map (lambda (change)
-		    (lambda (altn)
-		      (alt-apply altn change)))
-		  changes)))
-
-;; Builds an alt from an initial alt and a list of changes.
-(define (build-alt initial changes)
-  (if (null? changes)
-      initial
-      (build-alt (alt-apply initial (car changes)) (cdr changes))))
+(define (alt-apply altn . changes)
+  (foldl (λ (cng altn)
+            (alt-delta (change-apply cng (alt-program altn)) cng altn))
+         altn changes))
 
 ;; Gets the initial version of the current alt.
 (define (alt-initial altn)
@@ -100,7 +89,7 @@
 
 (define (alt-rewrite-rm alt #:root [root-loc '()])
   (let ([subtree (location-get root-loc (alt-program alt))])
-    (map (curry apply-changes alt)
+    (map (curry apply alt-apply alt)
          (map reverse
               (rewrite-expression-head subtree #:root root-loc)))))
 

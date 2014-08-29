@@ -40,14 +40,14 @@
 		 ;; and we want to make sure to not have red elimination worry about any of the changes
 		 ;; before we simplified.
 		 (let* ([stripped-alt (alt-set-prev altn #f)]
-			[simplified-alt (apply-changes stripped-alt unfiltered-changes)]
+			[simplified-alt (apply alt-apply stripped-alt unfiltered-changes)]
 			[re-alt (remove-red (eliminate-dead-head simplified-alt) #:fitness-func reduced? #:aggressive #f)])
 		   (debug "Simplified to " re-alt #:from 'simplify #:depth 2)
 		   (alt-changes re-alt)))))))
 
 (define (simplify* altn)
   (let ([simplify-changes (simplify altn)])
-    (apply-changes altn simplify-changes)))
+    (apply alt-apply altn simplify-changes)))
 
 (define (simpler? altn)
   (> (rule-cost-improvement (change-rule (alt-change altn)))
