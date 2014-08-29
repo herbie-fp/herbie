@@ -90,12 +90,15 @@
        (number->string (srcloc-column sl)))
       "???"))
 
+(define (html-escape-unsafe err)
+  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
+
 (define (make-traceback err)
-  (printf "<h2 id='error-message'>~a</h2>\n" (exn-message err))
+  (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
   (printf "<ol id='traceback'>\n")
   (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
     (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (car tb) (srcloc->string (cdr tb))))
+            (html-escape-unsafe (car tb)) (srcloc->string (cdr tb))))
   (printf "</ol>\n"))
 
 (define (graph-folder-path tname index)
