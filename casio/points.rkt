@@ -6,18 +6,17 @@
 (require casio/programs)
 
 (provide *points* *exacts* *num-points* *exp-size*
-	 make-exacts
-	 prepare-points prepare-points-period prepare-points-uniform
-	 errors errors-score)
+	 make-points-expbucket make-points-random make-points-uniform
+         make-exacts prepare-points prepare-points-period errors errors-score)
 
 (define *num-points* (make-parameter 1024))
-(define *exp-size* (make-parameter 256))
+(define *exp-size* (make-parameter 256)) ; TODO : Combine with below into a single way to specify
 (define *precision-step* (make-parameter 8))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
-(define (select-points num)
+(define (select-points-expbucket num)
   (let ([bucket-width (/ (- (*exp-size*) 2) num)]
         [bucket-bias (- (/ (*exp-size*) 2) 1)])
     (for/list ([i (range num)])
@@ -28,28 +27,35 @@
     (for/list ([i (range num)])
       (* bucket-width (+ i (random))))))
 
-(define-values (make-points make-points-uniform)
-  (letrec ([make-points-inner
-	    (λ (num dim selector)
-	      (if (= dim 0)
-		  '(())
-		  (let* ([num-ticks (round (expt num (/ 1 dim)))]
-			 [rest-num (/ num num-ticks)]
-			 [pos-ticks (ceiling (/ num-ticks 2))]
-			 [neg-ticks (- num-ticks pos-ticks)]
-			 [first (append (reverse (map - (selector neg-ticks)))
-					(selector pos-ticks))])
-		    (sort (apply append
-				 (for/list ([rest (make-points-inner rest-num (- dim 1) selector)])
-				   (map (λ (x) (cons x rest)) first)))
-			  < #:key car))))])
-    (values
-     ;; Produce approximately `num` points in the `dim`-dimensional space,
-     ;; distributed overly-uniformly in the exponent
-     (curryr make-points-inner select-points)
-     ;; Produce approximately `num` points in the `dim`-dimensional space,
-     ;; distributed overly-uniformly.
-     (curryr make-points-inner select-points-uniform))))
+(define (random-single-flonum)
+  (let loop ()
+    (let ([x (bit-field->flonum (random-exp 64))])
+      (if (or (= x 0) (and (ordinary-float? (real->single-flonum x))
+                           (not (= (real->single-flonum x) 0))))
+          (real->double-flonum (real->single-flonum x))
+          (loop)))))
+
+(define (select-points-random num)
+  (for/list ([i (range num)])
+    (random-single-flonum)))
+
+(define ((point-factory selector) num dim)
+  (if (= dim 0)
+      '(())
+      (let* ([num-ticks (round (expt num (/ 1 dim)))]
+             [rest-num (/ num num-ticks)]
+             [pos-ticks (ceiling (/ num-ticks 2))]
+             [neg-ticks (- num-ticks pos-ticks)]
+             [first (append (reverse (map - (selector neg-ticks)))
+                            (selector pos-ticks))])
+        (sort (apply append
+                     (for/list ([rest ((point-factory selector) rest-num (- dim 1))])
+                       (map (λ (x) (cons x rest)) first)))
+              < #:key car))))
+
+(define make-points-expbucket (point-factory select-points-expbucket))
+(define make-points-random (point-factory select-points-random))
+(define make-points-uniform (point-factory select-points-uniform))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
@@ -102,7 +108,7 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-distributed-points point-maker prog)
+(define (prepare-points prog point-maker)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
@@ -124,9 +130,6 @@
 	 [pts* (filter-points pts exacts)]
 	 [exacts* (filter-exacts pts exacts)])
     (values pts* exacts*)))
-
-(define prepare-points (curry prepare-distributed-points make-points))
-(define prepare-points-uniform (curry prepare-distributed-points make-points-uniform))
 
 (define (errors prog points exacts)
   (let ([fn (eval-prog prog mode:fl)])

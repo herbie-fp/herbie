@@ -42,9 +42,12 @@
 
   (define (compute-result)
     (let*-values ([(orig) (make-prog test)]
-		  [(point-preparer) ((flag 'evaluate 'exponent-points)
-				     prepare-points prepare-points-uniform)]
-		  [(points exacts) (point-preparer orig)])
+                  [(point-maker) ((flag 'evaluate 'exponent-points)
+                                  make-points-expbucket
+                                  ((flag 'evaluate 'random-points)
+                                   make-points-random
+                                   make-points-uniform))]
+                  [(points exacts) (prepare-points orig point-maker)])
       (parameterize ([*points* points] [*exacts* exacts]
                      [*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
 	(let* ([start-alt (make-alt orig)]
@@ -64,7 +67,7 @@
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
                (parameterize ([*num-points* *reeval-pts*])
-                 (prepare-points (alt-program start))))
+                 (prepare-points (alt-program start) make-points-random)))
              (test-result test rdir
                           (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)
@@ -98,7 +101,7 @@
   (printf "<ol id='traceback'>\n")
   (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
     (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (html-escape-unsafe (car tb)) (srcloc->string (cdr tb))))
+            (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
   (printf "</ol>\n"))
 
 (define (graph-folder-path tname index)

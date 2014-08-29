@@ -9,7 +9,8 @@
 	 safe-eval write-file write-string has-duplicates?
 	 with-item symbol<? common-eval-ns
 	 flip-lists argmaxs
-	 binary-search-floats)
+	 binary-search-floats binary-search-ints
+         random-exp)
 
 (define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -218,3 +219,10 @@
 
 ;; Implemented here for example.
 (define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
+
+(define (random-exp k)
+  "Like (random (expt 2 k)), but k is allowed to be arbitrarily large"
+  (if (< k 31) ; Racket generates random numbers in the range [0, 2^32-2]; I think it's a bug
+      (random (expt 2 k))
+      (let ([head (* (expt 2 31) (random-exp (- k 31)))])
+        (+ head (random (expt 2 31))))))
