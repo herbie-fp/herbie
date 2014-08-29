@@ -113,7 +113,9 @@
          [new-change (change new-rule '(2)
                              `((a . ,(program-body (alt-program altn)))
                                (b . ,new-prog)))])
-    (apply alt-apply altn (list new-change))))
+    (if (equal? new-prog (program-body (alt-program altn)))
+        altn
+        (apply alt-apply altn (list new-change)))))
 
 (define (regimes-alts alts fuel)
   (let ([alts* (plausible-alts alts)])
