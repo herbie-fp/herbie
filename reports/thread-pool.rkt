@@ -18,7 +18,7 @@
 (define *reeval-pts* 8000)
 (define *seed* #f)
 (define *dir* #f)
-(define *timeout* (* 1000 60 2))
+(define *timeout* (* 1000 60 5))
 (define *profile?* #f)
 
 (struct test-result
@@ -169,13 +169,18 @@
       (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
-                   (cond
-                    [(not target-score) "no-compare"]
-                    [(< end-score (- target-score 1)) "gt-target"]
-                    [(< end-score (+ target-score 1)) "eq-target"]
-                    [(> end-score (+ start-score 1)) "lt-start"]
-                    [(> end-score (- start-score 1)) "eq-start"]
-                    [(> end-score (+ target-score 1)) "lt-target"])
+                   (if target-score
+                       (cond
+                        [(< end-score (- target-score 1)) "gt-target"]
+                        [(< end-score (+ target-score 1)) "eq-target"]
+                        [(> end-score (+ start-score 1)) "lt-start"]
+                        [(> end-score (- start-score 1)) "eq-start"]
+                        [(> end-score (+ target-score 1)) "lt-target"])
+                       (cond
+                        [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
+                        [(< end-score (- start-score 1)) "imp-start"]
+                        [(< end-score (+ start-score 1)) "apx-start"]
+                        [else "uni-start"]))
                    start-score
                    end-score
                    (and target-score target-score)

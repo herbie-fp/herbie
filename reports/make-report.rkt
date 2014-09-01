@@ -94,7 +94,7 @@
                  (if (member (table-row-status row) '("gt-target" "eq-target")) 1 0))))
     (define total-available
       (apply + (for/list ([row table-data])
-                 (if (not (equal? (table-row-status row) "no-compare")) 1 0))))
+                 (if (not (equal? (table-row-status row) "ex-start")) 1 0))))
     (define total-crashes
       (apply + (for/list ([row table-data])
                  (if (equal? (table-row-status row) "crash") 1 0))))
@@ -123,6 +123,7 @@
         (for ([fl (cdr rec)])
           (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
       (printf "</dd>")
+      (printf "<dt>Sample points:</dt><dd>~a</dd>\n" (*num-points*))
       (printf "</dl>\n")
 
       (printf "<div id='large'>\n")

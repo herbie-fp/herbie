@@ -7,7 +7,7 @@
 (provide (struct-out test) *tests* *num-iterations* casio-test make-prog
          (all-from-out casio/points))
 
-(define *num-iterations* (make-parameter 2))
+(define *num-iterations* (make-parameter 5))
 
 (define (unfold-let expr)
   (match expr

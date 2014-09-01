@@ -12,7 +12,7 @@ dl {
 dt {
     font-weight: bold;
     float: left;
-    width: 7em;
+    width: 10em;
 }
 
 #flag-list kbd:not(:last-child):after {
@@ -53,7 +53,7 @@ dt {
 
 #results td.bad-est {
     width: 7em;
-    outline: 5px solid #c86edf;
+    border-right: 5px solid #c86edf;
 }
 
 #results tbody tr:hover {
@@ -70,7 +70,11 @@ dt {
 }
 #results td:nth-child(8) {text-align: center;}
 
-tr.no-compare td:nth-child(3) {background-color: #c86edf; color: #f7f7f7;}
+tr.imp-start  td:nth-child(3) {background-color: #0bd318;}
+tr.apx-start  td:nth-child(3) {background-color: #ff9500;}
+tr.uni-start  td:nth-child(3) {background-color: #ff5e3a; color: #f7f7f7;}
+tr.ex-start   td:nth-child(3) {}
+
 tr.gt-target  td:nth-child(3) {background-color: #0bd318;}
 tr.eq-target  td:nth-child(3) {background-color: #87fc70;}
 tr.lt-target  td:nth-child(3) {background-color: #ffdb4c;}
