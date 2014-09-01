@@ -49,6 +49,7 @@
                     (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
                    [(y-scale y-unscale) (linear-scale* 0 64 175.0 20.0)])
         (printf "<svg width='500' height='300'>\n")
+        (set-up-line)
         (draw-line idx points start-errs x-scale y-scale "red")
         (when target-errs
           (draw-line idx points target-errs x-scale y-scale "green"))
@@ -127,12 +128,18 @@
         (hash-set! h val (cons elt (hash-ref h val '())))))
     (hash-values h)))
 
+(define (set-up-line)
+  (printf "<defs>\n")
+  (for ([color '(red green blue)])
+    (printf "<marker id='pt-~a' viewBox='0 0 4 4' refX='2' ref='2'" color)
+    (printf "markerWidth='4' markerHeight='4'>\n")
+    (printf "<circle cx='2' cy='2' r='2' fill='~a' opacity='~a'/>\n"
+            color *point-opacity*)
+    (printf "</marker>\n"))
+  (printf "</defs>\n"))
+
 (define (draw-line idx pts exs x-scale y-scale color)
-  (for ([pt pts] [ex exs])
-    (printf "<circle cx='~a' cy='~a' r='~a' fill='~a' opacity='~a'/>\n"
-            (x-scale (list-ref pt idx)) (y-scale (ulps->bits ex))
-            *point-width* color *point-opacity*))
-  #;(printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
+  (printf "<path d='~a' stroke='transparent' stroke-width='1' fill='none' marker-start='url(#pt-~a)' marker-mid='url(#pt-~a)' marker-end='url(#pt-~a)' />\n"
           (points->pathdata
            (sort
             (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
@@ -142,7 +149,7 @@
                 (cons (x-scale x-value)
                       (y-scale (ulps->bits y-value)))))
             < #:key car))
-          color *line-width*))
+          color color color))
 
 (define (draw-axes x-scale x-unscale y-scale y-unscale)
   (let ([pos-0 (with-handlers ([(const #t) (λ (e) 10)])
