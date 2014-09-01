@@ -51,16 +51,8 @@
 (define ((point-factory selector) num dim)
   (if (= dim 0)
       '(())
-      (let* ([num-ticks (round (expt num (/ 1 dim)))]
-             [rest-num (/ num num-ticks)]
-             [pos-ticks (ceiling (/ num-ticks 2))]
-             [neg-ticks (- num-ticks pos-ticks)]
-             [first (append (reverse (map - (selector neg-ticks)))
-                            (selector pos-ticks))])
-        (sort (apply append
-                     (for/list ([rest ((point-factory selector) rest-num (- dim 1))])
-                       (map (λ (x) (cons x rest)) first)))
-              < #:key car))))
+      (let ([points (build-list dim (λ (_) (selector num)))])
+        (sort (flip-lists (map shuffle points)) < #:key car))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
