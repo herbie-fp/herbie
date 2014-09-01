@@ -43,10 +43,10 @@
   (define (compute-result)
     (let*-values ([(orig) (make-prog test)]
                   [(point-maker) ((flag 'evaluate 'exponent-points)
-                                  make-points-expbucket
+                                  sample-expbucket
                                   ((flag 'evaluate 'random-points)
-                                   make-points-random
-                                   make-points-uniform))]
+                                   sample-float
+                                   sample-uniform))]
                   [(points exacts) (prepare-points orig point-maker)])
       (parameterize ([*points* points] [*exacts* exacts]
                      [*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
@@ -67,7 +67,7 @@
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
                (parameterize ([*num-points* *reeval-pts*])
-                 (prepare-points (alt-program start) make-points-random)))
+                 (prepare-points (alt-program start) sample-float)))
              (test-result test rdir
                           (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)

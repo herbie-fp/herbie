@@ -6,38 +6,47 @@
 (require casio/programs)
 
 (provide *points* *exacts* *num-points* *exp-size*
-	 make-points-expbucket make-points-random make-points-uniform
+	 sample-expbucket sample-float sample-uniform
          make-exacts prepare-points prepare-points-period errors errors-score)
 
 (define *num-points* (make-parameter 1024))
-(define *exp-size* (make-parameter 256)) ; TODO : Combine with below into a single way to specify
+(define *exp-size* (make-parameter 256))
 (define *precision-step* (make-parameter 8))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
-(define (select-points-expbucket num)
+(define (sample-expbucket num)
   (let ([bucket-width (/ (- (*exp-size*) 2) num)]
         [bucket-bias (- (/ (*exp-size*) 2) 1)])
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
-(define (select-points-uniform num)
+(define (sample-uniform num)
   (let ([bucket-width (/ (expt 2 (*exp-size*)) num)])
     (for/list ([i (range num)])
       (* bucket-width (+ i (random))))))
 
 (define (random-single-flonum)
-  (let loop ()
-    (let ([x (bit-field->flonum (random-exp 64))])
-      (if (or (= x 0) (and (ordinary-float? (real->single-flonum x))
-                           (not (= (real->single-flonum x) 0))))
-          (real->double-flonum (real->single-flonum x))
-          (loop)))))
+  (real->single-flonum
+   (let ([sign (if (= (random 2) 0) + -)]
+         [exponent (random 256)]
+         [mantissa (/ (random (expt 2 23)) (expt 2 23))])
+     (cond
+      [(and (= exponent 0) (= mantissa 0))
+       (sign 0.0)]
+      [(= exponent 0)
+       (sign (* (expt 2 -126) mantissa))]
+      [(and (= exponent 255) (= mantissa 0))
+       (sign +inf.0)]
+      [(= exponent 255)
+       +nan.0]
+      [else
+       (sign (* (expt 2 (- exponent 127)) (+ 1 mantissa)))]))))
 
-(define (select-points-random num)
+(define (sample-float num)
   (for/list ([i (range num)])
-    (random-single-flonum)))
+    (real->double-flonum (random-single-flonum))))
 
 (define ((point-factory selector) num dim)
   (if (= dim 0)
@@ -52,10 +61,6 @@
                      (for/list ([rest ((point-factory selector) rest-num (- dim 1))])
                        (map (λ (x) (cons x rest)) first)))
               < #:key car))))
-
-(define make-points-expbucket (point-factory select-points-expbucket))
-(define make-points-random (point-factory select-points-random))
-(define make-points-uniform (point-factory select-points-uniform))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
@@ -115,7 +120,7 @@
   
   (bf-precision 80)
   ; First, we generate points;
-  (let* ([pts (point-maker (*num-points*) (length (program-variables prog)))]
+  (let* ([pts ((point-factory point-maker) (*num-points*) (length (program-variables prog)))]
          [exacts (make-exacts prog pts)]
          ; Then, we remove the points for which the answers
          ; are not representable

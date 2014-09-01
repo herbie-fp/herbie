@@ -38,10 +38,10 @@
 
 (define (improve prog fuel)
   (let*-values ([(point-maker) ((flag 'evaluate 'exponent-points)
-                                make-points-expbucket
+                                sample-expbucket
                                 ((flag 'evaluate 'random-points)
-                                 make-points-random
-                                 make-points-uniform))]
+                                 sample-float
+                                 sample-uniform))]
 		[(pts exs) (prepare-points prog point-maker)])
     (parameterize ([*points* pts] [*exacts* exs])
       (improve-alt (make-alt prog) fuel))))
