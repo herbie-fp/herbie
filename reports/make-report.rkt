@@ -124,6 +124,7 @@
           (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
       (printf "</dd>")
       (printf "<dt>Sample points:</dt><dd>~a</dd>\n" (*num-points*))
+      (printf "<dt>Iterations:</dt><dd>~a</dd>\n" (*num-iterations*))
       (printf "</dl>\n")
 
       (printf "<div id='large'>\n")

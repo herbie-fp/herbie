@@ -35,6 +35,7 @@
     (printf "<body>\n")
 
     (printf "<dl id='about'>\n")
+    (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
     (printf "<dt>Logs:</dt>")
     (printf "<dd><a href='debug.txt'>Debug output</a>")
     (when profile?
