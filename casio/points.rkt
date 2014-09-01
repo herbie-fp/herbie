@@ -52,7 +52,7 @@
   (if (= dim 0)
       '(())
       (let ([points (build-list dim (λ (_) (selector num)))])
-        (sort (flip-lists (map shuffle points)) < #:key car))))
+        (flip-lists (map shuffle points)))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
@@ -112,13 +112,18 @@
   
   (bf-precision 80)
   ; First, we generate points;
-  (let* ([pts ((point-factory point-maker) (*num-points*) (length (program-variables prog)))]
-         [exacts (make-exacts prog pts)]
-         ; Then, we remove the points for which the answers
-         ; are not representable
-         [pts* (filter-points pts exacts)]
-         [exacts* (filter-exacts pts exacts)])
-    (values pts* exacts*)))
+  (let loop ([pts '()] [exs '()])
+    (if (>= (length pts) (*num-points*))
+        (let* ([p&e (map cons pts exs)]
+               [p&e (sort (take p&e (*num-points*)) < #:key caar)])
+          (values (map car p&e) (map cdr p&e)))
+        (let* ([pts1 ((point-factory point-maker) (- (*num-points*) (length pts)) (length (program-variables prog)))]
+               [exs1 (make-exacts prog pts1)]
+               ; Then, we remove the points for which the answers
+               ; are not representable
+               [pts* (filter-points pts1 exs1)]
+               [exs* (filter-exacts pts1 exs1)])
+          (loop (append pts* pts) (append exs* exs))))))
 
 (define (prepare-points-period prog periods)
   (bf-precision 80)
