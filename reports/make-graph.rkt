@@ -12,8 +12,8 @@
 (provide make-graph)
 
 (define *line-width* 3)
-(define *point-width* 4)
-(define *point-opacity* .02)
+(define *point-width* 2)
+(define *point-opacity* .2)
 
 (define *tick-length* 10)
 (define *label-shift* 10)
@@ -128,11 +128,11 @@
     (hash-values h)))
 
 (define (draw-line idx pts exs x-scale y-scale color)
-  #;(for ([pt pts] [ex exs])
+  (for ([pt pts] [ex exs])
     (printf "<circle cx='~a' cy='~a' r='~a' fill='~a' opacity='~a'/>\n"
-            (x-scale (list-ref pt idx)) (y-scale ex)
+            (x-scale (list-ref pt idx)) (y-scale (ulps->bits ex))
             *point-width* color *point-opacity*))
-  (printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
+  #;(printf "<path d='~a' stroke='~a' stroke-width='~a' fill='none' />\n"
           (points->pathdata
            (sort
             (for/list ([gp (group-by (curryr list-ref (+ 1 idx))
