@@ -25,12 +25,12 @@
          (/ c (* a r1))
          r2)))
 
-(casio-bench (a b/2 c)
+(casio-test (a b/2 c)
    "NMSE problem 3.2.1"
    (let* ((d (sqrt (- (* (* 2 b/2) (* 2 b/2)) (* 4 (* a c))))))
      (/ (+ (* -2 b/2) d) (* 2 a))))
 
-(casio-bench (a b/2 c)
+(casio-test (a b/2 c)
    "NMSE problem 3.2.1"
    (let* ((d (sqrt (- (* (* 2 b/2) (* 2 b/2)) (* 4 (* a c))))))
      (/ (+ (* -2 b/2) d) (* 2 a))))

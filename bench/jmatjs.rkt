@@ -4,7 +4,7 @@
 ;; Code from Jmat.js, commit 79a386deb5e19c0ee7896e820f3f90855a27fa17
 ;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js
 
-(casio-bench (z)
+(casio-test (z)
   "Jmat.Real.gamma, branch z > 0.5"
   (let* ([z* (- z 1)]
          [g 7]
@@ -20,7 +20,7 @@
          [t (+ z* g 0.5)])
     (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x)))
 
-(casio-bench (z)
+(casio-test (z)
   "Jmat.Real.gamma, branch z < 0.5"
   (let* ([z* (- (- 1 z) 1)]
          [g 7]
@@ -36,7 +36,7 @@
          [t (+ z* g 0.5)])
     (* (/ pi (sin (* pi z))) (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x))))
 
-(casio-bench (x)
+(casio-test (x)
   "Jmat.Real.lambertw, estimator"
   (- (log x) (log (log x))))
 
@@ -47,7 +47,7 @@
   (let* ([ew (exp wj)])
     (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew)))))))
 
-(casio-bench (x)
+(casio-test (x)
   "Jmat.Real.dawson"
   (let* ([x2 (* x x)]
          [x4 (* x2 x2)]
@@ -62,7 +62,7 @@
                (+ 1 (* q1 x2) (* q2 x4) (* q3 x6) (* q4 x8) (* q5 x10) (* 2 p5 x12)))
             x)))
 
-(casio-bench (x)
+(casio-test (x)
   "Jmat.Real.erfi, branch x <= 0.5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
@@ -72,7 +72,7 @@
          [t (+ (* 2 x) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
     (* ps t)))
 
-(casio-bench (x)
+(casio-test (x)
   "Jmat.Real.erfi, branch x >= 5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
@@ -84,7 +84,7 @@
          [t (+ xi (* (/ 1 2) xi3) (* (/ 3 4) xi5) (* (/ 15 8) xi7))])
     (* ps e t)))
 
-(casio-bench (x)
+(casio-test (x)
   "Jmat.Real.erf"
   (let* ([t (/ 1 (+ 1 (* 0.3275911 x)))]
          [p (* t (+ 0.254829592 (* t (+ -0.284496736 (* t (+ 1.421413741 (* t (+ -1.453152027 (* t 1.061405429)))))))))])

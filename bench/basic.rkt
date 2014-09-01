@@ -32,6 +32,6 @@
   (- (sqr a) (sqr b))
   (* (+ a b) (- a b)))
 
-(casio-bench (a b c)
+(casio-test (a b c)
   "A la Freetype's FT_MulDiv"
   (/ (+ a (/ c 2)) b))

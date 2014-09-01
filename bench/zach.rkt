@@ -6,6 +6,6 @@
   x
   x)
 
-(casio-bench (x)
+(casio-test (x)
   "sin(sqr(x))"
   (sin (sqr x)))

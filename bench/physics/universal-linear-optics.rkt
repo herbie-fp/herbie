@@ -5,14 +5,14 @@
 ; A. Bouland and S. Aaronson
 ; Phys. Rev. A 89, 062316 (2014), http://link.aps.org/doi/10.1103/PhysRevA.89.062316
 
-(casio-bench (a b)
+(casio-test (a b)
   "Bouland and Aaronson, Equation (24)"
   (- (+ (sqr (+ (sqr a) (sqr b))) (* 4 (+ (* (sqr a) (- 1 a)) (* (sqr b) (+ 3 a))))) 1))
 
-(casio-bench (a b)
+(casio-test (a b)
   "Bouland and Aaronson, Equation (25)"
   (- (+ (sqr (+ (sqr a) (sqr b))) (* 4 (+ (* (sqr a) (+ 1 a)) (* (sqr b) (- 1 (* 3 a)))))) 1))
 
-(casio-bench (a b)
+(casio-test (a b)
   "Bouland and Aaronson, Equation (26)"
   (- (+ (sqr (+ (sqr a) (sqr b))) (* 4 (sqr b))) 1))

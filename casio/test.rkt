@@ -2,8 +2,10 @@
 
 (require casio/alternative)
 (require casio/programs)
+(require casio/points)
 
-(provide (struct-out test) *tests* *num-iterations* casio-test casio-bench make-prog)
+(provide (struct-out test) *tests* *num-iterations* casio-test make-prog
+         (all-from-out casio/points))
 
 (define *num-iterations* (make-parameter 2))
 
@@ -46,18 +48,34 @@
 (define (make-prog test)
   `(λ ,(test-vars test) ,(test-input test)))
 
-(struct test (name vars input output) #:prefab)
+(struct test (name vars sampling-expr input output) #:prefab)
 (define *tests* (make-parameter '()))
+
+(define (test-sampler test var)
+  (let ([sampling-expr
+         (cdr (assoc var (map cons (test-vars test) (test-sampling-expr test))))])
+    (match sampling-expr
+      ['float sample-float]
+      ['positive (compose (map abs) sample-float)]
+      [`expbucket sample-expbucket])))
 
 (define (save-test t)
   (*tests* (cons t (*tests*))))
 
 (define-syntax (casio-test stx)
-  (syntax-case stx ()
-    [(_ vars name input output)
-     #`(save-test (test name 'vars (compile-program 'input) (compile-program 'output)))]))
+  (define (var&dist expr)
+    (syntax-case expr ()
+      [[var samp] (cons #'var #'samp)]
+      [var (cons #'var #'float)]))
 
-(define-syntax (casio-bench stx)
   (syntax-case stx ()
-    [(_ vars name input)
-     #`(save-test (test name 'vars (compile-program 'input) #f))]))
+    [(_ (vars ...) name input output)
+     (let* ([parse-args (map var&dist (syntax->list #'(vars ...)))])
+       (with-syntax ([vars (map car parse-args)]
+                     [samp (map cdr parse-args)])
+         #'(save-test (test name 'vars 'samp (compile-program 'input) (compile-program 'output)))))]
+    [(_ (vars ...) name input)
+     (let* ([parse-args (map var&dist (syntax->list #'(vars ...)))])
+       (with-syntax ([vars (map car parse-args)]
+                     [samp (map cdr parse-args)])
+       #'(save-test (test name 'vars 'samp (compile-program 'input) #f))))]))

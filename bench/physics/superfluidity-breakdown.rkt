@@ -5,31 +5,31 @@
 ; D. Toniolo and J. Linder
 ; Phys. Rev. A, 061605 (2014), http://journals.aps.org/pra/abstract/10.1103/PhysRevA.89.061605
 
-(casio-bench (t l Om Omc)
+(casio-test (t l Om Omc)
   "Toniolo and Linder, Equation (2)"
   (asin (sqrt (/ (- 1 (sqr (/ Om Omc))) (+ 1 (* 2 (sqr (/ t l))))))))
 
-(casio-bench (l Om kx ky)
+(casio-test (l Om kx ky)
   "Toniolo and Linder, Equation (3a)"
   (sqrt (* (/ 1 2) (+ 1 (/ (sqrt (+ 1 (* (sqr (/ (* 2 l) Om))
                                          (+ (sqr (sin kx)) (sqr (sin ky)))))))))))
 
-(casio-bench (kx ky th)
+(casio-test (kx ky th)
   "Toniolo and Linder, Equation (3b), real"
   (* (/ (sin ky) (sqrt (+ (sqr (sin kx)) (sqr (sin ky))))) (sin th)))
 
-(casio-bench (x l t)
+(casio-test (x l t)
   "Toniolo and Linder, Equation (7)"
   (/ (* (sqrt 2) t) (sqrt (- (* (/ (+ x 1) (- x 1)) (+ (sqr l) (* 2 (sqr t)))) (sqr l)))))
 
-(casio-bench (t l k)
+(casio-test (t l k)
   "Toniolo and Linder, Equation (10+)"
   (/ 2 (* (/ (expt t 3) (sqr l)) (sin k) (tan k) (+ (+ 1 (sqr (/ k t))) 1))))
 
-(casio-bench (t l k)
+(casio-test (t l k)
   "Toniolo and Linder, Equation (10-)"
   (/ 2 (* (/ (expt t 3) (sqr l)) (sin k) (tan k) (- (+ 1 (sqr (/ k t))) 1))))
 
-(casio-bench (n U t l Om U*)
+(casio-test (n U t l Om U*)
   "Toniolo and Linder, Equation (13)"
   (sqrt (* 2 n U (- t (* 2 (/ (sqr l) Om)) (* n (sqr (/ l Om)) (- U U*))))))

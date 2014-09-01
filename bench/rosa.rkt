@@ -9,15 +9,15 @@
 ;
 ; E. Darulova, V. Kuncak, "Sound Compilation of Reals", POPL'14
 
-(casio-bench (u v t1)
+(casio-test (u v t1)
   "Rosa's DopplerBench"
   (/ (* (- t1) v) (* (+ t1 u) (+ t1 u))))
 
-(casio-bench (x)
+(casio-test (x)
   "Rosa's Benchmark"
   (- (* 0.954929658551372 x) (* 0.12900613773279798 (* (* x x) x))))
 
-(casio-bench (x1 x2)
+(casio-test (x1 x2)
   "Rosa's FloatVsDoubleBenchmark"
   (let* ([t (- (+ (* 3 x1 x1) (* 2 x2)) x1)]
          [t* (- (- (* 3 x1 x1) (* 2 x2)) x1)]
@@ -33,6 +33,6 @@
         x1
         (* 3 s*)))))
 
-(casio-bench (v w r)
+(casio-test (v w r)
   "Rosa's TurbineBenchmark"
   (- (+ 3 (/ 2 (* r r))) (/ (* 0.125 (- 3 (* 2 v)) (* w w r r)) (- 1 v)) 4.5))
