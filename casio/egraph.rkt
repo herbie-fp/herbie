@@ -28,7 +28,7 @@
 	 (define (hash2-proc a hash-recur)
 	   (hash-recur (enode-id a)))])
 
-(struct egraph (top exprs repnds cnt) #:mutable)
+(struct egraph (top repnds cnt) #:mutable)
 
 (define (enode-id en)
   (enode-id-code (enode-rep en)))
@@ -36,11 +36,10 @@
 (define (mk-enode eg expr)
   (if (enode? expr)
       (error "!!!")
-      (let ([en (hash-ref (egraph-exprs eg) expr #f)])
+      (let ([en (expr->nd eg expr)])
         (if en
             en
             (let ([en* (enode '() #f 1 expr (egraph-cnt eg))])
-              (hash-set! (egraph-exprs eg) expr en*)
 	      (set-egraph-repnds! eg (cons en* (egraph-repnds eg)))
               (set-egraph-cnt! eg (add1 (egraph-cnt eg)))
               en*)))))
@@ -58,26 +57,54 @@
     (list* (enode-rep en) pc)))
 
 (define (enode-vars en)
-  (map enode-expr (enode-sisters en)))
+  (remove-duplicates (map enode-expr (enode-sisters en))))
+
+(define (expr->nd eg expr)
+  (let/ec return
+    (for ([en (egraph-repnds eg)])
+      (for ([var (enode-vars en)])
+	(when (equal? expr var)
+	  (return en))))
+    #f))
 
 (define (enode-merge! eg en1 en2)
   (when (not (equal? en1 en2))
     (let-values ([(new-rep other-rep) (if (< (enode-depth en1) (enode-depth en2))
 					  (values en2 en1)
 					  (values en1 en2))])
-      (set-egraph-repnds! eg (remq other-rep (egraph-repnds eg)))
-      (set-enode-parent! other-rep new-rep)
-      (set-enode-children! new-rep (append (list other-rep) (enode-children new-rep) (enode-children other-rep)))
-      (when (= (enode-depth en1) (enode-depth en2))
-	(set-enode-depth! new-rep (add1 (enode-depth new-rep)))))))
 
+      ;; Remove the old repnd, leaving the new one.
+      (set-egraph-repnds! eg (remq other-rep (egraph-repnds eg)))
+      ;; Set the old repnd's parent to this one to merge their classes
+
+      (set-enode-parent! other-rep new-rep)
+      ;; Update the children pointers
+      (set-enode-children! new-rep (append (list other-rep) (enode-children new-rep)
+					   (enode-children other-rep)))
+
+      (when (= (enode-depth en1) (enode-depth en2))
+	(set-enode-depth! new-rep (add1 (enode-depth new-rep))))
+
+      ;; Merge other nodes that became equivilent as a result.
+      (let loop ([rest-ens (egraph-repnds eg)])
+	(if (null? rest-ens) (void)
+	    (let ([en1 (car rest-ens)])
+	      (for ([en2 (cdr rest-ens)])
+		(let/ec return
+		  (for ([v1 (enode-vars en1)])
+		    (for ([v2 (enode-vars en2)])
+		      (when (equal? v1 v2)
+			(enode-merge! eg en1 en2)
+			(return))))))
+	      (loop (cdr rest-ens))))))))
+    
 (define (mk-egraph p)
   (define (go eg expr)
     (if (list? expr)
         (mk-enode eg (cons (car expr) (map (curry go eg) (cdr expr))))
         (mk-enode eg expr)))
 
-  (let* ([eg (egraph #f (make-hash) '() 0)]
+  (let* ([eg (egraph #f '() 0)]
          [en (go eg p)])
     (set-egraph-top! eg en)
     eg))
@@ -184,7 +211,7 @@
 	  e
 	  (λ (en)
 	    (let ([nid (enode-id en)])
-	      (println #:port p "en" nid " [label=\"NODE\"] ;")
+	      (println #:port p "en" nid " [label=\"NODE " nid "\"] ;")
 	      (enumerate (λ (vid var)
 			   (cond
 			    [(list? var)
@@ -201,44 +228,14 @@
 			 (enode-vars en)))))
          (println #:port p "}"))))
 
-;; (define (check-egraph eg #:mesg [message ""] #:die [die? #t])
-;;   (define (enode-children en)
-;;     (apply append
-;; 	   (for/list ([var (enode-vars en)])
-;; 	     (if (list? var)
-;; 		 (cdr var)
-;; 		 '()))))
-  
-;;   (define (fail . mesgs)
-;;     (let ([msg (apply string-append
-;; 		      message
-;; 		      "> "
-;; 		      (for/list ([msg mesgs])
-;; 			(if (string? msg)
-;; 			    msg
-;; 			    (~a msg))))])
-;;       (if die?
-;; 	  (error msg) (eprintf msg))))
-  
-;;   (let check-node ([seen '()] [en (egraph-top eg)])
-;;     (when (not (in-table en))
-;;       (fail "Found a node reachable from head that isn't in the egraph node table!"
-;; 	    " Seen: "
-;; 	    (apply append
-;; 		   (for/list ([s seen])
-;; 		     (~a " " (hash-ref (egraph-ens eg) s #f)))))
-;;     (when (not (member en seen))
-;;       (map (curry check-node (cons en seen)) (enode-children en))))
-;;     (hash-map (egraph-exprs eg)
-;; 	      (λ (expr nd)
-;; 		(when (not (in-table nd))
-;; 		  (fail
-;; 		   "Expression " (expr->string expr)
-;; 		   " is associated with a node that is not in the table, "
-;; 		   (node->string nd)))
-;; 		(when (list? expr)
-;; 		  (for ([subnd (cdr expr)])
-;; 		    (when (not (in-table subnd))
-;; 		      (fail
-;; 		       "Part of expression " (expr->string expr)
-;; 		       " is not in the table!"))))))))
+(define-syntax-rule (invariant-checker name f)
+  (define (name val #:mesg [message ""] #:die [die? #t])
+    (define (fail . mesgs)
+      (let ([msg (apply string-append
+			message "> "
+			(for/list ([msg mesgs])
+			  (if (string? msg)
+			      msg
+			      (~a msg))))])
+	(if die? (error msg) (eprintf msg))))
+    (f val fail)))
