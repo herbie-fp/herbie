@@ -33,26 +33,20 @@
 
   (define (run-casio _)
     (if *profile?*
-        (parameterize ([current-output-port (open-output-file (build-path *dir* rdir "profile.txt")
-                                                              #:exists 'replace)])
+        (parameterize ([current-output-port
+                        (open-output-file (build-path *dir* rdir "profile.txt")
+                                          #:exists 'replace)])
           (let ([res #f])
-            (profile (set! res (compute-result)))
+            (profile (set! res (compute-result))) ; Racket 5.3 workaround
             res))
         (compute-result)))
 
   (define (compute-result)
-    (let*-values ([(orig) (make-prog test)]
-                  [(point-maker) ((flag 'evaluate 'exponent-points)
-                                  sample-expbucket
-                                  ((flag 'evaluate 'random-points)
-                                   sample-float
-                                   sample-uniform))]
-                  [(points exacts) (prepare-points orig point-maker)])
-      (parameterize ([*points* points] [*exacts* exacts]
-                     [*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
-	(let* ([start-alt (make-alt orig)]
-	       [end-alt (improve-alt start-alt (*num-iterations*))])
-	  (list start-alt end-alt points exacts)))))
+    (parameterize ([*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
+      (setup (make-prog test)
+             (λ (alt)
+                (list alt (improve alt (*num-iterations*))
+                      (*points*) (*exacts*))))))
 
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash

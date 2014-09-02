@@ -12,7 +12,7 @@
 	 binary-search-floats binary-search-ints
          random-exp)
 
-(define (println #:port [p (current-output-port)] #:end [end "\n"] . args)
+(define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
   (for ([val args])
     (if (string? val)
         (display val p)

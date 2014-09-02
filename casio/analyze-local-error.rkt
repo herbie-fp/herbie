@@ -46,7 +46,7 @@
        (take-up-to
         (sort
          (reap [sow]
-               (for ([expr (hash-keys cache)])
+               (for ([expr (hash-keys expr->loc)])
                  (let ([err (cdr (hash-ref cache expr))]
                                   [locs (hash-ref expr->loc expr)])
                    (when (ormap (curry < 1) err)

@@ -10,7 +10,7 @@
 (provide (all-defined-out))
 
 (define (print-improve prog max-iters)
-  (let-values ([(pts exs) (prepare-points prog)])
+  (let-values ([(pts exs) (prepare-points prog sample-float)])
     (parameterize ([*points* pts] [*exacts* exs])
       (let* ([start (make-alt prog)]
              [end (improve-alt start max-iters)])

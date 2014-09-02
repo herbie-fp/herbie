@@ -13,14 +13,14 @@
 (require casio/pareto-alts)
 (require casio/matcher)
 
-(provide improve improve-alt
-	 *flags* toggle-flag! flag)
+(provide setup improve *flags* toggle-flag! flag)
 
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
          [evaluate . (random-points)]
-         [reduce   . (regimes zach prefilter)]
+         [reduce   . (regimes zach)]
+         [regimes  . (recurse prefilter)]
          [simplify . (simplify-pavel)]
          [setup    . (simplify periodicity)])))
 
@@ -36,17 +36,16 @@
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
-(define (improve prog fuel)
-  (let*-values ([(point-maker) ((flag 'evaluate 'exponent-points)
-                                sample-expbucket
-                                ((flag 'evaluate 'random-points)
-                                 sample-float
-                                 sample-uniform))]
+(define (setup prog cont)
+  (let*-values ([(point-maker)
+                 ((flag 'evaluate 'exponent-points)
+                  sample-expbucket ((flag 'evaluate 'random-points)
+                                    sample-float sample-uniform))]
 		[(pts exs) (prepare-points prog point-maker)])
     (parameterize ([*points* pts] [*exacts* exs])
-      (improve-alt (make-alt prog) fuel))))
+      (cont (make-alt prog)))))
 
-(define (improve-alt alt fuel)
+(define (improve alt fuel)
   (let ([alt-table (setup-alt alt fuel)])
     (improve-loop alt-table fuel)))
 
@@ -121,8 +120,8 @@
         (apply alt-apply altn (list new-change)))))
 
 (define (regimes-alts alts fuel)
-  (let* ([filter-func ((flag 'reduce 'prefilter) plausible-alts identity)]
-         [recurse-func ((flag 'reduce 'recurse)
+  (let* ([filter-func ((flag 'regimes 'prefilter) plausible-alts identity)]
+         [recurse-func ((flag 'regimes 'recurse)
                         (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))
                         identity)]
          [alts* (map (curryr alt-add-event '(start regimes)) (filter-func alts))])
