@@ -56,7 +56,7 @@
           (draw-line idx points target-errs x-scale y-scale "green"))
         (draw-line idx points end-errs x-scale y-scale "blue")
         (draw-axes x-scale x-unscale y-scale y-unscale)
-        (draw-key (list-ref (test-vars test) idx)))
+        (draw-key (list-ref (test-vars test) idx) target-errs))
       (printf "</svg>\n"))
     (printf "</div>\n")
 
@@ -164,7 +164,7 @@
     (draw-y-ticks pos-0 175.0 20.0 8
       (λ (y) (~r (y-unscale y) #:precision 0)))))
 
-(define (draw-key name)
+(define (draw-key name target?)
   (printf "<g class='legend'>\n")
   (printf "<text x='10' y='15' fill='black' class='title'>~a</text>"
           name)
@@ -175,8 +175,9 @@
   (printf "<circle cx='100' cy='10' r='5' fill='blue'/>")
   (printf "<text x='107' y='13' fill='black'>Output</text>")
 
-  (printf "<circle cx='155' cy='10' r='5' fill='green'/>")
-  (printf "<text x='162' y='13' fill='black'>Target</text>") 
+  (when target?
+    (printf "<circle cx='155' cy='10' r='5' fill='green'/>")
+    (printf "<text x='162' y='13' fill='black'>Target</text>") )
 
   (printf "</g>"))
 

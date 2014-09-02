@@ -57,8 +57,7 @@
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
                (parameterize ([*num-points* *reeval-pts*])
-                 (prepare-points (alt-program start)
-                                 (map (curryr cons sample-float) (program-variables (alt-program start))))))
+                 (prepare-points (alt-program start) (test-samplers test))))
              (test-result test rdir
                           (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)

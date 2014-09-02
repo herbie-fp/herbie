@@ -24,8 +24,8 @@
 
 (casio-test (x)
   "NMSE example 3.6"
-  (- (/ 1 (sqrt (+ x 1))) (/ 1 (sqrt x)))
-  (/ -1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
+  (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1))))
+  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
 
 (casio-test (x)
   "NMSE problem 3.3.1"
@@ -64,4 +64,4 @@
 (casio-test (x)
   "NMSE problem 3.3.7"
   (+ (- (exp x) 2) (exp (- x)))
-  (* 4 (expt (sinh (/ x 2)) 2)))
+  (* 4 (sqr (sinh (/ x 2)))))
