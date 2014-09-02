@@ -6,7 +6,7 @@
 (require casio/programs)
 
 (provide *points* *exacts* *num-points* *exp-size*
-	 sample-expbucket sample-float sample-uniform
+	 sample-expbucket sample-float sample-uniform sample-integer
          make-exacts prepare-points prepare-points-period errors errors-score)
 
 (define *num-points* (make-parameter 1024))
@@ -21,11 +21,6 @@
         [bucket-bias (- (/ (*exp-size*) 2) 1)])
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
-
-(define (sample-uniform num)
-  (let ([bucket-width (/ (expt 2 (*exp-size*)) num)])
-    (for/list ([i (range num)])
-      (* bucket-width (+ i (random))))))
 
 (define (random-single-flonum)
   (real->single-flonum
@@ -47,6 +42,12 @@
 (define (sample-float num)
   (for/list ([i (range num)])
     (real->double-flonum (random-single-flonum))))
+
+(define ((sample-uniform a b) num)
+  (build-list num (λ (_) (+ (* (random) (- b a)) a))))
+
+(define (sample-integer num)
+  (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
