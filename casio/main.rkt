@@ -18,7 +18,7 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-         [evaluate . (random-points)]
+         #;[evaluate . (random-points)]
          [reduce   . (regimes zach)]
          [regimes  . (recurse prefilter)]
          [simplify . (pavel)]
@@ -36,12 +36,8 @@
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
-(define (setup prog cont)
-  (let*-values ([(point-maker)
-                 ((flag 'evaluate 'exponent-points)
-                  sample-expbucket ((flag 'evaluate 'random-points)
-                                    sample-float sample-uniform))]
-		[(pts exs) (prepare-points prog point-maker)])
+(define (setup prog samplers cont)
+  (let*-values ([(pts exs) (prepare-points prog samplers)])
     (parameterize ([*points* pts] [*exacts* exs])
       (cont (make-alt prog)))))
 

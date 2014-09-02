@@ -32,16 +32,16 @@
 
   (define (run-casio _)
     (if *profile?*
-        (parameterize ([current-output-port (open-output-file (name "profile.txt") #:exists 'replace)])
+        (parameterize ([current-output-port (open-output-file (file "profile.txt") #:exists 'replace)])
           (let ([res #f])
             (profile (set! res (compute-result))) ; Racket 5.3 workaround
             res))
         (compute-result)))
 
   (define (compute-result)
-    (setup (make-prog test)
+    (setup (test-program test) (test-samplers test)
            (λ (alt)
-              (parameterize ([*debug* (open-output-file (name "debug.txt") #:exists 'replace)])
+              (parameterize ([*debug* (open-output-file (file "debug.txt") #:exists 'replace)])
                 (list alt (improve alt (*num-iterations*)) (*points*) (*exacts*))))))
 
   (let* ([start-time (current-inexact-milliseconds)]
@@ -57,7 +57,8 @@
             [`(,start ,end ,points ,exacts)
              (define-values (newpoints newexacts)
                (parameterize ([*num-points* *reeval-pts*])
-                 (prepare-points (alt-program start) sample-float)))
+                 (prepare-points (alt-program start)
+                                 (map (curryr cons sample-float) (program-variables (alt-program start))))))
              (test-result test rdir
                           (- (current-inexact-milliseconds) start-time)
 			  (bf-precision)

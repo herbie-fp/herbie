@@ -4,7 +4,7 @@
 (require casio/programs)
 (require casio/points)
 
-(provide (struct-out test) *tests* *num-iterations* casio-test make-prog
+(provide (struct-out test) *tests* *num-iterations* casio-test test-program test-samplers
          (all-from-out casio/points))
 
 (define *num-iterations* (make-parameter 2))
@@ -45,19 +45,20 @@
 (define (compile-program prog)
   (expand-associativity (unfold-let prog)))
 
-(define (make-prog test)
+(define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
 
 (struct test (name vars sampling-expr input output) #:prefab)
 (define *tests* (make-parameter '()))
 
-(define (test-sampler test var)
-  (let ([sampling-expr
-         (cdr (assoc var (map cons (test-vars test) (test-sampling-expr test))))])
-    (match sampling-expr
-      ['float sample-float]
-      ['positive (compose (map abs) sample-float)]
-      [`expbucket sample-expbucket])))
+(define (test-samplers test)
+  (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
+    (cons var
+          (match samp
+            ['float sample-float]
+            ['default sample-float]
+            ['positive (compose (map abs) sample-float)]
+            [`expbucket sample-expbucket]))))
 
 (define (save-test t)
   (*tests* (cons t (*tests*))))
@@ -66,7 +67,7 @@
   (define (var&dist expr)
     (syntax-case expr ()
       [[var samp] (cons #'var #'samp)]
-      [var (cons #'var #'float)]))
+      [var (cons #'var #'default)]))
 
   (syntax-case stx ()
     [(_ (vars ...) name input output)

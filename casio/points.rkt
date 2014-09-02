@@ -48,12 +48,6 @@
   (for/list ([i (range num)])
     (real->double-flonum (random-single-flonum))))
 
-(define ((point-factory selector) num dim)
-  (if (= dim 0)
-      '(())
-      (let ([points (build-list dim (λ (_) (selector num)))])
-        (flip-lists (map shuffle points)))))
-
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
     (apply list-product
@@ -105,19 +99,17 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points prog point-maker)
+(define (prepare-points prog samplers)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
-  
-  (bf-precision 80)
+
   ; First, we generate points;
   (let loop ([pts '()] [exs '()])
     (if (>= (length pts) (*num-points*))
-        (let* ([p&e (map cons pts exs)]
-               [p&e (sort (take p&e (*num-points*)) < #:key caar)])
-          (values (map car p&e) (map cdr p&e)))
-        (let* ([pts1 ((point-factory point-maker) (- (*num-points*) (length pts)) (length (program-variables prog)))]
+        (values (take pts (*num-points*)) (take exs (*num-points*)))
+        (let* ([num (- (*num-points*) (length pts))]
+               [pts1 (flip-lists (for/list ([rec samplers]) ((cdr rec) num)))]
                [exs1 (make-exacts prog pts1)]
                ; Then, we remove the points for which the answers
                ; are not representable
@@ -126,7 +118,6 @@
           (loop (append pts* pts) (append exs* exs))))))
 
 (define (prepare-points-period prog periods)
-  (bf-precision 80)
   (let* ([pts (make-period-points (*num-points*) periods)]
 	 [exacts (make-exacts prog pts)]
 	 [pts* (filter-points pts exacts)]
