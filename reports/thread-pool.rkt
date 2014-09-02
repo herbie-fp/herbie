@@ -28,23 +28,21 @@
 
 (define (get-test-result test iters rdir)
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
+  (define (file name) (build-path *dir* rdir name))
 
   (define (run-casio _)
     (if *profile?*
-        (parameterize ([current-output-port
-                        (open-output-file (build-path *dir* rdir "profile.txt")
-                                          #:exists 'replace)])
+        (parameterize ([current-output-port (open-output-file (name "profile.txt") #:exists 'replace)])
           (let ([res #f])
             (profile (set! res (compute-result))) ; Racket 5.3 workaround
             res))
         (compute-result)))
 
   (define (compute-result)
-    (parameterize ([*debug* (open-output-file (build-path *dir* rdir "debug.txt") #:exists 'replace)])
-      (setup (make-prog test)
-             (λ (alt)
-                (list alt (improve alt (*num-iterations*))
-                      (*points*) (*exacts*))))))
+    (setup (make-prog test)
+           (λ (alt)
+              (parameterize ([*debug* (open-output-file (name "debug.txt") #:exists 'replace)])
+                (list alt (improve alt (*num-iterations*)) (*points*) (*exacts*))))))
 
   (let* ([start-time (current-inexact-milliseconds)]
          [handle-crash
