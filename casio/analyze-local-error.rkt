@@ -10,65 +10,49 @@
 
 (provide analyze-local-error)
 
-(struct annotation (children exact-value local-error loc) #:transparent)
-
-(define (real-op->bigfloat-op op) (list-ref (hash-ref operations op) mode:bf)) 
+(define (real-op->bigfloat-op op) (list-ref (hash-ref operations op) mode:bf))
 (define (real-op->float-op op) (list-ref (hash-ref operations op) mode:fl))
 
-(define (transpose l)
-  (apply map list l))
+(define (repeat c)
+  (map (λ (x) c) (*points*)))
 
-(define (analyze-expressions prog)
-  (define varmap
-    (for/list ([inps (*points*)])
-      (map cons (program-variables prog) inps)))
+(define (analyze-expression expr vars cache)
+  (hash-ref! cache expr
+             (λ ()
+                (match expr
+                  [(? constant?)
+                   (cons (repeat (->bf expr)) (repeat 1))]
+                  [(? variable?)
+                   (cons (map ->bf (cdr (assoc expr vars))) (repeat 1))]
+                  [`(,f ,args ...)
+                   (let* ([argvals
+                           (flip-lists (map (compose car (curryr analyze-expression vars cache)) args))]
+                          [f-exact  (real-op->bigfloat-op f)]
+                          [f-approx (real-op->float-op f)]
+                          [exact  (map (curry apply f-exact) argvals)]
+                          [approx (map (compose (curry apply f-approx) (curry map ->flonum)) argvals)]
+                          [error
+                           (map (λ (ex ap) (+ 1 (abs (flonums-between (->flonum ex) ap)))) exact approx)])
+                     (cons exact error))]))))
 
-  (define (repeat c)
-    (map (λ (x) c) (*points*)))
+(define (analyze-program prog)
+  (define varmap (map cons (program-variables prog) (flip-lists (*points*))))
+  (define cache (make-hash))
+  (define expr->loc (location-hash prog))
 
-  (location-induct
-   prog
+  (analyze-expression (program-body prog) varmap cache)
 
-   #:constant
-   (λ (c loc)
-      (annotation '() (repeat (->bf c)) (repeat 1) loc))
-
-   #:variable
-   (λ (v loc)
-      (let* ([vals (for/list ([vmap varmap]) (cdr (assoc v vmap)))])
-        (annotation '() (map ->bf vals) (repeat 1) loc)))
-
-   #:primitive
-   (λ (expr loc)
-     (if (eq? (car expr) 'if)
-	 (let ([value (annotation-exact-value (caddr expr))])
-	   (annotation (cddr expr) value (repeat 1) loc))
-	 (let* ([exact-op (real-op->bigfloat-op (car expr))]
-		[approx-op (real-op->float-op (car expr))]
-		[exact-inputs
-		 (transpose (map annotation-exact-value (cdr expr)))]
-		[approx-inputs (map (curry map ->flonum) exact-inputs)]
-		[exact-ans (map (curry apply exact-op) exact-inputs)]
-		[approx-ans (map (curry apply approx-op) approx-inputs)]
-		[local-error
-                 (for/list ([exact exact-ans] [approx approx-ans])
-                   (+ 1 (abs (flonums-between (->flonum exact) approx))))])
-	   (annotation (cdr expr) exact-ans local-error loc))))
-
-   #:toplevel
-   (λ (expr loc)
-      (program-body expr))))
+  (map cdr
+       (take-up-to
+        (sort
+         (reap [sow]
+               (for ([expr (hash-keys cache)])
+                 (let ([err (cdr (hash-ref cache expr))]
+                                  [locs (hash-ref expr->loc expr)])
+                   (when (ormap (curry < 1) err)
+                     (map sow (map (curry cons err) locs))))))
+         > #:key (compose errors-score car))
+        3)))
 
 (define (analyze-local-error altn)
-  (define (search-annot found annot)
-    (found annot)
-    (map (curry search-annot found) (annotation-children annot)))
-
-  (map annotation-loc
-       (filter (λ (alt) (ormap (λ (err) (< 1 err)) (annotation-local-error alt)))
-               (take-up-to
-                (sort
-                 (reap [sow]
-                       (search-annot sow (analyze-expressions (alt-program altn))))
-                 > #:key (compose errors-score annotation-local-error))
-                3))))
+  (analyze-program (alt-program altn)))

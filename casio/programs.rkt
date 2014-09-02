@@ -5,11 +5,11 @@
 (require casio/syntax)
 
 (provide program-body program-variables program-cost
-         location-induct program-induct expression-induct
+         location-induct program-induct expression-induct location-hash
 	 location-do location-get eval-prog
 	 mode:bf mode:fl compile expression-cost
          (all-from-out casio/syntax)
-         free-variables)
+         free-variables variable? constant?)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -49,6 +49,22 @@
                                   (cdr prog)))
 		 (reverse location))]))
   (inductor prog '()))
+
+(define (location-hash prog)
+  (define expr->locs (make-hash))
+
+  (define (save expr loc)
+    (hash-update! expr->locs expr (curry cons loc) '())
+    expr)
+
+  (location-induct prog #:constant save #:variable save #:primitive save)
+  expr->locs)
+
+(define (variable? var)
+  (and (symbol? var) (not (member var constants))))
+
+(define (constant? var)
+  (or (member var constants) (real? var)))
 
 (define (expression-induct
 	 expr vars

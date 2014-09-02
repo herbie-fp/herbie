@@ -18,7 +18,7 @@
 
 (require racket/match)
 (require casio/common)
-(require casio/programs)
+(require (except-in casio/programs constant?))
 (require casio/rules)
 (require casio/alternative)
 (require casio/points)
