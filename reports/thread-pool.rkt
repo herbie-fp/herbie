@@ -6,11 +6,9 @@
 (require math/bigfloat)
 (require casio/common)
 (require casio/programs)
-(require casio/points)
-(require casio/alternative)
 (require casio/test)
+(require casio/alternative)
 (require casio/main)
-(require casio/matcher)
 (require reports/make-graph)
 
 (provide (struct-out table-row) get-test-results)

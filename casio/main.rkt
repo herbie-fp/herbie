@@ -21,7 +21,7 @@
          [evaluate . (random-points)]
          [reduce   . (regimes zach)]
          [regimes  . (recurse prefilter)]
-         [simplify . (simplify-pavel)]
+         [simplify . (pavel)]
          [setup    . (simplify periodicity)])))
 
 (define (toggle-flag! category flag)
@@ -103,7 +103,7 @@
     (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
 
 (define (simplify-alt altn)
-  (((flag 'simplify 'simplify-pavel) simplify-alt-new simplify-alt-old)
+  (((flag 'simplify 'pavel) simplify-alt-new simplify-alt-old)
    (alt-add-event altn '(start simplify))))
 
 (define (simplify-alt-old altn)

@@ -3,8 +3,13 @@
 (require racket/date)
 (require casio/common)
 
+(define (parse-folder-name name)
+  (if (= (length (string-split name ":")) 4)
+      (string-split name ":")
+      (string-split name "-")))
+
 (define (make-index-page folders)
-  (let* ([sorted-folders (sort folders > #:key (compose string->number first (curryr string-split "-")))])
+  (let* ([sorted-folders (sort folders > #:key (compose string->number first parse-folder-name))])
     (write-file "index.html"
       (printf "<!doctype html>\n")
       (printf "<html>")
@@ -13,7 +18,7 @@
       (printf "<h1>Reports</h1>\n")
       (printf "<ul id='reports'>\n")
       (for/list ([folder sorted-folders])
-        (match (string-split folder "-")
+        (match (parse-folder-name folder)
           [`(,timestamp ,hostname ... ,branch ,commit)
            (printf "<li><a href='~a/report.html'>Report on ~a in ~a (<code>~a</code>) by <code>~a</code></a></li>\n"
                    folder
