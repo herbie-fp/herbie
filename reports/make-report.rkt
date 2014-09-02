@@ -91,7 +91,7 @@
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed
       (apply + (for/list ([row table-data])
-                 (if (member (table-row-status row) '("gt-target" "eq-target")) 1 0))))
+                 (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0))))
     (define total-available
       (apply + (for/list ([row table-data])
                  (if (not (equal? (table-row-status row) "ex-start")) 1 0))))
