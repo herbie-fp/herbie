@@ -4,7 +4,7 @@
 (require math/bigfloat)
 
 (provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
-         enumerate take-up-to argmins list-product alist-append
+         enumerate take-up-to argmins list-product alist-append for/accumulate
          *debug* debug pipe
 	 safe-eval write-file write-string has-duplicates?
 	 with-item symbol<? common-eval-ns
@@ -48,6 +48,9 @@
          [sow (λ (elt) (set! store (cons elt store)) elt)])
     body ...
     (reverse store)))
+
+(define-syntax-rule (for/accumulate [reg start] ([vars seqs] ...) body ...)
+  (pipe start (map (λ (vars ...) (λ (reg) body ...)) seqs ...)))
 
 (define (->flonum x)
   (cond

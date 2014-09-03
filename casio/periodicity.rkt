@@ -198,19 +198,12 @@
 	 [oexprs (map coerce-conditions
 		      (map alt-program oalts)
 		      (map lp-periods plocs))]
-	 [final-oalt (pipe altn (map (λ (oexpr ploc)
-				       (λ (altn)
-					 (let ([pre-expr (location-get (lp-loc ploc) (alt-program altn))])
-					   (if (equal? pre-expr oexpr) altn
-					       (let ([rl (rule 'periodicity pre-expr oexpr '())]
-						     [bindings (map (λ (v) (cons v v))
-								    (map car (lp-periods ploc)))])
-						 (alt-apply altn (change rl (lp-loc ploc) bindings)))))))
-				     oexprs
-				     plocs))])
-    (debug #:from 'periodicity "Periodicity result: " final-oalt)
+         [final-prog
+          (for/accumulate [prog (alt-program altn)] ([oexpr oexprs] [ploc plocs])
+                          (location-do (lp-loc ploc) prog (const oexprs)))])
+    (debug #:from 'periodicity "Periodicity result: " final-prog)
     (if (not (null? oalts))
-        (alt-event (alt-program final-oalt) 'periodicity (cons altn oalts))
+        (alt-event final-prog 'periodicity (cons altn oalts))
         altn)))
 
 (define (symbol-mod v periods)
