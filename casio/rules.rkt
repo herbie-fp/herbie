@@ -8,6 +8,9 @@
 (require casio/points)
 
 (provide (struct-out rule) *rules* rules-tests)
+(provide (struct-out rule) *rules* rules-tests
+	 *simplify-rules* get-rule)
+
 
 ; A rule has a name and an input and output pattern.
 ; It also has a relative path into the output where simplification
