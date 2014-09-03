@@ -96,6 +96,13 @@
            (output-history entry)
            (printf "</ol>\n"))))]
 
+    [(alt-event prog 'periodicity `(,base ,subs ...))
+     (output-history base)
+     (for ([sub subs])
+       (printf "<hr/><li class='event'>Optimizing periodic subexpression</li>\n")
+       (output-history sub))
+     (printf "<hr/><li class='event'>Combined periodic subexpressions</li>\n")]
+
     [(alt-delta prog cng prev)
      (output-history prev)
      (printf "<li>Applied <span class='rule'>~a</span> "
@@ -166,8 +173,7 @@
 
 (define (draw-key name target?)
   (printf "<g class='legend'>\n")
-  (printf "<text x='10' y='15' fill='black' class='title'>~a</text>"
-          name)
+  (printf "<text x='10' y='15' fill='black' class='title'>~a</text>" name)
 
   (printf "<circle cx='50' cy='10' r='5' fill='red'/>")
   (printf "<text x='57' y='13' fill='black'>Input</text>")
@@ -177,7 +183,7 @@
 
   (when target?
     (printf "<circle cx='155' cy='10' r='5' fill='green'/>")
-    (printf "<text x='162' y='13' fill='black'>Target</text>") )
+    (printf "<text x='162' y='13' fill='black'>Target</text>"))
 
   (printf "</g>"))
 

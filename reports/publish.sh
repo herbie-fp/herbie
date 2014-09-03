@@ -12,7 +12,7 @@ RDIR="$(date +%s):$(hostname):$B:$C"
 rsync --verbose --recursive graphs/ "$RHOST:$RHOSTDIR/$RFOLDER/$RDIR"
 ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RFOLDER/$RDIR" -R
 set +x
-REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *-*-*-*")
+REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *-*-*-* *:*:*:*")
 racket reports/make-index.rkt $REPORTS
 set -x
 rsync --verbose --recursive "index.html" "$RHOST:$RHOSTDIR/$RFOLDER"
