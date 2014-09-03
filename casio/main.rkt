@@ -59,9 +59,12 @@
 			      (λ (altn)
 				 ;; We call improve-loop directly because we don't want simplify or periodicity running on our
 				 ;; subexpressions.
-				(improve-loop (make-alt-table (*points*) altn) fuel))) identity)]
+                                 (improve-loop
+                                  (make-alt-table (*points*) (make-alt (alt-program altn)))
+                                  fuel)))
+                       identity)]
 	[maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
-    (make-alt-table (*points*) (maybe-simplify (maybe-period altn)))))
+    (make-alt-table (*points*) (maybe-period (maybe-simplify altn)))))
 
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)

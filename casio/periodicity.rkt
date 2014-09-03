@@ -208,8 +208,10 @@
 						 (alt-apply altn (change rl (lp-loc ploc) bindings)))))))
 				     oexprs
 				     plocs))])
-    (debug "Periodicity result: " final-oalt #:from 'periodicity #:depth 2)
-    final-oalt))
+    (debug #:from 'periodicity "Periodicity result: " final-oalt)
+    (if (not (null? oalts))
+        (alt-event (alt-program final-oalt) 'periodicity (cons altn oalts))
+        altn)))
 
 (define (symbol-mod v periods)
   (if (assoc v periods)
