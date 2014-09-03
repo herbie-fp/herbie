@@ -169,15 +169,18 @@
 	 equivilences)))
 
 (define (option-on-var var-idx alts)
-  (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
-	 [point-lst* (sum-errors-on-points point-lst var-idx)]
-	 [points-exacts-errs (flip-lists point-lst*)]
-	 [points* (car points-exacts-errs)]
-	 [alt-errs* (flip-lists (cadr points-exacts-errs))]
-	 [scaled-min-region-size (quotient (* (length points*) *min-region-size*) (length (*points*)))]
-	 [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
-	 [split-points (sindices->spoints points* var-idx alts split-indices)])
-    (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))
+  (let* ([p&e (sort (map cons (*points*) (*exacts*)) <
+                    #:key (compose (curryr list-ref var-idx) car))])
+    (parameterize ([*points* (map car p&e)] [*exacts* (map cdr p&e)])
+      (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
+             [point-lst* (sum-errors-on-points point-lst var-idx)]
+             [points-exacts-errs (flip-lists point-lst*)]
+             [points* (car points-exacts-errs)]
+             [alt-errs* (flip-lists (cadr points-exacts-errs))]
+             [scaled-min-region-size (quotient (* (length points*) *min-region-size*) (length (*points*)))]
+             [split-indices (err-lsts->split-indices alt-errs* #:min-region-size scaled-min-region-size)]
+             [split-points (sindices->spoints points* var-idx alts split-indices)])
+        (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))))
 
 ;; When doing the binary search, this is the value we set to all the point
 ;; dimensions that we are not testing.
