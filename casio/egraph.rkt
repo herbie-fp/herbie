@@ -10,7 +10,7 @@
 	 graphviz-e get-rule)
 (provide (all-defined-out))
 
-(struct enode (children parent depth expr id-code) #:mutable
+(struct enode (children parent depth expr expr-parents id-code) #:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
 	   (display "#<enode " port)
@@ -33,15 +33,21 @@
 (define (enode-id en)
   (enode-id-code (enode-rep en)))
 
+(define (enode-parents en)
+  (apply append (map enode-expr-parents (enode-sisters en))))
+
 (define (mk-enode eg expr)
   (if (enode? expr)
       (error "!!!")
       (let ([en (expr->nd eg expr)])
         (if en
             en
-            (let ([en* (enode '() #f 1 expr (egraph-cnt eg))])
+            (let ([en* (enode '() #f 1 expr '() (egraph-cnt eg))])
 	      (set-egraph-repnds! eg (cons en* (egraph-repnds eg)))
               (set-egraph-cnt! eg (add1 (egraph-cnt eg)))
+	      (when (list? expr)
+		(for ([nd (cdr expr)])
+		  (set-enode-expr-parents! nd (cons en* (enode-expr-parents nd)))))
               en*)))))
 
 (define (enode-rep en)
@@ -68,35 +74,33 @@
     #f))
 
 (define (enode-merge! eg en1 en2)
-  (when (not (equal? en1 en2))
-    (let-values ([(new-rep other-rep) (if (< (enode-depth en1) (enode-depth en2))
-					  (values en2 en1)
-					  (values en1 en2))])
+  (let ([en1* (enode-rep en1)]
+	[en2* (enode-rep en2)])
+    (when (not (eq? en1* en2*))
+      (let-values ([(new-rep other-rep) (if (< (enode-depth en1*) (enode-depth en2*))
+					    (values en2* en1*)
+					    (values en1* en2*))])
 
-      ;; Remove the old repnd, leaving the new one.
-      (set-egraph-repnds! eg (remq other-rep (egraph-repnds eg)))
-      ;; Set the old repnd's parent to this one to merge their classes
+	;; Remove the old repnd, leaving the new one.
+	(set-egraph-repnds! eg (remq other-rep (egraph-repnds eg)))
+	;; Set the old repnd's parent to this one to merge their classes
+	(set-enode-parent! other-rep new-rep)
+	;; Update the children pointers
+	(set-enode-children! new-rep (append (list other-rep) (enode-children new-rep)
+					     (enode-children other-rep)))
 
-      (set-enode-parent! other-rep new-rep)
-      ;; Update the children pointers
-      (set-enode-children! new-rep (append (list other-rep) (enode-children new-rep)
-					   (enode-children other-rep)))
+	(when (= (enode-depth en1*) (enode-depth en2*))
+	  (set-enode-depth! new-rep (add1 (enode-depth new-rep))))
 
-      (when (= (enode-depth en1) (enode-depth en2))
-	(set-enode-depth! new-rep (add1 (enode-depth new-rep))))
-
-      ;; Merge other nodes that became equivilent as a result.
-      (let loop ([rest-ens (egraph-repnds eg)])
-	(if (null? rest-ens) (void)
-	    (let ([en1 (car rest-ens)])
-	      (for ([en2 (cdr rest-ens)])
-		(let/ec return
-		  (for ([v1 (enode-vars en1)])
-		    (for ([v2 (enode-vars en2)])
-		      (when (equal? v1 v2)
-			(enode-merge! eg en1 en2)
-			(return))))))
-	      (loop (cdr rest-ens))))))))
+	;; Merge other nodes that became equivilent as a result.
+	(for ([nd1 (enode-parents en1*)])
+	  (for ([nd2 (enode-parents en2*)])
+	    (let/ec return
+	      (for ([v1 (enode-vars nd1)])
+		(for ([v2 (enode-vars nd2)])
+		  (when (equal? v1 v2)
+		    (enode-merge! eg nd1 nd2)
+		    (return)))))))))))
     
 (define (mk-egraph p)
   (define (go eg expr)
