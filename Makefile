@@ -6,7 +6,7 @@ all:
 	$(MAKE) report
 
 report:
-	racket reports/make-report.rkt bench/hamming/
+	racket reports/make-report.rkt -p bench/hamming/
 
 publish:
 	bash reports/publish.sh
