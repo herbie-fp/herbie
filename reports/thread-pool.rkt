@@ -39,39 +39,37 @@
         (compute-result)))
 
   (define (compute-result)
-    (setup (test-program test) (test-samplers test)
-           (λ (alt)
-              (parameterize ([*debug* (open-output-file (file "debug.txt") #:exists 'replace)])
-                (list alt (improve alt (*num-iterations*)) (*points*) (*exacts*))))))
+    (with-handlers ([(const #t) (λ (e) (list 'error e (bf-precision)))])
+      (setup (test-program test) (test-samplers test)
+             (λ (alt)
+                  (parameterize ([*debug* (open-output-file (file "debug.txt") #:exists 'replace)])
+                    (list 'good alt (improve alt (*num-iterations*)) (*points*) (*exacts*)))))))
 
-  (let* ([start-time (current-inexact-milliseconds)]
-         [handle-crash
-          (λ (exn)
-             (test-failure test (bf-precision) exn
-                           (- (current-inexact-milliseconds) start-time) rdir))]
-         [eng (engine run-casio)])
+  (let* ([start-time (current-inexact-milliseconds)] [eng (engine run-casio)])
+    (engine-run *timeout* eng)
 
-    (with-handlers ([(const #t) handle-crash])
-      (if (engine-run *timeout* eng)
-          (match (engine-result eng)
-            [`(,start ,end ,points ,exacts)
-             (define-values (newpoints newexacts)
-               (parameterize ([*num-points* *reeval-pts*])
-                 (prepare-points (alt-program start) (test-samplers test))))
-             (test-result test rdir
-                          (- (current-inexact-milliseconds) start-time)
-			  (bf-precision)
-                          start end points exacts
-                          (errors (alt-program start) points exacts)
-                          (errors (alt-program end) points exacts)
-                          newpoints newexacts
-                          (errors (alt-program start) newpoints newexacts)
-                          (errors (alt-program end) newpoints newexacts)
-                          (if (test-output test)
-                              (errors `(λ ,(test-vars test) ,(test-output test))
-                                      newpoints newexacts)
-                              #f))])
-          (test-timeout test (bf-precision))))))
+    (match (engine-result eng)
+      [`(good ,start ,end ,points ,exacts)
+       (define-values (newpoints newexacts)
+         (parameterize ([*num-points* *reeval-pts*])
+           (prepare-points (alt-program start) (test-samplers test))))
+       (test-result test rdir
+                    (- (current-inexact-milliseconds) start-time)
+                    (bf-precision)
+                    start end points exacts
+                    (errors (alt-program start) points exacts)
+                    (errors (alt-program end) points exacts)
+                    newpoints newexacts
+                    (errors (alt-program start) newpoints newexacts)
+                    (errors (alt-program end) newpoints newexacts)
+                    (if (test-output test)
+                        (errors `(λ ,(test-vars test) ,(test-output test))
+                                newpoints newexacts)
+                        #f))]
+      [`(error ,e ,bits)
+       (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
+      [#f
+       (test-timeout test (bf-precision))])))
 
 (define (srcloc->string sl)
   (if sl

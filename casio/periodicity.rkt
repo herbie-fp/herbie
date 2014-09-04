@@ -200,7 +200,7 @@
 		      (map lp-periods plocs))]
          [final-prog
           (for/accumulate [prog (alt-program altn)] ([oexpr oexprs] [ploc plocs])
-                          (location-do (lp-loc ploc) prog (const oexprs)))])
+                          (location-do (lp-loc ploc) prog (const oexpr)))])
     (debug #:from 'periodicity "Periodicity result: " final-prog)
     (if (not (null? oalts))
         (alt-event final-prog 'periodicity (cons altn oalts))
