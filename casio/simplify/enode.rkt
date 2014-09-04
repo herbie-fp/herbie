@@ -176,7 +176,7 @@
       (λ ()
 	(displayln "digraph {")
 	(let ([leader (pack-leader en)])
-	  (printf "node~a[label = ~a, color=blue]\n" (enode-id-code leader) (enode-id-code leader))
+	  (printf "node~a[label = ~a, color=blue]~n" (enode-id-code leader) (enode-id-code leader))
 	  (let draw-children ([cur-parent leader])
 	    (for ([child (enode-children cur-parent)])
 	      (let ([id (enode-id-code child)])

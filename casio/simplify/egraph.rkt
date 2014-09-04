@@ -147,21 +147,41 @@
 	  (hash-remove! leaders->iexprs l1)
 	  (hash-remove! leaders->iexprs l2)
 	  (let ([merged-en (enode-merge! l1 l2)])
-	    ;; Add the new leaders->iexprs mapping
-	    (hash-set! leaders->iexprs merged-en changed-exprs)
+	    ;; Add the new leaders->iexprs mapping. We remove duplicates again,
+	    ;; even though we already did that, because there might be things that
+	    ;; weren't duplicates before we merged, but are now.
+	    (hash-set! leaders->iexprs merged-en (remove-duplicates changed-exprs))
 	    ;; Add back the affected expr->parent mappings, with updated
 	    ;; keys.
-	    (for ([chmap changed-mappings])
-	      (hash-set! expr->parent
+	    (define to-merge
+	      (filter
+	       identity
+	       (for/list ([chmap changed-mappings])
+		 (let* ([new-key
 			 (let ([old-key (car chmap)])
 			   (cons (car old-key)
 				 (map (λ (en)
 					(if (equal? en merged-en)
 					    merged-en en))
-				      (cdr old-key))))
-			 (cdr chmap)))
+				      (cdr old-key))))]
+			[new-val (cdr chmap)]
+			[existing-val (hash-ref expr->parent new-key #f)])
+		   (if existing-val
+		       (cons new-val existing-val)
+		       (begin
+			 (hash-set! expr->parent
+				    (let ([old-key (car chmap)])
+				      (cons (car old-key)
+					    (map (λ (en)
+						   (if (equal? en merged-en)
+						       merged-en en))
+						 (cdr old-key))))
+				    new-val)
+			 #f))))))
+	    ;; Merge all the nodes that this merge has made equivilent.
+	    (for ([merge-pair to-merge])
+	      (merge-egraph-nodes! eg (car merge-pair) (cdr merge-pair)))
 	    ;; Check to make sure we haven't corrupted the state
 	    (check-egraph-valid eg #:loc 'merging)
 	    ;; Return the new leader.
 	    merged-en)))))
-					
