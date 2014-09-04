@@ -3,6 +3,9 @@
 (require casio/simplify/util)
 (require casio/simplify/enode)
 
+(provide mk-enode! mk-egraph
+	 merge-egraph-nodes! egraph?)
+
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
 ;;# Egraphs keep track of how many enodes have been created, and keep a pointer
@@ -185,3 +188,31 @@
 	    (check-egraph-valid eg #:loc 'merging)
 	    ;; Return the new leader.
 	    merged-en)))))
+
+;; Draws a representation of the egraph to the output file specified
+;; in the DOT format.
+(define (draw-egraph eg fp)
+  (with-output-to-file
+      fp #:exists 'replace
+      (λ ()
+	(displayln "digraph {")
+	(for ([en (hash-keys (egraph-leaders->iexprs eg))])
+	  (let ([id (enode-pid en)])
+	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
+	    (for ([var (enode-vars en)]
+		  [vid (range (length (enode-vars en)))])
+	      (printf "node~avar~a[label=\"~a\",shape=box]~n"
+		      id vid (if (list? var) (car var) var))
+	      (printf "node~a -> node~avar~a[style=dashed]~n"
+		      id id vid)
+	      (cond
+	       [(not (list? var)) (void)]
+	       [(= (length var) 2)
+		(printf "node~avar~a -> node~a~n"
+			id vid (enode-pid (second var)))]
+	       [(= (length var) 3)
+		(printf "node~avar~a -> node~a[tailport=sw]~n"
+			id vid (enode-pid (second var)))
+		(printf "node~avar~a -> node~a[tailport=se]~n"
+			id vid (enode-pid (third var)))]))))
+	(displayln "}"))))

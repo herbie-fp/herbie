@@ -7,7 +7,6 @@
 (require casio/programs)
 (require casio/points)
 
-(provide (struct-out rule) *rules* rules-tests)
 (provide (struct-out rule) *rules* rules-tests
 	 *simplify-rules* get-rule)
 
