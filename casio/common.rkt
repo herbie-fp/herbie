@@ -59,8 +59,16 @@
 
 (define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 1] . args)
   (when (should-print-debug? from depth)
-    (debug-print from tag args (current-output-port)))
-  (set! *log* (cons (list* from tag args) *log*))
+    (debug-print from tag args (current-output-port))))
+
+(define (debug-print from tag args port)
+  (display (hash-ref *tags* tag "; ") port)
+  (write from port)
+  (display ": " port)
+  (for/list ([arg args])
+    (display " " port)
+    ((if (string? arg) display write) arg port))
+  (newline port))
 
 (define-syntax-rule (reap [sow] body ...)
   (let* ([store '()]
