@@ -10,7 +10,7 @@
 	 with-item symbol<? common-eval-ns
 	 flip-lists argmaxs
 	 binary-search-floats binary-search-ints
-         random-exp)
+         random-exp *flags* toggle-flag! flag)
 
 (define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -229,3 +229,28 @@
       (random (expt 2 k))
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
+
+;; Flag Stuff
+
+(define *flags*
+  (make-parameter
+   #hash([generate . (simplify rm)]
+         #;[evaluate . (random-points)]
+         [reduce   . (regimes zach)]
+         [regimes  . (recurse prefilter)]
+         [simplify . (pavel)]
+         [setup    . (simplify periodicity)])))
+
+(define (toggle-flag! category flag)
+  (*flags*
+   (hash-update (*flags*) category
+		(λ (flag-list)
+		  (if (member flag flag-list)
+		      (remove flag flag-list)
+		      (cons flag flag-list))))))
+
+(define ((flag type f) a b)
+  (if (member f (hash-ref (*flags*) type
+                          (λ () (error "Invalid flag type" type))))
+      a
+      b))

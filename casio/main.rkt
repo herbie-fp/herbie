@@ -13,24 +13,7 @@
 (require casio/pareto-alts)
 (require casio/matcher)
 
-(provide setup improve *flags* toggle-flag! flag)
-
-(define *flags*
-  (make-parameter
-   #hash([generate . (simplify rm)]
-         #;[evaluate . (random-points)]
-         [reduce   . (regimes zach)]
-         [regimes  . (recurse prefilter)]
-         [simplify . (pavel)]
-         [setup    . (simplify periodicity)])))
-
-(define (toggle-flag! category flag)
-  (*flags*
-   (hash-update (*flags*) category
-		(λ (flag-list)
-		  (if (member flag flag-list)
-		      (remove flag flag-list)
-		      (cons flag flag-list))))))
+(provide setup improve)
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
@@ -46,12 +29,6 @@
     (improve-loop alt-table fuel)))
 
 ;; Implementation
-
-(define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type
-                          (λ () (error "Invalid flag type" type))))
-      a
-      b))
 
 (define (setup-alt altn fuel)
   (let ([maybe-period ((flag 'setup 'periodicity)
