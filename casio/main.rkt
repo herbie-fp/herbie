@@ -19,6 +19,10 @@
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
+(define (improve-prog prog fuel)
+  (setup prog (map (curryr cons sample-float) (program-variables prog))
+	 (curryr improve fuel)))
+
 (define (setup prog samplers cont)
   (let*-values ([(pts exs) (prepare-points prog samplers)])
     (parameterize ([*points* pts] [*exacts* exs])
