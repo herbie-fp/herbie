@@ -67,7 +67,7 @@
     (hash-for-each leader->iexprs
 		   (λ (leader iexprs)
 		     (assert (eq? leader (pack-leader leader)) #:loc location)
-		     (assert (list? iexprs) #:loc location)
+		     (assert (set-mutable? iexprs) #:loc location)
 		     (for ([iexpr iexprs])
 		       (assert (list? iexpr) #:loc location)
 		       (assert (member leader (cdr iexpr)) #:loc location)
@@ -107,13 +107,11 @@
 		     [en (new-enode expr* (egraph-cnt eg))]
 		     [leader->iexprs (egraph-leader->iexprs eg)])
 		(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
-		(hash-set! leader->iexprs en '())
+		(hash-set! leader->iexprs en (mutable-set))
 		(when (list? expr*)
 		  (for ([suben (cdr expr*)])
-		    (hash-update! (egraph-leader->iexprs eg)
-				  (pack-leader suben)
-				  (λ (iexprs)
-				    (cons expr* iexprs)))))
+		    (set-add! (hash-ref leader->iexprs (pack-leader suben))
+			      expr*)))
 		(hash-set! (egraph-expr->parent eg)
 			   expr*
 			   en)
@@ -210,6 +208,9 @@
     ;; Check to make sure we haven't corrupted the state.
     ;; This is an expensive check, but useful for debuggging.
     #;(check-egraph-valid eg #:loc 'merging)))
+
+(define (mutable-set-remove-duplicates st)
+  (list->mutable-set (set->list st)))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
