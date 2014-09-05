@@ -137,7 +137,11 @@
 ;; Maps a given function over all the equivilency classes
 ;; of a given egraph (node packs).
 (define (map-enodes f eg)
-  (map f (hash-keys (egraph-leader->iexprs eg))))
+  (map f (egraph-leaders eg)))
+
+;; Gets all the pack leaders in the egraph
+(define (egraph-leaders eg)
+  (hash-keys (egraph-leader->iexprs eg)))
 
 ;; Given an egraph and two enodes present in that egraph, merge
 ;; the packs of those two nodes, so that those nodes are equal?,
@@ -214,7 +218,7 @@
       fp #:exists 'replace
       (λ ()
 	(displayln "digraph {")
-	(for ([en (hash-keys (egraph-leader->iexprs eg))])
+	(for ([en (egraph-leaders eg)])
 	  (let ([id (enode-pid en)])
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
 	    (for ([var (enode-vars en)]
