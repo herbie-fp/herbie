@@ -129,7 +129,8 @@
 	(mk-enode! eg expr)))
   (let ([eg (egraph 0 #f (make-hash) (make-hash))])
     (set-egraph-top! eg (expr->enode eg expr))
-    (check-egraph-valid eg #:loc 'constructing-egraph)
+    ;; This is an expensive check, but useful for debuggging.
+    #;(check-egraph-valid eg #:loc 'constructing-egraph)
     eg))
 
 ;; Maps a given function over all the equivilency classes
