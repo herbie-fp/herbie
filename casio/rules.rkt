@@ -244,13 +244,3 @@
              (with-check-info (['point pt] ['prog1 p1] ['prog2 p2])
                (when (and (ordinary-float? ex1) (ordinary-float? ex2))
                  (check-= ex1 ex2 0))))))))))
-
-(define (free-variables expr)
-  (remove-duplicates
-   (let loop ([expr expr])
-     (cond [(symbol? expr)
-	    (list expr)]
-	   [(number? expr)
-	    '()]
-	   [(list? expr)
-	    (apply append (map loop (cdr expr)))]))))
