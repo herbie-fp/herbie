@@ -30,6 +30,8 @@
 ;;#    equal.
 ;;# 7. For every mapping (k, v) in expr->parent, k is a member of (enode-vars v),
 ;;#    and every node referenced by k is the leader of it's own pack.
+;;# 8. No two enode packs have any vars in common, using the equal? definition of
+;;#    equality.
 ;;#
 ;;#  Note: While the keys of leader->iexprs and the enodes referenced by the keys
 ;;#  of expr->parent are guaranteed to be leaders, the values of expr->parent,
@@ -80,7 +82,13 @@
 		     (assert (member k (enode-vars v)) #:loc location)
 		     (when (list? k)
 		       (for ([en (cdr k)])
-			 (assert (eq? en (pack-leader en)) #:loc location)))))))
+			 (assert (eq? en (pack-leader en)) #:loc location)))))
+    ;; Verify property 8
+    (let loop ([seen '()] [rest-leaders (hash-keys leader->iexprs)])
+      (let ([cur-leader-vars (enode-vars (car rest-leaders))])
+	(assert (null? (set-intersect seen cur-leader-vars)))
+	(when (not (null? (cdr rest-leaders)))
+	  (loop (append cur-leader-vars seen) (cdr rest-leaders)))))))
 
 ;; Takes an egraph, and an expression, as defined in enode.rkt, and returns
 ;; either a new enode that has been added to the graph, mutating the state of
@@ -139,62 +147,65 @@
 ;; but the values of those mapping are not.
 (define (merge-egraph-nodes! eg en1 en2)
   ;; Operate on the pack leaders in case we were passed a non-leader
-  (let ([l1 (pack-leader en1)]
-	[l2 (pack-leader en2)])
-    ;; If the leaders are the same, then these nodes are already
-    ;; part of the same pack, so do just return the leader.
-    (if (eq? l1 l2) l1
-	(let* ([leader->iexprs (egraph-leader->iexprs eg)]
-	       [expr->parent (egraph-expr->parent eg)]
-	       ;; Keep track of which expressions need to be updated
-	       [changed-exprs
-		(remove-duplicates
-		 (append (hash-ref leader->iexprs l1)
-			 (hash-ref leader->iexprs l2)))]
-	       ;; Get the mappings, since they will be inaccessable after the merge.
-	       [changed-mappings
-		(for/list ([expr changed-exprs])
-		  (cons expr (hash-ref expr->parent expr)))])
-	  ;; Remove the old mappings from the table.
-	  (for ([expr changed-exprs])
-	    (hash-remove! expr->parent expr))
-	  ;; Remove the old leader->iexprs mappings
-	  (hash-remove! leader->iexprs l1)
-	  (hash-remove! leader->iexprs l2)
-	  (let ([merged-en (enode-merge! l1 l2)])
-	    ;; Add the new leader->iexprs mapping. We remove duplicates again,
-	    ;; even though we already did that, because there might be things that
-	    ;; weren't duplicates before we merged, but are now.
-	    (hash-set! leader->iexprs merged-en (remove-duplicates changed-exprs))
-	    ;; Add back the affected expr->parent mappings, with updated
-	    ;; keys.
-	    (define to-merge
-	      (filter
-	       identity
-	       (for/list ([chmap changed-mappings])
-		 (let* ([new-key
-			 (let ([old-key (car chmap)])
-			   (cons (car old-key)
-				 (map (λ (en)
-					(if (equal? en merged-en)
-					    merged-en (pack-leader en)))
-				      (cdr old-key))))]
-			[new-val (cdr chmap)]
-			[existing-val (hash-ref expr->parent new-key #f)])
-		   (if existing-val
-		       (cons new-val existing-val)
-		       (begin
-			 (hash-set! expr->parent
-				    new-key
-				    new-val)
-			 #f))))))
-	    ;; Merge all the nodes that this merge has made equivilent.
-	    (for ([merge-pair to-merge])
-	      (merge-egraph-nodes! eg (car merge-pair) (cdr merge-pair)))
-	    ;; Check to make sure we haven't corrupted the state
-	    (check-egraph-valid eg #:loc 'merging)
-	    ;; Return the new leader.
-	    merged-en)))))
+  (let ([leader->iexprs (egraph-leader->iexprs eg)]
+	[expr->parent (egraph-expr->parent eg)])
+    (begin0
+	(let inner-merge ([en1 en1] [en2 en2])
+	  (let ([l1 (pack-leader en1)]
+		[l2 (pack-leader en2)])
+	    ;; If the leaders are the same, then these nodes are already
+	    ;; part of the same pack, so do just return the leader.
+	    (if (eq? l1 l2) l1
+		(let* (;; Keep track of which expressions need to be updated
+		       [changed-exprs
+			(let ([iexprs1 (hash-ref leader->iexprs l1)]
+			      [iexprs2 (hash-ref leader->iexprs l2)])
+			  (set-union! iexprs1 iexprs2)
+			  iexprs1)]
+		       ;; Get the mappings, since they will be inaccessable after the merge.
+		       [changed-mappings
+			(for/list ([expr changed-exprs])
+			  (cons expr (hash-ref expr->parent expr)))])
+		  ;; Remove the old mappings from the table.
+		  (for ([expr changed-exprs])
+		    (hash-remove! expr->parent expr))
+		  ;; Remove the old leader->iexprs mappings
+		  (hash-remove! leader->iexprs l1)
+		  (hash-remove! leader->iexprs l2)
+		  (let ([merged-en (enode-merge! l1 l2)])
+		    ;; Add the new leader->iexprs mapping. We remove duplicates again,
+		    ;; even though we already did that, because there might be things that
+		    ;; weren't duplicates before we merged, but are now.
+		    (hash-set! leader->iexprs merged-en (mutable-set-remove-duplicates changed-exprs))
+		    ;; Add back the affected expr->parent mappings, with updated
+		    ;; keys.
+		    (define to-merge
+		      (filter
+		       identity
+		       (for/list ([chmap changed-mappings])
+			 (let* ([new-key
+				 (let ([old-key (car chmap)])
+				   (cons (car old-key)
+					 (map (λ (en)
+						(if (equal? en merged-en)
+						    merged-en (pack-leader en)))
+					      (cdr old-key))))]
+				[new-val (cdr chmap)]
+				[existing-val (hash-ref expr->parent new-key #f)])
+			   (if existing-val
+			       (cons new-val existing-val)
+			       (begin
+				 (hash-set! expr->parent
+					    new-key
+					    new-val)
+				 #f))))))
+		    ;; Merge all the nodes that this merge has made equivilent.
+		    (for ([merge-pair to-merge])
+		      (inner-merge (car merge-pair) (cdr merge-pair)))
+		    merged-en))))))
+    ;; Check to make sure we haven't corrupted the state.
+    ;; This is an expensive check, but useful for debuggging.
+    #;(check-egraph-valid eg #:loc 'merging)))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
