@@ -75,16 +75,19 @@
   (or (member var constants) (real? var)))
 
 (define (->flonum x)
-  (cond
-   [(real? x) (real->double-flonum x)]
-   [(bigfloat? x) (real->double-flonum (bigfloat->flonum x))]
-   [(complex? x)
-    (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
-   [(eq? x 'pi) pi]
-   [(eq? x 'e) (exp 1)]
-   [else x]))
+  (let ([convert ((flat 'evaluate 'double-precision)
+		  real->double-flonum
+		  real->single-flonum)])
+    (cond
+     [(real? x) (convert x)]
+     [(bigfloat? x) (convert (bigfloat->flonum x))]
+     [(complex? x)
+      (if (= (imag-part x) 0)
+	  (->flonum (real-part x))
+	  +nan.0)]
+     [(eq? x 'pi) (convert pi)]
+     [(eq? x 'e) (convert (exp 1))]
+     [else x])))
 
 (define (->bf x)
   (cond
