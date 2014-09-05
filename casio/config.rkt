@@ -12,6 +12,7 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach taylor)]
+	 [evaluate . (#;double-precision)]
          [regimes  . ()]
          [simplify . ()]
          [setup    . (simplify periodicity)]
