@@ -4,7 +4,9 @@
 (require casio/simplify/enode)
 
 (provide mk-enode! mk-egraph
-	 merge-egraph-nodes! egraph?)
+	 merge-egraph-nodes! egraph?
+	 egraph-cnt map-enodes
+	 draw-egraph)
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -17,18 +19,19 @@
 ;;# The following things should always be true of egraphs:
 ;;# 1. (egraph-cnt eg) is a positive integer.
 ;;# 2. (egraph-cnt eg) is equal to the sum of the size of each of the enode packs
-;;#    whose leaders are kept as keys in leaders->iexprs.
+;;#    whose leaders are kept as keys in leader->iexprs.
 ;;# 3. (egraph-top eg) is a valid enode.
-;;# 4. For each enode en which is a key of leaders->iexprs, en is the leader of
+;;# 4. For each enode en which is a key of leader->iexprs, en is the leader of
 ;;#    its own pack.
-;;# 5. For every mapping (k, v) in leaders->iexprs, for each expression e in v,
+;;# 5. For every mapping (k, v) in leader->iexprs, for each expression e in v,
 ;;#    k is a member of (cdr e). That is, v is an expression that references k.
-;;# 6. The set of values in leaders->iexprs appended together is a subset of the
-;;#    set of keys in expr->parent.
+;;# 6. The set of values in leader->iexprs appended together is a subset of the
+;;#    set of keys in expr->parent, when you consider enodes of the same pack
+;;#    equal.
 ;;# 7. For every mapping (k, v) in expr->parent, k is a member of (enode-vars v),
 ;;#    and every node referenced by k is the leader of it's own pack.
 ;;#
-;;#  Note: While the keys of leaders->iexprs and the enodes referenced by the keys
+;;#  Note: While the keys of leader->iexprs and the enodes referenced by the keys
 ;;#  of expr->parent are guaranteed to be leaders, the values of expr->parent,
 ;;#  and the enodes referenced by the values of leadders->iexprs are not.
 ;;#  This decision was made because it would require more state infrastructure
@@ -44,21 +47,22 @@
 ;;#
 ;;################################################################################;;
 
-(struct egraph (cnt top leaders->iexprs expr->parent) #:mutable)
+(struct egraph (cnt top leader->iexprs expr->parent) #:mutable)
 
+;; For debugging
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
-  (let ([leaders->iexprs (egraph-leaders->iexprs eg)]
+  (let ([leader->iexprs (egraph-leader->iexprs eg)]
 	[count (egraph-cnt eg)])
     ;; The egraphs count must be a positive integer
     (assert (and (integer? count) (positive? count)) #:loc location)
     ;; The count is equal to the sum of the size of each of the enode packs.
     (assert (= count (apply + (map (compose length pack-members)
-				   (hash-keys leaders->iexprs))))
+				   (hash-keys leader->iexprs))))
 	    #:loc location)
     ;; The top is a valid enode. (enode validity is verified upon creation).
     (assert (enode? (egraph-top eg)) #:loc location)
     ;; Verify properties 4-6
-    (hash-for-each leaders->iexprs
+    (hash-for-each leader->iexprs
 		   (λ (leader iexprs)
 		     (assert (eq? leader (pack-leader leader)) #:loc location)
 		     (assert (list? iexprs) #:loc location)
@@ -89,18 +93,21 @@
   (hash-ref (egraph-expr->parent eg)
 	    expr
 	    (λ ()
-	      (let ([en (new-enode expr (egraph-cnt eg))]
-		    [leaders->iexprs (egraph-leaders->iexprs eg)])
+	      (let* ([expr* (if (not (list? expr)) expr
+				(cons (car expr)
+				      (map pack-leader (cdr expr))))]
+		     [en (new-enode expr* (egraph-cnt eg))]
+		     [leader->iexprs (egraph-leader->iexprs eg)])
 		(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
-		(hash-set! leaders->iexprs en '())
-		(when (list? expr)
-		  (for ([suben (cdr expr)])
-		    (hash-update! (egraph-leaders->iexprs eg)
+		(hash-set! leader->iexprs en '())
+		(when (list? expr*)
+		  (for ([suben (cdr expr*)])
+		    (hash-update! (egraph-leader->iexprs eg)
 				  (pack-leader suben)
 				  (λ (iexprs)
-				    (cons expr iexprs)))))
+				    (cons expr* iexprs)))))
 		(hash-set! (egraph-expr->parent eg)
-			   expr
+			   expr*
 			   en)
 		en))))
 
@@ -119,10 +126,15 @@
     (check-egraph-valid eg #:loc 'constructing-egraph)
     eg))
 
+;; Maps a given function over all the equivilency classes
+;; of a given egraph (node packs).
+(define (map-enodes f eg)
+  (map f (hash-keys (egraph-leader->iexprs eg))))
+
 ;; Given an egraph and two enodes present in that egraph, merge
 ;; the packs of those two nodes, so that those nodes are equal?,
 ;; and return the same pack-leader and enode-vars (as well as enode-pid).
-;; The keys of leaders->iexprs and expr->parent are updated to refer
+;; The keys of leader->iexprs and expr->parent are updated to refer
 ;; to the merged leader instead of the leaders of en1 and en2,
 ;; but the values of those mapping are not.
 (define (merge-egraph-nodes! eg en1 en2)
@@ -132,13 +144,13 @@
     ;; If the leaders are the same, then these nodes are already
     ;; part of the same pack, so do just return the leader.
     (if (eq? l1 l2) l1
-	(let* ([leaders->iexprs (egraph-leaders->iexprs eg)]
+	(let* ([leader->iexprs (egraph-leader->iexprs eg)]
 	       [expr->parent (egraph-expr->parent eg)]
 	       ;; Keep track of which expressions need to be updated
 	       [changed-exprs
 		(remove-duplicates
-		 (append (hash-ref leaders->iexprs l1)
-			 (hash-ref leaders->iexprs l2)))]
+		 (append (hash-ref leader->iexprs l1)
+			 (hash-ref leader->iexprs l2)))]
 	       ;; Get the mappings, since they will be inaccessable after the merge.
 	       [changed-mappings
 		(for/list ([expr changed-exprs])
@@ -146,14 +158,14 @@
 	  ;; Remove the old mappings from the table.
 	  (for ([expr changed-exprs])
 	    (hash-remove! expr->parent expr))
-	  ;; Remove the old leaders->iexprs mappings
-	  (hash-remove! leaders->iexprs l1)
-	  (hash-remove! leaders->iexprs l2)
+	  ;; Remove the old leader->iexprs mappings
+	  (hash-remove! leader->iexprs l1)
+	  (hash-remove! leader->iexprs l2)
 	  (let ([merged-en (enode-merge! l1 l2)])
-	    ;; Add the new leaders->iexprs mapping. We remove duplicates again,
+	    ;; Add the new leader->iexprs mapping. We remove duplicates again,
 	    ;; even though we already did that, because there might be things that
 	    ;; weren't duplicates before we merged, but are now.
-	    (hash-set! leaders->iexprs merged-en (remove-duplicates changed-exprs))
+	    (hash-set! leader->iexprs merged-en (remove-duplicates changed-exprs))
 	    ;; Add back the affected expr->parent mappings, with updated
 	    ;; keys.
 	    (define to-merge
@@ -165,7 +177,7 @@
 			   (cons (car old-key)
 				 (map (λ (en)
 					(if (equal? en merged-en)
-					    merged-en en))
+					    merged-en (pack-leader en)))
 				      (cdr old-key))))]
 			[new-val (cdr chmap)]
 			[existing-val (hash-ref expr->parent new-key #f)])
@@ -173,12 +185,7 @@
 		       (cons new-val existing-val)
 		       (begin
 			 (hash-set! expr->parent
-				    (let ([old-key (car chmap)])
-				      (cons (car old-key)
-					    (map (λ (en)
-						   (if (equal? en merged-en)
-						       merged-en en))
-						 (cdr old-key))))
+				    new-key
 				    new-val)
 			 #f))))))
 	    ;; Merge all the nodes that this merge has made equivilent.
@@ -196,7 +203,7 @@
       fp #:exists 'replace
       (λ ()
 	(displayln "digraph {")
-	(for ([en (hash-keys (egraph-leaders->iexprs eg))])
+	(for ([en (hash-keys (egraph-leader->iexprs eg))])
 	  (let ([id (enode-pid en)])
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
 	    (for ([var (enode-vars en)]

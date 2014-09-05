@@ -65,6 +65,7 @@
 ;; deeper than the parent.
 (define (adopt-enode! new-parent child)
   (assert (>= (enode-depth new-parent) (enode-depth child)))
+  (assert (not (eq? new-parent child)))
   (set-enode-children! new-parent (cons child (enode-children new-parent)))
   (set-enode-parent! child new-parent)
   (when (<= (enode-depth new-parent) (enode-depth child))
@@ -84,7 +85,7 @@
     (when (not (eq? l1 l2))
       (let-values ([(new-leader new-follower)
 		    (if (< (enode-depth l1) (enode-depth l2))
-			(values l1 l1)
+			(values l2 l1)
 			(values l1 l2))])
 	(adopt-enode! new-leader new-follower)
 	new-leader))))
