@@ -141,21 +141,6 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
-;; Takes a list of items, and returns a list of lists of items, where
-;; the items are grouped by the value produced when key-func is evaluated
-;; on them.
-(define (multipartition items key-func)
-  (let loop ([rest-items items] [acc '()])
-    (if (null? rest-items) (reverse (map (compose reverse cdr) acc))
-	(let* ([key (key-func (car rest-items))]
-	       [lookup (assoc key acc)])
-	  (loop (cdr rest-items)
-		(if lookup
-		    (cons (cons (car lookup) (cons (car rest-items) (cdr lookup)))
-			  (remove lookup acc))
-		    (cons (cons key (list (car rest-items)))
-			  acc)))))))
-
 ;; This function takes in a list of entries, where each entry is a list containing
 ;; a point, the exact value at that point, and the errors for any number of alts
 ;; at that point, and returns a list of entries, each containing the value of a point on

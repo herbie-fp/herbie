@@ -211,7 +211,12 @@
   [cos-diff    (cos (- x y))       (+ (* (cos x) (cos y)) (* (sin x) (sin y)))     ()]
   [diff-atan   (- (atan x) (atan y)) (atan2 (- x y) (+ 1 (* x y)))                 ((1))]
   [quot-tan    (/ (sin x) (cos x)) (tan x)                                         ()]
-  [tan-quot    (tan x)             (/ (sin x) (cos x))                             ()])
+  [tan-quot    (tan x)             (/ (sin x) (cos x))                             ()]
+  [cotan-quot  (cotan x)           (/ (cos x) (sin x))                             ()]
+  [quot-tan    (/ (sin x) (cos x)) (tan x)                                         ()]
+  [quot-cotan  (/ (cos x) (sin x)) (cotan x)                                       ()]
+  [cotan-tan   (cotan x)           (/ 1 (tan x))                                   ()]
+  [tan-cotan   (tan x)             (/ 1 (cotan x))                                 ()])
 
 (define *rules* (apply append *rulesets*))
 (define *simplify-rules*
