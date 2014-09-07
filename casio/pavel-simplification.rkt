@@ -4,6 +4,7 @@
 (require casio/rules)
 (require casio/matcher)
 (require casio/common)
+(require casio/programs)
 
 (provide simplify)
 
@@ -23,12 +24,20 @@
   (match expr
     [(? real?) expr]
     [(? symbol?) expr]
-    [`(,op ,args ...)
-     (simplify-node `(,op ,@(map simplify* args)))]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify* body))]
     [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify* body))]))
+     `(λ ,vars ,(simplify* body))]
+    [(? (compose null? free-variables) `(,op ,args ...))
+     (let ([value
+            (with-handlers ([(const #t) (const #f)])
+              (safe-eval expr))])
+       #;(println expr " -> " value)
+       (if (rational? value)
+           value
+           (simplify-node `(,op ,@(map simplify* args)))))]
+    [`(,op ,args ...)
+     (simplify-node `(,op ,@(map simplify* args)))]))
 
 (define (simplify-node expr)
   (match expr
