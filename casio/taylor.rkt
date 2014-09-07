@@ -4,11 +4,10 @@
 (require casio/common)
 (require casio/pavel-simplification)
 
-; The derivative of an expression E in a set of variables x1 ... xn
-; is a set of coefficients a1 ... an
-; such that E(x1 + e1, ... xn + en) ~= E(x1, ..., xn) + a1 e1 + ... + an en
+(provide approximate taylor)
 
 (define (approximate expr vars)
+  ; TODO : Redo using new "hull" idea
   (simplify
    (cons '+
          (for/list ([var vars])
@@ -56,11 +55,13 @@
      (match (taylor var a)
        [(cons offset coeffs)
         (cons (* 2 offset) (compose coeffs (curry * 2)))])]
-    [`(,f ,args ...)
+    [`(,(? (curryr member taylor-funcs) f) ,args ...)
      (let ([args* (map (compose normalize-series (curry taylor var)) args)])
        (if (ormap (compose positive? car) args*)
            (taylor-exact expr)
-           (apply taylor-func f (map zero-series args*))))]))
+           (apply taylor-func f (map zero-series args*))))]
+    [_
+     (taylor-exact expr)]))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),
@@ -161,6 +162,8 @@
       (append (map (curry cons k) (aux (- n k) k))
               (aux n (+ k 1)))]))
   (map rle (aux n 1)))
+
+(define taylor-funcs '(exp))
 
 (define (taylor-func func . args)
   (match (cons func args)

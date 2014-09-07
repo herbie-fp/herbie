@@ -10,6 +10,7 @@
 (require casio/locations)
 (require casio/programs)
 (require casio/periodicity)
+(require casio/taylor)
 (require casio/pareto-alts)
 (require casio/matcher)
 
@@ -90,20 +91,28 @@
 (define (reduce-alts table fuel)
   (let ([combine
          ((flag 'reduce 'regimes) regimes-alts (const #f))]
-        [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))])
+        [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
+        [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
     (let* ([all-alts (atab-all-alts table)]
            [locss (map analyze-local-error all-alts)]
            [alts*
             (apply append
                    (for/list ([alt all-alts] [locs locss])
-                     (append-map (curry maybe-zach alt) locs)))]
+                     (append
+                      (append-map (curry maybe-zach alt) locs)
+                      (map (curry maybe-taylor alt) locs))))]
            [table* (atab-add-altns table alts*)]
-           [alts-all (atab-all-alts table*)]
-           [alts-combine (atab-some-alts table*)])
-      (let ([combo (combine ((flag 'regimes 'prefilter) alts-combine alts-all) fuel)])
+           [alts** (atab-all-alts table*)])
+      (let ([combo (combine alts** fuel)])
 	(if combo
-	    (best-alt (cons combo alts-all))
-	    (best-alt alts-all))))))
+	    (best-alt (cons combo alts**))
+	    (best-alt alts**))))))
+
+(define (taylor-alt altn loc)
+  (let ([new-prog
+         (location-do loc (alt-program altn)
+                      (λ (expr) (approximate expr (free-variables expr))))])
+    (alt-event new-prog `(taylor ,loc) (list altn))))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)])
