@@ -4,6 +4,7 @@
 
 (provide new-enode enode-merge!
 	 enode-vars real-enode-vars enode-pid
+	 enode? enode-flat-expr pick-matching-flat
 	 enode-expr
 	 pack-leader pack-members pack-real!)
 
@@ -100,15 +101,43 @@
   (let ([expr (enode-expr en)])
     (assert (or (number? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
-		     (ormap enode? (cdr expr)))) #:loc location))
+		     (ormap enode? (cdr expr)))) #:loc location)
+    ;; Check that either:
+    ;; a. We don't have a flat expression
+    ;; b. Our flat expression is a variable or constant that matches our expr
+    ;; c. Our flat expression is a list, it's operator matches our expr,
+    ;;    and it's left and right operators match the flat expression of
+    ;;    some node in the same pack as the left and right operators of
+    ;;    our expression.
+    (let ([flat-expr (enode-flat-expr en)])
+      (when flat-expr
+	(assert (or (not (list? flat-expr))
+		    (and (eq? (car flat-expr)
+			      (car expr))
+			 (pick-matching-flat
+			  (cadr expr)
+			  (cadr flat-expr))
+			 (pick-matching-flat
+			  (caddr expr)
+			  (caddr flat-expr))))
+		#:loc location))))
   ;; Checks that the depth is positive.
   (assert (positive? (enode-depth en)) #:loc location))
+
+;; Returns an enode in the pack of the given enode whose flattened expression matches
+;; the given flattened expression, or #f if one cannot be found.
+(define (pick-matching-flat en flat-expr)
+  (findf (compose (curry equal? flat-expr) enode-flat-expr)
+	 (pack-members en)))
 
 (define (check-valid-parent en #:loc [location 'check-valid-parent])
   (let ([parent (enode-parent en)])
     (when parent
       ;; Checks that we are one of our parents children.
-      (assert (memq en (enode-children parent)) #:loc location)
+      (assert (memf (compose (curry equal? (enode-expr en))
+			     enode-expr)
+		    (enode-children parent))
+		    #:loc location)
       ;; Checks that the parents depth is greater than the childs.
       (assert (> (enode-depth parent) (enode-depth en)) #:loc location)
       ;; Checks that the parent links are non-cyclic
@@ -145,14 +174,20 @@
 ;; en* for which (eq? (pack-leader en*) (pack-leader en)).
 (define (pack-members en)
   (let ([l (pack-leader en)])
-    (let get-members ([cur-en l])
-      (apply append (list cur-en)
-	     (map get-members (enode-children cur-en))))))
+    (cons l (enode-children l))))
 
 ;; Returns the ENODE VARiationS, the different expressions
 ;; of the members of the given enodes pack.
 (define (enode-vars en)
   (remove-duplicates (map enode-expr (pack-members en))))
+
+;; Returns all variations that have been marked as real.
+(define (real-enode-vars en)
+  (list->set (map enode-expr (filter enode-real? (pack-members en)))))
+
+(define (pack-real! en)
+  (for ([en (pack-members en)])
+    (set-enode-real?! en #t)))
 
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)

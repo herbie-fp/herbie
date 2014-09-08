@@ -2,6 +2,7 @@
 
 (require casio/simplify/egraph)
 (require casio/simplify/ematch)
+(require casio/simplify/enode)
 (require casio/rules)
 
 ;;(provide simplify-expr)
@@ -20,10 +21,10 @@
 ;;#
 ;;################################################################################;;
 
-;; (define (simplify-expr expr)
-;;   (let ([eg (mk-egraph expr)])
-;;     (iterate-egraph! eg (max-depth expr))
-;;     (extract-simplest eg)))
+(define (simplify-expr expr)
+  (let ([eg (mk-egraph expr)])
+    (iterate-egraph! eg (max-depth expr))
+    (extract-simplest eg)))
 
 (define (max-depth expr)
   (if (not (list? expr)) 1
@@ -48,3 +49,14 @@
        (for ([bind binds])
 	 (merge-egraph-nodes! eg en (substitute-e eg (rule-output r) bind)))))
    eg))
+
+(define (extract-simplest eg)
+  (let pick ([en (egraph-top eg)])
+    (let ([flat-expr (enode-flat-expr en)]
+	  [expr (enode-expr en)])
+      (if (not (list? flat-expr)) expr
+	  (cons (car expr)
+		(map (λ (en subexpr)
+		       (pick (pick-matching-flat en subexpr)))
+		     (cdr expr)
+		     (cdr flat-expr)))))))
