@@ -23,7 +23,7 @@
 
 (define (simplify-expr expr)
   (let ([eg (mk-egraph expr)])
-    (iterate-egraph! eg (* 1.5 (max-depth expr)))
+    (iterate-egraph! eg (floor (* 1.35 (max-depth expr))))
     (extract-simplest eg)))
 
 (define (max-depth expr)
@@ -60,8 +60,7 @@
 	  (merge-egraph-nodes!
 	   eg en
 	   (substitute-e eg (rule-output rl) bind
-			 #:victory? (victory-rule? rl))))))
-    (finalize-egraph-iter! eg)))
+			 #:victory? (victory-rule? rl))))))))
 
 (define (victory-rule? rl)
   ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs

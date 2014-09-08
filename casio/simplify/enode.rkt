@@ -3,10 +3,10 @@
 (require casio/simplify/util)
 
 (provide new-enode enode-merge!
-	 enode-vars real-enode-vars enode-pid
+	 enode-vars enode-pid
 	 enode? enode-flat-expr pick-matching-flat
 	 enode-expr pick-victory set-enode-victory?! enode-victory?
-	 pack-leader pack-members pack-real!)
+	 pack-leader pack-members)
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -42,7 +42,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth real? victory? flat-expr)
+(struct enode (expr id-code children parent depth victory? flat-expr)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -59,7 +59,7 @@
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code #:flat-expr [flat-expr #f] #:victory? [victory #f])
-  (let ([en* (enode expr id-code '() #f 1 #f victory flat-expr)])
+  (let ([en* (enode expr id-code '() #f 1 victory flat-expr)])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -77,8 +77,8 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   ;; This is an expensive check, but useful for debuggging.
-  (check-valid-parent child)
-  (check-valid-children new-parent))
+  #;(check-valid-parent child)
+  #;(check-valid-children new-parent))
 
 ;; Merge two packs, given a node from either group.
 ;; Warning: Both this function and adopt-enode! change
@@ -182,15 +182,7 @@
 ;; Returns the ENODE VARiationS, the different expressions
 ;; of the members of the given enodes pack.
 (define (enode-vars en)
-  (remove-duplicates (map enode-expr (pack-members en))))
-
-;; Returns all variations that have been marked as real.
-(define (real-enode-vars en)
-  (list->set (map enode-expr (filter enode-real? (pack-members en)))))
-
-(define (pack-real! en)
-  (for ([en (pack-members en)])
-    (set-enode-real?! en #t)))
+  (list->set (map enode-expr (pack-members en))))
 
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)
