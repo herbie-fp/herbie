@@ -23,32 +23,45 @@
 
 (define (simplify-expr expr)
   (let ([eg (mk-egraph expr)])
-    (iterate-egraph! eg (max-depth expr))
+    (iterate-egraph! eg (* 1.5 (max-depth expr)))
     (extract-simplest eg)))
 
 (define (max-depth expr)
   (if (not (list? expr)) 1
       (add1 (apply max (map max-depth (cdr expr))))))
 
-(define (iterate-egraph! eg iters)
-  (printf "iters: ~a~n" iters)
+(define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
   (let ([start-cnt (egraph-cnt eg)])
-    (for ([srule *simplify-rules*])
-      (apply-rule! eg srule))
-    (finalize-egraph-iter! eg)
+    (one-iter eg rls)
     (when (and (> (egraph-cnt eg) start-cnt)
 	       (> iters 1))
-      (iterate-egraph! eg (sub1 iters)))))
+      (iterate-egraph! eg (sub1 iters) #:rules rls))))
 
-(define (apply-rule! eg r)
-  (printf "using rule ~a~n" (rule-name r))
-  (map-enodes
-   (λ (en)
-     (printf "applying to ~a~n" en)
-     (let ([binds (match-e (rule-input r) en)])
-       (for ([bind binds])
-	 (merge-egraph-nodes! eg en (substitute-e eg (rule-output r) bind)))))
-   eg))
+(define *reduce-ratio* 2/3)
+
+(define (one-iter eg rls)
+  (let* ([realcdr? (compose (negate null?) cdr)]
+	 [matches
+	  (filter realcdr?
+		  (map
+		   (λ (rl)
+		     (cons rl
+			   (filter realcdr?
+				   (map-enodes (λ (en)
+						 (cons en
+						       (match-e (rule-input rl) en)))
+					       eg))))
+		   rls))])
+    (for ([match matches])
+      (let ([rl (first match)]
+	    [en (first (second match))]
+	    [binds (cdr (second match))])
+	(for ([bind binds])
+	  (merge-egraph-nodes!
+	   eg en
+	   (substitute-e eg (rule-output rl) bind
+			 #:victory? (victory-rule? rl))))))
+    (finalize-egraph-iter! eg)))
 
 (define (victory-rule? rl)
   ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs

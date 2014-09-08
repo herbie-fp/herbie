@@ -5,7 +5,7 @@
 (provide new-enode enode-merge!
 	 enode-vars real-enode-vars enode-pid
 	 enode? enode-flat-expr pick-matching-flat
-	 enode-expr pick-victory set-enode-victory?!
+	 enode-expr pick-victory set-enode-victory?! enode-victory?
 	 pack-leader pack-members pack-real!)
 
 ;;################################################################################;;
