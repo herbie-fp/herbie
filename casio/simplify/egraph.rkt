@@ -227,7 +227,7 @@
 	  (let ([id (enode-pid en)])
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
 	    (for ([varen (pack-members en)]
-		  [vid (range (length (enode-vars en)))])
+		  [vid (in-naturals)])
 	      (let ([var (enode-expr varen)]
 		    [victory? (enode-victory? varen)])
 		(printf "node~avar~a[label=\"~a\",shape=box,color=~a]~n"

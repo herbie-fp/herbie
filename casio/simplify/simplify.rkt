@@ -24,25 +24,36 @@
 ;;#
 ;;################################################################################;;
 
+;; A rule must reduce the expression size (judged by pattern) this much to
+;; be considered a victory rule.
+(define *reduce-ratio* 2/3)
+;; The number of iterations of the egraph is the maximum depth times this custom
+(define *iters-depth-ratio* 1.35)
+
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
 	 [slocs (if chng
 		    (map (curry append (change-location chng))
 			 (rule-slocations (change-rule (alt-change altn))))
 		   '((2)))])
-    (for/list ([loc slocs])
-      (let* ([in (location-get loc (alt-program altn))]
-	     [out (simplify-expr in)])
-	(change (rule 'simplify in out '())
-		loc
-		(map (λ (var) (cons var var))
-		     (program-variables (alt-program altn))))))))
+    (filter
+     identity
+     (for/list ([loc slocs])
+       (let* ([in (location-get loc (alt-program altn))]
+	      [out (simplify-expr in)])
+	 (if (equal? in out)
+	     #f
+	     (change (rule 'simplify in out '())
+		     loc
+		     (map (λ (var) (cons var var))
+			 (program-variables (alt-program altn))))))))))
 
 (define (simplify-expr expr)
-  (debug #:from 'simplify (format "Simplifying ~a" expr))
-  (let ([eg (mk-egraph expr)])
-    (iterate-egraph! eg (floor (* 1.35 (max-depth expr))))
-    (extract-simplest eg)))
+  (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
+  (let ([eg (mk-egraph expr)]
+	[expr-depth (max-depth expr)])
+    (iterate-egraph! eg (inexact->exact (floor (* *iters-depth-ratio* expr-depth))))
+    (extract-simplest eg expr-depth)))
 
 (define (max-depth expr)
   (if (not (list? expr)) 1
@@ -50,13 +61,11 @@
 
 (define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
   (let ([start-cnt (egraph-cnt eg)])
-    (printf "iters left: ~a~n" iters)
+    (debug #:from 'simplify #:depth 2 (format "iters left: ~a" iters))
     (one-iter eg rls)
     (when (and (> (egraph-cnt eg) start-cnt)
 	       (> iters 1))
       (iterate-egraph! eg (sub1 iters) #:rules rls))))
-
-(define *reduce-ratio* 2/3)
 
 (define (one-iter eg rls)
   (let* ([realcdr? (compose (negate null?) cdr)]
@@ -88,24 +97,29 @@
 	 (expr-size (rule-input rl)))
       *reduce-ratio*))
 
-(define (extract-simplest eg)
-  (printf "extracting...~n")
+(define (extract-simplest eg max-depth)
+  (debug #:from 'simplify #:depth 2 "extracting...")
   (let pick ([en (egraph-top eg)] [depth 0])
     (let ([flat-expr (enode-flat-expr en)]
 	  [expr (enode-expr en)]
 	  [victor (pick-victory en)])
-      (cond [(> depth 10) (error "Loop?")]
+      (cond [(> depth max-depth) (error "Loop?")]
 	    [(not (list? expr)) expr]
 	    [(eq? victor en)
 	     (cons (car expr)
 		   (map (curryr pick (add1 depth))
 			(cdr expr)))]
 	    [victor (pick victor (add1 depth))]
-	    [#t (cons (car expr)
-		      (map (λ (en subexpr)
-			     (pick (pick-matching-flat en subexpr) (add1 depth)))
-			   (cdr expr)
-			   (cdr flat-expr)))]))))
+	    [flat-expr
+	     (cons (car expr)
+		   (map (λ (en subexpr)
+			  (pick (pick-matching-flat en subexpr) (add1 depth)))
+			(cdr expr)
+			(cdr flat-expr)))]
+	    [#t
+	     (cons (car expr)
+		   (map (curryr pick (add1 depth))
+			(cdr expr)))]))))
 
 (define (expr-size expr)
   (if (not (list? expr)) 1
