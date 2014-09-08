@@ -23,7 +23,8 @@
 ;;# 3. The (enode-parent) pointers are non-cyclic, and always eventually
 ;;#    lead to the leader of the pack.
 ;;# 4. (enode-children en) is a list of enodes, for which each enode has a parent.
-;;# 5. If en2 is the parent of en1, then en1 is one of the children of en2.
+;;# 5. If en2 is the parent of en1, then en1 has the same expression as one of the
+;;#    children of en2.
 ;;# 6. The enode-children links are also non-cyclic.
 ;;# 7. (enode-depth en) is a positive integer.
 ;;# 8. Solitary enodes have a depth of 1.
