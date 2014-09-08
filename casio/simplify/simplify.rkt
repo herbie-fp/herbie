@@ -4,6 +4,9 @@
 (require casio/simplify/ematch)
 (require casio/simplify/enode)
 (require casio/rules)
+(require casio/matcher)
+(require casio/alternative)
+(require casio/programs)
 
 ;;(provide simplify-expr)
 (provide (all-defined-out))
@@ -21,6 +24,18 @@
 ;;#
 ;;################################################################################;;
 
+(define (simplify altn)
+  (let ([slocs (if (alt-change altn)
+		   (rule-slocations (change-rule (alt-change altn)))
+		   '((2)))])
+    (for/list ([loc slocs])
+      (let* ([in (location-get loc (alt-program altn))]
+	     [out (simplify-expr in)])
+	(change (rule 'simplify in out '())
+		loc
+		(map (λ (var) (cons var var))
+		     (program-variables (alt-program altn))))))))
+
 (define (simplify-expr expr)
   (let ([eg (mk-egraph expr)])
     (iterate-egraph! eg (floor (* 1.35 (max-depth expr))))
@@ -32,6 +47,7 @@
 
 (define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
   (let ([start-cnt (egraph-cnt eg)])
+    (printf "iters left: ~a~n" iters)
     (one-iter eg rls)
     (when (and (> (egraph-cnt eg) start-cnt)
 	       (> iters 1))
@@ -70,6 +86,7 @@
       *reduce-ratio*))
 
 (define (extract-simplest eg)
+  (printf "extracting...~n")
   (let pick ([en (egraph-top eg)] [depth 0])
     (let ([flat-expr (enode-flat-expr en)]
 	  [expr (enode-expr en)]
