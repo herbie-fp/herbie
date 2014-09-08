@@ -42,7 +42,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth victory? flat-expr)
+(struct enode (expr id-code children parent depth victory? flat-expr cvars)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -59,7 +59,7 @@
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code #:flat-expr [flat-expr #f] #:victory? [victory #f])
-  (let ([en* (enode expr id-code '() #f 1 victory flat-expr)])
+  (let ([en* (enode expr id-code '() #f 1 victory flat-expr (set expr))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -76,6 +76,7 @@
   (set-enode-parent! child new-parent)
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
+  (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
   #;(check-valid-children new-parent))
@@ -182,7 +183,7 @@
 ;; Returns the ENODE VARiationS, the different expressions
 ;; of the members of the given enodes pack.
 (define (enode-vars en)
-  (list->set (map enode-expr (pack-members en))))
+  (enode-cvars (pack-leader en)))
 
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)
