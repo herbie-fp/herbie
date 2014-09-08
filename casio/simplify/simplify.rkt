@@ -50,13 +50,31 @@
 	 (merge-egraph-nodes! eg en (substitute-e eg (rule-output r) bind)))))
    eg))
 
+(define (victory-rule? rl)
+  ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs
+  ;; are considered victory rules.
+  (<= (/ (expr-size (rule-output rl))
+	 (expr-size (rule-input rl)))
+      *reduce-ratio*))
+
 (define (extract-simplest eg)
   (let pick ([en (egraph-top eg)])
     (let ([flat-expr (enode-flat-expr en)]
-	  [expr (enode-expr en)])
-      (if (not (list? flat-expr)) expr
-	  (cons (car expr)
-		(map (λ (en subexpr)
-		       (pick (pick-matching-flat en subexpr)))
-		     (cdr expr)
-		     (cdr flat-expr)))))))
+	  [expr (enode-expr en)]
+	  [victor (pick-victory en)])
+      (cond [(> depth 10) (error "Loop?")]
+	    [(not (list? expr)) expr]
+	    [(eq? victor en)
+	     (cons (car expr)
+		   (map (curryr pick (add1 depth))
+			(cdr expr)))]
+	    [victor (pick victor (add1 depth))]
+	    [#t (cons (car expr)
+		      (map (λ (en subexpr)
+			     (pick (pick-matching-flat en subexpr) (add1 depth)))
+			   (cdr expr)
+			   (cdr flat-expr)))]))))
+
+(define (expr-size expr)
+  (if (not (list? expr)) 1
+      (apply + 1 (map expr-size (cdr expr)))))

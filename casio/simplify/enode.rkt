@@ -5,7 +5,7 @@
 (provide new-enode enode-merge!
 	 enode-vars real-enode-vars enode-pid
 	 enode? enode-flat-expr pick-matching-flat
-	 enode-expr
+	 enode-expr pick-victory set-enode-victory?!
 	 pack-leader pack-members pack-real!)
 
 ;;################################################################################;;
@@ -42,7 +42,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth real? flat-expr)
+(struct enode (expr id-code children parent depth real? victory? flat-expr)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -58,8 +58,8 @@
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
-(define (new-enode expr id-code #:flat-expr [flat-expr #f])
-  (let ([en* (enode expr id-code '() #f 1 #f flat-expr)])
+(define (new-enode expr id-code #:flat-expr [flat-expr #f] #:victory? [victory #f])
+  (let ([en* (enode expr id-code '() #f 1 #f victory flat-expr)])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -130,6 +130,11 @@
 (define (pick-matching-flat en flat-expr)
   (findf (compose (curry equal? flat-expr) enode-flat-expr)
 	 (pack-members en)))
+
+;; Returns a node in the given nodes pack that is a victory node, or false if
+;; one could not be found.
+(define (pick-victory en)
+  (findf enode-victory? (pack-members en)))
 
 (define (check-valid-parent en #:loc [location 'check-valid-parent])
   (let ([parent (enode-parent en)])

@@ -68,13 +68,19 @@
    [else
     (error "WTF" pat)]))
 
-(define (substitute-e eg pat bindings)
+(define (substitute-e eg pat bindings #:victory? [victory #f])
   (cond
    [(constant? pat)
-    (mk-enode! eg pat)]
+    (mk-enode! eg pat #:victory? victory)]
    [(symbol? pat)
-    (cdr (assoc pat bindings))]
+    (let ([binden (cdr (assoc pat bindings))])
+      ;; If we were set to victory, and this enode doesn't already have a victory
+      ;; node in it's pack, set it to victory
+      (when (and victory (not (pick-victory binden)))
+	(set-enode-victory?! binden victory))
+      binden)]
    [(list? pat)
     (mk-enode! eg (cons (car pat)
 			(for/list ([subpat (cdr pat)])
-			  (substitute-e eg subpat bindings))))]))
+			  (substitute-e eg subpat bindings)))
+	       #:victory? victory)]))
