@@ -7,9 +7,9 @@
 (require casio/matcher)
 (require casio/alternative)
 (require casio/programs)
+(require casio/common)
 
-;;(provide simplify-expr)
-(provide (all-defined-out))
+(provide simplify-expr simplify)
 
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
@@ -25,8 +25,10 @@
 ;;################################################################################;;
 
 (define (simplify altn)
-  (let ([slocs (if (alt-change altn)
-		   (rule-slocations (change-rule (alt-change altn)))
+  (let* ([chng (alt-change altn)]
+	 [slocs (if chng
+		    (map (curry append (change-location chng))
+			 (rule-slocations (change-rule (alt-change altn))))
 		   '((2)))])
     (for/list ([loc slocs])
       (let* ([in (location-get loc (alt-program altn))]
@@ -37,6 +39,7 @@
 		     (program-variables (alt-program altn))))))))
 
 (define (simplify-expr expr)
+  (debug #:from 'simplify (format "Simplifying ~a" expr))
   (let ([eg (mk-egraph expr)])
     (iterate-egraph! eg (floor (* 1.35 (max-depth expr))))
     (extract-simplest eg)))

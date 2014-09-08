@@ -186,3 +186,28 @@
 			  (remove lookup acc))
 		    (cons (cons key (list (car rest-items)))
 			  acc)))))))
+
+;; Flag Stuff
+
+(define *flags*
+  (make-parameter
+   #hash([generate . (simplify rm)]
+         #;[evaluate . (random-points)]
+         [reduce   . (regimes zach)]
+         [regimes  . (recurse prefilter)]
+         [simplify . ()]
+         [setup    . (simplify periodicity)])))
+
+(define (toggle-flag! category flag)
+  (*flags*
+   (hash-update (*flags*) category
+		(λ (flag-list)
+		  (if (member flag flag-list)
+		      (remove flag flag-list)
+		      (cons flag flag-list))))))
+
+(define ((flag type f) a b)
+  (if (member f (hash-ref (*flags*) type
+                          (λ () (error "Invalid flag type" type))))
+      a
+      b))
