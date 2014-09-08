@@ -24,6 +24,7 @@ link:
 	raco link casio
 	raco link reports
 	raco link compile
+	raco link casio/simplify
 
 cost:
 	$(CC) -O0 cost.c -lm -o cost
