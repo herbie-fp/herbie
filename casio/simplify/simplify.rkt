@@ -58,7 +58,7 @@
       *reduce-ratio*))
 
 (define (extract-simplest eg)
-  (let pick ([en (egraph-top eg)])
+  (let pick ([en (egraph-top eg)] [depth 0])
     (let ([flat-expr (enode-flat-expr en)]
 	  [expr (enode-expr en)]
 	  [victor (pick-victory en)])

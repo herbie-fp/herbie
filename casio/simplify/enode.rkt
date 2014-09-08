@@ -115,12 +115,9 @@
 	(assert (or (not (list? flat-expr))
 		    (and (eq? (car flat-expr)
 			      (car expr))
-			 (pick-matching-flat
-			  (cadr expr)
-			  (cadr flat-expr))
-			 (pick-matching-flat
-			  (caddr expr)
-			  (caddr flat-expr))))
+			 (andmap pick-matching-flat
+				 (cdr expr)
+				 (cdr flat-expr))))
 		#:loc location))))
   ;; Checks that the depth is positive.
   (assert (positive? (enode-depth en)) #:loc location))

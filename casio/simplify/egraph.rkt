@@ -97,25 +97,27 @@
 ;; after this call, if we are creating a new node it still must be merged into
 ;; an existing node or otherwise attached to the (egraph-top eg) node to be
 ;; completely added to the egraph.
-(define (mk-enode! eg expr #:flat-expr [flat-expr #f])
-  (hash-ref (egraph-expr->parent eg)
-	    expr
-	    (λ ()
-	      (let* ([expr* (if (not (list? expr)) expr
-				(cons (car expr)
-				      (map pack-leader (cdr expr))))]
-		     [en (new-enode expr* (egraph-cnt eg) #:flat-expr flat-expr)]
-		     [leader->iexprs (egraph-leader->iexprs eg)])
-		(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
-		(hash-set! leader->iexprs en (mutable-set))
-		(when (list? expr*)
-		  (for ([suben (cdr expr*)])
-		    (set-add! (hash-ref leader->iexprs (pack-leader suben))
-			      expr*)))
-		(hash-set! (egraph-expr->parent eg)
-			   expr*
-			   en)
-		en))))
+(define (mk-enode! eg expr #:flat-expr [flat-expr #f] #:victory? [victory #f])
+  (if (hash-has-key? (egraph-expr->parent eg) expr)
+      (let ([res (hash-ref (egraph-expr->parent eg) expr)])
+	(when victory
+	  (set-enode-victory?! res victory))
+	res)
+      (let* ([expr* (if (not (list? expr)) expr
+			(cons (car expr)
+			      (map pack-leader (cdr expr))))]
+	     [en (new-enode expr* (egraph-cnt eg) #:flat-expr flat-expr #:victory? victory)]
+	     [leader->iexprs (egraph-leader->iexprs eg)])
+	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
+	(hash-set! leader->iexprs en (mutable-set))
+	(when (list? expr*)
+	  (for ([suben (cdr expr*)])
+	    (set-add! (hash-ref leader->iexprs (pack-leader suben))
+		      expr*)))
+	(hash-set! (egraph-expr->parent eg)
+		   expr*
+		   en)
+	en)))
 
 ;; Takes a plain mathematical expression, quoted, and returns the egraph
 ;; representing that expression with no expansion or saturation.
