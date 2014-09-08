@@ -34,6 +34,7 @@
   (let ([start-cnt (egraph-cnt eg)])
     (for ([srule *simplify-rules*])
       (apply-rule! eg srule))
+    (finalize-egraph-iter! eg)
     (when (and (> (egraph-cnt eg) start-cnt)
 	       (> iters 1))
       (iterate-egraph! eg (sub1 iters)))))

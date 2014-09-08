@@ -3,8 +3,9 @@
 (require casio/simplify/util)
 
 (provide new-enode enode-merge!
-	 enode-vars enode-pid enode?
-	 pack-leader pack-members)
+	 enode-vars real-enode-vars enode-pid
+	 enode-expr
+	 pack-leader pack-members pack-real!)
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -39,7 +40,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth)
+(struct enode (expr id-code children parent depth real? flat-expr)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -55,8 +56,8 @@
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
-(define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1)])
+(define (new-enode expr id-code #:flat-expr [flat-expr #f])
+  (let ([en* (enode expr id-code '() #f 1 #f flat-expr)])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -64,15 +65,18 @@
 ;; To maintain invariants, the child should not be
 ;; deeper than the parent.
 (define (adopt-enode! new-parent child)
-  #;(assert (>= (enode-depth new-parent) (enode-depth child)))
-  #;(assert (not (eq? new-parent child)))
-  (set-enode-children! new-parent (cons child (enode-children new-parent)))
+  (assert (>= (enode-depth new-parent) (enode-depth child)))
+  (assert (not (eq? new-parent child)))
+  (set-enode-children! new-parent
+		       (append (list child)
+			       (enode-children child)
+			       (enode-children new-parent)))
   (set-enode-parent! child new-parent)
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   ;; This is an expensive check, but useful for debuggging.
-  #;(check-valid-parent child)
-  #;(check-valid-children new-parent))
+  (check-valid-parent child)
+  (check-valid-children new-parent))
 
 ;; Merge two packs, given a node from either group.
 ;; Warning: Both this function and adopt-enode! change

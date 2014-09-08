@@ -48,7 +48,7 @@
    [(constant? pat)
     (call/ec
      (λ (k)
-       (for ([var (enode-vars e)])
+       (for ([var (real-enode-vars e)])
 	 (when (and (number? var) (= pat var))
 	   (k '(()))))
        '()))]
@@ -56,7 +56,7 @@
     `(((,pat . ,e)))]
    [(list? pat)
     (apply append
-	   (for/list ([var (enode-vars e)])
+	   (for/list ([var (real-enode-vars e)])
 	     (if (and (list? var) (eq? (car var) (car pat))
 		      (= (length var) (length pat)))
 		 (filter identity

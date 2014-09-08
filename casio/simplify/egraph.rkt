@@ -4,9 +4,9 @@
 (require casio/simplify/enode)
 
 (provide mk-enode! mk-egraph
-	 merge-egraph-nodes! egraph?
-	 egraph-cnt map-enodes
-	 draw-egraph)
+	 merge-egraph-nodes! finalize-egraph-iter!
+	 egraph? egraph-cnt egraph-top
+	 map-enodes draw-egraph)
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -131,6 +131,7 @@
     (set-egraph-top! eg (expr->enode eg expr))
     ;; This is an expensive check, but useful for debuggging.
     #;(check-egraph-valid eg #:loc 'constructing-egraph)
+    (finalize-egraph-iter! eg)
     eg))
 
 ;; Maps a given function over all the equivilency classes
@@ -141,6 +142,11 @@
 ;; Gets all the pack leaders in the egraph
 (define (egraph-leaders eg)
   (hash-keys (egraph-leader->iexprs eg)))
+
+;; Mark all nodes in the egraph as real.
+(define (finalize-egraph-iter! eg)
+  (for ([leader (egraph-leaders eg)])
+    (pack-real! leader)))
 
 ;; Given an egraph and two enodes present in that egraph, merge
 ;; the packs of those two nodes, so that those nodes are equal?,
