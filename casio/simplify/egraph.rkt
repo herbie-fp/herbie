@@ -230,20 +230,23 @@
 	(for ([en (egraph-leaders eg)])
 	  (let ([id (enode-pid en)])
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
-	    (for ([var (enode-vars en)]
+	    (for ([varen (pack-members en)]
 		  [vid (range (length (enode-vars en)))])
-	      (printf "node~avar~a[label=\"~a\",shape=box]~n"
-		      id vid (if (list? var) (car var) var))
-	      (printf "node~a -> node~avar~a[style=dashed]~n"
-		      id id vid)
-	      (cond
-	       [(not (list? var)) (void)]
-	       [(= (length var) 2)
-		(printf "node~avar~a -> node~a~n"
-			id vid (enode-pid (second var)))]
-	       [(= (length var) 3)
-		(printf "node~avar~a -> node~a[tailport=sw]~n"
-			id vid (enode-pid (second var)))
-		(printf "node~avar~a -> node~a[tailport=se]~n"
-			id vid (enode-pid (third var)))]))))
+	      (let ([var (enode-expr varen)]
+		    [victory? (enode-victory? varen)])
+		(printf "node~avar~a[label=\"~a\",shape=box,color=~a]~n"
+			id vid (if (list? var) (car var) var)
+			(if victory? "green" "blue"))
+		(printf "node~a -> node~avar~a[style=dashed]~n"
+			id id vid)
+		(cond
+		 [(not (list? var)) (void)]
+		 [(= (length var) 2)
+		  (printf "node~avar~a -> node~a~n"
+			  id vid (enode-pid (second var)))]
+		 [(= (length var) 3)
+		  (printf "node~avar~a -> node~a[tailport=sw]~n"
+			  id vid (enode-pid (second var)))
+		  (printf "node~avar~a -> node~a[tailport=se]~n"
+			  id vid (enode-pid (third var)))])))))
 	(displayln "}"))))
