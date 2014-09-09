@@ -42,7 +42,7 @@
     (with-handlers ([(const #t) (λ (e) (list 'error e (bf-precision)))])
       (setup (test-program test) (test-samplers test)
              (λ (alt)
-                  (parameterize ([*debug* (open-output-file (file "debug.txt") #:exists 'replace)])
+                  (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)])
                     (list 'good alt (improve alt (*num-iterations*)) (*points*) (*exacts*)))))))
 
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine run-casio)])

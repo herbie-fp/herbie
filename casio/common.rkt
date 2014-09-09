@@ -5,7 +5,7 @@
 
 (provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
-         *debug* debug pipe
+         *debug* *debug-port* debug pipe
 	 safe-eval write-file write-string has-duplicates?
 	 with-item symbol<? common-eval-ns
 	 flip-lists argmaxs multipartition
@@ -23,6 +23,7 @@
       (last possible-returns))))
 
 (define *debug* (make-parameter #f))
+(define *debug-port* (make-parameter (current-error-port)))
 
 (define *tags*
   #hasheq([misc  . "[misc]"]
@@ -59,7 +60,7 @@
 
 (define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 1] . args)
   (when (should-print-debug? from depth)
-    (debug-print from tag args (current-output-port))))
+    (debug-print from tag args (*debug-port*))))
 
 (define (debug-print from tag args port)
   (display (hash-ref *tags* tag "; ") port)
