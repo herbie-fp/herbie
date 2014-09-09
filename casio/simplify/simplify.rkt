@@ -88,7 +88,27 @@
 	  (merge-egraph-nodes!
 	   eg en
 	   (substitute-e eg (rule-output rl) bind
-			 #:victory? (victory-rule? rl))))))))
+			 #:victory? (victory-rule? rl))))))
+    (map-enodes (curry add-precompute eg) eg)))
+
+(define (add-precompute eg en)
+  (for ([var (enode-vars en)])
+    (when (list? var)
+      (let ([constexpr
+	     (cons (car var)
+		   (map (compose (curry setfindf constant?) enode-vars)
+			(cdr var)))])
+	(when (andmap identity (cdr constexpr))
+	  (merge-egraph-nodes!
+	   eg en
+	   (mk-enode! eg (safe-eval constexpr) #:victory? #t)))))))
+
+(define (setfindf f s)
+  (let/ec return
+    (set-for-each s (λ (el)
+		      (when (f el)
+			(return el))))
+    #f))
 
 (define (victory-rule? rl)
   ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs
