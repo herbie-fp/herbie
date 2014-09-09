@@ -5,20 +5,20 @@
 (require casio/common)
 (require casio/programs)
 
-(provide *points* *exacts* *num-points* *exp-size*
+(provide *points* *exacts* *num-points*
 	 sample-expbucket sample-float sample-uniform sample-integer
-         make-exacts prepare-points prepare-points-period errors errors-score)
+         prepare-points prepare-points-period make-exacts
+         errors errors-score)
 
 (define *num-points* (make-parameter 1024))
-(define *exp-size* (make-parameter 256))
 (define *precision-step* (make-parameter 8))
 
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 
 (define (sample-expbucket num)
-  (let ([bucket-width (/ (- (*exp-size*) 2) num)]
-        [bucket-bias (- (/ (*exp-size*) 2) 1)])
+  (let ([bucket-width (/ (- 256 2) num)]
+        [bucket-bias (- (/ 256 2) 1)])
     (for/list ([i (range num)])
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
