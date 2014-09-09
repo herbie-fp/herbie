@@ -24,6 +24,12 @@
                    (cons (repeat (->bf expr)) (repeat 1))]
                   [(? variable?)
                    (cons (map ->bf (cdr (assoc expr vars))) (repeat 1))]
+                  [`(if ,c ,ift ,iff)
+                   (let ([exact-ift (car (analyze-expression ift vars cache))]
+                         [exact-iff (car (analyze-expression iff vars cache))]
+                         [exact-cond (map (eval-prog `(λ ,(map car vars) ,c) mode:bf) (*points*))])
+                     (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
+                           (repeat 1)))]
                   [`(,f ,args ...)
                    (let* ([argvals
                            (flip-lists (map (compose car (curryr analyze-expression vars cache)) args))]
@@ -46,9 +52,9 @@
        (take-up-to
         (sort
          (reap [sow]
-               (for ([expr (hash-keys expr->loc)])
+               (for ([expr (hash-keys cache)])
                  (let ([err (cdr (hash-ref cache expr))]
-                                  [locs (hash-ref expr->loc expr)])
+                       [locs (hash-ref expr->loc expr)])
                    (when (ormap (curry < 1) err)
                      (map sow (map (curry cons err) locs))))))
          > #:key (compose errors-score car))

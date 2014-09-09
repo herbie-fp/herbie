@@ -89,7 +89,7 @@
         +nan.0)]
    [(eq? x 'pi) pi]
    [(eq? x 'e) (exp 1)]
-   [else (error "Invalid number" x)]))
+   [else x]))
 
 (define (->bf x)
   (cond
@@ -99,7 +99,7 @@
     (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
    [(eq? x 'pi) pi.bf]
    [(eq? x 'e) (bfexp 1.bf)]
-   [else (error "Invalid number" x)]))
+   [else x]))
 
 ; Functions and constants used in our language
 (define (cotan x)
