@@ -60,18 +60,6 @@
 	    (atab-add-altns table* (append-map generate-alts (list picked))))
 	  (- fuel 1))]))
 
-(define (reduce-alts table fuel)
-  (let ([combine
-         ((flag 'reduce 'regimes) regimes-alts (const #f))]
-        [fixup
-         ((flag 'reduce 'zach) zach-alt (const '()))])
-    (let* ([table* (atab-add-altns table (append-map fixup (atab-all-alts table)))]
-           [alts* (atab-all-alts table*)])
-      (let ([combo (combine alts* fuel)])
-	(if combo
-	    (best-alt (cons combo alts*))
-	    (best-alt alts*))))))
-
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
 
@@ -99,13 +87,38 @@
         altn
         (apply alt-apply altn (list new-change)))))
 
+(define (reduce-alts table fuel)
+  (let ([combine
+         ((flag 'reduce 'regimes) regimes-alts (const #f))]
+        [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))])
+    (let* ([all-alts (atab-all-alts table)]
+           [locss (map analyze-local-error all-alts)]
+           [alts*
+            (apply append
+                   (for/list ([alt all-alts] [locs locss])
+                     (append-map (curry maybe-zach alt) locs)))]
+           [table* (atab-add-altns table alts*)]
+           [alts-all (atab-all-alts table*)]
+           [alts-combine (atab-some-alts table*)])
+      (let ([combo (combine ((flag 'regimes 'prefilter) alts-combine alts-all) fuel)])
+	(if combo
+	    (best-alt (cons combo alts-all))
+	    (best-alt alts-all))))))
+
+(define (zach-alt altn loc)
+  (let ([sibling (location-sibling loc)])
+    (if (and sibling
+             (= (length (location-get (location-parent loc)
+                                      (alt-program altn))) 3))
+        (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
+        '())))
+
 (define (regimes-alts alts fuel)
-  (let* ([filter-func ((flag 'regimes 'prefilter) plausible-alts identity)]
-         [recurse-func ((flag 'regimes 'recurse)
+  (let* ([recurse-func ((flag 'regimes 'recurse)
                         (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))
                         identity)]
-         [alts* (map (curryr alt-add-event '(start regimes)) (filter-func alts))])
-    (if (> 2 (length alts*))
+         [alts* (map (curryr alt-add-event '(start regimes)) alts)])
+    (if (< (length alts*) 2)
         #f
         (combine-alts alts* #:pre-combo-func recurse-func))))
 
@@ -113,13 +126,3 @@
   (when (null? alts)
     (error "Trying to find the best of no alts!"))
   (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
-
-(define (zach-alt altn)
-  (apply append
-         (for/list ([loc (analyze-local-error altn)])
-           (let ([sibling (location-sibling loc)])
-             (if (and sibling
-                      (= (length (location-get (location-parent loc)
-                                               (alt-program altn))) 3))
-                 (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
-                 '())))))

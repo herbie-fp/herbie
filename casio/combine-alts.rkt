@@ -317,7 +317,7 @@
   (let* ([num-candidates (length err-lsts)]
 	 [num-points (length (car err-lsts))]
 	 [psums (map (compose list->vector partial-sum) err-lsts)]
-	 [min-weight (/ num-points 2)])
+	 [min-weight num-points])
     ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitindices after
     ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
     ;; lists, this function tries to add another splitindices to each cse.

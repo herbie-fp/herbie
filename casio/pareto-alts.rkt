@@ -4,7 +4,7 @@
 (require casio/alternative)
 (require casio/points)
 
-(provide make-alt-table atab-all-alts
+(provide make-alt-table atab-all-alts atab-some-alts
 	 atab-add-altns atab-pick-alt
 	 atab-completed?)
 
@@ -27,6 +27,17 @@
   (let* ([picked (pick (atab-not-done-alts atab))]
 	 [atab* (alt-table-with atab #:alts->done? (hash-set (alt-table-alts->done? atab) picked #t))])
     (values picked atab*)))
+
+(define (atab-some-alts atab)
+  (let ([alts (hash-keys (alt-table-alts->points atab))])
+    (reap [sow]
+          (for ([alt alts])
+            (let ([best-points
+                   (count (curry = 1)
+                    (for/list ([pt (hash-ref (alt-table-alts->points atab) alt)])
+                      (length (point-rec-altns (hash-ref (alt-table-points->alts atab) pt)))))])
+              (when (>= best-points (/ (*num-points*) 64))
+                (sow alt)))))))
 
 (define (atab-all-alts atab)
   (hash-keys (alt-table-alts->points atab)))
