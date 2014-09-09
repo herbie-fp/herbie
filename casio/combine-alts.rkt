@@ -191,7 +191,7 @@
 		   (let* ([p* (point-with-dim var-idx (make-list (length (program-variables (alt-program (car alts))))
 								 *default-test-value*)
 					      p)]
-			  [exact (car (make-exacts (alt-program alt1) (list p*)))]
+			  [exact ((eval-prog (alt-program alt1) mode:bf) p*)]
 			  [e1 (error-at (alt-program alt1) p* exact)]
 			  [e2 (error-at (alt-program alt2) p* exact)])
 		     (< e1 e2)))])
