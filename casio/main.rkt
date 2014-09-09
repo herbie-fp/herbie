@@ -102,11 +102,12 @@
                       (append-map (curry maybe-zach alt) locs)
                       (map (curry maybe-taylor alt) locs))))]
            [table* (atab-add-altns table alts*)]
-           [alts** (atab-all-alts table*)])
-      (let ([combo (combine alts** fuel)])
+           [alts-all (atab-all-alts table*)]
+           [alts-combine (atab-some-alts table*)])
+      (let ([combo (combine ((flag 'regimes 'prefilter) alts-combine alts-all) fuel)])
 	(if combo
-	    (best-alt (cons combo alts**))
-	    (best-alt alts**))))))
+	    (best-alt (cons combo alts-all))
+	    (best-alt alts-all))))))
 
 (define (taylor-alt altn loc)
   (let ([new-prog
