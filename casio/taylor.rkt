@@ -7,6 +7,7 @@
 (provide approximate taylor)
 
 (define (approximate expr vars)
+  (debug #:from 'taylor "Taking taylor expansion of" expr "in" vars)
   ; TODO : Redo using new "hull" idea
   (simplify
    (cons '+
@@ -44,7 +45,9 @@
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
     [`(/ ,arg)
-     (taylor-invert ((curry taylor var) arg))]
+     (taylor-invert (taylor var arg))]
+    [`(/ 1 ,arg)
+     (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
      (taylor-quotient (taylor var num) (taylor var den))]
     [`(if ,cond ,btrue ,bfalse)
@@ -52,9 +55,8 @@
     [`(mod ,a ,b)
      (taylor-exact expr)]
     [`(sqr ,a)
-     (match (taylor var a)
-       [(cons offset coeffs)
-        (cons (* 2 offset) (compose coeffs (curry * 2)))])]
+     (let ([ta (taylor var a)])
+       (taylor-mult ta ta))]
     [`(,(? (curryr member taylor-funcs) f) ,args ...)
      (let ([args* (map (compose normalize-series (curry taylor var)) args)])
        (if (ormap (compose positive? car) args*)
@@ -129,7 +131,7 @@
                                     (simplify
                                      `(- (+ ,@(for/list ([i (range n)])
                                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
-         (cons offset f)))]))
+         (cons (- offset) f)))]))
 
 (define (taylor-quotient num denom)
   "This gets tricky, because the function might have a pole at 0.
