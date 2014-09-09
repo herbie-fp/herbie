@@ -24,7 +24,7 @@
    start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error))
 (struct test-failure (test bits exn time rdir))
-(struct test-timeout (test bits) #:prefab)
+(struct test-timeout (test bits rdir) #:prefab)
 
 (define (get-test-result test iters rdir)
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
@@ -69,28 +69,7 @@
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
       [#f
-       (test-timeout test (bf-precision))])))
-
-(define (srcloc->string sl)
-  (if sl
-      (string-append
-       (path->string (srcloc-source sl))
-       ":"
-       (number->string (srcloc-line sl))
-       ":"
-       (number->string (srcloc-column sl)))
-      "???"))
-
-(define (html-escape-unsafe err)
-  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
-
-(define (make-traceback err)
-  (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
-  (printf "<ol id='traceback'>\n")
-  (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
-    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
-  (printf "</ol>\n"))
+       (test-timeout test (bf-precision) rdir)])))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
@@ -100,41 +79,31 @@
 ;; Returns #t if the graph was sucessfully made, #f is we had a crash during
 ;; the graph making process, or the test itself crashed.
 (define (make-graph-if-valid result tname index rdir)
-  (let* ([dir (build-path *dir* rdir)]) ; TODO : Hard-coded folder name
+  (let* ([dir (build-path *dir* rdir)])
     (with-handlers ([(const #f) (λ _ #f)])
-      (cond
-       [(test-result? result)
-        (when (not (directory-exists? dir))
-          (make-directory dir))
+      (when (not (directory-exists? dir))
+        (make-directory dir))
 
-        (make-graph (test-result-test result)
-                    (test-result-end-alt result)
-                    (test-result-newpoints result)
-                    (test-result-start-error result)
-                    (test-result-end-error result)
-                    (test-result-target-error result)
-		    (test-result-bits result)
-                    dir
-                    *profile?*)
-
-        (build-path rdir "graph.html")]
-       [(test-timeout? result)
-        #f]
-       [(test-failure? result)
-        (when (not (directory-exists? dir))
-          (make-directory dir))
+      (match result
+       [(test-result test rdir time bits
+                     start-alt end-alt points exacts
+                     start-est-error end-est-error
+                     newpoints newexacts start-error end-error
+                     target-error)
 
         (write-file (build-path dir "graph.html")
-          (printf "<html>\n")
-          (printf "<head><meta charset='utf-8' /><title>Exception for ~a</title></head>\n"
-                  (test-name (test-failure-test result)))
-          (printf "<body>\n")
-          (make-traceback (test-failure-exn result))
-          (printf "</body>\n")
-          (printf "</html>\n"))
-
+          (make-graph test end-alt newpoints start-error end-error target-error bits dir *profile?*))
         (build-path rdir "graph.html")]
-       [else #f]))))
+
+       [(test-timeout test bits rdir)
+        (write-file (build-path dir "graph.html")
+          (make-timeout test bits *profile?*))
+        (build-path rdir "graph.html")]
+
+       [(test-failure test bits exn time rdir)
+        (write-file (build-path dir "graph.html")
+          (make-traceback test exn bits *profile?*))
+        (build-path rdir "graph.html")]))))
 
 (struct table-row
   (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
@@ -188,7 +157,7 @@
    [(test-timeout? result)
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-               *timeout* (test-timeout-bits result) #f)]))
+               *timeout* (test-timeout-bits result) (test-timeout-rdir result))]))
 
 (define (run-casio index test iters)
   (let* ([rdir (graph-folder-path (test-name test) index)]

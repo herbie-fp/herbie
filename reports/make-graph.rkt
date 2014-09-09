@@ -9,7 +9,7 @@
 (require casio/combine-alts)
 (require casio/programs)
 
-(provide make-graph)
+(provide make-graph make-traceback make-timeout)
 
 (define *line-width* 3)
 (define *point-width* 2)
@@ -22,47 +22,102 @@
 (define *label-width* 15)
 
 (define (make-graph test end-alt points start-errs end-errs target-errs bits dir profile?)
+  (printf "<!doctype html>\n")
+  (printf "<html>\n")
+  (printf "<head>")
+  (printf "<meta charset='utf-8' />")
+  (printf "<title>Results for ~a</title>" (test-name test))
+  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+  (printf "</head>\n")
+  (printf "<body>\n")
 
-  ;; Generate the html for our graph page
-  (write-file (build-path dir "graph.html")
-    (printf "<!doctype html>\n")
-    (printf "<html>\n")
-    (printf "<head>")
-    (printf "<meta charset='utf-8' />")
-    (printf "<title>Results for ~a</title>" (test-name test))
-    (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-    (printf "</head>\n")
-    (printf "<body>\n")
+  (printf "<dl id='about'>\n")
+  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+  (printf "<dt>Logs:</dt>")
+  (printf "<dd><a href='debug.txt'>Debug output</a>")
+  (when profile?
+    (printf ", <a href='profile.txt'>Profiling report</a>"))
+  (printf "</dd>\n")
+  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+  (printf "</dl>\n")
 
-    (printf "<dl id='about'>\n")
-    (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-    (printf "<dt>Logs:</dt>")
-    (printf "<dd><a href='debug.txt'>Debug output</a>")
-    (when profile?
-      (printf ", <a href='profile.txt'>Profiling report</a>"))
-    (printf "</dd>\n")
-    (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-    (printf "</dl>\n")
+  (printf "<div id='graphs'>\n")
+  (for ([idx (range (length (test-vars test)))])
+    (let-values ([(x-scale x-unscale)
+                  (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
+                 [(y-scale y-unscale) (linear-scale* 0 64 175.0 20.0)])
+      (printf "<svg width='500' height='300'>\n")
+      (set-up-line)
+      (draw-line idx points start-errs x-scale y-scale "red")
+      (when target-errs
+        (draw-line idx points target-errs x-scale y-scale "green"))
+      (draw-line idx points end-errs x-scale y-scale "blue")
+      (draw-axes x-scale x-unscale y-scale y-unscale)
+      (draw-key (list-ref (test-vars test) idx) target-errs))
+    (printf "</svg>\n"))
+  (printf "</div>\n")
 
-    (printf "<div id='graphs'>\n")
-    (for ([idx (range (length (test-vars test)))])
-      (let-values ([(x-scale x-unscale)
-                    (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
-                   [(y-scale y-unscale) (linear-scale* 0 64 175.0 20.0)])
-        (printf "<svg width='500' height='300'>\n")
-        (set-up-line)
-        (draw-line idx points start-errs x-scale y-scale "red")
-        (when target-errs
-          (draw-line idx points target-errs x-scale y-scale "green"))
-        (draw-line idx points end-errs x-scale y-scale "blue")
-        (draw-axes x-scale x-unscale y-scale y-unscale)
-        (draw-key (list-ref (test-vars test) idx) target-errs))
-      (printf "</svg>\n"))
-    (printf "</div>\n")
+  (printf "<ol id='process-info'>\n")
+  (output-history end-alt)
+  (printf "</ol>\n")
 
-    (printf "<ol id='process-info'>\n")
-    (output-history end-alt)
-    (printf "</ol>\n")))
+  (printf "</body>\n")
+  (printf "</html>\n"))
+
+(define (make-traceback test err bits profile?)
+  (printf "<!doctype html>\n")
+  (printf "<html>\n")
+  (printf "<head>\n")
+  (printf "<meta charset='utf-8' />\n")
+  (printf "<title>Exception for ~a</title>" (test-name test))
+  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+  (printf "</head>")
+  (printf "<body>\n")
+
+  (printf "<dl id='about'>\n")
+  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+  (printf "<dt>Logs:</dt>")
+  (printf "<dd><a href='debug.txt'>Debug output</a>")
+  (when profile?
+    (printf ", <a href='profile.txt'>Profiling report</a>"))
+  (printf "</dd>\n")
+  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+  (printf "</dl>\n")
+
+  (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
+  (printf "<ol id='traceback'>\n")
+  (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
+    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
+            (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
+  (printf "</ol>\n")
+
+  (printf "</body>\n")
+  (printf "</html>\n"))
+
+(define (make-timeout test bits profile?)
+  (printf "<!doctype html>\n")
+  (printf "<html>\n")
+  (printf "<head>\n")
+  (printf "<meta charset='utf-8' />\n")
+  (printf "<title>Timeout for ~a</title>" (test-name test))
+  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+  (printf "</head>")
+  (printf "<body>\n")
+
+  (printf "<dl id='about'>\n")
+  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+  (printf "<dt>Logs:</dt>")
+  (printf "<dd><a href='debug.txt'>Debug output</a>")
+  (when profile?
+    (printf ", <a href='profile.txt'>Profiling report</a>"))
+  (printf "</dd>\n")
+  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+  (printf "</dl>\n")
+
+  (printf "<h2>Test timed out</h2>\n")
+
+  (printf "</body>\n")
+  (printf "</html>\n"))
 
 (struct interval (alt-idx start-point end-point vidx))
 
@@ -164,7 +219,7 @@
                  (max 10 (min 790 (x-scale 0))))])
     (draw-x-axis 10 490 175)
     (draw-y-axis pos-0 175 20)
-    
+
     (draw-x-ticks 175 10.0 480.0 16
       (λ (x) (~r (x-unscale x) #:notation 'exponential #:precision 0)))
 
@@ -315,3 +370,16 @@
 (define (draw-x-axis x1 x2 y-pos)
   (printf "<line x1='~a' y1='~a' x2='~a' y2='~a' class='axis' />\n"
           x1 y-pos x2 y-pos))
+
+(define (html-escape-unsafe err)
+  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
+
+(define (srcloc->string sl)
+  (if sl
+      (string-append
+       (path->string (srcloc-source sl))
+       ":"
+       (number->string (srcloc-line sl))
+       ":"
+       (number->string (srcloc-column sl)))
+      "???"))
