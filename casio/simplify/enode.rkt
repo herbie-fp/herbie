@@ -3,7 +3,7 @@
 (require casio/simplify/util)
 
 (provide new-enode enode-merge!
-	 enode-vars enode-pid
+	 enode-vars refresh-vars! enode-pid
 	 enode? enode-flat-expr pick-matching-flat
 	 enode-expr pick-victory set-enode-victory?! enode-victory?
 	 pack-leader pack-members)
@@ -184,6 +184,11 @@
 ;; of the members of the given enodes pack.
 (define (enode-vars en)
   (enode-cvars (pack-leader en)))
+
+;; Removes duplicates from the varset of this node.
+(define (refresh-vars! en)
+  (printf "refreshing vars for ~a~n" en)
+  (set-enode-cvars! en (list->set (set->list (enode-cvars en)))))
 
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)

@@ -199,6 +199,7 @@
 					      (cdr old-key))))]
 				[new-val (cdr chmap)]
 				[existing-val (hash-ref expr->parent new-key #f)])
+			   (refresh-vars! new-val)
 			   (if existing-val
 			       (cons new-val existing-val)
 			       (begin
