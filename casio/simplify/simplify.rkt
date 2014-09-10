@@ -3,6 +3,7 @@
 (require casio/simplify/egraph)
 (require casio/simplify/ematch)
 (require casio/simplify/enode)
+(require casio/simplify/util)
 (require casio/rules)
 (require casio/matcher)
 (require casio/alternative)
@@ -28,7 +29,7 @@
 ;; be considered a victory rule.
 (define *reduce-ratio* 2/3)
 ;; The number of iterations of the egraph is the maximum depth times this custom
-(define *iters-depth-ratio* 1.35)
+(define *iters-depth-ratio* 1.5)
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
@@ -80,15 +81,16 @@
 						       (match-e (rule-input rl) en)))
 					       eg))))
 		   rls))])
-    (for ([match matches])
-      (let ([rl (first match)]
-	    [en (first (second match))]
-	    [binds (cdr (second match))])
-	(for ([bind binds])
-	  (merge-egraph-nodes!
-	   eg en
-	   (substitute-e eg (rule-output rl) bind
-			 #:victory? (victory-rule? rl))))))
+    (for ([rmatch matches])
+      (let ([rl (first rmatch)])
+	(for ([ematch (rest rmatch)])
+	  (let ([en (first ematch)]
+		[binds (cdr ematch)])
+	    (for ([bind binds])
+	      (merge-egraph-nodes!
+	       eg en
+	       (substitute-e eg (rule-output rl) bind
+			     #:victory? (victory-rule? rl))))))))
     (map-enodes (curry add-precompute eg) eg)))
 
 (define (add-precompute eg en)
@@ -102,13 +104,6 @@
 	  (merge-egraph-nodes!
 	   eg en
 	   (mk-enode! eg (safe-eval constexpr) #:victory? #t)))))))
-
-(define (setfindf f s)
-  (let/ec return
-    (set-for-each s (λ (el)
-		      (when (f el)
-			(return el))))
-    #f))
 
 (define (victory-rule? rl)
   ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs

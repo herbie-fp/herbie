@@ -29,3 +29,10 @@
     [(assert pred)
      (when (not pred)
        (error 'assert "~a returned false!" 'pred))]))
+
+(define (setfindf f s)
+  (let/ec return
+    (set-for-each s (λ (el)
+		      (when (f el)
+			(return el))))
+    #f))

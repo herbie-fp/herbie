@@ -8,6 +8,8 @@
 	 egraph? egraph-cnt egraph-top
 	 map-enodes draw-egraph)
 
+(provide (all-defined-out))
+
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
 ;;# Egraphs keep track of how many enodes have been created, and keep a pointer
@@ -108,7 +110,6 @@
 			      (map pack-leader (cdr expr))))]
 	     [en (new-enode expr* (egraph-cnt eg) #:flat-expr flat-expr #:victory? victory)]
 	     [leader->iexprs (egraph-leader->iexprs eg)])
-	(printf "making node #~a~n" (egraph-cnt eg))
 	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
 	(hash-set! leader->iexprs en (mutable-set))
 	(when (list? expr*)
@@ -179,7 +180,8 @@
 		  ;; Remove the old leader->iexprs mappings
 		  (hash-remove! leader->iexprs l1)
 		  (hash-remove! leader->iexprs l2)
-		  (let ([merged-en (enode-merge! l1 l2)])
+		  (let* ([merged-en (enode-merge! l1 l2)]
+			 [seen-leaders (mutable-set)])
 		    ;; Add the new leader->iexprs mapping. We remove duplicates again,
 		    ;; even though we already did that, because there might be things that
 		    ;; weren't duplicates before we merged, but are now.
@@ -197,9 +199,11 @@
 						(if (equal? en merged-en)
 						    merged-en (pack-leader en)))
 					      (cdr old-key))))]
-				[new-val (cdr chmap)]
+				[new-val (pack-leader (cdr chmap))]
 				[existing-val (hash-ref expr->parent new-key #f)])
-			   (refresh-vars! new-val)
+			   (when (not (set-member? seen-leaders new-val))
+			     (refresh-vars! new-val)
+			     (set-add! seen-leaders new-val))
 			   (if existing-val
 			       (cons new-val existing-val)
 			       (begin
@@ -228,7 +232,7 @@
 	(for ([en (egraph-leaders eg)])
 	  (let ([id (enode-pid en)])
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
-	    (for ([varen (pack-members en)]
+	    (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
 		  [vid (in-naturals)])
 	      (let ([var (enode-expr varen)]
 		    [victory? (enode-victory? varen)])

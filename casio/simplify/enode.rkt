@@ -187,7 +187,6 @@
 
 ;; Removes duplicates from the varset of this node.
 (define (refresh-vars! en)
-  (printf "refreshing vars for ~a~n" en)
   (set-enode-cvars! en (list->set (set->list (enode-cvars en)))))
 
 ;; Returns the pack ID of the pack of the given enode.
