@@ -79,16 +79,16 @@
 		     ;; for some part of this expression without also refreshing the binding.
 		     (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
 		     
-		     (assert (member k (enode-vars v)) #:loc location)
+		     (assert (setfindf (curry equal? k) (enode-vars v)) #:loc location)
 		     (when (list? k)
 		       (for ([en (cdr k)])
 			 (assert (eq? en (pack-leader en)) #:loc location)))))
     ;; Verify property 8
-    (let loop ([seen '()] [rest-leaders (hash-keys leader->iexprs)])
+    (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
-	(assert (null? (set-intersect seen cur-leader-vars)))
+	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
 	(when (not (null? (cdr rest-leaders)))
-	  (loop (append cur-leader-vars seen) (cdr rest-leaders)))))))
+	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))
 
 ;; Takes an egraph, and an expression, as defined in enode.rkt, and returns
 ;; either a new enode that has been added to the graph, mutating the state of
