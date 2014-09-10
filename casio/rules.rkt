@@ -195,7 +195,6 @@
   [clear-num  (/ a b)  (/ 1 (/ b a))                     ((2))])
 
 ; Trigonometry
-<<<<<<< HEAD
 (define-ruleset trig-reduce
   [cos-sin-sum (+ (sqr (cos a))    (sqr (sin a))) 1                                ()]
   [1-sub-cos   (- 1 (sqr (cos a))) (sqr (sin a))                                   ((1))]

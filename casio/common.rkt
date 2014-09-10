@@ -265,7 +265,7 @@
    #hash([generate . (simplify rm)]
          #;[evaluate . (random-points)]
          [reduce   . (regimes zach)]
-         [regimes  . (recurse prefilter)]
+         [regimes  . (recurse)]
          [simplify . (pavel)]
          [setup    . (simplify periodicity)])))
 

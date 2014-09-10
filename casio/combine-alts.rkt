@@ -5,94 +5,9 @@
 (require casio/points)
 (require casio/common)
 
-(provide plausible-alts combine-alts (struct-out sp))
+(provide combine-alts (struct-out sp))
 ;; This value is entirely arbitrary and should probably be changed,
 ;; before it destroys something.
-(define *branch-cost* 20)
-(define *min-region-size* 1)
-
-;; A lexically scoped predicate that is true on the top level,
-;; but if you're in code that was called because you were trying
-;; to improve one of the branches of a conditional, then it is
-;; a predicate returning true to points that will go to your part
-;; of the branch, and false to points that won't. This predicate
-;; takes the form of a racket expression which must be evaluated to be called.
-(define *point-pred* (make-parameter (const #t)))
-
-;; This constant determines how aggressive our filtration is.
-;; Higher values mean we will filter more aggresively, and might
-;; accidentally filter out a good option.
-(define *plausibility-min-region-size* 3)
-
-;; Works like ormap, except instead of returning true if
-;; any invocation of pred returns true, it returns true only
-;; if at least reg-size invocations return true in a row.
-(define (region-ormap pred reg-size . lsts)
-  (let loop ([rest-arg-lists (flip-lists lsts)] [true-count 0])
-    (cond [(= true-count reg-size) #t]
-	  [(null? rest-arg-lists) #f]
-	  [(apply pred (car rest-arg-lists))
-	   (loop (cdr rest-arg-lists) (add1 true-count))]
-	  [#t (loop (cdr rest-arg-lists) 0)])))
-
-(define (first-pass-filter . alts)
-  (let loop ([cur-alt (car alts)] [rest-alts (cdr alts)] [acc '()])
-    (let ([rest-alts* (filter (λ (altn) (or (< (alt-cost altn) (alt-cost cur-alt))
-					    (region-ormap < *plausibility-min-region-size*
-							  (alt-errors altn) (alt-errors cur-alt))))
-			      rest-alts)])
-      (if (null? rest-alts*)
-	  (begin (debug "Made it through the first filter: " acc #:from 'regime-changes #:depth 3)
-		 (cons cur-alt acc))
-	  (loop (car rest-alts*) (cdr rest-alts*) (cons cur-alt acc))))))
-
-;; Determines which alternatives out of a list of alternatives
-;; are plausible for use in regime combinations.
-(define (plausible-alts alts)
-  (debug "Looking for plausible alts out of " alts #:from 'regime-changes #:depth 3)
-  ;; Returns a list of error-cost-points, which are the cost
-  ;; of the program consed on to an error point.
-  (define (make-cost-error-points altn)
-    (map (curry cons (alt-cost altn)) (alt-errors altn)))
-
-  ;; alts -> [error]
-  (define (best-errors . alts)
-    (apply (curry map min)
-	   (map alt-errors alts)))
-  ;; alts -> [cost-error-point]
-  ;; For a list of alts, returns a list of, at each point,
-  ;; an error-cost-point representing the best error our
-  ;; alts have at that point, and the best cost of an alt
-  ;; that has that error.
-  (define (best-cost-errors . alts)
-    (map (λ (ceps)
-	   (let* ([min-err (apply min (map cdr ceps))]
-		  [best-cost (apply min (map car (filter (λ (cep) (= (cdr cep) min-err))
-							 ceps)))])
-	     (cons best-cost min-err)))
-	 (flip-lists (map make-cost-error-points alts))))
-  ;; Determines whether this error-cost-point is better
-  ;; than the other error-cost-point.
-  (define (better? cep1 cep2)
-    ;; If we have less error than the least error at this point,
-    ;; we're better.
-    (or (< (cdr cep1) (cdr cep2))
-	(and (= (cdr cep1) (cdr cep2))
-	     (<= (car cep1) (car cep2)))))
-  ;; Determines whether an alt is equivilent in errors and cost.
-  (define (same? alt1 alt2) (and (= (alt-cost alt1) (alt-cost alt2))
-				 (andmap = (alt-errors alt1) (alt-errors alt2))))
-  ;; Filter alts based on this predicate: If it's the better than all the other alts at some point,
-  ;; keep it, otherwise discard it. Then, remove duplicate alts, where alts are considered the same
-  ;; if they have the same error performance and cost.
-  (if (>= 1 (length alts))
-      alts
-      (remove-duplicates (filter (lambda (altn) (region-ormap better?
-							      *plausibility-min-region-size*
-							      (make-cost-error-points altn)
-							      (apply best-cost-errors (remove altn alts))))
-				 (apply first-pass-filter alts))
-			 same?)))
 
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))
@@ -308,58 +223,59 @@
 (struct cse (cost splitpoints) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-;; Takes two optional parameters: max-splits, the maximum number of splitpoints to return, and
-;; min-weight, the minimum total error in a region (?).
+;; Takes an optional parameter: max-splits, the maximum number of splitpoints to return
 (define (err-lsts->split-indices #:max-splits [max-splits 5] err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
-  (let* ([num-candidates (length err-lsts)]
-	 [num-points (length (car err-lsts))]
-	 [psums (map (compose list->vector partial-sum) err-lsts)]
-	 [min-weight num-points])
-    ;; Our intermediary data is a vector of cse's where each cse represents the optimal splitindices after
-    ;; however many passes if we only consider indices to the left of that cse's index. Given one of these
-    ;; lists, this function tries to add another splitindices to each cse.
-    (define (add-splitpoint sp-prev)
-      ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-      (for/list ([point-idx (in-naturals)] [point-entry sp-prev])
-        ;; We build a huge list of all the potential splitpoint combinations we could make,
-        ;; and then get the one with the minimum cost.
-        (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-          (for ([prev-split-idx (in-naturals)] [prev-entry (take sp-prev point-idx)])
-            (let ([best #f] [bcost #f])
-              (for ([cidx (in-naturals)] [psum psums])
-                (let ([cost (- (vector-ref psum point-idx)
-                               (vector-ref psum prev-split-idx))])
-                  (when (or (not best) (< cost bcost))
-                    (set! bcost cost)
-                    (set! best cidx))))
-              (when (< (+ (cse-cost prev-entry) bcost) acost)
-                (set! acost (+ (cse-cost prev-entry) bcost))
-                (set! aest (cse acost (cons (si best (+ point-idx 1))
-                                            (cse-splitpoints prev-entry)))))))
-          aest)))
-  (define ltime (current-inexact-milliseconds))
-  (let* ([sp-initial
-	  ;; We get the initial set of cse's by, at every point-index,
-	  ;; accumulating the candidates that are the best we can do
-	  ;; by using only one candidate to the left of that point.
-	  (for/list ([point-idx (in-range num-points)])
-            (argmin cse-cost
-                    ;; Consider all the candidates we could put in this region
-                    (map (λ (cand-idx cand-psums)
-                            (let ([cost (vector-ref cand-psums point-idx)])
-                              (cse cost
-                                   (list (si cand-idx (add1 point-idx))))))
+  (define num-candidates (length err-lsts))
+  (define num-points (length (car err-lsts)))
+  (define min-weight num-points)
+
+  (define psums (map (compose list->vector partial-sum) err-lsts))
+
+  ;; Our intermediary data is a list of cse's,
+  ;; where each cse represents the optimal splitindices after however many passes
+  ;; if we only consider indices to the left of that cse's index.
+  ;; Given one of these lists, this function tries to add another splitindices to each cse.
+  (define (add-splitpoint sp-prev)
+    ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
+    (for/list ([point-idx (in-naturals)] [point-entry sp-prev])
+      ;; We take the CSE corresponding to the best choice of previous split point.
+      ;; The default, not making a new split-point, gets a bonus of min-weight
+      (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
+        (for ([prev-split-idx (in-naturals)] [prev-entry (take sp-prev point-idx)])
+          ;; For each previous split point, we need the best candidate to fill the new regime
+          (let ([best #f] [bcost #f])
+            (for ([cidx (in-naturals)] [psum psums])
+              (let ([cost (- (vector-ref psum point-idx)
+                             (vector-ref psum prev-split-idx))])
+                (when (or (not best) (< cost bcost))
+                  (set! bcost cost)
+                  (set! best cidx))))
+            (when (< (+ (cse-cost prev-entry) bcost) acost)
+              (set! acost (+ (cse-cost prev-entry) bcost))
+              (set! aest (cse acost (cons (si best (+ point-idx 1))
+                                          (cse-splitpoints prev-entry)))))))
+        aest)))
+
+  ;; We get the initial set of cse's by, at every point-index,
+  ;; accumulating the candidates that are the best we can do
+  ;; by using only one candidate to the left of that point.
+  (define initial
+    (for/list ([point-idx (in-range num-points)])
+      (argmin cse-cost
+              ;; Consider all the candidates we could put in this region
+              (map (λ (cand-idx cand-psums)
+                      (let ([cost (vector-ref cand-psums point-idx)])
+                        (cse cost
+                             (list (si cand-idx (add1 point-idx))))))
                          (range num-candidates)
-                         psums)))]
-         [sp-final
-          (for/accumulate (prev sp-initial) ([i (range 1 max-splits)]) (add-splitpoint prev))]
-	 ;; We get the final splitpoints consideration by piping the initial through
-	 ;; add-splipoints as many times as we want splitpoints.
-	 ;; Each call to add splitpoints will be operating on a slightly smaller list, so
-	 ;; we pass each one an index offset, calculated by pass-num * min-region-size.
-	 #;[sp-final (pipe sp-initial (build-list (sub1 max-splits)
-						(compose (curry curry add-splitpoint) (curry * min-region-size) add1)))]) 
-      ;; Extract the splitpoints from our data structure, and reverse it.
-      (reverse (cse-splitpoints (last sp-final))))))
+                         psums))))
+    
+  ;; We get the final splitpoints by applying add-splitpoints as many times as we want
+  (define final
+    (for/accumulate (prev initial) ([i (range 1 max-splits)])
+      (add-splitpoint prev)))
+
+  ;; Extract the splitpoints from our data structure, and reverse it.
+  (reverse (cse-splitpoints (last final))))
