@@ -137,7 +137,7 @@
   (let ([eg (egraph 0 #f (make-hash) (make-hash))])
     (set-egraph-top! eg (expr->enode eg expr))
     ;; This is an expensive check, but useful for debuggging.
-    (check-egraph-valid eg #:loc 'constructing-egraph)
+    #;(check-egraph-valid eg #:loc 'constructing-egraph)
     eg))
 
 ;; Maps a given function over all the equivilency classes
@@ -219,7 +219,7 @@
 		    merged-en))))))
     ;; Check to make sure we haven't corrupted the state.
     ;; This is an expensive check, but useful for kjkldebuggging.
-    (check-egraph-valid eg #:loc 'merging)))
+    #;(check-egraph-valid eg #:loc 'merging)))
 
 (define (mutable-set-remove-duplicates st)
   (list->mutable-set (set->list st)))
