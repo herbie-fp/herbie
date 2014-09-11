@@ -86,7 +86,7 @@
         [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
         [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
     (let* ([all-alts (atab-all-alts table)]
-           [locss (map (compose localize-error alt-program all-alts)]
+           [locss (map (compose localize-error alt-program) all-alts)]
            [alts*
             (apply append
                    (for/list ([alt all-alts] [locs locss])
