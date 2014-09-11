@@ -29,7 +29,7 @@
 ;; be considered a victory rule.
 (define *reduce-ratio* 2/3)
 ;; The number of iterations of the egraph is the maximum depth times this custom
-(define *iters-depth-ratio* 1.5)
+(define *iters-depth-ratio* 1.35)
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
