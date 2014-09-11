@@ -4,8 +4,7 @@
 (require casio/points)
 (require casio/alternative)
 (require casio/localize-error)
-(require (rename-in casio/pavel-simplification [simplify simplify-pavel]))
-(require (rename-in casio/simplify [simplify simplify-old]))
+(require casio/simplify)
 (require casio/infer-regimes)
 (require casio/locations)
 (require casio/programs)
@@ -72,21 +71,14 @@
     (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
 
 (define (simplify-alt altn)
-  (((flag 'simplify 'pavel) simplify-alt-new simplify-alt-old)
-   (alt-add-event altn '(start simplify))))
-
-(define (simplify-alt-old altn)
-  (apply alt-apply altn (simplify-old altn)))
-
-(define (simplify-alt-new altn)
-  (let* ([new-prog (simplify-pavel (program-body (alt-program altn)))]
+  (let* ([new-prog (simplify (program-body (alt-program altn)))]
          [new-rule (rule 'simplify 'a 'b '())]
          [new-change (change new-rule '(2)
                              `((a . ,(program-body (alt-program altn)))
                                (b . ,new-prog)))])
     (if (equal? new-prog (program-body (alt-program altn)))
         altn
-        (apply alt-apply altn (list new-change)))))
+        (apply alt-apply (alt-add-event altn '(start simplify)) (list new-change)))))
 
 (define (reduce-alts table fuel)
   (let ([combine

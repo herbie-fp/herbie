@@ -13,7 +13,7 @@
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach taylor)]
          [regimes  . (recurse)]
-         [simplify . (pavel)]
+         [simplify . ()]
          [setup    . (simplify periodicity)])))
 
 (define (toggle-flag! category flag)
