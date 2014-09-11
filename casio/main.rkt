@@ -3,7 +3,7 @@
 (require casio/common)
 (require casio/points)
 (require casio/alternative)
-(require casio/analyze-local-error)
+(require casio/localize-error)
 (require (rename-in casio/pavel-simplification [simplify simplify-pavel]))
 (require (rename-in casio/simplify [simplify simplify-old]))
 (require casio/combine-alts)
@@ -62,7 +62,7 @@
 	  (- fuel 1))]))
 
 (define (generate-alts altn)
-  (append-map (curry generate-alts-at altn) (analyze-local-error altn)))
+  (append-map (curry generate-alts-at altn) (localize-error (alt-program altn))))
 
 (define (generate-alts-at altn loc)
   (let ([rewrite
@@ -94,7 +94,7 @@
         [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
         [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
     (let* ([all-alts (atab-all-alts table)]
-           [locss (map analyze-local-error all-alts)]
+           [locss (map (compose localize-error alt-program) all-alts)]
            [alts*
             (apply append
                    (for/list ([alt all-alts] [locs locss])
