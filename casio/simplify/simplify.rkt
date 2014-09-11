@@ -78,7 +78,9 @@
 			   (filter realcdr?
 				   (map-enodes (λ (en)
 						 (cons en
-						       (match-e (rule-input rl) en)))
+						       (if (rule-applied? en rl) '()
+							   (begin (rule-applied! en rl)
+								  (match-e (rule-input rl) en)))))
 					       eg))))
 		   rls))])
     (for ([rmatch matches])
