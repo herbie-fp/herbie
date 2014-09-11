@@ -6,7 +6,7 @@
 (require casio/localize-error)
 (require (rename-in casio/pavel-simplification [simplify simplify-pavel]))
 (require (rename-in casio/simplify [simplify simplify-old]))
-(require casio/combine-alts)
+(require casio/infer-regimes)
 (require casio/locations)
 (require casio/programs)
 (require casio/periodicity)
@@ -94,7 +94,7 @@
         [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
         [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
     (let* ([all-alts (atab-all-alts table)]
-           [locss (map (compose localize-error alt-program) all-alts)]
+           [locss (map (compose localize-error alt-program all-alts)]
            [alts*
             (apply append
                    (for/list ([alt all-alts] [locs locss])
@@ -129,7 +129,7 @@
          [alts* (map (curryr alt-add-event '(start regimes)) alts)])
     (if (< (length alts*) 2)
         #f
-        (combine-alts alts* #:pre-combo-func recurse-func))))
+        (infer-regimes alts* #:pre-combo-func recurse-func))))
 
 (define (best-alt alts)
   (when (null? alts)

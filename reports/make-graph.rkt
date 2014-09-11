@@ -6,7 +6,7 @@
 (require casio/matcher)
 (require casio/alternative)
 (require casio/test)
-(require casio/combine-alts)
+(require casio/infer-regimes)
 (require casio/programs)
 
 (provide make-graph make-traceback make-timeout)

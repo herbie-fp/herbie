@@ -5,16 +5,9 @@
 (require casio/points)
 (require casio/common)
 
-(provide combine-alts (struct-out sp))
-;; This value is entirely arbitrary and should probably be changed,
-;; before it destroys something.
+(provide infer-regimes (struct-out sp))
 
-(define (point-with-dim index point val)
-  (map (λ (pval pindex) (if (= pindex index) val pval))
-       point
-       (range (length point))))
-
-(define (combine-alts #:pre-combo-func [recurse-func identity] alts)
+(define (infer-regimes #:pre-combo-func [recurse-func identity] alts)
   (debug "Combining-alts: " alts #:from 'regime-changes #:depth 2)
   (let* ([options (build-list (length (program-variables (alt-program (car alts))))
 			      (curryr option-on-var alts))]
@@ -110,6 +103,11 @@
 		  (sp (si-cidx last-sidx)
 		      var-idx
 		      +inf.0)))))
+
+(define (point-with-dim index point val)
+  (map (λ (pval pindex) (if (= pindex index) val pval))
+       point
+       (range (length point))))
 
 (define (pick-errors splitpoints points err-lsts)
   (let loop ([rest-splits splitpoints] [rest-points points]
