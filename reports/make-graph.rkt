@@ -352,12 +352,13 @@
 
 (define (draw-x-ticks y-pos min-x max-x num-ticks x-pos->label)
   (for/list ([x (make-ticks num-ticks min-x max-x)])
-    (printf "<line x1='~a' y1='~a' x2='~a' y2='~a' class='tick' />\n"
-            x y-pos x (+ y-pos *tick-length*))
-    (printf "<text x='~a' y='~a' transform='rotate(~a,~a,~a)' class='x-label'>~a</text>\n"
-            x (+ y-pos *tick-length* *label-shift*)
-            *label-rotation* x (+ y-pos *tick-length* *label-shift*)
-            (x-pos->label x))))
+    (when (ordinary-float? x) ; TODO : No idea why this is necessary
+      (printf "<line x1='~a' y1='~a' x2='~a' y2='~a' class='tick' />\n"
+              x y-pos x (+ y-pos *tick-length*))
+      (printf "<text x='~a' y='~a' transform='rotate(~a,~a,~a)' class='x-label'>~a</text>\n"
+              x (+ y-pos *tick-length* *label-shift*)
+              *label-rotation* x (+ y-pos *tick-length* *label-shift*)
+              (x-pos->label x)))))
 
 (define (draw-y-ticks x-pos min-y max-y num-ticks y-pos->label)
   (for/list ([y (cdr (make-ticks num-ticks min-y max-y))])
