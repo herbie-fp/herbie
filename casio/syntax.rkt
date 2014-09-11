@@ -4,7 +4,21 @@
 (require math/bigfloat)
 (require casio/common)
 
-(provide operations constants mode:bf mode:fl)
+(provide operations constants mode:bf mode:fl
+         ->bf ->flonum)
+
+; Functions and constants used in our language
+(define (cotan x)
+  (/ 1 (tan x)))
+
+(define (bfmod x mod)
+  (bf- x (bf* mod (bffloor (bf/ x mod)))))
+
+(define (flmod x mod)
+  (fl- x (fl* mod (flfloor (fl/ x mod)))))
+
+(define e
+  (exp 1))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -17,7 +31,6 @@
   [-        bf-       -         1]
   [*        bf*       fl*       1]
   [/        bf/       /         1]
-  [abs      bfabs     flabs     1]
   [sqrt     bfsqrt    flsqrt    1]
   [sqr      bfsqr     sqr       1]
   [exp      bfexp     flexp     270]
@@ -33,17 +46,44 @@
   [sinh     bfsinh    flsinh    300]
   [cosh     bfcosh    flcosh    300]
   [tanh     bftanh    fltanh    300]
+  [atan2    bfatan2   atan      230]
+  [abs      bfabs     flabs     1]
+  [mod      bfmod     flmod     1]
+  ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
   [>        bf>       fl>       1]
   [<        bf<       fl<       1]
   [<=       bf<=      fl<=      1]
   [>=       bf>=      fl>=      1]
   [and      and-fn    and-fn    1]
-  [or       or-fn     or-fn     1]
-  [atan2    bfatan2   atan      230]
-  [mod      bfmod     flmod     1])
+  [or       or-fn     or-fn     1])
 
 (define constants '(pi e))
 
+(define preds '(or and < > <= >= =))
+
 (define mode:bf 0)
 (define mode:fl 1)
+
+(define (->flonum x)
+  (cond
+   [(real? x) (real->double-flonum x)]
+   [(bigfloat? x) (real->double-flonum (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
+        (->flonum (real-part x))
+        +nan.0)]
+   [(eq? x 'pi) pi]
+   [(eq? x 'e) (exp 1)]
+   [else x]))
+
+(define (->bf x)
+  (cond
+   [(real? x) (bf x)]
+   [(bigfloat? x) x]
+   [(complex? x)
+    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+   [(eq? x 'pi) pi.bf]
+   [(eq? x 'e) (bfexp 1.bf)]
+   [else x]))
+

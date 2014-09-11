@@ -14,7 +14,6 @@
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-(define preds '(or and < > <= >= =))
 
 (define (location-induct
 	 prog
@@ -145,14 +144,10 @@
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
 
-;; We want to weigh our heuristic search by the program cost.
-;; Simplest would be to simply compute the size of the tree as a
-;; whole.  but this is inaccurate if the program has many common
+;; To compute the cost of a program, we could use the tree as a
+;; whole, but this is inaccurate if the program has many common
 ;; subexpressions.  So, we compile the program to a register machine
 ;; and use that to estimate the cost.
-
-(define (program-cost prog)
-  (expression-cost (program-body prog)))
 
 (define (compile expr)
   (define assignments '())
@@ -178,6 +173,9 @@
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
+
+(define (program-cost prog)
+  (expression-cost (program-body prog)))
 
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])

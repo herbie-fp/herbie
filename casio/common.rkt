@@ -5,7 +5,7 @@
 (require casio/config)
 (require casio/debug)
 
-(provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
+(provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
          *debug* *debug-port* debug pipe
 	 safe-eval write-file write-string has-duplicates?
@@ -33,41 +33,6 @@
 
 (define-syntax-rule (for/accumulate [reg start] ([vars seqs] ...) body ...)
   (pipe start (map (λ (vars ...) (λ (reg) body ...)) seqs ...)))
-
-(define (->flonum x)
-  (cond
-   [(real? x) (real->double-flonum x)]
-   [(bigfloat? x) (real->double-flonum (bigfloat->flonum x))]
-   [(complex? x)
-    (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
-   [(eq? x 'pi) pi]
-   [(eq? x 'e) (exp 1)]
-   [else x]))
-
-(define (->bf x)
-  (cond
-   [(real? x) (bf x)]
-   [(bigfloat? x) x]
-   [(complex? x)
-    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
-   [(eq? x 'pi) pi.bf]
-   [(eq? x 'e) (bfexp 1.bf)]
-   [else x]))
-
-; Functions and constants used in our language
-(define (cotan x)
-  (/ 1 (tan x)))
-
-(define (bfmod x mod)
-  (bf- x (bf* mod (bffloor (bf/ x mod)))))
-
-(define (flmod x mod)
-  (fl- x (fl* mod (flfloor (fl/ x mod)))))
-
-(define e
-  (exp 1))
 
 (define-syntax-rule (define-table name [key values ...] ...)
   (define name
