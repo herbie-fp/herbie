@@ -78,8 +78,10 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
+  #;(set-clear! (enode-applied-rules new-parent))
   (set-union! (enode-applied-rules new-parent)
-	      (enode-applied-rules child))
+              (enode-applied-rules child))
+  #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
   #;(check-valid-children new-parent))
@@ -203,6 +205,10 @@
 ;; Marks the given enode as having the given rule applied to it.
 (define (rule-applied! en rl)
   (set-add! (enode-applied-rules en) rl))
+
+(define (refresh-victory! en)
+  (when (and (enode-victory? en) (list? (enode-expr en)) (ormap (curry equal? en) (cdr (enode-expr en))))
+    (set-enode-victory?! en #f)))
 
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])

@@ -172,18 +172,18 @@
 (define-ruleset pow-canonicalize
   [exp-to-expt     (exp (* (log a) b))         (expt a b)                   ()]  
   [unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a))    ((1) (2))]
-  [expt2           (sqr a)                     (expt a 2)                   ()]
   [inv-expt        (/ a)                       (expt a -1)                  ()]
-  [expt1/2         (sqrt a)                    (expt a 1/2)                 ()]
-  [expt-plus       (* (expt a b) a)            (expt a (+ b 1))             ((2))])
+  [expt-plus       (* (expt a b) a)            (expt a (+ b 1))             ((2))]
+  [unexpt2         (expt a 2)                  (sqr a)                      ()]
+  [unexpt1/2       (expt a 1/2)                (sqrt a)                     ()])
 
 (define-ruleset pow-transform
   [expt-exp        (expt (exp a) b)            (exp (* a b))                ((1))]
   [expt-to-exp     (expt a b)                  (exp (* (log a) b))          ((1))]
   [expt-prod-up    (* (expt a b) (expt a c))   (expt a (+ b c))             ((2))] 
   [expt-prod-down  (* (expt b a) (expt c a))   (expt (* b c) a)             ((1))]
-  [unexpt2         (expt a 2)                  (sqr a)                      ()]
-  [unexpt1/2       (expt a 1/2)                (sqrt a)                     ()])
+  [expt1/2         (sqrt a)                    (expt a 1/2)                 ()]
+  [expt2           (sqr a)                     (expt a 2)                   ()])
 
 ; Logarithms
 (define-ruleset log-distribute

@@ -39,13 +39,15 @@
         (compute-result)))
 
   (define (compute-result)
-    (with-handlers ([(const #t) (λ (e) (list 'error e (bf-precision)))])
+    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)]
+		   [*debug* #t])
+      (with-handlers ([(const #t) (λ (e)
+				    (close-output-port (*debug-port*))
+				    (list 'error e (bf-precision)))])
       (setup (test-program test) (test-samplers test)
              (λ (alt)
-	       (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)]
-			      [*debug* #t])
-		 (begin0 (list 'good alt (improve alt (*num-iterations*)) (*points*) (*exacts*))
-		   (close-output-port (*debug-port*))))))))
+	       (begin0 (list 'good alt (improve alt (*num-iterations*)) (*points*) (*exacts*))
+		 (close-output-port (*debug-port*))))))))
 
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine run-casio)])
     (engine-run *timeout* eng)
