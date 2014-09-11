@@ -1,92 +1,52 @@
 #lang racket
 
-(require casio/points)
-(require casio/alternative)
-(require casio/common)
-(require casio/matcher)
-(require casio/programs)
-(require casio/main)
+(provide *debug* *debug-port* debug)
 
-(provide (all-defined-out))
+(define *debug* (make-parameter #f))
+(define *debug-port* (make-parameter (current-error-port)))
 
-(define (print-improve prog max-iters)
-  (let-values ([(pts exs) (prepare-points prog sample-float)])
-    (parameterize ([*points* pts] [*exacts* exs])
-      (let* ([start (make-alt prog)]
-             [end (improve-alt start max-iters)])
-        (println "Started at: " start)
-        (println "Ended at: " end)
-        (println "Improvement by an average of "
-                 (- (errors-score (alt-errors start)) (errors-score (alt-errors end)))
-                 " bits of precision")
-        (void)))))
+(define *tags*
+  #hasheq([misc  . "[misc]"]
+          [enter . "[enter]"]
+          [exit  . "[exit]"]
+          [info  . "[info]"]
+          [error . "[ERROR]"]))
 
-(define (setup prog)
-  (define-values (points exacts) (prepare-points prog))
-  (*points* points)
-  (*exacts* exacts)
-  (void))
+;; To set a particular #:from max-depth, pass it in here.
+;; To turn on all messages for a particular #:from, pass in a depth of #t.
+;; To set the default, pass in a max depth with the #:from #t.
+(define (set-debug-level! from depth)
+  (let ([existing (cond [(not (*debug*)) '((#t . 0))]
+			[(eq? #t (*debug*)) '((#t . #t))]
+			[#t (*debug*)])])
+    (*debug* (cons (cons from depth) existing))))
 
-(define (repl-print x)
-  (begin (println x) (void)))
+(define (should-print-debug? from depth)
+  (or (eq? (*debug*) #t) ;; If debug is true, print no matter what
+      (and (*debug*) ;; If debug is false, never print
+	   (let ([max-depth (if (and from (dict-has-key? (*debug*) from))
+				;; If we were given a #:from, and we have it in the dictionary,
+				;; look up it's max depth
+				(dict-ref (*debug*) from)
+				;; Otherwise, just use whatevers default.
+				(dict-ref (*debug*) #t))])
+	     ;; If the max depth is true, turn everything on.
+	     ;; If the max depth isn't positve, turn everything off.
+	     ;; Otherwise, if our dept is less than the max-depth,
+	     ;; return true.
+	     (or (eq? max-depth #t)
+		 (and (>= max-depth depth)
+		      (> max-depth 0)))))))
 
-(define (prog-improvement prog1 prog2)
-  (let-values ([(points exacts) (prepare-points prog1)])
-    (- (errors-score (errors prog1 points exacts)) (errors-score (errors prog2 points exacts)))))
+(define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 1] . args)
+  (when (should-print-debug? from depth)
+    (debug-print from tag args (*debug-port*))))
 
-(define (annotated-alts-compare alt1 alt2)
-  (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))
-
-(define (annotated-errors-compare err1 err2)
-  (repl-print (let loop ([region #f] [rest-diff (map (λ (e1 e2)
-						      (cond [(> e1 e2) '>]
-							    [(< e1 e2) '<]
-							    [#t '=]))
-						    err1 err2)]
-			 [rest-points (*points*)] [acc '()])
-		(cond [(null? rest-diff) (reverse acc)]
-		      [(eq? region (car rest-diff))
-		       (loop region (cdr rest-diff)
-			     (cdr rest-points) (cons (car rest-diff) acc))]
-		      [#t (loop (car rest-diff) (cdr rest-diff)
-				(cdr rest-points) (cons (cons (car rest-points) (car rest-diff))
-							acc))]))))
-
-(define (compare-alts . altns)
-  (repl-print (let loop ([cur-region-idx -1] [rest-lsts (map alt-errors altns)]
-			 [rest-points (*points*)] [acc '()])
-		(if (null? rest-points)
-		    (reverse acc)
-		    (let ([best-idx
-			   (let ([errs (map car rest-lsts)])
-			     (argmin (λ (idx) (list-ref errs idx))
-				    (range (length errs))))])
-		      (if (= best-idx cur-region-idx)
-			  (loop cur-region-idx (map cdr rest-lsts)
-				(cdr rest-points)
-				(cons best-idx acc))
-			  (loop best-idx (map cdr rest-lsts)
-				(cdr rest-points)
-				(cons (list best-idx (list-ref altns best-idx)
-					    (car rest-points))
-				      acc))))))))
-
-(define (print-alt-info altn)
-  (if (not (alt-prev altn))
-      (println "Started with: " (alt-program altn))
-      (begin (print-alt-info (alt-prev altn))
-             (let ([chng (alt-change altn)])
-               (println "Applied rule " (change-rule chng)
-                        " at " (change-location chng)
-                        " [ " (location-get (change-location chng)
-                                            (alt-program (alt-prev altn)))
-                        " ], and got:" (alt-program altn))
-               (void)))))
-
-(define (incremental-changes-apply changes expr)
-  (let loop ([rest-chngs changes] [cur-expr expr])
-    (if (null? rest-chngs)
-	cur-expr
-	(begin (println cur-expr)
-	       (println (car rest-chngs))
-	       (loop (cdr rest-chngs) (change-apply (car rest-chngs) cur-expr))))))
+(define (debug-print from tag args port)
+  (display (hash-ref *tags* tag "; ") port)
+  (write from port)
+  (display ": " port)
+  (for/list ([arg args])
+    (display " " port)
+    ((if (string? arg) display write) arg port))
+  (newline port))
