@@ -2,6 +2,7 @@
 
 (require casio/simplify/util)
 (require casio/simplify/enode)
+(require casio/common)
 
 (provide mk-enode! mk-egraph
 	 merge-egraph-nodes!
@@ -110,6 +111,7 @@
 			      (map pack-leader (cdr expr))))]
 	     [en (new-enode expr* (egraph-cnt eg) #:flat-expr flat-expr #:victory? victory)]
 	     [leader->iexprs (egraph-leader->iexprs eg)])
+	(debug #:from 'simplify #:depth 5 (format "Making node ~a" (egraph-cnt eg)))
 	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
 	(hash-set! leader->iexprs en (mutable-set))
 	(when (list? expr*)
