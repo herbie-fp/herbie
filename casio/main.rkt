@@ -10,7 +10,7 @@
 (require casio/programs)
 (require casio/periodicity)
 (require casio/taylor)
-(require casio/pareto-alts)
+(require casio/alt-table)
 (require casio/matcher)
 
 (provide setup improve)
