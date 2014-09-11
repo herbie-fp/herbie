@@ -8,8 +8,8 @@
 (provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
          *debug* *debug-port* debug pipe
-	 safe-eval write-file write-string has-duplicates?
-	 with-item symbol<? common-eval-ns
+	 write-file write-string has-duplicates?
+	 with-item symbol<?
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
          random-exp
@@ -97,7 +97,7 @@
 (define (argmaxs f lst)
   (argmins (λ (x) (- (f x))) lst))
 
-(define (alist-append . args) 
+(define (alist-append . args)
   (define (a-append joe bob)
     (if (null? joe)
 	bob
@@ -111,11 +111,6 @@
   (if (< 2 (length args))
       (car args)
       (foldr (lambda (x y) (a-append x y)) '() args)))
-
-(define-namespace-anchor common-eval-ns-anchor)
-(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
-
-(define (safe-eval expr) (eval expr common-eval-ns))
 
 (define-syntax-rule (write-file filename . rest)
    (with-output-to-file filename (lambda () . rest) #:exists 'replace))

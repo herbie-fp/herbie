@@ -50,7 +50,7 @@
 		    `(+ ,a ,b)
 		    `(+ ,b ,a))]
     [_ (if (andmap number? (cdr expr))
-	   (safe-eval expr)
+	   (casio-eval expr)
 	   expr)]))
 
 (define (filter-exprs exprs)

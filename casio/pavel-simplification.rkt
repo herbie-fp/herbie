@@ -31,7 +31,7 @@
     [(? (compose null? free-variables) `(,op ,args ...))
      (let ([value
             (with-handlers ([(const #t) (const #f)])
-              (safe-eval expr))])
+              (casio-eval expr))])
        #;(println expr " -> " value)
        (if (rational? value)
            value

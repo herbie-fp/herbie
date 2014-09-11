@@ -153,7 +153,7 @@
 (define (try-precompute expr loc)
   (if (and (list? expr) (andmap number? (cdr expr)))
       (let ([value (with-handlers ([(const #t) (λ (e) #f)])
-                       (safe-eval expr))])
+                       (casio-eval expr))])
 	(if (rational? value)
 	    (list (change (rule 'precompute expr value '()) loc '()))
 	    '()))
@@ -925,7 +925,7 @@
 											 (length cur-loc))
 							     cur-expr)]
 				   [distributed-coeffs `(,(car cur-expr*) ,(cadr (cadr cur-expr*)) ,(cadr (caddr cur-expr*)))]
-				   [new-coeff (safe-eval distributed-coeffs)]
+				   [new-coeff (casio-eval distributed-coeffs)]
 				   [distribute-out-coeffs-change
 				    (let ([rl (if (eq? (car cur-expr) '+)
 						  (get-rule 'distribute-rgt-out)

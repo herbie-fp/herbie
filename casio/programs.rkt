@@ -4,16 +4,12 @@
 (require casio/common)
 (require casio/syntax)
 
-(provide program-body program-variables program-cost
+(provide (all-from-out casio/syntax)
          location-induct program-induct expression-induct location-hash
-	 location-do location-get eval-prog
-	 mode:bf mode:fl compile expression-cost
-         (all-from-out casio/syntax)
-         free-variables variable? constant?)
-
-; Programs are just lambda expressions
-(define program-body caddr)
-(define program-variables cadr)
+         location-do location-get
+         eval-prog
+	 compile expression-cost program-cost
+         free-variables)
 
 (define (location-induct
 	 prog
@@ -21,21 +17,16 @@
 	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
 	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
 
-  (define vars (program-variables prog))
-
   (define (inductor prog location)
     (cond
-     [(real? prog)
+     [(constant? prog)
       (constant prog (reverse location))]
-     [(symbol? prog)
-      (cond
-       [(member prog vars) (variable prog (reverse location))]
-       [(member prog constants) (constant prog (reverse location))]
-       [else (error "Unknown variable" prog)])]
+     [(variable? prog)
+      (variable prog (reverse location))]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog) (cons 2 location))])
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
-     [(and (list? prog) (memq (car prog) preds))
+     [(and (list? prog) (memq (car prog) predicates))
       (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
 		       (enumerate #:from 1
 				  (λ (idx prog) (inductor prog (cons idx location)))
@@ -59,12 +50,6 @@
   (location-induct prog #:constant save #:variable save #:primitive save)
   expr->locs)
 
-(define (variable? var)
-  (and (symbol? var) (not (member var constants))))
-
-(define (constant? var)
-  (or (member var constants) (real? var)))
-
 (define (expression-induct
 	 expr vars
          #:toplevel [toplevel identity] #:constant [constant identity]
@@ -82,21 +67,15 @@
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity] #:predicate [predicate identity])
 
-  (define vars (program-variables prog))
-
   ; Inlined for speed
   (define (inductor prog)
     (cond
-     [(real? prog) (constant prog)]
-     [(symbol? prog)
-      (cond
-       [(member prog vars) (variable prog)]
-       [(member prog constants) (constant prog)]
-       [else (error "Unknown variable" prog)])]
+     [(constant? prog) (constant prog)]
+     [(variable? prog) (variable prog)]
      [(and (list? prog) (memq (car prog) '(λ lambda)))
       (let ([body* (inductor (program-body prog))])
 	(toplevel `(λ ,(program-variables prog) ,body*)))]
-     [(and (list? prog) (memq (car prog) preds))
+     [(and (list? prog) (memq (car prog) predicates))
       (predicate (cons (symbol-table (car prog))
 		       (map inductor (cdr prog))))]
      [(list? prog)

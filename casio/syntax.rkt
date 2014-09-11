@@ -4,8 +4,14 @@
 (require math/bigfloat)
 (require casio/common)
 
-(provide operations constants mode:bf mode:fl
-         ->bf ->flonum)
+(provide operations predicates constants constant? variable?
+         mode:bf mode:fl ->bf ->flonum
+         common-eval-ns casio-eval
+         program-body program-variables)
+
+; Programs are just lambda expressions
+(define program-body caddr)
+(define program-variables cadr)
 
 ; Functions and constants used in our language
 (define (cotan x)
@@ -16,9 +22,6 @@
 
 (define (flmod x mod)
   (fl- x (fl* mod (flfloor (fl/ x mod)))))
-
-(define e
-  (exp 1))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -60,10 +63,16 @@
 
 (define constants '(pi e))
 
-(define preds '(or and < > <= >= =))
+(define predicates '(or and < > <= >= =))
 
 (define mode:bf 0)
 (define mode:fl 1)
+
+(define (variable? var)
+  (and (symbol? var) (not (member var constants))))
+
+(define (constant? var)
+  (or (member var constants) (real? var)))
 
 (define (->flonum x)
   (cond
@@ -87,3 +96,7 @@
    [(eq? x 'e) (bfexp 1.bf)]
    [else x]))
 
+(define-namespace-anchor common-eval-ns-anchor)
+(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
+
+(define (casio-eval expr) (eval expr common-eval-ns))
