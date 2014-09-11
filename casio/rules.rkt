@@ -174,7 +174,6 @@
   [unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a))    ((1) (2))]
   [expt2           (sqr a)                     (expt a 2)                   ()]
   [inv-expt        (/ a)                       (expt a -1)                  ()]
-  [expt-expt       (expt (expt a b) c)         (expt a (* b c))             ((2))]
   [expt1/2         (sqrt a)                    (expt a 1/2)                 ()]
   [expt-plus       (* (expt a b) a)            (expt a (+ b 1))             ((2))])
 
