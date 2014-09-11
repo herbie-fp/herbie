@@ -178,8 +178,6 @@
 
           [_ #f])))))
 
-(define *max-period-coeff* 20)
-
 (define (optimize-periodicity improve-func altn)
   (debug "Optimizing " altn " for periodicity..." #:from 'periodicity #:depth 2)
   (let* ([plocs (periodic-locs (alt-program altn))]

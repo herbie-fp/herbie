@@ -10,9 +10,6 @@
          prepare-points prepare-points-period make-exacts
          errors errors-score)
 
-(define *num-points* (make-parameter 1024))
-(define *precision-step* (make-parameter 8))
-
 (define *points* (make-parameter '()))
 (define *exacts* (make-parameter '()))
 

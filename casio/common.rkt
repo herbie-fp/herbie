@@ -2,6 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
+(require casio/config)
 
 (provide reap define-table println ->flonum ->bf cotan bfmod flmod e ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
@@ -10,7 +11,7 @@
 	 with-item symbol<? common-eval-ns
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
-         random-exp *flags* toggle-flag! flag)
+         random-exp (all-from-out casio/config))
 
 (define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
   (for ([val args])
@@ -257,31 +258,6 @@
       (random (expt 2 k))
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
-
-;; Flag Stuff
-
-(define *flags*
-  (make-parameter
-   #hash([generate . (simplify rm)]
-         #;[evaluate . (random-points)]
-         [reduce   . (regimes zach)]
-         [regimes  . (recurse)]
-         [simplify . (pavel)]
-         [setup    . (simplify periodicity)])))
-
-(define (toggle-flag! category flag)
-  (*flags*
-   (hash-update (*flags*) category
-		(λ (flag-list)
-		  (if (member flag flag-list)
-		      (remove flag flag-list)
-		      (cons flag flag-list))))))
-
-(define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type
-                          (λ () (error "Invalid flag type" type))))
-      a
-      b))
 
 ;; Takes a list of items, and returns a list of lists of items, where
 ;; the items are grouped by the value produced when key-func is evaluated

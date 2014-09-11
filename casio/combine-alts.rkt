@@ -81,14 +81,6 @@
              [split-points (sindices->spoints points* var-idx alts split-indices)])
         (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))))
 
-;; When doing the binary search, this is the value we set to all the point
-;; dimensions that we are not testing.
-(define *default-test-value* 0)
-
-;; The fraction of the space between two points that we are okay
-;; with being off the perfect splitpoint.
-(define *epsilon-fraction* (/ 1 200))
-
 (define (error-at prog point exact)
   (car (errors prog
 (list point) (list exact))))

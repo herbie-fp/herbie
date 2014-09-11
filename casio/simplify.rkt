@@ -64,8 +64,6 @@
   (and (andmap number? args)
        (apply = args)))
 
-(define *goal-cost-improvement* 4)
-
 (define (rule-cost-improvement rl)
   (let ([orig-cost (expression-cost (rule-input rl))]
 	[new-cost (expression-cost (rule-output rl))])

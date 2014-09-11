@@ -4,10 +4,8 @@
 (require casio/programs)
 (require casio/points)
 
-(provide (struct-out test) *tests* *num-iterations* casio-test test-program test-samplers
+(provide (struct-out test) *tests* casio-test test-program test-samplers
          (all-from-out casio/points))
-
-(define *num-iterations* (make-parameter 2))
 
 (define (unfold-let expr)
   (match expr
