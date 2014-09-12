@@ -18,7 +18,7 @@ compile/results.casio.dat: graphs/results.casio.dat
 	cp graphs/results.casio.dat compile/
 
 compile: compile/results.casio.dat
-	racket compile/compile.rkt -f $(PREFIX)~a.c compile/results.casio.dat
+	racket compile/compile.rkt -f compile/$(PREFIX)~a.c compile/results.casio.dat
 
 link:
 	raco link casio
