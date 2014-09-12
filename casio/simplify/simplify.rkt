@@ -54,7 +54,7 @@
   (let ([eg (mk-egraph expr)]
 	[expr-depth (max-depth expr)])
     (iterate-egraph! eg (inexact->exact (floor (* *iters-depth-ratio* expr-depth))))
-    (extract-simplest eg expr-depth)))
+    (extract-smallest eg)))
 
 (define (max-depth expr)
   (if (not (list? expr)) 1
@@ -137,6 +137,31 @@
 	     (cons (car expr)
 		   (map (curryr pick (add1 depth))
 			(cdr expr)))]))))
+
+(define (extract-smallest eg)
+  (define (resolve en ens->exprs)
+    (let/ec return
+      (for ([var (enode-vars en)])
+	(when (not (list? var))
+	  (return var))
+	(let ([expr (cons (car var) (map (λ (en) (hash-ref ens->exprs en #f)) (cdr var)))])
+	  (when (andmap identity (cdr expr))
+	    (return expr))))
+      #f))
+  (let loop ([rest-ens (egraph-leaders eg)] [todo-ens (egraph-leaders eg)]
+	     [ens->exprs (hash)])
+    (let* ([en (car rest-ens)]
+	   [rest-ens* (if (null? (cdr rest-ens))
+			  todo-ens
+			  (cdr rest-ens))]
+	   [resolution (resolve en ens->exprs)])
+      (if resolution
+	  (if (equal? en (egraph-top eg))
+	      resolution
+	      (loop rest-ens* (remove en todo-ens) (hash-set ens->exprs en resolution)))
+	  (loop rest-ens*
+		todo-ens
+		ens->exprs)))))
 
 (define (expr-size expr)
   (if (not (list? expr)) 1
