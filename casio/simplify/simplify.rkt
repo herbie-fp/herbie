@@ -64,8 +64,9 @@
   (let ([expr-depth (max-depth expr)])
     (if (> expr-depth *max-egraph-depth*)
 	(backup-simplify expr)
-	(let ([eg (mk-egraph expr)])
-	  (iterate-egraph! eg (inexact->exact (floor (* *iters-depth-ratio* expr-depth))))
+	(let ([eg (mk-egraph expr)]
+	      [iters (inexact->exact (floor (* *iters-depth-ratio* expr-depth)))])
+	  (iterate-egraph! eg iters)
 	  (extract-smallest eg)))))
 
 (define (max-depth expr)
@@ -150,6 +151,10 @@
 		   (map (curryr pick (add1 depth))
 			(cdr expr)))]))))
 
+(define (hash-set*+ hash assocs)
+  (for/accumulate (h hash) ([assoc assocs])
+		  (hash-set h (car assoc) (cdr assoc))))
+
 (define (extract-smallest eg)
   (define (resolve en ens->exprs)
     (let/ec return
@@ -160,20 +165,22 @@
 	  (when (andmap identity (cdr expr))
 	    (return expr))))
       #f))
-  (let loop ([rest-ens (egraph-leaders eg)] [todo-ens (egraph-leaders eg)]
+  (define (pass ens ens->exprs)
+    (let-values ([(pairs left)
+		  (partition pair?
+			     (for/list ([en ens])
+			       (let ([resolution (resolve en ens->exprs)])
+				 (if resolution
+				     (cons en resolution)
+				     en))))])
+      (list (hash-set*+ ens->exprs pairs)
+	    left)))
+  (let loop ([todo-ens (egraph-leaders eg)]
 	     [ens->exprs (hash)])
-    (let* ([en (car rest-ens)]
-	   [rest-ens* (if (null? (cdr rest-ens))
-			  todo-ens
-			  (cdr rest-ens))]
-	   [resolution (resolve en ens->exprs)])
-      (if resolution
-	  (if (equal? en (egraph-top eg))
-	      resolution
-	      (loop rest-ens* (remove en todo-ens) (hash-set ens->exprs en resolution)))
-	  (loop rest-ens*
-		todo-ens
-		ens->exprs)))))
+    (match-let* ([`(,ens->exprs* ,todo-ens*)
+		  (pass todo-ens ens->exprs)]
+		 [top-expr (hash-ref ens->exprs* (egraph-top eg) #f)])
+      (or top-expr (loop todo-ens* ens->exprs*)))))
 
 (define (expr-size expr)
   (if (not (list? expr)) 1
