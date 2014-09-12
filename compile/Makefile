@@ -31,6 +31,7 @@ ITERS=1000000
 
 alltc:
 	for i in tc*.c; do make $${i%.c}.out; done
+	./all.sh tc
 
 allpng:
 	for i in tc*.c; do make $${i%.c}.cv_if.png; done
