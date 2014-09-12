@@ -1,15 +1,24 @@
+PREFIX=tc
+BENCHDIR=bench/hamming/
+CASIOFLAGS=-p
 
-.PHONY: report publish link clean loc
+.PHONY: all report publish link clean loc
 
 all:
 	$(MAKE) link
 	$(MAKE) report
 
 report:
-	racket reports/make-report.rkt -p bench/hamming/
+	racket reports/make-report.rkt -p $(CASIOFLAGS) $(BENCHDIR)
 
 publish:
 	bash reports/publish.sh
+
+compile/results.casio.dat: graphs/results.casio.dat
+	cp graphs/results.casio.dat compile/
+
+compile: compile/results.casio.dat
+	racket compile/compile.rkt -f $(PREFIX)~a.c compile/results.casio.dat
 
 link:
 	raco link casio
@@ -20,7 +29,6 @@ cost:
 	$(CC) -O0 cost.c -lm -o cost
 
 clean:
-	rm -f index.html
 	rm -f cost
 	rm -rf graphs/
 
