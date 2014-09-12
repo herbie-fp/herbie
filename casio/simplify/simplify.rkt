@@ -46,6 +46,12 @@
      (for/list ([loc slocs])
        (let* ([in (location-get loc (alt-program altn))]
 	      [out (simplify-expr in)])
+	 (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
+	 (assert (let valid? ([expr out])
+		   (if (or (symbol? expr) (real? expr))
+		       #t
+		       (and (symbol? (car expr))
+			    (andmap valid? (cdr expr))))))
 	 (if (equal? in out)
 	     #f
 	     (change (rule 'simplify in out '())
@@ -108,7 +114,7 @@
 	     (cons (car var)
 		   (map (compose (curry setfindf constant?) enode-vars)
 			(cdr var)))])
-	(when (andmap identity (cdr constexpr))
+	(when (andmap real? (cdr constexpr))
 	  (merge-egraph-nodes!
 	   eg en
 	   (mk-enode! eg (safe-eval constexpr) #:victory? #t)))))))

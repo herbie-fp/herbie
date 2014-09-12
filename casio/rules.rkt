@@ -91,9 +91,7 @@
   [*-lft-identity    (* 1 a)               a           ()]
   [*-rgt-identity    (* a 1)               a           ()]
   [*-inverses        (/ a a)               1           ()]
-  [remove-double-div (/ (/ a))             a           ()]
-  [implicit-div      (/ 1 a)               (/ a)       ()]
-  [div1              (/ 1)                 1           ()]
+  [remove-double-div (/ 1 (/ 1 a))         a           ()]
   [div0              (/ 0 a)               0           ()]
   [mul0              (* 0 a)               0           ()]
   [mul-1-neg         (* -1 a)              (- a)       ()])
@@ -103,8 +101,8 @@
   [unsub-neg         (+ a (- b))           (- a b)       ()]
   [neg-sub0          (- b)                 (- 0 b)       ()]
   [*-un-lft-identity a                     (* 1 a)       ()]
-  [div-inv           (/ a b)               (* a (/ b))   ()]
-  [un-div-inv        (* a (/ b))           (/ a b)       ()]
+  [div-inv           (/ a b)               (* a (/ 1 b)) ()]
+  [un-div-inv        (* a (/ 1 b))         (/ a b)       ()]
   [neg-mul-1         (- a)                 (* -1 a)      ()])
 
 ; Dealing with fractions
@@ -152,12 +150,12 @@
 
 (define-ruleset exp-distribute
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))    ()]
-  [exp-neg      (exp (- a))          (/ (exp a))            ()]
+  [exp-neg      (exp (- a))          (/ 1 (exp a))          ()]
   [exp-diff     (exp (- a b))        (/ (exp a) (exp b))    ()])
 
 (define-ruleset exp-factor
   [prod-exp     (* (exp a) (exp b))  (exp (+ a b))          ((1))]
-  [rec-exp      (/ (exp a))          (exp (- a))            ()]
+  [rec-exp      (/ 1 (exp a))        (exp (- a))            ()]
   [div-exp      (/ (exp a) (exp b))  (exp (- a b))          ((1))]
   [exp-prod     (exp (* a b))        (expt (exp a) b)       ()])
 
@@ -172,7 +170,7 @@
 (define-ruleset pow-canonicalize
   [exp-to-expt     (exp (* (log a) b))         (expt a b)                   ()]  
   [unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a))    ((1) (2))]
-  [inv-expt        (/ a)                       (expt a -1)                  ()]
+  [inv-expt        (/ 1 a)                     (expt a -1)                  ()]
   [expt-plus       (* (expt a b) a)            (expt a (+ b 1))             ((2))]
   [unexpt2         (expt a 2)                  (sqr a)                      ()]
   [unexpt1/2       (expt a 1/2)                (sqrt a)                     ()])
@@ -189,13 +187,13 @@
 (define-ruleset log-distribute
   [log-prod     (log (* a b))        (+ (log a) (log b))        ()]
   [log-div      (log (/ a b))        (- (log a) (log b))        ()]
-  [log-rec      (log (/ a))          (- (log a))                ((1))]
+  [log-rec      (log (/ 1 a))        (- (log a))                ((1))]
   [log-pow      (log (expt a b))     (* b (log a))              ()])
 
 (define-ruleset log-factor
   [sum-log      (+ (log a) (log b))  (log (* a b))              ((1))]
   [diff-log     (- (log a) (log b))  (log (/ a b))              ((1))]
-  [neg-log      (- (log a))          (log (/ a))                ((1))])
+  [neg-log      (- (log a))          (log (/ 1 a))              ((1))])
 
 ; Multiplying by x / x
 (define-ruleset flips
