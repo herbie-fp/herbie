@@ -9,6 +9,7 @@
 (require casio/alternative)
 (require casio/programs)
 (require casio/common)
+(require (rename-in casio/pavel-simplification [simplify backup-simplify]))
 
 (provide simplify-expr simplify)
 
@@ -31,6 +32,9 @@
 ;; The number of iterations of the egraph is the maximum depth times this custom
 (define *iters-depth-ratio* 1.35)
 
+;; If the depth of the expression is greater than this, use pavel simplification instead.
+(define *max-egraph-depth* 6)
+
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
 	 [slocs (if chng
@@ -51,10 +55,12 @@
 
 (define (simplify-expr expr)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
-  (let ([eg (mk-egraph expr)]
-	[expr-depth (max-depth expr)])
-    (iterate-egraph! eg (inexact->exact (floor (* *iters-depth-ratio* expr-depth))))
-    (extract-smallest eg)))
+  (let ([expr-depth (max-depth expr)])
+    (if (> expr-depth *max-egraph-depth*)
+	(backup-simplify expr)
+	(let ([eg (mk-egraph expr)])
+	  (iterate-egraph! eg (inexact->exact (floor (* *iters-depth-ratio* expr-depth))))
+	  (extract-smallest eg)))))
 
 (define (max-depth expr)
   (if (not (list? expr)) 1
