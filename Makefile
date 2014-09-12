@@ -9,7 +9,7 @@ all:
 	$(MAKE) report
 
 report:
-	racket reports/make-report.rkt -p $(CASIOFLAGS) $(BENCHDIR)
+	racket reports/make-report.rkt $(CASIOFLAGS) $(BENCHDIR)
 
 publish:
 	bash reports/publish.sh
