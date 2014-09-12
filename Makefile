@@ -31,6 +31,8 @@ cost:
 clean:
 	rm -f cost
 	rm -rf graphs/
+	rm compile/results.casio.dat
+	rm compile/$(PREFIX)*.c
 
 loc:
 	find reports/ casio/ -type f -exec cat {} \; | wc -l

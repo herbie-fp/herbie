@@ -178,10 +178,12 @@
 
 (define (make-datafile file results)
   (write-datafile file
-                  (for/list ([result results])
-                   (match result
-                     [(table-row name _ _ _ target _ _ _ vars input output time bits _)
-                      `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time)]))))
+                  (reap [sow]
+                        (for ([result results])
+                          (match result
+                            [(table-row name status _ _ target _ _ _ vars input output time bits _)
+                             (when output
+                               (sow `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time)))])))))
 
 (command-line
  #:program "make-report"
