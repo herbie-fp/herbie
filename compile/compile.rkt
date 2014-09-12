@@ -2,6 +2,7 @@
 
 (require casio/common)
 (require casio/programs)
+(require reports/datafile)
 (require net/uri-codec)
 
 (define (fix-name name)
@@ -150,7 +151,7 @@
 
    (printf "void setup_mpfr_~a() {\n" fname)
    ; Some guard bits added, just in case
-   (printf "        mpfr_set_default_prec(~a);\n" (+ bits 8))
+   (printf "        mpfr_set_default_prec(~a);\n" (+ bits 16))
    (for ([reg (map car (cadr body))])
      (printf "        mpfr_init(~a);\n" reg))
    (printf "}\n\n")
@@ -191,19 +192,19 @@
   (display (compile->mpfr iprog bits "f_im"))
   (display (compile->mpfr oprog bits "f_om")))
 
-(define (do-all results-file [output "/home/pavpan/casio/compile/tc~a.c"])
-  (let ([fd (open-input-file results-file)])
-    (let loop ([idx 0])
-      (let ([line (read fd)])
-        (if (eof-object? line)
-            (void)
-            (let* ([name (first line)]
-                   [iprog (second line)]
-                   [oprog (third line)]
-                   [tprog (fourth line)]
-                   [bits (fifth line)])
-              (when oprog
-                (printf "Outputing ~a to tc~a.c (~a)\n" name idx bits)
-                (write-file (format output idx)
-                 (compile->all name iprog oprog bits)))
-              (loop (+ 1 idx))))))))
+(define (compile-datafile results-file [output-file "tc~a.c"])
+  (for ([id (in-naturals)] [line (read-datafile results-file)])
+    (match line
+      [`(,name ,input ,output ,target ,bits ,time)
+       (debug #:from 'compile-datafile "Compiling" name "to" (format output-file id))
+       (write-file (format output-file id) (compile->all name input output bits))])))
+
+(define *format* "tc~a.c")
+
+(command-line
+ #:program "compile"
+ #:once-each
+ [("-f") fmt "Format of output file names; use a single ~a for an index"
+  (set! *format* fmt)]
+ #:args (results-file)
+ (compile-datafile results-file *format*))

@@ -8,9 +8,10 @@
 (require casio/test)
 (require casio/load-tests)
 (require casio/main)
-(require casio/texify)
 (require reports/thread-pool)
 (require reports/cmdline)
+(require reports/datafile)
+(require compile/texify)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -32,7 +33,7 @@
       (make-directory *output-directory*))
 
     (make-report-page "graphs/report.html" results)
-    (make-data-file "graphs/results.rktdat" results)))
+    (make-datafile "graphs/results.casio.dat" results)))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
@@ -63,15 +64,6 @@
    [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
-
-(define (make-data-file file results)
-  (write-file file
-    (for/list ([result results])
-      (match result
-        [(table-row name status start result target inf- inf+ result-est vars input output time bits link)
-         (write `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time))])
-      (newline)))
-  (void))
 
 (define (make-report-page file table-data)
   (let ([commit (command-result "git rev-parse HEAD")]
@@ -184,31 +176,35 @@
       (for ([subdir extra-dirs])
         (delete-directory/files (build-path dir subdir))))))
 
-(define benches
-  (command-line
-   #:program "make-report"
-   #:once-each
-   [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
-    (*debug* #t)]
-   [("-a") ma "Restrict maximum arity"
-    (set! *max-test-arity* (string->number ma))]
-   [("-p") "Whether to profile each test"
-    (set! *profile?* #t)]
-   [("-t") th "How many tests to run in parallel to use"
-    (set! *max-test-threads* (string->number th))]
-   [("-r") rs "The random seed vector to use in point generation"
-    (vector->pseudo-random-generator!
-     (current-pseudo-random-generator)
-     (read (open-input-string rs)))]
-   [("-n") fu "The amount of 'fuel' to use"
-    (*num-iterations* (string->number fu))]
-   #:multi
-   [("-f") tf "Toggle flags, specified in the form category:flag"
-    (let ([split-strings (string-split tf ":")])
-      (when (not (= 2 (length split-strings)))
-	(error "Badly formatted input " tf))
-      (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
-   #:args bench-dir
-  bench-dir))
+(define (make-datafile file results)
+  (write-datafile file
+                  (for/list ([result results])
+                   (match result
+                     [(table-row name _ _ _ target _ _ _ vars input output time bits _)
+                      `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time)]))))
 
-(apply make-report benches)
+(command-line
+ #:program "make-report"
+ #:once-each
+ [("-d") "Turn On Debug Messages (Warning: Very Verbose)"
+  (*debug* #t)]
+ [("-a") ma "Restrict maximum arity"
+  (set! *max-test-arity* (string->number ma))]
+ [("-p") "Whether to profile each test"
+  (set! *profile?* #t)]
+ [("-t") th "How many tests to run in parallel to use"
+  (set! *max-test-threads* (string->number th))]
+ [("-r") rs "The random seed vector to use in point generation"
+  (vector->pseudo-random-generator!
+   (current-pseudo-random-generator)
+   (read (open-input-string rs)))]
+ [("-n") fu "The amount of 'fuel' to use"
+  (*num-iterations* (string->number fu))]
+ #:multi
+ [("-f") tf "Toggle flags, specified in the form category:flag"
+  (let ([split-strings (string-split tf ":")])
+    (when (not (= 2 (length split-strings)))
+      (error "Badly formatted input " tf))
+    (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
+ #:args bench-dir
+ (apply make-report bench-dir))

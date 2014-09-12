@@ -14,6 +14,7 @@ publish:
 link:
 	raco link casio
 	raco link reports
+	raco link compile
 
 cost:
 	$(CC) -O0 cost.c -lm -o cost
