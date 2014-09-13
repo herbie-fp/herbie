@@ -9,21 +9,25 @@
 (define (approximate expr vars)
   (debug #:from 'taylor "Taking taylor expansion of" expr "in" vars)
   ; TODO : Redo using new "hull" idea
-  (simplify
-   (cons '+
-         (for/list ([var vars])
-           (match (taylor var expr)
-             [(cons offset coeffs)
-              (let* ([n (first-nonzero-exp coeffs)]
-                     [exp (- n offset)])
-                (cond
-                 [(equal? exp 0) (coeffs n)]
-                 [(equal? exp 1) `(* ,(coeffs n) ,var)]
-                 [(equal? exp 2) `(* ,(coeffs n) (sqr ,var))]
-                 [(equal? exp -1) `(/ ,(coeffs n) ,var)]
-                 [(equal? exp -2) `(/ ,(coeffs n) (sqr ,var))]
-                 [(positive? exp) `(* ,(coeffs n) (expt ,var ,exp))]
-                 [(negative? exp) `(/ ,(coeffs n) (expt ,var ,exp))]))])))))
+  (if (null? vars)
+      expr
+      (simplify
+       (let* ([var (car vars)]
+              [vars* (cdr vars)]
+              [apx (taylor var expr)]
+              [offset (car apx)]
+              [coeffs (cdr apx)]
+              [n (first-nonzero-exp coeffs)]
+              [exp (- n offset)]
+              [coeff (approximate (coeffs n) vars*)])
+         (cond
+          [(equal? exp 0) coeff]
+          [(equal? exp 1) `(* ,coeff ,var)]
+          [(equal? exp 2) `(* ,coeff (sqr ,var))]
+          [(equal? exp -1) `(/ ,coeff ,var)]
+          [(equal? exp -2) `(/ ,coeff (sqr ,var))]
+          [(positive? exp) `(* ,coeff (expt ,var ,exp))]
+          [(negative? exp) `(/ ,coeff (expt ,var ,exp))])))))
 
 (define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -57,11 +61,46 @@
     [`(sqr ,a)
      (let ([ta (taylor var a)])
        (taylor-mult ta ta))]
-    [`(,(? (curryr member taylor-funcs) f) ,args ...)
-     (let ([args* (map (compose normalize-series (curry taylor var)) args)])
-       (if (ormap (compose positive? car) args*)
+    [`(exp ,arg)
+     (let ([arg* (normalize-series (taylor var arg))])
+       (if (positive? (car arg*))
            (taylor-exact expr)
-           (apply taylor-func f (map zero-series args*))))]
+           (taylor-exp (zero-series arg*))))]
+    [`(sin ,arg)
+     (let ([arg* (normalize-series (taylor var arg))])
+       (cond
+        [(positive? (car arg*))
+         (taylor-exact expr)]
+        [(= (car arg*) 0)
+         ; Our taylor-sin function assumes that a0 is 0,
+         ; because that way it is especially simple. We correct for this here
+         ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+         (taylor-add
+          (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
+          (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
+        [else
+         (taylor-sin (zero-series arg*))]))]
+    [`(cos ,arg)
+     (let ([arg* (normalize-series (taylor var arg))])
+       (cond
+        [(positive? (car arg*))
+         (taylor-exact expr)]
+        [(= (car arg*) 0)
+         ; Our taylor-cos function assumes that a0 is 0,
+         ; because that way it is especially simple. We correct for this here
+         ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+         (taylor-add
+          (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
+          (taylor-negate
+           (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*)))))]
+        [else
+         (taylor-cos (zero-series arg*))]))]
+    [`(expt ,(? (curry equal? var)) ,(? integer? pow))
+     (cons (- pow) (λ (n) (if (= n 0) 1 0)))]
+    [`(tan ,arg)
+     (taylor var `(/ (sin ,arg) (cos ,arg)))]
+    [`(cotan ,arg)
+     (taylor var `(/ (cos ,arg) (sin ,arg)))]
     [_
      (taylor-exact expr)]))
 
@@ -74,7 +113,7 @@
         (λ (n)
            (if (<= (length terms) n)
                0
-               (list-ref terms n)))))
+               (simplify (list-ref terms n))))))
 
 (define (first-nonzero-exp f)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
@@ -84,10 +123,15 @@
         n)))
 
 (define (align-series . serieses)
-  (let ([offset* (car (argmax car serieses))])
-    (for/list ([series serieses])
-      (let ([offset (car series)])
-        (cons offset* (compose (cdr series) (curry + (- offset* offset))))))))
+  (if (apply = (map car serieses))
+      serieses
+      (let ([offset* (car (argmax car serieses))])
+        (for/list ([series serieses])
+          (let ([offset (car series)])
+            (cons offset* (λ (n)
+                             (if (< (+ n (- offset offset*)) 0)
+                                 0
+                                 ((cdr series) (+ n (- offset offset*)))))))))))
 
 (define (taylor-add . terms)
   (match (apply align-series terms)
@@ -165,20 +209,47 @@
               (aux n (+ k 1)))]))
   (map rle (aux n 1)))
 
-(define taylor-funcs '(exp))
+(define (taylor-exp coeffs)
+   (cons 0
+         (λ (n)
+            (if (= n 0)
+                `(exp ,(coeffs 0))
+                (simplify
+                 `(* (exp ,(coeffs 0))
+                     (+
+                      ,@(for/list ([p (partition-list n)])
+                          `(*
+                            ,@(for/list ([factor p])
+                                `(/ (expt ,(coeffs (cdr factor)) ,(car factor))
+                                    ,(factorial (car factor)))))))))))))
 
-(define (taylor-func func . args)
-  (match (cons func args)
-    [`(exp ,coeffs)
-     (cons 0
-           (λ (n)
-              (if (= n 0)
-                  `(exp ,(coeffs 0))
-                  (simplify
-                   `(* (exp ,(coeffs 0))
-                       (+
-                         ,@(for/list ([p (partition-list n)])
-                             `(*
-                               ,@(for/list ([factor p])
-                                   `(/ (expt ,(coeffs (cdr factor)) ,(car factor))
-                                       ,(factorial (car factor))))))))))))]))
+(define (taylor-sin coeffs)
+  (cons 0
+        (λ (n)
+           (if (= n 0)
+               0
+               (simplify
+                `(+
+                  ,@(for/list ([p (partition-list n)])
+                      (if (= (modulo (apply + (map car p)) 2) 1)
+                          `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                              ,@(for/list ([factor p])
+                                  `(/ (expt ,(coeffs (cdr factor)) ,(car factor))
+                                      ,(factorial (car factor)))))
+                          0))))))))
+
+(define (taylor-cos coeffs)
+  (cons 0
+        (λ (n)
+           (if (= n 0)
+               1
+               (simplify
+                `(+
+                  ,@(for/list ([p (partition-list n)])
+                      (if (= (modulo (apply + (map car p)) 2) 0)
+                          `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                              ,@(for/list ([factor p])
+                                  `(/ (expt ,(coeffs (cdr factor)) ,(car factor))
+                                      ,(factorial (car factor)))))
+                          0))))))))
+

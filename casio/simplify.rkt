@@ -32,8 +32,7 @@
      (let ([value
             (with-handlers ([(const #t) (const #f)])
               (casio-eval expr))])
-       #;(println expr " -> " value)
-       (if (rational? value)
+       (if (exact? value)
            value
            (simplify-node `(,op ,@(map simplify* args)))))]
     [`(,op ,args ...)
