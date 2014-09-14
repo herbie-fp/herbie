@@ -32,7 +32,7 @@
      (let ([value
             (with-handlers ([(const #t) (const #f)])
               (casio-eval expr))])
-       (if (exact? value)
+       (if (and (number? value) (exact? value))
            value
            (simplify-node `(,op ,@(map simplify* args)))))]
     [`(,op ,args ...)
@@ -116,11 +116,11 @@
        (cons (apply * (map car terms)) (apply append (map cdr terms))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (/ (car terms)) (map negate-term (cdr terms))))]
+       (cons (if (= (car terms) 0) +nan.0 (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
-       (cons (apply / (car num) (map car dens))
+       (cons (if (ormap (compose (curry = 0) car) dens) +nan.0 (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
     [`(sqr ,arg)

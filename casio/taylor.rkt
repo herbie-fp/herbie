@@ -61,6 +61,8 @@
     [`(sqr ,a)
      (let ([ta (taylor var a)])
        (taylor-mult ta ta))]
+    [`(sqrt ,arg)
+     (taylor-sqrt (taylor var arg))]
     [`(exp ,arg)
      (let ([arg* (normalize-series (taylor var arg))])
        (if (positive? (car arg*))
@@ -168,7 +170,7 @@
   (match (normalize-series term)
     [(cons offset b)
      (let ([hash (make-hash)])
-       (hash-set! hash 0 `(/ 1 ,(b 0)))
+       (hash-set! hash 0 (simplify `(/ 1 ,(b 0))))
        (letrec ([f (λ (n)
                       (hash-ref! hash n
                                  (λ ()
@@ -184,7 +186,7 @@
   (match (cons (normalize-series num) (normalize-series denom))
     [(cons (cons noff a) (cons doff b))
      (let ([hash (make-hash)])
-       (hash-set! hash 0 `(/ ,(a 0) ,(b 0)))
+       (hash-set! hash 0 (simplify `(/ ,(a 0) ,(b 0))))
        (letrec ([f (λ (n)
                       (hash-ref! hash n
                                  (λ ()
@@ -194,6 +196,32 @@
                                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))]
                 [offset (- noff doff)])
          (cons offset f)))]))
+
+(define (taylor-sqrt num)
+  (let* ([num* (normalize-series num)]
+         [offset (car num*)]
+         [offset* (if (even? offset) offset (+ offset 1))]
+         [coeffs (cdr num*)]
+         [coeffs* (if (even? offset) coeffs (λ (n) (if (= n 0) 0 (coeffs (- n 1)))))]
+         [hash (make-hash)])
+    (hash-set! hash 0 (simplify `(sqrt ,(coeffs* 0))))
+    (hash-set! hash 1 (simplify (println `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0)))))))
+    (letrec ([f (λ (n)
+                   (hash-ref! hash n
+                              (λ ()
+                                 (simplify
+                                  (cond
+                                   [(even? n)
+                                    `(/ (- ,(coeffs* n) (sqr ,(f (/ n 2)))
+                                           (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
+                                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
+                                        (* 2 ,(f 0)))]
+                                   [(odd? n)
+                                    `(/ (- ,(coeffs* n)
+                                           (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
+                                                  `(* 2 (* ,(f k) ,(f (- n k)))))))
+                                        (* 2 ,(f 0)))])))))])
+      (cons (/ offset 2) f))))
 
 (define (rle l)
   (for/list ([run (multipartition l identity)])
