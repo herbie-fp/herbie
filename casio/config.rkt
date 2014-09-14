@@ -15,6 +15,7 @@
          [regimes  . (recurse)]
          [simplify . ()]
          [setup    . (simplify periodicity)])))
+         [localize . (cache)]
 
 (define (toggle-flag! category flag)
   (*flags*

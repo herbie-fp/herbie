@@ -8,13 +8,16 @@
 (require casio/alternative)
 (require casio/simplify)
 
-(provide localize-error)
+(provide localize-error *analyze-points*)
 
 (define (real-op->bigfloat-op op) (list-ref (hash-ref operations op) mode:bf))
 (define (real-op->float-op op) (list-ref (hash-ref operations op) mode:fl))
 
 (define (repeat c)
   (map (λ (x) c) (*points*)))
+
+(define *analyze-cache* (make-hash))
+(define *analyze-points* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache)
   (hash-ref! cache expr
@@ -43,7 +46,10 @@
 
 (define (localize-error prog)
   (define varmap (map cons (program-variables prog) (flip-lists (*points*))))
-  (define cache (make-hash))
+  (define cache
+    (if (eq? (*analyze-points*) (*points*))
+        *analyze-cache*
+        (make-hash)))
   (define expr->loc (location-hash prog))
 
   (localize-on-expression (program-body prog) varmap cache)
@@ -52,8 +58,8 @@
        (take-up-to
         (sort
          (reap [sow]
-               (for ([expr (hash-keys cache)])
-                 (let ([err (cdr (hash-ref cache expr))]
+               (for ([expr (hash-keys expr->loc)])
+                 (let ([err (cdr (hash-ref! cache expr (λ () (localize-on-expression expr varmap cache))))]
                        [locs (hash-ref expr->loc expr)])
                    (when (ormap (curry < 1) err)
                      (map sow (map (curry cons err) locs))))))
