@@ -122,7 +122,7 @@
 (define (first-nonzero-exp f)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
-    (if (equal? (f n) 0)
+    (if (and (equal? (f n) 0) (< n 20))
         (loop (+ n 1))
         n)))
 
