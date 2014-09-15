@@ -4,12 +4,12 @@
 (require casio/simplify/ematch)
 (require casio/simplify/enode)
 (require casio/simplify/util)
+(require (rename-in casio/simplify/simplify [simplify backup-simplify]))
 (require casio/rules)
 (require casio/matcher)
 (require casio/alternative)
 (require casio/programs)
 (require casio/common)
-(require (rename-in casio/pavel-simplification [simplify backup-simplify]))
 
 (provide simplify-expr simplify)
 
