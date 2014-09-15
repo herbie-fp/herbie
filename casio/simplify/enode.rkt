@@ -43,7 +43,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth victory? flat-expr cvars applied-rules)
+(struct enode (expr id-code children parent depth cvars applied-rules)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -59,8 +59,8 @@
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
-(define (new-enode expr id-code #:flat-expr [flat-expr #f] #:victory? [victory #f])
-  (let ([en* (enode expr id-code '() #f 1 victory flat-expr (set expr) (mutable-set))])
+(define (new-enode expr id-code)
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (mutable-set))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -128,17 +128,6 @@
   ;; Checks that the depth is positive.
   (assert (positive? (enode-depth en)) #:loc location))
 
-;; Returns an enode in the pack of the given enode whose flattened expression matches
-;; the given flattened expression, or #f if one cannot be found.
-(define (pick-matching-flat en flat-expr)
-  (findf (compose (curry equal? flat-expr) enode-flat-expr)
-	 (pack-members en)))
-
-;; Returns a node in the given nodes pack that is a victory node, or false if
-;; one could not be found.
-(define (pick-victory en)
-  (findf enode-victory? (pack-members en)))
-
 (define (check-valid-parent en #:loc [location 'check-valid-parent])
   (let ([parent (enode-parent en)])
     (when parent
@@ -205,10 +194,6 @@
 ;; Marks the given enode as having the given rule applied to it.
 (define (rule-applied! en rl)
   (set-add! (enode-applied-rules en) rl))
-
-(define (refresh-victory! en)
-  (when (and (enode-victory? en) (list? (enode-expr en)) (ormap (curry equal? en) (cdr (enode-expr en))))
-    (set-enode-victory?! en #f)))
 
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])

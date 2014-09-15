@@ -9,8 +9,6 @@
 	 egraph? egraph-cnt egraph-top
 	 map-enodes draw-egraph)
 
-(provide (all-defined-out))
-
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
 ;;# Egraphs keep track of how many enodes have been created, and keep a pointer
@@ -100,7 +98,7 @@
 ;; after this call, if we are creating a new node it still must be merged into
 ;; an existing node or otherwise attached to the (egraph-top eg) node to be
 ;; completely added to the egraph.
-(define (mk-enode! eg expr #:flat-expr [flat-expr #f] #:victory? [victory #f])
+(define (mk-enode! eg expr)
   (if (hash-has-key? (egraph-expr->parent eg) expr)
       (let ([res (hash-ref (egraph-expr->parent eg) expr)])
 	(when victory
@@ -109,9 +107,8 @@
       (let* ([expr* (if (not (list? expr)) expr
 			(cons (car expr)
 			      (map pack-leader (cdr expr))))]
-	     [en (new-enode expr* (egraph-cnt eg) #:flat-expr flat-expr #:victory? victory)]
+	     [en (new-enode expr* (egraph-cnt eg))]
 	     [leader->iexprs (egraph-leader->iexprs eg)])
-	(debug #:from 'simplify #:depth 5 (format "Making node ~a" (egraph-cnt eg)))
 	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
 	(hash-set! leader->iexprs en (mutable-set))
 	(when (list? expr*)
@@ -131,9 +128,8 @@
 	(mk-enode! eg
 		   (cons (car expr)
 			 (map (curry expr->enode eg)
-			      (cdr expr)))
-		   #:flat-expr expr)
-	(mk-enode! eg expr #:flat-expr expr)))
+			      (cdr expr))))
+	(mk-enode! eg expr)))
   (let ([eg (egraph 0 #f (make-hash) (make-hash))])
     (set-egraph-top! eg (expr->enode eg expr))
     ;; This is an expensive check, but useful for debuggging.

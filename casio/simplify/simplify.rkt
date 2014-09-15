@@ -26,9 +26,6 @@
 ;;#
 ;;################################################################################;;
 
-;; A rule must reduce the expression size (judged by pattern) this much to
-;; be considered a victory rule.
-(define *reduce-ratio* 2/3)
 ;; The number of iterations of the egraph is the maximum depth times this custom
 (define *iters-depth-ratio* 1.35)
 
@@ -104,8 +101,7 @@
 	    (for ([bind binds])
 	      (merge-egraph-nodes!
 	       eg en
-	       (substitute-e eg (rule-output rl) bind
-			     #:victory? (victory-rule? rl))))))))
+	       (substitute-e eg (rule-output rl) bind)))))))
     (map-enodes (curry add-precompute eg) eg)))
 
 (define (add-precompute eg en)
@@ -118,14 +114,7 @@
 	(when (andmap real? (cdr constexpr))
 	  (merge-egraph-nodes!
 	   eg en
-	   (mk-enode! eg (safe-eval constexpr) #:victory? #t)))))))
-
-(define (victory-rule? rl)
-  ;; Rules whose inputs are at least *reduce-ratio* smaller than their outputs
-  ;; are considered victory rules.
-  (<= (/ (expr-size (rule-output rl))
-	 (expr-size (rule-input rl)))
-      *reduce-ratio*))
+	   (mk-enode! eg (safe-eval constexpr))))))))
 
 (define (extract-simplest eg max-depth)
   (debug #:from 'simplify #:depth 2 "extracting...")
