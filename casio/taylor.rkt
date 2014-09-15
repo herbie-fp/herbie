@@ -3,6 +3,8 @@
 (require math/number-theory)
 (require casio/common)
 (require casio/simplify/backup-simplify)
+(require (rename-in casio/simplify/simplify
+		    [simplify simplify-alt]))
 
 (provide approximate taylor)
 
@@ -11,7 +13,7 @@
   ; TODO : Redo using new "hull" idea
   (if (null? vars)
       expr
-      (simplify
+      (simplify-expr
        (let* ([var (car vars)]
               [vars* (cdr vars)]
               [apx (taylor var expr)]
