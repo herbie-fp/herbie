@@ -366,8 +366,9 @@
             x-pos y (- x-pos *tick-length*) y)
     (let ([x (- x-pos *label-width* *tick-length* *label-shift*)]
           [y (+ y (/ *label-height* 2))])
-      (printf "<text x='~a' y='~a' class='y-label'>~a</text>\n"
-              x y (y-pos->label y)))))
+      (when (ordinary-float? y) ; TODO : No idea why this is necessary
+        (printf "<text x='~a' y='~a' class='y-label'>~a</text>\n"
+                x y (y-pos->label y))))))
 
 ;; Draws axis. See graph-draw-key for assumptions.
 (define (draw-y-axis x-pos y1 y2)

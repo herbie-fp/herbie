@@ -205,7 +205,7 @@
          [coeffs* (if (even? offset) coeffs (λ (n) (if (= n 0) 0 (coeffs (- n 1)))))]
          [hash (make-hash)])
     (hash-set! hash 0 (simplify `(sqrt ,(coeffs* 0))))
-    (hash-set! hash 1 (simplify (println `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0)))))))
+    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))))
     (letrec ([f (λ (n)
                    (hash-ref! hash n
                               (λ ()
@@ -221,7 +221,7 @@
                                            (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
                                                   `(* 2 (* ,(f k) ,(f (- n k)))))))
                                         (* 2 ,(f 0)))])))))])
-      (cons (/ offset 2) f))))
+      (cons (/ offset* 2) f))))
 
 (define (rle l)
   (for/list ([run (multipartition l identity)])

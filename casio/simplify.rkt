@@ -32,7 +32,7 @@
      (let ([value
             (with-handlers ([(const #t) (const #f)])
               (casio-eval expr))])
-       (if (and (number? value) (exact? value))
+       (if (and (number? value) (real? value) (exact? value))
            value
            (simplify-node `(,op ,@(map simplify* args)))))]
     [`(,op ,args ...)
