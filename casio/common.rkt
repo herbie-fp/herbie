@@ -7,12 +7,15 @@
 
 (provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
-         *debug* *debug-port* debug pipe
+         pipe
+	 write-file write-string has-duplicates?
+	 with-item symbol<?
+	 flip-lists argmaxs multipartition
 	 write-file write-string has-duplicates?
 	 with-item symbol<?
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
-         random-exp
+         random-exp assert setfindf
          (all-from-out casio/config) (all-from-out casio/debug))
 
 (define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
@@ -186,3 +189,31 @@
 			  (remove lookup acc))
 		    (cons (cons key (list (car rest-items)))
 			  acc)))))))
+
+(define-syntax assert
+  (syntax-rules (=)
+    [(assert (= a b) #:loc location)
+     (when (not (= a b))
+       (error location "~a returned false!~n~a is ~a, but ~a is ~a"
+	      (list '= 'a 'b)
+	      'a a
+	      'b b))]
+    [(assert (= a b))
+     (when (not (= a b))
+       (error 'assert "~a returned false!~n~a is ~a, but ~a is ~a"
+	      (list '= 'a 'b)
+	      'a a
+	      'b b))]
+    [(assert pred #:loc location)
+     (when (not pred)
+       (error location "~a returned false!" 'pred))]
+    [(assert pred)
+     (when (not pred)
+       (error 'assert "~a returned false!" 'pred))]))
+
+(define (setfindf f s)
+  (let/ec return
+    (set-for-each s (λ (el)
+		      (when (f el)
+			(return el))))
+    #f))

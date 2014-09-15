@@ -12,10 +12,10 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach taylor)]
-         [regimes  . (recurse)]
+         [regimes  . ()]
          [simplify . ()]
-         [setup    . (simplify periodicity)])))
-         [localize . (cache)]
+         [setup    . (simplify periodicity)]
+         [localize . (cache)])))
 
 (define (toggle-flag! category flag)
   (*flags*
