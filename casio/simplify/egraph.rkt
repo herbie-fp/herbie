@@ -175,8 +175,7 @@
 		  ;; Remove the old leader->iexprs mappings
 		  (hash-remove! leader->iexprs l1)
 		  (hash-remove! leader->iexprs l2)
-		  (let* ([merged-en (enode-merge! l1 l2)]
-			 [seen-leaders (mutable-set)])
+		  (let* ([merged-en (enode-merge! l1 l2)])
 		    ;; Add the new leader->iexprs mapping. We remove duplicates again,
 		    ;; even though we already did that, because there might be things that
 		    ;; weren't duplicates before we merged, but are now.
@@ -196,9 +195,6 @@
 					      (cdr old-key))))]
 				[new-val (pack-leader (cdr chmap))]
 				[existing-val (hash-ref expr->parent new-key #f)])
-			   (when (not (set-member? seen-leaders new-val))
-			     (refresh-vars! new-val)
-			     (set-add! seen-leaders new-val))
 			   (if existing-val
 			       (cons new-val existing-val)
 			       (begin
