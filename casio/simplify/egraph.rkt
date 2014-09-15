@@ -1,13 +1,12 @@
 #lang racket
 
-(require casio/simplify/util)
 (require casio/simplify/enode)
 (require casio/common)
 
 (provide mk-enode! mk-egraph
 	 merge-egraph-nodes!
 	 egraph? egraph-cnt egraph-top
-	 map-enodes draw-egraph)
+	 map-enodes draw-egraph egraph-leaders)
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -101,8 +100,6 @@
 (define (mk-enode! eg expr)
   (if (hash-has-key? (egraph-expr->parent eg) expr)
       (let ([res (hash-ref (egraph-expr->parent eg) expr)])
-	(when victory
-	  (set-enode-victory?! res victory))
 	res)
       (let* ([expr* (if (not (list? expr)) expr
 			(cons (car expr)
@@ -232,11 +229,9 @@
 	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
 	    (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
 		  [vid (in-naturals)])
-	      (let ([var (enode-expr varen)]
-		    [victory? (enode-victory? varen)])
-		(printf "node~avar~a[label=\"~a\",shape=box,color=~a]~n"
-			id vid (if (list? var) (car var) var)
-			(if victory? "green" "blue"))
+	      (let ([var (enode-expr varen)])
+		(printf "node~avar~a[label=\"~a\",shape=box,color=blue]~n"
+			id vid (if (list? var) (car var) var))
 		(printf "node~a -> node~avar~a[style=dashed]~n"
 			id id vid)
 		(cond

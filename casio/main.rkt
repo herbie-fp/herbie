@@ -71,7 +71,7 @@
     (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
 
 (define (simplify-alt altn)
-  (apply alt-apply altn (simplify-egraph altn)))
+  (apply alt-apply altn (simplify altn)))
 
 (define (reduce-alts table fuel)
   (let ([combine

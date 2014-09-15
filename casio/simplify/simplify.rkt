@@ -3,8 +3,7 @@
 (require casio/simplify/egraph)
 (require casio/simplify/ematch)
 (require casio/simplify/enode)
-(require casio/simplify/util)
-(require (rename-in casio/simplify/simplify [simplify backup-simplify]))
+(require (rename-in casio/simplify/backup-simplify [simplify backup-simplify]))
 (require casio/rules)
 (require casio/matcher)
 (require casio/alternative)
@@ -104,6 +103,11 @@
 	       (substitute-e eg (rule-output rl) bind)))))))
     (map-enodes (curry add-precompute eg) eg)))
 
+(define-syntax-rule (matches? expr pattern)
+  (match expr
+    [pattern #t]
+    [_ #f]))
+
 (define (add-precompute eg en)
   (for ([var (enode-vars en)])
     (when (list? var)
@@ -111,34 +115,13 @@
 	     (cons (car var)
 		   (map (compose (curry setfindf constant?) enode-vars)
 			(cdr var)))])
-	(when (andmap real? (cdr constexpr))
-	  (merge-egraph-nodes!
-	   eg en
-	   (mk-enode! eg (safe-eval constexpr))))))))
-
-(define (extract-simplest eg max-depth)
-  (debug #:from 'simplify #:depth 2 "extracting...")
-  (let pick ([en (egraph-top eg)] [depth 0])
-    (let ([flat-expr (enode-flat-expr en)]
-	  [expr (enode-expr en)]
-	  [victor (pick-victory en)])
-      (cond [(> depth max-depth) (error "Loop?")]
-	    [(not (list? expr)) expr]
-	    [(eq? victor en)
-	     (cons (car expr)
-		   (map (curryr pick (add1 depth))
-			(cdr expr)))]
-	    [victor (pick victor (add1 depth))]
-	    [flat-expr
-	     (cons (car expr)
-		   (map (λ (en subexpr)
-			  (pick (pick-matching-flat en subexpr) (add1 depth)))
-			(cdr expr)
-			(cdr flat-expr)))]
-	    [#t
-	     (cons (car expr)
-		   (map (curryr pick (add1 depth))
-			(cdr expr)))]))))
+	(when (and (not (matches? constexpr `(/ ,a 0)))
+		   (andmap real? (cdr constexpr)))
+	  (let ([res (casio-eval constexpr)])
+	    (when (real? res)
+	      (merge-egraph-nodes!
+	       eg en
+	       (mk-enode! eg (casio-eval constexpr))))))))))
 
 (define (hash-set*+ hash assocs)
   (for/accumulate (h hash) ([assoc assocs])

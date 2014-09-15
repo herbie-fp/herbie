@@ -1,11 +1,11 @@
 #lang racket
 
-(require casio/simplify/util)
+(require casio/common)
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
-	 enode? enode-flat-expr pick-matching-flat
-	 enode-expr pick-victory set-enode-victory?! enode-victory?
+	 enode?
+	 enode-expr
 	 pack-leader pack-members
 	 rule-applied! rule-applied?)
 
@@ -108,23 +108,7 @@
   (let ([expr (enode-expr en)])
     (assert (or (number? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
-		     (ormap enode? (cdr expr)))) #:loc location)
-    ;; Check that either:
-    ;; a. We don't have a flat expression
-    ;; b. Our flat expression is a variable or constant that matches our expr
-    ;; c. Our flat expression is a list, it's operator matches our expr,
-    ;;    and it's left and right operators match the flat expression of
-    ;;    some node in the same pack as the left and right operators of
-    ;;    our expression.
-    (let ([flat-expr (enode-flat-expr en)])
-      (when flat-expr
-	(assert (or (not (list? flat-expr))
-		    (and (eq? (car flat-expr)
-			      (car expr))
-			 (andmap pick-matching-flat
-				 (cdr expr)
-				 (cdr flat-expr))))
-		#:loc location))))
+		     (ormap enode? (cdr expr)))) #:loc location))
   ;; Checks that the depth is positive.
   (assert (positive? (enode-depth en)) #:loc location))
 

@@ -1,8 +1,8 @@
 #lang racket
 
-(require casio/simplify/util)
 (require casio/simplify/enode)
 (require casio/simplify/egraph)
+(require casio/common)
 (require casio/programs)
 
 (provide match-e substitute-e)
@@ -74,10 +74,6 @@
     (mk-enode! eg pat)]
    [(symbol? pat)
     (let ([binden (cdr (assoc pat bindings))])
-      ;; If we were set to victory, and this enode doesn't already have a victory
-      ;; node in it's pack, set it to victory
-      (when (and victory (not (pick-victory binden)))
-	(set-enode-victory?! binden victory))
       binden)]
    [(list? pat)
     (mk-enode! eg (cons (car pat)

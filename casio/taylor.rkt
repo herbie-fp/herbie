@@ -2,7 +2,7 @@
 
 (require math/number-theory)
 (require casio/common)
-(require casio/simplify)
+(require casio/simplify/backup-simplify)
 
 (provide approximate taylor)
 
