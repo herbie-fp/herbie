@@ -7,7 +7,7 @@
 
 (provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
-         pipe
+         pipe ulp-difference *bit-width* *max-error* ulps->bits
 	 write-file write-string has-duplicates?
 	 with-item symbol<?
 	 flip-lists argmaxs multipartition
@@ -214,6 +214,21 @@
 		      (when (f el)
 			(return el))))
     #f))
+
+(define (single-flonum->bit-field x)
+  (integer-bytes->integer (real->floating-point-bytes x 4) #f))
+
+(define (single-flonum->ordinal x)
+  (cond [(x . < . 0.0f0) (- (single-flonum->bit-field (- 0.0f0 x)))]
+	[else            (single-flonum->bit-field (abs x))]))
+
+(define (single-flonums-between x y)
+  (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
+
+(define ulp-difference ((flag 'evaluate 'double-precision) flonums-between single-flonums-between))
+(define *bit-width* ((flag 'evaluate 'double-precision) 64 32))
+(define *max-error* (expt 2 *bit-width*))
+
 (define (ulps->bits x)
   (cond
    [(nan? x) +nan.0]
