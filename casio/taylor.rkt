@@ -99,8 +99,21 @@
            (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*)))))]
         [else
          (taylor-cos (zero-series arg*))]))]
+    [`(log ,arg)
+     (let* ([arg* (normalize-series (taylor var arg))]
+            [rest (taylor-log (cdr arg*))])
+       (if (zero? (car arg*))
+           rest
+           (cons 0
+                 (λ (n)
+                    (if (= n 0)
+                        (simplify `(+ (* (- ,(car arg*)) (log ,var))
+                                      ,((cdr rest) 0)))
+                        ((cdr rest) n))))))]
     [`(expt ,(? (curry equal? var)) ,(? integer? pow))
      (cons (- pow) (λ (n) (if (= n 0) 1 0)))]
+    [`(expt ,base ,pow)
+     (taylor var `(exp (* ,pow (log ,base))))]
     [`(tan ,arg)
      (taylor var `(/ (sin ,arg) (cos ,arg)))]
     [`(cotan ,arg)
@@ -283,3 +296,61 @@
                                       ,(factorial (car factor)))))
                           0))))))))
 
+;; This is a hyper-specialized symbolic differentiator for log(f(x))
+
+(define initial-logtable '((1 -1 1)))
+
+(define (list-setinc l i)
+  (let loop ([i i] [l l] [rest '()])
+    (if (= i 0)
+        (if (null? (cdr l))
+            (append (reverse rest) (list (- (car l) 1) 1))
+            (append (reverse rest) (list* (- (car l) 1) (+ (cadr l) 1) (cddr l))))
+        (loop (- i 1) (cdr l) (cons (car l) rest)))))
+
+(define (loggenerate table)
+  (apply append
+         (for/list ([term table])
+           (match term
+             [`(,coeff ,k ,ps ...)
+              (cons
+               `(,(* coeff k) ,(- k 1) ,(+ (car ps) 1) ,@(cdr ps))
+               (filter identity
+                       (for/list ([i (in-naturals)] [p ps])
+                         (if (zero? p)
+                             #f
+                             `(,(* coeff p) ,k ,@(list-setinc ps i))))))]))))
+
+(define (lognormalize table)
+  (filter (λ (entry) (not (= (car entry) 0)))
+          (for/list ([entry (multipartition table cdr)])
+            (cons (apply + (map car entry))
+                  (cdar entry)))))
+
+(define (logstep table)
+  (lognormalize (loggenerate table)))
+
+(define logcache (make-hash (list (cons 1 '((1 -1 1))))))
+(define logbiggest 1)
+
+(define (logcompute i)
+  (hash-ref! logcache i
+             (λ ()
+                (logstep (logcompute (- i 1))))))
+
+(define (taylor-log coeffs)
+  "coeffs is assumed to start with a nonzero term"
+  (cons 0
+        (λ (n)
+           (if (= n 0)
+               (simplify `(log ,(coeffs 0)))
+               (let* ([tmpl (logcompute n)])
+                 (simplify
+                  `(/
+                    (+ ,@(for/list ([term tmpl])
+                           (match term
+                             [`(,coeff ,k ,ps ...)
+                              `(* ,coeff (/ (* ,@(for/list ([i (in-naturals 1)] [p ps])
+                                                   `(expt ,(coeffs i) ,p)))
+                                            (expt ,(coeffs 0) ,(- k))))])))
+                    ,(factorial n))))))))

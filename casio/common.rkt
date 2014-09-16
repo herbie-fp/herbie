@@ -11,9 +11,6 @@
 	 write-file write-string has-duplicates?
 	 with-item symbol<?
 	 flip-lists argmaxs multipartition
-	 write-file write-string has-duplicates?
-	 with-item symbol<?
-	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
          random-exp assert setfindf
          (all-from-out casio/config) (all-from-out casio/debug))
