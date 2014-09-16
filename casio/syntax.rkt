@@ -35,6 +35,16 @@
 	   nan
 	   (real-part ans)))))
 
+(define csinh
+  ((flag 'evaluate 'double-precision)
+   flsinh
+   (λ (x) (real->single-flonum (flsinh (real->double-flonum x))))))
+
+(define ctanh
+  ((flag 'evaluate 'double-precision)
+   fltanh
+   (λ (x) (real->single-flonum (fltanh (real-double-flonum x))))))
+
 (define csqrt (make-safe sqrt))
 (define clog (make-safe log))
 (define casin (make-safe asin))
@@ -64,9 +74,9 @@
   [asin     bfasin    casin   140]
   [acos     bfacos    cacos   155]
   [atan     bfatan    atan    130]
-  [sinh     bfsinh    sinh    300]
+  [sinh     bfsinh    csinh   300]
   [cosh     bfcosh    cosh    300]
-  [tanh     bftanh    tanh    300]
+  [tanh     bftanh    ctanh   300]
   [atan2    bfatan2   atan    230]
   [abs      bfabs     abs       1]
   [mod      bfmod     cmod      1]
