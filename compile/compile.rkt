@@ -65,7 +65,7 @@
      [(member expr vars) (fix-name expr)]
      [(member expr constants) (apply-converter (car (hash-ref constants->c expr)) '())]
      [(symbol? expr) expr]
-     [else (->flonum expr)]))
+     [else (real->double-flonum (->flonum expr))]))
 
   (define (app->c expr)
     (if (list? expr)
