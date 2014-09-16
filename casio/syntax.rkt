@@ -30,34 +30,34 @@
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
-  [+        bf+       fl+       1]
+  [+        bf+       +         1]
   [-        bf-       -         1]
-  [*        bf*       fl*       1]
+  [*        bf*       *         1]
   [/        bf/       /         1]
-  [sqrt     bfsqrt    flsqrt    1]
+  [sqrt     bfsqrt    sqrt      1]
   [sqr      bfsqr     sqr       1]
-  [exp      bfexp     flexp     270]
-  [expt     bfexpt    flexpt    640]
-  [log      bflog     fllog     300]
-  [sin      bfsin     flsin     145]
-  [cos      bfcos     flcos     185]
-  [tan      bftan     fltan     160]
-  [cotan    bfcot     cotan     160]
-  [asin     bfasin    flasin    140]
-  [acos     bfacos    flacos    155]
-  [atan     bfatan    flatan    130]
-  [sinh     bfsinh    flsinh    300]
-  [cosh     bfcosh    flcosh    300]
-  [tanh     bftanh    fltanh    300]
-  [atan2    bfatan2   atan      230]
-  [abs      bfabs     flabs     1]
-  [mod      bfmod     flmod     1]
+  [exp      bfexp     exp     270]
+  [expt     bfexpt    expt    640]
+  [log      bflog     log     300]
+  [sin      bfsin     sin     145]
+  [cos      bfcos     cos     185]
+  [tan      bftan     tan     160]
+  [cotan    bfcot     cotan   160]
+  [asin     bfasin    asin    140]
+  [acos     bfacos    acos    155]
+  [atan     bfatan    atan    130]
+  [sinh     bfsinh    sinh    300]
+  [cosh     bfcosh    cosh    300]
+  [tanh     bftanh    tanh    300]
+  [atan2    bfatan2   atan    230]
+  [abs      bfabs     abs       1]
+  [mod      bfmod     modulo       1]
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
-  [>        bf>       fl>       1]
-  [<        bf<       fl<       1]
-  [<=       bf<=      fl<=      1]
-  [>=       bf>=      fl>=      1]
+  [>        bf>       >         1]
+  [<        bf<       <         1]
+  [<=       bf<=      <=        1]
+  [>=       bf>=      >=        1]
   [and      and-fn    and-fn    1]
   [or       or-fn     or-fn     1])
 
@@ -75,7 +75,7 @@
   (or (member var constants) (real? var)))
 
 (define (->flonum x)
-  (let ([convert ((flat 'evaluate 'double-precision)
+  (let ([convert ((flag 'evaluate 'double-precision)
 		  real->double-flonum
 		  real->single-flonum)])
     (cond
