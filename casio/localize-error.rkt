@@ -40,8 +40,8 @@
                           [exact  (map (curry apply f-exact) argvals)]
                           [approx (map (compose (curry apply f-approx) (curry map ->flonum)) argvals)]
                           [error
-                           (map (λ (ex ap) (+ 1 (abs (flonums-between (real->double-flonum (->flonum ex))
-								      (real->double-flonum (->flonum ap)))))) exact approx)])
+                           (map (λ (ex ap) (+ 1 (abs (ulp-difference (->flonum ex)
+								     (->flonum ap))))) exact approx)])
                      (cons exact error))]))))
 
 (define (localize-error prog)
