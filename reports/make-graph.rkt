@@ -184,12 +184,6 @@
                (caar pts) (cdar pts))
        (loop (cdr pts) #f)]))))
 
-(define (ulps->bits x)
-  (cond
-   [(nan? x) +nan.0]
-   [(infinite? x) 64]
-   [else (/ (log x) (log 2))]))
-
 (define (group-by f l)
   (let ([h (make-hash)])
     (for ([elt l])

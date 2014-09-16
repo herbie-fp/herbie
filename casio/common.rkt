@@ -214,3 +214,8 @@
 		      (when (f el)
 			(return el))))
     #f))
+(define (ulps->bits x)
+  (cond
+   [(nan? x) +nan.0]
+   [(infinite? x) *bit-width*]
+   [else (/ (log x) (log 2))]))

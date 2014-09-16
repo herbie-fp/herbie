@@ -181,11 +181,6 @@
 	 contexts))
   (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
 
-(define (ulps->bits e)
-  (if (ordinary-float? e)
-      (/ (log e) (log 2))
-      64))
-
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
 ;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
 (define (partial-sum lst)
