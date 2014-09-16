@@ -20,7 +20,7 @@
       (for/list ([folder sorted-folders])
         (match (parse-folder-name folder)
           [`(,timestamp ,hostname ... ,branch ,commit)
-           (printf "<li><a href='~a/report.html'>Report on ~a in ~a (<code>~a</code>) by <code>~a</code></a></li>\n"
+           (printf "<li><a href='./~a/report.html'>Report on ~a in ~a (<code>~a</code>) by <code>~a</code></a></li>\n"
                    folder
                    (date->string (seconds->date (string->number timestamp)))
                    branch
