@@ -166,20 +166,25 @@
 (define (recurse-on-alts recurse-function altns splitpoints)
   (define (recurse-on-points altns contexts)
     (map (λ (altn context)
-	   (if (= (length (*points*)) (length (alt-context-points context)))
-	       altn #;(error "Regime contains entire input space!")
-	       (parameterize ([*points* (alt-context-points context)]
-			      [*exacts* (alt-context-exacts context)])
-		 (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
-		     ;; because we refer to the alts by index a lot.
-		     (let* ([orig (make-alt (alt-program altn))]
-			    [result (recurse-function orig)])
-		       (when (> (errors-score (alt-errors result)) (errors-score (alt-errors orig)))
-			 (debug "Improved Alt " result " is worse than it's original, " altn #:from 'regime-changes))
-		       result)))))
+	   (cond [(= (length (*points*)) (length (alt-context-points context)))
+		  (error "Regime contains entire input space!")]
+		 [(= 0 (length (alt-context-points context)))
+		  (error "Regime contains nothing!")]
+		 [#t
+		  (parameterize ([*points* (alt-context-points context)]
+				 [*exacts* (alt-context-exacts context)])
+		    (let ([orig (make-alt (alt-program altn))])
+		      (recurse-function orig)))]))
 	 altns
 	 contexts))
+  (check-valid-splitpoints splitpoints (*points*))
   (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
+
+(define (check-valid-splitpoints splitpoints points)
+  (let* ([dim (sp-vidx (car splitpoints))]
+	 [min-point (apply min (map (curryr list-ref dim) points))])
+    (for ([split splitpoints])
+      (assert (> (sp-point split) min-point)))))
 
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
 ;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
