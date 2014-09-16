@@ -116,6 +116,7 @@
 		   (map (compose (curry setfindf constant?) enode-vars)
 			(cdr var)))])
 	(when (and (not (matches? constexpr `(/ ,a 0)))
+		   (not (matches? constexpr `(log 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (casio-eval constexpr)])
 	    (when (real? res)

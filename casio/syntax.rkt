@@ -14,6 +14,8 @@
 (define program-variables cadr)
 
 ; Functions and constants used in our language
+(define nan ((flag 'evaluate 'double-precision) +nan.0 +nan.f))
+
 (define (cotan x)
   (/ 1 (tan x)))
 
@@ -23,6 +25,22 @@
 (define (flmod x mod)
   (fl- x (fl* mod (flfloor (fl/ x mod)))))
 
+(define (cmod x mod)
+  (- x (* mod (floor (/ x mod)))))
+
+(define (make-safe f)
+  (λ args
+     (let ([ans (apply f args)])
+       (if (and (complex? ans) (not (= 0 (imag-part ans))))
+	   nan
+	   (real-part ans)))))
+
+(define csqrt (make-safe sqrt))
+(define clog (make-safe log))
+(define casin (make-safe asin))
+(define cacos (make-safe acos))
+(define cexpt (make-safe expt))
+
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
@@ -30,34 +48,34 @@
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
-  [+        bf+       fl+       1]
+  [+        bf+       +         1]
   [-        bf-       -         1]
-  [*        bf*       fl*       1]
+  [*        bf*       *         1]
   [/        bf/       /         1]
-  [sqrt     bfsqrt    flsqrt    1]
+  [sqrt     bfsqrt    csqrt     1]
   [sqr      bfsqr     sqr       1]
-  [exp      bfexp     flexp     270]
-  [expt     bfexpt    flexpt    640]
-  [log      bflog     fllog     300]
-  [sin      bfsin     flsin     145]
-  [cos      bfcos     flcos     185]
-  [tan      bftan     fltan     160]
-  [cotan    bfcot     cotan     160]
-  [asin     bfasin    flasin    140]
-  [acos     bfacos    flacos    155]
-  [atan     bfatan    flatan    130]
-  [sinh     bfsinh    flsinh    300]
-  [cosh     bfcosh    flcosh    300]
-  [tanh     bftanh    fltanh    300]
-  [atan2    bfatan2   atan      230]
-  [abs      bfabs     flabs     1]
-  [mod      bfmod     flmod     1]
+  [exp      bfexp     exp     270]
+  [expt     bfexpt    cexpt   640]
+  [log      bflog     clog    300]
+  [sin      bfsin     sin     145]
+  [cos      bfcos     cos     185]
+  [tan      bftan     tan     160]
+  [cotan    bfcot     cotan   160]
+  [asin     bfasin    casin   140]
+  [acos     bfacos    cacos   155]
+  [atan     bfatan    atan    130]
+  [sinh     bfsinh    sinh    300]
+  [cosh     bfcosh    cosh    300]
+  [tanh     bftanh    tanh    300]
+  [atan2    bfatan2   atan    230]
+  [abs      bfabs     abs       1]
+  [mod      bfmod     cmod      1]
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
-  [>        bf>       fl>       1]
-  [<        bf<       fl<       1]
-  [<=       bf<=      fl<=      1]
-  [>=       bf>=      fl>=      1]
+  [>        bf>       >         1]
+  [<        bf<       <         1]
+  [<=       bf<=      <=        1]
+  [>=       bf>=      >=        1]
   [and      and-fn    and-fn    1]
   [or       or-fn     or-fn     1])
 
@@ -75,16 +93,19 @@
   (or (member var constants) (real? var)))
 
 (define (->flonum x)
-  (cond
-   [(real? x) (real->double-flonum x)]
-   [(bigfloat? x) (real->double-flonum (bigfloat->flonum x))]
-   [(complex? x)
-    (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
-   [(eq? x 'pi) pi]
-   [(eq? x 'e) (exp 1)]
-   [else x]))
+  (let ([convert ((flag 'evaluate 'double-precision)
+		  real->double-flonum
+		  real->single-flonum)])
+    (cond
+     [(real? x) (convert x)]
+     [(bigfloat? x) (convert (bigfloat->flonum x))]
+     [(complex? x)
+      (if (= (imag-part x) 0)
+	  (->flonum (real-part x))
+	  +nan.0)]
+     [(eq? x 'pi) (convert pi)]
+     [(eq? x 'e) (convert (exp 1))]
+     [else x])))
 
 (define (->bf x)
   (cond
