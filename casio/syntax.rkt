@@ -24,7 +24,7 @@
   (fl- x (fl* mod (flfloor (fl/ x mod)))))
 
 (define (csqrt x)
-  (if (negative? x) +nan.0 (sqrt x)))
+  (if (negative? (->flonum x)) +nan.0 (sqrt x)))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
