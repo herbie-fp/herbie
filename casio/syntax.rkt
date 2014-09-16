@@ -14,6 +14,8 @@
 (define program-variables cadr)
 
 ; Functions and constants used in our language
+(define nan ((flag 'evaluate 'double-precision) +nan.0 +nan.f))
+
 (define (cotan x)
   (/ 1 (tan x)))
 
@@ -23,8 +25,21 @@
 (define (flmod x mod)
   (fl- x (fl* mod (flfloor (fl/ x mod)))))
 
-(define (csqrt x)
-  (if (negative? (->flonum x)) +nan.0 (sqrt x)))
+(define (cmod x mod)
+  (- x (* mod (floor (/ x mod)))))
+
+(define (make-safe f)
+  (λ args
+     (let ([ans (apply f args)])
+       (if (and (complex? ans) (not (= 0 (imag-part ans))))
+	   nan
+	   (real-part ans)))))
+
+(define csqrt (make-safe sqrt))
+(define clog (make-safe log))
+(define casin (make-safe asin))
+(define cacos (make-safe acos))
+(define cexpt (make-safe expt))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -40,21 +55,21 @@
   [sqrt     bfsqrt    csqrt     1]
   [sqr      bfsqr     sqr       1]
   [exp      bfexp     exp     270]
-  [expt     bfexpt    expt    640]
-  [log      bflog     log     300]
+  [expt     bfexpt    cexpt   640]
+  [log      bflog     clog    300]
   [sin      bfsin     sin     145]
   [cos      bfcos     cos     185]
   [tan      bftan     tan     160]
   [cotan    bfcot     cotan   160]
-  [asin     bfasin    asin    140]
-  [acos     bfacos    acos    155]
+  [asin     bfasin    casin   140]
+  [acos     bfacos    cacos   155]
   [atan     bfatan    atan    130]
   [sinh     bfsinh    sinh    300]
   [cosh     bfcosh    cosh    300]
   [tanh     bftanh    tanh    300]
   [atan2    bfatan2   atan    230]
   [abs      bfabs     abs       1]
-  [mod      bfmod     modulo    1]
+  [mod      bfmod     cmod      1]
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
   [>        bf>       >         1]
