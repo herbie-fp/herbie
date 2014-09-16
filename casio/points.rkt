@@ -127,7 +127,7 @@
     (for/list ([point points] [exact exacts])
       (let ([out (fn point)])
         (if (real? out)
-            (+ 1 (abs (flonums-between out exact)))
+            (+ 1 (abs (flonums-between (real->double-flonum out) (real->double-flonum exact))))
             (+ 1 (flonum->ordinal +nan.0)))))))
 
 (define (errors-score e)
