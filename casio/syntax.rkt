@@ -23,6 +23,9 @@
 (define (flmod x mod)
   (fl- x (fl* mod (flfloor (fl/ x mod)))))
 
+(define (csqrt x)
+  (if (negative? x) +nan.0 (sqrt x)))
+
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
@@ -34,7 +37,7 @@
   [-        bf-       -         1]
   [*        bf*       *         1]
   [/        bf/       /         1]
-  [sqrt     bfsqrt    sqrt      1]
+  [sqrt     bfsqrt    csqrt     1]
   [sqr      bfsqr     sqr       1]
   [exp      bfexp     exp     270]
   [expt     bfexpt    expt    640]
@@ -51,7 +54,7 @@
   [tanh     bftanh    tanh    300]
   [atan2    bfatan2   atan    230]
   [abs      bfabs     abs       1]
-  [mod      bfmod     modulo       1]
+  [mod      bfmod     modulo    1]
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
   [>        bf>       >         1]
