@@ -62,9 +62,8 @@
 	 equivilences)))
 
 (define (option-on-var var-idx alts)
-  (let* ([p&e (sort (map cons (*points*) (*exacts*)) <
-                    #:key (compose (curryr list-ref var-idx) car))])
-    (parameterize ([*points* (map car p&e)] [*exacts* (map cdr p&e)])
+  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) var-idx)])
+    (parameterize ([*points* pts] [*exacts* exs])
       (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
              [point-lst* (sum-errors-on-points point-lst var-idx)]
              [points-exacts-errs (flip-lists point-lst*)]
@@ -74,9 +73,13 @@
              [split-points (sindices->spoints points* var-idx alts split-indices)])
         (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))))
 
+(define (sort-points pts exs vidx)
+  (let ([p&e (sort (map cons pts exs) < #:key (compose (curryr list-ref vidx) car))])
+    (list (map car p&e) (map cdr p&e))))
+
 (define (error-at prog point exact)
   (car (errors prog
-(list point) (list exact))))
+	       (list point) (list exact))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -131,17 +134,6 @@
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-exacts exacts] [accs (make-list num-alts (alt-context '() '()))])
     (cond [(null? rest-points)
-	   (debug #:from 'regimes #:depth 3
-		  (format "The sizes of the point partitions are ~a, and the splitpoints are ~a"
-			  (apply string-append (for/list ([acc accs])
-						 (format "~a, " (length (alt-context-points acc)))))
-			  splitpoints))
-	   (debug #:from 'regimes #:depth 3
-		  (let ([point-vals (map (curryr list-ref (sp-vidx (car rest-splits)))
-					 points)])
-		    (format "Min point ~a, Max point ~a"
-			    (apply min point-vals)
-			    (apply max point-vals))))
 	   (map (λ (context) (alt-context (reverse (alt-context-points context))
 					  (reverse (alt-context-exacts context))))
 		accs)]
@@ -174,28 +166,21 @@
 ;; on which split-indices (more precisely, that the indices match up),
 ;; by invoking recurse function with the points and exacts properly
 ;; dynamically scoped for each alt.
+;; Assumption: All splitpoints have the same vidx.
 (define (recurse-on-alts recurse-function altns splitpoints)
   (define (recurse-on-points altns contexts)
     (for/list ([altn altns] [context contexts] [index (in-naturals)])
       (cond [(= (length (*points*)) (length (alt-context-points context)))
-	     (error (format "Regime contains entire input space!~nThe splitpoints are ~a, and we're currently working on splitpoint ~a.~nThe minimum point is ~a"
-			    splitpoints index (apply min (map (curryr list-ref (sp-vidx (car splitpoints))) (*points*)))))]
+	     (error 'regimes "Regime contains entire input space!")]
 	    [(= 0 (length (alt-context-points context)))
-	     (error (format "Regime contains nothing!~nThe splitpoints are ~a, and we're currently working on splitpoint ~a.~nThe minimum point is ~a"
-			    splitpoints index (apply min (map (curryr list-ref (sp-vidx (car splitpoints))) (*points*)))))]
+	     (error 'regimes "Regime contains nothing!")]
 	    [#t
 	     (parameterize ([*points* (alt-context-points context)]
 			    [*exacts* (alt-context-exacts context)])
 	       (let ([orig (make-alt (alt-program altn))])
 		 (recurse-function orig)))])))
-  (check-valid-splitpoints splitpoints (*points*))
-  (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
-
-(define (check-valid-splitpoints splitpoints points)
-  (let* ([dim (sp-vidx (car splitpoints))]
-	 [min-point (apply min (map (curryr list-ref dim) points))])
-    (for ([split splitpoints])
-      (assert (> (sp-point split) min-point)))))
+  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) (sp-vidx (car splitpoints)))])
+    (recurse-on-points altns (partition-points splitpoints pts exs (length altns)))))
 
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
 ;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
