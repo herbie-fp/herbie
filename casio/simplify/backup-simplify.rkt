@@ -49,6 +49,8 @@
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
      (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
        (make-multiplication-node terms))]
+    [`(exp (* ,c (log ,x)))
+     `(expt ,x ,c)]
     [else
      (let/ec return
        (for ([pattern fn-inverses])
@@ -135,6 +137,11 @@
            (cons (sqrt (car terms))
                  (for/list ([term (cdr terms)])
                    (cons (/ (car term) 2) (cdr term))))))]
+    [`(expt ,arg ,(? real? a))
+     (let ([terms (gather-multiplicative-terms arg)])
+       (cons (expt (car terms) a)
+             (for/list ([term (cdr terms)])
+               (cons (* a (car term)) (cdr term)))))]
     [else
      `(1 (1 . ,expr))]))
 

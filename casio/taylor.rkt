@@ -8,28 +8,73 @@
 
 (provide approximate taylor)
 
-(define (approximate expr vars)
+(define (approximate expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'taylor "Taking taylor expansion of" expr "in" vars)
-  ; TODO : Redo using new "hull" idea
-  (if (null? vars)
-      expr
-      (simplify-expr
-       (let* ([var (car vars)]
-              [vars* (cdr vars)]
-              [apx (taylor var expr)]
-              [offset (car apx)]
-              [coeffs (cdr apx)]
-              [n (first-nonzero-exp coeffs)]
-              [exp (- n offset)]
-              [coeff (approximate (coeffs n) vars*)])
-         (cond
-          [(equal? exp 0) coeff]
-          [(equal? exp 1) `(* ,coeff ,var)]
-          [(equal? exp 2) `(* ,coeff (sqr ,var))]
-          [(equal? exp -1) `(/ ,coeff ,var)]
-          [(equal? exp -2) `(/ ,coeff (sqr ,var))]
-          [(positive? exp) `(* ,coeff (expt ,var ,exp))]
-          [(negative? exp) `(/ ,coeff (expt ,var ,exp))])))))
+
+  (define taylor-cache (make-hash))
+
+  (hash-set! taylor-cache '() (taylor (car vars) expr))
+
+  (define (take-taylor coeffs)
+    (hash-ref! taylor-cache coeffs
+               (λ ()
+                  (let* ([oc (take-taylor (cdr coeffs))]
+                         [expr* ((cdr oc) (car coeffs))])
+                    (if (= (length coeffs) (length vars))
+                      expr*
+                      (taylor (list-ref vars (length coeffs)) expr*))))))
+
+  (define (make-term coeffs)
+    (simplify
+     `(* ,(take-taylor coeffs)
+         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
+            (if (null? vars)
+                1
+                (let ([var (car vars)]
+                      [idx (car coeffs)]
+                     [offset (car (take-taylor (cdr coeffs)))])
+                  `(* ,(make-monomial var (- idx offset)) ,(loop (cdr vars) (cdr coeffs)))))))))
+
+  (simplify
+   (cons '+
+         (let loop ([i 0] [res '()])
+           (if (or (> i (* iters (length vars))) (>= (length res) terms))
+               res
+               (let ([coeffs (iterate-diagonal (length vars) i)])
+                 (if (not (equal? (take-taylor coeffs) 0))
+                     (loop (+ i 1) (cons (make-term coeffs) res))
+                     (loop (+ i 1) res))))))))
+
+(define (make-monomial var pow)
+  (cond
+   [(equal? pow 0) 1]
+   [(equal? pow 1) var]
+   [(equal? pow 2) `(sqr ,var)]
+   [(equal? pow -1) `(/ 1 ,var)]
+   [(equal? pow -2) `(/ 1 (sqr ,var))]
+   [(positive? pow) `(expt ,var ,pow)]
+   [(negative? pow) `(/ 1 (expt ,var ,pow))]))
+
+(define n-sum-to-cache (make-hash))
+
+(define (n-sum-to n k)
+  (hash-ref! n-sum-to-cache (cons n k)
+             (λ ()
+                (cond
+                 [(= k 0) (list (build-list n (const 0)))]
+                 [(= n 1) (list (list k))]
+                 [(= n 0) '()]
+                 [else
+                  (apply append
+                         (for/list ([i (in-range 0 (+ k 1))])
+                           (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
+
+(define (iterate-diagonal dim i)
+  (let loop ([i i] [sum 0])
+    (let ([seg (n-sum-to dim sum)])
+      (if ((length seg) . <= . i)
+          (loop (- i (length seg)) (+ sum 1))
+          (list-ref seg i)))))
 
 (define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -256,7 +301,7 @@
    (cons 0
          (λ (n)
             (if (= n 0)
-                `(exp ,(coeffs 0))
+                (simplify `(exp ,(coeffs 0)))
                 (simplify
                  `(* (exp ,(coeffs 0))
                      (+
@@ -312,14 +357,12 @@
   (apply append
          (for/list ([term table])
            (match term
-             [`(,coeff ,k ,ps ...)
-              (cons
-               `(,(* coeff k) ,(- k 1) ,(+ (car ps) 1) ,@(cdr ps))
-               (filter identity
-                       (for/list ([i (in-naturals)] [p ps])
-                         (if (zero? p)
-                             #f
-                             `(,(* coeff p) ,k ,@(list-setinc ps i))))))]))))
+             [`(,coeff ,ps ...)
+              (filter identity
+                      (for/list ([i (in-naturals)] [p ps])
+                        (if (zero? p)
+                            #f
+                            `(,(* coeff p) ,@(list-setinc ps i)))))]))))
 
 (define (lognormalize table)
   (filter (λ (entry) (not (= (car entry) 0)))
@@ -351,6 +394,8 @@
                            (match term
                              [`(,coeff ,k ,ps ...)
                               `(* ,coeff (/ (* ,@(for/list ([i (in-naturals 1)] [p ps])
-                                                   `(expt ,(coeffs i) ,p)))
+                                                   (if (= p 0)
+                                                       1
+                                                       `(expt (* ,(factorial i) ,(coeffs i)) ,p))))
                                             (expt ,(coeffs 0) ,(- k))))])))
                     ,(factorial n))))))))
