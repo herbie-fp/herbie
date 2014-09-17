@@ -62,7 +62,7 @@
 	 equivilences)))
 
 (define (option-on-var var-idx alts)
-  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) var-idx)])
+  (match-let ([`(,pts ,exs) (sort-points (*points*) (*exacts*) var-idx)])
     (parameterize ([*points* pts] [*exacts* exs])
       (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
              [point-lst* (sum-errors-on-points point-lst var-idx)]
@@ -179,7 +179,7 @@
 			    [*exacts* (alt-context-exacts context)])
 	       (let ([orig (make-alt (alt-program altn))])
 		 (recurse-function orig)))])))
-  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) (sp-vidx (car splitpoints)))])
+  (match-let ([`(,pts ,exs) (sort-points (*points*) (*exacts*) (sp-vidx (car splitpoints)))])
     (recurse-on-points altns (partition-points splitpoints pts exs (length altns)))))
 
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
