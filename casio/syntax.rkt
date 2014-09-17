@@ -43,7 +43,7 @@
 (define ctanh
   ((flag 'evaluate 'double-precision)
    fltanh
-   (λ (x) (real->single-flonum (fltanh (real-double-flonum x))))))
+   (λ (x) (real->single-flonum (fltanh (real->double-flonum x))))))
 
 (define csqrt (make-safe sqrt))
 (define clog (make-safe log))
