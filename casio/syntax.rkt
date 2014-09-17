@@ -4,7 +4,7 @@
 (require math/bigfloat)
 (require casio/common)
 
-(provide operations predicates constants constant? variable?
+(provide *operations* predicates constants constant? variable?
          mode:bf mode:fl ->bf ->flonum
          common-eval-ns casio-eval
          program-body program-variables)
@@ -88,6 +88,8 @@
   [>=       bf>=      >=        1]
   [and      and-fn    and-fn    1]
   [or       or-fn     or-fn     1])
+
+(define *operations* (make-parameter operations))
 
 (define constants '(pi e))
 
