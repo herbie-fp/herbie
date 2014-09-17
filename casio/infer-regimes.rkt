@@ -131,6 +131,17 @@
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-exacts exacts] [accs (make-list num-alts (alt-context '() '()))])
     (cond [(null? rest-points)
+	   (debug #:from 'regimes #:depth 3
+		  (format "The sizes of the point partitions are ~a, and the splitpoints are ~a"
+			  (apply string-append (for/list ([acc accs])
+						 (format "~a, " (length (alt-context-points acc)))))
+			  splitpoints))
+	   (debug #:from 'regimes #:depth 3
+		  (let ([point-vals (map (curryr list-ref (sp-vidx (car rest-splits)))
+					 points)])
+		    (format "Min point ~a, Max point ~a"
+			    (apply min point-vals)
+			    (apply max point-vals))))
 	   (map (λ (context) (alt-context (reverse (alt-context-points context))
 					  (reverse (alt-context-exacts context))))
 		accs)]
