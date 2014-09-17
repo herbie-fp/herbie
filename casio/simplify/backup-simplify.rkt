@@ -13,7 +13,7 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (symbol? (rule-output rule))) *rules*)))
+  (map rule-input (filter (λ (rule) (symbol? (rule-output rule))) (*rules*))))
 
 (define (simplify expr)
   (let ([simpl (simplify* expr)])

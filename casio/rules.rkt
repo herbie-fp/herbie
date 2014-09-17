@@ -32,7 +32,7 @@
 	 (set! *rulesets* (cons name *rulesets*))))
 
 (define (get-rule name)
-  (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) *rules*)])
+  (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) (*rules*))])
     (if (null? results)
 	(error "Could not find a rule by the name" name)
 	(car results))))
@@ -225,7 +225,7 @@
   [cotan-tan   (cotan x)           (/ 1 (tan x))                                   ()]
   [tan-cotan   (tan x)             (/ 1 (cotan x))                                 ()])
 
-(define *rules* (apply append *rulesets*))
+(define *rules* (make-parameter (apply append *rulesets*)))
 (define *simplify-rules*
   (append trig-reduce
 	  log-distribute
@@ -245,7 +245,7 @@
 
 (define rules-tests
   (test-suite "Test rewrite rules for soundness"
-   (for ([rule *rules*])
+   (for ([rule (*rules*)])
      (let ([name (rule-name rule)] [p1 (rule-input rule)] [p2 (rule-output rule)])
        (test-case (~a (rule-name rule))
          (let*-values ([(fv) (free-variables p1)]
