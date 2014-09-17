@@ -176,18 +176,18 @@
 ;; dynamically scoped for each alt.
 (define (recurse-on-alts recurse-function altns splitpoints)
   (define (recurse-on-points altns contexts)
-    (map (λ (altn context)
-	   (cond [(= (length (*points*)) (length (alt-context-points context)))
-		  (error "Regime contains entire input space!")]
-		 [(= 0 (length (alt-context-points context)))
-		  (error "Regime contains nothing!")]
-		 [#t
-		  (parameterize ([*points* (alt-context-points context)]
-				 [*exacts* (alt-context-exacts context)])
-		    (let ([orig (make-alt (alt-program altn))])
-		      (recurse-function orig)))]))
-	 altns
-	 contexts))
+    (for/list ([altn altns] [context contexts] [index (in-naturals)])
+      (cond [(= (length (*points*)) (length (alt-context-points context)))
+	     (error (format "Regime contains entire input space!~nThe splitpoints are ~a, and we're currently working on splitpoint ~a.~nThe minimum point is ~a"
+			    splitpoints index (apply min (map (curryr list-ref (sp-vidx (car splitpoints))) (*points*)))))]
+	    [(= 0 (length (alt-context-points context)))
+	     (error (format "Regime contains nothing!~nThe splitpoints are ~a, and we're currently working on splitpoint ~a.~nThe minimum point is ~a"
+			    splitpoints index (apply min (map (curryr list-ref (sp-vidx (car splitpoints))) (*points*)))))]
+	    [#t
+	     (parameterize ([*points* (alt-context-points context)]
+			    [*exacts* (alt-context-exacts context)])
+	       (let ([orig (make-alt (alt-program altn))])
+		 (recurse-function orig)))])))
   (check-valid-splitpoints splitpoints (*points*))
   (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
 
