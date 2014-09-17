@@ -1,6 +1,6 @@
 #lang racket
 
-(provide *debug* *debug-port* debug)
+(provide *debug* *debug-port* debug set-debug-level!)
 
 (define *debug* (make-parameter #f))
 (define *debug-port* (make-parameter (current-error-port)))
