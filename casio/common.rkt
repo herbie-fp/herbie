@@ -9,11 +9,13 @@
          enumerate take-up-to argmins list-product alist-append for/accumulate
          pipe ulp-difference *bit-width* *max-error* ulps->bits
 	 write-file write-string has-duplicates?
-	 with-item symbol<?
+	 with-item symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
          random-exp assert setfindf
          (all-from-out casio/config) (all-from-out casio/debug))
+
+(define *start-prog* (make-parameter '()))
 
 (define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
   (for ([val args])

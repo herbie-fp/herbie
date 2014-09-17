@@ -95,8 +95,8 @@
 								 *default-test-value*)
 					      p)]
 			  [exact ((eval-prog (alt-program alt1) mode:bf) p*)]
-			  [e1 (error-at (alt-program alt1) p* exact)]
-			  [e2 (error-at (alt-program alt2) p* exact)])
+			  [e1 (error-at (*start-prog*) p* exact)]
+			  [e2 (error-at (*start-prog*) p* exact)])
 		     (< e1 e2)))])
       (sp (si-cidx sidx) var-idx (binary-search-floats pred p1 p2 (* (- p1 p2) *epsilon-fraction*)))))
   (append (map sidx->spoint
