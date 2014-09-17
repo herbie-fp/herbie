@@ -25,7 +25,7 @@
 
 (define (setup prog samplers cont)
   (let*-values ([(pts exs) (prepare-points prog samplers)])
-    (parameterize ([*points* pts] [*exacts* exs] [*analyze-points* ((flag 'localize 'cache) pts #f)])
+    (parameterize ([*points* pts] [*exacts* exs] [*analyze-points* ((flag 'localize 'cache) pts #f)] [*start-prog* prog])
       (cont (make-alt prog)))))
 
 (define (improve alt fuel)

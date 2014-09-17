@@ -62,9 +62,8 @@
 	 equivilences)))
 
 (define (option-on-var var-idx alts)
-  (let* ([p&e (sort (map cons (*points*) (*exacts*)) <
-                    #:key (compose (curryr list-ref var-idx) car))])
-    (parameterize ([*points* (map car p&e)] [*exacts* (map cdr p&e)])
+  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) var-idx)])
+    (parameterize ([*points* pts] [*exacts* exs])
       (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
              [point-lst* (sum-errors-on-points point-lst var-idx)]
              [points-exacts-errs (flip-lists point-lst*)]
@@ -74,9 +73,13 @@
              [split-points (sindices->spoints points* var-idx alts split-indices)])
         (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))))
 
+(define (sort-points pts exs vidx)
+  (let ([p&e (sort (map cons pts exs) < #:key (compose (curryr list-ref vidx) car))])
+    (list (map car p&e) (map cdr p&e))))
+
 (define (error-at prog point exact)
   (car (errors prog
-(list point) (list exact))))
+	       (list point) (list exact))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -92,8 +95,8 @@
 								 *default-test-value*)
 					      p)]
 			  [exact ((eval-prog (alt-program alt1) mode:bf) p*)]
-			  [e1 (error-at (alt-program alt1) p* exact)]
-			  [e2 (error-at (alt-program alt2) p* exact)])
+			  [e1 (error-at (*start-prog*) p* exact)]
+			  [e2 (error-at (*start-prog*) p* exact)])
 		     (< e1 e2)))])
       (sp (si-cidx sidx) var-idx (binary-search-floats pred p1 p2 (* (- p1 p2) *epsilon-fraction*)))))
   (append (map sidx->spoint
@@ -163,23 +166,21 @@
 ;; on which split-indices (more precisely, that the indices match up),
 ;; by invoking recurse function with the points and exacts properly
 ;; dynamically scoped for each alt.
+;; Assumption: All splitpoints have the same vidx.
 (define (recurse-on-alts recurse-function altns splitpoints)
   (define (recurse-on-points altns contexts)
-    (map (λ (altn context)
-	   (if (= (length (*points*)) (length (alt-context-points context)))
-	       altn #;(error "Regime contains entire input space!")
-	       (parameterize ([*points* (alt-context-points context)]
-			      [*exacts* (alt-context-exacts context)])
-		 (if (= 0 (length (*points*))) altn ;; Not every alternative is relevant to this combination, but we don't filter the lists
-		     ;; because we refer to the alts by index a lot.
-		     (let* ([orig (make-alt (alt-program altn))]
-			    [result (recurse-function orig)])
-		       (when (> (errors-score (alt-errors result)) (errors-score (alt-errors orig)))
-			 (debug "Improved Alt " result " is worse than it's original, " altn #:from 'regime-changes))
-		       result)))))
-	 altns
-	 contexts))
-  (recurse-on-points altns (partition-points splitpoints (*points*) (*exacts*) (length altns))))
+    (for/list ([altn altns] [context contexts] [index (in-naturals)])
+      (cond [(= (length (*points*)) (length (alt-context-points context)))
+	     (error 'regimes "Regime contains entire input space!")]
+	    [(= 0 (length (alt-context-points context)))
+	     (error 'regimes "Regime contains nothing!")]
+	    [#t
+	     (parameterize ([*points* (alt-context-points context)]
+			    [*exacts* (alt-context-exacts context)])
+	       (let ([orig (make-alt (alt-program altn))])
+		 (recurse-function orig)))])))
+  (match-let ([(pts exs) (sort-points (*points*) (*exacts*) (sp-vidx (car splitpoints)))])
+    (recurse-on-points altns (partition-points splitpoints pts exs (length altns)))))
 
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
 ;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
