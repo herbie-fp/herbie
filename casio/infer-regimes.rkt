@@ -116,8 +116,12 @@
   (let loop ([rest-splits splitpoints] [rest-points points]
 	     [rest-errs (flip-lists err-lsts)] [acc '()])
     (cond [(null? rest-points) (reverse acc)]
-	  [(< (list-ref (car rest-points) (sp-vidx (car rest-splits)))
-	      (sp-point (car rest-splits)))
+	  [(null? rest-splits)
+	   (error 'regimes
+		  "Ran out of splits! This probably means that one of our points is +nan.0. ~a"
+		  splitpoints)]
+	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
+	       (sp-point (car rest-splits)))
 	   (loop rest-splits (cdr rest-points)
 		 (cdr rest-errs) (cons (list-ref (car rest-errs) (sp-cidx (car rest-splits)))
 				       acc))]
