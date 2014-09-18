@@ -85,15 +85,18 @@
       (loop (* n* 2))])))
 
 (define (filter-points pts exacts)
-  "Take only the points for which the exact value is normal"
+  "Take only the points for which the exact value is normal, and the point is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (ordinary-float? exact)
+      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
         (sow pt)))))
 
 (define (filter-exacts pts exacts)
-  "Take only the exacts for which the exact value is normal"
-  (filter ordinary-float? exacts))
+  "Take only the exacts for which the exact value is normal, and the point is normal"
+  (reap (sow)
+    (for ([pt pts] [exact exacts])
+      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
+	(sow exact)))))
 
 ; These definitions in place, we finally generate the points.
 

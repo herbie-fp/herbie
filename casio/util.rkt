@@ -13,7 +13,7 @@
   (let-values ([(pts exs) (prepare-points prog sample-float)])
     (parameterize ([*points* pts] [*exacts* exs])
       (let* ([start (make-alt prog)]
-             [end (improve-alt start max-iters)])
+             [end (improve start max-iters)])
         (println "Started at: " start)
         (println "Ended at: " end)
         (println "Improvement by an average of "
@@ -21,11 +21,11 @@
                  " bits of precision")
         (void)))))
 
-(define (setup prog)
-  (define-values (points exacts) (prepare-points prog))
-  (*points* points)
-  (*exacts* exacts)
-  (void))
+;; (define (setup prog)
+;;   (define-values (points exacts) (prepare-points prog))
+;;   (*points* points)
+;;   (*exacts* exacts)
+;;   (void))
 
 (define (repl-print x)
   (begin (println x) (void)))

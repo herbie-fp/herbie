@@ -109,7 +109,7 @@
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (reap [sow]
-    (for ([rule *rules*])
+    (for ([rule (*rules*)])
       (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
              [result (applyer rule expr)])
         (when result
@@ -120,7 +120,7 @@
   (define (rewriter expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
     (reap (sow)
-          (for ([rule *rules*])
+          (for ([rule (*rules*)])
             (when (and (list? (rule-output rule))
                        (or
                         (not ghead) ; Any results work for me

@@ -116,7 +116,7 @@
 
 (define (eval-prog prog mode)
   (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
-         [op->precision (λ (op) (list-ref (hash-ref operations op) mode))]
+         [op->precision (λ (op) (list-ref (hash-ref (*operations*) op) mode))]
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
@@ -160,5 +160,5 @@
   (for/sum ([step (second (compile expr))])
     (if (list? (second step))
         (let ([fn (caadr step)])
-          (list-ref (hash-ref operations fn) 2))
+          (list-ref (hash-ref (*operations*) fn) 2))
         1)))

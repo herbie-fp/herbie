@@ -13,7 +13,7 @@
 (require casio/alt-table)
 (require casio/matcher)
 
-(provide setup improve)
+(provide setup improve improve-prog)
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
