@@ -100,7 +100,7 @@
   (and (symbol? var) (not (member var constants))))
 
 (define (constant? var)
-  (or (member var constants) (real? var)))
+  (or (member var constants) (number? var)))
 
 (define (->flonum x)
   (let ([convert ((flag 'evaluate 'double-precision)

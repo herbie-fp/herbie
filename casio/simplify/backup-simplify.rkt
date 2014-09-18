@@ -4,6 +4,7 @@
 (require casio/rules)
 (require casio/matcher)
 (require casio/common)
+(require casio/syntax)
 (require casio/programs)
 
 (provide simplify)
@@ -22,8 +23,8 @@
 
 (define (simplify* expr)
   (match expr
-    [(? real?) expr]
-    [(? symbol?) expr]
+    [(? constant?) expr]
+    [(? variable?) expr]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify* body))]
     [`(lambda ,vars ,body)
@@ -40,8 +41,8 @@
 
 (define (simplify-node expr)
   (match expr
-    [(? real?) expr]
-    [(? symbol?) expr]
+    [(? constant?) expr]
+    [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...))
      (let* ([labels (combining-labels (gather-additive-terms expr))]
             [terms (combine-aterms (gather-additive-terms expr #:expand labels))])
@@ -69,8 +70,9 @@
 
   (let ([label (or label expr)])
     (match expr
-      [(? real?) `((,expr 1))]
-      [(? symbol?) `((1 ,expr))]
+      [(? number?) `((,expr 1))]
+      [(? constant?) `((1 ,expr))]
+      [(? variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(- ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...)
@@ -108,7 +110,7 @@
 
 (define (gather-multiplicative-terms expr)
   (match expr
-    [(? real?) `(,expr)]
+    [(? number?) `(,expr)]
     [(? symbol?) `(1 (1 . ,expr))]
     [`(- ,arg)
      (let ([terms (gather-multiplicative-terms arg)])

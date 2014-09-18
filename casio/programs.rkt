@@ -87,8 +87,8 @@
 (define (free-variables prog [bound constants])
   (filter (λ (v) (not (member v bound)))
           (match prog
-            [(? real?) '()]
-            [(? symbol?) (list prog)]
+            [(? constant?) '()]
+            [(? variable?) (list prog)]
             [`(λ ,vars ,body)
              (free-variables body (append vars constants))]
             [`(lambda ,vars ,body)

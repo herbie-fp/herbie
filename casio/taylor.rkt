@@ -2,6 +2,7 @@
 
 (require math/number-theory)
 (require casio/common)
+(require casio/syntax)
 (require casio/simplify/backup-simplify)
 (require (rename-in casio/simplify/simplify
 		    [simplify simplify-alt]))
@@ -81,9 +82,9 @@
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
-    [(? symbol?)
+    [(? constant?)
      (taylor-exact expr)]
-    [(? real?)
+    [(? variable?)
      (taylor-exact expr)]
     [`(abs ,arg)
      (taylor-exact expr)]

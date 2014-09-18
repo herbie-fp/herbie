@@ -86,8 +86,8 @@
 (define (get-contained-vars expr)
   ;; Get a list that of the vars, with each var repeated for each time it appears
   (define (get-duplicated-vars expr)
-    (cond [(or (null? expr) (real? expr)) '()] ; If we've reached the end of a list, or we're at a constant, there are no vars.
-	  [(symbol? expr) (list expr)] ; If we're at a variable, return it in a list
+    (cond [(or (null? expr) (constant? expr)) '()] ; If we've reached the end of a list, or we're at a constant, there are no vars.
+	  [(variable? expr) (list expr)] ; If we're at a variable, return it in a list
 	  [(list? expr) (apply append (map get-duplicated-vars
 					   (cdr expr)))])) ; If we're at a list, get the vars from all of it's items, and append them together.
   (remove-duplicates (get-duplicated-vars expr))) ; Get the list with duplicates, and remove the duplicates.
@@ -138,8 +138,8 @@
 
 ;; Return whether or not the expression is atomic, meaning it can't be broken down into arithmetic.
 (define (atomic? expr)
-  (or (real? expr) ; Numbers are atomic
-      (symbol? expr) ; as are variables
+  (or (constant? expr) ; Numbers are atomic
+      (variable? expr) ; as are variables
       (not (or (eq? (car expr) ; Or everything that hasn't been broken down by the canonicalizing into an operator
 		    '-)
 	       (eq? (car expr)
