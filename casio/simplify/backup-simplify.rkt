@@ -187,7 +187,7 @@
     [`(,coeff . ,x) `(* ,coeff ,x)]))
 
 (define (make-addition-node terms)
-  (let-values ([(pos neg) (partition (compose positive? car) terms)])
+  (let-values ([(pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms)])
     (cond
      [(and (null? pos) (null? neg))
       0]
