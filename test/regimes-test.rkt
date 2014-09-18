@@ -114,3 +114,9 @@
 	   [op1 (third res)]
 	   [op2 (fourth res)])
       (printf "~a, ~a, ~a, ~a, ~a, ~a\n" actual expected bits rel op1 op2))))
+
+(define regimes-tests
+  (test-suite "Test that regimes finds the correct branch point, within a bit."
+    (for ([i (range 3)])
+      (let* ([res (test-regimes)])
+	(check-true (2 . > . (error-of res)))))))
