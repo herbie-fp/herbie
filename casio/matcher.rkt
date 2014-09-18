@@ -50,12 +50,12 @@
   (define (fail . irr) #f)
 
   (cond
-   [(number? pattern)
+   [(constant? pattern)
     (if (and (number? expr) (= pattern expr))
         '()
         (fail "pattern-match: Literals do not match"
               pattern expr))]
-   [(symbol? pattern)
+   [(variable? pattern)
     (list (cons pattern expr))]
    ; TODO : test for allowed operators
    [(list? pattern)
@@ -72,8 +72,8 @@
 (define (pattern-substitute pattern bindings)
   ; pattern binding -> expr
   (cond
-   [(number? pattern) pattern]
-   [(symbol? pattern)
+   [(constant? pattern) pattern]
+   [(variable? pattern)
     (cdr (assoc pattern bindings))]
    [(list? pattern)
     (cons (car pattern)
@@ -156,10 +156,10 @@
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
       (cond
-       [(symbol? pattern)
+       [(variable? pattern)
         ; Do nothing, bind variable
         (list (cons '() (list (cons pattern expr))))]
-       [(number? pattern)
+       [(constant? pattern)
         (if (and (number? expr) (= expr pattern))
             '((()) . ()) ; Do nothing, bind nothing
             '())] ; No options

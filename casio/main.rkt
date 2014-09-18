@@ -96,7 +96,11 @@
 (define (taylor-alt altn loc)
   (let ([new-prog
          (location-do loc (alt-program altn)
-                      (λ (expr) (approximate expr (free-variables expr))))])
+                      (λ (expr)
+                         (let ([vars (free-variables expr)])
+                           (if (null? vars)
+                               expr
+                               (approximate expr vars)))))])
     (alt-event new-prog `(taylor ,loc) (list altn))))
 
 (define (zach-alt altn loc)
