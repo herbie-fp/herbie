@@ -119,7 +119,7 @@
 		   (not (matches? constexpr `(log 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (casio-eval constexpr)])
-	    (when (real? res)
+	    (when (and (real? res) (exact? res))
 	      (merge-egraph-nodes!
 	       eg en
 	       (mk-enode! eg (casio-eval constexpr))))))))))
