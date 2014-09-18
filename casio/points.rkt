@@ -88,7 +88,7 @@
   "Take only the points for which the exact value is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (ordinary-float? exact)
+      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
         (sow pt)))))
 
 (define (filter-exacts pts exacts)
