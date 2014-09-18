@@ -8,7 +8,7 @@
 (require casio/points)
 
 (provide (struct-out rule) *rules* rules-tests
-	 *simplify-rules* get-rule)
+	 *simplify-rules* get-rule define-ruleset)
 
 
 ; A rule has a name and an input and output pattern.
@@ -22,7 +22,7 @@
            (write (rule-name rule) port)
            (display ">" port))])
 
-(define *rulesets* '())
+(define *rulesets* (make-parameter '()))
 
 (define (contains-expr haystack needle)
   (cond [(equal? haystack needle)
@@ -45,7 +45,7 @@
 						 (list (list index)))))
 				    '())) ...)])
 	   (set! name (cons rec name)))
-	 (set! *rulesets* (cons name *rulesets*))))
+	 (*rulesets* (cons name (*rulesets*)))))
 
 (define (get-rule name)
   (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) (*rules*))])
@@ -241,7 +241,7 @@
   [cotan-tan   (cotan x)           (/ 1 (tan x))]
   [tan-cotan   (tan x)             (/ 1 (cotan x))])
 
-(define *rules* (make-parameter (apply append *rulesets*)))
+(define *rules* (make-parameter (apply append (*rulesets*))))
 (define *simplify-rules*
   (append trig-reduce
 	  log-distribute
