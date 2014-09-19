@@ -34,7 +34,8 @@
                (/ 9.9843695780195716e-6 (+ z* 7))
                (/ 1.5056327351493116e-7 (+ z* 8)))]
          [t (+ z* g 0.5)])
-    (* (/ pi (sin (* pi z))) (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x))))
+    (* (/ pi (sin (* pi z)))
+       (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x))))
 
 (casio-test (x)
   "Jmat.Real.lambertw, estimator"
@@ -66,28 +67,33 @@
   "Jmat.Real.erfi, branch x <= 0.5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
-         [x3 (* x x x)]
-         [x5 (* x3 x x)]
-         [x7 (* x5 x x)]
-         [t (+ (* 2 x) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
-    (* ps t)))
+         [x* (abs x)]
+         [x3 (* x* x* x*)]
+         [x5 (* x3 x* x*)]
+         [x7 (* x5 x* x*)]
+         [t (+ (* 2 x*) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
+    (abs (* ps t))))
 
 (casio-test (x)
   "Jmat.Real.erfi, branch x >= 5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
-         [xi (/ 1 x)]
+         [x* (abs x)]
+         [xi (/ 1 x*)]
          [xi3 (* xi xi xi)]
          [xi5 (* xi3 xi xi)]
          [xi7 (* xi5 xi xi)]
-         [e (exp (* x x))]
+         [e (exp (* x* x*))]
          [t (+ xi (* (/ 1 2) xi3) (* (/ 3 4) xi5) (* (/ 15 8) xi7))])
     (* ps e t)))
 
+; TODO : Jmat.Real.erfi, branch 0.5 < x < 5
+
 (casio-test (x)
   "Jmat.Real.erf"
-  (let* ([t (/ 1 (+ 1 (* 0.3275911 x)))]
+  (let* ([x* (abs x)]
+         [t (/ 1 (+ 1 (* 0.3275911 x*)))]
          [p (* t (+ 0.254829592 (* t (+ -0.284496736 (* t (+ 1.421413741 (* t (+ -1.453152027 (* t 1.061405429)))))))))])
-    (- 1 (* p (exp (- x x))))))
+    (- 1 (* p (exp (- (* x* x*)))))))
 
 ; Got no further than erf
