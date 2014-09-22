@@ -2,7 +2,7 @@ PREFIX=tc
 BENCHDIR=bench/hamming/
 CASIOFLAGS=-p
 
-.PHONY: all report publish link clean loc
+.PHONY: all report publish c link clean loc
 
 all:
 	$(MAKE) link
@@ -14,11 +14,8 @@ report:
 publish:
 	bash reports/publish.sh
 
-compile/results.casio.dat: graphs/results.casio.dat
-	cp graphs/results.casio.dat compile/
-
-compile: compile/results.casio.dat
-	racket compile/compile.rkt -f compile/$(PREFIX)~a.c compile/results.casio.dat
+c: graphs/results.casio.dat
+	racket compile/compile.rkt -f compile/$(PREFIX)~a.c graphs/results.casio.dat
 
 link:
 	raco link casio
@@ -34,6 +31,7 @@ clean:
 	rm -rf graphs/
 	rm compile/results.casio.dat
 	rm compile/$(PREFIX)*.c
+	rm compile/$(PREFIX)*.out
 
 loc:
 	find reports/ casio/ -type f -exec cat {} \; | wc -l
