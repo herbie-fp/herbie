@@ -26,30 +26,32 @@
 (struct test-failure (test bits exn time rdir))
 (struct test-timeout (test bits rdir) #:prefab)
 
-(define (get-test-result test iters rdir)
-  (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
+(define (get-test-result test rdir)
   (define (file name) (build-path *dir* rdir name))
 
-  (define (run-casio _)
+  ; Reseed random number generator
+  (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
+
+  (define (compute-result test)
+    (define (close-debug-port x)
+      (close-output-port (*debug-port*))
+      x)
+
+    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)] [*debug* #t])
+      (with-handlers ([(const #t)
+                       (λ (e) (close-debug-port `(error ,e ,(bf-precision))))])
+        (setup (test-program test) (test-samplers test)
+               (λ (alt)
+                  (close-debug-port `(good ,alt ,(improve alt (*num-iterations*))
+                                           ,(*points*) ,(*exacts*))))))))
+
+  (define (in-engine _)
     (if *profile?*
         (parameterize ([current-output-port (open-output-file (file "profile.txt") #:exists 'replace)])
-          (let ([res #f])
-            (profile (set! res (compute-result))) ; Racket 5.3 workaround
-            res))
-        (compute-result)))
+          (profile (compute-result test)))
+        (compute-result test)))
 
-  (define (compute-result)
-    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)]
-		   [*debug* #t])
-      (with-handlers ([(const #t) (λ (e)
-				    (close-output-port (*debug-port*))
-				    (list 'error e (bf-precision)))])
-      (setup (test-program test) (test-samplers test)
-             (λ (alt)
-	       (begin0 (list 'good alt (improve alt (*num-iterations*)) (*points*) (*exacts*))
-		 (close-output-port (*debug-port*))))))))
-
-  (let* ([start-time (current-inexact-milliseconds)] [eng (engine run-casio)])
+  (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
     (engine-run *timeout* eng)
 
     (match (engine-result eng)
@@ -74,40 +76,6 @@
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
       [#f
        (test-timeout test (bf-precision) rdir)])))
-
-(define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
-         [index-label (number->string index)])
-    (string-append index-label stripped-tname)))
-
-;; Returns #t if the graph was sucessfully made, #f is we had a crash during
-;; the graph making process, or the test itself crashed.
-(define (make-graph-if-valid result tname index rdir)
-  (let* ([dir (build-path *dir* rdir)])
-    (with-handlers ([(const #f) (λ _ #f)])
-      (when (not (directory-exists? dir))
-        (make-directory dir))
-
-      (match result
-       [(test-result test rdir time bits
-                     start-alt end-alt points exacts
-                     start-est-error end-est-error
-                     newpoints newexacts start-error end-error
-                     target-error)
-
-        (write-file (build-path dir "graph.html")
-          (make-graph test end-alt newpoints start-error end-error target-error bits dir *profile?*))
-        (build-path rdir "graph.html")]
-
-       [(test-timeout test bits rdir)
-        (write-file (build-path dir "graph.html")
-          (make-timeout test bits *profile?*))
-        (build-path rdir "graph.html")]
-
-       [(test-failure test bits exn time rdir)
-        (write-file (build-path dir "graph.html")
-          (make-traceback test exn bits *profile?*))
-        (build-path rdir "graph.html")]))))
 
 (struct table-row
   (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
@@ -163,12 +131,43 @@
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
                *timeout* (test-timeout-bits result) (test-timeout-rdir result))]))
 
-(define (run-casio index test iters)
+(define (make-graph-if-valid result tname index rdir)
+  (let* ([dir (build-path *dir* rdir)])
+    (with-handlers ([(const #f) (λ _ #f)])
+      (when (not (directory-exists? dir))
+        (make-directory dir))
+
+      (match result
+       [(test-result test rdir time bits
+                     start-alt end-alt points exacts
+                     start-est-error end-est-error
+                     newpoints newexacts start-error end-error
+                     target-error)
+
+        (write-file (build-path dir "graph.html")
+          (make-graph test end-alt newpoints start-error end-error target-error bits dir *profile?*))]
+
+       [(test-timeout test bits rdir)
+        (write-file (build-path dir "graph.html")
+          (make-timeout test bits *profile?*))]
+
+       [(test-failure test bits exn time rdir)
+        (write-file (build-path dir "graph.html")
+          (make-traceback test exn bits *profile?*))]))))
+
+(define (graph-folder-path tname index)
+  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
+         [index-label (number->string index)])
+    (string-append index-label stripped-tname)))
+
+(define (run-test index test)
   (let* ([rdir (graph-folder-path (test-name test) index)]
          [rdir* (build-path *dir* rdir)])
+
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
-    (let ([result (get-test-result test iters rdir)])
+
+    (let ([result (get-test-result test rdir)])
       (make-graph-if-valid result (test-name test) index rdir)
       (get-table-data result))))
 
@@ -192,8 +191,8 @@
          (set! *profile?* profile?)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
-        [`(,self ,id ,test ,iters)
-         (let ([result (run-casio id test iters)])
+        [`(apply ,self ,id ,test)
+         (let ([result (run-test id test)])
            (place-channel-put ch
              `(done ,id ,self ,result)))])
       (loop))))
@@ -232,12 +231,12 @@
          (set! *profile?* profile?)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)]
-        [`(do ,id ,test ,iters)
-         (set! work (cons `(,id ,test ,iters) work))]
+        [`(do ,id ,test)
+         (set! work (cons `(,id ,test) work))]
         [`(done ,id ,more ,result*)
          (place-channel-put ch (cons id result*))
          (when (not (null? work))
-           (place-channel-put more (cons more (car work)))
+           (place-channel-put more `(apply ,more ,@(car work)))
            (set! work (cdr work)))]
         ['go
          (let sloop ([work* work] [workers workers])
@@ -245,11 +244,11 @@
                (set! work work*)
                (begin
                  (place-channel-put (car workers)
-                                (cons (car workers) (car work*)))
+                                    `(apply ,(car workers) ,@(car work*)))
                  (sloop (cdr work*) (cdr workers)))))])
       (loop))))
 
-(define (get-test-results progs iters
+(define (get-test-results progs
                           #:threads [threads (max (- (processor-count) 1) 1)]
                           #:dir dir #:profile [profile? #f])
   (define m (make-manager))
@@ -269,7 +268,7 @@
   (for ([i (range threads)])
     (place-channel-put m 'make-worker))
   (for ([prog progs] [i (range (length progs))])
-    (place-channel-put m `(do ,i ,prog ,iters)))
+    (place-channel-put m `(do ,i ,prog)))
   (place-channel-put m 'go)
   (define outs
     (for/list ([_ progs])

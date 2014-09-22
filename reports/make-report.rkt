@@ -25,9 +25,8 @@
 (define (make-report . bench-dirs)
   (let* ([tests (allowed-tests bench-dirs)]
          [results
-          (get-test-results tests (*num-iterations*)
-                            #:profile *profile?*
-                            #:threads *max-test-threads* #:dir *output-directory*)])
+          (get-test-results tests #:threads *max-test-threads* 
+                            #:profile *profile?* #:dir *output-directory*)])
 
     (when (not (directory-exists? *output-directory*))
       (make-directory *output-directory*))
