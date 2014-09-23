@@ -12,7 +12,7 @@
 	 with-item symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
-         random-exp assert setfindf
+         random-exp assert setfindf first-value
          (all-from-out casio/config) (all-from-out casio/debug))
 
 (define *start-prog* (make-parameter '()))
@@ -33,6 +33,15 @@
     body ...
     (reverse store)))
 
+(define-syntax-rule (multi-reap [sows ...] body ...)
+  (let* ([sows (let ([store '()])
+		 (λ (elt) (if elt
+			      (begin (set! store (cons elt store))
+				     elt)
+			      store)))] ...)
+    body ...
+    (list (reverse (sows #f)) ...)))
+
 (define-syntax-rule (for/accumulate [reg start] ([vars seqs] ...) body ...)
   (pipe start (map (λ (vars ...) (λ (reg) body ...)) seqs ...)))
 
@@ -42,6 +51,11 @@
       (for ([rec (list (list 'key values ...) ...)])
         (hash-set! hash (car rec) (cdr rec)))
       hash)))
+
+(define-syntax-rule (first-value expr)
+  (call-with-values
+      (λ () expr)
+    (compose car list)))
 
 (define (ordinary-float? x)
   (not (or (infinite? x) (nan? x))))

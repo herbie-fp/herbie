@@ -5,30 +5,33 @@
 (require casio/points)
 (require casio/common)
 
-(provide infer-regimes (struct-out sp))
+(provide infer-splitpoints (struct-out sp))
 
-(define (infer-regimes #:pre-combo-func [recurse-func identity] alts)
-  (debug "Combining-alts: " alts #:from 'regime-changes #:depth 2)
+(define (infer-splitpoints alts)
+  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
   (let* ([options (build-list (length (program-variables (alt-program (car alts))))
 			      (curryr option-on-var alts))]
 	 [best-option (argmin (compose errors-score option-errors) options)]
-	 [splitpoints (option-splitpoints best-option)])
-    (debug "Using option: " best-option #:from 'regime-changes #:depth 2)
-    (if (= (length splitpoints) 1) #f
-	(let* ([combining-alts (used-alts alts splitpoints)]
-	       ;; the splitpoints contain a reference to the alts in the form of an index. Since we filter the
-	       ;; alts based on which ones actually got used, we also want to update these indices to reflect
-	       ;; the new alts list.
-	       [splitpoints* (coerce-indices splitpoints)]
-	       [alts* (recurse-on-alts recurse-func combining-alts splitpoints*)]
-	       [prog-body* (prog-combination splitpoints* alts*)])
-          (make-regime-alt
-           `(λ ,(program-variables (alt-program (car alts))) ,prog-body*)
-           (used-alts alts splitpoints)
-           splitpoints*)))))
+	 [splitpoints (option-splitpoints best-option)]
+	 [altns (used-alts splitpoints alts)]
+	 [splitpoints* (coerce-indices splitpoints)])
+    (debug "Found splitpoints:" splitpoints* ", with alts" altns)
+    (list splitpoints* altns)))
+
+(struct option (splitpoints errors) #:transparent
+	#:methods gen:custom-write
+        [(define (write-proc opt port mode)
+           (display "#<option " port)
+           (write (option-splitpoints opt) port)
+           (display ">" port))])
+
+(define (used-alts splitpoints all-alts)
+  (let ([used-indices (remove-duplicates (map sp-cidx splitpoints))])
+    (map (curry list-ref all-alts) used-indices)))
 
 ;; Takes a list of splitpoints, `splitpoints`, whose indices originally referred to some list of alts `alts`,
-;; and changes their indices so that they make sense on a list of alts given by `(used-alts alts splitpoints)`.
+;; and changes their indices so that they are consecutive starting from zero, but all indicies that
+;; previously matched still match.
 (define (coerce-indices splitpoints)
   (let* ([used-indices (remove-duplicates (map sp-cidx splitpoints))]
 	 [mappings (map cons used-indices (range (length used-indices)))])
@@ -38,58 +41,31 @@
 	       (sp-point splitpoint)))
 	 splitpoints)))
 
-(define (used-alts alts splitpoints)
-  (let ([used-alt-indices (remove-duplicates (map sp-cidx splitpoints))])
-    (map (curry list-ref alts) used-alt-indices)))
-
-(struct option (splitpoints errors) #:transparent
-	#:methods gen:custom-write
-        [(define (write-proc opt port mode)
-           (display "#<option " port)
-           (write (option-splitpoints opt) port)
-           (display ">" port))])
-
-;; This function takes in a list of entries, where each entry is a list containing
-;; a point, the exact value at that point, and the errors for any number of alts
-;; at that point, and returns a list of entries, each containing the value of a point on
-;; a single dimension, and the alts errors.
-(define (sum-errors-on-points point-lst var-idx)
-  (let ([equivilences (multipartition point-lst (compose (curryr list-ref var-idx) car))])
-    (map (λ (equivilent-lst)
-	   (list (list-ref (car (car equivilent-lst)) var-idx)
-		 (apply (curry map (λ errs (apply + errs)))
-			(map cddr equivilent-lst))))
-	 equivilences)))
-
 (define (option-on-var var-idx alts)
-  (match-let ([`(,pts ,exs) (sort-points (*points*) (*exacts*) var-idx)])
-    (parameterize ([*points* pts] [*exacts* exs])
-      (let* ([point-lst (flip-lists (list* (*points*) (*exacts*) (map (compose (curry map ulps->bits) alt-errors) alts)))]
-             [point-lst* (sum-errors-on-points point-lst var-idx)]
-             [points-exacts-errs (flip-lists point-lst*)]
-             [points* (car points-exacts-errs)]
-             [alt-errs* (flip-lists (cadr points-exacts-errs))]
-             [split-indices (err-lsts->split-indices alt-errs*)]
-             [split-points (sindices->spoints points* var-idx alts split-indices)])
-        (option split-points (pick-errors split-points (*points*) (map alt-errors alts)))))))
+  (match-let ([`(,pts ,exs) (sorted-context-list (*pcontext*) var-idx)])
+    (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
+		       (map alt-errors alts))]
+	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
+	   [split-indices (err-lsts->split-indices bit-err-lsts)]
+	   [split-points (sindices->spoints pts var-idx alts split-indices)])
+      (option split-points (pick-errors split-points pts err-lsts)))))
 
-(define (sort-points pts exs vidx)
-  (let ([p&e (sort (map cons pts exs) < #:key (compose (curryr list-ref vidx) car))])
+(define (sorted-context-list context vidx)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   < #:key (compose (curryr list-ref vidx) car))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (error-at prog point exact)
-  (car (errors prog
-	       (list point) (list exact))))
+  (car (errors prog (mk-pcontext (vector point) (vector exact)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
-;; Assumption: soundness. More specifically, that the two alts are equivilent across the reals.
 (define (sindices->spoints points var-idx alts sindices)
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (list-ref points (sub1 (si-pidx sidx)))]
-	   [p2 (list-ref points (si-pidx sidx))]
+	   [p1 (list-ref (list-ref points (sub1 (si-pidx sidx))) var-idx)]
+	   [p2 (list-ref (list-ref points (si-pidx sidx)) var-idx)]
 	   [pred (λ (p)
 		   (let* ([p* (point-with-dim var-idx (make-list (length (program-variables (alt-program (car alts))))
 								 *default-test-value*)
@@ -112,79 +88,23 @@
        point
        (range (length point))))
 
-(define (pick-errors splitpoints points err-lsts)
-  (let loop ([rest-splits splitpoints] [rest-points points]
-	     [rest-errs (flip-lists err-lsts)] [acc '()])
-    (cond [(null? rest-points) (reverse acc)]
-	  [(null? rest-splits)
-	   (error 'regimes
-		  "Ran out of splits! This probably means that one of our points is +nan.0. ~a"
-		  splitpoints)]
-	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
-	       (sp-point (car rest-splits)))
-	   (loop rest-splits (cdr rest-points)
-		 (cdr rest-errs) (cons (list-ref (car rest-errs) (sp-cidx (car rest-splits)))
-				       acc))]
-	  [#t (loop (cdr rest-splits) rest-points rest-errs acc)])))
+(define (pick-errors splitpoints pts err-lsts)
+  (reverse
+   (first-value
+    (for/fold ([acc '()] [rest-splits splitpoints])
+	([pt (in-list pts)]
+	 [errs (flip-lists err-lsts)])
+      (if (<= (list-ref pt (sp-vidx (car rest-splits)))
+	      (sp-point (car rest-splits)))
+	  (values (cons (list-ref errs (sp-cidx (car rest-splits)))
+			acc)
+		  rest-splits)
+	  (values acc (cdr rest-splits)))))))
 
 (define (with-entry idx lst item)
   (if (= idx 0)
       (cons item (cdr lst))
       (cons (car lst) (with-entry (sub1 idx) (cdr lst) item))))
-
-;; Partitions a list of points and exacts into num-alts contexts,
-;; along the given splitoints.
-(define (partition-points splitpoints points exacts num-alts)
-  (let loop ([rest-splits splitpoints] [rest-points points]
-	     [rest-exacts exacts] [accs (make-list num-alts (alt-context '() '()))])
-    (cond [(null? rest-points)
-	   (map (λ (context) (alt-context (reverse (alt-context-points context))
-					  (reverse (alt-context-exacts context))))
-		accs)]
-	  [(<= (list-ref (car rest-points) (sp-vidx (car rest-splits)))
-	       (sp-point (car rest-splits)))
-	   (loop rest-splits (cdr rest-points) (cdr rest-exacts)
-		 (let* ([entry-idx (sp-cidx (car rest-splits))]
-		        [old-entry (list-ref accs entry-idx)])
-		   (with-entry entry-idx accs (alt-context (cons (car rest-points)
-								 (alt-context-points old-entry))
-							   (cons (car rest-exacts)
-								 (alt-context-exacts old-entry))))))]
-	  [#t (loop (cdr rest-splits) rest-points rest-exacts accs)])))
-
-(define (prog-combination splitpoints alts)
-  (let ([rsplits (reverse splitpoints)])
-    (let loop ([rest-splits (cdr rsplits)]
-	       [acc (program-body (alt-program (list-ref alts (sp-cidx (car rsplits)))))])
-      (if (null? rest-splits) acc
-	  (loop (cdr rest-splits)
-		(let ([splitpoint (car rest-splits)])
-		  `(if (< ,(list-ref (program-variables (alt-program (car alts))) (sp-vidx splitpoint))
-			  ,(sp-point splitpoint))
-		       ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
-		       ,acc)))))))
-
-(struct alt-context (points exacts))
-
-;; Recurse on the alts in altns, assuming they're the same alts list
-;; on which split-indices (more precisely, that the indices match up),
-;; by invoking recurse function with the points and exacts properly
-;; dynamically scoped for each alt.
-;; Assumption: All splitpoints have the same vidx.
-(define (recurse-on-alts recurse-function altns splitpoints)
-  (define (recurse-on-points altns contexts)
-    (for/list ([altn altns] [context contexts] [index (in-naturals)])
-      (cond [(= (length (*points*)) (length (alt-context-points context)))
-	     (error 'regimes "Regime contains entire input space!")]
-	    [(= 0 (length (alt-context-points context)))
-	     (error 'regimes "Regime contains nothing!")]
-	    [#t
-	     (parameterize ([*points* (alt-context-points context)]
-			    [*exacts* (alt-context-exacts context)])
-	       (let ([orig (make-alt (alt-program altn))])
-		 (recurse-function orig)))])))
-  (match-let ([`(,pts ,exs) (sort-points (*points*) (*exacts*) (sp-vidx (car splitpoints)))])
-    (recurse-on-points altns (partition-points splitpoints pts exs (length altns)))))
 
 ;; Takes a list of numbers, and returns the partial sum of those numbers.
 ;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
