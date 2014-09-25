@@ -27,11 +27,6 @@
   (- (sqr (+ a 1)) 1)
   (* a (+ a 2)))
 
-(casio-test (a b)
-  "Difference of squares"
-  (- (sqr a) (sqr b))
-  (* (+ a b) (- a b)))
-
 (casio-test (a b c)
   "A la Freetype's FT_MulDiv"
   (/ (+ a (/ c 2)) b))
