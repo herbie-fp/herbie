@@ -12,8 +12,8 @@
   (make-parameter
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach taylor)]
-	 [evaluate . (double-precision)]
-         [regimes  . ()]
+	 [precision . (double)]
+         [regimes  . (recurse)]
          [simplify . ()]
          [setup    . (simplify periodicity)]
          [localize . (cache)])))

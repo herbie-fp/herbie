@@ -131,10 +131,10 @@
       (let ([out (fn point)])
         (if (real? out)
             (+ 1 (abs (ulp-difference out exact)))
-            (+ 1 *max-error*))))))
+            (+ 1 (expt 2 (*bit-width*))))))))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
-    (/ (+ (apply + (map (λ (e) (/ (log e) (log 2))) reals))
-	  (* *bit-width* (length unreals)))
+    (/ (+ (apply + (map ulps->bits reals))
+	  (* (*bit-width*) (length unreals)))
        (length e))))

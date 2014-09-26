@@ -14,7 +14,7 @@
 (define program-variables cadr)
 
 ; Functions and constants used in our language
-(define nan ((flag 'evaluate 'double-precision) +nan.0 +nan.f))
+(define nan ((flag 'precision 'double) +nan.0 +nan.f))
 
 (define (cotan x)
   (/ 1 (tan x)))
@@ -36,12 +36,12 @@
 	   (real-part ans)))))
 
 (define csinh
-  ((flag 'evaluate 'double-precision)
+  ((flag 'precision 'double)
    flsinh
    (λ (x) (real->single-flonum (flsinh (real->double-flonum x))))))
 
 (define ctanh
-  ((flag 'evaluate 'double-precision)
+  ((flag 'precision 'double)
    fltanh
    (λ (x) (real->single-flonum (fltanh (real->double-flonum x))))))
 
@@ -105,7 +105,7 @@
   (or (member var constants) (number? var)))
 
 (define (->flonum x)
-  (let ([convert ((flag 'evaluate 'double-precision)
+  (let ([convert ((flag 'precision 'double)
 		  real->double-flonum
 		  real->single-flonum)])
     (cond

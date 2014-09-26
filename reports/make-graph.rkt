@@ -45,7 +45,7 @@
   (for ([idx (range (length (test-vars test)))])
     (let-values ([(x-scale x-unscale)
                   (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
-                 [(y-scale y-unscale) (linear-scale* 0 *bit-width* 175.0 20.0)])
+                 [(y-scale y-unscale) (linear-scale* 0 (*bit-width*) 175.0 20.0)])
       (printf "<svg width='500' height='300'>\n")
       (set-up-line)
       (draw-line idx points start-errs x-scale y-scale "red")
