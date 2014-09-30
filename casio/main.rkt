@@ -50,15 +50,21 @@
 			       (λ (alt)
 				 (make-alt (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2)))))
 			identity)]
-	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
-    (make-alt-table (*pcontext*) (maybe-period (maybe-simplify alt)))))
+	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
+	 [processed (maybe-period (maybe-simplify alt))]
+	 [table (make-alt-table (*pcontext*) processed)]
+	 [extracted (extract-program table)])
+    (assert (eq? extracted (alt-program processed))
+	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
+				       extracted (alt-program processed))))
+    table))
 
-(define (best-alt alts)
-  (when (null? alts)
-    (error "Trying to find the best of no alts!"))
-  (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
-
-(define extract-program (compose alt-program best-alt atab-all-alts))
+(define (extract-program table)
+  (alt-program
+   (argmin alt-history-length
+	   (argmins alt-cost
+		    (argmins (compose errors-score alt-errors)
+			     (atab-all-alts table))))))
 
 (define (combine-programs splitpoints programs)
   (let ([rsplits (reverse splitpoints)])
