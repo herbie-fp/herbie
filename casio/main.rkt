@@ -36,9 +36,9 @@
 		(let ([result-prog (if (= (length tables) 1)
 				       (extract-program (car tables))
 				       (combine-programs splitpoints
-							 ((flag 'regimes 'recurse)
-							 (map (curryr main-loop (/ fuel 2)) tables)
-							 (map extract-program tables))))])
+							 (if ((flag 'regimes 'recurse) #t #f)
+							     (map (curryr main-loop (/ fuel 2)) tables)
+							     (map extract-program tables))))])
 		  result-prog))))
 
 ;; Implementation
@@ -60,11 +60,12 @@
     table))
 
 (define (extract-program table)
-  (alt-program
-   (argmin alt-history-length
-	   (argmins alt-cost
-		    (argmins (compose errors-score alt-errors)
-			     (atab-all-alts table))))))
+  (parameterize ([*pcontext* (atab-context table)])
+    (alt-program
+     (argmin alt-history-length
+	     (argmins alt-cost
+		      (argmins (compose errors-score alt-errors)
+			       (atab-all-alts table)))))))
 
 (define (combine-programs splitpoints programs)
   (let ([rsplits (reverse splitpoints)])
@@ -141,27 +142,26 @@
         (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
         '())))
 
-(define (split-table table)
-  (let* ([alts (atab-all-alts table)]
-	 [splitpoints (infer-splitpoints alts)])
-    (if (= 1 (length splitpoints)) (list (list table) splitpoints)
-	(let ([preds (splitpoints->point-preds splitpoints (length alts))])
-	  (let ([tables* (split-atab table preds)])
-	    (assert (not (or (null? tables*) (null? (cdr tables*)))))
-	    (list tables* splitpoints))))))
+(define (split-table orig-table)
+  (match-let* ([(list splitpoints altns) (infer-splitpoints (atab-all-alts orig-table))])
+    (if (= 1 (length splitpoints)) (list (list orig-table) splitpoints)
+	(let* ([preds (splitpoints->point-preds splitpoints (length altns))]
+	       [tables* (split-atab orig-table preds)])
+	  (list tables* splitpoints)))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
   (let* ([var-index (sp-vidx (car splitpoints))]
 	 [intervals (map cons (cons (sp #f var-index -inf.0)
-				    (take splitpoints (sub1 (length splitpoints))))
+				    (drop-right splitpoints 1))
 			 splitpoints)])
-    (filter identity
-	    (for/list ([i (in-range num-alts)])
-	      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
-		(if (null? p-intervals) #f
-		    (λ (p)
-		      (let ([var-val (list-ref p var-index)])
-			(ormap (λ (p-i)
-				 (and ((sp-point (car p-i)) . < . var-val)
-				      (var-val . < . (sp-point (cdr p-i)))))
-			       p-intervals)))))))))
+    (for/list ([i (in-range num-alts)])
+      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
+	(debug #:from 'splitpoints "intervals are: " p-intervals)
+	(λ (p)
+	  (let ([var-val (list-ref p var-index)])
+	    (for/or ([point-interval p-intervals])
+	      (let ([lower-bound (sp-point (car point-interval))]
+		    [upper-bound (sp-point (cdr point-interval))])
+		(and (lower-bound . < . var-val)
+		     (var-val . < . upper-bound))))))))))
+

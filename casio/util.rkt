@@ -34,7 +34,9 @@
     (- (errors-score (errors prog1 points exacts)) (errors-score (errors prog2 points exacts)))))
 
 (define (annotated-alts-compare alt1 alt2)
-  (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))
+  (let ([sorted-p&es (sorted-context-list (*pcontext*) 0)])
+    (parameterize ([*pcontext* (mk-pcontext (map car sorted-p&es) (map cdr sorted-p&es))])
+      (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))))
 
 (define (annotated-errors-compare errs1 errs2)
   (repl-print
