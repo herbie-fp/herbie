@@ -163,5 +163,33 @@
 	      (let ([lower-bound (sp-point (car point-interval))]
 		    [upper-bound (sp-point (cdr point-interval))])
 		(and (lower-bound . < . var-val)
-		     (var-val . < . upper-bound))))))))))
+		     (var-val . <= . upper-bound))))))))))
 
+(define (verify-points-sorted point-lst vidx)
+  (for ([p1 (drop-right point-lst 1)]
+	[p2 (drop point-lst 1)])
+    (assert ((list-ref p1 vidx) . <= . (list-ref p2 vidx))
+	    #:extra-info (const (list p1 p2)))))
+
+;; Verifies that for each splitpoint pred pair, where splitpoints and preds are paired
+;; by position in their respective lists:
+;; let p be the pred, and s be the splitpoint
+;; all points between s and the splitpoint before it satisfy p, and no other points satisfy p.
+(define (verify-point-preds splitpoints point-preds)
+  (let ([sorted-points (car (sorted-context-list (*pcontext*) (sp-vidx (car splitpoints))))])
+    (verify-points-sorted sorted-points (sp-vidx (car splitpoints)))
+    (for/fold ([rest-pts sorted-points])
+	([split splitpoints])
+      (let-values ([(pred) (list-ref point-preds (sp-cidx split))]
+		   [(points-before-split points-after-split)
+		    (splitf-at rest-pts (λ (p) (<= (list-ref p (sp-vidx split)) (sp-point split))))])
+	(assert (not (null? points-before-split)))
+	(assert (andmap pred points-before-split)
+		#:extra-info (λ _ (map pred points-before-split)))
+	(let ([overlapping (for/first ([other-pred (remove pred point-preds)]
+				       [other-split (remove split splitpoints)]
+				       #:when (ormap other-pred points-before-split))
+			     (list split other-split))])
+	  (assert (not overlapping) #:extra-info (const overlapping)))
+	points-after-split))
+    (void)))

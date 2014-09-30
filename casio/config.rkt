@@ -14,7 +14,7 @@
    #hash([generate . (simplify rm)]
          [reduce   . (regimes zach taylor)]
 	 [precision . (double)]
-         [regimes  . (recurse)]
+         [regimes  . ()]
          [simplify . ()]
          [setup    . (simplify periodicity)]
          [localize . (cache)])))
