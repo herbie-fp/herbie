@@ -5,14 +5,17 @@
 (require casio/points)
 
 (provide
- (contract-out (make-alt-table (pcontext? alt? . -> . alt-table?))
-	       (atab-all-alts (alt-table? . -> . pair?))
-	       (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
-	       (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-					  . -> . (values alt? alt-table?)))
-	       (atab-completed? (alt-table? . -> . boolean?))
-	       (atab-context (alt-table? . -> . pcontext?))
-	       (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
+ (contract-out
+  (make-alt-table (pcontext? alt? . -> . alt-table?))
+  (atab-all-alts (alt-table? . -> . pair?))
+  (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
+  (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
+			     . -> . (values alt? alt-table?)))
+  (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
+			     . -> . (values alt? alt-table?)))
+  (atab-completed? (alt-table? . -> . boolean?))
+  (atab-context (alt-table? . -> . pcontext?))
+  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
 
 ;; Public API
 
