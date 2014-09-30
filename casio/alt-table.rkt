@@ -39,9 +39,12 @@
   (pipe atab (map (curry curryr atab-add-altn) altns)))
 
 (define (atab-pick-alt atab #:picking-func [pick car])
-  (let* ([picked (pick (atab-not-done-alts atab))]
+  (let* ([picked (atab-peek-alt atab #:picking-func pick)]
 	 [atab* (alt-table-with atab #:alt->done? (hash-set (alt-table-alt->done? atab) picked #t))])
     (values picked atab*)))
+
+(define (atab-peek-alt atab #:picking-func [pick car])
+  (pick (atab-not-done-alts atab)))
 
 (define (atab-all-alts atab)
   (hash-keys (alt-table-alt->points atab)))
