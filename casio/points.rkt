@@ -9,7 +9,7 @@
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-float sample-uniform sample-integer
          prepare-points prepare-points-period make-exacts
-         errors errors-score)
+         errors errors-score sorted-context-list)
 
 (define *pcontext* (make-parameter #f))
 
@@ -29,6 +29,11 @@
 		       (list->vector exacts))
 		(begin (assert (not (= 0 (vector-length exacts))))
 		       exacts))))
+
+(define (sorted-context-list context vidx)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   < #:key (compose (curryr list-ref vidx) car))])
+    (list (map car p&e) (map cdr p&e))))
 
 (define (sample-expbucket num)
   (let ([bucket-width (/ (- 256 2) num)]

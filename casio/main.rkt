@@ -35,10 +35,10 @@
 		 [`(,tables ,splitpoints) (split-table table*)])
 		(let ([result-prog (if (= (length tables) 1)
 				       (extract-program (car tables))
-				       (combine-programs splitpoints (map extract-program tables)))])
-							 ;;((flag 'regimes 'recurse)
-							 ;; (map (curryr main-loop (/ fuel 2)) tables)
-							 ;; (map extract-program tables))))])
+				       (combine-programs splitpoints
+							 ((flag 'regimes 'recurse)
+							 (map (curryr main-loop (/ fuel 2)) tables)
+							 (map extract-program tables))))])
 		  result-prog))))
 
 ;; Implementation

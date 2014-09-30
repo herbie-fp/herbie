@@ -50,11 +50,6 @@
 	   [split-points (sindices->spoints pts var-idx alts split-indices)])
       (option split-points (pick-errors split-points pts err-lsts)))))
 
-(define (sorted-context-list context vidx)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   < #:key (compose (curryr list-ref vidx) car))])
-    (list (map car p&e) (map cdr p&e))))
-
 (define (error-at prog point exact)
   (car (errors prog (mk-pcontext (vector point) (vector exact)))))
 
