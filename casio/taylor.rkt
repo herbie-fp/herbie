@@ -2,19 +2,20 @@
 
 (require math/number-theory)
 (require casio/common)
-(require casio/syntax)
+(require casio/programs)
+(require casio/matcher)
 (require casio/simplify/backup-simplify)
 (require (rename-in casio/simplify/simplify
 		    [simplify simplify-alt]))
 
-(provide approximate taylor)
+(provide approximate-0 approximate-inf)
 
-(define (approximate expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
-  (debug #:from 'taylor "Taking taylor expansion of" expr "in" vars)
+(define (approximate-0 expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
+  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   (define taylor-cache (make-hash))
 
-  (hash-set! taylor-cache '() (taylor (car vars) expr))
+  (hash-set! taylor-cache '() (taylor-0 (car vars) expr))
 
   (define (take-taylor coeffs)
     (hash-ref! taylor-cache coeffs
@@ -23,7 +24,7 @@
                          [expr* ((cdr oc) (car coeffs))])
                     (if (= (length coeffs) (length vars))
                       expr*
-                      (taylor (list-ref vars (length coeffs)) expr*))))))
+                      (taylor-0 (list-ref vars (length coeffs)) expr*))))))
 
   (define (make-term coeffs)
     (simplify
@@ -46,6 +47,42 @@
                      (loop (+ i 1) (cons (make-term coeffs) res))
                      (loop (+ i 1) res))))))))
 
+(define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
+  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
+
+  (define taylor-cache (make-hash))
+
+  (hash-set! taylor-cache '() (taylor-inf (car vars) expr))
+
+  (define (take-taylor coeffs)
+    (hash-ref! taylor-cache coeffs
+               (λ ()
+                  (let* ([oc (take-taylor (cdr coeffs))]
+                         [expr* ((cdr oc) (car coeffs))])
+                    (if (= (length coeffs) (length vars))
+                      expr*
+                      (taylor-inf (list-ref vars (length coeffs)) expr*))))))
+
+  (define (make-term coeffs)
+    (simplify
+     `(* ,(take-taylor coeffs)
+         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
+            (if (null? vars)
+                1
+                (let ([var (car vars)] [idx (car coeffs)]
+                      [offset (car (take-taylor (cdr coeffs)))])
+                  `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var (- idx offset)))))))))
+
+  (simplify
+   (cons '+
+         (let loop ([i 0] [res '()])
+           (if (or (> i (* iters (length vars))) (>= (length res) terms))
+               res
+               (let ([coeffs (iterate-diagonal (length vars) i)])
+                 (if (not (equal? (take-taylor coeffs) 0))
+                     (loop (+ i 1) (cons (make-term coeffs) res))
+                     (loop (+ i 1) res))))))))
+
 (define (make-monomial var pow)
   (cond
    [(equal? pow 0) 1]
@@ -54,7 +91,8 @@
    [(equal? pow -1) `(/ 1 ,var)]
    [(equal? pow -2) `(/ 1 (sqr ,var))]
    [(positive? pow) `(expt ,var ,pow)]
-   [(negative? pow) `(/ 1 (expt ,var ,pow))]))
+   [(negative? pow) `(expt ,var (- ,pow))]))
+
 
 (define n-sum-to-cache (make-hash))
 
@@ -77,8 +115,17 @@
           (loop (- i (length seg)) (+ sum 1))
           (list-ref seg i)))))
 
-(define (taylor var expr)
+(define (taylor-inf var expr)
+  (let ([vars (free-variables expr)])
+    (taylor-0
+     var
+     (pattern-substitute expr
+                         (for/list ([var* vars])
+                           (cons var* (if (eq? var var*) `(/ 1 ,var) var*)))))))
+
+(define (taylor-0 var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
+  (debug #:from 'taylor "Taking taylor expansion of" expr "in" var)
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
@@ -89,35 +136,35 @@
     [`(abs ,arg)
      (taylor-exact expr)]
     [`(+ ,args ...)
-     (apply taylor-add (map (curry taylor var) args))]
+     (apply taylor-add (map (curry taylor-0 var) args))]
     [`(- ,arg)
-     (taylor-negate ((curry taylor var) arg))]
+     (taylor-negate ((curry taylor-0 var) arg))]
     [`(- ,arg ,args ...)
-     (apply taylor-add ((curry taylor var) arg) (map (compose taylor-negate (curry taylor var)) args))]
+     (apply taylor-add ((curry taylor-0 var) arg) (map (compose taylor-negate (curry taylor-0 var)) args))]
     [`(* ,left ,right)
-     (taylor-mult (taylor var left) (taylor var right))]
+     (taylor-mult (taylor-0 var left) (taylor-0 var right))]
     [`(/ ,arg)
-     (taylor-invert (taylor var arg))]
+     (taylor-invert (taylor-0 var arg))]
     [`(/ 1 ,arg)
-     (taylor-invert (taylor var arg))]
+     (taylor-invert (taylor-0 var arg))]
     [`(/ ,num ,den)
-     (taylor-quotient (taylor var num) (taylor var den))]
+     (taylor-quotient (taylor-0 var num) (taylor-0 var den))]
     [`(if ,cond ,btrue ,bfalse)
      (taylor-exact expr)]
     [`(mod ,a ,b)
      (taylor-exact expr)]
     [`(sqr ,a)
-     (let ([ta (taylor var a)])
+     (let ([ta (taylor-0 var a)])
        (taylor-mult ta ta))]
     [`(sqrt ,arg)
-     (taylor-sqrt (taylor var arg))]
+     (taylor-sqrt (taylor-0 var arg))]
     [`(exp ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
+     (let ([arg* (normalize-series (taylor-0 var arg))])
        (if (positive? (car arg*))
            (taylor-exact expr)
            (taylor-exp (zero-series arg*))))]
     [`(sin ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
+     (let ([arg* (normalize-series (taylor-0 var arg))])
        (cond
         [(positive? (car arg*))
          (taylor-exact expr)]
@@ -131,7 +178,7 @@
         [else
          (taylor-sin (zero-series arg*))]))]
     [`(cos ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
+     (let ([arg* (normalize-series (taylor-0 var arg))])
        (cond
         [(positive? (car arg*))
          (taylor-exact expr)]
@@ -146,7 +193,7 @@
         [else
          (taylor-cos (zero-series arg*))]))]
     [`(log ,arg)
-     (let* ([arg* (normalize-series (taylor var arg))]
+     (let* ([arg* (normalize-series (taylor-0 var arg))]
             [rest (taylor-log (cdr arg*))])
        (if (zero? (car arg*))
            rest
@@ -159,11 +206,11 @@
     [`(expt ,(? (curry equal? var)) ,(? integer? pow))
      (cons (- pow) (λ (n) (if (= n 0) 1 0)))]
     [`(expt ,base ,pow)
-     (taylor var `(exp (* ,pow (log ,base))))]
+     (taylor-0 var `(exp (* ,pow (log ,base))))]
     [`(tan ,arg)
-     (taylor var `(/ (sin ,arg) (cos ,arg)))]
+     (taylor-0 var `(/ (sin ,arg) (cos ,arg)))]
     [`(cotan ,arg)
-     (taylor var `(/ (cos ,arg) (sin ,arg)))]
+     (taylor-0 var `(/ (cos ,arg) (sin ,arg)))]
     [_
      (taylor-exact expr)]))
 

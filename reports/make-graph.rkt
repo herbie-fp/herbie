@@ -151,11 +151,11 @@
            (output-history entry)
            (printf "</ol>\n"))))]
 
-    [(alt-event prog `(taylor ,loc) `(,prev))
+    [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
      (printf "<li>Taylor expanded <code><pre>~a</pre></code>"
              (location-get loc (alt-program prev)))
-     (printf " to get <code><pre>~a</pre></code></li>" (pretty-format prog 65))]
+     (printf "around ~a to get <code><pre>~a</pre></code></li>" pt (pretty-format prog 65))]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)

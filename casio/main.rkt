@@ -85,7 +85,7 @@
                    (for/list ([alt all-alts] [locs locss])
                      (append
                       (append-map (curry maybe-zach alt) locs)
-                      (map (curry maybe-taylor alt) locs))))]
+                      (append-map (curry maybe-taylor alt) locs))))]
            [table* (atab-add-altns table alts*)]
            [all-alts (atab-all-alts table*)])
       (let ([combo (combine all-alts fuel)])
@@ -94,14 +94,15 @@
 	    (best-alt all-alts))))))
 
 (define (taylor-alt altn loc)
-  (let ([new-prog
-         (location-do loc (alt-program altn)
-                      (λ (expr)
-                         (let ([vars (free-variables expr)])
-                           (if (null? vars)
-                               expr
-                               (approximate expr vars)))))])
-    (alt-event new-prog `(taylor ,loc) (list altn))))
+  (list
+   (alt-event
+    (location-do loc (alt-program altn)
+                 (λ (expr) (approximate-0 expr (free-variables expr))))
+    `(taylor 0 ,loc) (list altn))
+   (alt-event
+    (location-do loc (alt-program altn)
+                 (λ (expr) (approximate-inf expr (free-variables expr))))
+    `(taylor inf ,loc) (list altn))))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)])

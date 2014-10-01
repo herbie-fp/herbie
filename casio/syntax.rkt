@@ -82,6 +82,7 @@
   [mod      bfmod     cmod      1]
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
+  [=        bf=       =         1]
   [>        bf>       >         1]
   [<        bf<       <         1]
   [<=       bf<=      <=        1]
