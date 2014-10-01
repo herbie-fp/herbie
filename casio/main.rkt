@@ -94,14 +94,17 @@
 	    (best-alt all-alts))))))
 
 (define (taylor-alt altn loc)
+  ; BEWARE WHEN EDITING: the free variables of an expression can be null
   (list
    (alt-event
     (location-do loc (alt-program altn)
-                 (λ (expr) (approximate-0 expr (free-variables expr))))
+                 (λ (expr) (let ([fv (free-variables expr)])
+                             (if (null? fv) expr (approximate-0 expr fv)))))
     `(taylor 0 ,loc) (list altn))
    (alt-event
     (location-do loc (alt-program altn)
-                 (λ (expr) (approximate-inf expr (free-variables expr))))
+                 (λ (expr) (let ([fv (free-variables expr)])
+                             (if (null? fv) expr (approximate-inf expr fv)))))
     `(taylor inf ,loc) (list altn))))
 
 (define (zach-alt altn loc)

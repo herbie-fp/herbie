@@ -7,6 +7,7 @@
 (define-table texify-constants
   [l "\\ell"]
   [pi "\\pi"]
+  [eps "\\varepsilon"]
   [alpha "\\alpha"]
   [beta "\\beta"]
   [gamma "\\gamma"]
@@ -20,7 +21,7 @@
    [else (error "Unknown syntax entry" conv)]))
 
 (define-table texify-operators
-  [+        "~a + ~a" '+ '+]
+  [+        '(#f "+~a" "~a + ~a") '+ '+]
   [-        '(#f "-~a" "~a - ~a") '+ '+]
   [*        "~a \\cdot ~a" '* '*]
   [/        '(#f "\\frac1{~a}" "\\frac{~a}{~a}") #f #t]
@@ -42,6 +43,7 @@
   [tanh     "\\tanh ~a" 'fn #f]
   [atan2    "\\tan^{-1}_2 \\frac{~a}{~a}" 'fn #t]
   [if       "~a ? ~a : ~a" #t #t]
+  [=        "~a == ~a" #f #t]
   [>        "~a > ~a" #f #t]
   [<        "~a < ~a" #f #t]
   [<=       "~a \\le ~a" #f #t]
@@ -65,7 +67,7 @@
   "Compile an expression to TeX code.
    The TeX is intended to be used in math mode.
 
-   `parens` is one of #f, '+, '"
+   `parens` is one of #f, '+, '*, 'fn, or #t"
   (match expr
     [(? real?) (number->string expr)]
     [(? symbol?) (hash-ref texify-constants expr (symbol->string expr))]
