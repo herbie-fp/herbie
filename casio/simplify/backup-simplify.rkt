@@ -208,6 +208,46 @@
     [`(,term ,terms ...)
      `(+ ,(aterm->expr term) ,(make-addition-node terms))]))
 
+(define (make-multiplication-node term)
+  (match (cons (car term) (make-multiplication-subnode (cdr term)))
+    [`(0 . ,e) 0]
+    [`(1 . ()) 1]
+    [`(1 . ,e) e]
+    [`(,a . 1) a]
+    [`(,a . (/ 1 ,denom)) `(/ ,a ,denom)]
+    [`(,a . ()) a]
+    [`(,a . ,e) `(* ,a ,e)]))
+
+(define (make-multiplication-subnode terms)
+  (make-multiplication-subsubsubnode
+   (for/list ([rootgroup (multipartition terms (compose denominator car))])
+     (let* ([denom (denominator (caar rootgroup))]
+            [newterms (map (λ (term) (cons (* (car term) denom) (cdr term))) rootgroup)])
+       (cons 1
+             (mterm->expr
+              (cons (/ 1 denom)
+                    (make-multiplication-subsubnode newterms))))))))
+
+(define (make-multiplication-subsubnode terms)
+  (let-values ([(pos neg) (partition (compose positive? car) terms)])
+    (cond
+     [(and (null? pos) (null? neg)) 1]
+     [(null? pos)
+      `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg)))]
+     [(null? neg)
+      (make-multiplication-subsubsubnode pos)]
+     [else
+      `(/ ,(make-multiplication-subsubsubnode pos)
+          ,(make-multiplication-subsubsubnode (map negate-term neg)))])))
+
+(define (make-multiplication-subsubsubnode terms)
+  (match terms
+    ['() 1]
+    [`(,term)
+     (mterm->expr term)]
+    [`(,term ,terms ...)
+     `(* ,(mterm->expr term) ,(make-multiplication-subsubsubnode terms))]))
+
 (define (mterm->expr term)
   (match term
     [`(1 . ,x) x]
@@ -217,37 +257,3 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,pow . ,x) `(expt ,x ,pow)]))
-
-(define (make-multiplication-node term)
-  (match term
-    [`(0 ,terms ...) 0]
-    [`(1 ,terms ...)
-     (let-values ([(pos neg) (partition (compose positive? car) terms)])
-       (cond
-        [(and (null? pos) (null? neg)) 1]
-        [(null? pos)
-         `(/ 1 ,(make-multiplication-node* (map negate-term neg)))]
-        [(null? neg)
-         (make-multiplication-node* pos)]
-        [else
-         `(/ ,(make-multiplication-node* pos)
-             ,(make-multiplication-node* (map negate-term neg)))]))]
-    [`(,a ,terms ...)
-     (let-values ([(pos neg) (partition (compose positive? car) terms)])
-       (cond
-        [(and (null? pos) (null? neg)) a]
-        [(null? pos)
-         `(/ ,a ,(make-multiplication-node* (map negate-term neg)))]
-        [(null? neg)
-         `(* ,a ,(make-multiplication-node* pos))]
-        [else
-         `(/ (* ,a ,(make-multiplication-node* pos))
-             ,(make-multiplication-node* (map negate-term neg)))]))]))
-
-(define (make-multiplication-node* terms)
-  (match terms
-    ['() 1]
-    [`(,term)
-     (mterm->expr term)]
-    [`(,term ,terms ...)
-     `(* ,(mterm->expr term) ,(make-multiplication-node* terms))]))
