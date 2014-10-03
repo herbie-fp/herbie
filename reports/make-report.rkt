@@ -81,14 +81,21 @@
 
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed
-      (apply + (for/list ([row table-data])
-                 (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0))))
+      (for/sum ([row table-data])
+        (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
     (define total-available
-      (apply + (for/list ([row table-data])
-                 (if (not (equal? (table-row-status row) "ex-start")) 1 0))))
+      (for/sum ([row table-data])
+        (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
     (define total-crashes
-      (apply + (for/list ([row table-data])
-                 (if (equal? (table-row-status row) "crash") 1 0))))
+      (for/sum ([row table-data])
+        (if (equal? (table-row-status row) "crash") 1 0)))
+
+    (define total-gained
+      (for/sum ([row table-data])
+        (or (table-row-result row) 0)))
+    (define total-start
+      (for/sum ([row table-data])
+        (or (table-row-start row) 0)))
 
     (define (display-bits r)
       (if r (/ (round (* r 10)) 10) ""))
@@ -128,6 +135,8 @@
                 total-crashes))
       (printf "<div>Tests: <span class='number'>~a</span></div>\n"
               (length table-data))
+      (printf "<div>Bits: <span class='number'>~a/~a</span></div>\n"
+              (display-bits (- total-start total-gained)) (display-bits total-start))
       (printf "</div>\n")
 
       (printf "<table id='results'>\n")
