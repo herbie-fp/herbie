@@ -4,7 +4,8 @@
          *num-points* *precision-step* *num-iterations*
          *default-test-value* *epsilon-fraction*
          *goal-cost-improvement*
-         *max-period-coeff*)
+         *max-period-coeff*
+         *localize-expressions-limit*)
 
 ;; Flag Stuff
 
@@ -57,3 +58,6 @@
 ;; In periodicity analysis,
 ;; this is how small the period of a function must be to count as periodic
 (define *max-period-coeff* 20)
+
+;; In localization, the maximum number of locations returned
+(define *localize-expressions-limit* (make-parameter 3))

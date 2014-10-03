@@ -64,4 +64,4 @@
                    (when (ormap (curry < 1) err)
                      (map sow (map (curry cons err) locs))))))
          > #:key (compose errors-score car))
-        3)))
+        (*localize-expressions-limit*))))
