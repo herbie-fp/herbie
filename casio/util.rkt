@@ -10,10 +10,10 @@
 (provide (all-defined-out))
 
 (define (print-improve prog max-iters)
-  (let-values ([(pts exs) (prepare-points prog sample-float)])
-    (parameterize ([*points* pts] [*exacts* exs])
-      (let* ([start (make-alt prog)]
-             [end (improve start max-iters)])
+  (match-let ([`(,end-prog ,context) (improve prog max-iters #:get-context #t)])
+    (parameterize ([*pcontext* context])
+      (let ([start (make-alt prog)]
+	    [end (make-alt end-prog)])
         (println "Started at: " start)
         (println "Ended at: " end)
         (println "Improvement by an average of "
@@ -21,11 +21,10 @@
                  " bits of precision")
         (void)))))
 
-;; (define (setup prog)
-;;   (define-values (points exacts) (prepare-points prog))
-;;   (*points* points)
-;;   (*exacts* exacts)
-;;   (void))
+(define (setup prog)
+  (define pcontext (prepare-points prog (make-list (length (program-variables prog)) sample-float)))
+  (*pcontext* pcontext)
+  (void))
 
 (define (repl-print x)
   (begin (println x) (void)))
@@ -35,41 +34,40 @@
     (- (errors-score (errors prog1 points exacts)) (errors-score (errors prog2 points exacts)))))
 
 (define (annotated-alts-compare alt1 alt2)
-  (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))
+  (let ([sorted-p&es (sorted-context-list (*pcontext*) 0)])
+    (parameterize ([*pcontext* (mk-pcontext (map car sorted-p&es) (map cdr sorted-p&es))])
+      (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))))
 
-(define (annotated-errors-compare err1 err2)
-  (repl-print (let loop ([region #f] [rest-diff (map (λ (e1 e2)
-						      (cond [(> e1 e2) '>]
-							    [(< e1 e2) '<]
-							    [#t '=]))
-						    err1 err2)]
-			 [rest-points (*points*)] [acc '()])
-		(cond [(null? rest-diff) (reverse acc)]
-		      [(eq? region (car rest-diff))
-		       (loop region (cdr rest-diff)
-			     (cdr rest-points) (cons (car rest-diff) acc))]
-		      [#t (loop (car rest-diff) (cdr rest-diff)
-				(cdr rest-points) (cons (cons (car rest-points) (car rest-diff))
-							acc))]))))
+(define (annotated-errors-compare errs1 errs2)
+  (repl-print
+   (reverse
+    (first-value
+     (for/fold ([acc '()] [region #f])
+	 ([err-diff (for/list ([e1 errs1] [e2 errs2])
+		      (cond [(> e1 e2) '>]
+			    [(< e1 e2) '<]
+			    [#t '=]))]
+	  [(pt _) (in-pcontext (*pcontext*))])
+       (if (eq? region err-diff)
+	   (values (cons err-diff acc)
+		   region)
+	   (values (cons (cons pt err-diff) acc)
+		   err-diff)))))))
 
 (define (compare-alts . altns)
-  (repl-print (let loop ([cur-region-idx -1] [rest-lsts (map alt-errors altns)]
-			 [rest-points (*points*)] [acc '()])
-		(if (null? rest-points)
-		    (reverse acc)
-		    (let ([best-idx
-			   (let ([errs (map car rest-lsts)])
-			     (argmin (λ (idx) (list-ref errs idx))
-				    (range (length errs))))])
-		      (if (= best-idx cur-region-idx)
-			  (loop cur-region-idx (map cdr rest-lsts)
-				(cdr rest-points)
-				(cons best-idx acc))
-			  (loop best-idx (map cdr rest-lsts)
-				(cdr rest-points)
-				(cons (list best-idx (list-ref altns best-idx)
-					    (car rest-points))
-				      acc))))))))
+  (repl-print
+   (reverse
+    (first-value
+     (for/fold ([acc '()] [region-idx -1])
+	 ([(pt ex) (in-pcontext (*pcontext*))]
+	  [errs (flip-lists (map alt-errors altns))])
+       (let ([best-idx
+	      (argmin (curry list-ref errs) (range (length altns)))])
+	 (if (= best-idx region-idx)
+	     (values (cons best-idx acc) region-idx)
+	     (values (cons (list best-idx (list-ref altns best-idx) pt)
+			   acc)
+		     best-idx))))))))
 
 (define (print-alt-info altn)
   (if (not (alt-prev altn))

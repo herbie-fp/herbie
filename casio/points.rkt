@@ -4,14 +4,36 @@
 (require math/bigfloat)
 (require casio/common)
 (require casio/programs)
+(require casio/config)
 
-(provide *points* *exacts* *num-points*
+(provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-float sample-uniform sample-integer
          prepare-points prepare-points-period make-exacts
-         errors errors-score)
+         errors errors-score sorted-context-list)
 
-(define *points* (make-parameter '()))
-(define *exacts* (make-parameter '()))
+(define *pcontext* (make-parameter #f))
+
+(struct pcontext (points exacts))
+
+(define (in-pcontext context)
+  (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
+
+(define (mk-pcontext points exacts)
+  (pcontext (if (list? points)
+		(begin (assert (not (null? points)))
+		       (list->vector points))
+		(begin (assert (not (= 0 (vector-length points))))
+		       points))
+	    (if (list? exacts)
+		(begin (assert (not (null? exacts)))
+		       (list->vector exacts))
+		(begin (assert (not (= 0 (vector-length exacts))))
+		       exacts))))
+
+(define (sorted-context-list context vidx)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   < #:key (compose (curryr list-ref vidx) car))])
+    (list (map car p&e) (map cdr p&e))))
 
 (define (sample-expbucket num)
   (let ([bucket-width (/ (- 256 2) num)]
@@ -108,7 +130,7 @@
   ; First, we generate points;
   (let loop ([pts '()] [exs '()])
     (if (>= (length pts) (*num-points*))
-        (values (take pts (*num-points*)) (take exs (*num-points*)))
+        (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))
         (let* ([num (- (*num-points*) (length pts))]
                [pts1 (flip-lists (for/list ([rec samplers]) ((cdr rec) num)))]
                [exs1 (make-exacts prog pts1)]
@@ -123,11 +145,11 @@
 	 [exacts (make-exacts prog pts)]
 	 [pts* (filter-points pts exacts)]
 	 [exacts* (filter-exacts pts exacts)])
-    (values pts* exacts*)))
+    (mk-pcontext pts* exacts*)))
 
-(define (errors prog points exacts)
+(define (errors prog pcontext)
   (let ([fn (eval-prog prog mode:fl)])
-    (for/list ([point points] [exact exacts])
+    (for/list ([(point exact) (in-pcontext pcontext)])
       (let ([out (fn point)])
         (if (real? out)
             (+ 1 (abs (ulp-difference out exact)))

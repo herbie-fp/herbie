@@ -55,7 +55,7 @@
     [(alt-event _ _ `(,prev ,_ ...)) (alt-prev prev)]))
 
 (define (alt-errors altn)
-  (errors (alt-program altn) (*points*) (*exacts*)))
+  (errors (alt-program altn) (*pcontext*)))
 
 (define (alt-cost altn)
   (program-cost (alt-program altn)))

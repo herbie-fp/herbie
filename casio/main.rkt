@@ -13,52 +13,85 @@
 (require casio/alt-table)
 (require casio/matcher)
 
-(provide setup improve improve-prog)
+(provide improve)
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 
-(define (improve-prog prog fuel)
-  (setup prog (map (curryr cons sample-float) (program-variables prog))
-	 (curryr improve fuel)))
-
-(define (setup prog samplers cont)
-  (let*-values ([(pts exs) (prepare-points prog samplers)])
-    (parameterize ([*points* pts] [*exacts* exs] [*analyze-points* ((flag 'localize 'cache) pts #f)] [*start-prog* prog])
-      (cont (make-alt prog)))))
-
-(define (improve alt fuel)
-  (let ([alt-table (setup-alt alt fuel)])
-    (improve-loop alt-table fuel)))
+(define (improve prog fuel #:get-context [get-context #f] #:samplers [samplers #f])
+  (let* ([samplers (or samplers (map (curryr cons sample-float) (program-variables prog)))]
+	 [context (prepare-points prog samplers)])
+    (parameterize ([*pcontext* context]
+		   [*analyze-context* ((flag 'localize 'cache) context #f)]
+		   [*start-prog* prog])
+      (let* ([alt-table (setup-prog prog fuel)]
+	     [result-prog (main-loop alt-table fuel)])
+	(if get-context (list result-prog (atab-context alt-table)) result-prog)))))
+    
+(define (main-loop table fuel)
+  (parameterize ([*pcontext* (atab-context table)])
+    (match-let* ([table* (improve-loop table fuel)]
+		 [`(,tables ,splitpoints) (split-table table*)])
+		(let ([result-prog (if (= (length tables) 1)
+				       (extract-program (car tables))
+				       (combine-programs splitpoints
+							 (if ((flag 'regimes 'recurse) #t #f)
+							     (map (curryr main-loop (/ fuel 2)) tables)
+							     (map extract-program tables))))])
+		  result-prog))))
 
 ;; Implementation
 
-(define (setup-alt altn fuel)
-  (let ([maybe-period ((flag 'setup 'periodicity)
-		       (curry optimize-periodicity
-			      (λ (altn)
-				 ;; We call improve-loop directly because we don't want simplify or periodicity running on our
-				 ;; subexpressions.
-                                 (improve-loop
-                                  (make-alt-table (*points*) (make-alt (alt-program altn)))
-                                  fuel)))
-                       identity)]
-	[maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)])
-    (make-alt-table (*points*) (maybe-period (maybe-simplify altn)))))
+(define (setup-prog prog fuel)
+  (let* ([alt (make-alt prog)]
+	 [maybe-period ((flag 'setup 'periodicity)
+			(curry optimize-periodicity
+			       (λ (alt)
+				 (make-alt (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2)))))
+			identity)]
+	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
+	 [processed (maybe-period (maybe-simplify alt))]
+	 [table (make-alt-table (*pcontext*) processed)]
+	 [extracted (extract-program table)])
+    (assert (eq? extracted (alt-program processed))
+	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
+				       extracted (alt-program processed))))
+    table))
+
+(define (extract-program table)
+  (parameterize ([*pcontext* (atab-context table)])
+    (alt-program
+     (argmin alt-history-length
+	     (argmins alt-cost
+		      (argmins (compose errors-score alt-errors)
+			       (atab-all-alts table)))))))
+
+(define (combine-programs splitpoints programs)
+  (let ([rsplits (reverse splitpoints)])
+    `(λ ,(program-variables (*start-prog*))
+       ,(let loop ([rest-splits (cdr rsplits)]
+		   [acc (program-body (list-ref programs (sp-cidx (car rsplits))))])
+	  (if (null? rest-splits) acc
+	      (loop (cdr rest-splits)
+		    (let ([splitpoint (car rest-splits)])
+		      `(if (< ,(list-ref (program-variables (*start-prog*)) (sp-vidx splitpoint))
+			      ,(sp-point splitpoint))
+			   ,(program-body (list-ref programs (sp-cidx splitpoint)))
+			   ,acc))))))))
 
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts table fuel)]
+	 (post-process table fuel)]
 	[(atab-completed? table)
 	 (debug "Ran out of unexpanded alts in alt table, reducing... " #:from 'main #:depth 2)
-	 (reduce-alts table fuel)]
+	 (post-process table fuel)]
 	[#t
 	 (improve-loop
 	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
 	    (atab-add-altns table* (append-map generate-alts (list picked))))
-	  (- fuel 1))]))
+	  (sub1 fuel))]))
 
 (define (generate-alts altn)
   (append-map (curry generate-alts-at altn) (localize-error (alt-program altn))))
@@ -73,10 +106,8 @@
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
 
-(define (reduce-alts table fuel)
-  (let ([combine
-         ((flag 'reduce 'regimes) regimes-alts (const #f))]
-        [maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
+(define (post-process table fuel)
+  (let ([maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
         [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
     (let* ([all-alts (atab-all-alts table)]
            [locss (map (compose localize-error alt-program) all-alts)]
@@ -86,12 +117,8 @@
                      (append
                       (append-map (curry maybe-zach alt) locs)
                       (append-map (curry maybe-taylor alt) locs))))]
-           [table* (atab-add-altns table alts*)]
-           [all-alts (atab-all-alts table*)])
-      (let ([combo (combine all-alts fuel)])
-	(if combo
-	    (best-alt (cons combo all-alts))
-	    (best-alt all-alts))))))
+           [table* (atab-add-altns table alts*)])
+      table*)))
 
 (define (taylor-alt altn loc)
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
@@ -115,16 +142,54 @@
         (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
         '())))
 
-(define (regimes-alts alts fuel)
-  (let* ([recurse-func ((flag 'regimes 'recurse)
-                        (λ (altn) (improve-loop (make-alt-table (*points*) altn) (quotient fuel 2)))
-                        identity)]
-         [alts* (map (curryr alt-add-event '(start regimes)) alts)])
-    (if (< (length alts*) 2)
-        #f
-        (infer-regimes alts* #:pre-combo-func recurse-func))))
+(define (split-table orig-table)
+  (match-let* ([(list splitpoints altns) (infer-splitpoints (atab-all-alts orig-table))])
+    (if (= 1 (length splitpoints)) (list (list orig-table) splitpoints)
+	(let* ([preds (splitpoints->point-preds splitpoints (length altns))]
+	       [tables* (split-atab orig-table preds)])
+	  (list tables* splitpoints)))))
 
-(define (best-alt alts)
-  (when (null? alts)
-    (error "Trying to find the best of no alts!"))
-  (argmin alt-history-length (argmins alt-cost (argmins (compose errors-score alt-errors) alts))))
+(define (splitpoints->point-preds splitpoints num-alts)
+  (let* ([var-index (sp-vidx (car splitpoints))]
+	 [intervals (map cons (cons (sp #f var-index -inf.0)
+				    (drop-right splitpoints 1))
+			 splitpoints)])
+    (for/list ([i (in-range num-alts)])
+      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
+	(debug #:from 'splitpoints "intervals are: " p-intervals)
+	(λ (p)
+	  (let ([var-val (list-ref p var-index)])
+	    (for/or ([point-interval p-intervals])
+	      (let ([lower-bound (sp-point (car point-interval))]
+		    [upper-bound (sp-point (cdr point-interval))])
+		(and (lower-bound . < . var-val)
+		     (var-val . <= . upper-bound))))))))))
+
+(define (verify-points-sorted point-lst vidx)
+  (for ([p1 (drop-right point-lst 1)]
+	[p2 (drop point-lst 1)])
+    (assert ((list-ref p1 vidx) . <= . (list-ref p2 vidx))
+	    #:extra-info (const (list p1 p2)))))
+
+;; Verifies that for each splitpoint pred pair, where splitpoints and preds are paired
+;; by position in their respective lists:
+;; let p be the pred, and s be the splitpoint
+;; all points between s and the splitpoint before it satisfy p, and no other points satisfy p.
+(define (verify-point-preds splitpoints point-preds)
+  (let ([sorted-points (car (sorted-context-list (*pcontext*) (sp-vidx (car splitpoints))))])
+    (verify-points-sorted sorted-points (sp-vidx (car splitpoints)))
+    (for/fold ([rest-pts sorted-points])
+	([split splitpoints])
+      (let-values ([(pred) (list-ref point-preds (sp-cidx split))]
+		   [(points-before-split points-after-split)
+		    (splitf-at rest-pts (λ (p) (<= (list-ref p (sp-vidx split)) (sp-point split))))])
+	(assert (not (null? points-before-split)))
+	(assert (andmap pred points-before-split)
+		#:extra-info (λ _ (map pred points-before-split)))
+	(let ([overlapping (for/first ([other-pred (remove pred point-preds)]
+				       [other-split (remove split splitpoints)]
+				       #:when (ormap other-pred points-before-split))
+			     (list split other-split))])
+	  (assert (not overlapping) #:extra-info (const overlapping)))
+	points-after-split))
+    (void)))

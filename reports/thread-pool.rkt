@@ -32,6 +32,14 @@
   ; Reseed random number generator
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
 
+  (define (get-p&es context)
+    (call-with-values
+	(λ ()
+	   (for/lists (pts exs)
+	       ([(pt ex) (in-pcontext context)])
+	     (values pt ex)))
+      list))
+
   (define (compute-result test)
     (define (close-debug-port x)
       (close-output-port (*debug-port*))
@@ -40,10 +48,9 @@
     (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)] [*debug* #t])
       (with-handlers ([(const #t)
                        (λ (e) (close-debug-port `(error ,e ,(bf-precision))))])
-        (setup (test-program test) (test-samplers test)
-               (λ (alt)
-                  (close-debug-port `(good ,alt ,(improve alt (*num-iterations*))
-                                           ,(*points*) ,(*exacts*))))))))
+	(match-let ([`(,prog ,context) (improve (test-program test) (*num-iterations*)
+						#:get-context #t #:samplers (test-samplers test))])
+	  (close-debug-port (list 'good (make-alt (test-program test)) (make-alt prog) context))))))
 
   (define (in-engine _)
     (if *profile?*
@@ -55,22 +62,24 @@
     (engine-run *timeout* eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,points ,exacts)
-       (define-values (newpoints newexacts)
+      [`(good ,start ,end ,context)
+       (define newcontext
          (parameterize ([*num-points* *reeval-pts*])
            (prepare-points (alt-program start) (test-samplers test))))
+       (match-define (list newpoints newexacts) (get-p&es newcontext))
+       (match-define (list points exacts) (get-p&es context))
        (test-result test rdir
                     (- (current-inexact-milliseconds) start-time)
                     (bf-precision)
                     start end points exacts
-                    (errors (alt-program start) points exacts)
-                    (errors (alt-program end) points exacts)
+                    (errors (alt-program start) context)
+                    (errors (alt-program end) context)
                     newpoints newexacts
-                    (errors (alt-program start) newpoints newexacts)
-                    (errors (alt-program end) newpoints newexacts)
+                    (errors (alt-program start) newcontext)
+                    (errors (alt-program end) newcontext)
                     (if (test-output test)
                         (errors `(λ ,(test-vars test) ,(test-output test))
-                                newpoints newexacts)
+                                newcontext)
                         #f))]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]

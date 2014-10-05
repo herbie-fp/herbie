@@ -7,16 +7,17 @@
 (require casio/programs)
 (require casio/alternative)
 
-(provide localize-error *analyze-points*)
+(provide localize-error *analyze-context*)
 
 (define (real-op->bigfloat-op op) (list-ref (hash-ref (*operations*) op) mode:bf))
 (define (real-op->float-op op) (list-ref (hash-ref (*operations*) op) mode:fl))
 
 (define (repeat c)
-  (map (λ (x) c) (*points*)))
+  (for/list ([(p e) (in-pcontext (*pcontext*))])
+    c))
 
 (define *analyze-cache* (make-hash))
-(define *analyze-points* (make-parameter #f))
+(define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache)
   (hash-ref! cache expr
@@ -29,7 +30,8 @@
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]
                          [exact-iff (car (localize-on-expression iff vars cache))]
-                         [exact-cond (map (eval-prog `(λ ,(map car vars) ,c) mode:bf) (*points*))])
+                         [exact-cond (for/list ([(p _) (in-pcontext (*pcontext*))])
+				       ((eval-prog `(λ ,(map car vars) ,c) mode:bf) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
@@ -45,9 +47,11 @@
                      (cons exact error))]))))
 
 (define (localize-error prog)
-  (define varmap (map cons (program-variables prog) (flip-lists (*points*))))
+  (define varmap (map cons (program-variables prog)
+		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
+				    p))))
   (define cache
-    (if (eq? (*analyze-points*) (*points*))
+    (if (eq? (*analyze-context*) (*pcontext*))
         *analyze-cache*
         (make-hash)))
   (define expr->loc (location-hash prog))

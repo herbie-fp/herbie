@@ -187,9 +187,11 @@
 			 (debug "Looking at subexpression " program #:from 'periodicity #:depth 4)
 			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
-			     (let-values ([(ppoints pexacts) (prepare-points-period program
-										    (map (compose (curry * 2 pi) cdr) (lp-periods ploc)))])
-			       (parameterize ([*points* ppoints] [*exacts* pexacts])
+			     (let ([context
+				    (prepare-points-period
+				     program
+				     (map (compose (curry * 2 pi) cdr) (lp-periods ploc)))])
+			       (parameterize ([*pcontext* context])
 				 (improve-func (make-alt program)))))))
 		     plocs)]
 	 ;; Substitute (mod x period) for x in any conditionals
