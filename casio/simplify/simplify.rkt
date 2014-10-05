@@ -25,11 +25,8 @@
 ;;#
 ;;################################################################################;;
 
-;; The number of iterations of the egraph is the maximum depth times this custom
-(define *iters-depth-ratio* 1.35)
-
 ;; If the depth of the expression is greater than this, use pavel simplification instead.
-(define *max-egraph-depth* 6)
+(define *max-egraph-iters* 8)
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
@@ -57,17 +54,20 @@
 
 (define (simplify-expr expr)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
-  (let ([expr-depth (max-depth expr)])
-    (if (> expr-depth *max-egraph-depth*)
+  (let ([iters (iters-needed expr)])
+    (if (> iters *max-egraph-iters*)
 	(backup-simplify expr)
-	(let ([eg (mk-egraph expr)]
-	      [iters (inexact->exact (floor (* *iters-depth-ratio* expr-depth)))])
+	(let ([eg (mk-egraph expr)])
 	  (iterate-egraph! eg iters)
 	  (extract-smallest eg)))))
 
-(define (max-depth expr)
-  (if (not (list? expr)) 1
-      (add1 (apply max (map max-depth (cdr expr))))))
+;; Returns the worst-case iterations needed to simplify this expression
+(define (iters-needed expr)
+  (if (not (list? expr)) 0
+      (let ([sub-iters-needed (apply max (map iters-needed (cdr expr)))])
+	(if (let ([op (car expr)]) (or (eq? op '*) (eq? op '+)))
+	    (+ 2 sub-iters-needed)
+	    (+ 1 sub-iters-needed)))))
 
 (define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
   (let ([start-cnt (egraph-cnt eg)])
