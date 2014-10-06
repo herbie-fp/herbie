@@ -34,10 +34,10 @@
       b))
 
 ;; Number of points to sample for evaluating program accuracy
-(define *num-points* (make-parameter 128))
+(define *num-points* (make-parameter 256))
 
 ;; Number of iterations of the core loop for improving program accuracy
-(define *num-iterations* (make-parameter 2))
+(define *num-iterations* (make-parameter 3))
 
 ;; The step size with which arbitrary-precision precision is increased
 ;; DANGEROUS TO CHANGE
@@ -60,4 +60,4 @@
 (define *max-period-coeff* 20)
 
 ;; In localization, the maximum number of locations returned
-(define *localize-expressions-limit* (make-parameter 3))
+(define *localize-expressions-limit* (make-parameter 4))
