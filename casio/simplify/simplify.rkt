@@ -130,14 +130,18 @@
 
 (define (extract-smallest eg)
   (define (resolve en ens->exprs)
-    (let/ec return
-      (for ([var (enode-vars en)])
-	(when (not (list? var))
-	  (return var))
-	(let ([expr (cons (car var) (map (λ (en) (hash-ref ens->exprs en #f)) (cdr var)))])
-	  (when (andmap identity (cdr expr))
-	    (return expr))))
-      #f))
+    (let ([possible-resolutions
+	   (filter identity
+	     (for/list ([var (enode-vars en)])
+	       (if (not (list? var)) var
+		   (let ([expr (cons (car var)
+				     (for/list ([en (cdr var)])
+				       (hash-ref ens->exprs en #f)))])
+		     (if (andmap identity (cdr expr))
+			 expr
+			 #f)))))])
+      (if (null? possible-resolutions) #f
+	  (argmin expression-cost possible-resolutions))))
   (define (pass ens ens->exprs)
     (let-values ([(pairs left)
 		  (partition pair?
