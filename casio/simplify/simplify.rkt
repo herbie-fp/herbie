@@ -26,7 +26,7 @@
 ;;################################################################################;;
 
 ;; If the depth of the expression is greater than this, use pavel simplification instead.
-(define *max-egraph-iters* 7)
+(define *max-egraph-iters* 6)
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
