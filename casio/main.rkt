@@ -26,19 +26,19 @@
 		   [*analyze-context* ((flag 'localize 'cache) context #f)]
 		   [*start-prog* prog])
       (let* ([alt-table (setup-prog prog fuel)]
-	     [result-prog (main-loop alt-table fuel)])
-	(if get-context (list result-prog (atab-context alt-table)) result-prog)))))
+	     [result-alt (main-loop alt-table fuel)])
+	(if get-context (list result-alt (atab-context alt-table)) result-alt)))))
     
 (define (main-loop table fuel)
   (parameterize ([*pcontext* (atab-context table)])
     (match-let* ([table* (improve-loop table fuel)]
 		 [`(,tables ,splitpoints) (split-table table*)])
 		(let ([result-prog (if (= (length tables) 1)
-				       (extract-program (car tables))
-				       (combine-programs splitpoints
-							 (if ((flag 'regimes 'recurse) #t #f)
-							     (map (curryr main-loop (/ fuel 2)) tables)
-							     (map extract-program tables))))])
+				       (extract-alt (car tables))
+				       (combine-alts splitpoints
+						     (if ((flag 'regimes 'recurse) #t #f)
+							 (map (curryr main-loop (/ fuel 2)) tables)
+							 (map extract-alt tables))))])
 		  result-prog))))
 
 ;; Implementation
@@ -53,32 +53,34 @@
 	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
 	 [processed (maybe-period (maybe-simplify alt))]
 	 [table (make-alt-table (*pcontext*) processed)]
-	 [extracted (extract-program table)])
-    (assert (eq? extracted (alt-program processed))
+	 [extracted (extract-alt table)])
+    (assert (eq? extracted processed)
 	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
 				       extracted (alt-program processed))))
     table))
 
-(define (extract-program table)
+(define (extract-alt table)
   (parameterize ([*pcontext* (atab-context table)])
-    (alt-program
-     (argmin alt-history-length
-	     (argmins alt-cost
-		      (argmins (compose errors-score alt-errors)
-			       (atab-all-alts table)))))))
+    (argmin alt-history-length
+	    (argmins alt-cost
+		     (argmins (compose errors-score alt-errors)
+			      (atab-all-alts table))))))
 
-(define (combine-programs splitpoints programs)
+(define (combine-alts splitpoints alts)
   (let ([rsplits (reverse splitpoints)])
-    `(λ ,(program-variables (*start-prog*))
-       ,(let loop ([rest-splits (cdr rsplits)]
-		   [acc (program-body (list-ref programs (sp-cidx (car rsplits))))])
-	  (if (null? rest-splits) acc
-	      (loop (cdr rest-splits)
-		    (let ([splitpoint (car rest-splits)])
-		      `(if (< ,(list-ref (program-variables (*start-prog*)) (sp-vidx splitpoint))
-			      ,(sp-point splitpoint))
-			   ,(program-body (list-ref programs (sp-cidx splitpoint)))
-			   ,acc))))))))
+    (alt-event
+     `(λ ,(program-variables (*start-prog*))
+	,(let loop ([rest-splits (cdr rsplits)]
+		    [acc (program-body (alt-program (list-ref alts (sp-cidx (car rsplits)))))])
+	   (if (null? rest-splits) acc
+	       (loop (cdr rest-splits)
+		     (let ([splitpoint (car rest-splits)])
+		       `(if (< ,(list-ref (program-variables (*start-prog*)) (sp-vidx splitpoint))
+			       ,(sp-point splitpoint))
+			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+			    ,acc))))))
+     'combine
+     alts)))
 
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
