@@ -183,7 +183,6 @@
 
 (define-ruleset pow-canonicalize
   [exp-to-expt     (exp (* (log a) b))         (expt a b)]
-  [unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a))]
   [expt-plus       (* (expt a b) a)            (expt a (+ b 1))]
   [unexpt2         (expt a 2)                  (sqr a)]
   [unexpt1/2       (expt a 1/2)                (sqrt a)])
@@ -193,6 +192,7 @@
   [expt-to-exp     (expt a b)                  (exp (* (log a) b))]
   [expt-prod-up    (* (expt a b) (expt a c))   (expt a (+ b c))]
   [expt-prod-down  (* (expt b a) (expt c a))   (expt (* b c) a)]
+  [unexpt-prod-down (expt (* b c) a)           (* (expt b a) (expt c a))]
   [inv-expt        (/ 1 a)                     (expt a -1)]
   [expt1/2         (sqrt a)                    (expt a 1/2)]
   [expt2           (sqr a)                     (expt a 2)])
