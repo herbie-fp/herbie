@@ -55,10 +55,10 @@
           (match samp
             ['float sample-float]
             ['default sample-float]
-            ['positive (compose (map abs) sample-float)]
+            ['positive (compose (curry map abs) sample-float)]
             [`(uniform ,a ,b) (sample-uniform a b)]
             ['integer sample-integer]
-            ['natural (compose (map abs) sample-integer)]
+            ['natural (compose (curry map abs) sample-integer)]
             [`expbucket sample-expbucket]))))
 
 (define (save-test t)
