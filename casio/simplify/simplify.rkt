@@ -53,13 +53,37 @@
 			 (program-variables (alt-program altn))))))))))
 
 (define (simplify-expr expr)
+  (define (inner-simplify expr iters)
+    (let ([eg (mk-egraph expr)])
+      (iterate-egraph! eg iters)
+      (extract-smallest eg)))
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (let ([iters (iters-needed expr)])
     (if (> iters *max-egraph-iters*)
-	(backup-simplify expr)
-	(let ([eg (mk-egraph expr)])
-	  (iterate-egraph! eg iters)
-	  (extract-smallest eg)))))
+	(match-let* ([(list cexpr bindings) (cull-expr expr *max-egraph-iters*)])
+	  (expr-replace (inner-simplify cexpr iters) bindings))
+	(inner-simplify expr iters))))
+
+(define (commutable? expr)
+  (let ([op (car expr)])
+    (or (eq? op '*) (eq? op '+))))
+
+(define (cull-expr expr max-iterdepth)
+  (cond [(not (list? expr)) (list expr '())]
+	[(1 . >= . max-iterdepth)
+	 (let ([name (gensym 'x)]) (list name `((,name . ,expr))))]
+	[#t
+	 (let* ([results (map (curryr cull-expr (- max-iterdepth (if (commutable? expr) 2 1)))
+			      (cdr expr))]
+		[expr* (cons (car expr) (map car results))]
+		[bindings (apply append (map cadr results))])
+	   (list expr* bindings))]))
+
+(define (expr-replace subexpr bindings)
+  (if (not (list? subexpr))
+      (let ([binding (assoc subexpr bindings)])
+	(or binding subexpr))
+      (cons (car subexpr) (map (curryr expr-replace bindings) (cdr subexpr)))))
 
 ;; Returns the worst-case iterations needed to simplify this expression
 (define (iters-needed expr)
