@@ -48,9 +48,9 @@
     (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)] [*debug* #t])
       (with-handlers ([(const #t)
                        (λ (e) (close-debug-port `(error ,e ,(bf-precision))))])
-	(match-let ([`(,prog ,context) (improve (test-program test) (*num-iterations*)
-						#:get-context #t #:samplers (test-samplers test))])
-	  (close-debug-port (list 'good (make-alt (test-program test)) (make-alt prog) context))))))
+	(match-let ([`(,alt ,context) (improve (test-program test) (*num-iterations*)
+					       #:get-context #t #:samplers (test-samplers test))])
+	  (close-debug-port (list 'good (make-alt (test-program test)) alt context))))))
 
   (define (in-engine _)
     (if *profile?*

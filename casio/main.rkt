@@ -48,7 +48,7 @@
 	 [maybe-period ((flag 'setup 'periodicity)
 			(curry optimize-periodicity
 			       (λ (alt)
-				 (make-alt (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2)))))
+				 (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2))))
 			identity)]
 	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
 	 [processed (maybe-period (maybe-simplify alt))]
@@ -79,7 +79,7 @@
 			       ,(sp-point splitpoint))
 			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
 			    ,acc))))))
-     'combine
+     `(regimes ,splitpoints)
      alts)))
 
 (define (improve-loop table fuel)
