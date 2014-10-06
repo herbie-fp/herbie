@@ -182,7 +182,3 @@
 		  (pass todo-ens ens->exprs)]
 		 [top-expr (hash-ref ens->exprs* (egraph-top eg) #f)])
       (or top-expr (loop todo-ens* ens->exprs*)))))
-
-(define (expr-size expr)
-  (if (not (list? expr)) 1
-      (apply + 1 (map expr-size (cdr expr)))))
