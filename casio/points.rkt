@@ -7,7 +7,7 @@
 (require casio/config)
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-	 sample-expbucket sample-float sample-uniform sample-integer
+	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list)
 
@@ -42,25 +42,20 @@
       (expt 2 (- (* bucket-width (+ i (random))) bucket-bias)))))
 
 (define (random-single-flonum)
-  (real->single-flonum
-   (let ([sign (if (= (random 2) 0) + -)]
-         [exponent (random 256)]
-         [mantissa (/ (random (expt 2 23)) (expt 2 23))])
-     (cond
-      [(and (= exponent 0) (= mantissa 0))
-       (sign 0.0)]
-      [(= exponent 0)
-       (sign (* (expt 2 -126) mantissa))]
-      [(and (= exponent 255) (= mantissa 0))
-       (sign +inf.0)]
-      [(= exponent 255)
-       +nan.0]
-      [else
-       (sign (* (expt 2 (- exponent 127)) (+ 1 mantissa)))]))))
+  (floating-point-bytes->real (integer->integer-bytes (random-exp 32) 4 #f)))
+
+(define (random-double-flonum)
+  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
 
 (define (sample-float num)
   (for/list ([i (range num)])
     (real->double-flonum (random-single-flonum))))
+
+(define (sample-double num)
+  (for/list ([i (range num)])
+    (real->double-flonum (random-double-flonum))))
+
+(define (sample-default n) (((flag 'precision 'double) sample-double sample-float) n))
 
 (define ((sample-uniform a b) num)
   (build-list num (λ (_) (+ (* (random) (- b a)) a))))

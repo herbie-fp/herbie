@@ -49,17 +49,19 @@
 (struct test (name vars sampling-expr input output) #:prefab)
 (define *tests* (make-parameter '()))
 
+(define (get-sampler expr)
+  (match expr
+    ['float sample-float]
+    ['double sample-double]
+    ['default sample-default]
+    [`(positive ,e) (compose (curry map abs) (get-sampler e))]
+    [`(uniform ,a ,b) (sample-uniform a b)]
+    ['integer sample-integer]
+    [`expbucket sample-expbucket]))
+
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (cons var
-          (match samp
-            ['float sample-float]
-            ['default sample-float]
-            ['positive (compose (curry map abs) sample-float)]
-            [`(uniform ,a ,b) (sample-uniform a b)]
-            ['integer sample-integer]
-            ['natural (compose (curry map abs) sample-integer)]
-            [`expbucket sample-expbucket]))))
+    (cons var (get-sampler samp))))
 
 (define (save-test t)
   (*tests* (cons t (*tests*))))
