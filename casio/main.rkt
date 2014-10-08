@@ -68,7 +68,7 @@
 
 (define (combine-alts splitpoints alts)
   (let ([rsplits (reverse splitpoints)])
-    (alt-event
+    (make-regime-alt
      `(λ ,(program-variables (*start-prog*))
 	,(let loop ([rest-splits (cdr rsplits)]
 		    [acc (program-body (alt-program (list-ref alts (sp-cidx (car rsplits)))))])
@@ -79,8 +79,7 @@
 			       ,(sp-point splitpoint))
 			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
 			    ,acc))))))
-     `(regimes ,splitpoints)
-     alts)))
+     alts splitpoints)))
 
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
