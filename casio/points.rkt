@@ -55,7 +55,7 @@
   (for/list ([i (range num)])
     (real->double-flonum (random-double-flonum))))
 
-(define (sample-default n) (((flag 'precision 'double) sample-double sample-float) n))
+(define (sample-default n) (((flag 'precision 'sample-double) sample-double sample-float) n))
 
 (define ((sample-uniform a b) num)
   (build-list num (λ (_) (+ (* (random) (- b a)) a))))
