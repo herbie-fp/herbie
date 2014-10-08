@@ -192,12 +192,31 @@
   (display (compile->mpfr iprog bits "f_im"))
   (display (compile->mpfr oprog bits "f_om")))
 
-(define (compile-datafile results-file [output-file "tc~a.c"])
+(define (compile->c-files results-file [output-file "tc~a.c"])
   (for ([id (in-naturals)] [line (read-datafile results-file)])
     (match line
       [`(,name ,input ,output ,target ,bits ,time)
        (debug #:from 'compile-datafile "Compiling" name "to" (format output-file id))
        (write-file (format output-file id) (compile->all name input output bits))])))
+
+(define (compile->mpfr-bits results-file)
+  (write-file "mpfr-bits.csv"
+              (for ([line (read-datafile results-file)])
+                (match line
+                  [`(,name ,input ,output ,target ,bits ,time)
+                   (printf "~a\n" bits)]))))
+
+(define (compile->casio-runtime results-file)
+  (write-file "casio-runtime.csv"
+              (for ([line (read-datafile results-file)])
+                (match line
+                  [`(,name ,input ,output ,target ,bits ,time)
+                   (printf "~a\n" (/ time 1000))]))))
+
+(define (compile-datafiles results-file [output-file "tc~a.c"])
+  (compile->c-files results-file output-file)
+  (compile->mpfr-bits results-file)
+  (compile->casio-runtime results-file))
 
 (define *format* "tc~a.c")
 
@@ -207,4 +226,4 @@
  [("-f") fmt "Format of output file names; use a single ~a for an index"
   (set! *format* fmt)]
  #:args (results-file)
- (compile-datafile results-file *format*))
+ (compile-datafiles results-file *format*))
