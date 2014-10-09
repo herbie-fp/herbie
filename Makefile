@@ -111,16 +111,16 @@ rebib:
 # Generating graphs
 
 pldi15/fig/eval-mpfr-bits.tex: compile/mpfr-bits.csv compile/graph.py
-	python compile/graph.py bits -d compile > $@
+	python2 compile/graph.py bits -d compile > $@
 
 pldi15/fig/eval-casio-runtime.tex: compile/casio-runtime.csv compile/graph.py
-	python compile/graph.py time -d compile > $@
+	python2 compile/graph.py time -d compile > $@
 
 pldi15/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.csv compile/tc.od.csv compile/graph.py
-	python compile/graph.py rect-f -d compile > $@
+	python2 compile/graph.py rect-f -d compile > $@
 
 pldi15/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
-	python compile/graph.py rect-d -d compile > $@
+	python2 compile/graph.py rect-d -d compile > $@
 
 pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
-	python compile/graph.py overhead-d -d compile > $@
+	python2 compile/graph.py overhead-d -d compile > $@
