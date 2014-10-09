@@ -143,12 +143,14 @@
     (mk-pcontext pts* exacts*)))
 
 (define (errors prog pcontext)
-  (let ([fn (eval-prog prog mode:fl)])
+  (let ([fn (eval-prog prog mode:fl)]
+	[max-ulps (expt 2 (*bit-width*))])
     (for/list ([(point exact) (in-pcontext pcontext)])
       (let ([out (fn point)])
-        (if (real? out)
-            (+ 1 (abs (ulp-difference out exact)))
-            (+ 1 (expt 2 (*bit-width*))))))))
+	(add1
+	 (if (real? out)
+	     (abs (ulp-difference out exact))
+	     max-ulps))))))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
