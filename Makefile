@@ -29,10 +29,10 @@ loc:
 clean:
 	rm -f cost
 	rm -rf graphs/
-	rm compile/results.casio.dat
-	rm compile/$(PREFIX)*.c
-	rm compile/$(PREFIX)*.out
-	rm compile/$(PREFIX)*.out
+	rm -f compile/$(PREFIX)*.c
+	rm -f compile/$(PREFIX)*.out
+	rm -f compile/$(PREFIX).*.csv
+	rm -f compile/$(PREFIX).*.json
 
 doc/tr-14wi.pdf: doc/tr-14wi.tex
 	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
@@ -76,6 +76,9 @@ compile/%.out: %.bin
 
 $(DATAFILES): $(CFILES:.c=.out)
 	compile/all.sh compile/$(PREFIX)
+
+$(PREFIX).json: $(DATAFILES)
+	python2 compile/makejson.py compile/$(PREFIX)
 
 # Generating convergence binaries
 
