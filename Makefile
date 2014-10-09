@@ -1,6 +1,6 @@
 PREFIX=tc
 BENCHDIR=bench/hamming/
-CASIOFLAGS=-p
+FLAGS=-p
 
 .PHONY: all report publish c link clean loc
 
@@ -9,7 +9,7 @@ all:
 	$(MAKE) report
 
 report:
-	racket reports/make-report.rkt $(CASIOFLAGS) $(BENCHDIR)
+	racket reports/make-report.rkt $(FLAGS) $(BENCHDIR)
 
 publish:
 	bash reports/publish.sh

@@ -35,15 +35,15 @@
 	   nan
 	   (real-part ans)))))
 
-(define csinh
+(define (csinh x)
   ((flag 'precision 'double)
-   flsinh
-   (λ (x) (real->single-flonum (flsinh (real->double-flonum x))))))
+   (flsinh x)
+   (real->single-flonum (flsinh (real->double-flonum x)))))
 
-(define ctanh
+(define (ctanh x)
   ((flag 'precision 'double)
-   fltanh
-   (λ (x) (real->single-flonum (fltanh (real->double-flonum x))))))
+   (fltanh x)
+   (real->single-flonum (fltanh (real->double-flonum x)))))
 
 (define csqrt (make-safe sqrt))
 (define clog (make-safe log))
