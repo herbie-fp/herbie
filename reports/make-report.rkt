@@ -210,6 +210,8 @@
    (read (open-input-string rs)))]
  [("-n") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
+ [("-s") points "The number of points to use"
+  (*num-points* (string->number points))]
  #:multi
  [("-f") tf "Toggle flags, specified in the form category:flag"
   (let ([split-strings (string-split tf ":")])
