@@ -10,5 +10,6 @@ logs
 /bench/harley/data/cooc.csv
 compile/*.o
 compile/*.bin
-compile/tc*
+compile/tc*.c
+compile/tc*.out
 pldi15/data/*.csv

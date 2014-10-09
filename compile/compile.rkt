@@ -56,7 +56,7 @@
 (define (if? l)
   (and (list? l) (eq? (car l) 'if)))
 
-(define (compile->c prog [type "double"] [fname "f"])
+(define (program->c prog [type "double"] [fname "f"])
   (define vars (program-variables prog))
   (define body (compile (program-body prog)))
 
@@ -76,7 +76,7 @@
 
   (write-string
    (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "float ~a" (fix-name var))) ", "))
+           (string-join (for/list ([var vars]) (format "~a ~a" type (fix-name var))) ", "))
 
    (for/list ([assignment (cadr body)])
      (if (comparison? (cadr assignment))
@@ -126,7 +126,7 @@
   [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]
   [e     "ERROR(\"E unsupported\")"])
 
-(define (compile->mpfr prog [bits 128] [fname "f"])
+(define (program->mpfr prog [bits 128] [fname "f"])
   (define vars (program-variables prog))
   (define body (compile (program-body prog)))
 
@@ -140,7 +140,7 @@
       (let ([register (gensym "r")])
         (format "mpfr_init_set_str(~a, \"~a\", 10, MPFR_RNDN)" out expr))]
      [(member expr (program-variables prog))
-      (format "mpfr_set_flt(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
+      (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
      [(member expr constants)
       (apply-converter (car (hash-ref constants->mpfr expr)) (list out))]
      [(symbol? expr)
@@ -157,7 +157,7 @@
    (printf "}\n\n")
 
    (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "float ~a" (fix-name var))) ", "))
+           (string-join (for/list ([var vars]) (format "double ~a" (fix-name var))) ", "))
 
    (for ([assignment (cadr body)])
      (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
@@ -166,64 +166,63 @@
   (printf "        return mpfr_get_d(~a, MPFR_RNDN);\n" (caddr body))
   (printf "}\n\n")))
 
-(define (compile->all name iprog oprog bits)
+(define (compile-all name iprog fprog dprog bits)
   (printf "#include <tgmath.h>\n")
   (printf "#include <gmp.h>\n")
   (printf "#include <mpfr.h>\n")
   (printf "#include <stdio.h>\n")
   (printf "#include <stdbool.h>\n\n")
   (printf "char *name = \"~a\";\n\n" name)
-  (display (compile->c iprog "float" "f_if"))
-  (display (compile->c iprog "double" "f_id"))
-  (display (compile->c iprog "long double" "f_il"))
-  (printf "long double fmod2(long double n, long double d) {\n")
-  (printf "        double r = fmodl(n, d);\n")
-  (printf "        return r < 0 ? r + d : r;\n")
-  (printf "}\n\n")
+  (display (program->c iprog "float" "f_if"))
+  (display (program->c iprog "double" "f_id"))
   (newline)
-  (display (compile->c oprog "float" "f_of"))
-  (display (compile->c oprog "double" "f_od"))
-  (display (compile->c oprog "long double" "f_ol"))
+  (display (program->c fprog "float" "f_of"))
+  (display (program->c dprog "double" "f_od"))
   (printf "void mpfr_fmod2(mpfr_t r, mpfr_t n, mpfr_t d) {\n")
   (printf "        mpfr_fmod(r, n, d, MPFR_RNDN);\n")
   (printf "        if (mpfr_cmp_ui(r, 0) < 0) mpfr_add(r, r, d, MPFR_RNDN);\n")
   (printf "}\n\n")
   (newline)
-  (display (compile->mpfr iprog bits "f_im"))
-  (display (compile->mpfr oprog bits "f_om")))
+  (display (program->mpfr iprog bits "f_im"))
+  (display (program->mpfr fprog bits "f_fm"))
+  (display (program->mpfr dprog bits "f_dm")))
 
-(define (compile->c-files results-file [output-file "tc~a.c"])
-  (for ([id (in-naturals)] [line (read-datafile results-file)])
-    (match line
-      [`(,name ,input ,output ,target ,bits ,time)
+(define (compile-c-files float-results-file double-results-file [output-file "tc~a.c"])
+  (for ([id (in-naturals)] [fline (read-datafile float-results-file)] [dline (read-datafile double-results-file)])
+    (match (cons fline dline)
+      [`((,name ,input ,foutput ,target ,fbits ,ftime) .
+         (,name ,input ,doutput ,target ,dbits ,dtime))
        (debug #:from 'compile-datafile "Compiling" name "to" (format output-file id))
-       (write-file (format output-file id) (compile->all name input output bits))])))
+       (write-file (format output-file id) (compile-all name input foutput doutput dbits))])))
 
-(define (compile->mpfr-bits results-file)
-  (write-file "mpfr-bits.csv"
-              (for ([line (read-datafile results-file)])
+(define (compile-mpfr-bits float-results-file double-results-file dir)
+  (write-file (build-path dir "mpfr-bits.csv")
+              (for ([line (read-datafile double-results-file)])
                 (match line
                   [`(,name ,input ,output ,target ,bits ,time)
                    (printf "~a\n" bits)]))))
 
-(define (compile->casio-runtime results-file)
-  (write-file "casio-runtime.csv"
-              (for ([line (read-datafile results-file)])
+(define (compile-casio-runtime float-results-file double-results-file dir)
+  (write-file (build-path dir "casio-runtime.csv")
+              (for ([line (read-datafile double-results-file)])
                 (match line
                   [`(,name ,input ,output ,target ,bits ,time)
                    (printf "~a\n" (/ time 1000))]))))
 
-(define (compile-datafiles results-file [output-file "tc~a.c"])
-  (compile->c-files results-file output-file)
-  (compile->mpfr-bits results-file)
-  (compile->casio-runtime results-file))
+(define (compile-datafiles float-results-file double-results-file [dir "."] [output-file "tc~a.c"])
+  (compile-c-files float-results-file double-results-file (string-append dir "/" output-file))
+  (compile-mpfr-bits float-results-file double-results-file dir)
+  (compile-casio-runtime float-results-file double-results-file dir))
 
 (define *format* "tc~a.c")
+(define *dir* ".")
 
 (command-line
  #:program "compile"
  #:once-each
+ [("-d") dir "Directory into which to place compiled files"
+  (set! *dir* dir)]
  [("-f") fmt "Format of output file names; use a single ~a for an index"
   (set! *format* fmt)]
- #:args (results-file)
- (compile-datafiles results-file *format*))
+ #:args (float-results-file double-results-file)
+ (compile-datafiles float-results-file double-results-file *dir* *format*))

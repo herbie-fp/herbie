@@ -13,52 +13,31 @@
 #endif
 
 #if NARGS == 1
-#define ARGS float
+#define ARGS(t) t
 #elif NARGS == 2
-#define ARGS float, float
+#define ARGS(t) t, t
 #elif NARGS == 3
-#define ARGS float, float, float
+#define ARGS(t) t, t, t
 #elif NARGS == 4
-#define ARGS float, float, float, float
+#define ARGS(t) t, t, t, t
 #elif NARGS == 5
-#define ARGS float, float, float, float, float
+#define ARGS(t) t, t, t, t, t
 #elif NARGS == 6
-#define ARGS float, float, float, float, float, float
+#define ARGS(t) t, t, t, t, t, t
 #else
 #define ARGS
 #endif
 
 void setup_mpfr_f_im(void);
-void setup_mpfr_f_om(void);
-double f_if(ARGS);
-double f_id(ARGS);
-double f_il(ARGS);
-double f_im(ARGS);
-double f_of(ARGS);
-double f_od(ARGS);
-double f_ol(ARGS);
-double f_om(ARGS);
+void setup_mpfr_f_fm(void);
+void setup_mpfr_f_dm(void);
+double f_if(ARGS(float));
+double f_id(ARGS(double));
+double f_im(ARGS(double));
+double f_of(ARGS(float));
+double f_od(ARGS(double));
+double f_om(ARGS(double));
 extern char *name;
-
-unsigned long long ulpd(double x, double y) {
-        if (x == 0) x = fabs(x); // -0 == 0
-        if (y == 0) y = fabs(y); // -0 == 0
-
-        if (x != x && y != y) return 0;
-        if (x != x) return LLONG_MIN;
-        if (y != y) return LLONG_MIN;
-
-        long long xx = *((unsigned long long*) &x);
-        xx = xx < 0 ? LLONG_MIN - xx : xx;
-
-        long long yy = *((unsigned long long*)&y);
-        yy = yy < 0 ? LLONG_MIN - yy : yy;
-
-        return xx >= yy ? xx - yy : yy - xx;
-}
-
-#define ulpl ulpd
-#define ulpm ulpd
 
 unsigned int ulpf(float x, float y) {
         if (x == 0) x = fabsf(x); // -0 == 0
@@ -77,18 +56,40 @@ unsigned int ulpf(float x, float y) {
         return xx >= yy ? xx - yy : yy - xx;
 }
 
-float rand_float() {
-        unsigned int c0 = rand()&0xffff;
-        unsigned int c1 = rand()&0xffff;
-        unsigned int c = ((c1<<16) | c0);
-        return *(float*)&c;
+unsigned long long ulpd(double x, double y) {
+        if (x == 0) x = fabs(x); // -0 == 0
+        if (y == 0) y = fabs(y); // -0 == 0
+
+        if (x != x && y != y) return 0;
+        if (x != x) return LLONG_MIN;
+        if (y != y) return LLONG_MIN;
+
+        unsigned long long xx = *((unsigned long long*) &x);
+        xx = xx < 0 ? LLONG_MIN - xx : xx;
+
+        unsigned long long yy = *((unsigned long long*)&y);
+        yy = yy < 0 ? LLONG_MIN - yy : yy;
+
+        return xx >= yy ? xx - yy : yy - xx;
 }
 
-float *get_random(int nums) {
+#define ulpl ulpd
+#define ulpm ulpd
+
+double rand_double() {
+        unsigned long long c0 = rand()&0xffff;
+        unsigned long long c1 = rand()&0xffff;
+        unsigned long long c2 = rand()&0xffff;
+        unsigned long long c3 = rand()&0xffff;
+        unsigned long long c = ((c3 << 48) | (c2 << 32) | (c1<<16) | c0);
+        return *(double*)&c;
+}
+
+double *get_random(int nums) {
         int i;
-        float *arr = malloc(sizeof(float) * nums * NARGS);
+        double *arr = malloc(sizeof(double) * nums * NARGS);
         for (i = 0; i < nums * NARGS; i++) {
-                arr[i] = rand_float();
+                arr[i] = rand_double();
         }
         return arr;
 }
@@ -99,10 +100,9 @@ float *get_random(int nums) {
         int i, maxi;                                                    \
         unsigned long long int max = 0;                                 \
         double total = 0;                                               \
-        float *rands;                                                   \
+        double *rands;                                                   \
         double *out, *correct;                                          \
-        setup_mpfr_f_im();                                              \
-        setup_mpfr_f_om();
+        setup_mpfr_f_im();
 
 #define CALIBRATE(iter)                                         \
         clock_gettime(CLOCK_MONOTONIC, &start);                 \
@@ -177,11 +177,6 @@ int main(int argc, char** argv) {
         printf("// %s\n", name);
         printf("test,           time,           max,            avg\n");
 
-        //printf("x = 2.873151427e-15\n");
-        //printf("ULP(0, 8.25e-30) = %.20g\n", log(ulp(0, 8.25e-30) + 1.0) / log(2));
-        //printf("ULP(4.440892099e-16, 8.25e-30) = %.20g\n", log(ulp(4.440892099e-16, 8.25e-30) + 1.0) / log(2));
-        //printf("ULP(%f, 8.25e-30) = %.20g\n", 0.0/0.0, log(ulp(0.0 / 0.0, 8.25e-30) + 1.0) / log(2));
-
         SAMPLE(iter);
         CALIBRATE(iter);
 
@@ -194,20 +189,11 @@ int main(int argc, char** argv) {
         TEST(id, iter);
         CHECK(i, d, iter);
 
-        TEST(il, iter);
-        CHECK(i, l, iter);
-
-        TEST(om, iter);
-        CHECK(o, m, iter);
-
         TEST(of, iter);
         CHECK(o, f, iter);
 
         TEST(od, iter);
         CHECK(o, d, iter);
-
-        TEST(ol, iter);
-        CHECK(o, l, iter);
 
         return 0;
 
