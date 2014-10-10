@@ -79,7 +79,7 @@ compile/%.out: compile/%.bin
 $(DATAFILES): $(CFILES:.c=.out)
 	compile/all.sh compile/$(PREFIX)
 
-$(PREFIX).json: $(DATAFILES)
+compile/$(PREFIX).json: $(DATAFILES)
 	python2 compile/makejson.py compile/$(PREFIX)
 
 # Generating convergence binaries

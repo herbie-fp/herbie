@@ -5,6 +5,27 @@ PLOT_Y = 5
 
 plot_stack = []
 
+TICKS = (8, 12)
+def choose_ticks(max):
+    max = int(max)
+    step_min = max / float(TICKS[1])
+    step_max = max / float(TICKS[0])
+
+    # Now we find the "roundest" number in [step_min, step_max]
+    DIVISORS = [.001, .01, .1, .25, .5, 1,
+                2, 3, 4, 5, 6, 7, 8,
+                10, 12, 14, 15, 16, 18, 20,
+                25, 30, 35, 40, 45, 50,
+                60, 70, 80, 90, 100, 150,
+                200, 250, 300, 333.333, 400, 500,
+                600, 666.666, 700, 750, 800, 900, 1000]
+    step = min(d for d in DIVISORS if step_min <= d <= step_max)
+
+    if max / float(step) == int(max / float(step)):
+        return range(0, max, step) + [max]
+    else:
+        return range(0, max, step)
+
 def push_plot_params(x,y):
     global PLOT_X
     global PLOT_Y
@@ -156,7 +177,7 @@ def draw_mpfr_bits_cdf(data):
         draw_line(to_plot_space(mid), to_plot_space(cur)) #, opts="thick")
 
     h_ticks = []
-    for i in range(0,401,50):
+    for i in choose_ticks(hi):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -205,7 +226,7 @@ def draw_time_cdf(data):
 
 
     h_ticks = []
-    for i in range(0,126,25):
+    for i in choose_ticks(hi):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
@@ -258,7 +279,7 @@ def draw_overhead_cdf(iname, oname):
 
 
     h_ticks = []
-    for i in [1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0]:
+    for i in choose_ticks(hi) + [1]:
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
