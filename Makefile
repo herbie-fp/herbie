@@ -2,11 +2,13 @@
 FLAGS=-p
 BENCHDIR=bench/hamming/
 
-.PHONY: all report publish compile link clean loc all-fig all-convergence rebib
+.PHONY: all report publish compile link clean loc all-fig all-convergence rebib paper
 
 all:
 	$(MAKE) link
 	$(MAKE) report
+
+paper: pldi15/paper.pdf
 
 report:
 	racket reports/make-report.rkt $(FLAGS) $(BENCHDIR)
@@ -46,8 +48,8 @@ CFILES=$(wildcard compile/$(PREFIX)*.c)
 
 .SECONDARY: $(DATAFILES)
 
-compile: graphs/results.casio.dat
-	racket compile/compile.rkt -d compile -f $(PREFIX)~a.c graphs/results.casio.dat graphs/results.casio.dat
+compile: compile/single.casio.dat compile/double.casio.dat
+	racket compile/compile.rkt -d compile -f $(PREFIX)~a.c $^
 
 # Flags for building and running C files
 GCC_FLAGS=-std=c11
@@ -57,21 +59,21 @@ SLOW_FLAGS=$(GCC_FLAGS) -Wall -Wextra -Wpedantic -O0 -g
 # How many samples to use for evaluation
 EVALUATION_POINTS=100000
 
-compile/%.o: %.c Makefile
+compile/%.o: compile/%.c
 	gcc $(FAST_FLAGS) -c $< -o $@
 
-compile/%.slow.o: %.c Makefile
+compile/%.slow.o: compile/%.c
 	gcc $(SLOW_FLAGS) -c $< -o $@
 
 # Running evaluation binaries
 
-compile/%.bin: test.c %.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+compile/%.bin: compile/test.c compile/%.o
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/%.slow.bin: test.c %.slow.o
-	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+compile/%.slow.bin: compile/test.c compile/%.slow.o
+	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/%.out: %.bin
+compile/%.out: compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
 
 $(DATAFILES): $(CFILES:.c=.out)
@@ -83,7 +85,7 @@ $(PREFIX).json: $(DATAFILES)
 # Generating convergence binaries
 
 compile/%.cv_if.bin: convergence.c %.o
-	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 compile/%.cv_if.csv: %.cv_if.bin
 	./$< > $@

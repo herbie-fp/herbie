@@ -25,7 +25,7 @@
 #elif NARGS == 6
 #define ARGS(t) t, t, t, t, t, t
 #else
-#define ARGS
+#define ARGS(t) abort()
 #endif
 
 void setup_mpfr_f_im(void);
