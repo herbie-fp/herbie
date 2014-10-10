@@ -36,14 +36,14 @@
 	   (real-part ans)))))
 
 (define (csinh x)
-  ((flag 'precision 'double)
-   (flsinh x)
-   (real->single-flonum (flsinh (real->double-flonum x)))))
+  (((flag 'precision 'double)
+    flsinh
+    (compose real->single-flonum flsinh real->double-flonum)) x))
 
 (define (ctanh x)
-  ((flag 'precision 'double)
-   (fltanh x)
-   (real->single-flonum (fltanh (real->double-flonum x)))))
+  (((flag 'precision 'double)
+    fltanh
+    (compose real->single-flonum fltanh real->double-flonum)) x))
 
 (define csqrt (make-safe sqrt))
 (define clog (make-safe log))

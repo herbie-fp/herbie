@@ -15,7 +15,7 @@
          [reduce   . (regimes zach taylor)]
 	 [precision . (double)]
          [sample   . (double)]
-         [regimes  . (recurse)]
+         [regimes  . ()]
          [simplify . ()]
          [setup    . (simplify periodicity)]
          [localize . (cache)])))
