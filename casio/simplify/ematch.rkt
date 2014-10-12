@@ -48,7 +48,7 @@
    [(constant? pat)
     (call/ec
      (λ (k)
-       (for ([var (enode-vars e)])
+       (for ([var (in-set (enode-vars e))])
 	 (when (and (number? var) (= pat var))
 	   (k '(()))))
        '()))]
@@ -56,13 +56,13 @@
     `(((,pat . ,e)))]
    [(list? pat)
     (apply append
-	   (for/list ([var (enode-vars e)])
+	   (for/list ([var (in-set (enode-vars e))])
 	     (if (and (list? var) (eq? (car var) (car pat))
 		      (= (length var) (length pat)))
 		 (filter identity
 			 (map (curry apply merge)
 			      (apply list-cartesian-product
-				     (for/list ([subpat (cdr pat)] [sube (cdr var)])
+				     (for/list ([subpat (in-list (cdr pat))] [sube (in-list (cdr var))])
 				       (match-e subpat sube)))))
 		 '())))]
    [else

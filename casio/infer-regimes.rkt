@@ -101,15 +101,16 @@
       (cons item (cdr lst))
       (cons (car lst) (with-entry (sub1 idx) (cdr lst) item))))
 
-;; Takes a list of numbers, and returns the partial sum of those numbers.
-;; For example, if your list is [1 4 6 3 8], then this returns [1 5 11 14 22].
-(define (partial-sum lst)
-  (let loop ([rest-lst (cdr lst)] [psum-acc (list (car lst))])
-    (if (null? rest-lst)
-	(reverse psum-acc)
-	(loop (cdr rest-lst)
-	      (cons (+ (car psum-acc) (car rest-lst))
-		    psum-acc)))))
+;; Takes a vector of numbers, and returns the partial sum of those numbers.
+;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
+(define (partial-sum vec)
+  (first-value
+   (for/fold ([res (make-vector (vector-length vec))]
+	      [cur-psum 0])
+       ([(el idx) (in-indexed (in-vector vec))])
+     (let ([new-psum (+ cur-psum el)])
+       (vector-set! res idx new-psum)
+       (values res new-psum)))))
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
@@ -136,7 +137,7 @@
   (define num-points (length (car err-lsts)))
   (define min-weight num-points)
 
-  (define psums (map (compose list->vector partial-sum) err-lsts))
+  (define psums (map (compose partial-sum list->vector) err-lsts))
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -144,14 +145,14 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-    (for/list ([point-idx (in-naturals)] [point-entry sp-prev])
+    (for/list ([point-idx (in-naturals)] [point-entry (in-list sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-naturals)] [prev-entry (take sp-prev point-idx)])
+        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))])
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum psums])
+            (for ([cidx (in-naturals)] [psum (in-list psums)])
               (let ([cost (- (vector-ref psum point-idx)
                              (vector-ref psum prev-split-idx))])
                 (when (or (not best) (< cost bcost))
