@@ -39,6 +39,9 @@ double f_od(ARGS(double));
 double f_om(ARGS(double));
 extern char *name;
 
+typedef unsigned long long int u64;
+typedef unsigned int u32;
+
 unsigned int ulpf(float x, float y) {
         if (x == 0) x = fabsf(x); // -0 == 0
         if (y == 0) y = fabsf(y); // -0 == 0
@@ -47,10 +50,10 @@ unsigned int ulpf(float x, float y) {
         if (x != x) return INT_MIN; // Maximum error
         if (y != y) return INT_MIN; // Maximum error
 
-        unsigned int xx = *((unsigned int*) &x);
+        u32 xx = *((u32*) &x);
         xx = xx < 0 ? INT_MIN - xx : xx;
 
-        unsigned int yy = *((unsigned int*) &y);
+        u32 yy = *((u32*) &y);
         yy = yy < 0 ? INT_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
@@ -64,71 +67,78 @@ unsigned long long ulpd(double x, double y) {
         if (x != x) return LLONG_MIN; // Maximum error
         if (y != y) return LLONG_MIN; // Maximum error
 
-        unsigned long long xx = *((unsigned long long*) &x);
+        u64 xx = *((u64*) &x);
         xx = xx < 0 ? LLONG_MIN - xx : xx;
 
-        unsigned long long yy = *((unsigned long long*) &y);
+        u64 yy = *((u64*) &y);
         yy = yy < 0 ? LLONG_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
+}
+
+char ordinaryf(float x) {
+        return 1 / x != 0 && x == x;
+}
+
+char ordinaryd(double x) {
+        return 1 / x != 0 && x == x;
 }
 
 #define ulpl ulpd
 #define ulpm ulpd
 
 double rand_double() {
-        unsigned long long c0 = rand()&0xffff;
-        unsigned long long c1 = rand()&0xffff;
-        unsigned long long c2 = rand()&0xffff;
-        unsigned long long c3 = rand()&0xffff;
-        unsigned long long c = ((c3 << 48) | (c2 << 32) | (c1<<16) | c0);
+        u64 c0 = rand()&0xffff;
+        u64 c1 = rand()&0xffff;
+        u64 c2 = rand()&0xffff;
+        u64 c3 = rand()&0xffff;
+        u64 c = ((c3 << 48) | (c2 << 32) | (c1<<16) | c0);
         return *(double*)&c;
 }
 
 float rand_float() {
-        unsigned int c0 = rand()&0xffff;
-        unsigned int c1 = rand()&0xffff;
-        unsigned int c = ((c1<<16) | c0);
+        u32 c0 = rand()&0xffff;
+        u32 c1 = rand()&0xffff;
+        u32 c = ((c1<<16) | c0);
         return *(float*)&c;
+}
+
+float *get_random_floats(int nums) {
+        int i;
+        float *arr = malloc(sizeof(float) * nums * NARGS);
+        for (i = 0; i < nums * NARGS; i++) {
+                float rand;
+                do {
+                        rand = rand_float();
+                } while (!ordinaryf(rand));
+                arr[i] = rand;
+        }
+        return arr;
 }
 
 double *get_random_doubles(int nums) {
         int i;
         double *arr = malloc(sizeof(double) * nums * NARGS);
         for (i = 0; i < nums * NARGS; i++) {
-                arr[i] = rand_double();
+                double rand;
+                do {
+                        rand = rand_double();
+                } while (!ordinaryd(rand));
+                arr[i] = rand;
         }
         return arr;
 }
 
-#define SETUP()                                                         \
-        struct timespec start, end;                                     \
-        double rtime, zero;                                             \
-        int i, maxi;                                                    \
-        unsigned long long int max = 0;                                 \
-        double total = 0;                                               \
-        float *randsf;                                                  \
-        double *randsd;                                                 \
-        double *randsm;                                                 \
-        double *out, *correct;                                          \
-        setup_mpfr_f_im();
-
-#define CALIBRATE(iter)                                         \
-        clock_gettime(CLOCK_MONOTONIC, &start);                 \
-        for (i = 0; i < iter; i++) {                            \
-                out[i] = 1 / randsd[NARGS*i];                    \
-        }                                                       \
-        clock_gettime(CLOCK_MONOTONIC, &end);              \
-        zero = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
-
-#define TEST(io, type, iter)                                             \
+/* Some macros to make looping a bit easier */
+#define LOOP(iter)                                                      \
         clock_gettime(CLOCK_MONOTONIC, &start);                         \
-        for (i = 0; i < iter; i++) {                                    \
-                out[i] = EVAL(rands##type, f_##io##type);                     \
-        }                                                               \
+        for (i = 0; i < iter; i++)
+
+#define END()                                                           \
         clock_gettime(CLOCK_MONOTONIC, &end);                           \
         rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
 
+/* Calling a function with some number of arguments */
 #if NARGS == 1
 #define EVAL(rands, f) f(rands[i])
 #elif NARGS == 2
@@ -145,66 +155,57 @@ double *get_random_doubles(int nums) {
 #define EVAL(rands, f) abort()
 #endif
 
-#define CHECK(io, type, iter)                                            \
-        maxi = -1;                                                      \
+#define CHECK(io, type, iter)                                           \
         max = total = 0;                                                \
         for (i = 0; i < iter; i++) {                                    \
-                if (1 / correct[i] != 0 && correct[i] == correct[i]) {  \
-                        unsigned long long int error = ulp##type(out[i], correct[i]); \
-                        if (error > max) { maxi = i; max = error; }     \
-                        total += log(error + 1.0) / log(2);             \
+                if (ordinary##type(true##type[i])) {                    \
+                        u64 error = ulp##type(out##type[i], true##type[i]); \
+                                if (error > max) max = error;           \
+                                total += log(error + 1.0) / log(2);     \
                 }                                                       \
         }                                                               \
-        printf("%s%s ,%15g,%15g,%15g\n", #io, #type, rtime,              \
-               log(max + 1.0) / log(2), total / count);
-
-#define SAMPLE(iter)                                                    \
-        srand(time(NULL));                                              \
-        randsd = get_random_doubles(iter);                              \
-        randsm = randsd;                                                \
-        randsf = malloc(sizeof(float) * iter);                          \
-        for (i = 0; i < iter; i++) {                                    \
-                randsf[i] = (float) randsd[i];                          \
-        }                                                               \
-        out = malloc(sizeof(double) * iter);
-
-#define SAVE(iter)                                                      \
-        correct = malloc(sizeof(double) * iter);                         \
-        memcpy((void *) correct, (void *) out, sizeof(double) * iter);   \
-        count = 0;                                                      \
-        printf("im  ,%15g,%15g,%15g\n", rtime, 0.0, 0.0);        \
-        for (i = 0; i < iter; i++) {                                    \
-                if (1 / correct[i] != 0 && correct[i] == correct[i]) {  \
-                        count += 1;                                     \
-                }                                                       \
-        }
+        printf("%s%s ,%15g,%15g,%15g\n", #io, #type, rtime,             \
+               log(max + 1.0) / log(2), total / count##type);
 
 int main(int argc, char** argv) {
-        int count;
-        SETUP();
+        struct timespec start, end;
+        int i, maxi;
+        unsigned long long int max = 0;
+        double rtime, total = 0;
+        int countf = 0, countd = 0;
+        double *ind, *outd, *trued;
+        float *inf, *outf, *truef;
+        setup_mpfr_f_im();
 
         int iter = 1000000;
         if (argc > 1) iter = atoi(argv[1]);
 
+        inf = get_random_floats(NARGS * iter);
+        ind = get_random_doubles(NARGS * iter);
+        outf = malloc(sizeof(float) * iter);
+        outd = malloc(sizeof(double) * iter);
+        truef = malloc(sizeof(float) * iter);
+        trued = malloc(sizeof(double) * iter);
+
+        LOOP(iter) { truef[i] = (float) EVAL(inf, f_im); } END();
+        LOOP(iter) { trued[i] = EVAL(ind, f_im); } END();
+
+        LOOP(iter) { countf += (int) ordinaryf(truef[i]); } END();
+        LOOP(iter) { countd += (int) ordinaryd(trued[i]); } END();
+
         printf("// %s\n", name);
         printf("test,           time,           max,            avg\n");
 
-        SAMPLE(iter);
-        CALIBRATE(iter);
-
-        TEST(i, m, iter);
-        SAVE(iter);
-
-        TEST(i, f, iter);
+        LOOP(iter) { outf[i] = EVAL(inf, f_if); } END();
         CHECK(i, f, iter);
 
-        TEST(i, d, iter);
+        LOOP(iter) { outd[i] = EVAL(ind, f_id); } END();
         CHECK(i, d, iter);
 
-        TEST(o, f, iter);
+        LOOP(iter) { outf[i] = EVAL(inf, f_of); } END();
         CHECK(o, f, iter);
 
-        TEST(o, d, iter);
+        LOOP(iter) { outd[i] = EVAL(ind, f_od); } END();
         CHECK(o, d, iter);
 
         return 0;

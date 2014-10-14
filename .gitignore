@@ -12,4 +12,5 @@ compile/*.o
 compile/*.bin
 compile/tc*.c
 compile/tc*.out
+compile/tc.json
 pldi15/data/*.csv
