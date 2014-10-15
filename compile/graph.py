@@ -580,7 +580,7 @@ if __name__ == '__main__':
 
         data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
 
-        draw_improvement_rectangles(data, title="Double Precision")
+        draw_improvement_rectangles(data, title="Double Precision", v_capt="Benchmark")
         pop_plot_params()
         end_doc()
     elif sys.argv[1] == "rect-f":
@@ -602,7 +602,7 @@ if __name__ == '__main__':
         data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
         data = [(p[2], p[3]) for p in data]
 
-        draw_improvement_rectangles(data, title="Single Precision", v_capt="Benchmark")
+        draw_improvement_rectangles(data, title="Single Precision")
         pop_plot_params()
         end_doc()
     elif sys.argv[1] == "overhead-d":
