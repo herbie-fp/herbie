@@ -31,7 +31,7 @@
 
 ; Suggested by Harley
 
-(casio-test (e+ e- t s)
+(casio-test ((e+ (positive default)) (e- (positive default)) t s)
   "Harley's example"
   (/ (* (expt (/ (+ 1 (exp (- s)))) e+) (expt (- 1 (/ (+ 1 (exp (- s))))) e-))
      (* (expt (/ (+ 1 (exp (- t)))) e+) (expt (- 1 (/ (+ 1 (exp (- t))))) e-)))
