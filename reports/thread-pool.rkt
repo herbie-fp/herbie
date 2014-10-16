@@ -278,6 +278,7 @@
     (place-channel-put m 'make-worker))
   (for ([prog progs] [i (range (length progs))])
     (place-channel-put m `(do ,i ,prog)))
+  (println "Starting " threads " workers on " (length progs) " problems...")
   (place-channel-put m 'go)
   (define outs
     (for/list ([_ progs])
