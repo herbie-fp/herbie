@@ -22,7 +22,8 @@
         (void)))))
 
 (define (setup prog)
-  (define pcontext (prepare-points prog (make-list (length (program-variables prog)) sample-float)))
+  (define pcontext (prepare-points prog (for/list ([var (program-variables prog)])
+					  (cons var sample-float))))
   (*pcontext* pcontext)
   (void))
 
@@ -34,8 +35,8 @@
     (- (errors-score (errors prog1 points exacts)) (errors-score (errors prog2 points exacts)))))
 
 (define (annotated-alts-compare alt1 alt2)
-  (let ([sorted-p&es (sorted-context-list (*pcontext*) 0)])
-    (parameterize ([*pcontext* (mk-pcontext (map car sorted-p&es) (map cdr sorted-p&es))])
+  (match-let ([(list pts exs) (sorted-context-list (*pcontext*) 0)])
+    (parameterize ([*pcontext* (mk-pcontext pts exs)])
       (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))))
 
 (define (annotated-errors-compare errs1 errs2)
