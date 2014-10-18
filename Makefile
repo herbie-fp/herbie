@@ -2,7 +2,7 @@
 FLAGS=-p
 BENCHDIR=bench/hamming/
 
-.PHONY: all report publish compile link clean loc all-fig all-convergence rebib paper
+.PHONY: all report publish compile link clean loc all-fig all-convergence rebib paper drop
 
 all:
 	$(MAKE) link
@@ -15,6 +15,9 @@ report:
 
 publish:
 	bash reports/publish.sh
+
+drop: pldi15/paper.pdf
+	cp pldi15/paper.pdf ~/Dropbox/Public/casio.pdf
 
 link:
 	raco link casio
