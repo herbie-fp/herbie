@@ -6,8 +6,20 @@
 (require casio/matcher)
 (require casio/programs)
 (require casio/main)
+(require casio/simplify/egraph)
+(require casio/rules)
 
 (provide (all-defined-out))
+
+(define (saturate-iters expr)
+  (let ([eg (mk-egraph expr)])
+    (let loop ([iters-done 1])
+      (let ([start-cnt (egraph-cnt eg)])
+	(one-iter eg *simplify-rules*)
+	(printf "Did iter #~a, have ~a nodes.~n" iters-done (egraph-cnt eg))
+	(if (> (egraph-cnt eg) start-cnt)
+	    (loop (add1 iters-done))
+	    (sub1 iters-done))))))
 
 (define (print-improve prog max-iters)
   (match-let ([`(,end-prog ,context) (improve prog max-iters #:get-context #t)])
