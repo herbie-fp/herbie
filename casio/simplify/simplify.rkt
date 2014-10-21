@@ -85,8 +85,7 @@
 			   (filter realcdr?
 				   (map-enodes (λ (en)
 						 (cons en
-						       (if (rule-applied? en rl) '()
-							   (match-e (rule-input rl) en))))
+						       (match-e (rule-input rl) en)))
 					       eg))))
 		   rls))])
     (for ([rmatch matches])
@@ -94,7 +93,6 @@
 	(for ([ematch (rest rmatch)])
 	  (let ([en (first ematch)]
 		[binds (cdr ematch)])
-	    (rule-applied! en rl)
 	    (for ([bind binds])
 	      (merge-egraph-nodes!
 	       eg en
