@@ -93,7 +93,9 @@
 (define-ruleset difference-of-squares
   [difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))]
   [difference-of-sqr-1   (- (sqr a) 1)         (* (+ a 1) (- a 1))]
-  [difference-of-sqr--1  (+ (sqr a) -1)        (* (+ a 1) (- a 1))])
+  [difference-of-sqr--1  (+ (sqr a) -1)        (* (+ a 1) (- a 1))]
+  [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
+  [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
 
 ; Identity
 (define-ruleset id-reduce
@@ -106,6 +108,7 @@
   [*-rgt-identity    (* a 1)               a]
   [*-inverses        (/ a a)               1]
   [remove-double-div (/ 1 (/ 1 a))         a]
+  [clear-num         (/ a b)               (/ 1 (/ b a))]
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
   [mul-1-neg         (* -1 a)              (- a)])
@@ -208,12 +211,6 @@
   [sum-log      (+ (log a) (log b))  (log (* a b))]
   [diff-log     (- (log a) (log b))  (log (/ a b))]
   [neg-log      (- (log a))          (log (/ 1 a))])
-
-; Multiplying by x / x
-(define-ruleset flips
-  [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
-  [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))]
-  [clear-num  (/ a b)  (/ 1 (/ b a))])
 
 ; Trigonometry
 (define-ruleset trig-reduce

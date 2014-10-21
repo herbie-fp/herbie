@@ -1,5 +1,6 @@
 #lang racket
 
+(require rackunit)
 (require casio/syntax)
 (require casio/rules)
 (require casio/common)
@@ -84,7 +85,7 @@
   (synthesize-op op1 op2 branch-point)
   (let*-values ([(res) (alt-program
 			(parameterize ([*rules* dummy-rules] [*operations* dummy-operations])
-			  (improve-prog '(λ (x) (f x)) (*num-iterations*))))]
+			  (improve '(λ (x) (f x)) (*num-iterations*))))]
 		[(actual-branch actual-left-func actual-right-func)
 		 (get-branch-info res)]
 		[(expected-branch) (car branch-point)])

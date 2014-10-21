@@ -86,7 +86,7 @@
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
 	 (post-process table fuel)]
 	[(atab-completed? table)
-	 (debug "Ran out of unexpanded alts in alt table, reducing... " #:from 'main #:depth 2)
+	 (debug "Ran out of unexpanded alts in alt table, reducing..." fuel "fuel remaining" #:from 'main #:depth 2)
 	 (post-process table fuel)]
 	[#t
 	 (improve-loop
