@@ -77,9 +77,6 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
-  #;(set-clear! (enode-applied-rules new-parent))
-  (set-union! (enode-applied-rules new-parent)
-              (enode-applied-rules child))
   #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
