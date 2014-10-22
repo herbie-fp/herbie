@@ -112,6 +112,9 @@ def draw_point(p):
 def draw_rect(ll,ur, opts=""):
     print "\\draw[%s] (%f,%f) rectangle (%f,%f);" % (opts, ll[0], ll[1], ur[0], ur[1])
 
+def draw_arrow(a, b, opts=""):
+    print "\\draw[%s,->] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1], b[0], b[1])
+
 def draw_histo(data, n_buckets=10):
     data.sort()
     n = len(data)
@@ -377,11 +380,15 @@ def draw_improvement_rectangles(data, v_capt=None, title=None):
         if abs(l - r) < 0.5:
             draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
         elif l <= r:
-            draw_rect(to_plot_space((l, i + 0.75)),
-                      to_plot_space((r, i + 1.25)))
+            #draw_rect(to_plot_space((l, i + 0.75)),
+            #          to_plot_space((r, i + 1.25)))
+            draw_arrow(to_plot_space((l, i + 1)),
+                       to_plot_space((r, i + 1)), "thick")
         else:
-            draw_rect(to_plot_space((r, i + 0.75)),
-                      to_plot_space((l, i + 1.25)), "fill=red")
+            #draw_rect(to_plot_space((r, i + 0.75)),
+            #          to_plot_space((l, i + 1.25)), "fill=red")\\
+            draw_arrow(to_plot_space((l, i + 1)),
+                       to_plot_space((r, i + 1)), "red")
 
 
     draw_axes(h_capt="Bits correct",
