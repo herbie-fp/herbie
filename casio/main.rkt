@@ -136,11 +136,13 @@
     `(taylor inf ,loc) (list altn))))
 
 (define (zach-alt altn loc)
-  (let ([sibling (location-sibling loc)])
+  (let ([sibling (location-sibling loc)]
+	[rewrite
+         ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
     (if (and sibling
              (= (length (location-get (location-parent loc)
                                       (alt-program altn))) 3))
-        (generate-alts-at (alt-add-event altn '(start zaching)) sibling)
+	(rewrite (alt-add-event altn '(start zaching)) #:root sibling)
         '())))
 
 (define (split-table orig-table)
