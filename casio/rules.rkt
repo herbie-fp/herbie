@@ -90,10 +90,12 @@
   [distribute-neg-inv    (- (/ a))             (/ (- a))])
   
 ; Difference of squares
-(define-ruleset difference-of-squares
+(define-ruleset difference-of-squares-canonicalize
   [difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))]
   [difference-of-sqr-1   (- (sqr a) 1)         (* (+ a 1) (- a 1))]
-  [difference-of-sqr--1  (+ (sqr a) -1)        (* (+ a 1) (- a 1))]
+  [difference-of-sqr--1  (+ (sqr a) -1)        (* (+ a 1) (- a 1))])
+
+(define-ruleset difference-of-squares-flip
   [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
   [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
 
