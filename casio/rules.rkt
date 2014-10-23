@@ -251,7 +251,7 @@
 	  squares-canonicalize
 	  fractions-distribute
 	  id-reduce
-	  difference-of-squares
+	  difference-of-squares-canonicalize
 	  distributivity
 	  associativity
 	  commutivity))
