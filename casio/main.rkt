@@ -31,15 +31,16 @@
     
 (define (main-loop table fuel)
   (parameterize ([*pcontext* (atab-context table)])
-    (match-let* ([table* (improve-loop table fuel)]
-		 [`(,tables ,splitpoints) (split-table table*)])
-		(let ([result-prog (if (= (length tables) 1)
-				       (extract-alt (car tables))
-				       (combine-alts splitpoints
-						     (if ((flag 'regimes 'recurse) #t #f)
-							 (map (curryr main-loop (/ fuel 2)) tables)
-							 (map extract-alt tables))))])
-		  result-prog))))
+    (match-let ([table* (improve-loop table fuel)])
+      (if ((flag 'reduce 'regimes) #t #f)
+	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
+	    (let ([result-prog (if (= (length tables) 1)
+				   (extract-alt (car tables))
+				   (combine-alts splitpoints
+						 (if ((flag 'regimes 'recurse) #t #f)
+						     (map (curryr main-loop (/ fuel 2)) tables)
+						     (map extract-alt tables))))])
+	      result-prog))))
 
 ;; Implementation
 
