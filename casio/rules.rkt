@@ -110,7 +110,6 @@
   [*-rgt-identity    (* a 1)               a]
   [*-inverses        (/ a a)               1]
   [remove-double-div (/ 1 (/ 1 a))         a]
-  [clear-num         (/ a b)               (/ 1 (/ b a))]
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
   [mul-1-neg         (* -1 a)              (- a)])
@@ -122,7 +121,8 @@
   [*-un-lft-identity a                     (* 1 a)]
   [div-inv           (/ a b)               (* a (/ 1 b))]
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
-  [neg-mul-1         (- a)                 (* -1 a)])
+  [neg-mul-1         (- a)                 (* -1 a)]
+  [clear-num         (/ a b)               (/ 1 (/ b a))])
 
 ; Dealing with fractions
 (define-ruleset fractions-distribute
