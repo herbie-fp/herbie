@@ -12,3 +12,6 @@
   "NMSE Section 6.1 mentioned"
   (* (/ pi 2) (/ 1 (- (sqr b) (sqr a))) (- (/ 1 a) (/ 1 b))))
 
+(casio-test (x y)
+  "Radioactive exchange between two surfaces"
+  (- (expt x 4) (expt y 4)))

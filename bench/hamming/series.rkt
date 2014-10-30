@@ -3,19 +3,23 @@
 
 (casio-test (x)
   "NMSE example 3.7"
-  (- (exp x) 1))
+  (- (exp x) 1)
+  (* x (+ 1 (/ x 2) (/ (sqr x) 6))))
 
 (casio-test (N)
   "NMSE example 3.8"
-  (- (- (* (+ N 1) (log (+ N 1))) (* N (log N))) 1))
+  (- (* (+ N 1) (log (+ N 1))) (* N (log N)) 1)
+  (- (log (+ N 1)) (- (/ 1 (* 2 N)) (- (/ 1 (* 3 (sqr N))) (/ 4 (expt N 3))))))
 
 (casio-test (x)
   "NMSE example 3.9"
-  (- (/ 1 x) (cotan x)))
+  (- (/ 1 x) (cotan x))
+  (* (/ x 3) (+ 1 (/ (sqr x) 15))))
 
 (casio-test (x)
   "NMSE example 3.10"
-  (/ (log (- 1 x)) (log (+ 1 x))))
+  (/ (log (- 1 x)) (log (+ 1 x)))
+  (- (+ 1 x (/ (sqr x) 2) (* 5/12 (expt x 3)))))
 
 (casio-test (x)
   "NMSE problem 3.4.1"
@@ -25,11 +29,13 @@
 (casio-test (a b eps)
   "NMSE problem 3.4.2"
   (/ (* eps (- (exp (* (+ a b) eps)) 1))
-     (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))))
+     (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1)))
+  (/ (+ a b) (* a b)))
 
-(casio-test (x)
+(casio-test (eps)
   "NMSE problem 3.4.3"
-  (log (/ (- 1 x) (+ 1 x))))
+  (log (/ (- 1 eps) (+ 1 eps)))
+  (* -2 (+ eps (/ (expt eps 3) 3) (/ (expt eps 5) 5))))
 
 (casio-test (x)
   "NMSE problem 3.4.4"
