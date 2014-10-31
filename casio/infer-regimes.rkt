@@ -129,8 +129,7 @@
 (struct cse (cost splitpoints) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-;; Takes an optional parameter: max-splits, the maximum number of splitpoints to return
-(define (err-lsts->split-indices #:max-splits [max-splits 5] err-lsts)
+(define (err-lsts->split-indices err-lsts)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (length err-lsts))
@@ -177,11 +176,14 @@
                              (list (si cand-idx (add1 point-idx))))))
                          (range num-candidates)
                          psums))))
-    
+
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
-    (for/accumulate (prev initial) ([i (range 1 max-splits)])
-      (add-splitpoint prev)))
+    (let loop ([prev initial])
+      (let ([next (add-splitpoint prev)])
+        (if (equal? prev next)
+            next
+            (loop next)))))
 
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-splitpoints (last final))))
