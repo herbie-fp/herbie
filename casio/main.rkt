@@ -40,7 +40,8 @@
 						 (if ((flag 'regimes 'recurse) #t #f)
 						     (map (curryr main-loop (/ fuel 2)) tables)
 						     (map extract-alt tables))))])
-	      result-prog))))))
+	      result-prog))
+          (extract-alt table)))))
 
 ;; Implementation
 
