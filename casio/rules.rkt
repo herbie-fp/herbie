@@ -99,6 +99,11 @@
   [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
   [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
 
+; Difference of cubes
+;(define-ruleset difference-of-cubes
+;  [flip3-+    (+ a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
+;  [flip3--    (- a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
+
 ; Identity
 (define-ruleset id-reduce
   [+-lft-identity    (+ 0 a)               a]
@@ -237,6 +242,12 @@
   [quot-cotan  (/ (cos x) (sin x)) (cotan x)]
   [cotan-tan   (cotan x)           (/ 1 (tan x))]
   [tan-cotan   (tan x)             (/ 1 (cotan x))])
+
+; Absolute value rules
+(define-ruleset abs-sqr
+  [abs-sqr (abs (sqr x)) (sqr x)]
+  [sqr-abs (sqr (abs x)) (sqr x)]
+  [abs-sqrt (abs (sqrt x)) (sqrt x)])
 
 (define *rules* (make-parameter (apply append (*rulesets*))))
 (define *simplify-rules*
