@@ -100,9 +100,11 @@
   [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
 
 ; Difference of cubes
-;(define-ruleset difference-of-cubes
-;  [flip3-+    (+ a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
-;  [flip3--    (- a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
+(define-ruleset difference-of-cubes
+  [sum-cubes        (+ (expt a 3) (expt b 3)) (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
+  [difference-cubes (- (expt a 3) (expt b 3)) (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
+  [flip3-+    (+ a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
+  [flip3--    (- a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Identity
 (define-ruleset id-reduce
