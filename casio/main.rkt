@@ -41,7 +41,7 @@
 						     (map (curryr main-loop (/ fuel 2)) tables)
 						     (map extract-alt tables))))])
 	      result-prog))
-          (extract-alt table)))))
+          (extract-alt table*)))))
 
 ;; Implementation
 
