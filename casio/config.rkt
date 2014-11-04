@@ -42,7 +42,7 @@
 
 ;; The step size with which arbitrary-precision precision is increased
 ;; DANGEROUS TO CHANGE
-(define *precision-step* (make-parameter 8))
+(define *precision-step* (make-parameter 256))
 
 ;; When doing a binary search in regime inference,
 ;; axes not being split on are set to this value
