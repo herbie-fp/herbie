@@ -245,12 +245,6 @@
   [cotan-tan   (cotan x)           (/ 1 (tan x))]
   [tan-cotan   (tan x)             (/ 1 (cotan x))])
 
-; Absolute value rules
-(define-ruleset abs-sqr
-  [abs-sqr (abs (sqr x)) (sqr x)]
-  [sqr-abs (sqr (abs x)) (sqr x)]
-  [abs-sqrt (abs (sqrt x)) (sqrt x)])
-
 (define *rules* (make-parameter (apply append (*rulesets*))))
 (define *simplify-rules*
   (append trig-reduce
