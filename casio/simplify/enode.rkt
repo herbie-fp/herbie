@@ -170,7 +170,7 @@
 
 ;; Returns whether the given rule has already been applied to the given enode
 (define (rule-applied? en rl)
- #f #;(set-member? (enode-applied-rules en) rl))
+  (set-member? (enode-applied-rules en) rl))
 
 ;; Marks the given enode as having the given rule applied to it.
 (define (rule-applied! en rl)
