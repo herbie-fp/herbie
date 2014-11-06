@@ -6,7 +6,8 @@
 	 enode-vars refresh-vars! enode-pid
 	 enode?
 	 enode-expr
-	 pack-leader pack-members)
+	 pack-leader pack-members
+	 rule-applied! rule-applied?)
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -42,7 +43,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars)
+(struct enode (expr id-code children parent depth cvars applied-rules)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -59,7 +60,7 @@
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (mutable-set))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -166,6 +167,14 @@
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)
   (enode-id-code (pack-leader en)))
+
+;; Returns whether the given rule has already been applied to the given enode
+(define (rule-applied? en rl)
+ #f #;(set-member? (enode-applied-rules en) rl))
+
+;; Marks the given enode as having the given rule applied to it.
+(define (rule-applied! en rl)
+ (set-add! (enode-applied-rules en) rl))
 
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])
