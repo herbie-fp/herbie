@@ -19,6 +19,7 @@
 
 (define *max-test-arity* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
+(define *test-name* #f)
 
 (define *profile?* #f)
 
@@ -42,8 +43,10 @@
     (apply append
            (for/list ([bench-dir bench-dirs])
              (filter (λ (test)
-                        (or (not *max-test-arity*)
-                            (<= (length (test-vars test)) *max-test-arity*)))
+                        (and (or (not *max-test-arity*)
+				 (<= (length (test-vars test)) *max-test-arity*))
+			     (or (not *test-name*)
+				 (string=? *test-name* (test-name test)))))
                      (load-tests bench-dir))))
     test<?)))
 
@@ -212,6 +215,8 @@
   (*num-iterations* (string->number fu))]
  [("-s") points "The number of points to use"
   (*num-points* (string->number points))]
+ [("-q") test-name "The name of the test to run. If not specified, will run all in benchdir."
+  (set! *test-name* test-name)]
  #:multi
  [("-f") tf "Toggle flags, specified in the form category:flag"
   (let ([split-strings (string-split tf ":")])
