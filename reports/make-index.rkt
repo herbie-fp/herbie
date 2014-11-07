@@ -8,8 +8,13 @@
       (string-split name ":")
       (string-split name "-")))
 
+(define name->timestamp (compose string->number first parse-folder-name))
+
 (define (make-index-page folders)
-  (let* ([sorted-folders (sort folders > #:key (compose string->number first parse-folder-name))])
+  (let* ([sorted-folders
+          (remove-duplicates
+           (sort folders > #:key name->timestamp)
+           #:key name->timestamp)])
     (write-file "index.html"
       (printf "<!doctype html>\n")
       (printf "<html>")
