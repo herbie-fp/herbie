@@ -7,7 +7,8 @@
 	 enode?
 	 enode-expr
 	 pack-leader pack-members
-	 rule-applied! rule-applied?)
+	 rule-applied? rule-applied!
+	 enode-override-expr!)
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -99,6 +100,13 @@
 			(values l1 l2))])
 	(adopt-enode! new-leader new-follower)
 	new-leader))))
+
+;; Given an enode, override it's variations so that it only has one variation,
+;; the given expression.
+(define (enode-override-expr! en expr)
+  (let ([leader (pack-leader en)])
+    (set-enode-expr! leader en)
+    (set-enode-cvars! leader (set expr))))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.

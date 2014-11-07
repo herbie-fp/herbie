@@ -99,14 +99,14 @@
 	      (merge-egraph-nodes!
 	       eg en
 	       (substitute-e eg (rule-output rl) bind)))))))
-    (map-enodes (curry add-precompute eg) eg)))
+    (map-enodes (curry set-precompute! eg) eg)))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr
     [pattern #t]
     [_ #f]))
 
-(define (add-precompute eg en)
+(define (set-precompute! eg en)
   (for ([var (enode-vars en)])
     (when (list? var)
       (let ([constexpr
@@ -118,9 +118,7 @@
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (casio-eval constexpr)])
 	    (when (and (real? res) (exact? res))
-	      (merge-egraph-nodes!
-	       eg en
-	       (mk-enode! eg (casio-eval constexpr))))))))))
+	      (enode-override-expr! en (casio-eval constexpr)))))))))
 
 (define (hash-set*+ hash assocs)
   (for/accumulate (h hash) ([assoc assocs])
