@@ -1,7 +1,8 @@
 # python2 graph.py > tmp.tex ; pdflatex tmp.tex ; open tmp.pdf
+import sys
 
 PLOT_X = 8
-PLOT_Y = 5
+PLOT_Y = 3
 
 plot_stack = []
 
@@ -12,12 +13,11 @@ def choose_ticks(max):
     step_max = max / float(TICKS[0])
 
     # Now we find the "roundest" number in [step_min, step_max]
-    DIVISORS = [.001, .01, .1, .25, .5, 1,
-                2, 3, 4, 5, 6, 7, 8,
-                10, 12, 14, 15, 16, 18, 20,
-                25, 30, 35, 40, 45, 50,
-                60, 70, 80, 90, 100, 150,
-                200, 250, 300, 333.333, 400, 500,
+    DIVISORS = [1, 2, 3, 4, 5, 6,
+                8, 10, 12, 14, 15, 16,
+                20, 25, 30, 35, 40, 45, 50, 60,
+                80, 100, 120, 140,
+                150, 200, 250, 300, 350, 400, 500,
                 600, 666.666, 700, 750, 800, 900, 1000]
     step = min(d for d in DIVISORS if step_min <= d <= step_max)
 
@@ -311,7 +311,7 @@ def draw_sample_points(data):
     hiy = max([y for (x,y) in data])
 
     lox = min([x for (x,y) in data])
-    loy = min([y for (x,y) in data])
+    loy = min(min([y for (x,y) in data]), -2)
 
     def to_plot_space(pt):
         bump = 0.05
@@ -337,21 +337,21 @@ def draw_sample_points(data):
 
     for i in range(1,11) + range(10,101,10) + \
              range(100,1001,100) + range(1000,9001,1000) + \
-             range(10000,30001,10000):
+             range(10000,20001,10000):
         x = i
         xp = to_plot_space((log10(x) + lox, 0))[0]
 
         h_ticks.append((xp, str(x) if xlabel(x) else None))
 
 
-    v_ticks = [(0,'0')]
+    v_ticks = [(0, "0.01")]
 
     def ylabel(y):
         return y == 0.1 or y == 1.0 or y == 2.0
 
 
-    for i in range(1,11) + range(10,21,10):
-        y = i / 10.0
+    for i in range(2, 11) + range(10,101, 10) + range(100,201,100):
+        y = i / 100.0
         yp = to_plot_space((0, log10(y)))[1]
         v_ticks.append((yp, str(y) if ylabel(y) else None))
 
