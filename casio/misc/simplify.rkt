@@ -14,6 +14,9 @@
 ;; We grab pattern matching for our canonicalizing rules.
 (require racket/match)
 
+;; This is how many bits more accurate the result must be than the input to count as simpler
+(define *goal-cost-improvement* 4)
+
 (provide simplify simplify-expression)
 ;; Simplifies an alternative at the location specified by the most
 ;; recent change's rule.
