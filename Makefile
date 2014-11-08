@@ -87,14 +87,11 @@ compile/$(PREFIX).json: $(DATAFILES)
 
 # Generating convergence binaries
 
-compile/%.cv_if.bin: convergence.c %.o
+compile/%.cv_if.bin: compile/convergence.c compile/%.o
 	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/%.cv_if.csv: %.cv_if.bin
+compile/sample-points.csv: compile/tc9.cv_if.bin
 	./$< > $@
-
-compile/%.cv_if.png: %.cv_if.csv
-	gnuplot -e 'set datafile separator ","; set logscale; set term png; set output "'$@'"; plot "'$<'" using 1:4 title "Standard Error v. Points Sampled" with linespoints'
 
 all-convergence: $(CFILES:.c=.cv_if.png)
 
@@ -102,8 +99,8 @@ all-convergence: $(CFILES:.c=.cv_if.png)
 
 PLDI15TEX=$(wildcard pldi15/*.tex)
 PLDI15BIB=pldi15/references.bib
-PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d
-PLDI15FIGS=$(patsubst %,pldi15/fig/eval-%.tex,$(PLDI15TIKZFIGS)) pldi15/fig/eval-err.pdf pldi15/fig/eval-regimes-e2e.pdf
+PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d err
+PLDI15FIGS=$(patsubst %,pldi15/fig/eval-%.tex,$(PLDI15TIKZFIGS)) pldi15/fig/eval-regimes-e2e.pdf
 
 pldi15/paper.pdf: $(PLDI15TEX) $(PLDI15BIB) $(PLDI15FIGS)
 	cd pldi15 && pdflatex paper
@@ -132,3 +129,6 @@ pldi15/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
 
 pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
 	python2 compile/graph.py overhead-d -d compile > $@
+
+pldi15/fig/eval-err.tex: compile/sample-points.csv
+	python2 compile/graph.py err -d compile > $@
