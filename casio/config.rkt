@@ -12,12 +12,12 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-         [reduce   . (regimes zach taylor)]
+         [reduce   . (regimes taylor)]
 	 [precision . (double)]
          [sample   . (double)]
          [regimes  . ()]
          [simplify . ()]
-         [setup    . (simplify periodicity)]
+         [setup    . (simplify)]
          [localize . (cache)])))
 
 (define (toggle-flag! category flag)
