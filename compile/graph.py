@@ -8,23 +8,28 @@ plot_stack = []
 
 TICKS = (8, 12)
 def choose_ticks(max):
-    max = int(max)
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
 
     # Now we find the "roundest" number in [step_min, step_max]
-    DIVISORS = [1, 2, 3, 4, 5, 6,
+    DIVISORS = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
+                0.6, 0.75, 0.8,
+                1, 2, 3, 4, 5, 6,
                 8, 10, 12, 14, 15, 16,
                 20, 25, 30, 35, 40, 45, 50, 60,
                 80, 100, 120, 140,
                 150, 200, 250, 300, 350, 400, 500,
                 600, 666.666, 700, 750, 800, 900, 1000]
+    sys.stderr.write("%s < ? < %s" % (step_min, step_max))
     step = min(d for d in DIVISORS if step_min <= d <= step_max)
 
     if max / float(step) == int(max / float(step)):
-        return range(0, max, step) + [max]
+        return frange(0, max, step) + [max]
     else:
-        return range(0, max, step)
+        return frange(0, max, step)
+
+def frange(min, max, step):
+    return [(i + min) * step for i in range(0, int(max / step))]
 
 def push_plot_params(x,y):
     global PLOT_X
@@ -117,8 +122,7 @@ def draw_rect(ll,ur, opts=""):
 def draw_arrow(a, b, opts=""):
     eps = .06
     print "\\draw[%s,->] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1], b[0], b[1])
-    if abs(a[0] - b[0]) > 10*eps:
-        print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1]-eps, a[0], a[1]+eps)
+    print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1]-eps, a[0], a[1]+eps)
 
 def draw_histo(data, n_buckets=10):
     data.sort()
@@ -260,7 +264,7 @@ def draw_overhead_cdf(iname, oname):
 
     data.sort()
     n = len(data)
-    hi = data[-1] * 1.15
+    hi = data[-1] * 1.1
 
     xscale = 0.95
     def to_plot_space(pt):
@@ -287,10 +291,11 @@ def draw_overhead_cdf(iname, oname):
 
 
     h_ticks = []
-    for i in choose_ticks(hi) + [1]:
+    for i in choose_ticks(hi):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
+    draw_line(to_plot_space((1, 0)), to_plot_space((1, n)), opts="thin")
 
     v_ticks = [(0,"0\\%")]
     for i in range(1,5):
@@ -302,9 +307,6 @@ def draw_overhead_cdf(iname, oname):
               v_ticks=v_ticks)
 
     end_picture()
-    #print left
-    #print right
-    #print data
 
 
 
