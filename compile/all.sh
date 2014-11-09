@@ -3,7 +3,7 @@
 line () { tail $1 -n+$2 | head -n1; }
 
 for i in $1*.out; do
-    line $i 1 | cut -c 4- | paste -d, - shortnames.csv
+    line $i 1 | cut -c 4- | paste -d, - "$2/shortnames.csv"
 done > $1.names.csv
 for i in $1*.out; do line $i 3; done > $1.if.csv
 for i in $1*.out; do line $i 4; done > $1.id.csv

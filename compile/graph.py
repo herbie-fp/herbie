@@ -14,13 +14,13 @@ def choose_ticks(max):
     # Now we find the "roundest" number in [step_min, step_max]
     DIVISORS = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
                 0.6, 0.75, 0.8,
-                1, 2, 3, 4, 5, 6,
+                1, 1.5, 2, 3, 4, 5, 6,
                 8, 10, 12, 14, 15, 16,
                 20, 25, 30, 35, 40, 45, 50, 60,
                 80, 100, 120, 140,
                 150, 200, 250, 300, 350, 400, 500,
                 600, 666.666, 700, 750, 800, 900, 1000]
-    sys.stderr.write("%s < ? < %s" % (step_min, step_max))
+    sys.stderr.write("%s < ? < %s\n" % (step_min, step_max))
     step = min(d for d in DIVISORS if step_min <= d <= step_max)
 
     if max / float(step) == int(max / float(step)):

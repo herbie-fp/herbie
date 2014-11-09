@@ -80,7 +80,7 @@ compile/%.out: compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
 
 $(DATAFILES): $(CFILES:.c=.out)
-	compile/all.sh compile/$(PREFIX)
+	compile/all.sh compile/$(PREFIX) compile/
 
 compile/$(PREFIX).json: $(DATAFILES)
 	python2 compile/makejson.py compile/$(PREFIX)
