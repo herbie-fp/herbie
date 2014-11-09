@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
         SETUP();
 
         int iter, repet;
-        iter = 100000;
+        iter = 1 << 15;
         repet = 100;
         if (argc > 1) iter = atoi(argv[1]);
         if (argc > 2) repet = atoi(argv[2]);
