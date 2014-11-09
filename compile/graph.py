@@ -434,10 +434,10 @@ def draw_improvement_rectangles(data, title=None, lhs=False):
 
 
 def regimes(title=None, v_capt=None):
-    left = [64.0 - x for x in read_improvement_data('noregimes.id.csv')]
-    other_left = [64.0 - x for x in read_improvement_data('regimes.id.csv')]
-    mid = [64.0 - x for x in read_improvement_data('noregimes.od.csv')]
-    right = [64.0 - x for x in read_improvement_data('regimes.od.csv')]
+    left = [64.0 - x for x in read_improvement_data('nr.id.csv')]
+    other_left = [64.0 - x for x in read_improvement_data('tc.id.csv')]
+    mid = [64.0 - x for x in read_improvement_data('nr.od.csv')]
+    right = [64.0 - x for x in read_improvement_data('tc.od.csv')]
 
     true_left = [(x+y)/2 for (x,y) in zip(left,other_left)]
 

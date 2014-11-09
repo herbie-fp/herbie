@@ -144,3 +144,6 @@ pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/grap
 
 pldi15/fig/eval-err.tex: compile/sample-points.csv
 	python2 compile/graph.py err -d compile > $@
+
+pldi15/fig/eval-regimes-e2e.tex: compile/tc.id.csv compile/tc.od.csv compile/nr.id.csv compile/nr.od.csv
+	python2 compile/graph.py regimes -d compile > $@
