@@ -69,17 +69,17 @@ def fresh():
     uniq += 1
     return "node" + str(uniq)
 
-def draw_line(start, end, label=None, direction="left", opts=""):
+def draw_line(start, end, label=None, direction="left", anchor=None, opts=""):
     c = fresh()
     print "\\draw[%s] (%f, %f) -- (%f, %f);" % (opts, start[0], start[1], end[0], end[1])
 
     if label is not None:
         print "\\coordinate (%s) at (%f, %f) {};" % (c, start[0], start[1])
-        anchor = "east" if direction == "left" else "north"
+        anchor = anchor or ("east" if direction == "left" else "north")
         print "\\node [%s of=%s,anchor=%s,node distance=0cm] {\\small %s};" % (direction, c, anchor, label)
 
 
-def draw_axes(h_capt=None, v_capt=None, v_labels=[], h_ticks=[], v_ticks=[], v_axis=True, title=None):
+def draw_axes(h_capt=None, v_capt=None, h_labels=[], v_labels=[], h_ticks=[], v_ticks=[], v_axis=True, title=None):
     axes_eps = 0.1
     tick_eps = 0.1
     axes_border = 1.05
@@ -113,6 +113,9 @@ def draw_axes(h_capt=None, v_capt=None, v_labels=[], h_ticks=[], v_ticks=[], v_a
     for (y,label) in v_labels:
         draw_line((0, y), (0, y), label, "left")
 
+    for (x,label) in h_labels:
+        draw_line((x, 0), (x, 0), label, "rotate=90,below", anchor="east")
+
 def draw_point(p):
     print "\\draw[fill=black] (%f,%f) circle (%s);" % (p[0], p[1], PT_WEIGHT)
 
@@ -122,7 +125,10 @@ def draw_rect(ll,ur, opts=""):
 def draw_arrow(a, b, opts=""):
     eps = .06
     print "\\draw[%s,->] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1], b[0], b[1])
-    print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1]-eps, a[0], a[1]+eps)
+    if a[0] == b[0]:
+        print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0]-eps, a[1], a[0]+eps, a[1])
+    else:
+        print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1]-eps, a[0], a[1]+eps)
 
 def draw_histo(data, n_buckets=10):
     data.sort()
@@ -433,11 +439,11 @@ def draw_improvement_rectangles(data, title=None, lhs=False):
     end_picture()
 
 
-def regimes(title=None, v_capt=None):
-    left = [64.0 - x for x in read_improvement_data('nr.id.csv')]
-    other_left = [64.0 - x for x in read_improvement_data('tc.id.csv')]
-    mid = [64.0 - x for x in read_improvement_data('nr.od.csv')]
-    right = [64.0 - x for x in read_improvement_data('tc.od.csv')]
+def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
+    left = [64.0 - x for x in read_improvement_data(nrid)]
+    other_left = [64.0 - x for x in read_improvement_data(tcid)]
+    mid = [64.0 - x for x in read_improvement_data(nrod)]
+    right = [64.0 - x for x in read_improvement_data(tcod)]
 
     true_left = [(x+y)/2 for (x,y) in zip(left,other_left)]
 
@@ -450,14 +456,16 @@ def regimes(title=None, v_capt=None):
     data2 = []
 
     for i in range(n):
+        n = names[i]
         l = true_left[i]
         m = mid[i]
         r = right[i]
 
         if abs(r - m) > 1:
-            data1.append((l, m))
-            data2.append((m, r))
+            data1.append((l, m, n))
+            data2.append((m, r, n))
 
+    data1, data2 = zip(*sorted(zip(data1, data2), key=lambda x: x[0][0]))
 
     hi = max(max([p[1] for p in data1]), max([p[1] for p in data2]))
 
@@ -465,43 +473,33 @@ def regimes(title=None, v_capt=None):
     assert n == len(data2)
 
     def to_plot_space(p):
-        x = PLOT_X * (float(p[0]) / hi)
-        y = PLOT_Y * (float(p[1]) / (n + 1))
+        y = PLOT_Y * (float(p[0]) / hi)
+        x = PLOT_X * (float(p[1]) / (n + 1))
         return (x,y)
 
     begin_picture()
     for i in range(n):
-        l = data1[i][0]
-        r = data1[i][1]
+        l, m, _ = data1[i]
 
-        if abs(l - r) < 0.5:
+        m, r, _ = data2[i]
+        if abs(m - r) < 0.5:
             pass
             #draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
-        elif l <= r:
-            draw_rect(to_plot_space((l, i + 0.75)),
-                      to_plot_space((r, i + 1.25)))
+        elif m <= r:
+            draw_arrow(to_plot_space((m, i + 1)),
+                       to_plot_space((r, i + 1)), "very thick,black")
         else:
-            draw_rect(to_plot_space((r, i + 0.75)),
-                      to_plot_space((l, i + 1.25)), "fill=red")
+            draw_arrow(to_plot_space((m, i + 1)),
+                       to_plot_space((r, i + 1)), "very thick,red")
 
-        l = data2[i][0]
-        r = data2[i][1]
+        draw_line(to_plot_space((0, i + 1)),
+                  to_plot_space((m, i + 1)), opts="gray,thin")
 
-        if abs(l - r) < 0.5:
-            pass
-            #draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
-        elif l <= r:
-            draw_rect(to_plot_space((l, i + 0.75)),
-                      to_plot_space((r, i + 1.25)))
-        else:
-            draw_rect(to_plot_space((r, i + 0.75)),
-                      to_plot_space((l, i + 1.25)), "fill=red")
+        draw_point(to_plot_space((l, i + 1)))
 
-
-    draw_axes(h_capt="Bits Correct",
-              v_capt=v_capt,
-              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, 65, 8)],
-              v_axis=False,
+    draw_axes(v_capt="Bits Correct",
+              v_ticks=[(to_plot_space((i,0))[1], str(i)) for i in range(0, 65, 8)],
+              h_labels=[(to_plot_space((0, i+1))[0], data1[i][-1]) for i in range(n)],
               title=title
     )
     end_picture()
@@ -689,7 +687,10 @@ if __name__ == '__main__':
         summary(data)
     elif sys.argv[1] == "regimes":
         begin_doc()
-        regimes()
+        names = read_names(dir + "/tc.names.csv")
+        draw_regimes(names,
+                     dir + '/tc.id.csv', dir + '/tc.od.csv',
+                     dir + '/nr.id.csv', dir + '/nr.od.csv')
         end_doc()
 
         
