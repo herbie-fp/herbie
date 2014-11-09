@@ -46,13 +46,19 @@ doc/tr-14wi.pdf: doc/tr-14wi.tex
 
 # Evaluating Casio's results
 PREFIX=tc
+RPREFIX=nr
 DATAFILES=$(patsubst %,compile/$(PREFIX).%.csv,names if id of od)
+RDATAFILES=$(patsubst %,compile/$(RPREFIX).%.csv,names if id of od)
 CFILES=$(wildcard compile/$(PREFIX)*.c)
+RCFILES=$(wildcard compile/$(RPREFIX)*.c)
 
 .SECONDARY: $(DATAFILES)
 
 compile: compile/single.casio.dat compile/double.casio.dat
 	racket compile/compile.rkt -d compile -f $(PREFIX)~a.c $^
+
+rcompile: compile/noregimes.casio.dat
+	racket compile/compile.rkt -d compile -f $(RPREFIX)~a.c $^ $^
 
 # Flags for building and running C files
 GCC_FLAGS=-std=c11
@@ -82,8 +88,14 @@ compile/%.out: compile/%.bin
 $(DATAFILES): $(CFILES:.c=.out)
 	compile/all.sh compile/$(PREFIX) compile/
 
+$(RDATAFILES): $(RCFILES:.c=.out)
+	compile/all.sh compile/$(RPREFIX) compile/
+
 compile/$(PREFIX).json: $(DATAFILES)
 	python2 compile/makejson.py compile/$(PREFIX)
+
+compile/$(RPREFIX).json: $(RDATAFILES)
+	python2 compile/makejson.py compile/$(RPREFIX)
 
 # Generating convergence binaries
 
@@ -127,7 +139,7 @@ pldi15/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.cs
 pldi15/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
 	python2 compile/graph.py rect-d -d compile > $@
 
-pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
+pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py compile/nr.id.csv compile/nr.od.csv
 	python2 compile/graph.py overhead-d -d compile > $@
 
 pldi15/fig/eval-err.tex: compile/sample-points.csv

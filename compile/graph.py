@@ -254,17 +254,26 @@ def draw_time_cdf(data):
 
     end_picture()
 
-def draw_overhead_cdf(iname, oname):
+def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
     left = read_time_data(iname)
     right = read_time_data(oname)
+    if nriname:
+        rleft = read_time_data(nriname)
+        rright = read_time_data(nroname)
+    else:
+        rleft = left
+        rright = right
 
     assert len(left) == len(right)
 
     data = [y / x for (x,y) in zip(left, right)]
+    rdata = [y / x for (x,y) in zip(rleft, rright)]
 
+    #data, rdata = zip(*sorted(zip(data, rdata), key=lambda x: x[0]))
     data.sort()
+    rdata.sort()
     n = len(data)
-    hi = data[-1] * 1.1
+    hi = max(max(data), max(rdata)) * 1.1
 
     xscale = 0.95
     def to_plot_space(pt):
@@ -288,6 +297,21 @@ def draw_overhead_cdf(iname, oname):
         mid = (cur[0], prev[1])
         draw_line(to_plot_space(prev), to_plot_space(mid))
         draw_line(to_plot_space(mid), to_plot_space(cur))
+
+    pts = [(0,0)]
+    for (i,d) in enumerate(rdata):
+        x = d
+        y = i+1
+        pts.append((x,y))
+    pts.append((hi, pts[-1][1]))
+
+    for i in range(1, len(pts)):
+        prev = pts[i-1]
+        cur = pts[i]
+
+        mid = (cur[0], prev[1])
+        draw_line(to_plot_space(prev), to_plot_space(mid), opts="gray")
+        draw_line(to_plot_space(mid), to_plot_space(cur), opts="gray")
 
 
     h_ticks = []
@@ -633,7 +657,8 @@ if __name__ == '__main__':
         end_doc()
     elif sys.argv[1] == "overhead-d":
         begin_doc()
-        draw_overhead_cdf(dir + '/tc.id.csv', dir + '/tc.od.csv')
+        draw_overhead_cdf(dir + '/tc.id.csv', dir + '/tc.od.csv',
+                          dir + '/nr.id.csv', dir + '/nr.od.csv')
         end_doc()
     elif sys.argv[1] == "overhead-f":
         begin_doc()
