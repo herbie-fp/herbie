@@ -1,28 +1,28 @@
-NMSE example 3.1
-NMSE p42
-NMSE problem 3.3.2
-NMSE problem 3.3.3
-NMSE problem 3.3.7
-NMSE problem 3.4.1
-NMSE problem 3.4.2
-NMSE problem 3.4.3
-NMSE section 3.11
-NMSE section 3.5
-NMSE problem 3.2.1
-NMSE example 3.10
-NMSE problem 3.2.1
-NMSE problem 3.3.1
-NMSE problem 3.3.4
-NMSE problem 3.3.5
-NMSE problem 3.3.6
-NMSE problem 3.4.4
-NMSE problem 3.4.5
-NMSE problem 3.4.6
-NMSE example 3.3
-NMSE example 3.4
-NMSE example 3.5
-NMSE example 3.6
-NMSE example 3.7
-NMSE example 3.8
-NMSE example 3.9
-NMSE p42
+NMSE example 3.1,2sqrt
+NMSE p42,quadp
+NMSE problem 3.3.2,2tan
+NMSE problem 3.3.3,3frac
+NMSE problem 3.3.7,exp2
+NMSE problem 3.4.1,cos2
+NMSE problem 3.4.2,expq3
+NMSE problem 3.4.3,logq
+NMSE section 3.11,expq2
+NMSE section 3.5,expax
+NMSE problem 3.2.1,quad2p
+NMSE example 3.10,qlog
+NMSE problem 3.2.1,quad2m
+NMSE problem 3.3.1,2frac
+NMSE problem 3.3.4,2cbrt
+NMSE problem 3.3.5,2cos
+NMSE problem 3.3.6,2log
+NMSE problem 3.4.4,sqrtexp
+NMSE problem 3.4.5,sintan
+NMSE problem 3.4.6,2nthrt
+NMSE example 3.3,2sin
+NMSE example 3.4,tanhf
+NMSE example 3.5,2atan
+NMSE example 3.6,2isqrt
+NMSE example 3.7,expm1
+NMSE example 3.8,logs
+NMSE example 3.9,invcot
+NMSE p42,quadm

@@ -53,7 +53,7 @@ def end_doc():
     pass
 
 def begin_picture():
-    print "\\begin{tikzpicture}"
+    print "\\begin{tikzpicture}[>=stealth]"
 
 def end_picture():
     print "\\end{tikzpicture}"
@@ -74,7 +74,7 @@ def draw_line(start, end, label=None, direction="left", opts=""):
         print "\\node [%s of=%s,anchor=%s,node distance=0cm] {\\small %s};" % (direction, c, anchor, label)
 
 
-def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[], v_axis=True, title=None):
+def draw_axes(h_capt=None, v_capt=None, v_labels=[], h_ticks=[], v_ticks=[], v_axis=True, title=None):
     axes_eps = 0.1
     tick_eps = 0.1
     axes_border = 1.05
@@ -105,6 +105,8 @@ def draw_axes(h_capt=None, v_capt=None, h_ticks=[], v_ticks=[], v_axis=True, tit
     for (y,label) in v_ticks:
         draw_line((-tick_eps, y), (tick_eps, y), label, "left")
 
+    for (y,label) in v_labels:
+        draw_line((0, y), (0, y), label, "left")
 
 def draw_point(p):
     print "\\draw[fill=black] (%f,%f) circle (%s);" % (p[0], p[1], PT_WEIGHT)
@@ -113,7 +115,10 @@ def draw_rect(ll,ur, opts=""):
     print "\\draw[%s] (%f,%f) rectangle (%f,%f);" % (opts, ll[0], ll[1], ur[0], ur[1])
 
 def draw_arrow(a, b, opts=""):
+    eps = .06
     print "\\draw[%s,->] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1], b[0], b[1])
+    if abs(a[0] - b[0]) > 10*eps:
+        print "\\draw[%s] (%f,%f) -- (%f,%f);" % (opts, a[0], a[1]-eps, a[0], a[1]+eps)
 
 def draw_histo(data, n_buckets=10):
     data.sort()
@@ -361,12 +366,12 @@ def draw_sample_points(data):
               v_ticks=v_ticks)
     end_picture()
 
-def draw_improvement_rectangles(data, v_capt=None, title=None):
+def draw_improvement_rectangles(data, title=None, lhs=False):
     begin_picture()
 
     n = len(data)
 
-    hi = max(max([p[0] for p in data]), max([p[1] for p in data]))
+    hi = int(max(max([p[0] for p in data]), max([p[1] for p in data])) + 0.5)
 
     def to_plot_space(p):
         x = PLOT_X * (float(p[0]) / hi)
@@ -377,23 +382,25 @@ def draw_improvement_rectangles(data, v_capt=None, title=None):
         l = data[i][0]
         r = data[i][1]
 
-        if abs(l - r) < 0.5:
+        draw_line(to_plot_space((0, i+1)), to_plot_space(((l+r)/2, i+1)), opts="gray,thin")
+        if abs(l - r) < 1:
             draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
         elif l <= r:
             #draw_rect(to_plot_space((l, i + 0.75)),
             #          to_plot_space((r, i + 1.25)))
             draw_arrow(to_plot_space((l, i + 1)),
-                       to_plot_space((r, i + 1)), "thick")
+                       to_plot_space((r, i + 1)), "very thick")
         else:
             #draw_rect(to_plot_space((r, i + 0.75)),
             #          to_plot_space((l, i + 1.25)), "fill=red")\\
             draw_arrow(to_plot_space((l, i + 1)),
-                       to_plot_space((r, i + 1)), "red")
+                       to_plot_space((r, i + 1)), "red,very thick")
 
+    v_ticks = [(to_plot_space((0, i+1))[1], "{\\scriptsize %s}" % (data[i][-1])) for i in range(0, n)]
 
-    draw_axes(h_capt="Bits correct",
-              v_capt=v_capt,
-              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, int(hi + 0.5) + 1, 8)],
+    draw_axes(h_capt="Bits correct (longer is better)",
+              h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, hi+1, 8)],
+              v_labels=v_ticks,
               v_axis=False,
               title=title
     )
@@ -473,6 +480,14 @@ def regimes(title=None, v_capt=None):
     )
     end_picture()
 
+
+def read_names(name):
+    ans = []
+    with open(name) as f:
+        reader = csv.reader(f)
+        for line in reader:
+            ans.append(line[1])
+    return ans
 
 def read_simple_data_file(name):
     ans = []
@@ -577,23 +592,25 @@ if __name__ == '__main__':
         end_doc()
     elif sys.argv[1] == "rect-d":
         begin_doc()
-        push_plot_params(8, 8)
+        push_plot_params(12, 7)
 
+        names = read_names(dir + "/tc.names.csv")
         left = [64.0 - x for x in read_improvement_data(dir + '/tc.id.csv')]
         right = [64.0 - x for x in read_improvement_data(dir + '/tc.od.csv')]
         assert len(left) == len(right)
 
-        data = zip(left, right)
+        data = zip(left, right, names)
 
         data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
 
-        draw_improvement_rectangles(data, title="Double Precision", v_capt="Benchmark")
+        draw_improvement_rectangles(data, title="Double Precision", lhs=True)
         pop_plot_params()
         end_doc()
     elif sys.argv[1] == "rect-f":
         begin_doc()
-        push_plot_params(8, 8)
+        push_plot_params(6, 7)
 
+        names = read_names(dir + "/tc.names.csv")
         leftd = [64.0 - x for x in read_improvement_data(dir + '/tc.id.csv')]
         rightd = [64.0 - x for x in read_improvement_data(dir + '/tc.od.csv')]
         leftf = [32.0 - x for x in read_improvement_data(dir + '/tc.if.csv')]
@@ -604,10 +621,10 @@ if __name__ == '__main__':
             len(rightd) == len(leftf) and \
             len(leftf) == len(rightf)
 
-        data = zip(leftd, rightd, leftf, rightf)
+        data = zip(leftd, rightd, leftf, rightf, names)
 
         data.sort(key=lambda p: min(p[0], p[1]) , reverse=True)
-        data = [(p[2], p[3]) for p in data]
+        data = [(p[2], p[3], p[-1]) for p in data]
 
         draw_improvement_rectangles(data, title="Single Precision")
         pop_plot_params()

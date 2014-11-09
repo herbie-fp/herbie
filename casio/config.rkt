@@ -3,7 +3,6 @@
 (provide *flags* flag toggle-flag!
          *num-points* *precision-step* *num-iterations*
          *default-test-value* *epsilon-fraction*
-         *goal-cost-improvement*
          *max-period-coeff*
          *localize-expressions-limit*)
 
