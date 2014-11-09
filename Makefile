@@ -111,8 +111,8 @@ all-convergence: $(CFILES:.c=.cv_if.png)
 
 PLDI15TEX=$(wildcard pldi15/*.tex)
 PLDI15BIB=pldi15/references.bib
-PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d err
-PLDI15FIGS=$(patsubst %,pldi15/fig/eval-%.tex,$(PLDI15TIKZFIGS)) pldi15/fig/eval-regimes-e2e.pdf
+PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d err regimes-e2e
+PLDI15FIGS=$(patsubst %,pldi15/fig/eval-%.tex,$(PLDI15TIKZFIGS))
 
 pldi15/paper.pdf: $(PLDI15TEX) $(PLDI15BIB) $(PLDI15FIGS)
 	cd pldi15 && pdflatex paper
