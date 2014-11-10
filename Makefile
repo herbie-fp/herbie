@@ -102,8 +102,9 @@ compile/$(RPREFIX).json: $(RDATAFILES)
 compile/%.cv_if.bin: compile/convergence.c compile/%.o
 	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/sample-points.csv: compile/tc9.cv_if.bin
-	./$< > $@
+# Broken for now...
+#compile/sample-points.csv: compile/tc9.cv_if.bin
+#	./$< > $@
 
 all-convergence: $(CFILES:.c=.cv_if.png)
 
