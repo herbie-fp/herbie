@@ -6,13 +6,13 @@ PLOT_Y = 3
 
 plot_stack = []
 
-TICKS = (8, 15)
+TICKS = (8, 12)
 def choose_ticks(max, force=[]):
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
 
     # Now we find the "roundest" number in [step_min, step_max]
-    DIVISORS = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
+    DIVISORS = [0.1, 0.2, 0.25, 0.3, 1/3, 0.4, 0.5,
                 0.6, 0.75, 0.8,
                 1, 1.5, 2, 3, 4, 5, 6,
                 8, 10, 12, 14, 15, 16,
@@ -22,7 +22,7 @@ def choose_ticks(max, force=[]):
                 600, 666.666, 700, 750, 800, 900, 1000]
     sys.stderr.write("%s < ? < %s\n" % (step_min, step_max))
     step = min(d for d in DIVISORS if step_min <= d <= step_max
-               and all(int(float(f)/d) == float(f)/d for f in force))
+               and all(int(float(f)/d) - float(f)/d < 1e-9 for f in force))
 
     if max / float(step) == int(max / float(step)):
         return frange(0, max, step) + [max]
@@ -30,7 +30,7 @@ def choose_ticks(max, force=[]):
         return frange(0, max, step)
 
 def frange(min, max, step):
-    return [(i + min) * step for i in range(0, int(max / step))]
+    return [(i + min) * step for i in range(0, int(max / step) + 1) if (i + min) * step < max]
 
 def push_plot_params(x,y):
     global PLOT_X
@@ -219,10 +219,8 @@ def draw_time_cdf(data):
     n = len(data)
     hi = data[-1] * 1.05
 
-    xscale = 1.0
-
     def to_plot_space(pt):
-        x = PLOT_X * xscale * (float(pt[0]) / hi)
+        x = PLOT_X * (float(pt[0]) / hi)
         y = PLOT_Y * (float(pt[1]) / n)
         return (x,y)
 
@@ -282,7 +280,6 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
     n = len(data)
     hi = max(max(data), max(rdata)) * 1.1
 
-    xscale = 0.95
     def to_plot_space(pt):
         x = PLOT_X * (float(pt[0]) / hi)
         y = PLOT_Y * (float(pt[1]) / n)
