@@ -290,21 +290,6 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
     begin_picture()
 
     pts = [(0,0)]
-    for (i,d) in enumerate(data):
-        x = d
-        y = i+1
-        pts.append((x,y))
-    pts.append((hi, pts[-1][1]))
-
-    for i in range(1, len(pts)):
-        prev = pts[i-1]
-        cur = pts[i]
-
-        mid = (cur[0], prev[1])
-        draw_line(to_plot_space(prev), to_plot_space(mid))
-        draw_line(to_plot_space(mid), to_plot_space(cur))
-
-    pts = [(0,0)]
     for (i,d) in enumerate(rdata):
         x = d
         y = i+1
@@ -319,6 +304,20 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
         draw_line(to_plot_space(prev), to_plot_space(mid), opts="gray")
         draw_line(to_plot_space(mid), to_plot_space(cur), opts="gray")
 
+    pts = [(0,0)]
+    for (i,d) in enumerate(data):
+        x = d
+        y = i+1
+        pts.append((x,y))
+    pts.append((hi, pts[-1][1]))
+
+    for i in range(1, len(pts)):
+        prev = pts[i-1]
+        cur = pts[i]
+
+        mid = (cur[0], prev[1])
+        draw_line(to_plot_space(prev), to_plot_space(mid))
+        draw_line(to_plot_space(mid), to_plot_space(cur))
 
     h_ticks = []
     for i in choose_ticks(hi):
