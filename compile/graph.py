@@ -6,8 +6,8 @@ PLOT_Y = 3
 
 plot_stack = []
 
-TICKS = (8, 12)
-def choose_ticks(max):
+TICKS = (8, 15)
+def choose_ticks(max, force=[]):
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
 
@@ -21,7 +21,8 @@ def choose_ticks(max):
                 150, 200, 250, 300, 350, 400, 500,
                 600, 666.666, 700, 750, 800, 900, 1000]
     sys.stderr.write("%s < ? < %s\n" % (step_min, step_max))
-    step = min(d for d in DIVISORS if step_min <= d <= step_max)
+    step = min(d for d in DIVISORS if step_min <= d <= step_max
+               and all(int(float(f)/d) == float(f)/d for f in force))
 
     if max / float(step) == int(max / float(step)):
         return frange(0, max, step) + [max]
@@ -320,7 +321,7 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
         draw_line(to_plot_space(mid), to_plot_space(cur))
 
     h_ticks = []
-    for i in choose_ticks(hi):
+    for i in choose_ticks(hi, force=[1.0]):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
