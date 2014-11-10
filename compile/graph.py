@@ -480,22 +480,21 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
     begin_picture()
     for i in range(n):
         l, m, _ = data1[i]
-
         m, r, _ = data2[i]
+
+        draw_line(to_plot_space((0, i + 1)),
+                  to_plot_space((m, i + 1)), opts="gray,thin")
+
+        draw_point(to_plot_space((l, i + 1)))
+
         if abs(m - r) < 0.5:
             pass
-            #draw_point(to_plot_space(((l + r) / 2.0, i + 1)))
         elif m <= r:
             draw_arrow(to_plot_space((m, i + 1)),
                        to_plot_space((r, i + 1)), "very thick,black")
         else:
             draw_arrow(to_plot_space((m, i + 1)),
                        to_plot_space((r, i + 1)), "very thick,red")
-
-        draw_line(to_plot_space((0, i + 1)),
-                  to_plot_space((m, i + 1)), opts="gray,thin")
-
-        draw_point(to_plot_space((l, i + 1)))
 
     draw_axes(v_capt="Bits Correct",
               v_ticks=[(to_plot_space((i,0))[1], str(i)) for i in range(0, 65, 8)],
