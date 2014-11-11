@@ -458,11 +458,11 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
         m = mid[i]
         r = right[i]
 
-        if abs(r - m) > 1:
+        if abs(r - m) > 8:
             data1.append((l, m, n))
             data2.append((m, r, n))
 
-    data1, data2 = zip(*sorted(zip(data1, data2), key=lambda x: x[0][0]))
+    data1, data2 = zip(*sorted(zip(data1, data2), key=lambda x: x[0][0], reverse=True))
 
     hi = max(max([p[1] for p in data1]), max([p[1] for p in data2]))
 
@@ -470,8 +470,8 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
     assert n == len(data2)
 
     def to_plot_space(p):
-        y = PLOT_Y * (float(p[0]) / hi)
-        x = PLOT_X * (float(p[1]) / (n + 1))
+        x = PLOT_X * (float(p[0]) / hi)
+        y = PLOT_Y * (float(p[1]) / (n + 1))
         return (x,y)
 
     begin_picture()
@@ -493,9 +493,9 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
             draw_arrow(to_plot_space((m, i + 1)),
                        to_plot_space((r, i + 1)), "very thick,red")
 
-    draw_axes(v_capt="Bits Correct",
-              v_ticks=[(to_plot_space((i,0))[1], str(i)) for i in range(0, 65, 8)],
-              h_labels=[(to_plot_space((0, i+1))[0], data1[i][-1]) for i in range(n)],
+    draw_axes(h_capt="Bits Correct",
+              h_ticks=[(to_plot_space((i, 0))[0], str(i)) for i in range(0, 65, 8)],
+              v_labels=[(to_plot_space((0, i+1))[1], "{\\scriptsize %s}" % data1[i][-1]) for i in range(n)],
               title=title
     )
     end_picture()
@@ -683,10 +683,14 @@ if __name__ == '__main__':
         summary(data)
     elif sys.argv[1] == "regimes":
         begin_doc()
+        push_plot_params(8, 4)
+        
         names = read_names(dir + "/tc.names.csv")
         draw_regimes(names,
                      dir + '/tc.id.csv', dir + '/tc.od.csv',
                      dir + '/nr.id.csv', dir + '/nr.od.csv')
+
+        pop_plot_params()
         end_doc()
 
         
