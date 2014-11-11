@@ -6,13 +6,13 @@ PLOT_Y = 3
 
 plot_stack = []
 
-TICKS = (8, 12)
+TICKS = (8, 15)
 def choose_ticks(max, force=[]):
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
 
     # Now we find the "roundest" number in [step_min, step_max]
-    DIVISORS = [0.1, 0.2, 0.25, 0.3, 1/3, 0.4, 0.5,
+    DIVISORS = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
                 0.6, 0.75, 0.8,
                 1, 1.5, 2, 3, 4, 5, 6,
                 8, 10, 12, 14, 15, 16,
@@ -22,7 +22,7 @@ def choose_ticks(max, force=[]):
                 600, 666.666, 700, 750, 800, 900, 1000]
     sys.stderr.write("%s < ? < %s\n" % (step_min, step_max))
     step = min(d for d in DIVISORS if step_min <= d <= step_max
-               and all(int(float(f)/d) - float(f)/d < 1e-9 for f in force))
+               and all(abs(int(float(f)/d) - float(f)/d) < 1e-9 for f in force))
 
     if max / float(step) == int(max / float(step)):
         return frange(0, max, step) + [max]
@@ -322,7 +322,7 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
         xp = to_plot_space((i,0))[0]
         h_ticks.append((xp, i))
 
-    draw_line(to_plot_space((1, 0)), to_plot_space((1, n)), opts="thin")
+    #draw_line(to_plot_space((1, 0)), to_plot_space((1, n)), opts="thin")
 
     v_ticks = [(0,"0\\%")]
     for i in range(1,5):
