@@ -115,7 +115,10 @@
 	  (sub1 fuel))]))
 
 (define (generate-alts altn)
-  (append-map (curry generate-alts-at altn) (localize-error (alt-program altn))))
+  (append-map (λ (loc)
+		(append (taylor-alt altn loc)
+			(generate-alts-at altn loc)))
+	      (localize-error (alt-program altn))))
 
 (define (generate-alts-at altn loc)
   (let ([rewrite
