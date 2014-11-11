@@ -34,16 +34,34 @@
     (match-let ([table* (improve-loop table fuel)])
       (if ((flag 'reduce 'regimes) #t #f)
 	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
-	    (let ([result-prog (if (= (length tables) 1)
+	    (let ([result-alt (if (= (length tables) 1)
 				   (extract-alt (car tables))
 				   (combine-alts splitpoints
 						 (if ((flag 'regimes 'recurse) #t #f)
 						     (map (curryr main-loop (/ fuel 2)) tables)
 						     (map extract-alt tables))))])
-	      result-prog))
-          (extract-alt table*)))))
+	      (remove-pows result-alt)))
+          (remove-pows (extract-alt table*))))))
 
 ;; Implementation
+
+(define (remove-pows altn)
+  (alt-event
+   (let loop ([cur-expr (program-body (alt-program altn))])
+     (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
+		 (let ([exponent (caddr cur-expr)])
+		   (and (positive? exponent)
+			(integer? exponent)
+			(exponent . < . 5))))
+	    (let inner-loop ([pows-left (caddr cur-expr)])
+	      (if (pows-left . = . 1)
+		  (cadr cur-expr)
+		  (list '* (inner-loop (sub1 pows-left)))))]
+	   [(list? cur-expr)
+	    (cons (car cur-expr) (map loop (cdr cur-expr)))]
+	   [#t cur-expr]))
+   'removed-pows
+   (list altn)))
 
 (define (setup-prog prog fuel)
   (let* ([alt (make-alt prog)]
