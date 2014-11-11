@@ -496,6 +496,7 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
     draw_axes(h_capt="Bits Correct",
               h_ticks=[(to_plot_space((i, 0))[0], str(i)) for i in range(0, 65, 8)],
               v_labels=[(to_plot_space((0, i+1))[1], "{\\scriptsize %s}" % data1[i][-1]) for i in range(n)],
+              v_axis=False,
               title=title
     )
     end_picture()
