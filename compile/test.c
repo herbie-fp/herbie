@@ -159,22 +159,22 @@ double *get_random_doubles(int nums) {
         max = total = 0;                                                \
         for (i = 0; i < iter; i++) {                                    \
                 if (ordinary##type(true##type[i])) {                    \
-                        u64 error = ulp##type(out##type[i], true##type[i]); \
+                        u64 error = ulp##type(out##io##type[i], true##type[i]); \
                                 if (error > max) max = error;           \
                                 total += log(error + 1.0) / log(2);     \
                 }                                                       \
         }                                                               \
-        printf("%s%s ,%15g,%15g,%15g\n", #io, #type, rtime,             \
+        printf("%s%s,%15g,%15g,%15g\n", #io, #type, rtime,             \
                log(max + 1.0) / log(2), total / count##type);
 
 int main(int argc, char** argv) {
         struct timespec start, end;
         int i, maxi;
-        unsigned long long int max = 0;
+        u64 max = 0, maxcount = 0;
         double rtime, total = 0;
         int countf = 0, countd = 0;
-        double *ind, *outd, *trued;
-        float *inf, *outf, *truef;
+        double *ind, *outid, *outod, *trued;
+        float *inf, *outif, *outof, *truef;
         setup_mpfr_f_im();
 
         int iter = 1000000;
@@ -182,8 +182,10 @@ int main(int argc, char** argv) {
 
         inf = get_random_floats(NARGS * iter);
         ind = get_random_doubles(NARGS * iter);
-        outf = malloc(sizeof(float) * iter);
-        outd = malloc(sizeof(double) * iter);
+        outif = malloc(sizeof(float) * iter);
+        outid = malloc(sizeof(double) * iter);
+        outof = malloc(sizeof(float) * iter);
+        outod = malloc(sizeof(double) * iter);
         truef = malloc(sizeof(float) * iter);
         trued = malloc(sizeof(double) * iter);
 
@@ -193,20 +195,48 @@ int main(int argc, char** argv) {
         LOOP(iter) { countf += (int) ordinaryf(truef[i]); } END();
         LOOP(iter) { countd += (int) ordinaryd(trued[i]); } END();
 
-        printf("// %s\n", name);
-        printf("test,           time,           max,            avg\n");
+        printf("%s\n", name);
+        printf("pf,%11d\n", countf);
+        printf("pd,%11d\n", countd);
+        printf("test,         time,            max,            avg\n");
 
-        LOOP(iter) { outf[i] = EVAL(inf, f_if); } END();
+        LOOP(iter) { outif[i] = EVAL(inf, f_if); } END();
         CHECK(i, f, iter);
 
-        LOOP(iter) { outd[i] = EVAL(ind, f_id); } END();
+        LOOP(iter) { outid[i] = EVAL(ind, f_id); } END();
         CHECK(i, d, iter);
 
-        LOOP(iter) { outf[i] = EVAL(inf, f_of); } END();
+        LOOP(iter) { outof[i] = EVAL(inf, f_of); } END();
         CHECK(o, f, iter);
 
-        LOOP(iter) { outd[i] = EVAL(ind, f_od); } END();
+        LOOP(iter) { outod[i] = EVAL(ind, f_od); } END();
         CHECK(o, d, iter);
+
+        max = maxcount = 0;
+        for (i = 0; i < iter; i++) {
+                if (ordinaryd(trued[i])) {
+                        u32 ierror = ulpf(outif[i], truef[i]);
+                        u32 oerror = ulpf(outof[i], truef[i]);
+                        if (ierror < oerror) {
+                                maxcount++;
+                                if (max < oerror - ierror) max = oerror - ierror;
+                        }
+                }
+        }
+        printf("df,%15g,%15llu\n", log(max + 1.0) / log(2), maxcount);
+
+        max = maxcount = 0;
+        for (i = 0; i < iter; i++) {
+                if (ordinaryd(trued[i])) {
+                        u64 ierror = ulpd(outid[i], trued[i]);
+                        u64 oerror = ulpd(outod[i], trued[i]);
+                        if (ierror < oerror) {
+                                maxcount++;
+                                if (max < oerror - ierror) max = oerror - ierror;
+                        }
+                }
+        }
+        printf("dd,%15g,%15llu\n", log(max + 1.0) / log(2), maxcount);
 
         return 0;
 
