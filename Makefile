@@ -97,6 +97,9 @@ compile/$(PREFIX).json: $(DATAFILES)
 compile/$(RPREFIX).json: $(RDATAFILES)
 	python2 compile/makejson.py compile/$(RPREFIX)
 
+compile/%.bf.bin: compile/bruteforce.c compile/%.o
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
+
 # Generating convergence binaries
 
 compile/%.cv_if.bin: compile/convergence.c compile/%.o
