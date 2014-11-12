@@ -25,7 +25,7 @@
 ;;#
 ;;################################################################################;;
 
-;; If the depth of the expression is greater than this, use pavel simplification instead.
+;; Cap the number of iterations to try at this.
 (define *max-egraph-iters* 6)
 
 (define (simplify altn)
