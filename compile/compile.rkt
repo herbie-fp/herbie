@@ -136,9 +136,7 @@
       (let* ([rec (list-ref (hash-ref operators->mpfr (car expr)) 0)]
              [args (cdr expr)])
         (apply-converter rec (cons out args)))]
-     [(number? expr)
-      (let ([register (gensym "r")])
-        (format "mpfr_init_set_str(~a, \"~a\", 10, MPFR_RNDN)" out expr))]
+     [(number? expr) ""]
      [(member expr (program-variables prog))
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
      [(member expr constants)
@@ -152,8 +150,10 @@
    (printf "void setup_mpfr_~a() {\n" fname)
    ; Some guard bits added, just in case
    (printf "        mpfr_set_default_prec(~a);\n" (+ bits 16))
-   (for ([reg (map car (cadr body))])
-     (printf "        mpfr_init(~a);\n" reg))
+   (for ([reg (cadr body)])
+     (if (number? (cadr reg))
+         (printf "        mpfr_init_set_str(~a, \"~a\", 10, MPFR_RNDN);\n" (car reg) (cadr reg))
+         (printf "        mpfr_init(~a);\n" (car reg))))
    (printf "}\n\n")
 
    (printf "double ~a(~a) {\n" fname
