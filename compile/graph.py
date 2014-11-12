@@ -328,7 +328,7 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
     for i in range(1,5):
         v_ticks.append((to_plot_space((0,(float(n)/4)*i))[1], "%d\\%%" % ((100 / 4)*i)))
 
-    draw_axes(h_capt="Casio overhead (ratio)",
+    draw_axes(h_capt="\casio overhead (ratio; higher is better)",
               v_capt="\\% of benchmarks",
               h_ticks=h_ticks,
               v_ticks=v_ticks)
@@ -427,7 +427,7 @@ def draw_improvement_rectangles(data, title=None, lhs=False):
 
     v_ticks = [(to_plot_space((0, i+1))[1], "{\\scriptsize %s}" % (data[i][-1])) for i in range(0, n)]
 
-    draw_axes(h_capt="Bits correct (longer is better)",
+    draw_axes(h_capt="Average bits correct (longer is better)",
               h_ticks=[(to_plot_space((i,0))[0], str(i)) for i in range(0, hi+1, 8)],
               v_labels=v_ticks,
               v_axis=False,
@@ -462,7 +462,7 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
             data1.append((l, m, n))
             data2.append((m, r, n))
 
-    data1, data2 = zip(*sorted(zip(data1, data2), key=lambda x: x[0][0], reverse=True))
+    data1, data2 = zip(*sorted(zip(data1, data2), key=lambda x: x[0][1], reverse=True))
 
     hi = max(max([p[1] for p in data1]), max([p[1] for p in data2]))
 
@@ -493,7 +493,7 @@ def draw_regimes(names, tcid, tcod, nrid, nrod, title=None, v_capt=None):
             draw_arrow(to_plot_space((m, i + 1)),
                        to_plot_space((r, i + 1)), "very thick,red")
 
-    draw_axes(h_capt="Bits Correct",
+    draw_axes(h_capt="Average bits correct (longer is better)",
               h_ticks=[(to_plot_space((i, 0))[0], str(i)) for i in range(0, 65, 8)],
               v_labels=[(to_plot_space((0, i+1))[1], "{\\scriptsize %s}" % data1[i][-1]) for i in range(n)],
               v_axis=False,
