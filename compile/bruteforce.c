@@ -89,8 +89,10 @@ int main(int argc, char** argv) {
 
         fprintf(stderr, "// %s, %08x to %08x\n", name, x, stop);
 
-        while (x != stop) {
-                mpfr_free_cache();
+        for (; x != stop; x++) {
+                if ((x & 0xffff) == 0) {
+                        fprintf(stderr, "%08x,%u,%u,%u,%u\n", x, maxi, maxo, numbad, maxbad);
+                }
                 xf = *(float*)(void*)&x;
                 if (!ordinaryf(xf)) continue;
                 exact = f_im(xf);
@@ -105,10 +107,6 @@ int main(int argc, char** argv) {
                         numbad++;
                         if (maxbad < eo - ei) maxbad = eo - ei;
                 }
-                if ((x & 0xffff) == 0) {
-                        fprintf(stderr, "%08x,%u,%u,%u,%u\n", x, maxi, maxo, numbad, maxbad);
-                }
-                x++;
         }
         printf("%i,%u,%u,%u,%u\n", part, maxi, maxo, numbad, maxbad);
 }
