@@ -6,7 +6,7 @@ PLOT_Y = 3
 
 plot_stack = []
 
-TICKS = (6, 20)
+TICKS = (8, 15)
 def choose_ticks(max, force=[]):
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
@@ -252,7 +252,7 @@ def draw_time_cdf(data):
     for i in range(1,5):
         v_ticks.append((to_plot_space((0,(float(n)/4)*i))[1], "%d\\%%" % ((100 / 4)*i)))
 
-    draw_axes(h_capt="Time to run Casio (s)",
+    draw_axes(h_capt="Time to run \casio (s)",
               v_capt="\\% of benchmarks",
               h_ticks=h_ticks,
               v_ticks=v_ticks)
