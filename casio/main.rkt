@@ -28,7 +28,7 @@
       (let* ([alt-table (setup-prog prog fuel)]
 	     [result-alt (main-loop alt-table fuel)])
 	(if get-context (list result-alt (atab-context alt-table)) result-alt)))))
-    
+
 (define (main-loop table fuel)
   (parameterize ([*pcontext* (atab-context table)])
     (match-let ([table* (improve-loop table fuel)])
@@ -47,19 +47,21 @@
 
 (define (remove-pows altn)
   (alt-event
-   (let loop ([cur-expr (program-body (alt-program altn))])
-     (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
-		 (let ([exponent (caddr cur-expr)])
-		   (and (positive? exponent)
-			(integer? exponent)
-			(exponent . < . 5))))
-	    (let inner-loop ([pows-left (caddr cur-expr)])
-	      (if (pows-left . = . 1)
-		  (cadr cur-expr)
-		  (list '* (inner-loop (sub1 pows-left)))))]
-	   [(list? cur-expr)
-	    (cons (car cur-expr) (map loop (cdr cur-expr)))]
-	   [#t cur-expr]))
+   `(λ ,(program-variables (alt-program altn))
+      ,(let loop ([cur-expr (program-body (alt-program altn))])
+	 (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
+		     (let ([exponent (caddr cur-expr)])
+		       (and (not (list? exponent))
+			    (positive? exponent)
+			    (integer? exponent)
+			    (exponent . < . 5))))
+		(let inner-loop ([pows-left (caddr cur-expr)])
+		  (if (pows-left . = . 1)
+		      (cadr cur-expr)
+		      (list '* (cadr cur-expr) (inner-loop (sub1 pows-left)))))]
+	       [(list? cur-expr)
+		(cons (car cur-expr) (map loop (cdr cur-expr)))]
+	       [#t cur-expr])))
    'removed-pows
    (list altn)))
 
@@ -115,7 +117,10 @@
 	  (sub1 fuel))]))
 
 (define (generate-alts altn)
-  (append-map (curry generate-alts-at altn) (localize-error (alt-program altn))))
+  (append-map (λ (loc)
+		(append (taylor-alt altn loc)
+			(generate-alts-at altn loc)))
+	      (localize-error (alt-program altn))))
 
 (define (generate-alts-at altn loc)
   (let ([rewrite

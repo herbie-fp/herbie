@@ -6,7 +6,7 @@ PLOT_Y = 3
 
 plot_stack = []
 
-TICKS = (8, 15)
+TICKS = (6, 20)
 def choose_ticks(max, force=[]):
     step_min = max / float(TICKS[1])
     step_max = max / float(TICKS[0])
