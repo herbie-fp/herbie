@@ -54,7 +54,7 @@
 		       (and (not (list? exponent))
 			    (positive? exponent)
 			    (integer? exponent)
-			    (exponent . < . 5))))
+			    (exponent . < . 10))))
 		(let inner-loop ([pows-left (caddr cur-expr)])
 		  (if (pows-left . = . 1)
 		      (cadr cur-expr)
