@@ -36,14 +36,15 @@
                      [offset (car (take-taylor (cdr coeffs)))])
                  `(* ,(make-monomial var (- idx offset)) ,(loop (cdr vars) (cdr coeffs))))))))
 
-  (make-sum
-   (let loop ([i 0] [res '()])
-     (if (or (> i (* iters (length vars))) (>= (length res) terms))
-         res
-         (let ([coeffs (iterate-diagonal (length vars) i)])
-           (if (not (equal? (take-taylor coeffs) 0))
-               (loop (+ i 1) (cons (make-term coeffs) res))
-               (loop (+ i 1) res)))))))
+  (simplify
+   (make-sum
+    (let loop ([i 0] [res '()])
+      (if (or (> i (* iters (length vars))) (>= (length res) terms))
+	  res
+	  (let ([coeffs (iterate-diagonal (length vars) i)])
+	    (if (not (equal? (take-taylor coeffs) 0))
+		(loop (+ i 1) (cons (make-term coeffs) res))
+		(loop (+ i 1) res))))))))
 
 (define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
