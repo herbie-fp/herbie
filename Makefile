@@ -38,6 +38,7 @@ clean:
 	rm -f compile/$(PREFIX)*.out
 	rm -f compile/$(PREFIX).*.csv
 	rm -f compile/$(PREFIX).*.json
+	rm -f pldi15/*.bbl pldi15/*.blg pldi15/*.aux pldi15/*.log pldi15/*.out
 
 doc/tr-14wi.pdf: doc/tr-14wi.tex
 	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
