@@ -27,24 +27,25 @@
                       (taylor-0 (list-ref vars (length coeffs)) expr*))))))
 
   (define (make-term coeffs)
-    `(* ,(take-taylor coeffs)
-        ,(let loop ([vars (reverse vars)] [coeffs coeffs])
-           (if (null? vars)
-               1
-               (let ([var (car vars)]
-                     [idx (car coeffs)]
-                     [offset (car (take-taylor (cdr coeffs)))])
-                 `(* ,(make-monomial var (- idx offset)) ,(loop (cdr vars) (cdr coeffs))))))))
+    (simplify
+     `(* ,(take-taylor coeffs)
+         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
+            (if (null? vars)
+                1
+                (let ([var (car vars)]
+                      [idx (car coeffs)]
+                      [offset (car (take-taylor (cdr coeffs)))])
+                  `(* ,(make-monomial var (- idx offset)) ,(loop (cdr vars) (cdr coeffs)))))))))
 
   (simplify
-   (make-sum
-    (let loop ([i 0] [res '()])
-      (if (or (> i (* iters (length vars))) (>= (length res) terms))
-	  res
-	  (let ([coeffs (iterate-diagonal (length vars) i)])
-	    (if (not (equal? (take-taylor coeffs) 0))
-		(loop (+ i 1) (cons (make-term coeffs) res))
-		(loop (+ i 1) res))))))))
+   (cons '+
+         (let loop ([i 0] [res '()])
+           (if (or (> i (* iters (length vars))) (>= (length res) terms))
+               res
+               (let ([coeffs (iterate-diagonal (length vars) i)])
+                 (if (not (equal? (take-taylor coeffs) 0))
+                     (loop (+ i 1) (cons (make-term coeffs) res))
+                     (loop (+ i 1) res))))))))
 
 (define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
@@ -63,22 +64,24 @@
                       (taylor-inf (list-ref vars (length coeffs)) expr*))))))
 
   (define (make-term coeffs)
-    `(* ,(take-taylor coeffs)
-        ,(let loop ([vars (reverse vars)] [coeffs coeffs])
-           (if (null? vars)
-               1
-               (let ([var (car vars)] [idx (car coeffs)]
-                     [offset (car (take-taylor (cdr coeffs)))])
-                 `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var (- idx offset))))))))
+    (simplify
+     `(* ,(take-taylor coeffs)
+         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
+            (if (null? vars)
+                1
+                (let ([var (car vars)] [idx (car coeffs)]
+                      [offset (car (take-taylor (cdr coeffs)))])
+                  `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var (- idx offset)))))))))
 
-  (make-sum
-   (let loop ([i 0] [res '()])
-     (if (or (> i (* iters (length vars))) (>= (length res) terms))
-         res
-         (let ([coeffs (iterate-diagonal (length vars) i)])
-           (if (not (equal? (take-taylor coeffs) 0))
-               (loop (+ i 1) (cons (make-term coeffs) res))
-               (loop (+ i 1) res)))))))
+  (simplify
+   (cons '+
+         (let loop ([i 0] [res '()])
+           (if (or (> i (* iters (length vars))) (>= (length res) terms))
+               res
+               (let ([coeffs (iterate-diagonal (length vars) i)])
+                 (if (not (equal? (take-taylor coeffs) 0))
+                     (loop (+ i 1) (cons (make-term coeffs) res))
+                     (loop (+ i 1) res))))))))
 
 (define (make-sum terms)
   (match terms
@@ -94,8 +97,8 @@
    [(equal? pow 2) `(sqr ,var)]
    [(equal? pow -1) `(/ 1 ,var)]
    [(equal? pow -2) `(/ 1 (sqr ,var))]
-   [(positive? pow) (make-expt var pow)]
-   [(negative? pow) `(/ 1 ,(make-expt var (abs pow)))]))
+   [(positive? pow) `(expt ,var ,pow)]
+   [(negative? pow) `(expt ,var ,pow)]))
 
 (define (make-expt var pow)
   (cond
