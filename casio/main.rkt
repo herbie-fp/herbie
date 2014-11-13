@@ -132,9 +132,18 @@
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
 
+(define (completely-simplify-alt altn)
+  (let* ([prog (alt-program altn)]
+	 [prog* `(λ ,(program-variables prog) ,(parameterize ([*max-egraph-iters* (/ (*max-egraph-iters*) 2)])
+						 (simplify-expr (program-body prog))))]
+	 [chng (change (rule 'simplify prog prog* '()) '() (map cons (program-variables prog) (program-variables prog)))])
+    (debug "prog is" prog*)
+    (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
+
 (define (post-process table fuel)
   (let ([maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
-        [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))])
+        [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))]
+	[maybe-simplify ((flag 'reduce 'simplify) completely-simplify-alt identity)])
     (let* ([all-alts (atab-all-alts table)]
            [locss (map (compose localize-error alt-program) all-alts)]
            [alts*
@@ -143,7 +152,7 @@
                      (append
                       (append-map (curry maybe-zach alt) locs)
                       (append-map (curry maybe-taylor alt) locs))))]
-           [table* (atab-add-altns table alts*)])
+           [table* (atab-add-altns table (map maybe-simplify alts*))])
       table*)))
 
 (define (taylor-alt altn loc)

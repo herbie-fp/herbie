@@ -11,7 +11,7 @@
 (define *flags*
   (make-parameter
    #hash([generate . (simplify rm)]
-         [reduce   . (regimes taylor)]
+         [reduce   . (regimes taylor simplify)]
 	 [precision . (double)]
          [sample   . (double)]
          [regimes  . ()]

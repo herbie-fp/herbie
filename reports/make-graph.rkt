@@ -168,6 +168,10 @@
      (output-history alt)
      (printf "<hr/><li class='event'>Removed slow pow expressions</li>\n")]
 
+    [(alt-event prog 'final-simplify `(,alt))
+     (output-history alt)
+     (printf "<hr/><li class='event'>Applied final simplification</li>\n")]
+
     [(alt-delta prog cng prev)
      (output-history prev)
      (printf "<li>Applied <span class='rule'>~a</span> "

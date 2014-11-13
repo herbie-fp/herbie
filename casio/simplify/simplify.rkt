@@ -10,7 +10,7 @@
 (require casio/programs)
 (require casio/common)
 
-(provide simplify-expr simplify)
+(provide simplify-expr simplify *max-egraph-iters*)
 
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
@@ -26,7 +26,7 @@
 ;;################################################################################;;
 
 ;; Cap the number of iterations to try at this.
-(define *max-egraph-iters* 6)
+(define *max-egraph-iters* (make-parameter 6))
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
@@ -54,7 +54,7 @@
 
 (define (simplify-expr expr)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
-  (let* ([iters (min *max-egraph-iters* (iters-needed expr))]
+  (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	 [eg (mk-egraph expr)])
     (iterate-egraph! eg iters)
     (extract-smallest eg)))
