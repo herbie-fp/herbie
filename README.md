@@ -1,34 +1,41 @@
 ![Herbie](logo.png)
 
-Just like [Giorgio Moroder](http://www.youtube.com/watch?v=gmpsBeaVrkE),
-we want to unleash the beauty of synthesis.
-
-Casio synthesizes floating-point programs from real-number programs,
+Herbie synthesizes floating-point programs from real-number programs,
 automatically handling simple numerical instabilities.
 
 Current Status
 --------------
 
-Casio can solve many simple and not-so-simple problems, but still
-needs a lot of work to behave predictably or to solve not-so-simple
-problems. It has successfully surprised and stymied the developers.
+Herbie can solve many simple and not-so-simple problems.
+It can improve the accuracy of many real-world programs,
+and successfully solves most problems from Richard Hamming’s
+Numerical Methods for Scientists and Engineers, Chapter 3.
+It has successfully been used by colleagues to improve
+the qualitative results of machine learning algorithms.
+It has lead to a
+[patch](https://github.com/josdejong/mathjs/pull/208)
+in [math.js](http://mathjs.org/),
+an open-source mathematics library.
 
 Helping Out
 -----------
 
-Casio is organized on [Github](https://github.com/uw-plse/casio/) and
-[Trello](https://trello.com/b/lh7b33Dr/casio).  We also hang out on
-the `#uwplse` channel on [Freenode](https://freenode.net). Our test
-results are on [totalcrazyhack.net](http://totalcrazyhack.net/casio/reports/).
+Herbie is organized on
+[Github](https://github.com/uw-plse/casio/) and
+[Trello](https://trello.com/b/lh7b33Dr/herbie).
+We also hang out on the `#uwplse` channel on
+[Freenode](https://freenode.net).
+Our test results are on
+[totalcrazyhack.net](http://totalcrazyhack.net/casio/reports/).
 
 Email [Zach Tatlock](mailto:ztatlock@cs.uw.edu) to get involved.
-He’ll set you up with access to these two tools.
+He’ll set you up with access to these tools.
 
 Setting up your Environment
 ---------------------------
 
-Racket needs to know where the Casio source code lives, so that each
-module of Casio can refer to other modules. To do this linking, run
+Racket needs to know where the Herbie source code lives, so that each
+module of Herbie can refer to other modules. To do this linking, run
 
     make link
 
@@ -36,7 +43,7 @@ from the main project directory.
 
 You should use Emacs to edit Racket code; Dr. Racket, which ships with
 Racket, is a bit too limited an editor for the number of files and
-complexity of Casio. You’ll want to use the `quack` and `geiser` Emacs
+complexity of Herbie. You’ll want to use the `quack` and `geiser` Emacs
 packages to give you Racket-specific highlighting and a Racket REPL.
 The easiest way to install these is to run
 
@@ -59,7 +66,7 @@ S-expressions.
 Running Tests
 -------------
 
-Casio draws its test suite from open source projects, examples emailed
+Herbie draws its test suite from open source projects, examples emailed
 to the developers, and from numerical analysis textbooks. Whenever
 possible, we try to *extract all possible tests* from a source, to
 avoid biasing our selection of tests. To run the tests, go to the
@@ -67,7 +74,7 @@ project root and run
 
     make report
 
-After a lot of time (approximately 15 minutes), you should find
+After a some time (approximately 15 minutes), you should find
 `report.html` in the `graphs/` folder.
 
 Tests are collected on
