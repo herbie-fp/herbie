@@ -26,8 +26,8 @@ link:
 	raco link compile
 	raco link casio/simplify
 
-cost:
-	$(CC) -O0 cost.c -lm -o cost
+compile/cost: compile/cost.c
+	$(CC) -O0 $^ -lm -o $@
 
 loc:
 	find reports/ casio/ -type f -exec cat {} \; | wc -l
