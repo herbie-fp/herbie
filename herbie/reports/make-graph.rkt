@@ -119,7 +119,7 @@
   (printf "</body>\n")
   (printf "</html>\n"))
 
-(struct interval (alt-idx start-point end-point vidx))
+(struct interval (alt-idx start-point end-point expr))
 
 (define (output-history altn)
   (match altn
@@ -136,11 +136,11 @@
             [vars (program-variables (alt-program altn))]
             [intervals
              (for/list ([start-sp start-sps] [end-sp splitpoints])
-               (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-vidx end-sp)))]
+               (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [interval->string
              (λ (ival)
                 (format "~a < ~a < ~a" (interval-start-point ival)
-                        (list-ref vars (interval-vidx ival)) (interval-end-point ival)))])
+                        (interval-expr ival) (interval-end-point ival)))])
        (for/list ([entry prevs] [entry-idx (range (length prevs))])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]

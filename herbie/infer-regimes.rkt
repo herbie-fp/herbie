@@ -1,16 +1,19 @@
 #lang racket
+
 (require "alternative.rkt")
 (require "programs.rkt")
 (require "matcher.rkt")
 (require "points.rkt")
 (require "common.rkt")
+(require "syntax.rkt")
+(require "localize-error.rkt")
 
 (provide infer-splitpoints (struct-out sp))
 
 (define (infer-splitpoints alts)
   (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
-  (let* ([options (build-list (length (program-variables (alt-program (car alts))))
-			      (curryr option-on-var alts))]
+  (let* ([options (map (curry option-on-expr alts)
+		       (exprs-to-branch-on alts))]
 	 [best-option (argmin (compose errors-score option-errors) options)]
 	 [splitpoints (option-splitpoints best-option)]
 	 [altns (used-alts splitpoints alts)]
@@ -25,6 +28,47 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
+(define (exprs-to-branch-on alts)
+  (cons (critical-subexpression (*start-prog*))
+	(program-variables (alt-program (car alts)))))
+
+(define (critical-subexpression prog)
+  (define (loc-children loc subexpr)
+    (map (compose (curry append loc)
+		  list)
+	 (range 1 (length subexpr))))
+  (define (all-equal? items)
+    (if (< (length items) 2) #t
+	(and (equal? (car items) (cadr items)) (all-equal? (cdr items)))))
+  (define (critical-child expr)
+    (let ([var-locs
+	   (let get-vars ([subexpr expr]
+			  [cur-loc '()])
+	     (cond [(list? subexpr)
+		    (append-map get-vars (cdr subexpr)
+				(loc-children cur-loc subexpr))]
+		   [(constant? subexpr)
+		    '()]
+		   [(variable? subexpr)
+		    (list (cons subexpr cur-loc))]))])
+      (if (all-equal? (map car var-locs))
+	  (caar var-locs)
+	  (let get-subexpr ([subexpr expr] [vlocs var-locs])
+	    (cond [(all-equal? (map cadr vlocs))
+		   (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
+				(for/list ([vloc vlocs])
+				  (cons (car vloc) (cddr vloc))))]
+		  [#t subexpr])))))
+  (let* ([loc (car (localize-error prog))])
+    (critical-child (location-get loc prog))))
+
+(define basic-point-search (curry binary-search (λ (p1 p2)
+						  (if (for/and ([val1 p1] [val2 p2])
+							(> *epsilon-fraction* (abs (- val1 val2))))
+						      p1
+						      (for/list ([val1 p1] [val2 p2])
+							(/ (+ val1 val2) 2))))))
+
 (define (used-alts splitpoints all-alts)
   (let ([used-indices (remove-duplicates (map sp-cidx splitpoints))])
     (map (curry list-ref all-alts) used-indices)))
@@ -37,45 +81,43 @@
 	 [mappings (map cons used-indices (range (length used-indices)))])
     (map (λ (splitpoint)
 	   (sp (cdr (assoc (sp-cidx splitpoint) mappings))
-	       (sp-vidx splitpoint)
+	       (sp-bexpr splitpoint)
 	       (sp-point splitpoint)))
 	 splitpoints)))
 
-(define (option-on-var var-idx alts)
-  (match-let ([`(,pts ,exs) (sorted-context-list (*pcontext*) var-idx)])
+(define (option-on-expr alts expr)
+  (match-let* ([vars (program-variables (alt-program (car alts)))]
+	       [`(,pts ,exs) (sort-context-on-expr (*pcontext*) expr vars)])
     (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
 		       (map alt-errors alts))]
 	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
 	   [split-indices (err-lsts->split-indices bit-err-lsts)]
-	   [split-points (sindices->spoints pts var-idx alts split-indices)])
-      (option split-points (pick-errors split-points pts err-lsts)))))
+	   [split-points (sindices->spoints pts expr alts split-indices)])
+      (option split-points (pick-errors split-points pts err-lsts vars)))))
 
 (define (error-at prog point exact)
   (car (errors prog (mk-pcontext (vector point) (vector exact)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in float form.
-(define (sindices->spoints points var-idx alts sindices)
+;; proper splitpoints in floath form.
+(define (sindices->spoints points expr alts sindices)
+  (define (eval-on-pt pt)
+    ((eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) mode:fl) pt))
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (list-ref (list-ref points (sub1 (si-pidx sidx))) var-idx)]
-	   [p2 (list-ref (list-ref points (si-pidx sidx)) var-idx)]
 	   [pred (λ (p)
-		   (let* ([p* (point-with-dim var-idx (make-list (length (program-variables (alt-program (car alts))))
-								 *default-test-value*)
-					      p)]
-			  [exact ((eval-prog (*start-prog*) mode:bf) p*)]
-			  [e1 (error-at (alt-program alt1) p* exact)]
-			  [e2 (error-at (alt-program alt2) p* exact)])
+		   (let* ([exact ((eval-prog (*start-prog*) mode:bf) p)]
+			  [e1 (error-at (alt-program alt1) p exact)]
+			  [e2 (error-at (alt-program alt2) p exact)])
 		     (< e1 e2)))])
-      (sp (si-cidx sidx) var-idx (binary-search-floats pred p1 p2 (* (- p1 p2) *epsilon-fraction*)))))
+      (sp (si-cidx sidx) expr (eval-on-pt (basic-point-search pred (list-ref points (si-pidx sidx)) (list-ref points (sub1 (si-pidx sidx))))))))
   (append (map sidx->spoint
 	       (take sindices (sub1 (length sindices)))
 	       (drop sindices 1))
 	  (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 		  (sp (si-cidx last-sidx)
-		      var-idx
+		      expr
 		      +inf.0)))))
 
 (define (point-with-dim index point val)
@@ -83,13 +125,13 @@
        point
        (range (length point))))
 
-(define (pick-errors splitpoints pts err-lsts)
+(define (pick-errors splitpoints pts err-lsts variables)
   (reverse
    (first-value
     (for/fold ([acc '()] [rest-splits splitpoints])
 	([pt (in-list pts)]
 	 [errs (flip-lists err-lsts)])
-      (if (<= (list-ref pt (sp-vidx (car rest-splits)))
+      (if (<= ((eval-prog `(λ ,variables ,(sp-bexpr (car rest-splits))) mode:fl) pt)
 	      (sp-point (car rest-splits)))
 	  (values (cons (list-ref errs (sp-cidx (car rest-splits)))
 			acc)
@@ -114,9 +156,9 @@
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
-;; vidx = Variable index: The index of the variable that this splitpoint should split on.
+;; bexpr = Branch Expression: The expression that this splitpoint should split on
 ;; point = Split Point: The point at which we should split.
-(struct sp (cidx vidx point) #:prefab)
+(struct sp (cidx bexpr point) #:prefab)
 
 ;; Struct representing a splitindex
 ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex

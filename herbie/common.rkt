@@ -11,7 +11,7 @@
 	 write-file write-string has-duplicates?
 	 with-item symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
-	 binary-search-floats binary-search-ints
+	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -163,7 +163,7 @@
     ;; If the split function returned false, we're done.
     (cond [(not midpoint) p1]
 	  ;; If our midpoint is one of our points, we're done.
-	  [(or (= p1 midpoint) (= p2 midpoint)) midpoint]
+	  [(or (equal? p1 midpoint) (equal? p2 midpoint)) midpoint]
 	  ;; If our predicate is still true of our midpoint, search the
 	  ;; space between our midpoint and p2.
 	  [(pred midpoint) (binary-search split pred midpoint p2)]

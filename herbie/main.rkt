@@ -107,7 +107,7 @@
 	   (if (null? rest-splits) acc
 	       (loop (cdr rest-splits)
 		     (let ([splitpoint (car rest-splits)])
-		       `(if (< ,(list-ref (program-variables (*start-prog*)) (sp-vidx splitpoint))
+		       `(if (< ,(sp-bexpr splitpoint)
 			       ,(sp-point splitpoint))
 			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
 			    ,acc))))))
@@ -232,25 +232,28 @@
 	  (list tables* splitpoints)))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
-  (let* ([var-index (sp-vidx (car splitpoints))]
-	 [intervals (map cons (cons (sp #f var-index -inf.0)
+  (let* ([expr (sp-bexpr (car splitpoints))]
+	 [variables (program-variables (*start-prog*))]
+	 [intervals (map cons (cons (sp #f expr -inf.0)
 				    (drop-right splitpoints 1))
 			 splitpoints)])
     (for/list ([i (in-range num-alts)])
       (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
 	(debug #:from 'splitpoints "intervals are: " p-intervals)
 	(λ (p)
-	  (let ([var-val (list-ref p var-index)])
+	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
 	    (for/or ([point-interval p-intervals])
 	      (let ([lower-bound (sp-point (car point-interval))]
 		    [upper-bound (sp-point (cdr point-interval))])
-		(and (lower-bound . < . var-val)
-		     (var-val . <= . upper-bound))))))))))
+		(and (lower-bound . < . expr-val)
+		     (expr-val . <= . upper-bound))))))))))
 
-(define (verify-points-sorted point-lst vidx)
+(define (verify-points-sorted point-lst expr)
+  (define (eval-at-point pt)
+    ((eval-prog `(λ ,(program-variables (*start-prog*)) ,expr) mode:fl) pt))
   (for ([p1 (drop-right point-lst 1)]
 	[p2 (drop point-lst 1)])
-    (assert ((list-ref p1 vidx) . <= . (list-ref p2 vidx))
+    (assert ((eval-at-point p1) . <= . (eval-at-point p2))
 	    #:extra-info (const (list p1 p2)))))
 
 ;; Verifies that for each splitpoint pred pair, where splitpoints and preds are paired
@@ -258,13 +261,13 @@
 ;; let p be the pred, and s be the splitpoint
 ;; all points between s and the splitpoint before it satisfy p, and no other points satisfy p.
 (define (verify-point-preds splitpoints point-preds)
-  (let ([sorted-points (car (sorted-context-list (*pcontext*) (sp-vidx (car splitpoints))))])
-    (verify-points-sorted sorted-points (sp-vidx (car splitpoints)))
+  (let ([sorted-points (car (sort-context-on-expr (*pcontext*) (sp-bexpr (car splitpoints)) (program-variables (*start-prog*))))])
+    (verify-points-sorted sorted-points (sp-bexpr (car splitpoints)))
     (for/fold ([rest-pts sorted-points])
 	([split splitpoints])
       (let-values ([(pred) (list-ref point-preds (sp-cidx split))]
 		   [(points-before-split points-after-split)
-		    (splitf-at rest-pts (λ (p) (<= (list-ref p (sp-vidx split)) (sp-point split))))])
+		    (splitf-at rest-pts (λ (p) (<= ((eval-prog `(λ ,(program-variables (*start-prog*)) (sp-bexpr split))) p) (sp-point split))))])
 	(assert (not (null? points-before-split)))
 	(assert (andmap pred points-before-split)
 		#:extra-info (λ _ (map pred points-before-split)))
