@@ -1,0 +1,11 @@
+html {
+  font-family: sans-serif;
+}
+body {
+  min-width: 400px;
+  max-width: 800px;
+  margin: 30px auto;
+}
+p {
+  font-size: 14pt;
+}
