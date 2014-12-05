@@ -15,6 +15,7 @@ report:
 
 publish:
 	bash reports/publish.sh
+	cd dash/ && bash publish.sh
 
 drop: pldi15/paper.pdf
 	cp pldi15/paper.pdf ~/Dropbox/Public/casio.pdf
