@@ -18,9 +18,9 @@
     (write-file "index.html"
       (printf "<!doctype html>\n")
       (printf "<html>")
-      (printf "<head><meta charset='utf-8' /><title>Casio Reports</title></head>\n")
+      (printf "<head><meta charset='utf-8' /><title>Herbie Reports</title></head>\n")
       (printf "<body>\n")
-      (printf "<h1>Reports</h1>\n")
+      (printf "<h1>Herbie Reports</h1>\n")
       (printf "<ul id='reports'>\n")
       (for/list ([folder sorted-folders])
         (match (parse-folder-name folder)
