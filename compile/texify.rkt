@@ -70,7 +70,7 @@
    `parens` is one of #f, '+, '*, 'fn, or #t"
   (match expr
     [(? real?) (number->string expr)]
-    [(? symbol?) (car (hash-ref texify-constants expr (symbol->string expr)))]
+    [(? symbol?) (car (hash-ref texify-constants expr (list (symbol->string expr))))]
     [`(,f ,args ...)
      (let* ([template (list-ref (hash-ref texify-operators f) 0)]
             [self-paren-level (list-ref (hash-ref texify-operators f) 1)]
