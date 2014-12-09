@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; All test cases come from the EPFL Rosa project, available at
 ;

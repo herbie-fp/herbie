@@ -1,9 +1,9 @@
 #lang racket
-(require casio/alternative)
-(require casio/programs)
-(require casio/matcher)
-(require casio/points)
-(require casio/common)
+(require herbie/alternative)
+(require herbie/programs)
+(require herbie/matcher)
+(require herbie/points)
+(require herbie/common)
 
 (provide infer-splitpoints (struct-out sp))
 

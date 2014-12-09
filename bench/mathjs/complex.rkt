@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; All code examples from mathjs
 ; https://github.com/josdejong/mathjs/blob/master/

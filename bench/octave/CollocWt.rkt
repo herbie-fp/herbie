@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ;; From the GNU Octave 3.8 release, in file CollocWt.cc
 

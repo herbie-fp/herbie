@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; The aeroacoustics of a steam kettle
 ; R. H. Henrywood and A. Agarwal

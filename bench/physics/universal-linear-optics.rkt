@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; Generation of universal linear optics by any beam splitter
 ; A. Bouland and S. Aaronson

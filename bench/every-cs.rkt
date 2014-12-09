@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 (casio-test (a b c)
   "The quadratic formula (+)"

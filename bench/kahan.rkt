@@ -1,6 +1,6 @@
 #lang racket
 
-(require casio/test)
+(require herbie/test)
 
 (casio-test (x)
   "Kahan's exp quotient"

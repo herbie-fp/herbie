@@ -1,9 +1,9 @@
 #lang racket
 
-(require casio/simplify/enode)
-(require casio/simplify/egraph)
-(require casio/common)
-(require casio/programs)
+(require herbie/simplify/enode)
+(require herbie/simplify/egraph)
+(require herbie/common)
+(require herbie/programs)
 
 (provide match-e substitute-e)
 

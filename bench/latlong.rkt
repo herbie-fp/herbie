@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ;; From http://www.movable-type.co.uk/scripts/latlong.html
 

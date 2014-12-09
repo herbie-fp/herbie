@@ -1,10 +1,10 @@
 #lang racket
 
 (require rackunit)
-(require casio/rules)
-(require casio/common)
-(require casio/programs)
-(require casio/points)
+(require herbie/rules)
+(require herbie/common)
+(require herbie/programs)
+(require herbie/points)
 
 (provide (all-defined-out))
 

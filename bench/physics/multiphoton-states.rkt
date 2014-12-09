@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; Multiphoton states related via linear optics
 ; P. Migdal, J. Rodrigues-Laguna, M. Oszmaniec, M. Lewenstein

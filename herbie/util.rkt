@@ -1,13 +1,13 @@
 #lang racket
 
-(require casio/points)
-(require casio/alternative)
-(require casio/common)
-(require casio/matcher)
-(require casio/programs)
-(require casio/main)
-(require casio/simplify/egraph)
-(require casio/rules)
+(require herbie/points)
+(require herbie/alternative)
+(require herbie/common)
+(require herbie/matcher)
+(require herbie/programs)
+(require herbie/main)
+(require herbie/simplify/egraph)
+(require herbie/rules)
 
 (provide (all-defined-out))
 

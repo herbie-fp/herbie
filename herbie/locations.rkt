@@ -1,7 +1,7 @@
 #lang racket
 
-(require casio/common)
-(require casio/rules)
+(require herbie/common)
+(require herbie/rules)
 
 (provide (all-defined-out))
 

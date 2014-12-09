@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; Pouring flows
 ; J. VandenBroeck and J. Keller

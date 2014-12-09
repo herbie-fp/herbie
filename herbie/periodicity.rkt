@@ -17,12 +17,12 @@
 ; bubbled up the expression tree.
 
 (require racket/match)
-(require casio/common)
-(require (except-in casio/programs constant?))
-(require casio/rules)
-(require casio/alternative)
-(require casio/points)
-(require casio/matcher)
+(require herbie/common)
+(require (except-in herbie/programs constant?))
+(require herbie/rules)
+(require herbie/alternative)
+(require herbie/points)
+(require herbie/matcher)
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)

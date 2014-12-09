@@ -1,8 +1,8 @@
 #lang racket
 
-(require casio/common)
-(require casio/alternative)
-(require casio/points)
+(require herbie/common)
+(require herbie/alternative)
+(require herbie/points)
 
 (provide
  (contract-out

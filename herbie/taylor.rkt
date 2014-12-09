@@ -1,11 +1,11 @@
 #lang racket
 
 (require math/number-theory)
-(require casio/common)
-(require casio/programs)
-(require casio/matcher)
-(require casio/simplify/backup-simplify)
-(require (rename-in casio/simplify/simplify
+(require herbie/common)
+(require herbie/programs)
+(require herbie/matcher)
+(require herbie/simplify/backup-simplify)
+(require (rename-in herbie/simplify/simplify
 		    [simplify simplify-alt]))
 
 (provide approximate-0 approximate-inf)

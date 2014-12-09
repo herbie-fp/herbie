@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; Some tests on Casio's ability to reassociate and cancel
 (casio-test (x y)

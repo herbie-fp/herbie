@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 (casio-test (x eps)
   "NMSE Section 6.1 mentioned"

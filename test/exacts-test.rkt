@@ -1,12 +1,12 @@
 #lang racket
 
 (require rackunit)
-(require casio/config)
-(require casio/programs)
-(require casio/points)
-(require casio/test)
 (require math/bigfloat)
-(require casio/load-tests)
+(require herbie/config)
+(require herbie/programs)
+(require herbie/points)
+(require herbie/test)
+(require herbie/load-tests)
 
 (define tests (load-tests "../bench/hamming"))
 

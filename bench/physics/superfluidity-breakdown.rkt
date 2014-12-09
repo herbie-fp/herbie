@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ; Superfluidity breakdown and multiple roton gaps in spin-orbit-coupled Bose-Einstein condensates in an optical lattice
 ; D. Toniolo and J. Linder

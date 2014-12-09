@@ -1,11 +1,11 @@
 #lang racket
 
-(require casio/common)
-(require casio/programs)
-(require casio/rules)
+(require herbie/common)
+(require herbie/programs)
+(require herbie/rules)
 
 (provide
- (all-from-out casio/rules)
+ (all-from-out herbie/rules)
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
  (struct-out change) change-apply changes-apply)

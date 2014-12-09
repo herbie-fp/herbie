@@ -1,11 +1,11 @@
 #lang racket
 
-(require casio/alternative)
-(require casio/programs)
-(require casio/points)
+(require herbie/alternative)
+(require herbie/programs)
+(require herbie/points)
 
 (provide (struct-out test) *tests* casio-test test-program test-samplers
-         (all-from-out casio/points))
+         (all-from-out herbie/points))
 
 (define (unfold-let expr)
   (match expr

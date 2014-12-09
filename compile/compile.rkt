@@ -1,7 +1,7 @@
 #lang racket
 
-(require casio/common)
-(require casio/programs)
+(require herbie/common)
+(require herbie/programs)
 (require reports/datafile)
 (require net/uri-codec)
 

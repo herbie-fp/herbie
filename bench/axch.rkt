@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ;; From Alexey Radul, in personal communication:
 ;

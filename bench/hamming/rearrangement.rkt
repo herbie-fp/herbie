@@ -1,6 +1,5 @@
 #lang racket
-
-(require casio/test)
+(require herbie/test)
 
 (casio-test (x)
   "NMSE example 3.1"

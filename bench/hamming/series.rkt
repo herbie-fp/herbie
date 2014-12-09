@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 (casio-test (x)
   "NMSE example 3.7"
@@ -23,8 +23,7 @@
 
 (casio-test (x)
   "NMSE problem 3.4.1"
-  (/ (- 1 (cos x)) (sqr x))
-  (/ (sqr (sin x)) (* (+ 1 (cos x)) (sqr x))))
+  (/ (- 1 (cos x)) (sqr x)))
 
 (casio-test (a b eps)
   "NMSE problem 3.4.2"

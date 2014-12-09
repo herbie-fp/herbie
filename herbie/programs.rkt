@@ -1,10 +1,11 @@
 #lang racket
+
 (require math/bigfloat)
 (require math/flonum)
-(require casio/common)
-(require casio/syntax)
+(require herbie/common)
+(require herbie/syntax)
 
-(provide (all-from-out casio/syntax)
+(provide (all-from-out herbie/syntax)
          location-induct program-induct expression-induct location-hash
          location-do location-get
          eval-prog

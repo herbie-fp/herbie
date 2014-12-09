@@ -1,14 +1,14 @@
 #lang racket
 
-(require casio/simplify/egraph)
-(require casio/simplify/ematch)
-(require casio/simplify/enode)
-(require (rename-in casio/simplify/backup-simplify [simplify backup-simplify]))
-(require casio/rules)
-(require casio/matcher)
-(require casio/alternative)
-(require casio/programs)
-(require casio/common)
+(require herbie/simplify/egraph)
+(require herbie/simplify/ematch)
+(require herbie/simplify/enode)
+(require (rename-in herbie/simplify/backup-simplify [simplify backup-simplify]))
+(require herbie/rules)
+(require herbie/matcher)
+(require herbie/alternative)
+(require herbie/programs)
+(require herbie/common)
 
 (provide simplify-expr simplify *max-egraph-iters*)
 

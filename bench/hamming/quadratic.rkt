@@ -1,6 +1,6 @@
 #lang racket
 
-(require casio/test)
+(require herbie/test)
 
 ; quadratic formula
 (casio-test (a b c)

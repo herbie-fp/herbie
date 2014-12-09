@@ -1,13 +1,13 @@
 #lang racket
 
 (require racket/pretty)
-(require casio/common)
-(require casio/points)
-(require casio/matcher)
-(require casio/alternative)
-(require casio/test)
-(require casio/infer-regimes)
-(require casio/programs)
+(require herbie/common)
+(require herbie/points)
+(require herbie/matcher)
+(require herbie/alternative)
+(require herbie/test)
+(require herbie/infer-regimes)
+(require herbie/programs)
 
 (provide make-graph make-traceback make-timeout)
 

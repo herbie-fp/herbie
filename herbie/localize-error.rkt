@@ -2,10 +2,10 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require casio/common)
-(require casio/points)
-(require casio/programs)
-(require casio/alternative)
+(require herbie/common)
+(require herbie/points)
+(require herbie/programs)
+(require herbie/alternative)
 
 (provide localize-error *analyze-context*)
 

@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 (casio-test (NdChar Ec Vef EDonor mu KbT NaChar Ev EAccept)
   "Bulmash initializePoisson"

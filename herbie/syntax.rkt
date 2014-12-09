@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require casio/common)
+(require herbie/common)
 
 (provide *operations* predicates constants constant? variable?
          mode:bf mode:fl ->bf ->flonum

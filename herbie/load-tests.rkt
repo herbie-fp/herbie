@@ -1,10 +1,10 @@
 #lang racket
 
-(require casio/common)
-(require casio/programs)
-(require casio/test)
-(require casio/points)
-(require casio/alternative)
+(require herbie/common)
+(require herbie/programs)
+(require herbie/test)
+(require herbie/points)
+(require herbie/alternative)
 
 (define *test-cache* (make-hash))
 

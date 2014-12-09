@@ -1,5 +1,5 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ;  Escape dynamics of a Bose-Hubbard dimer out of a trap 
 ; D. Maksimov and A. Kolovsky

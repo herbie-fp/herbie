@@ -1,6 +1,6 @@
 #lang racket
-(require casio/common)
-(require casio/syntax)
+(require herbie/common)
+(require herbie/syntax)
 
 (provide texify-expression)
 

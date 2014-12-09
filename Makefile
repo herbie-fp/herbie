@@ -8,7 +8,7 @@ all:
 	$(MAKE) link
 	$(MAKE) report
 
-paper: pldi15/paper.pdf
+paper: paper/paper.pdf
 
 report:
 	racket reports/make-report.rkt $(FLAGS) $(BENCHDIR)
@@ -17,14 +17,14 @@ publish:
 	bash reports/publish.sh
 	cd dash/ && bash publish.sh
 
-drop: pldi15/paper.pdf
-	cp pldi15/paper.pdf ~/Dropbox/Public/casio.pdf
+drop: paper/paper.pdf
+	cp paper/paper.pdf ~/Dropbox/Public/casio.pdf
 
 link:
-	raco link casio
+	raco link herbie
 	raco link reports
 	raco link compile
-	raco link casio/simplify
+	raco link herbie/simplify
 
 compile/cost: compile/cost.c
 	$(CC) -O0 $^ -lm -o $@
@@ -39,7 +39,7 @@ clean:
 	rm -f compile/$(PREFIX)*.out
 	rm -f compile/$(PREFIX).*.csv
 	rm -f compile/$(PREFIX).*.json
-	rm -f pldi15/*.bbl pldi15/*.blg pldi15/*.aux pldi15/*.log pldi15/*.out
+	rm -f paper/*.bbl paper/*.blg paper/*.aux paper/*.log paper/*.out
 
 doc/tr-14wi.pdf: doc/tr-14wi.tex
 	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
@@ -127,44 +127,44 @@ all-convergence: $(CFILES:.c=.cv_if.png)
 
 # Generating the PLDI'15 paper
 
-PLDI15TEX=$(wildcard pldi15/*.tex)
-PLDI15BIB=pldi15/references.bib
+PLDI15TEX=$(wildcard paper/*.tex)
+PLDI15BIB=paper/references.bib
 PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d err regimes-e2e
-PLDI15FIGS=$(patsubst %,pldi15/fig/eval-%.tex,$(PLDI15TIKZFIGS)) pldi15/fig/overview-diagram.pdf
+PLDI15FIGS=$(patsubst %,paper/fig/eval-%.tex,$(PLDI15TIKZFIGS)) paper/fig/overview-diagram.pdf
 
 %.pdf: %.svg
 	inkscape --export-pdf=$*.pdf $^
 
-pldi15/paper.pdf: $(PLDI15TEX) $(PLDI15BIB) $(PLDI15FIGS)
-	cd pldi15 && pdflatex paper
-	cd pldi15 && bibtex paper
-	cd pldi15 && pdflatex paper
-	cd pldi15 && pdflatex paper
+paper/paper.pdf: $(PLDI15TEX) $(PLDI15BIB) $(PLDI15FIGS)
+	cd paper && pdflatex paper
+	cd paper && bibtex paper
+	cd paper && pdflatex paper
+	cd paper && pdflatex paper
 
 rebib:
-	@ cd pldi15 && pdflatex paper > /dev/null
-	@ cd pldi15 && bibtex paper > /dev/null
-	@ grep "didn't find a database entry for" pldi15/paper.blg | cut -d\  -f8 | tr -d \" | findcite >> $(PLDI15BIB)
+	@ cd paper && pdflatex paper > /dev/null
+	@ cd paper && bibtex paper > /dev/null
+	@ grep "didn't find a database entry for" paper/paper.blg | cut -d\  -f8 | tr -d \" | findcite >> $(PLDI15BIB)
 
 # Generating graphs
 
-pldi15/fig/eval-mpfr-bits.tex: compile/mpfr-bits.csv compile/graph.py
+paper/fig/eval-mpfr-bits.tex: compile/mpfr-bits.csv compile/graph.py
 	python2 compile/graph.py bits -d compile > $@
 
-pldi15/fig/eval-casio-runtime.tex: compile/casio-runtime.csv compile/graph.py
+paper/fig/eval-casio-runtime.tex: compile/casio-runtime.csv compile/graph.py
 	python2 compile/graph.py time -d compile > $@
 
-pldi15/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.csv compile/tc.od.csv compile/graph.py
+paper/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.csv compile/tc.od.csv compile/graph.py
 	python2 compile/graph.py rect-f -d compile > $@
 
-pldi15/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
+paper/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
 	python2 compile/graph.py rect-d -d compile > $@
 
-pldi15/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py compile/nr.id.csv compile/nr.od.csv
+paper/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py compile/nr.id.csv compile/nr.od.csv
 	python2 compile/graph.py overhead-d -d compile > $@
 
-pldi15/fig/eval-err.tex: compile/sample-points.csv compile/graph.py
+paper/fig/eval-err.tex: compile/sample-points.csv compile/graph.py
 	python2 compile/graph.py err -d compile > $@
 
-pldi15/fig/eval-regimes-e2e.tex: compile/tc.id.csv compile/tc.od.csv compile/nr.id.csv compile/nr.od.csv compile/graph.py
+paper/fig/eval-regimes-e2e.tex: compile/tc.id.csv compile/tc.od.csv compile/nr.id.csv compile/nr.od.csv compile/graph.py
 	python2 compile/graph.py regimes -d compile > $@

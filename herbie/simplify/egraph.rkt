@@ -1,7 +1,7 @@
 #lang racket
 
-(require casio/simplify/enode)
-(require casio/common)
+(require herbie/simplify/enode)
+(require herbie/common)
 
 (provide mk-enode! mk-egraph
 	 merge-egraph-nodes!

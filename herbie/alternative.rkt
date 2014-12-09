@@ -1,9 +1,9 @@
 #lang racket
 
-(require casio/programs)
-(require casio/points)
-(require casio/matcher)
-(require casio/common)
+(require herbie/programs)
+(require herbie/points)
+(require herbie/matcher)
+(require herbie/common)
 
 (provide (struct-out alt-delta) (struct-out alt-event)
          make-alt alt? alt-program alt-change alt-prev alt-add-event

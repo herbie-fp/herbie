@@ -2,8 +2,8 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require casio/config)
-(require casio/debug)
+(require herbie/config)
+(require herbie/debug)
 
 (provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append for/accumulate
@@ -13,7 +13,7 @@
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
          random-exp assert setfindf first-value
-         (all-from-out casio/config) (all-from-out casio/debug))
+         (all-from-out herbie/config) (all-from-out herbie/debug))
 
 (define *start-prog* (make-parameter '()))
 

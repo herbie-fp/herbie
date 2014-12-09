@@ -1,12 +1,12 @@
 #lang racket
 
 (require rackunit)
-(require casio/syntax)
-(require casio/rules)
-(require casio/common)
-(require casio/points)
-(require casio/alternative)
-(require casio/main)
+(require herbie/syntax)
+(require herbie/rules)
+(require herbie/common)
+(require herbie/points)
+(require herbie/alternative)
+(require herbie/main)
 (require math/bigfloat)
 
 (define *rulesets* '())

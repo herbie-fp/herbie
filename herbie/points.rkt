@@ -2,9 +2,9 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require casio/common)
-(require casio/programs)
-(require casio/config)
+(require herbie/common)
+(require herbie/programs)
+(require herbie/config)
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default

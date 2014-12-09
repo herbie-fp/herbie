@@ -1,11 +1,11 @@
 #lang racket
 
 (require rackunit)
-(require casio/rules)
-(require casio/matcher)
-(require casio/common)
-(require casio/syntax)
-(require casio/programs)
+(require herbie/rules)
+(require herbie/matcher)
+(require herbie/common)
+(require herbie/syntax)
+(require herbie/programs)
 
 (provide simplify)
 

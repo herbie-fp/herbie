@@ -2,8 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require rackunit)
-(require casio/common)
+(require herbie/common)
 
 (provide (struct-out rule) *rules*
 	 *simplify-rules* get-rule define-ruleset)
