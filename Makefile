@@ -88,10 +88,10 @@ compile/%.out: compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
 
 # The max error experiment timeout, in seconds.
-TIMEOUT=60*60
+DMAX_TIMEOUT=60 * 60
 
 compile/%.dmax.out: compile/%.dh.bin
-	./$< $(TIMEOUT) > $@
+	./$< $(shell expr DMAX_TIMEOUT) > $@
 
 compile/dmax-all.out: $(CFILES:.c=.dmax.out)
 	cat $^ > $@
