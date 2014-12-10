@@ -93,6 +93,9 @@ TIMEOUT=60*60
 compile/%.dmax.out: compile/%.dh.bin
 	./$< $(TIMEOUT) > $@
 
+compile/dmax-all.out: $(CFILES:.c=.dmax.out)
+	cat $^ > $@
+
 $(DATAFILES): $(CFILES:.c=.out)
 	compile/all.sh compile/$(PREFIX) compile/
 
