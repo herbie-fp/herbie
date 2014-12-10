@@ -112,7 +112,7 @@
 
       (printf "<script src='report.js'></script>\n")
       (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
-              "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+              "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
       (printf "</head>\n")
       (printf "<body>\n")
       (printf "<dl id='about'>\n")
