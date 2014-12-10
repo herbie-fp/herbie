@@ -87,6 +87,12 @@ compile/%.slow.bin: compile/test.c compile/%.slow.o
 compile/%.out: compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
 
+# The max error experiment timeout, in seconds.
+TIMEOUT=10
+
+compile/%.dmax.out: compile/%.dh.bin
+	./$< $(TIMEOUT) > $@
+
 $(DATAFILES): $(CFILES:.c=.out)
 	compile/all.sh compile/$(PREFIX) compile/
 
@@ -101,6 +107,9 @@ compile/$(RPREFIX).json: $(RDATAFILES)
 
 compile/%.bf.bin: compile/bruteforce.c compile/%.o
 	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
+
+compile/%.dh.bin: compile/max-error-hour.c compile/%.o
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # Generating convergence binaries
 
