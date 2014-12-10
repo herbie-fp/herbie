@@ -99,8 +99,9 @@ char ordinaryd(double x) {
         return 1 / x != 0 && x == x;
 }
 unsigned int maxOrigErr, maxImprErr, numUnimproved, maxUnimproved;
+unsigned long long pointsTested;
 void finish(){
-  printf("%u,%u,%u,%u\n", maxOrigErr, maxImprErr, numUnimproved, maxUnimproved);
+  printf("%u,%u,%u,%u,%llu\n", maxOrigErr, maxImprErr, numUnimproved, maxUnimproved, pointsTested);
   exit(0);
 }
 
@@ -174,6 +175,7 @@ int main(int argc, char** argv){
       if (maxUnimproved < unimprovement) maxUnimproved = unimprovement;
     }
     clock_gettime(CLOCK_MONOTONIC, &cur);
+    ++pointsTested;
   }
   finish();
 }
