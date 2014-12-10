@@ -97,6 +97,10 @@ double rand_double() {
 char ordinaryd(double x) {
         return 1 / x != 0 && x == x;
 }
+unsigned int maxOrigErr, maxImprErr, numUnimproved, maxUnimproved;
+void finish(){
+  printf("%u,%u,%u,%u\n", maxOrigErr, maxImprErr, numUnimproved, maxUnimproved);
+}
 
 int main(int argc, char** argv){
   struct timespec start, cur;
@@ -104,15 +108,12 @@ int main(int argc, char** argv){
   double exact, origApprox, improvedApprox;
   bool ordinaryArgs;
   int i;
-  unsigned int maxOrigErr, maxImprErr, numUnimproved, maxUnimproved,
-    origErr, imprErr, unimprovement;
+  unsigned int origErr, imprErr, unimprovement;
 
   time_t timeout = 10;
   if (argc > 1){
     timeout = atoi(argv[1]);
   }
-  
-
 
   // Set up the initial time variables
   clock_gettime(CLOCK_MONOTONIC, &start);
@@ -121,6 +122,12 @@ int main(int argc, char** argv){
   // Set up mpfr
   setup_mpfr_f_im();
 
+  struct sigaction sigIntHandler;
+  sigIntHandler.sa_handler = finish();
+  sigemptyset(&sigIntHandler.sa_mask);
+  sigIntHandler.sa_flags = 0;
+  sigaction(SIGINT, &sigIntHandler, NULL);
+  
   // While the allotted time hasn't passed
   while(cur.tv_sec - start.tv_sec < timeout){
     // Get some randome arguments
@@ -165,5 +172,5 @@ int main(int argc, char** argv){
     }
     clock_gettime(CLOCK_MONOTONIC, &cur);
   }
-  printf("%u,%u,%u,%u\n", maxOrigErr, maxImprErr, numUnimproved, maxUnimproved);
+  finish();
 }
