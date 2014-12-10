@@ -7,6 +7,7 @@
 #include <gmp.h>
 #include <mpfr.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #ifndef NARGS
 #define NARGS 1
@@ -123,7 +124,7 @@ int main(int argc, char** argv){
   setup_mpfr_f_im();
 
   struct sigaction sigIntHandler;
-  sigIntHandler.sa_handler = finish();
+  sigIntHandler.sa_handler = finish;
   sigemptyset(&sigIntHandler.sa_mask);
   sigIntHandler.sa_flags = 0;
   sigaction(SIGINT, &sigIntHandler, NULL);
