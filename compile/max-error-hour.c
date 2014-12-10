@@ -101,6 +101,7 @@ char ordinaryd(double x) {
 unsigned int maxOrigErr, maxImprErr, numUnimproved, maxUnimproved;
 void finish(){
   printf("%u,%u,%u,%u\n", maxOrigErr, maxImprErr, numUnimproved, maxUnimproved);
+  exit(0);
 }
 
 int main(int argc, char** argv){
@@ -123,6 +124,7 @@ int main(int argc, char** argv){
   // Set up mpfr
   setup_mpfr_f_im();
 
+  // Handle interrupts properly.
   struct sigaction sigIntHandler;
   sigIntHandler.sa_handler = finish;
   sigemptyset(&sigIntHandler.sa_mask);
