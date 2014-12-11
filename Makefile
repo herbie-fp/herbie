@@ -93,7 +93,7 @@ DMAX_TIMEOUT=60 \* 60
 compile/%.dmax.out: compile/%.dh.bin
 	./$< $(shell expr $(DMAX_TIMEOUT)) > $@
 
-compile/dmax-all.out: $(CFILES:.c=.dmax.out)
+compile/dmax-all.csv: $(CFILES:.c=.dmax.out)
 	cat $^ > $@
 
 $(DATAFILES): $(CFILES:.c=.out)
