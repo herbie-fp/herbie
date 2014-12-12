@@ -26,7 +26,7 @@ Herbie is organized on
 We also hang out on the `#uwplse` channel on
 [Freenode](https://freenode.net).
 Our test results are on
-[totalcrazyhack.net](http://totalcrazyhack.net/casio/reports/).
+[totalcrazyhack.net](http://herbie.uwplse.org/reports/).
 
 Email [Zach Tatlock](mailto:ztatlock@cs.uw.edu) to get involved.
 He’ll set you up with access to these tools.
@@ -54,7 +54,7 @@ The easiest way to install these is to run
     (mapcar #'package-install '(quack geiser))
 
 This needs to be done once. You can now open a Racket file, like
-`casio/main.rkt`, and the mode-line will read `Scheme Racket/A`,
+`herbie/main.rkt`, and the mode-line will read `Scheme Racket/A`,
 indicating that Quack, the Scheme mode, is running.
 
 If you hit `C-c C-a` in a Racket buffer, you’ll open up a REPL and
@@ -78,7 +78,7 @@ After a some time (approximately 15 minutes), you should find
 `report.html` in the `graphs/` folder.
 
 Tests are collected on
-[totalcrazyhack.net](http://totalcrazyhack.net/casio/reports/).
+[totalcrazyhack.net](http://herbie.uwplse.org/reports/).
 If you have an account on this server, you can publish your test
 report with
 

@@ -578,12 +578,12 @@ import sys
 def usage():
     print "Usage:"
     print "\tbits\thow many bits of precision needed per benchmark?"
-    print "\ttime\thow long does casio take?"
-    print "\terr\thow does casio depend on number of points sampled?"
-    print "\trect-f\thow does casio improve precision (float)"
-    print "\trect-d\thow does casio improve precision (double)"
-    print "\toverhead-f\thow does casio change performance (float)"
-    print "\toverhead-d\thow does casio change performance (double)"
+    print "\ttime\thow long does Herbie take?"
+    print "\terr\thow does Herbie depend on number of points sampled?"
+    print "\trect-f\thow does Herbie improve precision (float)"
+    print "\trect-d\thow does Herbie improve precision (double)"
+    print "\toverhead-f\thow does Herbie change performance (float)"
+    print "\toverhead-d\thow does Herbie change performance (double)"
     print ""
     print "\t-d DIR\tread from directory DIR"
 
@@ -605,7 +605,7 @@ if __name__ == '__main__':
         end_doc()
     elif sys.argv[1] == "time":
         begin_doc()
-        draw_time_cdf(read_simple_data_file(dir + '/casio-runtime.csv'))
+        draw_time_cdf(read_simple_data_file(dir + '/runtime.csv'))
         end_doc()
     elif sys.argv[1] == "err":
         begin_doc()

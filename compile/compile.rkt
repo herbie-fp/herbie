@@ -202,8 +202,8 @@
                   [`(,name ,input ,output ,target ,bits ,time)
                    (printf "~a\n" bits)]))))
 
-(define (compile-casio-runtime float-results-file double-results-file dir)
-  (write-file (build-path dir "casio-runtime.csv")
+(define (compile-runtime float-results-file double-results-file dir)
+  (write-file (build-path dir "runtime.csv")
               (for ([line (read-datafile double-results-file)])
                 (match line
                   [`(,name ,input ,output ,target ,bits ,time)
@@ -212,7 +212,7 @@
 (define (compile-datafiles float-results-file double-results-file [dir "."] [output-file "tc~a.c"])
   (compile-c-files float-results-file double-results-file (string-append dir "/" output-file))
   (compile-mpfr-bits float-results-file double-results-file dir)
-  (compile-casio-runtime float-results-file double-results-file dir))
+  (compile-runtime float-results-file double-results-file dir))
 
 (define *format* "tc~a.c")
 (define *dir* ".")

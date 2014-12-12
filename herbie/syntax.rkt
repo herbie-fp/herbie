@@ -6,7 +6,7 @@
 
 (provide *operations* predicates constants constant? variable?
          mode:bf mode:fl ->bf ->flonum
-         common-eval-ns casio-eval
+         common-eval-ns common-eval
          program-body program-variables)
 
 ; Programs are just lambda expressions
@@ -132,5 +132,4 @@
 
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
-
-(define (casio-eval expr) (eval expr common-eval-ns))
+(define (common-eval expr) (eval expr common-eval-ns))

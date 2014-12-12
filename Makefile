@@ -18,7 +18,7 @@ publish:
 	cd dash/ && bash publish.sh
 
 drop: paper/paper.pdf
-	cp paper/paper.pdf ~/Dropbox/Public/casio.pdf
+	cp paper/paper.pdf ~/Dropbox/Public/herbie.pdf
 
 link:
 	raco link herbie
@@ -30,7 +30,7 @@ compile/cost: compile/cost.c
 	$(CC) -O0 $^ -lm -o $@
 
 loc:
-	find reports/ casio/ -type f -exec cat {} \; | wc -l
+	find reports/ herbie/ -type f -exec cat {} \; | wc -l
 
 clean:
 	rm -f cost
@@ -56,10 +56,10 @@ RCFILES=$(wildcard compile/$(RPREFIX)*.c)
 
 .SECONDARY: $(DATAFILES)
 
-compile: compile/single.casio.dat compile/double.casio.dat
+compile: compile/single.herbie.dat compile/double.herbie.dat
 	racket compile/compile.rkt -d compile -f $(PREFIX)~a.c $^
 
-rcompile: compile/noregimes.casio.dat
+rcompile: compile/noregimes.herbie.dat
 	racket compile/compile.rkt -d compile -f $(RPREFIX)~a.c $^ $^
 
 # Flags for building and running C files
@@ -129,7 +129,7 @@ all-convergence: $(CFILES:.c=.cv_if.png)
 
 PLDI15TEX=$(wildcard paper/*.tex)
 PLDI15BIB=paper/references.bib
-PLDI15TIKZFIGS=mpfr-bits casio-runtime rect-f rect-d overhead-d err regimes-e2e
+PLDI15TIKZFIGS=mpfr-bits runtime rect-f rect-d overhead-d err regimes-e2e
 PLDI15FIGS=$(patsubst %,paper/fig/eval-%.tex,$(PLDI15TIKZFIGS)) paper/fig/overview-diagram.pdf
 
 %.pdf: %.svg
@@ -151,7 +151,7 @@ rebib:
 paper/fig/eval-mpfr-bits.tex: compile/mpfr-bits.csv compile/graph.py
 	python2 compile/graph.py bits -d compile > $@
 
-paper/fig/eval-casio-runtime.tex: compile/casio-runtime.csv compile/graph.py
+paper/fig/eval-runtime.tex: compile/runtime.csv compile/graph.py
 	python2 compile/graph.py time -d compile > $@
 
 paper/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.csv compile/tc.od.csv compile/graph.py

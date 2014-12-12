@@ -116,9 +116,9 @@
 	(when (and (not (matches? constexpr `(/ ,a 0)))
 		   (not (matches? constexpr `(log 0)))
 		   (andmap real? (cdr constexpr)))
-	  (let ([res (casio-eval constexpr)])
+	  (let ([res (common-eval constexpr)])
 	    (when (and (real? res) (exact? res))
-	      (enode-override-expr! en (casio-eval constexpr)))))))))
+	      (enode-override-expr! en (common-eval constexpr)))))))))
 
 (define (hash-set*+ hash assocs)
   (for/accumulate (h hash) ([assoc assocs])

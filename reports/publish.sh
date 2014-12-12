@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e -x
 
-RHOST="recycle.cs.washington.edu"
-RHOSTDIR="/cse/web/research/plse/dashboard/herbie"
+RHOST="uwplse.org"
+RHOSTDIR="/var/www/herbie"
 
 B=$(git rev-parse --abbrev-ref HEAD)
 C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
@@ -16,5 +16,5 @@ REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *:*:*:*")
 racket reports/make-index.rkt $REPORTS
 set -x
 rsync --verbose --recursive "index.html" "$RHOST:$RHOSTDIR/$RFOLDER"
-ssh "$RHOST" chgrp -R plse_www "$RHOSTDIR/$RFOLDER/$RDIR/" "$RHOSTDIR/$RFOLDER/index.html"
+ssh "$RHOST" chgrp -R uwplse "$RHOSTDIR/$RFOLDER/$RDIR/" "$RHOSTDIR/$RFOLDER/index.html"
 rm index.html

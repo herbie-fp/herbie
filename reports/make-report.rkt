@@ -33,7 +33,7 @@
       (make-directory *output-directory*))
 
     (make-report-page "graphs/report.html" results)
-    (make-datafile "graphs/results.casio.dat" results)))
+    (make-datafile "graphs/results.herbie.dat" results)))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 

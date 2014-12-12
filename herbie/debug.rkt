@@ -38,7 +38,7 @@
 		 (and (>= max-depth depth)
 		      (> max-depth 0)))))))
 
-(define (debug #:from [from 'casio] #:tag [tag 'misc] #:depth [depth 1] . args)
+(define (debug #:from [from 'none] #:tag [tag 'misc] #:depth [depth 1] . args)
   (when (should-print-debug? from depth)
     (debug-print from tag args (*debug-port*))))
 
