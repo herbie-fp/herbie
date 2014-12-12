@@ -104,14 +104,18 @@
   (define (eval-on-pt pt)
     ((eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) mode:fl) pt))
   (define (sidx->spoint sidx next-sidx)
-    (let* ([alt1 (list-ref alts (si-cidx sidx))]
-	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [pred (λ (p)
-		   (let* ([exact ((eval-prog (*start-prog*) mode:bf) p)]
-			  [e1 (error-at (alt-program alt1) p exact)]
-			  [e2 (error-at (alt-program alt2) p exact)])
-		     (< e1 e2)))])
-      (sp (si-cidx sidx) expr (eval-on-pt (basic-point-search pred (list-ref points (si-pidx sidx)) (list-ref points (sub1 (si-pidx sidx))))))))
+    ;; Todo: Do something smart for expressions.
+    (if (list? expr) (sp (si-cidx sidx) expr (eval-on-pt (list-ref points (si-pidx sidx))))
+	(let* ([alt1 (list-ref alts (si-cidx sidx))]
+	       [alt2 (list-ref alts (si-cidx next-sidx))]
+	       [pred (λ (p)
+		       (let* ([exact ((eval-prog (*start-prog*) mode:bf) p)]
+			      [e1 (error-at (alt-program alt1) p exact)]
+			      [e2 (error-at (alt-program alt2) p exact)])
+			 (< e1 e2)))])
+	  (sp (si-cidx sidx) expr (eval-on-pt (basic-point-search
+					       pred (list-ref points (si-pidx sidx))
+					       (list-ref points (sub1 (si-pidx sidx)))))))))
   (append (map sidx->spoint
 	       (take sindices (sub1 (length sindices)))
 	       (drop sindices 1))
