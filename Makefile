@@ -15,6 +15,8 @@ report:
 
 publish:
 	bash reports/publish.sh
+
+publish-dash:
 	cd dash/ && bash publish.sh
 
 drop: paper/paper.pdf

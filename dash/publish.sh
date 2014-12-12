@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-DASH="recycle.cs.washington.edu:/cse/web/research/plse/dashboard/herbie"
+DASH="uwplse.org:/var/www/herbie/dash"
 rsync --quiet --recursive . "$DASH"
