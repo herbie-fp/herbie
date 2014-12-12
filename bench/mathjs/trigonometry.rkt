@@ -11,15 +11,23 @@
 (casio-test (re im) ; real part
   "math.cos on complex, real part"
   (* (* 0.5 (cos re)) (+ (exp (- im)) (exp im))))
+
 (casio-test (re im) ; imag part
   "math.cos on complex, imaginary part"
-  (* (* 0.5 (sin re)) (- (exp (- im)) (exp im))))
+  (* (* 0.5 (sin re)) (- (exp (- im)) (exp im)))
+  (if (< (abs im) 1)
+      (- (* (sin re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
+      (* (* 0.5 (sin re)) (- (exp (- im)) (exp im)))))
 
 ; TODO : The reciprocal functions cot, csc, sec, and tan were too complex to expand fully.
 
 (casio-test (re im) ; real part
   "math.sin on complex, real part"
   (* (* 0.5 (sin re)) (+ (exp (- 0 im)) (exp im))))
+
 (casio-test (re im) ; imag part
   "math.sin on complex, imaginary part"
-  (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im))))
+  (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im)))
+  (if (< (abs im) 1)
+      (- (* (cos re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
+      (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im)))))
