@@ -86,7 +86,7 @@
 	 splitpoints)))
 
 (define (option-on-expr alts expr)
-  (match-let* ([vars (program-variables (alt-program (car alts)))]
+  (match-let* ([vars (program-variables (*start-prog*))]
 	       [`(,pts ,exs) (sort-context-on-expr (*pcontext*) expr vars)])
     (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
 		       (map alt-errors alts))]
