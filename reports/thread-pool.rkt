@@ -212,50 +212,55 @@
     (define workers '())
     (define work '())
     (define next-wid 0)
-    (let loop ()
-      ; Message handler
-      (match (apply sync ch workers)
-        ['make-worker
-	 (let ([new-worker (make-worker)])
-	   (place-channel-put new-worker
-			      `(init dir ,dir
-				     wid ,(begin0 next-wid
-						(set! next-wid (add1 next-wid)))
-				     rand ,(pseudo-random-generator->vector
-					    (current-pseudo-random-generator))
-				     flags ,(*flags*)
-				     num-iters ,(*num-iterations*)
-                                     profile? ,*profile?*))
-	   (set! workers (cons new-worker workers)))]
-	[`(init
-	   dir ,dir*
-	   rand ,vec
-	   flags ,flag-table
-	   num-iters ,iterations
-           profile? ,profile?)
-	 (set! dir dir*)
-	 (vector->pseudo-random-generator!
-	  (current-pseudo-random-generator)
-	  vec)
-         (set! *profile?* profile?)
-	 (*flags* flag-table)
-	 (*num-iterations* iterations)]
-        [`(do ,id ,test)
-         (set! work (cons `(,id ,test) work))]
-        [`(done ,id ,more ,result*)
-         (place-channel-put ch (cons id result*))
-         (when (not (null? work))
-           (place-channel-put more `(apply ,more ,@(car work)))
-           (set! work (cdr work)))]
-        ['go
-         (let sloop ([work* work] [workers workers])
-           (if (or (null? work*) (null? workers))
-               (set! work work*)
-               (begin
-                 (place-channel-put (car workers)
-                                    `(apply ,(car workers) ,@(car work*)))
-                 (sloop (cdr work*) (cdr workers)))))])
-      (loop))))
+    (let/ec abort
+      (let loop ()
+        ; Message handler
+        (match (apply sync ch workers)
+          ['make-worker
+           (let ([new-worker (make-worker)])
+             (place-channel-put new-worker
+                                `(init dir ,dir
+                                       wid ,(begin0 next-wid
+                                              (set! next-wid (add1 next-wid)))
+                                       rand ,(pseudo-random-generator->vector
+                                              (current-pseudo-random-generator))
+                                       flags ,(*flags*)
+                                       num-iters ,(*num-iterations*)
+                                       profile? ,*profile?*))
+             (set! workers (cons new-worker workers)))]
+          [`(init
+             dir ,dir*
+             rand ,vec
+             flags ,flag-table
+             num-iters ,iterations
+             profile? ,profile?)
+           (set! dir dir*)
+           (vector->pseudo-random-generator!
+            (current-pseudo-random-generator)
+            vec)
+           (set! *profile?* profile?)
+           (*flags* flag-table)
+           (*num-iterations* iterations)]
+          [`(do ,id ,test)
+           (set! work (cons `(,id ,test) work))]
+          [`(done ,id ,more ,result*)
+           (place-channel-put ch (cons id result*))
+           (when (not (null? work))
+             (place-channel-put more `(apply ,more ,@(car work)))
+             (set! work (cdr work)))]
+          ['go
+           (let sloop ([work* work] [workers workers])
+             (if (or (null? work*) (null? workers))
+                 (set! work work*)
+                 (begin
+                   (place-channel-put (car workers)
+                                      `(apply ,(car workers) ,@(car work*)))
+                   (sloop (cdr work*) (cdr workers)))))]
+          ['kill
+           (for ([p workers])
+             (place-kill p))
+           (abort)])
+        (loop)))))
 
 (define (get-test-results progs
                           #:threads [threads (max (- (processor-count) 1) 1)]
@@ -280,20 +285,28 @@
     (place-channel-put m `(do ,i ,prog)))
   (println "Starting " threads " workers on " (length progs) " problems...")
   (place-channel-put m 'go)
+
+  (define (abort)
+    (println "Terminating after " cnt " problem!")
+    (place-channel-put m 'kill))
+
   (define outs
-    (for/list ([_ progs])
-      (let* ([msg (place-channel-get m)] [id (car msg)] [tr (cdr msg)])
-        (set! cnt (+ 1 cnt))
-        (cond
-         [(equal? (table-row-status tr) "crash")
-          (println cnt "/" total "\t[ " (~a (table-row-time tr) #:width 8)"ms ]\t"
-                   (table-row-name tr) " [CRASH]")]
-         [(equal? (table-row-status tr) "timeout")
-          (println cnt "/" total "\t[    timeout ]\t" (table-row-name tr))]
-         [else
-          (println cnt "/" total "\t[ " (~a (table-row-time tr) #:width 8)"ms ]\t"
-           (table-row-name tr))])
-        (cons id tr))))
+    (let loop ([progs progs] [out '()])
+      (with-handlers
+          ([exn:break? (λ (_) (abort) out)])
+        (match progs
+          ['() out]
+          [(cons _ progs*)
+           (let* ([msg (place-channel-get m)] [id (car msg)] [tr (cdr msg)])
+             (set! cnt (+ 1 cnt))
+             (printf "~a/~a\t" (~a cnt #:width 3 #:align 'right) total)
+             (cond
+              [(equal? (table-row-status tr) "crash")   (printf "[   CRASH ms ]")]
+              [(equal? (table-row-status tr) "timeout") (printf "[    timeout ]")]
+              [else (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
+             (printf "\t~a\n" (table-row-name tr))
+             (loop progs* (cons (cons id tr) out)))]))))
+
   ; The use of > instead of < is a cleverness:
   ; the list of tests is accumulated in reverse, this reverses again.
   (map cdr (sort outs > #:key car)))
