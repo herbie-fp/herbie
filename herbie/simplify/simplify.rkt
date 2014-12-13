@@ -117,7 +117,7 @@
 		   (not (matches? constexpr `(log 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (common-eval constexpr)])
-	    (when (and (real? res) (exact? res))
+	    (when (and (ordinary-float? res) (exact? res))
 	      (enode-override-expr! en (common-eval constexpr)))))))))
 
 (define (hash-set*+ hash assocs)
