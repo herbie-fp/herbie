@@ -18,20 +18,29 @@
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
+(define initial-fuel '())
 
 (define (improve prog fuel #:get-context [get-context #f] #:samplers [samplers #f])
+  (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
+  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
+  (set! initial-fuel fuel)
   (let* ([samplers (or samplers (map (curryr cons sample-float) (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (parameterize ([*pcontext* context]
 		   [*analyze-context* ((flag 'localize 'cache) context #f)]
 		   [*start-prog* prog])
+      (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
       (let* ([alt-table (setup-prog prog fuel)]
-	     [result-alt (main-loop alt-table fuel)])
+	     [result-alt
+	      (begin
+		(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+		(main-loop alt-table fuel))])
 	(if get-context (list result-alt (atab-context alt-table)) result-alt)))))
 
 (define (main-loop table fuel)
   (parameterize ([*pcontext* (atab-context table)])
     (match-let ([table* (improve-loop table fuel)])
+      (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
       (if ((flag 'reduce 'regimes) #t #f)
 	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
 	    (let ([result-alt (if (= (length tables) 1)
@@ -111,23 +120,39 @@
 	 (debug "Ran out of unexpanded alts in alt table, reducing..." fuel "fuel remaining" #:from 'main #:depth 2)
 	 (post-process table fuel)]
 	[#t
+	 (debug #:from 'progress #:depth 2 "iteration" (add1 (- initial-fuel fuel)) "/" initial-fuel)
+	 (debug #:from 'progress #:depth 3 "picking best candidate")
 	 (improve-loop
 	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
-	    (atab-add-altns table* (append-map generate-alts (list picked))))
+	    (atab-add-altns table* (generate-alts picked)))
 	  (sub1 fuel))]))
 
 (define (generate-alts altn)
-  (append-map (λ (loc)
-		(append (taylor-alt altn loc)
-			(generate-alts-at altn loc)))
-	      (localize-error (alt-program altn))))
+  (let* ([locs-generated 0]
+	 [locs (localize-error (alt-program altn))]
+	 [num-locs (length locs)])
+    (append-map (λ (loc)
+		  (set! locs-generated (add1 locs-generated))
+		  (debug #:from 'progress #:depth 3 "generating at location" locs-generated "out of" num-locs)
+		  (append (taylor-alt altn loc)
+			  (generate-alts-at altn loc)))
+		locs)))
 
 (define (generate-alts-at altn loc)
   (let ([rewrite
-         ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)]
-        [cleanup
-         ((flag 'generate 'simplify) simplify-alt identity)])
-    (map cleanup (rewrite (alt-add-event altn '(start rm)) #:root loc))))
+	 ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
+    (debug #:from 'progress #:depth 4 "rewriting")
+    (let* ([rewritten (rewrite (alt-add-event altn '(start rm)) #:root loc)]
+	   [num-rewritten (length rewritten)]
+	   [simplified 0]
+	   [cleanup
+	    ((flag 'generate 'simplify)
+	     (λ (alt)
+	       (set! simplified (add1 simplified))
+	       (debug #:from 'progress #:depth 4 "simplifying alt" simplified "of" num-rewritten)
+	       (simplify-alt alt))
+	     identity)])
+    (map cleanup rewritten))))
 
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
@@ -141,19 +166,38 @@
     (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
 
 (define (post-process table fuel)
-  (let ([maybe-zach ((flag 'reduce 'zach) zach-alt (const '()))]
-        [maybe-taylor ((flag 'reduce 'taylor) taylor-alt (λ (x y) x))]
-	[maybe-simplify ((flag 'reduce 'simplify) completely-simplify-alt identity)])
-    (let* ([all-alts (atab-all-alts table)]
-           [locss (map (compose localize-error alt-program) all-alts)]
-           [alts*
-            (apply append
-                   (for/list ([alt all-alts] [locs locss])
-                     (append
-                      (append-map (curry maybe-zach alt) locs)
-                      (append-map (curry maybe-taylor alt) locs))))]
-           [table* (atab-add-altns table (map maybe-simplify alts*))])
-      table*)))
+  (debug #:from 'progress #:depth 2 "Final touches.")
+  (let* ([all-alts (atab-all-alts table)]
+	 [num-alts (length all-alts)]
+	 [zached-alts 0]
+	 [maybe-zach ((flag 'reduce 'zach)
+		      (λ (alt locs)
+			(debug #:from 'progress #:depth 3 "zaching alt" (add1 zached-alts) "of" num-alts)
+			(set! zached-alts (add1 zached-alts))
+			(append-map (curry zach-alt alt) locs))
+		      (const '()))]
+	 [taylored-alts 0]
+	 [maybe-taylor ((flag 'reduce 'taylor)
+			(λ (alt locs)
+			  (debug #:from 'progress #:depth 3 "tayloring alt" (add1 taylored-alts) "of" num-alts)
+			  (set! taylored-alts (add1 taylored-alts))
+			  (append-map (curry taylor-alt alt) locs))
+			(λ (x y) x))]
+	 [locss (map (compose localize-error alt-program) all-alts)]
+	 [alts*
+	  (apply append
+		 (for/list ([alt all-alts] [locs locss])
+		   (append (maybe-zach alt locs) (maybe-taylor alt locs))))]
+	 [num-alts* (length alts*)]
+	 [simplified-alts 0]
+	 [maybe-simplify ((flag 'reduce 'simplify)
+			  (λ (alt)
+			    (debug #:from 'progress #:depth 3 "simplifying alt" (add1 simplified-alts) "of" num-alts*)
+			    (set! simplified-alts (add1 simplified-alts))
+			    (completely-simplify-alt alt))
+			  identity)]
+	 [table* (atab-add-altns table (map maybe-simplify alts*))])
+    table*))
 
 (define (taylor-alt altn loc)
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
