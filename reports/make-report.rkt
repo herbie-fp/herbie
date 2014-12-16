@@ -192,9 +192,11 @@
                   (reap [sow]
                         (for ([result results])
                           (match result
-                            [(table-row name status _ _ target _ _ _ vars input output time bits _)
+                            [(table-row name status start-bits end-bits
+					target _ _ _ vars input output time bits _)
                              (when output
-                               (sow `(,name (λ ,vars ,input) (λ ,vars ,output) #f ,bits ,time)))])))))
+                               (sow `(,name (λ ,vars ,input) (λ ,vars ,output)
+					    #f ,bits ,time ,start-bits ,end-bits)))])))))
 
 (command-line
  #:program "make-report"
