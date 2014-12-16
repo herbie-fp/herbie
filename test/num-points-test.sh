@@ -6,5 +6,5 @@ for power in `seq 2 11`; do
     racket compile/results-to-csv.rkt graphs/results.herbie.dat graphs/results.herbie.csv
     awk -F , 'BEGIN{totalPointsRecovered=0; totalTime=0}\
 { totalPointsRecovered += $5; totalTime += $6} \
-END {print '$points',","totalPointsRecovered, ",", totalTime}' graphs/results.herbie.csv
+END {print '$points',",",(log(totalPointsRecovered)/log(2)), ",", (totalTime / 1000)}' graphs/results.herbie.csv
 done > test/num-points-test-results.csv
