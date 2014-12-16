@@ -1,0 +1,114 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Dashboard</title>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type='text/javascript' src='countdown.js'></script>
+  <script type='text/javascript' src='graph.js'></script>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="logo.png" />
+    <h1>Herbie</h1>
+    <p>Automatically Improving Floating Point Accuracy</p>
+  </header>
+
+  <ol class="author-list">
+    <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
+    <li>Alex Sanchez-Stern</li>
+    <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
+    <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
+  </ol>
+
+  <p>
+    Floating-point arithmetic can be surprising.
+    Correct-looking code can produce incorrect results
+    due to round-off error.
+    Methods from numerical analysis can identify fix these problems,
+    but they’re complex and require specialized knowledge.
+    Floating-point code is written by scientists, engineers, and analysts
+    who are not numerical analysis experts.
+    They need better tools.
+  </p>
+
+  <p>
+    Herbie is a project from the University of Washington
+    to <em>automatically fix numerical accuracy problems</em>.
+    Herbie uses a heuristic search to find program transformations
+    that improve numerical accuracy.
+    Herbie automatically discovers and applies numerical analysis techniques,
+    producing accurate programs
+    without requiring any specialized knowledge from the user.
+    Herbie’s output computes the same mathematical function as the original;
+    it just computes that function more accurately.
+  </p>
+
+  <h2>Status</h2>
+
+  <p>
+    The implementation is currently under heavy development.
+    It succeeds on many textbook examples,
+    and on examples drawn from numerical libraries, scientific publications, and mathematics.
+    Results on 28 test cases drawn
+    from Richard Hamming’s <i>Numerical Methods for Scientists and Engineers</i> are below.
+    Herbie improves all results, many to almost-perfect precision.
+  </p>
+
+  <figure>
+    <style scoped>
+      rect { fill: none; pointer-events: all; }
+      rect.good { stroke: steelblue; }
+      rect.good:hover { fill: steelblue; }
+      rect.bad { stroke: darkred; }
+      rect.bad:hover { fill: darkred; }
+      rect.gridline { stroke: rgba(80%, 80%, 80%, .4); fill: transparent; }
+      text { text-anchor: middle; }
+    </style>
+    <svg id="results" width="525" height="320"></svg>
+    <script>draw_results(d3.select("#results"))</script>
+    <figcaption>Wider rectangles are better. In the plot, each rectangle measures the improvement in accuracy due to Herbie. The left end of each rectangle measures the accuracy of the original program, and the right end measures the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
+  </figure>
+
+  <p>
+    Herbie will become free software once the project is published.
+    For now, if you’d like access, please email
+    <a href="mailto:pavpan@cs.uw.edu">Pavel Panchekha</a>.
+    Herbie is currently under submission to
+    <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a>
+    (1<sup>st</sup> round notification in <span class="countdown">19 Dec 2014</span>).
+  </p>
+
+  <h2>Blog posts about Herbie</h2>
+
+  <ul>
+    <li><a href="https://pavpanchekha.com/blog/taylor-exp.html">Taylor Expansions of Taylor Expansions</a> explains how Herbie takes Taylor expansions of exponential and trigonometric functions.</li>
+    <li><a href="https://pavpanchekha.com/blog/arbitrary-precision.html">Arbitrary Precision, not Arbitrary Accuracy</a> explains why arbitrary-precision libraries aren’t a simple answer to rounding error: to use arbitrary precision, you have to choose <em>how much</em> precision to use, and this is often difficult to determine.</li>
+    <li><a href="https://pavpanchekha.com/blog/casio-mathjs.html">Complex Square Roots in math.js</a> describes how Casio automatically fixed an accuracy bug in <a href="http://mathjs.org">math.js</a>, an open source mathematics library.</li>
+    <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a> describes how rounding and primitive operators work in IEEE-754 floating point.</li>
+  </ul>
+  
+  <h2>Presentations about Herbie</h2>
+
+  <ul>
+    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">Casio: automatically improving floating-point code</a>.<br/>
+      Talk given at OPLSS on 17 June 2014.</li>
+    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">What the Float‽ And what are we planning to do about it?</a>.<br/>
+      Lightning talk given at UW on 15 May 2014.</li>
+    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">Casio: automatically improving floating-point code</a>.<br/>
+      Talk given at Dropbox on 31 March 2014. <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Video available</a>.</li>
+  </ul>
+
+  <script type='text/javascript'>
+    function mkcountdown(node, date) {
+      countdown(function(ts) {
+          node.innerHTML = ts.toHTML();
+        }, date, countdown.DAYS | countdown.hours);
+    }
+    var countdowns = document.querySelectorAll("span.countdown");
+    for (var i = 0; i < countdowns.length; i++) {
+        mkcountdown(countdowns[i], Date.parse(countdowns[i].innerHTML));
+    }
+  </script>
+</body>
+</html>

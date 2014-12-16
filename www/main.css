@@ -1,0 +1,33 @@
+html {
+  font-family: sans-serif;
+}
+
+body {
+  min-width: 400px;
+  max-width: 650px;
+  margin: 3em auto;
+}
+
+h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
+h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
+h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0;}
+h3 {font-size: 15px; line-height: 1.2; margin: 1em 0 .2em 0;}
+
+p, li, dd, blockquote, figcaption {
+  font-size: 15px; line-height: 1.2;
+  text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
+  margin: .5em;
+}
+
+figcaption {font-size: 14px; line-height: 1.1;}
+
+header h1 {margin: .5em 0 0 0; font-size: 16pt;}
+header p {font-size: 14pt; margin: .5em 0 0 0;}
+header img {position: relative; top: -1em; float: left; width: 20%; margin: 0 2em 0 0;}
+header {margin: 2em 0 1em 0;}
+
+.author-list {clear: both; text-align: center; padding: 0; width: 100%; margin: .5em 0 2em 0;}
+.author-list li {display: inline; padding: 0 .5ex 0 0; max-width: 33%;}
+.author-list li:after {content: ","}
+.author-list li:last-child:after {content: ""}
+svg {margin: 0 auto; display: block;}

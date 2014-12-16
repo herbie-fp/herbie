@@ -16,8 +16,8 @@ report:
 publish:
 	bash reports/publish.sh
 
-publish-dash:
-	cd dash/ && bash publish.sh
+publish-www:
+	rsync --recursive www/ "uwplse.org:/var/www/herbie/"
 
 drop: paper/paper.pdf
 	cp paper/paper.pdf ~/Dropbox/Public/herbie.pdf
