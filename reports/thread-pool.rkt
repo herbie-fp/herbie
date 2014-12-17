@@ -190,6 +190,7 @@
 	   rand ,vec
 	   flags ,flag-table
 	   num-iters ,iterations
+           points ,points
            profile? ,profile?)
 
 	 (when (not (directory-exists? dir))
@@ -199,7 +200,8 @@
 	 (set! *seed* vec)
          (set! *profile?* profile?)
 	 (*flags* flag-table)
-	 (*num-iterations* iterations)]
+	 (*num-iterations* iterations)
+         (*num-points* points)]
         [`(apply ,self ,id ,test)
          (let ([result (run-test id test)])
            (place-channel-put ch
@@ -226,6 +228,7 @@
                                               (current-pseudo-random-generator))
                                        flags ,(*flags*)
                                        num-iters ,(*num-iterations*)
+                                       points ,(*num-points*)
                                        profile? ,*profile?*))
              (set! workers (cons new-worker workers)))]
           [`(init
@@ -233,6 +236,7 @@
              rand ,vec
              flags ,flag-table
              num-iters ,iterations
+             points ,points
              profile? ,profile?)
            (set! dir dir*)
            (vector->pseudo-random-generator!
@@ -240,7 +244,8 @@
             vec)
            (set! *profile?* profile?)
            (*flags* flag-table)
-           (*num-iterations* iterations)]
+           (*num-iterations* iterations)
+           (*num-points* points)]
           [`(do ,id ,test)
            (set! work (cons `(,id ,test) work))]
           [`(done ,id ,more ,result*)
@@ -275,6 +280,7 @@
                   (current-pseudo-random-generator))
            flags ,(*flags*)
            num-iters ,(*num-iterations*)
+           points ,(*num-points*)
            profile? ,profile?))
 
   (place-channel-put m config)
