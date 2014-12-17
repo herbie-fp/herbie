@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 # RUN this from herbie root!
 echo "" > test/num-points-test-results.csv
 for power in `seq 2 11`; do
