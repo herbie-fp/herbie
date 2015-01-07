@@ -22,6 +22,8 @@
 (define *test-name* #f)
 
 (define *profile?* #f)
+(define *master?* #f)
+(define *note* #f)
 
 (define (make-report . bench-dirs)
   (let* ([tests (allowed-tests bench-dirs)]
@@ -33,7 +35,8 @@
       (make-directory *output-directory*))
 
     (make-report-page "graphs/report.html" results)
-    (make-datafile "graphs/results.herbie.dat" results)))
+    (make-datafile "graphs/results.herbie.dat" results)
+    (make-json "graphs/results.json" results)))
 
 (define (command-result cmd) (string-trim (write-string (system cmd))))
 
@@ -198,6 +201,47 @@
                                (sow `(,name (λ ,vars ,input) (λ ,vars ,output)
 					    #f ,bits ,time ,start-bits ,end-bits)))])))))
 
+(define (make-json file results)
+  (write-file file
+
+      (printf "<dl id='about'>\n")
+      (printf "<dt>Date:</dt><dd>~a</dd>\n" (date->string (current-date)))
+      (printf "<dt>Commit:</dt><dd>~a on ~a</dd>\n" commit branch)
+      (printf "<dt>Seed Data:</dt><dd>~a</dd>\n" seed)
+      (printf "<dt>Flags:</dt><dd id='flag-list'>")
+      (for ([rec (hash->list (*flags*))])
+        (for ([fl (cdr rec)])
+          (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+      (printf "</dd>")
+      (printf "<dt>Sample points:</dt><dd>~a</dd>\n" (*num-points*))
+      (printf "<dt>Iterations:</dt><dd>~a</dd>\n" (*num-iterations*))
+      (printf "</dl>\n")
+
+    (printf "{\n")
+    (printf "'date': '~a',\n" (date->string (current-date)))
+    (printf "'commit': '~a',\n" (command-result "git rev-parse HEAD"))
+    (printf "'branch': '~a',\n" (command-result "git rev-parse --abbrev-ref HEAD"))
+    (printf "'seed': '~a',\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
+    (printf "'flags': [")
+    (for ([rec (hash->list (*flags*))])
+      (for ([fl (cdr rec)])
+        (printf "'~a:~a', " (car rec) fl)))
+    (printf "],\n")
+    (printf "'points': ~a,\n" (*num-points*))
+    (printf "'iterations': ~a,\n" (*num-iterations*))
+    (printf "'master': ~a,\n" (if *master?* "true" "false"))
+    (if *note*
+        (printf "'note': '~a',\n" *note*))
+    (printf "'tests': [\n")
+    (for ([result results])
+      (match result
+        [(table-row name status start-bits end-bits
+                    target inf- inf+ end-est vars input output time bits link)
+         (printf "  {'name': '~a', 'status': '~a', 'start': ~a, 'end': ~a, 'target': ~a, 'ninf': ~a, 'pinf': ~a, 'vars': '~a', 'input': '~a', 'output': '~a', 'time': ~a, 'bits': ~a, 'link': '~a'},\n"
+                  name status start-bits end-bits target inf- inf+
+                  vars input output time bits link)]))
+    (printf "]}\n")))
+
 (command-line
  #:program "make-report"
  #:once-each
@@ -219,6 +263,10 @@
   (*num-points* (string->number points))]
  [("-q") test-name "The name of the test to run. If not specified, will run all in benchdir."
   (set! *test-name* test-name)]
+ [("-m") "Set this run as a new 'master test' for this branch"
+  (set! *master?* #t)]
+ [("-n") note "Add a note for this run"
+  (set! *note* note)]
  #:multi
  [("-f") tf "Toggle flags, specified in the form category:flag"
   (let ([split-strings (string-split tf ":")])
