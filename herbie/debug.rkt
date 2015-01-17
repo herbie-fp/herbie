@@ -40,7 +40,8 @@
 	   [result (hash-ref! *cur-debug-levels* from
 			      (if (list? cur-setting) (car cur-setting) cur-setting))])
       (cond [(and (list? cur-setting)
-		  (or (< result (car cur-setting))
+		  (or (not result)
+		      (< result (car cur-setting))
 		      (> result (cadr cur-setting))))
 	       (hash-set! *cur-debug-levels* from (car cur-setting))
 	       (car cur-setting)]
