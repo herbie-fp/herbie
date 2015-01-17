@@ -57,11 +57,10 @@
 
   <figure>
     <style scoped>
-      rect { fill: none; pointer-events: all; }
-      rect.good { stroke: steelblue; }
-      rect.good:hover { fill: steelblue; }
-      rect.bad { stroke: darkred; }
-      rect.bad:hover { fill: darkred; }
+      rect { pointer-events: all; }
+      rect.guide { stroke: gray; }
+      rect.good, polygon.good { stroke: black; fill: black; }
+      rect.bad, polygon.bad { stroke: darkred; fill: darkred; }
       rect.gridline { stroke: rgba(80%, 80%, 80%, .4); fill: transparent; }
       text { text-anchor: middle; }
     </style>
