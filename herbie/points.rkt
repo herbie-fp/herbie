@@ -7,7 +7,7 @@
 (require herbie/config)
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default
+	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default sample-grid
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list)
 
@@ -59,6 +59,18 @@
 
 (define ((sample-uniform a b) num)
   (build-list num (λ (_) (+ (* (random) (- b a)) a))))
+
+(define ((sample-grid stack) num)
+  (let* ([exponent-width ((flag 'sample 'double) 10 7)]
+	 [mantissa-width ((flag 'sample 'double) 52 23)]
+	 [num-steps-dim (exact->inexact (floor (sqrt (/ num stack))))]
+	 [exponent-step (/ (expt 2 exponent-width) num-steps-dim)]
+	 [mantissa-step (/ (expt 2 mantissa-width) num-steps-dim)])
+    (build-list num (λ (n)
+		      (let* ([step-num (quotient n (floor stack))]
+			     [exp-step-num (quotient step-num num-steps-dim)]
+			     [mant-step-num (add1 (modulo step-num num-steps-dim))])
+			(* (* mant-step-num mantissa-step) (expt 2 (* exp-step-num exponent-step))))))))
 
 (define (sample-integer num)
   (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
