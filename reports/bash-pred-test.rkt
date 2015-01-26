@@ -1,12 +1,12 @@
 #lang racket
 
-(require casio/common)
-(require casio/points)
-(require casio/load-tests)
-(require casio/test)
-(require casio/main)
-(require casio/alternative)
-(require casio/programs)
+(require herbie/common)
+(require herbie/points)
+(require herbie/load-tests)
+(require herbie/test)
+(require herbie/main)
+(require herbie/alternative)
+(require herbie/programs)
 (require racket/engine)
 
 (define *seed* #f)

@@ -1,8 +1,5 @@
 *~
-cost
 graphs
-/bench/harley/*.o
-/bench/harley/data/*.csv
 compile/*.o
 compile/*.bin
 compile/tc*.c
@@ -11,3 +8,6 @@ compile/tc.json
 compile/nr*.c
 compile/nr*.out
 compile/nr.json
+compile/cost
+ml-toy
+papers
