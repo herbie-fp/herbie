@@ -210,9 +210,12 @@
     (printf "\"branch\": \"~a\",\n" (command-result "git rev-parse --abbrev-ref HEAD"))
     (printf "\"seed\": \"~a\",\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
     (printf "\"flags\": [")
-    (for ([rec (hash->list (*flags*))])
-      (for ([fl (cdr rec)])
-        (printf "\"~a:~a\", " (car rec) fl)))
+    (string-join
+     (apply append
+            (for/list ([rec (hash->list (*flags*))])
+              (for/list ([fl (cdr rec)])
+                (format "\"~a:~a\"" (car rec) fl))))
+     ", ")
     (printf "],\n")
     (printf "\"points\": ~a,\n" (*num-points*))
     (printf "\"iterations\": ~a,\n" (*num-iterations*))
@@ -220,14 +223,16 @@
     (when *note*
       (printf "\"note\": \"~a\",\n" *note*))
     (printf "\"tests\": [\n")
-    (for ([result results])
-      (match result
-        [(table-row name status start-bits end-bits
-                    target inf- inf+ end-est vars input output time bits link)
-         (printf "  {\"name\": \"~a\", \"status\": \"~a\", \"start\": ~a, \"end\": ~a, \"target\": ~a, \"ninf\": ~a, \"pinf\": ~a, \"vars\": \"~a\", \"input\": \"~a\", \"output\": \"~a\", \"time\": ~a, \"bits\": ~a, \"link\": \"~a\"},\n"
+    (string-join
+     (for/list ([result results])
+       (match result
+         [(table-row name status start-bits end-bits
+                     target inf- inf+ end-est vars input output time bits link)
+          (format "  {\"name\": \"~a\", \"status\": \"~a\", \"start\": ~a, \"end\": ~a, \"target\": ~a, \"ninf\": ~a, \"pinf\": ~a, \"vars\": \"~a\", \"input\": \"~a\", \"output\": \"~a\", \"time\": ~a, \"bits\": ~a, \"link\": \"~a\"}"
                   name status start-bits end-bits (or target "false") inf- inf+
                   vars input output time bits link)]))
-    (printf "]}\n")))
+     ",\n")
+    (printf "]\n}\n")))
 
 (command-line
  #:program "make-report"

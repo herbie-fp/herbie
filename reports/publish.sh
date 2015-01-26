@@ -9,7 +9,7 @@ C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
 RFOLDER="reports"
 RDIR="$(date +%s):$(hostname):$B:$C"
 
-rsync --verbose --recursive graphs/ "$RHOST:$RHOSTDIR/$RFOLDER/$RDIR"
+rsync --verbose --recursive graphs/ --exclude reports/ "$RHOST:$RHOSTDIR/$RFOLDER/$RDIR"
 ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RFOLDER/$RDIR" -R
 set +x
 REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *:*:*:*")
