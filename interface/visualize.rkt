@@ -2,6 +2,7 @@
 
 (require herbie/common)
 (require herbie/points)
+(require herbie/programs)
 
 (require plot)
 (require math/flonum)
@@ -14,30 +15,39 @@
 (define x-max (log2 +max.0))
 
 (define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f])
-  (let ([pts (sort (for/list ([(point exact) (in-pcontext (*pcontext*))]
-			      [err (errors prog (*pcontext*))])
-		     (vector (two-sided-log2 (car point)) (log2 err)))
-		   < #:key (curryr vector-ref 0))]
-	[graph-func (match type
-		      ['scatter viz-points-scatter]
-		      ['line viz-points-group]
-		      [_ (error "We don't know that graph type!")])])
-    (graph-func pts)))
+  (let* ([eval-func (if sort-on
+			(eval-prog `(λ ,(program-variables prog)
+				      ,sort-on)
+				   mode:fl)
+			car)]
+	 [sorted-pts (sort (for/list ([(pt ex) (in-pcontext (*pcontext*))]
+				      [err (errors prog (*pcontext*))])
+			     (list (two-sided-log2 (eval-func pt)) (log2 err)))
+			   <
+			   #:key car)]
+	 [graph-func (match type
+		       ['scatter viz-points-scatter]
+		       ['line viz-points-group]
+		       [_ (error "We don't know that graph type!")])])
+    (graph-func sorted-pts)))
 
 (define (viz-points-scatter pts)
   (plot (points pts #:y-min y-min #:y-max y-max
 		#:x-min x-min #:x-max x-max)))
 
+;; These assume sorted points
 (define (viz-points-group pts [group-size 10])
   (let* ([bticks (for/list ([n (in-range
 				(inexact->exact
 				 (ceiling (/ (- x-max x-min)
 					     group-size))))])
 		   (+ (* group-size (add1 n)) x-min))])
-    (plot (lines (bucket-points bticks)))))
+    (plot (lines (bucket-points pts bticks))
+	  #:y-min y-min #:y-max y-max
+	  #:x-min x-min #:x-max x-max)))
 
 (define (bucket-points pts ticks)
-  (let loop ([rest-ticks bticks]
+  (let loop ([rest-ticks ticks]
 	     [rest-points pts]
 	     [acc '()])
     (if (null? rest-ticks) (reverse acc)
@@ -45,12 +55,12 @@
 		      (splitf-at rest-points
 				 (λ (p)
 				   (> (car rest-ticks)
-				      (vector-ref p 0))))])
+				      (car p))))])
 	  (loop (cdr rest-ticks) leftover-points
 		(if (null? bucketed-points)
 		    acc
 		    (cons (list (car rest-ticks)
-				(/ (foldl + 0 (map (curryr vector-ref 1) bucketed-points))
+				(/ (foldl + 0 (map cadr bucketed-points))
 				   (length bucketed-points)))
 			  acc)))))))
 
