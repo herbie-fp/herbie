@@ -12,7 +12,7 @@
 	 with-item symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints
-         random-exp assert setfindf first-value
+         random-exp assert setfindf first-value log2
          (all-from-out herbie/config) (all-from-out herbie/debug))
 
 (define *start-prog* (make-parameter '()))
@@ -223,6 +223,9 @@
 			(return el))))
     #f))
 
+(define (log2 x)
+  (/ (log x) (log 2)))
+
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
 
@@ -242,4 +245,4 @@
   (cond
    [(nan? x) +nan.0]
    [(infinite? x) (*bit-width*)]
-   [else (/ (log x) (log 2))]))
+   [else (log2 x)]))
