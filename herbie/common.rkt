@@ -246,3 +246,6 @@
    [(nan? x) +nan.0]
    [(infinite? x) (*bit-width*)]
    [else (log2 x)]))
+
+(define (log2 x)
+  (/ (log x) (log 2)))
