@@ -3,6 +3,7 @@
 (require herbie/common)
 (require herbie/points)
 (require herbie/programs)
+(require interface/util)
 
 (require plot)
 (require math/flonum)
@@ -63,10 +64,3 @@
 				(/ (foldl + 0 (map cadr bucketed-points))
 				   (length bucketed-points)))
 			  acc)))))))
-
-(define (two-sided-log2 x)
-  (cond [(positive? x)
-	 (log2 x)]
-	[(negative? x)
-	 (- (log2 (- x)))]
-	[#t 0]))
