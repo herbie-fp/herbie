@@ -10,10 +10,10 @@
 
 (provide (all-defined-out))
 
-(define y-min 0)
-(define y-max 64)
-(define x-min (- (log2 +max.0)))
-(define x-max (log2 +max.0))
+(define y-min (make-parameter 0))
+(define y-max (make-parameter 64))
+(define x-min (make-parameter (- (log2 +max.0))))
+(define x-max (make-parameter (log2 +max.0)))
 
 (define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f])
   (let* ([eval-func (if sort-on
