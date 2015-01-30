@@ -16,7 +16,8 @@
 (define x-max (make-parameter (log2 +max.0)))
 
 (define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f]
-		   #:mark-x [mark-x #f] #:mark-y [mark-y #f])
+		   #:mark-x [mark-x #f] #:mark-y [mark-y #f]
+		   #:out-file [filename #f])
   (let* ([eval-func (if sort-on
 			(eval-prog `(λ ,(program-variables prog)
 				      ,sort-on)
@@ -35,7 +36,8 @@
 			(if mark-x (list (inverse (const mark-x))) '())
 			(if mark-y (list (inverse (const mark-y))) '()))])
     (plot lines #:y-min (y-min) #:y-max (y-max)
-	  #:x-min (x-min) #:x-max (x-max))))
+	  #:x-min (x-min) #:x-max (x-max)
+	  #:out-file filename)))
 
 (define (viz-points-scatter pts)
   (points pts))
