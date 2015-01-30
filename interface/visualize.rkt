@@ -15,7 +15,8 @@
 (define x-min (make-parameter (- (log2 +max.0))))
 (define x-max (make-parameter (log2 +max.0)))
 
-(define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f])
+(define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f]
+		   #:mark-x [mark-x #f] #:mark-y [mark-y #f])
   (let* ([eval-func (if sort-on
 			(eval-prog `(λ ,(program-variables prog)
 				      ,sort-on)
@@ -29,23 +30,24 @@
 	 [graph-func (match type
 		       ['scatter viz-points-scatter]
 		       ['line viz-points-group]
-		       [_ (error "We don't know that graph type!")])])
-    (graph-func sorted-pts)))
+		       [_ (error "We don't know that graph type!")])]
+	 [lines (append (list (graph-func sorted-pts))
+			(if mark-x (list (inverse (const mark-x))) '())
+			(if mark-y (list (inverse (const mark-y))) '()))])
+    (plot lines #:y-min (y-min) #:y-max (y-max)
+	  #:x-min (x-min) #:x-max (x-max))))
 
 (define (viz-points-scatter pts)
-  (plot (points pts #:y-min y-min #:y-max y-max
-		#:x-min x-min #:x-max x-max)))
+  (points pts))
 
 ;; These assume sorted points
 (define (viz-points-group pts [group-size 10])
   (let* ([bticks (for/list ([n (in-range
 				(inexact->exact
-				 (ceiling (/ (- x-max x-min)
+				 (ceiling (/ (- (x-max) (x-min))
 					     group-size))))])
-		   (+ (* group-size (add1 n)) x-min))])
-    (plot (lines (bucket-points pts bticks))
-	  #:y-min y-min #:y-max y-max
-	  #:x-min x-min #:x-max x-max)))
+		   (+ (* group-size (add1 n)) (x-min)))])
+    (lines (bucket-points pts bticks))))
 
 (define (bucket-points pts ticks)
   (let loop ([rest-ticks ticks]
