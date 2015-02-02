@@ -2,31 +2,31 @@
 (require herbie/test)
 
 ; Some tests on Casio's ability to reassociate and cancel
-(casio-test (x y)
+(herbie-test (x y)
   "Commute"
   (- (+ x y) (+ y x))
   0)
 
-(casio-test (x)
+(herbie-test (x)
   "Associate"
   (- (+ 1 x) x)
   1)
 
-(casio-test (x)
+(herbie-test (x)
   "Associate and commute"
   (- (+ x 1) x)
   1)
 
-(casio-test (x y z)
+(herbie-test (x y z)
   "Commute and associate"
   (- (+ (+ x y) z) (+ x (+ y z)))
   0)
 
-(casio-test (a)
+(herbie-test (a)
   "Expanding a square"
   (- (sqr (+ a 1)) 1)
   (* a (+ a 2)))
 
-(casio-test (a b c)
+(herbie-test (a b c)
   "A la Freetype's FT_MulDiv"
   (/ (+ a (/ c 2)) b))

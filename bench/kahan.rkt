@@ -2,7 +2,7 @@
 
 (require herbie/test)
 
-(casio-test (x)
+(herbie-test (x)
   "Kahan's exp quotient"
   (/ (- (exp x) 1) x)
   (if (and (< x 1) (> x -1))

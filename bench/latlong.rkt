@@ -3,7 +3,7 @@
 
 ;; From http://www.movable-type.co.uk/scripts/latlong.html
 
-(casio-test (R lambda1 lambda2 phi1 phi2)
+(herbie-test (R lambda1 lambda2 phi1 phi2)
   "Distance on a great circle"
   (let* ([dlambda (- lambda1 lambda2)]
          [dphi (- phi1 phi2)]
@@ -14,26 +14,26 @@
          [d (* R c)])
     d))
 
-(casio-test (R lambda1 lambda2 phi1 phi2)
+(herbie-test (R lambda1 lambda2 phi1 phi2)
   "Spherical law of cosines"
   (* (acos (+ (* (sin phi1) (sin phi2))
               (* (cos phi1) (cos phi2) (cos (- lambda1 lambda2)))))
      R))
 
-(casio-test (R lambda1 lambda2 phi1 phi2)
+(herbie-test (R lambda1 lambda2 phi1 phi2)
   "Equirectangular approximation to distance on a great circle"
   (let* ([x (* (- lambda1 lambda2) (cos (/ (+ phi1 phi2) 2)))]
          [y (- phi1 phi2)]
          [d (* R (sqrt (+ (sqr x) (sqr y))))])
     d))
 
-(casio-test (lambda1 lambda2 phi1 phi2)
+(herbie-test (lambda1 lambda2 phi1 phi2)
   "Bearing on a great circle"
   (atan2 (* (sin (- lambda1 lambda2)) (cos phi2))
          (- (* (cos phi1) (sin phi2))
             (* (sin phi1) (cos phi2) (cos (- lambda1 lambda2))))))
 
-(casio-test (lambda1 lambda2 phi1 phi2)
+(herbie-test (lambda1 lambda2 phi1 phi2)
   "Midpoint on a great circle"
   (let* ([dlambda (- lambda1 lambda2)]
          [Bx (* (cos phi2) (cos dlambda))]
@@ -42,7 +42,7 @@
          [lambdam (+ lambda1 (atan2 By (+ (cos phi1) Bx)))])
     lambdam))
 
-(casio-test (lambda1 phi1 phi2 delta theta)
+(herbie-test (lambda1 phi1 phi2 delta theta)
   "Destination given bearing on a great circle"
   (let* ([phi2 (asin (+ (* (sin phi1) (cos delta))
                         (* (cos phi1) (sin delta) (cos theta))))]

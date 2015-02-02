@@ -4,7 +4,7 @@
 (require herbie/programs)
 (require herbie/points)
 
-(provide (struct-out test) *tests* casio-test test-program test-samplers
+(provide (struct-out test) *tests* herbie-test test-program test-samplers
          (all-from-out herbie/points))
 
 (define (unfold-let expr)
@@ -66,7 +66,7 @@
 (define (save-test t)
   (*tests* (cons t (*tests*))))
 
-(define-syntax (casio-test stx)
+(define-syntax (herbie-test stx)
   (define (var&dist expr)
     (syntax-case expr ()
       [[var samp] (cons #'var #'samp)]

@@ -4,7 +4,7 @@
 ;; Code from Jmat.js, commit 79a386deb5e19c0ee7896e820f3f90855a27fa17
 ;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js
 
-(casio-test (z)
+(herbie-test (z)
   "Jmat.Real.gamma, branch z > 0.5"
   (let* ([z* (- z 1)]
          [g 7]
@@ -20,7 +20,7 @@
          [t (+ z* g 0.5)])
     (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x)))
 
-(casio-test (z)
+(herbie-test (z)
   "Jmat.Real.gamma, branch z < 0.5"
   (let* ([z* (- (- 1 z) 1)]
          [g 7]
@@ -37,18 +37,18 @@
     (* (/ pi (sin (* pi z)))
        (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x))))
 
-(casio-test (x)
+(herbie-test (x)
   "Jmat.Real.lambertw, estimator"
   (- (log x) (log (log x))))
 
-(casio-test (wj x)
+(herbie-test (wj x)
   "Jmat.Real.lambertw, newton loop step"
   (let* ([ew (exp wj)])
     (- wj (/ (- (* wj ew) x) (+ ew (* wj ew)))))
   (let* ([ew (exp wj)])
     (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew)))))))
 
-(casio-test (x)
+(herbie-test (x)
   "Jmat.Real.dawson"
   (let* ([x2 (* x x)]
          [x4 (* x2 x2)]
@@ -63,7 +63,7 @@
                (+ 1 (* q1 x2) (* q2 x4) (* q3 x6) (* q4 x8) (* q5 x10) (* 2 p5 x12)))
             x)))
 
-(casio-test (x)
+(herbie-test (x)
   "Jmat.Real.erfi, branch x <= 0.5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
@@ -74,7 +74,7 @@
          [t (+ (* 2 x*) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
     (abs (* ps t))))
 
-(casio-test (x)
+(herbie-test (x)
   "Jmat.Real.erfi, branch x >= 5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
@@ -89,7 +89,7 @@
 
 ; TODO : Jmat.Real.erfi, branch 0.5 < x < 5
 
-(casio-test (x)
+(herbie-test (x)
   "Jmat.Real.erf"
   (let* ([x* (abs x)]
          [t (/ 1 (+ 1 (* 0.3275911 x*)))]

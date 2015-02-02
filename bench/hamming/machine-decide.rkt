@@ -1,7 +1,7 @@
 #lang racket
 (require herbie/test)
 
-(casio-test (a x)
+(herbie-test (a x)
   "NMSE section 3.5"
   (- (exp (* a x)) 1)
   (if (< (abs (* a x)) 1/10)
