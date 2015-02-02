@@ -109,7 +109,7 @@
     (write-file file
       (printf "<!doctype html>\n")
       (printf "<head>\n")
-      (printf "<title>Casio test results</title>\n")
+      (printf "<title>Herbie test results</title>\n")
       (printf "<meta charset='utf-8' />")
       (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
 

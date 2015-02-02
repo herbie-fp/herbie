@@ -1,8 +1,8 @@
 #lang racket
-(require casio/test)
+(require herbie/test)
 
 ;; TODO : UNFINISHED
-(casio-bench (x)
+(herbie-bench (x)
   "Code from GNU Octave 3.8, lo-specfun.cc, expm1"
   (let* ([ax (if (< x 0) (- x) x)])
     (if (< a 0.1)

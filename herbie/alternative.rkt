@@ -12,8 +12,8 @@
          alt-errors alt-cost alt-rewrite-rm alt-set-prev
 	 alt-initial alt-changes alt-history-length)
 
-;; Alts are a lightweight audit trail for Casio.
-;; An alt records a low-level view of how Casio got
+;; Alts are a lightweight audit trail.
+;; An alt records a low-level view of how Herbie got
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 

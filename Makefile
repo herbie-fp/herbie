@@ -1,4 +1,3 @@
-# Running Casio
 FLAGS=-p
 BENCHDIR=bench/hamming/
 
@@ -48,7 +47,7 @@ doc/tr-14wi.pdf: doc/tr-14wi.tex
 	rm doc/tr-14wi.aux doc/tr-14wi.log
 
 
-# Evaluating Casio's results
+# Evaluating Herbie's results
 PREFIX=tc
 RPREFIX=nr
 DATAFILES=$(patsubst %,compile/$(PREFIX).%.csv,names if id of od)

@@ -1,7 +1,7 @@
 #lang racket
 (require herbie/test)
 
-; Some tests on Casio's ability to reassociate and cancel
+; Some tests on Herbie's ability to reassociate and cancel
 (herbie-test (x y)
   "Commute"
   (- (+ x y) (+ y x))

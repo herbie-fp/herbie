@@ -21,7 +21,7 @@ Helping Out
 -----------
 
 Herbie is organized on
-[Github](https://github.com/uw-plse/casio/) and
+[Github](https://github.com/uw-plse/herbie/) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie).
 We also hang out on the `#uwplse` channel on
 [Freenode](https://freenode.net).
