@@ -3,11 +3,11 @@
 
 (herbie-test (a b c)
   "The quadratic formula (+)"
-   (let* ((d (sqrt (- (sqr b) (* 4 (* a c))))))
-     (/ (+ (- b) d) (* 2 a)))
-   (let* ((d (sqrt (- (sqr b) (* 4 (* a c)))))
-          (r1 (/ (+ (- b) d) (* 2 a)))
-          (r2 (/ (- (- b) d) (* 2 a))))
+   (let* ((d (- (sqr b) (* 4 a c))))
+     (/ (+ (- b) (sqrt d)) (* 2 a)))
+   (let* ((d (- (sqr b) (* 4 a c)))
+          (r1 (/ (+ (- b) (sqrt d)) (* 2 a)))
+          (r2 (/ (- (- b) (sqrt d)) (* 2 a))))
      (if (< b 0)
          r1
          (/ c (* a r2)))))
@@ -28,7 +28,7 @@
   (- (sqr a) (sqr b))
   (* (+ a b) (- a b)))
 
-(herbie-test (a b c)
+(herbie-test (a b c) ; TODO: restrict to a > b > c
   "Area of a triangle"
   (let* ([s (/ (+ a b c) 2)])
     (sqrt (* s (- s a) (- s b) (- s c))))
@@ -49,11 +49,13 @@
 (herbie-test (i n)
   "Compound Interest"
   (* 100 (/ (- (expt (+ 1 (/ i n)) n) 1) (/ i n)))
-  (* 100 (/ (exp (* n (if (= (+ 1 (/ i n)) 1)
-                          (/ i n)
-                          (/ (* (/ i n) (log (+ 1 (/ i n))))
-                             (- (+ (/ i n) 1) 1)))))
-            (/ i n))))
+  (let ([lnbase
+         (if (= (+ 1 (/ i n)) 1)
+             (/ i n)
+             (/ (* (/ i n) (log (+ 1 (/ i n))))
+                (- (+ (/ i n) 1) 1)))])
+  (* 100 (/ (- (exp (* n lnbase)) 1)
+            (/ i n)))))
 
 (herbie-test (x)
   "x / (x^2 + 1)"
