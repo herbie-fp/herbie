@@ -15,16 +15,16 @@
 
   (define taylor-cache (make-hash))
 
-  (hash-set! taylor-cache '() (taylor-0 (car vars) expr))
+  (hash-set! taylor-cache '() (zero-series (taylor-0 (car vars) expr)))
 
   (define (take-taylor coeffs)
     (hash-ref! taylor-cache coeffs
                (λ ()
                   (let* ([oc (take-taylor (cdr coeffs))]
-                         [expr* ((cdr oc) (car coeffs))])
+                         [expr* (oc (car coeffs))])
                     (if (= (length coeffs) (length vars))
                       expr*
-                      (taylor-0 (list-ref vars (length coeffs)) expr*))))))
+                      (zero-series (taylor-0 (list-ref vars (length coeffs)) expr*)))))))
 
   (define (make-term coeffs)
     (simplify
@@ -33,9 +33,8 @@
             (if (null? vars)
                 1
                 (let ([var (car vars)]
-                      [idx (car coeffs)]
-                      [offset (car (take-taylor (cdr coeffs)))])
-                  `(* ,(make-monomial var (- idx offset)) ,(loop (cdr vars) (cdr coeffs)))))))))
+                      [idx (car coeffs)])
+                  `(* ,(make-monomial var idx) ,(loop (cdr vars) (cdr coeffs)))))))))
 
   (simplify
    (cons '+
@@ -43,6 +42,7 @@
            (if (or (> i (* iters (length vars))) (>= (length res) terms))
                res
                (let ([coeffs (iterate-diagonal (length vars) i)])
+                 (println i "(" coeffs "): " (make-term coeffs))
                  (if (not (equal? (take-taylor coeffs) 0))
                      (loop (+ i 1) (cons (make-term coeffs) res))
                      (loop (+ i 1) res))))))))
@@ -52,16 +52,16 @@
 
   (define taylor-cache (make-hash))
 
-  (hash-set! taylor-cache '() (taylor-inf (car vars) expr))
+  (hash-set! taylor-cache '() (zero-series (taylor-inf (car vars) expr)))
 
   (define (take-taylor coeffs)
     (hash-ref! taylor-cache coeffs
                (λ ()
                   (let* ([oc (take-taylor (cdr coeffs))]
-                         [expr* ((cdr oc) (car coeffs))])
+                         [expr* (oc (car coeffs))])
                     (if (= (length coeffs) (length vars))
                       expr*
-                      (taylor-inf (list-ref vars (length coeffs)) expr*))))))
+                      (zero-series (taylor-inf (list-ref vars (length coeffs)) expr*)))))))
 
   (define (make-term coeffs)
     (simplify
