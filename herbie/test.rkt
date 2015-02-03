@@ -57,7 +57,11 @@
     [`(positive ,e) (compose (curry map abs) (get-sampler e))]
     [`(uniform ,a ,b) (sample-uniform a b)]
     ['integer sample-integer]
-    [`expbucket sample-expbucket]))
+    ['expbucket sample-expbucket]
+    [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
+     (let ([sa (get-sampler a)] [test (curryr (eval op) b)])
+       ; The eval is safe since op is known to be one of < > <= >=
+       (λ (n) (for/list ([va (sa n)]) (if (test va) va +nan.0))))]))
 
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
