@@ -42,11 +42,11 @@
            (if (or (> i (* iters (length vars))) (>= (length res) terms))
                res
                (let ([coeffs (iterate-diagonal (length vars) i)])
-                 (println i "(" coeffs "): " (make-term coeffs))
                  (if (not (equal? (take-taylor coeffs) 0))
                      (loop (+ i 1) (cons (make-term coeffs) res))
                      (loop (+ i 1) res))))))))
 
+; TODO: BUG: if variables appear in coefficients (rare...), this is incorrect
 (define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
 
@@ -69,9 +69,8 @@
          ,(let loop ([vars (reverse vars)] [coeffs coeffs])
             (if (null? vars)
                 1
-                (let ([var (car vars)] [idx (car coeffs)]
-                      [offset (car (take-taylor (cdr coeffs)))])
-                  `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var (- idx offset)))))))))
+                (let ([var (car vars)] [idx (car coeffs)])
+                  `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var idx))))))))
 
   (simplify
    (cons '+
