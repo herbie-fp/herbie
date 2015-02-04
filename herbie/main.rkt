@@ -47,11 +47,11 @@
       (if ((flag 'reduce 'regimes) #t #f)
 	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
 	    (let ([result-alt (if (= (length tables) 1)
-				   (extract-alt (car tables))
-				   (combine-alts splitpoints
-						 (if ((flag 'regimes 'recurse) #t #f)
-						     (map (curryr main-loop (/ fuel 2)) tables)
-						     (map extract-alt tables))))])
+				  (extract-alt (car tables))
+				  (combine-alts splitpoints
+						(if ((flag 'regimes 'recurse) #t #f)
+						    (map (curryr main-loop (/ fuel 2)) tables)
+						    (map extract-alt tables))))])
 	      (remove-pows result-alt)))
           (remove-pows (extract-alt table*))))))
 
@@ -119,10 +119,10 @@
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (post-process table fuel)]
+	 (post-process table)]
 	[(atab-completed? table)
 	 (debug "Ran out of unexpanded alts in alt table, reducing..." fuel "fuel remaining" #:from 'main #:depth 2)
-	 (post-process table fuel)]
+	 (post-process table)]
 	[#t
 	 (debug #:from 'progress #:depth 2 "iteration" (add1 (- initial-fuel fuel)) "/" initial-fuel)
 	 (debug #:from 'progress #:depth 3 "picking best candidate")
@@ -169,7 +169,7 @@
     (debug "prog is" prog*)
     (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
 
-(define (post-process table fuel)
+(define (post-process table)
   (debug #:from 'progress #:depth 2 "Final touches.")
   (let* ([all-alts (atab-all-alts table)]
 	 [num-alts (length all-alts)]
