@@ -13,7 +13,10 @@
 (require "alt-table.rkt")
 (require "matcher.rkt")
 
-(provide improve)
+(provide improve
+	 ;; For the shell
+	 setup-prog post-process combine-alts split-table
+	 extract-alt)
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))

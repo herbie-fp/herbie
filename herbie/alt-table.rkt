@@ -8,6 +8,7 @@
  (contract-out
   (make-alt-table (pcontext? alt? . -> . alt-table?))
   (atab-all-alts (alt-table? . -> . pair?))
+  (atab-not-done-alts (alt-table? . -> . pair?))
   (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
 			     . -> . (values alt? alt-table?)))
