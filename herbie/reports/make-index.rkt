@@ -2,7 +2,7 @@
 
 (require racket/date)
 (require herbie/common)
-(require reports/thread-pool)
+(require "thread-pool.rkt")
 (require json)
 
 (define (parse-folder-name name)

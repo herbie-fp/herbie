@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/simplify/enode)
+(require "enode.rkt")
 (require herbie/common)
 
 (provide mk-enode! mk-egraph

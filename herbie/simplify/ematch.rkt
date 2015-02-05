@@ -1,7 +1,7 @@
 #lang racket
 
-(require herbie/simplify/enode)
-(require herbie/simplify/egraph)
+(require "enode.rkt")
+(require "egraph.rkt")
 (require herbie/common)
 (require herbie/programs)
 

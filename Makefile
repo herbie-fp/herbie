@@ -10,7 +10,7 @@ all:
 paper: paper/paper.pdf
 
 report:
-	racket reports/make-report.rkt $(FLAGS) $(BENCHDIR)
+	racket herbie/reports/make-report.rkt $(FLAGS) $(BENCHDIR)
 
 publish:
 	bash reports/publish.sh
@@ -27,7 +27,7 @@ link:
 	raco link compile
 	raco link herbie/simplify
 
-compile/cost: compile/cost.c
+herbie/compile/cost: herbie/compile/cost.c
 	$(CC) -O0 $^ -lm -o $@
 
 loc:
@@ -36,10 +36,10 @@ loc:
 clean:
 	rm -f cost
 	rm -rf graphs/
-	rm -f compile/$(PREFIX)*.c
-	rm -f compile/$(PREFIX)*.out
-	rm -f compile/$(PREFIX).*.csv
-	rm -f compile/$(PREFIX).*.json
+	rm -f herbie/compile/$(PREFIX)*.c
+	rm -f herbie/compile/$(PREFIX)*.out
+	rm -f herbie/compile/$(PREFIX).*.csv
+	rm -f herbie/compile/$(PREFIX).*.json
 	rm -f paper/*.bbl paper/*.blg paper/*.aux paper/*.log paper/*.out
 
 doc/tr-14wi.pdf: doc/tr-14wi.tex
@@ -50,18 +50,18 @@ doc/tr-14wi.pdf: doc/tr-14wi.tex
 # Evaluating Herbie's results
 PREFIX=tc
 RPREFIX=nr
-DATAFILES=$(patsubst %,compile/$(PREFIX).%.csv,names if id of od)
-RDATAFILES=$(patsubst %,compile/$(RPREFIX).%.csv,names if id of od)
-CFILES=$(wildcard compile/$(PREFIX)*.c)
-RCFILES=$(wildcard compile/$(RPREFIX)*.c)
+DATAFILES=$(patsubst %,herbie/compile/$(PREFIX).%.csv,names if id of od)
+RDATAFILES=$(patsubst %,herbie/compile/$(RPREFIX).%.csv,names if id of od)
+CFILES=$(wildcard herbie/compile/$(PREFIX)*.c)
+RCFILES=$(wildcard herbie/compile/$(RPREFIX)*.c)
 
 .SECONDARY: $(DATAFILES)
 
-compile: compile/single.herbie.dat compile/double.herbie.dat
-	racket compile/compile.rkt -d compile -f $(PREFIX)~a.c $^
+compile: herbie/compile/single.herbie.dat herbie/compile/double.herbie.dat
+	racket herbie/compile/compile.rkt -d compile -f $(PREFIX)~a.c $^
 
-rcompile: compile/noregimes.herbie.dat
-	racket compile/compile.rkt -d compile -f $(RPREFIX)~a.c $^ $^
+rcompile: herbie/compile/noregimes.herbie.dat
+	racket herbie/compile/compile.rkt -d compile -f $(RPREFIX)~a.c $^ $^
 
 # Flags for building and running C files
 GCC_FLAGS=-std=c11
@@ -71,57 +71,57 @@ SLOW_FLAGS=$(GCC_FLAGS) -Wall -Wextra -Wpedantic -O0 -g
 # How many samples to use for evaluation
 EVALUATION_POINTS=100000
 
-compile/%.o: compile/%.c
+herbie/compile/%.o: herbie/compile/%.c
 	gcc $(FAST_FLAGS) -c $< -o $@
 
-compile/%.slow.o: compile/%.c
+herbie/compile/%.slow.o: herbie/compile/%.c
 	gcc $(SLOW_FLAGS) -c $< -o $@
 
 # Running evaluation binaries
 
-compile/%.bin: compile/test.c compile/%.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+herbie/compile/%.bin: herbie/compile/test.c herbie/compile/%.o
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/%.slow.bin: compile/test.c compile/%.slow.o
-	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+herbie/compile/%.slow.bin: herbie/compile/test.c herbie/compile/%.slow.o
+	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
-compile/%.out: compile/%.bin
+herbie/compile/%.out: herbie/compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
 
 # The max error experiment timeout, in seconds.
 DMAX_TIMEOUT=60 \* 60
 
-compile/%.dmax.out: compile/%.dh.bin
+herbie/compile/%.dmax.out: herbie/compile/%.dh.bin
 	./$< $(shell expr $(DMAX_TIMEOUT)) > $@
 
-compile/dmax-all.csv: $(CFILES:.c=.dmax.out)
+herbie/compile/dmax-all.csv: $(CFILES:.c=.dmax.out)
 	cat $^ > $@
 
 $(DATAFILES): $(CFILES:.c=.out)
-	compile/all.sh compile/$(PREFIX) compile/
+	herbie/compile/all.sh herbie/compile/$(PREFIX) herbie/compile/
 
 $(RDATAFILES): $(RCFILES:.c=.out)
-	compile/all.sh compile/$(RPREFIX) compile/
+	herbie/compile/all.sh herbie/compile/$(RPREFIX) herbie/compile/
 
-compile/$(PREFIX).json: $(DATAFILES)
-	python2 compile/makejson.py compile/$(PREFIX)
+herbie/compile/$(PREFIX).json: $(DATAFILES)
+	python2 herbie/compile/makejson.py herbie/compile/$(PREFIX)
 
-compile/$(RPREFIX).json: $(RDATAFILES)
-	python2 compile/makejson.py compile/$(RPREFIX)
+herbie/compile/$(RPREFIX).json: $(RDATAFILES)
+	python2 herbie/compile/makejson.py herbie/compile/$(RPREFIX)
 
-compile/%.bf.bin: compile/bruteforce.c compile/%.o
+herbie/compile/%.bf.bin: herbie/compile/bruteforce.c herbie/compile/%.o
 	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
 
-compile/%.dh.bin: compile/max-error-hour.c compile/%.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+herbie/compile/%.dh.bin: herbie/compile/max-error-hour.c herbie/compile/%.o
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # Generating convergence binaries
 
-compile/%.cv_if.bin: compile/convergence.c compile/%.o
-	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+herbie/compile/%.cv_if.bin: herbie/compile/convergence.c herbie/compile/%.o
+	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # Broken for now...
-#compile/sample-points.csv: compile/tc9.cv_if.bin
+#herbie/compile/sample-points.csv: herbie/compile/tc9.cv_if.bin
 #	./$< > $@
 
 all-convergence: $(CFILES:.c=.cv_if.png)
@@ -149,23 +149,23 @@ rebib:
 
 # Generating graphs
 
-paper/fig/eval-mpfr-bits.tex: compile/mpfr-bits.csv compile/graph.py
-	python2 compile/graph.py bits -d compile > $@
+paper/fig/eval-mpfr-bits.tex: herbie/compile/mpfr-bits.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py bits -d compile > $@
 
-paper/fig/eval-runtime.tex: compile/runtime.csv compile/graph.py
-	python2 compile/graph.py time -d compile > $@
+paper/fig/eval-runtime.tex: herbie/compile/runtime.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py time -d compile > $@
 
-paper/fig/eval-rect-f.tex: compile/tc.if.csv compile/tc.of.csv compile/tc.id.csv compile/tc.od.csv compile/graph.py
-	python2 compile/graph.py rect-f -d compile > $@
+paper/fig/eval-rect-f.tex: herbie/compile/tc.if.csv herbie/compile/tc.of.csv herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py rect-f -d compile > $@
 
-paper/fig/eval-rect-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py
-	python2 compile/graph.py rect-d -d compile > $@
+paper/fig/eval-rect-d.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py rect-d -d compile > $@
 
-paper/fig/eval-overhead-d.tex: compile/tc.id.csv compile/tc.od.csv compile/graph.py compile/nr.id.csv compile/nr.od.csv
-	python2 compile/graph.py overhead-d -d compile > $@
+paper/fig/eval-overhead-d.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py herbie/compile/nr.id.csv herbie/compile/nr.od.csv
+	python2 herbie/compile/graph.py overhead-d -d compile > $@
 
-paper/fig/eval-err.tex: compile/sample-points.csv compile/graph.py
-	python2 compile/graph.py err -d compile > $@
+paper/fig/eval-err.tex: herbie/compile/sample-points.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py err -d compile > $@
 
-paper/fig/eval-regimes-e2e.tex: compile/tc.id.csv compile/tc.od.csv compile/nr.id.csv compile/nr.od.csv compile/graph.py
-	python2 compile/graph.py regimes -d compile > $@
+paper/fig/eval-regimes-e2e.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/nr.id.csv herbie/compile/nr.od.csv herbie/compile/graph.py
+	python2 herbie/compile/graph.py regimes -d compile > $@

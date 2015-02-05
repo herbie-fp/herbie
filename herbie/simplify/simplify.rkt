@@ -1,9 +1,9 @@
 #lang racket
 
-(require herbie/simplify/egraph)
-(require herbie/simplify/ematch)
-(require herbie/simplify/enode)
-(require (rename-in herbie/simplify/backup-simplify [simplify backup-simplify]))
+(require "egraph.rkt")
+(require "ematch.rkt")
+(require "enode.rkt")
+(require (rename-in "backup-simplify.rkt" [simplify backup-simplify]))
 (require herbie/rules)
 (require herbie/matcher)
 (require herbie/alternative)

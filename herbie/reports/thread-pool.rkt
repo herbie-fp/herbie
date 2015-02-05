@@ -9,7 +9,7 @@
 (require herbie/test)
 (require herbie/alternative)
 (require herbie/main)
-(require reports/make-graph)
+(require "make-graph.rkt")
 
 (provide (struct-out table-row) get-test-results)
 
