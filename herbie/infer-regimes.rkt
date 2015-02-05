@@ -98,6 +98,12 @@
 (define (error-at prog point exact)
   (car (errors prog (mk-pcontext (vector point) (vector exact)))))
 
+(define (error-with prog val expr exact)
+  (let* ([prog* `(λ ,(program-variables prog)
+		   ,(replace-subexpr (program-body prog) expr val))]
+	 [context (prepare-points prog* (map (curryr cons sample-default) (program-variables prog)))])
+    (expt 2 (error-score (errors prog* context)))))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in floath form.
 (define (sindices->spoints points expr alts sindices)
