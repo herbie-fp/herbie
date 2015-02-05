@@ -50,6 +50,7 @@
 (define casin (make-safe asin))
 (define cacos (make-safe acos))
 (define cexpt (make-safe expt))
+(define atan2 atan)
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))

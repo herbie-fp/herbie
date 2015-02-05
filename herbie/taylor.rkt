@@ -10,7 +10,7 @@
 
 (provide approximate-0 approximate-inf)
 
-(define (approximate-0 expr vars #:terms [terms 3] #:iters [iters 25]) ; TODO : constant
+(define (approximate-0 expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   (define taylor-cache (make-hash))
@@ -47,7 +47,7 @@
                      (loop (+ i 1) res))))))))
 
 ; TODO: BUG: if variables appear in coefficients (rare...), this is incorrect
-(define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 25]) ; TODO : constant
+(define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
 
   (define taylor-cache (make-hash))
