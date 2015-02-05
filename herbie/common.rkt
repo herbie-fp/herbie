@@ -58,7 +58,7 @@
     (compose car list)))
 
 (define (ordinary-float? x)
-  (not (or (infinite? x) (nan? x))))
+  (and (real? x) (not (or (infinite? x) (nan? x)))))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
