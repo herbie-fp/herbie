@@ -164,9 +164,13 @@
           (list-ref (hash-ref (*operations*) fn) 2))
         1)))
 
-(define (replace-subexpr haystack needle needle*)
+(define (replace-subexpr prog needle needle*)
+  `(λ ,(program-variables prog)
+     ,(replace-expr-subexpr (program-body prog) needle needle*)))
+
+(define (replace-expr-subexpr haystack needle needle*)
   (cond [(equal? haystack needle) needle*]
 	[(list? haystack)
-	 (cons (car haystack) (map (curryr replace-subexpr needle* needle)
+	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
 				   (cdr haystack)))]
 	[#t haystack]))

@@ -6,6 +6,7 @@
 (require "points.rkt")
 (require "common.rkt")
 (require "syntax.rkt")
+(require "config.rkt")
 (require "localize-error.rkt")
 
 (provide infer-splitpoints (struct-out sp))
@@ -95,33 +96,30 @@
 	   [split-points (sindices->spoints pts expr alts split-indices)])
       (option split-points (pick-errors split-points pts err-lsts vars)))))
 
-(define (error-at prog point exact)
-  (car (errors prog (mk-pcontext (vector point) (vector exact)))))
-
-(define (error-with prog val expr exact)
-  (let* ([prog* `(λ ,(program-variables prog)
-		   ,(replace-subexpr (program-body prog) expr val))]
-	 [context (prepare-points prog* (map (curryr cons sample-default) (program-variables prog)))])
-    (expt 2 (error-score (errors prog* context)))))
-
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in floath form.
 (define (sindices->spoints points expr alts sindices)
   (define (eval-on-pt pt)
     ((eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) mode:fl) pt))
   (define (sidx->spoint sidx next-sidx)
-    ;; Todo: Do something smart for expressions.
-    (if (list? expr) (sp (si-cidx sidx) expr (eval-on-pt (list-ref points (si-pidx sidx))))
-	(let* ([alt1 (list-ref alts (si-cidx sidx))]
-	       [alt2 (list-ref alts (si-cidx next-sidx))]
-	       [pred (λ (p)
-		       (let* ([exact ((eval-prog (*start-prog*) mode:bf) p)]
-			      [e1 (error-at (alt-program alt1) p exact)]
-			      [e2 (error-at (alt-program alt2) p exact)])
-			 (< e1 e2)))])
-	  (sp (si-cidx sidx) expr (eval-on-pt (basic-point-search
-					       pred (list-ref points (si-pidx sidx))
-					       (list-ref points (sub1 (si-pidx sidx)))))))))
+    (let* ([alt1 (list-ref alts (si-cidx sidx))]
+	   [alt2 (list-ref alts (si-cidx next-sidx))]
+	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
+	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
+	   [eps (* (- p1 p2) *epsilon-fraction*)]
+	   [pred (λ (v)
+		   (let* ([start-prog* (replace-subexpr (*start-prog*) expr v)]
+			  [prog1* (replace-subexpr (alt-program alt1) expr v)]
+			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
+			  [context
+			   (parameterize ([*num-points* (*binary-search-test-points*)])
+			     (prepare-points start-prog* (map (curryr cons sample-default)
+							      (program-variables start-prog*))))])
+		     (< (errors-score (errors prog1* context))
+			(errors-score (errors prog2* context)))))])
+      (debug "searching between" p1 "and" p2 "on" expr)
+      (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
+
   (append (map sidx->spoint
 	       (take sindices (sub1 (length sindices)))
 	       (drop sindices 1))

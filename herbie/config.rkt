@@ -4,7 +4,8 @@
          *num-points* *precision-step* *num-iterations*
          *default-test-value* *epsilon-fraction*
          *max-period-coeff*
-         *localize-expressions-limit*)
+         *localize-expressions-limit*
+	 *binary-search-test-points*)
 
 ;; Flag Stuff
 
@@ -58,4 +59,4 @@
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
 
-(define *binary-search-test-points* (make-parameter 64))
+(define *binary-search-test-points* (make-parameter 16))
