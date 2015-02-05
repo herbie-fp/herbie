@@ -1,13 +1,13 @@
 #lang racket
 
 (require racket/pretty)
-(require herbie/common)
-(require herbie/points)
-(require herbie/matcher)
-(require herbie/alternative)
-(require herbie/test)
-(require herbie/infer-regimes)
-(require herbie/programs)
+(require "../common.rkt")
+(require "../points.rkt")
+(require "../matcher.rkt")
+(require "../alternative.rkt")
+(require "../test.rkt")
+(require "../infer-regimes.rkt")
+(require "../programs.rkt")
 
 (provide make-graph make-traceback make-timeout)
 

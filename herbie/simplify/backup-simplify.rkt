@@ -1,11 +1,11 @@
 #lang racket
 
 (require rackunit)
-(require herbie/rules)
-(require herbie/matcher)
-(require herbie/common)
-(require herbie/syntax)
-(require herbie/programs)
+(require "../rules.rkt")
+(require "../matcher.rkt")
+(require "../common.rkt")
+(require "../syntax.rkt")
+(require "../programs.rkt")
 
 (provide simplify)
 

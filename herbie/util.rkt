@@ -1,13 +1,13 @@
 #lang racket
 
-(require herbie/points)
-(require herbie/alternative)
-(require herbie/common)
-(require herbie/matcher)
-(require herbie/programs)
-(require herbie/main)
-(require herbie/simplify/egraph)
-(require herbie/rules)
+(require "points.rkt")
+(require "alternative.rkt")
+(require "common.rkt")
+(require "matcher.rkt")
+(require "programs.rkt")
+(require "main.rkt")
+(require "simplify/egraph.rkt")
+(require "rules.rkt")
 
 (provide (all-defined-out))
 

@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../../herbie/test.rkt")
 
 ;  Escape dynamics of a Bose-Hubbard dimer out of a trap 
 ; D. Maksimov and A. Kolovsky

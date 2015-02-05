@@ -4,11 +4,11 @@
 (require "ematch.rkt")
 (require "enode.rkt")
 (require (rename-in "backup-simplify.rkt" [simplify backup-simplify]))
-(require herbie/rules)
-(require herbie/matcher)
-(require herbie/alternative)
-(require herbie/programs)
-(require herbie/common)
+(require "../rules.rkt")
+(require "../matcher.rkt")
+(require "../alternative.rkt")
+(require "../programs.rkt")
+(require "../common.rkt")
 
 (provide simplify-expr simplify *max-egraph-iters*)
 

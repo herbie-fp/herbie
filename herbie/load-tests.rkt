@@ -1,10 +1,10 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/programs)
-(require herbie/test)
-(require herbie/points)
-(require herbie/alternative)
+(require "common.rkt")
+(require "programs.rkt")
+(require "test.rkt")
+(require "points.rkt")
+(require "alternative.rkt")
 
 (define *test-cache* (make-hash))
 

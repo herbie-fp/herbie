@@ -1,10 +1,10 @@
 #lang racket
 
 (require rackunit)
-(require herbie/rules)
-(require herbie/common)
-(require herbie/programs)
-(require herbie/points)
+(require "../rules.rkt")
+(require "../common.rtk")
+(require "../programs.rkt")
+(require "../points.rkt")
 
 (provide (all-defined-out))
 

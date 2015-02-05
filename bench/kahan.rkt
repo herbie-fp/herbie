@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 (herbie-test (x)
   "Kahan's exp quotient"

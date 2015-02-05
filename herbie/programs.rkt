@@ -2,10 +2,10 @@
 
 (require math/bigfloat)
 (require math/flonum)
-(require herbie/common)
-(require herbie/syntax)
+(require "common.rkt")
+(require "syntax.rkt")
 
-(provide (all-from-out herbie/syntax)
+(provide (all-from-out "syntax.rkt")
          location-induct program-induct expression-induct location-hash
          location-do location-get
          eval-prog

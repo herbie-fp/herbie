@@ -1,8 +1,8 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/alternative)
-(require herbie/points)
+(require "common.rkt")
+(require "alternative.rkt")
+(require "points.rkt")
 
 (provide
  (contract-out

@@ -1,7 +1,7 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/programs)
+(require "../common.rkt")
+(require "../programs.rkt")
 (require reports/datafile)
 (require net/uri-codec)
 

@@ -2,10 +2,10 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require herbie/common)
-(require herbie/points)
-(require herbie/programs)
-(require herbie/alternative)
+(require "common.rkt")
+(require "points.rkt")
+(require "programs.rkt")
+(require "alternative.rkt")
 
 (provide localize-error *analyze-context*)
 

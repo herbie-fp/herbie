@@ -2,8 +2,8 @@
 
 (require "enode.rkt")
 (require "egraph.rkt")
-(require herbie/common)
-(require herbie/programs)
+(require "../common.rkt")
+(require "../programs.rkt")
 
 (provide match-e substitute-e)
 

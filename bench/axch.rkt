@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 ;; From Alexey Radul, in personal communication:
 ;

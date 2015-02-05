@@ -17,12 +17,12 @@
 ; bubbled up the expression tree.
 
 (require racket/match)
-(require herbie/common)
-(require (except-in herbie/programs constant?))
-(require herbie/rules)
-(require herbie/alternative)
-(require herbie/points)
-(require herbie/matcher)
+(require "common.rkt")
+(require (except-in "programs.rkt" constant?))
+(require "rules.rkt")
+(require "alternative.rkt")
+(require "points.rkt")
+(require "matcher.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)

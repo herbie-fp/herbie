@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 (herbie-test (NdChar Ec Vef EDonor mu KbT NaChar Ev EAccept)
   "Bulmash initializePoisson"

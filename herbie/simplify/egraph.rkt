@@ -1,7 +1,7 @@
 #lang racket
 
 (require "enode.rkt")
-(require herbie/common)
+(require "../common.rkt")
 
 (provide mk-enode! mk-egraph
 	 merge-egraph-nodes!

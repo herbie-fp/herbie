@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date)
-(require herbie/common)
+(require "../common.rkt")
 (require "thread-pool.rkt")
 (require json)
 

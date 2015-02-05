@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 ; All from the FastMath library for haskell, from
 ; https://github.com/liyang/fast-math/blob/master/test/

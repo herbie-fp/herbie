@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/common)
+(require "../common.rkt")
 (require reports/datafile)
 
 (define (results-to-csv infile outfile)

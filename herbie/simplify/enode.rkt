@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/common)
+(require "../common.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid

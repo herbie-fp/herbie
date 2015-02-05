@@ -1,11 +1,11 @@
 #lang racket
 
 (require math/number-theory)
-(require herbie/common)
-(require herbie/programs)
-(require herbie/matcher)
-(require herbie/simplify/backup-simplify)
-(require (rename-in herbie/simplify/simplify
+(require "common.rkt")
+(require "programs.rkt")
+(require "matcher.rkt")
+(require "simplify/backup-simplify.rkt")
+(require (rename-in "simplify/simplify.rkt"
 		    [simplify simplify-alt]))
 
 (provide approximate-0 approximate-inf)

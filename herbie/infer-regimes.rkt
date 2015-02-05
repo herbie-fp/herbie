@@ -1,9 +1,9 @@
 #lang racket
-(require herbie/alternative)
-(require herbie/programs)
-(require herbie/matcher)
-(require herbie/points)
-(require herbie/common)
+(require "alternative.rkt")
+(require "programs.rkt")
+(require "matcher.rkt")
+(require "points.rkt")
+(require "common.rkt")
 
 (provide infer-splitpoints (struct-out sp))
 

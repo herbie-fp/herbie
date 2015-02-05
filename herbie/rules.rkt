@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require herbie/common)
+(require "common.rkt")
 
 (provide (struct-out rule) *rules*
 	 *simplify-rules* get-rule define-ruleset)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/test)
+(require "../../herbie/test.rkt")
 
 ; quadratic formula
 (herbie-test (a b c)

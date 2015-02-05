@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 ;; From http://www.movable-type.co.uk/scripts/latlong.html
 

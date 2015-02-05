@@ -1,12 +1,12 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/points)
-(require herbie/load-tests)
-(require herbie/test)
-(require herbie/main)
-(require herbie/alternative)
-(require herbie/programs)
+(require "../common.rkt")
+(require "../points.rkt")
+(require "../load-tests.rkt")
+(require "../test.rkt")
+(require "../main.rkt")
+(require "../alternative.rkt")
+(require "../programs.rkt")
 (require racket/engine)
 
 (define *seed* #f)

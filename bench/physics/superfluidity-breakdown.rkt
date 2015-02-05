@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../../herbie/test.rkt")
 
 ; Superfluidity breakdown and multiple roton gaps in spin-orbit-coupled Bose-Einstein condensates in an optical lattice
 ; D. Toniolo and J. Linder

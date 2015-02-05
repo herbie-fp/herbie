@@ -1,11 +1,11 @@
 #lang racket
 
-(require herbie/alternative)
-(require herbie/programs)
-(require herbie/points)
+(require "alternative.rkt")
+(require "programs.rkt")
+(require "points.rkt")
 
 (provide (struct-out test) *tests* herbie-test test-program test-samplers
-         (all-from-out herbie/points))
+         (all-from-out "points.rkt"))
 
 (define (unfold-let expr)
   (match expr

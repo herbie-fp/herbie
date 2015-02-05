@@ -1,7 +1,7 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/rules)
+(require "common.rkt")
+(require "rules.rkt")
 
 (provide (all-defined-out))
 

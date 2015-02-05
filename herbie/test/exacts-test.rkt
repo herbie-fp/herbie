@@ -2,11 +2,11 @@
 
 (require rackunit)
 (require math/bigfloat)
-(require herbie/config)
-(require herbie/programs)
-(require herbie/points)
-(require herbie/test)
-(require herbie/load-tests)
+(require "../config.rkt")
+(require "../programs.rkt")
+(require "../points.rkt")
+(require "../test.rkt")
+(require "../load-tests.rkt")
 
 (define tests (load-tests "../bench/hamming"))
 

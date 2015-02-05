@@ -1,13 +1,13 @@
 #lang racket
 
 (require racket/date)
-(require herbie/common)
-(require herbie/programs)
-(require herbie/points)
-(require herbie/alternative)
-(require herbie/test)
-(require herbie/load-tests)
-(require herbie/main)
+(require "../common.rkt")
+(require "../programs.rkt")
+(require "../points.rkt")
+(require "../alternative.rkt")
+(require "../test.rkt")
+(require "../load-tests.rkt")
+(require "../main.rkt")
 (require "thread-pool.rkt")
 (require "cmdline.rkt")
 (require "datafile.rkt")
@@ -81,9 +81,9 @@
 
     (define-values (dir _name _must-be-dir?) (split-path file))
 
-    (copy-file "reports/report.js" (build-path dir "report.js") #t)
-    (copy-file "reports/report.css" (build-path dir "report.css") #t)
-    (copy-file "reports/graph.css" (build-path dir "graph.css") #t)
+    (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
+    (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
+    (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed

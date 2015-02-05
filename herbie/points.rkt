@@ -2,9 +2,9 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require herbie/common)
-(require herbie/programs)
-(require herbie/config)
+(require "common.rkt")
+(require "programs.rkt")
+(require "config.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default sample-grid

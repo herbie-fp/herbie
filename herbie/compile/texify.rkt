@@ -1,6 +1,6 @@
 #lang racket
-(require herbie/common)
-(require herbie/syntax)
+(require "../common.rkt")
+(require "../syntax.rkt")
 
 (provide texify-expression)
 

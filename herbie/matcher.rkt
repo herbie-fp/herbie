@@ -1,11 +1,11 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/programs)
-(require herbie/rules)
+(require "common.rkt")
+(require "programs.rkt")
+(require "rules.rkt")
 
 (provide
- (all-from-out herbie/rules)
+ (all-from-out "rules.rkt")
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
  (struct-out change) change-apply changes-apply)

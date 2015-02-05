@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require herbie/common)
+(require "common.rkt")
 
 (provide *operations* predicates constants constant? variable?
          mode:bf mode:fl ->bf ->flonum

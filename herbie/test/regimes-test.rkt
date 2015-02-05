@@ -1,12 +1,12 @@
 #lang racket
 
 (require rackunit)
-(require herbie/syntax)
-(require herbie/rules)
-(require herbie/common)
-(require herbie/points)
-(require herbie/alternative)
-(require herbie/main)
+(require "../syntax.rkt")
+(require "../rules.rkt")
+(require "../common.rkt")
+(require "../points.rkt")
+(require "../alternative.rkt")
+(require "../main.rkt")
 (require math/bigfloat)
 
 (define *rulesets* '())

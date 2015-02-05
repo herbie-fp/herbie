@@ -1,5 +1,5 @@
 #lang racket
-(require herbie/test)
+(require "../herbie/test.rkt")
 
 ; Some tests on Herbie's ability to reassociate and cancel
 (herbie-test (x y)
