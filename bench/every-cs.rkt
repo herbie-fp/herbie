@@ -49,7 +49,7 @@
 (herbie-test (i n)
   "Compound Interest"
   (* 100 (/ (- (expt (+ 1 (/ i n)) n) 1) (/ i n)))
-  (let ([lnbase
+  (let* ([lnbase
          (if (= (+ 1 (/ i n)) 1)
              (/ i n)
              (/ (* (/ i n) (log (+ 1 (/ i n))))
