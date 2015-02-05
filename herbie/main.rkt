@@ -61,6 +61,7 @@
 	 (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
 		     (let ([exponent (caddr cur-expr)])
 		       (and (not (list? exponent))
+                            (not (symbol? exponent))
 			    (positive? exponent)
 			    (integer? exponent)
 			    (exponent . < . 10))))
