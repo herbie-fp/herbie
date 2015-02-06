@@ -15,8 +15,7 @@
 
 (provide improve
 	 ;; For the shell
-	 setup-prog post-process combine-alts split-table
-	 extract-alt)
+	 (all-defined-out))
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
@@ -116,6 +115,10 @@
 			    ,acc))))))
      alts splitpoints)))
 
+(define best-alt
+  (compose (curry argmin alt-cost)
+	   (curry argmins (compose errors-score alt-errors))))
+
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
 	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
@@ -127,7 +130,7 @@
 	 (debug #:from 'progress #:depth 2 "iteration" (add1 (- initial-fuel fuel)) "/" initial-fuel)
 	 (debug #:from 'progress #:depth 3 "picking best candidate")
 	 (improve-loop
-	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func (curry argmin (compose errors-score alt-errors)))])
+	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func best-alt)])
 	    (atab-add-altns table* (generate-alts picked)))
 	  (sub1 fuel))]))
 
