@@ -10,7 +10,7 @@
 (require "../alternative.rkt")
 (require "../main.rkt")
 (require "make-graph.rkt")
-(require "../../interact/interface.rkt")
+(require "../../interface/interact.rkt")
 
 (provide (struct-out table-row) get-test-results)
 
