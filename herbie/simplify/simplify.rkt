@@ -30,7 +30,7 @@
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
-	 [slocs (if chng
+	 [slocs (if (and chng (alt-delta? altn))
 		    (map (curry append (change-location chng))
 			 (rule-slocations (change-rule (alt-change altn))))
 		   '((2)))])
