@@ -214,7 +214,7 @@
 	     (finalize-table!)
 	     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
 	     (if get-context?
-		 (begin0 (values (get-final-combination) (*pcontext*))
+		 (begin0 (list (get-final-combination) (*pcontext*))
 		   (rollback-improve!))
 		 (begin0 (get-final-combination)
 		   (rollback-improve!))))))
