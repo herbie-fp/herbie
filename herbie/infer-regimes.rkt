@@ -100,7 +100,12 @@
 ;; proper splitpoints in floath form.
 (define (sindices->spoints points expr alts sindices)
   (define (eval-on-pt pt)
-    ((eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) mode:fl) pt))
+    (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
+			 ,expr)]
+	   [val-float ((eval-prog expr-prog mode:fl) pt)])
+      (if (ordinary-float? val-float) val-float
+	  ((eval-prog expr-prog mode:bf) pt))))
+
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
@@ -139,12 +144,16 @@
     (for/fold ([acc '()] [rest-splits splitpoints])
 	([pt (in-list pts)]
 	 [errs (flip-lists err-lsts)])
-      (let ([pt-val ((eval-prog `(λ ,variables ,(sp-bexpr (car rest-splits))) mode:fl) pt)])
+      (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
+	     [float-val ((eval-prog expr-prog mode:fl) pt)]
+	     [pt-val (if (ordinary-float? float-val) float-val
+			 ((eval-prog expr-prog mode:bf) pt))])
 	(if (or (<= pt-val (sp-point (car rest-splits)))
 		(and (null? (cdr rest-splits)) (nan? pt-val)))
-	    (values (cons (list-ref errs (sp-cidx (car rest-splits)))
-			  acc)
-		    rest-splits)
+	    (if (nan? pt-val) (error "wat")
+		(values (cons (list-ref errs (sp-cidx (car rest-splits)))
+			      acc)
+			rest-splits))
 	    (values acc (cdr rest-splits))))))))
 
 (define (with-entry idx lst item)
