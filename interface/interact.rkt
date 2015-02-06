@@ -90,13 +90,15 @@
 (define (choose-alt! n)
   (if (>= n (length (atab-all-alts (^table^))))
       (println "We don't have that many alts!")
-      (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func (curryr list-ref n))])
+      (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func (curryr list-ref n)
+						   #:only-fresh #f)])
 	(^next-alt^ picked)
 	(^table^ table*)
 	(void))))
 
 (define (choose-best-alt!)
-  (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt)])
+  (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
+					       #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
     (void)))
@@ -206,7 +208,8 @@
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-  (for ([iter (sequence-map add1 (in-range iters))])
+  (for ([iter (sequence-map add1 (in-range iters))]
+	#:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
     (run-iter!))
   (finalize-table!)
