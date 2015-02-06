@@ -66,7 +66,8 @@
     (*pcontext* context)
     (*analyze-context* ((flag 'localize 'cache) context #f))
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (^table^ (setup-prog prog (*setup-fuel*)))))
+    (^table^ (setup-prog prog (*setup-fuel*)))
+    (void)))
 
 ;; Information
 (define (list-alts)
@@ -82,7 +83,8 @@
       (println (cond [(equal? alt (^next-alt^)) "+"]
 		     [(member alt ndone-alts) "*"]
 		     [#t "x"])
-	       " " n " " alt))))
+	       " " n " " alt)))
+  (void))
 
 ;; Begin iteration
 (define (choose-alt! n)
@@ -101,7 +103,8 @@
 
 ;; Invoke the subsystems individually
 (define (localize!)
-  (^locs^ (localize-error (alt-program (^next-alt^)))))
+  (^locs^ (localize-error (alt-program (^next-alt^))))
+  (void))
 
 (define (gen-series!)
   (define series-expansions
@@ -112,7 +115,8 @@
        (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
        (taylor-alt (^next-alt^) location))))
   (^children^ (append (^children^) series-expansions))
-  (^gened-series^ #t))
+  (^gened-series^ #t)
+  (void))
 
 (define (gen-rewrites!)
   (define rewritten
@@ -123,7 +127,8 @@
 	     (alt-rewrite-rm (alt-add-event (^next-alt^) '(start rm)) #:root location))))
   (^children^
    (append (^children^) rewritten))
-  (^gened-rewrites^ #t))
+  (^gened-rewrites^ #t)
+  (void))
 
 (define (simplify!)
   (define simplified
@@ -133,13 +138,15 @@
       (with-handlers ([exn:fail? (λ (e) (println "Failed while simplifying candidate" child) (raise e))])
 	(apply alt-apply child (simplify child)))))
   (^children^ simplified)
-  (^simplified^ #t))
+  (^simplified^ #t)
+  (void))
 
 
 ;; Finish iteration
 (define (finalize-iter!)
   (^table^ (atab-add-altns (^table^) (^children^)))
-  (rollback-iter!))
+  (rollback-iter!)
+  (void))
 
 (define (finish-iter!)
   (when (not (^next-alt^))
@@ -158,7 +165,8 @@
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
-  (finalize-iter!))
+  (finalize-iter!)
+  (void))
 
 (define (rollback-iter!)
   (^children^ '())
@@ -166,11 +174,13 @@
   (^next-alt^ #f)
   (^gened-rewrites^ #f)
   (^gened-series^ #f)
-  (^simplified^ #f))
+  (^simplified^ #f)
+  (void))
 
 (define (rollback-improve!)
   (rollback-iter!)
-  (^table^ #f))
+  (^table^ #f)
+  (void))
 
 ;; Run a complete iteration
 (define (run-iter!)
@@ -189,7 +199,8 @@
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")
 	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
-	     (finalize-iter!))))
+	     (finalize-iter!)))
+  (void))
 
 (define (run-improve prog iters #:samplers [samplers #f])
   (if (^table^)
@@ -207,7 +218,8 @@
 
 ;; Finishing Herbie
 (define (finalize-table!)
-  (^table^ (post-process (^table^))))
+  (^table^ (post-process (^table^)))
+  (void))
 
 (define (get-final-combination)
   (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
