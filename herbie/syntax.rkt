@@ -131,7 +131,6 @@
    [(eq? x 'e) (bfexp 1.bf)]
    [else x]))
 
-(define atan2 atan)
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
