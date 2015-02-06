@@ -23,7 +23,7 @@ drop: paper/paper.pdf
 
 link:
 	raco link herbie
-	raco link reports
+	raco link herbie/reports
 	raco link compile
 	raco link herbie/simplify
 	raco link interface

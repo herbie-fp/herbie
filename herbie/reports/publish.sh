@@ -14,6 +14,7 @@ ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RFOLDER/$RDIR" -R
 REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *:*:*:*")
 rsync -v --include 'results.json' --include '/*/' --exclude '*' -r uwplse.org:/var/www/herbie/reports/ graphs/reports/
 racket herbie/reports/make-index.rkt
+set -x
 rsync --verbose --recursive "index.html" "herbie/reports/index.css" "$RHOST:$RHOSTDIR/$RFOLDER"
 ssh "$RHOST" chgrp -R uwplse "$RHOSTDIR/$RFOLDER"
 rm index.html
