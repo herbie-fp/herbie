@@ -118,7 +118,7 @@
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (common-eval constexpr)])
 	    (when (and (ordinary-float? res) (exact? res))
-	      (enode-override-expr! en (common-eval constexpr)))))))))
+	      (enode-override-expr! en res))))))))
 
 (define (hash-set*+ hash assocs)
   (for/accumulate (h hash) ([assoc assocs])
