@@ -15,7 +15,9 @@
 (define x-min (make-parameter (- (log2 +max.0))))
 (define x-max (make-parameter (log2 +max.0)))
 
-(define (viz-error type #:prog [prog (*start-prog*)] #:key-expr [sort-on #f]
+(define (viz-error [prog (*start-prog*)]
+		   #:type [type 'line]
+		   #:key-expr [sort-on #f]
 		   #:mark-x [mark-x #f] #:mark-y [mark-y #f]
 		   #:out-file [filename #f])
   (let* ([eval-func (if sort-on
