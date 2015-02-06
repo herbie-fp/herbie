@@ -19,7 +19,7 @@
 	 [splitpoints (option-splitpoints best-option)]
 	 [altns (used-alts splitpoints alts)]
 	 [splitpoints* (coerce-indices splitpoints)])
-    (debug "Found splitpoints:" splitpoints* ", with alts" altns)
+    (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
     (list splitpoints* altns)))
 
 (struct option (splitpoints errors) #:transparent
@@ -117,7 +117,7 @@
 							      (program-variables start-prog*))))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
-      (debug "searching between" p1 "and" p2 "on" expr)
+      (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
       (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
 
   (append (map sidx->spoint
