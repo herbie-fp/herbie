@@ -1,5 +1,5 @@
 #lang racket
-(require "../herbie/test.rkt")
+(require "../../herbie/test.rkt")
 
 #|
 
