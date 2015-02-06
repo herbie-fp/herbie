@@ -202,7 +202,7 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:samplers [samplers #f])
+(define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f])
   (if (^table^)
       (println "An improvement is already in progress! Finish it up manually, or roll it back with (rollback-improve!)")
       (begin (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
@@ -213,8 +213,11 @@
 	       (run-iter!))
 	     (finalize-table!)
 	     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-	     (begin0 (get-final-combination)
-	       (rollback-improve!)))))
+	     (if get-context?
+		 (begin0 (values (get-final-combination) (*pcontext*))
+		   (rollback-improve!))
+		 (begin0 (get-final-combination)
+		   (rollback-improve!))))))
 
 ;; Finishing Herbie
 (define (finalize-table!)
