@@ -150,6 +150,10 @@
   (rollback-iter!)
   (void))
 
+(define (inject-candidate! prog)
+  (^table^ (atab-add-altns (^table^) (list (make-alt prog))))
+  (void))
+
 (define (finish-iter!)
   (when (not (^next-alt^))
     (debug #:from 'progress #:depth 3 "picking best candidate")
