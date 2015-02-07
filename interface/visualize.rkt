@@ -19,11 +19,16 @@
 		   #:type [type 'line]
 		   #:key-expr [sort-on #f]
 		   #:mark-x [mark-x #f] #:mark-y [mark-y #f]
-		   #:out-file [filename #f])
+		   #:out-file [filename #f]
+		   #:min-val [min-val -inf.0]
+		   #:max-val [max-val +inf.0])
   (let* ([eval-func (if sort-on
-			(eval-prog `(λ ,(program-variables prog)
-				      ,sort-on)
-				   mode:fl)
+			(let* ([sort-prog `(λ ,(program-variables prog) ,sort-on)]
+			       [float-prog (eval-prog sort-prog mode:fl)]
+			       [bf-prog (eval-prog sort-prog mode:bf)])
+			  (λ (pt) (let ([float-val (float-prog pt)])
+				    (if (ordinary-float? float-val) float-val
+					(bf-prog pt)))))
 			car)]
 	 [sorted-pts (sort (for/list ([(pt ex) (in-pcontext (*pcontext*))]
 				      [err (errors prog (*pcontext*))])
@@ -38,7 +43,7 @@
 			(if mark-x (list (inverse (const mark-x))) '())
 			(if mark-y (list (inverse (const mark-y))) '()))])
     (plot lines #:y-min (y-min) #:y-max (y-max)
-	  #:x-min (x-min) #:x-max (x-max)
+	  #:x-min (max (x-min) (two-sided-log2 min-val)) #:x-max (min (x-max) (two-sided-log2 max-val))
 	  #:out-file filename)))
 
 (define (viz-points-scatter pts)
