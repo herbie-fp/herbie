@@ -23,17 +23,14 @@ return s
 
 (herbie-test (x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)
   "Kahan summation"
-  (let ((l '(x00 x01 x02 x03 x04 x05 x06 x07 x08 x09))
-	(s 0.0))
-    (for ([e l])
-      (set! s (+ s e)))
-    s)
-  (let ((l '(x00 x01 x02 x03 x04 x05 x06 x07 x08 x09))
-	(s 0.0)
-	(c 0.0))
-    (for ([e l])
-      (let ((y (- e c))
-	    (t (+ s y)))
-	(set! c (- (- t s) y))
-	(set! s t)))
-    s))
+  (let* ([l (list x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)])
+    (for/fold ([s 0.0])
+	([item l])
+      (+ item s)))
+  (let* ([l (list x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)])
+    (first-value
+     (for/fold ([s 0.0]
+		[c 0.0])
+	 ([item l])
+       (values (+ s (- item c))
+	       (- (- (+ s (- item c)) s) (- item c)))))))
