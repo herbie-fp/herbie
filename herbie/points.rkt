@@ -38,7 +38,10 @@
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   < #:key (λ (p&e)
-			     ((eval-prog `(λ ,variables ,expr) mode:fl) (car p&e))))])
+			     (let* ([expr-prog `(λ ,variables ,expr)]
+				    [float-val ((eval-prog expr-prog mode:fl) (car p&e))])
+			       (if (ordinary-float? float-val) float-val
+				   ((eval-prog expr-prog mode:bf) (car p&e))))))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (sample-expbucket num)
