@@ -1,5 +1,5 @@
 FLAGS=-p
-BENCHDIR=bench/hamming/
+BENCHDIR=bench/loops/
 
 .PHONY: report publish www compile clean loc
 
