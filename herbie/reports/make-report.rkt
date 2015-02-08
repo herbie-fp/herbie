@@ -38,8 +38,6 @@
     (make-datafile "graphs/results.herbie.dat" results)
     (make-json "graphs/results.json" results)))
 
-(define (command-result cmd) (string-trim (write-string (system cmd))))
-
 (define (allowed-tests bench-dirs)
   (reverse
    (sort
@@ -70,9 +68,15 @@
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
 
+(define (git-command #:default [default ""] gitcmd . args)
+  (if (directory-exists? ".git")
+      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
+        (string-trim (write-string (system cmd))))
+      default))
+
 (define (make-report-page file table-data)
-  (let ([commit (command-result "git rev-parse HEAD")]
-        [branch (command-result "git rev-parse --abbrev-ref HEAD")]
+  (let ([commit (git-command "rev-parse" "HEAD")]
+        [branch (git-command "rev-parse" "--abbrev-ref" "HEAD")]
 	[seed (~a (pseudo-random-generator->vector
 		   (current-pseudo-random-generator)))])
 
@@ -206,8 +210,8 @@
 
     (printf "{\n")
     (printf "\"date\": ~a,\n" (date->seconds (current-date)))
-    (printf "\"commit\": \"~a\",\n" (command-result "git rev-parse HEAD"))
-    (printf "\"branch\": \"~a\",\n" (command-result "git rev-parse --abbrev-ref HEAD"))
+    (printf "\"commit\": \"~a\",\n" (git-command "rev-parse" "HEAD"))
+    (printf "\"branch\": \"~a\",\n" (git-command "rev-parse" "--abbrev-ref" "HEAD"))
     (printf "\"seed\": \"~a\",\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
     (printf "\"flags\": [")
     (string-join
