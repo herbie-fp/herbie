@@ -13,7 +13,7 @@ report:
 	racket herbie/reports/make-report.rkt $(FLAGS) $(BENCHDIR)
 
 publish:
-	bash reports/publish.sh
+	bash herbie/reports/publish.sh
 
 publish-www:
 	rsync --recursive www/ "uwplse.org:/var/www/herbie/"

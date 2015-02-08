@@ -11,11 +11,9 @@ RDIR="$(date +%s):$(hostname):$B:$C"
 
 rsync --verbose --recursive graphs/ --exclude reports/ "$RHOST:$RHOSTDIR/$RFOLDER/$RDIR"
 ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RFOLDER/$RDIR" -R
-set +x
 REPORTS=$(ssh "$RHOST" "cd $RHOSTDIR/$RFOLDER/; echo *:*:*:*")
 rsync -v --include 'results.json' --include '/*/' --exclude '*' -r uwplse.org:/var/www/herbie/reports/ graphs/reports/
-racket reports/make-index.rkt
-set -x
-rsync --verbose --recursive "index.html" "reports/index.css" "$RHOST:$RHOSTDIR/$RFOLDER"
-ssh "$RHOST" chgrp -R uwplse "$RHOSTDIR/$RFOLDER/$RDIR/" "$RHOSTDIR/$RFOLDER/index.html" "$RHOSTDIR/$RFOLDER/index.css"
+racket herbie/reports/make-index.rkt
+rsync --verbose --recursive "index.html" "herbie/reports/index.css" "$RHOST:$RHOSTDIR/$RFOLDER"
+ssh "$RHOST" chgrp -R uwplse "$RHOSTDIR/$RFOLDER"
 rm index.html
