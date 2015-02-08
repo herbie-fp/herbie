@@ -9,7 +9,7 @@
 ; parameter setting in Venture programs), I just want the x^{a-1} term
 ; dropped.
  
-(herbie-test (a b c)
+#;(herbie-test (a b c)
   "The Beta distribution, using Wikipedia's parameterization"
   (* (expt x (- a 1))
      (expt (- x 1) (- b 1))
