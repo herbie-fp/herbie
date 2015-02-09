@@ -1,9 +1,9 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/points)
-(require herbie/programs)
-(require interface/util)
+(require "../common.rkt")
+(require "../points.rkt")
+(require "../programs.rkt")
+(require "util.rkt")
 
 (require plot)
 (require math/flonum)

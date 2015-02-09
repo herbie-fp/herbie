@@ -1,19 +1,19 @@
 #lang racket
 
-(require herbie/common)
-(require herbie/main)
-(require herbie/programs)
-(require herbie/points)
-(require herbie/localize-error)
-(require herbie/taylor)
-(require herbie/alt-table)
-(require herbie/alternative)
-(require herbie/simplify/simplify)
-(require interface/visualize)
-(require interface/util)
+(require "../common.rkt")
+(require "../main.rkt")
+(require "../programs.rkt")
+(require "../points.rkt")
+(require "../localize-error.rkt")
+(require "../taylor.rkt")
+(require "../alt-table.rkt")
+(require "../alternative.rkt")
+(require "../simplify/simplify.rkt")
+(require "visualize.rkt")
+(require "util.rkt")
 
 (provide (all-defined-out)
-	 (all-from-out interface/visualize))
+	 (all-from-out "visualize.rkt"))
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global

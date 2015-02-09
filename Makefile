@@ -26,7 +26,7 @@ link:
 	raco link herbie/reports
 	raco link compile
 	raco link herbie/simplify
-	raco link interface
+	raco link herbie/interface
 
 herbie/compile/cost: herbie/compile/cost.c
 	$(CC) -O0 $^ -lm -o $@
