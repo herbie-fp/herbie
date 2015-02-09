@@ -115,9 +115,10 @@
 			    ,acc))))))
      alts splitpoints)))
 
-(define best-alt
-  (compose (curry argmin alt-cost)
-	   (curry argmins (compose errors-score alt-errors))))
+(define (best-alt alts)
+  (argmin alt-cost
+	  (argmins (compose errors-score alt-errors)
+		   alts)))
 
 (define (improve-loop table fuel)
   (cond [(<= fuel 0)
