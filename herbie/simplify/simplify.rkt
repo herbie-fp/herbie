@@ -30,7 +30,7 @@
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
-	 [slocs (if chng
+	 [slocs (if (and chng (alt-delta? altn))
 		    (map (curry append (change-location chng))
 			 (rule-slocations (change-rule (alt-change altn))))
 		   '((2)))])
@@ -117,8 +117,8 @@
 		   (not (matches? constexpr `(log 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (common-eval constexpr)])
-	    (when (and (real? res) (exact? res))
-	      (enode-override-expr! en (common-eval constexpr)))))))))
+	    (when (and (ordinary-float? res) (exact? res))
+	      (enode-override-expr! en res))))))))
 
 (define (hash-set*+ hash assocs)
   (for/accumulate (h hash) ([assoc assocs])

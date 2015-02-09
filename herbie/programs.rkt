@@ -8,7 +8,7 @@
 (provide (all-from-out "syntax.rkt")
          location-induct program-induct expression-induct location-hash
          location-do location-get
-         eval-prog
+         eval-prog replace-subexpr
 	 compile expression-cost program-cost
          free-variables)
 
@@ -163,3 +163,14 @@
         (let ([fn (caadr step)])
           (list-ref (hash-ref (*operations*) fn) 2))
         1)))
+
+(define (replace-subexpr prog needle needle*)
+  `(λ ,(program-variables prog)
+     ,(replace-expr-subexpr (program-body prog) needle needle*)))
+
+(define (replace-expr-subexpr haystack needle needle*)
+  (cond [(equal? haystack needle) needle*]
+	[(list? haystack)
+	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
+				   (cdr haystack)))]
+	[#t haystack]))

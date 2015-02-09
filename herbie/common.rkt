@@ -11,7 +11,7 @@
 	 write-file write-string has-duplicates?
 	 with-item symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
-	 binary-search-floats binary-search-ints
+	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -58,7 +58,7 @@
     (compose car list)))
 
 (define (ordinary-float? x)
-  (not (or (infinite? x) (nan? x))))
+  (and (real? x) (not (or (infinite? x) (nan? x)))))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
@@ -163,7 +163,7 @@
     ;; If the split function returned false, we're done.
     (cond [(not midpoint) p1]
 	  ;; If our midpoint is one of our points, we're done.
-	  [(or (= p1 midpoint) (= p2 midpoint)) midpoint]
+	  [(or (equal? p1 midpoint) (equal? p2 midpoint)) midpoint]
 	  ;; If our predicate is still true of our midpoint, search the
 	  ;; space between our midpoint and p2.
 	  [(pred midpoint) (binary-search split pred midpoint p2)]
@@ -223,9 +223,6 @@
 			(return el))))
     #f))
 
-(define (log2 x)
-  (/ (log x) (log 2)))
-
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
 
@@ -246,3 +243,6 @@
    [(nan? x) +nan.0]
    [(infinite? x) (*bit-width*)]
    [else (log2 x)]))
+
+(define (log2 x)
+  (/ (log x) (log 2)))

@@ -8,10 +8,13 @@
  (contract-out
   (make-alt-table (pcontext? alt? . -> . alt-table?))
   (atab-all-alts (alt-table? . -> . pair?))
+  (atab-not-done-alts (alt-table? . -> . pair?))
   (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
+			     #:only-fresh boolean?
 			     . -> . (values alt? alt-table?)))
   (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
+			     #:only-fresh boolean?
 			     . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
@@ -38,13 +41,17 @@
 (define (atab-add-altns atab altns)
   (pipe atab (map (curry curryr atab-add-altn) altns)))
 
-(define (atab-pick-alt atab #:picking-func [pick car])
-  (let* ([picked (atab-peek-alt atab #:picking-func pick)]
+(define (atab-pick-alt atab #:picking-func [pick car]
+		       #:only-fresh [only-fresh? #t])
+  (let* ([picked (atab-peek-alt atab #:picking-func pick #:only-fresh only-fresh?)]
 	 [atab* (alt-table-with atab #:alt->done? (hash-set (alt-table-alt->done? atab) picked #t))])
     (values picked atab*)))
 
-(define (atab-peek-alt atab #:picking-func [pick car])
-  (pick (atab-not-done-alts atab)))
+(define (atab-peek-alt atab #:picking-func [pick car]
+		       #:only-fresh [only-fresh? #f])
+  (pick (if only-fresh?
+	    (atab-not-done-alts atab)
+	    (atab-all-alts atab))))
 
 (define (atab-all-alts atab)
   (hash-keys (alt-table-alt->points atab)))

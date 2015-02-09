@@ -9,7 +9,7 @@
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default sample-grid
          prepare-points prepare-points-period make-exacts
-         errors errors-score sorted-context-list)
+         errors errors-score sorted-context-list sort-context-on-expr)
 
 (define *pcontext* (make-parameter #f))
 
@@ -33,6 +33,15 @@
 (define (sorted-context-list context vidx)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   < #:key (compose (curryr list-ref vidx) car))])
+    (list (map car p&e) (map cdr p&e))))
+
+(define (sort-context-on-expr context expr variables)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   < #:key (λ (p&e)
+			     (let* ([expr-prog `(λ ,variables ,expr)]
+				    [float-val ((eval-prog expr-prog mode:fl) (car p&e))])
+			       (if (ordinary-float? float-val) float-val
+				   ((eval-prog expr-prog mode:bf) (car p&e))))))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (sample-expbucket num)
