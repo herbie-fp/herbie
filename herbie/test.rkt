@@ -49,6 +49,9 @@
 (struct test (name vars sampling-expr input output) #:prefab)
 (define *tests* (make-parameter '()))
 
+(define (get-op op)
+  (match op ['> >] ['< <] ['>= >=] ['<= <=]))
+
 (define (get-sampler expr)
   (match expr
     [(? procedure? f) f] ; This can only come up from internal recusive calls
@@ -60,12 +63,10 @@
     ['integer sample-integer]
     ['expbucket sample-expbucket]
     [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
-     (let ([sa (get-sampler a)] [test (curryr (eval op) b)])
-       ; The eval is safe since op is known to be one of < > <= >=
+     (let ([sa (get-sampler a)] [test (curryr (get-op op) b)])
        (λ (n) (for/list ([va (sa n)]) (if (test va) va +nan.0))))]
     [`(,(and op (or '< '> '<= '>=)) ,(? number? a) ,b)
-     (let ([sb (get-sampler b)] [test (curry (eval op) a)])
-       ; The eval is safe since op is known to be one of < > <= >=
+     (let ([sb (get-sampler b)] [test (curry (get-op op) a)])
        (λ (n) (for/list ([vb (sb n)]) (if (test vb) vb +nan.0))))]
     [`(,(and op (or '< '> '<= '>=)) ,a ,b ...)
      ; The justification for this is that (< (< 0 float) 1) is interpreted as
