@@ -158,18 +158,29 @@
   (define assignments '())
   (define compilations (make-hash))
 
+  (define (add-assignment! register expr)
+    (set! assignments (cons (list register expr) assignments))
+    register)
+
   ;; TODO : use one of Racket's memoization libraries
   (define (compile-one expr)
     (hash-ref!
      compilations expr
      (λ ()
-       (let ([expr* (if (list? expr)
-			(let ([fn (car expr)] [children (cdr expr)])
-			  (cons fn (map compile-one children)))
-			expr)]
-	     [register (gensym "r")])
-	 (set! assignments (cons (list register expr*) assignments))
-	 register))))
+       (match expr
+	 [(? (negate list?))
+	  (let ([register (gensym "r")])
+	    (add-assignment! register expr))]
+	 [`(let ([,vars ,vals] ...) ,body)
+	  (let ([val-regs (map compile-one vals)])
+	    (for ([var vars] [val-reg val-regs])
+	      (hash-set! compilations var val-reg))
+	    (compile-one body))]
+	 [`(,fn ,args ...)
+	  (let ([arg-regs (map compile-one args)]
+		[register (gensym "r")])
+	    (add-assignment! register (cons fn arg-regs)))]
+	 [_ (error "malformed expr:" expr)]))))
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
