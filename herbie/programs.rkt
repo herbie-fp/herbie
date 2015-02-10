@@ -10,7 +10,7 @@
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
-         free-variables)
+         free-variables replace-expression)
 
 (define (location-induct
 	 prog
@@ -96,6 +96,16 @@
              (free-variables body (append vars constants))]
             [`(,f ,args ...)
              (remove-duplicates (append-map (curryr free-variables bound) args))])))
+
+(define (replace-expression program from to)
+  (cond
+   [(equal? program from)
+    to]
+   [(list? program)
+    (for/list ([subexpr program])
+      (replace-expression subexpr from to))]
+   [else
+    program]))
 
 (define (location-do loc prog f)
   (cond
