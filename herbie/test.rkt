@@ -8,17 +8,14 @@
 (provide (struct-out test) test-program test-samplers
          load-tests load-file)
 
-(define (unfold-let expr)
+(define (unfold-let* expr)
   (match expr
     [`(let* ,vars ,body)
-     (let loop ([vars vars] [body body])
-       (if (null? vars)
-           body
-           (let ([var (caar vars)] [val (cadar vars)])
-             (loop (map (replace-var var val) (cdr vars))
-                   ((replace-var var val) body)))))]
+     (for/fold ([acc body])
+	 ([var (reverse vars)])
+       `(let (,var) ,acc))]
     [`(,head ,args ...)
-     (cons head (map unfold-let args))]
+     (cons head (map unfold-let* args))]
     [x
      x]))
 
@@ -42,7 +39,7 @@
     expr]))
 
 (define (compile-program prog)
-  (expand-associativity (unfold-let prog)))
+  (expand-associativity (unfold-let* prog)))
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
