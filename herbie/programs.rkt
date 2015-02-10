@@ -168,12 +168,21 @@
      compilations expr
      (λ ()
        (match expr
+	 ;; For variables or constants, don't replace with anything
+	 ;; but itself.
 	 [(? (negate list?)) expr]
+	 ;; For let bindings, compile the right hand sides as
+	 ;; expressions, and then bind the variables to the registers
+	 ;; that coorespond to their expressions. Finally, recurse on
+	 ;; body of let.
 	 [`(let ([,vars ,vals] ...) ,body)
 	  (let ([val-regs (map compile-one vals)])
 	    (for ([var vars] [val-reg val-regs])
 	      (hash-set! compilations var val-reg))
 	    (compile-one body))]
+	 ;; For folds, register compile the intitial expressions for
+	 ;; the accs and sequences for iterating over, and bind them
+	 ;; properly in the new for/fold, and then recurse on body.
 	 [`(for/fold ([,accs ,inits] ...)
 	       ([,items ,lsts] ...)
 	     ,body)
@@ -182,10 +191,14 @@
 	    `(for/fold ,(map list accs init-regs)
 		 ,(map list items lst-regs)
 	       ,(compile body compilations)))]
+	 ;; For anything else, compile subexpressions, and then bind
+	 ;; new register to function on old registers. 
 	 [`(,fn ,args ...)
 	  (let ([arg-regs (map compile-one args)]
 		[register (gensym "r")])
 	    (add-assignment! register (cons fn arg-regs)))]
+	 ;; If we get here, we had to have had a list with a single
+	 ;; element, I think, which is malformed.
 	 [_ (error "malformed expr:" expr)]))))
 
   (let ([reg (compile-one expr)])
