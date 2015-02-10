@@ -200,19 +200,24 @@
 	 [table* (atab-add-altns table (map maybe-simplify alts*))])
     table*))
 
+(define transforms-to-try
+  (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))])
+    `((0 ,identity ,identity)
+      (inf ,invert-x ,invert-x)
+      #;(exp ,exp-x ,log-x)
+      #;(log ,log-x ,exp-x))))
+
 (define (taylor-alt altn loc)
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
-  (list
-   (alt-event
-    (location-do loc (alt-program altn)
-                 (λ (expr) (let ([fv (free-variables expr)])
-                             (if (null? fv) expr (approximate-0 expr fv)))))
-    `(taylor 0 ,loc) (list altn))
-   (alt-event
-    (location-do loc (alt-program altn)
-                 (λ (expr) (let ([fv (free-variables expr)])
-                             (if (null? fv) expr (approximate-inf expr fv)))))
-    `(taylor inf ,loc) (list altn))))
+  (for/list ([transform transforms-to-try])
+    (match transform
+      [(list name f finv)
+       (alt-event
+        (location-do loc (alt-program altn)
+                     (λ (expr) (let ([fv (free-variables expr)])
+                                 (if (null? fv) expr
+                                     (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+        `(taylor ,name ,loc) (list altn))])))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)]

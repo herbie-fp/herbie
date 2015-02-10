@@ -8,79 +8,92 @@
 (require (rename-in "simplify/simplify.rkt"
 		    [simplify simplify-alt]))
 
-(provide approximate-0 approximate-inf)
+(provide approximate)
 
-(define (approximate-0 expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
+(define (approximate expr vars #:transform [tforms #f]
+                     #:terms [terms 3] #:iters [iters 10])
+  "Take a Taylor expansion in multiple variables, with at most `terms` terms."
+
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
+  (when (not tforms)
+    (set! tforms (map (const (cons identity identity)) vars)))
+  (set! expr
+        (for/fold ([expr expr]) ([var vars] [tform tforms])
+          (replace-expression expr var ((car tform) var))))
+
+  ; This is a very complex routine, with multiple parts.
+  ; Some of the difficulty is due to the use of bounded Laurent series and their encoding.
+
+  ; The first step is to determine the minimum exponent of each variable.
+  ; We do this by taking a taylor expansion in each variable and considering the minimal term.
+
+  (define offsets (for/list ([var (reverse vars)]) (car (taylor var expr))))
+
+  ; We construct a multivariable Taylor expansion by taking a Taylor expansion in one variable,
+  ; then expanding each coefficient in the second variable, and so on.
+  ; We cache the computation of any expansion to speed this process up.
 
   (define taylor-cache (make-hash))
+  (hash-set! taylor-cache '() (taylor (car vars) expr))
 
-  (hash-set! taylor-cache '() (zero-series (taylor-0 (car vars) expr)))
+  ; This is the memoized expansion-taking.
+  ; The argument, `coeffs`, is the "uncorrected" degrees of the terms--`offsets` is not subtracted.
 
-  (define (take-taylor coeffs)
+  (define (get-taylor coeffs)
     (hash-ref! taylor-cache coeffs
                (λ ()
-                  (let* ([oc (take-taylor (cdr coeffs))]
-                         [expr* (oc (car coeffs))])
+                  (let* ([oc (get-taylor (cdr coeffs))]
+                         [expr* ((cdr oc) (car coeffs))])
                     (if (= (length coeffs) (length vars))
                       expr*
-                      (zero-series (taylor-0 (list-ref vars (length coeffs)) expr*)))))))
+                      (let ([var (list-ref vars (length coeffs))])
+                        (taylor var expr*)))))))
 
-  (define (make-term coeffs)
-    (simplify
-     `(* ,(take-taylor coeffs)
-         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
-            (if (null? vars)
-                1
-                (let ([var (car vars)]
-                      [idx (car coeffs)])
-                  `(* ,(make-monomial var idx) ,(loop (cdr vars) (cdr coeffs)))))))))
+  ; Given some uncorrected degrees, this gets you an offset to apply.
+  ; The corrected degrees for uncorrected `coeffs` are (map - coeffs (get-offset coeffs))
 
-  (simplify
-   (cons '+
-         (let loop ([i 0] [res '()])
-           (if (or (> i (* iters (length vars))) (>= (length res) terms))
-               res
-               (let ([coeffs (iterate-diagonal (length vars) i)])
-                 (if (not (equal? (take-taylor coeffs) 0))
-                     (loop (+ i 1) (cons (make-term coeffs) res))
-                     (loop (+ i 1) res))))))))
+  (define (get-offset coeffs)
+    (if (null? coeffs)
+      (car (get-taylor '()))
+      (cons (car (get-taylor (cdr coeffs))) (get-offset (cdr coeffs)))))
 
-; TODO: BUG: if variables appear in coefficients (rare...), this is incorrect
-(define (approximate-inf expr vars #:terms [terms 3] #:iters [iters 5]) ; TODO : constant
-  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around infinity")
+  ; Given some corrected degrees, this gets you the uncorrected degrees, or #f
 
-  (define taylor-cache (make-hash))
+  (define (get-coeffs expts)
+    (if (null? expts)
+        '()
+        ; Find the true coordinate of our tail
+        (let ([etail (get-coeffs (cdr expts))])
+          (if etail
+              ; Get the offset from our head
+              (let ([offset-head (car (get-taylor etail))])
+                ; Sometimes, our head exponent is too small
+                (if (< (car expts) (- offset-head))
+                    #f
+                    (cons (+ (car expts) offset-head) etail)))
+              #f))))
 
-  (hash-set! taylor-cache '() (zero-series (taylor-inf (car vars) expr)))
-
-  (define (take-taylor coeffs)
-    (hash-ref! taylor-cache coeffs
-               (λ ()
-                  (let* ([oc (take-taylor (cdr coeffs))]
-                         [expr* (oc (car coeffs))])
-                    (if (= (length coeffs) (length vars))
-                      expr*
-                      (zero-series (taylor-inf (list-ref vars (length coeffs)) expr*)))))))
-
-  (define (make-term coeffs)
-    (simplify
-     `(* ,(take-taylor coeffs)
-         ,(let loop ([vars (reverse vars)] [coeffs coeffs])
-            (if (null? vars)
-                1
-                (let ([var (car vars)] [idx (car coeffs)])
-                  `(/ ,(loop (cdr vars) (cdr coeffs)) ,(make-monomial var idx))))))))
-
-  (simplify
-   (cons '+
-         (let loop ([i 0] [res '()])
-           (if (or (> i (* iters (length vars))) (>= (length res) terms))
-               res
-               (let ([coeffs (iterate-diagonal (length vars) i)])
-                 (if (not (equal? (take-taylor coeffs) 0))
-                     (loop (+ i 1) (cons (make-term coeffs) res))
-                     (loop (+ i 1) res))))))))
+  ; We must now iterate through the coefficients in `corrected` order.
+  (make-sum
+    ; We'll track how many non-trivial zeros we've seen
+    ; and all the useful terms we've seen so far
+    (let loop ([empty 0] [res '()] [i 0])
+      ; We stop once we've seen too many non-trivial zeros in a row or we have enough terms
+      (if (or (> empty iters) (>= (length res) terms))
+          res
+          ; `expts` is the corrected degrees, `coeffs` is the uncorrected degrees
+          (let* ([expts (map - (iterate-diagonal (length vars) i) offsets)]
+                 [coeffs (get-coeffs expts)])
+            (if (not coeffs)
+                (loop empty res (+ 1 i))
+                (let ([coeff (get-taylor coeffs)])
+                  (if (equal? coeff 0)
+                      (loop (+ empty 1) res (+ 1 i))
+                      (loop 0 (cons (make-term coeff
+                                               (reverse
+                                                (for/list ([var vars] [tform tforms])
+                                                  ((cdr tform) var)))
+                                               expts) res) (+ 1 i))))))))))
 
 (define (make-sum terms)
   (match terms
@@ -88,6 +101,13 @@
    [`(,x) x]
    [`(,x ,xs ...)
     `(+ ,x ,(make-sum xs))]))
+
+(define (make-prod terms)
+  (match terms
+   ['() 1]
+   [`(,x) x]
+   [`(,x ,xs ...)
+    `(* ,x ,(make-prod xs))]))
 
 (define (make-monomial var pow)
   (cond
@@ -99,13 +119,17 @@
    [(positive? pow) `(expt ,var ,pow)]
    [(negative? pow) `(expt ,var ,pow)]))
 
-(define (make-expt var pow)
-  (cond
-   [(equal? pow 0) 1]
-   [(equal? pow 1) var]
-   [else
-    (let* ([l (floor (/ pow 2))] [r (- pow l)])
-      `(* ,(make-expt var l) ,(make-expt var r)))]))
+(define (make-term head vars expts)
+  ; We do not want to output something like (* (sqr x) (sqr y)) -- we'd prefer (sqr (* x y))
+  ; So we first extract the GCD of the exponents and put that exponentiation outside
+  (let ([outside-expt (apply gcd expts)])
+    (if (zero? outside-expt)
+        head ; Only happens if expts has only zeros
+        `(* ,head
+            ,(make-monomial
+              (make-prod
+               (map make-monomial vars (map (curryr / outside-expt) expts)))
+              outside-expt)))))
 
 (define n-sum-to-cache (make-hash))
 
@@ -128,15 +152,7 @@
           (loop (- i (length seg)) (+ sum 1))
           (list-ref seg i)))))
 
-(define (taylor-inf var expr)
-  (let ([vars (free-variables expr)])
-    (taylor-0
-     var
-     (pattern-substitute expr
-                         (for/list ([var* vars])
-                           (cons var* (if (eq? var var*) `(/ 1 ,var) var*)))))))
-
-(define (taylor-0 var expr)
+(define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
   (debug #:from 'taylor "Taking taylor expansion of" expr "in" var)
   (match expr
@@ -149,35 +165,35 @@
     [`(abs ,arg)
      (taylor-exact expr)]
     [`(+ ,args ...)
-     (apply taylor-add (map (curry taylor-0 var) args))]
+     (apply taylor-add (map (curry taylor var) args))]
     [`(- ,arg)
-     (taylor-negate ((curry taylor-0 var) arg))]
+     (taylor-negate ((curry taylor var) arg))]
     [`(- ,arg ,args ...)
-     (apply taylor-add ((curry taylor-0 var) arg) (map (compose taylor-negate (curry taylor-0 var)) args))]
+     (apply taylor-add ((curry taylor var) arg) (map (compose taylor-negate (curry taylor var)) args))]
     [`(* ,left ,right)
-     (taylor-mult (taylor-0 var left) (taylor-0 var right))]
+     (taylor-mult (taylor var left) (taylor var right))]
     [`(/ ,arg)
-     (taylor-invert (taylor-0 var arg))]
+     (taylor-invert (taylor var arg))]
     [`(/ 1 ,arg)
-     (taylor-invert (taylor-0 var arg))]
+     (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
-     (taylor-quotient (taylor-0 var num) (taylor-0 var den))]
+     (taylor-quotient (taylor var num) (taylor var den))]
     [`(if ,cond ,btrue ,bfalse)
      (taylor-exact expr)]
     [`(mod ,a ,b)
      (taylor-exact expr)]
     [`(sqr ,a)
-     (let ([ta (taylor-0 var a)])
+     (let ([ta (taylor var a)])
        (taylor-mult ta ta))]
     [`(sqrt ,arg)
-     (taylor-sqrt (taylor-0 var arg))]
+     (taylor-sqrt (taylor var arg))]
     [`(exp ,arg)
-     (let ([arg* (normalize-series (taylor-0 var arg))])
+     (let ([arg* (normalize-series (taylor var arg))])
        (if (positive? (car arg*))
            (taylor-exact expr)
            (taylor-exp (zero-series arg*))))]
     [`(sin ,arg)
-     (let ([arg* (normalize-series (taylor-0 var arg))])
+     (let ([arg* (normalize-series (taylor var arg))])
        (cond
         [(positive? (car arg*))
          (taylor-exact expr)]
@@ -191,7 +207,7 @@
         [else
          (taylor-sin (zero-series arg*))]))]
     [`(cos ,arg)
-     (let ([arg* (normalize-series (taylor-0 var arg))])
+     (let ([arg* (normalize-series (taylor var arg))])
        (cond
         [(positive? (car arg*))
          (taylor-exact expr)]
@@ -206,7 +222,7 @@
         [else
          (taylor-cos (zero-series arg*))]))]
     [`(log ,arg)
-     (let* ([arg* (normalize-series (taylor-0 var arg))]
+     (let* ([arg* (normalize-series (taylor var arg))]
             [rest (taylor-log (cdr arg*))])
        (if (zero? (car arg*))
            rest
@@ -219,11 +235,11 @@
     [`(expt ,(? (curry equal? var)) ,(? integer? pow))
      (cons (- pow) (λ (n) (if (= n 0) 1 0)))]
     [`(expt ,base ,pow)
-     (taylor-0 var `(exp (* ,pow (log ,base))))]
+     (taylor var `(exp (* ,pow (log ,base))))]
     [`(tan ,arg)
-     (taylor-0 var `(/ (sin ,arg) (cos ,arg)))]
+     (taylor var `(/ (sin ,arg) (cos ,arg)))]
     [`(cotan ,arg)
-     (taylor-0 var `(/ (cos ,arg) (sin ,arg)))]
+     (taylor var `(/ (cos ,arg) (sin ,arg)))]
     [_
      (taylor-exact expr)]))
 
@@ -246,7 +262,7 @@
         n)))
 
 (define (align-series . serieses)
-  (if (apply = (map car serieses))
+  (if (or (<= (length serieses) 1) (apply = (map car serieses)))
       serieses
       (let ([offset* (car (argmax car serieses))])
         (for/list ([series serieses])
