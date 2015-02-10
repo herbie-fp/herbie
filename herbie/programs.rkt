@@ -168,9 +168,7 @@
      compilations expr
      (λ ()
        (match expr
-	 [(? (negate list?))
-	  (let ([register (gensym "r")])
-	    (add-assignment! register expr))]
+	 [(? (negate list?)) expr]
 	 [`(let ([,vars ,vals] ...) ,body)
 	  (let ([val-regs (map compile-one vals)])
 	    (for ([var vars] [val-reg val-regs])
