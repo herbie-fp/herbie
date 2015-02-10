@@ -154,9 +154,9 @@
 ;; subexpressions.  So, we compile the program to a register machine
 ;; and use that to estimate the cost.
 
-(define (compile expr)
+(define (compile expr [initial-compilations (make-hash)])
   (define assignments '())
-  (define compilations (make-hash))
+  (define compilations initial-compilations)
 
   (define (add-assignment! register expr)
     (set! assignments (cons (list register expr) assignments))
@@ -176,6 +176,14 @@
 	    (for ([var vars] [val-reg val-regs])
 	      (hash-set! compilations var val-reg))
 	    (compile-one body))]
+	 [`(for/fold ([,accs ,inits] ...)
+	       ([,items ,lsts] ...)
+	     ,body)
+	  (let ([init-regs (map compile-one inits)]
+		[lst-regs (map compile-one lsts)])
+	    `(for/fold ,(map list accs init-regs)
+		 ,(map list items lst-regs)
+	       ,(compile body compilations)))]
 	 [`(,fn ,args ...)
 	  (let ([arg-regs (map compile-one args)]
 		[register (gensym "r")])
