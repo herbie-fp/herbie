@@ -10,8 +10,8 @@ body {
 
 h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
 h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
-h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0;}
-h3 {font-size: 15px; line-height: 1.2; margin: 1em 0 .2em 0;}
+h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0; clear: both;}
+h3 {font-size: 14px; line-height: 1.286; margin: 1em 0 .2em 0; clear: both;}
 
 p, li, dd, blockquote, figcaption {
   font-size: 15px; line-height: 1.2;
@@ -31,3 +31,5 @@ header {margin: 2em 0 1em 0;}
 .author-list li:after {content: ","}
 .author-list li:last-child:after {content: ""}
 svg {margin: 0 auto; display: block;}
+
+pre, dt {padding-left: 2.5em; font-size: 16px; font-family: monospace; background-color: #f1f1f1;}

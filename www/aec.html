@@ -1,0 +1,246 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Dashboard</title>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type='text/javascript' src='countdown.js'></script>
+  <script type='text/javascript' src='graph.js'></script>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="logo.png" />
+    <h1>Herbie</h1>
+    <p>AEC Evaluation</p>
+  </header>
+
+  <h2>Installing Herbie</h2>
+
+  <p>
+    There are three ways to try out Herbie.
+    The simplest is to use a VirtualBox image to run Herbie;
+    for users familiar with Docker,
+    Herbie provides a Docker image which may be more convenient;
+    and Herbie can also be built and run from source.
+  </p>
+
+  <h3>Virtual machine</h3>
+
+  <p>
+    To run Herbie in a virtual machine,
+    <a href="vm.vmx">download</a> the virtual machine image,
+    start VirtualBox, and start the image in VirtualBox.
+    (VMs other than VirtualBox should also work; however, this has not been tested.)
+  </p>
+
+  <p>
+    The virtual machine will start into a graphical desktop
+    with two icons on the desktop:
+  </p>
+
+  <ul>
+    <li><code>Results</code>, which holds Herbie's output</li>
+    <li><code>README.html</code>, which are a copy of these instructions.</li>
+  </ul>
+
+  <p>
+    In the virtual machine, Herbie can be run with the <code>herbie</code> command.
+  </p>
+
+  <h3>Docker image</h3>
+
+  <p>
+    To run Herbie through Docker,
+    <a href="https://docs.docker.com/installation/">install Docker</a>
+    and download the Herbie image to your computer with:
+  </p>
+
+  <pre>docker pull pavpanchekha/herbie</pre>
+
+  <p>
+    Create a folder for Herbie to place its results into:
+  </p>
+
+  <pre>mkdir Results</pre>
+
+  <p>
+    You can now run Herbie with the incantation
+  </p>
+
+  <pre>docker run -it -v $PWD/Results/:/herbie/graphs pavpanchekha/herbie</pre>
+
+  <p>
+    For convenience create an alias for this command in your shell.
+    In Bash, you would do this by executing:
+  </p>
+
+  <pre>alias herbie=docker run -it -v $PWD/Results/:/herbie/graphs pavpanchekha/herbie</pre>
+
+  <h3>Installing from source</h3>
+
+  <p>
+    Herbie is developed on <a href="https://github.com/uwplse/herbie">Github</a>
+    in <a href="https://racket-lang.org">Racket</a>.
+    To run Herbie, you'll need to <a href="http://download.racket-lang.org/">install Racket</a>.
+    Take care to use the official installer,
+    instead of using your distribution's package manager or a tool like OS X Homebrew.
+    These repositories often have out-of-date Racket version (Herbie requires 6.1)
+    or buggy versions of Racket's bundled mathematics libraries.
+  </p>
+
+  <p>
+    Herbie's source can be downloaded with:
+  </p>
+
+  <pre>git clone https://github.com/uwplse/herbie.git herbie</pre>
+
+  <p>
+    Build Herbie by running:
+  </p>
+
+  <pre>cd herbie && raco make herbie/reports/make-report.rkt</pre>
+
+  <p>
+    Herbie can now be run with:
+  </p>
+
+  <pre>racket herbie/reports/make-report.rkt</pre>
+
+  <p>
+    For convenience create an alias for this command in your shell.
+    In Bash, you would do this by executing:
+  </p>
+
+  <pre>alias herbie=racket herbie/reports/make-report.rkt</pre>
+
+  <p>
+    Unlike for the virtual machine or the Docker image,
+    results will appear in <code>graphs/</code>
+    inside the Herbie source directory.
+  </p>
+
+  <h2>Running Herbie</h2>
+
+  <p>
+    Now that Herbie is installed and can be run,
+    there are several experiments you can perform
+    to reproduce the results in the paper.
+    These instructions assume the <code>herbie</code> alias
+    has been defined as in the instructions above.
+  </p>
+
+  <h3>Reproducing the main evaluation</h3>
+  <p>
+    To reproduce the results from the main evaluation, run:
+  </p>
+
+  <pre>herbie bench/hamming</pre>
+
+  <p>
+    This command will take a while to run
+    and demands at least two gigabytes of memory to complete.
+    (Runtime can be anywhere from five minutes to an hour,
+    depending on the number of CPUs available,
+    the available memory,
+    and the speed of the machine.
+    In a virtual machine, this may take longer yet).
+  </p>
+
+  <p>
+    Once complete, open <code>report.html</code>,
+    from the results folder, in a browser.
+    (The page has been mostly tested in Firefox,
+    but should work in all modern browsers.)
+    Note that each invocation of <code>herbie</code>
+    will overwrite this report page.
+    The top of the page should contain a graphic
+    similar to the double precision results in Figure 7 from the paper.
+  </p>
+
+  <p>
+    The results in the figure may not be exactly identical to that in the paper,
+    due to the following reasons:
+  </p>
+
+  <ul>
+    <li>
+      Herbie has improved somewhat since the submitted paper,
+      so may produce somewhat better results on a few tests.
+    </li>
+    <li>
+      The plot drawn on the results page is generated by sampling 8196 points,
+      instead of the 100 000 used in the paper.
+    </li>
+    <li>
+      The random seed used by Herbie is different on every evaluation,
+      which changes the sample points used by Herbie and thus its results.
+    </li>
+  </ul>
+
+  <p>
+    We do not expect any of these sources of error to lead to significant difference in the results.
+  </p>
+
+  <p>
+    The rest of the report contains various details of how Herbie achieved its results
+    and several metrics for evaluating them.
+    We did not discuss these metrics in the paper, but invite the artifact evaluator to explore them.
+    For each benchmark, the <code>Target bits</code> column represents
+    the average bits correct for Hamming's answer, when known.
+  </p>
+
+  <h3>Reproducing the extended test suite evaluation</h3>
+
+  <p>
+    To reproduce Herbie's results on the extended evaluation, execute:
+  </p>
+
+  <pre>herbie bench</pre>
+
+  <p>
+    This command may take several hours to execute,
+    and is expected to require as much as four gigabytes of memory.
+    The results will again be summarized in <code>report.html</code>.
+    Note that for the numeric results reported in the paper,
+    only some of the test cases were considered.
+    (Herbie's complete benchmarks contain several trivial or duplicate benchmarks,
+    since the same formula sometimes shows up in multiple places;
+    these were ignored in the reported results.)
+  </p>
+
+  <h3>Additional options to <code>Herbie</code></h3>
+
+  <p>
+    Herbie supports several additional options,
+    which can be used to explore the effect of other parameters.
+    These options are summarized by <code>herbie --help</code>
+  </p>
+
+  <dl>
+    <dt>-n <var>N</var></dt>
+    <dd>Number of iterations of the main loop to use</dd>
+    <dt>-s <var>N</var></dt>
+    <dd>Number of sample points to use during the internal search</dd>
+    <dt>-f <var>category</var>:<var>flag</var></dt>
+    <dd>
+      Toggle flags that govern Herbie's search. This option can be repeated.
+      If both <code>sample:double</code> and <code>precision:double</code> are toggled,
+      Herbie will search for improvements in single-precision mode.
+      The other flags turn off various parts of Herbie's search, and are not recommended.
+    </dd>
+  </dl>
+
+  <p>
+    New benchmarks can also be written and passed to Herbie.
+    To do this, create a new file in <code>bench/</code> named <code><var>something</var>.rkt</code>.
+    This file should be in a standard format; see <code>bench/basic.rkt</code> for an example.
+    Herbie should now be run so:
+  </p>
+
+  <pre>herbie bench/<var>something</var>.rkt</pre>
+
+  <p>
+    A report is produced as usual.
+  </p>
+  
+</body>
