@@ -6,6 +6,7 @@
   <script type='text/javascript' src='countdown.js'></script>
   <script type='text/javascript' src='graph.js'></script>
   <link rel='stylesheet' type='text/css' href='main.css'>
+  <style>.hide-text {background-color: #f1f1f1; cursor: pointer; padding: .5em; margin: 1em;}</style>
 </head>
 <body>
   <header>
@@ -47,6 +48,7 @@
     In the virtual machine, Herbie can be run with the <code>herbie</code> command.
   </p>
 
+  <div id="hidable" data-hidetext="Instructions for using Docker or source are hidden; click here to show them.">
   <h3>Docker image</h3>
 
   <p>
@@ -86,6 +88,8 @@
     instead of using your distribution's package manager or a tool like OS X Homebrew.
     These repositories often have out-of-date Racket version (Herbie requires 6.1)
     or buggy versions of Racket's bundled mathematics libraries.
+    Note that Herbie's <code>git</code> history contains the names of Herbie's authors,
+    so this method may sacrifice double-blind evaluation.
   </p>
 
   <p>
@@ -118,6 +122,15 @@
     results will appear in <code>graphs/</code>
     inside the Herbie source directory.
   </p>
+  </div>
+  <script>
+    var h = document.getElementById("hidable");
+    var t = document.createElement("div");
+    t.className = "hide-text";
+    t.innerHTML = h.dataset.hidetext;
+    h.parentNode.replaceChild(t, h);
+    t.addEventListener("click", function(){t.parentNode.replaceChild(h, t)});
+  </script>
 
   <h2>Running Herbie</h2>
 
