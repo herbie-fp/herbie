@@ -88,6 +88,7 @@
     (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
     (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
     (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
+    (copy-file "www/graph.js" (build-path dir "graph.js") #t)
 
     (define total-time (apply + (map table-row-time table-data)))
     (define total-passed
@@ -134,6 +135,19 @@
       (printf "<dt>Sample points:</dt><dd>~a</dd>\n" (*num-points*))
       (printf "<dt>Iterations:</dt><dd>~a</dd>\n" (*num-iterations*))
       (printf "</dl>\n")
+
+      (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
+      (printf "<script type='text/javascript' src='graph.js'></script>\n")
+      (printf "<figure><style scoped>")
+      (printf "rect { pointer-events: all; }")
+      (printf "rect.guide { stroke: gray; }")
+      (printf "rect.good, polygon.good { stroke: black; fill: black; }")
+      (printf "rect.bad, polygon.bad { stroke: darkred; fill: darkred; }")
+      (printf "rect.gridline { stroke: rgba(80%, 80%, 80%, .4); fill: transparent; }")
+      (printf "text { text-anchor: middle; }")
+      (printf "</style>\n<svg id='results' width='525' height='320'></svg>\n")
+      (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#results'))})</script>\n")
+      (printf "</figure>\n")
 
       (printf "<div id='large'>\n")
       (printf "<div>Time: <span class='number'>~a</span></div>\n"
@@ -227,6 +241,7 @@
     (when *note*
       (printf "\"note\": \"~a\",\n" *note*))
     (printf "\"tests\": [\n")
+    (printf "~a"
     (string-join
      (for/list ([result results])
        (match result
@@ -235,7 +250,7 @@
           (format "  {\"name\": \"~a\", \"status\": \"~a\", \"start\": ~a, \"end\": ~a, \"target\": ~a, \"ninf\": ~a, \"pinf\": ~a, \"vars\": \"~a\", \"input\": \"~a\", \"output\": \"~a\", \"time\": ~a, \"bits\": ~a, \"link\": \"~a\"}"
                   name status start-bits end-bits (or target "false") inf- inf+
                   vars input output time bits link)]))
-     ",\n")
+     ",\n"))
     (printf "]\n}\n")))
 
 (command-line

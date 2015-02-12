@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/common)
+(require "../common.rkt")
 
 (provide (all-defined-out))
 
