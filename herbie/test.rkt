@@ -53,7 +53,6 @@
   (match op ['> >] ['< <] ['>= >=] ['<= <=]))
 
 (define (get-sampler expr)
-  (printf "~a\n" expr)
   (match expr
     [(? procedure? f) f] ; This can only come up from internal recusive calls
     ['float sample-float]

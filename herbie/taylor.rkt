@@ -43,7 +43,6 @@
            (if (or (> i (* iters (length vars))) (>= (length res) terms))
                res
                (let ([coeffs (iterate-diagonal (length vars) i)])
-                 (println i "(" coeffs "): " (make-term coeffs))
                  (if (not (equal? (take-taylor coeffs) 0))
                      (loop (+ i 1) (cons (make-term coeffs) res))
                      (loop (+ i 1) res))))))))
