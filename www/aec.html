@@ -1,19 +1,41 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie Dashboard</title>
-  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-  <script type='text/javascript' src='countdown.js'></script>
-  <script type='text/javascript' src='graph.js'></script>
-  <link rel='stylesheet' type='text/css' href='main.css'>
-  <style>.hide-text {background-color: #f1f1f1; cursor: pointer; padding: .5em; margin: 1em;}</style>
+  <title>Herbie AEC Instructions</title>
+  <style>
+    html {font-family: sans-serif;}
+    body {min-width: 400px; max-width: 650px; margin: 3em auto;}
+    h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
+    h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
+    h2 {font-size: 16px; line-height: 1.125; margin: 2.5em 0 .25em;}
+    h3 {font-size: 14px; line-height: 1.286; margin: 1.5em 0 .114em;}
+    .hide-text {background-color: #f1f1f1; cursor: pointer; padding: .5em; margin: 1em;}
+    p, li, dd, blockquote, figcaption {
+      font-size: 15px; line-height: 1.2; margin: .5em;
+      text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;}
+    figcaption {font-size: 14px; line-height: 1.1;}
+    header h1 {margin: .5em 0 0 0; font-size: 16pt;}
+    header p {font-size: 14pt; margin: .5em 0 0 0;}
+    header img {position: relative; top: -1em; float: left; width: 133px; margin: 0 2em 0 0;}
+    header {margin: 2em 0 1em 0;}
+    header + * {clear: both;}
+    pre, dt {padding-left: 1.5em; font-size: 16px; font-family: monospace; background-color: #f1f1f1;}
+  </style>
 </head>
 <body>
   <header>
-    <img class="logo" src="logo.png" />
-    <h1>Herbie</h1>
+    <img alt="Herbie" src="data:image/png;base64,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" />
+    <h1>Herbie (#61)</h1>
     <p>AEC Evaluation</p>
   </header>
+
+  <p>
+    These are instructions for evaluating Herbie,
+    the artifact for PLDI 2015 paper #61.
+    The main downloads for this artifact are the
+    <a href="">Submitted paper</a> and the <a href="">VirtualBox Image</a>,
+    along with these instructions.
+  </p>
 
   <h2>Installing Herbie</h2>
 
@@ -57,7 +79,7 @@
     and download the Herbie image to your computer with:
   </p>
 
-  <pre>docker pull pavpanchekha/herbie</pre>
+  <pre>docker pull pldi15num60/herbie</pre>
 
   <p>
     Create a folder for Herbie to place its results into:
@@ -69,14 +91,14 @@
     You can now run Herbie with the incantation
   </p>
 
-  <pre>docker run -it -v $PWD/Results/:/herbie/graphs pavpanchekha/herbie</pre>
+  <pre>docker run -it -v $PWD/Results/:/herbie/graphs pldi15num60/herbie</pre>
 
   <p>
     For convenience create an alias for this command in your shell.
     In Bash, you would do this by executing:
   </p>
 
-  <pre>alias herbie=docker run -it -v $PWD/Results/:/herbie/graphs pavpanchekha/herbie</pre>
+  <pre>alias herbie=docker run -it -v $PWD/Results/:/herbie/graphs pldi15num60/herbie</pre>
 
   <h3>Installing from source</h3>
 
@@ -132,7 +154,7 @@
     t.addEventListener("click", function(){t.parentNode.replaceChild(h, t)});
   </script>
 
-  <h2>Running Herbie</h2>
+  <h2>Evaluating Herbie</h2>
 
   <p>
     Now that Herbie is installed and can be run,
@@ -221,12 +243,12 @@
     these were ignored in the reported results.)
   </p>
 
-  <h3>Additional options to <code>Herbie</code></h3>
+  <h2>More things to do with Herbie</h2>
 
   <p>
     Herbie supports several additional options,
     which can be used to explore the effect of other parameters.
-    These options are summarized by <code>herbie --help</code>
+    These options are summarized by <code>herbie --help</code>:
   </p>
 
   <dl>
@@ -242,6 +264,8 @@
       The other flags turn off various parts of Herbie's search, and are not recommended.
     </dd>
   </dl>
+
+  <h3>Writing new tests</h3>
 
   <p>
     New benchmarks can also be written and passed to Herbie.
