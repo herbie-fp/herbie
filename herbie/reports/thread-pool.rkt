@@ -6,6 +6,7 @@
 (require math/bigfloat)
 (require "../common.rkt")
 (require "../programs.rkt")
+(require "../points.rkt")
 (require "../test.rkt")
 (require "../alternative.rkt")
 (require "../main.rkt")

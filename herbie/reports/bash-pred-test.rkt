@@ -2,7 +2,6 @@
 
 (require "../common.rkt")
 (require "../points.rkt")
-(require "../load-tests.rkt")
 (require "../test.rkt")
 (require "../main.rkt")
 (require "../alternative.rkt")

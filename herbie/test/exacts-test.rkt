@@ -6,7 +6,7 @@
 (require "../programs.rkt")
 (require "../points.rkt")
 (require "../test.rkt")
-(require "../load-tests.rkt")
+(require "../test.rkt")
 
 (define tests (load-tests "../bench/hamming"))
 

@@ -6,7 +6,6 @@
 (require "../points.rkt")
 (require "../alternative.rkt")
 (require "../test.rkt")
-(require "../load-tests.rkt")
 (require "../main.rkt")
 (require "thread-pool.rkt")
 (require "cmdline.rkt")
