@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; Multiphoton states related via linear optics
 ; P. Migdal, J. Rodrigues-Laguna, M. Oszmaniec, M. Lewenstein

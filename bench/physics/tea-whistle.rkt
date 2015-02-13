@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; The aeroacoustics of a steam kettle
 ; R. H. Henrywood and A. Agarwal

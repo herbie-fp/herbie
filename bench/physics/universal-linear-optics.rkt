@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; Generation of universal linear optics by any beam splitter
 ; A. Bouland and S. Aaronson

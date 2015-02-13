@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 (herbie-test ([x (< -0.00017 default)])
   "NMSE example 3.7"

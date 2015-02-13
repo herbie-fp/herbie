@@ -1,5 +1,3 @@
-#lang racket
-(require "../herbie/test.rkt")
 
 ; All test cases come from the EPFL Rosa project, available at
 ;

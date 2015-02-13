@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; Weak limit of the three-state quantum walk on the line
 ; S. Falkner and S. Boettcher

@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ;; From the GNU Octave 3.8 release, in file CollocWt.cc
 

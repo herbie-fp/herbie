@@ -4,7 +4,7 @@
 (require "programs.rkt")
 (require "points.rkt")
 
-(provide (struct-out test) *tests* herbie-test test-program test-samplers
+(provide (struct-out test) test-program test-samplers parse-test
          (all-from-out "points.rkt"))
 
 (define (unfold-let expr)
@@ -47,7 +47,6 @@
   `(λ ,(test-vars test) ,(test-input test)))
 
 (struct test (name vars sampling-expr input output) #:prefab)
-(define *tests* (make-parameter '()))
 
 (define (get-op op)
   (match op ['> >] ['< <] ['>= >=] ['<= <=]))
@@ -77,23 +76,18 @@
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
     (cons var (get-sampler samp))))
 
-(define (save-test t)
-  (*tests* (cons t (*tests*))))
-
-(define-syntax (herbie-test stx)
+(define (parse-test expr)
   (define (var&dist expr)
-    (syntax-case expr ()
-      [[var samp] (cons #'var #'samp)]
-      [var (cons #'var #'default)]))
+    (match expr
+      [(list var samp) (cons var samp)]
+      [var (cons var 'default)]))
 
-  (syntax-case stx ()
-    [(_ (vars ...) name input output)
-     (let* ([parse-args (map var&dist (syntax->list #'(vars ...)))])
-       (with-syntax ([vars (map car parse-args)]
-                     [samp (map cdr parse-args)])
-         #'(save-test (test name 'vars 'samp (compile-program 'input) (compile-program 'output)))))]
-    [(_ (vars ...) name input)
-     (let* ([parse-args (map var&dist (syntax->list #'(vars ...)))])
-       (with-syntax ([vars (map car parse-args)]
-                     [samp (map cdr parse-args)])
-       #'(save-test (test name 'vars 'samp (compile-program 'input) #f))))]))
+  (match expr
+    [(list 'herbie-test (list vars ...) name input output)
+     (let* ([parse-args (map var&dist vars)])
+       (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
+         (test name vars samp (compile-program input) (compile-program output))))]
+    [(list 'herbie-test (list vars ...) name input)
+     (let* ([parse-args (map var&dist vars)])
+       (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
+         (test name vars samp (compile-program input) #f)))]))

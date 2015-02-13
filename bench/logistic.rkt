@@ -1,5 +1,3 @@
-#lang racket
-(require "../herbie/test.rkt")
 
 ; Suggested by Akshay
 

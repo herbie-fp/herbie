@@ -1,5 +1,3 @@
-#lang racket
-(require "../herbie/test.rkt")
 
 ;; Code from Jmat.js, commit 79a386deb5e19c0ee7896e820f3f90855a27fa17
 ;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js

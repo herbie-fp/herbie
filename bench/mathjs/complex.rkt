@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; All code examples from mathjs
 ; https://github.com/josdejong/mathjs/blob/master/

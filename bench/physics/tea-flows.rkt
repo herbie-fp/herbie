@@ -1,5 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
 
 ; Pouring flows
 ; J. VandenBroeck and J. Keller
