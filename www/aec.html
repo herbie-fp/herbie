@@ -33,7 +33,7 @@
     These are instructions for evaluating Herbie,
     the artifact for PLDI 2015 paper #61.
     The main downloads for this artifact are the
-    <a href="">Submitted paper</a> and the <a href="">VirtualBox Image</a>,
+    <a href="paper.pdf">Submitted paper</a> and the <a href="image.ova">VirtualBox Image</a>,
     along with these instructions.
   </p>
 
@@ -62,12 +62,15 @@
   </p>
 
   <ul>
-    <li><code>Results</code>, which holds Herbie's output</li>
+    <li><code>Results</code>, which holds Herbie's output. It contains a recent run's results.</li>
     <li><code>README.html</code>, which are a copy of these instructions.</li>
   </ul>
 
   <p>
     In the virtual machine, Herbie can be run with the <code>herbie</code> command.
+    In case you want to install additional software in the VM,
+    the machine is a standard Ubuntu 14.04 Desktop installation,
+    with username <kbd>aec</kdb> and password <kbd>password</kbd>.
   </p>
 
   <div id="hidable" data-hidetext="Instructions for using Docker or source are hidden; click here to show them.">
@@ -79,7 +82,7 @@
     and download the Herbie image to your computer with:
   </p>
 
-  <pre>docker pull pldi15num60/herbie</pre>
+  <pre>docker pull pldi15num61/herbie</pre>
 
   <p>
     Create a folder for Herbie to place its results into:
@@ -91,14 +94,14 @@
     You can now run Herbie with the incantation
   </p>
 
-  <pre>docker run -it -v $PWD/Results/:/herbie/graphs pldi15num60/herbie</pre>
+  <pre>docker run -it -v $PWD/Results/:/herbie/graphs pldi15num61/herbie</pre>
 
   <p>
     For convenience create an alias for this command in your shell.
     In Bash, you would do this by executing:
   </p>
 
-  <pre>alias herbie=docker run -it -v $PWD/Results/:/herbie/graphs pldi15num60/herbie</pre>
+  <pre>alias herbie=docker run -it -v $PWD/Results/:/herbie/graphs pldi15num61/herbie</pre>
 
   <h3>Installing from source</h3>
 
@@ -252,10 +255,12 @@
   </p>
 
   <dl>
+    <dt>-r <var>R</var></dt>
+    <dd>A random seed to use; a fixed seed is stored in the <code>SEED</code> environment variable. Omitting this argument asks Herbie to choose a new seed.</dd>
     <dt>-n <var>N</var></dt>
-    <dd>Number of iterations of the main loop to use</dd>
+    <dd>Number of iterations of the main loop to use.</dd>
     <dt>-s <var>N</var></dt>
-    <dd>Number of sample points to use during the internal search</dd>
+    <dd>Number of sample points to use during the internal search.</dd>
     <dt>-f <var>category</var>:<var>flag</var></dt>
     <dd>
       Toggle flags that govern Herbie's search. This option can be repeated.
