@@ -6,14 +6,11 @@
 (require "../programs.rkt")
 (require "../points.rkt")
 (require "../test.rkt")
-(require "../test.rkt")
-
-(define tests (load-tests "../bench/hamming"))
 
 (define exacts-test
   (test-suite
    "Test that exact evaluation matches 65536-bit floating point"
-   (for ([test tests])
+   (for ([test benchmark-path])
      (bf-precision (*precision-step*))
      (printf ">> ~a" (test-program test))
      (define ctx (prepare-points (test-program test) (test-samplers test)))
