@@ -14,7 +14,6 @@
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
-(define *output-directory* "graphs")
 
 (define *max-test-arity* #f)
 (define *max-test-threads* (max (- (processor-count) 1) 1))
@@ -28,14 +27,14 @@
   (let* ([tests (allowed-tests bench-dirs)]
          [results
           (get-test-results tests #:threads *max-test-threads* 
-                            #:profile *profile?* #:dir *output-directory*)])
+                            #:profile *profile?* #:dir (path->string report-output-path))])
 
-    (when (not (directory-exists? *output-directory*))
-      (make-directory *output-directory*))
+    (when (not (directory-exists? report-output-path))
+      (make-directory report-output-path))
 
-    (make-report-page "graphs/report.html" results)
-    (make-datafile "graphs/results.herbie.dat" results)
-    (make-json "graphs/results.json" results)))
+    (make-report-page (build-path report-output-path "report.html") results)
+    (make-datafile (build-path report-output-path "results.herbie.dat") results)
+    (make-json (build-path report-output-path "results.json") results)))
 
 (define (allowed-tests bench-dirs)
   (reverse

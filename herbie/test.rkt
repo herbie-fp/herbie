@@ -4,7 +4,6 @@
 (require "alternative.rkt")
 (require "programs.rkt")
 (require "points.rkt")
-(require racket/runtime-path)
 
 (provide (struct-out test) test-program test-samplers
          load-tests load-file)
@@ -94,7 +93,6 @@
        (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
          (test name vars samp (compile-program input) #f)))]))
 
-(define-runtime-path benchmark-path "../bench/")
 
 (define (load-file p)
   (let ([fp (open-input-file p)])

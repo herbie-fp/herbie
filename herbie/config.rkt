@@ -1,11 +1,10 @@
 #lang racket
+(require racket/runtime-path)
 
-(provide *flags* flag toggle-flag!
-         *num-points* *precision-step* *num-iterations*
-         *default-test-value* *epsilon-fraction*
-         *max-period-coeff*
-         *localize-expressions-limit*
-	 *binary-search-test-points*)
+(provide (all-defined-out))
+
+(define-runtime-path report-output-path "../graphs/")
+(define-runtime-path benchmark-path "../bench/")
 
 ;; Flag Stuff
 

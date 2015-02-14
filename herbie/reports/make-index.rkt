@@ -16,7 +16,7 @@
 (struct report-info (folder date commit branch seed flags points iterations master? note tests))
 
 (define (read-report-info folder)
-  (let ([info-file (build-path "graphs" "reports" folder "results.json")])
+  (let ([info-file (build-path report-output-path "reports" folder "results.json")])
     (if (file-exists? info-file)
         (let* ([json (call-with-input-file info-file read-json)]
                [get (λ (field) (hash-ref json field))])
@@ -50,7 +50,7 @@
   (let* ([folders
           (map read-report-info
                (remove-duplicates
-                (sort (directory-list "graphs/reports/") > #:key name->timestamp)
+                (sort (directory-list (build-path report-output-path "reports/")) > #:key name->timestamp)
                 #:key name->timestamp))])
     (write-file "index.html"
       (printf "<!doctype html>\n")
