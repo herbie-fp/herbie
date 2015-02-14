@@ -6,7 +6,6 @@
 (require "localize-error.rkt")
 (require "simplify/simplify.rkt")
 (require "infer-regimes.rkt")
-(require "locations.rkt")
 (require "programs.rkt")
 (require "periodicity.rkt")
 (require "taylor.rkt")

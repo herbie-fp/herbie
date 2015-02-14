@@ -7,7 +7,7 @@
 
 (provide (all-from-out "syntax.rkt")
          location-induct program-induct expression-induct location-hash
-         location-do location-get
+         location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
          free-variables)
@@ -114,6 +114,21 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
+
+(define (location-parent loc)
+  (reverse (cdr (reverse loc))))
+
+(define (location-sibling loc)
+  (if (<= (length loc) 1)
+      #f
+      (let ([loc* (reverse loc)])
+        (cond
+         [(= (car loc*) 1)
+          (reverse (cons 2 (cdr loc*)))]
+         [(= (car loc*) 2)
+          (reverse (cons 1 (cdr loc*)))]
+         [else
+          #f]))))
 
 (define (eval-prog prog mode)
   (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
