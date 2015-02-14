@@ -1,6 +1,11 @@
 
+; What Every Computer Scientist Should Know About Floating-Point Arithmetic
+; David Goldberg
+; Computing Surveys, March 1991
+; http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html
+
 (herbie-test (a b c)
-  "The quadratic formula (+)"
+  "The quadratic formula (r1)"
    (let* ((d (- (sqr b) (* 4 a c))))
      (/ (+ (- b) (sqrt d)) (* 2 a)))
    (let* ((d (- (sqr b) (* 4 a c)))
@@ -11,7 +16,7 @@
          (/ c (* a r2)))))
 
 (herbie-test (a b c)
-  "The quadratic formula (-)"
+  "The quadratic formula (r2)"
    (let* ((d (sqrt (- (sqr b) (* 4 (* a c))))))
      (/ (- (- b) d) (* 2 a)))
    (let* ((d (sqrt (- (sqr b) (* 4 (* a c)))))
@@ -52,8 +57,8 @@
              (/ i n)
              (/ (* (/ i n) (log (+ 1 (/ i n))))
                 (- (+ (/ i n) 1) 1)))])
-  (* 100 (/ (- (exp (* n lnbase)) 1)
-            (/ i n)))))
+    (* 100 (/ (- (exp (* n lnbase)) 1)
+              (/ i n)))))
 
 (herbie-test (x)
   "x / (x^2 + 1)"
