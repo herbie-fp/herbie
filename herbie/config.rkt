@@ -59,3 +59,5 @@
 (define *localize-expressions-limit* (make-parameter 4))
 
 (define *binary-search-test-points* (make-parameter 16))
+
+(define *common-subexpr-factoring-limit* (make-parameter 4))

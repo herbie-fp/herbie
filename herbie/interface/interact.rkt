@@ -52,8 +52,6 @@
   (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
   (shellstate-simplified (^shell-state^)))
 
-(define *setup-fuel* (make-parameter 3))
-
 
 ;; Setting up
 (define (setup-prog! prog #:samplers [samplers #f])
@@ -231,7 +229,9 @@
   (void))
 
 (define (get-final-combination)
-  (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-		 (if (= (length tables) 1)
-		     (extract-alt (car tables))
-		     (combine-alts splitpoints (map extract-alt tables))))))
+  (factor-common-subexprs
+   (remove-pows
+    (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
+      (if (= (length tables) 1)
+	  (extract-alt (car tables))
+	  (combine-alts splitpoints (map extract-alt tables)))))))
