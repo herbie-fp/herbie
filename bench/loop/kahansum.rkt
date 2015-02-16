@@ -21,16 +21,13 @@ return s
 
 |#
 
-(herbie-test (x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)
+(herbie-test ([lst (list 20 double .25)])
   "Kahan summation"
-  (let* ([l (list x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)])
-    (for/fold ([s 0.0])
-	([item l])
-      (+ item s)))
-  (let* ([l (list x00 x01 x02 x03 x04 x05 x06 x07 x08 x09)])
-    (first-value
-     (for/fold ([s 0.0]
-		[c 0.0])
-	 ([item l])
-       (values (+ s (- item c))
-	       (- (- (+ s (- item c)) s) (- item c)))))))
+  (for/fold ([s 0.0])
+      ([item lst])
+    (+ item s))
+  (for/fold ([s 0.0]
+	     [c 0.0])
+      ([item lst])
+    (values (+ s (- item c))
+	    (- (- (+ s (- item c)) s) (- item c)))))
