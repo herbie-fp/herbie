@@ -16,29 +16,54 @@
 	 prog
 	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
 	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
-	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
+	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)]
+	 #:let [let-handler (λ (expr location) expr)] #:fold [fold-handler (λ (expr location) expr)])
 
   (define (inductor prog location)
-    (cond
-     [(constant? prog)
-      (constant prog (reverse location))]
-     [(variable? prog)
-      (variable prog (reverse location))]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog) (cons 2 location))])
-	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (enumerate #:from 1
-				  (λ (idx prog) (inductor prog (cons idx location)))
-				  (cdr prog)))
+    (match prog
+      [(? constant?) (constant prog (reverse location))]
+      [(? variable?) (variable prog (reverse location))]
+      [`(,(or 'λ 'lambda) ,vars ,body)
+       (toplevel `(λ ,vars
+		    ,(inductor body (cons 2 location)))
 		 (reverse location))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (enumerate #:from 1
-                                  (λ (idx prog) (inductor prog (cons idx location)))
-                                  (cdr prog)))
-		 (reverse location))]))
+      ;; Note: for the purposes of locations, the subexpressions of a
+      ;; let expression are first it's binding expressions, then its
+      ;; body. That is, for an expression like:
+      ;; 
+      ;; (let ([x (+ 3 5)]
+      ;;       [y 2])
+      ;;   (+ x y))
+      ;;   
+      ;; Expr at '(1) is (+ 3 5), expr at  '(1 2) is 5, expr at '(2)
+      ;; is 2, and expr at '(3) is (+ x y).
+      [`(let ([,vars ,vals] ...) ,body)
+       (let-handler
+	`(let ,(for/list ([var vars] [val vals] [loc-t (in-naturals 1)])
+		 (list var (inductor val (cons loc-t location))))
+	   ,(inductor body (cons (add1 (length vars)) location)))
+	(reverse location))]
+      ;; Note: for/fold's do a similar thing to let's (see above), but
+      ;; with both sets of bindings, so that the first lst-expr is at
+      ;; (add1 (length accs)), and the body is at (+ (length accs)
+      ;; (length inits) 1).
+      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...) ,body)
+       (fold-handler
+	`(for/fold ,(for/list ([acc accs] [init inits] [loc-t (in-naturals 1)])
+		      (list acc (inductor init (cons loc-t location))))
+	     ,(for/list ([item items] [lst-expr lst-exprs] [loc-t (in-naturals 1)])
+		(list item (inductor lst-expr (cons loc-t location))))
+	   ,(inductor body (cons (+ (length accs) (length inits) 1) location))))]
+      [`(,fn ,args ...)
+       (let ([expr* (cons (symbol-table fn (reverse (cons 0 location)))
+			  (enumerate #:from 1
+				     (λ (idx prog) (inductor prog (cons idx location)))
+				     (cdr prog)))])
+	 (if (memq fn predicates)
+	     (predicate expr* (reverse location))
+	     (primitive expr* (reverse location))))]
+      [_ (error "malformed expression:" prog)]))
+
   (inductor prog '()))
 
 (define (location-hash prog)
@@ -52,38 +77,56 @@
   expr->locs)
 
 (define (expression-induct
-	 expr vars
-         #:toplevel [toplevel identity] #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
-  (program-body (program-induct
-		 `(λ ,vars ,expr)
-		 #:toplevel toplevel #:constant constant
-		 #:variable variable #:primitive primitive
-		 #:symbol symbol-table #:predicate predicate)))
+	 expr
+         #:constant [constant identity] #:variable [variable identity]
+	 #:primitive [primitive identity] #:symbol [symbol-table identity]
+	 #:predicate [predicate identity]
+	 #:let [let-handler identity] #:fold [fold-handler identity])
+
+  (define (inductor expr)
+    (match expr
+      [(? constant?) (constant expr)]
+      [(? variable?) (variable expr)]
+      [`(let ([,vars ,vals] ...) ,body)
+       (let-handler
+	`(let ,(map list vars (map inductor vals))
+	   ,(inductor body)))]
+      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...)
+      	  (values . ,bodies))
+       (fold-handler
+      	`(for/fold ,(map list accs (map inductor inits))
+      	     ,(map list items (map inductor lst-exprs))
+      	   (values . ,(map inductor bodies))))]
+      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...) ,body)
+       (fold-handler
+	`(for/fold ,(map list accs (map inductor inits))
+	     ,(map list items (map inductor lst-exprs))
+	   ,(inductor body)))]
+      [`(,fn ,args ...)
+       (let ([expr* (cons (symbol-table fn) (map inductor args))])
+	 (if (memq fn predicates)
+	     (predicate expr*)
+	     (primitive expr*)))]
+      [_ (error "malformed expression:" expr)]))
+
+  (inductor expr))
 
 (define (program-induct
          prog
          #:toplevel [toplevel identity] #:constant [constant identity]
          #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
+         #:symbol [symbol-table identity] #:predicate [predicate identity]
+	 #:let [let-handler identity] #:fold [fold-handler identity])
 
-  ; Inlined for speed
-  (define (inductor prog)
-    (cond
-     [(constant? prog) (constant prog)]
-     [(variable? prog) (variable prog)]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog))])
-	(toplevel `(λ ,(program-variables prog) ,body*)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]))
-
-  (inductor prog))
+  (toplevel `(λ ,(program-variables prog)
+	       ,(expression-induct (program-body prog)
+				   #:constant constant
+				   #:variable variable
+				   #:primitive primitive
+				   #:symbol symbol-table
+				   #:predicate predicate
+				   #:let let-handler
+				   #:fold fold-handler))))
 
 (define (free-variables prog [bound constants])
   (filter (λ (v) (not (member v bound)))
@@ -182,15 +225,33 @@
 	    (compile-one body))]
 	 ;; For folds, register compile the intitial expressions for
 	 ;; the accs and sequences for iterating over, and bind them
-	 ;; properly in the new for/fold, and then recurse on body.
+	 ;; properly in the new for/fold, and then recurse on body. We
+	 ;; have to do some special handling for multiple-values.
+	 [`(for/fold ([,accs ,inits] ...)
+	       ([,items ,lsts] ...)
+	     (values . ,ret-vals))
+	  (let ([init-regs (map compile-one inits)]
+		[lst-regs (map compile-one lsts)])
+	    `(for-wrapper
+	      (for/fold ,(map list accs init-regs)
+		  ,(map list items lst-regs)
+		,(let ([naive-compiled (compile `(values . ,ret-vals) compilations)])
+		   (match naive-compiled
+		     [`(let* ([,regs ,exprs] ...)
+			 ,ret-reg)
+		      (match (car (take-right exprs 1))
+			[`(values . ,ret-regs)
+			 `(let* ,(map list (drop-right regs 1) (drop-right exprs 1))
+			    (values . ,ret-regs))])])))))]
 	 [`(for/fold ([,accs ,inits] ...)
 	       ([,items ,lsts] ...)
 	     ,body)
 	  (let ([init-regs (map compile-one inits)]
 		[lst-regs (map compile-one lsts)])
-	    `(for/fold ,(map list accs init-regs)
-		 ,(map list items lst-regs)
-	       ,(compile body compilations)))]
+	    `(for-wrapper
+	      (for/fold ,(map list accs init-regs)
+		  ,(map list items lst-regs)
+		,(compile body compilations))))]
 	 ;; For anything else, compile subexpressions, and then bind
 	 ;; new register to function on old registers. 
 	 [`(,fn ,args ...)

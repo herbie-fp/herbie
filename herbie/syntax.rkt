@@ -92,7 +92,9 @@
   [<=       bf<=      <=        1]
   [>=       bf>=      >=        1]
   [and      and-fn    and-fn    1]
-  [or       or-fn     or-fn     1])
+  [or       or-fn     or-fn     1]
+  [list     list      list      1]
+  [values   values    values    1])
 
 (define *operations* (make-parameter operations))
 
@@ -134,6 +136,10 @@
    [(eq? x 'pi) pi.bf]
    [(eq? x 'e) (bfexp 1.bf)]
    [else x]))
+
+(define-syntax-rule (for-wrapper for)
+  (let ([result-list (call-with-values (λ () for) list)])
+    (car result-list)))
 
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
