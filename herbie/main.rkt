@@ -12,46 +12,13 @@
 (require "alt-table.rkt")
 (require "matcher.rkt")
 
-(provide improve
-	 ;; For the shell
+(provide ;; For the shell
 	 (all-defined-out))
 
 ; For debugging
 (define program-a '(λ (x) (/ (- (exp x) 1) x)))
 (define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 (define initial-fuel '())
-
-(define (improve prog fuel #:get-context [get-context #f] #:samplers [samplers #f])
-  (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (set! initial-fuel fuel)
-  (let* ([samplers (or samplers (map (curryr cons sample-default) (program-variables prog)))]
-	 [context (prepare-points prog samplers)])
-    (parameterize ([*pcontext* context]
-		   [*analyze-context* ((flag 'localize 'cache) context #f)]
-		   [*start-prog* prog])
-      (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-      (let* ([alt-table (setup-prog prog fuel)]
-	     [result-alt
-	      (begin
-		(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-		(main-loop alt-table fuel))])
-	(if get-context (list result-alt (atab-context alt-table)) result-alt)))))
-
-(define (main-loop table fuel)
-  (parameterize ([*pcontext* (atab-context table)])
-    (match-let ([table* (improve-loop table fuel)])
-      (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-      (if ((flag 'reduce 'regimes) #t #f)
-	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
-	    (let ([result-alt (if (= (length tables) 1)
-				  (extract-alt (car tables))
-				  (combine-alts splitpoints
-						(if ((flag 'regimes 'recurse) #t #f)
-						    (map (curryr main-loop (/ fuel 2)) tables)
-						    (map extract-alt tables))))])
-	      (remove-pows result-alt)))
-          (remove-pows (extract-alt table*))))))
 
 ;; Implementation
 
