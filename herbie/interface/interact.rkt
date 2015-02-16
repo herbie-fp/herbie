@@ -66,7 +66,7 @@
     (*pcontext* context)
     (*analyze-context* ((flag 'localize 'cache) context #f))
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (^table^ (setup-prog prog (*setup-fuel*)))
+    (^table^ (setup-prog prog))
     (void)))
 
 ;; Information

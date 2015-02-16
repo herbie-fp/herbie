@@ -76,15 +76,10 @@
    'removed-pows
    (list altn)))
 
-(define (setup-prog prog fuel)
-  (let* ([alt (make-alt prog)]
-	 [maybe-period ((flag 'setup 'periodicity)
-			(curry optimize-periodicity
-			       (λ (alt)
-				 (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2))))
-			identity)]
-	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
-	 [processed (maybe-period (maybe-simplify alt))]
+(define (setup-prog prog)
+  (let* ([alt (make-alt (unfold-lets prog))]
+	 [processed
+	  ((flag 'setup 'simplify) (apply alt-apply alt (simplify alt)) alt)]
 	 [table (make-alt-table (*pcontext*) processed)]
 	 [extracted (extract-alt table)])
     (assert (eq? extracted processed)
