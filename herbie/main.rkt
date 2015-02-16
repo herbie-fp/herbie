@@ -81,51 +81,6 @@
 	  (argmins (compose errors-score alt-errors)
 		   alts)))
 
-(define (improve-loop table fuel)
-  (cond [(<= fuel 0)
-	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (post-process table)]
-	[(atab-completed? table)
-	 (debug "Ran out of unexpanded alts in alt table, reducing..." fuel "fuel remaining" #:from 'main #:depth 2)
-	 (post-process table)]
-	[#t
-	 (debug #:from 'progress #:depth 2 "iteration" (add1 (- initial-fuel fuel)) "/" initial-fuel)
-	 (debug #:from 'progress #:depth 3 "picking best candidate")
-	 (improve-loop
-	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func best-alt)])
-	    (atab-add-altns table* (generate-alts picked)))
-	  (sub1 fuel))]))
-
-(define (generate-alts altn)
-  (let* ([locs-generated 0]
-	 [locs (localize-error (alt-program altn))]
-	 [num-locs (length locs)])
-    (append-map (λ (loc)
-		  (set! locs-generated (add1 locs-generated))
-		  (debug #:from 'progress #:depth 3 "generating at location" locs-generated "out of" num-locs)
-		  (append (taylor-alt altn loc)
-			  (generate-alts-at altn loc)))
-		locs)))
-
-(define (generate-alts-at altn loc)
-  (let ([rewrite
-	 ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
-    (debug #:from 'progress #:depth 4 "rewriting")
-    (let* ([rewritten (rewrite (alt-add-event altn '(start rm)) #:root loc)]
-	   [num-rewritten (length rewritten)]
-	   [simplified 0]
-	   [cleanup
-	    ((flag 'generate 'simplify)
-	     (λ (alt)
-	       (set! simplified (add1 simplified))
-	       (debug #:from 'progress #:depth 4 "simplifying alt" simplified "of" num-rewritten)
-	       (simplify-alt alt))
-	     identity)])
-    (map cleanup rewritten))))
-
-(define (simplify-alt altn)
-  (apply alt-apply altn (simplify altn)))
-
 (define (completely-simplify-alt altn)
   (let* ([prog (alt-program altn)]
 	 [prog* `(λ ,(program-variables prog) ,(parameterize ([*max-egraph-iters* (/ (*max-egraph-iters*) 2)])
