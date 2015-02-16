@@ -126,6 +126,7 @@
 
 (define (->bf x)
   (cond
+   [(list? x) (map ->bf x)]
    [(real? x) (bf x)]
    [(bigfloat? x) x]
    [(complex? x)

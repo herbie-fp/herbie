@@ -2,14 +2,18 @@
 
 (require math/flonum)
 (require math/bigfloat)
+(require math/distributions)
 (require "common.rkt")
 (require "programs.rkt")
 (require "config.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default sample-grid
+	 sample-expbucket sample-double sample-float sample-default
+	 sample-uniform sample-integer sample-list
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list sort-context-on-expr)
+
+(provide (all-defined-out))
 
 (define *pcontext* (make-parameter #f))
 
@@ -69,17 +73,28 @@
 (define ((sample-uniform a b) num)
   (build-list num (λ (_) (+ (* (random) (- b a)) a))))
 
-(define ((sample-grid stack) num)
-  (let* ([exponent-width ((flag 'sample 'double) 10 7)]
-	 [mantissa-width ((flag 'sample 'double) 52 23)]
-	 [num-steps-dim (exact->inexact (floor (sqrt (/ num stack))))]
-	 [exponent-step (/ (expt 2 exponent-width) num-steps-dim)]
-	 [mantissa-step (/ (expt 2 mantissa-width) num-steps-dim)])
-    (build-list num (λ (n)
-		      (let* ([step-num (quotient n (floor stack))]
-			     [exp-step-num (quotient step-num num-steps-dim)]
-			     [mant-step-num (add1 (modulo step-num num-steps-dim))])
-			(* (* mant-step-num mantissa-step) (expt 2 (* exp-step-num exponent-step))))))))
+(define (mag-sqrt x)
+  (if (negative? x)
+      (- (sqrt (- x)))
+      (sqrt x)))
+
+;; This sampler returns num lists, with each list having a length
+;; produced by length-sampler, an average produced mean-sampler, and a
+;; ratio between the mean and the standard deviation produced by
+;; deviation-ratio-sampler.
+(define ((sample-list length-sampler mean-sampler deviation-ratio-sampler) num)
+  ;; For each list we want to produce, use our samplers to produce
+  ;; length, mean, and deviation ratios, and iterate through them.
+  (for/list ([lst-length (length-sampler num)] [mean (mean-sampler num)]
+	     [deviation-ratio (deviation-ratio-sampler num)])
+    (let* ([deviation (* deviation-ratio mean)])
+      (sample (normal-dist mean deviation) lst-length))))
+
+;; For testing the previous function
+(define (standard-deviation lst)
+  (let* ([mean (/ (apply + lst) (length lst))]
+	 [deviations (map (compose sqr (curry - mean)) lst)])
+    (sqrt (/ (apply + deviations) (length lst)))))
 
 (define (sample-integer num)
   (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
@@ -126,21 +141,25 @@
   "Take only the points for which the exact value is normal, and the point is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
+      (when (and (ordinary-float? exact) (andmap ordinary-arg? pt))
         (sow pt)))))
 
 (define (filter-exacts pts exacts)
   "Take only the exacts for which the exact value is normal, and the point is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
+      (when (and (ordinary-float? exact) (andmap ordinary-arg? pt))
 	(sow exact)))))
+
+(define (ordinary-arg? x)
+  (cond [(list? x) (andmap ordinary-arg? x)]
+	[#t (ordinary-float? x)]))
 
 ; These definitions in place, we finally generate the points.
 
 (define (prepare-points prog samplers)
   "Given a program, return two lists:
-   a list of input points (each a list of flonums)
+   a list of input points (each a list of flonums or lists of flonums)
    and a list of exact values for those points (each a flonum)"
 
   ; First, we generate points;
@@ -148,7 +167,7 @@
     (if (>= (length pts) (*num-points*))
         (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))
         (let* ([num (- (*num-points*) (length pts))]
-               [pts1 (flip-lists (for/list ([rec samplers]) ((cdr rec) num)))]
+               [pts1 (filter ordinary-arg? (flip-lists (for/list ([rec samplers]) ((cdr rec) num))))]
                [exs1 (make-exacts prog pts1)]
                ; Then, we remove the points for which the answers
                ; are not representable

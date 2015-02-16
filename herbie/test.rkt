@@ -6,7 +6,7 @@
 (require "points.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file)
+         test-target load-tests load-file)
 
 (define (unfold-let* expr)
   (match expr
@@ -44,10 +44,20 @@
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
 
+(define (test-target test)
+  `(λ ,(test-vars test) ,(test-output test)))
+
 (struct test (name vars sampling-expr input output) #:prefab)
 
 (define (get-op op)
   (match op ['> >] ['< <] ['>= >=] ['<= <=]))
+
+(define (parse-sampler-arg arg)
+  (cond [(number? arg)
+	 (curryr make-list arg)]
+	[(procedure? arg)
+	 arg]
+	[#t (get-sampler arg)]))
 
 (define (get-sampler expr)
   (match expr
@@ -58,6 +68,10 @@
     [`(positive ,e) (compose (curry map abs) (get-sampler e))]
     [`(uniform ,a ,b) (sample-uniform a b)]
     [(? number? x) (λ (n) (for/list ([i (in-range n)]) x))]
+    [`(list ,length ,mean ,deviation-ratio)
+     (sample-list (parse-sampler-arg length)
+		  (parse-sampler-arg mean)
+		  (parse-sampler-arg deviation-ratio))]
     ['integer sample-integer]
     ['expbucket sample-expbucket]
     [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
