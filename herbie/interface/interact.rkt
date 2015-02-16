@@ -60,11 +60,12 @@
   (*start-prog* prog)
   (rollback-improve!)
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([samplers (or samplers (map (curryr cons sample-default)
-				     (program-variables prog)))]
-	 [context (prepare-points prog samplers)])
-    (*pcontext* context)
-    (*analyze-context* ((flag 'localize 'cache) context #f))
+  (let* ([samplers (or samplers (map (curryr cons (sample-list (curryr make-list 10)
+							       sample-double
+							       (curryr make-list .25)))
+				     (program-variables prog)))])
+    (*pcontext* (prepare-points prog samplers))
+    (*analyze-context* ((flag 'localize 'cache) (*pcontext*) #f))
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (setup-prog prog))
     (void)))
