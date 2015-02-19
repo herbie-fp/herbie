@@ -1,5 +1,5 @@
 FLAGS=-p
-BENCHDIR=bench/loops/
+BENCHDIR=bench/loop/
 
 .PHONY: report publish www compile clean loc
 

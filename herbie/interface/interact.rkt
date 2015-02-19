@@ -28,9 +28,6 @@
 
 (define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f)))
 
-(define (^locs^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
-  (shellstate-locs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -41,18 +38,6 @@
   (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
   (shellstate-children (^shell-state^)))
 
-;; Keep track of state for (finish-iter!)
-(define (^gened-series^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-series! (^shell-state^) newval))
-  (shellstate-gened-series (^shell-state^)))
-(define (^gened-rewrites^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-rewrites! (^shell-state^) newval))
-  (shellstate-gened-rewrites (^shell-state^)))
-(define (^simplified^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
-  (shellstate-simplified (^shell-state^)))
-
-
 ;; Setting up
 (define (setup-prog! prog #:samplers [samplers #f])
   (*start-prog* prog)
@@ -61,11 +46,11 @@
   (let* ([samplers (or samplers (map (curryr cons (sample-list (curryr make-list 10)
 							       sample-double
 							       (curryr make-list .25)))
-				     (program-variables prog)))])
+				     (program-variables prog)))]
+	 [alt (make-alt (unfold-lets prog))])
     (*pcontext* (prepare-points prog samplers))
-    (*analyze-context* ((flag 'localize 'cache) (*pcontext*) #f))
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (^table^ (setup-prog prog))
+    (^table^ (make-alt-table (*pcontext*) alt))
     (void)))
 
 ;; Information
@@ -102,47 +87,6 @@
     (^table^ table*)
     (void)))
 
-;; Invoke the subsystems individually
-(define (localize!)
-  (^locs^ (localize-error (alt-program (^next-alt^))))
-  (void))
-
-(define (gen-series!)
-  (define series-expansions
-    (apply
-     append
-     (for/list ([location (^locs^)]
-		[n (sequence-tail (in-naturals) 1)])
-       (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-       (taylor-alt (^next-alt^) location))))
-  (^children^ (append (^children^) series-expansions))
-  (^gened-series^ #t)
-  (void))
-
-(define (gen-rewrites!)
-  (define rewritten
-    (apply append
-	   (for/list ([location (^locs^)]
-		      [n (sequence-tail (in-naturals) 1)])
-	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-	     (alt-rewrite-rm (alt-add-event (^next-alt^) '(start rm)) #:root location))))
-  (^children^
-   (append (^children^) rewritten))
-  (^gened-rewrites^ #t)
-  (void))
-
-(define (simplify!)
-  (define simplified
-    (for/list ([child (^children^)]
-	       [n (sequence-tail (in-naturals) 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
-      (with-handlers ([exn:fail? (λ (e) (println "Failed while simplifying candidate" child) (raise e))])
-	(apply alt-apply child (simplify child)))))
-  (^children^ simplified)
-  (^simplified^ #t)
-  (void))
-
-
 ;; Finish iteration
 (define (finalize-iter!)
   (^table^ (atab-add-altns (^table^) (^children^)))
@@ -157,29 +101,13 @@
   (when (not (^next-alt^))
     (debug #:from 'progress #:depth 3 "picking best candidate")
     (choose-best-alt!))
-  (when (not (^locs^))
-    (debug #:from 'progress #:depth 3 "localizing error")
-    (localize!))
-  (when (not (^gened-series^))
-    (debug #:from 'progress #:depth 3 "generating series expansions")
-    (gen-series!))
-  (when (not (^gened-rewrites^))
-    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-    (gen-rewrites!))
-  (when (not (^simplified^))
-    (debug #:from 'progress #:depth 3 "simplifying candidates")
-    (simplify!))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^children^ '())
-  (^locs^ #f)
   (^next-alt^ #f)
-  (^gened-rewrites^ #f)
-  (^gened-series^ #f)
-  (^simplified^ #f)
   (void))
 
 (define (rollback-improve!)
@@ -195,14 +123,6 @@
 	     (println "Or, you can just run (rollback-iter!) to roll it back and start it over."))
       (begin (debug #:from 'progress #:depth 3 "picking best candidate")
 	     (choose-best-alt!)
-	     (debug #:from 'progress #:depth 3 "localizing error")
-	     (localize!)
-	     (debug #:from 'progress #:depth 3 "generating series expansions")
-	     (gen-series!)
-	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-	     (gen-rewrites!)
-	     (debug #:from 'progress #:depth 3 "simplifying candidates")
-	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
 	     (finalize-iter!)))
   (void))
@@ -215,7 +135,6 @@
 	#:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
     (run-iter!))
-  (finalize-table!)
   (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
   (if get-context?
       (begin0 (list (get-final-combination) (*pcontext*))
@@ -224,14 +143,7 @@
 	(rollback-improve!))))
 
 ;; Finishing Herbie
-(define (finalize-table!)
-  (^table^ (post-process (^table^)))
-  (void))
-
 (define (get-final-combination)
   (factor-common-subexprs
    (remove-pows
-    (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-      (if (= (length tables) 1)
-	  (extract-alt (car tables))
-	  (combine-alts splitpoints (map extract-alt tables)))))))
+    (extract-alt (^table^)))))

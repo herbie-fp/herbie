@@ -23,36 +23,26 @@
 ;; Implementation
 
 (define (remove-pows altn)
+  (define (make-mul expr pow)
+    (for/fold ([acc expr])
+	([i (in-range (sub1 pow))])
+      `(* ,expr ,acc)))
   (alt-event
-   `(λ ,(program-variables (alt-program altn))
-      ,(let loop ([cur-expr (program-body (alt-program altn))])
-	 (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
-		     (let ([exponent (caddr cur-expr)])
-		       (and (not (list? exponent))
-                            (not (symbol? exponent))
-			    (positive? exponent)
-			    (integer? exponent)
-			    (exponent . < . 10))))
-		(let inner-loop ([pows-left (caddr cur-expr)])
-		  (if (pows-left . = . 1)
-		      (cadr cur-expr)
-		      (list '* (cadr cur-expr) (inner-loop (sub1 pows-left)))))]
-	       [(list? cur-expr)
-		(cons (car cur-expr) (map loop (cdr cur-expr)))]
-	       [#t cur-expr])))
+   (program-induct
+    (alt-program altn)
+    #:primitive
+    (λ (expr)
+      (match expr
+	[`(expt ,base ,exponent)
+	 (if (and (constant? exponent)
+		  (positive? exponent)
+		  (integer? exponent)
+		  (exponent . < . 10))
+	     (make-mul base exponent)
+	     expr)]
+	[_ expr])))
    'removed-pows
    (list altn)))
-
-(define (setup-prog prog)
-  (let* ([alt (make-alt (unfold-lets prog))]
-	 [processed
-	  ((flag 'setup 'simplify) (apply alt-apply alt (simplify alt)) alt)]
-	 [table (make-alt-table (*pcontext*) processed)]
-	 [extracted (extract-alt table)])
-    (assert (eq? extracted processed)
-	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
-				       extracted (alt-program processed))))
-    table))
 
 (define (unfold-lets prog)
   (program-induct
@@ -68,7 +58,8 @@
 		   (let ([lookup (assoc var symbol-table)])
 		     (if lookup (cadr lookup) var)))))]))))
 
-(define (factor-common-subexprs prog)
+(define (factor-common-subexprs altn)
+  (define prog (alt-program altn))
   (define subexpr-count (make-hash))
   (program-induct prog
 		  #:primitive
@@ -90,10 +81,13 @@
 		(λ (expr)
 		  (let ([lookup (assoc expr symbol-table)])
 		    (if lookup (cadr lookup) expr))))])
+    (alt-event
     `(λ ,(program-variables prog)
        ,(if (not (null? symbol-table))
 	    `(let ,(map reverse symbol-table) ,body)
-	    body))))
+	    body))
+    'factored-common-subexprs
+    (list altn))))
 
 (define (expr-size expr)
   (define size 0)
