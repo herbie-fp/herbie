@@ -21,6 +21,7 @@
 (define *seed* #f)
 (define *timeout* (* 1000 60 10))
 (define *profile?* #f)
+(define *make-graph?* #f)
 
 (define (get-test-result test rdir)
   (define (file name) (build-path report-output-path rdir name))
@@ -68,8 +69,8 @@
                     (- (current-inexact-milliseconds) start-time)
                     (bf-precision)
                     start end points exacts
-                    (errors (alt-program start) context)
-                    (errors (alt-program end) context)
+                    (loop-aware-errors (alt-program start) context)
+                    (loop-aware-errors (alt-program end) context)
                     newpoints newexacts
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
@@ -90,16 +91,10 @@
            [end-errors    (test-result-end-error    result)]
            [target-errors (test-result-target-error result)]
 
-           [start-score (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
-								(test-result-exacts result))])
-                          (loop-aware-error-score (alt-program (test-result-start-alt result))))]
-           [end-score (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
-							      (test-result-exacts result))])
-                        (loop-aware-error-score (alt-program (test-result-end-alt result))))]
+           [start-score   (loop-aware-error-score start-errors)]
+           [end-score     (loop-aware-error-score end-errors)]
            [target-score (and target-errors
-                              (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
-								      (test-result-exacts result))])
-                                (loop-aware-error-score (test-target (test-result-test result)))))]
+                              (loop-aware-error-score target-errors))]
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 

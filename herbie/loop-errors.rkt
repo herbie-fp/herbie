@@ -151,22 +151,20 @@
     (and body* `(λ ,(program-variables prog) ,body*))))
              
                    
-(define (loop-aware-errors prog)
-  (for/list ([(p e) (in-pcontext (*pcontext*))])
+(define (loop-aware-errors prog context)
+  (for/list ([(p e) (in-pcontext context)])
     (loop-aware-error-at-point prog p)))
 
 ;; attempts to compensate for the random walk behavior of error
 ;; growth.
-(define (loop-aware-error-score prog)
+(define (loop-aware-error-score errs)
   (define (make-pt err-lst)
     (for/list ([(err i) (in-indexed err-lst)])
       (list i (sqr err))))
-  (let ([err-lsts (loop-aware-errors prog)])
-    (exact->inexact
-     (best-fit-slope
-      (apply
-       append
-       (map make-pt err-lsts))))))
+  (exact->inexact
+   (best-fit-slope
+    (apply append
+           (map make-pt err-lsts)))))
 
 (define-syntax-rule (for/avg ([items lsts]...)
                              body)
