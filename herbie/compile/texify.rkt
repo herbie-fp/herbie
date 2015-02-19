@@ -71,12 +71,11 @@
     [(? real?) (number->string expr)]
     [(? symbol?) (car (hash-ref texify-constants expr (list (symbol->string expr))))]
     [`(,f ,args ...)
-     (let* ([template (list-ref (hash-ref texify-operators f) 0)]
-            [self-paren-level (list-ref (hash-ref texify-operators f) 1)]
-            [arg-paren-level (list-ref (hash-ref texify-operators f) 2)]
-            [args* (for/list ([arg args])
-                     (texify-expression arg arg-paren-level))]
-            [result (apply-converter template args*)])
-       (if (parens-< parens self-paren-level)
-           result
-           (format "\\left(~a\\right)" result)))]))
+     (match (hash-ref texify-operators f)
+       [`(,template ,self-paren-level, arg-paren-level)
+	(let* ([args* (for/list ([arg args])
+			(texify-expression arg arg-paren-level))]
+	       [result (apply-converter template args*)])
+	  (if (parens-< parens self-paren-level)
+	      result
+	      (format "\\left(~a\\right)" result)))])]))
