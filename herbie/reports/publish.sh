@@ -46,4 +46,3 @@ elif [[ $CMD = "index" ]]; then
 else
     help
 fi
-
