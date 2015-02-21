@@ -104,17 +104,21 @@
                   (apply render-assigns
                          (flip-lists (for/list ([lst-name lst-names] [lst-expr lst-exprs])
                                        (list lst-name lst-expr))))
-                  "for "
-                  (for/fold ([texified-result ""])
-                      ([item items] [lst lst-names])
-                    (string-append texified-result
-                                   (symbol->string item)
+                  "\text{for "
+                  (apply
+                   string-append
+                   (for/list ([item items] [lst lst-names]
+                              [idx (in-range (length items))])
+                    (string-append "$" (symbol->string item) "$"
                                    " in "
-                                   (symbol->string lst)
-                                   ","))
-                  ":\\\\"
+                                   "$" (symbol->string lst) "$"
+                                   (if (not (= idx (sub1 (length items))))
+                                       ","
+                                       ""))))
+                  ":}\\\\"
                   (if (= 1 (length accs))
                       (string-append
+                       "\hspace{4em}"
                        (symbol->string (car accs)) " \\gets "
                        body)
                       (match body
