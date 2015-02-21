@@ -1,6 +1,7 @@
 #lang racket
 (require "../common.rkt")
 (require "../syntax.rkt")
+(require "../programs.rkt")
 
 (provide texify-expression)
 
@@ -67,15 +68,59 @@
    The TeX is intended to be used in math mode.
 
    `parens` is one of #f, '+, '*, 'fn, or #t"
-  (match expr
-    [(? real?) (number->string expr)]
-    [(? symbol?) (car (hash-ref texify-constants expr (list (symbol->string expr))))]
-    [`(,f ,args ...)
-     (match (hash-ref texify-operators f)
-       [`(,template ,self-paren-level, arg-paren-level)
-	(let* ([args* (for/list ([arg args])
-			(texify-expression arg arg-paren-level))]
-	       [result (apply-converter template args*)])
-	  (if (parens-< parens self-paren-level)
-	      result
-	      (format "\\left(~a\\right)" result)))])]))
+  (define (render-func func)
+    (match func
+      [`(,f ,args ...)
+       (match (hash-ref texify-operators f)
+         [`(,template ,self-paren-level ,arg-paren-level)
+          (apply-converter template args)])]))
+  (define (render-assigns vars vals)
+     (for/fold ([texified-result ""])
+         ([var vars] [val vals])
+       (string-append texified-result
+                      (format "~a \\gets ~a\\\\" (symbol->string var) val))))
+  (expression-induct
+   expr
+   #:constant (λ (const)
+                (if (number? const)
+                    (number->string const)
+                    (car (hash-ref texify-constants expr))))
+   #:variable symbol->string
+   #:primitive render-func 
+   #:predicate render-func 
+   #:let (λ (lt)
+           (match lt
+             [`(let ([,vars ,vals] ...) ,body)
+              (string-append (render-assigns vars vals) body)]))
+   #:fold (λ (fld)
+            (match fld
+              [`(for/fold ([,accs ,inits] ...)
+                    ([,items ,lst-exprs] ...)
+                  ,body)
+               (let ([lst-names (for/list ([lst-expr lst-exprs])
+                                      (gensym "lst"))])
+                 (string-append
+                  (render-assigns accs inits)
+                  (apply render-assigns
+                         (flip-lists (for/list ([lst-name lst-names] [lst-expr lst-exprs])
+                                       (list lst-name lst-expr))))
+                  "for "
+                  (for/fold ([texified-result ""])
+                      ([item items] [lst lst-names])
+                    (string-append texified-result
+                                   (symbol->string item)
+                                   " in "
+                                   (symbol->string lst)
+                                   ","))
+                  ":\\\\"
+                  (if (= 1 (length accs))
+                      (string-append
+                       (symbol->string (car accs)) " \\gets "
+                       body)
+                      (match body
+                        [`(values . ,exprs)
+                         (apply
+                          string-append
+                          (for/list ([acc accs] [expr exprs])
+                            (format "~a \\gets ~a\\\\" acc expr)))]
+                        [_ (error "uh oh, you don't return values, but you have multiple accs")]))))]))))
