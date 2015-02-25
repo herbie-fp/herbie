@@ -9,6 +9,7 @@
 (require "../alt-table.rkt")
 (require "../alternative.rkt")
 (require "../simplify/simplify.rkt")
+(require "../loop-rewrites.rkt")
 (require "visualize.rkt")
 (require "util.rkt")
 
@@ -87,6 +88,14 @@
     (^table^ table*)
     (void)))
 
+;; Generate children
+(define (generate-kahand!)
+  (^children^ (append (^children^)
+                      (rewrite-loops (^next-alt^)
+                                     add-error-term
+                                     'added-error-term)))
+  (void))
+
 ;; Finish iteration
 (define (finalize-iter!)
   (^table^ (atab-add-altns (^table^) (^children^)))
@@ -123,6 +132,7 @@
 	     (println "Or, you can just run (rollback-iter!) to roll it back and start it over."))
       (begin (debug #:from 'progress #:depth 3 "picking best candidate")
 	     (choose-best-alt!)
+             (generate-kahand!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
 	     (finalize-iter!)))
   (void))
@@ -144,6 +154,5 @@
 
 ;; Finishing Herbie
 (define (get-final-combination)
-  (factor-common-subexprs
-   (remove-pows
-    (extract-alt (^table^)))))
+  (remove-pows
+   (extract-alt (^table^))))

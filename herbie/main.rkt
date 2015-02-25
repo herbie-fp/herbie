@@ -58,6 +58,7 @@
 		   (let ([lookup (assoc var symbol-table)])
 		     (if lookup (cadr lookup) var)))))]))))
 
+;; This does not currently do the right thing with loops
 (define (factor-common-subexprs altn)
   (define prog (alt-program altn))
   (define subexpr-count (make-hash))
@@ -126,6 +127,25 @@
   (argmin alt-cost
 	  (argmins (compose errors-score alt-errors)
 		   alts)))
+;; Takes a function from loop expressions to lists of loop
+;; expressions, and an event tag, and produces a list of alts which
+;; apply that transformation as an alt event.
+(define (rewrite-loops alt f tag)
+  (define (loop-locs prog)
+    (define acc '())
+    (location-induct
+     prog
+     #:fold (λ (expr location)
+              (set! acc (cons location acc))
+              expr))
+    acc)
+  (apply
+   append
+   (let ([prog (alt-program alt)])
+     (for/list ([loc (loop-locs prog)])
+       (for/list ([rw-loop (f (location-get loc prog))])
+         (let ([rw-prog (location-do loc prog (const rw-loop))])
+           (alt-event rw-prog tag (list alt))))))))
 
 (define (completely-simplify-alt altn)
   (let* ([prog (alt-program altn)]

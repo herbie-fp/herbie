@@ -10,7 +10,8 @@
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
-         free-variables replace-expression)
+         free-variables replace-expression
+         loop-parts make-loop)
 
 (define (location-induct
 	 prog
@@ -47,13 +48,26 @@
       ;; with both sets of bindings, so that the first lst-expr is at
       ;; (add1 (length accs)), and the body is at (+ (length accs)
       ;; (length inits) 1).
+      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...) (values . ,body-exprs))
+       (fold-handler
+        `(for/fold ,(for/list ([acc accs] [init inits] [loc-t (in-naturals 1)])
+                      (list acc (inductor init (cons loc-t location))))
+             ,(for/list ([item items] [lst-expr lst-exprs] [loc-t (in-naturals 1)])
+                (list item (inductor lst-expr (cons loc-t location))))
+           (values . ,(for/list ([body-expr body-exprs]
+                                 [loc (sequence-map (curryr cons location)
+                                                    (in-naturals
+                                                     (+ (length accs) (length inits))))])
+                        (inductor body-expr loc))))
+        (reverse location))]
       [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...) ,body)
        (fold-handler
 	`(for/fold ,(for/list ([acc accs] [init inits] [loc-t (in-naturals 1)])
 		      (list acc (inductor init (cons loc-t location))))
 	     ,(for/list ([item items] [lst-expr lst-exprs] [loc-t (in-naturals 1)])
 		(list item (inductor lst-expr (cons loc-t location))))
-	   ,(inductor body (cons (+ (length accs) (length inits) 1) location))))]
+	   ,(inductor body (cons (+ (length accs) (length inits) 1) location)))
+        (reverse location))]
       [`(,fn ,args ...)
        (let ([expr* (cons (symbol-table fn (reverse (cons 0 location)))
 			  (enumerate #:from 1
@@ -285,3 +299,34 @@
 	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
 				   (cdr haystack)))]
 	[#t haystack]))
+
+(define (loop-accs loop-expr)
+  (match loop-expr
+    [`(for/fold ([,accs _]...)
+          ([_ _]...)
+        _)
+     accs]
+    [_ (error "not a loop expression")]))
+
+;; Returns a list containing:
+;; * the accumulators
+;; * the inits
+;; * the item names
+;; * the lists
+;; * the update expressions
+(define (loop-parts loop-expr)
+  (match-let ([`(for/fold ([,accs ,inits] ...)
+                    ([,items ,lsts] ...)
+                  ,body)
+               loop-expr])
+    (list accs inits items lsts
+          (match body
+            [`(values . ,update-exprs) update-exprs]
+            [update-expr (list update-expr)]))))
+
+(define (make-loop accs inits items lsts update-exprs)
+  `(for/fold ,(map list accs inits)
+     ,(map list items lsts)
+     ,(if (= 1 (length accs))
+          (car update-exprs)
+          `(values . ,update-exprs))))
