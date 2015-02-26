@@ -95,7 +95,7 @@
          #:constant [constant identity] #:variable [variable identity]
 	 #:primitive [primitive identity] #:symbol [symbol-table identity]
 	 #:predicate [predicate identity]
-	 #:let [let-handler identity] #:fold [fold-handler identity])
+	 #:let [let-handler identity] #:loop [loop-handler identity])
 
   (define (inductor expr)
     (match expr
@@ -105,17 +105,21 @@
        (let-handler
 	`(let ,(map list vars (map inductor vals))
 	   ,(inductor body)))]
-      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...)
-      	  (values . ,bodies))
-       (fold-handler
-      	`(for/fold ,(map list accs (map inductor inits))
-      	     ,(map list items (map inductor lst-exprs))
-      	   (values . ,(map inductor bodies))))]
-      [`(for/fold ([,accs ,inits] ...) ([,items ,lst-exprs] ...) ,body)
-       (fold-handler
-	`(for/fold ,(map list accs (map inductor inits))
-	     ,(map list items (map inductor lst-exprs))
-	   ,(inductor body)))]
+      [`(do ([,accs ,init-exprs ,update-exprs] ...)
+            ,while-expr
+          ,ret-expr)
+       (loop-handler
+        `(do ,(map list accs (map inductor init-exprs) (map inductor update-exprs))
+             ,(inductor while-expr)
+           ,(inductor ret-expr)))]
+      [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
+                 ([,items ,lsts] ...)
+                 ,while-expr
+                 ,ret-expr)
+       `(do-list ,(map list accs (map inductor init-exprs) (map inductor update-exprs))
+                 ,(map list items (map inductor lsts))
+                 ,(inductor while-expr)
+                 ,(inductor ret-expr))]
       [`(,fn ,args ...)
        (let ([expr* (cons (symbol-table fn) (map inductor args))])
 	 (if (memq fn predicates)
@@ -130,7 +134,7 @@
          #:toplevel [toplevel identity] #:constant [constant identity]
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity] #:predicate [predicate identity]
-	 #:let [let-handler identity] #:fold [fold-handler identity])
+	 #:let [let-handler identity] #:loop [loop-handler identity])
 
   (toplevel `(λ ,(program-variables prog)
 	       ,(expression-induct (program-body prog)
@@ -140,7 +144,7 @@
 				   #:symbol symbol-table
 				   #:predicate predicate
 				   #:let let-handler
-				   #:fold fold-handler))))
+				   #:loop loop-handler))))
 
 (define (free-variables prog [bound constants])
   (filter (λ (v) (not (member v bound)))
@@ -237,35 +241,24 @@
 	    (for ([var vars] [val-reg val-regs])
 	      (hash-set! compilations var val-reg))
 	    (compile-one body))]
-	 ;; For folds, register compile the intitial expressions for
-	 ;; the accs and sequences for iterating over, and bind them
-	 ;; properly in the new for/fold, and then recurse on body. We
-	 ;; have to do some special handling for multiple-values.
-	 [`(for/fold ([,accs ,inits] ...)
-	       ([,items ,lsts] ...)
-	     (values . ,ret-vals))
-	  (let ([init-regs (map compile-one inits)]
-		[lst-regs (map compile-one lsts)])
-	    `(for-wrapper
-	      (for/fold ,(map list accs init-regs)
-		  ,(map list items lst-regs)
-		,(let ([naive-compiled (compile `(values . ,ret-vals) compilations)])
-		   (match naive-compiled
-		     [`(let* ([,regs ,exprs] ...)
-			 ,ret-reg)
-		      (match (car (take-right exprs 1))
-			[`(values . ,ret-regs)
-			 `(let* ,(map list (drop-right regs 1) (drop-right exprs 1))
-			    (values . ,ret-regs))])])))))]
-	 [`(for/fold ([,accs ,inits] ...)
-	       ([,items ,lsts] ...)
-	     ,body)
-	  (let ([init-regs (map compile-one inits)]
-		[lst-regs (map compile-one lsts)])
-	    `(for-wrapper
-	      (for/fold ,(map list accs init-regs)
-		  ,(map list items lst-regs)
-		,(compile body compilations))))]
+         ;; For loops, don't try to do common subexpression
+         ;; elimination, instead just desugar do and do-list into
+         ;; racket do and for/fold respectively.
+         [`(do ([,accs ,init-exprs ,update-exprs] ...)
+               ,while-expr
+             ,ret-expr)
+          `(do ,(map list accs init-exprs update-exprs)
+               ((not ,while-expr) ,ret-expr))]
+         [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
+                    ([,items ,lsts] ...)
+                    ,while-expr
+                    ,ret-expr)
+          `(let-values ([,accs
+                         (for/fold ,(map list accs init-exprs)
+                             ,(map list items lsts)
+                           #:break (not ,while-expr)
+                           (values . ,update-exprs))])
+             ,ret-expr)]
 	 ;; For anything else, compile subexpressions, and then bind
 	 ;; new register to function on old registers. 
 	 [`(,fn ,args ...)
