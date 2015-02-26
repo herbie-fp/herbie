@@ -8,17 +8,15 @@
 
 (define *test-cache* (make-hash))
 
-(provide load-tests clear-cache!)
+(provide load-tests)
 
 (define (load-file p)
-  (parameterize ([*tests* '()])
-    (dynamic-require p 0)
-    (if (null? (*tests*))
-        (begin (hash-ref *test-cache* p '()))
-        (begin (hash-set! *test-cache* p (*tests*))
-               (*tests*)))))
-(define (clear-cache!)
-  (set! *test-cache* (make-hash)))
+  (let ([fp (open-input-file p)])
+    (let loop ()
+      (let ([test (read fp)])
+        (if (eof-object? test)
+            '()
+            (cons (parse-test test) (loop)))))))
 
 (define (is-racket-file? f)
   (and (equal? (filename-extension f) #"rkt") (file-exists? f)))

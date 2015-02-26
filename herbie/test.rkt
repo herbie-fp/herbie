@@ -5,7 +5,7 @@
 (require "programs.rkt")
 (require "points.rkt")
 
-(provide (struct-out test) test-program test-samplers
+(provide (struct-out test) test-program test-samplers parse-test
          test-target load-tests load-file)
 
 (define (unfold-let* expr)
@@ -104,7 +104,6 @@
      (let* ([parse-args (map var&dist vars)])
        (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
          (test name vars samp (compile-program input) #f)))]))
-
 
 (define (load-file p)
   (let ([fp (open-input-file p)])
