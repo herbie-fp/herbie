@@ -4,9 +4,10 @@
 (require "alternative.rkt")
 (require "programs.rkt")
 (require "points.rkt")
+(require racket/runtime-path)
 
 (provide (struct-out test) test-program test-samplers parse-test
-         test-target load-tests load-file)
+         test-target load-file)
 
 (define (unfold-let* expr)
   (match expr
@@ -104,6 +105,8 @@
      (let* ([parse-args (map var&dist vars)])
        (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
          (test name vars samp (compile-program input) #f)))]))
+
+(define-runtime-path benchmark-path "../bench/")
 
 (define (load-file p)
   (let ([fp (open-input-file p)])
