@@ -1,6 +1,3 @@
-#lang racket
-(require "../../herbie/test.rkt")
-
 #|
 
 s = 0.0
@@ -23,11 +20,10 @@ return s
 
 (herbie-test ([lst (list 20 double .25)])
   "Kahan summation"
-  (for/fold ([s 0.0])
-      ([item lst])
-    (+ item s))
-  (for/fold ([s 0.0]
-	     [c 0.0])
-      ([item lst])
-    (values (+ s (- item c))
-	    (- (- (+ s (- item c)) s) (- item c)))))
+  (do-list ([s 0.0 (+ item s)])
+           ([item lst])
+           s)
+  (do-list ([s 0.0 (+ s (- item c))]
+            [c 0.0 (- (- (+ s (- item c)) s) (- item c))])
+           ([item lst])
+        (- s c)))

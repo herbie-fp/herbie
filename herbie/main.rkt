@@ -135,7 +135,7 @@
     (define acc '())
     (location-induct
      prog
-     #:fold (λ (expr location)
+     #:loop (λ (expr location)
               (set! acc (cons location acc))
               expr))
     acc)

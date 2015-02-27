@@ -61,3 +61,5 @@
 (define *binary-search-test-points* (make-parameter 16))
 
 (define *common-subexpr-factoring-limit* (make-parameter 4))
+
+(define *max-loop-iters* (make-parameter 10000))

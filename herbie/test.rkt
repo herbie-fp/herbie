@@ -7,6 +7,7 @@
 (require racket/runtime-path)
 
 (provide (struct-out test) test-program test-samplers parse-test
+         load-tests
          test-target load-file)
 
 (define (unfold-let* expr)
