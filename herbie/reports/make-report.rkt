@@ -136,14 +136,7 @@
 
       (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
       (printf "<script type='text/javascript' src='graph.js'></script>\n")
-      (printf "<figure><style scoped>")
-      (printf "rect { pointer-events: all; }")
-      (printf "rect.guide { stroke: gray; }")
-      (printf "rect.good, polygon.good { stroke: black; fill: black; }")
-      (printf "rect.bad, polygon.bad { stroke: darkred; fill: darkred; }")
-      (printf "rect.gridline { stroke: rgba(80%, 80%, 80%, .4); fill: transparent; }")
-      (printf "text { text-anchor: middle; }")
-      (printf "</style>\n<svg id='results' width='525' height='320'></svg>\n")
+      (printf "<figure><svg id='results' width='525' height='320'></svg>\n")
       (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#results'))})</script>\n")
       (printf "</figure>\n")
 
