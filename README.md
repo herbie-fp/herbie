@@ -39,7 +39,11 @@ If you're using OS X, use the
 [official Racket installer](http://download.racket-lang.org/),
 not the version that Homebrew installs;
 Homebrew will not build several mathematics libraries.
-Herbie also requires GCC 4.8 or later.
+
+Herbie also requires GMP, MPFR, and GCC 4.8 or later to test overhead,
+since that involves compiling Herbie’s output to C.
+
+With these libraries installed, you are now ready to run Herbie.
 
 Running Herbie
 --------------
