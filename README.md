@@ -41,15 +41,8 @@ not the version that Homebrew installs;
 Homebrew will not build several mathematics libraries.
 Herbie also requires GCC 4.8 or later.
 
-Racket needs to know where the Herbie source code lives, so that each
-module of Herbie can refer to other modules. To do this linking, run
-
-    make link
-
-from the main project directory.
-
-Running Tests
--------------
+Running Herbie
+--------------
 
 Herbie draws its test suite from open source projects, examples emailed
 to the developers, and from numerical analysis textbooks. Whenever
@@ -57,39 +50,35 @@ possible, we try to *extract all possible tests* from a source, to
 avoid biasing our selection of tests. To run the tests, go to the
 project root and run
 
-    make report
+    racket herbie/reports/make-report.rkt <file>
 
-After a some time (approximately 15 minutes), you should find
-`report.html` in the `graphs/` folder.
+After a some time (several minutes), you should find the file
+`graphs/report.html`.
 
-Tests are collected on
+The format of input files is a Scheme-based language;
+see the files in `bench/` for examples.
+
+Running Tests
+-------------
+
+Herbie's main tests are integration tests
+that test Herbie end-to-end.
+They are the benchmarks that ship in the `bench/` directory.
+
+We often test Herbie on basic but representative examples with:
+
+    racket herbie/reports/make-report.rkt bench/hamming/
+
+This takes approximately 15 minutes.
+To run all of the default benchmarks, use:
+
+    racket herbie/reports/make-report.rkt bench/
+
+This can take an hour or more.
+
+Test results are collected on
 [uwplse.org](http://herbie.uwplse.org/reports/).
 If you have an account on this server, you can publish your test
 report with
 
     make publish
-
-Editing
--------
-
-You should use Emacs to edit Racket code; Dr. Racket, which ships with
-Racket, is a bit too limited an editor for the number of files and
-complexity of Herbie. You’ll want to use the `quack` and `geiser` Emacs
-packages to give you Racket-specific highlighting and a Racket REPL.
-The easiest way to install these is to run
-
-    (require 'package)
-    (add-to-list 'package-archives
-                 '("marmalade" . "http://marmalade-repo.org/packages/"))
-    (package-initialize)
-    (mapcar #'package-install '(quack geiser))
-
-This needs to be done once. You can now open a Racket file, like
-`herbie/main.rkt`, and the mode-line will read `Scheme Racket/A`,
-indicating that Quack, the Scheme mode, is running.
-
-If you hit `C-c C-a` in a Racket buffer, you’ll open up a REPL and
-“enter” that module, allowing you to refer to definitions in it. The
-same `C-c C-a` binding reloads the file, while `C-M-x` reloads
-individual definitions and `C-c C-e` executes individual
-S-expressions.

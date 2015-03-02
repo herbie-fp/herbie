@@ -29,7 +29,7 @@
 
 ; Suggested by Harley
 
-(herbie-test ((e+ (positive default)) (e- (positive default)) t s)
+(herbie-test ((c_p (positive default)) (c_n (positive default)) t s)
   "Harley's example"
   (/ (* (expt (/ (+ 1 (exp (- s)))) e+) (expt (- 1 (/ (+ 1 (exp (- s))))) e-))
      (* (expt (/ (+ 1 (exp (- t)))) e+) (expt (- 1 (/ (+ 1 (exp (- t))))) e-)))

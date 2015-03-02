@@ -328,7 +328,7 @@ def draw_overhead_cdf(iname, oname, nriname=None, nroname=None):
     for i in range(1,5):
         v_ticks.append((to_plot_space((0,(float(n)/4)*i))[1], "%d\\%%" % ((100 / 4)*i)))
 
-    draw_axes(h_capt="\name overhead (ratio; higher is better)",
+    draw_axes(h_capt="\name overhead (ratio CDF)",
               v_capt="\\% of benchmarks",
               h_ticks=h_ticks,
               v_ticks=v_ticks)

@@ -52,8 +52,7 @@
   [or       "~a \\vee ~a" '+ '+]
   [mod      "~a \\modb ~a" #t #f])
 
-(define parens-precedence
-  '(#t + * fn #f))
+(define parens-precedence '(#t + * fn #f))
 
 (define (parens-< a b)
   (let loop ([l parens-precedence])
