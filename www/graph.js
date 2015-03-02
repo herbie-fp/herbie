@@ -20,17 +20,18 @@ function make_graph(node, data, start, end) {
     var a = d3.selectAll("script");
     var script = a[0][a[0].length - 1];
 
-    var svg = node.append("svg")
+    var svg = node
         .attr("width", width + 2 * margin)
         .attr("height", len * barheight + 2 * margin + textbar)
         .append("g").attr("transform", "translate(" + margin + "," + margin + ")");
 
     for (var i = 0; i <= precision; i += 4) {
-        svg.append("rect")
+        svg.append("line")
             .attr("class", "gridline")
-            .attr("x", i / precision * width)
-            .attr("height", len * barheight)
-            .attr("width", 1);
+            .attr("x1", i / precision * width)
+            .attr("x2", i / precision * width)
+            .attr("y1", 0)
+            .attr("y2", len * barheight);
 
         svg.append("text").text(i)
             .attr("x", i / precision * width)
@@ -38,29 +39,31 @@ function make_graph(node, data, start, end) {
             .attr("y", len * barheight + textbar);
     }
 
-    var bar = svg
-        .selectAll("g").data(data).enter();
+    var bar = svg.selectAll("g").data(data).enter();
 
-    bar.append("rect")
+    function line_y(d, i) { return (i + .5) * barheight; }
+    function title(d, i) { return d.name + " (" + r10(precision - d[start]) + " to " + r10(precision - d[end]) + ")"; }
+
+    bar.append("line")
         .attr("class", "guide")
-        .attr("width", function(d) { return (precision - Math.max(d[start], d[end])) / precision * width })
-        .attr("height", 1)
-        .attr("y", function(d, i) { return i * barheight + 0.5; })
-        .attr("title", function(d) { return d.name + " (" + r10(precision - d[start]) + " to " + r10(precision - d[end]) + ")"; });
+        .attr("x1", 0)
+        .attr("x2", function(d) { return (precision - Math.max(d[start], d[end])) / precision * width })
+        .attr("y1", line_y)
+        .attr("y2", line_y);
 
-    bar.append("rect")
-        .attr("class", function(d) { return d[start] > d[end] ? "good" : "bad" })
-        .attr("width", function(d) { return Math.abs(d[start] - d[end]) / precision * width })
-        .attr("height", 2)
-        .attr("x", function(d) {return (precision - Math.max(d[start], d[end])) / precision * width})
-        .attr("y", function(d, i) { return i * barheight; })
-        .attr("title", function(d) { return d.name + " (" + r10(precision - d[start]) + " to " + r10(precision - d[end]) + ")"; });
-
-    bar.append("g").attr("transform", function(d, i) {
-        return "translate(" + ((precision - Math.min(d[start], d[end])) / precision * width) + ", " + (i * barheight + 1) + ")";
-    })
-        .append("polygon").attr("points", "0,-5,0,5,5,0")
+    var g = bar.append("g").attr("title", title)
         .attr("class", function(d) { return d[start] > d[end] ? "good" : "bad" });
+
+    g.append("line")
+        .attr("x1", function(d) {return (precision - Math.max(d[start], d[end])) / precision * width})
+        .attr("x2", function(d) { return (precision - Math.min(d[start], d[end])) / precision * width })
+        .attr("y1", line_y)
+        .attr("y2", line_y);
+
+    g.append("g").attr("transform", function(d, i) {
+        return "translate(" + ((precision - Math.min(d[start], d[end])) / precision * width) + ", " + line_y(d, i) + ")";
+    })
+        .append("polygon").attr("points", "0,-3,0,3,5,0");
 }
 
 function draw_results(node) {
