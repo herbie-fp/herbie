@@ -62,14 +62,14 @@
       (printf "<body>\n")
       (printf "<h1>Herbie Reports</h1>\n")
 
-      (print-list
-       (take-up-to
-        (filter (λ (e) (and (report-info-master? e) (equal? (report-info-branch e) "master"))) folders)
-        5))
+      (print-list (take-up-to (filter (λ (x) (equal? (report-info-branch x) "master")) folders) 5))
       
-      (for/list ([branch (multipartition folders report-info-branch)])
+      (for/list ([branch (filter (λ (x) (not (equal? (report-info-branch (car x)) "master")))
+                                 (sort
+                                  (multipartition folders report-info-branch) >
+                                  #:key (λ (x) (date->seconds (report-info-date (car x))))))])
         (printf "<h2>Latest in <code>~a</code></h2>" (report-info-branch (car branch)))
-        (print-list (take-up-to (cdr branch) 5)))
+        (print-list (take-up-to branch 5)))
       
       (printf "<h2>All reports</h2>\n")
 
