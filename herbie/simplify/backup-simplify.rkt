@@ -44,9 +44,7 @@
     [(? constant?) expr]
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...))
-     (let* ([labels (combining-labels (gather-additive-terms expr))]
-            [terms (combine-aterms (gather-additive-terms expr #:expand labels))])
-       (make-addition-node terms))]
+     (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
      (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
        (make-multiplication-node terms))]

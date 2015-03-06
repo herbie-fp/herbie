@@ -5,13 +5,11 @@
 (require "programs.rkt")
 (require "matcher.rkt")
 (require "simplify/backup-simplify.rkt")
-(require (rename-in "simplify/simplify.rkt"
-		    [simplify simplify-alt]))
 
 (provide approximate)
 
 (define (approximate expr vars #:transform [tforms #f]
-                     #:terms [terms 3] #:iters [iters 10])
+                     #:terms [terms 3] #:iters [iters 5])
   "Take a Taylor expansion in multiple variables, with at most `terms` terms."
 
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
@@ -45,7 +43,7 @@
                   (let* ([oc (get-taylor (cdr coeffs))]
                          [expr* ((cdr oc) (car coeffs))])
                     (if (= (length coeffs) (length vars))
-                      expr*
+                      (simplify expr*)
                       (let ([var (list-ref vars (length coeffs))])
                         (taylor var expr*)))))))
 
@@ -58,20 +56,23 @@
       (cons (car (get-taylor (cdr coeffs))) (get-offset (cdr coeffs)))))
 
   ; Given some corrected degrees, this gets you the uncorrected degrees, or #f
+  (define get-coeffs-hash (make-hash))
 
   (define (get-coeffs expts)
-    (if (null? expts)
-        '()
-        ; Find the true coordinate of our tail
-        (let ([etail (get-coeffs (cdr expts))])
-          (if etail
-              ; Get the offset from our head
-              (let ([offset-head (car (get-taylor etail))])
-                ; Sometimes, our head exponent is too small
-                (if (< (car expts) (- offset-head))
-                    #f
-                    (cons (+ (car expts) offset-head) etail)))
-              #f))))
+    (hash-ref! get-coeffs-hash expts
+               (λ ()
+                 (if (null? expts)
+                     '()
+                     ; Find the true coordinate of our tail
+                     (let ([etail (get-coeffs (cdr expts))])
+                       (if etail
+                           ; Get the offset from our head
+                           (let ([offset-head (car (get-taylor etail))])
+                             ; Sometimes, our head exponent is too small
+                             (if (< (car expts) (- offset-head))
+                                 #f
+                                 (cons (+ (car expts) offset-head) etail)))
+                           #f))))))
 
   ; We must now iterate through the coefficients in `corrected` order.
   (make-sum
@@ -275,19 +276,25 @@
 (define (taylor-add . terms)
   (match (apply align-series terms)
     [`((,offset . ,serieses) ...)
-     (cons (car offset)
-           (λ (n) (simplify (cons '+ (for/list ([series serieses]) (series n))))))]))
+     (let ([hash (make-hash)])
+       (cons (car offset)
+             (λ (n)
+               (hash-ref! hash n
+                          (λ () (simplify (make-sum (for/list ([series serieses]) (series n)))))))))]))
 
 (define (taylor-negate term)
   (cons (car term) (λ (n) (simplify (list '- ((cdr term) n))))))
 
 (define (taylor-mult left right)
   (cons (+ (car left) (car right))
-        (lambda (n)
-          (simplify
-           (cons '+
-                 (for/list ([i (range (+ n 1))])
-                   (list '* ((cdr left) i) ((cdr right) (- n i)))))))))
+        (let ([hash (make-hash)])
+          (lambda (n)
+            (hash-ref! hash n
+                       (λ ()
+                         (simplify
+                          (make-sum
+                           (for/list ([i (range (+ n 1))])
+                             (list '* ((cdr left) i) ((cdr right) (- n i))))))))))))
 
 (define (normalize-series series)
   "Fixes up the series to have a non-zero zeroth term,
@@ -460,19 +467,21 @@
 
 (define (taylor-log coeffs)
   "coeffs is assumed to start with a nonzero term"
-  (cons 0
-        (λ (n)
-           (if (= n 0)
-               (simplify `(log ,(coeffs 0)))
-               (let* ([tmpl (logcompute n)])
-                 (simplify
-                  `(/
-                    (+ ,@(for/list ([term tmpl])
-                           (match term
-                             [`(,coeff ,k ,ps ...)
-                              `(* ,coeff (/ (* ,@(for/list ([i (in-naturals 1)] [p ps])
-                                                   (if (= p 0)
-                                                       1
-                                                       `(expt (* ,(factorial i) ,(coeffs i)) ,p))))
-                                            (expt ,(coeffs 0) ,(- k))))])))
-                    ,(factorial n))))))))
+  (let ([hash (make-hash)])
+    (hash-set! hash 0 (simplify `(log ,(coeffs 0))))
+    (cons 0
+          (λ (n)
+            (hash-ref! hash n
+                       (λ ()
+                         (let* ([tmpl (logcompute n)])
+                           (simplify
+                            `(/
+                              (+ ,@(for/list ([term tmpl])
+                                     (match term
+                                       [`(,coeff ,k ,ps ...)
+                                        `(* ,coeff (/ (* ,@(for/list ([i (in-naturals 1)] [p ps])
+                                                             (if (= p 0)
+                                                                 1
+                                                                 `(expt (* ,(factorial i) ,(coeffs i)) ,p))))
+                                                      (expt ,(coeffs 0) ,(- k))))])))
+                              ,(factorial n))))))))))
