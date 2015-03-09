@@ -287,7 +287,7 @@
 
   (place-channel-put m config)
 
-  (for ([i (range threads)])
+  (for ([i (range (min threads (length progs)))])
     (place-channel-put m 'make-worker))
   (for ([prog progs] [i (range (length progs))])
     (place-channel-put m `(do ,i ,prog)))
@@ -295,7 +295,7 @@
   (place-channel-put m 'go)
 
   (define (abort)
-    (println "Terminating after " cnt " problem!")
+    (println "Terminating after " cnt (if (= cnt 1) "problem!" " problems!"))
     (place-channel-put m 'kill))
 
   (define outs
