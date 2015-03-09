@@ -30,8 +30,12 @@
            (display ">" port))])
 
 (define (exprs-to-branch-on alts)
-  (cons (critical-subexpression (*start-prog*))
-	(program-variables (alt-program (car alts)))))
+  (define critexpr (critical-subexpression (*start-prog*)))
+  (define vars (program-variables (alt-program (car alts))))
+
+  (if critexpr
+      (cons critexpr vars)
+      vars))
 
 (define (critical-subexpression prog)
   (define (loc-children loc subexpr)
@@ -60,8 +64,10 @@
 				(for/list ([vloc vlocs])
 				  (cons (car vloc) (cddr vloc))))]
 		  [#t subexpr])))))
-  (let* ([loc (car (localize-error prog))])
-    (critical-child (location-get loc prog))))
+  (let* ([locs (localize-error prog)])
+    (if (null? locs)
+        #f
+        (critical-child (location-get (car locs) prog)))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
