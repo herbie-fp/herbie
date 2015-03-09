@@ -81,6 +81,9 @@
   [atan2    bfatan2   atan    230]
   [abs      bfabs     abs       1]
   [mod      bfmod     cmod      1]
+  [expm1    bfexpm1   flexpm1 666] ; TODO : cost made up
+  [log1p    bflog1p   fllog1p 666] ; TODO : cost made up
+  [hypot    bfhypot   flhypot 666] ; TODO : cost made up
   ; TODO : These are different and should be treated differently
   [if       if-fn     if-fn     1]
   [=        bf=       =         1]
