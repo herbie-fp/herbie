@@ -11,6 +11,7 @@
 (require "cmdline.rkt")
 (require "datafile.rkt")
 (require "../compile/texify.rkt")
+(require json)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -211,38 +212,39 @@
 					    #f ,bits ,time ,start-bits ,end-bits)))])))))
 
 (define (make-json file results)
-  (write-file file
+  (define data
+    (make-hash
+     `((date . ,(date->seconds (current-date)))
+       (commit . ,(git-command "rev-parse" "HEAD"))
+       (seed . ,(~a (pseudo-random-generator->vector (current-pseudo-random-generator))))
+       (flags .
+              ,(for*/list ([rec (hash->list (*flags*))] [fl (cdr rec)])
+                 (format "\"~a:~a\"" (car rec) fl)))
+       (points . ,(*num-points*))
+       (iterations . ,(*num-iterations*))
+       (master . ,*master?*)
+       (note . ,*note*)
+       (tests .
+              ,(for/list ([result results])
+                 (match result
+                   [(table-row name status start-bits end-bits target-bits
+                               inf- inf+ end-est vars input output time bits link)
+                    (make-hash
+                     `((name . ,name)
+                       (status . ,status)
+                       (start . ,start-bits)
+                       (end . ,end-bits)
+                       (target . ,target-bits)
+                       (ninf . ,inf-)
+                       (ping . ,inf+)
+                       (vars . ,(if vars (map symbol->string vars) #f))
+                       (input . ,(~a input))
+                       (output . ,(~a output))
+                       (time . ,time)
+                       (bits . ,bits)
+                       (link . ,(~a link))))]))))))
 
-    (printf "{\n")
-    (printf "\"date\": ~a,\n" (date->seconds (current-date)))
-    (printf "\"commit\": \"~a\",\n" (git-command "rev-parse" "HEAD"))
-    (printf "\"branch\": \"~a\",\n" (git-command "rev-parse" "--abbrev-ref" "HEAD"))
-    (printf "\"seed\": \"~a\",\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
-    (printf "\"flags\": [")
-    (string-join
-     (apply append
-            (for/list ([rec (hash->list (*flags*))])
-              (for/list ([fl (cdr rec)])
-                (format "\"~a:~a\"" (car rec) fl))))
-     ", ")
-    (printf "],\n")
-    (printf "\"points\": ~a,\n" (*num-points*))
-    (printf "\"iterations\": ~a,\n" (*num-iterations*))
-    (printf "\"master\": ~a,\n" (if *master?* "true" "false"))
-    (when *note*
-      (printf "\"note\": \"~a\",\n" *note*))
-    (printf "\"tests\": [\n")
-    (printf "~a"
-    (string-join
-     (for/list ([result results])
-       (match result
-         [(table-row name status start-bits end-bits
-                     target inf- inf+ end-est vars input output time bits link)
-          (format "  {\"name\": \"~a\", \"status\": \"~a\", \"start\": ~a, \"end\": ~a, \"target\": ~a, \"ninf\": ~a, \"pinf\": ~a, \"vars\": \"~a\", \"input\": \"~a\", \"output\": \"~a\", \"time\": ~a, \"bits\": ~a, \"link\": \"~a\"}"
-                  name status start-bits end-bits (or target "false") inf- inf+
-                  vars input output time bits link)]))
-     ",\n"))
-    (printf "]\n}\n")))
+  (call-with-output-file file (curry write-json data) #:exists 'replace))
 
 (command-line
  #:program "make-report"
