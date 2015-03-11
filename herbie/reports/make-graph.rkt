@@ -8,6 +8,7 @@
 (require "../test.rkt")
 (require "../infer-regimes.rkt")
 (require "../programs.rkt")
+(require "../plot.rkt")
 
 (provide make-graph make-traceback make-timeout)
 
@@ -42,19 +43,16 @@
   (printf "</dl>\n")
 
   (printf "<div id='graphs'>\n")
-  (for ([idx (range (length (test-vars test)))])
-    (let-values ([(x-scale x-unscale)
-                  (data-log-scale* (map (curryr list-ref idx) points) 10.0 490.0)]
-                 [(y-scale y-unscale) (linear-scale* 0 (*bit-width*) 175.0 20.0)])
-      (printf "<svg width='500' height='300'>\n")
-      (set-up-line)
-      (draw-line idx points start-errs x-scale y-scale "red")
-      (when target-errs
-        (draw-line idx points target-errs x-scale y-scale "green"))
-      (draw-line idx points end-errs x-scale y-scale "blue")
-      (draw-axes x-scale x-unscale y-scale y-unscale)
-      (draw-key (list-ref (test-vars test) idx) target-errs))
-    (printf "</svg>\n"))
+  (for ([var (test-vars test)] [idx (in-naturals)])
+    (call-with-output-file (build-path dir (format "plot-~a.png" idx)) #:exists 'replace
+        (lambda (out)
+          (herbie-plot #:port out #:title (format "Error versus ~a" var) #:kind 'png
+                       (reap [sow]
+                             (sow (error-points start-errs points #:axis idx #:color "red"))
+                             (when target-errs
+                               (sow (error-points target-errs points #:axis idx #:color "blue")))
+                             (sow (error-points end-errs points #:axis idx #:color "green"))))
+          (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))))
   (printf "</div>\n")
 
   (printf "<ol id='process-info'>\n")

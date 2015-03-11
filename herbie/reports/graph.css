@@ -16,22 +16,6 @@ dt {
     width: 500px;
 }
 
-text {
-    font-family: Arial;
-    font-size: 10px;
-    fill: black;
-}
-
-text.title {
-    fill: gray;
-    font-size: 18px;
-    font-weight: bold;
-}
-
-line {
-    stroke: black;
-}
-
 #process-info, #process-info ol {
     list-style: square;
     width: 500px;
