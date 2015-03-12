@@ -56,6 +56,8 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
+(define (length-bf lst) (bf (length lst)))
+
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
@@ -94,7 +96,9 @@
   [and      and-fn    and-fn    1]
   [or       or-fn     or-fn     1]
   [list     list      list      1]
-  [values   values    values    1])
+  [length   length-bf length    1]
+  [cdr      cdr       cdr       1]
+  [car      car       car       1])
 
 (define *operations* (make-parameter operations))
 
