@@ -100,8 +100,8 @@
                   ,ret-expr)
                (string-append
                 (render-assigns accs inits)
-                "\text{while " while-expr "}\\\\"
-                (render-assigns accs updates "\hspace{3em}")
+                "\\text{while " while-expr "}\\\\"
+                (render-assigns accs updates "\\hspace{3em}")
                 ret-expr)]
               [`(do-list ([,accs ,inits ,updates] ...)
                          ([,items ,lsts] ...)
@@ -109,7 +109,7 @@
                (string-append
                 (render-assigns accs inits)
                 
-                "\text{for "
+                "\\text{for "
                 (apply
                  string-append
                  (for/list ([item items] [lst lsts]
@@ -119,5 +119,5 @@
                                   "$" lst "$"
                                   (if (< idx (sub1 (length items))) "," ""))))
                 ":}\\\\"
-                (render-assigns accs updates "\hspace{3em}")
-                ret-expr)]))
+                (render-assigns accs updates "\\hspace{3em}")
+                ret-expr)]))))
