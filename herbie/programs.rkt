@@ -67,7 +67,8 @@
                 (list acc (inductor init (cons (add1 (* loc-t 2)) location))
                       (inductor update-expr (cons (+ 2 (* loc-t 2)) location))))
              ,(inductor while-expr (cons (add1 (* 2 (length accs))) location))
-           ,(inductor ret-expr (cons (+ 2 (* 2 (length accs))) location))))]
+           ,(inductor ret-expr (cons (+ 2 (* 2 (length accs))) location)))
+        (reverse location))]
       [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
                  ([,items ,lsts] ...)
                  ,ret-expr)
