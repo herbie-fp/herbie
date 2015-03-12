@@ -10,14 +10,20 @@
          load-tests
          test-target load-file)
 
+;; This is sort of hacky, because I don't want to introduce another
+;; dependency on our syntax by including special support for looping
+;; forms, but I can't use the -induct functions as I normally would
+;; because they don't support let*'s, since they assume they've
+;; already been unfolded.
 (define (unfold-let* expr)
   (match expr
-    [`(let* ,vars ,body)
-     (for/fold ([acc body])
-	 ([var (reverse vars)])
-       `(let (,var) ,acc))]
-    [`(,head ,args ...)
-     (cons head (map unfold-let* args))]
+    [`(let* ([,vars ,vals] ...) ,body)
+     (for/fold ([acc (unfold-let* body)])
+	 ([var (reverse vars)]
+          [val (reverse vals)])
+       `(let ([,var ,(unfold-let* val)]) ,acc))]
+    [(list items ...)
+     (map unfold-let* expr)]
     [x
      x]))
 

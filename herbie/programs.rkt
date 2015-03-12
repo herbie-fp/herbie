@@ -263,7 +263,9 @@
          [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
-      (->flonum (apply fn (map real->precision pts))))))
+      ;; Programs can now fail
+      ;; (with-handlers ([exn:fail? (λ _ +nan.0)])
+        (->flonum (apply fn (map real->precision pts))))));)
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common
