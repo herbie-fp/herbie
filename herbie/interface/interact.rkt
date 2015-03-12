@@ -143,7 +143,7 @@
 
 (define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog)
+  (setup-prog! prog #:samplers samplers
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (for ([iter (sequence-map add1 (in-range iters))]
 	#:break (atab-completed? (^table^)))
