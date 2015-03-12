@@ -129,7 +129,7 @@
 
 (define (make-exacts prog pts)
   (define n (length pts))
-  (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
+  (let loop ([n* 8]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
     (cond
      [(>= n* n)
       (make-exacts* prog pts)]
