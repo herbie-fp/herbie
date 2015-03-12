@@ -16,7 +16,7 @@
 
 (provide get-test-results)
 
-(define *reeval-pts* 8000)
+(define *reeval-pts* 8)
 (define *seed* #f)
 (define *timeout* (* 1000 60 10))
 (define *profile?* #f)
@@ -73,8 +73,8 @@
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
                     (if (test-output test)
-                        (errors `(λ ,(test-vars test) ,(test-output test))
-                                newcontext)
+                        (loop-aware-errors `(λ ,(test-vars test) ,(test-output test))
+					   newcontext)
                         #f))]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
@@ -96,7 +96,8 @@
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
-      (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
+      (let*-values ([(reals infs) (partition ordinary-float? (for/list ([end-err-lst end-errors] [start-err-lst start-errors])
+							       (- (car (take-right end-err-lst 1)) (car (take-right start-err-lst 1)))))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
