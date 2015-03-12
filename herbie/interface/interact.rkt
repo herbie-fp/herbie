@@ -10,6 +10,7 @@
 (require "../alternative.rkt")
 (require "../simplify/simplify.rkt")
 (require "../loop-rewrites.rkt")
+(require "../test.rkt")
 (require "visualize.rkt")
 (require "util.rkt")
 
@@ -53,6 +54,9 @@
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (make-alt-table (*pcontext*) alt))
     (void)))
+
+(define (setup-test! test)
+  (setup-prog! (test-program test) #:samplers (test-samplers test)))
 
 ;; Information
 (define (list-alts)

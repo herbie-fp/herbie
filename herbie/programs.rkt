@@ -79,7 +79,7 @@
                   ,(for/list ([item items] [lst lsts]
                               [loc (sequence-map (curryr cons location) (in-naturals 1))])
                      (list item (inductor lst loc)))
-                  ,(inductor ret-expr (cons (+ 2 (* 2 (length accs)) (length items)) location)))
+                  ,(inductor ret-expr (cons (+ 1 (* 2 (length accs)) (length items)) location)))
         (reverse location))]
       [`(,fn ,args ...)
        (let ([expr* (cons (symbol-table fn (reverse (cons 0 location)))
@@ -195,15 +195,15 @@
                   ,body)
                `(let ,(map list vars vals)
                   ,(location-do (cdr loc) body f)))]
-          [`(do ([,accs ,init-exprs ,update-exprs])
+          [`(do ([,accs ,init-exprs ,update-exprs] ...)
                 ,while-expr
               ,ret-expr)
-           (cond [(next-step . < . (length accs))
+           (cond [(next-step . <= . (* 2 (length accs)))
                   (if (= 1 (modulo next-step 2))
                       `(do ,(map list accs (list-do init-exprs (/ next-step 2)) update-exprs)
                            ,while-expr
                          ,ret-expr)
-                      `(do ,(map list accs (list-do init-exprs (sub1 (/ next-step 2))) update-exprs)
+                      `(do ,(map list accs init-exprs (list-do update-exprs (sub1 (/ next-step 2))))
                            ,while-expr
                          ,ret-expr))]
                  [(next-step . = . (length accs))
@@ -212,6 +212,26 @@
                      ,ret-expr)]
                  [#t `(do ,(map list accs init-exprs update-exprs)
                           ,while-expr
+                        ,(location-do (cdr loc) ret-expr f))])]
+          [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
+                     ([,items ,lsts] ...)
+                     ,ret-expr)
+           (cond [(next-step . <= . (* 2 (length accs)))
+                  (if (= 1 (modulo next-step 2))
+                      `(do-list ,(map list accs (list-do init-exprs (/ next-step 2))
+                                      update-exprs)
+                           ,(map list items lsts)
+                         ,ret-expr)
+                      `(do-list ,(map list accs init-exprs
+                                      (list-do update-exprs (sub1 (/ next-step 2))))
+                           ,(map list items lsts)
+                         ,ret-expr))]
+                 [(next-step . <= . (+ (* 2 (length accs)) (length lsts)))
+                  `(do-list ,(map list accs init-exprs update-exprs)
+                       ,(map list items (list-do lsts (- next-step (* 2 (length accs))) update-exprs))
+                     ,ret-expr)]
+                 [#t `(do-list ,(map list accs init-exprs update-exprs)
+                          ,(map list items lsts)
                         ,(location-do (cdr loc) ret-expr f))])]
           [`(,f . ,args)
            (list-do prog next-step)]))))
@@ -284,19 +304,21 @@
              ,ret-expr)
           (let ([idx (gensym "i")])
             `(let-values ([,accs
-                           (for/fold ,(map list accs init-exprs)
+                           (for/fold ,(map list accs (map compile-one init-exprs))
                                ([,idx (in-range ,(*max-loop-iters*))])
                              #:break (not ,while-expr)
-                             (values . ,update-exprs))])
-               ,ret-expr))]
+                             (values . ,(for/list ([update-expr update-exprs])
+                                          (compile update-expr (hash-copy compilations)))))])
+               ,(compile ret-expr compilations)))]
          [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
                     ([,items ,lsts] ...)
                     ,ret-expr)
           `(let-values ([,accs
-                         (for/fold ,(map list accs init-exprs)
+                         (for/fold ,(map list accs (map compile-one init-exprs))
                              ,(map list items lsts)
-                           (values . ,update-exprs))])
-             ,ret-expr)]
+                           (values . ,(for/list ([update-expr update-exprs])
+                                        (compile update-expr (hash-copy compilations)))))])
+             ,(compile ret-expr initial-compilations))]
 	 ;; For anything else, compile subexpressions, and then bind
 	 ;; new register to function on old registers. 
 	 [`(,fn ,args ...)
