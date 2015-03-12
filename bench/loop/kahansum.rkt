@@ -18,7 +18,7 @@ return s
 
 |#
 
-(herbie-test ([lst (list 20 double .25)])
+(herbie-test ([lst (list 100 double .25)])
   "Kahan summation"
   (do-list ([s 0.0 (+ item s)])
            ([item lst])
