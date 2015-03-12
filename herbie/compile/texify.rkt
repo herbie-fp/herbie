@@ -74,10 +74,11 @@
        (match (hash-ref texify-operators f)
          [`(,template ,self-paren-level ,arg-paren-level)
           (apply-converter template args)])]))
-  (define (render-assigns vars vals)
+  (define (render-assigns vars vals [indent ""])
      (for/fold ([texified-result ""])
          ([var vars] [val vals])
        (string-append texified-result
+                      indent
                       (format "~a \\gets ~a\\\\" (symbol->string var) val))))
   (expression-induct
    expr
@@ -92,39 +93,31 @@
            (match lt
              [`(let ([,vars ,vals] ...) ,body)
               (string-append (render-assigns vars vals) body)]))
-   #:fold (λ (fld)
-            (match fld
-              [`(for/fold ([,accs ,inits] ...)
-                    ([,items ,lst-exprs] ...)
-                  ,body)
-               (let ([lst-names (for/list ([lst-expr lst-exprs])
-                                      (gensym "lst"))])
-                 (string-append
-                  (render-assigns accs inits)
-                  (apply render-assigns
-                         (flip-lists (for/list ([lst-name lst-names] [lst-expr lst-exprs])
-                                       (list lst-name lst-expr))))
-                  "\text{for "
-                  (apply
-                   string-append
-                   (for/list ([item items] [lst lst-names]
-                              [idx (in-range (length items))])
-                    (string-append "$" (symbol->string item) "$"
-                                   " in "
-                                   "$" (symbol->string lst) "$"
-                                   (if (not (= idx (sub1 (length items))))
-                                       ","
-                                       ""))))
-                  ":}\\\\"
-                  (if (= 1 (length accs))
-                      (string-append
-                       "\hspace{4em}"
-                       (symbol->string (car accs)) " \\gets "
-                       body)
-                      (match body
-                        [`(values . ,exprs)
-                         (apply
-                          string-append
-                          (for/list ([acc accs] [expr exprs])
-                            (format "~a \\gets ~a\\\\" acc expr)))]
-                        [_ (error "uh oh, you don't return values, but you have multiple accs")]))))]))))
+   #:loop (λ (lp)
+            (match lp
+              [`(do ([,accs ,inits ,updates] ...)
+                    ,while-expr
+                  ,ret-expr)
+               (string-append
+                (render-assigns accs inits)
+                "\text{while " while-expr "}\\\\"
+                (render-assigns accs updates "\hspace{3em}")
+                ret-expr)]
+              [`(do-list ([,accs ,inits ,updates] ...)
+                         ([,items ,lsts] ...)
+                         ,ret-expr)
+               (string-append
+                (render-assigns accs inits)
+                
+                "\text{for "
+                (apply
+                 string-append
+                 (for/list ([item items] [lst lsts]
+                            [idx (in-range (length items))])
+                   (string-append "$" (symbol->string item) "$"
+                                  " in "
+                                  "$" lst "$"
+                                  (if (< idx (sub1 (length items))) "," ""))))
+                ":}\\\\"
+                (render-assigns accs updates "\hspace{3em}")
+                ret-expr)]))
