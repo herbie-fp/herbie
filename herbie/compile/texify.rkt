@@ -52,7 +52,10 @@
   [>=       "~a \\ge ~a" #f #t]
   [and      "~a \\wedge ~a" '* '*]
   [or       "~a \\vee ~a" '+ '+]
-  [mod      "~a \\modb ~a" #t #f])
+  [mod      "~a \\modb ~a" #t #f]
+  [length   "length(~a)" #f #f]
+  [cdr      "tail(~a)" #f #f]
+  [car      "head(~a)" #f #f])
 
 (define parens-precedence '(#t + * fn #f))
 

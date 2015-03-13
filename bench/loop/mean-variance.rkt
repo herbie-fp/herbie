@@ -1,7 +1,7 @@
 
 ;; I would use 'e' for the error term, but that actually has special
 ;; meaning as the constant e, and would break things if I used it.
-(herbie-test ([lst (list 20 double .25)])
+(herbie-test ([lst (list 100 double .25)])
   "Mean of a list"
   (do-list ([sum 0.0 (+ item sum)])
            ([item lst])
@@ -11,7 +11,7 @@
            ([item lst])
     (/ (- sum c) (length lst))))
 
-(herbie-test ([lst (list 20 double .25)])
+(herbie-test ([lst (list 100 double .25)])
   "Variance 1"
   (do-list ([sum 0.0 (+ item sum)])
            ([item lst])
@@ -35,7 +35,7 @@
                ([item lst])
          v))))
 
-(herbie-test ([lst (list 20 double .25)])
+(herbie-test ([lst (list 100 double .25)])
   "Variance 2"
   (do-list ([sum 0.0 (+ sum item)]
             [sqrsum 0.0 (+ sqrsum (sqr item))])
@@ -49,7 +49,7 @@
     (- (/ (- sqrsum c2) (length lst))
        (sqr (/ (- sum c1) (length lst))))))
 
-(herbie-test ([lst (list 20 double .25)])
+(herbie-test ([lst (list 100 double .25)])
   "Variance 3"
   (do-list ([mean (car lst) (let ([d (/ (- item mean) n)])
                               (+ mean d))]
