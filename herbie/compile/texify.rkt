@@ -92,8 +92,8 @@
                     (number->string const)
                     (car (hash-ref texify-constants expr))))
    #:variable symbol->string
-   #:primitive render-func 
-   #:predicate render-func 
+   #:primitive render-func
+   #:predicate render-func
    #:let (λ (lt)
            (error "there shouldn't be any lets anymore"))
    #:loop (λ (lp)
@@ -103,7 +103,7 @@
                   ,ret-expr)
                (string-append
                 (render-assigns accs inits)
-                "\\text{while " while-expr "}\\\\"
+                "\\text{while $" while-expr "$}\\\\"
                 (render-assigns accs updates "\\hspace{3em}")
                 ret-expr)]
               [`(do-list ([,accs ,inits ,updates] ...)
