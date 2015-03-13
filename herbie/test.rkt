@@ -81,6 +81,7 @@
 		  (parse-sampler-arg mean)
 		  (parse-sampler-arg deviation-ratio))]
     ['integer sample-integer]
+    [`(integer-range ,a ,b) (sample-integer-range a b)]
     ['expbucket sample-expbucket]
     [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
      (let ([sa (get-sampler a)] [test (curryr (get-op op) b)])

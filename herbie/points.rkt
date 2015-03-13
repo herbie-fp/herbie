@@ -9,7 +9,7 @@
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-double sample-float sample-default
-	 sample-uniform sample-integer sample-list
+	 sample-uniform sample-integer sample-list sample-integer-range
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list sort-context-on-expr)
 
@@ -98,6 +98,9 @@
 
 (define (sample-integer num)
   (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
+
+(define ((sample-integer-range a b) num)
+  (build-list num (λ (_) (- (random b) a))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
