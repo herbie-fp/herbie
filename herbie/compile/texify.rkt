@@ -2,6 +2,7 @@
 (require "../common.rkt")
 (require "../syntax.rkt")
 (require "../programs.rkt")
+(require "../main.rkt")
 
 (provide texify-expression)
 
@@ -75,13 +76,14 @@
          [`(,template ,self-paren-level ,arg-paren-level)
           (apply-converter template args)])]))
   (define (render-assigns vars vals [indent ""])
-     (for/fold ([texified-result ""])
-         ([var vars] [val vals])
-       (string-append texified-result
-                      indent
-                      (format "~a \\gets ~a\\\\" (symbol->string var) val))))
+    (apply
+     string-append
+     (for/list ([var vars] [val vals])
+       (string-append indent
+                      (format "~a \\gets ~a\\\\"
+                              (symbol->string var) val)))))
   (expression-induct
-   expr
+   (unfold-lets expr)
    #:constant (λ (const)
                 (if (number? const)
                     (number->string const)
@@ -90,9 +92,7 @@
    #:primitive render-func 
    #:predicate render-func 
    #:let (λ (lt)
-           (match lt
-             [`(let ([,vars ,vals] ...) ,body)
-              (string-append (render-assigns vars vals) body)]))
+           (error "there shouldn't be any lets anymore"))
    #:loop (λ (lp)
             (match lp
               [`(do ([,accs ,inits ,updates] ...)
@@ -120,4 +120,4 @@
                                   (if (< idx (sub1 (length items))) "," ""))))
                 ":}\\\\"
                 (render-assigns accs updates "\\hspace{3em}")
-                ret-expr)]))))
+                "\\text{return }" ret-expr)]))))
