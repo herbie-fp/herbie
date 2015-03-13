@@ -209,6 +209,9 @@
     [(alt-event prog 'final-simplify `(,alt))
      (output-history alt)
      (printf "<hr/><li class='event'>Applied final simplification</li>\n")]
+    [(alt-event prog 'added-error-term `(,alt))
+     (output-history alt)
+     (printf "<hr/><li class='event'>Added an error term</li>\n")]
 
     [(alt-delta prog cng prev)
      (output-history prev)
