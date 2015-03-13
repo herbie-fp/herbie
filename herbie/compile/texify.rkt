@@ -86,7 +86,7 @@
                       (format "~a \\gets ~a\\\\"
                               (symbol->string var) val)))))
   (expression-induct
-   (unfold-lets expr)
+   (unfold-lets-expr expr)
    #:constant (λ (const)
                 (if (number? const)
                     (number->string const)

@@ -45,8 +45,11 @@
    (list altn)))
 
 (define (unfold-lets prog)
-  (program-induct
-   prog
+  `(λ ,(program-variables prog)
+     ,(unfold-lets-expr (program-body prog))))
+(define (unfold-lets-expr expr)
+  (expression-induct
+   expr
    #:let (λ (expr)
 	   (match expr
 	     [`(let ([,vars ,vals] ...) ,body)
