@@ -11,6 +11,7 @@
 (require "../simplify/simplify.rkt")
 (require "../loop-rewrites.rkt")
 (require "../test.rkt")
+(require "../prettyify.rkt")
 (require "visualize.rkt")
 (require "util.rkt")
 
@@ -159,4 +160,5 @@
 ;; Finishing Herbie
 (define (get-final-combination)
   (remove-pows
-   (extract-alt (^table^))))
+   (factor-common-subexprs
+    (extract-alt (^table^)))))
