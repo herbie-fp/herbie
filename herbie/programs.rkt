@@ -8,7 +8,7 @@
 (provide (all-from-out "syntax.rkt")
          location-induct program-induct expression-induct location-hash
          location-do location-get location-parent location-sibling
-         eval-prog replace-subexpr
+         eval-prog replace-subexpr expr-size
 	 compile expression-cost program-cost
          free-variables replace-expression
          do-parts do-list-parts loop-common-parts
@@ -423,3 +423,8 @@
      `(do-list ,(map list accs inits update-exprs)
                ,(map list items lsts)
                ,ret-expr)]))
+
+(define (expr-size expr)
+  (define size 0)
+  (expression-induct expr #:primitive (λ _ (set! size (add1 size))))
+  size)
