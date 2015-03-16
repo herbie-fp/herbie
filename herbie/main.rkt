@@ -47,6 +47,7 @@
 (define (unfold-lets prog)
   `(λ ,(program-variables prog)
      ,(unfold-lets-expr (program-body prog))))
+
 (define (unfold-lets-expr expr)
   (expression-induct
    expr
@@ -60,43 +61,6 @@
 		 (λ (var)
 		   (let ([lookup (assoc var symbol-table)])
 		     (if lookup (cadr lookup) var)))))]))))
-
-;; This does not currently do the right thing with loops
-(define (factor-common-subexprs altn)
-  (define prog (alt-program altn))
-  (define subexpr-count (make-hash))
-  (program-induct prog
-		  #:primitive
-		  (λ (expr)
-		    (hash-update! subexpr-count expr add1 0)
-		    expr))
-  (define worthy-subexprs '())
-  (for ([(subexpr count) subexpr-count])
-    (when (and (< 1 count) (>= (*common-subexpr-factoring-limit*)
-			       (* (expr-size subexpr) count)))
-      (set! worthy-subexprs (filter (λ (subexpr*) (not (contains? subexpr subexpr*))) worthy-subexprs))
-      (when (not (memf (curryr contains? subexpr) worthy-subexprs))
-	(set! worthy-subexprs (cons subexpr worthy-subexprs)))))
-  (let* ([symbol-table (for/list ([subexpr worthy-subexprs])
-			 (list subexpr (gensym "x")))]
-	 [body (expression-induct
-		(program-body prog)
-		#:primitive
-		(λ (expr)
-		  (let ([lookup (assoc expr symbol-table)])
-		    (if lookup (cadr lookup) expr))))])
-    (alt-event
-    `(λ ,(program-variables prog)
-       ,(if (not (null? symbol-table))
-	    `(let ,(map reverse symbol-table) ,body)
-	    body))
-    'factored-common-subexprs
-    (list altn))))
-
-(define (expr-size expr)
-  (define size 0)
-  (expression-induct expr #:primitive (λ _ (set! size (add1 size))))
-  size)
 
 (define (contains? expr subexpr)
   (let/ec return
