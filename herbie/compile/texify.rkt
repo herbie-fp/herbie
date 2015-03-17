@@ -53,9 +53,9 @@
   [and      "~a \\wedge ~a" '* '*]
   [or       "~a \\vee ~a" '+ '+]
   [mod      "~a \\modb ~a" #t #f]
-  [length   "length(~a)" #f #f]
-  [cdr      "tail(~a)" #f #f]
-  [car      "head(~a)" #f #f])
+  [length   "\textsf{length}(~a)" #f #f]
+  [cdr      "\textsf{tail}(~a)" #f #f]
+  [car      "\textsf{head}(~a)" #f #f])
 
 (define parens-precedence '(#t + * fn #f))
 
@@ -103,16 +103,16 @@
                   ,ret-expr)
                (string-append
                 (render-assigns accs inits)
-                "\\text{while $" while-expr "$}\\\\"
+                "\\textsf{while $" while-expr "$}\\\\"
                 (render-assigns accs updates "\\hspace{3em}")
-                ret-expr)]
+                "\\textsf{return }" ret-expr)]
               [`(do-list ([,accs ,inits ,updates] ...)
                          ([,items ,lsts] ...)
                          ,ret-expr)
                (string-append
                 (render-assigns accs inits)
                 
-                "\\text{for "
+                "\\textsf{for "
                 (apply
                  string-append
                  (for/list ([item items] [lst lsts]
@@ -123,4 +123,4 @@
                                   (if (< idx (sub1 (length items))) "," ""))))
                 ":}\\\\"
                 (render-assigns accs updates "\\hspace{3em}")
-                "\\text{return }" ret-expr)]))))
+                "\\textsf{return }" ret-expr)]))))
