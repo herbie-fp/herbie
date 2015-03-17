@@ -50,8 +50,8 @@
                        (reap [sow]
                              (sow (error-points start-errs points #:axis idx #:color "red"))
                              (when target-errs
-                               (sow (error-points target-errs points #:axis idx #:color "blue")))
-                             (sow (error-points end-errs points #:axis idx #:color "green"))))
+                               (sow (error-points target-errs points #:axis idx #:color "green")))
+                             (sow (error-points end-errs points #:axis idx #:color "blue"))))
           (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))))
   (printf "</div>\n")
 

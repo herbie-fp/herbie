@@ -216,6 +216,7 @@
     (make-hash
      `((date . ,(date->seconds (current-date)))
        (commit . ,(git-command "rev-parse" "HEAD"))
+       (branch . ,(git-command "rev-parse" "--abbrev-ref" "HEAD"))
        (seed . ,(~a (pseudo-random-generator->vector (current-pseudo-random-generator))))
        (flags .
               ,(for*/list ([rec (hash->list (*flags*))] [fl (cdr rec)])
@@ -236,7 +237,7 @@
                        (end . ,end-bits)
                        (target . ,target-bits)
                        (ninf . ,inf-)
-                       (ping . ,inf+)
+                       (pinf . ,inf+)
                        (vars . ,(if vars (map symbol->string vars) #f))
                        (input . ,(~a input))
                        (output . ,(~a output))
