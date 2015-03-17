@@ -8,7 +8,8 @@
 
 (struct cse-info (expr count-table))
 (define (factor-common-subexprs altn)
-  (alt-event (factor-common-subexprs* (program-body (alt-program altn)))
+  (alt-event `(λ ,(program-variables (alt-program altn))
+                ,(factor-common-subexprs* (program-body (alt-program altn))))
              'factored-common-subexprs
              (list altn)))
 (define (factor-common-subexprs* expr)
@@ -69,8 +70,8 @@
       (λ ()
         (for/fold ([best-count 0] [best-expr #f])
             ([(expr count) (in-hash ct)])
-          (if (or (not best-expr)
-                  (and (count . > . 1)
+          (if (and (count . > . 1)
+                   (or (not best-expr)
                        ((* (expr-size expr) count) . > . (* (expr-size best-expr) best-count))))
               (values count expr)
               (values best-count best-expr))))
