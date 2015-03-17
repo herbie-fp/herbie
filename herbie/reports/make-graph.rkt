@@ -212,6 +212,12 @@
     [(alt-event prog 'added-error-term `(,alt))
      (output-history alt)
      (printf "<hr/><li class='event'>Added an error term</li>\n")]
+    [(alt-event prog 'factored-common-subexprs `(,alt))
+     (output-history alt)
+     (printf "<hr/><li class='event'>Factored common subexprs</li>\n")]
+    [(alt-event prog tag `(,alt))
+     (output-history alt)
+     (printf "<hr/><li class='event'>Unknown event %s</li>\n" (symbol->string tag))]
 
     [(alt-delta prog cng prev)
      (output-history prev)
