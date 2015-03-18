@@ -7,6 +7,7 @@
 
 (provide (all-from-out "syntax.rkt")
          location-induct program-induct expression-induct location-hash
+         expression-induct*
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr expr-size
 	 compile expression-cost program-cost
@@ -111,33 +112,55 @@
 	 #:predicate [predicate identity]
 	 #:let [let-handler identity] #:loop [loop-handler identity])
 
+  (expression-induct*
+   expr
+   #:constant (λ (e* e) (constant e*))
+   #:variable (λ (e* e) (variable e*))
+   #:primitive (λ (e* e) (primitive e*))
+   #:symbol (λ (e* e) (symbol-table e*))
+   #:predicate (λ (e* e) (predicate e*))
+   #:let (λ (e* e) (let-handler e*))
+   #:loop (λ (e* e) (loop-handler e*))))
+
+(define (first x y) x)
+
+(define (expression-induct*
+	 expr
+         #:constant [constant first] #:variable [variable first]
+	 #:primitive [primitive first] #:symbol [symbol-table first]
+	 #:predicate [predicate first]
+	 #:let [let-handler first] #:loop [loop-handler first])
+
   (define (inductor expr)
     (match expr
-      [(? constant?) (constant expr)]
-      [(? variable?) (variable expr)]
+      [(? constant?) (constant expr expr)]
+      [(? variable?) (variable expr expr)]
       [`(let ([,vars ,vals] ...) ,body)
        (let-handler
 	`(let ,(map list vars (map inductor vals))
-	   ,(inductor body)))]
+	   ,(inductor body))
+        expr)]
       [`(do ([,accs ,init-exprs ,update-exprs] ...)
             ,while-expr
           ,ret-expr)
        (loop-handler
         `(do ,(map list accs (map inductor init-exprs) (map inductor update-exprs))
              ,(inductor while-expr)
-           ,(inductor ret-expr)))]
+           ,(inductor ret-expr))
+         expr)]
       [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
                  ([,items ,lsts] ...)
                  ,ret-expr)
        (loop-handler
          `(do-list ,(map list accs (map inductor init-exprs) (map inductor update-exprs))
                    ,(map list items (map inductor lsts))
-                   ,(inductor ret-expr)))]
+                   ,(inductor ret-expr))
+         expr)]
       [`(,fn ,args ...)
-       (let ([expr* (cons (symbol-table fn) (map inductor args))])
+       (let ([expr* (cons (symbol-table fn fn) (map inductor args))])
 	 (if (memq fn predicates)
-	     (predicate expr*)
-	     (primitive expr*)))]
+	     (predicate expr* expr)
+	     (primitive expr* expr)))]
       [_ (error "malformed expression:" expr)]))
 
   (inductor expr))

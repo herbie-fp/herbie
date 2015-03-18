@@ -53,9 +53,9 @@
   [and      "~a \\wedge ~a" '* '*]
   [or       "~a \\vee ~a" '+ '+]
   [mod      "~a \\modb ~a" #t #f]
-  [length   "\textsf{length}(~a)" #f #f]
-  [cdr      "\textsf{tail}(~a)" #f #f]
-  [car      "\textsf{head}(~a)" #f #f])
+  [length   "\\textsf{length}(~a)" #f #f]
+  [cdr      "\\textsf{tail}(~a)" #f #f]
+  [car      "\\textsf{head}(~a)" #f #f])
 
 (define parens-precedence '(#t + * fn #f))
 
@@ -72,12 +72,22 @@
    The TeX is intended to be used in math mode.
 
    `parens` is one of #f, '+, '*, 'fn, or #t"
-  (define (render-func func)
+  (define (render-func func expr)
     (match func
       [`(,f ,args ...)
        (match (hash-ref texify-operators f)
          [`(,template ,self-paren-level ,arg-paren-level)
-          (apply-converter template args)])]))
+          (apply-converter
+           template
+           (for/list ([arg args] [earg (cdr expr)])
+             (match earg
+               [`(,child-f ,child-args ...)
+                (match-let ([`(,_ ,child-paren-level ,_)
+                             (hash-ref texify-operators child-f)])
+                  (if (parens-< child-paren-level arg-paren-level)
+                      (format "\\left(~a\\right)" arg)
+                      arg))]
+               [_ arg])))])]))
   (define (render-assigns vars vals [indent ""])
     (apply
      string-append
@@ -85,19 +95,19 @@
        (string-append indent
                       (format "~a \\gets ~a\\\\"
                               (symbol->string var) val)))))
-  (expression-induct
+  (expression-induct*
    (unfold-lets-expr expr)
-   #:constant (λ (const)
+   #:constant (λ (const* const)
                 (if (number? const)
                     (number->string const)
                     (car (hash-ref texify-constants expr))))
-   #:variable symbol->string
+   #:variable (λ (v* v) (symbol->string v*))
    #:primitive render-func
    #:predicate render-func
-   #:let (λ (lt)
+   #:let (λ (lt* lt)
            (error "there shouldn't be any lets anymore"))
-   #:loop (λ (lp)
-            (match lp
+   #:loop (λ (lp* lp)
+            (match lp*
               [`(do ([,accs ,inits ,updates] ...)
                     ,while-expr
                   ,ret-expr)
