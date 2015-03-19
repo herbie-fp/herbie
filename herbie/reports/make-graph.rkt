@@ -208,13 +208,16 @@
 
     [(alt-event prog 'final-simplify `(,alt))
      (output-history alt)
-     (printf "<hr/><li class='event'>Applied final simplification</li>\n")]
+     (printf "<hr/><li class='event'>Applied final simplification to get <code><pre>~a</pre></code></li>\n"
+             (pretty-format prog 65))]
     [(alt-event prog 'added-error-term `(,alt))
      (output-history alt)
-     (printf "<hr/><li class='event'>Added an error term</li>\n")]
+     (printf "<hr/><li class='event'>Added an error term to get <code><pre>~a</pre></code></li>\n"
+             (pretty-format prog 65))]
     [(alt-event prog 'factored-common-subexprs `(,alt))
      (output-history alt)
-     (printf "<hr/><li class='event'>Factored common subexprs</li>\n")]
+     (printf "<hr/><li class='event'>Factored common subexprs to get <code><pre>~a</pre></code</li>\n"
+             (pretty-format prog 65))]
     [(alt-event prog tag `(,alt))
      (output-history alt)
      (printf "<hr/><li class='event'>Unknown event %s</li>\n" (symbol->string tag))]
