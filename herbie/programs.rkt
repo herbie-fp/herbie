@@ -13,7 +13,7 @@
 	 compile expression-cost program-cost
          free-variables replace-expression
          do-parts do-list-parts loop-common-parts
-         make-do-list make-do make-loop)
+         make-do-list make-do make-loop loop-subexpr:locs)
 
 (define (location-induct
 	 prog
@@ -454,6 +454,30 @@
      `(do-list ,(map list accs inits update-exprs)
                ,(map list items lsts)
                ,ret-expr)]))
+
+(define (loop-subexpr:locs lp-expr [base-loc '()])
+  (match lp-expr
+    [`(do ([,_ ,inits ,steps] ...)
+          ,cond
+        ,ret-expr)
+     (append
+      (for/list ([init inits] [i (in-naturals)])
+        (list init (append base-loc (list (add1 (* 2 i)))))
+      (for/list ([step steps] [i (in-naturals)])
+        (list init (append base-loc (list (+ 2 (* 2 i))))))
+      (list cond (append base-loc (list (add1 (* 2 (length inits))))))
+      (list ret-expr (append base-loc (list (+ 2 (* 2 (length inits))))))))]
+    [`(do-list ([,_ ,inits ,steps] ...)
+               ([,_ ,lists] ...)
+               ,ret-expr)
+     (append
+      (for/list ([init inits] [i (in-naturals)])
+        (list init (append base-loc (list (add1 (* 2 i)))))
+      (for/list ([step steps] [i (in-naturals)])
+        (list init (append base-loc (list (+ 2 (* 2 i))))))
+      (for/list ([lst lists] [i (in-naturals)])
+        (list lst (append base-loc (list (+ i 1 (* 2 (length inits)))))))
+      (list ret-expr (append base-loc (list (+ 1 (length lists) (* 2 (length inits))))))))]))
 
 (define (expr-size expr)
   (define size 0)
