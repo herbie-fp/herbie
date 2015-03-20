@@ -9,7 +9,7 @@
          location-induct program-induct expression-induct location-hash
          expression-induct*
          location-do location-get location-parent location-sibling
-         eval-prog replace-subexpr expr-size
+         eval-prog replace-subexpr expr-size exact-eval
 	 compile expression-cost program-cost
          free-variables replace-expression
          do-parts do-list-parts loop-common-parts
@@ -289,7 +289,15 @@
     (lambda (pts)
       ;; Programs can now fail
       ;; (with-handlers ([exn:fail? (λ _ +nan.0)])
-        (->flonum (apply fn (map real->precision pts))))));)
+      (->flonum (apply fn (map real->precision pts))))));)
+
+(define (exact-eval expr vars)
+  (let* ([expr* (expression-induct expr #:constant ->bf
+                                #:symbol (λ (op) (list-ref (hash-ref (*operations*) op) mode:bf)))]
+         [prog `(λ ,vars ,(compile expr*))]
+         [fn (eval prog common-eval-ns)])
+    (λ (pts)
+      (apply fn (map ->bf pts)))))
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common
