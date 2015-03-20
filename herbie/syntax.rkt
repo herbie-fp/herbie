@@ -57,6 +57,8 @@
 (define (or-fn  . as) (ormap identity as))
 
 (define (length-bf lst) (bf (length lst)))
+(define (take-fn lst n) (if (> n (length lst)) lst (take lst (inexact->exact n))))
+(define (take-fn-bf lst n) (if (> (->flonum n) (length lst)) lst (take-fn lst (->flonum n))))
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
@@ -98,7 +100,8 @@
   [list     list      list      1]
   [length   length-bf length    1]
   [cdr      cdr       cdr       1]
-  [car      car       car       1])
+  [car      car       car       1]
+  [take     take-fn-bf take-fn  1])
 
 (define *operations* (make-parameter operations))
 

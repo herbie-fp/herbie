@@ -161,6 +161,7 @@
 	 (if (memq fn predicates)
 	     (predicate expr* expr)
 	     (primitive expr* expr)))]
+      [#f #f] ;; Some internally generated programs might need this.
       [_ (error "malformed expression:" expr)]))
 
   (inductor expr))

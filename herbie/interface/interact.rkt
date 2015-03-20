@@ -12,6 +12,7 @@
 (require "../loop-rewrites.rkt")
 (require "../test.rkt")
 (require "../prettyify.rkt")
+(require "../loop-errors.rkt")
 (require "visualize.rkt")
 (require "util.rkt")
 
