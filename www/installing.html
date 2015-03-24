@@ -1,0 +1,73 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Installing Herbie</title>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="logo.png" />
+    <h1>Installing Herbie</h1>
+    <p>See <a href="index.html">the main page</a> for more info on Herbie.</p>
+  </header>
+
+  <p>
+    <a href="index.html">Herbie</a> depends on <a href="https://racket-lang.org">Racket</a>,
+    a dynamic language developed by Northeastern University.
+    To install Herbie, one must first install Racket, version 6.1 or later.
+    Once Racket is installed, Herbie should run without problems.
+  </p>
+
+  <h2>Installing Racket</h2>
+
+  <p>
+    Avoid using MacPorts or Brew if you are using OS X;
+      we've found that these repositories miscompile the arbitrary-precision libraries
+      that Herbie requires.
+    Instead, use the <a href="http://download.racket-lang.org/">official installer</a>.
+  </p>
+
+  <p>
+    Test that Racket is installed correctly and has a correct version:
+  </p>
+
+  <pre><strong>$</strong> racket
+Welcome to Racket v6.1.
+> (exit)</pre>
+
+  <h2>Installing Herbie</h2>
+
+  <p>
+    Once Racket is installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
+
+  <pre>git clone https://github.com/uwplse/herbie <var>path/to/herbie/directory</var></pre>
+
+  <p>
+    If you go to the directory you downloaded the Herbie source into,
+    you should see a <code>README.md</code> file, a directory named <code>herbie</code>,
+    a directory named <code>bench/</code>, and a variety of other directories.
+    Do a trial run of Herbie to make sure everything is installed and working correctly:
+  </p>
+
+  <pre>racket herbie/reports/make-report.rkt bench/hamming/</pre>
+
+  <p>
+    This command will take approximately fifteen minutes to run;
+      it runs Herbie on problems from Richard Hamming's
+      <i>Numerical Methods for Scientists and Engineers</i>, Chapter 3.
+    After the command completes,
+      a directory named <code>graphs</code> should have appeared.
+    Open up the <code>report.html</code> file inside with your browser;
+      you should see a listing of the expressions Herbie was run on,
+      most of which should be green.
+    A score of 24/28 or greater suggests that everything is working correctly.
+  </p>
+
+  <p>Once Herbie is installed and working correctly, you can run it your own inputs by calling</p>
+    
+  <pre>racket herbie/reports/make-report.rkt <var>file/or/dir</var></pre>
+
+</body>
+</html>

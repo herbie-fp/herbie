@@ -23,8 +23,8 @@ figcaption {font-size: 14px; line-height: 1.1;}
 
 header h1 {margin: .5em 0 0 0; font-size: 16pt;}
 header p {font-size: 14pt; margin: .5em 0 0 0;}
-header img {position: relative; top: -1em; float: left; width: 20%; margin: 0 2em 0 0;}
-header {margin: 2em 0 1em 0;}
+header img {position: relative; top: -1em; float: left; width: 20%; margin: 0 2em 0 0; clear: right;}
+header {margin: 2em 0 1.5em 0; height: 60px;}
 
 .author-list {clear: both; text-align: center; padding: 0; width: 100%; margin: .5em 0 2em 0;}
 .author-list li {display: inline; padding: 0 .5ex 0 0; max-width: 33%;}
