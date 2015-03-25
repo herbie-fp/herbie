@@ -1,10 +1,7 @@
 
 ; All test cases come from the EPFL Rosa project, available at
-;
 ; https://github.com/malyzajko/rosa
-;
-; This is also the subject of the POPL'14 paper
-;
+; which is the subject of the POPL'14 paper
 ; E. Darulova, V. Kuncak, "Sound Compilation of Reals", POPL'14
 
 (herbie-test (u v t1)

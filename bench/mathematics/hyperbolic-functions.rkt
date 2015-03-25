@@ -1,4 +1,7 @@
 
+; Simplistic definitions of the hyperbolic functions;
+; the goal is to derive accurate forms automatically
+
 (herbie-test (x)
   "Hyperbolic sine"
   (/ (- (exp x) (exp (- x))) 2))

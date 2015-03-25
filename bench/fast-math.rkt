@@ -1,6 +1,7 @@
 
 ; All from the FastMath library for haskell, from
 ; https://github.com/liyang/fast-math/blob/master/test/
+; These test Herbie's ability to do basic arithmetic
 
 (herbie-test (d1 d2 d3)
             "FastMath dist"
