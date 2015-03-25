@@ -1,13 +1,10 @@
 FLAGS=-p
 BENCHDIR=bench/hamming/
 
-.PHONY: all report publish compile link clean loc all-fig all-convergence rebib paper drop
+.PHONY: report publish www compile clean loc
 
 all:
-	$(MAKE) link
 	$(MAKE) report
-
-paper: paper/paper.pdf
 
 report:
 	racket herbie/reports/make-report.rkt $(FLAGS) $(BENCHDIR)
@@ -16,38 +13,18 @@ publish:
 	bash herbie/reports/publish.sh upload graphs/
 	bash herbie/reports/publish.sh index
 
-publish-www:
+www:
 	rsync --recursive www/ "uwplse.org:/var/www/herbie/"
 
-drop: paper/paper.pdf
-	cp paper/paper.pdf ~/Dropbox/Public/herbie.pdf
-
-link:
-	raco link herbie
-	raco link herbie/reports
-	raco link compile
-	raco link herbie/simplify
-	raco link herbie/interface
-
-herbie/compile/cost: herbie/compile/cost.c
-	$(CC) -O0 $^ -lm -o $@
-
 loc:
-	find reports/ herbie/ -type f -exec cat {} \; | wc -l
+	find herbie/ -type f -exec cat {} \; | wc -l
 
 clean:
 	rm -f cost
 	rm -rf graphs/
-	rm -f herbie/compile/$(PREFIX)*.c
-	rm -f herbie/compile/$(PREFIX)*.out
-	rm -f herbie/compile/$(PREFIX).*.csv
-	rm -f herbie/compile/$(PREFIX).*.json
-	rm -f paper/*.bbl paper/*.blg paper/*.aux paper/*.log paper/*.out
 
-doc/tr-14wi.pdf: doc/tr-14wi.tex
-	cd doc/ && pdflatex -file-line-error -halt-on-error tr-14wi.tex
-	rm doc/tr-14wi.aux doc/tr-14wi.log
-
+cost: herbie/compile/cost.c
+	$(CC) -O0 $^ -lm -o $@
 
 # Evaluating Herbie's results
 PREFIX=tc
@@ -64,6 +41,8 @@ compile: herbie/compile/single.herbie.dat herbie/compile/double.herbie.dat
 
 rcompile: herbie/compile/noregimes.herbie.dat
 	racket herbie/compile/compile.rkt -d compile -f $(RPREFIX)~a.c $^ $^
+
+# The rest of this Makefile is currently deprecated, awaiting the reboot of the compilation pipeline
 
 # Flags for building and running C files
 GCC_FLAGS=-std=c11
@@ -128,46 +107,3 @@ herbie/compile/%.cv_if.bin: herbie/compile/convergence.c herbie/compile/%.o
 
 all-convergence: $(CFILES:.c=.cv_if.png)
 
-# Generating the PLDI'15 paper
-
-PLDI15TEX=$(wildcard paper/*.tex)
-PLDI15BIB=paper/references.bib
-PLDI15TIKZFIGS=mpfr-bits runtime rect-f rect-d overhead-d err regimes-e2e
-PLDI15FIGS=$(patsubst %,paper/fig/eval-%.tex,$(PLDI15TIKZFIGS)) paper/fig/overview-diagram.pdf
-
-%.pdf: %.svg
-	inkscape --export-pdf=$*.pdf $^
-
-paper/paper.pdf: $(PLDI15TEX) $(PLDI15BIB) $(PLDI15FIGS)
-	cd paper && pdflatex paper
-	cd paper && bibtex paper
-	cd paper && pdflatex paper
-	cd paper && pdflatex paper
-
-rebib:
-	@ cd paper && pdflatex paper > /dev/null
-	@ cd paper && bibtex paper > /dev/null
-	@ grep "didn't find a database entry for" paper/paper.blg | cut -d\  -f8 | tr -d \" | findcite >> $(PLDI15BIB)
-
-# Generating graphs
-
-paper/fig/eval-mpfr-bits.tex: herbie/compile/mpfr-bits.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py bits -d compile > $@
-
-paper/fig/eval-runtime.tex: herbie/compile/runtime.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py time -d compile > $@
-
-paper/fig/eval-rect-f.tex: herbie/compile/tc.if.csv herbie/compile/tc.of.csv herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py rect-f -d compile > $@
-
-paper/fig/eval-rect-d.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py rect-d -d compile > $@
-
-paper/fig/eval-overhead-d.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/graph.py herbie/compile/nr.id.csv herbie/compile/nr.od.csv
-	python2 herbie/compile/graph.py overhead-d -d compile > $@
-
-paper/fig/eval-err.tex: herbie/compile/sample-points.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py err -d compile > $@
-
-paper/fig/eval-regimes-e2e.tex: herbie/compile/tc.id.csv herbie/compile/tc.od.csv herbie/compile/nr.id.csv herbie/compile/nr.od.csv herbie/compile/graph.py
-	python2 herbie/compile/graph.py regimes -d compile > $@
