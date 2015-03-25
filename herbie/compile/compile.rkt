@@ -1,5 +1,7 @@
 #lang racket
 
+;; WARNING: This file is currently deprecated, and the compilation pipeline is not currently supported
+
 (require "../common.rkt")
 (require "../programs.rkt")
 (require reports/datafile)
