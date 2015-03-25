@@ -11,9 +11,10 @@
 (require "../alternative.rkt")
 (require "../main.rkt")
 (require "make-graph.rkt")
+(require "datafile.rkt")
 (require "../interface/interact.rkt")
 
-(provide (struct-out table-row) get-test-results)
+(provide get-test-results)
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
@@ -87,9 +88,6 @@
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
       [#f
        (test-timeout test (bf-precision) rdir)])))
-
-(struct table-row
-  (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (define (get-table-data result)
   (cond

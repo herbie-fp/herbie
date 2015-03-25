@@ -41,7 +41,9 @@ if [[ $CMD = "upload" ]]; then
     else
         upload "$DIR"
     fi
-else
+elif [[ $CMD = "index" ]]; then
     index
+else
+    help
 fi
 

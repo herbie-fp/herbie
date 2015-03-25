@@ -11,7 +11,6 @@
 (require "cmdline.rkt")
 (require "datafile.rkt")
 (require "../compile/texify.rkt")
-(require json)
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)
@@ -21,7 +20,6 @@
 (define *test-name* #f)
 
 (define *profile?* #f)
-(define *master?* #f)
 (define *note* #f)
 
 (define (make-report . bench-dirs)
@@ -34,7 +32,6 @@
       (make-directory report-output-path))
 
     (make-report-page (build-path report-output-path "report.html") results)
-    (make-datafile (build-path report-output-path "results.herbie.dat") results)
     (make-json (build-path report-output-path "results.json") results)))
 
 (define (allowed-tests bench-dirs)
@@ -66,12 +63,6 @@
    [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
-
-(define (git-command #:default [default ""] gitcmd . args)
-  (if (directory-exists? ".git")
-      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (string-trim (write-string (system cmd))))
-      default))
 
 (define (make-report-page file table-data)
   (let ([commit (git-command "rev-parse" "HEAD")]
@@ -200,52 +191,9 @@
       (for ([subdir extra-dirs])
         (delete-directory/files (build-path dir subdir))))))
 
-(define (make-datafile file results)
-  (write-datafile file
-                  (reap [sow]
-                        (for ([result results])
-                          (match result
-                            [(table-row name status start-bits end-bits
-					target _ _ _ vars input output time bits _)
-                             (when output
-                               (sow `(,name (λ ,vars ,input) (λ ,vars ,output)
-					    #f ,bits ,time ,start-bits ,end-bits)))])))))
-
 (define (make-json file results)
-  (define data
-    (make-hash
-     `((date . ,(date->seconds (current-date)))
-       (commit . ,(git-command "rev-parse" "HEAD"))
-       (branch . ,(git-command "rev-parse" "--abbrev-ref" "HEAD"))
-       (seed . ,(~a (pseudo-random-generator->vector (current-pseudo-random-generator))))
-       (flags .
-              ,(for*/list ([rec (hash->list (*flags*))] [fl (cdr rec)])
-                 (format "\"~a:~a\"" (car rec) fl)))
-       (points . ,(*num-points*))
-       (iterations . ,(*num-iterations*))
-       (master . ,*master?*)
-       (note . ,*note*)
-       (tests .
-              ,(for/list ([result results])
-                 (match result
-                   [(table-row name status start-bits end-bits target-bits
-                               inf- inf+ end-est vars input output time bits link)
-                    (make-hash
-                     `((name . ,name)
-                       (status . ,status)
-                       (start . ,start-bits)
-                       (end . ,end-bits)
-                       (target . ,target-bits)
-                       (ninf . ,inf-)
-                       (pinf . ,inf+)
-                       (vars . ,(if vars (map symbol->string vars) #f))
-                       (input . ,(~a input))
-                       (output . ,(~a output))
-                       (time . ,time)
-                       (bits . ,bits)
-                       (link . ,(~a link))))]))))))
-
-  (call-with-output-file file (curry write-json data) #:exists 'replace))
+  (define info (make-report-info results #:note *note*))
+  (write-datafile file info))
 
 (command-line
  #:program "make-report"
@@ -268,8 +216,6 @@
   (*num-points* (string->number points))]
  [("-q") test-name "The name of the test to run. If not specified, will run all in benchdir."
   (set! *test-name* test-name)]
- [("-m") "Set this run as a new 'master test' for this branch"
-  (set! *master?* #t)]
  [("-i") note "Add a note for this run"
   (set! *note* note)]
  #:multi

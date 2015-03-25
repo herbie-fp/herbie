@@ -1,9 +1,9 @@
 #lang racket
 
 (require racket/date)
+(require unstable/sequence)
 (require "../common.rkt")
-(require "thread-pool.rkt")
-(require json)
+(require "datafile.rkt")
 
 (define (parse-folder-name name)
   (let ([name (path->string name)])
@@ -13,33 +13,21 @@
 
 (define name->timestamp (compose string->number first parse-folder-name))
 
-(struct report-info (folder date commit branch seed flags points iterations master? note tests))
-
 (define (read-report-info folder)
   (let ([info-file (build-path report-output-path "reports" folder "results.json")])
     (if (file-exists? info-file)
-        (let* ([json (call-with-input-file info-file read-json)]
-               [get (λ (field) (hash-ref json field))])
-                                        ; TODO: Not getting the tests field
-          (report-info folder (seconds->date (get 'date)) (get 'commit) (get 'branch) (get 'seed)
-                       (get 'flags) (get 'points) (get 'iterations) (get 'master) (hash-ref json 'note #f)
-                       (for/list ([test (get 'tests)])
-                         (let ([get (λ (field) (hash-ref test field))])
-                           ; TODO: ignoring the result-est
-                           (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
-                                      (get 'ninf) (get 'pinf) 0 (get 'vars) (get 'input) (get 'output)
-                                      (get 'time) (get 'bits) (get 'link))))))
+        (read-datafile info-file)
         (match (parse-folder-name folder)
           [`(,timestamp ,hostname ... ,branch ,commit)
-           (report-info folder (seconds->date (string->number timestamp)) commit branch
-                        #f #f #f #f #f #f #f)]))))
+           (report-info (seconds->date (string->number timestamp)) commit branch
+                        #f #f #f #f #f #f)]))))
 
 (define (print-list infos)
   (printf "<ul id='reports'>\n")
-  (for/list ([info infos])
+  (for/list ([(folder info) (in-pairs infos)])
     (match info
-      [(report-info folder date commit branch seed flags points iterations master? note tests)
-       (printf "<li class='~a'>" (if master? "master" ""))
+      [(report-info date commit branch seed flags points iterations note tests)
+       (printf "<li>")
        (printf "<a href='./~a/report.html'>~a</a>, on <abbr title='~a'>~a</abbr>"
                folder (date->string date) commit branch)
        (when note (printf "<p>~a</p>" note))
@@ -48,7 +36,7 @@
 
 (define (make-index-page)
   (let* ([folders
-          (map read-report-info
+          (map (λ (dir) (cons dir (read-report-info dir)))
                (remove-duplicates
                 (sort (directory-list (build-path report-output-path "reports/")) > #:key name->timestamp)
                 #:key name->timestamp))])
@@ -62,13 +50,14 @@
       (printf "<body>\n")
       (printf "<h1>Herbie Reports</h1>\n")
 
-      (print-list (take-up-to (filter (λ (x) (equal? (report-info-branch x) "master")) folders) 5))
+      (print-list (take-up-to (filter (λ (x) (equal? (report-info-branch (cdr x)) "master")) folders) 5))
       
-      (for/list ([branch (filter (λ (x) (not (equal? (report-info-branch (car x)) "master")))
-                                 (sort
-                                  (multipartition folders report-info-branch) >
-                                  #:key (λ (x) (date->seconds (report-info-date (car x))))))])
-        (printf "<h2>Latest in <code>~a</code></h2>" (report-info-branch (car branch)))
+      (for/list ([branch
+                  (filter (λ (x) (not (equal? (report-info-branch (cdar x)) "master")))
+                          (sort
+                           (multipartition folders (compose report-info-branch cdr)) >
+                           #:key (λ (x) (date->seconds (report-info-date (cdar x))))))])
+        (printf "<h2>Latest in <code>~a</code></h2>" (report-info-branch (cdar branch)))
         (print-list (take-up-to branch 5)))
       
       (printf "<h2>All reports</h2>\n")
