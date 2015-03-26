@@ -4,19 +4,19 @@
 (require "points.rkt")
 (require "programs.rkt")
 
-(provide loop-aware-errors loop-error-score*)
+(provide loop-aware-errors loop-aware-error-score)
 
 (define (loop-aware-error-at-point prog pt)
   (let loop ([errs '()] [prog-fl prog] [prog-bf prog])
     (let ([prog-fl* (step-prog prog-fl pt mode:fl)]
           [prog-bf* (step-prog prog-bf pt mode:bf)])
       (if (not (and prog-fl* prog-bf*)) (reverse errs)
-          (loop (cons (let ([approx (take-cur-val* (program-body prog-fl*)
-                                                   (program-variables prog-fl*)
-                                                   pt mode:fl)]
-                            [exact (->flonum (take-cur-val* (program-body prog-bf*)
-                                                            (program-variables prog-bf*)
-                                                            pt mode:bf))])
+          (loop (cons (let ([approx (take-cur-val (program-body prog-fl*)
+                                                  (program-variables prog-fl*)
+                                                  pt mode:fl)]
+                            [exact (->flonum (take-cur-val (program-body prog-bf*)
+                                                           (program-variables prog-bf*)
+                                                           pt mode:bf))])
                         (if (real? approx)
                             (add1 (abs (ulp-difference approx exact)))
                             (add1 (expt 2 (*bit-width*)))))
@@ -24,41 +24,7 @@
                 prog-fl*
                 prog-bf*)))))
 
-(define (step-loop loop-expr vars pt mode)
-  (define (eval expr)
-    (if (eq? mode mode:bf)
-        ((exact-eval expr vars) pt)
-        ((eval-prog `(λ ,vars ,expr) mode) pt)))
-  (match loop-expr
-    [`(do-list ([,accs ,inits ,updates] ...)
-               ([,items ,lsts] ...)
-               ,ret-expr)
-     (if (for/or ([lst lsts]) (null? (eval lst))) #f
-         (let ([inits* (for/list ([acc accs] [init inits] [update updates])
-                         (eval `(let ([,acc ,init])
-                                  (let ,(for/list ([item items] [lst lsts])
-                                          (list item (eval `(car ,lst))))
-                                    ,update))))]
-               [lsts* (for/list ([lst lsts])
-                        `(cdr ,lst))])
-           `(do-list ,(map list accs inits* updates)
-                     ,(map list items lsts*)
-                     ,ret-expr)))]))
-
-(define (take-cur-val loop-expr vars pt mode)
-  (define (eval expr)
-    ((eval-prog `(λ ,vars ,expr) mode) pt))
-  (match loop-expr
-    [`(do-list ([,accs ,inits ,updates] ...)
-               ([,items ,lsts] ...)
-               ,ret-expr)
-     (eval `(let ,(for/list ([acc accs] [init inits])
-                    (list acc init))
-              (let ,(for/list ([item items] [lst lsts])
-                      (list item lst))
-                ,ret-expr)))]))
-
-(define (take-cur-val* expr vars pt mode [bindings (hash)])
+(define (take-cur-val expr vars pt mode [bindings (hash)])
   (define (as-data val)
     (match val
       [`(list ,items ...) val]
@@ -78,26 +44,27 @@
                                               #:when (equal? var-name expr))
                                     var-val))))]
     [`(let ([,vars ,vals] ...) ,body)
-     (take-cur-val* body vars pt mode (extend-bindings vars vals))]
+     (take-cur-val body vars pt mode (extend-bindings vars vals))]
     [`(do ([,accs ,init-exprs ,_] ...)
           ,_
         ,ret-expr)
-     (take-cur-val* ret-expr vars pt mode
+     (take-cur-val ret-expr vars pt mode
                     (extend-bindings accs (for/list ([expr init-exprs])
-                                            (take-cur-val* expr vars pt
+                                            (take-cur-val expr vars pt
                                                            mode bindings))))]
     [`(do-list ([,accs ,init-exprs ,_] ...)
                ([,items ,lsts] ...)
                ,ret-expr)
-     (take-cur-val* ret-expr vars pt mode
+     (take-cur-val ret-expr vars pt mode
                     (extend-bindings accs (for/list ([expr init-exprs])
-                                            (take-cur-val* expr vars pt
+                                            (take-cur-val expr vars pt
                                                            mode bindings))))]
     [`(,fn ,args ...)
      (eval (cons (list-ref (hash-ref (*operations*) (car expr)) mode)
                  (for/list ([arg args])
-                   (as-data (take-cur-val* arg vars pt mode bindings))))
-           common-eval-ns)]))
+                   (as-data (take-cur-val arg vars pt mode bindings))))
+           common-eval-ns)]
+    [_ (error "wat" expr)]))
 
 (define (step-prog prog pt mode)
   ;; Returns the second list, except items that are false are replaced
@@ -105,8 +72,10 @@
   (define (use-if-can-step vals vals*)
     (map (λ (a b) (or a b)) vals vals*))
   (define (inner-step expr [bindings (hash)])
-    (define (inner-eval expr)
-      (take-cur-val* expr (program-variables prog) pt mode bindings))
+    (define (inner-eval expr [bindings bindings])
+      (when (not expr)
+        (error "hey"))
+      (take-cur-val expr (program-variables prog) pt mode bindings))
     (define (extend-bindings keys vals)
       (for/fold ([bindings* bindings])
           ([key keys] [val vals])
@@ -127,9 +96,7 @@
              ;; body, returning false if the body can't step, and
              ;; wrapping the stepped body in a let block that binds
              ;; the accs to their current inits if the body can step.
-             (let ([condition-val
-                    (take-cur-val* while-expr (program-variables prog)
-                                   pt mode (extend-bindings accs inits))])
+             (let ([condition-val (inner-eval while-expr (extend-bindings accs inits))])
                (if condition-val
                    (let ([inits** (for/list ([acc accs] [init inits] [update updates])
                                    (eval `(let ([,acc ,init])
@@ -173,7 +140,8 @@
          (if (andmap not args*) #f
              (cons fn (use-if-can-step args args*))))]
       [_ #f]))
-  `(λ ,(program-variables prog) ,(inner-step (program-body prog))))
+  (let ([body* (inner-step (program-body prog))])
+    (and body* `(λ ,(program-variables prog) ,body*))))
              
                    
 (define (loop-aware-errors prog)
@@ -182,16 +150,17 @@
 
 ;; attempts to compensate for the random walk behavior of error
 ;; growth.
-(define (loop-error-score* loop-expr vars)
+(define (loop-aware-error-score prog)
   (define (make-pt err-lst)
     (for/list ([(err i) (in-indexed err-lst)])
       (list i (sqr err))))
-  (let ([err-lsts (loop-aware-errors loop-expr vars)])
-    (* (apply max (map length err-lsts))
-       (best-fit-slope
-        (apply
-         append
-         (map make-pt err-lsts))))))
+  (let ([err-lsts (loop-aware-errors prog)])
+    (exact->inexact
+     (* (apply max (map length err-lsts))
+        (best-fit-slope
+         (apply
+          append
+          (map make-pt err-lsts)))))))
 
 (define-syntax-rule (for/avg ([items lsts]...)
                              body)
