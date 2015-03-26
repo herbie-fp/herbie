@@ -12,7 +12,7 @@
          eval-prog replace-subexpr expr-size exact-eval
 	 compile expression-cost program-cost
          free-variables replace-expression
-         do-parts do-list-parts loop-common-parts
+         do-parts do-list-parts loop-common-parts loop?
          make-do-list make-do make-loop loop-subexpr:locs)
 
 (define (location-induct
@@ -455,6 +455,17 @@
      `(do-list ,(map list accs inits update-exprs)
                ,(map list items lsts)
                ,ret-expr)]))
+(define (loop? expr)
+  (match expr
+    [`(do ([,_ ,_ ,_] ...)
+          ,_
+        ,_)
+     #t]
+    [`(do-list ([,_ ,_ ,_] ...)
+               ([,_ ,_ ,_] ...)
+               ,_)
+     #t]
+    [_ #f]))
 
 (define (loop-subexpr:locs lp-expr [base-loc '()])
   (match lp-expr
