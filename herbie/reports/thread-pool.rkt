@@ -10,9 +10,10 @@
 (require "../test.rkt")
 (require "../alternative.rkt")
 (require "../main.rkt")
+(require "../interface/interact.rkt")
+(require "../loop-errors.rkt")
 (require "make-graph.rkt")
 (require "datafile.rkt")
-(require "../interface/interact.rkt")
 
 (provide get-test-results)
 
@@ -89,10 +90,16 @@
            [end-errors    (test-result-end-error    result)]
            [target-errors (test-result-target-error result)]
 
-           [start-score (errors-score start-errors)]
-           [end-score (errors-score end-errors)]
-           [target-score (and target-errors (errors-score target-errors))]
-
+           [start-score (parameterize ([(*pcontext*) (mk-pcontext (test-result-points result)
+                                                                  (test-result-exacts result))])
+                          (loop-aware-error-score (alt-program (test-result-start-alt result))))]
+           [end-score (parameterize ([(*pcontext*) (mk-pcontext (test-result-point result)
+                                                                (test-result-exacts result))])
+                        (loop-aware-error-score (alt-program (test-result-end-alt result))))]
+           [target-score (and target-errors
+                              (parameterize ([(*pcontext*) (mk-pcontext (test-result-points result)
+                                                                        (test-result-exacts result))])
+                                (loop-aware-error-score (test-target (test-result-test result)))))]
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
