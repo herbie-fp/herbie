@@ -67,6 +67,19 @@
      [(eq? (car l) b) #f]
      [else (loop (cdr l))])))
 
+(define (list->string items)
+  (string-append
+   "["
+   (if ((length items) . > . 1)
+       (apply
+	string-append
+	(car items)
+	(for/list ([item items])
+	  (string-append ", " item)))
+       "")
+   "]"))
+   
+
 (define (texify-expression expr [parens #t])
   "Compile an expression to TeX code.
    The TeX is intended to be used in math mode.
@@ -75,19 +88,21 @@
   (define (render-func func expr)
     (match func
       [`(,f ,args ...)
-       (match (hash-ref texify-operators f)
-         [`(,template ,self-paren-level ,arg-paren-level)
-          (apply-converter
-           template
-           (for/list ([arg args] [earg (cdr expr)])
-             (match earg
-               [`(,child-f ,child-args ...)
-                (match-let ([`(,_ ,child-paren-level ,_)
-                             (hash-ref texify-operators child-f)])
-                  (if (parens-< child-paren-level arg-paren-level)
-                      (format "\\left(~a\\right)" arg)
-                      arg))]
-               [_ arg])))])]))
+       (if (eq? f 'list) (list->string args)
+	   (match (hash-ref texify-operators f)
+	     [`(,template ,self-paren-level ,arg-paren-level)
+	      (apply-converter
+	       template
+	       (for/list ([arg args] [earg (cdr expr)])
+		 (match earg
+		   [`(,child-f ,child-args ...)
+		    (if (eq? f 'list) arg
+			(match-let ([`(,_ ,child-paren-level ,_)
+				     (hash-ref texify-operators child-f)])
+			  (if (parens-< child-paren-level arg-paren-level)
+			      (format "\\left(~a\\right)" arg)
+			      arg)))]
+		   [_ arg])))]))]))
   (define (render-assigns vars vals [indent ""])
     (apply
      string-append
@@ -100,7 +115,7 @@
    #:constant (λ (const* const)
                 (if (number? const)
                     (number->string const)
-                    (car (hash-ref texify-constants expr))))
+                    (car (hash-ref texify-constants const))))
    #:variable (λ (v* v) (symbol->string v*))
    #:primitive render-func
    #:predicate render-func

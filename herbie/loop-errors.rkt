@@ -33,7 +33,7 @@
   (define (extend-bindings keys vals)
     (for/fold ([bindings* bindings])
         ([key keys] [val vals])
-      (hash-set bindings key val)))
+      (hash-set bindings* key val)))
   (define ->precision (if (equal? mode mode:fl) ->flonum ->bf))
   (match expr
     [(? constant?) (->precision expr)]
@@ -43,27 +43,31 @@
                                               [var-val pt]
                                               #:when (equal? var-name expr))
                                     var-val))))]
-    [`(let ([,vars ,vals] ...) ,body)
-     (take-cur-val body vars pt mode (extend-bindings vars vals))]
+    [`(let ([,names ,vals] ...) ,body)
+     (take-cur-val body vars pt mode (extend-bindings names (for/list ([val vals])
+							      (take-cur-val val vars pt
+									    mode bindings))))]
     [`(do ([,accs ,init-exprs ,_] ...)
           ,_
         ,ret-expr)
      (take-cur-val ret-expr vars pt mode
                     (extend-bindings accs (for/list ([expr init-exprs])
                                             (take-cur-val expr vars pt
-                                                           mode bindings))))]
+							  mode bindings))))]
     [`(do-list ([,accs ,init-exprs ,_] ...)
                ([,items ,lsts] ...)
                ,ret-expr)
      (take-cur-val ret-expr vars pt mode
                     (extend-bindings accs (for/list ([expr init-exprs])
                                             (take-cur-val expr vars pt
-                                                           mode bindings))))]
+							  mode bindings))))]
     [`(,fn ,args ...)
-     (eval (cons (list-ref (hash-ref (*operations*) (car expr)) mode)
-                 (for/list ([arg args])
-                   (as-data (take-cur-val arg vars pt mode bindings))))
-           common-eval-ns)]
+     (with-handlers ([exn:fail? (λ _ (error "can't evaluate" expr "with bindings" bindings
+					    "and variables" (map list vars pt)))])
+       (eval (cons (list-ref (hash-ref (*operations*) (car expr)) mode)
+		   (for/list ([arg args])
+		     (as-data (take-cur-val arg vars pt mode bindings))))
+           common-eval-ns))]
     [_ (error "wat" expr)]))
 
 (define (step-prog prog pt mode)
@@ -73,13 +77,11 @@
     (map (λ (a b) (or a b)) vals vals*))
   (define (inner-step expr [bindings (hash)])
     (define (inner-eval expr [bindings bindings])
-      (when (not expr)
-        (error "hey"))
       (take-cur-val expr (program-variables prog) pt mode bindings))
     (define (extend-bindings keys vals)
       (for/fold ([bindings* bindings])
           ([key keys] [val vals])
-        (hash-set bindings key val)))
+        (hash-set bindings* key val)))
     (match expr
       [`(do ([,accs ,inits ,updates] ...)
             ,while-expr
@@ -96,15 +98,17 @@
              ;; body, returning false if the body can't step, and
              ;; wrapping the stepped body in a let block that binds
              ;; the accs to their current inits if the body can step.
-             (let ([condition-val (inner-eval while-expr (extend-bindings accs inits))])
+             (let* ([init-vals (for/list ([init inits])
+				 (inner-eval init))]
+		    [condition-val (inner-eval while-expr (extend-bindings accs init-vals))])
                (if condition-val
-                   (let ([inits** (for/list ([acc accs] [init inits] [update updates])
-                                   (eval `(let ([,acc ,init])
-                                            ,update)))])
+                   (let ([inits** (for/list ([update updates])
+                                   (inner-eval `(let ,(map list accs inits)
+						  ,update)))])
                      `(do ,(map list accs inits** updates)
                           ,while-expr
                         ,ret-expr))
-                   (let ([body* (inner-step ret-expr (extend-bindings accs inits))])
+                   (let ([body* (inner-step ret-expr (extend-bindings accs init-vals))])
                      (and body* `(let ,(map list accs inits) body*)))))))]
       ;; See above for comments
       [`(do-list ([,accs ,inits ,updates] ...)
@@ -116,24 +120,27 @@
              `(do-list ,(map list accs (use-if-can-step inits inits*) updates)
                        ,(map list items (use-if-can-step lsts lsts*))
                        ,ret-expr)
-             (if (for/or ([lst lsts]) (null? (inner-eval lst)))
-                 (let ([body* (inner-step ret-expr (extend-bindings accs inits))])
-                   (and body* `(let ,(map list accs inits) body*)))
-                 (let ([inits* (for/list ([acc accs] [init inits] [update updates])
-                                 (inner-eval `(let ([,acc ,init])
-                                                (let ,(for/list ([item items] [lst lsts])
-                                                        (list item (inner-eval `(car ,lst))))
-                                                  ,update))))]
-                       [lsts* (for/list ([lst lsts])
-                                `(cdr ,lst))])
-                   `(do-list ,(map list accs inits* updates)
-                             ,(map list items lsts*)
-                             ,ret-expr)))))]
+	     (let ([init-vals (for/list ([init inits])
+				(inner-eval init))])
+	       (if (for/or ([lst lsts]) (null? (inner-eval lst)))
+		   (let ([body* (inner-step ret-expr (extend-bindings accs init-vals))])
+		     (and body* `(let ,(map list accs inits) body*)))
+		   (let ([inits** (for/list ([update updates])
+				    (inner-eval update (extend-bindings (append accs items)
+									(append init-vals
+										(for/list ([lst lsts])
+										  (inner-eval `(car ,lst)))))))]
+			 [lsts* (for/list ([lst lsts])
+				  `(cdr ,lst))])
+		     `(do-list ,(map list accs inits** updates)
+			       ,(map list items lsts*)
+			       ,ret-expr))))))]
       [`(let ([,vars ,vals] ...) ,body)
        (let ([vals* (for/list ([val vals]) (inner-step val bindings))])
          (if (ormap identity vals*)
              `(let ,(map list vars (use-if-can-step vals vals*)) ,body)
-             (let ([body* (inner-step body (extend-bindings vars vals))])
+             (let ([body* (inner-step body (extend-bindings vars (for/list ([val vals])
+								   (inner-eval val))))])
                (and body* `(let ,(map list vars vals) ,body*)))))]
       [`(,fn ,args ...)
        (let ([args* (for/list ([arg args]) (inner-step arg bindings))])

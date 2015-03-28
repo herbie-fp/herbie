@@ -90,15 +90,15 @@
            [end-errors    (test-result-end-error    result)]
            [target-errors (test-result-target-error result)]
 
-           [start-score (parameterize ([(*pcontext*) (mk-pcontext (test-result-points result)
-                                                                  (test-result-exacts result))])
+           [start-score (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
+								(test-result-exacts result))])
                           (loop-aware-error-score (alt-program (test-result-start-alt result))))]
-           [end-score (parameterize ([(*pcontext*) (mk-pcontext (test-result-point result)
-                                                                (test-result-exacts result))])
+           [end-score (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
+							      (test-result-exacts result))])
                         (loop-aware-error-score (alt-program (test-result-end-alt result))))]
            [target-score (and target-errors
-                              (parameterize ([(*pcontext*) (mk-pcontext (test-result-points result)
-                                                                        (test-result-exacts result))])
+                              (parameterize ([*pcontext* (mk-pcontext (test-result-points result)
+								      (test-result-exacts result))])
                                 (loop-aware-error-score (test-target (test-result-test result)))))]
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
@@ -113,7 +113,7 @@
                         [(< end-score (+ target-score 1)) "eq-target"]
                         [(> end-score (+ start-score 1)) "lt-start"]
                         [(> end-score (- start-score 1)) "eq-start"]
-                        [(> end-score (+ target-score 1)) "lt-target"])
+                        [(>= end-score (+ target-score 1)) "lt-target"])
                        (cond
                         [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
                         [(< end-score (- start-score 1)) "imp-start"]
