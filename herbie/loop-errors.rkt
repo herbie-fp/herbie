@@ -163,11 +163,10 @@
       (list i (sqr err))))
   (let ([err-lsts (loop-aware-errors prog)])
     (exact->inexact
-     (* (apply max (map length err-lsts))
-        (best-fit-slope
-         (apply
-          append
-          (map make-pt err-lsts)))))))
+     (best-fit-slope
+      (apply
+       append
+       (map make-pt err-lsts))))))
 
 (define-syntax-rule (for/avg ([items lsts]...)
                              body)
