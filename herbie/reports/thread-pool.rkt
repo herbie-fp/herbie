@@ -293,7 +293,7 @@
   (place-channel-put m 'go)
 
   (define (abort)
-    (println "Terminating after " cnt (if (= cnt 1) "problem!" " problems!"))
+    (println "Terminating after " cnt (if (= cnt 1) " problem!" " problems!"))
     (place-channel-put m 'kill))
 
   (define outs
