@@ -14,43 +14,49 @@
     <p>Automatically Improving Floating Point Accuracy</p>
   </header>
 
-  <ol class="author-list">
-    <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
-    <li><a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a></li>
-    <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
-    <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
-  </ol>
-
   <p>
-    Floating-point arithmetic can be surprising.
-    Correct-looking code can produce incorrect results
-    due to round-off error.
-    Methods from numerical analysis can identify and fix these problems,
-    but these methods are complex and require specialized knowledge.
-    Floating-point code is written by scientists, engineers, and analysts
-    who are not numerical analysis experts.
-    They need better tools.
-  </p>
-
-  <p>
+    Correct-looking floating point code
+    can produce incorrect results due to round-off error.
     Herbie is a project from the University of Washington
-    to <em>automatically fix numerical accuracy problems</em>.
-    Herbie uses a heuristic search to find program transformations
-    that improve numerical accuracy.
+    to <em>automatically fix these problems</em>.
     Herbie automatically discovers and applies numerical analysis techniques,
     producing accurate programs
     without requiring any specialized knowledge from the user.
-    Herbie’s output computes the same mathematical function as the original;
-    it just computes that function more accurately.
   </p>
+
+  <div class="column-container">
+    <div>
+      <h3>Download</h3>
+      <ul>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="https://github.com/uw-plse/herbie/blob/master/LICENSE.md">Read License</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Learn</h3>
+      <ul>
+        <li><a href="tutorial.html">Tutorial</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Contribute</h3>
+      <ul>
+        <li><a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">Join the Mailing List</a></li>
+        <li><a href="https://github.com/uw-plse/herbie">Read Source</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    If you're using Herbie, please <a href="mailto:herbie@cs.washington.edu">let us know</a>.
+  </p>
+      
 
   <h2>Status</h2>
 
   <p>
-    The implementation is currently under heavy development.
-    It succeeds on many textbook examples,
-    and on examples drawn from numerical libraries, scientific publications, and mathematics.
-    Results on 28 test cases drawn
+    Herbie works on numerical libraries, scientific publications, and mathematics textbooks.
+    The graph below shows Herbie's accuracy improvements for 28 test cases drawn
     from Richard Hamming’s <i>Numerical Methods for Scientists and Engineers</i> are below.
     Herbie improves all results, many to almost-perfect precision.
   </p>
@@ -71,33 +77,21 @@
     <figcaption>Longer arrows are better. Each arrow measures an improvement in accuracy due to Herbie. Each arrow points from the accuracy of the original program, and to the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
   </figure>
 
-  <h2>Getting Herbie</h2>
-
   <p>
-    Herbie's source code is available on <a href="https://github.com/uw-plse/herbie">Github</a> under an <a href="https://github.com/uw-plse/herbie/blob/master/LICENSE.md">MIT license</a>.
-    Herbie is has been accepted for publication to <a href="http://conf.researchr.org/home/pldi2015">PLDI'15</a>.
+    Herbie has also created multiple patches to <a href="http://mathjs.org">math.js</a>
+    and hs helped our colleagues avoid rounding error in their machine learning algorithms.
+    Herbie has been accepted for publication to <a href="http://conf.researchr.org/home/pldi2015">PLDI'15</a>.
   </p>
-
-  <p>
-    Check out the <a href="installing.html">installation instructions</a>
-      and the <a href="tutorial.html">tutorial</a>
-      to download Herbie and start using it.
-    There is a Herbie users mailing list,
-      <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">herbie@cs.washington.edu</a>,
-      which we encourage users to <a href="mailto://herbie@cs.washington.edu">contact</a> or join.
-  </p>
-
-  <p>
 
   <h2>Blog posts about Herbie</h2>
 
   <ul>
-    <li><a href="https://pavpanchekha.com/blog/taylor-log.html">Logarithms of Taylor Expansions</a> explains how Herbie takes Taylor expansions of logarithmic functions.</li>
-    <li><a href="https://pavpanchekha.com/blog/mathjs-series.html">Hyperbolic sines in math.js</a> describes using Herbie to automatically fix another accuracy bug in <a href="http://mathjs.org">math.js</a>, this time by using series expansion.</li>
-    <li><a href="https://pavpanchekha.com/blog/taylor-exp.html">Taylor Expansions of Taylor Expansions</a> explains how Herbie takes Taylor expansions of exponential and trigonometric functions.</li>
-    <li><a href="https://pavpanchekha.com/blog/arbitrary-precision.html">Arbitrary Precision, not Arbitrary Accuracy</a> explains why arbitrary-precision libraries aren’t a simple answer to rounding error: to use arbitrary precision, you have to choose <em>how much</em> precision to use, and this is often difficult to determine.</li>
-    <li><a href="https://pavpanchekha.com/blog/casio-mathjs.html">Complex Square Roots in math.js</a> describes how Herbie automatically fixed an accuracy bug in <a href="http://mathjs.org">math.js</a>, an open source mathematics library.</li>
-    <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a> describes how rounding and primitive operators work in IEEE-754 floating point.</li>
+    <li><a href="https://pavpanchekha.com/blog/taylor-log.html">Logarithms of Taylor Expansions</a>: how Herbie takes Taylor expansions of logarithms.</li>
+    <li><a href="https://pavpanchekha.com/blog/mathjs-series.html">Hyperbolic sines in math.js</a>: how Herbie fixed an accuracy bug in <a href="http://mathjs.org">math.js</a> using series expansion.</li>
+    <li><a href="https://pavpanchekha.com/blog/taylor-exp.html">Taylor Expansions of Taylor Expansions</a>: how Herbie takes Taylor expansions of exponential and trigonometric functions.</li>
+    <li><a href="https://pavpanchekha.com/blog/arbitrary-precision.html">Arbitrary Precision, not Arbitrary Accuracy</a>: why arbitrary-precision libraries aren’t an answer to rounding error.</li>
+    <li><a href="https://pavpanchekha.com/blog/casio-mathjs.html">Complex Square Roots in math.js</a>: how Herbie automatically fixed an accuracy bug in <a href="http://mathjs.org">math.js</a>, an open source mathematics library.</li>
+    <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a>: how floating point rounding and primitive operators work.</li>
   </ul>
   
   <h2>Presentations about Herbie</h2>
@@ -111,16 +105,16 @@
       Talk given at Dropbox on 31 March 2014. <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Video available</a>.</li>
   </ul>
 
-  <script type='text/javascript'>
-    function mkcountdown(node, date) {
-      countdown(function(ts) {
-          node.innerHTML = ts.toHTML();
-        }, date, countdown.DAYS | countdown.hours);
-    }
-    var countdowns = document.querySelectorAll("span.countdown");
-    for (var i = 0; i < countdowns.length; i++) {
-        mkcountdown(countdowns[i], Date.parse(countdowns[i].innerHTML));
-    }
-  </script>
+  <h2>The Herbie Developers</h2>
+
+  <p>Herbie is developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, by</p>
+  
+  <ol class="author-list">
+    <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
+    <li><a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a></li>
+    <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
+    <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
+  </ol>
+
 </body>
 </html>

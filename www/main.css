@@ -1,12 +1,6 @@
-html {
-  font-family: sans-serif;
-}
+html {font-family: sans-serif;}
 
-body {
-  min-width: 400px;
-  max-width: 650px;
-  margin: 3em auto;
-}
+body {min-width: 400px; max-width: 650px; margin: 3em auto;}
 
 h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
 h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
@@ -21,10 +15,10 @@ p, li, dd, blockquote, figcaption {
 
 figcaption {font-size: 14px; line-height: 1.1;}
 
+header {margin: 2em 0 1.5em 0; height: 60px;}
 header h1 {margin: .5em 0 0 0; font-size: 16pt;}
 header p {font-size: 14pt; margin: .5em 0 0 0;}
-header img {position: relative; top: -1em; float: left; width: 20%; margin: 0 2em 0 0; clear: right;}
-header {margin: 2em 0 1.5em 0; height: 60px;}
+header img {float: left; width: 20%; margin: -3em 2em 0 0;}
 
 .author-list {clear: both; text-align: center; padding: 0; width: 100%; margin: .5em 0 2em 0;}
 .author-list li {display: inline; padding: 0 .5ex 0 0; max-width: 33%;}
@@ -33,3 +27,11 @@ header {margin: 2em 0 1.5em 0; height: 60px;}
 svg {margin: 0 auto; display: block;}
 
 pre, dt {padding-left: 2.5em; font-size: 16px; font-family: monospace; background-color: #f1f1f1;}
+
+div.column-container > div {width: 25%; float: left; padding: 0 4%}
+div.column-container > div > h3 {margin: auto 10px}
+div.column-container > div > ul {list-style: inside none; margin: 0; padding: 0;}
+
+ul {padding-left: 1em;}
+a {color: #2A6496; text-decoration: none}
+a:hover {text-decoration: underline; color: #295785}
