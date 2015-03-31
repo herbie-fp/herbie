@@ -13,7 +13,8 @@
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
-         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+         (all-from-out "config.rkt") (all-from-out "debug.rkt")
+         for/avg)
 
 (define *start-prog* (make-parameter '()))
 
@@ -240,3 +241,10 @@
 
 (define (log2 x)
   (/ (log x) (log 2)))
+
+(define-syntax-rule (for/avg ([items lsts]...)
+                             body)
+  (/ (for/sum ([items lsts] ...)
+       body)
+     (apply min (map length (list lsts ...)))))
+

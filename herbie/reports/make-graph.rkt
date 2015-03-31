@@ -2,6 +2,7 @@
 
 (require racket/pretty)
 (require "datafile.rkt")
+(require plot)
 (require "../common.rkt")
 (require "../points.rkt")
 (require "../matcher.rkt")
@@ -26,9 +27,6 @@
 (define *make-graph?* #t)
 
 (define (make-graph test end-alt points start-errs end-errs target-errs bits dir profile?)
-  (define (make-pt err-lst)
-    (for/list ([(err i) (in-indexed err-lst)])
-      (list i (sqr err))))
   (printf "<!doctype html>\n")
   (printf "<html>\n")
   (printf "<head>")
@@ -53,13 +51,13 @@
     (for ([var (test-vars test)] [idx (in-naturals)])
       (call-with-output-file (build-path dir (format "plot-~a.png" idx)) #:exists 'replace
         (lambda (out)
-          (herbie-plot #:port out #:title (format "Error versus ~a" var) #:kind 'png
-                       (reap [sow]
-                             (sow (map make-pt start-errs #:axis idx #:color "red"))
-                             (when target-errs
-                               (sow (map make-pt target-errs #:axis idx #:color "green")))
-                             (sow (map make-pt end-errs #:axis idx #:color "blue"))
-          (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))))
+          (plot-file (append (loop-errors-renderers start-errs #:color "red")
+                             (if target-errs
+                                 (loop-errors-renderers target-errs #:color "green")
+                                 '())
+                             (loop-errors-renderers end-errs #:color "blue"))
+                     out 'auto)))
+      (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))
     (printf "</div>\n"))
 
   (printf "<ol id='process-info'>\n")

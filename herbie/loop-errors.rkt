@@ -166,12 +166,6 @@
     (apply append
            (map make-pt err-lsts)))))
 
-(define-syntax-rule (for/avg ([items lsts]...)
-                             body)
-  (/ (for/sum ([items lsts] ...)
-       body)
-     (apply min (map length (list lsts ...)))))
-
 ;; got this from the internet
 (define (best-fit-slope pts)
   (/ (- (for/avg ([pt pts])

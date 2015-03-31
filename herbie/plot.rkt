@@ -7,7 +7,10 @@
 (require "points.rkt")
 (require "programs.rkt")
 
-(provide error-points herbie-plot error-shading error-avg *red-theme* *blue-theme* *green-theme*)
+(provide loop-errors-renderers herbie-plot
+         error-points error-shading error-avg
+         *red-theme* *blue-theme* *green-theme*
+         intercept best-fit-slope)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -114,3 +117,35 @@
   (function avg-fun
             (car (first eby)) (car (last eby))
             #:width 2 #:color (color-theme-fit color)))
+
+;; got this from the internet
+(define (best-fit-slope pts)
+  (/ (- (for/avg ([pt pts])
+                 (* (car pt) (cadr pt)))
+        (* (for/avg ([pt pts])
+                    (car pt))
+           (for/avg ([pt pts])
+                    (cadr pt))))
+     (- (for/avg ([pt pts])
+                 (sqr (car pt)))
+        (sqr (for/avg ([pt pts])
+                      (car pt))))))
+
+(define (intercept slope pts)
+  (- (for/avg ([pt pts])
+              (cadr pt))
+     (* slope
+        (for/avg ([pt pts])
+                 (car pt)))))
+
+(define (loop-errors-renderers errs-lsts #:color [color 0])
+  (list (points (apply append (for/list ([err-lst errs-lsts])
+                                (for/list ([(err idx) (in-indexed err-lst)])
+                                  (vector idx (sqr err)))))
+                #:sym 'fullcircle #:color color #:alpha 0.3 #:size 4)
+        (let* ([pts (apply append (for/list ([err-lst errs-lsts])
+                                    (for/list ([(err idx) (in-indexed err-lst)])
+                                      (list idx (sqr err)))))]
+               [slope (best-fit-slope pts)]
+               [inter (intercept slope pts)])
+          (function (λ (x) (+ (* slope x) inter)) #:color color))))
