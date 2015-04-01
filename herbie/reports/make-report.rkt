@@ -1,57 +1,13 @@
 #lang racket
 
 (require racket/date)
-(require racket/cmdline)
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "../points.rkt")
-(require "../alternative.rkt")
-(require "../test.rkt")
-(require "../main.rkt")
-(require "thread-pool.rkt")
-(require "datafile.rkt")
+(require unstable/sequence)
 (require "../compile/texify.rkt")
+(require "../common.rkt")
+(require "datafile.rkt")
 (provide (all-defined-out))
 
-(define *graph-folder-name-length* 8)
-
-(define *max-test-threads* (max (- (processor-count) 1) 1))
-(define *test-name* #f)
-
-(define *profile?* #f)
-(define *note* #f)
-
-(define (make-report . bench-dirs)
-  (define tests
-    (allowed-tests bench-dirs))
-
-  (define results
-    (get-test-results tests #:threads *max-test-threads*
-                      #:profile *profile?* #:dir (path->string report-output-path)))
-
-  (define info (make-report-info results #:note *note*))
-
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
-
-  (make-report-page (build-path report-output-path "report.html") info)
-  (write-datafile (build-path report-output-path "results.json") info))
-
-(define (allowed-tests bench-dirs)
-  (define unsorted-tests (append-map load-tests bench-dirs))
-  (if *test-name*
-      (filter (λ (t) (equal? *test-name* (test-name test))) unsorted-tests)
-      (reverse (sort unsorted-tests test<?))))
-
-(define (test<? t1 t2)
-  (cond
-   [(and (test-output t1) (test-output t2))
-    (string<? (test-name t1) (test-name t2))]
-   [(and (not (test-output t1)) (not (test-output t2)))
-    (string<? (test-name t1) (test-name t2))]
-   [else
-    ; Put things with an output first
-    (test-output t1)]))
+(provide make-report-page)
 
 (define (format-time ms)
   (cond
@@ -59,6 +15,12 @@
    [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
    [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (display-bits r #:sign [sign #f])
+  (cond
+   [(not r) ""]
+   [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
+   [else (format "~a" (/ (round (* r 10)) 10))]))
 
 (define (make-report-page file info)
   (match info
@@ -94,12 +56,6 @@
 
      (define (round* x)
        (inexact->exact (round x)))
-
-     (define (display-bits r #:sign [sign #f])
-       (cond
-        [(not r) ""]
-        [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
-        [else (format "~a" (/ (round (* r 10)) 10))]))
 
      (write-file file
        ; HTML cruft
@@ -140,7 +96,10 @@
 
        ; Test badges
        (printf "<ul id='test-badges'>\n")
-       (for ([result tests] [id (in-naturals)])
+       (define sorted-tests
+         (sort (map cons tests (range (length tests))) >
+               #:key (λ (x) (or (table-row-start (car x)) 0))))
+       (for ([(result id) (in-pairs sorted-tests)])
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
                  (table-row-name result)
@@ -214,34 +173,10 @@
        (for ([subdir extra-dirs])
          (delete-directory/files (build-path dir subdir))))]))
 
-(define (make-json file results)
-  (define info (make-report-info results #:note *note*))
-  (write-datafile file info))
+(define (render-json file)
+  (define info (read-datafile file))
 
-(command-line
- #:program "make-report"
- #:once-each
- [("-p" "--profile") "Whether to profile each test"
-  (set! *profile?* #t)]
- [("-r" "--seed") rs "The random seed vector to use in point generation"
-  (vector->pseudo-random-generator!
-   (current-pseudo-random-generator)
-   (read (open-input-string rs)))]
- [("--threads") th "How many tests to run in parallel to use"
-  (set! *max-test-threads* (string->number th))]
- [("--fuel") fu "The amount of 'fuel' to use"
-  (*num-iterations* (string->number fu))]
- [("--num-points") points "The number of points to use"
-  (*num-points* (string->number points))]
- [("--run-single") test-name "If specified, run a single test (specify the test name)"
-  (set! *test-name* test-name)]
- [("--note") note "Add a note for this run"
-  (set! *note* note)]
- #:multi
- [("-o" "--option") tf "Toggle flags, specified in the form category:flag"
-  (let ([split-strings (string-split tf ":")])
-    (when (not (= 2 (length split-strings)))
-      (error "Badly formatted input " tf))
-    (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
- #:args bench-dir
- (apply make-report bench-dir))
+  (when (not (directory-exists? report-output-path))
+    (make-directory report-output-path))
+
+  (make-report-page (build-path report-output-path "report.html") info))
