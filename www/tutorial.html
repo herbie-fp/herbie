@@ -84,8 +84,15 @@
 
   <p>
     There's a lot going on in this page, so let's break it down.
-    On top, you've got some information about Herbie's internal configuration.
-    You can usually ignore this.
+    On top, you see a quick summary of the results:
+    the running time, the number of expressions improved,
+    the total number of expressions run on, and the starting/ending bits of accuracy.
+    You should see that Herbie considers itself to have improved 2/2 expressions,
+    even though it ran on three.
+    The reason is that Herbie doesn't consider itself to have “improved” an expression
+    until it improves it accuracy by at least one bit.
+    Since one of the expressions was pretty accurate to start (less than a bit of error),
+    it isn't even a contender, and the improved version doesn't count as an improvement.
   </p>
 
   <p>
@@ -102,30 +109,25 @@
   </p>
 
   <p>
-    Below that, the report lists its running time, the number of expressions improved,
-    the total number of expressions run on, and the starting/ending bits of accuracy.
-    You should see that Herbie considers itself to have improved 2/2 expressions,
-    even though it ran on three.
-    The reason is that Herbie doesn't consider itself to have “improved” an expression
-    until it improves it accuracy by at least one bit.
-    Since one of the expressions was pretty accurate to start (less than a bit of error),
-    it isn't even a contender, and the improved version doesn't count as an improvement.
-  </p>
-
-  <p>
-    Note also that the total bits improved, and the running time, will vary between runs.
-    Herbie uses random sampling internally, so different runs will yield slightly different results.
-    For example, I ran the tutorial file three times and got both 68.5 and 68.6 for total bits error.
-    The random seed is given in the block of data at the top of the page,
-    and can be set with the <code>-r</code> flag to Herbie.
-  </p>
-
-  <p>
-    Finally, the page has a list of each expression,
-    with the starting error, final error, runtime, and a link to details.
-    Each of the rows in this table is color-coded:
+    Next to the graph is a grid of blocks, each one listing the bits improved for a test case.
+    These are in the same order as the arrows;
+    mouse over one to see the associated arrow light up.
+    The colors describe how Herbie scores itself:
     white for already accurate, green for improved, orange for not improved, and red for made worse.
-    You probably won't see the last one.
+    You won't be seeing the last one (if you do, report it as a bug).
+  </p>
+
+  <p>
+    Below that, you have a lot of information about Herbie's internal configuration.
+    You can usually skip it, but many of these parameters are configurable from the command line.
+    The most useful one is the seed.
+    Herbie uses random sampling internally, so different runs can yield slightly different results.
+    and can be set with the <code>--seed</code> flag to Herbie.
+  </p>
+
+  <p>
+    Finally, the page has a table of each expression,
+    with the starting error, final error, runtime, and a link to details.
   </p>
 
   <h2>The Herbie details page</h2>
