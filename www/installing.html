@@ -51,7 +51,7 @@ Welcome to Racket v6.1.
     Do a trial run of Herbie to make sure everything is installed and working correctly:
   </p>
 
-  <pre>racket herbie/reports/make-report.rkt bench/hamming/</pre>
+  <pre>racket herbie/reports/run.rkt bench/hamming/</pre>
 
   <p>
     This command will take approximately fifteen minutes to run;
@@ -73,9 +73,15 @@ Welcome to Racket v6.1.
       attaching an archive of the complete <code>graphs/</code> directory.
   </p>
 
+  <p>If this all works correctly, you can make Herbie start up faster by byte-compiling it:</p>
+
+  <pre>raco make herbie/report/run.rkt</p>
+
   <p>Once Herbie is installed and working correctly, you can run it your own inputs by calling</p>
     
-  <pre>racket herbie/reports/make-report.rkt <var>file/or/dir</var></pre>
+  <pre>racket herbie/reports/run.rkt <var>file/or/dir</var></pre>
+
+  <p>To learn more about running Herbie, check out the <a href="tutorial.html">tutorial</a>.</p>
 
 </body>
 </html>
