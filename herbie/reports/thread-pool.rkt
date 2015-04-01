@@ -69,11 +69,11 @@
                     (- (current-inexact-milliseconds) start-time)
                     (bf-precision)
                     start end points exacts
-                    (loop-aware-errors (alt-program start) context)
-                    (loop-aware-errors (alt-program end) context)
+                    (errors (alt-program start) context)
+                    (errors (alt-program end) context)
                     newpoints newexacts
-                    (errors (alt-program start) newcontext)
-                    (errors (alt-program end) newcontext)
+                    (loop-aware-errors (alt-program start) newcontext)
+                    (loop-aware-errors (alt-program end) newcontext)
                     (if (test-output test)
                         (loop-aware-errors `(λ ,(test-vars test) ,(test-output test))
 					   newcontext)
