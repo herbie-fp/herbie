@@ -1,7 +1,8 @@
 margin = 10;
 barheight = 10;
-width = 505;
+width = 450;
 textbar = 20;
+precision_step = 8;
 
 function sort_by(type) {
     return function(a, b) {
@@ -25,7 +26,7 @@ function make_graph(node, data, start, end) {
         .attr("height", len * barheight + 2 * margin + textbar)
         .append("g").attr("transform", "translate(" + margin + "," + margin + ")");
 
-    for (var i = 0; i <= precision; i += 4) {
+    for (var i = 0; i <= precision; i += precision_step) {
         svg.append("line")
             .attr("class", "gridline")
             .attr("x1", i / precision * width)
@@ -42,7 +43,7 @@ function make_graph(node, data, start, end) {
     var bar = svg.selectAll("g").data(data).enter();
 
     function line_y(d, i) { return (i + .5) * barheight; }
-    function title(d, i) { return d.name + " (" + r10(precision - d[start]) + " to " + r10(precision - d[end]) + ")"; }
+    function title(d, i) { return d.name + " (" + r10(d[start]) + " to " + r10(d[end]) + ")"; }
 
     bar.append("line")
         .attr("class", "guide")
@@ -51,8 +52,8 @@ function make_graph(node, data, start, end) {
         .attr("y1", line_y)
         .attr("y2", line_y);
 
-    var g = bar.append("g").attr("title", title)
-        .attr("class", function(d) { return d[start] > d[end] ? "good" : "bad" });
+    var g = bar.append("g").attr("title", title).attr("data-id", function(d){ return d.id })
+        .attr("class", function(d) { return d[start] > d[end] ? "arrow good" : "arrow bad" });
 
     g.append("line")
         .attr("x1", function(d) {return (precision - Math.max(d[start], d[end])) / precision * width})
@@ -67,11 +68,60 @@ function make_graph(node, data, start, end) {
 }
 
 function draw_results(node) {
+    window.width = node.attr("width") - 2 * margin;
     d3.json("results.json", function(err, data) {
         if (err) return console.error(err);
         data = data.tests;
+        for (var i = 0; i < data.length; i++) {
+            data[i].id = i
+        }
     
         data.sort(sort_by("start"));
         make_graph(node, data, "start", "end");
+
+
+        var length = data.length;
+        var BADGES = new Array(length);
+        var ARROWS = new Array(length);
+
+        BADGES.container = document.querySelector("#test-badges");
+        ARROWS.container = document.querySelector("#graph");
+
+        var arrows = document.querySelectorAll(".arrow");
+        for (var i = 0; i < arrows.length; i++) {
+            var idx = +arrows[i].attributes["data-id"].value;
+            ARROWS[idx] = arrows[i]
+        }
+
+        var badges = document.querySelectorAll(".badge");
+        for (var i = 0; i < badges.length; i++) {
+            var idx = +badges[i].attributes["data-id"].value;
+            BADGES[idx] = badges[i]
+        }
+
+        function clear() {
+            var ho = document.querySelector(".highlight-one");
+            if (ho) ho.classList.remove("highlight-one");
+            var h = document.querySelector(".highlight");
+            if (h) h.classList.remove("highlight");
+        }
+
+        for (var i = 0; i < length; i++) {
+            (function (i) {
+                BADGES[i].addEventListener("mouseover", function() {
+                    clear();
+                    ARROWS[i].classList.add("highlight");
+                    ARROWS.container.classList.add("highlight-one");
+                });
+                BADGES[i].addEventListener("mouseout", clear);
+
+                ARROWS[i].addEventListener("mouseover", function() {
+                    clear();
+                    BADGES[i].classList.add("highlight");
+                    BADGES.container.classList.add("highlight-one");
+                });
+                ARROWS[i].addEventListener("mouseout", clear);
+            })(i);
+        }
     });
 }
