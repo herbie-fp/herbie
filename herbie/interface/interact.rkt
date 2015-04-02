@@ -13,11 +13,12 @@
 (require "../test.rkt")
 (require "../prettyify.rkt")
 (require "../loop-errors.rkt")
-(require "visualize.rkt")
+(require "../plot.rkt")
 (require "util.rkt")
 
 (provide (all-defined-out)
-	 (all-from-out "visualize.rkt"))
+	 (all-from-out "../plot.rkt")
+	 )
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global
