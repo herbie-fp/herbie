@@ -10,7 +10,7 @@
          pipe ulp-difference *bit-width* ulps->bits
 	 write-file write-string has-duplicates?
 	 with-item symbol<? *start-prog*
-	 flip-lists argmaxs multipartition
+	 flip-lists flip-lists* argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
@@ -148,6 +148,15 @@
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
 (define (flip-lists list-list)
   (apply map list list-list))
+
+;; Like flip-lists, but handles lists of different lengths nicely
+(define (flip-lists* list-list)
+  (let loop ([rest list-list] [acc '()])
+    (if (andmap null? rest) (reverse acc)
+	(loop (for/list ([lst rest])
+		(if (null? lst) lst
+		    (cdr lst)))
+	      (cons (map car (filter (negate null?) rest)) acc)))))
 
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
