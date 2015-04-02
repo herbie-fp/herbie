@@ -2,7 +2,6 @@
 
 (require racket/pretty)
 (require "datafile.rkt")
-(require plot)
 (require "../common.rkt")
 (require "../points.rkt")
 (require "../matcher.rkt")
@@ -51,12 +50,12 @@
     (for ([var (test-vars test)] [idx (in-naturals)])
       (call-with-output-file (build-path dir (format "plot-~a.png" idx)) #:exists 'replace
         (lambda (out)
-          (plot-file (append (loop-errors-renderers start-errs #:color "red")
+          (loop-plot (append (loop-errors-renderers start-errs #:color "red" #:line-color "darkred")
                              (if target-errs
-                                 (loop-errors-renderers target-errs #:color "green")
+                                 (loop-errors-renderers target-errs #:color "green" #:line-color "darkgreen")
                                  '())
-                             (loop-errors-renderers end-errs #:color "blue"))
-                     out 'auto)))
+                             (loop-errors-renderers end-errs #:color "blue" #:line-color "midnightblue"))
+                     #:port out #:kind 'png #:title "Error over loop iterations")))
       (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))
     (printf "</div>\n"))
 

@@ -7,7 +7,7 @@
 (require "points.rkt")
 (require "programs.rkt")
 
-(provide loop-errors-renderers herbie-plot
+(provide loop-errors-renderers herbie-plot loop-plot
          error-points error-shading error-avg
          *red-theme* *blue-theme* *green-theme*
          intercept best-fit-slope)
@@ -138,14 +138,31 @@
         (for/avg ([pt pts])
                  (car pt)))))
 
-(define (loop-errors-renderers errs-lsts #:color [color 0])
-  (list (points (apply append (for/list ([err-lst errs-lsts])
-                                (for/list ([(err idx) (in-indexed err-lst)])
-                                  (vector idx (sqr err)))))
-                #:sym 'fullcircle #:color color #:alpha 0.3 #:size 4)
-        (let* ([pts (apply append (for/list ([err-lst errs-lsts])
-                                    (for/list ([(err idx) (in-indexed err-lst)])
-                                      (list idx (sqr err)))))]
-               [slope (best-fit-slope pts)]
-               [inter (intercept slope pts)])
-          (function (λ (x) (+ (* slope x) inter)) #:color color))))
+(define (loop-errors-renderers errs-lsts #:color [color 0] #:line-color [line-color #f])
+  (let ([line-color (and line-color color)]
+	[pts (for*/list ([err-lst errs-lsts]
+                         [(err idx) (in-indexed err-lst)])
+               (list idx (sqr err)))])
+    (list (points pts #:sym 'fullcircle #:color color #:alpha 0.3 #:size 4)
+          (let* ([slope (best-fit-slope pts)]
+                 [inter (intercept slope pts)])
+            (function (λ (x) (+ (* slope x) inter)) #:color line-color)))))
+
+(define (with-loop-plot #:title [title #f] thunk)
+  (parameterize ([plot-width 500] [plot-height 250]
+                 [plot-x-tick-label-anchor 'top-right]
+                 [plot-x-tick-label-angle 45]
+                 [plot-x-label #f]
+                 [plot-x-far-axis? #f]
+                 [plot-y-far-axis? #f]
+                 [plot-y-axis? #f]
+                 [plot-font-size 8]
+                 [plot-y-label title])
+    (thunk)))
+
+(define (loop-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] renderers)
+  (define thunk
+    (if port
+        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max 64))
+        (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
+  (with-loop-plot #:title title thunk))
