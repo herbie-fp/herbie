@@ -7,7 +7,7 @@ all:
 	$(MAKE) report
 
 report:
-	racket herbie/reports/make-report.rkt $(FLAGS) $(BENCHDIR)
+	racket herbie/reports/run.rkt $(FLAGS) $(BENCHDIR)
 
 publish:
 	bash herbie/reports/publish.sh upload graphs/
