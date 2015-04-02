@@ -55,7 +55,7 @@
 			       '())
 			   (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
 		   #:x-label "Number of steps"
-		   #:y-label "Error (ulps) squared"
+		   #:y-label "Error (ulps)"
 		   #:port out #:kind 'png)))
     (printf "<img width='500' height='250' src='plot.png' />\n")
     (printf "</div>\n"))

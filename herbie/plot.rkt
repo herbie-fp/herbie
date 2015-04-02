@@ -138,29 +138,35 @@
         (for/avg ([pt pts])
                  (car pt)))))
 
-(define (loop-errors-renderers err-lsts #:color-theme [cs (color-theme "light grey" "grey" "black")] #:name [name #f])
+(define (loop-errors-renderers err-lsts
+                               #:color-theme [cs (color-theme "gray" "dimgray" "black")]
+                               #:name [name #f])
   (let* ([err-lsts* (map (curry map sqr) err-lsts)]
-	 [pts (for*/list ([err-lst err-lsts*]
+	 [pts (for*/list ([err-lst err-lsts]
 			  [(err idx) (in-indexed err-lst)])
 		(list idx err))]
-	 [avgs (for/list ([y-pts (flip-lists* err-lsts*)])
+         [pts-sqrd (for*/list ([err-lst err-lsts*]
+                               [(err idx) (in-indexed err-lst)])
+                     (list idx err))]
+	 [avgs (for/list ([y-pts (flip-lists* err-lsts)])
 		 (/ (apply + y-pts) (length y-pts)))]
-	 [maxs (map (curry apply max) (flip-lists* err-lsts*))]
-	 [mins (map (curry apply min) (flip-lists* err-lsts*))])
+	 [maxs (map (curry apply max) (flip-lists* err-lsts))]
+	 [mins (map (curry apply min) (flip-lists* err-lsts))])
     (list (lines-interval (for/list ([(min idx) (in-indexed mins)])
 			    (list idx min))
 			  (for/list ([(max idx) (in-indexed maxs)])
 			    (list idx max))
 			  #:color (color-theme-scatter cs)
 			  #:line1-style 'transparent
-			  #:line2-style 'transparent)
+			  #:line2-style 'transparent
+                          #:alpha 0.2)
 	  (lines (for/list ([(avg idx) (in-indexed avgs)])
 		   (list idx avg))
 		 #:color (color-theme-line cs)
 		 #:label name)
-          (let* ([slope (best-fit-slope pts)]
-                 [inter (intercept slope pts)])
-            (function (λ (x) (+ (* slope x) inter))
+          (let* ([slope (best-fit-slope pts-sqrd)]
+                 [inter (intercept slope pts-sqrd)])
+            (function (λ (x) (sqrt (+ (* slope x) inter)))
 		      #:color (color-theme-fit cs)
 		      #:width 3)))))
 
