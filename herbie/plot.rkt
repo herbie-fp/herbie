@@ -138,31 +138,46 @@
         (for/avg ([pt pts])
                  (car pt)))))
 
-(define (loop-errors-renderers errs-lsts #:color [color 0] #:line-color [line-color #f])
-  (let ([line-color (and line-color color)]
-	[pts (for*/list ([err-lst errs-lsts]
-                         [(err idx) (in-indexed err-lst)])
-               (list idx (sqr err)))])
-    (list (points pts #:sym 'fullcircle #:color color #:alpha 0.3 #:size 4)
+(define (loop-errors-renderers err-lsts #:color-theme [cs (color-theme "light grey" "grey" "black")] #:name [name #f])
+  (let* ([err-lsts* (map (curry map sqr) err-lsts)]
+	 [pts (for*/list ([err-lst err-lsts*]
+			  [(err idx) (in-indexed err-lst)])
+		(list idx err))]
+	 [avgs (for/list ([y-pts (flip-lists* err-lsts*)])
+		 (/ (apply + y-pts) (length y-pts)))]
+	 [maxs (map (curry apply max) (flip-lists* err-lsts*))]
+	 [mins (map (curry apply min) (flip-lists* err-lsts*))])
+    (list (lines-interval (for/list ([(min idx) (in-indexed mins)])
+			    (list idx min))
+			  (for/list ([(max idx) (in-indexed maxs)])
+			    (list idx max))
+			  #:color (color-theme-scatter cs)
+			  #:line1-style 'transparent
+			  #:line2-style 'transparent)
+	  (lines (for/list ([(avg idx) (in-indexed avgs)])
+		   (list idx avg))
+		 #:color (color-theme-line cs)
+		 #:label name)
           (let* ([slope (best-fit-slope pts)]
                  [inter (intercept slope pts)])
-            (function (λ (x) (+ (* slope x) inter)) #:color line-color)))))
+            (function (λ (x) (+ (* slope x) inter))
+		      #:color (color-theme-fit cs)
+		      #:width 3)))))
 
-(define (with-loop-plot #:title [title #f] thunk)
+(define (with-loop-plot #:x-label [x-label #f] #:y-label [y-label #f] thunk)
   (parameterize ([plot-width 500] [plot-height 250]
                  [plot-x-tick-label-anchor 'top-right]
                  [plot-x-tick-label-angle 45]
-                 [plot-x-label #f]
                  [plot-x-far-axis? #f]
                  [plot-y-far-axis? #f]
-                 [plot-y-axis? #f]
                  [plot-font-size 8]
-                 [plot-y-label title])
+                 [plot-y-label y-label]
+		 [plot-x-label x-label])
     (thunk)))
 
-(define (loop-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] renderers)
+(define (loop-plot #:port [port #f] #:kind [kind 'auto] #:x-label [x-label #f] #:y-label [y-label #f] renderers)
   (define thunk
     (if port
-        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max 64))
-        (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
-  (with-loop-plot #:title title thunk))
+        (lambda () (plot-file renderers port kind))
+        (lambda () (plot renderers))))
+  (with-loop-plot #:x-label x-label #:y-label y-label thunk))

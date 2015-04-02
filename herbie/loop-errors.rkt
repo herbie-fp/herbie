@@ -103,13 +103,13 @@
 		    [condition-val (inner-eval while-expr (extend-bindings accs init-vals))])
                (if condition-val
                    (let ([inits** (for/list ([update updates])
-                                   (inner-eval `(let ,(map list accs inits)
-						  ,update)))])
+                                    (inner-eval update
+                                                (extend-bindings accs init-vals)))])
                      `(do ,(map list accs inits** updates)
                           ,while-expr
                         ,ret-expr))
                    (let ([body* (inner-step ret-expr (extend-bindings accs init-vals))])
-                     (and body* `(let ,(map list accs inits) body*)))))))]
+                     (and body* `(let ,(map list accs inits) ,body*)))))))]
       ;; See above for comments
       [`(do-list ([,accs ,inits ,updates] ...)
                  ([,items ,lsts] ...)
@@ -124,7 +124,7 @@
 				(inner-eval init))])
 	       (if (for/or ([lst lsts]) (null? (inner-eval lst)))
 		   (let ([body* (inner-step ret-expr (extend-bindings accs init-vals))])
-		     (and body* `(let ,(map list accs inits) body*)))
+		     (and body* `(let ,(map list accs inits) ,body*)))
 		   (let ([inits** (for/list ([update updates])
 				    (inner-eval update (extend-bindings (append accs items)
 									(append init-vals
@@ -164,7 +164,7 @@
   (exact->inexact
    (best-fit-slope
     (apply append
-           (map make-pt err-lsts)))))
+           (map make-pt errs)))))
 
 ;; got this from the internet
 (define (best-fit-slope pts)

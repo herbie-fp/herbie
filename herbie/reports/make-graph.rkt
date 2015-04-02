@@ -47,16 +47,17 @@
 
   (when *make-graph?*
     (printf "<div id='graphs'>\n")
-    (for ([var (test-vars test)] [idx (in-naturals)])
-      (call-with-output-file (build-path dir (format "plot-~a.png" idx)) #:exists 'replace
-        (lambda (out)
-          (loop-plot (append (loop-errors-renderers start-errs #:color "red" #:line-color "darkred")
-                             (if target-errs
-                                 (loop-errors-renderers target-errs #:color "green" #:line-color "darkgreen")
-                                 '())
-                             (loop-errors-renderers end-errs #:color "blue" #:line-color "midnightblue"))
-                     #:port out #:kind 'png #:title "Error over loop iterations")))
-      (printf "<img width='500' height='250' src='plot-~a.png' />\n" idx))
+    (call-with-output-file (build-path dir "plot.png") #:exists 'replace
+      (lambda (out)
+	(loop-plot (append (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
+			   (if target-errs
+			       (loop-errors-renderers target-errs #:color-theme *green-theme* #:name "target")
+			       '())
+			   (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
+		   #:x-label "Number of steps"
+		   #:y-label "Error (ulps) squared"
+		   #:port out #:kind 'png)))
+    (printf "<img width='500' height='250' src='plot.png' />\n")
     (printf "</div>\n"))
 
   (printf "<ol id='process-info'>\n")
