@@ -49,11 +49,11 @@
     (printf "<div id='graphs'>\n")
     (call-with-output-file (build-path dir "plot.png") #:exists 'replace
       (lambda (out)
-	(loop-plot (append (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
-			   (if target-errs
-			       (loop-errors-renderers target-errs #:color-theme *green-theme* #:name "target")
-			       '())
-			   (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
+	(loop-plot (interleave (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
+                               (if target-errs
+                                   (loop-errors-renderers target-errs #:color-theme *green-theme* #:name "target")
+                                   '())
+                               (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
 		   #:x-label "Number of steps"
 		   #:y-label "Error (ulps)"
 		   #:port out #:kind 'png)))

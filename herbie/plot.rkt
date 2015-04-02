@@ -187,3 +187,6 @@
         (lambda () (plot-file renderers port kind))
         (lambda () (plot renderers))))
   (with-loop-plot #:x-label x-label #:y-label y-label thunk))
+
+(define (interleave . lsts)
+  (apply append (flip-lists* lsts)))
