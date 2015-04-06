@@ -20,7 +20,7 @@
   (cond
    [(not r) ""]
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
-   [else (format "~a" (/ (round (* r 10)) 10))]))
+   [else (format "~a" (~r #:precision 4 r))]))
 
 (define (make-report-page file info)
   (match info
