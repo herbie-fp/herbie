@@ -21,13 +21,6 @@
 (define *timeout* (* 1000 60 10))
 (define *profile?* #f)
 
-(struct test-result
-  (test rdir time bits
-   start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error))
-(struct test-failure (test bits exn time rdir))
-(struct test-timeout (test bits rdir) #:prefab)
-
 (define (get-test-result test rdir)
   (define (file name) (build-path report-output-path rdir name))
 
@@ -145,23 +138,11 @@
       (when (not (directory-exists? dir))
         (make-directory dir))
 
-      (match result
-       [(test-result test rdir time bits
-                     start-alt end-alt points exacts
-                     start-est-error end-est-error
-                     newpoints newexacts start-error end-error
-                     target-error)
-
-        (write-file (build-path dir "graph.html")
-          (make-graph test end-alt newpoints start-error end-error target-error bits dir *profile?*))]
-
-       [(test-timeout test bits rdir)
-        (write-file (build-path dir "graph.html")
-          (make-timeout test bits *profile?*))]
-
-       [(test-failure test bits exn time rdir)
-        (write-file (build-path dir "graph.html")
-          (make-traceback test exn bits *profile?*))]))))
+      (write-file (build-path dir "graph.html")
+                  ((cond [(test-result? result) make-graph]
+                         [(test-timeout? result) make-timeout]
+                         [(test-failure? result) make-traceback])
+                   result *profile?*)))))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]

@@ -1,14 +1,15 @@
-body {
-    width: 1024px;
-    margin: 1em auto;
-    font-family: sans;
-}
+body { width: 800px; margin: 1em auto; font-family: sans; }
 
-dt {
-    font-weight: bold;
-    float: left;
-    width: 7em;
-}
+#large { margin: 2em 0; text-align: center; }
+#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
+#large .number { font-size: 3em; display: block; }
+
+#summary { margin: 2em 0; text-align: center; }
+#summary > div { margin: 0 1em; display: inline-block; vertical-align: top; }
+#summary div.formula { margin: 0 0 .25em; display: block; font-size: 140%; }
+#summary .bits { font-weight: bold; }
+
+dt { font-weight: bold; float: left; width: 7em; }
 
 
 #graphs {
