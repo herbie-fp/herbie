@@ -7,20 +7,21 @@
 (provide loop-aware-errors loop-aware-error-score)
 
 (define (loop-aware-error-at-point prog pt)
+  (define (take-error prog-approx prog-exact)
+    (let ([approx (take-cur-val (program-body prog-approx)
+				(program-variables prog-approx)
+				pt mode:fl)]
+	  [exact (->flonum (take-cur-val (program-body prog-exact)
+					 (program-variables prog-approx)
+					 pt mode:bf))])
+      (if (real? approx)
+	  (add1 (abs (ulp-difference approx exact)))
+	  (add1 (expt 2 (*bit-width*))))))
   (let loop ([errs '()] [prog-fl prog] [prog-bf prog])
     (let ([prog-fl* (step-prog prog-fl pt mode:fl)]
           [prog-bf* (step-prog prog-bf pt mode:bf)])
       (if (not (and prog-fl* prog-bf*)) (reverse errs)
-          (loop (cons (let ([approx (take-cur-val (program-body prog-fl*)
-                                                  (program-variables prog-fl*)
-                                                  pt mode:fl)]
-                            [exact (->flonum (take-cur-val (program-body prog-bf*)
-                                                           (program-variables prog-bf*)
-                                                           pt mode:bf))])
-                        (if (real? approx)
-                            (add1 (abs (ulp-difference approx exact)))
-                            (add1 (expt 2 (*bit-width*)))))
-                      errs)
+          (loop (cons (take-error prog-fl* prog-bf*) errs)
                 prog-fl*
                 prog-bf*)))))
 
@@ -162,9 +163,9 @@
     (for/list ([(err i) (in-indexed err-lst)])
       (list i (sqr err))))
   (exact->inexact
-   (best-fit-slope
-    (apply append
-           (map make-pt errs)))))
+   (/ (for/sum ([err-lst errs])
+	(best-fit-slope (make-pt err-lst)))
+      (length errs))))
 
 ;; got this from the internet
 (define (best-fit-slope pts)

@@ -10,7 +10,8 @@
 (provide loop-errors-renderers herbie-plot loop-plot
          error-points error-shading error-avg
          *red-theme* *blue-theme* *green-theme*
-         intercept best-fit-slope)
+         intercept best-fit-slope
+         interleave)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -145,6 +146,11 @@
 	 [pts (for*/list ([err-lst err-lsts]
 			  [(err idx) (in-indexed err-lst)])
 		(list idx err))]
+	 [slope (/ (for/sum ([err-lst err-lsts*])
+		     (best-fit-slope
+		      (for/list ([(err idx) (in-indexed err-lst)])
+			(list idx err))))
+		   (length err-lsts*))]
          [pts-sqrd (for*/list ([err-lst err-lsts*]
                                [(err idx) (in-indexed err-lst)])
                      (list idx err))]
@@ -159,13 +165,12 @@
 			  #:color (color-theme-scatter cs)
 			  #:line1-style 'transparent
 			  #:line2-style 'transparent
-                          #:alpha 0.2)
+                          #:alpha 0.4)
 	  (lines (for/list ([(avg idx) (in-indexed avgs)])
 		   (list idx avg))
 		 #:color (color-theme-line cs)
 		 #:label name)
-          (let* ([slope (best-fit-slope pts-sqrd)]
-                 [inter (intercept slope pts-sqrd)])
+          (let ([inter (intercept slope pts-sqrd)])
             (function (λ (x) (sqrt (+ (* slope x) inter)))
 		      #:color (color-theme-fit cs)
 		      #:width 3)))))
@@ -190,3 +195,11 @@
 
 (define (interleave . lsts)
   (apply append (flip-lists* lsts)))
+
+(define (mk-dynplot fname #:x-label [x-label #f] #:y-label [y-label #f] renderers)
+  (call-with-output-file fname #:exists 'replace
+    (λ (out)
+      (loop-plot #:port out #:kind 'svg #:x-label x-label #:y-label y-label renderers)))
+  (call-with-input-file fname
+    (λ (out)
+      (xml->xexpr (document-element (read-xml out))))))
