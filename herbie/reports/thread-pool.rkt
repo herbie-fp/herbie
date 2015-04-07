@@ -18,7 +18,6 @@
 
 (define *reeval-pts* 8000)
 (define *seed* #f)
-(define *dir* #f)
 (define *timeout* (* 1000 60 10))
 (define *profile?* #f)
 
@@ -30,7 +29,7 @@
 (struct test-timeout (test bits rdir) #:prefab)
 
 (define (get-test-result test rdir)
-  (define (file name) (build-path *dir* rdir name))
+  (define (file name) (build-path report-output-path rdir name))
 
   ; Reseed random number generator
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
@@ -141,7 +140,7 @@
                *timeout* (test-timeout-bits result) (test-timeout-rdir result))]))
 
 (define (make-graph-if-valid result tname index rdir)
-  (let* ([dir (build-path *dir* rdir)])
+  (let* ([dir (build-path report-output-path rdir)])
     (with-handlers ([(const #f) (λ _ #f)])
       (when (not (directory-exists? dir))
         (make-directory dir))
@@ -171,7 +170,7 @@
 
 (define (run-test index test)
   (let* ([rdir (graph-folder-path (test-name test) index)]
-         [rdir* (build-path *dir* rdir)])
+         [rdir* (build-path report-output-path rdir)])
 
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
@@ -185,7 +184,6 @@
     (let loop ()
       (match (place-channel-get ch)
 	[`(init
-	   dir ,dir
 	   wid ,worker-id
 	   rand ,vec
 	   flags ,flag-table
@@ -193,10 +191,6 @@
            points ,points
            profile? ,profile?)
 
-	 (when (not (directory-exists? dir))
-           (make-directory dir))
-
-         (set! *dir* dir)
 	 (set! *seed* vec)
          (set! *profile?* profile?)
 	 (*flags* flag-table)
@@ -210,7 +204,6 @@
 
 (define (make-manager)
   (place ch
-    (define dir #f)
     (define workers '())
     (define work '())
     (define next-wid 0)
@@ -221,8 +214,7 @@
           ['make-worker
            (let ([new-worker (make-worker)])
              (place-channel-put new-worker
-                                `(init dir ,dir
-                                       wid ,(begin0 next-wid
+                                `(init wid ,(begin0 next-wid
                                               (set! next-wid (add1 next-wid)))
                                        rand ,(pseudo-random-generator->vector
                                               (current-pseudo-random-generator))
@@ -232,13 +224,11 @@
                                        profile? ,*profile?*))
              (set! workers (cons new-worker workers)))]
           [`(init
-             dir ,dir*
              rand ,vec
              flags ,flag-table
              num-iters ,iterations
              points ,points
              profile? ,profile?)
-           (set! dir dir*)
            (vector->pseudo-random-generator!
             (current-pseudo-random-generator)
             vec)
@@ -269,14 +259,13 @@
 
 (define (get-test-results progs
                           #:threads [threads (max (- (processor-count) 1) 1)]
-                          #:dir dir #:profile [profile? #f])
+                          #:profile [profile? #f])
   (define m (make-manager))
   (define cnt 0)
   (define total (length progs))
 
   (define config
-    `(init dir ,dir
-           rand ,(pseudo-random-generator->vector
+    `(init rand ,(pseudo-random-generator->vector
                   (current-pseudo-random-generator))
            flags ,(*flags*)
            num-iters ,(*num-iterations*)

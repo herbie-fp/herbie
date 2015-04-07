@@ -28,7 +28,7 @@
   (define tests (allowed-tests bench-dirs))
   (define results
     (get-test-results tests #:threads *max-test-threads*
-                      #:profile *profile?* #:dir (path->string dir)))
+                      #:profile *profile?*))
   (define info (make-report-info results #:note *note*))
 
   (when (not (directory-exists? dir)) (make-directory dir))
