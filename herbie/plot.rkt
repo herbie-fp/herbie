@@ -2,10 +2,17 @@
 
 (require math/flonum)
 (require plot)
+(require unstable/sequence)
 (require "common.rkt")
 (require "points.rkt")
+(require "programs.rkt")
 
-(provide error-points herbie-plot)
+(provide error-points herbie-plot error-shading error-avg *red-theme* *blue-theme* *green-theme*)
+
+(struct color-theme (scatter line fit))
+(define *red-theme* (color-theme "pink" "red" "darkred"))
+(define *blue-theme* (color-theme "lightblue" "blue" "navy"))
+(define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
 (define double-transform
   (invertible-function
@@ -17,19 +24,23 @@
 
 (define double-ticks
   (ticks
-   (ticks-layout (ticks-scale (linear-ticks #:number 16) double-transform))
+   (ticks-layout (ticks-scale (linear-ticks #:number 10) double-transform))
    (λ (lft rgt pticks)
      (for/list ([ptick pticks])
        (~r (pre-tick-value ptick) #:notation 'exponential #:precision 0)))))
 
-(define (error-points errs pts #:axis [axis 0] #:color [color 0] #:alpha [alpha 0.2])
+(define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
+  (define x
+    (if (number? axis)
+        (curryr list-ref axis)
+        (eval-prog axis mode:fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (list-ref pt axis) (ulps->bits err)))
-    #:sym 'fullcircle #:color color #:alpha alpha #:size 4))
+      (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
+    #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (with-herbie-plot #:title [title #f] thunk)
-  (parameterize ([plot-width 500] [plot-height 250]
+  (parameterize ([plot-width 400] [plot-height 200]
                  [plot-x-transform double-axis]
                  [plot-x-ticks double-ticks]
                  [plot-x-tick-label-anchor 'top-right]
@@ -38,7 +49,7 @@
                  [plot-x-far-axis? #f]
                  [plot-y-far-axis? #f]
                  [plot-y-axis? #f]
-                 [plot-font-size 8]
+                 [plot-font-size 10]
                  [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
                  [plot-y-label title])
     (thunk)))
@@ -50,3 +61,56 @@
         (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
   (with-herbie-plot #:title title thunk))
 
+(define (errors-by x errs pts)
+  (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))
+
+(define (vector-binary-search v x cmp)
+  (define (search l r)
+    (define mid (ceiling (/ (+ l r) 2)))
+    (define c (cmp x (vector-ref v mid)))
+    (cond
+     [(= r l) l]
+     [(= r (+ l 1))
+      (if (= c 0) r l)]
+     [(< c 0)
+      (search l mid)]
+     [(> c 0)
+      (search mid r)]
+     [(= c 0)
+      mid]))
+  (search 0 (vector-length v)))
+
+(define (histogram-function errors-by-out #:bin-size [bin-size 32])
+  (define xs (for/vector ([(x err) (in-pairs errors-by-out)]) x))
+  (define errs (for/vector ([(x err) (in-pairs errors-by-out)]) err))
+
+  (λ (x)
+    (define idx (vector-binary-search xs x -))
+    (list->vector
+     (map ulps->bits
+          (sort
+           (cond
+            [(<= (vector-length errs) bin-size) (vector->list errs)]
+            [(< idx (/ bin-size 2))
+             (for/list ([i (in-range 0 bin-size)]) (vector-ref errs i))]
+            [(> idx (- (vector-length errs) (/ bin-size 2)))
+             (for/list ([i (in-range (- (vector-length errs) bin-size) (vector-length errs))])
+               (vector-ref errs i))]
+            [else
+             (define idx-min (round (- idx (/ bin-size 2))))
+             (for/list ([i (in-range idx-min (+ idx-min bin-size))]) (vector-ref errs i))])
+           <)))))
+
+(define (error-avg errs pts #:axis [axis 0] #:color [color *blue-theme*] #:bin-size [bin-size 128])
+  (define get-coord
+    (if (number? axis)
+        (curryr list-ref axis)
+        (eval-prog axis mode:fl)))
+  (define eby (errors-by get-coord errs pts))
+  (define histogram-f (histogram-function eby #:bin-size bin-size))
+  (define (avg-fun x)
+    (define h (histogram-f x))
+    (/ (apply + (vector->list h)) (vector-length h)))
+  (function avg-fun
+            (car (first eby)) (car (last eby))
+            #:width 2 #:color (color-theme-fit color)))
