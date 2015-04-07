@@ -95,9 +95,9 @@
 (define (extract-alt table)
   (parameterize ([*pcontext* (atab-context table)])
     (argmin alt-history-length
-	    (argmins alt-cost
-		     (argmins (compose errors-score alt-errors)
-			      (atab-all-alts table))))))
+            (argmins alt-cost
+                     (argmins (compose errors-score alt-errors)
+                              (map simplify-alt (atab-all-alts table)))))))
 
 (define (combine-alts splitpoints alts)
   (let ([rsplits (reverse splitpoints)])
