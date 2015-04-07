@@ -27,20 +27,14 @@
     (when (not (null? possible-returns))
       (last possible-returns))))
 
-(define-syntax-rule (reap [sow] body ...)
-  (let* ([store '()]
-         [sow (λ (elt) (set! store (cons elt store)) elt)])
-    body ...
-    (reverse store)))
-
-(define-syntax-rule (multi-reap [sows ...] body ...)
+(define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
 		 (λ (elt) (if elt
 			      (begin (set! store (cons elt store))
 				     elt)
 			      store)))] ...)
     body ...
-    (list (reverse (sows #f)) ...)))
+    (values (reverse (sows #f)) ...)))
 
 (define-syntax-rule (for/accumulate [reg start] ([vars seqs] ...) body ...)
   (pipe start (map (λ (vars ...) (λ (reg) body ...)) seqs ...)))
