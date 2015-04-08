@@ -13,8 +13,7 @@
 (require "../plot.rkt")
 (require "util.rkt")
 
-(provide (all-defined-out)
-	 (all-from-out "visualize.rkt"))
+(provide (all-defined-out))
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global

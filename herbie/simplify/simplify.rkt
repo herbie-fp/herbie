@@ -54,10 +54,16 @@
 
 (define (simplify-expr expr)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
-  (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
-	 [eg (mk-egraph expr)])
-    (iterate-egraph! eg iters)
-    (extract-smallest eg)))
+  (if (has-nan? expr) +nan.0
+      (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
+	     [eg (mk-egraph expr)])
+	(iterate-egraph! eg iters)
+	(extract-smallest eg))))
+
+(define (has-nan? expr)
+  (or (and (number? expr) (nan? expr))
+      (and (list? expr)
+	   (ormap has-nan? (cdr expr)))))
 
 ;; Returns the worst-case iterations needed to simplify this expression
 (define (iters-needed expr)
