@@ -75,7 +75,8 @@
                            #f))))))
 
   ; We must now iterate through the coefficients in `corrected` order.
-  (make-sum
+  (simplify
+   (make-sum
     ; We'll track how many non-trivial zeros we've seen
     ; and all the useful terms we've seen so far
     (let loop ([empty 0] [res '()] [i 0])
@@ -94,7 +95,7 @@
                                                (reverse
                                                 (for/list ([var vars] [tform tforms])
                                                   ((cdr tform) var)))
-                                               expts) res) (+ 1 i))))))))))
+                                               expts) res) (+ 1 i)))))))))))
 
 (define (make-sum terms)
   (match terms
