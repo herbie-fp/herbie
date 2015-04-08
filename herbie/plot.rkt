@@ -77,7 +77,8 @@
 			 (for/list ([(p e) (in-pcontext (*pcontext*))])
 			   p)
 			 #:color *red-theme*
-			 #:axis axis)))))
+                         #:axis axis
+                         #:bin-size 32)))))
 
 
 (define (errors-by x errs pts)
