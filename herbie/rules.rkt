@@ -93,7 +93,9 @@
   [distribute-inv-in     (/ (* a b))           (* (/ a) (/ b))]
   [distribute-inv-out    (* (/ a) (/ b))       (/ (* a b))]
   [distribute-inv-neg    (/ (- a))             (- (/ a))]
-  [distribute-neg-inv    (- (/ a))             (/ (- a))])
+  [distribute-neg-inv    (- (/ a))             (/ (- a))]
+  [distribute-frac-neg   (/ (- a) b)           (- (/ a b))]
+  [distribute-neg-frac   (- (/ a b))           (/ (- a) b)])
   
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize
