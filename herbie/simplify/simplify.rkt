@@ -26,7 +26,7 @@
 ;;################################################################################;;
 
 ;; Cap the number of iterations to try at this.
-(define *max-egraph-iters* (make-parameter 5))
+(define *max-egraph-iters* (make-parameter 6))
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
