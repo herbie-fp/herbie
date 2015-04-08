@@ -6,8 +6,11 @@
 (require "common.rkt")
 (require "points.rkt")
 (require "programs.rkt")
+(require "alternative.rkt")
 
-(provide error-points herbie-plot error-avg *red-theme* *blue-theme* *green-theme*)
+(provide error-points herbie-plot error-avg *red-theme* *blue-theme* *green-theme*
+	 plot-cand-error
+	 )
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -60,6 +63,20 @@
         (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max 64))
         (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
   (with-herbie-plot #:title title thunk))
+
+(define (plot-cand-error altn)
+  (herbie-plot
+   (reap [sow]
+	 (sow (error-points (alt-errors altn)
+			    (for/list ([(p e) (in-pcontext (*pcontext*))])
+			      p)
+			    #:color *red-theme*))
+
+	 (sow (error-avg (alt-errors altn)
+			 (for/list ([(p e) (in-pcontext (*pcontext*))])
+			   p)
+			 #:color *red-theme*)))))
+
 
 (define (errors-by x errs pts)
   (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))
