@@ -64,18 +64,20 @@
         (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
   (with-herbie-plot #:title title thunk))
 
-(define (plot-cand-error altn)
+(define (plot-cand-error altn #:axis [axis 0])
   (herbie-plot
    (reap [sow]
 	 (sow (error-points (alt-errors altn)
 			    (for/list ([(p e) (in-pcontext (*pcontext*))])
 			      p)
-			    #:color *red-theme*))
+			    #:color *red-theme*
+			    #:axis axis))
 
 	 (sow (error-avg (alt-errors altn)
 			 (for/list ([(p e) (in-pcontext (*pcontext*))])
 			   p)
-			 #:color *red-theme*)))))
+			 #:color *red-theme*
+			 #:axis axis)))))
 
 
 (define (errors-by x errs pts)
