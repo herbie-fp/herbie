@@ -67,7 +67,7 @@
 
 ;; Returns the worst-case iterations needed to simplify this expression
 (define (iters-needed expr)
-  (if (not (list? expr)) 0
+  (if (not (list? expr)) 1
       (let ([sub-iters-needed (apply max (map iters-needed (cdr expr)))])
 	(if (let ([op (car expr)]) (or (eq? op '*) (eq? op '+)))
 	    (+ 2 sub-iters-needed)
