@@ -57,15 +57,22 @@
 
 ; Associativity
 (define-ruleset associativity
-  [associate-+-lft   (+ a (+ b c))         (+ (+ a b) c)]
-  [associate-+-rgt   (+ (+ a b) c)         (+ a (+ b c))]
-  [associate---lft   (+ a (- b c))         (- (+ a b) c)]
-  [associate---lft2  (- a (+ b c))         (- (- a b) c)]
-  [associate---rgt   (- (+ a b) c)         (+ a (- b c))]
-  [associate-*-lft   (* a (* b c))         (* (* a b) c)]
-  [associate-*-rgt   (* (* a b) c)         (* a (* b c))]
-  [associate-/-lft   (* a (/ b c))         (/ (* a b) c)]
-  [associate-/-rgt   (/ (* a b) c)         (* a (/ b c))])
+  [associate-+r+     (+ a (+ b c))         (+ (+ a b) c)]
+  [associate-+l+     (+ (+ a b) c)         (+ a (+ b c))]
+  [associate-+r-     (+ a (- b c))         (- (+ a b) c)]
+  [associate-+l-     (+ (- a b) c)         (- a (- b c))]
+  [associate--r+     (- a (+ b c))         (- (- a b) c)]
+  [associate--l+     (- (+ a b) c)         (+ a (- b c))]
+  [associate--l-     (- (- a b) c)         (- a (+ b c))]
+  [associate--r-     (- a (- b c))         (+ (- a b) c)]
+  [associate-*r*     (* a (* b c))         (* (* a b) c)]
+  [associate-*l*     (* (* a b) c)         (* a (* b c))]
+  [associate-*r/     (* a (/ b c))         (/ (* a b) c)]
+  [associate-*l/     (* (/ a b) c)         (/ (* a c) b)]
+  [associate-/r*     (/ a (* b c))         (/ (/ a b) c)]
+  [associate-/l*     (/ (* b c) a)         (/ b (/ a c))]
+  [associate-/r/     (/ a (/ b c))         (* (/ a b) c)]
+  [associate-/l/     (/ (/ b c) a)         (/ b (* a c))])
 
 ; Distributivity
 (define-ruleset distributivity
