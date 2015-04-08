@@ -7,7 +7,7 @@
 (require "points.rkt")
 (require "programs.rkt")
 
-(provide error-points herbie-plot error-shading error-avg *red-theme* *blue-theme* *green-theme*)
+(provide error-points herbie-plot error-avg *red-theme* *blue-theme* *green-theme*)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
