@@ -9,7 +9,8 @@
 (require "../alt-table.rkt")
 (require "../alternative.rkt")
 (require "../simplify/simplify.rkt")
-(require "visualize.rkt")
+(require "../test.rkt")
+(require "../plot.rkt")
 (require "util.rkt")
 
 (provide (all-defined-out)
