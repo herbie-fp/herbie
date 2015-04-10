@@ -8,7 +8,8 @@
 	 enode-expr
 	 pack-leader pack-members
 	 rule-applied? rule-applied!
-	 enode-override-expr!)
+	 enode-override-expr!
+	 enode-subexpr?)
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -200,6 +201,17 @@
     (assert (>= (enode-depth (pack-leader en))
 		(/ (log (length members))
 		   (log 2))))))
+
+;; Searches up to a specified depth for needle-e occuring in the
+;; children of haystack-e, and returns true if it can find it.
+(define (enode-subexpr? depth needle-e haystack-e)
+  (and (>= depth 0)
+       (or (equal? haystack-e needle-e)
+	   (ormap (curry enode-subexpr? (sub1 depth) needle-e)
+		  (for/fold ([children '()])
+		      ([var (enode-vars haystack-e)])
+		    (append children (if (list? var) (cdr var) '())))))))
+
 
 ;; Given any enode, draws the pack structure containing that enode.
 ;; The blue node is the leader of the pack, and green lines indicate
