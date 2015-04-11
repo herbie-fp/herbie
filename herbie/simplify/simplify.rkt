@@ -110,7 +110,8 @@
 	    (for ([bind binds])
 	      (merge-egraph-nodes!
 	       eg en
-	       (substitute-e eg (rule-output rl) bind)))))))
+	       (substitute-e eg (rule-output rl) bind))
+              (elim-enode-loops! eg en))))))
     (map-enodes (curry set-precompute! eg) eg)))
 
 (define-syntax-rule (matches? expr pattern)

@@ -9,7 +9,10 @@
 	 pack-leader pack-members
 	 rule-applied? rule-applied!
 	 enode-override-expr!
-	 enode-subexpr?)
+	 enode-subexpr?
+         pack-filter! for-pack!
+         )
+
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -111,6 +114,41 @@
     (set-enode-expr! leader en)
     (set-enode-cvars! leader (set expr))))
 
+;; Filters a pack to only contain enodes that return true under pred,
+;; and returns the new leader. Must be called on a leader.
+(define (pack-filter! pred en)
+  (let ([filtered-children
+         (filter
+          identity
+          (for/list ([child (enode-children en)])
+            (let ([child* (pack-filter! pred child)])
+              (or child*
+                  (begin (set-enode-parent! child en) #f)))))])
+    (cond [(pred en)
+           (begin (set-enode-children! en filtered-children)
+                  (set-enode-cvars!
+                   en
+                   (if (null? filtered-children) (set (enode-expr en))
+                       (apply set-union (map enode-cvars filtered-children))))
+                  en)]
+          [(null? filtered-children) #f]
+          [#t
+           (for-each (curryr set-enode-parent! #f) filtered-children)
+           (define lead* (let loop ([lead (car filtered-children)] [rest (cdr filtered-children)])
+                           (if (null? rest) lead
+                               (loop (enode-merge! lead (car rest)) (cdr rest)))))
+           (set-enode-parent! en lead*)
+           lead*])))
+;; Apply an f to every enode in a pack. Will only do the whole pack if
+;; called on a leader.
+(define (for-pack! f en)
+  (let ([children* (map (curry for-pack! f) (enode-children en))])
+    (set-enode-children! en children*)
+    (f en)
+    (set-enode-cvars! en (apply set-union (set (enode-expr en))
+                                (map enode-cvars (enode-children en))))
+    en))
+
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
@@ -203,7 +241,9 @@
 		   (log 2))))))
 
 ;; Searches up to a specified depth for needle-e occuring in the
-;; children of haystack-e, and returns true if it can find it.
+;; children of haystack-e, and returns true if it can find it.  Will
+;; not terminate if the egraph contains looping paths of which
+;; haystack-e is a part of but needle-e is not.
 (define (enode-subexpr? depth needle-e haystack-e)
   (and (>= depth 0)
        (or (equal? haystack-e needle-e)

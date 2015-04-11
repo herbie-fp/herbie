@@ -6,7 +6,10 @@
 (provide mk-enode! mk-egraph
 	 merge-egraph-nodes!
 	 egraph? egraph-cnt egraph-top
-	 map-enodes draw-egraph egraph-leaders)
+	 map-enodes draw-egraph egraph-leaders
+         elim-enode-loops!
+         )
+
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -207,11 +210,52 @@
 		      (inner-merge (car merge-pair) (cdr merge-pair)))
 		    merged-en))))))
     ;; Check to make sure we haven't corrupted the state.
-    ;; This is an expensive check, but useful for kjkldebuggging.
+    ;; This is an expensive check, but useful for debuggging.
     #;(check-egraph-valid eg #:loc 'merging)))
 
 (define (mutable-set-remove-duplicates st)
   (list->mutable-set (set->list st)))
+
+;; Eliminates looping paths in the egraph that contain en. Does not
+;; work if there are other looping paths.
+(define (elim-enode-loops! eg en)
+  (let* ([variations (enode-vars en)]
+         [changed-exprs (hash-ref (egraph-leader->iexprs eg) (pack-leader en))]
+         [changed-nodes (for/list ([expr changed-exprs])
+                          (hash-ref (egraph-expr->parent eg) expr))])
+    (define filtered '())
+    (define leader*
+      (pack-filter!
+       (λ (en)
+         (let ([loops? (and (list? (enode-expr en))
+                            (for/or ([child (cdr (enode-expr en))])
+                              (enode-subexpr? 1 en child)))])
+           (when loops?
+             (set! filtered (cons en filtered)))
+           (not loops?)))
+       (pack-leader en)))
+    (for ([expr variations])
+      (hash-set! (egraph-expr->parent eg) expr leader*))
+
+    (define iexprs* '())
+    (for ([ch-en changed-nodes])
+      (for-pack!
+       (λ (en)
+         (let ([expr (enode-expr en)])
+           (when (list? expr)
+             (let ([expr* (cons (car expr)
+                                (for/list ([child (cdr expr)])
+                                  (if (member child filtered) leader* child)))])
+               (set! iexprs* (cons expr* iexprs*))
+               (hash-remove! (egraph-expr->parent eg) expr)
+               (hash-set! (egraph-expr->parent eg) expr* en)
+               (for ([child (cdr expr*)])
+                 (hash-set! (egraph-leader->iexprs eg) (pack-leader child) (mutable-set expr*)))
+               (set-enode-expr! en expr*)))))
+       (pack-leader ch-en)))
+    (for ([looping-en filtered])
+      (hash-remove! (egraph-leader->iexprs eg) looping-en))
+    (hash-set! (egraph-leader->iexprs eg) leader* (list->mutable-set iexprs*))))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
@@ -240,4 +284,5 @@
 			  id vid (enode-pid (second var)))
 		  (printf "node~avar~a -> node~a[tailport=se]~n"
 			  id vid (enode-pid (third var)))])))))
-	(displayln "}"))))
+	(displayln "}")))
+  (system (format "dot -Tpng -o ~a.png ~a" fp fp)))
