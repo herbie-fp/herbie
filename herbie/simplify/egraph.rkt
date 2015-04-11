@@ -10,6 +10,8 @@
          elim-enode-loops!
          )
 
+(provide (all-defined-out)
+	 (all-from-out "enode.rkt"))
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -90,6 +92,8 @@
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
+	(assert (for/and ([var cur-leader-vars])
+		  (or (number? var) (symbol? var) (list? var))))
 	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
 	(when (not (null? (cdr rest-leaders)))
 	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))
@@ -242,34 +246,33 @@
     ;; Remove the old node as a leader from the leader table
     (hash-remove! (egraph-leader->iexprs eg) (pack-leader en))
 
-    ;; Filter out any variations of the leader which loop back on
-    ;; themselves, by removing those enodes from the pack. Keep track
-    ;; of which enodes we filtered.
-    (define filtered '())
+    ;; Filter out the first variation of the leader which loops back on
+    ;; itself, by removing that enode from the pack. Keep track
+    ;; of which enode we filtered.
+    (define filtered #f)
     (define iexprs* '())
     (define leader*
-      (pack-filter!
+      (pack-removef!
        (λ (en)
          (let ([loops? (and (list? (enode-expr en))
                             (for/or ([child (cdr (enode-expr en))])
                               (enode-subexpr? 1 en child)))])
            (when loops?
-             (set! filtered (cons en filtered)))
-           (not loops?)))
+             (set! filtered en))
+           loops?))
        (pack-leader en)))
 
     ;; If we didn't find any loops, skip the rest, and rollback our hash-remove!.
-    (if (null? filtered)
+    (if (not filtered)
 	(begin (set-egraph-expr->parent! eg old-expr->parent)
 	       (set-egraph-leader->iexprs! eg old-leader->iexprs)
 	       #f)
 	(begin
-	  (for ([en filtered])
-	    (for ([suben (cdr (enode-expr en))])
-	      (when (hash-has-key? (egraph-leader->iexprs eg) suben)
-		(set-subtract!
-		 (hash-ref (egraph-leader->iexprs eg) suben)
-		 (set (enode-expr en))))))
+	  (for ([suben (cdr (enode-expr filtered))])
+	    (when (hash-has-key? (egraph-leader->iexprs eg) suben)
+	      (set-subtract!
+	       (hash-ref (egraph-leader->iexprs eg) suben)
+	       (set (enode-expr filtered)))))
 
 	  ;; Update anywhere the old enode appeared as a parent in
 	  ;; expr->parent to point to the new leader.
@@ -284,7 +287,7 @@
 		 (when (list? expr)
 		   (let ([expr* (cons (car expr)
 				      (for/list ([child (cdr expr)])
-					(if (member child filtered) leader* child)))])
+					(if (equal? child filtered) leader* child)))])
 		     ;; Keep track of all containing expressions.
 		     (set! iexprs* (cons expr* iexprs*))
 		     ;; Point them at the new leader, and also update their bodies if they contained the old leader.
@@ -297,9 +300,9 @@
 	  ;; Update the set of involved expressions
 	  (hash-set! (egraph-leader->iexprs eg) leader* (list->mutable-set iexprs*))
 	  ;; Decrease the egraph count to account for the nodes that were removed
-	  (set-egraph-cnt! eg (- (egraph-cnt eg) (length filtered)))
+	  (set-egraph-cnt! eg (sub1 (egraph-cnt eg)))
 	  ;; Verify
-	  #;(check-egraph-valid eg #:loc 'elimed-loops)
+	  (check-egraph-valid eg #:loc 'elimed-loops)
 	  #t))))
 
 ;; Draws a representation of the egraph to the output file specified

@@ -10,7 +10,7 @@
 	 rule-applied? rule-applied!
 	 enode-override-expr!
 	 enode-subexpr?
-         pack-filter! for-pack!
+         pack-filter! for-pack! pack-removef!
 	 set-enode-expr!
          )
 
@@ -100,13 +100,13 @@
 (define (enode-merge! en1 en2)
   (let ([l1 (pack-leader en1)]
 	[l2 (pack-leader en2)])
-    (when (not (eq? l1 l2))
-      (let-values ([(new-leader new-follower)
-		    (if (< (enode-depth l1) (enode-depth l2))
-			(values l2 l1)
-			(values l1 l2))])
-	(adopt-enode! new-leader new-follower)
-	new-leader))))
+    (if (eq? l1 l2) l1
+	(let-values ([(new-leader new-follower)
+		      (if (< (enode-depth l1) (enode-depth l2))
+			  (values l2 l1)
+			  (values l1 l2))])
+	  (adopt-enode! new-leader new-follower)
+	  new-leader))))
 
 ;; Given an enode, override it's variations so that it only has one variation,
 ;; the given expression.
@@ -141,6 +141,30 @@
                                (loop (enode-merge! lead (car rest)) (cdr rest)))))
            (set-enode-parent! en lead*)
            lead*])))
+
+;; Returns the new leader if something was removed, false if everything was
+;; removed, and #t if nothing was removed.
+(define (pack-removef! pred en)
+  (let ([children (enode-children en)])
+    (if (pred en)
+	(if (null? children) #f
+	    (let ([lead* (let loop ([lead (car children)] [rest (cdr children)])
+			   (if (null? rest) lead
+			       (loop (enode-merge! lead (car rest)) (cdr rest))))])
+	      (set-enode-parent! lead* #f)
+	      (set-enode-parent! en lead*)
+	      lead*))
+	(let loop ([rest-children children] [done-children '()])
+	  (if (null? rest-children) #t
+	      (let ([next-child (car children)])
+		(match (pack-removef! pred next-child)
+		  [#t (loop (cdr rest-children) (cons next-child done-children))]
+		  [#f (set-enode-children! en (append (cdr rest-children) done-children))
+		      en]
+		  [leader (set-enode-children! en (append (cdr rest-children) (list leader) done-children))
+			  en])))))))
+    
+									 
 ;; Apply an f to every enode in a pack. Will only do the whole pack if
 ;; called on a leader.
 (define (for-pack! f en)

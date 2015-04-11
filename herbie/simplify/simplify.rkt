@@ -11,6 +11,7 @@
 (require "../common.rkt")
 
 (provide simplify-expr simplify *max-egraph-iters*)
+(provide (all-defined-out) (all-from-out "egraph.rkt" "../rules.rkt" "ematch.rkt"))
 
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
@@ -72,15 +73,15 @@
 
 ;; Returns the worst-case iterations needed to simplify this expression
 (define (iters-needed expr)
-  (if (not (list? expr)) 1
+  (if (not (list? expr)) 0
       (let ([sub-iters-needed (apply max (map iters-needed (cdr expr)))])
-	(if (let ([op (car expr)]) (or (eq? op '*) (eq? op '+)))
+	(if (let ([op (car expr)]) (or (eq? op '*) (eq? op '+) (eq? op '-) (eq? op '/)))
 	    (+ 2 sub-iters-needed)
 	    (+ 1 sub-iters-needed)))))
 
 (define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
   (let ([start-cnt (egraph-cnt eg)])
-    (debug #:from 'simplify #:depth 2 (format "iters left: ~a" iters))
+    (debug #:from 'simplify #:depth 2 (format "iters left: ~a (~a enodes)" iters start-cnt))
     (one-iter eg rls)
     (when (and (> (egraph-cnt eg) start-cnt)
 	       (> iters 1)
@@ -104,23 +105,24 @@
 		 [en (second match)]
 		 [binds (cddr match)])
 	    (rule-applied! en rl)
-	    (for ([bind binds])
-	      (merge-egraph-nodes!
-	       eg en
-	       (substitute-e eg (rule-output rl) bind))
-	      ;; When elim-enode-loops! returns true, it means that we
-	      ;; did an egraph rewrite to get rid of a looping path,
-	      ;; so some of our previous matches might not be valid
-	      ;; anymore. So, filter out the ones that are no longer
-	      ;; valid before continuing.
-	      (if (elim-enode-loops! eg en)
-		  (loop (filter (λ (match)
-				  (let ([rl (first match)]
-					[en (second match)]
-					[binds (cddr match)])
-				    (equal? binds (match-e (rule-input rl) en))))
-				(cdr rest-matches)))
-		  (loop (cdr rest-matches)))))))))
+	    (let/ec done
+	      (for ([bind binds])
+		(merge-egraph-nodes!
+		 eg en
+		 (substitute-e eg (rule-output rl) bind))
+		;; When elim-enode-loops! returns true, it means that we
+		;; did an egraph rewrite to get rid of a looping path,
+		;; so some of our previous matches might not be valid
+		;; anymore. So, filter out the ones that are no longer
+		;; valid before continuing.
+		(when (elim-enode-loops! eg en)
+		  (done (loop (filter (λ (match)
+					(let ([rl (first match)]
+					      [en (second match)]
+					      [binds (cddr match)])
+					  (equal? binds (match-e (rule-input rl) en))))
+				      (cdr rest-matches))))))
+	      (loop (cdr rest-matches))))))))
   (iterate-nodes (egraph-leaders eg) rls)
   (map-enodes (curry set-precompute! eg) eg))
 
@@ -131,6 +133,8 @@
 
 (define (set-precompute! eg en)
   (for ([var (enode-vars en)])
+    (when (number? var)
+      (enode-override-expr! en var))
     (when (list? var)
       (let ([constexpr
 	     (cons (car var)
