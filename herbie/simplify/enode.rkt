@@ -11,6 +11,7 @@
 	 enode-override-expr!
 	 enode-subexpr?
          pack-filter! for-pack!
+	 set-enode-expr!
          )
 
 
@@ -112,7 +113,8 @@
 (define (enode-override-expr! en expr)
   (let ([leader (pack-leader en)])
     (set-enode-expr! leader en)
-    (set-enode-cvars! leader (set expr))))
+    (set-enode-cvars! leader (set expr))
+    (set-enode-children! leader '())))
 
 ;; Filters a pack to only contain enodes that return true under pred,
 ;; and returns the new leader. Must be called on a leader.

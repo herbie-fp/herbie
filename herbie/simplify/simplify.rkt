@@ -88,31 +88,41 @@
       (iterate-egraph! eg (sub1 iters) #:rules rls))))
 
 (define (one-iter eg rls)
-  (let* ([realcdr? (compose (negate null?) cdr)]
-	 [matches
-	  (filter realcdr?
-		  (map
-		   (λ (rl)
-		     (cons rl
-			   (filter realcdr?
-				   (map-enodes (λ (en)
-						 (cons en
-						       (if (rule-applied? en rl) '()
-							   (match-e (rule-input rl) en))))
-					       eg))))
-		   rls))])
-    (for ([rmatch matches])
-      (let ([rl (first rmatch)])
-	(for ([ematch (rest rmatch)])
-	  (let ([en (first ematch)]
-		[binds (cdr ematch)])
+  (define (iterate-nodes ens rls)
+    (let* ([matches
+	    (filter (negate null?)
+		    (for*/list ([rl rls]
+				[en ens])
+		      (if (rule-applied? en rl) '()
+			  (let ([binds (match-e (rule-input rl) en)])
+			    (if (null? binds) '()
+				(list* rl en binds))))))])
+      (let loop ([rest-matches matches])
+	(when (not (null? rest-matches))
+	  (let* ([match (car rest-matches)]
+		 [rl (first match)]
+		 [en (second match)]
+		 [binds (cddr match)])
 	    (rule-applied! en rl)
 	    (for ([bind binds])
 	      (merge-egraph-nodes!
 	       eg en
 	       (substitute-e eg (rule-output rl) bind))
-              (elim-enode-loops! eg en))))))
-    (map-enodes (curry set-precompute! eg) eg)))
+	      ;; When elim-enode-loops! returns true, it means that we
+	      ;; did an egraph rewrite to get rid of a looping path,
+	      ;; so some of our previous matches might not be valid
+	      ;; anymore. So, filter out the ones that are no longer
+	      ;; valid before continuing.
+	      (if (elim-enode-loops! eg en)
+		  (loop (filter (λ (match)
+				  (let ([rl (first match)]
+					[en (second match)]
+					[binds (cddr match)])
+				    (equal? binds (match-e (rule-input rl) en))))
+				(cdr rest-matches)))
+		  (loop (cdr rest-matches)))))))))
+  (iterate-nodes (egraph-leaders eg) rls)
+  (map-enodes (curry set-precompute! eg) eg))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr
