@@ -31,9 +31,11 @@
 ;;# 6. The set of values in leader->iexprs appended together is a subset of the
 ;;#    set of keys in expr->parent, when you consider enodes of the same pack
 ;;#    equal.
-;;# 7. For every mapping (k, v) in expr->parent, k is a member of (enode-vars v),
-;;#    and every node referenced by k is the leader of it's own pack.
-;;# 8. No two enode packs have any vars in common, using the equal? definition of
+;;# 7. For every for any enode en, for every member of (enode-vars en) k, (k, v)
+;;#    is in expr-parent.
+;;# 8. For every mapping (k, v) in expr->parent, and every node referenced by k
+;;#    is the leader of it's own pack.
+;;# 9. No two enode packs have any vars in common, using the equal? definition of
 ;;#    equality.
 ;;#
 ;;#  Note: While the keys of leader->iexprs and the enodes referenced by the keys
@@ -82,7 +84,6 @@
 		     ;; for some part of this expression without also refreshing the binding.
 		     (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
 		     
-		     (assert (setfindf (curry equal? k) (enode-vars v)) #:loc location)
 		     (when (list? k)
 		       (for ([en (cdr k)])
 			 (assert (eq? en (pack-leader en)) #:loc location)))))
