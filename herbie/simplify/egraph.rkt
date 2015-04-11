@@ -226,7 +226,10 @@
 	 ;; we can update them to point to the new leader.
          [changed-exprs (hash-ref (egraph-leader->iexprs eg) (pack-leader en))]
          [changed-nodes (for/list ([expr changed-exprs])
-                          (hash-ref (egraph-expr->parent eg) expr))])
+                          (hash-ref (egraph-expr->parent eg) expr))]
+	 ;; Keep track of old state so it's easier to roll back.
+	 [old-expr->parent (hash-copy (egraph-expr->parent eg))]
+	 [old-leader->iexprs (hash-copy (egraph-leader->iexprs eg))])
 
     ;; Remove all affected expressions from our expr->parent table,
     ;; since we can't remove them once we've done the pack filter,
@@ -237,12 +240,13 @@
 	 (hash-remove! (egraph-expr->parent eg) (enode-expr en)))
        (pack-leader ch-en)))
     ;; Remove the old node as a leader from the leader table
-    (hash-remove! (egraph-leader->iexprs eg) en)
+    (hash-remove! (egraph-leader->iexprs eg) (pack-leader en))
 
     ;; Filter out any variations of the leader which loop back on
     ;; themselves, by removing those enodes from the pack. Keep track
     ;; of which enodes we filtered.
     (define filtered '())
+    (define iexprs* '())
     (define leader*
       (pack-filter!
        (λ (en)
@@ -254,44 +258,49 @@
            (not loops?)))
        (pack-leader en)))
 
-    (for ([en filtered])
-      (for ([suben (cdr (enode-expr en))])
-	(when (hash-has-key? (egraph-leader->iexprs eg) suben)
-	  (set-subtract!
-	   (hash-ref (egraph-leader->iexprs eg) suben)
-	   (set (enode-expr en))))))
+    ;; If we didn't find any loops, skip the rest, and rollback our hash-remove!.
+    (if (null? filtered)
+	(begin (set-egraph-expr->parent! eg old-expr->parent)
+	       (set-egraph-leader->iexprs! eg old-leader->iexprs)
+	       #f)
+	(begin
+	  (for ([en filtered])
+	    (for ([suben (cdr (enode-expr en))])
+	      (when (hash-has-key? (egraph-leader->iexprs eg) suben)
+		(set-subtract!
+		 (hash-ref (egraph-leader->iexprs eg) suben)
+		 (set (enode-expr en))))))
 
-    ;; Update anywhere the old enode appeared as a parent in
-    ;; expr->parent to point to the new leader.
-    (for ([expr variations])
-      (hash-set! (egraph-expr->parent eg) expr leader*))
+	  ;; Update anywhere the old enode appeared as a parent in
+	  ;; expr->parent to point to the new leader.
+	  (for ([expr variations])
+	    (hash-set! (egraph-expr->parent eg) expr leader*))
 
-    (define iexprs* '())
-    ;; Loop through the expressions which contained our old leader, to update to new leader.
-    (for ([ch-en changed-nodes])
-      (for-pack!
-       (λ (en)
-         (let ([expr (enode-expr en)])
-           (when (list? expr)
-             (let ([expr* (cons (car expr)
-                                (for/list ([child (cdr expr)])
-                                  (if (member child filtered) leader* child)))])
-	       ;; Keep track of all containing expressions.
-               (set! iexprs* (cons expr* iexprs*))
-	       ;; Point them at the new leader, and also update their bodies if they contained the old leader.
-               (hash-set! (egraph-expr->parent eg) expr* en)
-	       ;; Update the involved expressions set of all the children of this expression
-               (for ([child (cdr expr*)])
-                 (hash-set! (egraph-leader->iexprs eg) (pack-leader child) (mutable-set expr*)))
-               (set-enode-expr! en expr*)))))
-       (pack-leader ch-en)))
-    ;; Update the set of involved expressions
-    (hash-set! (egraph-leader->iexprs eg) leader* (list->mutable-set iexprs*))
-    ;; Decrease the egraph count to account for the nodes that were removed
-    (set-egraph-cnt! eg (- (egraph-cnt eg) (length filtered)))
-    ;; Verify
-    #;(check-egraph-valid eg #:loc 'elimed-loops)
-    (not (null? filtered))))
+	  ;; Loop through the expressions which contained our old leader, to update to new leader.
+	  (for ([ch-en changed-nodes])
+	    (for-pack!
+	     (λ (en)
+	       (let ([expr (enode-expr en)])
+		 (when (list? expr)
+		   (let ([expr* (cons (car expr)
+				      (for/list ([child (cdr expr)])
+					(if (member child filtered) leader* child)))])
+		     ;; Keep track of all containing expressions.
+		     (set! iexprs* (cons expr* iexprs*))
+		     ;; Point them at the new leader, and also update their bodies if they contained the old leader.
+		     (hash-set! (egraph-expr->parent eg) expr* en)
+		     ;; Update the involved expressions set of all the children of this expression
+		     (for ([child (cdr expr*)])
+		       (hash-set! (egraph-leader->iexprs eg) (pack-leader child) (mutable-set expr*)))
+		     (set-enode-expr! en expr*)))))
+	     (pack-leader ch-en)))
+	  ;; Update the set of involved expressions
+	  (hash-set! (egraph-leader->iexprs eg) leader* (list->mutable-set iexprs*))
+	  ;; Decrease the egraph count to account for the nodes that were removed
+	  (set-egraph-cnt! eg (- (egraph-cnt eg) (length filtered)))
+	  ;; Verify
+	  #;(check-egraph-valid eg #:loc 'elimed-loops)
+	  #t))))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
