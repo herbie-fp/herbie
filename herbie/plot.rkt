@@ -60,8 +60,8 @@
 (define (herbie-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
   (define thunk
     (if port
-        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max 64))
-        (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max 64))))
+        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max (*bit-width*)))
+        (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
   (with-herbie-plot #:title title thunk))
 
 (define (plot-cand-error altn #:axis [axis 0])
