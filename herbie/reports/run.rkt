@@ -14,8 +14,6 @@
 (require "datafile.rkt")
 (provide (all-defined-out))
 
-(define *graph-folder-name-length* 8)
-
 (define *max-test-threads* (max (- (processor-count) 1) 1))
 (define *test-name* #f)
 
@@ -25,21 +23,21 @@
 (define (make-report . bench-dirs)
   (define dir report-output-path)
 
+  (when (not (directory-exists? dir)) (make-directory dir))
+
   (define tests (allowed-tests bench-dirs))
   (define results
     (get-test-results tests #:threads *max-test-threads*
                       #:profile *profile?*))
   (define info (make-report-info results #:note *note*))
 
-  (when (not (directory-exists? dir)) (make-directory dir))
-
   (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
   (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
   (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
   (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
 
+  (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
-  (write-datafile (build-path dir "results.json") info))
   ; TODO: Uses the same expressions for float and double. This could be good to change.
   (compile-info dir info info))
 
