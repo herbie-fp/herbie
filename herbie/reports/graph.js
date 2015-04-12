@@ -2,6 +2,7 @@ margin = 10;
 barheight = 10;
 width = 450;
 textbar = 20;
+precision = 64;
 precision_step = 8;
 
 function sort_by(type) {
@@ -16,7 +17,6 @@ function r10(d) {
 
 function make_graph(node, data, start, end) {
     var len = data.length;
-    var precision = 64; // TODO
 
     var a = d3.selectAll("script");
     var script = a[0][a[0].length - 1];
@@ -71,6 +71,9 @@ function draw_results(node) {
     window.width = node.attr("width") - 2 * margin;
     d3.json("results.json", function(err, data) {
         if (err) return console.error(err);
+        precision = data.bit_width;
+        precision_step = Math.round(precision / 8);
+
         data = data.tests;
         for (var i = 0; i < data.length; i++) {
             data[i].id = i
