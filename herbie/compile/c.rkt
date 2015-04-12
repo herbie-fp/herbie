@@ -1,11 +1,11 @@
 #lang racket
 
-;; WARNING: This file is currently deprecated, and the compilation pipeline is not currently supported
-
 (require "../common.rkt")
 (require "../programs.rkt")
-(require reports/datafile)
+(require "../reports/datafile.rkt")
 (require net/uri-codec)
+
+(provide compile-info)
 
 (define (fix-name name)
   (string-replace (uri-encode (~a name)) #rx"[^a-zA-Z0-9]" "_"))
@@ -189,42 +189,32 @@
   (display (program->mpfr fprog bits "f_fm"))
   (display (program->mpfr dprog bits "f_dm")))
 
-(define (compile-c-files float-results-file double-results-file [output-file "tc~a.c"])
-  (for ([id (in-naturals)] [fline (read-datafile float-results-file)] [dline (read-datafile double-results-file)])
-    (match (cons fline dline)
-      [`((,name ,input ,foutput ,target ,fbits ,ftime) .
-         (,name ,input ,doutput ,target ,dbits ,dtime))
-       (debug #:from 'compile-datafile "Compiling" name "to" (format output-file id))
-       (write-file (format output-file id) (compile-all name input foutput doutput dbits))])))
+(define (compile-info base-dir single-info double-info)
+  (for ([single-test (report-info-tests single-info)] [double-test (report-info-tests double-info)])
+    (when (and (not (member (table-row-status single-test) '("timeout" "crash")))
+               (not (member (table-row-status double-test) '("timeout" "crash"))))
+      (match (cons single-test double-test)
+        [(cons (table-row name single-status _ _ _ _ _ _ vars input single-output _ single-bits dir)
+               (table-row name double-status _ _ _ _ _ _ vars input double-output _ double-bits dir))
+         (define fname (build-path base-dir dir "compiled.c"))
+         (debug #:from 'compile-info "Compiling" name "to" fname)
+         (write-file fname
+                     (compile-all name `(λ ,vars ,input) `(λ ,vars ,single-output)
+                                  `(λ ,vars ,double-output) (max single-bits double-bits)))]
+        [else
+         (error "Test case order, names, inputs don't match for single and double precision results."
+                single-test double-test)]))))
 
-(define (compile-mpfr-bits float-results-file double-results-file dir)
-  (write-file (build-path dir "mpfr-bits.csv")
-              (for ([line (read-datafile double-results-file)])
-                (match line
-                  [`(,name ,input ,output ,target ,bits ,time)
-                   (printf "~a\n" bits)]))))
+(module+ main
+  (require racket/cmdline)
+  (require "../config.rkt")
 
-(define (compile-runtime float-results-file double-results-file dir)
-  (write-file (build-path dir "runtime.csv")
-              (for ([line (read-datafile double-results-file)])
-                (match line
-                  [`(,name ,input ,output ,target ,bits ,time)
-                   (printf "~a\n" (/ time 1000))]))))
-
-(define (compile-datafiles float-results-file double-results-file [dir "."] [output-file "tc~a.c"])
-  (compile-c-files float-results-file double-results-file (string-append dir "/" output-file))
-  (compile-mpfr-bits float-results-file double-results-file dir)
-  (compile-runtime float-results-file double-results-file dir))
-
-(define *format* "tc~a.c")
-(define *dir* ".")
-
-(command-line
- #:program "compile"
- #:once-each
- [("-d") dir "Directory into which to place compiled files"
-  (set! *dir* dir)]
- [("-f") fmt "Format of output file names; use a single ~a for an index"
-  (set! *format* fmt)]
- #:args (float-results-file double-results-file)
- (compile-datafiles float-results-file double-results-file *dir* *format*))
+  (define dir report-output-path)
+  
+  (command-line
+   #:program "compile/c.rkt"
+   #:once-each
+   [("-d") dir* "Report output directory"
+    (set! dir dir*)]
+   #:args (single-json-file double-json-file)
+   (compile-info dir (read-datafile single-json-file) (read-datafile double-json-file))))

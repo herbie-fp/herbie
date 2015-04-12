@@ -9,6 +9,7 @@
 (require "../alternative.rkt")
 (require "../test.rkt")
 (require "../main.rkt")
+(require "../compile/c.rkt")
 (require "thread-pool.rkt")
 (require "datafile.rkt")
 (provide (all-defined-out))
@@ -39,6 +40,8 @@
 
   (make-report-page (build-path dir "report.html") info)
   (write-datafile (build-path dir "results.json") info))
+  ; TODO: Uses the same expressions for float and double. This could be good to change.
+  (compile-info dir info info))
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))
