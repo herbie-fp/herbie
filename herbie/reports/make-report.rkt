@@ -24,7 +24,7 @@
 
 (define (make-report-page file info)
   (match info
-    [(report-info date commit branch seed flags points iterations note tests)
+    [(report-info date commit branch seed flags points iterations bit-width note tests)
 
      (define table-labels
        '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))

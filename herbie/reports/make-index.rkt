@@ -26,7 +26,7 @@
   (printf "<ul id='reports'>\n")
   (for/list ([(folder info) (in-pairs infos)])
     (match info
-      [(report-info date commit branch seed flags points iterations note tests)
+      [(report-info date commit branch seed flags points iterations bit-width note tests)
        (printf "<li>")
        (printf "<a href='./~a/report.html'>~a</a>, on <abbr title='~a'>~a</abbr>"
                folder (date->string date) commit branch)
