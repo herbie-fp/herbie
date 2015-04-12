@@ -11,7 +11,6 @@
 (require "../main.rkt")
 (require "thread-pool.rkt")
 (require "datafile.rkt")
-(require "../compile/texify.rkt")
 (provide (all-defined-out))
 
 (define *graph-folder-name-length* 8)

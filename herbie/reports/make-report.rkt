@@ -2,7 +2,7 @@
 
 (require racket/date)
 (require unstable/sequence)
-(require "../compile/texify.rkt")
+(require "../compile/tex.rkt")
 (require "../common.rkt")
 (require "datafile.rkt")
 (provide (all-defined-out))
