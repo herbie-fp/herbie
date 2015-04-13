@@ -10,12 +10,10 @@
 
 (define *flags*
   (make-parameter
-   #hash([generate . (simplify rm)]
-         [reduce   . (regimes taylor simplify avg-error)]
-	 [precision . (double)]
-         [regimes  . ()]
-         [simplify . ()]
+   #hash([precision . (double)]
          [setup    . (simplify)]
+         [generate . (rr taylor simplify)]
+         [reduce   . (regimes taylor simplify avg-error)])))
 
 (define (toggle-flag! category flag)
   (*flags*
