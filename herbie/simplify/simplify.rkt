@@ -88,43 +88,57 @@
 	       (< (egraph-cnt eg) (*node-limit*)))
       (iterate-egraph! eg (sub1 iters) #:rules rls))))
 
+;; Iterates the egraph by applying each of the given rules in parallel
+;; to the egraph nodes.
 (define (one-iter eg rls)
-  (define (iterate-nodes ens rls)
-    (let* ([matches
-	    (filter (negate null?)
-		    (for*/list ([rl rls]
-				[en ens])
-		      (if (rule-applied? en rl) '()
-			  (let ([binds (match-e (rule-input rl) en)])
-			    (if (null? binds) '()
-				(list* rl en binds))))))])
-      (let loop ([rest-matches matches])
-	(when (not (null? rest-matches))
-	  (let* ([match (car rest-matches)]
-		 [rl (first match)]
-		 [en (second match)]
-		 [binds (cddr match)])
-	    (rule-applied! en rl)
-	    (let/ec done
-	      (for ([bind binds])
-		(merge-egraph-nodes!
-		 eg en
-		 (substitute-e eg (rule-output rl) bind))
-		;; When elim-enode-loops! returns true, it means that we
-		;; did an egraph rewrite to get rid of a looping path,
-		;; so some of our previous matches might not be valid
-		;; anymore. So, filter out the ones that are no longer
-		;; valid before continuing.
-		(when (elim-enode-loops! eg en)
-		  (done (loop (filter (λ (match)
-					(let ([rl (first match)]
-					      [en (second match)]
-					      [binds (cddr match)])
-					  (equal? binds (match-e (rule-input rl) en))))
-				      (cdr rest-matches))))))
-	      (loop (cdr rest-matches))))))))
-  (iterate-nodes (egraph-leaders eg) rls)
-  (map-enodes (curry set-precompute! eg) eg))
+  ;; Tries to match the rules against the given enodes, and returns a
+  ;; list of matches found. Matches are of the form:
+  ;; 
+  ;; (rule enode . bindings)
+  ;;
+  ;; where bindings is a list of different matches between the rule
+  ;; and the enode.
+  (define (find-matches ens)
+    (filter (negate null?)
+	    (for*/list ([rl rls]
+			[en ens])
+	      (if (rule-applied? en rl) '()
+		  (let ([bindings (match-e (rule-input rl) en)])
+		    (if (null? bindings) '()
+			(list* rl en bindings)))))))
+  (define (apply-match rl bindings en)
+    ;; Mark this node as having this rule applied so that we don't try
+    ;; to apply it again.
+    (rule-applied! en rl)
+    ;; Apply our bindings
+    (for ([binding bindings])
+      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
+    ;; Prune the enode if we can.
+    (try-prune-enode en))
+  (define (try-prune-enode en)
+    ;; If one of the variations of the enode is a single variable or
+    ;; constant, reduce to that.
+    (reduce-to-single! eg en)
+    ;; If one of the variations of the enode chains back to itself,
+    ;; prune it away. Loops in the egraph coorespond to identity
+    ;; functions.
+    (elim-enode-loops! eg en))
+  (let ([matches (find-matches (egraph-leaders eg))])
+    (for ([match matches])
+      (match-let* ([`(,rl ,en . ,bindings) match]
+		   ;; These next two lines are here because an earlier
+		   ;; match application may have pruned the tree,
+		   ;; invalidating the this one. Luckily, a pruned
+		   ;; enode will still point to it's old leader, so we
+		   ;; just get the leader, and then double check the
+		   ;; bindings to make sure our match hasn't
+		   ;; changed. While it may be aggressive to
+		   ;; invalidate any change in bindings, it seems like
+		   ;; the right thing to do for now.
+		   [en (pack-leader en)])
+	(when (equal? (match-e (rule-input rl) en) bindings)
+	  (apply-match rl bindings en)))))
+  (map-enodes (curry set-precompute! eg) eg)))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr
@@ -133,8 +147,6 @@
 
 (define (set-precompute! eg en)
   (for ([var (enode-vars en)])
-    (when (number? var)
-      (enode-override-expr! en var))
     (when (list? var)
       (let ([constexpr
 	     (cons (car var)
@@ -146,7 +158,7 @@
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (common-eval constexpr)])
 	    (when (and (ordinary-float? res) (exact? res))
-	      (enode-override-expr! en res))))))))
+	      (reduce-to-new! eg en res))))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])

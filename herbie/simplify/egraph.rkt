@@ -7,7 +7,7 @@
 	 merge-egraph-nodes!
 	 egraph? egraph-cnt egraph-top
 	 map-enodes draw-egraph egraph-leaders
-         elim-enode-loops!
+         elim-enode-loops! reduce-to-single! reduce-to-new!
          )
 
 (provide (all-defined-out)
@@ -221,6 +221,16 @@
 (define (mutable-set-remove-duplicates st)
   (list->mutable-set (set->list st)))
 
+(define (update-leader! eg old-vars old-leader new-leader)
+  (let* ([changed-exprs (hash-ref (egraph-leader->iexprs eg) old-leader)])
+    (for ([changed-expr changed-exprs])
+      (let ([changed-node (hash-ref (egraph-expr->parent eg) expr)])
+	(
+    (hash-set! (egraph-leader->iexprs eg) new-leader changed-exprs)
+    (hash-remove! (egraph-leader->iexprs eg) old-leader)
+    (for ([variation old-vars])
+      (hash-set! (egraph-expr->parent eg) old-leader new-leader))))
+
 ;; Eliminates looping paths in the egraph that contain en. Does not
 ;; work if there are other looping paths.
 (define (elim-enode-loops! eg en)
@@ -305,6 +315,26 @@
 	  (check-egraph-valid eg #:loc 'elimed-loops)
 	  #t))))
 
+;; If there are any variations of this enode that are a single
+;; constant or variable, prune to that.
+(define (reduce-to-single! eg en)
+  (when (for/or ([var (enode-vars en)])
+	  (or (constant? var) (variable? var)))
+    (set-egraph-cnt! eg (- (egraph-cnt eg) (sub1 (length (enode-vars en)))))
+    (let ([leader (pack-leader en)]
+	  [leader* (pack-filter! (λ (inner-en)
+				   (list? (enode-expr inner-en)))
+				 leader)])
+      (update-leader! eg leader leader*))))
+
+(define (reduce-to-new! eg en expr)
+  (set-graph-cnt! eg (- (egraph-cnt eg) (sub1 (length (enode-vars en)))))
+  (let ([new-en (new-enode expr (sub1 (egraph-cnt eg)))]
+	[leader (pack-leader en)])
+    (for ([inner-en (pack-members en)])
+      (set-enode-parent! inner-en new-en))
+    (update-leader! eg leader new-en)))
+
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
 (define (draw-egraph eg fp)
@@ -333,4 +363,5 @@
 		  (printf "node~avar~a -> node~a[tailport=se]~n"
 			  id vid (enode-pid (third var)))])))))
 	(displayln "}")))
-  (system (format "dot -Tpng -o ~a.png ~a" fp fp)))
+  (system (format "dot -Tpng -o ~a.png ~a" fp fp))
+  (system (format "feh ~a.png" fp)))

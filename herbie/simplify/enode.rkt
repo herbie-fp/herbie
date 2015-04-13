@@ -8,7 +8,6 @@
 	 enode-expr
 	 pack-leader pack-members
 	 rule-applied? rule-applied!
-	 enode-override-expr!
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
 	 set-enode-expr!
