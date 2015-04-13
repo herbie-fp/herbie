@@ -13,7 +13,6 @@
    #hash([generate . (simplify rm)]
          [reduce   . (regimes taylor simplify avg-error)]
 	 [precision . (double)]
-         [sample   . (double)]
          [regimes  . ()]
          [simplify . ()]
          [setup    . (simplify)]
