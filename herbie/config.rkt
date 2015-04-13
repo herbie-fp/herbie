@@ -16,7 +16,6 @@
          [regimes  . ()]
          [simplify . ()]
          [setup    . (simplify)]
-         [localize . (cache)])))
 
 (define (toggle-flag! category flag)
   (*flags*

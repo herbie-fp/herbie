@@ -64,7 +64,7 @@
 				     (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (*pcontext* context)
-    (*analyze-context* ((flag 'localize 'cache) context #f))
+    (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (setup-prog prog (*setup-fuel*)))
     (void)))
