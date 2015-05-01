@@ -54,7 +54,7 @@ possible, we try to *extract all possible tests* from a source, to
 avoid biasing our selection of tests. To run the tests, go to the
 project root and run
 
-    racket herbie/reports/make-report.rkt <file>
+    racket herbie/reports/run.rkt <file>
 
 After a some time (several minutes), you should find the file
 `graphs/report.html`.
@@ -71,12 +71,12 @@ They are the benchmarks that ship in the `bench/` directory.
 
 We often test Herbie on basic but representative examples with:
 
-    racket herbie/reports/make-report.rkt bench/hamming/
+    racket herbie/reports/run.rkt bench/hamming/
 
 This takes approximately 15 minutes.
 To run all of the default benchmarks, use:
 
-    racket herbie/reports/make-report.rkt bench/
+    racket herbie/reports/run.rkt bench/
 
 This can take an hour or more.
 
