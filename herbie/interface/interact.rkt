@@ -64,7 +64,7 @@
 				     (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (*pcontext* context)
-    (*analyze-context* ((flag 'localize 'cache) context #f))
+    (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (setup-prog prog (*setup-fuel*)))
     (void)))
@@ -109,37 +109,40 @@
   (void))
 
 (define (gen-series!)
-  (define series-expansions
-    (apply
-     append
-     (for/list ([location (^locs^)]
-		[n (sequence-tail (in-naturals) 1)])
-       (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-       (taylor-alt (^next-alt^) location))))
-  (^children^ (append (^children^) series-expansions))
+  (when ((flag 'generate 'taylor) #t #f)
+    (define series-expansions
+      (apply
+       append
+       (for/list ([location (^locs^)]
+                  [n (sequence-tail (in-naturals) 1)])
+         (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
+         (taylor-alt (^next-alt^) location))))
+    (^children^ (append (^children^) series-expansions)))
   (^gened-series^ #t)
   (void))
 
 (define (gen-rewrites!)
+  (define alt-rewrite ((flag 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
   (define rewritten
     (apply append
 	   (for/list ([location (^locs^)]
 		      [n (sequence-tail (in-naturals) 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-	     (alt-rewrite-rm (alt-add-event (^next-alt^) '(start rm)) #:root location))))
+	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
   (^children^
    (append (^children^) rewritten))
   (^gened-rewrites^ #t)
   (void))
 
 (define (simplify!)
-  (define simplified
-    (for/list ([child (^children^)]
-	       [n (sequence-tail (in-naturals) 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
-      (with-handlers ([exn:fail? (λ (e) (println "Failed while simplifying candidate" child) (raise e))])
-	(apply alt-apply child (simplify child)))))
-  (^children^ simplified)
+  (when ((flag 'generate 'simplify) #t #f)
+    (define simplified
+      (for/list ([child (^children^)]
+                 [n (sequence-tail (in-naturals) 1)])
+        (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
+        (with-handlers ([exn:fail? (λ (e) (println "Failed while simplifying candidate" child) (raise e))])
+          (apply alt-apply child (simplify child)))))
+    (^children^ simplified))
   (^simplified^ #t)
   (void))
 

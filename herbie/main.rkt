@@ -28,7 +28,7 @@
   (let* ([samplers (or samplers (map (curryr cons sample-default) (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (parameterize ([*pcontext* context]
-		   [*analyze-context* ((flag 'localize 'cache) context #f)]
+		   [*analyze-context* context]
 		   [*start-prog* prog])
       (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
       (let* ([alt-table (setup-prog prog fuel)]

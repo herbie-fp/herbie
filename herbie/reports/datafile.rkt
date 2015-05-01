@@ -28,7 +28,7 @@
   (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (struct report-info
-  (date commit branch seed flags points iterations note tests) #:prefab)
+  (date commit branch seed flags points iterations bit-width note tests) #:prefab)
 
 (define (make-report-info tests #:note [note ""])
   (report-info (current-date)
@@ -38,6 +38,7 @@
                (*flags*)
                (*num-points*)
                (*num-iterations*)
+               (*bit-width*)
                note
                tests))
 
@@ -64,7 +65,7 @@
   
   (define data
     (match info
-      [(report-info date commit branch seed flags points iterations note tests)
+      [(report-info date commit branch seed flags points iterations bit-width note tests)
        (make-hash
         `((date . ,(date->seconds date))
           (commit . ,commit)
@@ -75,6 +76,7 @@
                     (format "~a:~a" (car rec) fl)))
           (points . ,points)
           (iterations . ,iterations)
+          (bit_width . ,bit-width)
           (note . ,note)
           (tests . ,(map simplify-test tests))))]))
 
@@ -89,7 +91,8 @@
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
     (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (get 'seed)
-                 (get 'flags) (get 'points) (get 'iterations) (hash-ref json 'note #f)
+                 (get 'flags) (get 'points) (get 'iterations) (get 'bit_width)
+                 (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)])
                    (let ([get (λ (field) (hash-ref test field))])
                                         ; TODO: ignoring the result-est

@@ -64,14 +64,14 @@
   (for/list ([i (range num)])
     (real->double-flonum (random-double-flonum))))
 
-(define (sample-default n) (((flag 'sample 'double) sample-double sample-float) n))
+(define (sample-default n) (((flag 'precision 'double) sample-double sample-float) n))
 
 (define ((sample-uniform a b) num)
   (build-list num (λ (_) (+ (* (random) (- b a)) a))))
 
 (define ((sample-grid stack) num)
-  (let* ([exponent-width ((flag 'sample 'double) 10 7)]
-	 [mantissa-width ((flag 'sample 'double) 52 23)]
+  (let* ([exponent-width (match (*bit-width*) [64 10] [32 7])]
+	 [mantissa-width (match (*bit-width*) [64 52] [32 23])]
 	 [num-steps-dim (exact->inexact (floor (sqrt (/ num stack))))]
 	 [exponent-step (/ (expt 2 exponent-width) num-steps-dim)]
 	 [mantissa-step (/ (expt 2 mantissa-width) num-steps-dim)])
