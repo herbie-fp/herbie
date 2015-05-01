@@ -41,8 +41,12 @@ extern char *name;
 
 typedef unsigned long long int u64;
 typedef unsigned int u32;
+typedef signed long long int i64;
+typedef signed int i32;
 
-unsigned int ulpf(float x, float y) {
+u32 ulpf(float x, float y) {
+        i32 xx, yy;
+        
         if (x == 0) x = fabsf(x); // -0 == 0
         if (y == 0) y = fabsf(y); // -0 == 0
 
@@ -50,16 +54,18 @@ unsigned int ulpf(float x, float y) {
         if (x != x) return INT_MIN; // Maximum error
         if (y != y) return INT_MIN; // Maximum error
 
-        u32 xx = *((u32*) &x);
-        xx = xx < 0 ? INT_MIN - xx : xx;
+        memcpy(&xx, &x, sizeof(float));
+        memcpy(&yy, &y, sizeof(float));
 
-        u32 yy = *((u32*) &y);
-        yy = yy < 0 ? INT_MIN - yy : yy;
+        xx = xx > INT_MAX ? INT_MIN - xx : xx;
+        yy = yy > INT_MAX ? INT_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
 }
 
-unsigned long long ulpd(double x, double y) {
+u64 ulpd(double x, double y) {
+        i64 xx, yy;
+        
         if (x == 0) x = fabs(x); // -0 == 0
         if (y == 0) y = fabs(y); // -0 == 0
 
@@ -67,10 +73,13 @@ unsigned long long ulpd(double x, double y) {
         if (x != x) return LLONG_MIN; // Maximum error
         if (y != y) return LLONG_MIN; // Maximum error
 
-        u64 xx = *((u64*) &x);
+        memcpy(&xx, &x, sizeof(double));
+        memcpy(&yy, &y, sizeof(double));
+
+        xx = *((i64*) &x);
         xx = xx < 0 ? LLONG_MIN - xx : xx;
 
-        u64 yy = *((u64*) &y);
+        yy = *((i64*) &y);
         yy = yy < 0 ? LLONG_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
