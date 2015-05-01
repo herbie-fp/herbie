@@ -6,10 +6,10 @@
 (require "debug.rkt")
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         enumerate take-up-to argmins list-product alist-append for/accumulate
+         enumerate take-up-to argmins list-product alist-append
          pipe ulp-difference *bit-width* ulps->bits
 	 write-file write-string has-duplicates?
-	 with-item symbol<? *start-prog*
+	 symbol<? *start-prog*
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
@@ -35,9 +35,6 @@
 			      store)))] ...)
     body ...
     (values (reverse (sows #f)) ...)))
-
-(define-syntax-rule (for/accumulate [reg start] ([vars seqs] ...) body ...)
-  (pipe start (map (λ (vars ...) (λ (reg) body ...)) seqs ...)))
 
 (define-syntax-rule (define-table name [key values ...] ...)
   (define name
@@ -132,12 +129,6 @@
   (cond [(null? lst) #f]
 	[(member (car lst) (cdr lst)) #t]
 	[#t (has-duplicates? (cdr lst))]))
-
-(define (with-item idx item lst)
-  (map (λ (lst-item lst-idx)
-	 (if (= lst-idx idx) item lst-item))
-       lst
-       (range (length lst))))
 
 ;; Provide sorting for symbols so that we can canonically order variables and other atoms
 (define (symbol<? sym1 sym2)

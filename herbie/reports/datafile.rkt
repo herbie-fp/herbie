@@ -21,7 +21,7 @@
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
       (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (string-trim (write-string (system cmd))))
+        (string-trim (with-output-to-string (λ () (system cmd)))))
       default))
 
 (struct table-row
