@@ -236,7 +236,8 @@
            (for ([p workers])
              (place-kill p))
            (abort)])
-        (loop)))))
+        (loop)))
+    'ok))
 
 (define (get-test-results progs
                           #:threads [threads (max (- (processor-count) 1) 1)]
