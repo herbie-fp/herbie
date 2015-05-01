@@ -36,6 +36,9 @@
   (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
   (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
 
+  (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)
+  (copy-file "herbie/compile/overhead.mk" (build-path dir "Makefile") #t)
+
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
   ; TODO: Uses the same expressions for float and double. This could be good to change.
