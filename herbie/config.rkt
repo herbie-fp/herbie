@@ -44,10 +44,6 @@
 (define *precision-step* (make-parameter 256))
 
 ;; When doing a binary search in regime inference,
-;; axes not being split on are set to this value
-(define *default-test-value* 0)
-
-;; When doing a binary search in regime inference,
 ;; this is the fraction of the gap between two points that the search must reach
 (define *epsilon-fraction* (/ 1 200))
 
