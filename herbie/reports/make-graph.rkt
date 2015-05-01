@@ -10,7 +10,7 @@
 (require "../infer-regimes.rkt")
 (require "../programs.rkt")
 (require "../plot.rkt")
-(require "../compile/texify.rkt")
+(require "../compile/tex.rkt")
 
 (provide make-graph make-traceback make-timeout)
 
