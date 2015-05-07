@@ -132,11 +132,18 @@
                (cons (* 2 (car term)) (cdr term)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (if (negative? (car terms))
-           `(1 (1 . ,expr))
-           (cons (sqrt (car terms))
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 2) (cdr term))))))]
+       (cond
+        [(negative? (car terms))
+         `(1 (1 . ,expr))]
+        [(exact? (sqrt (car terms)))
+         (cons (sqrt (car terms))
+               (for/list ([term (cdr terms)])
+                 (cons (/ (car term) 2) (cdr term))))]
+        [else
+         (list* 1
+                (cons 1 `(sqrt ,(car terms)))
+                (for/list ([term (cdr terms)])
+                  (cons (/ (car term) 2) (cdr term))))]))]
     [`(expt ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (cons (expt (car terms) a)
