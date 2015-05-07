@@ -1,6 +1,5 @@
 #lang racket
 
-(require racket/pretty)
 (require "datafile.rkt")
 (require "../common.rkt")
 (require "../points.rkt")
@@ -161,9 +160,9 @@
 
 (define (output-history altn)
   (match altn
-    [(alt-event _ 'start _)
-     (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
-             (pretty-format (alt-program altn) 65))]
+    [(alt-event prog 'start _)
+     (printf "<li>Started with <div>\\[~a\\]</div></li>\n"
+             (texify-expression (program-body prog)))]
 
     [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
@@ -177,7 +176,7 @@
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [interval->string
              (λ (ival)
-                (format "~a < ~a < ~a" (interval-start-point ival)
+                (format "~a &lt; ~a &lt; ~a" (interval-start-point ival)
                         (interval-expr ival) (interval-end-point ival)))])
        (for/list ([entry prevs] [entry-idx (range (length prevs))])
          (let* ([entry-ivals
@@ -191,9 +190,9 @@
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
-     (printf "<li>Taylor expanded <code><pre>~a</pre></code>"
-             (location-get loc (alt-program prev)))
-     (printf "around ~a to get <code><pre>~a</pre></code></li>" pt (pretty-format prog 65))]
+     (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div></li>"
+             pt (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
+             (texify-expression (program-body prog) #:loc loc #:color "blue"))]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)
@@ -214,8 +213,9 @@
      (output-history prev)
      (printf "<li>Applied <span class='rule'>~a</span> "
              (rule-name (change-rule cng)))
-     (printf "to get <code><pre>~a</pre></code></li>\n"
-             (pretty-format prog 65))]))
+     (printf "to get <div>\\[~a \\leadsto ~a\\]</div></li>\n"
+             (texify-expression (program-body (alt-program prev)) #:loc (change-location cng) #:color "red")
+             (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue"))]))
 
 (define (html-escape-unsafe err)
   (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
