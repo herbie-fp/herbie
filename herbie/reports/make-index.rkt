@@ -20,7 +20,7 @@
         (match (parse-folder-name folder)
           [`(,timestamp ,hostname ... ,branch ,commit)
            (report-info (seconds->date (string->number timestamp)) commit branch
-                        #f #f #f #f #f #f)]))))
+                        #f #f #f #f #f #f #f)]))))
 
 (define (print-list infos)
   (printf "<ul id='reports'>\n")
