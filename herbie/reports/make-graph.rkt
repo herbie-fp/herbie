@@ -176,8 +176,15 @@
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [interval->string
              (λ (ival)
-                (format "~a &lt; ~a &lt; ~a" (interval-start-point ival)
-                        (interval-expr ival) (interval-end-point ival)))])
+               (string-join
+                (list
+                 (if (ordinary-float? (interval-start-point ival))
+                     (format "~a &lt; " (interval-start-point ival))
+                     "")
+                 (~a (interval-expr ival))
+                 (if (ordinary-float? (interval-end-point ival))
+                     (format " &lt; ~a" (interval-end-point ival))
+                     ""))))])
        (for/list ([entry prevs] [entry-idx (range (length prevs))])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
