@@ -229,8 +229,8 @@
 
         (printf "~a/~a\t" (~a (length out*) #:width 3 #:align 'right) (length progs))
         (match (table-row-status tr)
-         ["crash"   (printf "[   CRASH    ]")]
-         ["timeout" (printf "[  timeout   ]")]
+         ["crash"   (printf "[   CRASH   ]")]
+         ["timeout" (printf "[  timeout  ]")]
          [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
         (printf "\t~a\n" (table-row-name tr))
 

@@ -43,6 +43,39 @@
      (printf "</head>\n")
      (printf "<body>\n")
 
+     (printf "<section id='about'>\n")
+
+     (printf "<div>\\[\\large~a\\]</div>\n"
+             (texify-expression (program-body (alt-program start-alt))))
+
+     (printf "<dl id='kv'>\n")
+     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+     (printf "</dl>\n")
+
+     (printf "<div id='graphs'>\n")
+     (for ([var (test-vars test)] [idx (in-naturals)])
+       (call-with-output-file (build-path report-output-path rdir (format "plot-~a.png" idx)) #:exists 'replace
+         (lambda (out)
+           (herbie-plot
+            #:port out #:kind 'png
+            (reap [sow]
+                  (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
+                  (when target-error
+                    (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
+                  (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
+
+                  (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
+                  (when target-error
+                    (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
+                  (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
+           (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var))))
+     (printf "</div>\n")
+
+     (printf "</section>\n")
+
+     (printf "<section id='details'>\n")
+
      ; Big bold numbers
      (printf "<div id='large'>\n")
      (printf "<div>Time: <span class='number'>~a</span></div>\n"
@@ -51,48 +84,20 @@
              (display-bits (errors-score start-error)))
      (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
              (display-bits (errors-score end-error)))
-     (printf "<div>Bits: <span class='number'>~a</span></div>\n"
-             bits)
-     (printf "</div>\n")
-
-     (printf "<div id='summary'>\n")
-     (printf "<div><div class='formula'>\\(~a\\)</div>Input</div>\n"
-             (texify-expression (program-body (alt-program start-alt))))
-     (printf "<div><div class='formula'>\\(~a\\)</div>Output</div>\n"
-             (texify-expression (program-body (alt-program end-alt))))
-     (printf "</div>\n")
-
-     (printf "<dl id='about'>\n")
-     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-     (printf "<dt>Logs:</dt>")
-     (printf "<dd><a href='debug.txt'>Debug output</a>")
+     ; TODO : Make icons
+     (printf "<div>Log: <a href='debug.txt' class='icon'><span style='display: block; transform: rotate(-45deg);'>&#x26b2;</span></a></div>")
      (when profile?
-       (printf ", <a href='profile.txt'>Profiling report</a>"))
-     (printf "</dd>\n")
-     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-     (printf "</dl>\n")
-
-     (printf "<div id='graphs'>\n")
-     (for ([var (test-vars test)] [idx (in-naturals)])
-       (call-with-output-file (build-path report-output-path rdir (format "plot-~a.png" idx)) #:exists 'replace
-                              (lambda (out)
-                                (herbie-plot #:port out #:kind 'png
-                                             (reap [sow]
-                                                   (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
-                                                   (when target-error
-                                                     (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
-                                                   (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
-
-                                                   (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
-                                                   (when target-error
-                                                     (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
-                                                   (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
-                                (printf "<img width='400' height='200' src='plot-~a.png' />\n" idx))))
+       (printf "<div>Profile: <a href='profile.txt' class='icon'>&#x1F552;</a></div>"))
      (printf "</div>\n")
-     
+
+     (printf "<div id='output'>\\(~a\\)</div>\n"
+             (texify-expression (program-body (alt-program end-alt))))
+
      (printf "<ol id='process-info'>\n")
      (output-history end-alt)
      (printf "</ol>\n")
+
+     (printf "</section>\n")
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -108,7 +113,7 @@
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
      (printf "</head>")
      (printf "<body>\n")
-                   
+
      (printf "<dl id='about'>\n")
      (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
      (printf "<dt>Logs:</dt>")

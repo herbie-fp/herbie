@@ -136,7 +136,7 @@
        (printf "</div>\n")
 
        (printf "<tbody>")
-       (for ([result tests])
+       (for ([result tests] [id (in-naturals)])
          (printf "<tr class='~a'>" (table-row-status result))
 
          (printf "<td>~a</td>" (or (table-row-name result) ""))
@@ -157,7 +157,7 @@
                    (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
          (printf "<td>~a</td>" (format-time (table-row-time result)))
          (if (table-row-link result)
-           (printf "<td><a href='~a/graph.html'>more</a></td>" (table-row-link result))
+           (printf "<td><a id='link~a' href='~a/graph.html'>more</a></td>" id (table-row-link result))
            (printf "<td></td>"))
          (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result)) ""))
          (printf "</tr>\n"))

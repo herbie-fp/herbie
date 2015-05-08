@@ -118,6 +118,11 @@ function draw_results(node) {
                 });
                 BADGES[i].addEventListener("mouseout", clear);
 
+                BADGES[i].addEventListener("click", function() {
+                    var id = "link" + BADGES[i].attributes["data-id"].value;
+                    document.getElementById(id).click();
+                });
+
                 ARROWS[i].addEventListener("mouseover", function() {
                     clear();
                     BADGES[i].classList.add("highlight");
