@@ -5,7 +5,7 @@
 (require "programs.rkt")
 (require "points.rkt")
 
-(provide (struct-out test) test-program test-samplers
+(provide (struct-out test) test-program test-samplers test-target
          load-tests load-file)
 
 (define (unfold-let expr)
@@ -46,6 +46,9 @@
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
+
+(define (test-target test)
+  `(λ ,(test-vars test) ,(test-output test)))
 
 (struct test (name vars sampling-expr input output) #:prefab)
 
