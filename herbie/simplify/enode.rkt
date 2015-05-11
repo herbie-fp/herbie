@@ -57,9 +57,9 @@
 	[(define (equal-proc en1 en2 recurs-equal?)
 	   (eq? (pack-leader en1) (pack-leader en2)))
          (define (hash-proc en recurse-hash)
-	   (recurse-hash (enode-pid en)))
+	   (recurse-hash (enode-id-code en)))
 	 (define (hash2-proc en recurse-hash)
-	   (enode-pid en))])
+	   (enode-id-code en))])
 
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
@@ -118,61 +118,63 @@
 ;; Filters a pack to only contain enodes that return true under pred,
 ;; and returns the new leader. Must be called on a leader.
 (define (pack-filter! pred en)
-  (let ([filtered-children
-         (filter
-          identity
-          (for/list ([child (enode-children en)])
-            (let ([child* (pack-filter! pred child)])
-              (or child*
-                  (begin (set-enode-parent! child en) #f)))))])
-    (cond [(pred en)
-           (begin (set-enode-children! en filtered-children)
-                  (set-enode-cvars!
-                   en
-                   (if (null? filtered-children) (set (enode-expr en))
-                       (apply set-union (map enode-cvars filtered-children))))
-                  en)]
-          [(null? filtered-children) #f]
-          [#t
-           (for-each (curryr set-enode-parent! #f) filtered-children)
-           (define lead* (let loop ([lead (car filtered-children)] [rest (cdr filtered-children)])
-                           (if (null? rest) lead
-                               (loop (enode-merge! lead (car rest)) (cdr rest)))))
-           (set-enode-parent! en lead*)
-           lead*])))
+  (let filter-loop! ([en (pack-leader en)])
+    (let ([filtered-children
+           (filter
+            identity
+            (for/list ([child (enode-children en)])
+              (let ([child* (filter-loop! pred child)])
+                (or child*
+                    (begin (set-enode-parent! child en) #f)))))])
+      (cond [(pred en)
+             (begin (set-enode-children! en filtered-children)
+                    (set-enode-cvars!
+                     en
+                     (if (null? filtered-children) (set (enode-expr en))
+                         (apply set-union (map enode-cvars filtered-children))))
+                    en)]
+            [(null? filtered-children) #f]
+            [#t
+             (for-each (curryr set-enode-parent! #f) filtered-children)
+             (define lead* (let loop ([lead (car filtered-children)] [rest (cdr filtered-children)])
+                             (if (null? rest) lead
+                                 (loop (enode-merge! lead (car rest)) (cdr rest)))))
+             (set-enode-parent! en lead*)
+             lead*]))))
 
 ;; Returns the new leader if something was removed, false if everything was
 ;; removed, and #t if nothing was removed.
 (define (pack-removef! pred en)
-  (let ([children (enode-children en)])
-    (if (pred en)
-	(if (null? children) #f
-	    (let ([lead* (let loop ([lead (car children)] [rest (cdr children)])
-			   (if (null? rest) lead
-			       (loop (enode-merge! lead (car rest)) (cdr rest))))])
-	      (set-enode-parent! lead* #f)
-	      (set-enode-parent! en lead*)
-	      lead*))
-	(let loop ([rest-children children] [done-children '()])
-	  (if (null? rest-children) #t
-	      (let ([next-child (car children)])
-		(match (pack-removef! pred next-child)
-		  [#t (loop (cdr rest-children) (cons next-child done-children))]
-		  [#f (set-enode-children! en (append (cdr rest-children) done-children))
-		      en]
-		  [leader (set-enode-children! en (append (cdr rest-children) (list leader) done-children))
-			  en])))))))
+  (let remove-loop! ([en (pack-leader en)])
+    (let ([children (enode-children en)])
+      (if (pred en)
+          (if (null? children) #f
+              (let ([lead* (let loop ([lead (car children)] [rest (cdr children)])
+                             (if (null? rest) lead
+                                 (loop (enode-merge! lead (car rest)) (cdr rest))))])
+                (set-enode-parent! lead* #f)
+                (set-enode-parent! en lead*)
+                lead*))
+          (let loop ([rest-children children] [done-children '()])
+            (if (null? rest-children) #t
+                (let ([next-child (car children)])
+                  (match (remove-loop! pred next-child)
+                    [#t (loop (cdr rest-children) (cons next-child done-children))]
+                    [#f (set-enode-children! en (append (cdr rest-children) done-children))
+                        en]
+                    [leader (set-enode-children! en (append (cdr rest-children) (list leader) done-children))
+                            en]))))))))
     
 									 
-;; Apply an f to every enode in a pack. Will only do the whole pack if
-;; called on a leader.
+;; Apply an f to every enode in a pack.
 (define (for-pack! f en)
-  (let ([children* (map (curry for-pack! f) (enode-children en))])
-    (set-enode-children! en children*)
-    (f en)
-    (set-enode-cvars! en (apply set-union (set (enode-expr en))
-                                (map enode-cvars (enode-children en))))
-    en))
+  (let loop! ([en (pack-leader en)])
+    (let ([children* (map (curry loop! f) (enode-children en))])
+      (set-enode-children! en children*)
+      (f en)
+      (set-enode-cvars! en (apply set-union (set (enode-expr en))
+                                  (map enode-cvars (enode-children en))))
+      en)))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
@@ -244,11 +246,11 @@
 
 ;; Returns whether the given rule has already been applied to the given enode
 (define (rule-applied? en rl)
-  (set-member? (enode-applied-rules en) rl))
+  (set-member? (enode-applied-rules (pack-leader en)) rl))
 
 ;; Marks the given enode as having the given rule applied to it.
 (define (rule-applied! en rl)
- (set-add! (enode-applied-rules en) rl))
+ (set-add! (enode-applied-rules (pack-leader en)) rl))
 
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])
@@ -270,13 +272,14 @@
 ;; not terminate if the egraph contains looping paths of which
 ;; haystack-e is a part of but needle-e is not.
 (define (enode-subexpr? depth needle-e haystack-e)
-  (and (>= depth 0)
-       (or (equal? haystack-e needle-e)
-	   (ormap (curry enode-subexpr? (sub1 depth) needle-e)
-		  (for/fold ([children '()])
-		      ([var (enode-vars haystack-e)])
-		    (append children (if (list? var) (cdr var) '())))))))
-
+  (let ([haystack-e (pack-leader haystack-e)]
+        [needle-e (pack-leader needle-e)])
+    (and (>= depth 0)
+         (or (equal? haystack-e needle-e)
+             (ormap (curry enode-subexpr? (sub1 depth) needle-e)
+                    (for/fold ([children '()])
+                        ([var (enode-vars haystack-e)])
+                      (append children (if (list? var) (cdr var) '()))))))))
 
 ;; Given any enode, draws the pack structure containing that enode.
 ;; The blue node is the leader of the pack, and green lines indicate
