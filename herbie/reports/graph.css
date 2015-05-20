@@ -2,7 +2,8 @@ body { width: 1200px; margin: 1em auto; font-family: sans; }
 
 #about { float: left; width: 400px; }
 #graphs { width: 400px; }
-#graphs figure { margin: 0; }
+#graphs figure { margin: 1em 0; }
+#graphs figcaption { text-align: center; }
 
 #details { width: 800px; float: right; }
 #output { margin: 2em 0; text-align: center; }

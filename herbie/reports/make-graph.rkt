@@ -27,7 +27,6 @@
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
-
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
@@ -45,7 +44,7 @@
 
      (printf "<section id='about'>\n")
 
-     (printf "<div>\\[\\large~a\\]</div>\n"
+     (printf "<div>\\[~a\\]</div>\n"
              (texify-expression (program-body (alt-program start-alt))))
 
      (printf "<dl id='kv'>\n")
@@ -55,7 +54,7 @@
 
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
-       (call-with-output-file (build-path report-output-path rdir (format "plot-~a.png" idx)) #:exists 'replace
+       (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
          (lambda (out)
            (herbie-plot
             #:port out #:kind 'png

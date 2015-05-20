@@ -3,7 +3,9 @@
 (require "../common.rkt")
 (require "../syntax.rkt")
 
-(provide texify-expression)
+(provide texify-expression mathjax-url)
+
+(define mathjax-url "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
   [l "\\ell"]

@@ -14,15 +14,15 @@
 (require "datafile.rkt")
 (require "../interface/interact.rkt")
 
-(provide get-test-results)
+(provide get-test-results get-test-result get-table-data *reeval-pts* *timeout* *seed*)
 
-(define *reeval-pts* 8000)
-(define *seed* #f)
-(define *timeout* (* 1000 60 10))
+(define *reeval-pts* (make-parameter 8000))
+(define *seed* (pseudo-random-generator->vector (current-pseudo-random-generator)))
+(define *timeout* (make-parameter (* 1000 60 10)))
 (define *profile?* #f)
 
 (define (get-test-result test rdir)
-  (define (file name) (build-path report-output-path rdir name))
+  (define (file name) (build-path rdir name))
 
   ; Reseed random number generator
   (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
@@ -54,12 +54,12 @@
         (compute-result test)))
 
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
-    (engine-run *timeout* eng)
+    (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
       [`(good ,start ,end ,context)
        (define newcontext
-         (parameterize ([*num-points* *reeval-pts*])
+         (parameterize ([*num-points* (*reeval-pts*)])
            (prepare-points (alt-program start) (test-samplers test))))
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
@@ -97,7 +97,8 @@
            [est-end-score (errors-score (test-result-end-est-error result))])
 
       (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
-                    [(good-inf bad-inf) (partition positive? infs)])
+                    [(good-inf bad-inf) (partition positive? infs)]
+                    [(link) (path-element->string (last (explode-path (test-result-rdir result))))])
         (table-row name
                    (if target-score
                        (cond
@@ -122,15 +123,17 @@
                    (program-body (alt-program (test-result-end-alt result)))
                    (test-result-time result)
                    (test-result-bits result)
-                   (test-result-rdir result))))]
+                   link)))]
    [(test-failure? result)
+    (define link (path-element->string (last (explode-path (test-result-rdir result)))))
     (table-row (test-name (test-failure-test result)) "crash"
                #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
-               (test-failure-time result) (test-failure-bits result) (test-failure-rdir result))]
+               (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
+    (define link (path-element->string (last (explode-path (test-result-rdir result)))))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
-               *timeout* (test-timeout-bits result) (test-timeout-rdir result))]))
+               (*timeout*) (test-timeout-bits result) link)]))
 
 (define (make-graph-if-valid result tname index rdir)
   (let* ([dir (build-path report-output-path rdir)])
@@ -156,7 +159,7 @@
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
 
-    (let ([result (get-test-result test rdir)])
+    (let ([result (get-test-result test rdir*)])
       (make-graph-if-valid result (test-name test) index rdir)
       (get-table-data result))))
 
