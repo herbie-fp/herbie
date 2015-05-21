@@ -19,10 +19,12 @@
     `(form ([action ,(embed/url improve)] [method "post"] [id "formula"])
            (input ((name "formula")))
            (ul ([id "errors"])))
-    `(p "Note: all formulas submitted to the Herbie web demo are logged "
-        "and made publicly accessible. See what formulas other users submitted "
-        (a ([href "./report.html"]) "here") ".")
-    `(p "Supported functions:")
+    `(p ([id "lisp-instructions"])
+        "Please enter formulas as Scheme expressions with a top-level " (code "lambda") " form, "
+        "using only the following supported functions:")
+    `(p ([id "mathjs-instructions"] [style "display: none;"])
+        "You can write ordinary mathematical expressions (parsed with "
+        (a ([href "https://mathjs.org"]) "math.js") ") using only the following supported functions:")
     `(dl ([class "function-list"])
       (dt ,@(list-join (for/list ([i '(+ - * / abs)]) `(code ,(~a i))) '(", ")))
       (dd "The usual arithmetic functions")
@@ -37,7 +39,13 @@
       (dt ,@(list-join (for/list ([i '(asin acos atan)]) `(code ,(~a i))) '(", ")))
       (dd "The inverse trigonometric functions")
       (dt ,@(list-join (for/list ([i '(sinh cosh tanh)]) `(code ,(~a i))) '(", ")))
-      (dd "The hyperbolic trigonometric functions")))))
+      (dd "The hyperbolic trigonometric functions"))
+    `(p "You can also use the constants " (code "pi") " and " (code "e") ".")
+
+    `(p (em "Note") ": all formulas submitted to the Herbie web demo are logged "
+        "and made publicly accessible. See what formulas other users submitted "
+        (a ([href "./report.html"]) "here") ".")
+    )))
 
 (define (herbie-page #:title title #:scripts [scripts '()] . body)
   `(html
@@ -51,7 +59,7 @@
      (header
       (img ([class "logo"] [src "/logo.png"]))
       (h1 ,title)
-      (p "See " (a ([href "/index.html"]) "the main page") " for more info on Herbie."))
+      (p "See " (a ([href "/"]) "the main page") " for more info on Herbie."))
      ,@body)))
 
 (define/page (improve)
