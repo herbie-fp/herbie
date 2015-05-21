@@ -101,7 +101,7 @@
        (for ([(result id) (in-pairs sorted-tests)])
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
-                 (table-row-name result)
+                 (html-escape-unsafe (table-row-name result))
                  (display-bits (table-row-start result))
                  (display-bits (table-row-result result))
                  id
@@ -138,7 +138,7 @@
        (for ([result tests] [id (in-naturals)])
          (printf "<tr class='~a'>" (table-row-status result))
 
-         (printf "<td>~a</td>" (or (table-row-name result) ""))
+         (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
          (printf "<td>~a</td>" (display-bits (table-row-start result)))
 
          (if (and (table-row-result result) (table-row-result-est result)

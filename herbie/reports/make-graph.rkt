@@ -228,9 +228,6 @@
              (texify-expression (program-body (alt-program prev)) #:loc (change-location cng) #:color "red")
              (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue"))]))
 
-(define (html-escape-unsafe err)
-  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
-
 (define (srcloc->string sl)
   (if sl
       (string-append
