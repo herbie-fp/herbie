@@ -13,9 +13,11 @@
   (response/xexpr
    (herbie-page
     #:title "Herbie web demo"
-    `(p "Enter a formula below, and Herbie will try to improve it.")
+    #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
+    `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(embed/url improve)] [method "post"] [id "formula"])
-           (input ((name "formula"))))
+           (input ((name "formula")))
+           (ul ([id "errors"])))
     `(p "Note: all formulas submitted to the Herbie web demo are logged "
         "and made publicly accessible. See what formulas other users submitted "
         (a ([href "./report.html"]) "here") ".")
@@ -28,7 +30,7 @@
       (dt ,@(list-join (for/list ([i '(exp log)]) `(code ,(~a i))) '(", ")))
       (dd "Natural exponent and natural log")
       (dt ,@(list-join (for/list ([i '(expt)]) `(code ,(~a i))) '(", ")))
-      (dd "Raising a value to a power")
+      (dd "Raising a value to a power (also called " (code "pow") ")")
       (dt ,@(list-join (for/list ([i '(sin cos tan cot)]) `(code ,(~a i))) '(", ")))
       (dd "The trigonometric functions")
       (dt ,@(list-join (for/list ([i '(asin acos atan)]) `(code ,(~a i))) '(", ")))

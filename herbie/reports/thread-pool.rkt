@@ -125,12 +125,12 @@
                    (test-result-bits result)
                    link)))]
    [(test-failure? result)
-    (define link (path-element->string (last (explode-path (test-result-rdir result)))))
+    (define link (path-element->string (last (explode-path (test-failure-rdir result)))))
     (table-row (test-name (test-failure-test result)) "crash"
                #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
-    (define link (path-element->string (last (explode-path (test-result-rdir result)))))
+    (define link (path-element->string (last (explode-path (test-timeout-rdir result)))))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
                (*timeout*) (test-timeout-bits result) link)]))

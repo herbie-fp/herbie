@@ -37,6 +37,7 @@ a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
 #formula input { width: 100%; font-size: 125%; }
+#errors li { color: #800; }
 
 .function-list dt { font-weight: bold; float: left; width: 200px; clear: left; padding-left: 25px; }
 .function-list dd { clear: right; }
