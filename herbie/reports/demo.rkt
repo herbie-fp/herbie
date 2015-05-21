@@ -2,6 +2,7 @@
 (require openssl/md5)
 (require xml)
 (require web-server/servlet web-server/servlet-env web-server/dispatch web-server/page)
+(require web-server/configuration/responders)
 (require "thread-pool.rkt" "datafile.rkt" "make-graph.rkt" "make-report.rkt")
 (require "../compile/tex.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../test.rkt")
@@ -97,6 +98,10 @@
 (define (go)
   (serve/servlet
    demo
+   #:log-file (build-path demo-output-path "../../demo.log")
+   #:file-not-found-responder
+   (gen-file-not-found-responder
+    (build-path demo-output-path "../404.html"))
    #:listen-ip #f
    #:banner? #f
    #:servlets-root (build-path demo-output-path "../..")
