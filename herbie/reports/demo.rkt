@@ -57,35 +57,49 @@
 (define/page (improve)
   (match (get-bindings 'formula)
     [(list formula-str)
-     (match-define `(lambda ,vars ,body) (read (open-input-string formula-str)))
-     (define hash (md5 (open-input-string formula-str)))
-     (define dir (build-path demo-output-path hash))
+     (define formula
+       (with-handlers ([exn:fail? (λ (e) #f)])
+         (read (open-input-string formula-str))))
+     (cond
+      [(valid-program? formula)
+       (match-define (list (or 'λ 'lambda) vars body) (read (open-input-string formula-str)))
+       (define hash (md5 (open-input-string formula-str)))
+       (define dir (build-path demo-output-path hash))
 
-     (when (not (directory-exists? dir))
-       (make-directory dir)
-       (define result
-         (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-           (get-test-result (test "User test" vars (map (const 'default) vars) body #f) dir)))
-       (define make-page
-         (cond [(test-result? result) make-graph]
-               [(test-timeout? result) make-timeout]
-               [(test-failure? result) make-traceback]))
-       (with-output-to-file (build-path dir "graph.html")
-         (λ () (make-page result #f)))
+       (when (not (directory-exists? dir))
+         (define name
+           (match (get-bindings 'formula-math)
+             [(list formula-math) formula-math]
+             [_ formula-str]))
+         (make-directory dir)
+         (define result
+           (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+             (get-test-result (test name vars (map (const 'default) vars) body #f) dir)))
+         (define make-page
+           (cond [(test-result? result) make-graph]
+                 [(test-timeout? result) make-timeout]
+                 [(test-failure? result) make-traceback]))
+         (with-output-to-file (build-path dir "graph.html")
+           (λ () (make-page result #f)))
 
-       (define data (get-table-data result))
+         (define data (get-table-data result))
 
        ; Save new report data
-       (define info 
-         (if (file-exists? (build-path demo-output-path "results.json"))
-             (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-               (set-report-info-tests! info (cons data (report-info-tests info)))
-               info)
-             (make-report-info (list data) #:note "Web demo results")))
-       (write-datafile (build-path demo-output-path "results.json") info)
-       (make-report-page (build-path demo-output-path "report.html") info))
+         (define info 
+           (if (file-exists? (build-path demo-output-path "results.json"))
+               (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+                 (set-report-info-tests! info (cons data (report-info-tests info)))
+                 info)
+               (make-report-info (list data) #:note "Web demo results")))
+         (write-datafile (build-path demo-output-path "results.json") info)
+         (make-report-page (build-path demo-output-path "report.html") info))
 
-     (redirect-to (format "/demo/~a/graph.html" hash) see-other)]
+       (redirect-to (format "/demo/~a/graph.html" hash) see-other)]
+      [else
+       (response/error "Demo Error"
+                       `(p "Invalid formula " (code ,formula-str) ". "
+                           "Formula must be a valid list function using only the supported functions. "
+                           "Please " (a ([href ,(embed/url demo)]) "go back") " and try again."))])]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified serveral). "

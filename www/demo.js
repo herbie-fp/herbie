@@ -6,7 +6,6 @@ FUNCTIONS = [
     "asin", "acos", "atan",
     "sinh", "cosh", "tanh"
 ]
-SUBMITTING = false;
 
 function tree_errors(tree) /* tree -> list */ {
     var messages = [];
@@ -85,9 +84,16 @@ function dump_tree(tree) /* tree -> string */ {
 function onload() /* null -> null */ {
     var form = document.getElementById("formula");
     var input = document.querySelector("#formula input");
+    input.setAttribute("name", "formula-math");
+    var hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.setAttribute("name", "formula");
+    form.appendChild(hidden);
+
+    document.getElementById("mathjs-instructions").style.display = "block";
+    document.getElementById("lisp-instructions").style.display = "none";
 
     input.addEventListener("keyup", function(evt) {
-        if (SUBMITTING) return;
         var txt = input.value;
         var tree, errors;
         try {
@@ -123,8 +129,7 @@ function onload() /* null -> null */ {
         }
 
         var lisp = dump_tree(tree);
-        input.value = lisp;
-        SUBMITTING = true;
+        hidden.setAttribute("value", lisp);
     });
 }
 
