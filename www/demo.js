@@ -85,6 +85,7 @@ function onload() /* null -> null */ {
     var form = document.getElementById("formula");
     var input = document.querySelector("#formula input");
     input.setAttribute("name", "formula-math");
+    input.setAttribute("placeholder", "sqrt(x + 1) - sqrt(x)");
     var hidden = document.createElement("input");
     hidden.type = "hidden";
     hidden.setAttribute("name", "formula");
@@ -95,7 +96,7 @@ function onload() /* null -> null */ {
 
     input.addEventListener("keyup", function(evt) {
         var txt = input.value;
-        var tree, errors;
+        var tree, errors = [];
         try {
             tree = math.parse(txt);
             errors = tree_errors(tree);
@@ -103,7 +104,7 @@ function onload() /* null -> null */ {
             errors = ["" + e];
         }
 
-        if (errors.length > 0) {
+        if (txt && errors.length > 0) {
             document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
         } else {
             document.getElementById("errors").innerHTML = "";

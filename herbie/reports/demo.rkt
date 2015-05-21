@@ -17,7 +17,7 @@
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(embed/url improve)] [method "post"] [id "formula"])
-           (input ((name "formula")))
+           (input ([name "formula"] [autofocus "true"] [placeholder "(lambda (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (ul ([id "errors"])))
     `(p ([id "lisp-instructions"])
         "Please enter formulas as Scheme expressions with a top-level " (code "lambda") " form, "
