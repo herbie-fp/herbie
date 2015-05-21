@@ -107,6 +107,8 @@
                                         ; TODO: ignoring the result-est
                      (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref json 'end-est 0)
-                                (map string->symbol (get 'vars))
+                                (match (get 'vars)
+                                  ['#f #f]
+                                  [(list names ...) (map string->symbol names)])
                                 (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))
