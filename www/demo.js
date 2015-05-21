@@ -7,6 +7,8 @@ FUNCTIONS = [
     "sinh", "cosh", "tanh"
 ]
 
+SECRETFUNCTIONS = {"pow": "expt", "^": "expt", "**": "expt"}
+
 function tree_errors(tree) /* tree -> list */ {
     var messages = [];
     var names = [];
@@ -18,10 +20,12 @@ function tree_errors(tree) /* tree -> list */ {
                 messages.push("Constants that are " + node.valueType + "s not supported.");
             break;
         case "FunctionNode":
+            node.name = SECRETFUNCTIONS[node.name] || node.name;
             if (FUNCTIONS.indexOf(node.name) === -1)
                 messages.push("Function <code>" + node.name + "</code> unsupported.");
             break;
         case "OperatorNode":
+            node.op = SECRETFUNCTIONS[node.op] || node.op;
             if (FUNCTIONS.indexOf(node.op) === -1)
                 messages.push("Operator <code>" + node.op + "</code> unsupported.");
             break;
@@ -60,9 +64,10 @@ function dump_tree(tree) /* tree -> string */ {
         case "ConstantNode":
             return "" + node.value;
         case "FunctionNode":
-            var name = (node.name == "pow") ? "expt" : node.name;
-            return "(" + name + " " + extract(node.args).join(" ") + ")";
+            node.name = SECRETFUNCTIONS[node.name] || node.name;
+            return "(" + node.name + " " + extract(node.args).join(" ") + ")";
         case "OperatorNode":
+            node.op = SECRETFUNCTIONS[node.op] || node.op;
             return "(" + node.op + " " + extract(node.args).join(" ") + ")";
         case "SymbolNode":
             if (CONSTANTS.indexOf(node.name) === -1)
