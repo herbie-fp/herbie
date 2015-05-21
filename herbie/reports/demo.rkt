@@ -80,9 +80,16 @@
              [(list formula-math) formula-math]
              [_ formula-str]))
          (make-directory dir)
-         (define result
-           (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-             (get-test-result (test name vars (map (const 'default) vars) body #f) dir)))
+
+         (define result #f)
+         (define result-thread
+           (thread
+            (λ ()
+              (set! result
+                    (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+                      (get-test-result (test name vars (map (const 'default) vars) body #f) dir))))))
+         (thread-wait result-thread)
+         
          (define make-page
            (cond [(test-result? result) make-graph]
                  [(test-timeout? result) make-timeout]
