@@ -87,7 +87,10 @@
             (λ ()
               (set! result
                     (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-                      (get-test-result (test name vars (map (const 'default) vars) body #f) dir))))))
+                      (get-test-result
+                       #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+                       (test name vars (map (const 'default) vars) body #f)
+                       dir))))))
          (thread-wait result-thread)
          
          (define make-page

@@ -21,7 +21,7 @@
 (define *timeout* (make-parameter (* 1000 60 10)))
 (define *profile?* #f)
 
-(define (get-test-result test rdir)
+(define (get-test-result test rdir #:setup! [setup! (λ () (set-debug-level! #t #t))])
   (define (file name) (build-path rdir name))
 
   ; Reseed random number generator
@@ -40,7 +40,8 @@
       (close-output-port (*debug-port*))
       x)
 
-    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)] [*debug* #t])
+    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)])
+      (setup!)
       (with-handlers ([(const #t)
                        (λ (e) (close-debug-port `(error ,e ,(bf-precision))))])
 	(match-let ([`(,alt ,context) (run-improve (test-program test) (*num-iterations*)
