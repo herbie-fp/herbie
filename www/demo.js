@@ -155,7 +155,7 @@ function clean_progress(str) {
         var line = lines[i];
         var words = line.split("  ");
         var word0 = words.shift();
-        outlines.push((word0.startsWith("* * * ") ? "* " : "") + words.join("  "));
+        outlines.push(htmlescape((word0.startsWith("* * * ") ? "* " : "") + words.join("  ")));
     }
     return outlines.join("\n");
 }
@@ -170,7 +170,7 @@ function get_progress(loc) {
     req2.onreadystatechange = function() {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
-                document.getElementById("progress").innerHTML = htmlescape(clean_progress(req2.responseText));
+                document.getElementById("progress").innerHTML = clean_progress(req2.responseText);
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
                 var loc2 = req2.getResponseHeader("Location");
