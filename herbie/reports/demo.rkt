@@ -133,14 +133,12 @@
                      `(p "You didn't specify a formula (or you specified serveral). "
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
-(define *jobs* (make-hash))
-
 (define/page (improve-start)
   (improve-common
    (λ (name hash formula)
      (unless (already-computed? name hash formula)
        (run-improve name hash formula))
-     (response/full 201 #"Job started" (current-seconds) #f
+     (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash)))))
                     '(#"")))
    (embed/url demo)))
@@ -152,7 +150,7 @@
                   (when (file-exists? (build-path demo-output-path hash "debug.txt"))
                     (call-with-input-file (build-path demo-output-path hash "debug.txt")
                       (λ (in) (copy-port in out))))))
-     (response/full 201 #"Job complete" (current-seconds) #f
+     (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash))))
                     '(#""))))
 
