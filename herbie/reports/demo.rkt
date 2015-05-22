@@ -79,40 +79,44 @@
    (λ ()
      (let loop ()
        (match-define (list name hash formula sema) (thread-receive))
-       (printf "Job ~a started for ~a\n" hash name)
        (define dir (build-path demo-output-path hash))
-       (make-directory dir)
-       (match-define (list (or 'λ 'lambda) vars body) formula)
 
-       (define result
-         (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-           (get-test-result
-            #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-            (test name vars (map (const 'default) vars) body #f)
-            dir)))
+       (if (directory-exists? (build-path demo-output-path hash))
+           (semaphore-post sema)
+           (begin
+             (make-directory dir)
+             (printf "Job ~a started for ~a\n" hash name)
+             (match-define (list (or 'λ 'lambda) vars body) formula)
 
-       (define make-page
-         (cond [(test-result? result) make-graph]
-               [(test-timeout? result) make-timeout]
-               [(test-failure? result) make-traceback]))
-       (with-output-to-file (build-path dir "graph.html")
-         (λ () (make-page result #f)))
+             (define result
+               (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+                 (get-test-result
+                  #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+                  (test name vars (map (const 'default) vars) body #f)
+                  dir)))
 
-       (define data (get-table-data result))
+             (define make-page
+               (cond [(test-result? result) make-graph]
+                     [(test-timeout? result) make-timeout]
+                     [(test-failure? result) make-traceback]))
+             (with-output-to-file (build-path dir "graph.html")
+               (λ () (make-page result #f)))
 
-       ; Save new report data
-       (define info
-         (if (file-exists? (build-path demo-output-path "results.json"))
-             (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-               (set-report-info-tests! info (cons data (report-info-tests info)))
-               info)
-             (make-report-info (list data) #:note "Web demo results")))
-       (write-datafile (build-path demo-output-path "results.json") info)
-       (make-report-page (build-path demo-output-path "report.html") info)
+             (define data (get-table-data result))
 
-       (printf "Job ~a complete for ~a\n" hash name)
-       (hash-remove! *jobs* hash)
-       (semaphore-post sema)
+             ; Save new report data
+             (define info
+               (if (file-exists? (build-path demo-output-path "results.json"))
+                   (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+                     (set-report-info-tests! info (cons data (report-info-tests info)))
+                     info)
+                   (make-report-info (list data) #:note "Web demo results")))
+             (write-datafile (build-path demo-output-path "results.json") info)
+             (make-report-page (build-path demo-output-path "report.html") info)
+
+             (printf "Job ~a complete for ~a\n" hash name)
+             (hash-remove! *jobs* hash)
+             (semaphore-post sema)))
        (loop)))))
 
 (define (run-improve name hash formula)
