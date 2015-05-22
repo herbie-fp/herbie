@@ -199,7 +199,7 @@
    (gen-file-not-found-responder
     (build-path demo-output-path "../404.html"))
    #:listen-ip #f
-   #:command-line command-line
+   #:command-line? command-line
    #:servlets-root (build-path demo-output-path "../..")
    #:server-root-path (build-path demo-output-path "..")
    #:servlet-path "/demo/"
