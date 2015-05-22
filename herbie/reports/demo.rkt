@@ -81,42 +81,42 @@
        (match-define (list name hash formula sema) (thread-receive))
        (define dir (build-path demo-output-path hash))
 
-       (if (directory-exists? (build-path demo-output-path hash))
-           (semaphore-post sema)
-           (begin
-             (make-directory dir)
-             (printf "Job ~a started for ~a\n" hash name)
-             (match-define (list (or 'λ 'lambda) vars body) formula)
+       (match (directory-exists? dir)
+         [#t (semaphore-post sema)]
+         [#f
+          (make-directory dir)
+          (printf "Job ~a started for ~a\n" hash name)
+          (match-define (list (or 'λ 'lambda) vars body) formula)
 
-             (define result
-               (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-                 (get-test-result
-                  #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-                  (test name vars (map (const 'default) vars) body #f)
-                  dir)))
+          (define result
+            (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+              (get-test-result
+               #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+               (test name vars (map (const 'default) vars) body #f)
+               dir)))
 
-             (define make-page
-               (cond [(test-result? result) make-graph]
-                     [(test-timeout? result) make-timeout]
-                     [(test-failure? result) make-traceback]))
-             (with-output-to-file (build-path dir "graph.html")
-               (λ () (make-page result #f)))
+          (define make-page
+            (cond [(test-result? result) make-graph]
+                  [(test-timeout? result) make-timeout]
+                  [(test-failure? result) make-traceback]))
+          (with-output-to-file (build-path dir "graph.html")
+            (λ () (make-page result #f)))
 
-             (define data (get-table-data result))
+          (define data (get-table-data result))
 
-             ; Save new report data
-             (define info
-               (if (file-exists? (build-path demo-output-path "results.json"))
-                   (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-                     (set-report-info-tests! info (cons data (report-info-tests info)))
-                     info)
-                   (make-report-info (list data) #:note "Web demo results")))
-             (write-datafile (build-path demo-output-path "results.json") info)
-             (make-report-page (build-path demo-output-path "report.html") info)
+          ; Save new report data
+          (define info
+            (if (file-exists? (build-path demo-output-path "results.json"))
+                (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+                  (set-report-info-tests! info (cons data (report-info-tests info)))
+                  info)
+                (make-report-info (list data) #:note "Web demo results")))
+          (write-datafile (build-path demo-output-path "results.json") info)
+          (make-report-page (build-path demo-output-path "report.html") info)
 
-             (printf "Job ~a complete for ~a\n" hash name)
-             (hash-remove! *jobs* hash)
-             (semaphore-post sema)))
+          (printf "Job ~a complete for ~a\n" hash name)
+          (hash-remove! *jobs* hash)
+          (semaphore-post sema)])
        (loop)))))
 
 (define (run-improve name hash formula)
@@ -191,7 +191,7 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (go)
+(define (go [command-line #f])
   (serve/servlet
    demo
    #:log-file (build-path demo-output-path "../../demo.log")
@@ -199,11 +199,11 @@
    (gen-file-not-found-responder
     (build-path demo-output-path "../404.html"))
    #:listen-ip #f
-   #:banner? #f
+   #:command-line command-line
    #:servlets-root (build-path demo-output-path "../..")
    #:server-root-path (build-path demo-output-path "..")
    #:servlet-path "/demo/"
    #:extra-files-paths (list (build-path demo-output-path ".."))))
 
 (module+ main
-  (go))
+  (go #t))
