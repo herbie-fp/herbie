@@ -172,8 +172,6 @@ function get_progress(loc) {
     req2.onreadystatechange = function() {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
-                var jobcount = req2.getResponseHeader("X-Job-Count");
-                document.getElementById("num-jobs").innerHTML = jobcount - 1;
                 document.getElementById("progress").innerHTML = clean_progress(req2.responseText);
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
