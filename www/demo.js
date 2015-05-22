@@ -91,6 +91,7 @@ function onload() /* null -> null */ {
     var input = document.querySelector("#formula input");
     input.setAttribute("name", "formula-math");
     input.setAttribute("placeholder", "sqrt(x + 1) - sqrt(x)");
+    input.removeAttribute("disabled");
     var hidden = document.createElement("input");
     hidden.type = "hidden";
     hidden.setAttribute("name", "formula");
