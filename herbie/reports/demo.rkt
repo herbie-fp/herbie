@@ -21,10 +21,10 @@
             [data-progress ,(embed/url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(lambda (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (ul ([id "errors"]))
-           (pre ([id "progress"])))
+           (pre ([id "progress"] [style "display: none;"])))
 
-    `(p "To handle the high volume of requests, web demo requests are queued; "
-        "there are currently " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue. "
+    `(p "To handle the high volume of requests, web requests are queued; "
+        "there are " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue right now. "
         "Web demo requests may also time out and cap the number of improvement iterations. "
         "To avoid these limitations, " (a ([href "/installing.html"]) "install Herbie")
         " on your own computer.")

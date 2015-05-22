@@ -38,6 +38,11 @@ a:hover {text-decoration: underline; color: #295785}
 
 #formula input { width: 100%; font-size: 125%; }
 #errors li { color: #800; }
+#progress {
+    font-size: 14px; font-family: sans-serif; background-color: #f1f1f1;
+    padding-left: 0; overflow: scroll; overflow-y: auto;
+}
+#num-jobs { font-weight: bold; }
 
 .function-list dt { font-weight: bold; float: left; width: 200px; clear: left; padding-left: 25px; }
 .function-list dd { clear: right; }

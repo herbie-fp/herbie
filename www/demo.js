@@ -172,6 +172,8 @@ function get_progress(loc) {
     req2.onreadystatechange = function() {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
+                var jobcount = req2.getResponseHeader("X-Job-Count");
+                document.getElementById("num-jobs").innerHTML = jobcount - 1;
                 document.getElementById("progress").innerHTML = clean_progress(req2.responseText);
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
@@ -186,12 +188,15 @@ function get_progress(loc) {
 }
 
 function ajax_submit(url, text, lisp) {
+    document.getElementById("progress").style.display = "block";
     var req = new XMLHttpRequest();
     req.open("POST", url);
     req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
     req.onreadystatechange = function() {
         if (req.readyState == 4) {
             if (req.status == 201) {
+                var jobcount = req.getResponseHeader("X-Job-Count");
+                document.getElementById("num-jobs").innerHTML = jobcount - 1;
                 var loc = req.getResponseHeader("Location");
                 get_progress(loc);
             } else {
