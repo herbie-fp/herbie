@@ -16,9 +16,11 @@
     #:title "Herbie web demo"
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
-    `(form ([action ,(embed/url improve)] [method "post"] [id "formula"])
+    `(form ([action ,(embed/url improve)] [method "post"] [id "formula"]
+            [data-progress ,(embed/url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(lambda (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-           (ul ([id "errors"])))
+           (ul ([id "errors"]))
+           (pre ([id "progress"])))
     `(p ([id "lisp-instructions"])
         "Please enter formulas as Scheme expressions with a top-level " (code "lambda") " form, "
         "using only the following supported functions:")
@@ -62,7 +64,51 @@
       (p "See " (a ([href "/"]) "the main page") " for more info on Herbie."))
      ,@body)))
 
-(define/page (improve)
+(define (run-improve name hash formula)
+  (printf "Job ~a started for ~a\n" hash name)
+  (define job
+    (thread
+     (λ ()
+       (define dir (build-path demo-output-path hash))
+       (make-directory dir)
+       (match-define (list (or 'λ 'lambda) vars body) formula)
+
+       (define result
+         (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+           (get-test-result
+            #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+            (test name vars (map (const 'default) vars) body #f)
+            dir)))
+
+       (define make-page
+         (cond [(test-result? result) make-graph]
+               [(test-timeout? result) make-timeout]
+               [(test-failure? result) make-traceback]))
+       (with-output-to-file (build-path dir "graph.html")
+         (λ () (make-page result #f)))
+
+       (define data (get-table-data result))
+
+     ; Save new report data
+       (define info
+         (if (file-exists? (build-path demo-output-path "results.json"))
+             (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+               (set-report-info-tests! info (cons data (report-info-tests info)))
+               info)
+             (make-report-info (list data) #:note "Web demo results")))
+       (write-datafile (build-path demo-output-path "results.json") info)
+       (make-report-page (build-path demo-output-path "report.html") info)
+
+       (printf "Job ~a complete for ~a\n" hash name)
+       (hash-remove! *jobs* hash))))
+  (hash-set! *jobs* hash job)
+  job)
+
+(define (already-computed? name hash formula)
+  (and (not (hash-has-key? *jobs* hash))
+       (directory-exists? (build-path demo-output-path hash))))
+
+(define (improve-common body go-back)
   (match (get-bindings 'formula)
     [(list formula-str)
      (define formula
@@ -70,62 +116,58 @@
          (read (open-input-string formula-str))))
      (cond
       [(valid-program? formula)
-       (match-define (list (or 'λ 'lambda) vars body) (read (open-input-string formula-str)))
        (define hash (md5 (open-input-string formula-str)))
-       (define dir (build-path demo-output-path hash))
+       (define name
+         (match (get-bindings 'formula-math)
+           [(list formula-math) formula-math]
+           [_ formula-str]))
 
-       (when (not (directory-exists? dir))
-         (define name
-           (match (get-bindings 'formula-math)
-             [(list formula-math) formula-math]
-             [_ formula-str]))
-         (make-directory dir)
-
-         (define result #f)
-         (define result-thread
-           (thread
-            (λ ()
-              (set! result
-                    (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-                      (get-test-result
-                       #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-                       (test name vars (map (const 'default) vars) body #f)
-                       dir))))))
-         (thread-wait result-thread)
-         
-         (define make-page
-           (cond [(test-result? result) make-graph]
-                 [(test-timeout? result) make-timeout]
-                 [(test-failure? result) make-traceback]))
-         (with-output-to-file (build-path dir "graph.html")
-           (λ () (make-page result #f)))
-
-         (define data (get-table-data result))
-
-       ; Save new report data
-         (define info 
-           (if (file-exists? (build-path demo-output-path "results.json"))
-               (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-                 (set-report-info-tests! info (cons data (report-info-tests info)))
-                 info)
-               (make-report-info (list data) #:note "Web demo results")))
-         (write-datafile (build-path demo-output-path "results.json") info)
-         (make-report-page (build-path demo-output-path "report.html") info))
-
-       (redirect-to (format "/demo/~a/graph.html" hash) see-other)]
+       (body name hash formula)]
       [else
        (response/error "Demo Error"
                        `(p "Invalid formula " (code ,formula-str) ". "
                            "Formula must be a valid list function using only the supported functions. "
-                           "Please " (a ([href ,(embed/url demo)]) "go back") " and try again."))])]
+                           "Please " (a ([href ,go-back]) "go back") " and try again."))])]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified serveral). "
-                         "Please " (a ([href ,(embed/url demo)]) "go back") " and try again."))]))
+                         "Please " (a ([href ,go-back]) "go back") " and try again."))]))
+
+(define *jobs* (make-hash))
+
+(define/page (improve-start)
+  (improve-common
+   (λ (name hash formula)
+     (unless (already-computed? name hash formula)
+       (run-improve name hash formula))
+     (response/full 201 #"Job started" (current-seconds) #f
+                    (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash)))))
+                    '(#"")))
+   (embed/url demo)))
+
+(define/page (check-status hash)
+  (if (hash-has-key? *jobs* hash)
+      (response 202 #"Job in progress" (current-seconds) #"text/plain" '()
+                (λ (out)
+                  (when (file-exists? (build-path demo-output-path hash "debug.txt"))
+                    (call-with-input-file (build-path demo-output-path hash "debug.txt")
+                      (λ (in) (copy-port in out))))))
+     (response/full 201 #"Job complete" (current-seconds) #f
+                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash))))
+                    '(#""))))
+
+(define/page (improve)
+  (improve-common
+   (λ (name hash formula)
+     (unless (already-computed? name hash formula)
+       (thread-wait (run-improve name hash formula)))
+
+     (redirect-to (format "/demo/~a/graph.html" hash) see-other))
+   (embed/url demo)))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
-                 (xexpr->string (herbie-page #:title title body))))
+                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (go)
   (serve/servlet
@@ -137,6 +179,7 @@
    #:listen-ip #f
    #:banner? #f
    #:servlets-root (build-path demo-output-path "../..")
+   #:server-root-path (build-path demo-output-path "..")
    #:servlet-path "/demo/"
    #:extra-files-paths (list (build-path demo-output-path ".."))))
 

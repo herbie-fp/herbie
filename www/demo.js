@@ -136,7 +136,69 @@ function onload() /* null -> null */ {
 
         var lisp = dump_tree(tree);
         hidden.setAttribute("value", lisp);
+
+        var url = document.getElementById("formula").getAttribute("data-progress");
+        if (url) {
+            ajax_submit(url, txt, lisp);
+            evt.preventDefault();
+            return false;
+        } else {
+            return true;
+        }
     });
+}
+
+function clean_progress(str) {
+    var lines = str.split("\n");
+    var outlines = [];
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var words = line.split("  ");
+        var word0 = words.shift();
+        outlines.push((word0.startsWith("* * * ") ? "* " : "") + words.join("  "));
+    }
+    return outlines.join("\n");
+}
+
+function htmlescape(str) {
+    return ("" + str).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+}
+
+function get_progress(loc) {
+    var req2 = new XMLHttpRequest();
+    req2.open("GET", loc);
+    req2.onreadystatechange = function() {
+        if (req2.readyState == 4) {
+            if (req2.status == 202) {
+                document.getElementById("progress").innerHTML = htmlescape(clean_progress(req2.responseText));
+                setTimeout(function() {get_progress(loc)}, 100);
+            } else if (req2.status == 201) {
+                var loc2 = req2.getResponseHeader("Location");
+                window.location.href = loc2;
+            } else {
+                document.getElementById("errors").innerHTML = req2.responseText;
+            }
+        }
+    }
+    req2.send();
+}
+
+function ajax_submit(url, text, lisp) {
+    var req = new XMLHttpRequest();
+    req.open("POST", url);
+    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    req.onreadystatechange = function() {
+        if (req.readyState == 4) {
+            if (req.status == 201) {
+                var loc = req.getResponseHeader("Location");
+                get_progress(loc);
+            } else {
+                document.getElementById("errors").innerHTML = req.responseText;
+            }
+        }
+    }
+    var content = "formula=" + encodeURIComponent(lisp) + "&formula-math=" + encodeURIComponent(text);
+    req.send(content);
 }
 
 window.addEventListener("load", onload);
