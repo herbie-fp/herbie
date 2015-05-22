@@ -28,7 +28,7 @@
   (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (struct report-info
-  (date commit branch seed flags points iterations bit-width note tests) #:prefab)
+  (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
 
 (define (make-report-info tests #:note [note ""])
   (report-info (current-date)
@@ -71,9 +71,7 @@
           (commit . ,commit)
           (branch . ,branch)
           (seed . ,(~a seed))
-          (flags .
-                 ,(for*/list ([rec (hash->list flags)] [fl (cdr rec)])
-                    (format "~a:~a" (car rec) fl)))
+          (flags . ,(flags->list flags))
           (points . ,points)
           (iterations . ,iterations)
           (bit_width . ,bit-width)
@@ -81,6 +79,17 @@
           (tests . ,(map simplify-test tests))))]))
 
   (call-with-output-file file (curry write-json data) #:exists 'replace))
+
+(define (flags->list flags)
+  (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
+    (format "~a:~a" (car rec) fl)))
+
+(define (list->flags list)
+  (make-hash
+   (for/list ([part (multipartition
+                     (map (compose (curry map string->symbol) (curryr string-split ":")) list)
+                     car)])
+     (cons (car (first part)) (map cadr part)))))
 
 (define (read-datafile file)
   (define (parse-string s)
@@ -91,12 +100,15 @@
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
     (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (get 'seed)
-                 (get 'flags) (get 'points) (get 'iterations) (get 'bit_width)
+                 (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)])
                    (let ([get (λ (field) (hash-ref test field))])
                                         ; TODO: ignoring the result-est
                      (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref json 'end-est 0)
-                                (get 'vars) (parse-string (get 'input)) (parse-string (get 'output))
+                                (match (get 'vars)
+                                  ['#f #f]
+                                  [(list names ...) (map string->symbol names)])
+                                (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))

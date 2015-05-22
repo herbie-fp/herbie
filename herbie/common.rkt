@@ -6,10 +6,10 @@
 (require "debug.rkt")
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         enumerate take-up-to argmins list-product alist-append
+         enumerate take-up-to argmins list-product alist-append list-join
          pipe ulp-difference *bit-width* ulps->bits
 	 write-file write-string has-duplicates?
-	 symbol<? *start-prog*
+	 symbol<? *start-prog* html-escape-unsafe
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
@@ -231,3 +231,12 @@
 
 (define (log2 x)
   (/ (log x) (log 2)))
+
+(define (list-join l1 l2)
+  (match l1
+    ['() '()]
+    [(list but-last1 ... last1)
+     (append (append-map (curryr cons l2) but-last1) (list last1))]))
+
+(define (html-escape-unsafe err)
+  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))

@@ -1,6 +1,5 @@
 #lang racket
 
-(require racket/pretty)
 (require "datafile.rkt")
 (require "../common.rkt")
 (require "../points.rkt")
@@ -28,7 +27,6 @@
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
-
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
@@ -40,9 +38,42 @@
      (printf "<title>Results for ~a</title>" (test-name test))
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
      (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
-             "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+             "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
      (printf "</head>\n")
      (printf "<body>\n")
+
+     (printf "<section id='about'>\n")
+
+     (printf "<div>\\[~a\\]</div>\n"
+             (texify-expression (program-body (alt-program start-alt))))
+
+     (printf "<dl id='kv'>\n")
+     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+     (printf "</dl>\n")
+
+     (printf "<div id='graphs'>\n")
+     (for ([var (test-vars test)] [idx (in-naturals)])
+       (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
+         (lambda (out)
+           (herbie-plot
+            #:port out #:kind 'png
+            (reap [sow]
+                  (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
+                  (when target-error
+                    (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
+                  (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
+
+                  (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
+                  (when target-error
+                    (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
+                  (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
+           (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var))))
+     (printf "</div>\n")
+
+     (printf "</section>\n")
+
+     (printf "<section id='details'>\n")
 
      ; Big bold numbers
      (printf "<div id='large'>\n")
@@ -52,48 +83,20 @@
              (display-bits (errors-score start-error)))
      (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
              (display-bits (errors-score end-error)))
-     (printf "<div>Bits: <span class='number'>~a</span></div>\n"
-             bits)
-     (printf "</div>\n")
-
-     (printf "<div id='summary'>\n")
-     (printf "<div><div class='formula'>\\(~a\\)</div>Input</div>\n"
-             (texify-expression (program-body (alt-program start-alt))))
-     (printf "<div><div class='formula'>\\(~a\\)</div>Output</div>\n"
-             (texify-expression (program-body (alt-program end-alt))))
-     (printf "</div>\n")
-
-     (printf "<dl id='about'>\n")
-     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-     (printf "<dt>Logs:</dt>")
-     (printf "<dd><a href='debug.txt'>Debug output</a>")
+     ; TODO : Make icons
+     (printf "<div>Log: <a href='debug.txt' class='icon'><span style='display: block; transform: rotate(-45deg);'>&#x26b2;</span></a></div>")
      (when profile?
-       (printf ", <a href='profile.txt'>Profiling report</a>"))
-     (printf "</dd>\n")
-     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-     (printf "</dl>\n")
-
-     (printf "<div id='graphs'>\n")
-     (for ([var (test-vars test)] [idx (in-naturals)])
-       (call-with-output-file (build-path report-output-path rdir (format "plot-~a.png" idx)) #:exists 'replace
-                              (lambda (out)
-                                (herbie-plot #:port out #:kind 'png
-                                             (reap [sow]
-                                                   (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
-                                                   (when target-error
-                                                     (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
-                                                   (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
-
-                                                   (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
-                                                   (when target-error
-                                                     (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
-                                                   (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
-                                (printf "<img width='400' height='200' src='plot-~a.png' />\n" idx))))
+       (printf "<div>Profile: <a href='profile.txt' class='icon'>&#x1F552;</a></div>"))
      (printf "</div>\n")
-     
+
+     (printf "<div id='output'>\\(~a\\)</div>\n"
+             (texify-expression (program-body (alt-program end-alt))))
+
      (printf "<ol id='process-info'>\n")
      (output-history end-alt)
      (printf "</ol>\n")
+
+     (printf "</section>\n")
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -109,7 +112,7 @@
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
      (printf "</head>")
      (printf "<body>\n")
-                   
+
      (printf "<dl id='about'>\n")
      (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
      (printf "<dt>Logs:</dt>")
@@ -161,9 +164,9 @@
 
 (define (output-history altn)
   (match altn
-    [(alt-event _ 'start _)
-     (printf "<li>Started with <code><pre>~a</pre></code></li>\n"
-             (pretty-format (alt-program altn) 65))]
+    [(alt-event prog 'start _)
+     (printf "<li>Started with <div>\\[~a\\]</div></li>\n"
+             (texify-expression (program-body prog)))]
 
     [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
@@ -177,8 +180,15 @@
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [interval->string
              (λ (ival)
-                (format "~a < ~a < ~a" (interval-start-point ival)
-                        (interval-expr ival) (interval-end-point ival)))])
+               (string-join
+                (list
+                 (if (ordinary-float? (interval-start-point ival))
+                     (format "~a &lt; " (interval-start-point ival))
+                     "")
+                 (~a (interval-expr ival))
+                 (if (ordinary-float? (interval-end-point ival))
+                     (format " &lt; ~a" (interval-end-point ival))
+                     ""))))])
        (for/list ([entry prevs] [entry-idx (range (length prevs))])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
@@ -191,9 +201,9 @@
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
-     (printf "<li>Taylor expanded <code><pre>~a</pre></code>"
-             (location-get loc (alt-program prev)))
-     (printf "around ~a to get <code><pre>~a</pre></code></li>" pt (pretty-format prog 65))]
+     (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div></li>"
+             pt (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
+             (texify-expression (program-body prog) #:loc loc #:color "blue"))]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)
@@ -214,11 +224,9 @@
      (output-history prev)
      (printf "<li>Applied <span class='rule'>~a</span> "
              (rule-name (change-rule cng)))
-     (printf "to get <code><pre>~a</pre></code></li>\n"
-             (pretty-format prog 65))]))
-
-(define (html-escape-unsafe err)
-  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
+     (printf "to get <div>\\[~a \\leadsto ~a\\]</div></li>\n"
+             (texify-expression (program-body (alt-program prev)) #:loc (change-location cng) #:color "red")
+             (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue"))]))
 
 (define (srcloc->string sl)
   (if sl

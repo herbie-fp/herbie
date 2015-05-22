@@ -67,8 +67,7 @@
 
        ; Scripts: the report script, MathJax, D3, and graph-drawing code
        (printf "<script src='report.js'></script>\n")
-       (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
-               "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+       (printf "<script src='~a'></script>" mathjax-url)
        (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
        (printf "<script type='text/javascript' src='graph.js'></script>\n")
        (printf "</head>\n")
@@ -102,7 +101,7 @@
        (for ([(result id) (in-pairs sorted-tests)])
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
-                 (table-row-name result)
+                 (html-escape-unsafe (table-row-name result))
                  (display-bits (table-row-start result))
                  (display-bits (table-row-result result))
                  id
@@ -136,10 +135,10 @@
        (printf "</div>\n")
 
        (printf "<tbody>")
-       (for ([result tests])
+       (for ([result tests] [id (in-naturals)])
          (printf "<tr class='~a'>" (table-row-status result))
 
-         (printf "<td>~a</td>" (or (table-row-name result) ""))
+         (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
          (printf "<td>~a</td>" (display-bits (table-row-start result)))
 
          (if (and (table-row-result result) (table-row-result-est result)
@@ -157,7 +156,7 @@
                    (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
          (printf "<td>~a</td>" (format-time (table-row-time result)))
          (if (table-row-link result)
-           (printf "<td><a href='~a/graph.html'>more</a></td>" (table-row-link result))
+           (printf "<td><a id='link~a' href='~a/graph.html'>more</a></td>" id (table-row-link result))
            (printf "<td></td>"))
          (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result)) ""))
          (printf "</tr>\n"))

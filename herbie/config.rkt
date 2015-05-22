@@ -4,6 +4,7 @@
 (provide (all-defined-out))
 
 (define-runtime-path report-output-path "../graphs/")
+(define-runtime-path demo-output-path "../www/demo/")
 (define-runtime-path benchmark-path "../bench/")
 
 ;; Flag Stuff
