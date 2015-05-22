@@ -12,6 +12,7 @@
     (make-directory demo-output-path))
 
   (response/xexpr
+   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
    (herbie-page
     #:title "Herbie web demo"
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
@@ -21,6 +22,13 @@
            (input ([name "formula"] [autofocus "true"] [placeholder "(lambda (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (ul ([id "errors"]))
            (pre ([id "progress"])))
+
+    `(p "To handle the high volume of requests, web demo requests are queued; "
+        "there are currently " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue. "
+        "Web demo requests may also time out and cap the number of improvement iterations. "
+        "To avoid these limitations, " (a ([href "/installing.html"]) "install Herbie")
+        " on your own computer.")
+
     `(p ([id "lisp-instructions"])
         "Please enter formulas as Scheme expressions with a top-level " (code "lambda") " form, "
         "using only the following supported functions:")
@@ -64,11 +72,14 @@
       (p "See " (a ([href "/"]) "the main page") " for more info on Herbie."))
      ,@body)))
 
-(define (run-improve name hash formula)
-  (printf "Job ~a started for ~a\n" hash name)
-  (define job
-    (thread
-     (λ ()
+(define *jobs* (make-hash))
+
+(define *worker-thread*
+  (thread
+   (λ ()
+     (let loop ()
+       (match-define (list name hash formula sema) (thread-receive))
+       (printf "Job ~a started for ~a\n" hash name)
        (define dir (build-path demo-output-path hash))
        (make-directory dir)
        (match-define (list (or 'λ 'lambda) vars body) formula)
@@ -89,7 +100,7 @@
 
        (define data (get-table-data result))
 
-     ; Save new report data
+       ; Save new report data
        (define info
          (if (file-exists? (build-path demo-output-path "results.json"))
              (let ([info (read-datafile (build-path demo-output-path "results.json"))])
@@ -100,9 +111,15 @@
        (make-report-page (build-path demo-output-path "report.html") info)
 
        (printf "Job ~a complete for ~a\n" hash name)
-       (hash-remove! *jobs* hash))))
-  (hash-set! *jobs* hash job)
-  job)
+       (hash-remove! *jobs* hash)
+       (semaphore-post sema)
+       (loop)))))
+
+(define (run-improve name hash formula)
+  (hash-set! *jobs* hash #t)
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list name hash formula sema))
+  sema)
 
 (define (already-computed? name hash formula)
   (and (not (hash-has-key? *jobs* hash))
@@ -139,26 +156,29 @@
      (unless (already-computed? name hash formula)
        (run-improve name hash formula))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash)))))
+                    (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '(#"")))
    (embed/url demo)))
 
 (define/page (check-status hash)
   (if (hash-has-key? *jobs* hash)
-      (response 202 #"Job in progress" (current-seconds) #"text/plain" '()
+      (response 202 #"Job in progress" (current-seconds) #"text/plain"
+                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                 (λ (out)
                   (when (file-exists? (build-path demo-output-path hash "debug.txt"))
                     (call-with-input-file (build-path demo-output-path hash "debug.txt")
                       (λ (in) (copy-port in out))))))
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash))))
-                    '(#""))))
+                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                    '())))
 
 (define/page (improve)
   (improve-common
    (λ (name hash formula)
      (unless (already-computed? name hash formula)
-       (thread-wait (run-improve name hash formula)))
+       (semaphore-wait (run-improve name hash formula)))
 
      (redirect-to (format "/demo/~a/graph.html" hash) see-other))
    (embed/url demo)))
