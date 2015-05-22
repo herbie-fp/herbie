@@ -139,6 +139,7 @@ function onload() /* null -> null */ {
 
         var url = document.getElementById("formula").getAttribute("data-progress");
         if (url) {
+            input.disabled = "true";
             ajax_submit(url, txt, lisp);
             evt.preventDefault();
             return false;
