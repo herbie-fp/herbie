@@ -33,7 +33,7 @@ function tree_errors(tree) /* tree -> list */ {
             if (!FUNCTIONS[node.op]) {
                 messages.push("Operator <code>" + node.op + "</code> unsupported.");
             } else if (FUNCTIONS[node.op].indexOf(node.args.length) === -1) {
-                messages.push("Function <code>" + node.name + "</code> expects " +
+                messages.push("Operator <code>" + node.op + "</code> expects " +
                               FUNCTIONS[node.op].join(" or ") + " arguments");
             }
             break;
