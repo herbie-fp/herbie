@@ -5,7 +5,7 @@
 (require "common.rkt")
 
 (provide *operations* predicates constants constant? variable?
-         mode:bf mode:fl ->bf ->flonum
+         mode:bf mode:fl mode:args mode:cost ->bf ->flonum
          common-eval-ns common-eval
          program-body program-variables)
 
