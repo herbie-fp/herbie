@@ -59,40 +59,40 @@
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
-  [+        bf+       +         1]
-  [-        bf-       -         1]
-  [*        bf*       *         1]
-  [/        bf/       /         1]
-  [sqrt     bfsqrt    csqrt     1]
-  [sqr      bfsqr     sqr       1]
-  [exp      bfexp     exp     270]
-  [expt     bfexpt    cexpt   640]
-  [log      bflog     clog    300]
-  [sin      bfsin     sin     145]
-  [cos      bfcos     cos     185]
-  [tan      bftan     tan     160]
-  [cotan    bfcot     cotan   160]
-  [asin     bfasin    casin   140]
-  [acos     bfacos    cacos   155]
-  [atan     bfatan    atan    130]
-  [sinh     bfsinh    csinh   300]
-  [cosh     bfcosh    cosh    300]
-  [tanh     bftanh    ctanh   300]
-  [atan2    bfatan2   atan    230]
-  [abs      bfabs     abs       1]
-  [mod      bfmod     cmod      1]
-  [expm1    bfexpm1   flexpm1 666] ; TODO : cost made up
-  [log1p    bflog1p   fllog1p 666] ; TODO : cost made up
-  [hypot    bfhypot   flhypot 666] ; TODO : cost made up
+  [+        '(2)      bf+       +         1]
+  [-        '(1 2)    bf-       -         1]
+  [*        '(2)      bf*       *         1]
+  [/        '(2)      bf/       /         1]
+  [sqrt     '(1)      bfsqrt    csqrt     1]
+  [sqr      '(1)      bfsqr     sqr       1]
+  [exp      '(1)      bfexp     exp     270]
+  [expt     '(2)      bfexpt    cexpt   640]
+  [log      '(1)      bflog     clog    300]
+  [sin      '(1)      bfsin     sin     145]
+  [cos      '(1)      bfcos     cos     185]
+  [tan      '(1)      bftan     tan     160]
+  [cotan    '(1)      bfcot     cotan   160]
+  [asin     '(1)      bfasin    casin   140]
+  [acos     '(1)      bfacos    cacos   155]
+  [atan     '(1)      bfatan    atan    130]
+  [sinh     '(1)      bfsinh    csinh   300]
+  [cosh     '(1)      bfcosh    cosh    300]
+  [tanh     '(1)      bftanh    ctanh   300]
+  [atan2    '(2)      bfatan2   atan    230]
+  [abs      '(1)      bfabs     abs       1]
+  [mod      '(2)      bfmod     cmod      1]
+  [expm1    '(1)      bfexpm1   flexpm1 666] ; TODO : cost made up
+  [log1p    '(1)      bflog1p   fllog1p 666] ; TODO : cost made up
+  [hypot    '(2)      bfhypot   flhypot 666] ; TODO : cost made up
   ; TODO : These are different and should be treated differently
-  [if       if-fn     if-fn     1]
-  [=        bf=       =         1]
-  [>        bf>       >         1]
-  [<        bf<       <         1]
-  [<=       bf<=      <=        1]
-  [>=       bf>=      >=        1]
-  [and      and-fn    and-fn    1]
-  [or       or-fn     or-fn     1])
+  [if       '(3)      if-fn     if-fn     1]
+  [=        '(2)      bf=       =         1]
+  [>        '(2)      bf>       >         1]
+  [<        '(2)      bf<       <         1]
+  [<=       '(2)      bf<=      <=        1]
+  [>=       '(2)      bf>=      >=        1]
+  [and      '(2)      and-fn    and-fn    1]
+  [or       '(2)      or-fn     or-fn     1])
 
 (define *operations* (make-parameter operations))
 
@@ -100,8 +100,10 @@
 
 (define predicates '(or and < > <= >= =))
 
-(define mode:bf 0)
-(define mode:fl 1)
+(define mode:args 0)
+(define mode:bf 1)
+(define mode:fl 2)
+(define mode:cost 3)
 
 (define (variable? var)
   (and (symbol? var) (not (member var constants))))

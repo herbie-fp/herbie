@@ -1,11 +1,11 @@
 CONSTANTS = ["pi", "e"]
-FUNCTIONS = [
-    "+", "-", "*", "/", "abs",
-    "sqrt", "sqr", "exp", "log", "expt",
-    "sin", "cos", "tan", "cot",
-    "asin", "acos", "atan",
-    "sinh", "cosh", "tanh"
-]
+FUNCTIONS = {
+    "+": [1], "-": [1, 2], "*": [2], "/": [2], "abs": [1],
+    "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "expt": [2],
+    "sin": [1], "cos": [1], "tan": [1], "cot": [1],
+    "asin": [1], "acos": [1], "atan": [1],
+    "sinh": [1], "cosh": [1], "tanh": [1]
+}
 
 SECRETFUNCTIONS = {"pow": "expt", "^": "expt", "**": "expt"}
 
@@ -21,13 +21,19 @@ function tree_errors(tree) /* tree -> list */ {
             break;
         case "FunctionNode":
             node.name = SECRETFUNCTIONS[node.name] || node.name;
-            if (FUNCTIONS.indexOf(node.name) === -1)
+            if (!FUNCTIONS[node.name])
                 messages.push("Function <code>" + node.name + "</code> unsupported.");
+            if (FUNCTIONS[node.name].indexOf(node.args.length) === -1)
+                messages.push("Function <code>" + node.name + "</code> expects " +
+                              FUNCTIONS[node.name].join(" or ") + " arguments");
             break;
         case "OperatorNode":
             node.op = SECRETFUNCTIONS[node.op] || node.op;
-            if (FUNCTIONS.indexOf(node.op) === -1)
+            if (!FUNCTIONS[node.op])
                 messages.push("Operator <code>" + node.op + "</code> unsupported.");
+            if (FUNCTIONS[node.name].indexOf(node.args.length) === -1)
+                messages.push("Function <code>" + node.name + "</code> expects " +
+                              FUNCTIONS[node.name].join(" or ") + " arguments");
             break;
         case "SymbolNode":
             if (CONSTANTS.indexOf(node.name) === -1)

@@ -104,7 +104,8 @@
       [(? variable?) (member expr vars)]
       [`(,f ,args ...)
        (and (andmap (curryr valid-expression? vars) args)
-            (hash-has-key? (*operations*) f))]
+            (hash-has-key? (*operations*) f)
+            (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
       [_ #f]))
   (match prog
     [(list (or 'λ 'lambda) vars body)
@@ -196,7 +197,7 @@
   (for/sum ([step (second (compile expr))])
     (if (list? (second step))
         (let ([fn (caadr step)])
-          (list-ref (hash-ref (*operations*) fn) 2))
+          (list-ref (hash-ref (*operations*) fn) mode:cost))
         1)))
 
 (define (replace-subexpr prog needle needle*)
