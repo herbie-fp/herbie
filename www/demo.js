@@ -32,7 +32,7 @@ function tree_errors(tree) /* tree -> list */ {
             node.op = SECRETFUNCTIONS[node.op] || node.op;
             if (!FUNCTIONS[node.op]) {
                 messages.push("Operator <code>" + node.op + "</code> unsupported.");
-            } else if (FUNCTIONS[node.name].indexOf(node.args.length) === -1) {
+            } else if (FUNCTIONS[node.op].indexOf(node.args.length) === -1) {
                 messages.push("Function <code>" + node.name + "</code> expects " +
                               FUNCTIONS[node.name].join(" or ") + " arguments");
             }
