@@ -3,7 +3,7 @@
 (require "../common.rkt")
 (require "../syntax.rkt")
 
-(provide texify-expression mathjax-url)
+(provide texify-expression mathjax-url texify-operators texify-constants apply-converter)
 
 (define mathjax-url "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
