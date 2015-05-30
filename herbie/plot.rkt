@@ -121,11 +121,12 @@
              (for/list ([i (in-range idx-min (+ idx-min bin-size))]) (vector-ref errs i))])
            <)))))
 
-(define (error-avg errs pts #:axis [axis 0] #:color [color *blue-theme*] #:bin-size [bin-size 128])
+(define (error-avg errs pts #:axis [axis 0] #:vars [vars '()]
+                   #:color [color *blue-theme*] #:bin-size [bin-size 128])
   (define get-coord
     (if (number? axis)
         (curryr list-ref axis)
-        (eval-prog axis mode:fl)))
+        (eval-prog `(λ ,vars ,axis) mode:fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
