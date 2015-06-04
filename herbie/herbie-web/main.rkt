@@ -30,7 +30,7 @@
     (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog samplers)))
     (parameterize ([*pcontext* pcontext] [*analyze-context* pcontext])
       (define alt (simplify-alt (make-alt prog)))
-      (define locs (localize-error (alt-program alt)))
+      (define locs (take (localize-error (alt-program alt)) 2))
       ;; The axis finding procedure is stochastic, and is a lot more
       ;; reliable if you use the full point set.
       (define axis (find-best-axis alt pcontext-extended))
