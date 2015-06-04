@@ -10,7 +10,8 @@
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
-         free-variables replace-expression valid-program?)
+         free-variables replace-expression valid-program?
+         eval-exact)
 
 (define (location-induct
 	 prog
@@ -164,6 +165,15 @@
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
+
+;; Does the same thing as the above with mode:bf, but doesn't convert
+;; the results back to floats.
+(define (eval-exact prog)
+  (let* ([prog* (program-induct prog #:constant ->bf #:symbol real-op->bigfloat-op)]
+         [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
+         [fn (eval prog-opt common-eval-ns)])
+    (λ (pts)
+      (apply fn (map ->bf pts)))))
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common
