@@ -7,7 +7,9 @@
 (provide *operations* predicates constants constant? variable?
          mode:bf mode:fl mode:args mode:cost ->bf ->flonum
          common-eval-ns common-eval
-         program-body program-variables)
+         program-body program-variables
+         real-op->bigfloat-op
+         real-op->float-op)
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -139,3 +141,5 @@
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
+(define (real-op->bigfloat-op op) (list-ref (hash-ref (*operations*) op) mode:bf))
+(define (real-op->float-op op) (list-ref (hash-ref (*operations*) op) mode:fl))
