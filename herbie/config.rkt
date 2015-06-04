@@ -5,6 +5,7 @@
 
 (define-runtime-path report-output-path "../graphs/")
 (define-runtime-path demo-output-path "../www/demo/")
+(define-runtime-path viz-output-path "../www/viz/")
 (define-runtime-path benchmark-path "../bench/")
 
 ;; Flag Stuff
