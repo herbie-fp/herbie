@@ -31,7 +31,9 @@
     (parameterize ([*pcontext* pcontext] [*analyze-context* pcontext])
       (define alt (simplify-alt (make-alt prog)))
       (define locs (localize-error (alt-program alt)))
-      (define axis (find-best-axis alt))
+      ;; The axis finding procedure is stochastic, and is a lot more
+      ;; reliable if you use the full point set.
+      (define axis (find-best-axis alt pcontext-extended))
       (define session-data (sdat (list alt) pcontext pcontext-extended '() locs 0 alt axis))
       (define response
 	(hash

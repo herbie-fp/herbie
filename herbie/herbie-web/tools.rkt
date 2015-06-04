@@ -1,6 +1,11 @@
 #lang racket
 
 ;; ================== Dependencies ===================
+
+;; For converting floating point numbers into their ordinal
+;; representation, for clustering.
+(require math/flonum)
+
 (require "../alternative.rkt")
 (require "../programs.rkt")
 (require "../matcher.rkt")
@@ -16,8 +21,29 @@
 (provide find-best-axis texify-formula make-ranges graph-error
          expand-at-loc make-steps make-combo)
 
+;; ================== Parameters ======================
+
+;; How many clusters to attempt to cluster points into to determine
+;; which axis is best.
+(define *num-clusters* (make-parameter 5))
+;; The number of trials of k-means scoring to use.
+(define *num-scores* (make-parameter 3))
+
 ;; Find the axis that best portrays the error behavior
-(define (find-best-axis alt) (car (program-variables (alt-program alt))))
+(define (find-best-axis alt pcontext)
+  (let ([bad-points (for/list ([(p ex) (in-pcontext pcontext)]
+                               [e (parameterize ([*pcontext* pcontext])
+                                    (alt-errors alt))]
+                               #:when (> e (expt 2 10)))
+                      p)]
+        [vars (program-variables (alt-program alt))])
+    (list-ref vars
+              (argmax (λ (pidx)
+                        ;; Rank the variables by how relevant they are to the error.
+                        (cluster-rank (map (compose flonum->ordinal
+                                                    (curryr list-ref pidx))
+                                           bad-points)))
+                      (build-list (length vars) identity)))))
 ;; Generate the tex for the given prog, with the given locations
 ;; highlighted and given MathJax ID's
 (define (texify-formula prog [locs '()])
@@ -80,3 +106,25 @@
 (define (general-filter alts) alts)
 (define (taylor-filter alts) alts)
 (define (rewrite-filter alts) alts)
+
+;; Ranks a set of numbers by how well they group into clusters.
+(define (cluster-rank xs)
+  (for/sum ([idx (in-range (*num-scores*))])
+    (k-means-score xs (*num-clusters*))))
+;; Scores how well the given numbers can be clustered into
+;; num-clusters clusters using k-means.
+(define (k-means-score xs num-clusters)
+  (let ([initial-means
+         (for/list ([idx (in-range num-clusters)])
+           (list-ref xs (random (length xs))))])
+    (let loop ([means initial-means])
+      (let* ([clustered-samples
+              (for/list ([x xs])
+                (cons x (argmin (λ (mean) (abs (- mean x))) means)))]
+             [means* (for/list ([mean means])
+                       (let ([cluster-xs (filter (compose (curry equal? mean) cdr) clustered-samples)])
+                         (round (/ (apply + (map car cluster-xs)) (length cluster-xs)))))])
+        (if (equal? means* means)
+            (exact->inexact (/ (apply + (for/list ([sample clustered-samples])
+                                          (sqr (- (car sample) (cdr sample)))))))
+            (loop means*))))))
