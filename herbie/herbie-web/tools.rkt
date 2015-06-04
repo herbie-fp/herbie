@@ -14,6 +14,7 @@
 (require "../points.rkt")
 (require "../common.rkt")
 (require "../main.rkt")
+(require "../syntax.rkt")
 (require "../compile/tex.rkt")
 
 ;; ================== Interface =======================
@@ -28,6 +29,7 @@
 (define *num-clusters* (make-parameter 5))
 ;; The number of trials of k-means scoring to use.
 (define *num-scores* (make-parameter 3))
+(define *bin-distance* (make-parameter 4))
 
 ;; Find the axis that best portrays the error behavior
 (define (find-best-axis alt pcontext)
@@ -40,6 +42,7 @@
     (list-ref vars
               (argmax (λ (pidx)
                         ;; Rank the variables by how relevant they are to the error.
+                        ;; Higher is more relevant.
                         (cluster-rank (map (compose flonum->ordinal
                                                     (curryr list-ref pidx))
                                            bad-points)))
@@ -54,7 +57,39 @@
 ;; Given a context and an alt and some locations, identify which
 ;; ranges of error coorespond to which locations along the given axis,
 ;; and generate list of hash table objects for them.
-(define (make-ranges context alt locs axis) '())
+(define (make-ranges context alt locs axis)
+  (let* ([prog (alt-program alt)]
+         [vars (program-variables prog)]
+         [axis-idx (if (number? axis) axis
+                       (lookup-idx axis vars))]
+         [pts (for/list ([(p e) (in-pcontext context)]) p)]
+         [getpt (curryr list-ref axis-idx)]
+         [min-x (apply min (map getpt pts))]
+         [max-x (apply max (map getpt pts))])
+    (define (get-ranges loc)
+      (let* ([subexpr (location-get loc prog)]
+             [local-errors 
+              (for/list ([p (in-list pts)]
+                         [global-err (parameterize ([*pcontext* context])
+                                       (alt-errors alt))])
+                (let* ([exact-args (for/list ([arg (in-list (cdr subexpr))])
+                                     ((eval-exact `(λ ,vars ,arg)) p))]
+                       [f-exact (real-op->bigfloat-op (car subexpr))]
+                       [f-approx (real-op->float-op (car subexpr))]
+                       [exact (->flonum (apply f-exact exact-args))]
+                       [approx (apply f-approx (map ->flonum exact-args))]
+                       [local-err (add1 (abs (ulp-difference exact approx)))])
+                  local-err))])
+        (get-clusters axis-idx pts local-errors)))
+    (apply append
+           (for/list ([loc locs]
+                      [loc-id (in-naturals)])
+             (for/list ([range (get-ranges loc)])
+               (hash
+                "start" (coord->image-ratio (car range) min-x max-x)
+                "end" (coord->image-ratio (cdr range) min-x max-x)
+                "locid" loc-id))))))
+                  
 ;; Draw the graph of average error using the given points for the
 ;; given alt, along the given axis. If combo is given draw it also on
 ;; the same graph in a different color.
@@ -102,6 +137,11 @@
 
 ;; =============== Lower level helper functions =============
 
+(define (lookup-idx item lst)
+  (for/first ([i lst] [idx (in-naturals)]
+              #:when (equal? item i))
+    idx))
+
 ;; Filter children
 (define (general-filter alts)
   (take (sort alts > #:key errors-score) 3))
@@ -129,3 +169,64 @@
             (exact->inexact (/ (apply + (for/list ([sample clustered-samples])
                                           (sqr (- (car sample) (cdr sample)))))))
             (loop means*))))))
+
+(define (coord->image-ratio coord min-x max-x)
+  (let ([ord-min (flonum->ordinal min-x)]
+        [ord-max (flonum->ordinal max-x)]
+        [ord-coord (flonum->ordinal coord)])
+    (exact->inexact (/ (- ord-coord ord-min) (- ord-max ord-min)))))
+
+;; Takes an axis, some points, and some value for each of those
+;; points, and attempts to break the points into clusters which
+;; represent the higher ys, returning pairs of min and maxs for each
+;; cluster.
+(define (get-clusters axis pts ys)
+  (define curve-pow 5)
+  (define (bin vec idx)
+    (expt (exact->inexact
+           (/ (cond
+               ;; Handle the ends of the array in a halfway decent way
+               [(< idx (*bin-distance*))
+                (+ (* (add1 (*bin-distance*)) (vector-ref vec idx))
+                   (for/sum ([i (in-range (*bin-distance*))])
+                     (expt (vector-ref vec (+ idx (add1 i))) (/ curve-pow))))]
+               [(>= (+ idx (*bin-distance*)) (vector-length vec))
+                (+ (* (add1 (*bin-distance*)) (vector-ref vec idx))
+                   (for/sum ([i (in-range (*bin-distance*))])
+                     (expt (vector-ref vec (- idx (add1 i))) (/ curve-pow))))]
+               [#t
+                (for/sum ([i (in-range (- idx (*bin-distance*)) (+ idx (*bin-distance*)))])
+                  (expt (vector-ref vec i) (/ curve-pow)))])
+              (add1 (* 2 (*bin-distance*)))))
+          curve-pow))
+  (let* ([sorted-pairs (sort (map cons (map (curryr list-ref axis) pts) ys) < #:key car)]
+         [xs (list->vector (map car sorted-pairs))]
+         ;; Shadowing the old definition so we don't accidentally use
+         ;; the unsorted ones.
+         [ys (list->vector (map cdr sorted-pairs))]
+         [binned-ys (for/vector ([idx (in-range (vector-length ys))]) (bin ys idx))]
+         [picked-threshold (exact->inexact (/ (for/sum ([y ys]) y) (vector-length ys)))]
+         [included-threshold (/ picked-threshold 100)])
+    (let loop ([cur-ys binned-ys] [clusters-found '()])
+      (let ([picked (car (argmax cdr (for/list ([idx (in-range (vector-length ys))]
+                                                [y (in-vector cur-ys)])
+                                       (cons idx y))))])
+        (if ((vector-ref cur-ys picked) . < . picked-threshold) clusters-found
+            (let* ([cluster-range
+                    (cons (or (for/first ([idx (in-range picked -1 -1)]
+                                          #:when ((vector-ref cur-ys idx) . < . included-threshold))
+                                idx)
+                              0)
+                          (or (for/first ([idx (in-range picked (vector-length cur-ys))]
+                                          #:when ((vector-ref cur-ys idx) . < . included-threshold))
+                                idx)
+                              (sub1 (vector-length cur-ys))))]
+                   ;; Take out the items in this cluster from consideration.
+                   [cur-ys* (for/vector ([y cur-ys] [idx (in-naturals)])
+                              (if (and ((car cluster-range) . <= . idx)
+                                       (idx . <= . (cdr cluster-range)))
+                                  0 y))])
+              (loop cur-ys*
+                    (cons (cons (vector-ref xs (car cluster-range))
+                                (vector-ref xs (cdr cluster-range)))
+                          clusters-found))))))))
