@@ -6,6 +6,7 @@
 (require "thread-pool.rkt" "datafile.rkt" "make-graph.rkt" "make-report.rkt")
 (require "../compile/tex.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../test.rkt")
+(require "../web-common.rkt")
 
 (define/page (demo)
   (when (not (directory-exists? demo-output-path))
@@ -56,21 +57,6 @@
         "and made publicly accessible. See what formulas other users submitted "
         (a ([href "./report.html"]) "here") ".")
     )))
-
-(define (herbie-page #:title title #:scripts [scripts '()] . body)
-  `(html
-    (head
-     (meta ([charset "utf-8"]))
-     (title ,title)
-     ,@(for/list ([script scripts])
-         `(script ([src ,script] [type "text/javascript"])))
-     (link ([rel "stylesheet"] [type "text/css"] [href "/main.css"])))
-    (body
-     (header
-      (img ([class "logo"] [src "/logo.png"]))
-      (h1 ,title)
-      (p "See " (a ([href "/"]) "the main page") " for more info on Herbie."))
-     ,@body)))
 
 (define *jobs* (make-hash))
 
