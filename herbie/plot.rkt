@@ -46,13 +46,13 @@
   (parameterize ([plot-width 400] [plot-height 200]
                  [plot-x-transform double-axis]
                  [plot-x-ticks double-ticks]
-                 [plot-x-tick-label-anchor 'top-right]
+                 [plot-x-tick-label-anchor 'top]
                  [plot-x-tick-label-angle 45]
                  [plot-x-label #f]
                  [plot-x-far-axis? #f]
                  [plot-y-far-axis? #f]
                  [plot-y-axis? #f]
-                 [plot-font-size 10]
+                 [plot-font-size 8]
                  [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
                  [plot-y-label title])
     (thunk)))
