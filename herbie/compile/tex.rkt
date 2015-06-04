@@ -17,44 +17,118 @@
   [gamma "\\gamma"]
   [lambda "\\lambda"])
 
-(define (apply-converter conv args)
+(define (apply-converter conv args [idx #f])
   (cond
    [(string? conv) (apply format conv args)]
-   [(list? conv) (apply format (list-ref conv (length args)) args)]
-   [(procedure? conv) (apply conv args)]
+   [(list? conv) (apply-converter (list-ref conv (length args)) args idx)]
+   [(procedure? conv) (apply conv (if idx (cons idx args) args))]
    [else (error "Unknown syntax entry" conv)]))
 
+(define (tag str idx)
+  (format "\\class{location}{\\cssId{~a}{\\color{red}{\\enclose{circle}{~a}}}}" idx str))
+(define (untag str)
+  (format "\\color{black}{~a}" str))
+
+(define (tag-inner-untag str idx . args)
+  (tag (apply format str (map untag args)) idx))
+(define (tag-infix op idx arg1 arg2)
+  (format "~a ~a ~a" arg1 (tag op idx) arg2))
+
 (define-table texify-operators
-  [+        '(#f "+~a" "~a + ~a") '+ '+]
-  [-        '(#f "-~a" "~a - ~a") '+ '+]
-  [*        "~a \\cdot ~a" '* '*]
-  [/        '(#f "\\frac1{~a}" "\\frac{~a}{~a}") #f #t]
-  [abs      "\\left|~a\\right|" #f #t]
-  [sqrt     "\\sqrt{~a}" #f #t]
-  [sqr      "{~a}^2" #f #f]
-  [exp      "e^{~a}" #f #t]
-  [expt     "{~a}^{~a}" #f #f]
-  [log      "\\log ~a" 'fn #f]
-  [sin      "\\sin ~a" 'fn #f]
-  [cos      "\\cos ~a" 'fn #f]
-  [tan      "\\tan ~a" 'fn #f]
-  [cotan    "\\cot ~a" 'fn #f]
-  [asin     "\\sin^{-1} ~a" 'fn #f]
-  [acos     "\\cos^{-1} ~a" 'fn #f]
-  [atan     "\\tan^{-1} ~a" 'fn #f]
-  [sinh     "\\sinh ~a" 'fn #f]
-  [cosh     "\\cosh ~a" 'fn #f]
-  [tanh     "\\tanh ~a" 'fn #f]
-  [atan2    "\\tan^{-1}_* \\frac{~a}{~a}" 'fn #t]
-  [if       "~a ? ~a : ~a" #t #t]
-  [=        "~a = ~a" #f #t]
-  [>        "~a \\gt ~a" #f #t]
-  [<        "~a \\lt ~a" #f #t]
-  [<=       "~a \\le ~a" #f #t]
-  [>=       "~a \\ge ~a" #f #t]
-  [and      "~a \\land ~a" '* '*]
-  [or       "~a \\lor ~a" '+ '+]
-  [mod      "~a \\modb ~a" #t #f])
+  [+        '(#f "+~a" "~a + ~a")
+            `(#f ,(λ (idx a) (format "~a~a" (tag "+" idx) a))
+                 ,(curry tag-infix "+"))
+            '+ '+]
+  [-        '(#f "-~a" "~a - ~a")
+            `(#f ,(λ (idx a) (format "~a~a" (tag "-" idx) a))
+                 ,(curry tag-infix "-"))
+            '+ '+]
+  [*        "~a \\cdot ~a"
+            (curry tag-infix "\\cdot")
+            '* '*]
+  [/        '(#f "\\frac1{~a}" "\\frac{~a}{~a}")
+            `(#f ,(curry tag-inner-untag "\\frac1{~a}")
+                 ,(curry tag-inner-untag "\\frac{~a}{~a}"))
+            #f #t]
+  [abs      "\\left|~a\\right|"
+            (curry tag-inner-untag "\\left|~a\\right|")
+            #f #t]
+  [sqrt     "\\sqrt{~a}"
+            (curry tag-inner-untag "\\sqrt{~a}")
+            #f #t]
+  [sqr      "{~a}^2"
+            (λ (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
+            #f #f]
+  [exp      "e^{~a}"
+            (curry tag-inner-untag "e^{~a}")
+            #f #t]
+  [expt     "{~a}^{~a}"
+            (curry tag-inner-untag "{~a}^{~a}")
+            #f #f]
+  [log      "\\log ~a"
+            (curry tag-inner-untag "\\log ~a")
+            'fn #f]
+  [sin      "\\sin ~a"
+            (curry tag-inner-untag "\\sin ~a")
+            'fn #f]
+  [cos      "\\cos ~a"
+            (curry tag-inner-untag "\\cos ~a")
+            'fn #f]
+  [tan      "\\tan ~a"
+            (curry tag-inner-untag "\\tan ~a")
+            'fn #f]
+  [cotan    "\\cot ~a"
+            (curry tag-inner-untag "\\cot ~a")
+            'fn #f]
+  [asin     "\\sin^{-1} ~a"
+            (curry tag-inner-untag "\\sin^{-1} ~a")
+            'fn #f]
+  [acos     "\\cos^{-1} ~a"
+            (curry tag-inner-untag "\\cos^{-1} ~a")
+            'fn #f]
+  [atan     "\\tan^{-1} ~a"
+            (curry tag-inner-untag "\\tan^{-1} ~a")
+            'fn #f]
+  [sinh     "\\sinh ~a"
+            (curry tag-inner-untag "\\sinh ~a")
+            'fn #f]
+  [cosh     "\\cosh ~a" 
+            (curry tag-inner-untag "\\cosh ~a")
+            'fn #f]
+  [tanh     "\\tanh ~a"
+            (curry tag-inner-untag "\\tanh ~a")
+            'fn #f]
+  [atan2    "\\tan^{-1}_* \\frac{~a}{~a}"
+            (curry tag-inner-untag "\\tan^{-1}_* \\frac{~a}{~a}")
+            'fn #t]
+  [if       "~a ? ~a : ~a"
+            (λ (idx a b c)
+              (format "~a ~a ~a : ~a" a (tag "?" idx) b c))
+            #t #t]
+  [=        "~a = ~a"
+            (curry tag-infix "=")
+            #f #t]
+  [>        "~a \\gt ~a"
+            (curry tag-infix "\\gt")
+            #f #t]
+  [<        "~a \\lt ~a"
+            (curry tag-infix "\\lt")
+            #f #t]
+  [<=       "~a \\le ~a"
+            (curry tag-infix "\\le")
+            #f #t]
+  [>=       "~a \\ge ~a"
+            (curry tag-infix "\\ge")
+            #f #t]
+  [and      "~a \\land ~a"
+            (curry tag-infix "\\land")
+            '* '*]
+  [or       "~a \\lor ~a"
+            (curry tag-infix "\\lor")
+            '+ '+]
+  [mod      "~a \\modb ~a"
+            (curry tag-infix "\\modb")
+            #t #f])
 
 (define parens-precedence '(#t + * fn #f))
 
@@ -73,7 +147,11 @@
     [else
      (list (list #t expr loc))]))
 
-(define (texify-expression expr #:loc [color-loc #f] #:color [color "red"])
+;; The highlight ops are an alist of locations to indexes that marks
+;; those locations as highlighted with the given location
+;; index. highlight-ops and loc/colors are not meant to be used
+;; simultaniously.
+(define (texify-expression expr #:loc [color-loc #f] #:color [color "red"] #:highlight-ops [highlight-locs '()])
   "Compile an expression to TeX code.
    The TeX is intended to be used in math mode.
 
@@ -111,11 +189,16 @@
                   " \\\\ "))]
         [`(,f ,args ...)
          (let* ([template (list-ref (hash-ref texify-operators f) 0)]
-                [self-paren-level (list-ref (hash-ref texify-operators f) 1)]
-                [arg-paren-level (list-ref (hash-ref texify-operators f) 2)]
+                [highlight-template
+                 (list-ref (hash-ref texify-operators f) 1)]
+                [self-paren-level (list-ref (hash-ref texify-operators f) 2)]
+                [arg-paren-level (list-ref (hash-ref texify-operators f) 3)]
                 [args* (for/list ([arg args] [id (in-naturals 1)])
                          (texify arg arg-paren-level (cons id loc)))]
-                [result (apply-converter template args*)]
+                [loc? (assoc (reverse loc) highlight-locs)]
+                [result (if loc?
+                            (apply-converter highlight-template args* (cdr loc?))
+                            (apply-converter template args*))]
                 [paren-result
                  (if (parens-< parens self-paren-level)
                      result

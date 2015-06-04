@@ -21,13 +21,10 @@
 ;; Generate the tex for the given prog, with the given locations
 ;; highlighted and given MathJax ID's
 (define (texify-formula prog [locs '()])
-  (let texify ([cur-loc '(2)] [cur-expr (program-body prog)])
-    (if (list? cur-expr)
-        (let ([subforms (for/list ([subexpr (cdr cur-expr)] [idx (in-naturals)])
-                          (texify (cons idx cur-loc) subexpr))])
-          (format "\left(~a\right)" (apply-converter (car (hash-ref texify-operators (car cur-expr))) subforms)))
-        (if (number? cur-expr) (number->string cur-expr)
-            (car (hash-ref texify-constants cur-expr (list (symbol->string cur-expr))))))))
+  (texify-expression (program-body prog)
+                     #:highlight-ops
+                     (for/list ([loc locs] [idx (in-naturals)])
+                       (cons loc idx))))
 ;; Given a context and an alt and some locations, identify which
 ;; ranges of error coorespond to which locations along the given axis,
 ;; and generate list of hash table objects for them.
