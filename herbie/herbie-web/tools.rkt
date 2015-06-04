@@ -103,7 +103,8 @@
 ;; =============== Lower level helper functions =============
 
 ;; Filter children
-(define (general-filter alts) alts)
+(define (general-filter alts)
+  (take (sort alts > #:key errors-score) 3))
 (define (taylor-filter alts) alts)
 (define (rewrite-filter alts) alts)
 
