@@ -86,9 +86,9 @@
                       [loc-id (in-naturals)])
              (for/list ([range (get-ranges loc)])
                (hash
-                "start" (coord->image-ratio (car range) min-x max-x)
-                "end" (coord->image-ratio (cdr range) min-x max-x)
-                "locid" loc-id))))))
+                'start (coord->image-ratio (car range) min-x max-x)
+                'end (coord->image-ratio (cdr range) min-x max-x)
+                'locid loc-id))))))
                   
 ;; Draw the graph of average error using the given points for the
 ;; given alt, along the given axis. If combo is given draw it also on

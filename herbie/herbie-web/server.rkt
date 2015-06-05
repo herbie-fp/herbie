@@ -4,15 +4,20 @@
 (require xml)
 (require web-server/servlet web-server/servlet-env web-server/dispatch web-server/page)
 (require web-server/configuration/responders)
+(require json)
 
 (require "main.rkt")
+(require "../config.rkt")
+(require "../web-common.rkt")
 
-(define *frontend-url* (make-parameter #f))
-(define *style-url* (make-parameter #f))
+(define *frontend-path* (make-parameter #f))
+(define *style-path* (make-parameter #f))
 
 (define/page (start-page)
-  (when (not (and (*frontend-url*) (*style-url*)))
+  (when (not (and (*frontend-path*) (*style-path*)))
     (error "You didn't pass a javascript frontend and a stylesheet!"))
+  (copy-file (*frontend-path*) (build-path viz-output-path "viz.js") #t)
+  (copy-file (*style-path*) (build-path viz-output-path "style.css") #t)
   (when (not (directory-exists? viz-output-path))
     (make-directory viz-output-path))
   
@@ -26,26 +31,35 @@
            (input ([name "formula"] [autofocus "true"] [placeholder "(λ (a b c) (/ (- (- b) (sqrt (- (sqr b) (* 4 (* a c))))) (* 2 a)))"]))))))
 
 (define/page (interact)
-  (response/xexpr
-   (herbie-page
-    #:title "Herbie Visual Shell"
-    #:scripts `("//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"
-                "http://d3js.org/d3.v3.min.js"
-                ,(*frontend-url*))
-    `(p "Work in progress!"))))
+  (match-let ([(list formula) (get-bindings 'formula)])
+    (let-values ([(content session-data) (start-session (read (open-input-string formula)))])
+      (response/xexpr
+       (herbie-page
+        #:title "Herbie Visual Shell"
+        #:scripts `("//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"
+                    "http://d3js.org/d3.v3.min.js")
+        #:styles '("style.css")
+        `(div ([class "placeholder"]
+               [data-json
+                ,(embed/url (curryr serve-json (hash-ref content "start.json")))]))
+        `(p "Work in progress!")
+        `(script ([type "text/javascript"] [src "viz.js"])))))))
 
-(define (start-server frontend-url style-url)
-  (parameterize ([*frontend-url* frontend-url] [*style-url* style-url])
-    (serve/servelet
+(define/page (serve-json json)
+  (response/full 200 #"OK" (current-seconds) #"application/json" '() (jsexpr->bytes json)))
+
+(define (start-server frontend-path style-path)
+  (parameterize ([*frontend-path* frontend-path] [*style-path* style-path])
+    (serve/servlet
      start-page
      #:file-not-found-responder
      (gen-file-not-found-responder
       (build-path viz-output-path "../404.html"))
-     #:command-line? #t
-     #:banner? #f
+     #:port 8080
      #:servlets-root (build-path viz-output-path "../..")
      #:server-root-path (build-path viz-output-path "..")
-     #:servlet-path "/viz/")))
+     #:servlet-path "/viz/"
+     #:extra-files-paths (list (build-path viz-output-path "..")))))
 
 (command-line
  #:program "herbie-viz"
