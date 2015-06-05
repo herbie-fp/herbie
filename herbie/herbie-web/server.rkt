@@ -16,10 +16,10 @@
 (define/page (start-page)
   (when (not (and (*frontend-path*) (*style-path*)))
     (error "You didn't pass a javascript frontend and a stylesheet!"))
-  (copy-file (*frontend-path*) (build-path viz-output-path "viz.js") #t)
-  (copy-file (*style-path*) (build-path viz-output-path "style.css") #t)
   (when (not (directory-exists? viz-output-path))
     (make-directory viz-output-path))
+  (copy-file (*frontend-path*) (build-path viz-output-path "viz.js") #t)
+  (copy-file (*style-path*) (build-path viz-output-path "style.css") #t)
   
   (response/xexpr
    (herbie-page
