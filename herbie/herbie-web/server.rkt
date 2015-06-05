@@ -50,12 +50,15 @@
 
 (define (start-server frontend-path style-path)
   (parameterize ([*frontend-path* frontend-path] [*style-path* style-path])
+    (printf "Starting server\n")
     (serve/servlet
      start-page
      #:file-not-found-responder
      (gen-file-not-found-responder
       (build-path viz-output-path "../404.html"))
-     #:port 8080
+     #:port 3234
+     #:listen-ip #f
+     #:command-line? #f
      #:servlets-root (build-path viz-output-path "../..")
      #:server-root-path (build-path viz-output-path "..")
      #:servlet-path "/viz/"
