@@ -58,7 +58,7 @@
       (build-path viz-output-path "../404.html"))
      #:port 3234
      #:listen-ip #f
-     #:command-line? #f
+     #:command-line? #t
      #:servlets-root (build-path viz-output-path "../..")
      #:server-root-path (build-path viz-output-path "..")
      #:servlet-path "/viz/"
