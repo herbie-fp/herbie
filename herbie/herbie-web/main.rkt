@@ -37,9 +37,9 @@
       (define session-data (sdat (list alt) pcontext pcontext-extended '() locs 0 alt axis))
       (define response
 	(hash
-	 "formula" (texify-formula prog locs)
-	 "error-graph" (*graph-name*)
-	 "loc-ranges" (make-ranges pcontext alt locs axis)))
+	 'formula (texify-formula prog locs)
+	 'error_graph (*graph-name*)
+	 'loc_ranges (make-ranges pcontext alt locs axis)))
       (define content
 	(hash
 	 "start.json" response
@@ -58,14 +58,14 @@
     (define children (expand-at-loc alt loc))
     (define response
       (hash
-       "selected_formula" (texify-formula (alt-program alt) (list loc))
-       "calts" (for/list ([child children] [idx (in-naturals)])
+       'selected_formula (texify-formula (alt-program alt) (list loc))
+       'calts (for/list ([child children] [idx (in-naturals)])
 		 (hash
-		  "steps" (make-steps child alt)
-		  "graph" (format "child~aerror.png" idx)))))
+		  'steps (make-steps child alt)
+		  'graph (format "child~aerror.png" idx)))))
     (define content
       (apply make-hash
-	     (cons "select-location.json" response)
+	     (cons "select_location.json" response)
 	     (for/list ([child children]
 			[idx (in-range (length children))])
 	       (cons (format "child~aerror.png" idx)
@@ -97,12 +97,12 @@
             chosen-alt-idx* cur-combo* best-axis*))
     (define response
       (hash 
-       "combo_graph" (*graph-name*)
-       "candidates" (for/list ([alt alts*] [idx (in-naturals)])
+       'combo_graph (*graph-name*)
+       'candidates (for/list ([alt alts*] [idx (in-naturals)])
                       (hash
-                       "id" idx
-                       "formula" (texify-formula (alt-program alt))
-                       "graph" (format "cand~aerror.png")))))
+                       'id idx
+                       'formula (texify-formula (alt-program alt))
+                       'graph (format "cand~aerror.png")))))
     (define content
       (apply make-hash
              (cons "choose-children.json" response)
@@ -127,9 +127,9 @@
             combo axis))
     (define response
       (hash
-       "formula" (texify-formula (alt-program alt))
-       "error_graph" (*graph-name*)
-       "loc_ranges" (make-ranges pcontext alt locs* axis)))
+       'formula (texify-formula (alt-program alt))
+       'error_graph (*graph-name*)
+       'loc_ranges (make-ranges pcontext alt locs* axis)))
     (define content
       (hash
        "pick-next.json" response
