@@ -9,9 +9,6 @@
 
 (provide localize-error *analyze-context*)
 
-(define (real-op->bigfloat-op op) (list-ref (hash-ref (*operations*) op) mode:bf))
-(define (real-op->float-op op) (list-ref (hash-ref (*operations*) op) mode:fl))
-
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
     c))

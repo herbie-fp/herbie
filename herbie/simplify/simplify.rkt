@@ -45,7 +45,7 @@
 		       #t
 		       (and (symbol? (car expr))
 			    (andmap valid? (cdr expr))))))
-	 (if (equal? in out)
+	 (if ((num-nodes in) . <= . (num-nodes out))
 	     #f
 	     (change (rule 'simplify in out '())
 		     loc
@@ -59,6 +59,10 @@
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters)
 	(extract-smallest eg))))
+
+(define (num-nodes expr)
+  (if (not (list? expr)) 1
+      (add1 (apply + (map num-nodes (cdr expr))))))
 
 (define (has-nan? expr)
   (or (and (number? expr) (nan? expr))
