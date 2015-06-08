@@ -165,7 +165,7 @@ function clean_progress(str) {
         var line = lines[i];
         var words = line.split("  ");
         var word0 = words.shift();
-        outlines.push(htmlescape((word0.startsWith("* * * ") ? "* " : "") + words.join("  ")));
+        outlines.push(htmlescape((word0.substring(0, 6) === "* * * " ? "* " : "") + words.join("  ")));
     }
     return outlines.join("\n");
 }
