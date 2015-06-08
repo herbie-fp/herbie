@@ -35,10 +35,11 @@
   (let*-values ([(old-points) (pcontext-points pcontext)]
                 [(old-exacts) (pcontext-exacts pcontext)]
                 [(points exacts)
-                 (for/lists ([i (in-range n)])
-                     (let ([idx (random (length old-points))])
-                       (values (vector-ref old-points idx)
-                               (vector-ref old-exacts idx))))])
+                 (for/lists (points exacts)
+		     ([i (in-range n)])
+		   (let ([idx (random (vector-length old-points))])
+		     (values (vector-ref old-points idx)
+			     (vector-ref old-exacts idx))))])
     (mk-pcontext points exacts)))
 
 (define (sorted-context-list context vidx)

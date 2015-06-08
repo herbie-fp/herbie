@@ -18,7 +18,7 @@
 (define *graph-name* (make-parameter "graph.png"))
 
 ;;========= Top Level Interface ============
-(provide start-session select-location choose-children pick-next)
+(provide start-session select-location choose-children pick-next finish)
 
 ;; Starts a session with the herbie-web-viz. Returns a list of two
 ;; things: a table of objects to respond with mapped to their names,
@@ -143,7 +143,7 @@
                        (make-combo (sdat-alts data) (sdat-best-axis data)))])
     (define response
       (hash
-       'formula (texify-formula final-combo)))
+       'formula (texify-formula (program-body (alt-program final-combo)))))
     (define images
       (list (graph-error (sdat-pcontext-extended data) final-combo (sdat-best-axis data) #t)))
     (values response images data)))

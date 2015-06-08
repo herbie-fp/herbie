@@ -84,7 +84,7 @@
     (let-values ([(response image-funcs session-data)
 		  (choose-children
 		   data (map string->number chosen-idxs))])
-      (json-response (hash-set
+      (json-response (hash-set*
                       response
                       'next_link (embed/url (curryr interact-more-page
                                                     session-data))
@@ -99,12 +99,12 @@
       #:title "Herbie Visual Shell"
       #:scripts `("//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
       `(h1 "Here's the final result:")
-      `(p (hash-ref response 'formula))
+      `(p ,(hash-ref response 'formula))
       (let* ([filename (symbol->string (gensym "image"))]
              [path (build-path "images" filename)]
              [full-path (build-path viz-output-path path)])
         ((car image-funcs) full-path)
-        `(img ([href ,(path->string path)])))))))
+        `(img ([src ,(path->string path)])))))))
 
 (define/page (interact-more-page data)
   (let ([cand-idx (get-binding 'cand-idx)])
