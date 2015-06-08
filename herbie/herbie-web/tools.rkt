@@ -16,11 +16,12 @@
 (require "../main.rkt")
 (require "../syntax.rkt")
 (require "../compile/tex.rkt")
+(require "../localize-error.rkt")
 
 ;; ================== Interface =======================
 
 (provide find-best-axis texify-formula make-ranges graph-error
-         expand-at-loc make-steps make-combo)
+         expand-at-loc make-steps make-combo get-locs)
 
 ;; ================== Parameters ======================
 
@@ -39,18 +40,22 @@
                                #:when (> e (expt 2 10)))
                       p)]
         [vars (program-variables (alt-program alt))])
-    (list-ref vars
-              (argmax (λ (pidx)
-                        ;; Rank the variables by how relevant they are to the error.
-                        ;; Higher is more relevant.
-                        (cluster-rank (map (compose flonum->ordinal
-                                                    (curryr list-ref pidx))
-                                           bad-points)))
-                      (build-list (length vars) identity)))))
+    (if (null? bad-points) ;; If everythings good, just display the
+			   ;; first axis.
+	(car vars)
+	(list-ref
+	 vars
+	 (argmax (λ (pidx)
+		   ;; Rank the variables by how relevant they are
+		   ;; to the error.  Higher is more relevant.
+		   (cluster-rank (map (compose flonum->ordinal
+					       (curryr list-ref pidx))
+				      bad-points)))
+		 (build-list (length vars) identity))))))
 ;; Generate the tex for the given prog, with the given locations
 ;; highlighted and given MathJax ID's
-(define (texify-formula prog [locs '()])
-  (texify-expression (program-body prog)
+(define (texify-formula expr [locs '()])
+  (texify-expression expr
                      #:highlight-ops
                      (for/list ([loc locs] [idx (in-naturals)])
                        (cons loc idx))))
@@ -94,46 +99,76 @@
 ;; given alt, along the given axis. If combo is given draw it also on
 ;; the same graph in a different color.
 (define (graph-error context alt axis [combo #f])
-  (let ([points (for/list ([(p e) (in-pcontext context)]) p)]
-        [vars (program-variables (alt-program alt))])
-    (parameterize ([*pcontext* context])
-      (reap [sow]
-            (sow (error-avg (alt-errors alt) points #:axis axis
-                            #:vars vars #:color *red-theme*))
-            (when combo
-              (sow (error-avg (alt-errors alt) points #:axis axis
-                              #:vars vars #:color *blue-theme*)))))))
+  (let* ([points (for/list ([(p e) (in-pcontext context)]) p)]
+	 [vars (program-variables (alt-program alt))]
+	 [renderers
+	  (parameterize ([*pcontext* context])
+	    (reap [sow]
+		  (when (alt? combo)
+		    (sow (error-avg (alt-errors combo) points #:axis axis
+				    #:vars vars #:color *blue-theme*)))
+		  (sow (error-avg (alt-errors alt) points #:axis axis
+				  #:vars vars
+				  #:color (if (equal? #t combo)
+					      *blue-theme*
+					      *red-theme*)))
+		  ))])
+    (λ (out) (apply herbie-plot #:port out #:kind 'png renderers))))
 ;; Generate at most three or four children for the given alt at the
 ;; given location.
 (define (expand-at-loc alt loc)
   (general-filter
-   (append (taylor-filter (taylor-alt alt loc))
-           (rewrite-filter (alt-rewrite-rm alt #:root loc)))))
+   (map simplify-alt
+	(append (taylor-filter (taylor-alt alt loc))
+		(rewrite-filter (alt-rewrite-rm alt #:root loc))))))
 ;; Generate the list of steps hash objects representing the changes
 ;; between the parent and the child.
 (define (make-steps child parent)
   (let steps-left ([cur child] [steps '()])
-    (cond [(not cur) (error "The given parent is not a parent of the child!")]
-          [(equal? cur parent)
+    (cond [(equal? (alt-program cur) (alt-program parent))
            steps]
+	  [(not cur) (print-history child) (error "The given parent is not a parent of the child!2")]
+	  [(alt-event? cur)
+	   (steps-left
+	    (alt-prev cur)
+	    (cons
+	     (hash
+	      'rule "taylor"
+	      'prog (texify-formula (program-body (alt-program cur))))
+	     steps))]
+          [(not (alt-change cur)) (error "The given parent is not a parent of the child!")]
           [#t (steps-left
                (alt-prev cur)
                (cons
                 (hash
-                 "rule" (let ([rule (change-rule (alt-change cur))])
+		 'rule (let ([rule (change-rule (alt-change cur))])
                           (if (equal? (rule-name rule) 'simplify)
                               "simplify"
-                              (texify-formula (change-rule (alt-change cur)))))
-                 "prog" (texify-formula (alt-program cur)))
+                              (let ([rule (change-rule (alt-change cur))])
+				(format "~a \\to ~a"
+					(texify-formula (rule-input rule))
+					(texify-formula (rule-output rule))))))
+                 'prog (texify-formula (program-body (alt-program cur))))
                 steps))])))
+
+(define (print-history alt)
+  (let loop ([cur alt])
+    (if (not cur) (void)
+	(begin (loop (alt-prev cur))
+	       (eprintf (format "~a -> " (alt-program cur)))))))
     
 ;; Combine the given alternatives into the best combination.
-(define (make-combo alts)
-  (parameterize ([*start-prog* (car alts)])
-    (match-let ([`(,splitpoints ,involved-alts) (infer-splitpoints alts)])
+(define (make-combo alts axis)
+  (parameterize ([*start-prog* (alt-program (car alts))])
+    (match-let ([`(,splitpoints ,involved-alts) (infer-splitpoints alts axis)])
       (if (= (length involved-alts) 1)
           (car involved-alts)
           (combine-alts splitpoints involved-alts)))))
+
+(define (get-locs alt)
+  (let ([locs (localize-error (alt-program alt))])
+    (if ((length locs) . < . 2) locs
+	(take (localize-error (alt-program alt)) 2))))
 
 ;; =============== Lower level helper functions =============
 
@@ -144,9 +179,30 @@
 
 ;; Filter children
 (define (general-filter alts)
-  (take (sort alts > #:key errors-score) 3))
-(define (taylor-filter alts) alts)
-(define (rewrite-filter alts) alts)
+  (take (sort alts < #:key (compose errors-score alt-errors)) 3))
+(define (taylor-filter alts)
+  (filter (negate has-nan?) alts))
+(define (has-nan? expr)
+  (or (and (number? expr) (nan? expr))
+      (and (list? expr)
+	   (ormap has-nan? (cdr expr)))))
+
+(define *banned-toplevel-rules*
+  '(+-commutative
+    *-commutative
+    sub-neg
+    neg-sub0
+    *-un-lft-identity
+    div-inv
+    neg-mul-1
+    clear-num
+    expt1))
+ 
+(define (rewrite-filter alts)
+  (filter
+   (λ (alt) (not (member (rule-name (change-rule (alt-change alt)))
+			 *banned-toplevel-rules*)))
+   alts))
 
 ;; Ranks a set of numbers by how well they group into clusters.
 (define (cluster-rank xs)

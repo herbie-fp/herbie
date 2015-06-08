@@ -11,10 +11,11 @@
 
 (provide infer-splitpoints (struct-out sp))
 
-(define (infer-splitpoints alts)
+(define (infer-splitpoints alts [axis #f])
   (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
   (let* ([options (map (curry option-on-expr alts)
-		       (exprs-to-branch-on alts))]
+		       (if axis (list axis)
+			   (exprs-to-branch-on alts)))]
 	 [best-option (argmin (compose errors-score option-errors) options)]
 	 [splitpoints (option-splitpoints best-option)]
 	 [altns (used-alts splitpoints alts)]
