@@ -74,9 +74,7 @@
     (define (get-ranges loc)
       (let* ([subexpr (location-get loc prog)]
              [local-errors 
-              (for/list ([p (in-list pts)]
-                         [global-err (parameterize ([*pcontext* context])
-                                       (alt-errors alt))])
+              (for/list ([p (in-list pts)])
                 (let* ([exact-args (for/list ([arg (in-list (cdr subexpr))])
                                      ((eval-exact `(λ ,vars ,arg)) p))]
                        [f-exact (real-op->bigfloat-op (car subexpr))]
@@ -120,7 +118,8 @@
   (general-filter
    (map simplify-alt
 	(append (taylor-filter (taylor-alt alt loc))
-		(rewrite-filter (alt-rewrite-rm alt #:root loc))))))
+		(rewrite-filter (alt-rewrite-rm alt #:root loc))))
+   alt))
 ;; Generate the list of steps hash objects representing the changes
 ;; between the parent and the child.
 (define (make-steps child parent)
@@ -178,8 +177,15 @@
     idx))
 
 ;; Filter children
-(define (general-filter alts)
-  (take (sort alts < #:key (compose errors-score alt-errors)) 3))
+(define (general-filter alts parent)
+  (let-values ([(bad-pts bad-exs)
+		(for/lists (pts exs)
+		    ([(p ex) (in-pcontext (*pcontext*))]
+		     [e (alt-errors parent)]
+		     #:when (> e (expt 2 10)))
+		  (values p ex))])
+    (parameterize ([*pcontext* (mk-pcontext bad-pts bad-exs)])
+      (take (sort alts < #:key (compose errors-score alt-errors)) 3))))
 (define (taylor-filter alts)
   (filter (negate has-nan?) alts))
 (define (has-nan? expr)
