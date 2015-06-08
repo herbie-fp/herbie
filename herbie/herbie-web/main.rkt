@@ -137,3 +137,13 @@
 	(define images
 	  (list (graph-error (sdat-pcontext-extended data) alt axis combo)))
 	(values response images session-data)))))
+
+(define (finish data)
+  (let ([final-combo (parameterize ([*pcontext* (random-subsample (sdat-pcontext-extended data) 256)])
+                       (make-combo (sdat-alts data) (sdat-best-axis data)))])
+    (define response
+      (hash
+       'formula (texify-formula final-combo)))
+    (define images
+      (list (graph-error (sdat-pcontext-extended data) final-combo (sdat-best-axis data) #t)))
+    (values response images data)))
