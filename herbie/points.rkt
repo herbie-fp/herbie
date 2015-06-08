@@ -9,7 +9,8 @@
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
 	 sample-expbucket sample-double sample-float sample-uniform sample-integer sample-default sample-grid
          prepare-points prepare-points-period make-exacts
-         errors errors-score sorted-context-list sort-context-on-expr)
+         errors errors-score sorted-context-list sort-context-on-expr
+         random-subsample)
 
 (define *pcontext* (make-parameter #f))
 
@@ -29,6 +30,16 @@
 		       (list->vector exacts))
 		(begin (assert (not (= 0 (vector-length exacts))))
 		       exacts))))
+
+(define (random-subsample pcontext n)
+  (let*-values ([(old-points) (pcontext-points pcontext)]
+                [(old-exacts) (pcontext-exacts pcontext)]
+                [(points exacts)
+                 (for/lists ([i (in-range n)])
+                     (let ([idx (random (length old-points))])
+                       (values (vector-ref old-points idx)
+                               (vector-ref old-exacts idx))))])
+    (mk-pcontext points exacts)))
 
 (define (sorted-context-list context vidx)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))

@@ -26,8 +26,8 @@
 (define (start-session prog)
   (parameterize ([*start-prog* prog])
     (define samplers (map (curryr cons sample-default) (program-variables prog)))
-    (define pcontext (parameterize ([*num-points* 64]) (prepare-points prog samplers)))
     (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog samplers)))
+    (define pcontext (random-subsample pcontext-extended 64))
     (parameterize ([*pcontext* pcontext] [*analyze-context* pcontext])
       (define alt (simplify-alt (make-alt prog)))
       (define locs (get-locs alt))
@@ -92,7 +92,7 @@
          [children* '()]
          [locations* '()]
          [chosen-alt-idx* '()]
-         [cur-combo* (parameterize ([*pcontext* pcontext*])
+         [cur-combo* (parameterize ([*pcontext* (random-subsample pcontext-extended* 128)])
 		       (make-combo alts* (sdat-best-axis data)))]
          [best-axis* (sdat-best-axis data)])
     (define session-data
