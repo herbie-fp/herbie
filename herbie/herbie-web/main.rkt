@@ -41,7 +41,7 @@
 	 'error_graph "&embedimage{0}"
 	 'axis_label (symbol->string axis)
 	 'loc_ranges (make-ranges pcontext alt locs axis)))
-      (define images (list (graph-error pcontext-extended alt axis)))
+      (define images (list (graph-error pcontext-extended alt axis #:children #f)))
       (values response images session-data))))
 
 ;; Starts phase two, candidate selection. Takes the session from the
@@ -65,7 +65,9 @@
 		  'id idx))))
     (define images (for/list ([child children])
 		     (graph-error pcontext-extended child
-				  (sdat-best-axis data) cur-combo)))
+				  (sdat-best-axis data) cur-combo
+                                  #:first-time (sdat-first-time? data)
+                                  #:children? #t)))
     (define session-data (sdat (sdat-alts data)
 			       (sdat-pcontext data) pcontext-extended
 			       children
