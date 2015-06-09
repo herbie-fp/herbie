@@ -96,7 +96,8 @@
 ;; Draw the graph of average error using the given points for the
 ;; given alt, along the given axis. If combo is given draw it also on
 ;; the same graph in a different color.
-(define (graph-error context alt axis [combo #f])
+(define (graph-error context alt axis [combo #f]
+                     #:first-time [first-time #f] #:children? [children? #t])
   (let* ([points (for/list ([(p e) (in-pcontext context)]) p)]
 	 [vars (program-variables (alt-program alt))]
 	 [renderers
@@ -104,12 +105,14 @@
 	    (reap [sow]
 		  (when (alt? combo)
 		    (sow (error-avg (alt-errors combo) points #:axis axis
-				    #:vars vars #:color *blue-theme*)))
+				    #:vars vars #:color
+                                    (if first-time *red-theme* *blue-theme*))))
 		  (sow (error-avg (alt-errors alt) points #:axis axis
 				  #:vars vars
-				  #:color (if (equal? #t combo)
-					      *blue-theme*
-					      *red-theme*)))
+				  #:color (cond [(equal? #t combo)
+                                                 *blue-theme*]
+                                                [children? *yellow-theme*]
+                                                [#t *red-theme*])))
 		  ))])
     (λ (out) (apply herbie-plot #:port out #:kind 'png renderers))))
 ;; Generate at most three or four children for the given alt at the

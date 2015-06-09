@@ -11,7 +11,7 @@
 (require "tools.rkt")
 
 ;;========= Structures and Parameters ===========
-(struct sdat (alts pcontext pcontext-extended children locations chosen-alt-idx cur-combo best-axis))
+(struct sdat (alts pcontext pcontext-extended children locations chosen-alt-idx cur-combo best-axis first-time?))
 (define (sdat-chosen-alt data)
   (list-ref (sdat-alts data) (sdat-chosen-alt-idx data)))
 
@@ -34,7 +34,7 @@
       ;; The axis finding procedure is stochastic, and is a lot more
       ;; reliable if you use the full point set.
       (define axis (find-best-axis alt pcontext-extended))
-      (define session-data (sdat (list alt) pcontext pcontext-extended '() locs 0 alt axis))
+      (define session-data (sdat (list alt) pcontext pcontext-extended '() locs 0 alt axis #t))
       (define response
 	(hash
 	 'formula (texify-formula (program-body (alt-program alt)) locs)
@@ -72,7 +72,8 @@
 			       (list loc)
 			       (sdat-chosen-alt-idx data)
                                cur-combo
-			       (sdat-best-axis data)))
+			       (sdat-best-axis data)
+                               (sdat-first-time? data)))
     (values response
 	    images
 	    session-data)))
@@ -97,7 +98,7 @@
          [best-axis* (sdat-best-axis data)])
     (define session-data
       (sdat alts* pcontext* pcontext-extended* children* locations*
-            chosen-alt-idx* cur-combo* best-axis*))
+            chosen-alt-idx* cur-combo* best-axis* (sdat-first-time? data)))
     (define response
       (hash 
        'combo_graph "&embedimage{0}"
@@ -127,7 +128,8 @@
 	(define session-data
 	  (sdat (sdat-alts data) pcontext pcontext-extended
 		'() locs* cand-idx
-		combo axis))
+		combo axis
+                #f))
 	(define response
 	  (hash
 	   'formula (texify-formula (program-body (alt-program alt)) locs*)

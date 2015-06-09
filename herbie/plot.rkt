@@ -16,6 +16,7 @@
 (define *red-theme* (color-theme "pink" "red" "darkred"))
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
+(define *yellow-theme* (color-theme "gold" "yellow" "olive"))
 
 (define double-transform
   (invertible-function
