@@ -41,7 +41,7 @@
 	 'error_graph "&embedimage{0}"
 	 'axis_label (symbol->string axis)
 	 'loc_ranges (make-ranges pcontext alt locs axis)))
-      (define images (list (graph-error pcontext-extended alt axis #:children #f)))
+      (define images (list (graph-error pcontext-extended alt axis)))
       (values response images session-data))))
 
 ;; Starts phase two, candidate selection. Takes the session from the

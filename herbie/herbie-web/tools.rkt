@@ -97,7 +97,7 @@
 ;; given alt, along the given axis. If combo is given draw it also on
 ;; the same graph in a different color.
 (define (graph-error context alt axis [combo #f]
-                     #:first-time [first-time #f] #:children? [children? #t])
+                     #:first-time [first-time #f] #:children? [children? #f])
   (let* ([points (for/list ([(p e) (in-pcontext context)]) p)]
 	 [vars (program-variables (alt-program alt))]
 	 [renderers

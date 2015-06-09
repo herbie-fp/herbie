@@ -8,7 +8,8 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide error-points herbie-plot error-avg *red-theme* *blue-theme* *green-theme*
+(provide error-points herbie-plot error-avg
+	 *red-theme* *blue-theme* *green-theme* *yellow-theme*
 	 plot-cand-error
 	 )
 
