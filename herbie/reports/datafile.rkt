@@ -109,6 +109,8 @@
                                 (get 'ninf) (get 'pinf) (hash-ref json 'end-est 0)
                                 (match (get 'vars)
                                   ['#f #f]
-                                  [(list names ...) (map string->symbol names)])
+                                  [(list names ...) (map string->symbol names)]
+				  [string-lst
+				   (parse-string string-lst)])
                                 (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))
