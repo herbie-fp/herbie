@@ -27,6 +27,7 @@
 
 ;; Cap the number of iterations to try at this.
 (define *max-egraph-iters* (make-parameter 6))
+(define *node-limit* (make-parameter 500))
 
 (define (simplify altn)
   (let* ([chng (alt-change altn)]
@@ -82,7 +83,8 @@
     (debug #:from 'simplify #:depth 2 (format "iters left: ~a" iters))
     (one-iter eg rls)
     (when (and (> (egraph-cnt eg) start-cnt)
-	       (> iters 1))
+	       (> iters 1)
+	       (< (egraph-cnt eg) (*node-limit*)))
       (iterate-egraph! eg (sub1 iters) #:rules rls))))
 
 (define (one-iter eg rls)
