@@ -146,9 +146,16 @@
                   (cons (/ (car term) 2) (cdr term))))]))]
     [`(expt ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (expt (car terms) a)
-             (for/list ([term (cdr terms)])
-               (cons (* a (car term)) (cdr term)))))]
+       (cond
+        [(and (real? (expt (car terms) a)) (exact? (expt (car terms) a)))
+         (cons (expt (car terms) a)
+               (for/list ([term (cdr terms)])
+                 (cons (* a (car term)) (cdr term))))]
+        [else
+         (list* 1
+                (cons a (car terms))
+                (for/list ([term (cdr terms)])
+                  (cons (* a (car term)) (cdr term))))]))]
     [else
      `(1 (1 . ,expr))]))
 

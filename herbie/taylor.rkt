@@ -12,12 +12,12 @@
                      #:terms [terms 3] #:iters [iters 5])
   "Take a Taylor expansion in multiple variables, with at most `terms` terms."
 
-  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
         (for/fold ([expr expr]) ([var vars] [tform tforms])
           (replace-expression expr var ((car tform) var))))
+  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   ; This is a very complex routine, with multiple parts.
   ; Some of the difficulty is due to the use of bounded Laurent series and their encoding.
