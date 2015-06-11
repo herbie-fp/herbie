@@ -54,21 +54,22 @@
 
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
-       (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
-         (lambda (out)
-           (herbie-plot
-            #:port out #:kind 'png
-            (reap [sow]
-                  (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
-                  (when target-error
-                    (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
-                  (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
+       (if (null? newpoints) (void)
+           (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
+             (lambda (out)
+               (herbie-plot
+                #:port out #:kind 'png
+                (reap [sow]
+                      (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
+                      (when target-error
+                        (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
+                      (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
 
-                  (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
-                  (when target-error
-                    (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
-                  (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
-           (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var))))
+                      (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
+                      (when target-error
+                        (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
+                      (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
+               (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var))))
      (printf "</div>\n")
 
      (printf "</section>\n")
