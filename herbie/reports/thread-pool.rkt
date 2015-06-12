@@ -21,7 +21,9 @@
 (define *timeout* (make-parameter (* 1000 60 10)))
 (define *profile?* #f)
 
-(define (get-test-result test rdir #:setup! [setup! (λ () (set-debug-level! #t #t))])
+(define (get-test-result test rdir #:setup! [setup! (λ ()
+						      (set-debug-level! #t #t)
+						      (set-debug-level! 'backup-simplify #f))])
   (define (file name) (build-path rdir name))
 
   ; Reseed random number generator

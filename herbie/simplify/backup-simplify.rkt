@@ -18,7 +18,7 @@
 
 (define (simplify expr)
   (let ([simpl (simplify* expr)])
-    (debug #:from 'simplify "Simplify" expr "into" simpl)
+    (debug #:from 'backup-simplify "Simplify" expr "into" simpl)
     simpl))
 
 (define (simplify* expr)
