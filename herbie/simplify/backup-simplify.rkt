@@ -98,7 +98,7 @@
       [`(expt ,arg ,(? integer? n))
        (cond
         [(positive? n)
-         (recurse (cons '* (build-list n (const arg))) #:label expr)]
+         (recurse (cons '* (build-list (inexact->exact n) (const arg))) #:label expr)]
         [(negative? n)
          `((1 ,expr))]
         [(zero? n)
