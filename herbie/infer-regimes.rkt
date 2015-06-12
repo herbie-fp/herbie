@@ -134,13 +134,18 @@
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
       (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
 
-  (append (map sidx->spoint
-	       (take sindices (sub1 (length sindices)))
-	       (drop sindices 1))
-	  (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
-		  (sp (si-cidx last-sidx)
-		      expr
-		      +inf.0)))))
+
+  (append
+   (if ((flag 'reduce 'binary-search) #t #f)
+       (for/list ([sindex (take sindices (sub1 (length sindices)))])
+	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex)))))
+       (map sidx->spoint
+	    (take sindices (sub1 (length sindices)))
+	    (drop sindices 1)))
+   (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
+	   (sp (si-cidx last-sidx)
+	       expr
+	       +inf.0)))))
 
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))
