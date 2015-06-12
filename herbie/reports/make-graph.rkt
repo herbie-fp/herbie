@@ -54,7 +54,7 @@
 
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
-       (if (null? newpoints) (void)
+       (if (< (length newpoints) 2) (void)
            (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
              (lambda (out)
                (herbie-plot
