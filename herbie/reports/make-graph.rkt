@@ -69,7 +69,7 @@
                       (when target-error
                         (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
                       (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
-               (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var))))
+               (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var)))))
      (printf "</div>\n")
 
      (printf "</section>\n")
