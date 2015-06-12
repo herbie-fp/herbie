@@ -127,6 +127,7 @@
 			(cdr var)))])
 	(when (and (not (matches? constexpr `(/ ,a 0)))
 		   (not (matches? constexpr `(log 0)))
+		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (common-eval constexpr)])
 	    (when (and (ordinary-float? res) (exact? res))
