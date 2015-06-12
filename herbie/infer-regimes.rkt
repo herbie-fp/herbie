@@ -57,14 +57,16 @@
 		    '()]
 		   [(variable? subexpr)
 		    (list (cons subexpr cur-loc))]))])
-      (if (all-equal? (map car var-locs))
-	  (caar var-locs)
-	  (let get-subexpr ([subexpr expr] [vlocs var-locs])
-	    (cond [(all-equal? (map cadr vlocs))
-		   (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
-				(for/list ([vloc vlocs])
-				  (cons (car vloc) (cddr vloc))))]
-		  [#t subexpr])))))
+      (cond [(null? var-locs) #f]
+            [(all-equal? (map car var-locs))
+             (caar var-locs)]
+            [#t
+             (let get-subexpr ([subexpr expr] [vlocs var-locs])
+               (cond [(all-equal? (map cadr vlocs))
+                      (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
+                                   (for/list ([vloc vlocs])
+                                     (cons (car vloc) (cddr vloc))))]
+                     [#t subexpr]))])))
   (let* ([locs (localize-error prog)])
     (if (null? locs)
         #f
