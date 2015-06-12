@@ -137,11 +137,11 @@
 
   (append
    (if ((flag 'reduce 'binary-search) #t #f)
-       (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex)))))
        (map sidx->spoint
 	    (take sindices (sub1 (length sindices)))
-	    (drop sindices 1)))
+	    (drop sindices 1))
+       (for/list ([sindex (take sindices (sub1 (length sindices)))])
+	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex))))))
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr
