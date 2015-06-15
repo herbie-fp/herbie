@@ -15,7 +15,7 @@
    #hash([precision . (double)]
          [setup    . (simplify)]
          [generate . (rr taylor simplify)]
-         [reduce   . (regimes taylor simplify avg-error binary-search)])))
+         [reduce   . (regimes taylor simplify avg-error)])))
 
 (define (toggle-flag! category flag)
   (*flags*
