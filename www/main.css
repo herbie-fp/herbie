@@ -46,3 +46,10 @@ a:hover {text-decoration: underline; color: #295785}
 
 .function-list dt { font-weight: bold; float: left; width: 200px; clear: left; padding-left: 25px; }
 .function-list dd { clear: right; }
+
+.video { display: block; margin: auto; }
+.abstract { padding: 1em 3em; position: relative; }
+.abstract:before { content: "“"; font-size: 600%; position: absolute; top: 0; left: 0; font-family: serif; color: #ccc; }
+.abstract:after { content: "”"; font-size: 600%; position: absolute; bottom: -.5em; right: 0; font-family: serif; color: #ccc; }
+.paper-thumb { width: 30%; float: left; margin: 1em; }
+.paper-thumb img { width: 100%; border: 1px solid #ccc; }
