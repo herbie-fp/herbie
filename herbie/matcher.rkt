@@ -8,7 +8,7 @@
  (all-from-out "rules.rkt")
  pattern-substitute pattern-match
  rewrite-expression-head rewrite-expression rewrite-tree
- (struct-out change) change-apply changes-apply)
+ (struct-out change) change-apply changes-apply rule-rewrite)
 
 ;; Our own pattern matcher.
 ;
@@ -86,6 +86,9 @@
     (if bindings
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
+
+(define (rule-rewrite rule prog loc)
+  (location-do loc prog (compose car (curry rule-apply rule))))
 
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
