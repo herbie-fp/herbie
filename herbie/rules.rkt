@@ -196,7 +196,9 @@
 ; Powers
 (define-ruleset pow-reduce
   [unexpt1         (expt a 1)                  a]
-  [unexpt0         (expt a 0)                  1])
+  [unexpt0         (expt a 0)                  1]
+  [rem-cube-cbrt   (expt (expt a (/ 1 3)) 3)   a]
+  [rem-cube-cbrt2  (expt (expt a 1/3) 3)       a])
 
 (define-ruleset pow-expand
   [expt1           a                           (expt a 1)])
