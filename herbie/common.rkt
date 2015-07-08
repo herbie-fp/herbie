@@ -240,3 +240,9 @@
 
 (define (html-escape-unsafe err)
   (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
+
+(define-syntax-rule (for/append ([vars val-lsts] ...)
+                                bodies ...)
+  (apply append
+         (for/list ([vars val-lsts] ...)
+           bodies ...)))
