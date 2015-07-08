@@ -24,10 +24,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified)
+  (table next-alt locs children gened-series gened-rewrites simplified samplers)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -41,6 +41,9 @@
 (define (^children^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
   (shellstate-children (^shell-state^)))
+(define (^samplers^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-samplers! (^shell-state^) newval))
+  (shellstate-samplers (^shell-state^)))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -64,6 +67,7 @@
   (let* ([samplers (or samplers (map (curryr cons sample-default)
 				     (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
+    (^samplers^ samplers)
     (*pcontext* context)
     (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
@@ -238,3 +242,10 @@
 		 (if (= (length tables) 1)
 		     (extract-alt (car tables))
 		     (combine-alts splitpoints (map extract-alt tables))))))
+
+;; Other tools
+(define (resample!)
+  (let ([context (prepare-points (*start-prog*) (^samplers^))])
+    (*pcontext* context)
+    (^table^ (atab-new-context (^table^) context)))
+  (void))

@@ -18,7 +18,8 @@
 			     . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
-  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
+  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))
+  (atab-new-context (alt-table? pcontext? . -> . alt-table?))))
 
 ;; Public API
 
@@ -37,6 +38,14 @@
 				  pt))
 	      (hash initial-alt #f)
 	      context))
+
+(define (atab-new-context atab ctx)
+  (let* ([old-done (alt-table-alt->done? atab)]
+         [alts (atab-all-alts atab)]
+         [table-init (make-alt-table ctx (car alts))])
+    (alt-table-with
+     (atab-add-altns table-init (cdr alts))
+     #:alt->done? old-done)))
 
 (define (atab-add-altns atab altns)
   (pipe atab (map (curry curryr atab-add-altn) altns)))
