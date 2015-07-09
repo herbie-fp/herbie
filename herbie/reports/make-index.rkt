@@ -27,9 +27,24 @@
   (for/list ([(folder info) (in-pairs infos)])
     (match info
       [(report-info date commit branch seed flags points iterations bit-width note tests)
+       (define total-gained
+	 (if tests
+	     (for/sum ([row tests])
+	       (or (table-row-result row) 0))
+	     0))
+       (define total-start
+         (if tests
+	     (for/sum ([row tests])
+	       (or (table-row-start row) 0))
+	     0))
+
+       (define (round* x)
+         (inexact->exact (round x)))
+
        (printf "<li>")
-       (printf "<a href='./~a/report.html'>~a</a>, on <abbr title='~a'>~a</abbr>"
-               folder (date->string date) commit branch)
+       (printf "<a href='./~a/report.html'>~a</a>, on <abbr title='~a'>~a</abbr> (improved ~a/~a)"
+               folder (date->string date) commit branch
+               (round* (- total-start total-gained)) (round* total-start))
        (when note (printf "<p>~a</p>" note))
        (printf "</li>\n")]))
   (printf "</ul>\n"))
