@@ -12,7 +12,7 @@
 	 symbol<? *start-prog* html-escape-unsafe
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
-         random-exp assert setfindf first-value log2
+         random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 (define *start-prog* (make-parameter '()))
