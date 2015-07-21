@@ -106,15 +106,27 @@
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
 			(list* rl en bindings)))))))
-  (define (apply-match rl bindings en)
-    ;; Mark this node as having this rule applied so that we don't try
-    ;; to apply it again.
-    (rule-applied! en rl)
-    ;; Apply our bindings
-    (for ([binding bindings])
-      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-    ;; Prune the enode if we can.
-    (try-prune-enode en))
+  (define (apply-match match)
+    (match-let* ([`(,rl ,en . ,bindings) match]
+                 ;; These next two lines are here because an earlier
+                 ;; match application may have pruned the tree,
+                 ;; invalidating the this one. Luckily, a pruned
+                 ;; enode will still point to it's old leader, so we
+                 ;; just get the leader, and then double check the
+                 ;; bindings to make sure our match hasn't
+                 ;; changed. While it may be aggressive to
+                 ;; invalidate any change in bindings, it seems like
+                 ;; the right thing to do for now.
+                 [en (pack-leader en)])
+	(when (equal? (match-e (rule-input rl) en) bindings)
+          ;; Apply the match for each binding.
+          (for ([binding bindings])
+            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
+          ;; Prune the enode if we can.
+          (try-prune-enode en)
+          ;; Mark this node as having this rule applied so that we don't try
+          ;; to apply it again.
+          (rule-applied! en rl))))
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
@@ -122,23 +134,10 @@
     ;; If one of the variations of the enode chains back to itself,
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
-    (elim-enode-loops! eg en))
+    #;(elim-enode-loops! eg en))
   (let ([matches (find-matches (egraph-leaders eg))])
-    (for ([match matches])
-      (match-let* ([`(,rl ,en . ,bindings) match]
-		   ;; These next two lines are here because an earlier
-		   ;; match application may have pruned the tree,
-		   ;; invalidating the this one. Luckily, a pruned
-		   ;; enode will still point to it's old leader, so we
-		   ;; just get the leader, and then double check the
-		   ;; bindings to make sure our match hasn't
-		   ;; changed. While it may be aggressive to
-		   ;; invalidate any change in bindings, it seems like
-		   ;; the right thing to do for now.
-		   [en (pack-leader en)])
-	(when (equal? (match-e (rule-input rl) en) bindings)
-	  (apply-match rl bindings en)))))
-  (map-enodes (curry set-precompute! eg) eg)))
+    (for-each apply-match matches))
+  (map-enodes (curry set-precompute! eg) eg))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr
@@ -172,7 +171,7 @@
 	       (if (not (list? var)) var
 		   (let ([expr (cons (car var)
 				     (for/list ([en (cdr var)])
-				       (hash-ref ens->exprs en #f)))])
+				       (hash-ref ens->exprs (pack-leader en) #f)))])
 		     (if (andmap identity (cdr expr))
 			 expr
 			 #f)))))])
@@ -192,5 +191,8 @@
 	     [ens->exprs (hash)])
     (match-let* ([`(,ens->exprs* ,todo-ens*)
 		  (pass todo-ens ens->exprs)]
-		 [top-expr (hash-ref ens->exprs* (egraph-top eg) #f)])
-      (or top-expr (loop todo-ens* ens->exprs*)))))
+		 [top-expr (hash-ref ens->exprs* (pack-leader (egraph-top eg)) #f)])
+      (cond [top-expr top-expr]
+            [((length todo-ens*) . = . (length todo-ens))
+             (error "failed to extract: infinite loop.")]
+            [#t (loop todo-ens* ens->exprs*)]))))

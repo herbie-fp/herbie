@@ -10,9 +10,10 @@
 	 rule-applied? rule-applied!
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
-	 set-enode-expr!
+	 set-enode-expr! update-vars!
          )
 
+(provide (all-defined-out))
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -55,7 +56,7 @@
 	   (fprintf port "#<enode ~a(~a)>" (enode-pid en) (enode-id-code en)))]
 	#:methods gen:equal+hash
 	[(define (equal-proc en1 en2 recurs-equal?)
-	   (eq? (pack-leader en1) (pack-leader en2)))
+	   (eq? en1 en2))
          (define (hash-proc en recurse-hash)
 	   (recurse-hash (enode-id-code en)))
 	 (define (hash2-proc en recurse-hash)
@@ -83,8 +84,8 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
-  (set-union! (enode-applied-rules new-parent)
-	      (enode-applied-rules child))
+  (set-intersect! (enode-applied-rules new-parent)
+                  (enode-applied-rules child))
   #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
@@ -107,23 +108,15 @@
 	  (adopt-enode! new-leader new-follower)
 	  new-leader))))
 
-;; Given an enode, override it's variations so that it only has one variation,
-;; the given expression.
-(define (enode-override-expr! en expr)
-  (let ([leader (pack-leader en)])
-    (set-enode-expr! leader en)
-    (set-enode-cvars! leader (set expr))
-    (set-enode-children! leader '())))
-
 ;; Filters a pack to only contain enodes that return true under pred,
-;; and returns the new leader. Must be called on a leader.
+;; and returns the new leader. 
 (define (pack-filter! pred en)
   (let filter-loop! ([en (pack-leader en)])
     (let ([filtered-children
            (filter
             identity
             (for/list ([child (enode-children en)])
-              (let ([child* (filter-loop! pred child)])
+              (let ([child* (filter-loop! child)])
                 (or child*
                     (begin (set-enode-parent! child en) #f)))))])
       (cond [(pred en)
@@ -163,18 +156,23 @@
                     [#f (set-enode-children! en (append (cdr rest-children) done-children))
                         en]
                     [leader (set-enode-children! en (append (cdr rest-children) (list leader) done-children))
-                            en]))))))))
-    
+                            en]))))))))    
 									 
 ;; Apply an f to every enode in a pack.
 (define (for-pack! f en)
   (let loop! ([en (pack-leader en)])
-    (let ([children* (map (curry loop! f) (enode-children en))])
+    (let ([children* (map loop! (enode-children en))])
       (set-enode-children! en children*)
       (f en)
       (set-enode-cvars! en (apply set-union (set (enode-expr en))
                                   (map enode-cvars (enode-children en))))
       en)))
+
+;; Updates the expressions in the pack, using s specified updater.
+(define (update-vars! en updater)
+  (for-pack! (λ (inner-en)
+               (set-enode-expr! inner-en (updater (enode-expr inner-en))))
+             en))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
