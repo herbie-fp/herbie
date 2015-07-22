@@ -269,11 +269,18 @@
   [log1p-udef  (log1p x)           (log (+ 1 x))]
   [log1p-expm1-u x (log1p (expm1 x))]
   [expm1-log1p-u x (expm1 (log1p x))]
-  [hypot-udef  (hypot x y)         (sqrt (+ (sqr x) (sqr y)))])
+[hypot-udef  (hypot x y)         (sqrt (+ (sqr x) (sqr y)))])
+
+(define-ruleset domain-knowledge
+  [NMSE3-3-2 (- (tan (+ a b)) (tan a))                     (/ (sin b) (* (cos a) (cos (+ a b))))]
+  [NMSE3-6   (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1))))       (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))]
+  [NMSE3-8   (- (* (+ N 1) (log (+ N 1))) (* N (log N)) 1)
+             (- (log (+ N 1)) (- (/ 1 (* 2 N)) (- (/ 1 (* 3 (sqr N))) (/ 4 (expt N 3)))))])
 
 (define *rules* (make-parameter (apply append (*rulesets*))))
 (define *simplify-rules*
-  (append #;special-numerical-reduce
+  (append domain-knowledge
+          #;special-numerical-reduce
           trig-reduce
 	  log-distribute
 	  pow-canonicalize
