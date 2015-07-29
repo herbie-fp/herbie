@@ -8,7 +8,7 @@
 (require "programs.rkt")
 
 (provide loop-errors-renderers herbie-plot loop-plot
-         error-points error-shading error-avg
+         error-points error-avg
          *red-theme* *blue-theme* *green-theme*
          intercept best-fit-slope
          interleave)
@@ -196,10 +196,10 @@
 (define (interleave . lsts)
   (apply append (flip-lists* lsts)))
 
-(define (mk-dynplot fname #:x-label [x-label #f] #:y-label [y-label #f] renderers)
-  (call-with-output-file fname #:exists 'replace
-    (λ (out)
-      (loop-plot #:port out #:kind 'svg #:x-label x-label #:y-label y-label renderers)))
-  (call-with-input-file fname
-    (λ (out)
-      (xml->xexpr (document-element (read-xml out))))))
+;; (define (mk-dynplot fname #:x-label [x-label #f] #:y-label [y-label #f] renderers)
+;;   (call-with-output-file fname #:exists 'replace
+;;     (λ (out)
+;;       (loop-plot #:port out #:kind 'svg #:x-label x-label #:y-label y-label renderers)))
+;;   (call-with-input-file fname
+;;     (λ (out)
+;;       (xml->xexpr (document-element (read-xml out))))))

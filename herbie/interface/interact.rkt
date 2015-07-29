@@ -159,6 +159,9 @@
       (begin0 (get-final-combination)
 	(rollback-improve!))))
 
+(define (run-improve-test test iters)
+  (run-improve (test-program test) iters #:samplers (test-samplers test)))
+
 ;; Finishing Herbie
 (define (get-final-combination)
   (remove-pows

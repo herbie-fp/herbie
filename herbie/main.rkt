@@ -44,6 +44,9 @@
    'removed-pows
    (list altn)))
 
+(define (simplify-alt altn)
+  altn)
+
 (define (unfold-lets prog)
   `(λ ,(program-variables prog)
      ,(unfold-lets-expr (program-body prog))))
