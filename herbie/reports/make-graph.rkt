@@ -25,9 +25,9 @@
 (define *label-width* 15)
 (define *make-graph?* #t)
 
-(define (make-graph result test end-alt points start-errs end-errs target-errs bits dir profile?)
+(define (make-graph result profile?)
   (match result
-    [(test-result test rdir bits start-alt end-alt points exacts
+    [(test-result test rdir time bits start-alt end-alt points exacts
                   start-est-error end-est-error newpoints newexacts start-error end-error target-error)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
