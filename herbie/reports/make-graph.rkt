@@ -25,102 +25,109 @@
 (define *label-width* 15)
 (define *make-graph?* #t)
 
-(define (make-graph test end-alt points start-errs end-errs target-errs bits dir profile?)
-  (printf "<!doctype html>\n")
-  (printf "<html>\n")
-  (printf "<head>")
-  (printf "<meta charset='utf-8' />")
-  (printf "<title>Results for ~a</title>" (test-name test))
-  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-  (printf "</head>\n")
-  (printf "<body>\n")
+(define (make-graph result test end-alt points start-errs end-errs target-errs bits dir profile?)
+  (match result
+    [(test-result test rdir bits start-alt end-alt points exacts
+                  start-est-error end-est-error newpoints newexacts start-error end-error target-error)
+     (printf "<!doctype html>\n")
+     (printf "<html>\n")
+     (printf "<head>")
+     (printf "<meta charset='utf-8' />")
+     (printf "<title>Results for ~a</title>" (test-name test))
+     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+     (printf "</head>\n")
+     (printf "<body>\n")
 
-  (printf "<dl id='about'>\n")
-  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-  (printf "<dt>Logs:</dt>")
-  (printf "<dd><a href='debug.txt'>Debug output</a>")
-  (when profile?
-    (printf ", <a href='profile.txt'>Profiling report</a>"))
-  (printf "</dd>\n")
-  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-  (printf "</dl>\n")
+     (printf "<dl id='about'>\n")
+     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+     (printf "<dt>Logs:</dt>")
+     (printf "<dd><a href='debug.txt'>Debug output</a>")
+     (when profile?
+       (printf ", <a href='profile.txt'>Profiling report</a>"))
+     (printf "</dd>\n")
+     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+     (printf "</dl>\n")
 
-  (when *make-graph?*
-    (printf "<div id='graphs'>\n")
-    (call-with-output-file (build-path dir "plot.png") #:exists 'replace
-      (lambda (out)
-	(loop-plot (interleave (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
-                               (if target-errs
-                                   (loop-errors-renderers target-errs #:color-theme *green-theme* #:name "target")
-                                   '())
-                               (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
-		   #:x-label "Number of steps"
-		   #:y-label "Error (ulps)"
-		   #:port out #:kind 'png)))
-    (printf "<img width='500' height='250' src='plot.png' />\n")
-    (printf "</div>\n"))
+     (when *make-graph?*
+       (printf "<div id='graphs'>\n")
+       (call-with-output-file (build-path dir "plot.png") #:exists 'replace
+         (lambda (out)
+           (loop-plot (interleave (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
+                                  (if target-errs
+                                      (loop-errors-renderers target-errs #:color-theme *green-theme* #:name "target")
+                                      '())
+                                  (loop-errors-renderers end-errs #:color-theme *blue-theme* #:name "output"))
+                      #:x-label "Number of steps"
+                      #:y-label "Error (ulps)"
+                      #:port out #:kind 'png)))
+       (printf "<img width='500' height='250' src='plot.png' />\n")
+       (printf "</div>\n"))
 
-  (printf "<ol id='process-info'>\n")
-  (output-history end-alt)
-  (printf "</ol>\n")
+     (printf "<ol id='process-info'>\n")
+     (output-history end-alt)
+     (printf "</ol>\n")
 
-  (printf "</body>\n")
-  (printf "</html>\n"))
+     (printf "</body>\n")
+     (printf "</html>\n")]))
 
-(define (make-traceback test err bits profile?)
-  (printf "<!doctype html>\n")
-  (printf "<html>\n")
-  (printf "<head>\n")
-  (printf "<meta charset='utf-8' />\n")
-  (printf "<title>Exception for ~a</title>" (test-name test))
-  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-  (printf "</head>")
-  (printf "<body>\n")
+(define (make-traceback result profile?)
+  (match result
+    [(test-failure test bits exn time rdir)
+     (printf "<!doctype html>\n")
+     (printf "<html>\n")
+     (printf "<head>\n")
+     (printf "<meta charset='utf-8' />\n")
+     (printf "<title>Exception for ~a</title>" (test-name test))
+     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+     (printf "</head>")
+     (printf "<body>\n")
 
-  (printf "<dl id='about'>\n")
-  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-  (printf "<dt>Logs:</dt>")
-  (printf "<dd><a href='debug.txt'>Debug output</a>")
-  (when profile?
-    (printf ", <a href='profile.txt'>Profiling report</a>"))
-  (printf "</dd>\n")
-  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-  (printf "</dl>\n")
+     (printf "<dl id='about'>\n")
+     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+     (printf "<dt>Logs:</dt>")
+     (printf "<dd><a href='debug.txt'>Debug output</a>")
+     (when profile?
+       (printf ", <a href='profile.txt'>Profiling report</a>"))
+     (printf "</dd>\n")
+     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+     (printf "</dl>\n")
 
-  (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
-  (printf "<ol id='traceback'>\n")
-  (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
-    (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-            (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
-  (printf "</ol>\n")
+     (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
+     (printf "<ol id='traceback'>\n")
+     (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
+       (printf "<li><code>~a</code> in <code>~a</code></li>\n"
+               (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
+     (printf "</ol>\n")
 
-  (printf "</body>\n")
-  (printf "</html>\n"))
+     (printf "</body>\n")
+     (printf "</html>\n")]))
 
-(define (make-timeout test bits profile?)
-  (printf "<!doctype html>\n")
-  (printf "<html>\n")
-  (printf "<head>\n")
-  (printf "<meta charset='utf-8' />\n")
-  (printf "<title>Timeout for ~a</title>" (test-name test))
-  (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-  (printf "</head>")
-  (printf "<body>\n")
+(define (make-timeout result profile?)
+  (match result
+    [(test-timeout test bits rdir)
+     (printf "<!doctype html>\n")
+     (printf "<html>\n")
+     (printf "<head>\n")
+     (printf "<meta charset='utf-8' />\n")
+     (printf "<title>Timeout for ~a</title>" (test-name test))
+     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
+     (printf "</head>")
+     (printf "<body>\n")
 
-  (printf "<dl id='about'>\n")
-  (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-  (printf "<dt>Logs:</dt>")
-  (printf "<dd><a href='debug.txt'>Debug output</a>")
-  (when profile?
-    (printf ", <a href='profile.txt'>Profiling report</a>"))
-  (printf "</dd>\n")
-  (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-  (printf "</dl>\n")
+     (printf "<dl id='about'>\n")
+     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
+     (printf "<dt>Logs:</dt>")
+     (printf "<dd><a href='debug.txt'>Debug output</a>")
+     (when profile?
+       (printf ", <a href='profile.txt'>Profiling report</a>"))
+     (printf "</dd>\n")
+     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
+     (printf "</dl>\n")
 
-  (printf "<h2>Test timed out</h2>\n")
+     (printf "<h2>Test timed out</h2>\n")
 
-  (printf "</body>\n")
-  (printf "</html>\n"))
+     (printf "</body>\n")
+     (printf "</html>\n")]))
 
 (struct interval (alt-idx start-point end-point expr))
 
