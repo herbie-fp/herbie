@@ -166,16 +166,3 @@
    (/ (for/sum ([err-lst errs])
 	(best-fit-slope (make-pt err-lst)))
       (length errs))))
-
-;; got this from the internet
-(define (best-fit-slope pts)
-  (/ (- (for/avg ([pt pts])
-                 (* (car pt) (cadr pt)))
-        (* (for/avg ([pt pts])
-                    (car pt))
-           (for/avg ([pt pts])
-                    (cadr pt))))
-     (- (for/avg ([pt pts])
-                 (sqr (car pt)))
-        (sqr (for/avg ([pt pts])
-                      (car pt))))))

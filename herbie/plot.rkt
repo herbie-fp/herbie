@@ -119,19 +119,6 @@
             (car (first eby)) (car (last eby))
             #:width 2 #:color (color-theme-fit color)))
 
-;; got this from the internet
-(define (best-fit-slope pts)
-  (/ (- (for/avg ([pt pts])
-                 (* (car pt) (cadr pt)))
-        (* (for/avg ([pt pts])
-                    (car pt))
-           (for/avg ([pt pts])
-                    (cadr pt))))
-     (- (for/avg ([pt pts])
-                 (sqr (car pt)))
-        (sqr (for/avg ([pt pts])
-                      (car pt))))))
-
 (define (intercept slope pts)
   (- (for/avg ([pt pts])
               (cadr pt))

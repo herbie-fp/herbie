@@ -18,7 +18,7 @@
 (define (apply-converter conv args)
   (cond
    [(string? conv) (apply format conv args)]
-   [(list? conv) (apply format (list-ref conv (length args)) args)]
+   [(list? conv) (apply format (list-ref conv (min 2 (length args))) args)]
    [(procedure? conv) (apply conv args)]
    [else (error "Unknown syntax entry" conv)]))
 
@@ -91,7 +91,7 @@
        (if (eq? f 'list) (list->string args)
 	   (match (hash-ref texify-operators f)
 	     [`(,template ,self-paren-level ,arg-paren-level)
-	      (apply-converter
+              (apply-converter
 	       template
 	       (for/list ([arg args] [earg (cdr expr)])
 		 (match earg

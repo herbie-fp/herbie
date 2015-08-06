@@ -35,6 +35,10 @@
            (expand-associativity b))]
     [(list op a ...)
      (cons op (map expand-associativity a))]
+    [`(let ([,vars ,vals] ...) ,body)
+     `(let ,(for/list ([var vars] [val vals])
+              `(,var ,(expand-associativity val)))
+        ,(expand-associativity body))]
     [_
      expr]))
 

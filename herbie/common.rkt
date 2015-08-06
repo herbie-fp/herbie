@@ -14,7 +14,7 @@
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         for/avg)
+         for/avg best-fit-slope safe-/)
 
 (define *start-prog* (make-parameter '()))
 
@@ -251,9 +251,25 @@
 (define (log2 x)
   (/ (log x) (log 2)))
 
+(define (safe-/ num denom)
+  (if (= denom 0) +inf.0
+      (/ num denom)))
+
 (define-syntax-rule (for/avg ([items lsts]...)
                              body)
-  (/ (for/sum ([items lsts] ...)
-       body)
-     (apply min (map length (list lsts ...)))))
+  (safe-/ (for/sum ([items lsts] ...)
+            body)
+          (apply min (map length (list lsts ...)))))
 
+;; got this from the internet
+(define (best-fit-slope pts)
+  (safe-/ (- (for/avg ([pt pts])
+                      (* (car pt) (cadr pt)))
+             (* (for/avg ([pt pts])
+                         (car pt))
+                (for/avg ([pt pts])
+                         (cadr pt))))
+          (- (for/avg ([pt pts])
+                      (sqr (car pt)))
+             (sqr (for/avg ([pt pts])
+                           (car pt))))))

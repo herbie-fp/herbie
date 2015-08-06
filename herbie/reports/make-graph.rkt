@@ -28,7 +28,7 @@
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
-                  start-est-error end-est-error newpoints newexacts start-error end-error target-error)
+                  start-est-error end-est-error newpoints newexacts start-errs end-errs target-errs)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>")
@@ -50,7 +50,7 @@
 
      (when *make-graph?*
        (printf "<div id='graphs'>\n")
-       (call-with-output-file (build-path dir "plot.png") #:exists 'replace
+       (call-with-output-file (build-path report-output-path rdir "plot.png") #:exists 'replace
          (lambda (out)
            (loop-plot (interleave (loop-errors-renderers start-errs #:color-theme *red-theme* #:name "input")
                                   (if target-errs
@@ -92,9 +92,9 @@
      (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
      (printf "</dl>\n")
 
-     (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message err)))
+     (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message exn)))
      (printf "<ol id='traceback'>\n")
-     (for ([tb (continuation-mark-set->context (exn-continuation-marks err))])
+     (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
        (printf "<li><code>~a</code> in <code>~a</code></li>\n"
                (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
      (printf "</ol>\n")
