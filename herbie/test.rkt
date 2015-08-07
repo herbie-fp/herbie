@@ -6,7 +6,7 @@
 (require "points.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file test-target)
+         load-tests load-file test-target parse-test)
 
 (define (unfold-let expr)
   (match expr
