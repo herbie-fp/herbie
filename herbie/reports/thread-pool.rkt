@@ -98,8 +98,10 @@
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
-      (let*-values ([(reals infs) (partition ordinary-float? (for/list ([end-err-lst end-errors] [start-err-lst start-errors])
-							       (- (car (take-right end-err-lst 1)) (car (take-right start-err-lst 1)))))]
+      (let*-values ([(reals infs) (partition ordinary-float?
+                                             (for/list ([end-err-lst end-errors] [start-err-lst start-errors])
+                                               (- (car (take-right end-err-lst 1))
+                                                  (car (take-right start-err-lst 1)))))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
