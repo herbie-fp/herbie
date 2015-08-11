@@ -14,7 +14,7 @@
   (make-parameter
    #hash([precision . (double)]
          [setup    . (simplify)]
-         [generate . (rr taylor simplify)]
+         [generate . (rr taylor simplify e2e-localize)]
          [reduce   . (regimes taylor simplify avg-error)])))
 
 (define (toggle-flag! category flag)

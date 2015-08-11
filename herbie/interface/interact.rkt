@@ -110,8 +110,9 @@
 
 ;; Invoke the subsystems individually
 (define (localize!)
-  (^locs^ (localize-error (alt-program (^next-alt^))))
-  (void))
+  (let ([localize-f ((flag 'generate 'e2e-localize) localize-error-e2e localize-error)])
+    (^locs^ (localize-f (alt-program (^next-alt^))))
+    (void)))
 
 (define (gen-series!)
   (when ((flag 'generate 'taylor) #t #f)
