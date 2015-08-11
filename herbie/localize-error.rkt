@@ -7,7 +7,7 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide localize-error *analyze-context*)
+(provide localize-error localize-error-e2e *analyze-context*)
 
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
@@ -66,3 +66,74 @@
                      (map sow (map (curry cons err) locs))))))
          > #:key (compose errors-score car))
         (*localize-expressions-limit*))))
+
+(define (list-with lst idx val)
+  (if (= 0 idx)
+      (cons val (cdr lst))
+      (cons (car lst) (list-with (cdr lst) (sub1 idx) val))))
+
+(define (localize-error-e2e prog)
+  (define max-ulps (expt 2 (*bit-width*)))
+  (define vars (map cons (program-variables prog)
+                    (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))]) p))))
+  (define cache
+    (if (eq? (*analyze-context*) (*pcontext*))
+        *analyze-cache*
+        (make-hash)))
+  (define (local-errors expr)
+    (hash-ref! cache expr
+               (λ ()
+                 (match expr
+                   [(? constant?) (list (repeat (->bf expr)))]
+                   [(? variable?) (list (map ->bf (cdr (assoc expr vars))))]
+                   [`(,f ,args ...)
+                    (let ([arg-results (map local-errors args)])
+                      (list*
+                       ;; The first item in the return list here is
+                       ;; the exact evaluation at this level, for each
+                       ;; point.
+                       (apply map (λ args (apply (real-op->bigfloat-op f) args))
+                              (map car arg-results))
+                       ;; The second item is what happens when we
+                       ;; approximate it at this level, for each point
+                       (cons '()
+                             (apply map (λ args
+                                          (->bf (apply (real-op->float-op f)
+                                                       (map ->flonum args))))
+                                    (map car arg-results)))
+                       ;; The rest is the result of taking the
+                       ;; approximations everywhere else, and
+                       ;; propagating them up, with only one
+                       ;; approximation per propagation.
+                       (for/append ([arg args] [arg-result arg-results] [arg-idx (in-naturals 1)])
+                         (for/list ([approximation (cdr arg-result)])
+                           ;; Each approximation result is a pair of a
+                           ;; location and a list of values.
+                           (cons (cons arg-idx (car approximation))
+                                 (apply map (λ args (apply (real-op->bigfloat-op f)
+                                                           (list-with (cdr args)
+                                                                      (sub1 arg-idx)
+                                                                      (car args))))
+                                        (cdr approximation)
+                                        (map car arg-results)))))))]))))
+                    
+  (let ([result (local-errors (program-body prog))])
+    (map (compose (curry cons 2) car)
+         (take-up-to
+          (sort (for/list ([approximate (cdr result)])
+                  (cons (car approximate)
+                        (errors-score
+                         (for/list ([exact-at-pt (car result)]
+                                    [approx-at-pt (cdr approximate)])
+                           (let ([ex (->flonum exact-at-pt)]
+                                 [out (->flonum approx-at-pt)])
+                             (add1
+                              (if (real? out)
+                                  (abs (ulp-difference out ex))
+                                  max-ulps)))))))
+                >
+                #:key cdr)
+          (*localize-expressions-limit*)))))
+                   
+                            
+                    
