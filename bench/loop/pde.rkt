@@ -22,11 +22,11 @@
              "Solve the wave equation on five points"
              (do ([t 0 (+ t 1)]
 
-                  [v0 v00 (let ([df (+ x1 (* -2 x0) x1))]) (+ v0 (* eps c df)))]
-                  [v1 v10 (let ([df (+ x0 (* -2 x1) x2))]) (+ v1 (* eps c df)))]
-                  [v2 v20 (let ([df (+ x1 (* -2 x2) x3))]) (+ v2 (* eps c df)))]
-                  [v3 v30 (let ([df (+ x2 (* -2 x3) x4))]) (+ v3 (* eps c df)))]
-                  [v4 v40 (let ([df (+ x3 (* -2 x4) x3))]) (+ v4 (* eps c df)))]
+                  [v0 v00 (let ([df (+ x1 (* -2 x0) x1)]) (+ v0 (* eps c df)))]
+                  [v1 v10 (let ([df (+ x0 (* -2 x1) x2)]) (+ v1 (* eps c df)))]
+                  [v2 v20 (let ([df (+ x1 (* -2 x2) x3)]) (+ v2 (* eps c df)))]
+                  [v3 v30 (let ([df (+ x2 (* -2 x3) x4)]) (+ v3 (* eps c df)))]
+                  [v4 v40 (let ([df (+ x3 (* -2 x4) x3)]) (+ v4 (* eps c df)))]
 
                   [x0 x00 (+ x0 (* eps c v0))]
                   [x1 x10 (+ x1 (* eps c v1))]
@@ -44,11 +44,11 @@
              "Solve the Euler-Tricomi equation on five points"
              (do ([x 0 (+ x 1)]
 
-                  [v0 v00 (let ([dy (+ y1 (* -2 y0) y1))]) (+ v0 (* eps x dy)))]
-                  [v1 v10 (let ([dy (+ y0 (* -2 y1) y2))]) (+ v1 (* eps x dy)))]
-                  [v2 v20 (let ([dy (+ y1 (* -2 y2) y3))]) (+ v2 (* eps x dy)))]
-                  [v3 v30 (let ([dy (+ y2 (* -2 y3) y4))]) (+ v3 (* eps x dy)))]
-                  [v4 v40 (let ([dy (+ y3 (* -2 y4) y3))]) (+ v4 (* eps x dy)))]
+                  [v0 v00 (let ([dy (+ y1 (* -2 y0) y1)]) (+ v0 (* eps x dy)))]
+                  [v1 v10 (let ([dy (+ y0 (* -2 y1) y2)]) (+ v1 (* eps x dy)))]
+                  [v2 v20 (let ([dy (+ y1 (* -2 y2) y3)]) (+ v2 (* eps x dy)))]
+                  [v3 v30 (let ([dy (+ y2 (* -2 y3) y4)]) (+ v3 (* eps x dy)))]
+                  [v4 v40 (let ([dy (+ y3 (* -2 y4) y3)]) (+ v4 (* eps x dy)))]
 
                   [y0 y00 (+ y0 (* eps v0))]
                   [y1 y10 (+ y1 (* eps v1))]
