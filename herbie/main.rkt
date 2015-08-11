@@ -190,7 +190,8 @@
 			  (set! taylored-alts (add1 taylored-alts))
 			  (append-map (curry taylor-alt alt) locs))
 			(λ (x y) x))]
-	 [locss (map (compose localize-error alt-program) all-alts)]
+         [localize-f ((flag 'generate 'e2e-localize) localize-error-e2e localize-error)]
+	 [locss (map (compose localize-f alt-program) all-alts)]
 	 [alts*
 	  (apply append
 		 (for/list ([alt all-alts] [locs locss])

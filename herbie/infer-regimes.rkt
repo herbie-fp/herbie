@@ -67,7 +67,8 @@
                                    (for/list ([vloc vlocs])
                                      (cons (car vloc) (cddr vloc))))]
                      [#t subexpr]))])))
-  (let* ([locs (localize-error prog)])
+  (let* ([localize-f ((flag 'generate 'e2e-localize) localize-error-e2e localize-error)]
+         [locs (localize-f prog)])
     (if (null? locs)
         #f
         (critical-child (location-get (car locs) prog)))))
