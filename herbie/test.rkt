@@ -29,16 +29,33 @@
 
 (define (expand-associativity expr)
   (match expr
+    [`(let ([,vars ,vals] ...) ,body)
+     `(let ,(for/list ([var vars] [val vals])
+              `(,var ,(expand-associativity val)))
+        ,(expand-associativity body))]
+    [`(do ([,accs ,init-exprs ,update-exprs] ...)
+          ,while-expr
+        ,ret-expr)
+     `(do ,(for/list ([acc accs] [init-expr init-exprs] [update-expr update-exprs])
+             `(,acc ,(expand-associativity init-expr)
+                    ,(expand-associativity update-expr)))
+          ,(expand-associativity while-expr)
+        ,(expand-associativity ret-expr))]
+    [`(do-list ([,accs ,init-exprs ,update-exprs] ...)
+               ([,items ,lsts] ...)
+               ,ret-expr)
+     `(do-list ,(for/list ([acc accs] [init-expr init-exprs] [update-expr update-exprs])
+                  `(,acc ,(expand-associativity init-expr)
+                         ,(expand-associativity update-expr)))
+               ,(for/list ([item items] [lst lsts])
+                  `(,item ,(expand-associativity lst)))
+               ,(expand-associativity ret-expr))]
     [(list (? (curryr member '(+ - * /)) op) a ..2 b)
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
     [(list op a ...)
      (cons op (map expand-associativity a))]
-    [`(let ([,vars ,vals] ...) ,body)
-     `(let ,(for/list ([var vars] [val vals])
-              `(,var ,(expand-associativity val)))
-        ,(expand-associativity body))]
     [_
      expr]))
 
