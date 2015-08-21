@@ -63,3 +63,4 @@
 (define *common-subexpr-factoring-limit* (make-parameter 4))
 
 (define *max-loop-iters* (make-parameter 10000))
+(define *bad-pts-cost* (make-parameter 1))

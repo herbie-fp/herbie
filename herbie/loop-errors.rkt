@@ -5,6 +5,7 @@
 (require "programs.rkt")
 
 (provide loop-aware-errors loop-aware-error-score)
+(provide (all-defined-out))
 
 (define (loop-aware-error-at-point prog pt)
   (define (take-error prog-approx prog-exact)
@@ -159,10 +160,26 @@
 ;; attempts to compensate for the random walk behavior of error
 ;; growth.
 (define (loop-aware-error-score errs)
-  (define (make-pt err-lst)
+  (define (make-pts err-lst)
     (for/list ([(err i) (in-indexed err-lst)])
       (list i (sqr err))))
   (exact->inexact
    (/ (for/sum ([err-lst errs])
-	(best-fit-slope (make-pt err-lst)))
+	(best-fit-slope (make-pts err-lst)))
       (length errs))))
+
+(define (loop-aware-error-score* errs)
+  (define bad-ulps (expt 2 (/ (*bit-width*) 2)))
+  (define (make-pts err-lst)
+    (for/list ([(err i) (in-indexed err-lst)])
+      (list i (sqr err))))
+  (exact->inexact
+   (/
+    (for/sum ([err-lst errs])
+      (let-values ([(decent-pts horrible-pts)
+                    (partition (λ (pt)
+                                 (< (cadr pt) bad-ulps))
+                               (make-pts err-lst))])
+        (+ (* (/ (length horrible-pts) (length err-lst)) (*bad-pts-cost*))
+           (best-fit-slope (make-pts err-lst)))))
+    (length errs))))

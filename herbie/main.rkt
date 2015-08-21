@@ -95,8 +95,10 @@
 
 (define (best-alt alts)
   (argmin alt-cost
-	  (argmins (compose errors-score alt-errors)
-		   alts)))
+	  (argmins
+           (λ (alt)
+             (loop-aware-errors-score* (loop-aware-errors (alt-program alt) (*pcontext*))))
+           alts)))
 ;; Takes a function from loop expressions to lists of loop
 ;; expressions, and an event tag, and produces a list of alts which
 ;; apply that transformation as an alt event.

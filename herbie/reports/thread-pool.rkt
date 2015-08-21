@@ -91,10 +91,10 @@
            [end-errors    (test-result-end-error    result)]
            [target-errors (test-result-target-error result)]
 
-           [start-score   (loop-aware-error-score start-errors)]
-           [end-score     (loop-aware-error-score end-errors)]
+           [start-score   (loop-aware-error-score* start-errors)]
+           [end-score     (loop-aware-error-score* end-errors)]
            [target-score (and target-errors
-                              (loop-aware-error-score target-errors))]
+                              (loop-aware-error-score* target-errors))]
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
