@@ -11,6 +11,7 @@
 (require "taylor.rkt")
 (require "alt-table.rkt")
 (require "matcher.rkt")
+(require "loop-errors.rkt")
 
 (provide ;; For the shell
 	 (all-defined-out))
@@ -97,7 +98,7 @@
   (argmin alt-cost
 	  (argmins
            (λ (alt)
-             (loop-aware-errors-score* (loop-aware-errors (alt-program alt) (*pcontext*))))
+             (loop-aware-error-score* (loop-aware-errors (alt-program alt) (*pcontext*))))
            alts)))
 ;; Takes a function from loop expressions to lists of loop
 ;; expressions, and an event tag, and produces a list of alts which

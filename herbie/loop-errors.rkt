@@ -4,7 +4,8 @@
 (require "points.rkt")
 (require "programs.rkt")
 
-(provide loop-aware-errors loop-aware-error-score)
+(provide loop-aware-errors loop-aware-error-score
+         loop-aware-error-score*)
 (provide (all-defined-out))
 
 (define (loop-aware-error-at-point prog pt)
@@ -178,8 +179,8 @@
     (for/sum ([err-lst errs])
       (let-values ([(decent-pts horrible-pts)
                     (partition (λ (pt)
-                                 (< (cadr pt) bad-ulps))
+                                 (< (cadr pt) (sqr bad-ulps)))
                                (make-pts err-lst))])
-        (+ (* (/ (length horrible-pts) (length err-lst)) (*bad-pts-cost*))
-           (best-fit-slope (make-pts err-lst)))))
+        (+ (* (if (null? err-lst) 0 (/ (length horrible-pts) (length err-lst))) (*bad-pts-cost*))
+           (best-fit-slope decent-pts))))
     (length errs))))
