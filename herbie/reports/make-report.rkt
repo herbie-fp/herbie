@@ -177,30 +177,45 @@
     (define table-labels
       '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
 
-    (define-values (dir _name _must-be-dir?) (split-path file))
+    (define-values (dir _name _must-be-dir?) (split-path out-file))
 
     (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
     (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
     (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
     (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
 
-    (define total-time (apply + (map table-row-time tests)))
-    (define total-passed
+    (define total-time1 (apply + (map table-row-time tests1)))
+    (define total-time2 (apply + (map table-row-time tests2)))
+    
+    (define (total-passed tests)
       (for/sum ([row tests])
         (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-    (define total-available
+    (define total-passed1 (total-passed tests1))
+    (define total-passed2 (total-passed tests2))
+    
+    (define (total-available tests)
       (for/sum ([row tests])
         (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
-    (define total-crashes
+    (define total-available1 (total-passed tests1))
+    (define total-available2 (total-passed tests2))
+    
+    (define (total-crashes tests)
       (for/sum ([row tests])
         (if (equal? (table-row-status row) "crash") 1 0)))
+    (define total-crashes1 (total-crashes tests1))
+    (define total-crashes2 (total-crashes tests2))
 
-    (define total-gained
+    (define (total-gained tests)
       (for/sum ([row tests])
         (or (table-row-result row) 0)))
-    (define total-start
+    (define total-gained1 (total-gained tests1))
+    (define total-gained2 (total-gained tests2))
+    
+    (define (total-start tests)
       (for/sum ([row tests])
         (or (table-row-start row) 0)))
+    (define total-start1 (total-start tests1))
+    (define total-start2 (total-start tests2))
 
     (define (round* x)
       (inexact->exact (round x)))
@@ -223,17 +238,19 @@
 
                 ; Big bold numbers
                 (printf "<div id='large'>\n")
-                (printf "<div>Time: <span class='number'>~a</span></div>\n"
-                        (format-time total-time))
-                (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
-                        total-passed total-available)
-                (when (not (= total-crashes 0))
-                  (printf "<div>Crashes: <span class='number'>~a</span></div>\n"
-                          total-crashes))
-                (printf "<div>Tests: <span class='number'>~a</span></div>\n"
-                        (length tests))
-                (printf "<div>Bits: <span class='number'>~a/~a</span></div>\n"
-                        (round* (- total-start total-gained)) (round* total-start))
+                (printf "<div>Time: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
+                        (format-time total-time1) (format-time total-time2)
+                (printf "<div>Passed: <span class='number'>~a/~a</span> vs <span class='number'>~a/~a</span></div>\n"
+                        total-passed1 total-available1
+                        total-passed2 total-available2)
+                (when (not (and (= total-crashes1 0) (= total-crashes2 0)))
+                  (printf "<div>Crashes: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
+                          total-crashes1 total-crashes2))
+                (printf "<div>Tests: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
+                        (length tests1) (length tests2))
+                (printf "<div>Bits: <span class='number'>~a/~a</span> vs <span class='number'>~a/~a</span></div>\n"
+                        (round* (- total-start1 total-gained1)) (round* total-start1)
+                        (round* (- total-start2 total-gained2)) (round* total-start2))
                 (printf "</div>\n")
 
                 ; The graph
