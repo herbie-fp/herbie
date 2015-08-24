@@ -5,6 +5,8 @@
 (require "../common.rkt")
 (require "datafile.rkt")
 
+(provide read-report-info)
+
 (define (parse-folder-name name)
   (let ([name (path->string name)])
     (if (= (length (string-split name ":")) 4)
