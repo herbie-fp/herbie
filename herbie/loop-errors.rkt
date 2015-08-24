@@ -181,6 +181,11 @@
                     (partition (λ (pt)
                                  (< (cadr pt) (sqr bad-ulps)))
                                (make-pts err-lst))])
-        (+ (* (if (null? err-lst) 0 (/ (length horrible-pts) (length err-lst))) (*bad-pts-cost*))
-           (best-fit-slope decent-pts))))
+        (+ (* (if (null? err-lst) 0
+                  (/ (length horrible-pts)
+                     (length err-lst)))
+              (*bad-pts-cost*))
+           (cond [(null? decent-pts) 0]
+                 [(= 1 (length decent-pts)) 0]
+                 [#t (best-fit-slope decent-pts)]))))
     (length errs))))
