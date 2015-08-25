@@ -15,17 +15,18 @@
   <p>
     <a href="index.html">Herbie</a> depends on <a href="https://racket-lang.org">Racket</a>,
     a dynamic language developed by Northeastern University.
-    To install Herbie, one must first install Racket, version 6.1 or later.
+    To install Herbie, one must first install Racket, version 6.1 (not 6.2).
     Once Racket is installed, Herbie should run without problems.
   </p>
 
   <h2>Installing Racket</h2>
 
   <p>
-    Avoid using MacPorts or Brew if you are using OS X;
-      we've found that these repositories miscompile the arbitrary-precision libraries
-      that Herbie requires.
-    Instead, use the <a href="http://download.racket-lang.org/">official installer</a>.
+    Herbie currently supports Linux; OS X has known bugs when run with multiple threads,
+    and Windows is untested.
+    Use the <a href="http://download.racket-lang.org/racket-v6.1.1.html">official installer</a>
+    to install Racket, or use distro-provided packages provided they are version 6.1 of Racket.
+    (Earlier versions are not supported; later versions have known bugs with multiple threads.)
   </p>
 
   <p>
@@ -69,14 +70,16 @@ Welcome to Racket v6.1.
   <p>
     If any of the test results are crashes (there will be a “crashes” count at the top),
       installation issues are to blame.
-    Check that your Racket installation is version 6.1 or later,
-      that you installed Racket from the official installation packages
-      (not from MacPorts, Brew, or a similar distributor).
+    Check that your Racket installation is version 6.1
+      and that you installed Racket from the official installation packages.
     If you're confident the installation is correct
       please <a href="mailto:herbie@cs.washington.edu">report the error</a> to the Herbie developers,
       attaching an archive of the complete <code>graphs/</code> directory.
-    In particular, if you see "MPFR assertion failed" or similar error messages from MPFR,
-      make sure you're not using a Brew-compiled version of Racket.
+    If you see "MPFR assertion failed" and are on OS X,
+      this is a known bug in OS X Racket with multiple threads.
+    If you see "cannot instantiate `racket/gui/base' a second time in the same process",
+      this is a known bug in Racket 6.2;
+      if you are on this version, please downgrade to Racket 6.1.
   </p>
 
   <p>If this all works correctly, you can make Herbie start up faster by byte-compiling it:</p>
