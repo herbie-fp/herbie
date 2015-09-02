@@ -19,6 +19,8 @@
       [`(,(or 'λ 'lambda) ,vars ,body)
        (run-improve in-expr (*num-iterations*))]
       [_ (error "did not recognize input")]))
+  (printf "; Input error: ~a\n" (errors-score (alt-errors (make-alt in-expr))))
+  (printf "; Output error: ~a\n" (errors-score (alt-errors out-alt)))
   (printf "~a\n" (alt-program out-alt)))
 
 (module+ main
