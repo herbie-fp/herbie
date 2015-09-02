@@ -61,7 +61,7 @@
     (test-output t1)]))
 
 (command-line
- #:program "make-report"
+ #:program "herbie"
  #:once-each
  [("-p" "--profile") "Whether to profile each test"
   (set! *profile?* #t)]

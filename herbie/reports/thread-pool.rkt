@@ -213,7 +213,7 @@
     (for/list ([id (in-naturals)] [prog progs])
       (list id prog)))
 
-  (printf "Starting ~a workers on ~a problems...\n" threads (length progs))
+  (printf "Starting ~a Herbie workers on ~a problems...\n" threads (length progs))
   (for ([worker workers])
     (place-channel-put worker `(apply ,worker ,@(car work)))
     (set! work (cdr work)))
