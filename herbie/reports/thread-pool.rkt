@@ -188,13 +188,7 @@
              `(done ,id ,self ,result)))])
       (loop))))
 
-(define (get-test-results progs
-                          #:threads [threads (max (- (processor-count) 1) 1)]
-                          #:profile [profile? #f])
-
-  (when (> threads (length progs))
-    (set! threads (length progs)))
-  
+(define (run-workers progs threads profile?)
   (define config
     `(init rand ,(pseudo-random-generator->vector
                   (current-pseudo-random-generator))
@@ -244,7 +238,29 @@
             out*
             (loop out*)))))
 
-  (map place-kill workers)
+  (map place-kill workers))
+
+(define (run-nothreads progs profile?)
+  (set! *profile?* profile?)
+  (printf "Starting Herbie on ~a problems...\n" (length progs))
+  (for/list ([test progs] [i (in-naturals)])
+    (define tr (run-test i test))
+    (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
+    (match (table-row-status tr)
+      ["crash"   (printf "[   CRASH   ]")]
+      ["timeout" (printf "[  timeout  ]")]
+      [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
+    (printf "\t~a\n" (table-row-name tr))
+    (cons i tr)))
+
+(define (get-test-results progs #:threads [threads #f] #:profile [profile? #f])
+  (when (and threads (> threads (length progs)))
+    (set! threads (length progs)))
+
+  (define outs
+    (if threads
+        (run-workers progs threads profile?)
+        (run-nothreads progs profile?)))
 
   ; The use of > instead of < is a cleverness:
   ; the list of tests is accumulated in reverse, this reverses again.

@@ -14,7 +14,7 @@
 (require "datafile.rkt")
 (provide (all-defined-out))
 
-(define *max-test-threads* (max (- (processor-count) 1) 1))
+(define *max-test-threads* #f)
 (define *test-name* #f)
 
 (define *profile?* #f)
@@ -70,7 +70,9 @@
    (current-pseudo-random-generator)
    (read (open-input-string rs)))]
  [("--threads") th "How many tests to run in parallel to use"
-  (set! *max-test-threads* (string->number th))]
+  (if (not (equal? th "no"))
+      (set! *max-test-threads* (string->number th))
+      (set! *max-test-threads* #f))]
  [("--fuel") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
  [("--num-points") points "The number of points to use"
