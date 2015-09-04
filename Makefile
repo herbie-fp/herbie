@@ -21,6 +21,7 @@ loc:
 
 deploy:
 # Crazy system where we have several Herbie repositories checked out
+# This won't restart the demo server, just pull the new static content
 	cd $(shell ~/uwplse/getdir)/src && git pull
 
 clean:
