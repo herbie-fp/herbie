@@ -1,4 +1,5 @@
 
+;; https://github.com/malyzajko/rosa/blob/master/testcases/real/techreport/NBody.scala
 (herbie-test ([x0 (< (< -6 double) 6)] [y0 (< (< -6 double) 6)] [z0 (< (< -0.2 double) 0.2)]
               [vx0 (< (< -3 double) 3)] [vy0 (< (< -3 double) 3)] [vz0 (< (< -0.1 double) 0.1)]
               [i0 (integer-range 0 100)])
@@ -28,5 +29,7 @@
          [vz (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
                     [mag (/ dt (* distance distance distance))]
                     [vzNew (- vz (* z solarMass mag))])
-               vzNew)])
+               vzNew)]
+         [i i0 (+ i 1)])
+        (< i 100)
         x)))
