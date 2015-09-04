@@ -6,30 +6,46 @@
   "N Body Simulation"
   (let ([dt 0.1]
         [solarMass 39.47841760435743])
-    (do ([x (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                   [mag (/ dt (* distance distance distance))]
-                   [vxNew (- vx (* x solarMass mag))])
-              (+ x (* dt vxNew)))]
-         [y (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                   [mag (/ dt (* distance distance distance))]
-                   [vyNew (- vy (* y solarMass mag))])
-              (+ y (* dt vyNew)))]
-         [z (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                   [mag (/ dt (* distance distance distance))]
-                   [vzNew (- vz (* z solarMass mag))])
-              (+ z (* dt vzNew)))]
-         [vx (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                    [mag (/ dt (* distance distance distance))]
-                    [vxNew (- vx (* x solarMass mag))])
-               vxNew)]
-         [vy (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                    [mag (/ dt (* distance distance distance))]
-                    [vyNew (- vy (* y solarMass mag))])
-               vyNew)]
-         [vz (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
-                    [mag (/ dt (* distance distance distance))]
-                    [vzNew (- vz (* z solarMass mag))])
-               vzNew)]
+    (do ([x x0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                      [mag (/ dt (* distance distance distance))]
+                      [vxNew (- vx (* x solarMass mag))])
+                 (+ x (* dt vxNew)))]
+         [y y0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                      [mag (/ dt (* distance distance distance))]
+                      [vyNew (- vy (* y solarMass mag))])
+                 (+ y (* dt vyNew)))]
+         [z z0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                      [mag (/ dt (* distance distance distance))]
+                      [vzNew (- vz (* z solarMass mag))])
+                 (+ z (* dt vzNew)))]
+         [vx vx0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                        [mag (/ dt (* distance distance distance))]
+                        [vxNew (- vx (* x solarMass mag))])
+                   vxNew)]
+         [vy vy0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                        [mag (/ dt (* distance distance distance))]
+                        [vyNew (- vy (* y solarMass mag))])
+                   vyNew)]
+         [vz vz0 (let* ([distance (sqrt (+ (* x x) (* y y) (* z z)))]
+                        [mag (/ dt (* distance distance distance))]
+                        [vzNew (- vz (* z solarMass mag))])
+                   vzNew)]
          [i i0 (+ i 1)])
         (< i 100)
         x)))
+
+;; https://github.com/malyzajko/rosa/blob/master/testcases/real/techreport/Pendulum.scala
+(herbie-test ([t0 (< (< -2 double) 2)] [w0 (< (< -5 double) 5)] [N (integer-range 0 1000)])
+  "Pendulum"
+  (let ([h 0.01]
+        [L 2.0]
+        [m 1.5]
+        [g 9.80665])
+    (do ([t t0 (let* ([k1w (* (/ (- g) L) (sin t))]
+                      [k2t (+ w (* (/ h 2) k1w))])
+                 (+ t (* h k2t)))]
+         [w w0 (let* ([k2w (* (/ (- g) L) (sin (+ t (* (/ h 2) w))))])
+                 (+ w (* h k2w)))]
+         [n 0 (+ n 1)])
+        (< n N)
+      t)))
