@@ -50,6 +50,7 @@
         (< n N)
       t)))
 
+;; https://github.com/malyzajko/rosa/blob/master/testcases/real/techreport/SineNewton.scala
 (herbie-test ([x0 (< (< -1.2 double) 1.2)])
   "Sine Newton"
   (do ([x x0 (- x (/ (+ (+ (- x (/ (expt x 3) 6.0)) (/ (expt x 5) 120.0)) (/ (expt x 7) 5040.0))
