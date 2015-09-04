@@ -1,7 +1,7 @@
 FLAGS=-p
 BENCHDIR=bench/hamming/
 
-.PHONY: report publish www compile clean loc
+.PHONY: report publish www compile clean loc deploy
 
 all:
 	$(MAKE) report
@@ -18,6 +18,10 @@ www:
 
 loc:
 	find herbie/ -type f -exec cat {} \; | wc -l
+
+deploy:
+# Crazy system where we have several Herbie repositories checked out
+	cd $(shell ~/uwplse/getdir)/src && git pull
 
 clean:
 	rm -f cost
