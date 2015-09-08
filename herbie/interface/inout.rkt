@@ -7,8 +7,8 @@
 (require "../config.rkt")
 
 (define (run)
+  (eprintf "; Seed: ~a\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (define in-expr (read))
-  (eprintf "improving ~a...\n" in-expr)
   (define out-alt
     (match in-expr
       [`(herbie-test . ,_)
@@ -24,4 +24,22 @@
   (printf "~a\n" (alt-program out-alt)))
 
 (module+ main
-  (run))
+  (command-line
+   #:program "herbie/inout.rkt"
+   #:once-each
+   [("-r" "--seed") rs "The random seed vector to use in point generation"
+    (vector->pseudo-random-generator!
+     (current-pseudo-random-generator)
+     (read (open-input-string rs)))]
+   [("--fuel") fu "The amount of 'fuel' to use"
+    (*num-iterations* (string->number fu))]
+   [("--num-points") points "The number of points to use"
+    (*num-points* (string->number points))]
+   #:multi
+   [("-o" "--option") tf "Toggle flags, specified in the form category:flag"
+    (let ([split-strings (string-split tf ":")])
+      (when (not (= 2 (length split-strings)))
+        (error "Badly formatted input " tf))
+      (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
+   #:args _
+   (run)))
