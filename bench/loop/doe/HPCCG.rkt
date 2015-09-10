@@ -103,7 +103,7 @@
                     [alpha0 (+ (* p0 mp0) (* p1 mp1) (* p2 mp2) (* p3 mp3))]
                     [alpha1 (/ (+ (* r0 r0) (* r1 r1) (* r2 r2) (* r3 r3))
                                alpha0)])
-               (+ x0 (* alpha1 p0))]
+               (+ x0 (* alpha1 p0)))]
          [x1 x0_1
              (let* ([mp0 (+ (* p0 m00) (* p1 m10) (* p2 m20) (* p3 m30))]
                     [mp1 (+ (* p0 m01) (* p1 m11) (* p2 m21) (* p3 m31))]
@@ -113,7 +113,7 @@
                     [alpha0 (+ (* p0 mp0) (* p1 mp1) (* p2 mp2) (* p3 mp3))]
                     [alpha1 (/ (+ (* r0 r0) (* r1 r1) (* r2 r2) (* r3 r3))
                                alpha0)])
-               (+ x1 (* alpha1 p1))]
+               (+ x1 (* alpha1 p1)))]
          [x2 x0_2
              (let* ([mp0 (+ (* p0 m00) (* p1 m10) (* p2 m20) (* p3 m30))]
                     [mp1 (+ (* p0 m01) (* p1 m11) (* p2 m21) (* p3 m31))]
@@ -123,7 +123,7 @@
                     [alpha0 (+ (* p0 mp0) (* p1 mp1) (* p2 mp2) (* p3 mp3))]
                     [alpha1 (/ (+ (* r0 r0) (* r1 r1) (* r2 r2) (* r3 r3))
                                alpha0)])
-               (+ x2 (* alpha1 p2))]
+               (+ x2 (* alpha1 p2)))]
          [x3 x0_3
              (let* ([mp0 (+ (* p0 m00) (* p1 m10) (* p2 m20) (* p3 m30))]
                     [mp1 (+ (* p0 m01) (* p1 m11) (* p2 m21) (* p3 m31))]
@@ -133,11 +133,12 @@
                     [alpha0 (+ (* p0 mp0) (* p1 mp1) (* p2 mp2) (* p3 mp3))]
                     [alpha1 (/ (+ (* r0 r0) (* r1 r1) (* r2 r2) (* r3 r3))
                                alpha0)])
-               (+ x3 (* alpha1 p3))]
+               (+ x3 (* alpha1 p3)))]
 
          [k 1 (+ k 1)])
         (< k max_iters)
-      x0);; For now we're just returning the first element of the
-         ;; vector here, since they all affect each other, but the
-         ;; real output is supposed to be the whole vector.
+      ;; For now we're just returning the first element of the
+      ;; vector here, since they all affect each other, but the
+      ;; real output is supposed to be the whole vector.
+      x0)))
         
