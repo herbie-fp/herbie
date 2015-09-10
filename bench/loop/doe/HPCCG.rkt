@@ -16,19 +16,14 @@
 
               [max_iters (integer-range 0 100)])
   "HPCCG Mini-App from Sandia Mini-apps"
-  (let-values ([(init-r0
-                 init-r1
-                 init-r2
-                 init-r3)
-                (let ([mx0 (+ (* x0_0 m00) (* x0_1 m10) (* x0_2 m20) (* x0_3 m30))]
-                      [mx1 (+ (* x0_0 m01) (* x0_1 m11) (* x0_2 m21) (* x0_3 m31))]
-                      [mx2 (+ (* x0_0 m02) (* x0_1 m12) (* x0_2 m22) (* x0_3 m32))]
-                      [mx3 (+ (* x0_0 m03) (* x0_1 m13) (* x0_2 m23) (* x0_3 m33))])
-                  (values
-                   (- mx0 b0)
-                   (- mx1 b1)
-                   (- mx2 b2)
-                   (- mx3 b3)))])
+  (let* ([mx0 (+ (* x0_0 m00) (* x0_1 m10) (* x0_2 m20) (* x0_3 m30))]
+         [mx1 (+ (* x0_0 m01) (* x0_1 m11) (* x0_2 m21) (* x0_3 m31))]
+         [mx2 (+ (* x0_0 m02) (* x0_1 m12) (* x0_2 m22) (* x0_3 m32))]
+         [mx3 (+ (* x0_0 m03) (* x0_1 m13) (* x0_2 m23) (* x0_3 m33))]
+         [init-r0 (- mx0 b0)]
+         [init-r1 (- mx1 b1)]
+         [init-r2 (- mx2 b2)]
+         [init-r3 (- mx3 b3)])
     (do ([r0 init-r0
              (let* ([mp0 (+ (* p0 m00) (* p1 m10) (* p2 m20) (* p3 m30))]
                     [mp1 (+ (* p0 m01) (* p1 m11) (* p2 m21) (* p3 m31))]
