@@ -100,7 +100,7 @@
   (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
 
 (define ((sample-integer-range a b) num)
-  (build-list num (λ (_) (+ (random (- b a) a))))
+  (build-list num (λ (_) (+ (random (- b a) a)))))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
