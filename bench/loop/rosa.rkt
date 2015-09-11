@@ -35,7 +35,7 @@
         x)))
 
 ;; https://github.com/malyzajko/rosa/blob/master/testcases/real/techreport/Pendulum.scala
-(herbie-test ([t0 (< (< -2 double) 2)] [w0 (< (< -5 double) 5)] [N (integer-range 0 1000)])
+(herbie-test ([t0 (< (< -2 double) 2)] [w0 (< (< -5 double) 5)] [N 1000])
   "Pendulum"
   (let ([h 0.01]
         [L 2.0]

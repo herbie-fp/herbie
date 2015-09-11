@@ -14,7 +14,7 @@
               [x0_2 double]
               [x0_3 double]
 
-              [max_iters (integer-range 2 100)])
+              [max_iters 100])
   "HPCCG Mini-App from Sandia Mini-apps"
   (let* ([mx0 (+ (* x0_0 m00) (* x0_1 m10) (* x0_2 m20) (* x0_3 m30))]
          [mx1 (+ (* x0_0 m01) (* x0_1 m11) (* x0_2 m21) (* x0_3 m31))]

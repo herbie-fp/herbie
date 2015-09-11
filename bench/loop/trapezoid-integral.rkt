@@ -1,5 +1,5 @@
 
-(herbie-test ([a double] [delta (positive double)] [N (integer-range 0 100)])
+(herbie-test ([a double] [delta (positive double)] [N 100])
   "Integrate (f x) = x"
   (do ([sum 0.0 (let* ([width (/ delta N)]
                        [x1 (+ a (* (- i 1) width))]
@@ -11,7 +11,7 @@
       (<= i N)
     (* sum (/ delta N))))
 
-(herbie-test ([a double] [delta (positive double)] [N (integer-range 0 100)])
+(herbie-test ([a double] [delta (positive double)] [N 100])
   "Integrate (f x) = (exp x)"
   (do ([sum 0.0 (let* ([width (/ delta N)]
                        [x1 (+ a (* (- i 1) width))]
@@ -23,7 +23,7 @@
       (<= i N)
     (* sum (/ delta N))))
 
-(herbie-test ([a double] [delta (positive double)] [N (integer-range 0 100)])
+(herbie-test ([a double] [delta (positive double)] [N 100])
   "Integrate (f x) = (/ 1 x)"
   (do ([sum 0.0 (let* ([width (/ delta N)]
                        [x1 (+ a (* (- i 1) width))]
