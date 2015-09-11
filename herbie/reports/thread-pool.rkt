@@ -100,8 +100,9 @@
 
       (let*-values ([(reals infs) (partition ordinary-float?
                                              (for/list ([end-err-lst end-errors] [start-err-lst start-errors])
-                                               (- (car (take-right end-err-lst 1))
-                                                  (car (take-right start-err-lst 1)))))]
+                                               (if (or (null? end-err-lst) (null? start-err-lst)) 0
+                                                   (- (car (take-right end-err-lst 1))
+                                                      (car (take-right start-err-lst 1))))))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
