@@ -53,7 +53,8 @@ function make_graph(node, data, start, end) {
         .attr("y2", line_y);
 
     var g = bar.append("g").attr("title", title).attr("data-id", function(d){ return d.id })
-        .attr("class", function(d) { return d[start] > d[end] ? "arrow good" : "arrow bad" });
+        .attr("class", function(d) {
+            return d[start] > d[end] + 1 ? "arrow good" : d[start] < d[end] - 1 ? "arrow bad" : "arrow nodiff" });
 
     g.append("line")
         .attr("x1", function(d) {return (precision - Math.max(d[start], d[end])) / precision * width})
@@ -62,9 +63,17 @@ function make_graph(node, data, start, end) {
         .attr("y2", line_y);
 
     g.append("g").attr("transform", function(d, i) {
-        return "translate(" + ((precision - Math.min(d[start], d[end])) / precision * width) + ", " + line_y(d, i) + ")";
+        return "translate(" + ((precision - d[end]) / precision * width) + ", " + line_y(d, i) + ")";
     })
-        .append("polygon").attr("points", "0,-3,0,3,5,0");
+        .append("polygon").attr("points", function(d) {
+            if (d[start] > d[end] + 1) {
+                return "-5,-3,-5,3,0,0";
+            } else if (d[start] < d[end] - 1) {
+                return "5,-3,5,3,0,0";
+            } else {
+                return "0,-3,3,0,0,3,-3,0";
+            }
+        });
 }
 
 function draw_results(node) {

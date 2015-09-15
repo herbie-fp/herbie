@@ -12,6 +12,7 @@ figure { float: left; margin: 0; }
 #graph line { pointer-events: all; }
 #graph .good * { stroke: black; fill: black; }
 #graph .bad * { stroke: darkred; fill: darkred; }
+#graph .nodiff * { stroke: gray; fill: gray; }
 #graph .gridline { stroke: rgb(80%, 80%, 80%); }
 #graph .guide { stroke: rgb(60%, 60%, 60%); }
 #graph text { text-anchor: middle; }
