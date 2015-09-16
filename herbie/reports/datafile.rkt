@@ -99,7 +99,7 @@
   
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
-    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (get 'seed)
+    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (parse-string (get 'seed))
                  (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)])
