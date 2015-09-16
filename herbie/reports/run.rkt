@@ -72,14 +72,11 @@
    (read (open-input-string rs)))]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
   (when (string-prefix? "6.2." (version))
-    (eprintf "WARNING Herbie does not support threads on Racket 6.2.0\n\tdue to a known bug in the threading library. Herbie\n\twill attempt to execute anyway, but may fail.\n"))
+    (eprintf "!! Herbie does not support threads on Racket 6.2.0 due to a known bug in the\n!! threading library. Herbie will attempt to execute anyway, but may fail.\n"))
   (when (eq? (system-type 'os) 'macosx)
-    (eprintf "WARNING Herbie does not support threads on OS X\n\tdue to a bug in MPFR. Herbie will attempt\n\tto execute anyway, but may fail.\n"))
+    (eprintf "!! Herbie does not support threads on OS X due to a bug in MPFR.\n!! Herbie will attempt to execute anyway, but may fail.\n"))
   (set! *max-test-threads*
-        (match th
-          ["no" #f]
-          ["yes" (max (- (processor-count) 1) 1)]
-          [_ (string->number th)]))]
+        (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))]
  [("--fuel") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
  [("--num-points") points "The number of points to use"
