@@ -43,9 +43,7 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #about { margin: 3em auto; }
 #about th { font-weight: bold; }
 
-#flag-list kbd:not(:last-child):after {
-    content: ", ";
-}
+#flag-list kbd:not(:last-child):after {content: ", ";}
 
 #results { border-collapse: collapse; width:100%; }
 #results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
@@ -54,7 +52,6 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 
 #results td:nth-child(1) {text-align: left;}
 #results td:nth-child(7) {width: 0;}
-#results td:last-child {display: none;}
 
 tr.imp-start  td:nth-child(3) {background-color: #87fc70;}
 tr.apx-start  td:nth-child(3) {background-color: #ff9500;}

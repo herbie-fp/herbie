@@ -2,7 +2,6 @@
 
 (require racket/date)
 (require unstable/sequence)
-(require "../compile/tex.rkt")
 (require "../common.rkt")
 (require "datafile.rkt")
 (provide (all-defined-out))
@@ -67,7 +66,6 @@
 
        ; Scripts: the report script, MathJax, D3, and graph-drawing code
        (printf "<script src='report.js'></script>\n")
-       (printf "<script src='~a'></script>" mathjax-url)
        (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
        (printf "<script type='text/javascript' src='graph.js'></script>\n")
        (printf "</head>\n")
@@ -158,7 +156,6 @@
          (if (table-row-link result)
            (printf "<td><a id='link~a' href='~a/graph.html'>more</a></td>" id (table-row-link result))
            (printf "<td></td>"))
-         (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result)) ""))
          (printf "</tr>\n"))
        (printf "</tbody>\n")
        (printf "</table>\n")
