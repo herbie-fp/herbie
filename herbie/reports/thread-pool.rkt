@@ -238,20 +238,28 @@
             out*
             (loop out*)))))
 
-  (map place-kill workers))
+  (map place-kill workers)
+
+  outs)
 
 (define (run-nothreads progs profile?)
   (set! *profile?* profile?)
   (printf "Starting Herbie on ~a problems...\n" (length progs))
-  (for/list ([test progs] [i (in-naturals)])
-    (define tr (run-test i test))
-    (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
-    (match (table-row-status tr)
-      ["crash"   (printf "[   CRASH   ]")]
-      ["timeout" (printf "[  timeout  ]")]
-      [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
-    (printf "\t~a\n" (table-row-name tr))
-    (cons i tr)))
+  (define out '())
+  (with-handlers ([exn:break?
+                   (λ (_)
+                     (printf "Terminating after ~a problem~a!\n"
+                             (length out) (if (= (length out) 1) "s" "")))])
+    (for ([test progs] [i (in-naturals)])
+      (define tr (run-test i test))
+      (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
+      (match (table-row-status tr)
+        ["crash"   (printf "[   CRASH   ]")]
+        ["timeout" (printf "[  timeout  ]")]
+        [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
+      (printf "\t~a\n" (table-row-name tr))
+      (set! out (cons (cons i tr) out))))
+  out)
 
 (define (get-test-results progs #:threads [threads #f] #:profile [profile? #f])
   (when (and threads (> threads (length progs)))
