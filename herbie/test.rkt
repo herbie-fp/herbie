@@ -92,10 +92,15 @@
      (let* ([parse-args (map var&dist vars)])
        (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
          (test name vars samp (compile-program input) (compile-program output))))]
-    [(list 'herbie-test (list vars ...) name input)
+    [(list 'herbie-test (list vars ...) (and (? string?) name) input) 
      (let* ([parse-args (map var&dist vars)])
        (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
-         (test name vars samp (compile-program input) #f)))]))
+         (test name vars samp (compile-program input) #f)))]
+    [(list 'herbie-test (list vars ...) input output)
+     (let* ([parse-args (map var&dist vars)]
+            [vars (map car parse-args)]
+            [samp (map cdr parse-args)])
+       (test "Unnamed Test" vars samp (compile-program input) #f))]))
 
 
 (define (load-file p)
