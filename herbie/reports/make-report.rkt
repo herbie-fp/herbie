@@ -344,3 +344,23 @@
     (make-directory report-output-path))
 
   (make-report-page (build-path report-output-path "report.html") info))
+
+(define (render-json-compare file1 file2)
+  (define info1 (read-datafile file1))
+  (define info2 (read-datafile file2))
+
+  (when (not (directory-exists? report-output-path))
+    (make-directory report-output-path))
+
+  (make-compare-page (build-path report-output-path "compare.html") info))
+
+(define (render files)
+  (if (= 1 (length files))
+      (render-json (car files))
+      (render-json-compare (car files) (cadr files))))
+
+(module+ main
+  (command-line
+   #:program "make-report"
+   #:args info-files
+   (render info-files)))
