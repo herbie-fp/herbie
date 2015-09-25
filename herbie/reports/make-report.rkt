@@ -175,7 +175,7 @@
               [(report-info date2 commit2 branch2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
                info2])
     (define table-labels
-      '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
+      '("Test" "Start" "Result" "Result" "Target" "∞ ↔ ℝ" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
@@ -217,10 +217,17 @@
     (define total-start1 (total-start tests1))
     (define total-start2 (total-start tests2))
 
+    (define sorted-tests1
+      (sort (map cons tests1 (range (length tests1))) >
+            #:key (λ (x) (or (table-row-start (car x)) 0))))
+    (define sorted-tests2
+      (sort (map cons tests2 (range (length tests2))) >
+            #:key (λ (x) (or (table-row-start (car x)) 0))))
+
     (define (round* x)
       (inexact->exact (round x)))
 
-    (write-file file
+    (write-file out-file
                 ; HTML cruft
                 (printf "<!doctype html>\n")
                 (printf "<head>\n")
@@ -239,7 +246,7 @@
                 ; Big bold numbers
                 (printf "<div id='large'>\n")
                 (printf "<div>Time: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
-                        (format-time total-time1) (format-time total-time2)
+                        (format-time total-time1) (format-time total-time2))
                 (printf "<div>Passed: <span class='number'>~a/~a</span> vs <span class='number'>~a/~a</span></div>\n"
                         total-passed1 total-available1
                         total-passed2 total-available2)
@@ -260,10 +267,7 @@
 
                 ; Test badges
                 (printf "<ul id='test-badges'>\n")
-                (define sorted-tests
-                  (sort (map cons tests (range (length tests))) >
-                        #:key (λ (x) (or (table-row-start (car x)) 0))))
-                (for ([(result id) (in-pairs sorted-tests)])
+                (for ([(result id) (in-pairs sorted-tests1)])
                   (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                           (table-row-status result)
                           (html-escape-unsafe (table-row-name result))
@@ -279,13 +283,23 @@
 
                 ; Run stats
                 (printf "<table id='about'>\n")
-                (printf "<tr><th>Date:</th><td>~a</td></tr>\n" (date->string (current-date)))
-                (printf "<tr><th>Commit:</th><td>~a on ~a</td></tr>\n" commit branch)
-                (printf "<tr><th>Points:</th><td>~a</td></tr>\n" (*num-points*))
-                (printf "<tr><th>Fuel:</th><td>~a</td></tr>\n" (*num-iterations*))
-                (printf "<tr><th>Seed:</th><td>~a</td></tr>\n" seed)
-                (printf "<tr><th>Flags:</th><td id='flag-list'>")
-                (for ([rec (hash->list (*flags*))])
+                (printf "<tr><th>Date:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
+                        (date->string date1) (date->string date2))
+                (printf "<tr><th>Commit:</th><td class=hinfo-cell>~a on ~a<br>~a on ~a</td></tr>\n"
+                        commit1 branch1 commit2 branch2)
+                (printf "<tr><th>Points:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
+                        points1 points2)
+                (printf "<tr><th>Fuel:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
+                        iterations1 iterations2)
+                (printf "<tr><th>Seed:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
+                        seed1 seed2)
+                (printf "<tr><th>Flags:</th><td id='flag-list' class=hinfo-cell>")
+                (for ([rec (hash->list flags1)])
+                  (for ([fl (cdr rec)])
+                    (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+                ;; (printf "<p style=\"text-align:center; margin-top:5px; margin-bottom:5px\">vs.</p>")
+                (printf "<br><br>")
+                (for ([rec (hash->list flags2)])
                   (for ([fl (cdr rec)])
                     (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
                 (printf "</td></tr>")
@@ -300,11 +314,23 @@
                 (printf "</div>\n")
 
                 (printf "<tbody>")
-                (for ([result tests] [id (in-naturals)])
+                (for ([name (remove-duplicates (map table-row-name (append tests1 tests2)))]
+                      [id (in-naturals)])
+                  (define result1 (findf (compose (curry equal? name) table-row-name)
+                                         results1))
+                  (define result2 (findf (compose (curry equal? name) table-row-name)
+                                         results2))
                   (printf "<tr class='~a'>" (table-row-status result))
 
                   (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
                   (printf "<td>~a</td>" (display-bits (table-row-start result)))
+
+                  (if (and (table-row-result result) (table-row-result-est result)
+                           (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
+                      (printf "<td class='bad-est'>[~a ≉] ~a </td>"
+                              (display-bits (table-row-result-est result))
+                              (display-bits (table-row-result result)))
+                      (printf "<td>~a</td>" (display-bits (table-row-result result))))
 
                   (if (and (table-row-result result) (table-row-result-est result)
                            (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
@@ -331,7 +357,7 @@
                 (printf "</html>\n"))
 
     ; Delete old files
-    (let* ([expected-dirs (map string->path (filter identity (map table-row-link tests)))]
+    (let* ([expected-dirs (map string->path (filter identity (map table-row-link tests1)))]
            [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
            [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
       (for ([subdir extra-dirs])
@@ -352,7 +378,7 @@
   (when (not (directory-exists? report-output-path))
     (make-directory report-output-path))
 
-  (make-compare-page (build-path report-output-path "compare.html") info))
+  (make-compare-page (build-path report-output-path "compare.html") info1 info2))
 
 (define (render files)
   (if (= 1 (length files))
