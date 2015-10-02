@@ -56,18 +56,27 @@
   [sqrt     "\\sqrt{~a}"
             (curry tag-inner-untag "\\sqrt{~a}")
             #f #t]
+  [hypot    "\\sqrt{~a^2 + ~a^2}^*"
+            (curry tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
+            #f #t]
   [sqr      "{~a}^2"
             (λ (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
             #f #f]
   [exp      "e^{~a}"
             (curry tag-inner-untag "e^{~a}")
             #f #t]
+  [expm1    "\\exp_* ~a - 1"
+            (curry tag-inner-untag "\\exp_* ~a - 1")
+            'fn #t]
   [expt     "{~a}^{~a}"
             (curry tag-inner-untag "{~a}^{~a}")
             #f #f]
   [log      "\\log ~a"
             (curry tag-inner-untag "\\log ~a")
             'fn #f]
+  [log1p    "\\log_* (1 + ~a)"
+            (curry tag-inner-untag "\\log_* (1 + ~a)")
+            '+ #f]
   [sin      "\\sin ~a"
             (curry tag-inner-untag "\\sin ~a")
             'fn #f]

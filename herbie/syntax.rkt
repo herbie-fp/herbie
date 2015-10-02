@@ -54,6 +54,10 @@
 (define cexpt (make-safe expt))
 (define atan2 atan)
 
+(define log1p fllog1p)
+(define expm1 flexpm1)
+(define hypot flhypot)
+
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
