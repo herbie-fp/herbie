@@ -140,6 +140,45 @@
       instead. This usually produces programs with worse overall
       accuracy. You may want to turn this option on if worst-case
       accuracy is more important to you than overall accuracy.</dd>
+
+    <dt><code>rules:arithmetic</code></dt>
+    <dd>This option, on by default, allows Herbie to use basic
+      arithmetic facts during its search. If turned off, Herbie will
+      not be able to use those facts. You will rarely want to turn
+      this option off.</dd>
+
+    <dt><code>rules:polynomials</code></dt>
+    <dd>This option, on by default, allows Herbie to use facts
+      about polynomials during its search. If turned off, Herbie will
+      not be able to use those facts. You will rarely want to turn
+      this option off.</dd>
+
+    <dt><code>rules:fractions</code></dt>
+    <dd>This option, on by default, allows Herbie to use facts about
+      fractions during its search. If turned off, Herbie will not be
+      able to use those facts. You will rarely want to turn this
+      option off.</dd>
+
+    <dt><code>rules:exponents</code></dt>
+    <dd>This option, on by default, allows Herbie to use facts about
+      exponents during its search. If turned off, Herbie will not be
+      able to use those facts. You rarely want to turn this option off
+      if you do not want to use exponents or logarithms in the output
+      expressions, which might be the case when code runtime is more
+      important than accuracy.</dd>
+
+    <dt><code>rules:trigonometry</code></dt>
+    <dd>This option, on by default, allows Herbie to use basic
+      trigonometry facts during its search. If turned off, Herbie will
+      not be able to use those facts. Herbie's trigonometry knowledge
+      is extremely basic. You will rarely want to turn this option off.</dd>
+
+    <dt><code>rules:numerics</code></dt>
+    <dd>This option, off by default, allows Herbie to use special
+      numerical functions. If turned off, Herbie will not be able to
+      use these functions. You will want to turn this option on if
+      these functions (currently <code>expm1</code>, <code>log1p</code>,
+      and <code>hypot</code>) are available in your language.</dd>
   </dl>
 </body>
 </html>
