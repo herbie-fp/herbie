@@ -1,0 +1,145 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Command-line Options</title>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="logo.png" />
+    <h1>Herbie Command-line Options</h1>
+    <p>See <a href="index.html">the main page</a> for more info on Herbie.</p>
+  </header>
+
+  <p>
+    The <a href="index.html">Herbie</a> command takes several options
+    that influence its search procedure and the types of solutions it finds.
+    These options apply both to the report generator and the one-off command-line tool.
+  </p>
+
+  <h2>General Options</h2>
+
+  These options can be set on both the report generator and the one-off tool,
+  and influence the coarse properties of Herbie's search.
+
+  <dl>
+    <dt><code>-r</code> or <code>--seed</code></dt>
+    <dd>This sets the random seed, which changes the randomly-selected
+      points that Herbie evaluates candidate expressions on. The
+      format of the seed is that used by the
+      Racket <code>vector->pseudo-random-generator!</code> function;
+      in practice, just use a seed produced by an earlier run. This
+      option can be used to make Herbie's results reproducible or to
+      compare two different runs.</dd>
+
+    <dt><code>--fuel</code></dt>
+    <dd>The number of improvements Herbie attempts to make to the
+      program. The default, 2, suffices for most programs and helps
+      keep Herbie fast. If this is set very high, Herbie may run out
+      of things to do and terminate before the given number of
+      iterations, but in practice iterations beyond the first few
+      rarely lead to lower error. This option can be increased to 3 or
+      4 to check that there aren't further improvements that Herbie
+      could eek out.</dd>
+
+    <dt><code>--num-points</code></dt>
+    <dd>The number of randomly-selected points used to evaluate
+      candidate expressions. The default, 256, gives good behavior for
+      most programs. The more points sampled, the slower Herbie is.
+      This option can be increased to 512 or 1024 if Herbie gives very
+      inconsistent results between runs with different seeds.</dd>
+
+    <dt><code>--threads</code>, for the report generator only</dt>
+    <dd>Enables multi-threaded operation. By default, no threads are
+      used, a number can be passed to this option to use that many
+      threads, or <code>yes</code> can be passed to tell Herbie to use
+      all but one of the hardware threads. This option is not
+      supported on OS X or in Racket 6.2, and will warn if used in
+      those cases.</dd>
+  </dl>
+
+  <h2>Search Options</h2>
+
+  These options influence the fine properties of Herbie's search, most
+  importantly the types of transformations that Herbie uses to find
+  candidate programs. These options offer very fine-grained control
+  over Herbie's output, and are only recommended for advanced uses of
+  Herbie.
+
+  Each option can be toggled with the <code>-o</code>
+  or <code>--option</code> command-line flags. The recommended set of
+  options is the default set; turning a default-on option off
+  typically results in less-accurate results, while turning a
+  default-off option on typically results in more-complex and
+  more-surprising output expressions.
+
+  <dl>
+    <dt><code>precision:double</code></dt>
+    <dd>This option, on by default, runs Herbie in double-precision
+      mode. If turned off, Herbie runs in single-precision mode.</dd>
+
+    <dt><code>setup:simplify</code></dt>
+    <dd>This option, on by default, simplifies the expression before
+      passing it to Herbie. If turned off, Herbie will not simplify
+      input programs before improving them. You will want to turn off
+      this option if simplifying the program will create a lot of
+      error, say if the association of operations is cleverly
+      chosen.</dd>
+
+    <dt><code>generate:rr</code></dt>
+    <dd>This option, on by default, uses Herbie's recursive rewriting
+      algorithm to generate candidate programs. If turned off, Herbie
+      will use a non-recursive rewriting algorithm, which will
+      substantially limit the candidates Herbie finds. You will rarely
+      want to turn this option off.</dd>
+
+    <dt><code>generate:taylor</code></dt>
+    <dd>This option, on by default, uses series expansion to produce
+      new candidates during the main improvement loop. If turned off,
+      Herbie will not use series expansion in the main improvement loop.
+      You will want to turn this option off if you want to avoid
+      series-expansion-based rewrites, such as if you need to preserve
+      the equivalence of the input and output expressions as real-number
+      formulas.</dd>
+
+    <dt><code>generate:simplify</code></dt>
+    <dd>This option, on by default, simplifies candidates during the
+      main improvement loop. If turned off, candidates will not be
+      simplified, which typically results in much less accurate
+      expressions, since simplification is often necessary for
+      cancelling terms. You will rarely want to turn this option off.</dd>
+
+    <dt><code>reduce:regimes</code></dt>
+    <dd>This option, on by default, uses Herbie's regime inference
+      algorithm to branch between several program candidates. If
+      turned off, brances will be inferred and the output program will
+      be straight-line code (if the input was). You will want to turn
+      this option off if your programming environment makes branches
+      too expensive, such as in some cases of GPU programming.</dd>
+
+    <dt><code>reduce:taylor</code></dt>
+    <dd>This option, on by default, uses a final set of series
+      expansions after all improvements have been made. This sometimes
+      improves accuracy further. If turned off, this final series
+      expansion pass will not be done. You will want to turn this
+      option off if you want to avoid series-expansion-based rewrites,
+      such as if you need to preserve the equivalence of the input and
+      output expressions as real-number formulas.</dd>
+
+    <dt><code>reduce:simplify</code></dt>
+    <dd>This option, on by default, uses a final simplification pass
+      after all improvements have been made. This sometimes improves
+      accuracy further. If turned off, this final simplification pass
+      will not be done. You will rarely want to turn this option
+      off.</dd>
+
+    <dt><code>reduce:avg-error</code></dt>
+    <dd>This option, on by default, causes Herbie to output the
+      candidate with the best average error over the chosen inputs. If
+      turned off, Herbie will choose the candidate by maximum error
+      instead. This usually produces programs with worse overall
+      accuracy. You may want to turn this option on if worst-case
+      accuracy is more important to you than overall accuracy.</dd>
+  </dl>
+</body>
+</html>
