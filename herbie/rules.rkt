@@ -279,4 +279,7 @@
 
 (define *simplify-rules*
   (for/append ([(rules groups) (in-pairs (*rulesets*))])
-    (if (memq 'simplify groups) rules '())))
+    (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
+             (memq 'simplify groups))
+        rules
+        '())))
