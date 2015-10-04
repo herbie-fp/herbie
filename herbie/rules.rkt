@@ -5,8 +5,7 @@
 (require "common.rkt")
 (require unstable/sequence)
 
-(provide (struct-out rule) *rules*
-	 *simplify-rules* get-rule define-ruleset)
+(provide (struct-out rule) *rules* *simplify-rules* get-rule)
 
 
 ; A rule has a name and an input and output pattern.
@@ -272,12 +271,11 @@
   [expm1-log1p-u x           (expm1 (log1p x))]
   [hypot-udef    (hypot x y) (sqrt (+ (sqr x) (sqr y)))])
 
-(define *rules*
-  (make-parameter
-   (for/append ([(rules groups) (in-pairs (*rulesets*))])
-     (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '()))))
+(define (*rules*)
+  (for/append ([(rules groups) (in-pairs (*rulesets*))])
+    (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '())))
 
-(define *simplify-rules*
+(define (*simplify-rules*)
   (for/append ([(rules groups) (in-pairs (*rulesets*))])
     (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
              (memq 'simplify groups))

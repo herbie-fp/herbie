@@ -9,6 +9,8 @@
 (require "../main.rkt")
 (require math/bigfloat)
 
+(error "Does not work now that the ruleset framework has changed.")
+
 (define *rulesets* '())
 
 (define-ruleset dummy-rules

@@ -15,7 +15,7 @@
 ;;   (let ([eg (mk-egraph expr)])
 ;;     (let loop ([iters-done 1])
 ;;       (let ([start-cnt (egraph-cnt eg)])
-;; 	(one-iter eg *simplify-rules*)
+;; 	(one-iter eg (*simplify-rules*))
 ;; 	(printf "Did iter #~a, have ~a nodes.~n" iters-done (egraph-cnt eg))
 ;; 	(if (> (egraph-cnt eg) start-cnt)
 ;; 	    (loop (add1 iters-done))

@@ -79,7 +79,7 @@
 	    (+ 2 sub-iters-needed)
 	    (+ 1 sub-iters-needed)))))
 
-(define (iterate-egraph! eg iters #:rules [rls *simplify-rules*])
+(define (iterate-egraph! eg iters #:rules [rls (*simplify-rules*)])
   (let ([start-cnt (egraph-cnt eg)])
     (debug #:from 'simplify #:depth 2 (format "iters left: ~a (~a enodes)" iters start-cnt))
     (one-iter eg rls)
