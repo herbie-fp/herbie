@@ -238,10 +238,12 @@
   (void))
 
 (define (get-final-combination)
-  (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-		 (if (= (length tables) 1)
-		     (extract-alt (car tables))
-		     (combine-alts splitpoints (map extract-alt tables))))))
+  (if ((flag 'reduce 'regimes) #t #f)
+      (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
+                     (if (= (length tables) 1)
+                         (extract-alt (car tables))
+                         (combine-alts splitpoints (map extract-alt tables)))))
+      (extract-alt (^table^))))
 
 ;; Other tools
 (define (resample!)
