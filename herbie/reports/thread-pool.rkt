@@ -17,7 +17,7 @@
 (provide get-test-results get-test-result get-table-data *reeval-pts* *timeout* *seed*)
 
 (define *reeval-pts* (make-parameter 8000))
-(define *seed* (pseudo-random-generator->vector (current-pseudo-random-generator)))
+(define *seed* (get-seed))
 (define *timeout* (make-parameter (* 1000 60 10)))
 (define *profile?* #f)
 
@@ -25,9 +25,7 @@
 						      (set-debug-level! #t #t)
 						      (set-debug-level! 'backup-simplify #f))])
   (define (file name) (build-path rdir name))
-
-  ; Reseed random number generator
-  (current-pseudo-random-generator (vector->pseudo-random-generator *seed*))
+  (set-seed! *seed*)
 
   (define (get-p&es context)
     (call-with-values
@@ -190,8 +188,7 @@
 
 (define (run-workers progs threads profile?)
   (define config
-    `(init rand ,(pseudo-random-generator->vector
-                  (current-pseudo-random-generator))
+    `(init rand ,(get-seed)
            flags ,(*flags*)
            num-iters ,(*num-iterations*)
            points ,(*num-points*)

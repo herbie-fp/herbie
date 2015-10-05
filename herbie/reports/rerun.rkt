@@ -31,7 +31,7 @@
             (map (const 'default) (table-row-vars row))
             (table-row-input row) (table-row-output row))))
   (*flags* (report-info-flags data))
-  (vector->pseudo-random-generator! (current-pseudo-random-generator) (report-info-seed data))
+  (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
 

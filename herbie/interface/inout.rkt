@@ -9,7 +9,7 @@
 (require "interact.rkt")
 
 (define (run #:print-points [print-points? #f])
-  (eprintf "; Seed: ~a\n" (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (eprintf "; Seed: ~a\n" (get-seed))
   (define in-expr (read))
   (define out-alt
     (match in-expr
@@ -41,9 +41,7 @@
    #:program "herbie/inout.rkt"
    #:once-each
    [("-r" "--seed") rs "The random seed vector to use in point generation"
-    (vector->pseudo-random-generator!
-     (current-pseudo-random-generator)
-     (read (open-input-string rs)))]
+    (set-seed! (read (open-input-string rs)))]
    [("--fuel") fu "The amount of 'fuel' to use"
     (*num-iterations* (string->number fu))]
    [("--num-points") points "The number of points to use"

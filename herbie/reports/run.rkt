@@ -67,9 +67,7 @@
  [("-p" "--profile") "Whether to profile each test"
   (set! *profile?* #t)]
  [("-r" "--seed") rs "The random seed vector to use in point generation"
-  (vector->pseudo-random-generator!
-   (current-pseudo-random-generator)
-   (read (open-input-string rs)))]
+  (set-seed! (read (open-input-string rs)))]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
   (when (string-prefix? "6.2." (version))
     (eprintf "!! Herbie does not support threads on Racket 6.2.0 due to a known bug in the\n!! threading library. Herbie will attempt to execute anyway, but may fail.\n"))
