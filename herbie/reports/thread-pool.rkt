@@ -35,23 +35,25 @@
 	     (values pt ex)))
       list))
 
-  (define (compute-result test)
-    (define (close-debug-port x)
-      (close-output-port (*debug-port*))
-      x)
+  (define (on-error e) `(error ,e ,(bf-precision)))
 
-    (parameterize ([*debug-port* (open-output-file (file "debug.txt") #:exists 'replace)])
-      (setup!)
-      (with-handlers ([(const #t)
-                       (λ (e) (close-debug-port `(error ,e ,(bf-precision))))])
-	(match-let ([`(,alt ,context) (run-improve (test-program test) (*num-iterations*)
-					          #:get-context #t #:samplers (test-samplers test))])
-	  (close-debug-port (list 'good (make-alt (test-program test)) alt context))))))
+  (define (compute-result test)
+    (call-with-output-file (file "debug.txt") #:exists 'replace
+      (λ (p)
+        (parameterize ([*debug-port* p])
+          (setup!)
+          (with-handlers ([(const #t) on-error])
+            (match-define (list alt context)
+                          (run-improve (test-program test)
+                                       (*num-iterations*)
+                                       #:get-context #t
+                                       #:samplers (test-samplers test)))
+            `(good ,(make-alt (test-program test)) ,alt ,context))))))
 
   (define (in-engine _)
     (if *profile?*
-        (parameterize ([current-output-port (open-output-file (file "profile.txt") #:exists 'replace)])
-          (profile (compute-result test)))
+        (with-output-to-file (file "profile.txt") #:exists 'replace
+          (λ () (profile (compute-result test))))
         (compute-result test)))
 
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
