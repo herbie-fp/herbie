@@ -10,4 +10,4 @@ before_install:
   - sh racket-install.sh --in-place --dest ~/racket
 
 script:
-  - ~/racket/bin/racket herbie/reports/run.rkt -p --threads yes bench/hamming
+  - ~/racket/bin/racket herbie/reports/run.rkt -p bench/hamming
