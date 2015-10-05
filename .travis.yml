@@ -6,8 +6,9 @@ env:
 
 # Uses Racket 6.1.1
 before_install:
-  - curl -L -o racket-install.sh http://download.racket-lang.org/installers/6.1.1/racket/racket-6.1.1-bin-x86_64-linux-debian-squeeze.sh
-  - printf "no\\n6.1.1\\n" | sh racket-install.sh
+  - curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.1.1/racket-6.1.1-x86_64-linux-debian-squeeze.sh
+  - mkdir ~/racket
+  - sh racket-install.sh --in-place --dest ~/racket
 
 script:
   - racket herbie/reports/run.rkt bench/hamming
