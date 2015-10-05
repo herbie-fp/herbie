@@ -103,30 +103,21 @@
        (test "Unnamed Test" vars samp (compile-program input) #f))]))
 
 
-(define (load-file p)
-  (let ([fp (open-input-file p)])
-    (let loop ()
-      (let ([test (read fp)])
-        (if (eof-object? test)
-            '()
-            (cons (parse-test test) (loop)))))))
+(define (load-file file)
+  (call-with-input-file file
+    (λ (port)
+      (for/list ([test (in-port read port)])
+        (parse-test test)))))
 
 (define (is-racket-file? f)
   (and (equal? (filename-extension f) #"rkt") (file-exists? f)))
 
-(define (walk-tree p callback)
-  (cond
-   [(file-exists? p)
-    (callback p)]
-   [(directory-exists? p)
-    (for ([obj (directory-list p #:build? #t)])
-      (walk-tree obj callback))]))
+(define (load-directory dir)
+  (for/append ([fname (in-directory dir)])
+    (when (is-racket-file? fname)
+      (load-file fname))))
 
 (define (load-tests [path benchmark-path])
-  (define (handle-file sow p)
-    (when (is-racket-file? p)
-      (sow (load-file p))))
-
-  (apply append
-         (reap [sow]
-               (walk-tree path (curry handle-file sow)))))
+  (if (directory-exists? path)
+      (load-directory path)
+      (load-file path)))
