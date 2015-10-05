@@ -2,12 +2,15 @@ language: c
 sudo: false
 
 env:
-  - RACKET_DIR=~/racket
+- RACKET_DIR=~/racket
 
-# Uses Racket 6.1.1
 before_install:
-  - curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.1.1/racket-6.1.1-x86_64-linux-debian-squeeze.sh
-  - sh racket-install.sh --in-place --dest ~/racket
-
+- curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.1.1/racket-6.1.1-x86_64-linux-debian-squeeze.sh
+- sh racket-install.sh --in-place --dest ~/racket
 script:
-  - ~/racket/bin/racket herbie/reports/run.rkt -p bench/hamming
+- "~/racket/bin/racket herbie/reports/run.rkt --note travis -p bench/tutorial.rkt"
+
+notification:
+  hipchat:
+    rooms:
+      secure: YuIQZYduHGJOOtYClGda0BMZCh6vFhhRiRZEd/iyMec52fWnvJdHZrIJIxE4TUVKwk5S8kmAY4dos3wYbq3LjQ6bCWhdvgJW0aJ3xQrluvx6jIe1LrcGcyyZAYvAfa3rutp70gTHTd4vczN7dqfkUH3Asz0ndVQeO6ZSOopVNdc=
