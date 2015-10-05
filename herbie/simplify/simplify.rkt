@@ -31,7 +31,7 @@
 (define *node-limit* (make-parameter 500))
 
 (define (make-simplify-change program loc replacement)
-  (change (rule 'simplify (location-get loc program) replacement '())
+  (change (rule 'simplify (location-get loc program) replacement)
           loc
           (for/list ([var (program-variables program)])
             (cons var var))))

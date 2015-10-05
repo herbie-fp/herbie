@@ -7,12 +7,7 @@
 
 (provide (struct-out rule) *rules* *simplify-rules* get-rule)
 
-
-; A rule has a name and an input and output pattern.
-; It also has a relative path into the output where simplification
-; should happen if the rule applies.
-
-(struct rule (name input output slocations)
+(struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (display "#<rule " port)
@@ -21,28 +16,9 @@
 
 (define *rulesets* (make-parameter '()))
 
-(define (contains-expr haystack needle)
-  (cond [(equal? haystack needle)
-	 #t]
-	[(list? haystack)
-	 (ormap (curryr contains-expr needle) (cdr haystack))]
-	[#t #f]))
-
-(define-syntax-rule (define-ruleset name group
-		      [rulename input output]
-		      ...)
-  (begin (define name '())
-	 (for ([rec (list (rule 'rulename 'input 'output
-				(if (list? 'output)
-				    (apply append
-					   (for/list ([index (sequence-tail (in-naturals) 1)]
-						      [subexpr (cdr 'output)])
-					     (if (contains-expr 'input subexpr)
-						 '()
-						 (list (list index)))))
-				    '())) ...)])
-	   (set! name (cons rec name)))
-	 (*rulesets* (cons (cons name 'group) (*rulesets*)))))
+(define-syntax-rule (define-ruleset name groups [rname input output] ...)
+  (begin (define name (list (rule 'rname 'input 'output) ...))
+	 (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 (define (get-rule name)
   (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) (*rules*))])
