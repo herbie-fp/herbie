@@ -6,6 +6,8 @@ automatically handling simple numerical instabilities.
 Current Status
 --------------
 
+[![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
+
 Herbie can solve many simple and not-so-simple problems.
 It can improve the accuracy of many real-world programs,
 and successfully solves most problems from Richard Hamming’s
