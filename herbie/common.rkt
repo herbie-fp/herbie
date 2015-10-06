@@ -7,7 +7,7 @@
 
 (provide reap define-table println ordinary-float? =-or-nan?
          enumerate take-up-to argmins list-product alist-append list-join
-         pipe ulp-difference *bit-width* ulps->bits
+         pipe ulp-difference *bit-width* ulps->bits bit-difference
 	 write-file write-string has-duplicates?
 	 symbol<? *start-prog* html-escape-unsafe
 	 flip-lists argmaxs multipartition
@@ -228,6 +228,9 @@
    [(nan? x) +nan.0]
    [(infinite? x) (*bit-width*)]
    [else (log2 x)]))
+
+(define (bit-difference x y)
+  (ulps->bits (+ 1 (abs (ulp-difference x y)))))
 
 (define (log2 x)
   (/ (log x) (log 2)))
