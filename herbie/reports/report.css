@@ -53,15 +53,21 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #results td:nth-child(1) {text-align: left;}
 #results td:nth-child(7) {width: 0;}
 
-tr.imp-start  td:nth-child(3) {background-color: #87fc70;}
-tr.apx-start  td:nth-child(3) {background-color: #ff9500;}
-tr.uni-start  td:nth-child(3) {background-color: #ff5e3a; color: #f7f7f7;}
-tr.ex-start   td:nth-child(3) {background-color: #e0f8d8;}
+tr.imp-start  td:nth-child(3) {background-color:#87fc70;}
+tr.apx-start  td:nth-child(3) {background-color:#ff9500;}
+tr.uni-start  td:nth-child(3) {background-color:#ff5e3a;color:#f7f7f7;}
+tr.ex-start   td:nth-child(3) {background-color:#e0f8d8;}
 
-tr.gt-target  td:nth-child(3) {background-color: #0bd318;}
-tr.eq-target  td:nth-child(3) {background-color: #87fc70;}
-tr.lt-target  td:nth-child(3) {background-color: #ffdb4c;}
-tr.eq-start   td:nth-child(3) {background-color: #ff9500;}
-tr.lt-start   td:nth-child(3) {background-color: #ff5e3a; color: #f7f7f7;}
-tr.crash      td:nth-child(3) {background-color: #4a4a4a; color: #f7f7f7;}
-tr.timeout    td:nth-child(3) {background-color: #8e8e93; color: #f7f7f7;}
+tr.gt-target  td:nth-child(3) {background-color:#87fc70;}
+tr.gt-target  td:nth-child(4) {background-color:#0bd318;}
+tr.eq-target  td:nth-child(3) {background-color:#87fc70;}
+tr.eq-target  td:nth-child(4) {background-color:#87fc70;}
+tr.lt-target  td:nth-child(3) {background-color:#87fc70;}
+tr.lt-target  td:nth-child(4) {background-color:#ff9500;}
+tr.eq-start   td:nth-child(3) {background-color:#ff9500;}
+tr.eq-start   td:nth-child(4) {background-color:#ffdb4c;}
+tr.lt-start   td:nth-child(3) {background-color:#ff5e3a;color: #f7f7f7;}
+tr.lt-start   td:nth-child(4) {background-color:#ffdb4c;color: #f7f7f7;}
+
+tr.crash      td:nth-child(3) {background-color:#4a4a4a;color:#f7f7f7;}
+tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
