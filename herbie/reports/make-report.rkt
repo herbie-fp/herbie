@@ -175,7 +175,7 @@
               [(report-info date2 commit2 branch2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
                info2])
     (define table-labels
-      '("Test" "Start" "Result" "Result" "Target" "∞ ↔ ℝ" "Time"))
+      '("Test" "Start" "Result" "Result" "Target" "∞ ↔ ℝ" "∞ ↔ ℝ" "Time" "Time"))
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
@@ -236,10 +236,8 @@
                 (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
 
                 ; Scripts: the report script, MathJax, D3, and graph-drawing code
-                (printf "<script src='report.js'></script>\n")
                 (printf "<script src='~a'></script>" mathjax-url)
                 (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
-                (printf "<script type='text/javascript' src='graph.js'></script>\n")
                 (printf "</head>\n")
                 (printf "<body>\n")
 
@@ -260,24 +258,33 @@
                         (round* (- total-start2 total-gained2)) (round* total-start2))
                 (printf "</div>\n")
 
-                ; The graph
-                (printf "<figure><svg id='graph' width='400'></svg>\n")
-                (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#graph'))})</script>\n")
-                (printf "</figure>\n")
+                (define (badge-label result)
+                  (match (table-row-status result)
+                    ["crash" "ERR"]
+                    ["timeout" "TIME"]
+                    [_ (display-bits (- (table-row-start result)
+                                        (table-row-result result))
+                                     #:sign #t)]))
 
                 ; Test badges
                 (printf "<ul id='test-badges'>\n")
-                (for ([(result id) (in-pairs sorted-tests1)])
-                  (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
-                          (table-row-status result)
-                          (html-escape-unsafe (table-row-name result))
-                          (display-bits (table-row-start result))
-                          (display-bits (table-row-result result))
-                          id
-                          (match (table-row-status result)
-                            ["crash" "ERR"]
-                            ["timeout" "TIME"]
-                            [_ (display-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
+                (for ([name (remove-duplicates (map table-row-name (append tests1 tests2)))])
+                  (define result1 (findf (compose (curry equal? name) table-row-name)
+                                         tests1))
+                  (define result2 (findf (compose (curry equal? name) table-row-name)
+                                         tests2))
+                  (printf "<li class='badge' title='~a (~a to ~a) vs. (~a to ~a)'>"
+                          (html-escape-unsafe (table-row-name result1))
+                          (display-bits (table-row-start result1))
+                          (display-bits (table-row-result result1))
+                          (display-bits (table-row-start result2))
+                          (display-bits (table-row-result result2)))
+                  (printf "<table><tbody><tr><td class='~a'>~a</td><td class='~a'>~a</td></tr></tbody></table>"
+                          (table-row-status result1)
+                          (badge-label result1)
+                          (table-row-status result2)
+                          (badge-label result2))
+                  (printf "</li>"))
                 (printf "</ul>\n")
                 (printf "<hr style='clear:both;visibility:hidden'>\n")
 
@@ -317,39 +324,64 @@
                 (for ([name (remove-duplicates (map table-row-name (append tests1 tests2)))]
                       [id (in-naturals)])
                   (define result1 (findf (compose (curry equal? name) table-row-name)
-                                         results1))
+                                         tests1))
                   (define result2 (findf (compose (curry equal? name) table-row-name)
-                                         results2))
-                  (printf "<tr class='~a'>" (table-row-status result))
+                                         tests2))
+                  (printf "<tr>")
 
-                  (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
-                  (printf "<td>~a</td>" (display-bits (table-row-start result)))
+                  (printf "<td>~a</td>" (html-escape-unsafe name))
 
-                  (if (and (table-row-result result) (table-row-result-est result)
-                           (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
-                      (printf "<td class='bad-est'>[~a ≉] ~a </td>"
-                              (display-bits (table-row-result-est result))
-                              (display-bits (table-row-result result)))
-                      (printf "<td>~a</td>" (display-bits (table-row-result result))))
+                  ;; Some helper functions for displaying the different boxes for results
+                  (define (display-bits-vs-other bits other)
+                    (cond [(and (not bits) other)
+                           (printf "<td>~a</td>" (display-bits other))]
+                          [(and bits (not other))
+                           (printf "<td>~a</td>" (display-bits bits))]
+                          [(and (not bits) (not other))
+                           (printf "<td></td>")]
+                          [((abs (- bits other)) . > . 1)
+                           (printf "<td>~a/~a</td>"
+                                   (display-bits bits)
+                                   (display-bits other))]
+                          [#t
+                           (printf "<td>~a</td>"
+                                   (display-bits bits))]))
 
-                  (if (and (table-row-result result) (table-row-result-est result)
-                           (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
-                      (printf "<td class='bad-est'>[~a ≉] ~a </td>"
-                              (display-bits (table-row-result-est result))
-                              (display-bits (table-row-result result)))
-                      (printf "<td>~a</td>" (display-bits (table-row-result result))))
+                  (define (display-bits-vs-est result est-result status)
+                    (if (and result est-result
+                             (> (abs (- result est-result)) 1))
+                        (printf "<td class='bad-est ~a'>[~a ≉] ~a </td>"
+                                status (display-bits est-result) (display-bits result))
+                        (printf "<td class='~a'>~a</td>"
+                                status (display-bits result))))
 
-                  (printf "<td>~a</td>" (display-bits (table-row-target result)))
-                  (printf "<td>~a~a</td>"
-                          (let ([inf- (table-row-inf- result)])
-                            (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
-                          (let ([inf+ (table-row-inf+ result)])
+                  (define (display-num-infs inf- inf+)
+                    (printf "<td class='infs'>~a~a</td>"
+                            (if (and inf- (> inf- 0)) (format "+~a" inf-) "")
                             (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
-                  (printf "<td>~a</td>" (format-time (table-row-time result)))
-                  (if (table-row-link result)
-                      (printf "<td><a id='link~a' href='~a/graph.html'>more</a></td>" id (table-row-link result))
-                      (printf "<td></td>"))
-                  (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result)) ""))
+                  
+                  ;; The starting bits
+                  (display-bits-vs-other (table-row-start result1) (table-row-start result2))
+
+                  ;; The first result bits box
+                  (display-bits-vs-est (table-row-result result1) (table-row-result-est result1)
+                                       (table-row-status result1))
+                  ;; The second result bits box
+                  (display-bits-vs-est (table-row-result result2) (table-row-result-est result2)
+                                       (table-row-status result2))
+
+                  ;; The target bits
+                  (display-bits-vs-other (table-row-target result1) (table-row-target result2))
+
+                  ;; The number of points that went to infinity and back
+                  (display-num-infs (table-row-inf- result1) (table-row-inf+ result1))
+                  (display-num-infs (table-row-inf- result2) (table-row-inf+ result2))
+
+                  ;; The time each run of the test took.
+                  (printf "<td>~a</td>" (format-time (table-row-time result1)))
+                  (printf "<td>~a</td>" (format-time (table-row-time result2)))
+                  
+                  (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result1)) ""))
                   (printf "</tr>\n"))
                 (printf "</tbody>\n")
                 (printf "</table>\n")
