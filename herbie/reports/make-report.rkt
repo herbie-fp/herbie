@@ -179,10 +179,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
-    (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
-    (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
-    (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
-    (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
+    (copy-file "herbie/reports/compare.css" (build-path dir "compare.css") #t)
 
     (define total-time1 (apply + (map table-row-time tests1)))
     (define total-time2 (apply + (map table-row-time tests2)))
@@ -233,9 +230,9 @@
                 (printf "<head>\n")
                 (printf "<title>Herbie test results</title>\n")
                 (printf "<meta charset='utf-8' />")
-                (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
+                (printf "<link rel='stylesheet' type='text/css' href='compare.css' />")
 
-                ; Scripts: the report script, MathJax, D3, and graph-drawing code
+                ; Scripts: MathJax and D3.
                 (printf "<script src='~a'></script>" mathjax-url)
                 (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
                 (printf "</head>\n")

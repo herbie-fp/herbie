@@ -1,0 +1,73 @@
+
+body {width: 1000px; margin: 1em auto; font-family: sans;}
+
+#large {margin: 2em 0; text-align: center;}
+#large div {margin: 0 1em; display: inline-block;}
+#large .number {font-size: 3em; display: block;}
+
+.column-container { margin: 2em 0; }
+
+#test-badges {  cursor: pointer; list-style: none inside none; padding: 0; float: right; margin: 10px 0; font-size: 12pt; }
+#test-badges li { height: 40px; line-height: 40px; width: 140px; float: left; text-align: center; margin: 5px;}
+#test-badges li:hover { font-size: 15pt; }
+#test-badges.highlight-one li { opacity: .333; }
+#test-badges.highlight-one li.highlight { opacity: 1; }
+
+#test-badges td:nth-child(1){width:70px;}
+#test-badges td:nth-child(2){width:70px;}
+
+li.imp-start  {background-color: #87fc70;}
+li.apx-start  {background-color: #ff9500;}
+li.uni-start  {background-color: #ff5e3a; color: #f7f7f7;}
+li.ex-start   {background-color: #e0f8d8;}
+
+li.gt-target  {background-color: #0bd318;}
+li.eq-target  {background-color: #87fc70;}
+li.lt-target  {background-color: #ffdb4c;}
+li.eq-start   {background-color: #ff9500;}
+li.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
+li.crash      {background-color: #4a4a4a; color: #f7f7f7;}
+li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
+
+td.gt-target  {background-color: #0bd318;}
+td.eq-target  {background-color: #87fc70;}
+td.lt-target  {background-color: #ffdb4c;}
+td.eq-start   {background-color: #ff9500;}
+td.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
+td.crash      {background-color: #4a4a4a; color: #f7f7f7;}
+td.timeout    {background-color: #8e8e93; color: #f7f7f7;}
+td.imp-start  {background-color: #87fc70;}
+
+#about { margin: 3em auto; }
+#about th { font-weight: bold; }
+
+#flag-list kbd:not(:last-child):after {
+    content: ", ";
+}
+
+#results { border-collapse: collapse; width:100%; }
+#results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
+#results td.bad-est {border-right: 5px solid #c86edf;}
+#results tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
+
+#results td:nth-child(1) {text-align: left;}
+#results td:last-child {display: none;}
+
+tr.imp-start  td:nth-child(3) {background-color: #87fc70;}
+tr.apx-start  td:nth-child(3) {background-color: #ff9500;}
+tr.uni-start  td:nth-child(3) {background-color: #ff5e3a; color: #f7f7f7;}
+tr.ex-start   td:nth-child(3) {background-color: #e0f8d8;}
+
+tr.gt-target  td:nth-child(3) {background-color: #0bd318;}
+tr.eq-target  td:nth-child(3) {background-color: #87fc70;}
+tr.lt-target  td:nth-child(3) {background-color: #ffdb4c;}
+tr.eq-start   td:nth-child(3) {background-color: #ff9500;}
+tr.lt-start   td:nth-child(3) {background-color: #ff5e3a; color: #f7f7f7;}
+tr.crash      td:nth-child(3) {background-color: #4a4a4a; color: #f7f7f7;}
+tr.timeout    td:nth-child(3) {background-color: #8e8e93; color: #f7f7f7;}
+
+
+td.hinfo-cell { padding-top: 10px;
+                padding-bottom: 10px; }
+
+td.infs { width: 50px; }
