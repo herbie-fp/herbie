@@ -232,8 +232,7 @@
                 (printf "<meta charset='utf-8' />")
                 (printf "<link rel='stylesheet' type='text/css' href='compare.css' />")
 
-                ; Scripts: MathJax and D3.
-                (printf "<script src='~a'></script>" mathjax-url)
+                ; Scripts: D3.
                 (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
                 (printf "</head>\n")
                 (printf "<body>\n")
@@ -378,7 +377,6 @@
                   (printf "<td>~a</td>" (format-time (table-row-time result1)))
                   (printf "<td>~a</td>" (format-time (table-row-time result2)))
                   
-                  (printf "<td>\\(~a\\)</td>" (or (texify-expression (table-row-input result1)) ""))
                   (printf "</tr>\n"))
                 (printf "</tbody>\n")
                 (printf "</table>\n")
