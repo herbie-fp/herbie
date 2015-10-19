@@ -148,7 +148,8 @@
   [sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)]
   [frac-add    (+ (/ a b) (/ c d))  (/ (+ (* a d) (* b c)) (* b d))]
   [frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))]
-  [frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))])
+  [frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))]
+  [frac-2neg   (/ a b)              (/ (- a) (- b))])
 
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
