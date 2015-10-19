@@ -26,3 +26,7 @@ dt { font-weight: bold; float: left; width: 7em; }
     list-style-type: none; display: block;
     margin: 1.5em 5em; font-size: 95%; color: gray;
 }
+
+li { position: relative; }
+.error { position: absolute; right: 0; top: 0; }
+.error:after { content: " bits"; }

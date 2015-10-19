@@ -94,7 +94,8 @@
              (texify-expression (program-body (alt-program end-alt))))
 
      (printf "<ol id='process-info'>\n")
-     (output-history end-alt)
+     (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)])
+       (output-history end-alt))
      (printf "</ol>\n")
 
      (printf "</section>\n")
@@ -164,14 +165,16 @@
 (struct interval (alt-idx start-point end-point expr))
 
 (define (output-history altn)
+  (define err (display-bits (errors-score (alt-errors altn))))
   (match altn
     [(alt-event prog 'start _)
-     (printf "<li>Started with <div>\\[~a\\]</div></li>\n"
-             (texify-expression (program-body prog)))]
+     (printf "<li>Started with <div>\\[~a\\]</div> <div class='error'>~a</div></li>\n"
+             (texify-expression (program-body prog)) err)]
 
     [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
-     (printf "<li class='event'>Using strategy <code>~a</code></li>\n" strategy)]
+     (printf "<li class='event'>Using strategy <code>~a</code> <div class='error'>~a</div></li>\n"
+             strategy err)]
 
     [(alt-event _ `(regimes ,splitpoints) prevs)
      (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]
@@ -202,9 +205,9 @@
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
-     (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div></li>"
+     (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>"
              pt (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
-             (texify-expression (program-body prog) #:loc loc #:color "blue"))]
+             (texify-expression (program-body prog) #:loc loc #:color "blue") err)]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)
@@ -225,9 +228,10 @@
      (output-history prev)
      (printf "<li>Applied <span class='rule'>~a</span> "
              (rule-name (change-rule cng)))
-     (printf "to get <div>\\[~a \\leadsto ~a\\]</div></li>\n"
+     (printf "to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>\n"
              (texify-expression (program-body (alt-program prev)) #:loc (change-location cng) #:color "red")
-             (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue"))]))
+             (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue")
+             err)]))
 
 (define (srcloc->string sl)
   (if sl
