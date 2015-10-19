@@ -28,5 +28,5 @@ dt { font-weight: bold; float: left; width: 7em; }
 }
 
 li { position: relative; }
-.error { position: absolute; right: 0; top: 0; }
+.error { position: absolute; right: 0; top: 0; color: #666; }
 .error:after { content: " bits"; }
