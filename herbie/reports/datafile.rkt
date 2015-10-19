@@ -34,7 +34,7 @@
   (report-info (current-date)
                (git-command "rev-parse" "HEAD")
                (git-command "rev-parse" "--abbrev-ref" "HEAD")
-               (pseudo-random-generator->vector (current-pseudo-random-generator))
+               (get-seed)
                (*flags*)
                (*num-points*)
                (*num-iterations*)

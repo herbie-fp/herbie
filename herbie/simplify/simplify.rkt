@@ -30,29 +30,40 @@
 (define *max-egraph-iters* (make-parameter 6))
 (define *node-limit* (make-parameter 500))
 
+(define (make-simplify-change program loc replacement)
+  (change (rule 'simplify (location-get loc program) replacement)
+          loc
+          (for/list ([var (program-variables program)])
+            (cons var var))))
+
 (define (simplify altn)
-  (let* ([chng (alt-change altn)]
-	 [slocs (if (and chng (alt-delta? altn))
-		    (map (curry append (change-location chng))
-			 (rule-slocations (change-rule (alt-change altn))))
-		   '((2)))])
-    (filter
-     identity
-     (for/list ([loc slocs])
-       (let* ([in (location-get loc (alt-program altn))]
-	      [out (simplify-expr in)])
-	 (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
-	 (assert (let valid? ([expr out])
-		   (if (or (symbol? expr) (real? expr))
-		       #t
-		       (and (symbol? (car expr))
-			    (andmap valid? (cdr expr))))))
-	 (if ((num-nodes in) . <= . (num-nodes out))
-	     #f
-	     (change (rule 'simplify in out '())
-		     loc
-		     (map (λ (var) (cons var var))
-			 (program-variables (alt-program altn))))))))))
+  (define prog (alt-program altn))
+  (cond
+   [(or (not (alt-change altn)) (null? (change-location (alt-change altn))))
+    (define prog* (simplify-expr (program-body prog)))
+    (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
+        (list (make-simplify-change prog '(2) prog*))
+        '())]
+   [else
+    (match-define (change rule loc _) (alt-change altn))
+    (define expr (location-get loc prog))
+    ;; We want to avoid simplifying if possible, so we only simplify
+    ;; things produced by function calls in the rule pattern. This means
+    ;; no simplification if the rule output as a whole is not a function
+    ;; call pattern, and no simplifying subexpressions that don't
+    ;; correspond to function call patterns.
+    (define pattern (rule-output rule))
+    (cond
+     [(not (list? pattern)) '()]
+     [(not (list? expr)) '()]
+     [else
+      (reap [sow]
+            (for ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)])
+              (when (and (list? arg-pattern) (list? arg))
+                (define arg* (simplify-expr arg))
+                (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" arg*))
+                (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
+                  (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
 (define (simplify-expr expr)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))

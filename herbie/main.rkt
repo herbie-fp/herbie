@@ -168,7 +168,7 @@
   (let* ([prog (alt-program altn)]
 	 [prog* `(λ ,(program-variables prog) ,(parameterize ([*max-egraph-iters* (/ (*max-egraph-iters*) 2)])
 						 (simplify-expr (program-body prog))))]
-	 [chng (change (rule 'simplify prog prog* '()) '() (map cons (program-variables prog) (program-variables prog)))])
+	 [chng (change (rule 'simplify prog prog*) '() (map cons (program-variables prog) (program-variables prog)))])
     (debug "prog is" prog*)
     (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
 
@@ -230,7 +230,7 @@
         `(taylor ,name ,loc))])))
 
 (define (make-delta old-alt new-prog name)
-  (alt-delta new-prog (change (rule name (alt-program old-alt) new-prog '()) '()
+  (alt-delta new-prog (change (rule name (alt-program old-alt) new-prog) '()
 			      (for/list ([var (program-variables new-prog)]) (cons var var)))
 	     old-alt))
 

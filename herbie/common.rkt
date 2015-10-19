@@ -13,7 +13,8 @@
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
-         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+         (all-from-out "config.rkt") (all-from-out "debug.rkt")
+         get-seed set-seed!)
 
 (define *start-prog* (make-parameter '()))
 
@@ -249,3 +250,12 @@
   (apply append
          (for/list ([vars val-lsts] ...)
            bodies ...)))
+
+(define (get-seed)
+  (pseudo-random-generator->vector
+   (current-pseudo-random-generator)))
+
+(define (set-seed! seed)
+  "Reset the random number generator to a new seed"
+  (current-pseudo-random-generator
+   (vector->pseudo-random-generator seed)))

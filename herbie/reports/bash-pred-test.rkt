@@ -42,9 +42,7 @@
  #:program "bash-pred-test"
  #:once-each
  [("-r") rs "The random seed vector to use in point generation."
-  (vector->pseudo-random-generator!
-   (current-pseudo-random-generator)
-   (read (open-input-string rs)))]
+  (set-seed! (read (open-input-string rs)))]
  [("-n") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
  [("-s") points "The number of points to use during search"
