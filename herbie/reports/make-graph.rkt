@@ -131,6 +131,8 @@
        (printf "<li><code>~a</code> in <code>~a</code></li>\n"
                (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
      (printf "</ol>\n")
+     
+     (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report this bug</a>!</p>\n")
 
      (printf "</body>\n")
      (printf "</html>\n")]))

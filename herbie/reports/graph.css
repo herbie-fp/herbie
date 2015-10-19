@@ -18,7 +18,7 @@ a.icon:hover { opacity: 1.0; }
 dt { font-weight: bold; float: left; width: 7em; }
 
 
-#process-info, #process-info ol { list-style: square; width: 500px; }
+#process-info, #process-info ol { list-style: square; width: 800px; }
 #process-info h2 { margin-top: 3em; }
 #process-info li {margin: .5em 0;}
 #process-info .rule { text-decoration: underline; }
