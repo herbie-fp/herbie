@@ -56,7 +56,7 @@
 
 (define (log1p x) (if (flonum? x) (fllog1p x) (log (+ 1 x))))
 (define (expm1 x) (if (flonum? x) (flexpm1 x) (- (exp x) 1)))
-(define (hypot x y) (if (and (flonum? x) (flonum? x)) (flhypot y) (sqrt (+ (sqr x) (sqr y)))))
+(define (hypot x y) (if (and (flonum? x) (flonum? y)) (flhypot x y) (sqrt (+ (sqr x) (sqr y)))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
