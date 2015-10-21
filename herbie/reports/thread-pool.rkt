@@ -122,6 +122,7 @@
                    (length bad-inf)
                    est-end-score
                    (program-variables (alt-program (test-result-start-alt result)))
+                   (test-sampling-expr (test-result-test result))
                    (program-body (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-end-alt result)))
                    (test-result-time result)
@@ -130,12 +131,12 @@
    [(test-failure? result)
     (define link (path-element->string (last (explode-path (test-failure-rdir result)))))
     (table-row (test-name (test-failure-test result)) "crash"
-               #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
+               #f #f #f #f #f #f #f #f (test-input (test-failure-test result)) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define link (path-element->string (last (explode-path (test-timeout-rdir result)))))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
+               #f #f #f #f #f #f #f #f (test-input (test-timeout-test result)) #f
                (*timeout*) (test-timeout-bits result) link)]))
 
 (define (make-graph-if-valid result tname index rdir)

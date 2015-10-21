@@ -200,8 +200,8 @@
     (when (and (not (member (table-row-status single-test) '("timeout" "crash")))
                (not (member (table-row-status double-test) '("timeout" "crash"))))
       (match (cons single-test double-test)
-        [(cons (table-row name single-status _ _ _ _ _ _ vars input single-output _ single-bits dir)
-               (table-row name double-status _ _ _ _ _ _ vars input double-output _ double-bits dir))
+        [(cons (table-row name single-status _ _ _ _ _ _ vars _ input single-output _ single-bits dir)
+               (table-row name double-status _ _ _ _ _ _ vars _ input double-output _ double-bits dir))
          (define fname (build-path base-dir dir "compiled.c"))
          (debug #:from 'compile-info "Compiling" name "to" fname)
          (write-file fname
