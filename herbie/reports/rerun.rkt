@@ -28,7 +28,8 @@
   (define tests
     (for/list ([row (report-info-tests data)])
       (test (table-row-name row) (table-row-vars row)
-            (table-row-samplers row)
+            (or (table-row-samplers row)
+                (map (const 'default) (table-row-vars row)))
             (table-row-input row) (table-row-output row))))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
