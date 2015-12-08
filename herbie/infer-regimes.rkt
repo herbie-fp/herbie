@@ -9,7 +9,7 @@
 (require "config.rkt")
 (require "localize-error.rkt")
 
-(provide infer-splitpoints (struct-out sp))
+(provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
 
 (define (infer-splitpoints alts [axis #f])
   (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
@@ -261,3 +261,20 @@
 
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-splitpoints (last final))))
+
+(define (splitpoints->point-preds splitpoints num-alts)
+  (let* ([expr (sp-bexpr (car splitpoints))]
+	 [variables (program-variables (*start-prog*))]
+	 [intervals (map cons (cons (sp #f expr -inf.0)
+				    (drop-right splitpoints 1))
+			 splitpoints)])
+    (for/list ([i (in-range num-alts)])
+      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
+	(debug #:from 'splitpoints "intervals are: " p-intervals)
+	(λ (p)
+	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
+	    (for/or ([point-interval p-intervals])
+	      (let ([lower-bound (sp-point (car point-interval))]
+		    [upper-bound (sp-point (cdr point-interval))])
+		(and (lower-bound . < . expr-val)
+		     (expr-val . <= . upper-bound))))))))))

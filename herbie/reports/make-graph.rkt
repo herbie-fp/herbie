@@ -94,7 +94,8 @@
              (texify-expression (program-body (alt-program end-alt))))
 
      (printf "<ol id='process-info'>\n")
-     (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)])
+     (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
+                    [*start-prog* (alt-program start-alt)])
        (output-history end-alt))
      (printf "</ol>\n")
 
@@ -184,6 +185,7 @@
             [intervals
              (for/list ([start-sp start-sps] [end-sp splitpoints])
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
+            [preds (splitpoints->point-preds splitpoints (length prevs))]
             [interval->string
              (λ (ival)
                (string-join
@@ -195,14 +197,18 @@
                  (if (ordinary-float? (interval-end-point ival))
                      (format " &lt; ~a" (interval-end-point ival))
                      ""))))])
-       (for/list ([entry prevs] [entry-idx (range (length prevs))])
+       (for/list ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
                 [condition
                  (string-join (map interval->string entry-ivals) " or ")])
+           (define-values (ivalpoints ivalexacts)
+             (for/lists (pts exs) ([(pt ex) (in-pcontext (*pcontext*))] #:when (pred pt))
+               (values pt ex)))
            (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" condition)
            (printf "<ol>\n")
-           (output-history entry)
+           (parameterize ([*pcontext* (mk-pcontext ivalpoints ivalexacts)])
+             (output-history entry))
            (printf "</ol>\n"))))]
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
