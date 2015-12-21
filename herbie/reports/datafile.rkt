@@ -103,18 +103,19 @@
     (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (parse-string (get 'seed))
                  (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
                  (hash-ref json 'note #f)
-                 (for/list ([test (get 'tests)])
+                 (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
                    (let ([get (λ (field) (hash-ref test field))])
-                                        ; TODO: ignoring the result-est
+                     ;; TODO: ignoring the result-est
+                     (define vars
+                       (match (hash-ref test 'vars)
+                         [(list names ...) (map string->symbol names)]
+                         [string-lst (parse-string string-lst)]))
+                     (define samplers
+                       (match (hash-ref test 'samplers #f)
+                         ['#f (if vars (map (const 'default) vars) #f)]
+                         [(list sampler ...) (map parse-string sampler)]))
                      (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
-                                (get 'ninf) (get 'pinf) (hash-ref json 'end-est 0)
-                                (match (get 'vars)
-                                  ['#f #f]
-                                  [(list names ...) (map string->symbol names)]
-				  [string-lst
-				   (parse-string string-lst)])
-                                (match (get 'samplers)
-                                  ['#f #f]
-                                  [(list sampler ...) (map parse-string sampler)])
+                                (get 'ninf) (get 'pinf) (hash-ref test 'end-est 0)
+                                vars samplers
                                 (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))
