@@ -56,6 +56,11 @@
      (define (round* x)
        (inexact->exact (round x)))
 
+     (define any-has-target? (ormap table-row-target tests))
+     (define any-has-inf+/-?
+       (for*/or ([test tests] [field (list table-row-inf- table-row-inf+)])
+         (and (field test)) (> (field test) 0)))
+
      (write-file file
        ; HTML cruft
        (printf "<!doctype html>\n")
@@ -124,8 +129,11 @@
        (printf "</td></tr>")
        (printf "</table>\n")
 
+       (define classes
+         (filter identity (list (if any-has-target? #f 'no-target) (if any-has-inf+/-? #f 'no-inf))))
+
        ; Results table
-       (printf "<table id='results'>\n")
+       (printf "<table id='results' class='~a'>\n" (string-join (map ~a classes) " "))
        (printf "<thead><tr>")
        (for ([label table-labels])
          (printf "<th>~a</th>" label))

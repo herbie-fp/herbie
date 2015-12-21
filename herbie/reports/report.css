@@ -71,3 +71,8 @@ tr.lt-start   td:nth-child(4) {background-color:#ffdb4c;color: #f7f7f7;}
 
 tr.crash      td:nth-child(3) {background-color:#4a4a4a;color:#f7f7f7;}
 tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
+
+#results.no-target td:nth-child(4) {display: none;}
+#results.no-target th:nth-child(4) {display: none;}
+#results.no-inf td:nth-child(5) {display: none;}
+#results.no-inf th:nth-child(5) {display: none;}
