@@ -59,7 +59,7 @@
      (define any-has-target? (ormap table-row-target tests))
      (define any-has-inf+/-?
        (for*/or ([test tests] [field (list table-row-inf- table-row-inf+)])
-         (and (field test)) (> (field test) 0)))
+         (and (field test) (> (field test) 0))))
 
      (write-file file
        ; HTML cruft
