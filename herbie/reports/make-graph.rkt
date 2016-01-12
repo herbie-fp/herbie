@@ -46,6 +46,7 @@
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
      (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
              "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
+     (printf "<script src='../report.js'></script>")
      (printf "</head>\n")
      (printf "<body>\n")
 
