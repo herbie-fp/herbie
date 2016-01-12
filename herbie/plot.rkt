@@ -46,6 +46,7 @@
 
 (define (with-herbie-plot #:title [title #f] thunk)
   (parameterize ([plot-width 400] [plot-height 200]
+                 [plot-background-alpha 0]
                  [plot-x-transform double-axis]
                  [plot-x-ticks double-ticks]
                  [plot-x-tick-label-anchor 'top]

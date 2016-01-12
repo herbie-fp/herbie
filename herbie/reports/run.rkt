@@ -34,8 +34,8 @@
 
   (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
   (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
-  (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
   (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
+  (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
 
   (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)
   (copy-file "herbie/compile/overhead.mk" (build-path dir "Makefile") #t)

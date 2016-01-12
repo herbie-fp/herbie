@@ -27,6 +27,13 @@
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
+(define (make-plot err pts #:axis idx #:color theme #:out path)
+  (call-with-output-file path #:exists 'replace
+    (λ (out)
+      (herbie-plot #:port out #:kind 'png
+                   (error-points err pts #:axis idx #:color theme)
+                   (error-avg err pts #:axis idx #:color theme)))))
+
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
@@ -54,22 +61,21 @@
 
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
-       (if (< (length newpoints) 2) (void)
-           (call-with-output-file (build-path rdir (format "plot-~a.png" idx)) #:exists 'replace
-             (lambda (out)
-               (herbie-plot
-                #:port out #:kind 'png
-                (reap [sow]
-                      (sow (error-points start-error newpoints #:axis idx #:color *red-theme*))
-                      (when target-error
-                        (sow (error-points target-error newpoints #:axis idx #:color *green-theme*)))
-                      (sow (error-points end-error newpoints #:axis idx #:color *blue-theme*))
-
-                      (sow (error-avg start-error newpoints #:axis idx #:color *red-theme*))
-                      (when target-error
-                        (sow (error-avg target-error newpoints #:axis idx #:color *green-theme*)))
-                      (sow (error-avg end-error newpoints #:axis idx #:color *blue-theme*))))
-               (printf "<figure><img width='400' height='200' src='plot-~a.png' /><figcaption>Error (in bits) versus value of <var>~a</var></figcaption></figure>\n" idx var)))))
+       (when (> (length newpoints) 2)
+         (make-plot start-error newpoints #:axis idx #:color *red-theme*
+                    #:out (build-path rdir (format "plot-~ar.png" idx)))
+         (when target-error
+           (make-plot target-error newpoints #:axis idx #:color *green-theme*
+                      #:out (build-path rdir (format "plot-~ag.png" idx))))
+         (make-plot end-error newpoints #:axis idx #:color *blue-theme*
+                    #:out (build-path rdir (format "plot-~ab.png" idx)))
+         (printf "<figure>")
+         (printf "<img width='400' height='200' src='plot-~ar.png' data-name='Input'/>" idx)
+         (when target-error
+           (printf "<img width='400' height='200' src='plot-~ag.png' data-name='Target'/>" idx))
+         (printf "<img width='400' height='200' src='plot-~ab.png' data-name='Result'/>" idx)
+         (printf "<figcaption>Error (in bits) versus value of <var>~a</var></figcaption>" var)
+         (printf "</figure>\n")))
      (printf "</div>\n")
 
      (printf "</section>\n")
