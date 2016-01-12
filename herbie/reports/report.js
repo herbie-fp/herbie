@@ -41,7 +41,7 @@ function setup_figure(figure) {
                 toggle_figure(figure, name);
             });
         })(name);
-        figure.appendChild(control);
+        figure.querySelector("figcaption").appendChild(control);
     }
 }
 

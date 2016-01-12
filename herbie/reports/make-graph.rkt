@@ -75,7 +75,7 @@
          (when target-error
            (printf "<img width='400' height='200' src='plot-~ag.png' data-name='Target'/>" idx))
          (printf "<img width='400' height='200' src='plot-~ab.png' data-name='Result'/>" idx)
-         (printf "<figcaption>Error (in bits) versus value of <var>~a</var></figcaption>" var)
+         (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
      (printf "</div>\n")
 

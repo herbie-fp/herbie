@@ -3,7 +3,8 @@ body { width: 1200px; margin: 1em auto; font-family: sans; }
 #about { float: left; width: 400px; }
 #graphs { width: 400px; }
 #graphs figure { margin: 1em 0; position: relative; padding-top: 200px; }
-#graphs figcaption { text-align: center; }
+#graphs figcaption { text-align: left; }
+#graphs figcaption button { float: right; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 
 #details { width: 800px; float: right; }
