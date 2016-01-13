@@ -86,10 +86,10 @@
 	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
 	 [processed (maybe-period (maybe-simplify alt))]
 	 [table (make-alt-table (*pcontext*) processed)]
-	 [extracted (extract-alt table)])
-    (assert (eq? extracted processed)
+	 [extracted (atab-all-alts table)])
+    (assert (equal? extracted (list processed))
 	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
-				       extracted (alt-program processed))))
+				       extracted processed)))
     table))
 
 (define (extract-alt table)
