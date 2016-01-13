@@ -11,7 +11,8 @@
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
          free-variables replace-expression valid-program?
-         eval-exact)
+         eval-exact
+         desugar-program)
 
 (define (location-induct
 	 prog
@@ -220,3 +221,39 @@
 	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
 				   (cdr haystack)))]
 	[#t haystack]))
+
+(define (unfold-let expr)
+  (match expr
+    [`(let* ,vars ,body)
+     (let loop ([vars vars] [body body])
+       (if (null? vars)
+           body
+           (let ([var (caar vars)] [val (cadar vars)])
+             (loop (map (replace-var var val) (cdr vars))
+                   ((replace-var var val) body)))))]
+    [`(,head ,args ...)
+     (cons head (map unfold-let args))]
+    [x
+     x]))
+
+(define (expand-associativity expr)
+  (match expr
+    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
+     (list op
+           (expand-associativity (cons op a))
+           (expand-associativity b))]
+    [(list op a ...)
+     (cons op (map expand-associativity a))]
+    [_
+     expr]))
+
+(define ((replace-var var val) expr)
+  (cond
+   [(eq? expr var) val]
+   [(list? expr)
+    (cons (car expr) (map (replace-var var val) (cdr expr)))]
+   [#t
+    expr]))
+
+(define (desugar-program prog)
+  (expand-associativity (unfold-let prog)))

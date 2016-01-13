@@ -8,42 +8,6 @@
 (provide (struct-out test) test-program test-samplers
          load-tests load-file test-target parse-test)
 
-(define (unfold-let expr)
-  (match expr
-    [`(let* ,vars ,body)
-     (let loop ([vars vars] [body body])
-       (if (null? vars)
-           body
-           (let ([var (caar vars)] [val (cadar vars)])
-             (loop (map (replace-var var val) (cdr vars))
-                   ((replace-var var val) body)))))]
-    [`(,head ,args ...)
-     (cons head (map unfold-let args))]
-    [x
-     x]))
-
-(define (expand-associativity expr)
-  (match expr
-    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
-     (list op
-           (expand-associativity (cons op a))
-           (expand-associativity b))]
-    [(list op a ...)
-     (cons op (map expand-associativity a))]
-    [_
-     expr]))
-
-(define ((replace-var var val) expr)
-  (cond
-   [(eq? expr var) val]
-   [(list? expr)
-    (cons (car expr) (map (replace-var var val) (cdr expr)))]
-   [#t
-    expr]))
-
-(define (compile-program prog)
-  (expand-associativity (unfold-let prog)))
-
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
 
@@ -81,27 +45,51 @@
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
     (cons var (get-sampler samp))))
 
-(define (parse-test expr)
-  (define (var&dist expr)
-    (match expr
-      [(list var samp) (cons var samp)]
-      [var (cons var 'default)]))
-
+(define (var&dist expr)
   (match expr
-    [(list 'herbie-test (list vars ...) name input output)
-     (let* ([parse-args (map var&dist vars)])
-       (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
-         (test name vars samp (compile-program input) (compile-program output))))]
-    [(list 'herbie-test (list vars ...) (and (? string?) name) input) 
-     (let* ([parse-args (map var&dist vars)])
-       (let ([vars (map car parse-args)] [samp (map cdr parse-args)])
-         (test name vars samp (compile-program input) #f)))]
-    [(list 'herbie-test (list vars ...) input output)
-     (let* ([parse-args (map var&dist vars)]
-            [vars (map car parse-args)]
-            [samp (map cdr parse-args)])
-       (test "Unnamed Test" vars samp (compile-program input) #f))]))
+    [(list var samp) (cons var samp)]
+    [var (cons var 'default)]))
 
+(define (args&body* args)
+  (match args
+    [(list (? keyword? name) value args* ...)
+     (define out* (args&body* args*))
+     (cons (car out*) (cons (cons name value) (cdr out*)))]
+    [(list body args* ...)
+     (define out* (args&body* args*))
+     (assert (not (car out*)) #:extra-info (λ () (format "Two body expressions ~a and ~a" (car out*) body)))
+     (cons body (cdr out*))]
+    [(list)
+     (cons #f '())]))
+
+(define (args&body args)
+  (define out* (args&body* args))
+  (assert (car out*) #:extra-info (λ () "No body expression"))
+  out*)
+
+(define (parse-test expr)
+  (define-values (vars* args*)
+    (match expr
+      [(list 'herbie-test (list vars ...) (? string? name) input)
+       (values vars (list '#:name name input))]
+      [(list 'herbie-test (list vars ...) (? string? name) input output)
+       (values vars (list '#:name name '#:target output input))]
+      [(list 'herbie-test (list vars ...) input output)
+       (values vars (list '#:name "Unnamed Test" '#:target output input))]
+      [(list 'lambda (list vars ...) args ...)
+       (values vars args)]
+      [(list 'define name (list vars ...) args ...)
+       (values vars (list*'#:name name args))]))
+  (match-define (list (cons vars samp) ...) (map var&dist vars*))
+  (match-define (list body args ...) (args&body args*))
+  (define (get kw default)
+    (let ([rec (assoc kw args)])
+      (if rec (cdr rec) default)))
+
+  (test (~a (get '#:name body))
+        vars samp
+        (desugar-program body)
+        (desugar-program (get '#:target #f))))
 
 (define (load-file file)
   (call-with-input-file file

@@ -76,8 +76,7 @@
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
                     (if (test-output test)
-                        (errors `(λ ,(test-vars test) ,(test-output test))
-                                newcontext)
+                        (errors (test-target test) newcontext)
                         #f))]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
