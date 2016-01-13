@@ -52,10 +52,12 @@
   (printf "</ul>\n"))
 
 (define (make-index-page)
+  (define dirs (directory-list (build-path report-output-path "reports/")))
+
   (let* ([folders
           (map (λ (dir) (cons dir (read-report-info dir)))
                (remove-duplicates
-                (sort (directory-list (build-path report-output-path "reports/")) > #:key name->timestamp)
+                (sort (filter name->timestamp dirs) > #:key name->timestamp)
                 #:key name->timestamp))])
     (write-file "index.html"
       (printf "<!doctype html>\n")
