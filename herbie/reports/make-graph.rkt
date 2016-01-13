@@ -204,7 +204,7 @@
                  (if (ordinary-float? (interval-end-point ival))
                      (format " &lt; ~a" (interval-end-point ival))
                      ""))))])
-       (for/list ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
+       (for ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
                 [condition
@@ -214,7 +214,16 @@
                (values pt ex)))
            (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" condition)
            (printf "<ol>\n")
-           (parameterize ([*pcontext* (mk-pcontext ivalpoints ivalexacts)])
+           ;; TODO: The (if) here just corrects for the possibility
+           ;; that we might have sampled new points that include no
+           ;; points in a given regime. Instead it would be best to
+           ;; continue sampling until we actually have many points in
+           ;; each regime. That would require breaking some
+           ;; abstraction boundaries right now so we haven't dont it
+           ;; yet.
+           (define new-pcontext
+             (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
+           (parameterize ([*pcontext* new-pcontext])
              (output-history entry))
            (printf "</ol>\n"))))]
 
