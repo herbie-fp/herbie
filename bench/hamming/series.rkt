@@ -9,7 +9,8 @@
   #:name "NMSE example 3.8"
   (- (* (+ N 1) (log (+ N 1))) (* N (log N)) 1)
   #:target
-  (- (log (+ N 1)) (- (/ 1 (* 2 N)) (- (/ 1 (* 3 (sqr N))) (/ 4 (expt N 3))))))
+  (- (log (+ N 1)) (- (/ 1 (* 2 N)) (- (/ 1 (* 3 (sqr N))) (/ 4 (expt N 3)))))
+  #:expected #f)
 
 (lambda ([x (< -.026 default .026)])
   #:name "NMSE example 3.9"
