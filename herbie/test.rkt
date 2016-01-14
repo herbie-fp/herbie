@@ -14,15 +14,17 @@
 (define (test-target test)
   `(λ ,(test-vars test) ,(test-output test)))
 
-(struct test (name vars sampling-expr input output) #:prefab)
 (define (test-successful? test output)
   (let ([input-error (errors-score (errors (test-program test) (*pcontext*)))]
         [output-error (errors-score (errors output (*pcontext*)))]
         [target-error (if (test-output test) (errors-score (errors (test-target test) (*pcontext*))) #f)])
-    (match* ((test-output test))
-      [(#f) (>= (ulps->bits input-error) (- (ulps->bits output-error) 1))]
-      [(#t) (>= (ulps->bits target-error) (- (ulps->bits output-error) 1))])))
+    (match* ((test-output test) (test-expected test))
+      [(_ #f) #t]
+      [(_ (? number? n)) (>= n (ulps->bits output-error))]
+      [(#f #t) (>= (ulps->bits input-error) (- (ulps->bits output-error) 1))]
+      [(_ #t) (>= (ulps->bits target-error) (- (ulps->bits output-error) 1))])))
 
+(struct test (name vars sampling-expr input output expected) #:prefab)
 
 (define (get-op op)
   (match op ['> >] ['< <] ['>= >=] ['<= <=]))
@@ -97,7 +99,8 @@
   (test (~a (get '#:name body))
         vars samp
         (desugar-program body)
-        (desugar-program (get '#:target #f))))
+        (desugar-program (get '#:target #f))
+        (get '#:expected #t)))
 
 (define (load-file file)
   (call-with-input-file file
