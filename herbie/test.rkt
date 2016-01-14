@@ -6,7 +6,7 @@
 (require "points.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file test-target parse-test)
+         load-tests load-file test-target parse-test test-successful?)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -15,6 +15,14 @@
   `(λ ,(test-vars test) ,(test-output test)))
 
 (struct test (name vars sampling-expr input output) #:prefab)
+(define (test-successful? test output)
+  (let ([input-error (errors-score (errors (test-program test) (*pcontext*)))]
+        [output-error (errors-score (errors output (*pcontext*)))]
+        [target-error (if (test-output test) (errors-score (errors (test-target test) (*pcontext*))) #f)])
+    (match* ((test-output test))
+      [(#f) (>= (ulps->bits input-error) (- (ulps->bits output-error) 1))]
+      [(#t) (>= (ulps->bits target-error) (- (ulps->bits output-error) 1))])))
+
 
 (define (get-op op)
   (match op ['> >] ['< <] ['>= >=] ['<= <=]))
