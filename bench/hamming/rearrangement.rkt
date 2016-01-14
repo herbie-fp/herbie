@@ -37,7 +37,8 @@
   #:name "NMSE problem 3.3.2"
   (- (tan (+ x eps)) (tan x))
   #:target
-  (/ (sin eps) (* (cos x) (cos (+ x eps)))))
+  (/ (sin eps) (* (cos x) (cos (+ x eps))))
+  #:expected #f)
 
 (lambda (x)
   #:name "NMSE problem 3.3.3"
