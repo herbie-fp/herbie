@@ -46,11 +46,10 @@
   (compile-info dir info info)
 
   (count (λ (test result)
-           (not
-            (and (test-result? result)
-                 (parameterize ([*pcontext* (mk-pcontext (test-result-newpoints result)
-                                                         (test-result-newexacts result))])
-                   (test-successful? test (alt-program (test-result-end-alt result)))))))
+           (and (test-result? result)
+                (parameterize ([*pcontext* (mk-pcontext (test-result-newpoints result)
+                                                        (test-result-newexacts result))])
+                  (test-successful? test (alt-program (test-result-end-alt result))))))
          tests results))
 
 (define (allowed-tests bench-dirs)
