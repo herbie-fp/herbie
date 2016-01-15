@@ -112,9 +112,8 @@
   (and (equal? (filename-extension f) #"rkt") (file-exists? f)))
 
 (define (load-directory dir)
-  (for/append ([fname (in-directory dir)])
-    (when (is-racket-file? fname)
-      (load-file fname))))
+  (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
+    (load-file fname)))
 
 (define (load-tests [path benchmark-path])
   (if (directory-exists? path)
