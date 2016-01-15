@@ -28,7 +28,7 @@
   (list-ref (string-split "Jan Feb Mar Apr May Jun Jul Aug Sept Oct Nov Dec") (- i 1)))
 
 (define (date->string/short date)
-  (format "~a ~a<br/>~a:~a"
+  (format "~a ~a"
           (month->string (date-month date))
           (~r (date-day date) #:min-width 2 #:pad-string "0")
           (date-hour date)
