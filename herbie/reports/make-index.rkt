@@ -65,7 +65,7 @@
     (if (> total-start 0)
         (printf "<td>~a/~a</td>" (round* (- total-start total-end)) (round* total-start))
         (printf "<td></td>"))
-    (printf "<td><a href='./~a/report.html'>More</a></td>" folder)
+    (printf "<td><a href='./~a/report.html'>more</a></td>" folder)
     (printf "</tr>\n"))
   (printf "</tbody>\n"))
 
