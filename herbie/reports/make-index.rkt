@@ -52,9 +52,13 @@
          (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
 
     (define (round* x)
-      (if (< (abs x) (expt 10 6))
-          (~a (inexact->exact (round x)))
-          (~r x #:precision 2 #:notation 'exponential)))
+      (cond
+       [(>= (abs x) (expt 10 6))
+        (~r x #:precision 2 #:notation 'exponential)]
+       [(>= (abs x) 10)
+        (~a (inexact->exact (round x)))]
+       [else
+        (~r x #:precision 2)]))
 
     (printf "<tr>")
     (printf "<td title='~a'>~a</td>" (date->string date) (date->string/short date))
