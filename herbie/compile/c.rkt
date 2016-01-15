@@ -132,7 +132,7 @@
 
 (define-table constants->mpfr
   [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]
-  [e     "ERROR(\"E into ~a unsupported\")"])
+  [e     (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN); mpfr_exp(~a, ~a, MPFR_RNDN);" x x x))])
 
 (define (program->mpfr prog [bits 128] [fname "f"])
   (define vars (program-variables prog))
