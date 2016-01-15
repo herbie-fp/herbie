@@ -21,11 +21,13 @@ function figure_names(figure) {
 }
 
 function toggle_figure(figure, name) {
-    var q = "img[data-name=" + name + "]"
-    var img = figure.querySelector(q);
-    if (img.style.display == "none") {
+    var img = figure.querySelector("img[data-name=" + name + "]");
+    var button = figure.querySelector("button." + name);
+    if (button.classList.contains("inactive")) {
+        button.classList.remove("inactive");
         img.style.display = "";
     } else {
+        button.classList.add("inactive");
         img.style.display = "none";
     }
 }

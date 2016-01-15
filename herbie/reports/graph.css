@@ -4,8 +4,16 @@ body { width: 1200px; margin: 1em auto; font-family: sans; }
 #graphs { width: 400px; }
 #graphs figure { margin: 1em 0; position: relative; padding-top: 200px; }
 #graphs figcaption { text-align: left; }
-#graphs figcaption button { float: right; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
+#graphs figcaption button {
+    float: right; margin: 0 .25em;
+    border: 3px solid black; background: gray; color: transparent;
+    height: 1.5em; width: 1.5em; border-radius: .75em;
+}
+#graphs figcaption button.Result { border-color: blue; background: lightblue; }
+#graphs figcaption button.Target { border-color: green; background: lightgreen; }
+#graphs figcaption button.Input { border-color: red; background: pink; }
+#graphs figcaption button.inactive { background: white; }
 
 #details { width: 800px; float: right; }
 #output { margin: 2em 0; text-align: center; }
@@ -18,7 +26,6 @@ a.icon { color: black; opacity: 0.5; text-decoration: none; font-weight: bold; }
 a.icon:hover { opacity: 1.0; }
 
 dt { font-weight: bold; float: left; width: 7em; }
-
 
 #process-info, #process-info ol { list-style: square; width: 800px; }
 #process-info h2 { margin-top: 3em; }
