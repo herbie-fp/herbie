@@ -1,2 +1,23 @@
-li { list-style-type: none }
-li.master { list-style-type: circle }
+
+body {width: 800px; margin: 1em auto; font-family: sans;}
+
+#large {margin: 2em 0; text-align: center;}
+#large div {margin: 0 1em; display: inline-block;}
+#large .number {font-size: 3em; display: block;}
+
+#toc {
+    float: left; width: 200px; margin-left: -200px;
+    list-style-position: inside; padding: 0;
+    list-style-type: none; line-height: 1.5;
+    position: fixed;
+}
+
+#toc a {color: #2A6496; text-decoration: none}
+#toc a:hover {text-decoration: underline; color: #295785}
+
+#reports { border-collapse: collapse; width:100%; }
+#reports td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
+#reports tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
+#reports td:nth-child(2) { text-align: center; }
+#reports thead { border-bottom: 1px solid black; }
+#reports * + thead { height: 5em; vertical-align: bottom; }

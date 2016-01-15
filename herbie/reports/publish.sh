@@ -16,8 +16,8 @@ upload () {
 index () {
     rsync -v --include 'results.json' --include '/*/' --exclude '*' -r uwplse.org:/var/www/herbie/reports/ graphs/reports/
     racket herbie/reports/make-index.rkt
-    rsync --verbose --recursive "index.html" "herbie/reports/index.css" "$RHOST:$RHOSTDIR/"
-    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/index.html"
+    rsync --verbose --recursive "index.html" "herbie/reports/index.css" "herbie/reports/report.js" "$RHOST:$RHOSTDIR/"
+    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js}"
     rm index.html
 }
 
