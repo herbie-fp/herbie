@@ -28,12 +28,14 @@
   (list-ref (string-split "Jan Feb Mar Apr May Jun Jul Aug Sept Oct Nov Dec") (- i 1)))
 
 (define (date->string/short date)
-  (format "~a ~a"
+  (format "~a ~a<br/>~a:~a"
           (month->string (date-month date))
-          (~r (date-day date) #:min-width 2 #:pad-string "0")))
+          (~r (date-day date) #:min-width 2 #:pad-string "0")
+          (date-hour date)
+          (~r (date-minute date) #:min-width 2 #:pad-string "0")))
 
 (define (print-rows infos #:name name)
-  (printf "<thead id='reports-~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Bits</th></thead>\n" name)
+  (printf "<thead id='reports-~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Bits</th><th>Note</th></thead>\n" name)
   (printf "<tbody>\n")
   (for ([(folder info) (in-pairs infos)])
     (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
@@ -54,7 +56,7 @@
     (define (round* x)
       (cond
        [(>= (abs x) (expt 10 6))
-        (~r x #:precision 2 #:notation 'exponential)]
+        "?"]
        [(>= (abs x) 10)
         (~a (inexact->exact (round x)))]
        [else
@@ -68,6 +70,9 @@
         (printf "<td></td>"))
     (if (> total-start 0)
         (printf "<td>~a/~a</td>" (round* (- total-start total-end)) (round* total-start))
+        (printf "<td></td>"))
+    (if note
+        (printf "<td><span class='note' title='~a'>⭐</span></td>" note)
         (printf "<td></td>"))
     (printf "<td><a href='./~a/report.html'>more</a></td>" folder)
     (printf "</tr>\n"))
