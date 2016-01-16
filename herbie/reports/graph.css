@@ -9,6 +9,7 @@ body { width: 1200px; margin: 1em auto; font-family: sans; }
     float: right; margin: 0 .25em;
     border: 3px solid black; background: gray; color: transparent;
     height: 1.5em; width: 1.5em; border-radius: .75em;
+    overflow: hidden;
 }
 #graphs figcaption button.Result { border-color: blue; background: lightblue; }
 #graphs figcaption button.Target { border-color: green; background: lightgreen; }
