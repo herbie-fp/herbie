@@ -25,8 +25,9 @@ Helping Out
 Herbie is organized on
 [Github](https://github.com/uw-plse/herbie/) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie).
-We also hang out on the `#uwplse` channel on
-[Freenode](https://freenode.net).
+We also have a
+[mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie)
+where we discuss Herbie's development and announce major improvements.
 Our test results are on
 [uwplse.org](http://herbie.uwplse.org/reports/).
 
@@ -44,6 +45,11 @@ Homebrew will not build several mathematics libraries.
 
 Herbie also requires GMP, MPFR, and GCC 4.8 or later to test overhead,
 since that involves compiling Herbie’s output to C.
+
+If you are running Racket 6.3 or newer, you will also need to install the
+unstable package:
+
+    raco pkg install unstable
 
 With these libraries installed, you are now ready to run Herbie.
 
