@@ -61,7 +61,9 @@
         (~r x #:precision 2)]))
 
     (printf "<tr>")
-    (printf "<td title='~a'>~a</td>" (date->string date) (date->string/short date))
+    (printf "<td title='~a on ~a'>~a</td>"
+            (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0")
+            (date->string date) (date->string/short date))
     (printf "<td title='~a'>~a</td>" commit branch)
     (if tests
         (printf "<td>~a/~a</td>" total-passed total-available)
