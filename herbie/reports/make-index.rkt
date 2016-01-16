@@ -30,9 +30,7 @@
 (define (date->string/short date)
   (format "~a ~a"
           (month->string (date-month date))
-          (~r (date-day date) #:min-width 2 #:pad-string "0")
-          (date-hour date)
-          (~r (date-minute date) #:min-width 2 #:pad-string "0")))
+          (~r (date-day date) #:min-width 2 #:pad-string "0")))
 
 (define (print-rows infos #:name name)
   (printf "<thead id='reports-~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Bits</th><th>Note</th></thead>\n" name)
