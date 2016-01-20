@@ -24,7 +24,8 @@
   #:name "NMSE example 3.10"
   (/ (log (- 1 x)) (log (+ 1 x)))
   #:target
-  (- (+ 1 x (/ (sqr x) 2) (* 5/12 (expt x 3)))))
+  (- (+ 1 x (/ (sqr x) 2) (* 5/12 (expt x 3))))
+  #:expected #f)
 
 (lambda (x)
   #:name "NMSE problem 3.4.1"
