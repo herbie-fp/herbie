@@ -18,7 +18,7 @@ function figure_names(figure) {
         if (!imgs[i].getAttribute("data-name")) continue;
         names[imgs[i].getAttribute("data-name")] = imgs[i];
     }
-    return names
+    return names;
 }
 
 function toggle_figure(figure, name) {

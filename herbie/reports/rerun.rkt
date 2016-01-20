@@ -35,7 +35,7 @@
   (*num-iterations* (report-info-iterations data))
 
   (define results (get-test-results tests #:threads *max-test-threads* #:profile *profile?*))
-  (define info (make-report-info results))
+  (define info (make-report-info (filter identity results)))
 
   (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
   (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)

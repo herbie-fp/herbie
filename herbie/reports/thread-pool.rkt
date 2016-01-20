@@ -4,6 +4,7 @@
 (require racket/place)
 (require racket/engine)
 (require math/bigfloat)
+(require unstable/sequence)
 (require "../common.rkt")
 (require "../programs.rkt")
 (require "../points.rkt")
@@ -270,7 +271,11 @@
     (if threads
         (run-workers progs threads profile?)
         (run-nothreads progs profile?)))
+  
+  (define out (make-vector (length progs) #f))
+  (for ([(idx result) (in-pairs outs)])
+    (vector-set! out idx result))
 
   ; The use of > instead of < is a cleverness:
   ; the list of tests is accumulated in reverse, this reverses again.
-  (map cdr (sort outs > #:key car)))
+  (vector->list out))
