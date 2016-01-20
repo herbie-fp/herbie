@@ -16,17 +16,19 @@
 (provide (all-defined-out))
 
 
-(define (make-report . bench-dirs)
+(define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
+  (define seed (get-seed))
+  (printf "Running ~a tests\nSeed: ~a\n" (length tests) seed)
   (for/and ([test tests])
-    (match (get-test-result test ".")
+    (match (get-test-result test "." #:seed seed)
       [(test-result test rdir time prec input output pts exs
                     start-errors end-error newpts newexs
                     start-newerrors end-newerrors target-newerrors)
-       (printf "[~ams]\t~a → ~a\t~a\n"
+       (printf "[ ~ams] ~a → ~a\t~a\n"
                (~a time #:width 8)
-               (~a (errors-score start-newerrors) #:width 2 #:precision 0)
-               (~a (errors-score start-newerrors) #:width 2 #:precision 0)
+               (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
+               (~r (errors-score end-newerrors) #:min-width 2 #:precision 0)
                (test-name test))
        (test-successful? test
                          (errors-score start-newerrors)
@@ -43,4 +45,4 @@
 (command-line
  #:program "travis.rkt"
  #:args bench-dir
- (exit (if (apply make-report bench-dir) 0 1)))
+ (exit (if (apply run-tests bench-dir) 0 1)))

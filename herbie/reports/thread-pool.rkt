@@ -24,9 +24,10 @@
 
 (define (get-test-result test rdir #:setup! [setup! (λ ()
 						      (set-debug-level! #t #t)
-						      (set-debug-level! 'backup-simplify #f))])
+						      (set-debug-level! 'backup-simplify #f))]
+                         #:seed [seed #f])
   (define (file name) (build-path rdir name))
-  (set-seed! *seed*)
+  (set-seed! (or seed *seed*))
 
   (define (get-p&es context)
     (call-with-values
