@@ -6,7 +6,7 @@ before_install:
 - curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.1.1/racket-6.1.1-x86_64-linux-debian-squeeze.sh
 - sh racket-install.sh --in-place --dest ~/racket
 script:
-- "~/racket/bin/racket herbie/reports/run.rkt --note travis -p bench/tutorial.rkt bench/hamming/"
+- "~/racket/bin/racket herbie/reports/travis.rkt bench/tutorial.rkt bench/hamming/"
 notification:
   hipchat:
     rooms:
