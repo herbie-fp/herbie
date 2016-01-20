@@ -33,7 +33,7 @@
      (copy-file "herbie/reports/report.js" (build-path dir "report.js") #t)
      (copy-file "herbie/reports/report.css" (build-path dir "report.css") #t)
      (copy-file "herbie/reports/graph.css" (build-path dir "graph.css") #t)
-     (copy-file "herbie/reports/graph.js" (build-path dir "graph.js") #t)
+     (copy-file "herbie/reports/arrow-chart.js" (build-path dir "arrow-chart.js") #t)
 
      (define total-time (apply + (map table-row-time tests)))
      (define total-passed
