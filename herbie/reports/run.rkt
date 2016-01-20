@@ -45,12 +45,10 @@
   ; TODO: Uses the same expressions for float and double. This could be good to change.
   (compile-info dir info info)
 
-  (count (λ (test result)
-           (and (test-result? result)
-                (parameterize ([*pcontext* (mk-pcontext (test-result-newpoints result)
-                                                        (test-result-newexacts result))])
-                  (test-successful? test (alt-program (test-result-end-alt result))))))
-         tests results))
+  (count not
+         (for/list ([test tests] [result results] #:when result)
+           (test-successful? test (table-row-start result) (table-row-target result)
+                             (table-row-result result)))))
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))

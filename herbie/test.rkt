@@ -14,15 +14,12 @@
 (define (test-target test)
   `(λ ,(test-vars test) ,(test-output test)))
 
-(define (test-successful? test output)
-  (let ([input-error (errors-score (errors (test-program test) (*pcontext*)))]
-        [output-error (errors-score (errors output (*pcontext*)))]
-        [target-error (if (test-output test) (errors-score (errors (test-target test) (*pcontext*))) #f)])
-    (match* ((test-output test) (test-expected test))
-      [(_ #f) #t]
-      [(_ (? number? n)) (>= n (ulps->bits output-error))]
-      [(#f #t) (>= (ulps->bits input-error) (- (ulps->bits output-error) 1))]
-      [(_ #t) (>= (ulps->bits target-error) (- (ulps->bits output-error) 1))])))
+(define (test-successful? test input-bits target-bits output-bits)
+  (match* ((test-output test) (test-expected test))
+    [(_ #f) #t]
+    [(_ (? number? n)) (>= n output-bits)]
+    [(#f #t) (>= input-bits output-bits)]
+    [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (struct test (name vars sampling-expr input output expected) #:prefab)
 
