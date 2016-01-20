@@ -15,6 +15,7 @@ function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
     var names = {};
     for (var i = 0; i < imgs.length; i++) {
+        if (!imgs[i].getAttribute("data-name")) continue;
         names[imgs[i].getAttribute("data-name")] = imgs[i];
     }
     return names

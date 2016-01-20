@@ -8,7 +8,7 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide error-points herbie-plot error-avg
+(provide error-points herbie-plot error-avg error-axes
 	 *red-theme* *blue-theme* *green-theme* *yellow-theme*
 	 plot-cand-error
 	 )
@@ -43,6 +43,9 @@
     (for/list ([pt pts] [err errs])
       (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
+
+(define (error-axes pts #:axis [axis 0])
+  (error-points (map (const 1) pts) pts #:axis axis #:alpha 0))
 
 (define (with-herbie-plot #:title [title #f] thunk)
   (parameterize ([plot-width 400] [plot-height 200]

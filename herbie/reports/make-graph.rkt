@@ -27,6 +27,10 @@
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
+(define (make-axis pts #:axis idx #:out path)
+  (call-with-output-file path #:exists 'replace
+    (λ (out) (herbie-plot #:port out #:kind 'png (error-axes pts #:axis idx)))))
+
 (define (make-plot err pts #:axis idx #:color theme #:out path)
   (call-with-output-file path #:exists 'replace
     (λ (out)
@@ -63,6 +67,7 @@
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length newpoints) 2)
+         (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
          (make-plot start-error newpoints #:axis idx #:color *red-theme*
                     #:out (build-path rdir (format "plot-~ar.png" idx)))
          (when target-error
@@ -71,6 +76,7 @@
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
          (printf "<figure>")
+         (printf "<img width='400' height='200' src='plot-~a.png'/>" idx)
          (printf "<img width='400' height='200' src='plot-~ar.png' data-name='Input'/>" idx)
          (when target-error
            (printf "<img width='400' height='200' src='plot-~ag.png' data-name='Target'/>" idx))
