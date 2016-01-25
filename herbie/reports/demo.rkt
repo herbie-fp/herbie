@@ -60,7 +60,7 @@
 
 (define *jobs* (make-hash))
 
-(define *seed* #(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636))
+(define *fixed-seed* #(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636))
 
 (define *worker-thread*
   (thread
@@ -78,7 +78,7 @@
 
           (define result
             (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-              (set-seed! *seed*)
+              (set-seed! *fixed-seed*)
               (get-test-result
                #:setup! (λ () (set-debug-level! 'progress '(3 4)))
                (test name vars (map (const 'default) vars) body #f)
