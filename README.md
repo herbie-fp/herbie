@@ -23,7 +23,7 @@ Helping Out
 -----------
 
 Herbie is organized on
-[Github](https://github.com/uw-plse/herbie/) and
+[Github](https://github.com/uwplse/herbie) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie).
 We also have a
 [mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie)
