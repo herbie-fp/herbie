@@ -20,9 +20,8 @@ loc:
 	find herbie/ -type f -exec cat {} \; | wc -l
 
 deploy:
-# Crazy system where we have several Herbie repositories checked out
 # This won't restart the demo server, just pull the new static content
-	cd $(shell ~/uwplse/getdir)/src && git pull
+	cd $(shell ~/uwplse/getdir) && git pull
 
 clean:
 	rm -f cost
