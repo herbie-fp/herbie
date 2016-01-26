@@ -15,19 +15,17 @@
 (require "datafile.rkt")
 (require "../interface/interact.rkt")
 
-(provide get-test-results get-test-result get-table-data *reeval-pts* *timeout* *seed*)
+(provide get-test-results get-test-result get-table-data *reeval-pts* *timeout*)
 
 (define *reeval-pts* (make-parameter 8000))
-(define *seed* (get-seed))
 (define *timeout* (make-parameter (* 1000 60 10)))
-(define *profile?* #f)
 
 (define (get-test-result test rdir #:setup! [setup! (λ ()
 						      (set-debug-level! #t #t)
 						      (set-debug-level! 'backup-simplify #f))]
-                         #:seed [seed #f])
+                         #:seed [seed #f] #:profile [profile? #f])
   (define (file name) (build-path rdir name))
-  (set-seed! (or seed *seed*))
+  (set-seed! seed)
 
   (define (get-p&es context)
     (call-with-values
@@ -53,7 +51,7 @@
             `(good ,(make-alt (test-program test)) ,alt ,context))))))
 
   (define (in-engine _)
-    (if *profile?*
+    (if profile?
         (with-output-to-file (file "profile.txt") #:exists 'replace
           (λ () (profile (compute-result test))))
         (compute-result test)))
@@ -142,7 +140,7 @@
                #f #f #f #f #f #f vars sampling-expr input #f
                (*timeout*) (test-timeout-bits result) link)]))
 
-(define (make-graph-if-valid result tname index rdir)
+(define (make-graph-if-valid result tname index rdir #:profile profile?)
   (let* ([dir (build-path report-output-path rdir)])
     (with-handlers ([(const #f) (λ _ #f)])
       (when (not (directory-exists? dir))
@@ -152,49 +150,49 @@
                   ((cond [(test-result? result) make-graph]
                          [(test-timeout? result) make-timeout]
                          [(test-failure? result) make-traceback])
-                   result *profile?*)))))
+                   result profile?)))))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
          [index-label (number->string index)])
     (string-append index-label stripped-tname)))
 
-(define (run-test index test)
+(define (run-test index test #:seed seed #:profile profile?)
   (let* ([rdir (graph-folder-path (test-name test) index)]
          [rdir* (build-path report-output-path rdir)])
 
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
 
-    (let ([result (get-test-result test rdir*)])
-      (make-graph-if-valid result (test-name test) index rdir)
+    (let ([result (get-test-result test rdir* #:seed seed #:profile profile?)])
+      (make-graph-if-valid result (test-name test) index rdir #:profile profile?)
       (get-table-data result))))
 
 (define (make-worker)
   (place ch
-    (let loop ()
+    (let loop ([seed #f] [profile? #f])
       (match (place-channel-get ch)
 	[`(init
 	   rand ,vec
 	   flags ,flag-table
 	   num-iters ,iterations
            points ,points
-           profile? ,profile?)
+           profile? ,profile)
 
-	 (set! *seed* vec)
-         (set! *profile?* profile?)
+	 (set! seed vec)
+         (set! profile? profile)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)
          (*num-points* points)]
         [`(apply ,self ,id ,test)
-         (let ([result (run-test id test)])
+         (let ([result (run-test id test #:seed seed #:profile profile?)])
            (place-channel-put ch
              `(done ,id ,self ,result)))])
-      (loop))))
+      (loop seed profile?))))
 
-(define (run-workers progs threads profile?)
+(define (run-workers progs threads #:seed seed #:profile profile?)
   (define config
-    `(init rand ,(get-seed)
+    `(init rand ,seed
            flags ,(*flags*)
            num-iters ,(*num-iterations*)
            points ,(*num-points*)
@@ -245,8 +243,7 @@
 
   outs)
 
-(define (run-nothreads progs profile?)
-  (set! *profile?* profile?)
+(define (run-nothreads progs #:seed seed #:profile profile?)
   (printf "Starting Herbie on ~a problems...\n" (length progs))
   (define out '())
   (with-handlers ([exn:break?
@@ -254,7 +251,7 @@
                      (printf "Terminating after ~a problem~a!\n"
                              (length out) (if (= (length out) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
-      (define tr (run-test i test))
+      (define tr (run-test i test #:seed seed #:profile profile?))
       (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
       (match (table-row-status tr)
         ["crash"   (printf "[   CRASH   ]")]
@@ -264,14 +261,14 @@
       (set! out (cons (cons i tr) out))))
   out)
 
-(define (get-test-results progs #:threads [threads #f] #:profile [profile? #f])
+(define (get-test-results progs #:threads [threads #f] #:seed seed #:profile [profile? #f])
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))
 
   (define outs
     (if threads
-        (run-workers progs threads profile?)
-        (run-nothreads progs profile?)))
+        (run-workers progs threads #:seed seed #:profile profile?)
+        (run-nothreads progs #:seed seed #:profile profile?)))
   
   (define out (make-vector (length progs) #f))
   (for ([(idx result) (in-pairs outs)])

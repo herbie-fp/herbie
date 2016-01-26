@@ -34,7 +34,8 @@
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
 
-  (define results (get-test-results tests #:threads *max-test-threads* #:profile *profile?*))
+  (define results (get-test-results tests #:threads *max-test-threads*
+                                    #:seed (get-seed) #:profile *profile?*))
   (define info (make-report-info (filter identity results)))
 
   (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)

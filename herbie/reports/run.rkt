@@ -29,7 +29,7 @@
   (define tests (allowed-tests bench-dirs))
   (define results
     (get-test-results tests #:threads *max-test-threads*
-                      #:profile *profile?*))
+                      #:seed (get-seed) #:profile *profile?*))
   (define info (make-report-info (filter identity results) #:note *note*))
 
   (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)
