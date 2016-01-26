@@ -81,7 +81,7 @@
               (set-seed! *fixed-seed*)
               (get-test-result
                #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-               (test name vars (map (const 'default) vars) body #f)
+               (test name vars (map (const 'default) vars) body #f #f)
                dir)))
 
           (define make-page
