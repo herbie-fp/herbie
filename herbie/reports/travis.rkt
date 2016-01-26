@@ -30,10 +30,18 @@
                (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
                (~r (errors-score end-newerrors) #:min-width 2 #:precision 0)
                (test-name test))
-       (test-successful? test
-                         (errors-score start-newerrors)
-                         (and target-newerrors (errors-score target-newerrors))
-                         (errors-score end-newerrors))]
+       (define success?
+         (test-successful? test
+                           (errors-score start-newerrors)
+                           (and target-newerrors (errors-score target-newerrors))
+                           (errors-score end-newerrors)))
+
+       (when (not success?)
+         (printf "Input: ~a\n" input)
+         (printf "Output: ~a\n" output)
+         (printf "Target: ~a\n" (test-output test)))
+
+       success?]
       [(test-failure test prec exn time rdir)
        (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
