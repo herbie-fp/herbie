@@ -181,6 +181,7 @@
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (go [command-line #f])
+  (eprintf "Server loaded and starting up.\n")
   (serve/servlet
    demo
    #:log-file (build-path demo-output-path "../../demo.log")
