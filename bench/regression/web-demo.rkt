@@ -21,3 +21,7 @@
 (herbie-test (x)
   "neg log"
   (- (log (- (/ 1 x) 1))))
+
+(herbie-test (B x)
+  "VandenBroeck and Keller, Equation (24)"
+  (+ (- (* x (cotan B))) (/ 1 (sin B))))
