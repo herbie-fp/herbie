@@ -4,6 +4,7 @@
 (require racket/cmdline)
 (require "../common.rkt")
 (require "../points.rkt")
+(require "../alternative.rkt")
 (require "../test.rkt")
 (require "../sandbox.rkt")
 (require "datafile.rkt")
@@ -29,9 +30,10 @@
                            (errors-score end-newerrors)))
 
        (when (not success?)
-         (printf "Input: ~a\n" input)
-         (printf "Output: ~a\n" output)
-         (printf "Target: ~a\n" (test-output test)))
+         (printf "Input: ~a\n" (alt-input input))
+         (printf "Output:\n")
+         (pretty-print (alt-input output))
+         (when (test-output test) (printf "Target: ~a\n" (test-output test))))
 
        success?]
       [(test-failure test prec exn time rdir)
