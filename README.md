@@ -56,6 +56,34 @@ With these libraries installed, you are now ready to run Herbie.
 Running Herbie
 --------------
 
+For details on how to run Herbie, please see the
+[tutorial](http://herbie.uwplse.org/tutorial.html).
+
+The format of input files is a Scheme-based language;
+you can find several examples in `bench/`.
+For example,
+consider this simple cancellation test
+
+    (herbie-test (x)
+      "Cancel like terms"
+      (- (+ 1 x) x))
+
+To run Herbie on this example, save the above s-expression
+in the file `bench/example.rkt` and run
+
+    racket herbie/reports/run.rkt bench/example.rkt
+
+from the top-level directory of the repo.
+You should see output similar to
+
+    $ racket herbie/reports/run.rkt example.rkt
+    Starting Herbie on 1 problems...
+    Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
+      1/1   [ 1673.401ms]   (29→ 0) Cancel like terms
+
+Running Tests
+-------------
+
 Herbie draws its test suite from open source projects, examples emailed
 to the developers, and from numerical analysis textbooks. Whenever
 possible, we try to *extract all possible tests* from a source, to
@@ -66,12 +94,6 @@ project root and run
 
 After a some time (several minutes), you should find the file
 `graphs/report.html`.
-
-The format of input files is a Scheme-based language;
-see the files in `bench/` for examples.
-
-Running Tests
--------------
 
 Herbie's main tests are integration tests
 that test Herbie end-to-end.
