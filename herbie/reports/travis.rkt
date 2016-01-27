@@ -2,19 +2,11 @@
 
 (require racket/date)
 (require racket/cmdline)
-(require srfi/13)
-(require "make-report.rkt")
 (require "../common.rkt")
-(require "../programs.rkt")
 (require "../points.rkt")
-(require "../alternative.rkt")
 (require "../test.rkt")
-(require "../main.rkt")
-(require "../compile/c.rkt")
-(require "thread-pool.rkt")
+(require "../sandbox.rkt")
 (require "datafile.rkt")
-(provide (all-defined-out))
-
 
 (define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
