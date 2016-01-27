@@ -4,7 +4,7 @@
 (require racket/cmdline)
 (require "../common.rkt")
 (require "../points.rkt")
-(require "../alternative.rkt")
+(require "../alternatives.rkt")
 (require "../test.rkt")
 (require "../sandbox.rkt")
 (require "datafile.rkt")
