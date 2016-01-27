@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum)
-(require plot)
+(require plot/no-gui plot/pict)
 (require unstable/sequence)
 (require "common.rkt")
 (require "points.rkt")
