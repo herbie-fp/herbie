@@ -9,6 +9,7 @@
 (require "../infer-regimes.rkt")
 (require "../programs.rkt")
 (require "../plot.rkt")
+(require "../sandbox.rkt")
 (require "../compile/tex.rkt")
 
 (provide make-graph make-traceback make-timeout)
@@ -153,7 +154,7 @@
 
 (define (make-timeout result profile?)
   (match result
-    [(test-timeout test bits rdir)
+    [(test-timeout test bits time rdir)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>\n")

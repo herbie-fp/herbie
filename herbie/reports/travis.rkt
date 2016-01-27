@@ -40,7 +40,7 @@
        (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
-      [(test-timeout test prec rdir)
+      [(test-timeout test prec time rdir)
        (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
        #f])))
 

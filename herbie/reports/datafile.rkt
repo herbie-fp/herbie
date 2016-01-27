@@ -7,16 +7,7 @@
 (provide
  git-command
  (struct-out table-row) (struct-out report-info)
- (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)
  make-report-info read-datafile write-datafile)
-
-; For things that don't leave a thread
-(struct test-result
-  (test rdir time bits
-   start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error))
-(struct test-failure (test bits exn time rdir))
-(struct test-timeout (test bits rdir))
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")

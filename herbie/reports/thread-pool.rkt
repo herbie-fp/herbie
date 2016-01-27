@@ -68,7 +68,7 @@
     (match-define (test name vars sampling-expr input output _) (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f vars sampling-expr input #f
-               (*timeout*) (test-timeout-bits result) link)]))
+               (test-timeout-time result) (test-timeout-bits result) link)]))
 
 (define (make-graph-if-valid result tname index rdir #:profile profile?)
   (let* ([dir (build-path report-output-path rdir)])

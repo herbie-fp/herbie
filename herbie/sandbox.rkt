@@ -6,14 +6,23 @@
 (require "interface/interact.rkt")
 (require "common.rkt")
 (require "debug.rkt")
-(require "reports/datafile.rkt")
 (require "programs.rkt")
 (require "points.rkt")
 (require "test.rkt")
 (require "alternative.rkt")
 (require "main.rkt")
 
-(provide get-test-result *reeval-pts* *timeout*)
+(provide get-test-result *reeval-pts* *timeout*
+         (struct-out test-result) (struct-out test-failure) (struct-out test-timeout))
+
+
+; For things that don't leave a thread
+(struct test-result
+  (test rdir time bits
+   start-alt end-alt points exacts start-est-error end-est-error
+   newpoints newexacts start-error end-error target-error))
+(struct test-failure (test bits exn time rdir))
+(struct test-timeout (test bits time rdir))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 10)))
@@ -82,4 +91,4 @@
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
       [#f
-       (test-timeout test (bf-precision) rdir)])))
+       (test-timeout test (bf-precision) (*timeout*) rdir)])))
