@@ -19,6 +19,7 @@
 
 (lambda (N)
   #:name "NMSE example 3.5"
+  #:expected #f
   (- (atan (+ N 1)) (atan N))
   #:target
   (atan (/ 1 (+ 1 (* N (+ N 1))))))
