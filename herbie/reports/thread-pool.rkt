@@ -120,6 +120,18 @@
              `(done ,id ,self ,result)))])
       (loop seed profile?))))
 
+(define (print-test-result tr)
+  (match (table-row-status tr)
+    ["crash"  
+     (printf "[   CRASH   ]\t~a\n" (table-row-name tr))]
+    ["timeout"
+     (printf "[  timeout  ]\t~a\n" (table-row-name tr))]
+    [_
+     (printf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time tr) #:width 8)
+             (~r (table-row-start tr) #:min-width 2 #:precision 0)
+             (~r (table-row-result tr) #:min-width 2 #:precision 0)
+             (table-row-name tr))]))
+
 (define (run-workers progs threads #:seed seed #:profile profile?)
   (define config
     `(init rand ,seed
@@ -139,6 +151,7 @@
       (list id prog)))
 
   (printf "Starting ~a Herbie workers on ~a problems...\n" threads (length progs))
+  (printf "Seed: ~a\n" seed)
   (for ([worker workers])
     (place-channel-put worker `(apply ,worker ,@(car work)))
     (set! work (cdr work)))
@@ -159,11 +172,7 @@
         (define out* (cons (cons id tr) out))
 
         (printf "~a/~a\t" (~a (length out*) #:width 3 #:align 'right) (length progs))
-        (match (table-row-status tr)
-         ["crash"   (printf "[   CRASH   ]")]
-         ["timeout" (printf "[  timeout  ]")]
-         [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
-        (printf "\t~a\n" (table-row-name tr))
+        (print-test-result tr)
 
         (if (= (length out*) (length progs))
             out*
@@ -175,6 +184,7 @@
 
 (define (run-nothreads progs #:seed seed #:profile profile?)
   (printf "Starting Herbie on ~a problems...\n" (length progs))
+  (printf "Seed: ~a\n" seed)
   (define out '())
   (with-handlers ([exn:break?
                    (λ (_)
@@ -183,11 +193,7 @@
     (for ([test progs] [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile?))
       (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
-      (match (table-row-status tr)
-        ["crash"   (printf "[   CRASH   ]")]
-        ["timeout" (printf "[  timeout  ]")]
-        [_         (printf "[ ~ams]" (~a (table-row-time tr) #:width 8))])
-      (printf "\t~a\n" (table-row-name tr))
+      (print-test-result tr)
       (set! out (cons (cons i tr) out))))
   out)
 
