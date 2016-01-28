@@ -72,7 +72,7 @@
        ; Scripts: the report script, MathJax, D3, and graph-drawing code
        (printf "<script src='report.js'></script>\n")
        (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
-       (printf "<script type='text/javascript' src='graph.js'></script>\n")
+       (printf "<script type='text/javascript' src='arrow-chart.js'></script>\n")
        (printf "</head>\n")
        (printf "<body onload='report()'>\n")
 
