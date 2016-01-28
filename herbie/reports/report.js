@@ -9,8 +9,6 @@ function load_report() {
     }
 }
 
-window.addEventListener("load", load_report);
-
 function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
     var names = {};
@@ -55,5 +53,6 @@ function load_graph() {
     }
 }
 
-window.addEventListener("load", load_graph);
-
+function report() {load_report();}
+function graph() {load_graph();}
+function index() {load_report();}

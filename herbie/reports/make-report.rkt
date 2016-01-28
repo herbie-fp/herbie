@@ -74,7 +74,7 @@
        (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
        (printf "<script type='text/javascript' src='graph.js'></script>\n")
        (printf "</head>\n")
-       (printf "<body>\n")
+       (printf "<body onload='report()'>\n")
 
        ; Big bold numbers
        (printf "<div id='large'>\n")

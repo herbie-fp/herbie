@@ -94,7 +94,7 @@
       (printf "<link rel='stylesheet' href='index.css' />\n")
       (printf "<script src='report.js'></script>\n")
       (printf "</head>\n")
-      (printf "<body>\n")
+      (printf "<body onload='index()'>\n")
 
       (define branch-infos*
         (sort

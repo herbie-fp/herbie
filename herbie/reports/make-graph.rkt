@@ -53,7 +53,7 @@
              "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
      (printf "<script src='../report.js'></script>")
      (printf "</head>\n")
-     (printf "<body>\n")
+     (printf "<body onload='graph()'>\n")
 
      (printf "<section id='about'>\n")
 
