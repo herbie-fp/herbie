@@ -11,6 +11,14 @@ figure { margin: 0; overflow: auto; }
 #graph .guide { stroke: rgb(60%, 60%, 60%); stroke-width: 1px; }
 #graph .gridline { stroke: black; stroke-width: 3px; }
 #graph .arrow { pointer-events: all; stroke-width: 2px; }
+#suites {
+    float: right; width: 300px; margin: 0; padding: 0;
+    list-style-type: none; list-style-position: inside;
+}
+#suites li { padding: .5ex; }
+#suites li:hover { background: #e4e4e4; }
+#suites li.selected { background: #d3d3d3; }
+#suites a { color: black; text-decoration: none; display: block; }
 
 #toc {
     clear: both; 

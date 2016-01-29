@@ -1,8 +1,8 @@
 
 margin = 10;
-width = 450;
+width = 440;
 height = 200;
-labels = 50;
+labels = 40;
 precision = 64;
 precision_step = 8;
 
@@ -12,7 +12,6 @@ used_branch = {};
 function get_point(tr) {
     var tests = tr.children[2].textContent.split("/");
     var bits = tr.children[3].textContent.split("/");
-    used_branch[tr.children[1].textContent] = true;
     
     return {
         tests: { got: +tests[0], total: +tests[1]},
@@ -27,13 +26,24 @@ function get_data(tag, table) {
     for (var i = 0; i < trs.length; i++) {
         var note = trs[i].getElementsByClassName("note")[0];
         var trtag = note && note.title;
+        if (trtag) used_branch[trs[i].children[1].textContent] = true;
         if (trtag == tag) data.push(get_point(trs[i]));
     }
     return data;
 }
 
 function step_size(max) {
-    return Math.round(max / 400) * 100;
+    if (max > 400) {
+        return Math.round(max / 400) * 100;
+    } else if (max > 40) {
+        return Math.round(max / 40) * 10;
+    } else if (max > 4) {
+        return Math.round(max / 4);
+    } else if (max > .4) {
+        return Math.round(max / .4) / 10;
+    } else {
+        throw "Data points error";
+    }
 }
 
 function make_graph(node, data, type) {
@@ -45,7 +55,7 @@ function make_graph(node, data, type) {
         if (data[i][type].total > max) max = data[i][type].total;
     }
     var step = step_size(max);
-    var steps = Math.ceil(max / step);
+    var steps = max ? Math.ceil(max / step) : 0;
     var max = steps * step;
 
     var svg = node
@@ -85,12 +95,12 @@ function make_graph(node, data, type) {
         .attr("x1", function(d, i) { return (i + .5) * spacing })
         .attr("x2", function(d, i) { return (i + .5) * spacing })
         .attr("y1", function(d) { return height - height * d[type].total / max })
-        .attr("y2", function(d) { return height - height * d[type].got / max - 5 });
+        .attr("y2", function(d) { return height - height * (d[type].total - d[type].got) / max - 5 });
 
     g.append("polygon").attr("points", "-3,-5,3,-5,0,0")
         .attr("fill", function(d) { return key(d.branch) })
         .attr("transform", function(d, i) {
-            return "translate(" + spacing*(i + .5) + ", " + (height - height * d[type].got / max) + ")";
+            return "translate(" + spacing*(i + .5) + ", " + (height - height * (d[type].total - d[type].got) / max) + ")";
         });
 
     g.append("line")
@@ -104,13 +114,22 @@ function make_graph(node, data, type) {
         .attr("stroke", function(d) { return key(d.branch) })
         .attr("x1", function(d, i) { return (i + .5) * spacing - 3 })
         .attr("x2", function(d, i) { return (i + .5) * spacing + 3 })
-        .attr("y1", function(d) { return height - height * d[type].got / max })
-        .attr("y2", function(d) { return height - height * d[type].got / max });
+        .attr("y1", function(d) { return height - height * (d[type].total - d[type].got) / max })
+        .attr("y2", function(d) { return height - height * (d[type].total - d[type].got) / max });
     
 }
 
 function draw_results(node) {
-    var table = document.getElementById("reports");
+    function draw(tag) {
+        return function(evt) {
+            node.selectAll("*").remove();
+            var old = document.getElementsByClassName("selected")[0];
+            if (old) old.classList.remove("selected");
+            document.getElementById("suite-" + tag).classList.add("selected");
+            make_graph(node, get_data(tag, document.getElementById("reports")), "bits");
+        }
+    }
+
     var branches = [];
     var toclinks = document.getElementById("toc").querySelectorAll("li a");
     for (var i = 0; i < toclinks.length; i++) {
@@ -118,7 +137,27 @@ function draw_results(node) {
     }
     key = d3.scale.category10().domain(branches);
 
-    make_graph(node, get_data("nightly", table), "bits");
+    var types = {};
+    var notes = document.getElementsByClassName("note");
+    for (var i = 0; i < notes.length; i++) {
+        types[notes[i].title] = (types[notes[i].title] || 0) + 1;
+    }
+
+    var best_type = null;
+    var type_list = document.getElementById("suites");
+    for (var type in types) {
+        if (!best_type || types[type] > types[best_type]) best_type = type;
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + type;
+        a.textContent = type;
+        a.addEventListener("click", draw(type));
+        li.id = "suite-" + type;
+        li.appendChild(a);
+        type_list.appendChild(li)
+    }
+
+    draw(best_type)();
 
     for (var i = 0; i < toclinks.length; i++) {
         if (used_branch[branches[i]]) {

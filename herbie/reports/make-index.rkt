@@ -129,6 +129,7 @@
       (printf "</ul>")
 
       (printf "<figure><svg id='graph' width='470'></svg>\n")
+      (printf "<ul id='suites'></ul>")
       (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#graph'))})</script>\n")
       (printf "</figure>\n")
 
