@@ -18,6 +18,7 @@ function get_point(tr) {
         bits: { got: +bits[0], total: +bits[1] },
         branch: tr.children[1].textContent,
         time: +tr.children[0].children[0].getAttribute("data-unix"),
+        elt: tr,
     };
 }
 
@@ -119,6 +120,9 @@ function make_graph(node, data, type) {
         .attr("y1", function(d) { return height - height * (d[type].total - d[type].got) / max })
         .attr("y2", function(d) { return height - height * (d[type].total - d[type].got) / max });
     
+    g.on("click", function(d) {
+        d.elt.click();
+    });
 }
 
 function draw_results(node) {

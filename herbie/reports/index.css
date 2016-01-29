@@ -6,11 +6,13 @@ body {width: 800px; margin: 1em auto; font-family: sans;}
 #large .number {font-size: 3em; display: block;}
 
 figure { margin: 0; overflow: auto; }
-#graph { float: left; cursor: pointer; }
+#graph { float: left; }
 #graph text { text-anchor: end; }
 #graph .guide { stroke: rgb(60%, 60%, 60%); stroke-width: 1px; }
 #graph .gridline { stroke: black; stroke-width: 3px; }
-#graph .arrow { pointer-events: all; stroke-width: 2px; }
+#graph .arrow {pointer-events: all; stroke-width: 2px; cursor: pointer;}
+#graph:hover .arrow {stroke-opacity: .6; fill-opacity: 0.6;}
+#graph:hover .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
 #suites {
     float: right; width: 300px; margin: 0; padding: 0;
     list-style-type: none; list-style-position: inside;
