@@ -14,11 +14,22 @@ upload () {
 }
 
 index () {
-    rsync -v --include 'results.json' --include '/*/' --exclude '*' -r uwplse.org:/var/www/herbie/reports/ graphs/reports/
+    rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
+          --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
     racket herbie/reports/make-index.rkt
-    rsync --verbose --recursive "index.html" "herbie/reports/index.css" "herbie/reports/report.js" "herbie/reports/regression-chart.js" "$RHOST:$RHOSTDIR/"
+    rsync --verbose --recursive \
+          "index.html" "herbie/reports/index.css" \
+          "herbie/reports/report.js" "herbie/reports/regression-chart.js" \
+          "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html
+}
+
+backfill () {
+    rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
+          --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
+    racket herbie/reports/backfill-index.rkt
+    rsync --verbose --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
 }
 
 help () {
@@ -43,6 +54,8 @@ if [[ $CMD = "upload" ]]; then
     fi
 elif [[ $CMD = "index" ]]; then
     index
+elif [[ $CMD = "backfill" ]]; then
+    backfill
 else
     help
 fi
