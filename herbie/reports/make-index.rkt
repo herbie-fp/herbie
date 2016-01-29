@@ -92,6 +92,8 @@
       (printf "<head>")
       (printf "<meta charset='utf-8' /><title>Herbie Reports</title>\n")
       (printf "<link rel='stylesheet' href='index.css' />\n")
+      (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
+      (printf "<script src='regression-chart.js'></script>\n")
       (printf "<script src='report.js'></script>\n")
       (printf "</head>\n")
       (printf "<body onload='index()'>\n")
@@ -125,6 +127,10 @@
         (define branch (report-info-branch (cdar rows)))
         (printf "<li><a href='#reports-~a'>~a</a></li>" branch branch))
       (printf "</ul>")
+
+      (printf "<figure><svg id='graph' width='470'></svg>\n")
+      (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#graph'))})</script>\n")
+      (printf "</figure>\n")
 
       (printf "<table id='reports'>\n")
       (print-rows master-info #:name "master")

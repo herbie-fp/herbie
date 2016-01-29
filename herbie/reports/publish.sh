@@ -16,14 +16,14 @@ upload () {
 index () {
     rsync -v --include 'results.json' --include '/*/' --exclude '*' -r uwplse.org:/var/www/herbie/reports/ graphs/reports/
     racket herbie/reports/make-index.rkt
-    rsync --verbose --recursive "index.html" "herbie/reports/index.css" "herbie/reports/report.js" "$RHOST:$RHOSTDIR/"
-    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js}"
+    rsync --verbose --recursive "index.html" "herbie/reports/index.css" "herbie/reports/report.js" "herbie/reports/regression-chart.js" "$RHOST:$RHOSTDIR/"
+    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html
 }
 
 help () {
-    echo "USAGE: publish.sh upload <dir>\t\t\tUpload the directory <dir>"
-    echo "       publish.sh index\t\t\t\tRegenerate the report index"
+    printf "USAGE: publish.sh upload <dir>\t\t\tUpload the directory <dir>\n"
+    printf "       publish.sh index\t\t\t\tRegenerate the report index\n"
 }
 
 CMD="$1"

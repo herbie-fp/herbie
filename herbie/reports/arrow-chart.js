@@ -18,9 +18,6 @@ function r10(d) {
 function make_graph(node, data, start, end) {
     var len = data.length;
 
-    var a = d3.selectAll("script");
-    var script = a[0][a[0].length - 1];
-
     var svg = node
         .attr("width", width + 2 * margin)
         .attr("height", len * barheight + 2 * margin + textbar)
