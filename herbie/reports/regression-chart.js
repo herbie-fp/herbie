@@ -1,6 +1,6 @@
 
 margin = 10;
-width = 440;
+width = 740;
 height = 200;
 labels = 40;
 precision = 64;

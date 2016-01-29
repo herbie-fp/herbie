@@ -13,11 +13,8 @@ figure { margin: 0; overflow: auto; }
 #graph .arrow {pointer-events: all; stroke-width: 2px; cursor: pointer;}
 #graph:hover .arrow {stroke-opacity: .6; fill-opacity: 0.6;}
 #graph:hover .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
-#suites {
-    float: right; width: 300px; margin: 0; padding: 0;
-    list-style-type: none; list-style-position: inside;
-}
-#suites li { padding: .5ex; }
+#suites { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: center; }
+#suites li { padding: .5ex; display: inline-block; }
 #suites li:hover { background: #e4e4e4; }
 #suites li.selected { background: #d3d3d3; }
 #suites a { color: black; text-decoration: none; display: block; }
