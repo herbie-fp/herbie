@@ -5,7 +5,7 @@
 (require "../common.rkt")
 (require "datafile.rkt")
 
-(provide read-report-info)
+(provide read-report-info name->timestamp)
 
 (define (parse-folder-name name)
   (let ([name (path->string name)])
@@ -61,9 +61,11 @@
         (~r x #:precision 2)]))
 
     (printf "<tr>")
-    (printf "<td title='~a:~a on ~a'>~a</td>"
+    (printf "<td title='~a:~a on ~a'><time data-unix='~a'>~a</time></td>"
             (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0")
-            (date->string date) (date->string/short date))
+            ;; TODO: Best to output a datetime field in RFC3338 format,
+            ;; but Racket doesn't make that easy.
+            (date->string date) (date->seconds date) (date->string/short date))
     (printf "<td title='~a'>~a</td>" commit branch)
     (if tests
         (printf "<td>~a/~a</td>" total-passed total-available)
@@ -72,8 +74,8 @@
         (printf "<td>~a/~a</td>" (round* (- total-start total-end)) (round* total-start))
         (printf "<td></td>"))
     (if note
-        (printf "<td><span class='note' title='~a'>⭐</span></td>" note)
-        (printf "<td></td>"))
+        (printf "<td class='note' title='~a'></td>" note)
+        (printf "<td>⭐</td>"))
     (printf "<td><a href='./~a/report.html'>more</a></td>" folder)
     (printf "</tr>\n"))
   (printf "</tbody>\n"))

@@ -16,7 +16,8 @@ function get_point(tr) {
     return {
         tests: { got: +tests[0], total: +tests[1]},
         bits: { got: +bits[0], total: +bits[1] },
-        branch: tr.children[1].textContent
+        branch: tr.children[1].textContent,
+        time: +tr.children[0].children[0].getAttribute("data-unix"),
     };
 }
 
@@ -29,6 +30,7 @@ function get_data(tag, table) {
         if (trtag) used_branch[trs[i].children[1].textContent] = true;
         if (trtag == tag) data.push(get_point(trs[i]));
     }
+    data.sort(function(a,b) {return a.time - b.time});
     return data;
 }
 
