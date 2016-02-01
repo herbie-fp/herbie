@@ -27,5 +27,7 @@
   (+ (- (* x (cotan B))) (/ 1 (sin B))))
 
 (lambda (x)
-  #:name "sqr sqrt"
-  (- (/ x x) (* (/ 1 x) (sqrt (* x x)))))
+  #:name "sqrt sqr"
+  (- (/ x x) (* (/ 1 x) (sqrt (* x x))))
+  #:target
+  (if (< x 0) 2 0))
