@@ -29,14 +29,11 @@
 (define (get-sampler expr)
   (match expr
     [(? procedure? f) f] ; This can only come up from internal recusive calls
-    ['float sample-float]
-    ['double sample-double]
     ['default sample-default]
     [`(positive ,e) (compose (curry map abs) (get-sampler e))]
     [`(uniform ,a ,b) (sample-uniform a b)]
     [(? number? x) (λ (n) (for/list ([i (in-range n)]) x))]
     ['integer sample-integer]
-    ['expbucket sample-expbucket]
     [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
      (let ([sa (get-sampler a)] [test (curryr (get-op op) b)])
        (λ (n) (for/list ([va (sa n)]) (if (test va) va +nan.0))))]
