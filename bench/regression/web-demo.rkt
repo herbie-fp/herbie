@@ -31,3 +31,17 @@
   (- (/ x x) (* (/ 1 x) (sqrt (* x x))))
   #:target
   (if (< x 0) 2 0))
+
+(lambda (a b c)
+  #:name "jeff quadratic root 1"
+  (let* ((d (sqrt (- (sqr b) (* 4 a c)))))
+    (if (>= b 0)
+      (/ (- (- b) d) (* 2 a))
+      (/ (* 2 c) (+ (- b) d)))))
+
+(lambda (a b c)
+  #:name "jeff quadratic root 2"
+  (let* ((d (sqrt (- (sqr b) (* 4 a c)))))
+    (if (>= b 0)
+      (/ (* 2 c) (- (- b) d)))
+      (/ (+ (- b) d) (* 2 a))))
