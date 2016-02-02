@@ -73,7 +73,7 @@
     [_ (values +inf.0 #f #f)]))
 
 (define (test-regimes)
-  (define branch-point (sample-float 1))
+  (define branch-point (sample-float))
   (define (rand-op)
     (car (rule-output (list-ref dummy-rules (random 6)))))
   (debug #:from 'test-regimes "Selected branch point " branch-point)
