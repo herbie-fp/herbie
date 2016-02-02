@@ -62,21 +62,19 @@
 (define (random-double-flonum)
   (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
 
-(define (sample-float num)
-  (for/list ([i (range num)])
-    (real->double-flonum (random-single-flonum))))
+(define (sample-float)
+  (real->double-flonum (random-single-flonum)))
 
-(define (sample-double num)
-  (for/list ([i (range num)])
-    (real->double-flonum (random-double-flonum))))
+(define (sample-double)
+  (real->double-flonum (random-double-flonum)))
 
-(define (sample-default n) (((flag 'precision 'double) sample-double sample-float) n))
+(define (sample-default) (((flag 'precision 'double) sample-double sample-float)))
 
-(define ((sample-uniform a b) num)
-  (build-list num (λ (_) (+ (* (random) (- b a)) a))))
+(define ((sample-uniform a b))
+  (+ (* (random) (- b a)) a))
 
-(define (sample-integer num)
-  (build-list num (λ (_) (- (random-exp 32) (expt 2 31)))))
+(define (sample-integer)
+  (- (random-exp 32) (expt 2 31)))
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
@@ -142,7 +140,9 @@
     (if (>= (length pts) (*num-points*))
         (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))
         (let* ([num (- (*num-points*) (length pts))]
-               [pts1 (flip-lists (for/list ([rec samplers]) ((cdr rec) num)))]
+               [pts1
+                (for/list ([n (in-range num)])
+                  (for/list ([rec samplers]) ((cdr rec))))]
                [exs1 (make-exacts prog pts1)]
                ; Then, we remove the points for which the answers
                ; are not representable

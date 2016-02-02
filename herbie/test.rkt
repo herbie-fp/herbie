@@ -30,16 +30,16 @@
   (match expr
     [(? procedure? f) f] ; This can only come up from internal recusive calls
     ['default sample-default]
-    [`(positive ,e) (compose (curry map abs) (get-sampler e))]
+    [`(positive ,e) (compose abs (get-sampler e))]
     [`(uniform ,a ,b) (sample-uniform a b)]
-    [(? number? x) (λ (n) (for/list ([i (in-range n)]) x))]
+    [(? number? x) (const x)]
     ['integer sample-integer]
     [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
      (let ([sa (get-sampler a)] [test (curryr (get-op op) b)])
-       (λ (n) (for/list ([va (sa n)]) (if (test va) va +nan.0))))]
+       (λ () (let ([va (sa)]) (if (test va) va +nan.0))))]
     [`(,(and op (or '< '> '<= '>=)) ,(? number? a) ,b)
      (let ([sb (get-sampler b)] [test (curry (get-op op) a)])
-       (λ (n) (for/list ([vb (sb n)]) (if (test vb) vb +nan.0))))]
+       (λ () (let ([vb (sb)]) (if (test vb) vb +nan.0))))]
     [`(,(and op (or '< '> '<= '>=)) ,a ,b ...)
      ; The justification for this is that (< (< 0 float) 1) is interpreted as
      ; samples from (< 0 float) that are (< ? 1), which is just what we want
