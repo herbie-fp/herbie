@@ -85,6 +85,10 @@
 		      (+ (* i bucket-width) (* bucket-width (random))))))
 		periods))))
 
+(define (sample sampler)
+  (let ([y (sampler)])
+    (or y (sample sampler))))
+
 (define (select-every skip l)
   (let loop ([l l] [count skip])
     (cond
@@ -142,7 +146,7 @@
         (let* ([num (- (*num-points*) (length pts))]
                [pts1
                 (for/list ([n (in-range num)])
-                  (for/list ([rec samplers]) ((cdr rec))))]
+                  (for/list ([rec samplers]) (sample (cdr rec))))]
                [exs1 (make-exacts prog pts1)]
                ; Then, we remove the points for which the answers
                ; are not representable
