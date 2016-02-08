@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -7,56 +6,47 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Stack;
 
+import javax.annotation.PostConstruct;
+
 public class OperatorTree {
-	private int size;  //number of nodes of the tree
+	private int height;  //number of operators or the height of the tree
 	public Node root;
-	public final static Set<String> UNARY_OPERATORS = new HashSet<String>();
-	public final static Set<String> BINARY_OPERATORS = new HashSet<String>();
+	public final static Set<String> OPERATORS = new HashSet<String>();
 	public final static Set<String> VARIABLES = new HashSet<String>();
-	public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz"; 
 	private Random r;
-	public final static String[] UNARY = {"-","sqrt", "sqr", "exp", "log", "sin", 
-			"cos", "tan", "cotan", "asin", "acos", "atan", "sinh", "cosh", 
-			"tanh", "abs", "expm1", "log1p", ""};
-	public final static String[] BINARY = {"+", "-", "*", "/", "expt", "atan2", "mod", "hypot"};
 	
 	static {
-		BINARY_OPERATORS.addAll(Arrays.asList(BINARY));
-		UNARY_OPERATORS.addAll(Arrays.asList(UNARY));
+		OPERATORS.add("+");
+		OPERATORS.add("-");
+		OPERATORS.add("/");
+		OPERATORS.add("*");
+		VARIABLES.add("x");
+		VARIABLES.add("y");
 	}
 	
-	/**
-	 * @param size size of the tree, which is also the number of nodes
-	 * @param numOfVars number of variables
-	 */
-	public OperatorTree(int size, int numOfVars) {
-		this.size = size;
+	// @param size number of nodes in the tree
+	public OperatorTree(int size) {
+		this.height = size;
+		root = new Node();
 		r =  new Random();
-		
-		for (int i = 0; i < numOfVars; i++) {
-			VARIABLES.add(ALPHABET.charAt(i) + "");
-		}
 	}
 	
+	// constructs an empty tree where each node either has zero or two children
 	public void createEmpty() {
-		root = null;
-		if (this.size > 0) {
-			root = createEmptyHelper(root, size);
+		if (height < 0) {
+			throw new IllegalArgumentException();
 		}
-	}
-
-	private Node createEmptyHelper(Node n, int size) {
-		if (size > 1) {
-			n = new Node();
-			size--;
-			int leftSize = r.nextInt(size);
-			int rightSize = size - leftSize;
-			n.left = createEmptyHelper(n.left, leftSize);
-			n.right = createEmptyHelper(n.right, rightSize);
-		} else if (size == 1) {
-			n = new Node();
-		} 
-		return n;
+		Node curr = root;
+		for (int i = 0; i < height; i++) {
+			curr.left = new Node();
+			curr.right = new Node();
+			int whichWay = r.nextInt(2);
+			if (whichWay == 0) {		
+				curr = curr.left;
+			} else {
+				curr = curr.right;
+			}
+		}
 	}
 	
 	public String parse() {
@@ -68,8 +58,7 @@ public class OperatorTree {
 	
 	private void parse(StringBuilder sb, Node node, Stack<String> s) {
 		if (node != null) {
-			boolean isOperator = BINARY_OPERATORS.contains(node.data) || UNARY_OPERATORS.contains(node.data);
-			if (isOperator) {
+			if (OPERATORS.contains(node.data)) {
 				sb.append("(" + node.data + " ");
 				s.push(node.data);
 			} else {
@@ -77,50 +66,57 @@ public class OperatorTree {
 			}
 			parse(sb, node.left, s);
 			parse(sb, node.right, s);
-			if (isOperator) {
+			if (OPERATORS.contains(node.data)) {
 				sb.append(") ");
 				s.pop();
 			}
 		}
 	}
 	
-
+//	public Node createEmpty(Node node, int size) {
+//		if (size < 0) {
+//			return null;
+//		} else {
+//			int buildOrNot = r.nextInt(2);
+//			if (buildOrNot == 0) {
+//				node = new Node();
+//				node.left = createEmpty(node.left, size - 1);
+//				if (node.left != null) { // if build left, has to build right
+//					node.right = createEmpty(node.right, size - 2);
+//					if (node.right == null) {
+//						node.right = new Node();
+//					}
+//				}
+//				return node;
+//			} else {
+//				return null;  //decide not to build
+//			}
+//		}
+//			
+//	}
+	
 	public void populate(Node n) {
-		if (n != null) {
-			if (n.left == null && n.right == null) {
-				// leaf node
-				if (r.nextInt(2) == 0) {
-					n.data = r.nextDouble()* 1000+"";
-					n.data = n.data.substring(0, 7);
-				} else {
-					String[] varArr = new String[VARIABLES.size()];
-					VARIABLES.toArray(varArr);
-					n.data = varArr[r.nextInt(varArr.length)];
-				}
-			} else if (n.left == null || n.right == null) {
-				// node with single child
-				// so only choose from UNARY_OPERATORS
-				int opIndex = r.nextInt(UNARY_OPERATORS.size());
-				String[] optArr = new String[UNARY_OPERATORS.size()];
-				UNARY_OPERATORS.toArray(optArr);
-				n.data = optArr[opIndex];
-				populate(n.left);
-				populate(n.right);
+		if (n.left == null && n.right == null) {
+			if (r.nextInt(2) == 0) {
+				n.data = r.nextDouble()* 1000+"";
+				n.data = n.data.substring(0, 7);
 			} else {
-				// node with two children
-				// so only choose from BINARY_OPERATORS
-				int opIndex = r.nextInt(BINARY_OPERATORS.size());
-				String[] optArr = new String[BINARY_OPERATORS.size()];
-				BINARY_OPERATORS.toArray(optArr);
-				n.data = optArr[opIndex];
-				populate(n.left);
-				populate(n.right);
+				String[] varArr = new String[VARIABLES.size()];
+				VARIABLES.toArray(varArr);
+				n.data = varArr[r.nextInt(varArr.length)];
 			}
+		} else {
+			int opIndex = r.nextInt(4);
+			String[] optArr = new String[OPERATORS.size()];
+			OPERATORS.toArray(optArr);
+			n.data = optArr[opIndex];
+			populate(n.left);
+			populate(n.right);
 		}
 	}
 	
 	public int size() {
-		return size;
+		return height;
 	}
 	
 	public void preOrder() {
@@ -155,6 +151,8 @@ public class OperatorTree {
 	
 	
 	// All code below are just printing functions.
+	
+	
 	public static void printNode(Node root) {
         int maxLevel = maxLevel(root);
 
