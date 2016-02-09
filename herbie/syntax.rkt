@@ -97,6 +97,7 @@
   [<        '(2)      bf<       <         1]
   [<=       '(2)      bf<=      <=        1]
   [>=       '(2)      bf>=      >=        1]
+  [not      '(1)      not       not       1]
   [and      '(2)      and-fn    and-fn    1]
   [or       '(2)      or-fn     or-fn     1])
 
