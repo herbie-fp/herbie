@@ -13,18 +13,18 @@ public class OperatorTree {
 	public final static Set<String> UNARY_OPERATORS = new HashSet<String>();
 	public final static Set<String> BINARY_OPERATORS = new HashSet<String>();
 	public final static Set<String> VARIABLES = new HashSet<String>();
-	public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz"; 
+	public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 	private Random r;
-	public final static String[] UNARY = {"-","sqrt", "sqr", "exp", "log", "sin", 
-			"cos", "tan", "cotan", "asin", "acos", "atan", "sinh", "cosh", 
+	public final static String[] UNARY = {"-","sqrt", "sqr", "exp", "log", "sin",
+			"cos", "tan", "cotan", "asin", "acos", "atan", "sinh", "cosh",
 			"tanh", "abs", "expm1", "log1p", ""};
 	public final static String[] BINARY = {"+", "-", "*", "/", "expt", "atan2", "mod", "hypot"};
-	
+
 	static {
 		BINARY_OPERATORS.addAll(Arrays.asList(BINARY));
 		UNARY_OPERATORS.addAll(Arrays.asList(UNARY));
 	}
-	
+
 	/**
 	 * @param size size of the tree, which is also the number of nodes
 	 * @param numOfVars number of variables
@@ -32,12 +32,12 @@ public class OperatorTree {
 	public OperatorTree(int size, int numOfVars) {
 		this.size = size;
 		r =  new Random();
-		
+
 		for (int i = 0; i < numOfVars; i++) {
 			VARIABLES.add(ALPHABET.charAt(i) + "");
 		}
 	}
-	
+
 	public void createEmpty() {
 		root = null;
 		if (this.size > 0) {
@@ -55,17 +55,17 @@ public class OperatorTree {
 			n.right = createEmptyHelper(n.right, rightSize);
 		} else if (size == 1) {
 			n = new Node();
-		} 
+		}
 		return n;
 	}
-	
+
 	public String parse() {
 		StringBuilder sb = new StringBuilder(0);
 		Stack<String> s = new Stack<String>();
-		parse(sb, root, s);	
+		parse(sb, root, s);
 		return sb.toString();
 	}
-	
+
 	private void parse(StringBuilder sb, Node node, Stack<String> s) {
 		if (node != null) {
 			boolean isOperator = BINARY_OPERATORS.contains(node.data) || UNARY_OPERATORS.contains(node.data);
@@ -83,7 +83,7 @@ public class OperatorTree {
 			}
 		}
 	}
-	
+
 
 	public void populate(Node n) {
 		if (n != null) {
@@ -118,15 +118,15 @@ public class OperatorTree {
 			}
 		}
 	}
-	
+
 	public int size() {
 		return size;
 	}
-	
+
 	public void preOrder() {
 		preOrder(root);
 	}
-	
+
 	private void preOrder(Node n) {
 		if (n == null) {
 			return;
@@ -136,24 +136,24 @@ public class OperatorTree {
 			preOrder(n.right);
 		}
 	}
-	
+
 	public class Node {
 		private String data;
 		private Node left;
 		private Node right;
-		
+
 		public Node() {
 			this(null, null, null);
 		}
-		
+
 		public Node(String data, Node left, Node right) {
 			this.data = data;
 			this.left = left;
 			this.right = right;
 		}
 	}
-	
-	
+
+
 	// All code below are just printing functions.
 	public static void printNode(Node root) {
         int maxLevel = maxLevel(root);
