@@ -1,14 +1,8 @@
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
-import java.util.Set;
-import java.util.Stack;
+import java.util.Arrays;
 
 public class OperatorTree {
-  public static final String[] UNOPS =
+  public static final String[] UNOP =
     { "-"
     , "sqrt"
     , "sqr"
@@ -29,7 +23,7 @@ public class OperatorTree {
     , "log1p"
     };
 
-  public static final String[] BINOPS =
+  public static final String[] BINOP =
     { "+"
     , "-"
     , "*"
@@ -45,226 +39,76 @@ public class OperatorTree {
 
   private static Random rnd = new Random();
 
-  private static boolean contains(String[] a, String s) {
-    for(int i=0; i<a.length; i++) {
-      if(a[i] == s) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private static String choose(String[] a) {
     return a[rnd.nextInt(a.length)];
   }
 
-  private int size;
+  private static int count = 0;
+
   private String[] vars;
-  public Node root;
+  private Node expr;
 
-  /**
-   * @param size size of the tree, which is also the number of nodes
-   * @param numOfVars number of variables
-   */
   public OperatorTree(int size, int nVars) {
-    assert nVars < 26 : "too many vars";
+    if(size < 1) throw new Error("size < 1");
+    if(nVars > VARS.length) throw new Error("nVars > VARS.length");
 
-    this.size = size;
     this.vars = Arrays.copyOf(VARS, nVars);
+    this.expr = genExpr(size);
+
+    count++;
   }
 
-  public int getSize() {
-    return this.size;
-  }
+  private Node genExpr(int fuel) {
+    fuel--;
 
-  public String[] getVars() {
-    return Arrays.copyOf(vars, vars.length);
-  }
-
-  public void createEmpty() {
-    root = null;
-    if (size > 0) {
-      root = createEmptyHelper(root, size);
-    }
-  }
-
-  private Node createEmptyHelper(Node n, int size) {
-    if (size > 1) {
-      n = new Node();
-      size--;
-      int leftSize = rnd.nextInt(size);
-      int rightSize = size - leftSize;
-      n.left = createEmptyHelper(n.left, leftSize);
-      n.right = createEmptyHelper(n.right, rightSize);
-    } else if (size == 1) {
-      n = new Node();
+    Node n;
+    if(fuel < 1) {
+      if(rnd.nextInt(5) == 0) {
+        String d = Double.toString(rnd.nextDouble());
+        n = new Node(d, null, null);
+      } else {
+        n = new Node(choose(vars), null, null);
+      }
+    } else if(fuel < 2 || rnd.nextInt(4) == 0) {
+      n = new Node(choose(UNOP), genExpr(fuel), null);
+    } else {
+      int l = rnd.nextInt(fuel - 1) + 1;
+      int r = fuel - l;
+      n = new Node(choose(BINOP), genExpr(l), genExpr(r));
     }
     return n;
   }
 
-  public String parse() {
-    StringBuilder sb = new StringBuilder(0);
-    Stack<String> s = new Stack<String>();
-    parse(sb, root, s);
-    return sb.toString();
-  }
-
-  private void parse(StringBuilder sb, Node node, Stack<String> s) {
-    if (node != null) {
-      boolean isOperator = contains(BINOPS, node.data) || contains(UNOPS, node.data);
-      if (isOperator) {
-        sb.append("(" + node.data + " ");
-        s.push(node.data);
-      } else {
-        sb.append(node.data + " ");
-      }
-      parse(sb, node.left, s);
-      parse(sb, node.right, s);
-      if (isOperator) {
-        sb.append(") ");
-        s.pop();
-      }
-    }
-  }
-
-  public void populate(Node n) {
-    if(n == null) {
-      return;
-    }
-
-    if(n.left == null && n.right == null) {
-      if(rnd.nextInt(4) == 0) {
-        n.data = Double.toString(rnd.nextDouble());
-      } else {
-        n.data = choose(vars);
-      }
-    } else if(n.left == null || n.right == null) {
-      n.data = choose(UNOPS);
-    } else {
-      n.data = choose(BINOPS);
-    }
-
-    populate(n.left);
-    populate(n.right);
-  }
-
-  public void preOrder() {
-    preOrder(root);
-  }
-
-  private void preOrder(Node n) {
-    if (n == null) {
-      return;
-    } else {
-      System.out.println(n.data);
-      preOrder(n.left);
-      preOrder(n.right);
-    }
+  public String toString() {
+    return String.format(
+        "(herbie-test (%s)\n  \"Random Jason Test %d\"\n  %s)"
+        , String.join(" ", vars)
+        , count
+        , expr.toString());
   }
 
   public class Node {
-    private String data;
-    private Node left;
-    private Node right;
+    private String label;
+    private Node l;
+    private Node r;
 
-    public Node() {
-      this(null, null, null);
+    public Node(String label, Node l, Node r) {
+      this.label = label;
+      this.l = l;
+      this.r = r;
     }
 
-    public Node(String data, Node left, Node right) {
-      this.data = data;
-      this.left = left;
-      this.right = right;
-    }
-  }
-
-
-  // All code below are just printing functions.
-  public static void printNode(Node root) {
-    int maxLevel = maxLevel(root);
-
-    printNodeInternal(Collections.singletonList(root), 1, maxLevel);
-  }
-
-  private static void printNodeInternal(List<Node> nodes, int level, int maxLevel) {
-    if (nodes.isEmpty() || isAllElementsNull(nodes)) {
-      return;
-    }
-
-    int floor = maxLevel - level;
-    int endgeLines = (int) Math.pow(2, (Math.max(floor - 1, 0)));
-    int firstSpaces = (int) Math.pow(2, (floor)) - 1;
-    int betweenSpaces = (int) Math.pow(2, (floor + 1)) - 1;
-
-    printWhitespaces(firstSpaces);
-
-    List<Node> newNodes = new ArrayList<Node>();
-    for (Node node : nodes) {
-      if (node != null) {
-          System.out.print(node.data);
-          newNodes.add(node.left);
-          newNodes.add(node.right);
-      } else {
-          newNodes.add(null);
-          newNodes.add(null);
-          System.out.print(" ");
+    public String toString() {
+      if(l == null && r == null) {
+        return label;
       }
-
-      printWhitespaces(betweenSpaces);
-    }
-    System.out.println("");
-
-    for (int i = 1; i <= endgeLines; i++) {
-      for (int j = 0; j < nodes.size(); j++) {
-        printWhitespaces(firstSpaces - i);
-        if (nodes.get(j) == null) {
-          printWhitespaces(endgeLines + endgeLines + i + 1);
-          continue;
-        }
-
-        if (nodes.get(j).left != null) {
-          System.out.print("/");
-        } else {
-          printWhitespaces(1);
-        }
-
-        printWhitespaces(i + i - 1);
-
-        if (nodes.get(j).right != null) {
-          System.out.print("\\");
-        } else {
-          printWhitespaces(1);
-        }
-
-        printWhitespaces(endgeLines + endgeLines - i);
+      if(l != null && r == null) {
+        return String.format("(%s %s)", label, l.toString());
       }
-
-      System.out.println("");
-    }
-
-    printNodeInternal(newNodes, level + 1, maxLevel);
-  }
-
-  private static void printWhitespaces(int count) {
-    for (int i = 0; i < count; i++)
-      System.out.print(" ");
-  }
-
-  private static int maxLevel(Node node) {
-    if (node == null) {
-      return 0;
-    }
-
-    return Math.max(maxLevel(node.left), maxLevel(node.right)) + 1;
-  }
-
-  private static boolean isAllElementsNull(List list) {
-    for (Object object : list) {
-      if (object != null) {
-        return false;
+      if(l != null && r != null) {
+        return String.format("(%s %s %s)", label, l.toString(), r.toString());
       }
+      throw new Error("l == null but r != null");
     }
-
-    return true;
   }
 }
