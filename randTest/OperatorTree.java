@@ -40,6 +40,11 @@ public class OperatorTree {
     , "hypot"
     };
 
+  public static final String[] VARS =
+    "abcdefghijklmnopqrstuvwxyz".split("");
+
+  private static Random rnd = new Random();
+
   private static boolean contains(String[] a, String s) {
     for(int i=0; i<a.length; i++) {
       if(a[i] == s) {
@@ -49,29 +54,36 @@ public class OperatorTree {
     return false;
   }
 
-  private static Random rgen = new Random();
+  private static String choose(String[] a) {
+    return a[rnd.nextInt(a.length)];
+  }
 
-  public static final Set<String> VARIABLES = new HashSet<String>();
-  public static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-
-  private int size;  //number of nodes of the tree
+  private int size;
+  private String[] vars;
   public Node root;
 
   /**
    * @param size size of the tree, which is also the number of nodes
    * @param numOfVars number of variables
    */
-  public OperatorTree(int size, int numOfVars) {
-    this.size = size;
+  public OperatorTree(int size, int nVars) {
+    assert nVars < 26 : "too many vars";
 
-    for (int i = 0; i < numOfVars; i++) {
-      VARIABLES.add(ALPHABET.charAt(i) + "");
-    }
+    this.size = size;
+    this.vars = Arrays.copyOf(VARS, nVars);
+  }
+
+  public int getSize() {
+    return this.size;
+  }
+
+  public String[] getVars() {
+    return Arrays.copyOf(vars, vars.length);
   }
 
   public void createEmpty() {
     root = null;
-    if (this.size > 0) {
+    if (size > 0) {
       root = createEmptyHelper(root, size);
     }
   }
@@ -80,7 +92,7 @@ public class OperatorTree {
     if (size > 1) {
       n = new Node();
       size--;
-      int leftSize = rgen.nextInt(size);
+      int leftSize = rnd.nextInt(size);
       int rightSize = size - leftSize;
       n.left = createEmptyHelper(n.left, leftSize);
       n.right = createEmptyHelper(n.right, rightSize);
@@ -116,37 +128,24 @@ public class OperatorTree {
   }
 
   public void populate(Node n) {
-    if (n != null) {
-      if (n.left == null && n.right == null) {
-        // leaf node
-        if (rgen.nextInt(2) == 0) {
-          n.data = Math.pow(-1, rgen.nextInt(2)) * rgen.nextDouble() * 100000+"";
-        //  n.data = n.data.substring(0, 7);
-        } else {
-          String[] varArr = new String[VARIABLES.size()];
-          VARIABLES.toArray(varArr);
-          n.data = varArr[rgen.nextInt(varArr.length)];
-        }
-      } else if (n.left == null || n.right == null) {
-        // node with single child
-        // so only choose from UNOPS
-        int opIndex = rgen.nextInt(UNOPS.length);
-        n.data = UNOPS[opIndex];
-        populate(n.left);
-        populate(n.right);
-      } else {
-        // node with two children
-        // so only choose from BINOPS
-        int opIndex = rgen.nextInt(BINOPS.length);
-        n.data = BINOPS[opIndex];
-        populate(n.left);
-        populate(n.right);
-      }
+    if(n == null) {
+      return;
     }
-  }
 
-  public int size() {
-    return size;
+    if(n.left == null && n.right == null) {
+      if(rnd.nextInt(4) == 0) {
+        n.data = Double.toString(rnd.nextDouble());
+      } else {
+        n.data = choose(vars);
+      }
+    } else if(n.left == null || n.right == null) {
+      n.data = choose(UNOPS);
+    } else {
+      n.data = choose(BINOPS);
+    }
+
+    populate(n.left);
+    populate(n.right);
   }
 
   public void preOrder() {

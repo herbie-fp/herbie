@@ -28,13 +28,9 @@ public class RandomTest {
 			opt.populate(opt.root);
 			// print test
 			System.out.print("(herbie-test (");
-			String[] varArr = new String[OperatorTree.VARIABLES.size()];
-			OperatorTree.VARIABLES.toArray(varArr);
-			System.out.print(varArr[0]);
-			for (int j = 1; j < varArr.length; j++) {
-				System.out.print(" " + varArr[j]);
-			}
-			System.out.println(")");
+      System.out.print(String.join(" ", opt.getVars()));
+      System.out.println(")");
+
 			System.out.println("  \"Random test " + (i+1) + "\"");
 			System.out.print("    " + opt.parse());
 			System.out.println(")");
