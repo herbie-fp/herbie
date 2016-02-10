@@ -8,154 +8,178 @@ import java.util.Set;
 import java.util.Stack;
 
 public class OperatorTree {
-	private int size;  //number of nodes of the tree
-	public Node root;
-	public final static Set<String> UNARY_OPERATORS = new HashSet<String>();
-	public final static Set<String> BINARY_OPERATORS = new HashSet<String>();
-	public final static Set<String> VARIABLES = new HashSet<String>();
-	public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-	private Random r;
-	public final static String[] UNARY = {"-","sqrt", "sqr", "exp", "log", "sin",
-			"cos", "tan", "cotan", "asin", "acos", "atan", "sinh", "cosh",
-			"tanh", "abs", "expm1", "log1p", ""};
-	public final static String[] BINARY = {"+", "-", "*", "/", "expt", "atan2", "mod", "hypot"};
+  public final static Set<String> UNOPS =
+    new HashSet<String>(Arrays.asList(new String[]
+      { "-"
+      , "sqrt"
+      , "sqr"
+      , "exp"
+      , "log"
+      , "sin"
+      , "cos"
+      , "tan"
+      , "cotan"
+      , "asin"
+      , "acos"
+      , "atan"
+      , "sinh"
+      , "cosh"
+      , "tanh"
+      , "abs"
+      , "expm1"
+      , "log1p"
+      }));
 
-	static {
-		BINARY_OPERATORS.addAll(Arrays.asList(BINARY));
-		UNARY_OPERATORS.addAll(Arrays.asList(UNARY));
-	}
+  public final static Set<String> BINOPS =
+    new HashSet<String>(Arrays.asList(new String[]
+      { "+"
+      , "-"
+      , "*"
+      , "/"
+      , "expt"
+      , "atan2"
+      , "mod"
+      , "hypot"
+      }));
 
-	/**
-	 * @param size size of the tree, which is also the number of nodes
-	 * @param numOfVars number of variables
-	 */
-	public OperatorTree(int size, int numOfVars) {
-		this.size = size;
-		r =  new Random();
+  public final static Set<String> VARIABLES = new HashSet<String>();
+  public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 
-		for (int i = 0; i < numOfVars; i++) {
-			VARIABLES.add(ALPHABET.charAt(i) + "");
-		}
-	}
+  private int size;  //number of nodes of the tree
+  public Node root;
+  private Random r;
 
-	public void createEmpty() {
-		root = null;
-		if (this.size > 0) {
-			root = createEmptyHelper(root, size);
-		}
-	}
+  /**
+   * @param size size of the tree, which is also the number of nodes
+   * @param numOfVars number of variables
+   */
+  public OperatorTree(int size, int numOfVars) {
+    this.size = size;
+    r =  new Random();
 
-	private Node createEmptyHelper(Node n, int size) {
-		if (size > 1) {
-			n = new Node();
-			size--;
-			int leftSize = r.nextInt(size);
-			int rightSize = size - leftSize;
-			n.left = createEmptyHelper(n.left, leftSize);
-			n.right = createEmptyHelper(n.right, rightSize);
-		} else if (size == 1) {
-			n = new Node();
-		}
-		return n;
-	}
+    for (int i = 0; i < numOfVars; i++) {
+      VARIABLES.add(ALPHABET.charAt(i) + "");
+    }
+  }
 
-	public String parse() {
-		StringBuilder sb = new StringBuilder(0);
-		Stack<String> s = new Stack<String>();
-		parse(sb, root, s);
-		return sb.toString();
-	}
+  public void createEmpty() {
+    root = null;
+    if (this.size > 0) {
+      root = createEmptyHelper(root, size);
+    }
+  }
 
-	private void parse(StringBuilder sb, Node node, Stack<String> s) {
-		if (node != null) {
-			boolean isOperator = BINARY_OPERATORS.contains(node.data) || UNARY_OPERATORS.contains(node.data);
-			if (isOperator) {
-				sb.append("(" + node.data + " ");
-				s.push(node.data);
-			} else {
-				sb.append(node.data + " ");
-			}
-			parse(sb, node.left, s);
-			parse(sb, node.right, s);
-			if (isOperator) {
-				sb.append(") ");
-				s.pop();
-			}
-		}
-	}
+  private Node createEmptyHelper(Node n, int size) {
+    if (size > 1) {
+      n = new Node();
+      size--;
+      int leftSize = r.nextInt(size);
+      int rightSize = size - leftSize;
+      n.left = createEmptyHelper(n.left, leftSize);
+      n.right = createEmptyHelper(n.right, rightSize);
+    } else if (size == 1) {
+      n = new Node();
+    }
+    return n;
+  }
 
+  public String parse() {
+    StringBuilder sb = new StringBuilder(0);
+    Stack<String> s = new Stack<String>();
+    parse(sb, root, s);
+    return sb.toString();
+  }
 
-	public void populate(Node n) {
-		if (n != null) {
-			if (n.left == null && n.right == null) {
-				// leaf node
-				if (r.nextInt(2) == 0) {
-					n.data = Math.pow(-1, r.nextInt(2)) * r.nextDouble() * 100000+"";
-				//	n.data = n.data.substring(0, 7);
-				} else {
-					String[] varArr = new String[VARIABLES.size()];
-					VARIABLES.toArray(varArr);
-					n.data = varArr[r.nextInt(varArr.length)];
-				}
-			} else if (n.left == null || n.right == null) {
-				// node with single child
-				// so only choose from UNARY_OPERATORS
-				int opIndex = r.nextInt(UNARY_OPERATORS.size());
-				String[] optArr = new String[UNARY_OPERATORS.size()];
-				UNARY_OPERATORS.toArray(optArr);
-				n.data = optArr[opIndex];
-				populate(n.left);
-				populate(n.right);
-			} else {
-				// node with two children
-				// so only choose from BINARY_OPERATORS
-				int opIndex = r.nextInt(BINARY_OPERATORS.size());
-				String[] optArr = new String[BINARY_OPERATORS.size()];
-				BINARY_OPERATORS.toArray(optArr);
-				n.data = optArr[opIndex];
-				populate(n.left);
-				populate(n.right);
-			}
-		}
-	}
-
-	public int size() {
-		return size;
-	}
-
-	public void preOrder() {
-		preOrder(root);
-	}
-
-	private void preOrder(Node n) {
-		if (n == null) {
-			return;
-		} else {
-			System.out.println(n.data);
-			preOrder(n.left);
-			preOrder(n.right);
-		}
-	}
-
-	public class Node {
-		private String data;
-		private Node left;
-		private Node right;
-
-		public Node() {
-			this(null, null, null);
-		}
-
-		public Node(String data, Node left, Node right) {
-			this.data = data;
-			this.left = left;
-			this.right = right;
-		}
-	}
+  private void parse(StringBuilder sb, Node node, Stack<String> s) {
+    if (node != null) {
+      boolean isOperator = BINOPS.contains(node.data) || UNOPS.contains(node.data);
+      if (isOperator) {
+        sb.append("(" + node.data + " ");
+        s.push(node.data);
+      } else {
+        sb.append(node.data + " ");
+      }
+      parse(sb, node.left, s);
+      parse(sb, node.right, s);
+      if (isOperator) {
+        sb.append(") ");
+        s.pop();
+      }
+    }
+  }
 
 
-	// All code below are just printing functions.
-	public static void printNode(Node root) {
+  public void populate(Node n) {
+    if (n != null) {
+      if (n.left == null && n.right == null) {
+        // leaf node
+        if (r.nextInt(2) == 0) {
+          n.data = Math.pow(-1, r.nextInt(2)) * r.nextDouble() * 100000+"";
+        //  n.data = n.data.substring(0, 7);
+        } else {
+          String[] varArr = new String[VARIABLES.size()];
+          VARIABLES.toArray(varArr);
+          n.data = varArr[r.nextInt(varArr.length)];
+        }
+      } else if (n.left == null || n.right == null) {
+        // node with single child
+        // so only choose from UNOPS
+        int opIndex = r.nextInt(UNOPS.size());
+        String[] optArr = new String[UNOPS.size()];
+        UNOPS.toArray(optArr);
+        n.data = optArr[opIndex];
+        populate(n.left);
+        populate(n.right);
+      } else {
+        // node with two children
+        // so only choose from BINOPS
+        int opIndex = r.nextInt(BINOPS.size());
+        String[] optArr = new String[BINOPS.size()];
+        BINOPS.toArray(optArr);
+        n.data = optArr[opIndex];
+        populate(n.left);
+        populate(n.right);
+      }
+    }
+  }
+
+  public int size() {
+    return size;
+  }
+
+  public void preOrder() {
+    preOrder(root);
+  }
+
+  private void preOrder(Node n) {
+    if (n == null) {
+      return;
+    } else {
+      System.out.println(n.data);
+      preOrder(n.left);
+      preOrder(n.right);
+    }
+  }
+
+  public class Node {
+    private String data;
+    private Node left;
+    private Node right;
+
+    public Node() {
+      this(null, null, null);
+    }
+
+    public Node(String data, Node left, Node right) {
+      this.data = data;
+      this.left = left;
+      this.right = right;
+    }
+  }
+
+
+  // All code below are just printing functions.
+  public static void printNode(Node root) {
         int maxLevel = maxLevel(root);
 
         printNodeInternal(Collections.singletonList(root), 1, maxLevel);
