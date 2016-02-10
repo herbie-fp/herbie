@@ -45,17 +45,18 @@ public class OperatorTree {
 
   private static int count = 0;
 
-  private String[] vars;
-  private Node expr;
+  private final String name;
+  private final String[] vars;
+  private final Node expr;
 
   public OperatorTree(int size, int nVars) {
     if(size < 1) throw new Error("size < 1");
     if(nVars > VARS.length) throw new Error("nVars > VARS.length");
 
+    count++;
+    this.name = String.format("\"Random Jason Test %d\"", count);
     this.vars = Arrays.copyOf(VARS, nVars);
     this.expr = genExpr(size);
-
-    count++;
   }
 
   private Node genExpr(int fuel) {
@@ -81,16 +82,16 @@ public class OperatorTree {
 
   public String toString() {
     return String.format(
-        "(herbie-test (%s)\n  \"Random Jason Test %d\"\n  %s)"
+        "(herbie-test (%s)\n  %s\n  %s)"
         , String.join(" ", vars)
-        , count
+        , name
         , expr.toString());
   }
 
   public class Node {
-    private String label;
-    private Node l;
-    private Node r;
+    private final String label;
+    private final Node l;
+    private final Node r;
 
     public Node(String label, Node l, Node r) {
       this.label = label;
