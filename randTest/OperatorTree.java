@@ -8,39 +8,46 @@ import java.util.Set;
 import java.util.Stack;
 
 public class OperatorTree {
-  public final static Set<String> UNOPS =
-    new HashSet<String>(Arrays.asList(new String[]
-      { "-"
-      , "sqrt"
-      , "sqr"
-      , "exp"
-      , "log"
-      , "sin"
-      , "cos"
-      , "tan"
-      , "cotan"
-      , "asin"
-      , "acos"
-      , "atan"
-      , "sinh"
-      , "cosh"
-      , "tanh"
-      , "abs"
-      , "expm1"
-      , "log1p"
-      }));
+  public final static String[] UNOPS =
+    { "-"
+    , "sqrt"
+    , "sqr"
+    , "exp"
+    , "log"
+    , "sin"
+    , "cos"
+    , "tan"
+    , "cotan"
+    , "asin"
+    , "acos"
+    , "atan"
+    , "sinh"
+    , "cosh"
+    , "tanh"
+    , "abs"
+    , "expm1"
+    , "log1p"
+    };
 
-  public final static Set<String> BINOPS =
-    new HashSet<String>(Arrays.asList(new String[]
-      { "+"
-      , "-"
-      , "*"
-      , "/"
-      , "expt"
-      , "atan2"
-      , "mod"
-      , "hypot"
-      }));
+  public final static String[] BINOPS =
+    { "+"
+    , "-"
+    , "*"
+    , "/"
+    , "expt"
+    , "atan2"
+    , "mod"
+    , "hypot"
+    };
+
+  public static boolean contains(String[] a, String s) {
+    for(int i=0; i<a.length; i++) {
+      if(a[i] == s) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   public final static Set<String> VARIABLES = new HashSet<String>();
   public final static String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
@@ -92,7 +99,7 @@ public class OperatorTree {
 
   private void parse(StringBuilder sb, Node node, Stack<String> s) {
     if (node != null) {
-      boolean isOperator = BINOPS.contains(node.data) || UNOPS.contains(node.data);
+      boolean isOperator = contains(BINOPS, node.data) || contains(UNOPS, node.data);
       if (isOperator) {
         sb.append("(" + node.data + " ");
         s.push(node.data);
@@ -124,19 +131,15 @@ public class OperatorTree {
       } else if (n.left == null || n.right == null) {
         // node with single child
         // so only choose from UNOPS
-        int opIndex = r.nextInt(UNOPS.size());
-        String[] optArr = new String[UNOPS.size()];
-        UNOPS.toArray(optArr);
-        n.data = optArr[opIndex];
+        int opIndex = r.nextInt(UNOPS.length);
+        n.data = UNOPS[opIndex];
         populate(n.left);
         populate(n.right);
       } else {
         // node with two children
         // so only choose from BINOPS
-        int opIndex = r.nextInt(BINOPS.size());
-        String[] optArr = new String[BINOPS.size()];
-        BINOPS.toArray(optArr);
-        n.data = optArr[opIndex];
+        int opIndex = r.nextInt(BINOPS.length);
+        n.data = BINOPS[opIndex];
         populate(n.left);
         populate(n.right);
       }
