@@ -31,15 +31,13 @@
 	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
      [(and (list? prog) (memq (car prog) predicates))
       (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (enumerate #:from 1
-				  (λ (idx prog) (inductor prog (cons idx location)))
-				  (cdr prog)))
+                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
+                         (inductor arg (cons idx location))))
 		 (reverse location))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-		       (enumerate #:from 1
-                                  (λ (idx prog) (inductor prog (cons idx location)))
-                                  (cdr prog)))
+                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
+                         (inductor arg (cons idx location))))
 		 (reverse location))]))
   (inductor prog '()))
 

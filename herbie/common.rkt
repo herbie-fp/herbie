@@ -6,7 +6,7 @@
 (require "debug.rkt")
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         enumerate take-up-to argmins list-product alist-append list-join
+         take-up-to argmins list-product alist-append list-join
          pipe ulp-difference *bit-width* ulps->bits bit-difference
 	 write-file write-string has-duplicates?
 	 symbol<? *start-prog* html-escape-unsafe
@@ -55,12 +55,6 @@
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
       (and (nan? x1) (nan? x2))))
-
-(define (enumerate #:from [start 0] fun . lsts)
-  (let loop ([idx start] [lsts (apply map list lsts)])
-    (if (null? lsts)
-        '()
-        (cons (apply fun idx (car lsts)) (loop (+ 1 idx) (cdr lsts))))))
 
 (define (take-up-to l k)
   ; This is unnecessarily slow. It is O(l), not O(k).
