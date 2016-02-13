@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie on Docker</title>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="logo.png" />
+    <h1>Herbie on Docker</h1>
+    <p>See <a href="index.html">the main page</a> for more info on Herbie.</p>
+  </header>
+
+  <p>
+    <a href="index.html">Herbie</a>'s is available
+    through <a href="https://www.docker.com/">Docker</a>, which is a
+    sort of like an easily-scriptable virtual machine. This page
+    describes how to install
+    the <a href="https://hub.docker.com/uwplse/herbie">official Docker
+    image</a> for Herbie.
+  </p>
+  
+  <p>
+    Herbie can also be <a href="./installing.html">installed
+    normally</a>.
+  </p>
+  
+  <h2>Installing the Herbie image</h2>
+
+  <p>
+    First, <a href="https://docs.docker.com/installation/">install
+    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
+    how you install Docker, you may need to prefix
+    all <code>docker</code> commands on this page
+    with <code>sudo</code> or run them as the root or administrative
+    user.
+  </p>
+  
+  <p>
+    With Docker installed, you should be able to download the Herbie image with:
+  </p>
+ 
+
+  <pre><strong>$</strong> docker pull uwplse/herbie</pre>
+  
+  <p>
+    To run Herbie, you'll want to create a directory to store Herbie's
+    input, and a directory to store Herbie's output.
+  </p>
+  
+  <pre><strong>$</strong> mkdir <var>input</var> <var>output</var></pre>
+  
+  <p>You can now run Herbie in Docker:</p>
+
+  <pre><strong>$</strong> docker run -it \
+    -v $PWD/<var>input</var>:/herbie/bench \
+    -v $PWD/<var>output</var>:/herbie/graphs \
+    uwplse/herbie bench/</pre>
+
+  <p>
+    This command mounts the <var>input</var> and <var>output</var>
+    directories within the Docker image and then runs the Herbie
+    program.
+  </p>
+  
+  <p>
+    Note that depending on your Docker configuration, the resulting
+    output files might be owned by the root user.
+  </p>
+
+</body>
+</html>
