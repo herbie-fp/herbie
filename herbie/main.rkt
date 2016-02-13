@@ -12,46 +12,12 @@
 (require "alt-table.rkt")
 (require "matcher.rkt")
 
-(provide improve
-	 ;; For the shell
-	 (all-defined-out))
+(provide remove-pows setup-prog post-process
+         split-table extract-alt combine-alts
+         best-alt simplify-alt completely-simplify-alt
+         taylor-alt zach-alt)
 
-; For debugging
-(define program-a '(λ (x) (/ (- (exp x) 1) x)))
-(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
 (define initial-fuel '())
-
-(define (improve prog fuel #:get-context [get-context #f] #:samplers [samplers #f])
-  (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (set! initial-fuel fuel)
-  (let* ([samplers (or samplers (map (curryr cons sample-default) (program-variables prog)))]
-	 [context (prepare-points prog samplers)])
-    (parameterize ([*pcontext* context]
-		   [*analyze-context* context]
-		   [*start-prog* prog])
-      (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-      (let* ([alt-table (setup-prog prog fuel)]
-	     [result-alt
-	      (begin
-		(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-		(main-loop alt-table fuel))])
-	(if get-context (list result-alt (atab-context alt-table)) result-alt)))))
-
-(define (main-loop table fuel)
-  (parameterize ([*pcontext* (atab-context table)])
-    (match-let ([table* (improve-loop table fuel)])
-      (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-      (if ((flag 'reduce 'regimes) #t #f)
-	  (match-let ([`(,tables ,splitpoints) (split-table table*)])
-	    (let ([result-alt (if (= (length tables) 1)
-				  (extract-alt (car tables))
-				  (combine-alts splitpoints
-						(if ((flag 'regimes 'recurse) #t #f)
-						    (map (curryr main-loop (/ fuel 2)) tables)
-						    (map extract-alt tables))))])
-	      (remove-pows result-alt)))
-          (remove-pows (extract-alt table*))))))
 
 ;; Implementation
 
@@ -78,13 +44,8 @@
 
 (define (setup-prog prog fuel)
   (let* ([alt (make-alt prog)]
-	 [maybe-period ((flag 'setup 'periodicity)
-			(curry optimize-periodicity
-			       (λ (alt)
-				 (main-loop (make-alt-table (*pcontext*) alt) (/ fuel 2))))
-			identity)]
 	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
-	 [processed (maybe-period (maybe-simplify alt))]
+	 [processed (maybe-simplify alt)]
 	 [table (make-alt-table (*pcontext*) processed)]
 	 [extracted (atab-all-alts table)])
     (assert (equal? extracted (list processed))
@@ -118,48 +79,6 @@
   (argmin alt-cost
 	  (argmins (compose errors-score alt-errors)
 		   alts)))
-
-(define (improve-loop table fuel)
-  (cond [(<= fuel 0)
-	 (debug "Ran out of fuel, reducing... " #:from 'main #:depth 2)
-	 (post-process table)]
-	[(atab-completed? table)
-	 (debug "Ran out of unexpanded alts in alt table, reducing..." fuel "fuel remaining" #:from 'main #:depth 2)
-	 (post-process table)]
-	[#t
-	 (debug #:from 'progress #:depth 2 "iteration" (add1 (- initial-fuel fuel)) "/" initial-fuel)
-	 (debug #:from 'progress #:depth 3 "picking best candidate")
-	 (improve-loop
-	  (let-values ([(picked table*) (atab-pick-alt table #:picking-func best-alt)])
-	    (atab-add-altns table* (generate-alts picked)))
-	  (sub1 fuel))]))
-
-(define (generate-alts altn)
-  (let* ([locs-generated 0]
-	 [locs (localize-error (alt-program altn))]
-	 [num-locs (length locs)])
-    (append-map (λ (loc)
-		  (set! locs-generated (add1 locs-generated))
-		  (debug #:from 'progress #:depth 3 "generating at location" locs-generated "out of" num-locs)
-		  (append (taylor-alt altn loc)
-			  (generate-alts-at altn loc)))
-		locs)))
-
-(define (generate-alts-at altn loc)
-  (let ([rewrite
-	 ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
-    (debug #:from 'progress #:depth 4 "rewriting")
-    (let* ([rewritten (rewrite (alt-add-event altn '(start rm)) #:root loc)]
-	   [num-rewritten (length rewritten)]
-	   [simplified 0]
-	   [cleanup
-	    ((flag 'generate 'simplify)
-	     (λ (alt)
-	       (set! simplified (add1 simplified))
-	       (debug #:from 'progress #:depth 4 "simplifying alt" simplified "of" num-rewritten)
-	       (simplify-alt alt))
-	     identity)])
-    (map cleanup rewritten))))
 
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
@@ -251,33 +170,3 @@
 	       [tables* (split-atab orig-table preds)])
 	  (list tables* splitpoints)))))
 
-(define (verify-points-sorted point-lst expr)
-  (define (eval-at-point pt)
-    ((eval-prog `(λ ,(program-variables (*start-prog*)) ,expr) mode:fl) pt))
-  (for ([p1 (drop-right point-lst 1)]
-	[p2 (drop point-lst 1)])
-    (assert ((eval-at-point p1) . <= . (eval-at-point p2))
-	    #:extra-info (const (list p1 p2)))))
-
-;; Verifies that for each splitpoint pred pair, where splitpoints and preds are paired
-;; by position in their respective lists:
-;; let p be the pred, and s be the splitpoint
-;; all points between s and the splitpoint before it satisfy p, and no other points satisfy p.
-(define (verify-point-preds splitpoints point-preds)
-  (let ([sorted-points (car (sort-context-on-expr (*pcontext*) (sp-bexpr (car splitpoints)) (program-variables (*start-prog*))))])
-    (verify-points-sorted sorted-points (sp-bexpr (car splitpoints)))
-    (for/fold ([rest-pts sorted-points])
-	([split splitpoints])
-      (let-values ([(pred) (list-ref point-preds (sp-cidx split))]
-		   [(points-before-split points-after-split)
-		    (splitf-at rest-pts (λ (p) (<= ((eval-prog `(λ ,(program-variables (*start-prog*)) (sp-bexpr split))) p) (sp-point split))))])
-	(assert (not (null? points-before-split)))
-	(assert (andmap pred points-before-split)
-		#:extra-info (λ _ (map pred points-before-split)))
-	(let ([overlapping (for/first ([other-pred (remove pred point-preds)]
-				       [other-split (remove split splitpoints)]
-				       #:when (ormap other-pred points-before-split))
-			     (list split other-split))])
-	  (assert (not overlapping) #:extra-info (const overlapping)))
-	points-after-split))
-    (void)))
