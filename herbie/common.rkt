@@ -162,11 +162,8 @@
        (error 'assert "~a returned false!" 'pred))]))
 
 (define (setfindf f s)
-  (let/ec return
-    (set-for-each s (λ (el)
-		      (when (f el)
-			(return el))))
-    #f))
+  (for/first ([elt (in-set s)] #:when (f elt))
+    elt))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
