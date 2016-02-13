@@ -12,7 +12,6 @@
 (require "../test.rkt")
 (require "../plot.rkt")
 (require "../matcher.rkt")
-(require "util.rkt")
 
 (provide (all-defined-out))
 
