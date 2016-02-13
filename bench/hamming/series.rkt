@@ -18,7 +18,8 @@
   #:target
   (if (< (abs x) .026)
       (* (/ x 3) (+ 1 (/ (sqr x) 15)))
-      (- (/ 1 x) (cotan x))))
+      (- (/ 1 x) (cotan x)))
+  #:expected #f)
 
 (lambda ([x (< -1 default 1)])
   #:name "NMSE example 3.10"
