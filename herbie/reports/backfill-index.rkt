@@ -5,8 +5,7 @@
 (require "make-index.rkt")
 
 (define allowed-suites
-  '("tutorial" "physics" "octave" "misc" "mathjs" "machine-learning"
-    "latlong" "jmatjs" "hamming" "fast-math"))
+  '("tutorial" "physics" "libraries" "mathematics" "hamming" "haskell", "numerical-analysis" "regression"))
 
 (define (write-report-info folder info)
   (let ([info-file (build-path report-output-path "reports" folder "results.json")])
