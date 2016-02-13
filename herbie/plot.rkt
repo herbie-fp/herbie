@@ -8,9 +8,7 @@
 (require "alternative.rkt")
 
 (provide error-points herbie-plot error-mark error-avg error-axes
-	 *red-theme* *blue-theme* *green-theme* *yellow-theme*
-	 plot-cand-error
-	 )
+	 *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
