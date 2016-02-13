@@ -38,12 +38,7 @@
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
   ; TODO: Uses the same expressions for float and double. This could be good to change.
-  (compile-info dir info info)
-
-  (count not
-         (for/list ([test tests] [result results] #:when result)
-           (test-successful? test (table-row-start result) (table-row-target result)
-                             (table-row-result result)))))
+  (compile-info dir info info))
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))
@@ -86,4 +81,4 @@
       (error "Badly formatted input " tf))
     (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
  #:args bench-dir
- (exit (apply make-report bench-dir)))
+ (apply make-report bench-dir))
