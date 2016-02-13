@@ -1,5 +1,6 @@
 import java.util.Random;
 import java.util.Arrays;
+import java.nio.ByteBuffer;
 
 public class OperatorTree {
   public static final String[] UNOP =
@@ -42,6 +43,13 @@ public class OperatorTree {
   private static String choose(String[] a) {
     return a[rnd.nextInt(a.length)];
   }
+  
+  private static String getDoubleStr() {
+	  byte[] bytes = new byte[8];
+	  rnd.nextBytes(bytes);
+	  double val = ByteBuffer.wrap(bytes).getDouble();
+	  return Double.toString(val);
+  }
 
   private static int count = 0;
 
@@ -65,8 +73,7 @@ public class OperatorTree {
     Node n;
     if(fuel < 1) {
       if(rnd.nextInt(5) == 0) {
-        String d = Double.toString(rnd.nextDouble());
-        n = new Node(d, null, null);
+          n = new Node(getDoubleStr(), null, null);
       } else {
         n = new Node(choose(vars), null, null);
       }
