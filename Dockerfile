@@ -1,10 +1,9 @@
-FROM asumu/racket-head
+FROM jackfirth/racket
 MAINTAINER Pavel Panchekha <me@pavpanchekha.com>
 ADD . /herbie/
 VOLUME ["/herbie/graphs/", "/herbie/bench/"]
 
 WORKDIR /herbie/
-RUN raco make herbie/reports/make-report.rkt
+RUN raco make herbie/reports/run.rkt
 
-CMD ["bench/hamming"]
 ENTRYPOINT ["racket", "herbie/reports/make-report.rkt"]
