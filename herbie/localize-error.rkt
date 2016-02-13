@@ -55,14 +55,15 @@
 
   (localize-on-expression (program-body prog) varmap cache)
 
+  (define locs
+    (reap [sow]
+          (for ([(expr locs) (in-hash expr->loc)])
+            (define err
+              (cdr (hash-ref! cache expr (λ () (localize-on-expression expr varmap cache)))))
+            (when (ormap (curry < 1) err)
+              (for-each (compose sow (curry cons err)) locs)))))
+
   (map cdr
        (take-up-to
-        (sort
-         (reap [sow]
-               (for ([expr (hash-keys expr->loc)])
-                 (let ([err (cdr (hash-ref! cache expr (λ () (localize-on-expression expr varmap cache))))]
-                       [locs (hash-ref expr->loc expr)])
-                   (when (ormap (curry < 1) err)
-                     (map sow (map (curry cons err) locs))))))
-         > #:key (compose errors-score car))
+        (sort locs > #:key (compose errors-score car))
         (*localize-expressions-limit*))))
