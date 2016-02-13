@@ -1,7 +1,6 @@
 #lang racket
 
 (require racket/date)
-(require unstable/sequence)
 (require "../common.rkt")
 (require "datafile.rkt")
 (provide (all-defined-out))

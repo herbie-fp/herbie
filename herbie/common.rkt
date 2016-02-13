@@ -14,7 +14,7 @@
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         get-seed set-seed!)
+         get-seed set-seed! in-pairs)
 
 (define *start-prog* (make-parameter '()))
 
@@ -259,3 +259,12 @@
   "Reset the random number generator to a new seed"
   (current-pseudo-random-generator
    (vector->pseudo-random-generator seed)))
+
+(define (in-pairs seq)
+  "Given a sequence of pairs, returns a sequence of their cars and cdrs."
+  ;; This code is pretty confusing; the sequence APIs are not good
+  (define-values (more? next) (sequence-generate seq))
+  (define stop? #f)
+  (in-producer
+   (λ () (if stop? (values #f #f) (let ([x (next)]) (values (car x) (cdr x)))))
+   (λ _ (begin0 stop? (set! stop? (not (more?)))))))

@@ -1,6 +1,5 @@
 #lang racket
 
-(require unstable/sequence)
 (require "../common.rkt")
 (require "datafile.rkt")
 (require "make-index.rkt")

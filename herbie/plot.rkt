@@ -2,7 +2,6 @@
 
 (require math/flonum)
 (require plot/no-gui plot/pict)
-(require unstable/sequence)
 (require "common.rkt")
 (require "points.rkt")
 (require "programs.rkt")

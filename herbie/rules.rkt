@@ -3,7 +3,6 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "common.rkt")
-(require unstable/sequence)
 
 (provide (struct-out rule) *rules* *simplify-rules* get-rule)
 

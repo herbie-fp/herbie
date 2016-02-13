@@ -1,7 +1,6 @@
 #lang racket
 
 (require racket/place)
-(require unstable/sequence)
 (require "../common.rkt")
 (require "../test.rkt")
 (require "../points.rkt")

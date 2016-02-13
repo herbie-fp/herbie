@@ -1,6 +1,5 @@
 #lang racket
 
-(require unstable/sequence)
 (require "datafile.rkt")
 (require "../common.rkt")
 (require "../points.rkt")
