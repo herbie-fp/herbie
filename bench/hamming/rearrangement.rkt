@@ -45,7 +45,8 @@
   #:name "NMSE problem 3.3.3"
   (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1)))
   #:target
-  (/ 2 (* x (- (sqr x) 1))))
+  (/ 2 (* x (- (sqr x) 1)))
+  #:expected #f)
 
 (lambda (x)
   #:name "NMSE problem 3.3.4"
