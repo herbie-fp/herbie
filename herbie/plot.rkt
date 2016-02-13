@@ -7,7 +7,7 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide error-points herbie-plot error-avg error-axes
+(provide error-points herbie-plot error-mark error-avg error-axes
 	 *red-theme* *blue-theme* *green-theme* *yellow-theme*
 	 plot-cand-error
 	 )
@@ -69,23 +69,6 @@
         (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
   (with-herbie-plot #:title title thunk))
 
-(define (plot-cand-error altn #:axis [axis 0])
-  (herbie-plot
-   (reap [sow]
-	 (sow (error-points (alt-errors altn)
-			    (for/list ([(p e) (in-pcontext (*pcontext*))])
-			      p)
-			    #:color *red-theme*
-			    #:axis axis))
-
-	 (sow (error-avg (alt-errors altn)
-			 (for/list ([(p e) (in-pcontext (*pcontext*))])
-			   p)
-			 #:color *red-theme*
-                         #:axis axis
-                         #:bin-size 32)))))
-
-
 (define (errors-by x errs pts)
   (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))
 
@@ -140,3 +123,6 @@
   (function avg-fun
             (car (first eby)) (car (last eby))
             #:width 2 #:color (color-theme-fit color)))
+
+(define (error-mark x-val)
+  (inverse (const x-val) #:color "gray"))

@@ -249,6 +249,16 @@
       (list (get-final-combination) (*pcontext*))
       (get-final-combination)))
 
+(define (visualize alt #:marks [marks '()] #:axis [axis 0])
+  (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
+  (define errs (alt-errors alt))
+
+  (define renderers
+    (list* (error-avg errs pts #:axis axis) (error-points errs pts #:axis axis)
+           (for/list ([x-val marks]) (error-mark x-val))))
+
+  (apply herbie-plot renderers))
+
 ;; Finishing Herbie
 (define (finalize-table!)
   (^table^ (post-process (^table^)))
