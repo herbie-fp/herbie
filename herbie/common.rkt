@@ -7,7 +7,7 @@
 
 (provide reap define-table println ordinary-float? =-or-nan?
          take-up-to argmins list-product alist-append list-join
-         pipe ulp-difference *bit-width* ulps->bits bit-difference
+         ulp-difference *bit-width* ulps->bits bit-difference
 	 write-file write-string has-duplicates?
 	 symbol<? *start-prog* html-escape-unsafe
 	 flip-lists argmaxs multipartition
@@ -60,10 +60,6 @@
   ; This is unnecessarily slow. It is O(l), not O(k).
   ; To be honest, it just isn't that big a deal for now.
   (take l (min k (length l))))
-
-;; Pipes an initial values through a list of funcs.
-(define (pipe initial funcs)
-  ((apply compose (reverse funcs)) initial))
 
 ;; A more informative andmap. If any of your results are false, this returns
 ;; false. Otherwise, it acts as a normal map.

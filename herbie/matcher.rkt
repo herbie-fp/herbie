@@ -205,5 +205,5 @@
     (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
 
 (define (changes-apply chngs prog)
-  (pipe prog (map (λ (chng) (curry change-apply chng))
-		  chngs)))
+  (for/fold ([prog prog]) ([chng chngs])
+    (change-apply chng prog)))

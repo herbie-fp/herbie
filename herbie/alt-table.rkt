@@ -48,7 +48,8 @@
      #:alt->done? old-done)))
 
 (define (atab-add-altns atab altns)
-  (pipe atab (map (curry curryr atab-add-altn) altns)))
+  (for/fold ([atab atab]) ([altn altns])
+    (atab-add-altn atab altn)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
 		       #:only-fresh [only-fresh? #t])
@@ -111,7 +112,8 @@
   (apply hash-set* hash (alternate keys values)))
 
 (define (hash-remove* hash keys)
-  (pipe hash (map (curry curryr hash-remove) keys)))
+  (for/fold ([hash hash]) ([key keys])
+    (hash-remove hash key)))
 
 ;; Implementation
 
