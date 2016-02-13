@@ -40,3 +40,14 @@ dt { font-weight: bold; float: left; width: 7em; }
 li { position: relative; }
 .error { position: absolute; right: 0; top: 0; color: #666; }
 .error:after { content: " bits"; }
+
+.timeline { height: 2em; }
+.timeline-phase { height: 2em; display: inline-block; }
+.timeline-phase.start    { background: #d3d7cf; }
+.timeline-phase.setup    { background: #edd400; }
+.timeline-phase.localize { background: #729fcf; }
+.timeline-phase.series   { background: #fcaf3e; }
+.timeline-phase.rewrite  { background: #e9b96e; }
+.timeline-phase.simplify { background: #8ae234; }
+.timeline-phase.prune    { background: #ad7fa8; }
+.timeline-phase.regimes  { background: #a40000; }

@@ -24,10 +24,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified samplers)
+  (table next-alt locs children gened-series gened-rewrites simplified samplers timeline)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f #f '())))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -44,6 +44,9 @@
 (define (^samplers^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-samplers! (^shell-state^) newval))
   (shellstate-samplers (^shell-state^)))
+(define (^timeline^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-timeline! (^shell-state^) newval))
+  (map unbox (reverse (shellstate-timeline (^shell-state^)))))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -58,11 +61,16 @@
 
 (define *setup-fuel* (make-parameter 3))
 
+(define (timeline-event! type)
+  (let ([b (box (list (cons 'type type) (cons 'time (current-inexact-milliseconds))))])
+    (set-shellstate-timeline! (^shell-state^) (cons b (shellstate-timeline (^shell-state^))))
+    (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
 ;; Setting up
 (define (setup-prog! prog #:samplers [samplers #f])
   (*start-prog* prog)
   (rollback-improve!)
+  (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (let* ([samplers (or samplers (map (curryr cons sample-default)
 				     (program-variables prog)))]
@@ -71,6 +79,7 @@
     (*pcontext* context)
     (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
+    (define log! (timeline-event! 'setup))
     (^table^ (setup-prog prog (*setup-fuel*)))
     (void)))
 
@@ -110,11 +119,13 @@
 
 ;; Invoke the subsystems individually
 (define (localize!)
+  (define log! (timeline-event! 'localize))
   (^locs^ (localize-error (alt-program (^next-alt^))))
   (void))
 
 (define (gen-series!)
   (when ((flag 'generate 'taylor) #t #f)
+    (define log! (timeline-event! 'series))
     (define series-expansions
       (apply
        append
@@ -128,6 +139,7 @@
 
 (define (gen-rewrites!)
   (define alt-rewrite ((flag 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
+  (define log! (timeline-event! 'rewrite))
   (define rewritten
     (apply append
 	   (for/list ([location (^locs^)]
@@ -141,6 +153,7 @@
 
 (define (simplify!)
   (when ((flag 'generate 'simplify) #t #f)
+    (define log! (timeline-event! 'simplify))
     (define simplified
       (for/list ([child (^children^)]
                  [n (sequence-tail (in-naturals) 1)])
@@ -154,6 +167,7 @@
 
 ;; Finish iteration
 (define (finalize-iter!)
+  (define log! (timeline-event! 'prune))
   (^table^ (atab-add-altns (^table^) (^children^)))
   (rollback-iter!)
   (void))
@@ -194,6 +208,7 @@
 (define (rollback-improve!)
   (rollback-iter!)
   (^table^ #f)
+  (^timeline^ '())
   (void))
 
 ;; Run a complete iteration
@@ -227,10 +242,8 @@
   (finalize-table!)
   (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
   (if get-context?
-      (begin0 (list (get-final-combination) (*pcontext*))
-	(rollback-improve!))
-      (begin0 (get-final-combination)
-	(rollback-improve!))))
+      (list (get-final-combination) (*pcontext*))
+      (get-final-combination)))
 
 ;; Finishing Herbie
 (define (finalize-table!)
@@ -238,12 +251,15 @@
   (void))
 
 (define (get-final-combination)
-  (if ((flag 'reduce 'regimes) #t #f)
-      (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-                     (if (= (length tables) 1)
-                         (extract-alt (car tables))
-                         (combine-alts splitpoints (map extract-alt tables)))))
-      (extract-alt (^table^))))
+  (begin0
+      (if ((flag 'reduce 'regimes) #t #f)
+          (let ([log! (timeline-event! 'regimes)])
+            (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
+                           (if (= (length tables) 1)
+                               (extract-alt (car tables))
+                               (combine-alts splitpoints (map extract-alt tables))))))
+          (extract-alt (^table^)))
+    (timeline-event! 'end))) ; No data here
 
 ;; Other tools
 (define (resample!)
