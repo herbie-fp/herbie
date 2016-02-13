@@ -6,10 +6,10 @@
 (require "debug.rkt")
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         take-up-to argmins list-product alist-append list-join
+         take-up-to argmins list-product list-join
          ulp-difference *bit-width* ulps->bits bit-difference
-	 write-file write-string has-duplicates?
-	 symbol<? *start-prog* html-escape-unsafe
+	 write-file write-string
+	 *start-prog* html-escape-unsafe
 	 flip-lists argmaxs multipartition
 	 binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
@@ -61,15 +61,7 @@
   ; To be honest, it just isn't that big a deal for now.
   (take l (min k (length l))))
 
-;; A more informative andmap. If any of your results are false, this returns
-;; false. Otherwise, it acts as a normal map.
-(define (info-andmap f l)
-  (let loop ([rest l] [acc '()])
-    (if (null? rest)
-	(reverse acc)
-	(let ([result (f l)])
-	  (and result (loop (cdr rest) (cons result acc)))))))
-
+;; TODO: Replacable by cartesian-product in 6.3+
 (define (list-product . subs)
   (if (null? subs)
       '(())
@@ -95,35 +87,11 @@
 (define (argmaxs f lst)
   (argmins (λ (x) (- (f x))) lst))
 
-(define (alist-append . args)
-  (define (a-append joe bob)
-    (if (null? joe)
-	bob
-	(a-append (cdr joe) (cons
-                             (cons (caar joe)
-                                   (let ([match (assoc (caar joe) bob)])
-                                     (if match
-                                         (append (cdr match) (cdar joe))
-                                         (cdar joe))))
-                             bob))))
-  (if (< 2 (length args))
-      (car args)
-      (foldr (lambda (x y) (a-append x y)) '() args)))
-
 (define-syntax-rule (write-file filename . rest)
    (with-output-to-file filename (lambda () . rest) #:exists 'replace))
 
 (define-syntax-rule (write-string . rest)
   (with-output-to-string (lambda () . rest)))
-
-(define (has-duplicates? lst)
-  (cond [(null? lst) #f]
-	[(member (car lst) (cdr lst)) #t]
-	[#t (has-duplicates? (cdr lst))]))
-
-;; Provide sorting for symbols so that we can canonically order variables and other atoms
-(define (symbol<? sym1 sym2)
-  (string<? (symbol->string sym1) (symbol->string sym2)))
 
 ;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
@@ -167,6 +135,7 @@
 ;; Takes a list of items, and returns a list of lists of items, where
 ;; the items are grouped by the value produced when key-func is evaluated
 ;; on them.
+;; TODO: Replacable by group-by in 6.3+
 (define (multipartition items key-func)
   (let loop ([rest-items items] [acc '()])
     (if (null? rest-items) (reverse (map (compose reverse cdr) acc))
