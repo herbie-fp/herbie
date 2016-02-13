@@ -17,7 +17,7 @@
     (match (get-test-result test "." #:seed seed)
       [(test-result test rdir time prec input output pts exs
                     start-errors end-error newpts newexs
-                    start-newerrors end-newerrors target-newerrors)
+                    start-newerrors end-newerrors target-newerrors timeline)
        (printf "[ ~ams]\t(~a→~a)\t~a\n"
                (~a time #:width 8)
                (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
@@ -36,11 +36,11 @@
          (when (test-output test) (printf "Target: ~a\n" (test-output test))))
 
        success?]
-      [(test-failure test prec exn time rdir)
+      [(test-failure test prec exn time rdir timeline)
        (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
-      [(test-timeout test prec time rdir)
+      [(test-timeout test prec time rdir timeline)
        (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
        #f])))
 

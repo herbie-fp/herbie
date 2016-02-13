@@ -1,5 +1,6 @@
 #lang racket
 
+(require unstable/sequence)
 (require "datafile.rkt")
 (require "../common.rkt")
 (require "../points.rkt")
@@ -42,7 +43,7 @@
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
-                  start-est-error end-est-error newpoints newexacts start-error end-error target-error)
+                  start-est-error end-est-error newpoints newexacts start-error end-error target-error timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>")
@@ -120,7 +121,7 @@
 
 (define (make-traceback result profile?)
   (match result
-    [(test-failure test bits exn time rdir)
+    [(test-failure test bits exn time rdir timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>\n")
@@ -154,7 +155,7 @@
 
 (define (make-timeout result profile?)
   (match result
-    [(test-timeout test bits time rdir)
+    [(test-timeout test bits time rdir timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>\n")

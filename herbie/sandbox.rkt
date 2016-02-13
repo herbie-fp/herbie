@@ -20,9 +20,9 @@
 (struct test-result
   (test rdir time bits
    start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error))
-(struct test-failure (test bits exn time rdir))
-(struct test-timeout (test bits time rdir))
+   newpoints newexacts start-error end-error target-error timeline))
+(struct test-failure (test bits exn time rdir timeline))
+(struct test-timeout (test bits time rdir timeline))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 10)))
@@ -87,8 +87,9 @@
                     (errors (alt-program end) newcontext)
                     (if (test-output test)
                         (errors (test-target test) newcontext)
-                        #f))]
+                        #f)
+                    (^timeline^))]
       [`(error ,e ,bits)
-       (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir)]
+       (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir (^timeline^))]
       [#f
-       (test-timeout test (bf-precision) (*timeout*) rdir)])))
+       (test-timeout test (bf-precision) (*timeout*) rdir (^timeline^))])))
