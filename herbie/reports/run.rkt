@@ -15,26 +15,27 @@
 (require "datafile.rkt")
 (provide (all-defined-out))
 
-(define *max-test-threads* #f)
+(define *threads* #f)
 (define *test-name* #f)
 
 (define *profile?* #f)
 (define *note* #f)
 
 (define (make-report . bench-dirs)
+  (define seed (get-seed))
   (define dir report-output-path)
 
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define tests (allowed-tests bench-dirs))
   (define results
-    (get-test-results tests #:threads *max-test-threads*
-                      #:seed (get-seed) #:profile *profile?*))
+    (get-test-results tests #:threads *threads* #:seed seed #:profile *profile?*))
   (define info (make-report-info (filter identity results) #:note *note*))
 
   (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)
   (copy-file "herbie/compile/overhead.mk" (build-path dir "Makefile") #t)
 
+  (set-seed! seed)
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
   ; TODO: Uses the same expressions for float and double. This could be good to change.
@@ -64,7 +65,7 @@
  [("-r" "--seed") rs "The random seed vector to use in point generation"
   (set-seed! (read (open-input-string rs)))]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
-  (set! *max-test-threads*
+  (set! *threads*
         (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))]
  [("--fuel") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
