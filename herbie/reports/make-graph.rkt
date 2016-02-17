@@ -67,7 +67,7 @@
 
      (printf "<div id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
-       (when (> (length newpoints) 2)
+       (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
          (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
          (make-plot start-error newpoints #:axis idx #:color *red-theme*
                     #:out (build-path rdir (format "plot-~ar.png" idx)))
