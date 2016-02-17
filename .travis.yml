@@ -3,7 +3,7 @@ sudo: false
 env:
 - RACKET_DIR=~/racket
 before_install:
-- curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.3/racket-6.3-x86_64-linux-debian-squeeze.sh
+- curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.4/racket-6.4-x86_64-linux-debian-squeeze.sh
 - sh racket-install.sh --in-place --dest ~/racket
 - ~/racket/bin/raco pkg install --auto unstable
 script:
