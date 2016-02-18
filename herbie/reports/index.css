@@ -30,9 +30,14 @@ figure { margin: 0; overflow: auto; }
 #toc a {color: #2A6496; text-decoration: none; border-left: 1em solid transparent; padding-left: 1ex; }
 #toc a:hover {text-decoration: underline; color: #295785}
 
-#reports { border-collapse: collapse; width:100%; }
+#reports { border-collapse: collapse; width:100%; position: relative; }
 #reports td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
 #reports tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
-#reports td:nth-child(2) { text-align: center; }
+#reports td:nth-child(2), #reports th:nth-child(2) { text-align: center; display: none; }
+#reports td:nth-child(3) { text-align: center; }
 #reports thead { border-bottom: 1px solid black; height: 5em; vertical-align: bottom; }
 
+#reports thead:after {
+    position: absolute; width: 300px; text-align: left; right: -325px;
+    font-size: 32px; color: #888; content: attr(data-branch);
+}

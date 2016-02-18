@@ -161,7 +161,7 @@
                    (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
          (printf "<td>~a</td>" (format-time (table-row-time result)))
          (if (table-row-link result)
-           (printf "<td><a id='link~a' href='~a/graph.html'>more</a></td>" id (table-row-link result))
+           (printf "<td><a id='link~a' href='~a/graph.html'>»</a></td>" id (table-row-link result))
            (printf "<td></td>"))
          (printf "</tr>\n"))
        (printf "</tbody>\n")

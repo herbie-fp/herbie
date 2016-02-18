@@ -27,12 +27,14 @@
   (list-ref (string-split "Jan Feb Mar Apr May Jun Jul Aug Sept Oct Nov Dec") (- i 1)))
 
 (define (date->string/short date)
-  (format "~a ~a"
+  (format "~a ~a, ~a:~a"
           (month->string (date-month date))
-          (~r (date-day date) #:min-width 2 #:pad-string "0")))
+          (~r (date-day date) #:min-width 2 #:pad-string "0")
+          (~r (date-hour date) #:min-width 2 #:pad-string "0")
+          (~r (date-minute date) #:min-width 2 #:pad-string "0")))
 
 (define (print-rows infos #:name name)
-  (printf "<thead id='reports-~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Bits</th><th>Note</th></thead>\n" name)
+  (printf "<thead id='reports-~a' data-branch='~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Tests</th><th>Bits</th></thead>\n" name name)
   (printf "<tbody>\n")
   (for ([(folder info) (in-pairs infos)])
     (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
@@ -66,16 +68,16 @@
             ;; but Racket doesn't make that easy.
             (date->string date) (date->seconds date) (date->string/short date))
     (printf "<td title='~a'>~a</td>" commit branch)
+    (if note
+        (printf "<td class='note'>~a</td>" note)
+        (printf "<td>⭐</td>"))
     (if tests
         (printf "<td>~a/~a</td>" total-passed total-available)
         (printf "<td></td>"))
     (if (> total-start 0)
         (printf "<td>~a/~a</td>" (round* (- total-start total-end)) (round* total-start))
         (printf "<td></td>"))
-    (if note
-        (printf "<td class='note' title='~a'></td>" note)
-        (printf "<td>⭐</td>"))
-    (printf "<td><a href='./~a/report.html'>more</a></td>" folder)
+    (printf "<td><a href='./~a/report.html'>»</a></td>" folder)
     (printf "</tr>\n"))
   (printf "</tbody>\n"))
 
