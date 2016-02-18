@@ -79,8 +79,8 @@
 
           (define result
             (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-              (set-seed! *fixed-seed*)
               (get-test-result
+               #:seed *fixed-seed*
                #:setup! (λ () (set-debug-level! 'progress '(3 4)))
                (test name vars (map (const 'default) vars) body #f #f)
                dir)))

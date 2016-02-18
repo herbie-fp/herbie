@@ -50,7 +50,7 @@
     (call-with-output-file (file "debug.txt") #:exists 'replace
       (λ (p)
         (parameterize ([*debug-port* p])
-          (set-seed! seed)
+          (when seed (set-seed! seed))
           (setup!)
           (with-handlers ([(const #t) on-error])
             (match-define (list alt context)
