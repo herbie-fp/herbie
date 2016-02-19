@@ -10,8 +10,8 @@ key = undefined;
 used_branch = {};
 
 function get_point(tr) {
-    var tests = tr.children[2].textContent.split("/");
-    var bits = tr.children[3].textContent.split("/");
+    var tests = tr.children[3].textContent.split("/");
+    var bits = tr.children[4].textContent.split("/");
     
     return {
         tests: { got: +tests[0], total: +tests[1]},

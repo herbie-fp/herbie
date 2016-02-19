@@ -34,7 +34,7 @@
           (~r (date-minute date) #:min-width 2 #:pad-string "0")))
 
 (define (print-rows infos #:name name)
-  (printf "<thead id='reports-~a' data-branch='~a'><th>Date</th><th>Branch</th><th>Tests</th><th>Tests</th><th>Bits</th></thead>\n" name name)
+  (printf "<thead id='reports-~a' data-branch='~a'><th>Date</th><th>Branch</th><th>Collection</th><th>Tests</th><th>Bits</th></thead>\n" name name)
   (printf "<tbody>\n")
   (for ([(folder info) (in-pairs infos)])
     (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
