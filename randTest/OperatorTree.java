@@ -62,7 +62,7 @@ public class OperatorTree {
     if(nVars > VARS.length) throw new Error("nVars > VARS.length");
 
     count++;
-    this.name = String.format("\"Random Jason Test %d\"", count);
+    this.name = String.format("\"Random Jason Test %03d\"", count);
     this.vars = Arrays.copyOf(VARS, nVars);
     this.expr = genExpr(size);
   }

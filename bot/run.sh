@@ -13,9 +13,9 @@ git pull --quiet
 
 make --quiet --directory=randTest
 java -classpath randTest/ RandomTest \
-  --ntests 20 \
-  --nops   20 \
-  --nvars  3  \
+  --size   5 \
+  --nvars  3 \
+  --ntests 5 \
   > "$HERBROOT/bench/random.rkt"
 
 function run {

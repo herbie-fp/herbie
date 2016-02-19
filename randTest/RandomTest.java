@@ -1,5 +1,5 @@
 public class RandomTest {
-  private static int nOps   = 1;
+  private static int size   = 1;
   private static int nVars  = 1;
   private static int nTests = 1;
 
@@ -36,10 +36,10 @@ public class RandomTest {
         case "--help":
           System.out.println(usage);
           System.exit(0);
-        case "-o":
-        case "--nops":
+        case "-s":
+        case "--size":
           i++;
-          nOps = parseArgInt(args, i);
+          size = parseArgInt(args, i);
           break;
         case "-v":
         case "--nvars":
@@ -71,7 +71,7 @@ public class RandomTest {
     }
 
     for(int i=0; i<nTests; i++) {
-      System.out.println(new OperatorTree(nOps, nVars));
+      System.out.println(new OperatorTree(size, nVars));
       System.out.println();
     }
   }
