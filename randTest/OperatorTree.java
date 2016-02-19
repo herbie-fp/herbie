@@ -43,12 +43,12 @@ public class OperatorTree {
   private static String choose(String[] a) {
     return a[rnd.nextInt(a.length)];
   }
-  
+
   private static String getDoubleStr() {
-	  byte[] bytes = new byte[8];
-	  rnd.nextBytes(bytes);
-	  double val = ByteBuffer.wrap(bytes).getDouble();
-	  return Double.toString(val);
+    byte[] bytes = new byte[8];
+    rnd.nextBytes(bytes);
+    double val = ByteBuffer.wrap(bytes).getDouble();
+    return Double.toString(val);
   }
 
   private static int count = 0;
@@ -62,7 +62,7 @@ public class OperatorTree {
     if(nVars > VARS.length) throw new Error("nVars > VARS.length");
 
     count++;
-    this.name = String.format("\"Random Jason Test %d\"", count);
+    this.name = String.format("\"Random Jason Test %03d\"", count);
     this.vars = Arrays.copyOf(VARS, nVars);
     this.expr = genExpr(size);
   }

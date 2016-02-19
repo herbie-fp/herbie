@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# this is where herbie lives on warfa for nightlies
+# you may change HERBROOT to test locally,
+#   but do not push any changes to HERBROOT!
 HERBROOT="$HOME/herbie"
 
 # example crontab entry for nightlies
@@ -9,7 +12,10 @@ cd "$HERBROOT"
 git pull --quiet
 
 make --quiet --directory=randTest
-java -classpath randTest/ RandomTest 10 10 10 \
+java -classpath randTest/ RandomTest \
+  --size   5 \
+  --nvars  3 \
+  --ntests 5 \
   > "$HERBROOT/bench/random.rkt"
 
 function run {
@@ -17,7 +23,7 @@ function run {
     racket herbie/reports/run.rkt \
       --note "$2" \
       --profile \
-      --threads 2 \
+      --threads 4 \
       "$1"
   make publish
 }
