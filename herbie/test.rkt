@@ -6,7 +6,7 @@
 (require "points.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file test-target parse-test test-successful?)
+         load-tests load-file test-target parse-test test-successful? test<?)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -113,3 +113,13 @@
   (if (directory-exists? path)
       (load-directory path)
       (load-file path)))
+
+(define (test<? t1 t2)
+  (cond
+   [(and (test-output t1) (test-output t2))
+    (string<? (test-name t1) (test-name t2))]
+   [(and (not (test-output t1)) (not (test-output t2)))
+    (string<? (test-name t1) (test-name t2))]
+   [else
+    ; Put things with an output first
+    (test-output t1)]))
