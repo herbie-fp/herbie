@@ -4,7 +4,15 @@ public class RandomTest {
   private static int nTests = 1;
 
   private static final String usage =
-    "Usage: java RandomTest --nops N --nvars N --ntests N";
+    String.join("\n"
+      , "Usage: java RandomTest OPTIONS"
+      , ""
+      , "where OPTIONS include:"
+      , "  --help              print this usage info and exit"
+      , "  --size N            size of expressions to generate (default 1)"
+      , "  --nvars N           number of variables in generated expressions (default 1)"
+      , "  --ntests N          number of tests to generate (default 1)"
+      );
 
   private static class BogusCL extends Exception {
     String msg;
