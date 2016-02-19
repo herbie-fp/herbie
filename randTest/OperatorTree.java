@@ -72,7 +72,7 @@ public class OperatorTree {
 
     Node n;
     if(fuel < 1) {
-      if(rnd.nextInt(5) == 0) {
+      if(vars.length == 0 || rnd.nextInt(5) == 0) {
           n = new Node(getDoubleStr(), null, null);
       } else {
         n = new Node(choose(vars), null, null);
