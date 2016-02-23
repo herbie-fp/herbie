@@ -38,6 +38,7 @@
   (set-seed! seed)
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
+  (log-exceptions (build-path dir "exceptions.rkt") info)
   ; TODO: Uses the same expressions for float and double. This could be good to change.
   (compile-info dir info info))
 
