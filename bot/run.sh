@@ -32,7 +32,7 @@ for b in $HERBROOT/bench/*; do
   name=$(basename "$b" .rkt)
   # skip some massive or misbehaving benchmarks
   case $name in
-    haskell|mathematics|numerics|regression)
+    haskell)
       continue
       ;;
   esac
