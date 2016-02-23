@@ -20,6 +20,34 @@
    [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
+(define (log-exceptions file info)
+  (define (print-test t)
+    (printf "(lambda ~a\n  #:name ~s\n  ~a)\n\n"
+            (for/list ([v (table-row-vars t)]
+                       [s (table-row-samplers t)])
+                      (list v s))
+            (table-row-name t)
+            (table-row-input t)))
+  (match info
+	 [(report-info date commit branch seed flags points iterations bit-width note tests)
+	  (write-file file
+		      (printf "; seed : ~a\n\n" seed)
+		      (printf "; flags :\n")
+		      (for ([fs (hash->list flags)])
+			   (printf ";   ~a = ~a\n"
+				   (~a (car fs) #:min-width 10)
+				   (cdr fs)))
+		      (printf "\n")
+		      (for ([t tests])
+			   (match (table-row-status t)
+				  ["crash"
+				   (printf "; crashed\n")
+				   (print-test t)]
+				  ["timeout"
+				   (printf "; timed out\n")
+				   (print-test t)]
+				  [_ #f])))]))
+
 (define (make-report-page file info)
   (match info
     [(report-info date commit branch seed flags points iterations bit-width note tests)
