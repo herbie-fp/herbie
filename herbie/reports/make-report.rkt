@@ -21,8 +21,9 @@
    [else (format "~a" (/ (round (* r 10)) 10))]))
 
 (define (log-exceptions file info)
+  ; TODO: need to capture samplers etc. as well
   (define (print-test t)
-    (printf "(lambda ~a\n  #name: ~s\n  ~a)\n\n"
+    (printf "(lambda ~a\n  #:name ~s\n  ~a)\n\n"
             (table-row-vars t)
             (table-row-name t)
             (table-row-input t)))
