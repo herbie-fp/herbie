@@ -22,3 +22,18 @@
   #:name "Random Jason Timeout Test 006"
   (abs (mod (atan2 (expm1 (sin (expm1 a))) (atan a)) a)))
 
+(lambda ((a default) (b default) (c default))
+  #:name "Random Jason Timeout Test 007"
+  (atan (log1p (+ (log -1.8207626529605104e-301) c))))
+
+(lambda ((a default) (b default) (c default))
+  #:name "Random Jason Timeout Test 008"
+  (* (* (atan (atan 3.882919441585229e-190)) 4.568031610793939e-123) (mod (sqrt -1.0580015533610528e+239) b)))
+
+(lambda ((a default) (b default) (c default))
+  #:name "Area of a triangle"
+  (sqrt (* (* (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a)) (- (/ (+ (+ a b) c) 2) b)) (- (/ (+ (+ a b) c) 2) c))))
+
+(lambda ((n default) (U default) (t default) (l default) (Om default) (U* default))
+  #:name "Toniolo and Linder, Equation (13)"
+  (sqrt (* (* (* 2 n) U) (- (- t (* 2 (/ (sqr l) Om))) (* (* n (sqr (/ l Om))) (- U U*))))))
