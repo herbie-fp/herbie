@@ -18,18 +18,14 @@
 
 ; For things that don't leave a thread
 (struct test-result
-  (test rdir time bits
+  (test time bits
    start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error timeline))
-(struct test-failure (test bits exn time rdir timeline))
-(struct test-timeout (test bits time rdir timeline))
+(struct test-failure (test bits exn time timeline))
+(struct test-timeout (test bits time timeline))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 10)))
-
-(define (default-setup)
-  (set-debug-level! #t #t)
-  (set-debug-level! 'backup-simplify #f))
 
 (define (get-p&es context)
   (call-with-values
@@ -39,31 +35,26 @@
           (values pt ex)))
     list))
 
-(define (get-test-result test rdir
-                         #:setup! [setup! default-setup]
-                         #:seed [seed #f] #:profile [profile? #f])
-  (define (file name) (build-path rdir name))
-
+(define (get-test-result test #:seed [seed #f] #:setup! [setup! #f]
+                         #:profile [profile? #f] #:debug [debug? #f])
   (define (on-error e) `(error ,e ,(bf-precision)))
 
   (define (compute-result test)
-    (call-with-output-file (file "debug.txt") #:exists 'replace
-      (λ (p)
-        (parameterize ([*debug-port* p])
-          (when seed (set-seed! seed))
-          (setup!)
-          (with-handlers ([(const #t) on-error])
-            (match-define (list alt context)
-                          (run-improve (test-program test)
-                                       (*num-iterations*)
-                                       #:get-context #t
-                                       #:samplers (test-samplers test)))
-            `(good ,(make-alt (test-program test)) ,alt ,context))))))
+    (parameterize ([*debug-port* (or debug? (*debug-port*))])
+      (when seed (set-seed! seed))
+      (when setup! (setup!))
+      (with-handlers ([(const #t) on-error])
+        (match-define (list alt context)
+                      (run-improve (test-program test)
+                                   (*num-iterations*)
+                                   #:get-context #t
+                                   #:samplers (test-samplers test)))
+        `(good ,(make-alt (test-program test)) ,alt ,context))))
 
   (define (in-engine _)
     (if profile?
-        (with-output-to-file (file "profile.txt") #:exists 'replace
-          (λ () (profile (compute-result test))))
+        (parameterize ([current-output-port (or profile? (current-output-port))])
+          (profile (compute-result test)))
         (compute-result test)))
   
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
@@ -76,7 +67,7 @@
            (prepare-points (alt-program start) (test-samplers test))))
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (test-result test rdir
+       (test-result test 
                     (- (current-inexact-milliseconds) start-time)
                     (bf-precision)
                     start end points exacts
@@ -90,6 +81,6 @@
                         #f)
                     (^timeline^))]
       [`(error ,e ,bits)
-       (test-failure test bits e (- (current-inexact-milliseconds) start-time) rdir (^timeline^))]
+       (test-failure test bits e (- (current-inexact-milliseconds) start-time) (^timeline^))]
       [#f
-       (test-timeout test (bf-precision) (*timeout*) rdir (^timeline^))])))
+       (test-timeout test (bf-precision) (*timeout*) (^timeline^))])))

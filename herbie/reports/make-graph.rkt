@@ -39,9 +39,9 @@
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
 
-(define (make-graph result profile?)
+(define (make-graph result rdir profile?)
   (match result
-    [(test-result test rdir time bits start-alt end-alt points exacts
+    [(test-result test time bits start-alt end-alt points exacts
                   start-est-error end-est-error newpoints newexacts start-error end-error target-error timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
@@ -120,9 +120,9 @@
      (printf "</body>\n")
      (printf "</html>\n")]))
 
-(define (make-traceback result profile?)
+(define (make-traceback result rdir profile?)
   (match result
-    [(test-failure test bits exn time rdir timeline)
+    [(test-failure test bits exn time timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>\n")
@@ -156,9 +156,9 @@
      (printf "</body>\n")
      (printf "</html>\n")]))
 
-(define (make-timeout result profile?)
+(define (make-timeout result rdir profile?)
   (match result
-    [(test-timeout test bits time rdir timeline)
+    [(test-timeout test bits time timeline)
      (printf "<!doctype html>\n")
      (printf "<html>\n")
      (printf "<head>\n")

@@ -12,7 +12,7 @@
 
 (provide get-test-results get-table-data)
 
-(define (get-table-data result)
+(define (get-table-data result rdir)
   (cond
    [(test-result? result)
     (let* ([name (test-name (test-result-test result))]
@@ -29,7 +29,7 @@
 
       (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
                     [(good-inf bad-inf) (partition positive? infs)]
-                    [(link) (path-element->string (last (explode-path (test-result-rdir result))))])
+                    [(link) (path-element->string (last (explode-path rdir)))])
         (table-row name
                    (if target-score
                        (cond
@@ -57,13 +57,13 @@
                    (test-result-bits result)
                    link)))]
    [(test-failure? result)
-    (define link (path-element->string (last (explode-path (test-failure-rdir result)))))
+    (define link (path-element->string (last (explode-path rdir))))
     (match-define (test name vars sampling-expr input output _) (test-failure-test result))
     (table-row (test-name (test-failure-test result)) "crash"
                #f #f #f #f #f #f vars sampling-expr input #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
-    (define link (path-element->string (last (explode-path (test-timeout-rdir result)))))
+    (define link (path-element->string (last (explode-path rdir))))
     (match-define (test name vars sampling-expr input output _) (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f vars sampling-expr input #f
@@ -86,16 +86,30 @@
          [index-label (number->string index)])
     (string-append index-label stripped-tname)))
 
+(define (call-with-output-files names k)
+  (let loop ([names names] [ps '()])
+    (if (null? names)
+        (apply k (reverse names))
+        (if (car names)
+            (call-with-output-file
+                (car names) #:exists 'replace
+                (λ (p) (loop (cdr names) (cons p ps))))
+            (loop (cdr names) (cons #f ps))))))
+
 (define (run-test index test #:seed seed #:profile profile?)
   (let* ([rdir (graph-folder-path (test-name test) index)]
          [rdir* (build-path report-output-path rdir)])
 
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
-
-    (let ([result (get-test-result test rdir* #:seed seed #:profile profile?)])
-      (make-graph-if-valid result (test-name test) index rdir #:profile profile?)
-      (get-table-data result))))
+    
+    (define result
+      (call-with-output-files
+       (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
+       (λ () (get-test-results test rdir* #:seed seed #:profile profile?))))
+    
+    (make-graph-if-valid result (test-name test) index rdir #:profile profile?)
+    (get-table-data result rdir)))
 
 (define (make-worker)
   (place ch

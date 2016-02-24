@@ -90,7 +90,7 @@
   (match (output-type)
     [(or 'json 'console) ; TODO: Remove 'json the threads don't generate details
      (printf "Running Herbie...\nSeed: ~a\n" seed)
-     (sequence-map (λ (test) (get-test-result test "." #:seed seed))
+     (sequence-map (λ (test) (get-test-result test #:seed seed))
                    (apply in-herbie-files files))]
     [(or 'json 'report)
      ((get-get-test-results)
@@ -105,7 +105,7 @@
       (define success?
         (match output
           [(test-result 
-            test rdir time bits start-alt end-alt
+            test time bits start-alt end-alt
             points exacts start-est-error end-est-error
             newpoints newexacts start-error end-error target-error
             timeline)
@@ -120,12 +120,12 @@
             test (errors-score start-error)
             (and target-error (errors-score target-error))
             (errors-score end-error))]
-          [(test-failure test bits exn time rdir timeline)
+          [(test-failure test bits exn time timeline)
            (match (output-type)
              ['console ((error-display-handler) (exn-message exn) exn)]
              [_ (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))])
            #f]
-          [(test-timeout test bits time rdir timeline)
+          [(test-timeout test bits time timeline)
            (match (output-type)
              ['console
               (eprintf "Timeout in ~as; use --timeout to change timeout\n" (/ time 1000))]
