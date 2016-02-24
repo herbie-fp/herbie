@@ -79,7 +79,7 @@
                   ((cond [(test-result? result) make-graph]
                          [(test-timeout? result) make-timeout]
                          [(test-failure? result) make-traceback])
-                   result profile?)))))
+                   result dir profile?)))))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
@@ -89,7 +89,7 @@
 (define (call-with-output-files names k)
   (let loop ([names names] [ps '()])
     (if (null? names)
-        (apply k (reverse names))
+        (apply k (reverse ps))
         (if (car names)
             (call-with-output-file
                 (car names) #:exists 'replace
@@ -106,7 +106,7 @@
     (define result
       (call-with-output-files
        (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
-       (λ () (get-test-results test rdir* #:seed seed #:profile profile?))))
+       (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp))))
     
     (make-graph-if-valid result (test-name test) index rdir #:profile profile?)
     (get-table-data result rdir)))

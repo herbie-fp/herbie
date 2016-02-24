@@ -32,28 +32,27 @@
 (define note (make-parameter #f))
 
 (define (herbie-input? fname)
-  (or (equal? fname "-") ; Command line
+  (or (not fname) ; Command line
       (and
-       (regexp-match? #rx"\\.rkt$" fname)
-       (file-exists? fname)) ; Herbie input format 1 or 2
+       (not (file-name-from-path fname))
+       (directory-exists? fname)) ; Directory of files
       (and
-       (regexp-match? #rx"/$" fname)
-       (directory-exists? fname)))) ; Directory of files
+       (file-name-from-path fname)
+       (regexp-match? #rx"\\.rkt$" (file-name-from-path fname))
+       (file-exists? fname)))) ; Herbie input format 1 or 2
 
 (define (in-herbie-files . files)
   (apply in-sequences (map file->input files)))
 
 (define (file->input file)
-  (match file
-    ["-"
-     (sequence-map parse-test (in-port read (current-input-port)))]
-    [(regexp #rx"\\.rkt$")
-     (call-with-input-file file
-       (λ (port) (sequence-map parse-test (in-port read port))))]
-    [(regexp #rx"/$")
-     (sequence-append
-      (sequence-map file->input
-                    (sequence-filter herbie-input? (in-directory file))))]))
+  (cond
+   [(not file)
+    (sequence-map parse-test (in-port read (current-input-port)))]
+   [(not (file-name-from-path file)) ; directory
+    (apply sequence-append (map file->input (filter herbie-input? (directory-list file #:build? #t))))]
+   [(regexp-match? #rx"\\.rkt$" (file-name-from-path file))
+    (call-with-input-file file
+      (λ (port) (map parse-test (sequence->list (in-port read port)))))]))
 
 (define get-test-results #f)
 (define (get-get-test-results)
@@ -176,7 +175,7 @@
             ["-" 'console]
             [(regexp #rx"\\.json$") 'json]
             [(regexp #rx"/$") 'report])) ; TODO : Handle error
-    (output-name fname)]
+    (output-name (if (equal? fname "-") #f (simplify-path fname)))]
    #:multi
    [("-f" "--feature") tf "Toggle flags, specified in the form category:flag"
     (let ([split-strings (string-split tf ":")])
