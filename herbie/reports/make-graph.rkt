@@ -39,6 +39,17 @@
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
 
+(define (print-test t)
+  (printf "(lambda ~a\n  #:name ~s\n  ~a~a)\n\n"
+          (for/list ([v (test-vars t)]
+                     [s (test-sampling-expr t)])
+                    (list v s))
+          (test-name t)
+          (test-input t)
+          (if (test-output t)
+              (format "\n  #:target\n  ~a" (test-output t))
+              "")))
+
 (define (make-graph result profile?)
   (match result
     [(test-result test rdir time bits start-alt end-alt points exacts
@@ -116,6 +127,13 @@
      (printf "</ol>\n")
 
      (printf "</section>\n")
+
+     (printf "<div style='clear:both;'>\n")
+     (printf "<p>Original test:</p>\n")
+     (printf "<pre><code>\n")
+     (print-test test)
+     (printf "</code></pre>\n")
+     (printf "</div>\n")
 
      (printf "</body>\n")
      (printf "</html>\n")]))
