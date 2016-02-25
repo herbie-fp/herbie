@@ -37,3 +37,31 @@
 (lambda ((n default) (U default) (t default) (l default) (Om default) (U* default))
   #:name "Toniolo and Linder, Equation (13)"
   (sqrt (* (* (* 2 n) U) (- (- t (* 2 (/ (sqr l) Om))) (* (* n (sqr (/ l Om))) (- U U*))))))
+
+(lambda ((x default) (y default) (z default) (t default) (a default))
+  #:name "Numeric.SpecFunctions:logGammaL from math-functions-0.1.5.2"
+  (+ (- (+ (log (+ x y)) (log z)) t) (* (- a 0.5) (log t))))
+
+(lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default))
+  #:name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
+  (/ (+ (* (+ (* (+ (* (+ (* x y) z) y) 27464.7644705) y) 230661.510616) y) t) (+ (* (+ (* (+ (* (+ y a) y) b) y) c) y) i)))
+
+(lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default))
+  #:name "Linear.V4:$cdot from linear-1.19.1.3"
+  (+ (+ (+ (* x y) (* z t)) (* a b)) (* c i)))
+
+(lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default) (j default) (k default) (y0 default) (y1 default) (y2 default) (y3 default) (y4 default) (y5 default))
+  #:name "Linear.Matrix:det44 from linear-1.19.1.3"
+  (+ (- (+ (+ (- (* (- (* x y) (* z t)) (- (* a b) (* c i))) (* (- (* x j) (* z k)) (- (* y0 b) (* y1 i)))) (* (- (* x y2) (* z y3)) (- (* y0 c) (* y1 a)))) (* (- (* t j) (* y k)) (- (* y4 b) (* y5 i)))) (* (- (* t y2) (* y y3)) (- (* y4 c) (* y5 a)))) (* (- (* k y2) (* j y3)) (- (* y4 y1) (* y5 y0)))))
+
+(lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default) (j default))
+  #:name "Linear.Matrix:det33 from linear-1.19.1.3"
+  (+ (- (* x (- (* y z) (* t a))) (* b (- (* c z) (* i a)))) (* j (- (* c t) (* i y)))))
+
+(lambda ((x default) (y default) (z default) (t default) (a default))
+  #:name "Hakyll.Web.Tags:renderTagCloud from hakyll-4.7.2.3"
+  (+ x (* (/ (- y z) (- (+ t 1.0) z)) (- a x))))
+
+(lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default) (j default) (k default))
+  #:name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+  (- (- (+ (- (* (* (* (* x 18.0) y) z) t) (* (* a 4.0) t)) (* b c)) (* (* x 4.0) i)) (* (* j 27.0) k)))
