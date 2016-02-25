@@ -108,7 +108,7 @@
 			  (debug #:from 'progress #:depth 3 "tayloring alt" (add1 taylored-alts) "of" num-alts)
 			  (set! taylored-alts (add1 taylored-alts))
 			  (append-map (curry taylor-alt alt) locs))
-			(λ (x y) x))]
+			(λ (x y) (list x)))]
 	 [locss (map (compose localize-error alt-program) all-alts)]
 	 [alts*
 	  (apply append
