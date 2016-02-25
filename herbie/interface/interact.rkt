@@ -237,16 +237,23 @@
 (define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog)
-  (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-  (for ([iter (sequence-map add1 (in-range iters))]
-	#:break (atab-completed? (^table^)))
-    (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
-    (run-iter!))
-  (finalize-table!)
-  (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-  (if get-context?
-      (list (get-final-combination) (*pcontext*))
-      (get-final-combination)))
+  (if (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*))))
+      (let ([init-alt (make-alt (*start-prog*))])
+	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
+	(if get-context?
+	    (list init-alt (*pcontext*))
+	    init-alt))
+      (begin
+	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+	(for ([iter (sequence-map add1 (in-range iters))]
+	      #:break (atab-completed? (^table^)))
+	  (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
+	  (run-iter!))
+	(finalize-table!)
+	(debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+	(if get-context?
+	    (list (get-final-combination) (*pcontext*))
+	    (get-final-combination)))))
 
 (define (visualize alt #:marks [marks '()] #:axis [axis 0])
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
