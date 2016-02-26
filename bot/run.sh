@@ -43,6 +43,7 @@ function runEach {
   done
 }
 
+# on some machines, this will cause Racket VM to run out of memory
 function runAll {
   b="$HERBROOT/bench"
   name="all"
@@ -51,4 +52,4 @@ function runAll {
   run "$b" "$name" &> "$LOG"
 }
 
-runAll
+runEach
