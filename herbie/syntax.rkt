@@ -21,16 +21,6 @@
 (define (cotan x)
   (/ 1 (tan x)))
 
-(define (csinh x)
-  (((flag 'precision 'double)
-    flsinh
-    (compose real->single-flonum flsinh real->double-flonum)) x))
-
-(define (ctanh x)
-  (((flag 'precision 'double)
-    fltanh
-    (compose real->single-flonum fltanh real->double-flonum)) x))
-
 (define (make-safe f)
   (λ args
      (let ([ans (apply f args)])
@@ -50,45 +40,59 @@
 
 (define-libm fma  (_fun _double _double _double -> _double))
 (define-libm fmaf (_fun _float  _float  _float  -> _float ))
-(define (flfma x y z)
+(define (_flfma x y z)
   ((flag 'precision 'double)
     (fma  (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
     (fmaf (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))
 
 (define-libm hypot  (_fun _double _double -> _double))
 (define-libm hypotf (_fun _float  _float  -> _float ))
-(define (flhypot x y)
+(define (_flhypot x y)
   ((flag 'precision 'double)
     (hypot  (real->double-flonum x) (real->double-flonum y))
     (hypotf (real->single-flonum x) (real->single-flonum y))))
 
 (define-libm atan2  (_fun _double _double -> _double))
 (define-libm atan2f (_fun _float  _float  -> _float ))
-(define (flatan2 x y)
+(define (_flatan2 x y)
   ((flag 'precision 'double)
     (atan2  (real->double-flonum x) (real->double-flonum y))
     (atan2f (real->single-flonum x) (real->single-flonum y))))
 
 (define-libm fmod  (_fun _double _double -> _double))
 (define-libm fmodf (_fun _float  _float  -> _float ))
-(define (flfmod x y)
+(define (_flfmod x y)
   ((flag 'precision 'double)
     (fmod  (real->double-flonum x) (real->double-flonum y))
     (fmodf (real->single-flonum x) (real->single-flonum y))))
 
 (define-libm log1p  (_fun _double -> _double))
 (define-libm log1pf (_fun _float  -> _float ))
-(define (fllog1p x)
+(define (_fllog1p x)
   ((flag 'precision 'double)
     (log1p  (real->double-flonum x))
     (log1pf (real->single-flonum x))))
 
 (define-libm expm1  (_fun _double -> _double))
 (define-libm expm1f (_fun _float  -> _float ))
-(define (flexpm1 x)
+(define (_flexpm1 x)
   ((flag 'precision 'double)
     (expm1  (real->double-flonum x))
     (expm1f (real->single-flonum x))))
+
+(define-libm sinh  (_fun _double -> _double))
+(define-libm sinhf (_fun _float  -> _float ))
+(define (_flsinh x)
+  ((flag 'precision 'double)
+    (sinh  (real->double-flonum x))
+    (sinhf (real->single-flonum x))))
+
+(define-libm tanh  (_fun _double -> _double))
+(define-libm tanhf (_fun _float  -> _float ))
+(define (_fltanh x)
+  ((flag 'precision 'double)
+    (tanh  (real->double-flonum x))
+    (tanhf (real->single-flonum x))))
 
 (define (bffma x y z)
   (bf+ (bf* x y) z))
@@ -103,42 +107,42 @@
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
-  [+        '(2)      bf+       +         1]
-  [-        '(1 2)    bf-       -         1]
-  [*        '(2)      bf*       *         1]
-  [/        '(2)      bf/       /         1]
-  [sqrt     '(1)      bfsqrt    csqrt     1]
-  [sqr      '(1)      bfsqr     sqr       1]
-  [exp      '(1)      bfexp     exp     270]
-  [expt     '(2)      bfexpt    cexpt   640]
-  [log      '(1)      bflog     clog    300]
-  [sin      '(1)      bfsin     sin     145]
-  [cos      '(1)      bfcos     cos     185]
-  [tan      '(1)      bftan     tan     160]
-  [cotan    '(1)      bfcot     cotan   160]
-  [asin     '(1)      bfasin    casin   140]
-  [acos     '(1)      bfacos    cacos   155]
-  [atan     '(1)      bfatan    atan    130]
-  [sinh     '(1)      bfsinh    csinh   300]
-  [cosh     '(1)      bfcosh    cosh    300]
-  [tanh     '(1)      bftanh    ctanh   300]
-  [abs      '(1)      bfabs     abs       1]
-  [fma      '(3)      bffma     flfma   666] ; TODO : cost made up
-  [hypot    '(2)      bfhypot   flhypot 666] ; TODO : cost made up
-  [atan2    '(2)      bfatan2   flatan2 666] ; TODO : cost made up
-  [mod      '(2)      bfmod     flfmod  666] ; TODO : cost made up
-  [log1p    '(1)      bflog1p   fllog1p 666] ; TODO : cost made up
-  [expm1    '(1)      bfexpm1   flexpm1 666] ; TODO : cost made up
+  [+        '(2)      bf+       +           1]
+  [-        '(1 2)    bf-       -           1]
+  [*        '(2)      bf*       *           1]
+  [/        '(2)      bf/       /           1]
+  [sqrt     '(1)      bfsqrt    csqrt       1]
+  [sqr      '(1)      bfsqr     sqr         1]
+  [exp      '(1)      bfexp     exp       270]
+  [expt     '(2)      bfexpt    cexpt     640]
+  [log      '(1)      bflog     clog      300]
+  [sin      '(1)      bfsin     sin       145]
+  [cos      '(1)      bfcos     cos       185]
+  [tan      '(1)      bftan     tan       160]
+  [cotan    '(1)      bfcot     cotan     160]
+  [asin     '(1)      bfasin    casin     140]
+  [acos     '(1)      bfacos    cacos     155]
+  [atan     '(1)      bfatan    atan      130]
+  [cosh     '(1)      bfcosh    cosh      300]
+  [abs      '(1)      bfabs     abs         1]
+  [fma      '(3)      bffma     _flfma    666] ; TODO : cost made up
+  [hypot    '(2)      bfhypot   _flhypot  666] ; TODO : cost made up
+  [atan2    '(2)      bfatan2   _flatan2  666] ; TODO : cost made up
+  [mod      '(2)      bfmod     _flfmod   666] ; TODO : cost made up
+  [log1p    '(1)      bflog1p   _fllog1p  666] ; TODO : cost made up
+  [expm1    '(1)      bfexpm1   _flexpm1  666] ; TODO : cost made up
+  [sinh     '(1)      bfsinh    _flsinh   300]
+  [tanh     '(1)      bftanh    _fltanh   300]
   ; TODO : These are different and should be treated differently
-  [if       '(3)      if-fn     if-fn     1]
-  [=        '(2)      bf=       =         1]
-  [>        '(2)      bf>       >         1]
-  [<        '(2)      bf<       <         1]
-  [<=       '(2)      bf<=      <=        1]
-  [>=       '(2)      bf>=      >=        1]
-  [not      '(1)      not       not       1]
-  [and      '(2)      and-fn    and-fn    1]
-  [or       '(2)      or-fn     or-fn     1])
+  [if       '(3)      if-fn     if-fn       1]
+  [=        '(2)      bf=       =           1]
+  [>        '(2)      bf>       >           1]
+  [<        '(2)      bf<       <           1]
+  [<=       '(2)      bf<=      <=          1]
+  [>=       '(2)      bf>=      >=          1]
+  [not      '(1)      not       not         1]
+  [and      '(2)      and-fn    and-fn      1]
+  [or       '(2)      or-fn     or-fn       1])
 
 (define *operations* (make-parameter operations))
 
