@@ -21,22 +21,6 @@
 (define (cotan x)
   (/ 1 (tan x)))
 
-(define (bfmod x mod)
-  (bf- x (bf* mod (bffloor (bf/ x mod)))))
-
-(define (flmod x mod)
-  (fl- x (fl* mod (flfloor (fl/ x mod)))))
-
-(define (cmod x mod)
-  (- x (* mod (floor (/ x mod)))))
-
-(define (make-safe f)
-  (λ args
-     (let ([ans (apply f args)])
-       (if (and (complex? ans) (not (= 0 (imag-part ans))))
-	   nan
-	   (real-part ans)))))
-
 (define (csinh x)
   (((flag 'precision 'double)
     flsinh
@@ -47,16 +31,70 @@
     fltanh
     (compose real->single-flonum fltanh real->double-flonum)) x))
 
+(define (make-safe f)
+  (λ args
+     (let ([ans (apply f args)])
+       (if (and (complex? ans) (not (= 0 (imag-part ans))))
+	   nan
+	   (real-part ans)))))
+
 (define csqrt (make-safe sqrt))
-(define clog (make-safe log))
+(define clog  (make-safe log))
 (define casin (make-safe asin))
 (define cacos (make-safe acos))
 (define cexpt (make-safe expt))
-(define atan2 atan)
 
-(define (log1p x) (if (flonum? x) (fllog1p x) (log (+ 1 x))))
-(define (expm1 x) (if (flonum? x) (flexpm1 x) (- (exp x) 1)))
-(define (hypot x y) (if (and (flonum? x) (flonum? y)) (flhypot x y) (sqrt (+ (sqr x) (sqr y)))))
+; use C ffi for numerical ops missing from math/flonum
+(require ffi/unsafe ffi/unsafe/define)
+(define-ffi-definer define-libm #f)
+
+(define-libm fma  (_fun _double _double _double -> _double))
+(define-libm fmaf (_fun _float  _float  _float  -> _float ))
+(define (flfma x y z)
+  ((flag 'precision 'double)
+    (fma  (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
+    (fmaf (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))
+
+(define-libm hypot  (_fun _double _double -> _double))
+(define-libm hypotf (_fun _float  _float  -> _float ))
+(define (flhypot x y)
+  ((flag 'precision 'double)
+    (hypot  (real->double-flonum x) (real->double-flonum y))
+    (hypotf (real->single-flonum x) (real->single-flonum y))))
+
+(define-libm atan2  (_fun _double _double -> _double))
+(define-libm atan2f (_fun _float  _float  -> _float ))
+(define (flatan2 x y)
+  ((flag 'precision 'double)
+    (atan2  (real->double-flonum x) (real->double-flonum y))
+    (atan2f (real->single-flonum x) (real->single-flonum y))))
+
+(define-libm fmod  (_fun _double _double -> _double))
+(define-libm fmodf (_fun _float  _float  -> _float ))
+(define (flfmod x y)
+  ((flag 'precision 'double)
+    (fmod  (real->double-flonum x) (real->double-flonum y))
+    (fmodf (real->single-flonum x) (real->single-flonum y))))
+
+(define-libm log1p  (_fun _double -> _double))
+(define-libm log1pf (_fun _float  -> _float ))
+(define (fllog1p x)
+  ((flag 'precision 'double)
+    (log1p  (real->double-flonum x))
+    (log1pf (real->single-flonum x))))
+
+(define-libm expm1  (_fun _double -> _double))
+(define-libm expm1f (_fun _float  -> _float ))
+(define (flexpm1 x)
+  ((flag 'precision 'double)
+    (expm1  (real->double-flonum x))
+    (expm1f (real->single-flonum x))))
+
+(define (bffma x y z)
+  (bf+ (bf* x y) z))
+
+(define (bfmod x mod)
+  (bf- x (bf* mod (bffloor (bf/ x mod)))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -84,12 +122,13 @@
   [sinh     '(1)      bfsinh    csinh   300]
   [cosh     '(1)      bfcosh    cosh    300]
   [tanh     '(1)      bftanh    ctanh   300]
-  [atan2    '(2)      bfatan2   atan    230]
   [abs      '(1)      bfabs     abs       1]
-  [mod      '(2)      bfmod     cmod      1]
-  [expm1    '(1)      bfexpm1   flexpm1 666] ; TODO : cost made up
-  [log1p    '(1)      bflog1p   fllog1p 666] ; TODO : cost made up
+  [fma      '(3)      bffma     flfma   666] ; TODO : cost made up
   [hypot    '(2)      bfhypot   flhypot 666] ; TODO : cost made up
+  [atan2    '(2)      bfatan2   flatan2 666] ; TODO : cost made up
+  [mod      '(2)      bfmod     flfmod  666] ; TODO : cost made up
+  [log1p    '(1)      bflog1p   fllog1p 666] ; TODO : cost made up
+  [expm1    '(1)      bfexpm1   flexpm1 666] ; TODO : cost made up
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn     if-fn     1]
   [=        '(2)      bf=       =         1]

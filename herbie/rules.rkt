@@ -51,27 +51,27 @@
 
 ; Distributivity
 (define-ruleset distributivity (arithmetic simplify)
-  [distribute-lft-in     (* a (+ b c))         (+ (* a b) (* a c))]
-  [distribute-rgt-in     (* a (+ b c))         (+ (* b a) (* c a))]
-  [distribute-lft-out    (+ (* a b) (* a c))   (* a (+ b c))]
-  [distribute-lft-out--  (- (* a b) (* a c))   (* a (- b c))]
-  [distribute-rgt-out    (+ (* b a) (* c a))   (* a (+ b c))]
-  [distribute-rgt-out--  (- (* b a) (* c a))   (* a (- b c))]
-  [distribute-lft1-in    (+ (* b a) a)         (* (+ b 1) a)]
-  [distribute-rgt1-in    (+ a (* c a))         (* (+ c 1) a)]
-  [distribute-lft-neg-in (- (* a b))           (* (- a) b)]
-  [distribute-rgt-neg-in (- (* a b))           (* a (- b))]
+  [distribute-lft-in      (* a (+ b c))         (+ (* a b) (* a c))]
+  [distribute-rgt-in      (* a (+ b c))         (+ (* b a) (* c a))]
+  [distribute-lft-out     (+ (* a b) (* a c))   (* a (+ b c))]
+  [distribute-lft-out--   (- (* a b) (* a c))   (* a (- b c))]
+  [distribute-rgt-out     (+ (* b a) (* c a))   (* a (+ b c))]
+  [distribute-rgt-out--   (- (* b a) (* c a))   (* a (- b c))]
+  [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
+  [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
+  [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
+  [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
   [distribute-lft-neg-out (* (- a) b)          (- (* a b))]
   [distribute-rgt-neg-out (* a (- b))          (- (* a b))]
-  [distribute-neg-in     (- (+ a b))           (+ (- a) (- b))]
-  [distribute-neg-out    (+ (- a) (- b))       (- (+ a b))]
-  [distribute-inv-in     (/ (* a b))           (* (/ a) (/ b))]
-  [distribute-inv-out    (* (/ a) (/ b))       (/ (* a b))]
-  [distribute-inv-neg    (/ (- a))             (- (/ a))]
-  [distribute-neg-inv    (- (/ a))             (/ (- a))]
-  [distribute-frac-neg   (/ (- a) b)           (- (/ a b))]
-  [distribute-neg-frac   (- (/ a b))           (/ (- a) b)])
-  
+  [distribute-neg-in      (- (+ a b))           (+ (- a) (- b))]
+  [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
+  [distribute-inv-in      (/ (* a b))           (* (/ a) (/ b))]
+  [distribute-inv-out     (* (/ a) (/ b))       (/ (* a b))]
+  [distribute-inv-neg     (/ (- a))             (- (/ a))]
+  [distribute-neg-inv     (- (/ a))             (/ (- a))]
+  [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
+  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
+
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
   [difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))]
@@ -142,12 +142,12 @@
   [sqrt-div          (sqrt (/ x y))     (/ (sqrt x) (sqrt y))]
   [sqrt-unprod       (* (sqrt x) (sqrt y)) (sqrt (* x y))]
   [sqrt-undiv        (/ (sqrt x) (sqrt y)) (sqrt (/ x y))]
-  [add-sqr-sqrt      x                  (sqr (sqrt x))]
+  [add-sqr-sqrt      x                   (sqr (sqrt x))]
   [square-unprod     (* (sqr x) (sqr y)) (sqr (* x y))]
   [square-undiv      (/ (sqr x) (sqr y)) (sqr (/ x y))])
 
 (define-ruleset squares-canonicalize (arithmetic simplify)
-    [square-unmult     (* x x)            (sqr x)])
+  [square-unmult     (* x x)             (sqr x)])
 
 ; Exponentials
 (define-ruleset exp-expand (exponents)
@@ -238,14 +238,16 @@
   [log1p-expm1 (log1p (expm1 x))          x]
   [expm1-log1p (expm1 (log1p x))          x]
   [hypot-def   (sqrt (+ (sqr x) (sqr y))) (hypot x y)]
-  [hypot-1-def (sqrt (+ 1 (sqr y)))       (hypot 1 y)])
+  [hypot-1-def (sqrt (+ 1 (sqr y)))       (hypot 1 y)]
+  [fma-def     (fma x y z)                (+ (* x y) z)])
 
 (define-ruleset special-numerical-expand (numerics)
-  [expm1-udef    (expm1 x)   (- (exp x) 1)]
-  [log1p-udef    (log1p x)   (log (+ 1 x))]
-  [log1p-expm1-u x           (log1p (expm1 x))]
-  [expm1-log1p-u x           (expm1 (log1p x))]
-  [hypot-udef    (hypot x y) (sqrt (+ (sqr x) (sqr y)))])
+  [expm1-udef    (expm1 x)      (- (exp x) 1)]
+  [log1p-udef    (log1p x)      (log (+ 1 x))]
+  [log1p-expm1-u x              (log1p (expm1 x))]
+  [expm1-log1p-u x              (expm1 (log1p x))]
+  [hypot-udef    (hypot x y)    (sqrt (+ (sqr x) (sqr y)))]
+  [fma-udef      (+ (* x y) z)  (fma x y z)])
 
 (define (*rules*)
   (for/append ([(rules groups) (in-pairs (*rulesets*))])

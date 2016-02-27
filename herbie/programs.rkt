@@ -11,7 +11,7 @@
          eval-prog replace-subexpr
 	 compile expression-cost program-cost
          free-variables replace-expression valid-program?
-         eval-exact
+         eval-exact eval-const-expr
          desugar-program)
 
 (define (location-induct
@@ -169,10 +169,14 @@
 ;; the results back to floats.
 (define (eval-exact prog)
   (let* ([prog* (program-induct prog #:constant ->bf #:symbol real-op->bigfloat-op)]
-         [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
+         [prog-opt `(lambda ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
-    (λ (pts)
+    (lambda (pts)
       (apply fn (map ->bf pts)))))
+
+(define (eval-const-expr expr)
+  (let* ([expr_bf (expression-induct expr '() #:constant ->bf #:symbol real-op->bigfloat-op)])
+    (->flonum (eval expr_bf common-eval-ns))))
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common

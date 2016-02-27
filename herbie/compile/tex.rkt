@@ -136,7 +136,10 @@
             '+ '+]
   [mod      "~a \\modb ~a"
             (curry tag-infix "\\modb")
-            #t #f])
+            #t #f]
+  [fma      "\\mathsr{fma}_*(~a, ~a, ~a)"
+            (curry tag-infix "\\mathsr{fma}_*")
+            'fn #f])
 
 (define parens-precedence '(#t + * fn #f))
 
