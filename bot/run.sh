@@ -15,7 +15,7 @@ make --quiet --directory=randTest
 java -classpath randTest/ RandomTest \
   --size  5 --size-wiggle  5 \
   --nvars 1 --nvars-wiggle 3 \
-  --ntests 10 \
+  --ntests 20 \
   > "$HERBROOT/bench/random.rkt"
 
 function run {
@@ -28,15 +28,28 @@ function run {
   make publish
 }
 
-for b in $HERBROOT/bench/*; do
-  name=$(basename "$b" .rkt)
-  # skip some massive or misbehaving benchmarks
-  case $name in
-    haskell)
-      continue
-      ;;
-  esac
+function runEach {
+  for b in $HERBROOT/bench/*; do
+    name=$(basename "$b" .rkt)
+    # add cases to skip large or misbehaving benchmarks
+    case $name in
+      SKIP)
+        continue
+        ;;
+    esac
+    LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
+    ln -sf "$LOG" "$HERBROOT/bot/latest.log"
+    run "$b" "$name" &> "$LOG"
+  done
+}
+
+# on some machines, this will cause Racket VM to run out of memory
+function runAll {
+  b="$HERBROOT/bench"
+  name="all"
   LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
   ln -sf "$LOG" "$HERBROOT/bot/latest.log"
   run "$b" "$name" &> "$LOG"
-done
+}
+
+runEach
