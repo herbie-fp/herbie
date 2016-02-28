@@ -28,7 +28,8 @@ function run {
       --threads 4 \
       "$@" \
       "$bench"
-  make publish
+  make --directory="$HERBROOT/graphs" overhead
+  make --directory="$HERBROOT" publish
 }
 
 function runEach {

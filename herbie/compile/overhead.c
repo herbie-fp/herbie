@@ -53,7 +53,7 @@ typedef signed int i32;
 
 u32 ulpf(float x, float y) {
         i32 xx, yy;
-        
+
         if (x == 0) x = fabsf(x); // -0 == 0
         if (y == 0) y = fabsf(y); // -0 == 0
 
@@ -72,7 +72,7 @@ u32 ulpf(float x, float y) {
 
 u64 ulpd(double x, double y) {
         i64 xx, yy;
-        
+
         if (x == 0) x = fabs(x); // -0 == 0
         if (y == 0) y = fabs(y); // -0 == 0
 
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 #endif
 
         struct timespec start, end;
-        int i, maxi;
+        int i;
         u64 max = 0, maxcount = 0;
         double rtime, total = 0;
         int countf = 0, countd = 0;

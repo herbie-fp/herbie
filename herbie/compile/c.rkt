@@ -135,9 +135,9 @@
   [and      "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
   [or       "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
   [atan2    "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
-  [mod      "mpfr_fmod2(~a, ~a, ~a)"]
-  [fma      "mpfr_fma(~a, ~a, ~a, ~a)"]
-  [cbrt     "mpfr_cbrt(~a, ~a)"])
+  [mod      "mpfr_fmod2(~a, ~a, ~a, MPFR_RNDN)"]
+  [fma      "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)"]
+  [cbrt     "mpfr_cbrt(~a, ~a, MPFR_RNDN)"])
 
 (define-table constants->mpfr
   [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]
