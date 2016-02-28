@@ -30,6 +30,34 @@
   #:name "Random Jason Timeout Test 008"
   (* (* (atan (atan 3.882919441585229e-190)) 4.568031610793939e-123) (mod (sqrt -1.0580015533610528e+239) b)))
 
+(lambda (a b c)
+  #:name "Random Jason Timeout Test 009"
+  (abs (mod c (asin (- 2.821952756469356E184 b)))))
+
+(lambda (a)
+  #:name "Random Jason Timeout Test 010"
+  (/ a (- (acos a))))
+
+(lambda (a)
+  #:name "Random Jason Timeout Test 011"
+  (expt (atan (mod a (asin a))) (* a a)))
+
+(lambda (a b c)
+  #:name "Random Jason Timeout Test 012"
+  (acos (expt (mod (cosh a) (* a a)) (log1p a))))
+
+(lambda (a b c)
+  #:name "Random Jason Timeout Test 013"
+  (hypot (cos b) (expt a (hypot (sqrt -1.069042078380495E-15) (log b)))))
+
+(lambda (a b c d)
+  #:name "Random Jason Timeout Test 014"
+  (mod (sinh c) (- c (sqr -2.9807307601812193E165))))
+
+(lambda (a b c)
+  #:name "Random Jason Timeout Test 015"
+  (sin (expt (sqrt (atan2 b b)) (- b a))))
+
 (lambda ((a default) (b default) (c default))
   #:name "Area of a triangle"
   (sqrt (* (* (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a)) (- (/ (+ (+ a b) c) 2) b)) (- (/ (+ (+ a b) c) 2) c))))
@@ -65,3 +93,24 @@
 (lambda ((x default) (y default) (z default) (t default) (a default) (b default) (c default) (i default) (j default) (k default))
   #:name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
   (- (- (+ (- (* (* (* (* x 18.0) y) z) t) (* (* a 4.0) t)) (* b c)) (* (* x 4.0) i)) (* (* j 27.0) k)))
+
+(lambda (a b)
+  #:name "Bouland and Aaronson, Equation (25)"
+  (- (+ (sqr (+ (sqr a) (sqr b))) (* 4 (+ (* (sqr a) (+ 1 a)) (* (sqr b) (- 1 (* 3 a)))))) 1))
+
+(lambda (a b c)
+  #:name "The quadratic formula (r1)"
+  (let* ((d (- (sqr b) (* 4 a c))))
+    (/ (+ (- b) (sqrt d)) (* 2 a)))
+  #:target
+  (let* ((d (- (sqr b) (* 4 a c)))
+         (r1 (/ (+ (- b) (sqrt d)) (* 2 a)))
+         (r2 (/ (- (- b) (sqrt d)) (* 2 a))))
+    (if (< b 0)
+        r1
+        (/ c (* a r2)))))
+
+(lambda (a b/2 c)
+  #:name "NMSE problem 3.2.1"
+  (let* ((d (sqrt (- (sqr b/2) (* a c)))))
+    (/ (- (- b/2) d) a)))
