@@ -5,6 +5,8 @@
 #   but do not push any changes to HERBROOT!
 HERBROOT="$HOME/herbie"
 
+CORES=4
+
 # example crontab entry for nightlies
 # 30 2 * * * $HOME/herbie/bot/run.sh
 
@@ -25,38 +27,44 @@ function run {
     racket herbie/reports/run.rkt \
       --note "$name" \
       --profile \
-      --threads 4 \
+      --threads $CORES \
       "$@" \
       "$bench"
-  make --directory="$HERBROOT/graphs" overhead
-  make --directory="$HERBROOT" publish
+  time make \
+    --directory="$HERBROOT/graphs" \
+    --jobs=$CORES \
+    overhead
+  make --quiet --directory="$HERBROOT" publish
 }
 
 function runEach {
-  for b in $HERBROOT/bench/*; do
-    name=$(basename "$b" .rkt)
+  for bench in $HERBROOT/bench/*; do
+    name=$(basename "$bench" .rkt)
     # add cases to skip large or misbehaving benchmarks
     case $name in
       SKIP)
         continue
         ;;
     esac
-    LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
-    ln -sf "$LOG" "$HERBROOT/bot/latest.log"
-    run "$b" "$name" "$@" &> "$LOG"
+    run "$bench" "$name" "$@"
   done
 }
 
-# on some machines, this will cause Racket VM to run out of memory
+# on some machines, this will cause Racket VM to exhaust memory
 function runAll {
-  b="$HERBROOT/bench"
+  bench="$HERBROOT/bench"
   name="all"
-  LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
-  ln -sf "$LOG" "$HERBROOT/bot/latest.log"
-  run "$b" "$name" "$@" &> "$LOG"
+  run "$bench" "$name" "$@"
 }
 
-runEach
-runEach --option rules:numerics
-runEach --option precision:double
-runEach --option rules:numerics --option precision:double
+function main {
+  for prec in "" "--option precision:double"; do
+    for num in "" "--option rules:numerics"; do
+      runEach $prec $num
+    done
+  done
+}
+
+LOG="$HERBROOT/bot/$(date +%y%m%d%H%M%S).log"
+ln -sf "$LOG" "$HERBROOT/bot/latest.log"
+main &> "$LOG"
