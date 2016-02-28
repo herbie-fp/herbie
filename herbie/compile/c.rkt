@@ -25,7 +25,8 @@
   [abs      "fabs(~a)"]
   [sqrt     "sqrt(~a)"]
   [hypot    "hypot(~a, ~a)"]
-  [sqr      (λ (x) (format "~a * ~a" x x))]
+  [sqr      (lambda (x) (format "~a * ~a" x x))]
+  [cube     (lambda (x) (format "~a * (~a * ~a)" x x x))]
   [exp      "exp(~a)"]
   [expm1    "expm1(~a)"]
   [expt     "pow(~a, ~a)"]
@@ -49,7 +50,9 @@
   [>=       "~a >= ~a"]
   [and      "~a && ~a"]
   [or       "~a || ~a"]
-  [mod      "fmod2(~a, ~a)"])
+  [mod      "fmod(~a, ~a)"]
+  [fma      "fma(~a, ~a, ~a)"]
+  [cbrt     "cbrt(~a)"])
 
 (define-table constants->c
   [pi    "atan2(1.0, 0.0)"]
@@ -101,7 +104,11 @@
   [abs      "mpfr_abs(~a, ~a, MPFR_RNDN)"]
   [sqrt     "mpfr_sqrt(~a, ~a, MPFR_RNDN)"]
   [hypot    "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"]
-  [sqr      (λ (x y) (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)" x y y))]
+  [sqr      "mpfr_sqr(~a, ~a, MPFR_RNDN)"]
+  [cube     (λ (x y)
+               (format
+                 "mpfr_mul(~a, ~a, ~a, MPFR_RNDN); mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"
+                 x y y x x y))]
   [exp      "mpfr_exp(~a, ~a, MPFR_RNDN)"]
   [expm1    "mpfr_expm1(~a, ~a, MPFR_RNDN)"]
   [expt     "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)"]
@@ -117,7 +124,7 @@
   [sinh     "mpfr_sinh(~a, ~a, MPFR_RNDN)"]
   [cosh     "mpfr_cosh(~a, ~a, MPFR_RNDN)"]
   [tanh     "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
-  [if       (λ (r c a b)
+  [if       (lambda (r c a b)
                (format
                 "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }"
                 c r a r b))]
@@ -128,7 +135,9 @@
   [and      "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
   [or       "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
   [atan2    "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
-  [mod      "mpfr_fmod2(~a, ~a, ~a)"])
+  [mod      "mpfr_fmod2(~a, ~a, ~a)"]
+  [fma      "mpfr_fma(~a, ~a, ~a, ~a)"]
+  [cbrt     "mpfr_cbrt(~a, ~a)"])
 
 (define-table constants->mpfr
   [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]

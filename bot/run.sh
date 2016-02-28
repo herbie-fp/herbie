@@ -19,12 +19,15 @@ java -classpath randTest/ RandomTest \
   > "$HERBROOT/bench/random.rkt"
 
 function run {
+  bench=$1; shift
+  name=$1;  shift
   time xvfb-run --auto-servernum \
     racket herbie/reports/run.rkt \
-      --note "$2" \
+      --note "$name" \
       --profile \
       --threads 4 \
-      "$1"
+      "$@" \
+      "$bench"
   make publish
 }
 
@@ -39,7 +42,7 @@ function runEach {
     esac
     LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
     ln -sf "$LOG" "$HERBROOT/bot/latest.log"
-    run "$b" "$name" &> "$LOG"
+    run "$b" "$name" "$@" &> "$LOG"
   done
 }
 
@@ -49,7 +52,10 @@ function runAll {
   name="all"
   LOG="$HERBROOT/bot/$name-$(date +%y%m%d%H%M%S).log"
   ln -sf "$LOG" "$HERBROOT/bot/latest.log"
-  run "$b" "$name" &> "$LOG"
+  run "$b" "$name" "$@" &> "$LOG"
 }
 
 runEach
+runEach --option rules:numerics
+runEach --option precision:double
+runEach --option rules:numerics --option precision:double
