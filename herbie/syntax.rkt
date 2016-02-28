@@ -35,6 +35,7 @@
 (define cexpt (make-safe expt))
 
 ; use C ffi for numerical ops missing from math/flonum
+; TODO: import all portable numeric ops from libm
 (require ffi/unsafe ffi/unsafe/define)
 (define-ffi-definer define-libm #f)
 
@@ -94,11 +95,25 @@
     (tanh  (real->double-flonum x))
     (tanhf (real->single-flonum x))))
 
+(define-libm cbrt  (_fun _double -> _double))
+(define-libm cbrtf (_fun _float  -> _float ))
+(define (_flcbrt x)
+  ((flag 'precision 'double)
+    (cbrt  (real->double-flonum x))
+    (cbrtf (real->single-flonum x))))
+
 (define (bffma x y z)
   (bf+ (bf* x y) z))
 
-(define (bfmod x mod)
+(define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
+
+(define (bfcube x)
+  (bf* x (bf* x x)))
+
+(define (_flcube x)
+  (* x (* x x)))
+
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -128,11 +143,13 @@
   [fma      '(3)      bffma     _flfma    666] ; TODO : cost made up
   [hypot    '(2)      bfhypot   _flhypot  666] ; TODO : cost made up
   [atan2    '(2)      bfatan2   _flatan2  666] ; TODO : cost made up
-  [mod      '(2)      bfmod     _flfmod   666] ; TODO : cost made up
+  [mod      '(2)      bffmod    _flfmod   666] ; TODO : cost made up
   [log1p    '(1)      bflog1p   _fllog1p  666] ; TODO : cost made up
   [expm1    '(1)      bfexpm1   _flexpm1  666] ; TODO : cost made up
   [sinh     '(1)      bfsinh    _flsinh   300]
   [tanh     '(1)      bftanh    _fltanh   300]
+  [cbrt     '(1)      bfcbrt    _flcbrt   666] ; TODO : cost made up
+  [cube     '(1)      bfcube    _flcube   666] ; TODO : cost made up
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn     if-fn       1]
   [=        '(2)      bf=       =           1]

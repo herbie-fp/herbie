@@ -7,14 +7,18 @@
 (define mathjax-url "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
-  [l "\\ell"]
-  [pi "\\pi"]
-  [eps "\\varepsilon"]
-  [epsilon "\\epsilon"]
-  [alpha "\\alpha"]
-  [beta "\\beta"]
-  [gamma "\\gamma"]
-  [lambda "\\lambda"])
+  [l       "\\ell"]
+  [pi      "\\pi"]
+  [eps     "\\varepsilon"]
+  [epsilon "\\varepsilon"]
+  [alpha   "\\alpha"]
+  [beta    "\\beta"]
+  [gamma   "\\gamma"]
+  [phi     "\\phi"]
+  [phi1    "\\phi_1"]
+  [phi2    "\\phi_2"]
+  [lambda  "\\lambda"]
+  [lambda1 "\\lambda_1"])
 
 (define (apply-converter conv args [idx #f])
   (cond
@@ -55,23 +59,29 @@
   [sqrt     "\\sqrt{~a}"
             (curry tag-inner-untag "\\sqrt{~a}")
             #f #t]
-  [hypot    "\\sqrt{~a^2 + ~a^2}^*"
-            (curry tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
+  [cbrt     "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle 3]{~a}"
+            (curry tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle 3]{~a}")
+            #f #t]
+  [hypot    "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle *]{~a^2 + ~a^2}^*"
+            (curry tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle *]{~a^2 + ~a^2}^*")
             #f #t]
   [sqr      "{~a}^2"
-            (λ (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
+            (lambda (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
+            #f #f]
+  [cube     "{~a}^3"
+            (lambda (idx a) (format "{~a}^{~a}" a (tag "3" idx)))
             #f #f]
   [exp      "e^{~a}"
             (curry tag-inner-untag "e^{~a}")
             #f #t]
-  [expm1    "\\exp_* ~a - 1"
-            (curry tag-inner-untag "\\exp_* ~a - 1")
+  [expm1    "\\exp_* (~a - 1)"
+            (curry tag-inner-untag "\\exp_* (~a - 1)")
             'fn #t]
   [expt     "{~a}^{~a}"
             (curry tag-inner-untag "{~a}^{~a}")
             #f #f]
   [log      "\\log ~a"
-            (curry tag-inner-untag "\\log ~a")
+            (curry tag-inner-untag "\\log (~a)")
             'fn #f]
   [log1p    "\\log_* (1 + ~a)"
             (curry tag-inner-untag "\\log_* (1 + ~a)")
@@ -100,7 +110,7 @@
   [sinh     "\\sinh ~a"
             (curry tag-inner-untag "\\sinh ~a")
             'fn #f]
-  [cosh     "\\cosh ~a" 
+  [cosh     "\\cosh ~a"
             (curry tag-inner-untag "\\cosh ~a")
             'fn #f]
   [tanh     "\\tanh ~a"
@@ -169,7 +179,7 @@
    `parens` is one of #f, '+, '*, 'fn, or #t"
 
   (define color-loc* (if color-loc (reverse color-loc) #f))
-  
+
   (let texify ([expr expr] [parens #t] [loc '(2)])
     (define result
       (match expr
