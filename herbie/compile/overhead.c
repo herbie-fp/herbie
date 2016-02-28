@@ -8,6 +8,13 @@
 #include <gmp.h>
 #include <mpfr.h>
 
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
+#define ITERS 1000000
+
 #ifndef NARGS
 #define NARGS 1
 #endif
@@ -138,13 +145,28 @@ double *get_random_doubles(int nums) {
         return arr;
 }
 
+#ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+
+#define CLOCK(ts) \
+  clock_get_time(cclock, &mts); \
+  ts.tv_sec = mts.tv_sec; \
+  ts.tv_nsec = mts.tv_nsec;
+
+#else
+
+#define CLOCK(ts) \
+  clock_gettime(CLOCK_REALTIME, &ts);
+
+#endif
+
 /* Some macros to make looping a bit easier */
-#define LOOP(iter)                                                      \
-        clock_gettime(CLOCK_MONOTONIC, &start);                         \
+
+#define LOOP(iter) \
+        CLOCK(start); \
         for (i = 0; i < iter; i++)
 
-#define END()                                                           \
-        clock_gettime(CLOCK_MONOTONIC, &end);                           \
+#define END() \
+        CLOCK(end); \
         rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
 
 /* Calling a function with some number of arguments */
@@ -177,6 +199,13 @@ double *get_random_doubles(int nums) {
                log(max + 1.0) / log(2), total / count##type);
 
 int main(int argc, char** argv) {
+
+#ifdef __MACH__
+        clock_serv_t cclock;
+        mach_timespec_t mts;
+        host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+#endif
+
         struct timespec start, end;
         int i, maxi;
         u64 max = 0, maxcount = 0;
@@ -186,7 +215,7 @@ int main(int argc, char** argv) {
         float *inf, *outif, *outof, *truef;
         setup_mpfr_f_im();
 
-        int iter = 1000000;
+        int iter = ITERS;
         if (argc > 1) iter = atoi(argv[1]);
 
         inf = get_random_floats(NARGS * iter);
@@ -247,6 +276,9 @@ int main(int argc, char** argv) {
         }
         printf("dd,%15g,%15llu\n", log(max + 1.0) / log(2), maxcount);
 
-        return 0;
+#ifdef __MACH__
+        mach_port_deallocate(mach_task_self(), cclock);
+#endif
 
+        return 0;
 }
