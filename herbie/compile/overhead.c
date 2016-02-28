@@ -83,10 +83,7 @@ u64 ulpd(double x, double y) {
         memcpy(&xx, &x, sizeof(double));
         memcpy(&yy, &y, sizeof(double));
 
-        xx = *((i64*) &x);
         xx = xx < 0 ? LLONG_MIN - xx : xx;
-
-        yy = *((i64*) &y);
         yy = yy < 0 ? LLONG_MIN - yy : yy;
 
         return xx >= yy ? xx - yy : yy - xx;
@@ -109,14 +106,20 @@ double rand_double() {
         u64 c2 = rand()&0xffff;
         u64 c3 = rand()&0xffff;
         u64 c = ((c3 << 48) | (c2 << 32) | (c1<<16) | c0);
-        return *(double*)&c;
+
+        double cc;
+        memcpy(&cc, &c, sizeof(double));
+        return cc;
 }
 
 float rand_float() {
         u32 c0 = rand()&0xffff;
         u32 c1 = rand()&0xffff;
         u32 c = ((c1<<16) | c0);
-        return *(float*)&c;
+
+        double cc;
+        memcpy(&cc, &c, sizeof(double));
+        return cc;
 }
 
 float *get_random_floats(int nums) {
