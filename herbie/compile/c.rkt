@@ -225,7 +225,7 @@
   (require "../config.rkt")
 
   (define dir report-output-path)
-  
+
   (command-line
    #:program "compile/c.rkt"
    #:once-each

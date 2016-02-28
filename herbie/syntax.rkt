@@ -122,44 +122,53 @@
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
-  [+        '(2)      bf+       +           1]
-  [-        '(1 2)    bf-       -           1]
-  [*        '(2)      bf*       *           1]
-  [/        '(2)      bf/       /           1]
-  [sqrt     '(1)      bfsqrt    csqrt       1]
-  [sqr      '(1)      bfsqr     sqr         1]
-  [exp      '(1)      bfexp     exp       270]
-  [expt     '(2)      bfexpt    cexpt     640]
-  [log      '(1)      bflog     clog      300]
-  [sin      '(1)      bfsin     sin       145]
-  [cos      '(1)      bfcos     cos       185]
-  [tan      '(1)      bftan     tan       160]
-  [cotan    '(1)      bfcot     cotan     160]
-  [asin     '(1)      bfasin    casin     140]
-  [acos     '(1)      bfacos    cacos     155]
-  [atan     '(1)      bfatan    atan      130]
-  [cosh     '(1)      bfcosh    cosh      300]
-  [abs      '(1)      bfabs     abs         1]
-  [fma      '(3)      bffma     _flfma    666] ; TODO : cost made up
-  [hypot    '(2)      bfhypot   _flhypot  666] ; TODO : cost made up
-  [atan2    '(2)      bfatan2   _flatan2  666] ; TODO : cost made up
-  [mod      '(2)      bffmod    _flfmod   666] ; TODO : cost made up
-  [log1p    '(1)      bflog1p   _fllog1p  666] ; TODO : cost made up
-  [expm1    '(1)      bfexpm1   _flexpm1  666] ; TODO : cost made up
-  [sinh     '(1)      bfsinh    _flsinh   300]
-  [tanh     '(1)      bftanh    _fltanh   300]
-  [cbrt     '(1)      bfcbrt    _flcbrt   666] ; TODO : cost made up
-  [cube     '(1)      bfcube    _flcube   666] ; TODO : cost made up
+  ; arithmetic
+  [+        '(2)      bf+       +          40]
+  [-        '(1 2)    bf-       -          40]
+  [*        '(2)      bf*       *          40]
+  [/        '(2)      bf/       /          40]
+
+  ; exponents
+  [sqrt     '(1)      bfsqrt    csqrt      40]
+  [sqr      '(1)      bfsqr     sqr        40] ; = multiply cost
+  [cbrt     '(1)      bfcbrt    _flcbrt    80]
+  [cube     '(1)      bfcube    _flcube    80] ; = 2 * multiply cost
+  [exp      '(1)      bfexp     exp        70]
+  [expm1    '(1)      bfexpm1   _flexpm1   70]
+  [expt     '(2)      bfexpt    cexpt     210]
+  [log      '(1)      bflog     clog       70]
+  [log1p    '(1)      bflog1p   _fllog1p   90]
+
+  ; trig
+  [sin      '(1)      bfsin     sin        60]
+  [cos      '(1)      bfcos     cos        60]
+  [tan      '(1)      bftan     tan        95]
+  [cotan    '(1)      bfcot     cotan     135] ; = tan + div cost
+  [asin     '(1)      bfasin    casin     105]
+  [acos     '(1)      bfacos    cacos      90]
+  [atan     '(1)      bfatan    atan      105]
+  [sinh     '(1)      bfsinh    _flsinh    55]
+  [cosh     '(1)      bfcosh    cosh       55]
+  [tanh     '(1)      bftanh    _fltanh    55]
+  [atan2    '(2)      bfatan2   _flatan2  140]
+
+  ; misc
+  [abs      '(1)      bfabs     abs        40]
+  [fma      '(3)      bffma     _flfma     55]
+  [hypot    '(2)      bfhypot   _flhypot   55]
+  [mod      '(2)      bffmod    _flfmod    70]
+
+  ; comparison and conditional
   ; TODO : These are different and should be treated differently
-  [if       '(3)      if-fn     if-fn       1]
-  [=        '(2)      bf=       =           1]
-  [>        '(2)      bf>       >           1]
-  [<        '(2)      bf<       <           1]
-  [<=       '(2)      bf<=      <=          1]
-  [>=       '(2)      bf>=      >=          1]
-  [not      '(1)      not       not         1]
-  [and      '(2)      and-fn    and-fn      1]
-  [or       '(2)      or-fn     or-fn       1])
+  [if       '(3)      if-fn     if-fn      65]
+  [=        '(2)      bf=       =          65]
+  [>        '(2)      bf>       >          65]
+  [<        '(2)      bf<       <          65]
+  [>=       '(2)      bf>=      >=         65]
+  [<=       '(2)      bf<=      <=         65]
+  [not      '(1)      not       not        65]
+  [and      '(2)      and-fn    and-fn     55]
+  [or       '(2)      or-fn     or-fn      55])
 
 (define *operations* (make-parameter operations))
 
