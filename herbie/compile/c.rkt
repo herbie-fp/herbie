@@ -66,6 +66,7 @@
 
 (define (program->c prog [type "double"] [fname "f"])
   (define vars (program-variables prog))
+  (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
   (define (value->c expr)
@@ -83,8 +84,14 @@
         (value->c expr)))
 
   (write-string
-   (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "~a ~a" type (fix-name var))) ", "))
+    (let ([pdecls
+            (for/list ([var vars])
+                      (if (member var unused-vars)
+                        (format "~a __attribute__((unused)) ~a" type (fix-name var))
+                        (format "~a ~a" type (fix-name var))))])
+      (printf "double ~a(~a) {\n" ; TODO shouldn't "double" here be type ?
+              fname
+              (string-join pdecls ", ")))
 
    (for/list ([assignment (cadr body)])
      (if (comparison? (cadr assignment))
@@ -145,6 +152,7 @@
 
 (define (program->mpfr prog [bits 128] [fname "f"])
   (define vars (program-variables prog))
+  (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
   (define (app->mpfr out expr)
@@ -154,7 +162,7 @@
              [args (cdr expr)])
         (apply-converter rec (cons out args)))]
      [(number? expr) ""]
-     [(member expr (program-variables prog))
+     [(member expr vars)
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
      [(member expr constants)
       (apply-converter (car (hash-ref constants->mpfr expr)) (list out))]
@@ -173,8 +181,14 @@
          (printf "        mpfr_init(~a);\n" (car reg))))
    (printf "}\n\n")
 
-   (printf "double ~a(~a) {\n" fname
-           (string-join (for/list ([var vars]) (format "double ~a" (fix-name var))) ", "))
+   (let ([pdecls
+           (for/list ([var vars])
+                     (if (member var unused-vars)
+                       (format "double __attribute__((unused)) ~a" (fix-name var))
+                       (format "double ~a" (fix-name var))))])
+     (printf "double ~a(~a) {\n"
+             fname
+             (string-join pdecls ", ")))
 
    (for ([assignment (cadr body)])
      (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
