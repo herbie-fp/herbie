@@ -94,7 +94,7 @@
       (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re))))))
 
 (herbie-test (re im) ; imag part
-  "math.sqrt on complex, imaginary part, im > 0 branch"
+  "math.sqrt on complex, imaginary part, im greater than 0 branch"
   (*  0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re)))))
 
 ; Manually expanded math.multiply
