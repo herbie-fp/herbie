@@ -5,20 +5,34 @@
 #   but do not push any changes to HERBROOT!
 HERBROOT="$HOME/herbie"
 
-CORES=4
-
 # example crontab entry for nightlies
 # 30 2 * * * $HOME/herbie/bot/run.sh
 
-cd "$HERBROOT"
-git pull --quiet
+CORES=4
 
-make --quiet --directory=randTest
-java -classpath randTest/ RandomTest \
-  --size  5 --size-wiggle  5 \
-  --nvars 1 --nvars-wiggle 3 \
-  --ntests 20 \
-  > "$HERBROOT/bench/random.rkt"
+LOG="$HERBROOT/bot/$(date +%y%m%d%H%M%S).log"
+ln -sf "$LOG" "$HERBROOT/bot/latest.log"
+
+EXC="$HERBROOT/bot/exceptions-$(date +%y%m%d%H%M%S).rkt"
+ln -sf "$EXC" "$HERBROOT/bot/latest-exceptions.rkt"
+
+function main {
+  cd "$HERBROOT"
+  git pull --quiet
+
+  make --quiet --directory=randTest
+  java -classpath randTest/ RandomTest \
+    --size  5 --size-wiggle  5 \
+    --nvars 1 --nvars-wiggle 3 \
+    --ntests 20 \
+    > "$HERBROOT/bench/random.rkt"
+
+  for prec in "" "--option precision:double"; do
+    for num in "" "--option rules:numerics"; do
+      runEach $prec $num
+    done
+  done
+}
 
 function run {
   bench=$1; shift
@@ -30,6 +44,12 @@ function run {
       --threads $CORES \
       "$@" \
       "$bench"
+  cat << EOF >> "$EXC"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; $bench
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+EOF
+  cat "$HERBROOT/graphs/exceptions.rkt" >> "$EXC"
   time make \
     --directory="$HERBROOT/graphs" \
     --jobs=$CORES \
@@ -57,14 +77,4 @@ function runAll {
   run "$bench" "$name" "$@"
 }
 
-function main {
-  for prec in "" "--option precision:double"; do
-    for num in "" "--option rules:numerics"; do
-      runEach $prec $num
-    done
-  done
-}
-
-LOG="$HERBROOT/bot/$(date +%y%m%d%H%M%S).log"
-ln -sf "$LOG" "$HERBROOT/bot/latest.log"
 main &> "$LOG"
