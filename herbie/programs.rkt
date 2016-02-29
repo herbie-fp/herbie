@@ -9,8 +9,8 @@
          location-induct program-induct expression-induct location-hash
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
-	 compile expression-cost program-cost
-         free-variables replace-expression valid-program?
+         compile expression-cost program-cost
+         free-variables unused-variables replace-expression valid-program?
          eval-exact eval-const-expr
          desugar-program)
 
@@ -85,17 +85,30 @@
 
   (inductor prog))
 
-(define (free-variables prog [bound constants])
-  (filter (λ (v) (not (member v bound)))
-          (match prog
-            [(? constant?) '()]
-            [(? variable?) (list prog)]
-            [`(λ ,vars ,body)
-             (free-variables body (append vars constants))]
-            [`(lambda ,vars ,body)
-             (free-variables body (append vars constants))]
-            [`(,f ,args ...)
-             (remove-duplicates (append-map (curryr free-variables bound) args))])))
+;; (define (free-variables prog [bound constants])
+;;   (filter (λ (v) (not (member v bound)))
+;;           (match prog
+;;             [(? constant?) '()]
+;;             [(? variable?) (list prog)]
+;;             [`(λ ,vars ,body)
+;;              (free-variables body (append vars constants))]
+;;             [`(lambda ,vars ,body)
+;;              (free-variables body (append vars constants))]
+;;             [`(,f ,args ...)
+;;              (remove-duplicates (append-map (curryr free-variables bound) args))])))
+
+(define (free-variables prog)
+  (match prog
+         [(? constant?) '()]
+         [(? variable?) (list prog)]
+         [`(lambda ,vars ,body)
+           (remove* vars (free-variables body))]
+         [`(,op ,args ...) ; TODO what if op unbound?
+           (remove-duplicates (append-map free-variables args))]))
+
+(define (unused-variables prog)
+  (remove* (free-variables (program-body prog))
+           (program-variables prog)))
 
 (define (valid-program? prog)
   (define (valid-expression? expr vars)
