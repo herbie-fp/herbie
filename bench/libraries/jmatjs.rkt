@@ -3,7 +3,7 @@
 ;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js
 
 (herbie-test (z)
-  "Jmat.Real.gamma, branch z > 0.5"
+  "Jmat.Real.gamma, branch z greater than 0.5"
   (let* ([z* (- z 1)]
          [g 7]
          [x (+ 0.99999999999980993
@@ -19,7 +19,7 @@
     (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x)))
 
 (herbie-test (z)
-  "Jmat.Real.gamma, branch z < 0.5"
+  "Jmat.Real.gamma, branch z less than 0.5"
   (let* ([z* (- (- 1 z) 1)]
          [g 7]
          [x (+ 0.99999999999980993
@@ -62,7 +62,7 @@
             x)))
 
 (herbie-test (x)
-  "Jmat.Real.erfi, branch x <= 0.5"
+  "Jmat.Real.erfi, branch x less than or equal to 0.5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
          [x* (abs x)]
@@ -73,7 +73,7 @@
     (abs (* ps t))))
 
 (herbie-test (x)
-  "Jmat.Real.erfi, branch x >= 5"
+  "Jmat.Real.erfi, branch x greater than or equal to 5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
          [x* (abs x)]
