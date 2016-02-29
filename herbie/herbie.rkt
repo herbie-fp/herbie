@@ -23,6 +23,7 @@
 (require "alternative.rkt")
 (require "test.rkt")
 (require "sandbox.rkt")
+(require "reports/datafile.rkt")
 
 (define output-type (make-parameter 'console))
 (define output-name (make-parameter #f))
@@ -89,8 +90,9 @@
   (match (output-type)
     [(or 'json 'console) ; TODO: Remove 'json the threads don't generate details
      (printf "Running Herbie...\nSeed: ~a\n" seed)
-     (sequence-map (λ (test) (get-test-result test #:seed seed))
-                   (in-herbie-files files))]
+     (sequence-map
+      (λ (test) (get-table-data (get-test-result test #:seed seed) "asdf"))
+      (in-herbie-files files))]
     [(or 'json 'report)
      ((get-get-test-results)
       #:threads (threads) #:seed seed #:profile (profile?)
@@ -101,49 +103,47 @@
   (define outputs
     (for/list ([output (in-herbie-output files #:seed seed)]
                [idx (in-naturals)] #:when output)
+      (match-define
+       (table-row name status start result target
+                  inf- inf+ result-est
+                  vars samplers
+                  input-prog output-prog time bits link)
+       output)
       (define success?
-        (match output
-          [(test-result 
-            test time bits start-alt end-alt
-            points exacts start-est-error end-est-error
-            newpoints newexacts start-error end-error target-error
-            timeline)
+        (match status
+          ["crash"
+           (printf "[   CRASH   ]\t\t\t~a\n" name)
+           #f]
+          ["timeout"
+           (when (equal? (output-type) 'console)
+             (eprintf "Timeout in ~as; use --timeout to change timeout\n" (/ time 1000)))
+           (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
+           #f]
+          [_
            (match (output-type)
-             ['console (printf "~a\n" (alt-program end-alt))]
+             ['console (printf "~a\n" output-prog)]
              [_ (printf "[ ~ams]\t(~a→~a)\t~a\n"
                         (~a time #:width 8)
-                        (~r (errors-score start-error) #:min-width 2 #:precision 0)
-                        (~r (errors-score end-error) #:min-width 2 #:precision 0)
-                        (test-name test))])
-           (test-successful?
-            test (errors-score start-error)
-            (and target-error (errors-score target-error))
-            (errors-score end-error))]
-          [(test-failure test bits exn time timeline)
-           (match (output-type)
-             ['console ((error-display-handler) (exn-message exn) exn)]
-             [_ (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))])
-           #f]
-          [(test-timeout test bits time timeline)
-           (match (output-type)
-             ['console
-              (eprintf "Timeout in ~as; use --timeout to change timeout\n" (/ time 1000))]
-             [_ (printf "[  timeout  ]\t\t\t~a\n" (test-name test))])
-           #f]))
+                        (~r start #:min-width 2 #:precision 0)
+                        (~r result #:min-width 2 #:precision 0)
+                        name)])
+           #t
+           #;(test-successful? test start target result)]))
       (when (and (early-exit?) (not success?))
-        (exit (+ 1 idx)))))
+        (exit (+ 1 idx)))
+      output))
   
   (define info ((get-make-report-info) outputs #:note (note)))
 
-  (when (equal? output-type 'json)
+  (when (equal? (output-type) 'json)
     (set-seed! seed)
-    ((get-write-datafile) output-name info))
-  (when (equal? output-type 'report)
+    ((get-write-datafile) (output-name) info))
+  (when (equal? (output-type) 'report)
     (set-seed! seed)
-    ((get-write-datafile) (build-path output-name "results.json") info)
+    ((get-write-datafile) (build-path (output-name) "results.json") info)
     (set-seed! seed)
-    ((get-make-report-page) (build-path output-name "report.html") info)
-    ((get-compile-info) output-name info info))) ; TODO: Split out C compilation
+    ((get-make-report-page) (build-path (output-name) "report.html") info)
+    ((get-compile-info) (output-name) info info))) ; TODO: Split out C compilation
 
 (module+ main
   (command-line
