@@ -39,68 +39,48 @@
 (require ffi/unsafe ffi/unsafe/define)
 (define-ffi-definer define-libm #f)
 
-(define-libm fma  (_fun _double _double _double -> _double))
-(define-libm fmaf (_fun _float  _float  _float  -> _float ))
-(define (_flfma x y z)
-  ((flag 'precision 'double)
-    (fma  (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
-    (fmaf (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))
+(define-syntax-rule (libm_op1 id_fl id_d id_f)
+  (begin
+    (define-libm id_d (_fun _double -> _double))
+    (define-libm id_f (_fun _float  -> _float ))
+    (define (id_fl x)
+      ((flag 'precision 'double)
+        (id_d (real->double-flonum x))
+        (id_f (real->single-flonum x))))))
 
-(define-libm hypot  (_fun _double _double -> _double))
-(define-libm hypotf (_fun _float  _float  -> _float ))
-(define (_flhypot x y)
-  ((flag 'precision 'double)
-    (hypot  (real->double-flonum x) (real->double-flonum y))
-    (hypotf (real->single-flonum x) (real->single-flonum y))))
+(define-syntax-rule (libm_op2 id_fl id_d id_f)
+  (begin
+    (define-libm id_d (_fun _double _double -> _double))
+    (define-libm id_f (_fun _float  _float  -> _float ))
+    (define (id_fl x y)
+      ((flag 'precision 'double)
+        (id_d (real->double-flonum x) (real->double-flonum y))
+        (id_f (real->single-flonum x) (real->single-flonum y))))))
 
-(define-libm atan2  (_fun _double _double -> _double))
-(define-libm atan2f (_fun _float  _float  -> _float ))
-(define (_flatan2 x y)
-  ((flag 'precision 'double)
-    (atan2  (real->double-flonum x) (real->double-flonum y))
-    (atan2f (real->single-flonum x) (real->single-flonum y))))
+(define-syntax-rule (libm_op3 id_fl id_d id_f)
+  (begin
+    (define-libm id_d (_fun _double _double _double -> _double))
+    (define-libm id_f (_fun _float  _float  _float  -> _float ))
+    (define (id_fl x y z)
+      ((flag 'precision 'double)
+        (id_d (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
+        (id_f (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))))
 
-(define-libm fmod  (_fun _double _double -> _double))
-(define-libm fmodf (_fun _float  _float  -> _float ))
-(define (_flfmod x y)
-  ((flag 'precision 'double)
-    (fmod  (real->double-flonum x) (real->double-flonum y))
-    (fmodf (real->single-flonum x) (real->single-flonum y))))
+; exponents
+(libm_op1  _flcbrt   cbrt   cbrtf  )
+(libm_op1  _flexpm1  expm1  expm1f )
+(libm_op1  _fllog1p  log1p  log1pf )
 
-(define-libm log1p  (_fun _double -> _double))
-(define-libm log1pf (_fun _float  -> _float ))
-(define (_fllog1p x)
-  ((flag 'precision 'double)
-    (log1p  (real->double-flonum x))
-    (log1pf (real->single-flonum x))))
+; trig
+(libm_op1  _flsinh   sinh   sinhf  )
+(libm_op1  _flcosh   cosh   coshf  )
+(libm_op1  _fltanh   tanh   tanhf  )
+(libm_op2  _flatan2  atan2  atan2f )
 
-(define-libm expm1  (_fun _double -> _double))
-(define-libm expm1f (_fun _float  -> _float ))
-(define (_flexpm1 x)
-  ((flag 'precision 'double)
-    (expm1  (real->double-flonum x))
-    (expm1f (real->single-flonum x))))
-
-(define-libm sinh  (_fun _double -> _double))
-(define-libm sinhf (_fun _float  -> _float ))
-(define (_flsinh x)
-  ((flag 'precision 'double)
-    (sinh  (real->double-flonum x))
-    (sinhf (real->single-flonum x))))
-
-(define-libm tanh  (_fun _double -> _double))
-(define-libm tanhf (_fun _float  -> _float ))
-(define (_fltanh x)
-  ((flag 'precision 'double)
-    (tanh  (real->double-flonum x))
-    (tanhf (real->single-flonum x))))
-
-(define-libm cbrt  (_fun _double -> _double))
-(define-libm cbrtf (_fun _float  -> _float ))
-(define (_flcbrt x)
-  ((flag 'precision 'double)
-    (cbrt  (real->double-flonum x))
-    (cbrtf (real->single-flonum x))))
+; misc
+(libm_op3  _flfma    fma    fmaf   )
+(libm_op2  _flhypot  hypot  hypotf )
+(libm_op2  _flfmod   fmod   fmodf  )
 
 (define (bffma x y z)
   (bf+ (bf* x y) z))
@@ -113,7 +93,6 @@
 
 (define (_flcube x)
   (* x (* x x)))
-
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -148,7 +127,7 @@
   [acos     '(1)      bfacos    cacos      90]
   [atan     '(1)      bfatan    atan      105]
   [sinh     '(1)      bfsinh    _flsinh    55]
-  [cosh     '(1)      bfcosh    cosh       55]
+  [cosh     '(1)      bfcosh    _flcosh    55]
   [tanh     '(1)      bftanh    _fltanh    55]
   [atan2    '(2)      bfatan2   _flatan2  140]
 
