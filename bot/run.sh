@@ -20,16 +20,41 @@ function main {
   cd "$HERBROOT"
   git pull --quiet
 
-  make --quiet --directory=randTest
-  java -classpath randTest/ RandomTest \
+  make --quiet --directory="$HERBROOT/randTest"
+  java -classpath "$HERBROOT/randTest/" RandomTest \
     --size  5 --size-wiggle  5 \
     --nvars 1 --nvars-wiggle 3 \
     --ntests 20 \
     > "$HERBROOT/bench/random.rkt"
 
+  # choose configs based on day of year
+  d=$(date "+%j")
+
+  # use common seed across every 4 day cycle
+  qseed=$(racket -e " \
+    (random-seed $(expr $d / 4)) \
+    (pseudo-random-generator->vector \
+      (current-pseudo-random-generator))")
+  seed="${qseed:1}" # :1 removes leading quote
+
+  # toggle fuel every two days
+  if [ $(expr \( $d / 2 \) % 2) -eq 0 ]; then
+    fuel="--fuel 2"
+  else
+    fuel="--fuel 3"
+  fi
+
+  # toggle regimes every other day
+  if [ $(expr $d % 2) -eq 0 ]; then
+    regime=""
+  else
+    regime="--option reduce:regimes"
+  fi
+
+  # toggle some configs every day
   for prec in "" "--option precision:double"; do
     for num in "" "--option rules:numerics"; do
-      runEach $prec $num
+      runEach --seed "$seed" $fuel $regime $prec $num
     done
   done
 }
@@ -37,24 +62,42 @@ function main {
 function run {
   bench=$1; shift
   name=$1;  shift
+  cat << EOF
+
+================================================================================
+                                   $name
+================================================================================
+
+run $@
+
+EOF
   time xvfb-run --auto-servernum \
-    racket herbie/reports/run.rkt \
+    racket "$HERBROOT/herbie/reports/run.rkt" \
       --note "$name" \
       --profile \
       --threads $CORES \
       "$@" \
       "$bench"
   cat << EOF >> "$EXC"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; $bench
+;;; $name
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 EOF
   cat "$HERBROOT/graphs/exceptions.rkt" >> "$EXC"
+  echo
+  echo "Evaluating extracted C"
   time make \
-    --directory="$HERBROOT/graphs" \
+    --quiet --directory="$HERBROOT/graphs" \
     --jobs=$CORES \
     overhead
-  make --quiet --directory="$HERBROOT" publish
+  echo
+  echo "Publishing to uwplse.org"
+  # ignore verbose rsync output and shell trace
+  time make \
+    --quiet --directory="$HERBROOT" \
+    publish 2>&1 > /dev/null | grep -v '^+'
 }
 
 function runEach {
