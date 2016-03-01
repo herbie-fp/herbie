@@ -18,24 +18,10 @@
 ; Functions and constants used in our language
 (define nan ((flag 'precision 'double) +nan.0 +nan.f))
 
-(define (cotan x)
-  (/ 1 (tan x)))
-
-(define (make-safe f)
-  (λ args
-     (let ([ans (apply f args)])
-       (if (and (complex? ans) (not (= 0 (imag-part ans))))
-	   nan
-	   (real-part ans)))))
-
-(define csqrt (make-safe sqrt))
-(define clog  (make-safe log))
-(define casin (make-safe asin))
-(define cacos (make-safe acos))
-(define cexpt (make-safe expt))
-
-; use C ffi for numerical ops missing from math/flonum
-; TODO: import all portable numeric ops from libm
+; use C ffi to get numerical ops from libm
+; TODO: import all portable ops
+;   e.g. add remainder?
+;   http://www.gnu.org/software/libc/manual/html_node/Remainder-Functions.html
 (require ffi/unsafe ffi/unsafe/define)
 (define-ffi-definer define-libm #f)
 
@@ -67,17 +53,34 @@
         (id_f (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))))
 
 ; exponents
+(libm_op1  _flsqrt   sqrt   sqrtf  )
 (libm_op1  _flcbrt   cbrt   cbrtf  )
+(libm_op2  _flexpt   pow    powf   )
+(libm_op1  _flexp    exp    expf   )
+(libm_op1  _flexp2   exp2   exp2f  )
 (libm_op1  _flexpm1  expm1  expm1f )
+(libm_op1  _fllog    log    logf   )
+(libm_op1  _fllog2   log2   log2f  )
+(libm_op1  _fllog10  log10  log10f )
 (libm_op1  _fllog1p  log1p  log1pf )
 
 ; trig
+(libm_op1  _flsin    sin    sinf   )
+(libm_op1  _flcos    cos    cosf   )
+(libm_op1  _fltan    tan    tanf   )
+(libm_op1  _flasin   asin   asinf  )
+(libm_op1  _flacos   acos   acosf  )
+(libm_op1  _flatan   atan   atanf  )
 (libm_op1  _flsinh   sinh   sinhf  )
 (libm_op1  _flcosh   cosh   coshf  )
 (libm_op1  _fltanh   tanh   tanhf  )
+(libm_op1  _flasinh  asinh  asinhf )
+(libm_op1  _flacosh  acosh  acoshf )
+(libm_op1  _flatanh  atanh  atanhf )
 (libm_op2  _flatan2  atan2  atan2f )
 
 ; misc
+(libm_op1  _flabs    fabs   fabsf  )
 (libm_op3  _flfma    fma    fmaf   )
 (libm_op2  _flhypot  hypot  hypotf )
 (libm_op2  _flfmod   fmod   fmodf  )
@@ -91,8 +94,14 @@
 (define (bfcube x)
   (bf* x (bf* x x)))
 
+(define (_flsqr x)
+  (* x x))
+
 (define (_flcube x)
   (* x (* x x)))
+
+(define (_flcotan x)
+  (/ 1 (tan x)))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -108,31 +117,37 @@
   [/        '(2)      bf/       /          40]
 
   ; exponents
-  [sqrt     '(1)      bfsqrt    csqrt      40]
-  [sqr      '(1)      bfsqr     sqr        40] ; = multiply cost
+  [sqrt     '(1)      bfsqrt    _flsqrt    40]
+  [sqr      '(1)      bfsqr     _flsqr     40] ; = multiply cost
   [cbrt     '(1)      bfcbrt    _flcbrt    80]
   [cube     '(1)      bfcube    _flcube    80] ; = 2 * multiply cost
-  [exp      '(1)      bfexp     exp        70]
+  [expt     '(2)      bfexpt    _flexpt   210]
+  [exp      '(1)      bfexp     _flexp     70]
+  [exp2     '(1)      bfexp2    _flexp2    70]
   [expm1    '(1)      bfexpm1   _flexpm1   70]
-  [expt     '(2)      bfexpt    cexpt     210]
-  [log      '(1)      bflog     clog       70]
+  [log      '(1)      bflog     _fllog     70]
+  [log2     '(1)      bflog2    _fllog2    70]
+  [log10    '(1)      bflog10   _fllog10   70]
   [log1p    '(1)      bflog1p   _fllog1p   90]
 
   ; trig
-  [sin      '(1)      bfsin     sin        60]
-  [cos      '(1)      bfcos     cos        60]
-  [tan      '(1)      bftan     tan        95]
-  [cotan    '(1)      bfcot     cotan     135] ; = tan + div cost
-  [asin     '(1)      bfasin    casin     105]
-  [acos     '(1)      bfacos    cacos      90]
-  [atan     '(1)      bfatan    atan      105]
+  [sin      '(1)      bfsin     _flsin     60]
+  [cos      '(1)      bfcos     _flcos     60]
+  [tan      '(1)      bftan     _fltan     95]
+  [cotan    '(1)      bfcot     _flcotan  135] ; = tan + div cost
+  [asin     '(1)      bfasin    _flasin   105]
+  [acos     '(1)      bfacos    _flacos    90]
+  [atan     '(1)      bfatan    _flatan   105]
   [sinh     '(1)      bfsinh    _flsinh    55]
   [cosh     '(1)      bfcosh    _flcosh    55]
   [tanh     '(1)      bftanh    _fltanh    55]
+  [asinh    '(1)      bfasinh   _flasinh   55]
+  [acosh    '(1)      bfacosh   _flacosh   55]
+  [atanh    '(1)      bfatanh   _flatanh   55]
   [atan2    '(2)      bfatan2   _flatan2  140]
 
   ; misc
-  [abs      '(1)      bfabs     abs        40]
+  [abs      '(1)      bfabs     _flabs     40]
   [fma      '(3)      bffma     _flfma     55]
   [hypot    '(2)      bfhypot   _flhypot   55]
   [mod      '(2)      bffmod    _flfmod    70]
