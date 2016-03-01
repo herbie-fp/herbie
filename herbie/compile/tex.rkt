@@ -18,7 +18,8 @@
   [phi1    "\\phi_1"]
   [phi2    "\\phi_2"]
   [lambda  "\\lambda"]
-  [lambda1 "\\lambda_1"])
+  [lambda1 "\\lambda_1"]
+  [lambda2 "\\lambda_2"])
 
 (define (apply-converter conv args [idx #f])
   (cond
@@ -144,9 +145,10 @@
   [or       "~a \\lor ~a"
             (curry tag-infix "\\lor")
             '+ '+]
-  [mod      "~a \\modb ~a"
-            (curry tag-infix "\\modb")
+  [mod      "~a \\mathsf{mod} ~a"
+            (curry tag-infix "\\mathsf{mod}")
             #t #f]
+  ; TODO : this is probably not the correct way to TeX up fma...
   [fma      "\\mathsf{fma}_*(~a, ~a, ~a)"
             (curry tag-infix "\\mathsf{fma}_*")
             'fn #f])
