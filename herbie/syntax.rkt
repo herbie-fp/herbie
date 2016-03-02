@@ -17,11 +17,9 @@
 
 ; Functions and constants used in our language
 (define nan ((flag 'precision 'double) +nan.0 +nan.f))
+; TODO add infinity
 
-; use C ffi to get numerical ops from libm
-; TODO: import all portable ops
-;   e.g. add remainder?
-;   http://www.gnu.org/software/libc/manual/html_node/Remainder-Functions.html
+; Use C ffi to get numerical ops from libm
 (require ffi/unsafe ffi/unsafe/define)
 (define-ffi-definer define-libm #f)
 
@@ -52,56 +50,72 @@
         (id_d (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
         (id_f (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))))
 
-; exponents
-(libm_op1  _flsqrt   sqrt   sqrtf  )
-(libm_op1  _flcbrt   cbrt   cbrtf  )
-(libm_op2  _flexpt   pow    powf   )
-(libm_op1  _flexp    exp    expf   )
-(libm_op1  _flexp2   exp2   exp2f  )
-(libm_op1  _flexpm1  expm1  expm1f )
-(libm_op1  _fllog    log    logf   )
-(libm_op1  _fllog2   log2   log2f  )
-(libm_op1  _fllog10  log10  log10f )
-(libm_op1  _fllog1p  log1p  log1pf )
+; Supported ops from libm (https://goo.gl/auVJi5)
+(libm_op1  _flacos       acos       acosf)
+(libm_op1  _flacosh      acosh      acoshf)
+(libm_op1  _flasin       asin       asinf)
+(libm_op1  _flasinh      asinh      asinhf)
+(libm_op1  _flatan       atan       atanf)
+(libm_op2  _flatan2      atan2      atan2f)
+(libm_op1  _flatanh      atanh      atanhf)
+(libm_op1  _flcbrt       cbrt       cbrtf)
+(libm_op1  _flceil       ceil       ceilf)
+(libm_op2  _flcopysign   copysign   copysignf)
+(libm_op1  _flcos        cos        cosf)
+(libm_op1  _flcosh       cosh       coshf)
+(libm_op1  _flerf        erf        erff)
+(libm_op1  _flerfc       erfc       erfcf)
+(libm_op1  _flexp        exp        expf)
+(libm_op1  _flexp2       exp2       exp2f)
+(libm_op1  _flexpm1      expm1      expm1f)
+(libm_op1  _flfabs       fabs       fabsf)
+(libm_op2  _flfdim       fdim       fdimf)
+(libm_op1  _flfloor      floor      floorf)
+(libm_op3  _flfma        fma        fmaf)
+(libm_op2  _flfmax       fmax       fmaxf)
+(libm_op2  _flfmin       fmin       fminf)
+(libm_op2  _flfmod       fmod       fmodf)
+(libm_op2  _flhypot      hypot      hypotf)
+(libm_op1  _fllog        log        logf)
+(libm_op1  _fllog10      log10      log10f)
+(libm_op1  _fllog1p      log1p      log1pf)
+(libm_op1  _fllog2       log2       log2f)
+(libm_op2  _flpow        pow        powf)
+(libm_op2  _flremainder  remainder  remainderf)
+(libm_op1  _flround      round      roundf)
+(libm_op1  _flsin        sin        sinf)
+(libm_op1  _flsinh       sinh       sinhf)
+(libm_op1  _flsqrt       sqrt       sqrtf)
+(libm_op1  _fltan        tan        tanf)
+(libm_op1  _fltanh       tanh       tanhf)
+(libm_op1  _fltrunc      trunc      truncf)
 
-; trig
-(libm_op1  _flsin    sin    sinf   )
-(libm_op1  _flcos    cos    cosf   )
-(libm_op1  _fltan    tan    tanf   )
-(libm_op1  _flasin   asin   asinf  )
-(libm_op1  _flacos   acos   acosf  )
-(libm_op1  _flatan   atan   atanf  )
-(libm_op1  _flsinh   sinh   sinhf  )
-(libm_op1  _flcosh   cosh   coshf  )
-(libm_op1  _fltanh   tanh   tanhf  )
-(libm_op1  _flasinh  asinh  asinhf )
-(libm_op1  _flacosh  acosh  acoshf )
-(libm_op1  _flatanh  atanh  atanhf )
-(libm_op2  _flatan2  atan2  atan2f )
+(define (_flcotan x)
+  (/ 1 (tan x)))
 
-; misc
-(libm_op1  _flabs    fabs   fabsf  )
-(libm_op3  _flfma    fma    fmaf   )
-(libm_op2  _flhypot  hypot  hypotf )
-(libm_op2  _flfmod   fmod   fmodf  )
+(define (_flcube x)
+  (* x (* x x)))
+
+(define (_flsqr x)
+  (* x x))
+
+(define (bfcopysign x y)
+  (bf* (bfabs x)
+       (bf (expt -1 (bigfloat-signbit y)))))
+
+(define (bffdim x y)
+  (if (bf> x y)
+    (bf- x y)
+    0.bf))
+
+(define (bfcube x)
+  (bf* x (bf* x x)))
 
 (define (bffma x y z)
   (bf+ (bf* x y) z))
 
 (define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
-
-(define (bfcube x)
-  (bf* x (bf* x x)))
-
-(define (_flsqr x)
-  (* x x))
-
-(define (_flcube x)
-  (* x (* x x)))
-
-(define (_flcotan x)
-  (/ 1 (tan x)))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -111,48 +125,53 @@
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
   ; arithmetic
-  [+        '(2)      bf+       +          40]
-  [-        '(1 2)    bf-       -          40]
-  [*        '(2)      bf*       *          40]
-  [/        '(2)      bf/       /          40]
+  [+  '(2)    bf+  +  40]
+  [-  '(1 2)  bf-  -  40]
+  [*  '(2)    bf*  *  40]
+  [/  '(2)    bf/  /  40]
 
-  ; exponents
-  [sqrt     '(1)      bfsqrt    _flsqrt    40]
-  [sqr      '(1)      bfsqr     _flsqr     40] ; = multiply cost
-  [cbrt     '(1)      bfcbrt    _flcbrt    80]
-  [cube     '(1)      bfcube    _flcube    80] ; = 2 * multiply cost
-  [expt     '(2)      bfexpt    _flexpt   210]
-  [exp      '(1)      bfexp     _flexp     70]
-  [exp2     '(1)      bfexp2    _flexp2    70]
-  [expm1    '(1)      bfexpm1   _flexpm1   70]
-  [log      '(1)      bflog     _fllog     70]
-  [log2     '(1)      bflog2    _fllog2    70]
-  [log10    '(1)      bflog10   _fllog10   70]
-  [log1p    '(1)      bflog1p   _fllog1p   90]
+  [acos      '(1)  bfacos       _flacos        90]
+  [acosh     '(1)  bfacosh      _flacosh       55]
+  [asin      '(1)  bfasin       _flasin       105]
+  [asinh     '(1)  bfasinh      _flasinh       55]
+  [atan      '(1)  bfatan       _flatan       105]
+  [atan2     '(2)  bfatan2      _flatan2      140]
+  [atanh     '(1)  bfatanh      _flatanh       55]
+  [cbrt      '(1)  bfcbrt       _flcbrt        80]
+  [ceil      '(1)  bfceiling    _flceil        80]
+  [copysign  '(2)  bfcopysign   _flcopysign    80]
+  [cos       '(1)  bfcos        _flcos         60]
+  [cosh      '(1)  bfcosh       _flcosh        55]
+  [cotan     '(1)  bfcot        _flcotan      135]
+  [cube      '(1)  bfcube       _flcube        80]
+  [erf       '(1)  bferf        _flerf         70]
+  [erfc      '(1)  bferfc       _flerfc        70]
+  [exp       '(1)  bfexp        _flexp         70]
+  [exp2      '(1)  bfexp2       _flexp2        70]
+  [expm1     '(1)  bfexpm1      _flexpm1       70]
+  [abs       '(1)  bfabs        _flfabs        40]
+  [fdim      '(2)  bffdim       _flfdim        55]
+  [floor     '(1)  bffloor      _flfloor       55]
+  [fma       '(3)  bffma        _flfma         55]
+  [fmax      '(2)  bfmax        _flfmax        55]
+  [fmin      '(2)  bfmin        _flfmin        55]
+  [mod       '(2)  bffmod       _flfmod        70]
+  [hypot     '(2)  bfhypot      _flhypot       55]
+  [log       '(1)  bflog        _fllog         70]
+  [log10     '(1)  bflog10      _fllog10       70]
+  [log1p     '(1)  bflog1p      _fllog1p       90]
+  [log2      '(1)  bflog2       _fllog2        70]
+  [expt      '(2)  bfexpt       _flpow        210]
+  [remainder '(2)  bfremainder  _flremainder   70]
+  [round     '(1)  bfround      _flround       70]
+  [sin       '(1)  bfsin        _flsin         60]
+  [sinh      '(1)  bfsinh       _flsinh        55]
+  [sqr       '(1)  bfsqr        _flsqr         40]
+  [sqrt      '(1)  bfsqrt       _flsqrt        40]
+  [tan       '(1)  bftan        _fltan         95]
+  [tanh      '(1)  bftanh       _fltanh        55]
+  [trunc     '(1)  bftruncate   _fltrunc       55]
 
-  ; trig
-  [sin      '(1)      bfsin     _flsin     60]
-  [cos      '(1)      bfcos     _flcos     60]
-  [tan      '(1)      bftan     _fltan     95]
-  [cotan    '(1)      bfcot     _flcotan  135] ; = tan + div cost
-  [asin     '(1)      bfasin    _flasin   105]
-  [acos     '(1)      bfacos    _flacos    90]
-  [atan     '(1)      bfatan    _flatan   105]
-  [sinh     '(1)      bfsinh    _flsinh    55]
-  [cosh     '(1)      bfcosh    _flcosh    55]
-  [tanh     '(1)      bftanh    _fltanh    55]
-  [asinh    '(1)      bfasinh   _flasinh   55]
-  [acosh    '(1)      bfacosh   _flacosh   55]
-  [atanh    '(1)      bfatanh   _flatanh   55]
-  [atan2    '(2)      bfatan2   _flatan2  140]
-
-  ; misc
-  [abs      '(1)      bfabs     _flabs     40]
-  [fma      '(3)      bffma     _flfma     55]
-  [hypot    '(2)      bfhypot   _flhypot   55]
-  [mod      '(2)      bffmod    _flfmod    70]
-
-  ; comparison and conditional
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn     if-fn      65]
   [=        '(2)      bf=       =          65]
@@ -183,15 +202,15 @@
 
 (define (->flonum x)
   (let ([convert ((flag 'precision 'double)
-		  real->double-flonum
-		  real->single-flonum)])
+                   real->double-flonum
+                   real->single-flonum)])
     (cond
      [(real? x) (convert x)]
      [(bigfloat? x) (convert (bigfloat->flonum x))]
      [(complex? x)
       (if (= (imag-part x) 0)
-	  (->flonum (real-part x))
-	  +nan.0)]
+        (->flonum (real-part x))
+        +nan.0)]
      [(eq? x 'pi) (convert pi)]
      [(eq? x 'e) (convert (exp 1))]
      [else x])))
