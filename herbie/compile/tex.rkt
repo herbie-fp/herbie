@@ -148,10 +148,9 @@
   [mod      "~a \\mathsf{mod} ~a"
             (curry tag-infix "\\mathsf{mod}")
             #t #f]
-  ; TODO : this is probably not the correct way to TeX up fma...
-  [fma      "\\mathsf{fma}_*(~a, ~a, ~a)"
-            (curry tag-infix "\\mathsf{fma}_*")
-            'fn #f])
+  [fma      "(~a * ~a + ~a)_*"
+            (curry tag-inner-untag "(~a * ~a + ~a)_*")
+            #t #t])
 
 (define parens-precedence '(#t + * fn #f))
 
