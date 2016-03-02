@@ -18,41 +18,64 @@
    [else (error "Unknown syntax entry" conv)]))
 
 (define-table operators->c
-  [+        "~a + ~a"]
-  [-        '(#f "-~a" "~a - ~a")]
-  [*        "~a * ~a"]
-  [/        '(#f "1.0/~a" "~a / ~a")]
-  [abs      "fabs(~a)"]
-  [sqrt     "sqrt(~a)"]
-  [hypot    "hypot(~a, ~a)"]
-  [sqr      (lambda (x) (format "~a * ~a" x x))]
-  [cube     (lambda (x) (format "~a * (~a * ~a)" x x x))]
-  [exp      "exp(~a)"]
-  [expm1    "expm1(~a)"]
-  [expt     "pow(~a, ~a)"]
-  [log      "log(~a)"]
-  [log1p    "log1p(~a)"]
-  [sin      "sin(~a)"]
-  [cos      "cos(~a)"]
-  [tan      "tan(~a)"]
-  [cotan    "1.0 / tan(~a)"]
-  [asin     "asin(~a)"]
-  [acos     "acos(~a)"]
-  [atan     "atan(~a)"]
-  [sinh     "sinh(~a)"]
-  [cosh     "cosh(~a)"]
-  [tanh     "tanh(~a)"]
-  [atan2    "atan2(~a, ~a)"]
-  [if       "~a ? ~a : ~a"]
-  [>        "~a > ~a"]
-  [<        "~a < ~a"]
-  [<=       "~a <= ~a"]
-  [>=       "~a >= ~a"]
-  [and      "~a && ~a"]
-  [or       "~a || ~a"]
-  [mod      "fmod(~a, ~a)"]
-  [fma      "fma(~a, ~a, ~a)"]
-  [cbrt     "cbrt(~a)"])
+  [+  "~a + ~a"]
+  [-  '(#f "-~a" "~a - ~a")]
+  [*  "~a * ~a"]
+  [/  '(#f "1.0/~a" "~a / ~a")]
+
+  [sqr    (lambda (x) (format "~a * ~a" x x))]
+  [cube   (lambda (x) (format "~a * (~a * ~a)" x x x))]
+  [cotan  "1.0 / tan(~a)"]
+
+  [acos       "acos(~a)"]
+  [acosh      "acosh(~a)"]
+  [asin       "asin(~a)"]
+  [asinh      "asinh(~a)"]
+  [atan       "atan(~a)"]
+  [atan2      "atan2(~a, ~a)"]
+  [atanh      "atanh(~a)"]
+  [cbrt       "cbrt(~a)"]
+  [ceil       "ceil(~a)"]
+  [copysign   "copysign(~a, ~a)"]
+  [cos        "cos(~a)"]
+  [cosh       "cosh(~a)"]
+  [erf        "erf(~a)"]
+  [erfc       "erfc(~a)"]
+  [exp        "exp(~a)"]
+  [exp2       "exp2(~a)"]
+  [expm1      "expm1(~a)"]
+  [abs        "fabs(~a)"]
+  [fdim       "fdim(~a, ~a)"]
+  [floor      "floor(~a)"]
+  [fma        "fma(~a, ~a, ~a)"]
+  [fmax       "fmax(~a, ~a)"]
+  [fmin       "fmin(~a, ~a)"]
+  [mod        "fmod(~a, ~a)"]
+  [hypot      "hypot(~a, ~a)"]
+  [log        "log(~a)"]
+  [log10      "log10(~a)"]
+  [log1p      "log1p(~a)"]
+  [log2       "log2(~a)"]
+  [expt       "pow(~a, ~a)"]
+  [remainder  "remainder(~a, ~a)"]
+  [round      "round(~a)"]
+  [sin        "sin(~a)"]
+  [sinh       "sinh(~a)"]
+  [sqrt       "sqrt(~a)"]
+  [tan        "tan(~a)"]
+  [tanh       "tanh(~a)"]
+  [trunc      "trunc(~a)"]
+
+  [if   "~a ? ~a : ~a"]
+  [=    "~a == ~a"]
+  [>    "~a > ~a"]
+  [<    "~a < ~a"]
+  [>=   "~a >= ~a"]
+  [<=   "~a <= ~a"]
+  ; TODO what should not be?
+  [and  "~a && ~a"]
+  [or   "~a || ~a"])
+
 
 (define-table constants->c
   [pi    "atan2(1.0, 0.0)"]
@@ -104,47 +127,87 @@
    (printf "}\n\n")))
 
 (define-table operators->mpfr
-  [+        "mpfr_add(~a, ~a, ~a, MPFR_RNDN)"]
-  [-        '(#f #f "mpfr_neg(~a, ~a, MPFR_RNDN)" "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)")]
-  [*        "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"]
-  [/        '(#f #f "mpfr_ui_div(~a, 1, ~a, MPFR_RNDN)" "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
-  [abs      "mpfr_abs(~a, ~a, MPFR_RNDN)"]
-  [sqrt     "mpfr_sqrt(~a, ~a, MPFR_RNDN)"]
-  [hypot    "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"]
+  [+  "mpfr_add(~a, ~a, ~a, MPFR_RNDN)"]
+  [-  '(#f
+        #f
+        "mpfr_neg(~a, ~a, MPFR_RNDN)"
+        "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)")]
+  [*  "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"]
+  [/  '(#f
+        #f
+        "mpfr_ui_div(~a, 1, ~a, MPFR_RNDN)"
+        "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
+
   [sqr      "mpfr_sqr(~a, ~a, MPFR_RNDN)"]
-  [cube     (λ (x y)
-               (format
-                 "mpfr_mul(~a, ~a, ~a, MPFR_RNDN); mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"
-                 x y y x x y))]
-  [exp      "mpfr_exp(~a, ~a, MPFR_RNDN)"]
-  [expm1    "mpfr_expm1(~a, ~a, MPFR_RNDN)"]
-  [expt     "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)"]
-  [log      "mpfr_log(~a, ~a, MPFR_RNDN)"]
-  [log1p    "mpfr_log1p(~a, ~a, MPFR_RNDN)"]
-  [sin      "mpfr_sin(~a, ~a, MPFR_RNDN)"]
-  [cos      "mpfr_cos(~a, ~a, MPFR_RNDN)"]
-  [tan      "mpfr_tan(~a, ~a, MPFR_RNDN)"]
   [cotan    "mpfr_cot(~a, ~a, MPFR_RNDN)"]
-  [asin     "mpfr_asin(~a, ~a, MPFR_RNDN)"]
-  [acos     "mpfr_acos(~a, ~a, MPFR_RNDN)"]
-  [atan     "mpfr_atan(~a, ~a, MPFR_RNDN)"]
-  [sinh     "mpfr_sinh(~a, ~a, MPFR_RNDN)"]
-  [cosh     "mpfr_cosh(~a, ~a, MPFR_RNDN)"]
-  [tanh     "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
-  [if       (lambda (r c a b)
-               (format
-                "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }"
-                c r a r b))]
+  [cube     (λ (x y) (string-append
+              (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN); "
+                      x y y)
+              (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"
+                      x x y)))]
+
+  [acos       "mpfr_acos(~a, ~a, MPFR_RNDN)"]
+  [acosh      "mpfr_acosh(~a, ~a, MPFR_RNDN)"]
+  [asin       "mpfr_asin(~a, ~a, MPFR_RNDN)"]
+  [asinh      "mpfr_asinh(~a, ~a, MPFR_RNDN)"]
+  [atan       "mpfr_atan(~a, ~a, MPFR_RNDN)"]
+  [atan2      "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
+  [atanh      "mpfr_atanh(~a, ~a, MPFR_RNDN)"]
+  [cbrt       "mpfr_cbrt(~a, ~a, MPFR_RNDN)"]
+  [ceil       "mpfr_ceil(~a, ~a, MPFR_RNDN)"]
+  [copysign   "mpfr_copysign(~a, ~a, ~a, MPFR_RNDN)"]
+  [cos        "mpfr_cos(~a, ~a, MPFR_RNDN)"]
+  [cosh       "mpfr_cosh(~a, ~a, MPFR_RNDN)"]
+  [erf        "mpfr_erf(~a, ~a, MPFR_RNDN)"]
+  [erfc       "mpfr_erfc(~a, ~a, MPFR_RNDN)"]
+  [exp        "mpfr_exp(~a, ~a, MPFR_RNDN)"]
+  [exp2       "mpfr_exp2(~a, ~a, MPFR_RNDN)"]
+  [expm1      "mpfr_expm1(~a, ~a, MPFR_RNDN)"]
+  [abs        "mpfr_abs(~a, ~a, MPFR_RNDN)"]
+  [fdim       "mpfr_dim(~a, ~a, ~a, MPFR_RNDN)"]
+  [floor      "mpfr_floor(~a, ~a, MPFR_RNDN)"]
+  [fma        "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)"]
+  [fmax       "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)"]
+  [fmin       "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)"]
+  [mod        "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)"]
+  [hypot      "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"]
+  [log        "mpfr_log(~a, ~a, MPFR_RNDN)"]
+  [log10      "mpfr_log10(~a, ~a, MPFR_RNDN)"]
+  [log1p      "mpfr_log1p(~a, ~a, MPFR_RNDN)"]
+  [log2       "mpfr_log2(~a, ~a, MPFR_RNDN)"]
+  [expt       "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)"]
+  [remainder  "mpfr_remainder(~a, ~a, ~a, MPFR_RNDN)"]
+  [round      "mpfr_round(~a, ~a, MPFR_RNDN)"]
+  [sin        "mpfr_sin(~a, ~a, MPFR_RNDN)"]
+  [sinh       "mpfr_sinh(~a, ~a, MPFR_RNDN)"]
+  [sqrt       "mpfr_sqrt(~a, ~a, MPFR_RNDN)"]
+  [tan        "mpfr_tan(~a, ~a, MPFR_RNDN)"]
+  [tanh       "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
+  [trunc      "mpfr_trunc(~a, ~a, MPFR_RNDN)"]
+
+
+
+  [if       (lambda (r c a b) (string-append
+               (format "if (mpfr_get_si(~a, MPFR_RNDN)) { " c)
+               (format "mpfr_set(~a, ~a, MPFR_RNDN); " r a)
+               "} else { "
+               (format "mpfr_set(~a, ~a, MPFR_RNDN); " r b)
+               "}"))]
   [>        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)"]
   [<        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)"]
-  [<=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)"]
   [>=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)"]
-  [and      "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
-  [or       "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)"]
-  [atan2    "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
-  [mod      "mpfr_fmod2(~a, ~a, ~a, MPFR_RNDN)"]
-  [fma      "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)"]
-  [cbrt     "mpfr_cbrt(~a, ~a, MPFR_RNDN)"])
+  [<=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)"]
+  ; TODO what should not be?
+  [and      (string-append
+              "mpfr_set_si(~a, "
+                "mpfr_get_si(~a, MPFR_RNDN) && "
+                "mpfr_get_si(~a, MPFR_RNDN), "
+              "MPFR_RNDN)")]
+  [or       (string-append
+              "mpfr_set_si(~a, "
+                "mpfr_get_si(~a, MPFR_RNDN) || "
+                "mpfr_get_si(~a, MPFR_RNDN), "
+              "MPFR_RNDN)")])
 
 (define-table constants->mpfr
   [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]

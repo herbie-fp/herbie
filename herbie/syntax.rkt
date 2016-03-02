@@ -130,6 +130,10 @@
   [*  '(2)    bf*  *  40]
   [/  '(2)    bf/  /  40]
 
+  [sqr    '(1)  bfsqr   _flsqr     40]
+  [cube   '(1)  bfcube  _flcube    80]
+  [cotan  '(1)  bfcot   _flcotan  135]
+
   [acos      '(1)  bfacos       _flacos        90]
   [acosh     '(1)  bfacosh      _flacosh       55]
   [asin      '(1)  bfasin       _flasin       105]
@@ -142,8 +146,6 @@
   [copysign  '(2)  bfcopysign   _flcopysign    80]
   [cos       '(1)  bfcos        _flcos         60]
   [cosh      '(1)  bfcosh       _flcosh        55]
-  [cotan     '(1)  bfcot        _flcotan      135]
-  [cube      '(1)  bfcube       _flcube        80]
   [erf       '(1)  bferf        _flerf         70]
   [erfc      '(1)  bferfc       _flerfc        70]
   [exp       '(1)  bfexp        _flexp         70]
@@ -166,7 +168,6 @@
   [round     '(1)  bfround      _flround       70]
   [sin       '(1)  bfsin        _flsin         60]
   [sinh      '(1)  bfsinh       _flsinh        55]
-  [sqr       '(1)  bfsqr        _flsqr         40]
   [sqrt      '(1)  bfsqrt       _flsqrt        40]
   [tan       '(1)  bftan        _fltan         95]
   [tanh      '(1)  bftanh       _fltanh        55]
