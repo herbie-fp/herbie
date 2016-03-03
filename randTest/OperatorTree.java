@@ -56,8 +56,9 @@ public class OperatorTree {
   private final String name;
   private final String[] vars;
   private final Node expr;
+  private final String[] dist;
 
-  public OperatorTree(int size, int nVars) {
+  public OperatorTree(int size, int nVars, String[] dist) {
     if(size < 1) throw new Error("size < 1");
     if(nVars > VARS.length) throw new Error("nVars > VARS.length");
 
@@ -65,6 +66,7 @@ public class OperatorTree {
     this.name = String.format("\"Random Jason Test %03d\"", count);
     this.vars = Arrays.copyOf(VARS, nVars);
     this.expr = genExpr(size);
+    this.dist = dist;
   }
 
   private Node genExpr(int fuel) {
@@ -86,11 +88,27 @@ public class OperatorTree {
     }
     return n;
   }
+  
+  private String makeDist() {
+	  if (dist != null) {
+		  StringBuilder sb = new StringBuilder();
+		  int minLen = Math.min(dist.length, vars.length);
+		  for (int i = 0; i < minLen; i++) {
+			  sb.append("(" + vars[i] + " (" + dist[i] + ")) ");
+		  }
+		  for (int i = minLen; i < vars.length; i++) {
+			  sb.append(vars[i] + " ");
+		  }
+		  return sb.toString();
+	  } else {
+		  return String.join(" ", vars);
+	  }
+  }
 
   public String toString() {
     return String.format(
         "(herbie-test (%s)\n  %s\n  %s)"
-        , String.join(" ", vars)
+        , String.join(" ", makeDist())
         , name
         , expr.toString());
   }
@@ -120,3 +138,4 @@ public class OperatorTree {
     }
   }
 }
+

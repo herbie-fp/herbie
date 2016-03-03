@@ -7,6 +7,7 @@ public class RandomTest {
 
   private static int sizeWiggle  = 0;
   private static int nVarsWiggle = 0;
+  private static String[] dist;
 
   private static final String usage =
     String.join("\n"
@@ -19,6 +20,7 @@ public class RandomTest {
       , "  --nvars N           number of variables in generated expressions (default 1)"
       , "  --nvars-wiggle N    how much wiggle to randomly add to number of vars (default 0)"
       , "  --ntests N          number of tests to generate (default 1)"
+      , "  --samplers N args   define samplers for each variable (default default sampler)"
       );
 
   private static class BogusCL extends Exception {
@@ -106,6 +108,18 @@ public class RandomTest {
               String.format("number of tests must be positive, but got %d", nTests));
           }
           break;
+        case "-sp":
+        case "--samplers":
+	   i++;
+	   int numSp = Integer.parseInt(args[i]);
+	   i++;
+	   dist = new String[numSp];
+	   for (int j = 0; j < numSp; j++) {
+	      dist[j] = args[i].replace('_', ' ');
+	      i++;
+	   }
+	   i--;
+	break;
         default:
           throw new BogusCL(
             String.format("invalid argument '%s'", args[i]));
@@ -130,8 +144,9 @@ public class RandomTest {
     for(int i=0; i<nTests; i++) {
       int s = size + rnd.nextInt(sizeWiggle + 1);
       int v = nVars + rnd.nextInt(nVarsWiggle + 1);
-      System.out.println(new OperatorTree(s, v));
+      System.out.println(new OperatorTree(s, v, dist));
       System.out.println();
     }
   }
 }
+
