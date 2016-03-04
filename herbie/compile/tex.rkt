@@ -2,9 +2,11 @@
 (require "../common.rkt")
 (require "../syntax.rkt")
 
-(provide texify-expression mathjax-url texify-operators texify-constants apply-converter)
+(provide mathjax-url apply-converter
+         texify-constants texify-operators texify-expression)
 
-(define mathjax-url "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+(define mathjax-url
+  "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
   [l       "\\ell"]
@@ -23,49 +25,54 @@
 
 (define (apply-converter conv args [idx #f])
   (cond
-   [(string? conv) (apply format conv args)]
-   [(list? conv) (apply-converter (list-ref conv (length args)) args idx)]
-   [(procedure? conv) (apply conv (if idx (cons idx args) args))]
-   [else (error "Unknown syntax entry" conv)]))
+    [(string? conv) (apply format conv args)]
+    [(list? conv) (apply-converter (list-ref conv (length args)) args idx)]
+    [(procedure? conv) (apply conv (if idx (cons idx args) args))]
+    [else (error "Unknown syntax entry" conv)]))
 
 (define (tag str idx)
-  (format "\\class{location}{\\cssId{~a}{\\color{red}{\\enclose{circle}{~a}}}}" idx str))
+  (let* ([enc (format "\\enclose{circle}{~a}" str)]
+         [col (format "\\color{red}{~a}" enc)]
+         [loc (format "\\class{location}{\\cssId{~a}{~a}}" idx col)])
+    loc))
+
 (define (untag str)
   (format "\\color{black}{~a}" str))
 
-(define (tag-inner-untag str idx . args)
+(define ((tag-inner-untag str) idx . args)
   (tag (apply format str (map untag args)) idx))
-(define (tag-infix op idx arg1 arg2)
+
+(define ((tag-infix op) idx arg1 arg2)
   (format "~a ~a ~a" arg1 (tag op idx) arg2))
 
 (define-table texify-operators
   [+        '(#f "+~a" "~a + ~a")
-            `(#f ,(curry tag-inner-untag "+~a")
-                 ,(curry tag-infix "+"))
+            `(#f ,(tag-inner-untag "+~a")
+                 ,(tag-infix "+"))
             '+ '+]
   [-        '(#f "-~a" "~a - ~a")
-            `(#f ,(curry tag-inner-untag "-~a")
-                 ,(curry tag-infix "-"))
+            `(#f ,(tag-inner-untag "-~a")
+                 ,(tag-infix "-"))
             '+ '+]
   [*        "~a \\cdot ~a"
-            (curry tag-infix "\\cdot")
+            (tag-infix "\\cdot")
             '* '*]
   [/        '(#f "\\frac1{~a}" "\\frac{~a}{~a}")
-            `(#f ,(curry tag-inner-untag "\\frac1{~a}")
-                 ,(curry tag-inner-untag "\\frac{~a}{~a}"))
+            `(#f ,(tag-inner-untag "\\frac1{~a}")
+                 ,(tag-inner-untag "\\frac{~a}{~a}"))
             #f #t]
 
   [abs      "\\left|~a\\right|"
-            (curry tag-inner-untag "\\left|~a\\right|")
+            (tag-inner-untag "\\left|~a\\right|")
             #f #t]
   [sqrt     "\\sqrt{~a}"
-            (curry tag-inner-untag "\\sqrt{~a}")
+            (tag-inner-untag "\\sqrt{~a}")
             #f #t]
   [cbrt     "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle 3]{~a}"
-            (curry tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle 3]{~a}")
+            (tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle 3]{~a}")
             #f #t]
   [hypot    "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle *]{~a^2 + ~a^2}^*"
-            (curry tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle *]{~a^2 + ~a^2}^*")
+            (tag-inner-untag "\\sqrt[\\leftroot{-1}\\uproot{2}\\scriptstyle *]{~a^2 + ~a^2}^*")
             #f #t]
   [sqr      "{~a}^2"
             (lambda (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
@@ -74,83 +81,83 @@
             (lambda (idx a) (format "{~a}^{~a}" a (tag "3" idx)))
             #f #f]
   [exp      "e^{~a}"
-            (curry tag-inner-untag "e^{~a}")
+            (tag-inner-untag "e^{~a}")
             #f #t]
   [expm1    "\\exp_* (~a - 1)"
-            (curry tag-inner-untag "\\exp_* (~a - 1)")
+            (tag-inner-untag "\\exp_* (~a - 1)")
             'fn #t]
   [expt     "{~a}^{~a}"
-            (curry tag-inner-untag "{~a}^{~a}")
+            (tag-inner-untag "{~a}^{~a}")
             #f #f]
   [log      "\\log ~a"
-            (curry tag-inner-untag "\\log (~a)")
+            (tag-inner-untag "\\log (~a)")
             'fn #f]
   [log1p    "\\log_* (1 + ~a)"
-            (curry tag-inner-untag "\\log_* (1 + ~a)")
+            (tag-inner-untag "\\log_* (1 + ~a)")
             '+ #f]
   [sin      "\\sin ~a"
-            (curry tag-inner-untag "\\sin ~a")
+            (tag-inner-untag "\\sin ~a")
             'fn #f]
   [cos      "\\cos ~a"
-            (curry tag-inner-untag "\\cos ~a")
+            (tag-inner-untag "\\cos ~a")
             'fn #f]
   [tan      "\\tan ~a"
-            (curry tag-inner-untag "\\tan ~a")
+            (tag-inner-untag "\\tan ~a")
             'fn #f]
   [cotan    "\\cot ~a"
-            (curry tag-inner-untag "\\cot ~a")
+            (tag-inner-untag "\\cot ~a")
             'fn #f]
   [asin     "\\sin^{-1} ~a"
-            (curry tag-inner-untag "\\sin^{-1} ~a")
+            (tag-inner-untag "\\sin^{-1} ~a")
             'fn #f]
   [acos     "\\cos^{-1} ~a"
-            (curry tag-inner-untag "\\cos^{-1} ~a")
+            (tag-inner-untag "\\cos^{-1} ~a")
             'fn #f]
   [atan     "\\tan^{-1} ~a"
-            (curry tag-inner-untag "\\tan^{-1} ~a")
+            (tag-inner-untag "\\tan^{-1} ~a")
             'fn #f]
   [sinh     "\\sinh ~a"
-            (curry tag-inner-untag "\\sinh ~a")
+            (tag-inner-untag "\\sinh ~a")
             'fn #f]
   [cosh     "\\cosh ~a"
-            (curry tag-inner-untag "\\cosh ~a")
+            (tag-inner-untag "\\cosh ~a")
             'fn #f]
   [tanh     "\\tanh ~a"
-            (curry tag-inner-untag "\\tanh ~a")
+            (tag-inner-untag "\\tanh ~a")
             'fn #f]
   [atan2    "\\tan^{-1}_* \\frac{~a}{~a}"
-            (curry tag-inner-untag "\\tan^{-1}_* \\frac{~a}{~a}")
+            (tag-inner-untag "\\tan^{-1}_* \\frac{~a}{~a}")
             'fn #t]
   [if       "~a ? ~a : ~a"
             (λ (idx a b c)
               (format "~a ~a ~a : ~a" a (tag "?" idx) b c))
             #t #t]
   [=        "~a = ~a"
-            (curry tag-infix "=")
+            (tag-infix "=")
             #f #t]
   [>        "~a \\gt ~a"
-            (curry tag-infix "\\gt")
+            (tag-infix "\\gt")
             #f #t]
   [<        "~a \\lt ~a"
-            (curry tag-infix "\\lt")
+            (tag-infix "\\lt")
             #f #t]
   [<=       "~a \\le ~a"
-            (curry tag-infix "\\le")
+            (tag-infix "\\le")
             #f #t]
   [>=       "~a \\ge ~a"
-            (curry tag-infix "\\ge")
+            (tag-infix "\\ge")
             #f #t]
   [and      "~a \\land ~a"
-            (curry tag-infix "\\land")
+            (tag-infix "\\land")
             '* '*]
   [or       "~a \\lor ~a"
-            (curry tag-infix "\\lor")
+            (tag-infix "\\lor")
             '+ '+]
   [mod      "~a \\mathsf{mod} ~a"
-            (curry tag-infix "\\mathsf{mod}")
+            (tag-infix "\\mathsf{mod}")
             #t #f]
   [fma      "(~a * ~a + ~a)_*"
-            (curry tag-inner-untag "(~a * ~a + ~a)_*")
+            (tag-inner-untag "(~a * ~a + ~a)_*")
             #f #t])
 
 (define parens-precedence '(#t + * fn #f))
