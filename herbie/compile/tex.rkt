@@ -40,11 +40,11 @@
 
 (define-table texify-operators
   [+        '(#f "+~a" "~a + ~a")
-            `(#f ,(λ (idx a) (format "~a~a" (tag "+" idx) a))
+            `(#f ,(curry tag-inner-untag "+~a")
                  ,(curry tag-infix "+"))
             '+ '+]
   [-        '(#f "-~a" "~a - ~a")
-            `(#f ,(λ (idx a) (format "~a~a" (tag "-" idx) a))
+            `(#f ,(curry tag-inner-untag "-~a")
                  ,(curry tag-infix "-"))
             '+ '+]
   [*        "~a \\cdot ~a"
@@ -54,6 +54,7 @@
             `(#f ,(curry tag-inner-untag "\\frac1{~a}")
                  ,(curry tag-inner-untag "\\frac{~a}{~a}"))
             #f #t]
+
   [abs      "\\left|~a\\right|"
             (curry tag-inner-untag "\\left|~a\\right|")
             #f #t]
@@ -150,7 +151,7 @@
             #t #f]
   [fma      "(~a * ~a + ~a)_*"
             (curry tag-inner-untag "(~a * ~a + ~a)_*")
-            #t #t])
+            #f #t])
 
 (define parens-precedence '(#t + * fn #f))
 
