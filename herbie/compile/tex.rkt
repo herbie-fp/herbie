@@ -23,18 +23,22 @@
   [lambda1 "\\lambda_1"]
   [lambda2 "\\lambda_2"])
 
+; Note that normal string converters ignore idx and
+; procedure converters take idx as first arg.
 (define (apply-converter conv args [idx #f])
   (cond
-    [(string? conv) (apply format conv args)]
-    [(list? conv) (apply-converter (list-ref conv (length args)) args idx)]
-    [(procedure? conv) (apply conv (if idx (cons idx args) args))]
-    [else (error "Unknown syntax entry" conv)]))
+    [(string? conv)     (apply format conv args)]
+    [(list? conv)       (apply-converter (list-ref conv (length args)) args idx)]
+    [(procedure? conv)  (apply conv (if idx (cons idx args) args))]
+    [else               (error "Unknown syntax entry" conv)]))
 
+; "enclose" is a MathJax extension which may
+; not work with standard TeX processors.
 (define (tag str idx)
   (let* ([enc (format "\\enclose{circle}{~a}" str)]
          [col (format "\\color{red}{~a}" enc)]
-         [loc (format "\\class{location}{\\cssId{~a}{~a}}" idx col)])
-    loc))
+         [css (format "\\class{location}{\\cssId{~a}{~a}}" idx col)])
+    css))
 
 (define (untag str)
   (format "\\color{black}{~a}" str))
@@ -192,7 +196,8 @@
   (let texify ([expr expr] [parens #t] [loc '(2)])
     (define result
       (match expr
-        [(and (? integer?) (? exact?)) (number->string expr)]
+        [(and (? integer?) (? exact?))
+         (number->string expr)]
         [(and (? rational?) (? exact?))
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
@@ -202,7 +207,8 @@
             (if (equal? significand "1")
                 (format "10^{~a}" exp)
                 (format "~a \\cdot 10^{~a}" significand exp))])]
-        [(? symbol?) (car (hash-ref texify-constants expr (list (symbol->string expr))))]
+        [(? symbol?)
+         (car (hash-ref texify-constants expr (list (symbol->string expr))))]
         [`(if ,cond ,ift ,iff)
          (define branches (collect-branches expr loc))
          (format "\\begin{cases} ~a \\end{cases}"
@@ -218,17 +224,20 @@
                                (texify condition #t (cons 1 loc)))]))
                   " \\\\ "))]
         [`(,f ,args ...)
-         (let* ([template (list-ref (hash-ref texify-operators f) 0)]
-                [highlight-template
-                 (list-ref (hash-ref texify-operators f) 1)]
-                [self-paren-level (list-ref (hash-ref texify-operators f) 2)]
-                [arg-paren-level (list-ref (hash-ref texify-operators f) 3)]
-                [args* (for/list ([arg args] [id (in-naturals 1)])
-                         (texify arg arg-paren-level (cons id loc)))]
-                [loc? (assoc (reverse loc) highlight-locs)]
-                [result (if loc?
-                            (apply-converter highlight-template args* (cdr loc?))
-                            (apply-converter template args*))]
+         (let* ([op-info            (curry list-ref (hash-ref texify-operators f))]
+                [template           (op-info 0)]
+                [highlight-template (op-info 1)]
+                [self-paren-level   (op-info 2)]
+                [arg-paren-level    (op-info 3)]
+                [args*
+                  (for/list ([arg args] [id (in-naturals 1)])
+                    (texify arg arg-paren-level (cons id loc)))]
+                [loc?
+                  (assoc (reverse loc) highlight-locs)]
+                [result
+                  (if loc?
+                    (apply-converter highlight-template args* (cdr loc?))
+                    (apply-converter template args*))]
                 [paren-result
                  (if (parens-< parens self-paren-level)
                      result
