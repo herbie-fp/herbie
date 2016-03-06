@@ -1,8 +1,9 @@
 #lang racket
 (require "../common.rkt")
 (require "../syntax.rkt")
+(require "../programs.rkt")
 
-(provide mathjax-url texify-expression)
+(provide mathjax-url texify-expr texify-prog)
 
 (define mathjax-url
   "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
@@ -163,6 +164,14 @@
             (tag-inner-untag "(~a * ~a + ~a)_*")
             #f #t])
 
+(define (collect-branches expr loc)
+  (match expr
+    [`(if ,cond ,ift ,iff)
+     (cons (list cond ift loc)
+           (collect-branches iff (cons 3 loc)))]
+    [else
+     (list (list #t expr loc))]))
+
 (define parens-precedence '(#t + * fn #f))
 
 (define (parens-< a b)
@@ -173,27 +182,16 @@
      [(eq? (car l) b) #f]
      [else (loop (cdr l))])))
 
-(define (exact-rational? r)
-  (and (rational? r) (exact? r)))
-
-(define (collect-branches expr loc)
-  (match expr
-    [`(if ,cond ,ift ,iff)
-     (cons (list cond ift loc)
-           (collect-branches iff (cons 3 loc)))]
-    [else
-     (list (list #t expr loc))]))
-
 ;; The highlight ops are an alist of locations to indexes that marks
 ;; those locations as highlighted with the given location
 ;; index. highlight-ops and loc/colors are not meant to be used
 ;; simultaniously.
-(define (texify-expression expr #:loc [color-loc #f] #:color [color "red"] #:highlight-ops [highlight-locs '()])
-  "Compile an expression to TeX code.
-   The TeX is intended to be used in math mode.
-
-   `parens` is one of #f, '+, '*, 'fn, or #t"
-  (let texify ([expr expr] [parens #t] [loc '(2)])
+(define (texify-prog prog
+                     #:loc [color-loc #f]
+                     #:color [color "red"]
+                     #:highlight-ops [highlight-locs '()])
+  "Compile the body of a program to math mode TeX."
+  (let texify ([expr (program-body prog)] [parens #t] [loc '(2)])
     (format
       (if (and color-loc (equal? (reverse color-loc) loc))
         (format "\\color{~a}{~~a}" color)
@@ -242,3 +240,17 @@
                 (if hl-loc
                   (apply-converter highlight-template texed-args (cdr hl-loc))
                   (apply-converter template texed-args))))])]))))
+
+; TODO probably a better way to write this wrapper using
+;      make-keyword-procedure and keyword-apply
+(define (texify-expr expr
+                     #:loc [color-loc #f]
+                     #:color [color "red"]
+                     #:highlight-ops [highlight-locs '()])
+  (texify-prog (expr->prog expr)
+               #:loc color-loc
+               #:color color
+               #:highlight-ops highlight-locs))
+
+(define (exact-rational? r)
+  (and (rational? r) (exact? r)))
