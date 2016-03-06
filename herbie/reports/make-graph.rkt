@@ -261,8 +261,10 @@
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
      (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>"
-             pt (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
-             (texify-expression (program-body prog) #:loc loc #:color "blue") err)]
+             pt
+             (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
+             (texify-expression (program-body prog) #:loc loc #:color "blue")
+             err)]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)

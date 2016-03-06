@@ -2,8 +2,7 @@
 (require "../common.rkt")
 (require "../syntax.rkt")
 
-(provide mathjax-url apply-converter
-         texify-constants texify-operators texify-expression)
+(provide mathjax-url texify-expression)
 
 (define mathjax-url
   "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
@@ -174,10 +173,14 @@
      [(eq? (car l) b) #f]
      [else (loop (cdr l))])))
 
+(define (exact-rational? r)
+  (and (rational? r) (exact? r)))
+
 (define (collect-branches expr loc)
   (match expr
     [`(if ,cond ,ift ,iff)
-     (cons (list cond ift loc) (collect-branches iff (cons 3 loc)))]
+     (cons (list cond ift loc)
+           (collect-branches iff (cons 3 loc)))]
     [else
      (list (list #t expr loc))]))
 
@@ -190,15 +193,15 @@
    The TeX is intended to be used in math mode.
 
    `parens` is one of #f, '+, '*, 'fn, or #t"
-
-  (define color-loc* (if color-loc (reverse color-loc) #f))
-
   (let texify ([expr expr] [parens #t] [loc '(2)])
-    (define result
+    (format
+      (if (and color-loc (equal? (reverse color-loc) loc))
+        (format "\\color{~a}{~~a}" color)
+        "~a")
       (match expr
-        [(and (? integer?) (? exact?))
+        [(? exact-integer?)
          (number->string expr)]
-        [(and (? rational?) (? exact?))
+        [(? exact-rational?)
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
          (match (string-split (number->string expr) "e")
@@ -208,42 +211,34 @@
                 (format "10^{~a}" exp)
                 (format "~a \\cdot 10^{~a}" significand exp))])]
         [(? symbol?)
-         (car (hash-ref texify-constants expr (list (symbol->string expr))))]
+         (if (hash-has-key? texify-constants expr)
+           (car (hash-ref texify-constants expr))
+           (symbol->string expr))]
         [`(if ,cond ,ift ,iff)
-         (define branches (collect-branches expr loc))
-         (format "\\begin{cases} ~a \\end{cases}"
-                 (string-join
-                  (for/list ([rec branches])
-                    (match rec
-                      [(list #t expr loc)
-                       (format "~a & \\text{otherwise}"
-                               (texify expr #t (cons 2 loc)))]
-                      [(list condition expr loc)
-                       (format "~a & \\text{when } ~a"
-                               (texify expr #t (cons 2 loc))
-                               (texify condition #t (cons 1 loc)))]))
-                  " \\\\ "))]
+          (let ([texed-branches
+                  (for/list ([branch (collect-branches expr loc)])
+                    (match branch
+                           [(list #t bexpr bloc)
+                            (format "~a & \\text{otherwise}"
+                              (texify bexpr #t (cons 2 bloc)))]
+                           [(list bcond bexpr bloc)
+                            (format "~a & \\text{when } ~a"
+                              (texify bexpr #t (cons 2 bloc))
+                              (texify bcond #t (cons 1 bloc)))]))])
+            (format "\\begin{cases} ~a \\end{cases}"
+                 (string-join texed-branches " \\\\ ")))]
         [`(,f ,args ...)
-         (let* ([op-info            (curry list-ref (hash-ref texify-operators f))]
-                [template           (op-info 0)]
-                [highlight-template (op-info 1)]
-                [self-paren-level   (op-info 2)]
-                [arg-paren-level    (op-info 3)]
-                [args*
-                  (for/list ([arg args] [id (in-naturals 1)])
-                    (texify arg arg-paren-level (cons id loc)))]
-                [loc?
-                  (assoc (reverse loc) highlight-locs)]
-                [result
-                  (if loc?
-                    (apply-converter highlight-template args* (cdr loc?))
-                    (apply-converter template args*))]
-                [paren-result
-                 (if (parens-< parens self-paren-level)
-                     result
-                     (format "\\left(~a\\right)" result))])
-           paren-result)]))
-
-    (if (equal? color-loc* loc)
-        (format "\\color{~a}{~a}" color result)
-        result)))
+         (match (hash-ref texify-operators f)
+           [(list template highlight-template self-paren-level arg-paren-level)
+            (let ([texed-args
+                    (for/list ([arg args] [id (in-naturals 1)])
+                      (texify arg arg-paren-level (cons id loc)))]
+                  [hl-loc
+                    (assoc (reverse loc) highlight-locs)])
+              (format
+                (if (parens-< parens self-paren-level)
+                  "~a"
+                  "\\left(~a\\right)")
+                (if hl-loc
+                  (apply-converter highlight-template texed-args (cdr hl-loc))
+                  (apply-converter template texed-args))))])]))))
