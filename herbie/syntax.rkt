@@ -133,6 +133,7 @@
   [sqr    '(1)  bfsqr   _flsqr     40]
   [cube   '(1)  bfcube  _flcube    80]
   [cotan  '(1)  bfcot   _flcotan  135]
+  ; TODO sec and cosec
 
   [acos      '(1)  bfacos       _flacos        90]
   [acosh     '(1)  bfacosh      _flacosh       55]
