@@ -21,7 +21,8 @@
 
 ; Use C ffi to get numerical ops from libm
 (require ffi/unsafe ffi/unsafe/define)
-(define-ffi-definer define-libm #f)
+(define-ffi-definer define-libm #f
+  #:default-make-fail make-not-available)
 
 (define-syntax-rule (libm_op1 id_fl id_d id_f)
   (begin
@@ -122,6 +123,9 @@
 (define (bffma x y z)
   (bf+ (bf* x y) z))
 
+(define (bflogb x)
+  (bigfloat-exponent x))
+
 (define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
 
@@ -160,13 +164,13 @@
   [exp       '(1)  bfexp        _flexp         70]
   [exp2      '(1)  bfexp2       _flexp2        70]
   [expm1     '(1)  bfexpm1      _flexpm1       70]
-  [abs       '(1)  bfabs        _flfabs        40]
+  [fabs      '(1)  bfabs        _flfabs        40]
   [fdim      '(2)  bffdim       _flfdim        55]
   [floor     '(1)  bffloor      _flfloor       55]
   [fma       '(3)  bffma        _flfma         55]
   [fmax      '(2)  bfmax        _flfmax        55]
   [fmin      '(2)  bfmin        _flfmin        55]
-  [mod       '(2)  bffmod       _flfmod        70]
+  [fmod      '(2)  bffmod       _flfmod        70]
   [hypot     '(2)  bfhypot      _flhypot       55]
   [j0        '(1)  bfbesj0      _flj0          55]
   [j1        '(1)  bfbesj1      _flj1          55]
@@ -175,8 +179,8 @@
   [log10     '(1)  bflog10      _fllog10       70]
   [log1p     '(1)  bflog1p      _fllog1p       90]
   [log2      '(1)  bflog2       _fllog2        70]
-  [logb      '(1)  bfexponent   _fllogb        70]
-  [expt      '(2)  bfexpt       _flpow        210]
+  [logb      '(1)  bflogb       _fllogb        70]
+  [pow       '(2)  bfexpt       _flpow        210]
   [remainder '(2)  bfremainder  _flremainder   70]
   [rint      '(1)  bfrint       _flrint        70]
   [round     '(1)  bfround      _flround       70]

@@ -49,7 +49,7 @@
      (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
        (make-multiplication-node terms))]
     [`(exp (* ,c (log ,x)))
-     `(expt ,x ,c)]
+     `(pow ,x ,c)]
     [else
      (let/ec return
        (for ([pattern fn-inverses])
@@ -95,7 +95,7 @@
 
       [`(sqr ,arg)
        (recurse `(* ,arg ,arg) #:label expr)]
-      [`(expt ,arg ,(? integer? n))
+      [`(pow ,arg ,(? integer? n))
        (cond
         [(positive? n)
          (recurse (cons '* (build-list (inexact->exact n) (const arg))) #:label expr)]
@@ -144,7 +144,7 @@
                 (cons 1 `(sqrt ,(car terms)))
                 (for/list ([term (cdr terms)])
                   (cons (/ (car term) 2) (cdr term))))]))]
-    [`(expt ,arg ,(? real? a))
+    [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (cond
         [(and (real? (expt (car terms) a)) (exact? (expt (car terms) a)))
@@ -268,4 +268,4 @@
     [`(-2 . ,x) `(/ 1 (sqr ,x))]
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
-    [`(,pow . ,x) `(expt ,x ,pow)]))
+    [`(,power . ,x) `(pow ,x ,power)]))

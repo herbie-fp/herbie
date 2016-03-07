@@ -138,7 +138,7 @@
   [expm1     "(e^{~a} - 1)^*"
              (tag-inner-untag "(e^{~a} - 1)^*")
              #f #t]
-  [abs       "\\left|~a\\right|"
+  [fabs      "\\left|~a\\right|"
              (tag-inner-untag "\\left|~a\\right|")
              #f #t]
   [fdim      "\\mathsf{fdim}\\left(~a, ~a\\right)"
@@ -156,7 +156,7 @@
   [fmin      "\\mathsf{fmin}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmin}\\left(~a, ~a\\right)")
              #f #t]
-  [mod       "~a \\mathsf{mod} ~a"
+  [fmod      "~a \\mathsf{mod} ~a"
              (tag-infix "\\mathsf{mod}")
              #t #f]
   [hypot     "\\sqrt{~a^2 + ~a^2}^*"
@@ -186,7 +186,7 @@
   [logb      "\\log^{*}_{b} ~a"
              (tag-inner-untag "\\log^{*}_{b} ~a")
              'fn #f]
-  [expt      "{~a}^{~a}"
+  [pow       "{~a}^{~a}"
              (tag-inner-untag "{~a}^{~a}")
              #f #f]
   [remainder "~a \\mathsf{rem} ~a"

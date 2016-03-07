@@ -51,7 +51,7 @@
 
 (herbie-test (i n)
   "Compound Interest"
-  (* 100 (/ (- (expt (+ 1 (/ i n)) n) 1) (/ i n)))
+  (* 100 (/ (- (pow (+ 1 (/ i n)) n) 1) (/ i n)))
   (let* ([lnbase
          (if (= (+ 1 (/ i n)) 1)
              (/ i n)
@@ -68,14 +68,14 @@
 (herbie-test (a b c d)
   "Complex division, real part"
   (/ (+ (* a c) (* b d)) (+ (sqr c) (sqr d)))
-  (if (< (abs d) (abs c))
+  (if (< (fabs d) (fabs c))
       (/ (+ a (* b (/ d c))) (+ c (* d (/ d c))))
       (/ (+ b (* a (/ c d))) (+ d (* c (/ c d))))))
 
 (herbie-test (a b c d)
   "Complex division, imag part"
   (/ (- (* b c) (* a d)) (+ (sqr c) (sqr d)))
-  (if (< (abs d) (abs c))
+  (if (< (fabs d) (fabs c))
       (/ (- b (* a (/ d c))) (+ c (* d (/ d c))))
       (/ (+ (- a) (* b (/ c d))) (+ d (* c (/ c d))))))
 

@@ -13,7 +13,7 @@
 (herbie-test (re im) ; imag part
   "math.cos on complex, imaginary part"
   (* (* 0.5 (sin re)) (- (exp (- im)) (exp im)))
-  (if (< (abs im) 1)
+  (if (< (fabs im) 1)
       (- (* (sin re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
       (* (* 0.5 (sin re)) (- (exp (- im)) (exp im)))))
 
@@ -26,6 +26,6 @@
 (herbie-test (re im) ; imag part
   "math.sin on complex, imaginary part"
   (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im)))
-  (if (< (abs im) 1)
+  (if (< (fabs im) 1)
       (- (* (cos re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
       (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im)))))

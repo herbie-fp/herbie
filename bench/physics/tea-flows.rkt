@@ -16,7 +16,7 @@
 
 (herbie-test (F B x)
   "VandenBroeck and Keller, Equation (23)"
-  (+ (- (* x (cotan B))) (* (/ F (sin B)) (expt (+ (sqr F) 2 (* 2 x)) (- (/ 1 2))))))
+  (+ (- (* x (cotan B))) (* (/ F (sin B)) (pow (+ (sqr F) 2 (* 2 x)) (- (/ 1 2))))))
 
 (herbie-test (B x)
   "VandenBroeck and Keller, Equation (24)"
