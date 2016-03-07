@@ -76,6 +76,8 @@
 (libm_op2  _flfmin       fmin       fminf)
 (libm_op2  _flfmod       fmod       fmodf)
 (libm_op2  _flhypot      hypot      hypotf)
+(libm_op1  _flj0         j0         j0f)
+(libm_op1  _flj1         j1         j1f)
 (libm_op1  _fllog        log        logf)
 (libm_op1  _fllog10      log10      log10f)
 (libm_op1  _fllog1p      log1p      log1pf)
@@ -89,6 +91,8 @@
 (libm_op1  _fltan        tan        tanf)
 (libm_op1  _fltanh       tanh       tanhf)
 (libm_op1  _fltrunc      trunc      truncf)
+(libm_op1  _fly0         y0         y0f)
+(libm_op1  _fly1         y1         y1f)
 
 (define (_flcotan x)
   (/ 1 (tan x)))
@@ -160,6 +164,8 @@
   [fmin      '(2)  bfmin        _flfmin        55]
   [mod       '(2)  bffmod       _flfmod        70]
   [hypot     '(2)  bfhypot      _flhypot       55]
+  [j0        '(1)  bfbesj0      _flj0          55]
+  [j1        '(1)  bfbesj1      _flj1          55]
   [log       '(1)  bflog        _fllog         70]
   [log10     '(1)  bflog10      _fllog10       70]
   [log1p     '(1)  bflog1p      _fllog1p       90]
@@ -173,6 +179,8 @@
   [tan       '(1)  bftan        _fltan         95]
   [tanh      '(1)  bftanh       _fltanh        55]
   [trunc     '(1)  bftruncate   _fltrunc       55]
+  [y0        '(1)  bfbesy0      _fly0          55]
+  [y1        '(1)  bfbesy1      _fly1          55]
 
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn     if-fn      65]

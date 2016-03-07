@@ -162,6 +162,12 @@
   [hypot     "\\sqrt{~a^2 + ~a^2}^*"
              (tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
              #f #f]
+  [j0        "\\mathsf{j0} ~a"
+             (tag-inner-untag "\\mathsf{j0} ~a")
+             'fn #f]
+  [j1        "\\mathsf{j1} ~a"
+             (tag-inner-untag "\\mathsf{j1} ~a")
+             'fn #f]
   [log       "\\log ~a"
              (tag-inner-untag "\\log ~a")
              'fn #f]
@@ -200,6 +206,12 @@
              'fn #f]
   [trunc     "\\mathsf{trunc} ~a"
              (tag-inner-untag "\\mathsf{trunc} ~a")
+             'fn #f]
+  [y0        "\\mathsf{y0} ~a"
+             (tag-inner-untag "\\mathsf{y0} ~a")
+             'fn #f]
+  [y1        "\\mathsf{y1} ~a"
+             (tag-inner-untag "\\mathsf{y1} ~a")
              'fn #f]
 
   [if     "~a ? ~a : ~a"

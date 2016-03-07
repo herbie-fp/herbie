@@ -52,6 +52,8 @@
   [fmin       "fmin(~a, ~a)"]
   [mod        "fmod(~a, ~a)"]
   [hypot      "hypot(~a, ~a)"]
+  [j0         "j0(~a)"]
+  [j1         "j1(~a)"]
   [log        "log(~a)"]
   [log10      "log10(~a)"]
   [log1p      "log1p(~a)"]
@@ -65,6 +67,8 @@
   [tan        "tan(~a)"]
   [tanh       "tanh(~a)"]
   [trunc      "trunc(~a)"]
+  [y0         "y0(~a)"]
+  [y1         "y1(~a)"]
 
   [if   "~a ? ~a : ~a"]
   [=    "~a == ~a"]
@@ -171,6 +175,8 @@
   [fmin       "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)"]
   [mod        "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)"]
   [hypot      "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"]
+  [j0         "mpfr_j0(~a, ~a, MPFR_RNDN)"]
+  [j1         "mpfr_j1(~a, ~a, MPFR_RNDN)"]
   [log        "mpfr_log(~a, ~a, MPFR_RNDN)"]
   [log10      "mpfr_log10(~a, ~a, MPFR_RNDN)"]
   [log1p      "mpfr_log1p(~a, ~a, MPFR_RNDN)"]
@@ -184,8 +190,8 @@
   [tan        "mpfr_tan(~a, ~a, MPFR_RNDN)"]
   [tanh       "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
   [trunc      "mpfr_trunc(~a, ~a, MPFR_RNDN)"]
-
-
+  [y0         "mpfr_y0(~a, ~a, MPFR_RNDN)"]
+  [y1         "mpfr_y1(~a, ~a, MPFR_RNDN)"]
 
   [if       (lambda (r c a b) (string-append
                (format "if (mpfr_get_si(~a, MPFR_RNDN)) { " c)
