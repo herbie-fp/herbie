@@ -168,6 +168,9 @@
   [j1        "\\mathsf{j1} ~a"
              (tag-inner-untag "\\mathsf{j1} ~a")
              'fn #f]
+  [lgamma    "\\log_* \\left( \\mathsf{gamma} ~a \\right)"
+             (tag-inner-untag "\\log_* \\left( \\mathsf{gamma} ~a \\right)")
+             'fn #f]
   [log       "\\log ~a"
              (tag-inner-untag "\\log ~a")
              'fn #f]
@@ -203,6 +206,9 @@
              'fn #f]
   [tanh      "\\tanh ~a"
              (tag-inner-untag "\\tanh ~a")
+             'fn #f]
+  [tgamma    "\\mathsf{gamma} ~a"
+             (tag-inner-untag "\\mathsf{gamma} ~a")
              'fn #f]
   [trunc     "\\mathsf{trunc} ~a"
              (tag-inner-untag "\\mathsf{trunc} ~a")
