@@ -183,6 +183,9 @@
   [log2      "\\log_{2} ~a"
              (tag-inner-untag "\\log_{2} ~a")
              'fn #f]
+  [logb      "\\log^{*}_{b} ~a"
+             (tag-inner-untag "\\log^{*}_{b} ~a")
+             'fn #f]
   [expt      "{~a}^{~a}"
              (tag-inner-untag "{~a}^{~a}")
              #f #f]

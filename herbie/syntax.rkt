@@ -83,6 +83,7 @@
 (libm_op1  _fllog10      log10      log10f)
 (libm_op1  _fllog1p      log1p      log1pf)
 (libm_op1  _fllog2       log2       log2f)
+(libm_op1  _fllogb       logb       logbf)
 (libm_op2  _flpow        pow        powf)
 (libm_op2  _flremainder  remainder  remainderf)
 (libm_op1  _flround      round      roundf)
@@ -173,6 +174,7 @@
   [log10     '(1)  bflog10      _fllog10       70]
   [log1p     '(1)  bflog1p      _fllog1p       90]
   [log2      '(1)  bflog2       _fllog2        70]
+  [logb      '(1)  bfexponent   _fllogb        70]
   [expt      '(2)  bfexpt       _flpow        210]
   [remainder '(2)  bfremainder  _flremainder   70]
   [round     '(1)  bfround      _flround       70]
