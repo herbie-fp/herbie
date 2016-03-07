@@ -192,6 +192,9 @@
   [remainder "~a \\mathsf{rem} ~a"
              (tag-infix "\\mathsf{rem}")
              #t #f]
+  [rint      "\\mathsf{rint} ~a"
+             (tag-inner-untag "\\mathsf{rint} ~a")
+             'fn #f]
   [round     "\\mathsf{round} ~a"
              (tag-inner-untag "\\mathsf{round} ~a")
              'fn #f]

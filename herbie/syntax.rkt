@@ -86,6 +86,7 @@
 (libm_op1  _fllogb       logb       logbf)
 (libm_op2  _flpow        pow        powf)
 (libm_op2  _flremainder  remainder  remainderf)
+(libm_op1  _flrint       rint       rintf)
 (libm_op1  _flround      round      roundf)
 (libm_op1  _flsin        sin        sinf)
 (libm_op1  _flsinh       sinh       sinhf)
@@ -177,6 +178,7 @@
   [logb      '(1)  bfexponent   _fllogb        70]
   [expt      '(2)  bfexpt       _flpow        210]
   [remainder '(2)  bfremainder  _flremainder   70]
+  [rint      '(1)  bfrint       _flrint        70]
   [round     '(1)  bfround      _flround       70]
   [sin       '(1)  bfsin        _flsin         60]
   [sinh      '(1)  bfsinh       _flsinh        55]
