@@ -84,10 +84,14 @@
 
 ; Difference of cubes
 (define-ruleset difference-of-cubes (polynomials)
-  [sum-cubes        (+ (expt a 3) (expt b 3)) (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
-  [difference-cubes (- (expt a 3) (expt b 3)) (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
-  [flip3-+    (+ a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
-  [flip3--    (- a b)  (/ (- (expt a 3) (expt b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
+  [sum-cubes        (+ (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
+  [difference-cubes (- (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
+  [flip3-+          (+ a b)
+                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
+  [flip3--          (- a b)
+                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Identity
 (define-ruleset id-reduce (arithmetic simplify)
@@ -129,7 +133,7 @@
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
   [rem-square-sqrt   (sqr (sqrt x))     x]
-  [rem-sqrt-square   (sqrt (sqr x))     (abs x)]
+  [rem-sqrt-square   (sqrt (sqr x))     (fabs x)]
   [sqr-neg           (sqr (- x))        (sqr x)])
 
 (define-ruleset squares-distribute (arithmetic simplify)
@@ -192,44 +196,44 @@
   [prod-exp     (* (exp a) (exp b))  (exp (+ a b))]
   [rec-exp      (/ 1 (exp a))        (exp (- a))]
   [div-exp      (/ (exp a) (exp b))  (exp (- a b))]
-  [exp-prod     (exp (* a b))        (expt (exp a) b)])
+  [exp-prod     (exp (* a b))        (pow (exp a) b)])
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
-  [unexpt-1        (expt a -1)                 (/ 1 a)]
-  [unexpt1         (expt a 1)                  a]
-  [unexpt0         (expt a 0)                  1])
+  [unpow-1        (pow a -1)                 (/ 1 a)]
+  [unpow1         (pow a 1)                  a]
+  [unpow0         (pow a 0)                  1])
 
 (define-ruleset pow-expand (exponents)
-  [expt1           a                           (expt a 1)])
+  [pow1           a                           (pow a 1)])
 
 (define-ruleset pow-canonicalize (exponents simplify)
-  [exp-to-expt     (exp (* (log a) b))         (expt a b)]
-  [expt-plus       (* (expt a b) a)            (expt a (+ b 1))]
-  [unexpt2         (expt a 2)                  (sqr a)]
-  [unexpt1/2       (expt a 1/2)                (sqrt a)]
-  [unexpt3         (expt a 3)                  (cube a)]
-  [unexpt1/3       (expt a 1/3)                (cbrt a)] )
+  [exp-to-pow      (exp (* (log a) b))        (pow a b)]
+  [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
+  [unpow2          (pow a 2)                  (sqr a)]
+  [unpow1/2        (pow a 1/2)                (sqrt a)]
+  [unpow3          (pow a 3)                  (cube a)]
+  [unpow1/3        (pow a 1/3)                (cbrt a)] )
 
 (define-ruleset pow-transform (exponents)
-  [expt-exp          (expt (exp a) b)            (exp (* a b))]
-  [expt-to-exp       (expt a b)                  (exp (* (log a) b))]
-  [expt-prod-up      (* (expt a b) (expt a c))   (expt a (+ b c))]
-  [expt-prod-down    (* (expt b a) (expt c a))   (expt (* b c) a)]
-  [unexpt-prod-up    (expt a (+ b c))            (* (expt a b) (expt a c))]
-  [unexpt-prod-down  (expt (* b c) a)            (* (expt b a) (expt c a))]
-  [inv-expt          (/ 1 a)                     (expt a -1)]
-  [expt1/2           (sqrt a)                    (expt a 1/2)]
-  [expt2             (sqr a)                     (expt a 2)]
-  [expt1/3           (cbrt a)                    (expt a 1/3)]
-  [expt3             (cube a)                    (expt a 3)])
+  [pow-exp          (pow (exp a) b)             (exp (* a b))]
+  [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
+  [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
+  [pow-prod-down    (* (pow b a) (pow c a))     (pow (* b c) a)]
+  [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
+  [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))]
+  [inv-pow          (/ 1 a)                     (pow a -1)]
+  [pow1/2           (sqrt a)                    (pow a 1/2)]
+  [pow2             (sqr a)                     (pow a 2)]
+  [pow1/3           (cbrt a)                    (pow a 1/3)]
+  [pow3             (cube a)                    (pow a 3)])
 
 ; Logarithms
 (define-ruleset log-distribute (exponents simplify)
-  [log-prod     (log (* a b))        (+ (log a) (log b))]
-  [log-div      (log (/ a b))        (- (log a) (log b))]
-  [log-rec      (log (/ 1 a))        (- (log a))]
-  [log-pow      (log (expt a b))     (* b (log a))])
+  [log-prod     (log (* a b))       (+ (log a) (log b))]
+  [log-div      (log (/ a b))       (- (log a) (log b))]
+  [log-rec      (log (/ 1 a))       (- (log a))]
+  [log-pow      (log (pow a b))     (* b (log a))])
 
 (define-ruleset log-factor (exponents)
   [sum-log      (+ (log a) (log b))  (log (* a b))]

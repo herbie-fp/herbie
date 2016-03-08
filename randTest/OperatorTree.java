@@ -19,7 +19,7 @@ public class OperatorTree {
     , "sinh"
     , "cosh"
     , "tanh"
-    , "abs"
+    , "fabs"
     , "expm1"
     , "log1p"
     };
@@ -29,9 +29,9 @@ public class OperatorTree {
     , "-"
     , "*"
     , "/"
-    , "expt"
+    , "pow"
     , "atan2"
-    , "mod"
+    , "fmod"
     , "hypot"
     };
 

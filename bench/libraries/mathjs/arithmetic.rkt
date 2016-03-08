@@ -11,7 +11,7 @@
 (herbie-test (x)
   "math.cube on real"
   (* (* x x) x)
-  (expt x 3))
+  (pow x 3))
 
 ; Manually expanded math.multiply
 (herbie-test (x.re x.im) ; real part

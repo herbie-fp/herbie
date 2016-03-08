@@ -13,7 +13,7 @@
 
 (herbie-test (a k m)
   "Falkner and Boettcher, Appendix A"
-  (/ (* a (expt k m)) (+ 1 (* 10 k) (sqr k))))
+  (/ (* a (pow k m)) (+ 1 (* 10 k) (sqr k))))
 
 (herbie-test (v)
   "Falkner and Boettcher, Appendix B, 1"

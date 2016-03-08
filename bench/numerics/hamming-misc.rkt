@@ -12,4 +12,4 @@
 
 (herbie-test (x y)
   "Radioactive exchange between two surfaces"
-  (- (expt x 4) (expt y 4)))
+  (- (pow x 4) (pow y 4)))

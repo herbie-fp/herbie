@@ -12,7 +12,7 @@
          compile expression-cost program-cost
          free-variables unused-variables replace-expression valid-program?
          eval-exact eval-const-expr
-         desugar-program)
+         desugar-program expr->prog)
 
 (define (location-induct
 	 prog
@@ -84,18 +84,6 @@
 		       (map inductor (cdr prog))))]))
 
   (inductor prog))
-
-;; (define (free-variables prog [bound constants])
-;;   (filter (λ (v) (not (member v bound)))
-;;           (match prog
-;;             [(? constant?) '()]
-;;             [(? variable?) (list prog)]
-;;             [`(λ ,vars ,body)
-;;              (free-variables body (append vars constants))]
-;;             [`(lambda ,vars ,body)
-;;              (free-variables body (append vars constants))]
-;;             [`(,f ,args ...)
-;;              (remove-duplicates (append-map (curryr free-variables bound) args))])))
 
 (define (free-variables prog)
   (match prog
@@ -272,3 +260,6 @@
 
 (define (desugar-program prog)
   (expand-associativity (unfold-let prog)))
+
+(define (expr->prog expr)
+  `(lambda ,(free-variables expr) ,expr))
