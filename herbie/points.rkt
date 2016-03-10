@@ -129,7 +129,8 @@
                ; Then, we remove the points for which the answers
                ; are not representable
                [pts* (filter-points pts1 exs1)]
-               [exs* (filter-exacts pts1 exs1)])
+               [exs* (filter-exacts pts1 exs1)]
+	       [pdebug (println "pts* length is " (length pts*) "\n" "exs* length is " (length exs*) "\n"  (eq? (length pts*) (length exs*)))])
           (loop (append pts* pts) (append exs* exs))))))
 
 (define (prepare-points-period prog periods)
