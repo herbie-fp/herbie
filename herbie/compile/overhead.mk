@@ -19,7 +19,7 @@ UNSAFE_FLAGS = $(GCC_FLAGS) -march=native -mtune=native -Ofast -flto
 
 %/overhead: overhead.c %/fast.o
 	gcc $(FAST_FLAGS) $^ -o $@ \
-		-lm -lgmp -lmpfr \
+		-lm -lmpfr -lgmp \
 		-DNARGS=$(shell grep f_if $*/compiled.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # How many samples to use for evaluation
