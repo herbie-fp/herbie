@@ -2,6 +2,7 @@
 
 (require "common.rkt")
 (require "points.rkt")
+(require "distributions.rkt")
 (require "alternative.rkt")
 (require "localize-error.rkt")
 (require "simplify/simplify.rkt")
