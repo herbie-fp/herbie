@@ -2,6 +2,7 @@
 
 (require "common.rkt")
 (require "points.rkt")
+(require "distributions.rkt")
 (require "alternative.rkt")
 (require "localize-error.rkt")
 (require "simplify/simplify.rkt")
@@ -25,7 +26,7 @@
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (set! initial-fuel fuel)
-  (let* ([samplers (or samplers (map (curryr cons sample-default) (program-variables prog)))]
+  (let* ([samplers (or samplers (map (curryr cons (eval-sampler 'default)) (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (parameterize ([*pcontext* context]
 		   [*analyze-context* context]

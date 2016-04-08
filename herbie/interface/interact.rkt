@@ -4,6 +4,7 @@
 (require "../main.rkt")
 (require "../programs.rkt")
 (require "../points.rkt")
+(require "../distributions.rkt")
 (require "../localize-error.rkt")
 (require "../taylor.rkt")
 (require "../alt-table.rkt")
@@ -64,7 +65,7 @@
   (*start-prog* prog)
   (rollback-improve!)
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([samplers (or samplers (map (curryr cons sample-default)
+  (let* ([samplers (or samplers (map (curryr cons (eval-sampler 'default))
 				     (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (^samplers^ samplers)

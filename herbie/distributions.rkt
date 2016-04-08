@@ -32,9 +32,6 @@
     [(? number? x) (const x)]
     [`(uniform ,(? number? a) ,(? number? b)) (curry sample-uniform a b)]
     ['int sample-int]
-    [`(positive ,sub)
-     (define sub* (eval-sampler sub))
-     (λ () (let ([y (sub*)]) (and (not (zero? y)) (abs y))))]
     [(list (op op) (? number? lb) sub)
      (define sub* (eval-sampler sub))
      (λ () (let ([y (sub*)]) (and (op lb y) y)))]

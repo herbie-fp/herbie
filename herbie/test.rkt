@@ -3,7 +3,7 @@
 (require "common.rkt")
 (require "alternative.rkt")
 (require "programs.rkt")
-(require "points.rkt")
+(require "distributions.rkt")
 
 (provide (struct-out test) test-program test-samplers
          load-tests load-file test-target parse-test test-successful?)
@@ -23,31 +23,9 @@
 
 (struct test (name vars sampling-expr input output expected) #:prefab)
 
-(define (get-op op)
-  (match op ['> >] ['< <] ['>= >=] ['<= <=]))
-
-(define (get-sampler expr)
-  (match expr
-    ['default sample-default]
-    [`(positive ,e)
-     (define sub (get-sampler e))
-     (λ () (let ([y (sub)]) (and y (abs y))))]
-    [`(uniform ,a ,b) (sample-uniform a b)]
-    [(? number? x) (const x)]
-    ['integer sample-integer]
-    [`(,(and op (or '< '> '<= '>=)) ,a ,(? number? b))
-     (let ([sa (get-sampler a)] [test (curryr (get-op op) b)])
-       (λ () (let ([va (sa)]) (and (test va) va))))]
-    [`(,(and op (or '< '> '<= '>=)) ,(? number? a) ,b)
-     (let ([sb (get-sampler b)] [test (curry (get-op op) a)])
-       (λ () (let ([vb (sb)]) (and (test vb) vb))))]
-    [`(,(and op (or '< '> '<= '>=)) ,(? number? a) ,t ,(? number? b))
-     (let ([st (get-sampler t)] [test (λ (x) ((get-op op) a x b))])
-       (λ () (let ([vt (st)]) (and (test vt) vt))))]))
-
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (cons var (get-sampler samp))))
+    (cons var (eval-sampler samp))))
 
 (define (var&dist expr)
   (match expr
