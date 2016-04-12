@@ -116,21 +116,21 @@
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
-
   ; First, we generate points;
-  (let loop ([pts '()] [exs '()])
-    (if (>= (length pts) (*num-points*))
-        (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))
-        (let* ([num (- (*num-points*) (length pts))]
-               [pts1
-                (for/list ([n (in-range num)])
-                  (for/list ([rec samplers]) (sample (cdr rec))))]
-               [exs1 (make-exacts prog pts1)]
-               ; Then, we remove the points for which the answers
-               ; are not representable
-               [pts* (filter-points pts1 exs1)]
-               [exs* (filter-exacts pts1 exs1)])
-          (loop (append pts* pts) (append exs* exs))))))
+  (let loop ([pts '()] [exs '()] [num-loops 0])
+    (cond [(> num-loops 200) (error "[ERROR] After many loops in prepare-points still have insufficient number of sampled points\n")]
+          [(>= (length pts) (*num-points*))
+           (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
+          [#t (let* ([num (- (*num-points*) (length pts))]
+                 [pts1
+                  (for/list ([n (in-range num)])
+                    (for/list ([rec samplers]) (sample (cdr rec))))]
+                 [exs1 (make-exacts prog pts1)]
+                 ; Then, we remove the points for which the answers
+                 ; are not representable
+                 [pts* (filter-points pts1 exs1)]
+                 [exs* (filter-exacts pts1 exs1)])
+            (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))])))
 
 (define (prepare-points-period prog periods)
   (let* ([pts (make-period-points (*num-points*) periods)]
