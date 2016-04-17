@@ -22,11 +22,11 @@
 
 (herbie-test (t l k)
   "Toniolo and Linder, Equation (10+)"
-  (/ 2 (* (/ (expt t 3) (sqr l)) (sin k) (tan k) (+ (+ 1 (sqr (/ k t))) 1))))
+  (/ 2 (* (/ (pow t 3) (sqr l)) (sin k) (tan k) (+ (+ 1 (sqr (/ k t))) 1))))
 
 (herbie-test (t l k)
   "Toniolo and Linder, Equation (10-)"
-  (/ 2 (* (/ (expt t 3) (sqr l)) (sin k) (tan k) (- (+ 1 (sqr (/ k t))) 1))))
+  (/ 2 (* (/ (pow t 3) (sqr l)) (sin k) (tan k) (- (+ 1 (sqr (/ k t))) 1))))
 
 (herbie-test (n U t l Om U*)
   "Toniolo and Linder, Equation (13)"

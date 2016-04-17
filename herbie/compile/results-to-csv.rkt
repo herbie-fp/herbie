@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt")
-(require reports/datafile)
+(require "../reports/datafile.rkt")
 
 (define (results-to-csv infile outfile)
   (let ([lines (read-datafile infile)])

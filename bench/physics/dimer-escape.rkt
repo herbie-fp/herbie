@@ -14,4 +14,4 @@
 (herbie-test (K m n M l)
   "Maksimov and Kolovsky, Equation (32)"
   (* (cos (- (/ (* K (+ m n)) 2) M))
-     (exp (- (- (sqr (- (/ (+ m n) 2) M))) (- l (abs (- m n)))))))
+     (exp (- (- (sqr (- (/ (+ m n) 2) M))) (- l (fabs (- m n)))))))

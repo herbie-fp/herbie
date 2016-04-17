@@ -8,13 +8,13 @@
 (provide reap define-table println ordinary-float? =-or-nan?
          take-up-to argmins list-product list-join
          ulp-difference *bit-width* ulps->bits bit-difference
-	 write-file write-string
-	 *start-prog* html-escape-unsafe
-	 flip-lists argmaxs multipartition
-	 binary-search-floats binary-search-ints binary-search
+         write-file write-string
+         *start-prog* html-escape-unsafe
+         flip-lists argmaxs multipartition
+         binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         get-seed set-seed! in-pairs)
+         get-seed set-seed! in-pairs index-of)
 
 (define *start-prog* (make-parameter '()))
 
@@ -224,3 +224,9 @@
   (in-producer
    (λ () (if stop? (values #f #f) (let ([x (next)]) (values (car x) (cdr x)))))
    (λ _ (begin0 stop? (set! stop? (not (more?)))))))
+
+
+(define (index-of lst elt)
+  (for/first ([e lst] [i (in-naturals)]
+             #:when (equal? e elt))
+             i))

@@ -13,7 +13,7 @@
 
 (herbie-test (d h l M D)
   "Henrywood and Agarwal, Equation (12)"
-  (* (expt (/ d h) (/ 1 2)) (expt (/ d l) (/ 1 2)) (- 1 (* (/ 1 2) (sqr (/ (* M D) (* 2 d))) (/ h l)))))
+  (* (pow (/ d h) (/ 1 2)) (pow (/ d l) (/ 1 2)) (- 1 (* (/ 1 2) (sqr (/ (* M D) (* 2 d))) (/ h l)))))
 
 (herbie-test (c0 w h D d M)
   "Henrywood and Agarwal, Equation (13)"

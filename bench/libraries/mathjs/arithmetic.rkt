@@ -11,7 +11,7 @@
 (herbie-test (x)
   "math.cube on real"
   (* (* x x) x)
-  (expt x 3))
+  (pow x 3))
 
 ; Manually expanded math.multiply
 (herbie-test (x.re x.im) ; real part
@@ -94,7 +94,7 @@
       (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re))))))
 
 (herbie-test (re im) ; imag part
-  "math.sqrt on complex, imaginary part, im > 0 branch"
+  "math.sqrt on complex, imaginary part, im greater than 0 branch"
   (*  0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re)))))
 
 ; Manually expanded math.multiply

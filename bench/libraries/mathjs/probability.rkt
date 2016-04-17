@@ -6,5 +6,5 @@
 
 (herbie-test ([u1 (uniform 0 1)] [u2 (uniform 0 1)])
   "normal distribution"
-  (+ (* (* (/ 1 6) (expt (* -2 (log u1)) 0.5))
+  (+ (* (* (/ 1 6) (pow (* -2 (log u1)) 0.5))
         (cos (* (* 2 pi) u2))) 0.5))

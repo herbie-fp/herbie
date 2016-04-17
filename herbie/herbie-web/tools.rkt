@@ -55,10 +55,10 @@
 ;; Generate the tex for the given prog, with the given locations
 ;; highlighted and given MathJax ID's
 (define (texify-formula expr [locs '()])
-  (texify-expression expr
-                     #:highlight-ops
-                     (for/list ([loc locs] [idx (in-naturals)])
-                       (cons loc idx))))
+  (texify-expr expr
+               #:highlight-ops
+               (for/list ([loc locs] [idx (in-naturals)])
+                 (cons loc idx))))
 ;; Given a context and an alt and some locations, identify which
 ;; ranges of error coorespond to which locations along the given axis,
 ;; and generate list of hash table objects for them.

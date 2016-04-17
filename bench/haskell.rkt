@@ -19,8 +19,8 @@
 
 (herbie-test (x y)
  "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
- (sqrt (abs (- x y)))
- (sqrt (abs (- x y))))
+ (sqrt (fabs (- x y)))
+ (sqrt (fabs (- x y))))
 
 (herbie-test (x y z t)
  "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
@@ -1302,9 +1302,9 @@
       (*
        1/4
        (*
-        (* (expt y -3/4) (* (expt z -3/4) x))
+        (* (pow y -3/4) (* (pow z -3/4) x))
         (+ y z)))
-      (* (expt z 1/4) (expt y 1/4))))
+      (* (pow z 1/4) (pow y 1/4))))
     2.0)))
 
 (herbie-test (x y z)
@@ -1424,7 +1424,7 @@
 (herbie-test (x y)
  "Data.Number.Erf:$dmerfcx from erf-2.0.0.0"
  (* x (exp (* y y)))
- (* x (expt (exp y) y)))
+ (* x (pow (exp y) y)))
 
 (herbie-test (x y z t)
  "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0"
@@ -1433,7 +1433,7 @@
   (exp (/ (* t t) 2.0)))
  (*
   (* (- (* x 0.5) y) (sqrt (* z 2.0)))
-  (expt (exp 1) (/ (* t t) 2.0))))
+  (pow (exp 1) (/ (* t t) 2.0))))
 
 (herbie-test (x y)
  "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0"
@@ -1574,8 +1574,8 @@
 
 (herbie-test (x y)
  "Graphics.Rendering.Chart.Plot.AreaSpots:renderSpotLegend from Chart-1.5.3"
- (+ x (/ (abs (- y x)) 2.0))
- (+ x (/ (abs (- y x)) 2.0)))
+ (+ x (/ (fabs (- y x)) 2.0))
+ (+ x (/ (fabs (- y x)) 2.0)))
 
 (herbie-test (x y z t)
  "Graphics.Rendering.Chart.Plot.AreaSpots:renderAreaSpots4D from Chart-1.5.3"
@@ -2004,14 +2004,14 @@
   y)
  (if (< t -0.8845848504127471)
    (/
-    (* x (/ (expt a (- t 1.0)) y))
+    (* x (/ (pow a (- t 1.0)) y))
     (- (+ b 1) (* y (log z))))
    (if (< t 852031.2288374073)
      (/
-      (* (/ x y) (expt a (- t 1.0)))
+      (* (/ x y) (pow a (- t 1.0)))
       (exp (- b (* (log z) y))))
      (/
-      (* x (/ (expt a (- t 1.0)) y))
+      (* x (/ (pow a (- t 1.0)) y))
       (- (+ b 1) (* y (log z)))))))
 
 (herbie-test (x y z t)
@@ -2064,9 +2064,9 @@
  (if (< y -3.7311844206647956e+94)
    (/ (exp (/ -1 y)) x)
    (if (< y 2.817959242728288e+37)
-     (/ (expt (/ x (+ y x)) x) x)
+     (/ (pow (/ x (+ y x)) x) x)
      (if (< y 2.347387415166998e+178)
-       (log (exp (/ (expt (/ x (+ y x)) x) x)))
+       (log (exp (/ (pow (/ x (+ y x)) x) x)))
        (/ (exp (/ -1 y)) x)))))
 
 (herbie-test (x y z)
@@ -2078,7 +2078,7 @@
    (+ x (/ (exp (/ -1 z)) y))
    (+
     x
-    (/ (exp (log (expt (/ y (+ y z)) y))) y))))
+    (/ (exp (log (pow (/ y (+ y z)) y))) y))))
 
 (herbie-test (x)
  "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
@@ -2297,8 +2297,8 @@
 
 (herbie-test (x y)
  "Numeric.LinearAlgebra.Util:formatSparse from hmatrix-0.16.1.5"
- (/ (abs (- x y)) (abs y))
- (/ (abs (- x y)) (abs y)))
+ (/ (fabs (- x y)) (fabs y))
+ (/ (fabs (- x y)) (fabs y)))
 
 (herbie-test (x y)
  "Data.Random.Distribution.Normal:normalF from random-fu-0.2.6.2"

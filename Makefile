@@ -65,10 +65,10 @@ herbie/compile/%.slow.o: herbie/compile/%.c
 # Running evaluation binaries
 
 herbie/compile/%.bin: herbie/compile/test.c herbie/compile/%.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lmpfr -lgmp -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 herbie/compile/%.slow.bin: herbie/compile/test.c herbie/compile/%.slow.o
-	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(SLOW_FLAGS) $^ -o $@ -lm -lmpfr -lgmp -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 herbie/compile/%.out: herbie/compile/%.bin
 	./$< $(EVALUATION_POINTS) > $@
@@ -95,15 +95,15 @@ herbie/compile/$(RPREFIX).json: $(RDATAFILES)
 	python2 herbie/compile/makejson.py herbie/compile/$(RPREFIX)
 
 herbie/compile/%.bf.bin: herbie/compile/bruteforce.c herbie/compile/%.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lmpfr -lgmp
 
 herbie/compile/%.dh.bin: herbie/compile/max-error-hour.c herbie/compile/%.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(FAST_FLAGS) $^ -o $@ -lm -lmpfr -lgmp -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # Generating convergence binaries
 
 herbie/compile/%.cv_if.bin: herbie/compile/convergence.c herbie/compile/%.o
-	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(FLAGS) $(FAST_FLAGS) $^ -o $@ -lm -lmpfr -lgmp -DNARGS=$(shell grep f_if herbie/compile/$*.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # Broken for now...
 #herbie/compile/sample-points.csv: herbie/compile/tc9.cv_if.bin

@@ -3,13 +3,24 @@
 TESTCASES = $(sort $(dir $(wildcard */compiled.c)))
 
 # Flags for building and running C files
-FAST_FLAGS = -std=c11 -march=native -mtune=native -mfpmath=both -O3 -flto
+GCC_FLAGS    = -std=c11 -Wall -Wextra -Wpedantic -Werror
+SLOW_FLAGS   = $(GCC_FLAGS) -O0 -g
+FAST_FLAGS   = $(GCC_FLAGS) -march=native -mtune=native -O3 -flto
+UNSAFE_FLAGS = $(GCC_FLAGS) -march=native -mtune=native -Ofast -flto
+
+%/slow.o: %/compiled.c
+	gcc $(SLOW_FLAGS) -c $< -o $@
 
 %/fast.o: %/compiled.c
 	gcc $(FAST_FLAGS) -c $< -o $@
 
+%/unsafe.o: %/compiled.c
+	gcc $(UNSAFE_FLAGS) -c $< -o $@
+
 %/overhead: overhead.c %/fast.o
-	gcc $(FAST_FLAGS) $^ -o $@ -lm -lgmp -lmpfr -DNARGS=$(shell grep f_if $*/compiled.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
+	gcc $(FAST_FLAGS) $^ -o $@ \
+		-lm -lmpfr -lgmp \
+		-DNARGS=$(shell grep f_if $*/compiled.c | tr '()_ ,' '\n' | tail -n+2 | grep float -c)
 
 # How many samples to use for evaluation
 POINTS = 100000

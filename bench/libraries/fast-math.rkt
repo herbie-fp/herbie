@@ -36,9 +36,9 @@
 (lambda (d1)
   #:name "FastMath repmul"
   (* d1 d1 d1 d1)
-  #:target (expt d1 4))
+  #:target (pow d1 4))
 
 (lambda (d1)
   #:name "FastMath test5"
   (* d1 (* d1 (* d1 d1) d1 d1 (* d1 d1) d1) d1)
-  #:target (expt d1 10))
+  #:target (pow d1 10))

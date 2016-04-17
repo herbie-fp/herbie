@@ -1,10 +1,10 @@
 (lambda (x y z)
-  #:name "abs fraction 1"
-  (abs (- (/ (+ x 4) y) (* (/ x y) z))))
+  #:name "fabs fraction 1"
+  (fabs (- (/ (+ x 4) y) (* (/ x y) z))))
 
 (lambda (a b)
-  #:name "abs fraction 2"
-  (/ (abs (- a b)) 2))
+  #:name "fabs fraction 2"
+  (/ (fabs (- a b)) 2))
 
 (lambda (f n)
   #:name "subtraction fraction"
@@ -43,5 +43,5 @@
   #:name "jeff quadratic root 2"
   (let* ((d (sqrt (- (sqr b) (* 4 a c)))))
     (if (>= b 0)
-      (/ (* 2 c) (- (- b) d)))
-      (/ (+ (- b) d) (* 2 a))))
+      (/ (* 2 c) (- (- b) d))
+      (/ (+ (- b) d) (* 2 a)))))

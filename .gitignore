@@ -9,8 +9,10 @@ compile/nr*.c
 compile/nr*.out
 compile/nr.json
 compile/cost
+compiled/
 ml-toy
 papers
 www/demo
 demo.log
 *.class
+cost

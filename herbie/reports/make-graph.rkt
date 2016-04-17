@@ -39,6 +39,17 @@
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
 
+(define (print-test t)
+  (printf "(lambda ~a\n  #:name ~s\n  ~a~a)\n\n"
+          (for/list ([v (test-vars t)]
+                     [s (test-sampling-expr t)])
+                    (list v s))
+          (test-name t)
+          (test-input t)
+          (if (test-output t)
+              (format "\n  #:target\n  ~a" (test-output t))
+              "")))
+
 (define (make-graph result rdir profile?)
   (match result
     [(test-result test time bits start-alt end-alt points exacts
@@ -58,7 +69,7 @@
      (printf "<section id='about'>\n")
 
      (printf "<div>\\[~a\\]</div>\n"
-             (texify-expression (program-body (alt-program start-alt))))
+             (texify-prog (alt-program start-alt)))
 
      (printf "<dl id='kv'>\n")
      (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
@@ -105,8 +116,8 @@
      (printf "</div>\n")
 
      (printf "<div id='output'>\\(~a\\)</div>\n"
-             (texify-expression (program-body (alt-program end-alt))))
-     
+             (texify-prog (alt-program end-alt)))
+
      (output-timeline timeline)
 
      (printf "<ol id='process-info'>\n")
@@ -116,6 +127,13 @@
      (printf "</ol>\n")
 
      (printf "</section>\n")
+
+     (printf "<div style='clear:both;'>\n")
+     (printf "<p>Original test:</p>\n")
+     (printf "<pre><code>\n")
+     (print-test test)
+     (printf "</code></pre>\n")
+     (printf "</div>\n")
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -192,7 +210,7 @@
   (match altn
     [(alt-event prog 'start _)
      (printf "<li>Started with <div>\\[~a\\]</div> <div class='error'>~a</div></li>\n"
-             (texify-expression (program-body prog)) err)]
+             (texify-prog prog) err)]
 
     [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
@@ -243,8 +261,10 @@
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
      (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>"
-             pt (texify-expression (program-body (alt-program prev)) #:loc loc #:color "red")
-             (texify-expression (program-body prog) #:loc loc #:color "blue") err)]
+             pt
+             (texify-prog (alt-program prev) #:loc loc #:color "red")
+             (texify-prog prog               #:loc loc #:color "blue")
+             err)]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)
@@ -266,8 +286,8 @@
      (printf "<li>Applied <span class='rule'>~a</span> "
              (rule-name (change-rule cng)))
      (printf "to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>\n"
-             (texify-expression (program-body (alt-program prev)) #:loc (change-location cng) #:color "red")
-             (texify-expression (program-body prog) #:loc (change-location cng) #:color "blue")
+             (texify-prog (alt-program prev) #:loc (change-location cng) #:color "red")
+             (texify-prog prog               #:loc (change-location cng) #:color "blue")
              err)]))
 
 (define (output-timeline timeline)

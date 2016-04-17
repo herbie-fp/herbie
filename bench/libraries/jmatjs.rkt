@@ -3,7 +3,7 @@
 ;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js
 
 (herbie-test (z)
-  "Jmat.Real.gamma, branch z > 0.5"
+  "Jmat.Real.gamma, branch z greater than 0.5"
   (let* ([z* (- z 1)]
          [g 7]
          [x (+ 0.99999999999980993
@@ -16,10 +16,10 @@
                (/ 9.9843695780195716e-6 (+ z* 7))
                (/ 1.5056327351493116e-7 (+ z* 8)))]
          [t (+ z* g 0.5)])
-    (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x)))
+    (* (sqrt (* pi 2)) (pow t (+ z* 0.5)) (exp (- t)) x)))
 
 (herbie-test (z)
-  "Jmat.Real.gamma, branch z < 0.5"
+  "Jmat.Real.gamma, branch z less than 0.5"
   (let* ([z* (- (- 1 z) 1)]
          [g 7]
          [x (+ 0.99999999999980993
@@ -33,7 +33,7 @@
                (/ 1.5056327351493116e-7 (+ z* 8)))]
          [t (+ z* g 0.5)])
     (* (/ pi (sin (* pi z)))
-       (* (sqrt (* pi 2)) (expt t (+ z* 0.5)) (exp (- t)) x))))
+       (* (sqrt (* pi 2)) (pow t (+ z* 0.5)) (exp (- t)) x))))
 
 (herbie-test (x)
   "Jmat.Real.lambertw, estimator"
@@ -62,21 +62,21 @@
             x)))
 
 (herbie-test (x)
-  "Jmat.Real.erfi, branch x <= 0.5"
+  "Jmat.Real.erfi, branch x less than or equal to 0.5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
-         [x* (abs x)]
+         [x* (fabs x)]
          [x3 (* x* x* x*)]
          [x5 (* x3 x* x*)]
          [x7 (* x5 x* x*)]
          [t (+ (* 2 x*) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
-    (abs (* ps t))))
+    (fabs (* ps t))))
 
 (herbie-test (x)
-  "Jmat.Real.erfi, branch x >= 5"
+  "Jmat.Real.erfi, branch x greater than or equal to 5"
   (let* ([sqrtpi (sqrt pi)]
          [ps (/ 1 sqrtpi)]
-         [x* (abs x)]
+         [x* (fabs x)]
          [xi (/ 1 x*)]
          [xi3 (* xi xi xi)]
          [xi5 (* xi3 xi xi)]
@@ -89,7 +89,7 @@
 
 (herbie-test (x)
   "Jmat.Real.erf"
-  (let* ([x* (abs x)]
+  (let* ([x* (fabs x)]
          [t (/ 1 (+ 1 (* 0.3275911 x*)))]
          [p (* t (+ 0.254829592 (* t (+ -0.284496736 (* t (+ 1.421413741 (* t (+ -1.453152027 (* t 1.061405429)))))))))])
     (- 1 (* p (exp (- (* x* x*)))))))

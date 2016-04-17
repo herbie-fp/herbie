@@ -4,6 +4,7 @@
 (require "../main.rkt")
 (require "../programs.rkt")
 (require "../points.rkt")
+(require "../distributions.rkt")
 (require "../localize-error.rkt")
 (require "../taylor.rkt")
 (require "../alt-table.rkt")
@@ -75,7 +76,7 @@
   (rollback-improve!)
   (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([samplers (or samplers (map (curryr cons sample-default)
+  (let* ([samplers (or samplers (map (curryr cons (eval-sampler 'default))
 				     (program-variables prog)))]
 	 [context (prepare-points prog samplers)])
     (^samplers^ samplers)
@@ -236,17 +237,24 @@
 
 (define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog)
-  (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-  (for ([iter (sequence-map add1 (in-range iters))]
-	#:break (atab-completed? (^table^)))
-    (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
-    (run-iter!))
-  (finalize-table!)
-  (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-  (if get-context?
-      (list (get-final-combination) (*pcontext*))
-      (get-final-combination)))
+  (setup-prog! prog #:samplers samplers)
+  (if (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*))))
+      (let ([init-alt (make-alt (*start-prog*))])
+	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
+	(if get-context?
+	    (list init-alt (*pcontext*))
+	    init-alt))
+      (begin
+	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+	(for ([iter (sequence-map add1 (in-range iters))]
+	      #:break (atab-completed? (^table^)))
+	  (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
+	  (run-iter!))
+	(finalize-table!)
+	(debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+	(if get-context?
+	    (list (get-final-combination) (*pcontext*))
+	    (get-final-combination)))))
 
 (define (visualize alt #:marks [marks '()] #:axis [axis 0])
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
