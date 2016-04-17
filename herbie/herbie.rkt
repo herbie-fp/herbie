@@ -23,10 +23,7 @@
 (require "alternative.rkt")
 (require "test.rkt")
 (require "sandbox.rkt")
-(require "reports/datafile.rkt")
 
-(define output-type (make-parameter 'console))
-(define output-name (make-parameter #f))
 (define early-exit? (make-parameter #f))
 (define profile? (make-parameter #f))
 (define threads (make-parameter #f))
@@ -55,95 +52,41 @@
          (call-with-input-file file
            (λ (port) (map parse-test (sequence->list (in-port read port)))))))))
 
-(define get-test-results #f)
-(define (get-get-test-results)
-  (when (not get-test-results)
-    (set! get-test-results
-          (dynamic-require "herbie/reports/thread-pool.rkt" 'get-test-results)))
-  get-test-results)
-
-(define write-datafile #f)
-(define (get-write-datafile)
-  (when (not write-datafile)
-    (set! write-datafile (dynamic-require "herbie/reports/datafile.rkt" 'write-datafile)))
-  write-datafile)
-
-(define make-report-info #f)
-(define (get-make-report-info)
-  (when (not make-report-info)
-    (set! make-report-info (dynamic-require "herbie/reports/datafile.rkt" 'make-report-info)))
-  make-report-info)
-
-(define compile-info #f)
-(define (get-compile-info)
-  (when (not compile-info)
-    (set! write-datafile (dynamic-require "herbie/compile/c.rkt" 'compile-info)))
-  compile-info)
-
-(define make-report-page #f)
-(define (get-make-report-page)
-  (when (not make-report-page)
-    (set! make-report-page (dynamic-require "herbie/reports/make-report.rkt" 'make-report-page)))
-  make-report-page)
-
 (define (in-herbie-output files #:seed seed)
-  (match (output-type)
-    [(or 'json 'console) ; TODO: Remove 'json the threads don't generate details
-     (printf "Running Herbie...\nSeed: ~a\n" seed)
-     (sequence-map
-      (λ (test) (get-table-data (get-test-result test #:seed seed) "asdf"))
-      (in-herbie-files files))]
-    [(or 'json 'report)
-     ((get-get-test-results)
-      #:threads (threads) #:seed seed #:profile (profile?)
-      (reverse (sort (sequence->list (apply in-herbie-files files)) test<?)))]))
+  (eprintf "Seed: ~a\n" seed)
+  (sequence-map
+   (λ (test) (get-test-result test #:seed seed))
+   (in-herbie-files files)))
 
 (define (run-herbie files)
   (define seed (get-seed))
-  (define outputs
-    (for/list ([output (in-herbie-output files #:seed seed)]
-               [idx (in-naturals)] #:when output)
-      (match-define
-       (table-row name status start result target
-                  inf- inf+ result-est
-                  vars samplers
-                  input-prog output-prog time bits link)
-       output)
-      (define success?
-        (match status
-          ["crash"
-           (printf "[   CRASH   ]\t\t\t~a\n" name)
-           #f]
-          ["timeout"
-           (when (equal? (output-type) 'console)
-             (eprintf "Timeout in ~as; use --timeout to change timeout\n" (/ time 1000)))
-           (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
-           #f]
-          [_
-           (match (output-type)
-             ['console (printf "~a\n" output-prog)]
-             [_ (printf "[ ~ams]\t(~a→~a)\t~a\n"
-                        (~a time #:width 8)
-                        (~r start #:min-width 2 #:precision 0)
-                        (~r result #:min-width 2 #:precision 0)
-                        name)])
-           #t
-           #;(test-successful? test start target result)]))
-      (when (and (early-exit?) (not success?))
-        (exit (+ 1 idx)))
-      output))
-  
-  (define info ((get-make-report-info) outputs #:note (note)))
-
-  (when (equal? (output-type) 'json)
-    (set-seed! seed)
-    ((get-write-datafile) (output-name) info))
-  (when (equal? (output-type) 'report)
-    (set-seed! seed)
-    ((get-write-datafile) (build-path (output-name) "results.json") info)
-    (set-seed! seed)
-    ((get-make-report-page) (build-path (output-name) "report.html") info)
-    ((get-compile-info) (output-name) info info))) ; TODO: Split out C compilation
+  (for ([output (in-herbie-output files #:seed seed)]
+        [idx (in-naturals)] #:when output)
+    (define success?
+      (match output
+        [(test-result test time bits start-alt end-alt points exacts
+                      start-est-error end-est-error newpoint newexacts
+                      start-error end-error target-error timeline)
+         (eprintf "[ ~ams]\t~a\t(~a→~a)\n"
+                  (~a time #:width 8)
+                  (test-name test)
+                  (~r (errors-score start-error) #:min-width 2 #:precision 0)
+                  (~r (errors-score end-error) #:min-width 2 #:precision 0))
+         (when (not (early-exit?))
+           (printf "~a\n" (alt-program end-alt)))
+         (test-successful? test (errors-score start-error) (if target-error (errors-score target-error) #f) (errors-score end-error))]
+        [(test-failure test bits exn time timeline)
+         (eprintf "[   CRASH   ]\t~a\n" (test-name test))
+         (when (not (early-exit?))
+           (printf ";; Crash in ~a\n" (test-name test)))
+         #f]
+        [(test-timeout test bits time timeline)
+         (eprintf "[  timeout  ]\t~a\n" (test-name test))
+         (when (not (early-exit?))
+           (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test)))
+         #f]))
+    (when (and (early-exit?) (not success?))
+      (exit (+ 1 idx)))))
 
 (module+ main
   (command-line
@@ -169,13 +112,6 @@
     (*num-points* (string->number points))]
    [("--note") text "Add a note for this run"
     (note text)]
-   [("-o" "--output") fname "Where output should be placed. `-` for console text output, `[name].json` for JSON output, or `[dir]/` for a directory of reports."
-    (output-type
-          (match fname
-            ["-" 'console]
-            [(regexp #rx"\\.json$") 'json]
-            [(regexp #rx"/$") 'report])) ; TODO : Handle error
-    (output-name (if (equal? fname "-") #f (simplify-path fname)))]
    #:multi
    [("-f" "--feature") tf "Toggle flags, specified in the form category:flag"
     (let ([split-strings (string-split tf ":")])
@@ -183,7 +119,5 @@
         (error "Badly formatted input " tf))
       (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
    #:args files
-   (match files
-     [(list (? herbie-input? files) ...)
-      (run-herbie files)]))) ; TODO : Handle error
+   (run-herbie files))) ; TODO : Handle error
 
