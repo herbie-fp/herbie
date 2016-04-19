@@ -77,8 +77,12 @@
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
-      (for/list ([test (in-port read port)])
-        (parse-test test)))))
+      (define tests (for/list ([test (in-port read port)])
+                      (parse-test test)))
+      (let ([duplicate-name (check-duplicates tests #:key test-name)])
+        (assert (not duplicate-name)
+                #:extra-info (λ () (format "Two tests with the same name ~a" duplicate-name))))
+      tests)))
 
 (define (is-racket-file? f)
   (and (equal? (filename-extension f) #"rkt") (file-exists? f)))
