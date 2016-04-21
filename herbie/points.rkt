@@ -7,7 +7,6 @@
 (require "config.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-	 sample-double sample-float sample-uniform sample-integer sample-default
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list sort-context-on-expr
          random-subsample)
@@ -56,26 +55,6 @@
 				   ((eval-prog expr-prog mode:bf) (car p&e))))))])
     (list (map car p&e) (map cdr p&e))))
 
-(define (random-single-flonum)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 32) 4 #f)))
-
-(define (random-double-flonum)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
-
-(define (sample-float)
-  (real->double-flonum (random-single-flonum)))
-
-(define (sample-double)
-  (real->double-flonum (random-double-flonum)))
-
-(define (sample-default) (((flag 'precision 'double) sample-double sample-float)))
-
-(define ((sample-uniform a b))
-  (+ (* (random) (- b a)) a))
-
-(define (sample-integer)
-  (- (random-exp 32) (expt 2 31)))
-
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
     (apply list-product
@@ -86,8 +65,7 @@
 		periods))))
 
 (define (sample sampler)
-  (let ([y (sampler)])
-    (or y (sample sampler))))
+  (or (sampler) (sample sampler)))
 
 (define (select-every skip l)
   (let loop ([l l] [count skip])

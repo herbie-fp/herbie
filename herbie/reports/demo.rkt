@@ -79,20 +79,23 @@
 
           (define result
             (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-              (get-test-result
-               #:seed *fixed-seed*
-               #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-               (test name vars (map (const 'default) vars) body #f #f)
-               dir)))
+              (call-with-output-file
+                  (build-path dir "debug.txt") #:exists 'replace
+                  (λ (p)
+                    (get-test-result
+                     #:seed *fixed-seed*
+                     #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+                     #:debug p
+                     (test name vars (map (const 'default) vars) body #f #f))))))
 
           (define make-page
             (cond [(test-result? result) make-graph]
                   [(test-timeout? result) make-timeout]
                   [(test-failure? result) make-traceback]))
           (with-output-to-file (build-path dir "graph.html")
-            (λ () (make-page result #f)))
+            (λ () (make-page result dir #f)))
 
-          (define data (get-table-data result))
+          (define data (get-table-data result dir))
 
           ; Save new report data
           (define info

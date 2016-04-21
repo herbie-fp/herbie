@@ -7,6 +7,7 @@
 
 (provide reap define-table println ordinary-float? =-or-nan?
          take-up-to argmins list-product list-join
+         common-eval-ns common-eval
          ulp-difference *bit-width* ulps->bits bit-difference
          write-file write-string
          *start-prog* html-escape-unsafe
@@ -230,3 +231,8 @@
   (for/first ([e lst] [i (in-naturals)]
              #:when (equal? e elt))
              i))
+
+
+(define-namespace-anchor common-eval-ns-anchor)
+(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
+(define (common-eval expr) (eval expr common-eval-ns))

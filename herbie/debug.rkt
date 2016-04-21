@@ -113,4 +113,5 @@
   (for/list ([arg args])
     (display " " port)
     ((if (string? arg) display write) arg port))
-  (newline port))
+  (newline port)
+  (flush-output port))

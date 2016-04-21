@@ -4,6 +4,7 @@
 (require "programs.rkt")
 (require "matcher.rkt")
 (require "points.rkt")
+(require "distributions.rkt")
 (require "common.rkt")
 (require "syntax.rkt")
 (require "config.rkt")
@@ -127,7 +128,7 @@
 			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* (map (curryr cons sample-default)
+			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
 							      (program-variables start-prog*))))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])

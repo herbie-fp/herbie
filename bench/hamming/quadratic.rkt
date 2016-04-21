@@ -1,7 +1,7 @@
 
 ; quadratic formula
 (lambda (a b c)
-  #:name "NMSE p42"
+  #:name "NMSE p42, positive"
   (let* ((d (sqrt (- (sqr b) (* 4 (* a c))))))
     (/ (+ (- b) d) (* 2 a)))
   #:target
@@ -13,7 +13,7 @@
         (/ c (* a r2)))))
 
 (lambda (a b c)
-  #:name "NMSE p42"
+  #:name "NMSE p42, negative"
   (let* ((d (sqrt (- (sqr b) (* 4 (* a c))))))
     (/ (- (- b) d) (* 2 a)))
   #:target
@@ -25,11 +25,11 @@
         r2)))
 
 (lambda (a b/2 c)
-  #:name "NMSE problem 3.2.1"
+  #:name "NMSE problem 3.2.1, negative"
   (let* ((d (sqrt (- (sqr b/2) (* a c)))))
     (/ (- (- b/2) d) a)))
 
 (lambda (a b/2 c)
-  #:name "NMSE problem 3.2.1"
+  #:name "NMSE problem 3.2.1, positive"
   (let* ((d (sqrt (- (sqr b/2) (* a c)))))
     (/ (+ (- b/2) d) a)))

@@ -14,8 +14,8 @@
   (define seed (get-seed))
   (printf "Running Herbie on ~a tests...\nSeed: ~a\n" (length tests) seed)
   (for/and ([test tests])
-    (match (get-test-result test "." #:seed seed)
-      [(test-result test rdir time prec input output pts exs
+    (match (get-test-result test #:seed seed)
+      [(test-result test time prec input output pts exs
                     start-errors end-error newpts newexs
                     start-newerrors end-newerrors target-newerrors timeline)
        (printf "[ ~ams]\t(~a→~a)\t~a\n"
@@ -36,11 +36,11 @@
          (when (test-output test) (printf "Target: ~a\n" (test-output test))))
 
        success?]
-      [(test-failure test prec exn time rdir timeline)
+      [(test-failure test prec exn time timeline)
        (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
-      [(test-timeout test prec time rdir timeline)
+      [(test-timeout test prec time timeline)
        (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
        #f])))
 

@@ -2,6 +2,7 @@
 
 (require "common.rkt")
 (require "points.rkt")
+(require "distributions.rkt")
 (require "alternative.rkt")
 (require "localize-error.rkt")
 (require "simplify/simplify.rkt")
@@ -91,7 +92,7 @@
     (debug "prog is" prog*)
     (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
 
-(define (post-process table)
+(define (post-process table log!)
   (debug #:from 'progress #:depth 2 "Final touches.")
   (let* ([all-alts (atab-all-alts table)]
 	 [num-alts (length all-alts)]
@@ -99,6 +100,7 @@
 	 [maybe-zach ((flag 'reduce 'zach)
 		      (λ (alt locs)
 			(debug #:from 'progress #:depth 3 "zaching alt" (add1 zached-alts) "of" num-alts)
+                        (log! 'zach)
 			(set! zached-alts (add1 zached-alts))
 			(append-map (curry zach-alt alt) locs))
 		      (const '()))]
@@ -106,9 +108,11 @@
 	 [maybe-taylor ((flag 'reduce 'taylor)
 			(λ (alt locs)
 			  (debug #:from 'progress #:depth 3 "tayloring alt" (add1 taylored-alts) "of" num-alts)
+                          (log! 'series)
 			  (set! taylored-alts (add1 taylored-alts))
 			  (append-map (curry taylor-alt alt) locs))
 			(λ (x y) (list x)))]
+         [_ (log! 'localize)]
 	 [locss (map (compose localize-error alt-program) all-alts)]
 	 [alts*
 	  (apply append
@@ -119,6 +123,7 @@
 	 [maybe-simplify ((flag 'reduce 'simplify)
 			  (λ (alt)
 			    (debug #:from 'progress #:depth 3 "simplifying alt" (add1 simplified-alts) "of" num-alts*)
+                            (log! 'simplify)
 			    (set! simplified-alts (add1 simplified-alts))
 			    (completely-simplify-alt alt))
 			  identity)]

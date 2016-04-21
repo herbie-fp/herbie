@@ -5,13 +5,8 @@ env:
 before_install:
 - curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.4/racket-6.4-x86_64-linux-debian-squeeze.sh
 - sh racket-install.sh --in-place --dest ~/racket
-- ~/racket/bin/raco pkg install --auto unstable
 script:
-- "~/racket/bin/racket herbie/reports/travis.rkt bench/tutorial.rkt bench/hamming/"
-notification:
-  hipchat:
-    rooms:
-      secure: YuIQZYduHGJOOtYClGda0BMZCh6vFhhRiRZEd/iyMec52fWnvJdHZrIJIxE4TUVKwk5S8kmAY4dos3wYbq3LjQ6bCWhdvgJW0aJ3xQrluvx6jIe1LrcGcyyZAYvAfa3rutp70gTHTd4vczN7dqfkUH3Asz0ndVQeO6ZSOopVNdc=
+- "~/racket/bin/racket herbie/herbie.rkt --test bench/tutorial.rkt bench/hamming/"
 notifications:
   slack:
     secure: QB8ib/gxZWZ8rY9H54BktIgx8LfjdqabSAkmWip0VHlUhrh2ULG566XgmB5h75eNzCil2cw76ma5wfSC0MNIQ1iDHKCxAgTE0+gcPcZAYGfucQ28sKGBG2wcuJfvBLG6lVDxj+luGUh3XohouTLYI9cg509JBgTgpcrXVexYAaE=

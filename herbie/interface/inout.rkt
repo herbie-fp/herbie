@@ -54,5 +54,5 @@
       (when (not (= 2 (length split-strings)))
         (error "Badly formatted input " tf))
       (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
-   #:args _
+   #:args ()
    (run #:print-points print-points)))
