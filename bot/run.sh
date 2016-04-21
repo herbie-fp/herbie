@@ -105,7 +105,7 @@ function runEach {
     name=$(basename "$bench" .rkt)
     # add cases to skip large or misbehaving benchmarks
     case $name in
-      SKIP)
+      haskell|random)
         continue
         ;;
     esac
