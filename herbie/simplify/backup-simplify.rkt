@@ -48,7 +48,6 @@
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
      (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
        (make-multiplication-node terms))]
-    [`(exp 0) 1]
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
     [else
