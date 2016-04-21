@@ -53,8 +53,10 @@ function main {
 
   # toggle some configs every day
   for prec in "" "--option precision:double"; do
-    for num in "" "--option rules:numerics"; do
-      runEach --seed "$seed" $fuel $regime $prec $num
+    for postproc in "" "--option reduce:post-process"; do
+      for num in "" "--option rules:numerics"; do
+        runEach --seed "$seed" $fuel $regime $prec $postproc $num
+      done
     done
   done
 }
