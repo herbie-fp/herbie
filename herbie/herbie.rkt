@@ -79,6 +79,7 @@
          (eprintf "[   CRASH   ]\t~a\n" (test-name test))
          (when (not (early-exit?))
            (printf ";; Crash in ~a\n" (test-name test)))
+         ((error-display-handler) (exn-message exn) exn)
          #f]
         [(test-timeout test bits time timeline)
          (eprintf "[  timeout  ]\t~a\n" (test-name test))
