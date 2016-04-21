@@ -268,7 +268,8 @@
 
 ;; Finishing Herbie
 (define (finalize-table!)
-  (^table^ (post-process (^table^)))
+  (when ((flag 'reduce 'post-process) #t #f)
+    (^table^ (post-process (^table^) timeline-event!)))
   (void))
 
 (define (get-final-combination)
