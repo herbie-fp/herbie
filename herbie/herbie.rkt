@@ -87,6 +87,12 @@
            (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test)))
          #f]))
     (when (and (early-exit?) (not success?))
+      (when (test-result? output)
+         (printf "Input: ~a\n" (alt-program (test-result-start-alt output)))
+         (printf "Output:\n")
+         (pretty-print (alt-program (test-result-end-alt output)))
+         (define target (test-output (test-result-test output)))
+         (when target (printf "Target: ~a\n" target)))
       (exit (+ 1 idx)))))
 
 (module+ main
