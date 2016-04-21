@@ -7,10 +7,6 @@ before_install:
 - sh racket-install.sh --in-place --dest ~/racket
 script:
 - "~/racket/bin/racket herbie/herbie.rkt --test bench/tutorial.rkt bench/hamming/"
-notification:
-  hipchat:
-    rooms:
-      secure: YuIQZYduHGJOOtYClGda0BMZCh6vFhhRiRZEd/iyMec52fWnvJdHZrIJIxE4TUVKwk5S8kmAY4dos3wYbq3LjQ6bCWhdvgJW0aJ3xQrluvx6jIe1LrcGcyyZAYvAfa3rutp70gTHTd4vczN7dqfkUH3Asz0ndVQeO6ZSOopVNdc=
 notifications:
   slack:
     secure: QB8ib/gxZWZ8rY9H54BktIgx8LfjdqabSAkmWip0VHlUhrh2ULG566XgmB5h75eNzCil2cw76ma5wfSC0MNIQ1iDHKCxAgTE0+gcPcZAYGfucQ28sKGBG2wcuJfvBLG6lVDxj+luGUh3XohouTLYI9cg509JBgTgpcrXVexYAaE=
