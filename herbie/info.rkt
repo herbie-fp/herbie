@@ -2,7 +2,7 @@
 (define collection "herbie")
 (define compile-omit-paths '("test" "reports/bash-pred-test.rkt" "herbie-web" "util.rkt"))
 (define raco-commands '(("herbie" (submod herbie/interface/inout main) "improve floating point expression accuracy" 75)))
-(define deps '("base"
+(define deps '(("base" #:version "6.3")
                "math-lib"
                "plot-lib"
                "profile-lib"
