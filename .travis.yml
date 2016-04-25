@@ -13,6 +13,7 @@ before_install:
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/herbie
 script:
+  - raco test herbie
   - racket herbie/reports/travis.rkt bench/tutorial.rkt bench/hamming/
 notifications:
   slack:
