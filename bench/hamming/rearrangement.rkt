@@ -51,6 +51,7 @@
 
 (lambda (x)
   #:name "NMSE problem 3.3.4"
+  #:expected #f
   (- (pow (+ x 1) (/ 1 3)) (pow x (/ 1 3))))
 
 (lambda (x eps)
