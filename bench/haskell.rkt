@@ -8,29 +8,29 @@
 ;;; please let us know at <herbie@cs.washington.edu>.
 
 (herbie-test (x y)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, A"
  (sqrt (+ x y))
  (sqrt (+ x y)))
 
 (herbie-test (x y z t)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, B"
  (/ (- (+ x y) z) (* t 2.0))
  (/ (- (+ x y) z) (* t 2.0)))
 
 (herbie-test (x y)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, C"
  (sqrt (fabs (- x y)))
  (sqrt (fabs (- x y))))
 
 (herbie-test (x y z t)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, D"
  (+ x (/ (* y (- z x)) t))
  (-
   x
   (+ (* x (/ y t)) (* (- z) (/ y t)))))
 
 (herbie-test (x y z t a)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, E"
  (+ x (/ (* y (- z t)) a))
  (if (< y -1.0761266216389975e-10)
    (+ x (/ 1 (/ (/ a (- z t)) y)))
@@ -39,7 +39,7 @@
      (+ x (/ y (/ a (- z t)))))))
 
 (herbie-test (x y z t a)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, F"
  (- x (/ (* y (- z t)) a))
  (if (< y -1.0761266216389975e-10)
    (- x (/ 1 (/ (/ a (- z t)) y)))
@@ -48,22 +48,22 @@
      (- x (/ y (/ a (- z t)))))))
 
 (herbie-test (x y z)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, G"
  (* (+ x y) (+ z 1.0))
  (* (+ x y) (+ z 1.0)))
 
 (herbie-test (x y z)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, H"
  (* (+ x y) (- 1.0 z))
  (* (+ x y) (- 1.0 z)))
 
 (herbie-test (x y z)
- "Optimisation.CirclePacking:place from circle-packing-0.1.0.4"
+ "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, I"
  (+ (+ x y) z)
  (+ (+ x y) z))
 
 (herbie-test (x y z t a b c i j)
- "Data.Colour.Matrix:determinant from colour-2.3.3"
+ "Data.Colour.Matrix:determinant from colour-2.3.3, A"
  (+
   (-
    (* x (- (* y z) (* t a)))
@@ -92,7 +92,7 @@
       (* j (- (* c a) (* y i)))))))
 
 (herbie-test (x y z t a)
- "Data.Colour.Matrix:inverse from colour-2.3.3"
+ "Data.Colour.Matrix:inverse from colour-2.3.3, B"
  (/ (- (* x y) (* z t)) a)
  (if (< z -2.468684968699548e+170)
    (- (* (/ y a) x) (* (/ t a) z))
@@ -106,79 +106,79 @@
  (- (- 1.0 x) y))
 
 (herbie-test (x y)
- "Data.Colour.RGB:hslsv from colour-2.3.3"
+ "Data.Colour.RGB:hslsv from colour-2.3.3, A"
  (/ (+ x y) 2.0)
  (/ (+ x y) 2.0))
 
 (herbie-test (x y z t a)
- "Data.Colour.RGB:hslsv from colour-2.3.3"
+ "Data.Colour.RGB:hslsv from colour-2.3.3, B"
  (+ (/ (* 60.0 (- x y)) (- z t)) (* a 120.0))
  (+ (/ 60.0 (/ (- z t) (- x y))) (* a 120.0)))
 
 (herbie-test (x y)
- "Data.Colour.RGB:hslsv from colour-2.3.3"
+ "Data.Colour.RGB:hslsv from colour-2.3.3, C"
  (/ (- x y) (- 2.0 (+ x y)))
  (-
   (/ x (- 2.0 (+ x y)))
   (/ y (- 2.0 (+ x y)))))
 
 (herbie-test (x y)
- "Data.Colour.RGB:hslsv from colour-2.3.3"
+ "Data.Colour.RGB:hslsv from colour-2.3.3, D"
  (/ (- x y) (+ x y))
  (- (/ x (+ x y)) (/ y (+ x y))))
 
 (herbie-test (x y)
- "Data.Colour.RGB:hslsv from colour-2.3.3"
+ "Data.Colour.RGB:hslsv from colour-2.3.3, E"
  (/ (- x y) x)
  (- 1 (/ y x)))
 
 (herbie-test (x y)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, A"
  (- (+ x y) (* x y))
  (- (+ x y) (* x y)))
 
 (herbie-test (x y)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, B"
  (* x (+ y 1.0))
  (+ x (* x y)))
 
 (herbie-test (x y)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, C"
  (- (* x 2.0) y)
  (- (* x 2.0) y))
 
 (herbie-test (x y z)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, D"
  (+ x (* (* (- y x) 6.0) (- (/ 2.0 3.0) z)))
  (+ x (* (* (- y x) 6.0) (- (/ 2.0 3.0) z))))
 
 (herbie-test (x y z)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, E"
  (+ x (* (* (- y x) 6.0) z))
  (- x (* (* 6.0 z) (- x y))))
 
 (herbie-test (x)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, F"
  (+ x (/ 1.0 3.0))
  (+ x (/ 1.0 3.0)))
 
 (herbie-test (x)
- "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, G"
  (- x (/ 1.0 3.0))
  (- x (/ 1.0 3.0)))
 
 (herbie-test (x y)
- "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3, H"
  (* x (- 1.0 y))
  (* x (- 1.0 y)))
 
 (herbie-test (x y z)
- "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3, I"
  (* x (- 1.0 (* y z)))
  (* x (- 1.0 (* y z))))
 
 (herbie-test (x y z)
- "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3"
+ "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3, J"
  (* x (- 1.0 (* (- 1.0 y) z)))
  (if (<
       (* x (- 1.0 (* (- 1.0 y) z)))
@@ -206,42 +206,42 @@
  (- (* x 116.0) 16.0))
 
 (herbie-test (x)
- "Data.Colour.CIE:cieLABView from colour-2.3.3"
+ "Data.Colour.CIE:cieLABView from colour-2.3.3, A"
  (+ (* (/ 841.0 108.0) x) (/ 4.0 29.0))
  (+ (* (/ 841.0 108.0) x) (/ 4.0 29.0)))
 
 (herbie-test (x y)
- "Data.Colour.CIE:cieLABView from colour-2.3.3"
+ "Data.Colour.CIE:cieLABView from colour-2.3.3, B"
  (* 500.0 (- x y))
  (* 500.0 (- x y)))
 
 (herbie-test (x y)
- "Data.Colour.CIE:cieLABView from colour-2.3.3"
+ "Data.Colour.CIE:cieLABView from colour-2.3.3, C"
  (* 200.0 (- x y))
  (* 200.0 (- x y)))
 
 (herbie-test (x y)
- "Data.Colour.CIE:cieLAB from colour-2.3.3"
+ "Data.Colour.CIE:cieLAB from colour-2.3.3, A"
  (* (* (- x (/ 16.0 116.0)) 3.0) y)
  (* y (- (* x 3.0) 0.41379310344827586)))
 
 (herbie-test (x)
- "Data.Colour.CIE:cieLAB from colour-2.3.3"
+ "Data.Colour.CIE:cieLAB from colour-2.3.3, B"
  (/ (+ x 16.0) 116.0)
  (/ (+ x 16.0) 116.0))
 
 (herbie-test (x y)
- "Data.Colour.CIE:cieLAB from colour-2.3.3"
+ "Data.Colour.CIE:cieLAB from colour-2.3.3, C"
  (+ x (/ y 500.0))
  (+ x (/ y 500.0)))
 
 (herbie-test (x y)
- "Data.Colour.CIE:cieLAB from colour-2.3.3"
+ "Data.Colour.CIE:cieLAB from colour-2.3.3, D"
  (- x (/ y 200.0))
  (- x (/ y 200.0)))
 
 (herbie-test (x y z t a)
- "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1"
+ "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, A"
  (/ (- x (* y z)) (- t (* a z)))
  (if (< z -32113435955957344.0)
    (-
@@ -254,7 +254,7 @@
       (/ y (- (/ t z) a))))))
 
 (herbie-test (x y z t)
- "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1"
+ "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, B"
  (/ x (- y (* z t)))
  (if (< x -1.618195973607049e+50)
    (/ 1 (- (/ y x) (* (/ z x) t)))
@@ -263,14 +263,14 @@
      (/ 1 (- (/ y x) (* (/ z x) t))))))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1"
+ "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, C"
  (- x (* y z))
  (/
   (+ x (* y z))
   (/ (+ x (* y z)) (- x (* y z)))))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1"
+ "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1, A"
  (/ (* x y) z)
  (if (< z -4.262230790519429e-138)
    (/ (* x y) z)
@@ -279,7 +279,7 @@
      (* (/ x z) y))))
 
 (herbie-test (x y z t a b)
- "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1"
+ "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1, B"
  (/
   (+ x (/ (* y z) t))
   (+ (+ a 1.0) (/ (* y b) t)))
@@ -298,22 +298,22 @@
        (/ 1 (+ (+ a 1.0) (* (/ y t) b))))))))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1, A"
  (- x (* (* y 4.0) z))
  (- x (* (* y 4.0) z)))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1, B"
  (* (/ 1.0 2.0) (+ x (* y (sqrt z))))
  (* (/ 1.0 2.0) (+ x (* y (sqrt z)))))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quadForm from diagrams-solve-0.1, C"
  (/ x (* y 2.0))
  (/ x (* y 2.0)))
 
 (herbie-test (x y z t a b)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, A"
  (+
   (- (* x 2.0) (* (* (* y 9.0) z) t))
   (* (* a 27.0) b))
@@ -326,17 +326,17 @@
     (* (* a 27.0) b))))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, B"
  (- (* (* x 3.0) y) z)
  (- (* x (* 3.0 y)) z))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, C"
  (/ x (* y 3.0))
  (/ (/ x y) 3.0))
 
 (herbie-test (x y z t)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, D"
  (*
   (/ 1.0 3.0)
   (acos
@@ -350,17 +350,8 @@
     (/ (sqrt t) (/ 2.0 3.0))))
   3.0))
 
-(herbie-test (x
-  y
-  z
-  t
-  a
-  b
-  c
-  i
-  j
-  k)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+(herbie-test (x y z t a b c i j k)
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, E"
  (-
   (-
    (+
@@ -389,17 +380,17 @@
       (- (* (* k j) 27.0) (* c b))))))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, F"
  (* (* x 27.0) y)
  (* (* x 27.0) y))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, G"
  (* (/ 1.0 2.0) (+ x y))
  (/ (+ x y) 2.0))
 
 (herbie-test (x y z t)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, H"
  (+
   (- x (/ y (* z 3.0)))
   (/ t (* (* z 3.0) y)))
@@ -408,7 +399,7 @@
   (/ (/ t (* z 3.0)) y)))
 
 (herbie-test (x y z t a)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, I"
  (/ (- (* x y) (* (* z 9.0) t)) (* a 2.0))
  (if (< a -2.090464557976709e+86)
    (-
@@ -421,7 +412,7 @@
       (* (/ t a) (* z 4.5))))))
 
 (herbie-test (x y z t a b c)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, J"
  (/
   (+
    (- (* (* x 9.0) y) (* (* (* z 4.0) t) a))
@@ -512,7 +503,7 @@
             (* 4.0 (/ (* a t) c)))))))))
 
 (herbie-test (x y z t a b)
- "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, K"
  (-
   (* (* 2.0 (sqrt x)) (cos (- y (/ (* z t) 3.0))))
   (/ a (* b 3.0)))
@@ -533,17 +524,17 @@
       (/ (/ a b) 3.0)))))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, A"
  (- x (* (/ 3.0 8.0) y))
  (- x (* (/ 3.0 8.0) y)))
 
 (herbie-test (x y z t)
- "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, B"
  (+ (- (* (/ 1.0 8.0) x) (/ (* y z) 2.0)) t)
  (- (+ (/ x 8.0) t) (* (/ z 2.0) y)))
 
 (herbie-test (x y z t a b c)
- "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, C"
  (+
   (-
    (+ (* x y) (/ (* z t) 16.0))
@@ -556,37 +547,37 @@
   c))
 
 (herbie-test (x y z)
- "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, D"
  (- (/ (* x y) 2.0) (/ z 8.0))
  (- (/ (* x y) 2.0) (/ z 8.0)))
 
 (herbie-test (x y)
- "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1"
+ "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, E"
  (- x (/ y 4.0))
  (- x (/ y 4.0)))
 
 (herbie-test (x y)
- "Text.Parsec.Token:makeTokenParser from parsec-3.1.9"
+ "Text.Parsec.Token:makeTokenParser from parsec-3.1.9, A"
  (/ (+ x y) 10.0)
  (/ (+ x y) 10.0))
 
 (herbie-test (x y z)
- "Text.Parsec.Token:makeTokenParser from parsec-3.1.9"
+ "Text.Parsec.Token:makeTokenParser from parsec-3.1.9, B"
  (* (+ x y) z)
  (* (+ x y) z))
 
 (herbie-test (x y)
- "Numeric.Interval.Internal:bisect from intervals-0.7.1"
+ "Numeric.Interval.Internal:bisect from intervals-0.7.1, A"
  (+ x (/ (- y x) 2.0))
  (* 0.5 (+ x y)))
 
 (herbie-test (x y)
- "Numeric.Interval.Internal:scale from intervals-0.7.1"
+ "Numeric.Interval.Internal:scale from intervals-0.7.1, B"
  (/ (* x y) 2.0)
  (/ (* x y) 2.0))
 
 (herbie-test (x y z t)
- "Linear.V2:$cdot from linear-1.19.1.3"
+ "Linear.V2:$cdot from linear-1.19.1.3, A"
  (+ (* x y) (* z t))
  (+ (* x y) (* z t)))
 
@@ -596,12 +587,12 @@
  (- (* x y) (* z t)))
 
 (herbie-test (x y z t a b)
- "Linear.V3:$cdot from linear-1.19.1.3"
+ "Linear.V3:$cdot from linear-1.19.1.3, B"
  (+ (+ (* x y) (* z t)) (* a b))
  (+ (+ (* x y) (* z t)) (* a b)))
 
 (herbie-test (x y z t a b c i)
- "Linear.V4:$cdot from linear-1.19.1.3"
+ "Linear.V4:$cdot from linear-1.19.1.3, C"
  (+
   (+ (+ (* x y) (* z t)) (* a b))
   (* c i))
@@ -610,50 +601,50 @@
   (* c i)))
 
 (herbie-test (x y z)
- "Main:bigenough2 from "
+ "Main:bigenough2 from A"
  (+ x (* y (+ z x)))
  (+ x (* y (+ z x))))
 
 (herbie-test (x)
- "Main:bigenough1 from "
+ "Main:bigenough1 from B"
  (+ x (* x x))
  (+ (sqr x) x))
 
 (herbie-test (x)
- "Main:bigenough3 from "
+ "Main:bigenough3 from C"
  (- (sqrt (+ x 1.0)) (sqrt x))
  (/ 1.0 (+ (sqrt (+ x 1.0)) (sqrt x))))
 
 (herbie-test (x y z)
- "Linear.Quaternion:$c/ from linear-1.19.1.3"
+ "Linear.Quaternion:$c/ from linear-1.19.1.3, A"
  (+
   (+ (+ (* x y) (* z z)) (* z z))
   (* z z))
  (+ (* (* 3 z) z) (* y x)))
 
 (herbie-test (x y z)
- "Linear.Quaternion:$c/ from linear-1.19.1.3"
+ "Linear.Quaternion:$c/ from linear-1.19.1.3, B"
  (+
   (- (- (* x y) (* y z)) (* y y))
   (* y y))
  (* (- x z) y))
 
 (herbie-test (x y z)
- "Linear.Quaternion:$c/ from linear-1.19.1.3"
+ "Linear.Quaternion:$c/ from linear-1.19.1.3, C"
  (-
   (- (+ (* x y) (* y y)) (* y z))
   (* y y))
  (* (- x z) y))
 
 (herbie-test (x y z)
- "Linear.Quaternion:$c/ from linear-1.19.1.3"
+ "Linear.Quaternion:$c/ from linear-1.19.1.3, D"
  (-
   (+ (- (* x y) (* y y)) (* y y))
   (* y z))
  (* (- x z) y))
 
 (herbie-test (x y)
- "Linear.Quaternion:$c/ from linear-1.19.1.3"
+ "Linear.Quaternion:$c/ from linear-1.19.1.3, E"
  (+
   (+ (+ (* x x) (* y y)) (* y y))
   (* y y))
@@ -716,22 +707,7 @@
  (* x (/ (sin y) y))
  (* x (/ (sin y) y)))
 
-(herbie-test (x
-  y
-  z
-  t
-  a
-  b
-  c
-  i
-  j
-  k
-  y0
-  y1
-  y2
-  y3
-  y4
-  y5)
+(herbie-test (x y z t a b c i j k y0 y1 y2 y3 y4 y5)
  "Linear.Matrix:det44 from linear-1.19.1.3"
  (+
   (-
@@ -972,12 +948,12 @@
            (* (- (* c t) (* y i)) j))))))))
 
 (herbie-test (x y)
- "Linear.Matrix:fromQuaternion from linear-1.19.1.3"
+ "Linear.Matrix:fromQuaternion from linear-1.19.1.3, A"
  (* 2.0 (- (* x x) (* x y)))
  (* (* x 2.0) (- x y)))
 
 (herbie-test (x y)
- "Linear.Matrix:fromQuaternion from linear-1.19.1.3"
+ "Linear.Matrix:fromQuaternion from linear-1.19.1.3, B"
  (* 2.0 (+ (* x x) (* x y)))
  (* (* x 2.0) (+ x y)))
 
@@ -991,7 +967,7 @@
      (* (* y (- x z)) t))))
 
 (herbie-test (x y z t)
- "Linear.Projection:infinitePerspective from linear-1.19.1.3"
+ "Linear.Projection:infinitePerspective from linear-1.19.1.3, A"
  (/ (* x 2.0) (- (* y z) (* t z)))
  (if (<
       (/ (* x 2.0) (- (* y z) (* t z)))
@@ -1004,22 +980,22 @@
      (* (/ x (* (- y t) z)) 2.0))))
 
 (herbie-test (x y)
- "Linear.Projection:inversePerspective from linear-1.19.1.3"
+ "Linear.Projection:inversePerspective from linear-1.19.1.3, B"
  (/ (- x y) (* (* x 2.0) y))
  (- (/ 0.5 y) (/ 0.5 x)))
 
 (herbie-test (x y)
- "Linear.Projection:inversePerspective from linear-1.19.1.3"
+ "Linear.Projection:inversePerspective from linear-1.19.1.3, C"
  (/ (+ x y) (* (* x 2.0) y))
  (+ (/ 0.5 x) (/ 0.5 y)))
 
 (herbie-test (x y)
- "Linear.Projection:perspective from linear-1.19.1.3"
+ "Linear.Projection:perspective from linear-1.19.1.3, A"
  (/ (+ x y) (- x y))
  (/ 1 (- (/ x (+ x y)) (/ y (+ x y)))))
 
 (herbie-test (x y)
- "Linear.Projection:perspective from linear-1.19.1.3"
+ "Linear.Projection:perspective from linear-1.19.1.3, B"
  (/ (* (* x 2.0) y) (- x y))
  (if (< x -1.7210442634149447e+81)
    (* (/ (* 2.0 x) (- x y)) y)
@@ -1072,7 +1048,7 @@
   (- (sqrt (+ t 1.0)) (sqrt t))))
 
 (herbie-test (x y z t a b c i)
- "Diagrams.ThreeD.Shapes:frustum from diagrams-lib-1.3.0.3"
+ "Diagrams.ThreeD.Shapes:frustum from diagrams-lib-1.3.0.3, A"
  (*
   2.0
   (-
@@ -1085,7 +1061,7 @@
    (* (+ a (* b c)) (* c i)))))
 
 (herbie-test (x y z)
- "Diagrams.ThreeD.Shapes:frustum from diagrams-lib-1.3.0.3"
+ "Diagrams.ThreeD.Shapes:frustum from diagrams-lib-1.3.0.3, B"
  (+ x (* (- y x) z))
  (+ x (* (- y x) z)))
 
@@ -1095,12 +1071,12 @@
  (+ (* x (cos y)) (* z (sin y))))
 
 (herbie-test (x y z)
- "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3"
+ "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3, A"
  (- (* x (cos y)) (* z (sin y)))
  (- (* x (cos y)) (* z (sin y))))
 
 (herbie-test (x y z)
- "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3"
+ "Diagrams.ThreeD.Transform:aboutX from diagrams-lib-1.3.0.3, B"
  (+ (* x (sin y)) (* z (cos y)))
  (+ (* x (sin y)) (* z (cos y))))
 
@@ -1119,37 +1095,37 @@
      (- (* (+ 1 y) (/ x z)) x))))
 
 (herbie-test (x y)
- "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3, A"
  (* (* (* x 3.0) x) y)
  (* (* x 3.0) (* x y)))
 
 (herbie-test (x y)
- "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3, B"
  (* (* (* x 3.0) y) y)
  (* (* x (* 3.0 y)) y))
 
 (herbie-test (x)
- "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3, C"
  (* (* x x) x)
  (* x (* x x)))
 
 (herbie-test (x)
- "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, D"
  (* 3.0 (+ (- (* (* x 3.0) x) (* x 4.0)) 1.0))
  (+ 3.0 (- (* (* 9.0 x) x) (* 12.0 x))))
 
 (herbie-test (x)
- "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, E"
  (* (* 3.0 (- 2.0 (* x 3.0))) x)
  (- (* 6.0 x) (* 9.0 (sqr x))))
 
 (herbie-test (x)
- "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3"
+ "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, F"
  (* (* x 3.0) x)
  (* (* 3.0 x) x))
 
 (herbie-test (x y z t)
- "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3"
+ "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, A"
  (/
   (+
    x
@@ -1164,7 +1140,7 @@
   (+ x 1.0)))
 
 (herbie-test (x y)
- "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3"
+ "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, B"
  (/ (* x y) (+ y 1.0))
  (if (< y -3693.8482788297247)
    (- (/ x (sqr y)) (- (/ x y) x))
@@ -1173,12 +1149,12 @@
      (- (/ x (sqr y)) (- (/ x y) x)))))
 
 (herbie-test (x y)
- "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3"
+ "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, C"
  (/ (- x y) (- 1.0 y))
  (/ (- x y) (- 1.0 y)))
 
 (herbie-test (x y)
- "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3"
+ "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, D"
  (- 1.0 (/ (* (- 1.0 x) y) (+ y 1.0)))
  (if (< y -3693.8482788297247)
    (- (/ 1.0 y) (- (/ x y) x))
@@ -1308,7 +1284,7 @@
     2.0)))
 
 (herbie-test (x y z)
- "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5"
+ "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5, A"
  (/
   (- (+ (* x x) (* y y)) (* z z))
   (* y 2.0))
@@ -1317,7 +1293,7 @@
   (* (* (/ 0.5 y) (+ z x)) (- z x))))
 
 (herbie-test (x y z)
- "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5"
+ "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5, B"
  (* x (sqrt (- (* y y) (* z z))))
  (if (< y 2.5816096488251695e-278)
    (- (* x y))
@@ -1370,7 +1346,7 @@
  (- (+ y (* 0.5 x)) (* y (- z (log z)))))
 
 (herbie-test (x y)
- "AI.Clustering.Hierarchical.Internal:average from clustering-0.2.1"
+ "AI.Clustering.Hierarchical.Internal:average from clustering-0.2.1, A"
  (/ x (+ x y))
  (/ x (+ x y)))
 
@@ -1412,12 +1388,12 @@
  (- (/ x (- z y)) (/ y (- z y))))
 
 (herbie-test (x)
- "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1"
+ "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, A"
  (+ (* x x) 1.0)
  (+ (sqr x) 1.0))
 
 (herbie-test (x y z t)
- "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1"
+ "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, B"
  (- (* x x) (* (* y 4.0) (- (* z z) t)))
  (- (sqr x) (* 4.0 (* y (- (sqr z) t)))))
 
@@ -1427,7 +1403,7 @@
  (* x (pow (exp y) y)))
 
 (herbie-test (x y z t)
- "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0"
+ "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0, A"
  (*
   (* (- (* x 0.5) y) (sqrt (* z 2.0)))
   (exp (/ (* t t) 2.0)))
@@ -1436,7 +1412,7 @@
   (pow (exp 1) (/ (* t t) 2.0))))
 
 (herbie-test (x y)
- "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0"
+ "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0, B"
  (- x (/ y (+ 1.0 (/ (* x y) 2.0))))
  (- x (/ y (+ 1.0 (/ (* x y) 2.0)))))
 
@@ -1455,22 +1431,22 @@
  (+ x (* y (/ y z))))
 
 (herbie-test (x)
- "Numeric.Log:$cexpm1 from log-domain-0.10.2.1"
+ "Numeric.Log:$cexpm1 from log-domain-0.10.2.1, A"
  (* (* x 2.0) x)
  (* (* 2.0 x) x))
 
 (herbie-test (x y)
- "Numeric.Log:$cexpm1 from log-domain-0.10.2.1"
+ "Numeric.Log:$cexpm1 from log-domain-0.10.2.1, B"
  (+ (+ (* x y) x) y)
  (+ (+ (* x y) x) y))
 
 (herbie-test (x y)
- "Numeric.Log:$clog1p from log-domain-0.10.2.1"
+ "Numeric.Log:$clog1p from log-domain-0.10.2.1, A"
  (+ (+ (* x 2.0) (* x x)) (* y y))
  (+ (sqr y) (+ (* 2.0 x) (sqr x))))
 
 (herbie-test (x)
- "Numeric.Log:$clog1p from log-domain-0.10.2.1"
+ "Numeric.Log:$clog1p from log-domain-0.10.2.1, B"
  (/ x (+ 1.0 (sqrt (+ x 1.0))))
  (/ x (+ 1.0 (sqrt (+ x 1.0)))))
 
@@ -1480,7 +1456,7 @@
  (/ 6.0 (/ (+ (+ x 1.0) (* 4.0 (sqrt x))) (- x 1.0))))
 
 (herbie-test (x)
- "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1"
+ "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, A"
  (/
   (* (* (/ 8.0 3.0) (sin (* x 0.5))) (sin (* x 0.5)))
   (sin x))
@@ -1489,12 +1465,12 @@
   (/ (sin x) (sin (* x 0.5)))))
 
 (herbie-test (x y z)
- "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1"
+ "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, B"
  (- (+ x (cos y)) (* z (sin y)))
  (- (+ x (cos y)) (* z (sin y))))
 
 (herbie-test (x y z)
- "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1"
+ "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, C"
  (+ (+ x (sin y)) (* z (cos y)))
  (+ (+ x (sin y)) (* z (cos y))))
 
@@ -1593,7 +1569,7 @@
  (- x (* (/ (- y z) (+ (- t z) 1.0)) a)))
 
 (herbie-test (x y z)
- "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1"
+ "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1, A"
  (/ (+ x y) (- 1.0 (/ y z)))
  (if (< y -3.7429310762689856e+171)
    (* (/ (+ y x) (- y)) z)
@@ -1602,7 +1578,7 @@
      (* (/ (+ y x) (- y)) z))))
 
 (herbie-test (x y z t)
- "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1"
+ "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1, B"
  (* x (/ (* (/ y z) t) t))
  (if (< (/ (* (/ y z) t) t) -1.20672205123045e+245)
    (/ y (/ z x))
@@ -1617,7 +1593,7 @@
          (/ (* y x) z))))))
 
 (herbie-test (x y)
- "AI.Clustering.Hierarchical.Internal:average from clustering-0.2.1"
+ "AI.Clustering.Hierarchical.Internal:average from clustering-0.2.1, B"
  (/ x (+ y x))
  (/ x (+ y x)))
 
@@ -1653,7 +1629,7 @@
      (- (+ z a) b))))
 
 (herbie-test (x y z)
- "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2, A"
  (+
   x
   (/ y (- (* 1.1283791670955126 (exp z)) (* x y))))
@@ -1662,7 +1638,7 @@
   (/ 1 (- (* (/ 1.1283791670955126 y) (exp z)) x))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2, B"
  (*
   0.70711
   (-
@@ -1679,12 +1655,12 @@
    x)))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, A"
  (+ (- (* x (- y 1.0)) (* y 0.5)) 0.918938533204673)
  (+ (- (* x (- y 1.0)) (* y 0.5)) 0.918938533204673))
 
 (herbie-test (x y z)
- "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, B"
  (+
   x
   (/
@@ -1713,7 +1689,7 @@
       (- (/ (* 0.40462203869992125 y) (sqr z)) x)))))
 
 (herbie-test (x y z)
- "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, C"
  (/
   (*
    (- x 2.0)
@@ -1770,7 +1746,7 @@
       110.1139242984811))))
 
 (herbie-test (x y z t a b)
- "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, D"
  (+
   x
   (/
@@ -1833,12 +1809,12 @@
        (/ y 1))))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2, A"
  (/ 1.0 (* x x))
  (/ (/ 1.0 x) x))
 
 (herbie-test (x y z)
- "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2, B"
  (+
   (+ (- (* (- x 0.5) (log x)) x) 0.91893853320467)
   (/
@@ -1871,17 +1847,17 @@
  (- (* (sqr x) 2.0) 1.0))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, A"
  (* x (- 1.0 (* x y)))
  (* x (- 1.0 (* x y))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B"
  (* x (- 1.0 (* x 0.5)))
  (* x (- 1.0 (* x 0.5))))
 
 (herbie-test (x y z t a b)
- "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, A"
  (+
   (- (+ (+ x y) z) (* z (log t)))
   (* (- a 0.5) b))
@@ -1892,7 +1868,7 @@
   (* (- a 0.5) b)))
 
 (herbie-test (x y z t a b c i)
- "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, B"
  (+
   (+
    (+ (+ (+ (* x (log y)) z) t) a)
@@ -1915,12 +1891,12 @@
  (- (- (+ y x) z) (* (+ y 0.5) (log y))))
 
 (herbie-test (x y z t)
- "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2, A"
  (+ (- (- (* x (log y)) y) z) (log t))
  (+ (- (- (* x (log y)) y) z) (log t)))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2, B"
  (* (* 3.0 (sqrt x)) (- (+ y (/ 1.0 (* x 9.0))) 1.0))
  (*
   3.0
@@ -1929,12 +1905,12 @@
    (* (- (/ 1.0 (* x 9.0)) 1.0) (sqrt x)))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, A"
  (- 1.0 (* x (+ 0.253 (* x 0.12))))
  (- 1.0 (* x (+ 0.253 (* x 0.12)))))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, B"
  (- 1.0 (log (- 1.0 (/ (- x y) (- 1.0 y)))))
  (if (< y -81284752.61947241)
    (-
@@ -1951,7 +1927,7 @@
         (- (/ 1.0 y) (/ x y))))))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, C"
  (-
   (/
    (+ 2.30753 (* x 0.27061))
@@ -1964,12 +1940,12 @@
   x))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, D"
  (- (- 1.0 (/ 1.0 (* x 9.0))) (/ y (* 3.0 (sqrt x))))
  (- (- 1.0 (/ (/ 1.0 x) 9.0)) (/ y (* 3.0 (sqrt x)))))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2, A"
  (/
   (* x y)
   (* (* (+ x y) (+ x y)) (+ (+ x y) 1.0)))
@@ -1978,7 +1954,7 @@
   (/ 1 (/ y (+ y x)))))
 
 (herbie-test (x y z t a b)
- "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2, B"
  (*
   x
   (exp
@@ -1993,7 +1969,7 @@
     (* a (- (log (- 1.0 z)) b))))))
 
 (herbie-test (x y z t a b)
- "Numeric.SpecFunctions:incompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:incompleteBetaWorker from math-functions-0.1.5.2, A"
  (/
   (*
    x
@@ -2015,7 +1991,7 @@
       (- (+ b 1) (* y (log z)))))))
 
 (herbie-test (x y z t)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, B"
  (- (+ (* x (log y)) (* z (log (- 1.0 y)))) t)
  (-
   (*
@@ -2026,7 +2002,7 @@
   (- t (* x (log y)))))
 
 (herbie-test (x y z t)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, C"
  (* x (- (/ y z) (/ t (- 1.0 z))))
  (if (<
       (* x (- (/ y z) (/ t (- 1.0 z))))
@@ -2041,7 +2017,7 @@
      (* x (- (/ y z) (* t (/ 1 (- 1.0 z))))))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, D"
  (-
   x
   (/
@@ -2054,12 +2030,12 @@
    (+ 1.0 (* (+ 0.99229 (* x 0.04481)) x)))))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, E"
  (+ (- 1.0 x) (* y (sqrt x)))
  (+ (- 1.0 x) (* y (sqrt x))))
 
 (herbie-test (x y)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, F"
  (/ (exp (* x (log (/ x (+ x y))))) x)
  (if (< y -3.7311844206647956e+94)
    (/ (exp (/ -1 y)) x)
@@ -2070,7 +2046,7 @@
        (/ (exp (/ -1 y)) x)))))
 
 (herbie-test (x y z)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, G"
  (+
   x
   (/ (exp (* y (log (/ y (+ z y))))) y))
@@ -2081,12 +2057,12 @@
     (/ (exp (log (pow (/ y (+ y z)) y))) y))))
 
 (herbie-test (x)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, H"
  (/ (- (* x x) 3.0) 6.0)
  (/ (- (sqr x) 3.0) 6.0))
 
 (herbie-test (x y z t a b c)
- "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2"
+ "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, I"
  (/
   x
   (+
@@ -2321,12 +2297,12 @@
  (+ (* 1/2 (/ x y)) 1/2))
 
 (herbie-test (x y z t)
- "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2"
+ "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2, A"
  (- 1.0 (/ x (* (- y z) (- y t))))
  (- 1.0 (/ x (* (- y z) (- y t)))))
 
 (herbie-test (x y z t)
- "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2"
+ "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2, B"
  (/ x (* (- y z) (- t z)))
  (if (< (/ x (* (- y z) (- t z))) 0.0)
    (/ (/ x (- y z)) (- t z))
@@ -2397,12 +2373,12 @@
  (* (* x y) y))
 
 (herbie-test (x y)
- "Data.HyperLogLog.Type:size from hyperloglog-0.3.4"
+ "Data.HyperLogLog.Type:size from hyperloglog-0.3.4, A"
  (* (* x 1.0) (log (- 1.0 (/ y x))))
  (* x (log (- 1.0 (/ y x)))))
 
 (herbie-test (x y)
- "Data.HyperLogLog.Type:size from hyperloglog-0.3.4"
+ "Data.HyperLogLog.Type:size from hyperloglog-0.3.4, B"
  (* x (log (/ x y)))
  (if (< y 1.2973149052617803e-303)
    (* x (log (/ x y)))
@@ -2435,12 +2411,12 @@
   (+ (* t (- y z)) (* (- x) (- y z)))))
 
 (herbie-test (x y)
- "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, A"
  (+ (+ x y) x)
  (+ y (* 2 x)))
 
 (herbie-test (x y z t)
- "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, B"
  (+
   (* x (+ (+ (+ (+ y z) z) y) t))
   (* y 5.0))
@@ -2454,7 +2430,7 @@
  (+ (+ (+ (+ (+ x y) y) x) z) x))
 
 (herbie-test (x y z)
- "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, C"
  (+ (* x (+ y z)) (* z 5.0))
  (+ (* (+ x 5.0) z) (* x y)))
 
@@ -2468,12 +2444,12 @@
      (+ x (/ (- y x) (/ t z))))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, A"
  (+ x (* y (/ (- z t) (- z a))))
  (+ x (/ y (/ (- z a) (- z t)))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, B"
  (+ x (* y (/ (- z t) (- a t))))
  (if (< y -8.508084860551241e-17)
    (+ x (* y (/ (- z t) (- a t))))
@@ -2482,7 +2458,7 @@
      (+ x (* y (/ (- z t) (- a t)))))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, A"
  (+ x (/ (* (- y z) t) (- a z)))
  (if (< t -1.0682974490174067e-39)
    (+ x (* (/ (- y z) (- a z)) t))
@@ -2491,7 +2467,7 @@
      (+ x (* (/ (- y z) (- a z)) t)))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, B"
  (-
   (+ x y)
   (/ (* (- z t) y) (- a t)))
@@ -2516,12 +2492,12 @@
       (* (* (- z t) (/ 1 (- a t))) y)))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, A"
  (+ x (/ (* y (- z t)) (- z a)))
  (+ x (/ y (/ (- z a) (- z t)))))
 
 (herbie-test (x y z t a)
- "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4"
+ "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, B"
  (+ x (/ (* y (- z t)) (- a t)))
  (+ x (/ y (/ (- a t) (- z t)))))
 
@@ -2536,17 +2512,17 @@
      (* (sqrt 0.3333333333333333) z))))
 
 (herbie-test (x y z)
- "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1"
+ "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, A"
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.75)) z)) y))
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.75)) z)) y)))
 
 (herbie-test (x y z)
- "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1"
+ "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, B"
  (/ (* 4.0 (- (- x y) (* z 0.5))) z)
  (- (* 4.0 (/ x z)) (+ 2.0 (* 4.0 (/ y z)))))
 
 (herbie-test (x y z)
- "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1"
+ "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, C"
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.25)) z)) y))
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.25)) z)) y)))
 
