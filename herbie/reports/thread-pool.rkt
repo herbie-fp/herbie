@@ -25,7 +25,7 @@
                    result dir profile?)))))
 
 (define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
+  (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
          [index-label (number->string index)])
     (string-append index-label stripped-tname)))
 
