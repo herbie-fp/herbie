@@ -156,8 +156,8 @@
   [fmin      "\\mathsf{fmin}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmin}\\left(~a, ~a\\right)")
              #f #t]
-  [fmod      "~a \\mathsf{mod} ~a"
-             (tag-infix "\\mathsf{mod}")
+  [fmod      "~a \\bmod ~a"
+             (tag-infix "\\bmod")
              #t #f]
   [hypot     "\\sqrt{~a^2 + ~a^2}^*"
              (tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
