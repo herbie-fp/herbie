@@ -1,5 +1,7 @@
 language: c
-sudo: false
+sudo: required
+services:
+  - docker
 env:
   global:
     - RACKET_DIR=~/racket
@@ -10,8 +12,10 @@ before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
+  - docker pull jackfirth/racket
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/herbie
+  - docker build .
 script:
   - raco test herbie
   - racket herbie/reports/travis.rkt bench/tutorial.rkt bench/hamming/
