@@ -286,9 +286,11 @@
          (match (string-split (number->string expr) "e")
            [(list num) num]
            [(list significand exp)
-            (if (equal? significand "1")
-                (format "10^{~a}" exp)
-                (format "~a \\cdot 10^{~a}" significand exp))])]
+            (define num
+              (if (equal? significand "1")
+                  (format "10^{~a}" exp)
+                  (format "~a \\cdot 10^{~a}" significand exp)))
+            (if (parens-< parens #f) num (format "\\left( ~a \\right)" num))])]
         [(? symbol?)
          (if (hash-has-key? texify-constants expr)
            (car (hash-ref texify-constants expr))
