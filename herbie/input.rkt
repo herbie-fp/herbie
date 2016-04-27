@@ -1,4 +1,4 @@
-#lang debug racket/base
+#lang racket/base
 
 (require syntax/parse/define
          (for-syntax racket/base
