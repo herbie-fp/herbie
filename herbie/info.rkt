@@ -20,7 +20,7 @@
     "util.rkt"))
 
 (define raco-commands
-  '(("herbie" (submod herbie/interface/inout main)
+  '(("herbie" (submod herbie/herbie main)
               "improve floating point expression accuracy" 75)))
 
 (define deps
