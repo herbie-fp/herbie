@@ -103,8 +103,9 @@
     (profile? #t)]
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed vector to use in point generation"
-    (set-seed! (read (open-input-string rs)))]
+   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used'"
+    (define given-seed (read (open-input-string rs)))
+    (when given-seed (set-seed! given-seed))]
    [("--test") "Exit with failing status on the first unsuccessful input"
     (early-exit? #t)]
    [("--threads") th "Whether to use threads to run examples in parallel (yes|no|N)"
@@ -127,4 +128,3 @@
       (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
    #:args files
    (run-herbie files))) ; TODO : Handle error
-
