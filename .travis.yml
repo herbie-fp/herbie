@@ -7,7 +7,15 @@ env:
     - RACKET_DIR=~/racket
   matrix:
     - RACKET_VERSION="6.3"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
     - RACKET_VERSION="6.4"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+    - RACKET_VERSION="6.4"
+      HERBIE_SEED="#f"
+matrix:
+  allow_failures:
+    - env: RACKET_VERSION="6.4"
+           HERBIE_SEED="#f"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
@@ -18,7 +26,7 @@ install:
   - docker build .
 script:
   - raco test herbie
-  - racket herbie/reports/travis.rkt bench/tutorial.rkt bench/hamming/
+  - raco herbie --test --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
 notifications:
   slack:
     secure: QB8ib/gxZWZ8rY9H54BktIgx8LfjdqabSAkmWip0VHlUhrh2ULG566XgmB5h75eNzCil2cw76ma5wfSC0MNIQ1iDHKCxAgTE0+gcPcZAYGfucQ28sKGBG2wcuJfvBLG6lVDxj+luGUh3XohouTLYI9cg509JBgTgpcrXVexYAaE=
