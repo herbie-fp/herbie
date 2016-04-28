@@ -128,7 +128,7 @@
        (define sorted-tests
          (sort (map cons tests (range (length tests))) >
                #:key (λ (x) (or (table-row-start (car x)) 0))))
-       (for ([(result id) (in-pairs sorted-tests)])
+       (for ([(result id) (in-dict sorted-tests)])
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
                  (html-escape-unsafe (table-row-name result))

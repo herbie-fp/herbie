@@ -163,7 +163,7 @@
         (run-nothreads progs #:seed seed #:profile profile?)))
   
   (define out (make-vector (length progs) #f))
-  (for ([(idx result) (in-pairs outs)])
+  (for ([(idx result) (in-dict outs)])
     (vector-set! out idx result))
 
   ; The use of > instead of < is a cleverness:

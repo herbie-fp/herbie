@@ -283,11 +283,11 @@
   [fma-udef      (fma x y z)    (+ (* x y) z)])
 
 (define (*rules*)
-  (for/append ([(rules groups) (in-pairs (*rulesets*))])
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '())))
 
 (define (*simplify-rules*)
-  (for/append ([(rules groups) (in-pairs (*rulesets*))])
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
              (memq 'simplify groups))
         rules

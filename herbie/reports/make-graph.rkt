@@ -296,7 +296,7 @@
     (printf "<div class='timeline-phase ~a' data-timespan='~a'"
             (cdr (assoc 'type curr))
             (- (cdr (assoc 'time next)) (cdr (assoc 'time curr))))
-    (for ([(type value) (in-pairs curr)] #:when (not (member type '(time))))
+    (for ([(type value) (in-dict curr)] #:when (not (member type '(time))))
       (printf " data-~a='~a'" type value))
     (printf "></div>"))
   (printf "</div>\n"))
