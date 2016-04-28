@@ -21,11 +21,11 @@
 (struct report-info
   (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
 
-(define (make-report-info tests #:note [note ""])
+(define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
                (git-command "rev-parse" "HEAD")
                (git-command "rev-parse" "--abbrev-ref" "HEAD")
-               (get-seed)
+               (or seed (get-seed))
                (*flags*)
                (*num-points*)
                (*num-iterations*)

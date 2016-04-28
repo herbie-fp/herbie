@@ -30,12 +30,11 @@
   (define tests (allowed-tests bench-dirs))
   (define results
     (get-test-results tests #:threads *threads* #:seed seed #:profile *profile?*))
-  (define info (make-report-info (filter identity results) #:note *note*))
+  (define info (make-report-info (filter identity results) #:note *note* #:seed seed))
 
   (copy-file "herbie/compile/overhead.c" (build-path dir "overhead.c") #t)
   (copy-file "herbie/compile/overhead.mk" (build-path dir "Makefile") #t)
 
-  (set-seed! seed)
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
   (log-exceptions (build-path dir "exceptions.rkt") info)
