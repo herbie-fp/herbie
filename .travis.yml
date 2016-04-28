@@ -30,7 +30,7 @@ install:
 script:
   - raco test herbie
   - raco herbie --test --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
-after_success:
+before_cache:
   - docker save -o docker-images/herbie.image herbie
 notifications:
   slack:
