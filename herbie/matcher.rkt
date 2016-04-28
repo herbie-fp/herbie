@@ -171,7 +171,7 @@
                  (= (length pattern) (length expr)))
             ; Everything is terrible
             (reduce-children
-              (apply list-product ; (list (list ((list cng) * bnd)))
+              (apply cartesian-product ; (list (list ((list cng) * bnd)))
                      (for/list ([i (in-naturals)] [sube expr] [subp pattern]
                                 #:when (> i 0)) ; (list (list ((list cng) * bnd)))
                        ;; Note: we reset the fuel to "depth", not "cdepth"

@@ -9,7 +9,7 @@
   (require rackunit))
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         take-up-to argmins list-product list-join
+         take-up-to argmins list-join
          common-eval-ns common-eval
          ulp-difference *bit-width* ulps->bits bit-difference
          write-file write-string
@@ -82,14 +82,6 @@
 (module+ test
   (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
   (check-equal? (take-up-to '(a b) 3) '(a b)))
-
-;; TODO: Replacable by cartesian-product in 6.3+
-(define (list-product . subs)
-  (if (null? subs)
-      '(())
-      (for*/list ([fst (car subs)]
-                  [rst (apply list-product (cdr subs))])
-         (cons fst rst))))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])

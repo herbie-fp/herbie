@@ -79,7 +79,7 @@
 
       [`(* ,args ...)
        (if (or (not expand) (memq label expand))
-           (for/list ([term-list (apply list-product (map recurse args))])
+           (for/list ([term-list (apply cartesian-product (map recurse args))])
              (list* (apply * (map car term-list))
                     (simplify-node (cons '* (map cadr term-list)))
                     (cons label (append-map cddr term-list))))

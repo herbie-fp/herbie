@@ -57,7 +57,7 @@
 
 (define (make-period-points num periods)
   (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
-    (apply list-product
+    (apply cartesian-product
 	   (map (λ (prd)
 		  (let ([bucket-width (/ prd points-per-dim)])
 		    (for/list ([i (range points-per-dim)])
