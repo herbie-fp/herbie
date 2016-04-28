@@ -78,9 +78,7 @@
 
 (define (list->flags list)
   (make-hash
-   (for/list ([part (multipartition
-                     (map (compose (curry map string->symbol) (curryr string-split ":")) list)
-                     car)])
+   (for/list ([part (group-by car (map (compose (curry map string->symbol) (curryr string-split ":")) list))])
      (cons (car (first part)) (map cadr part)))))
 
 (define (read-datafile file)

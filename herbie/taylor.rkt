@@ -370,7 +370,7 @@
       (cons (/ offset* 2) f))))
 
 (define (rle l)
-  (for/list ([run (multipartition l identity)])
+  (for/list ([run (group-by identity l)])
     (cons (length run) (car run))))
 
 (define (partition-list n)
@@ -458,7 +458,7 @@
 
 (define (lognormalize table)
   (filter (λ (entry) (not (= (car entry) 0)))
-          (for/list ([entry (multipartition table cdr)])
+          (for/list ([entry (group-by cdr table)])
             (cons (apply + (map car entry))
                   (cdar entry)))))
 

@@ -14,7 +14,7 @@
          ulp-difference *bit-width* ulps->bits bit-difference
          write-file write-string
          *start-prog* html-escape-unsafe
-         flip-lists argmaxs multipartition
+         flip-lists argmaxs
          binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
@@ -165,22 +165,6 @@
       (random (expt 2 k))
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
-
-;; Takes a list of items, and returns a list of lists of items, where
-;; the items are grouped by the value produced when key-func is evaluated
-;; on them.
-;; TODO: Replacable by group-by in 6.3+
-(define (multipartition items key-func)
-  (let loop ([rest-items items] [acc '()])
-    (if (null? rest-items) (reverse (map (compose reverse cdr) acc))
-	(let* ([key (key-func (car rest-items))]
-	       [lookup (assoc key acc)])
-	  (loop (cdr rest-items)
-		(if lookup
-		    (cons (cons (car lookup) (cons (car rest-items) (cdr lookup)))
-			  (remove lookup acc))
-		    (cons (cons key (list (car rest-items)))
-			  acc)))))))
 
 (define-syntax assert
   (syntax-rules ()

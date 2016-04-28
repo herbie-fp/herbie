@@ -232,7 +232,7 @@
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
-   (for/list ([rootgroup (multipartition terms (compose denominator car))])
+   (for/list ([rootgroup (group-by (compose denominator car) terms)])
      (let* ([denom (denominator (caar rootgroup))]
             [newterms (map (λ (term) (cons (* (car term) denom) (cdr term))) rootgroup)])
        (cons 1

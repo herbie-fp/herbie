@@ -103,7 +103,7 @@
 
       (define branch-infos*
         (sort
-         (multipartition folders (compose report-info-branch cdr))
+         (group-by (compose report-info-branch cdr) folders)
          > #:key (λ (x) (date->seconds (report-info-date (cdar x))))))
 
       (define-values (master-info* other-infos)
