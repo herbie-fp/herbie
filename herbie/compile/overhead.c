@@ -20,20 +20,23 @@
 #endif
 
 #if NARGS == 1
-#define ARGS(t) t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__)
 #elif NARGS == 2
-#define ARGS(t) t, t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__), f(1, __VA_ARGS__)
 #elif NARGS == 3
-#define ARGS(t) t, t, t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__), f(1, __VA_ARGS__), f(2, __VA_ARGS__)
 #elif NARGS == 4
-#define ARGS(t) t, t, t, t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__), f(1, __VA_ARGS__), f(2, __VA_ARGS__), f(3, __VA_ARGS__)
 #elif NARGS == 5
-#define ARGS(t) t, t, t, t, t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__), f(1, __VA_ARGS__), f(2, __VA_ARGS__), f(3, __VA_ARGS__), f(4, __VA_ARGS__)
 #elif NARGS == 6
-#define ARGS(t) t, t, t, t, t, t
+#define ARGMAP(f, ...) f(0, __VA_ARGS__), f(1, __VA_ARGS__), f(2, __VA_ARGS__), f(3, __VA_ARGS__), f(4, __VA_ARGS__), f(5, __VA_ARGS__)
 #else
-#define ARGS(t) abort()
+#define ARGMAP(f, ...) abort()
 #endif
+
+#define SND(a, b) b
+#define ARGS(t) ARGMAP(SND, t)
 
 void setup_mpfr_f_im(void);
 void setup_mpfr_f_fm(void);
@@ -173,21 +176,8 @@ double *get_random_doubles(int nums) {
         rtime = (end.tv_sec - start.tv_sec) * 1.0e9 + (end.tv_nsec - start.tv_nsec);
 
 /* Calling a function with some number of arguments */
-#if NARGS == 1
-#define EVAL(rands, f) f(rands[i])
-#elif NARGS == 2
-#define EVAL(rands, f) f(rands[2*i], rands[2*i + 1])
-#elif NARGS == 3
-#define EVAL(rands, f) f(rands[3*i], rands[3*i + 1], rands[3*i + 2])
-#elif NARGS == 4
-#define EVAL(rands, f) f(rands[4*i], rands[4*i + 1], rands[4*i + 2], rands[4*i + 3])
-#elif NARGS == 5
-#define EVAL(rands, f) f(rands[5*i], rands[5*i + 1], rands[5*i + 2], rands[5*i + 3], rands[5*i + 4])
-#elif NARGS == 6
-#define EVAL(rands, f) f(rands[6*i], rands[6*i + 1], rands[6*i + 2], rands[6*i + 3], rands[6*i + 4], rands[6*i + 5])
-#else
-#define EVAL(rands, f) abort()
-#endif
+#define EVALAUX(n, rands) rands[NARGS*i] + n
+#define EVAL(rands, f) f(ARGMAP(EVALAUX, rands))
 
 #define CHECK(io, type, iter)                                           \
         max = total = 0;                                                \
