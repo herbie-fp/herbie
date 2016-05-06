@@ -51,7 +51,7 @@
 
   (cond
    [(constant? pattern)
-    (if (and (number? expr) (= pattern expr))
+    (if (and (constant? expr) (equal? pattern expr))
         '()
         (fail "pattern-match: Literals do not match"
               pattern expr))]
@@ -163,7 +163,7 @@
         ; Do nothing, bind variable
         (list (cons '() (list (cons pattern expr))))]
        [(constant? pattern)
-        (if (and (number? expr) (= expr pattern))
+        (if (and (constant? expr) (equal? expr pattern))
             '((()) . ()) ; Do nothing, bind nothing
             '())] ; No options
        [(and (list? expr) (list? pattern))

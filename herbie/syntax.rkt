@@ -233,7 +233,7 @@
         (->flonum (real-part x))
         +nan.0)]
      [(eq? x 'pi) (convert pi)]
-     [(eq? x 'e) (convert (exp 1))]
+     [(eq? x 'e) (convert (exp 1.0))]
      [else x])))
 
 (define (->bf x)

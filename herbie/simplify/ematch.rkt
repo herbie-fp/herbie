@@ -49,10 +49,10 @@
     (call/ec
      (λ (k)
        (for ([var (in-set (enode-vars e))])
-	 (when (and (number? var) (= pat var))
+	 (when (and (constant? var) (equal? pat var))
 	   (k '(()))))
        '()))]
-   [(symbol? pat)
+   [(variable? pat)
     `(((,pat . ,e)))]
    [(list? pat)
     (apply append
@@ -72,7 +72,7 @@
   (cond
    [(constant? pat)
     (mk-enode! eg pat)]
-   [(symbol? pat)
+   [(variable? pat)
     (let ([binden (cdr (assoc pat bindings))])
       binden)]
    [(list? pat)

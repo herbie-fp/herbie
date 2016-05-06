@@ -184,7 +184,11 @@
 
 (define-ruleset exp-reduce (exponents simplify)
   [rem-exp-log  (exp (log x))        x]
-  [rem-log-exp  (log (exp x))        x])
+  [rem-log-exp  (log (exp x))        x]
+  [exp-0        (exp 0)              1]
+  [1-exp        1                    (exp 0)]
+  [exp-1-e      (exp 1)              e]
+  [e-exp-1      e                    (exp 1)])
 
 (define-ruleset exp-distribute (exponents simplify)
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
@@ -248,7 +252,14 @@
   [-1-add-cos  (+ (sqr (cos a)) -1)  (- (sqr (sin a)))]
   [-1-add-sin  (+ (sqr (sin a)) -1)  (- (sqr (cos a)))]
   [sin-neg     (sin (- x))           (- (sin x))]
-  [cos-neg     (cos (- x))           (cos x)])
+  [cos-neg     (cos (- x))           (cos x)]
+  [cos-0       (cos 0)               1]
+  [cos-pi/2    (cos (/ pi 2))        0]
+  [cos-pi      (cos pi)              -1]
+  [cos-+pi     (cos (+ x pi))        (- (cos x))]
+  [sin-0       (sin 0)               0]
+  [sin-pi/2    (sin (/ pi 2))        1]
+  [sin-+pi     (sin (+ x pi))        (- (sin x))])
 
 (define-ruleset trig-expand (trigonometry)
   [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]

@@ -14,7 +14,7 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (symbol? (rule-output rule))) (*rules*))))
+  (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
 
 (define (simplify expr)
   (let ([simpl (simplify* expr)])
@@ -46,8 +46,7 @@
     [(or `(+ ,_ ...) `(- ,_ ...))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
-     (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
-       (make-multiplication-node terms))]
+     (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
     [else
