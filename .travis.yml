@@ -19,7 +19,7 @@ env:
       HERBIE_SEED="#f"
 matrix:
   allow_failures:
-    - env: RACKET_VERSION="6.4"
+    - env: RACKET_VERSION="6.5"
            HERBIE_SEED="#f"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
