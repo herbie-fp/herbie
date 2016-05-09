@@ -3,13 +3,10 @@
 ; Static Analysis Symposium, SAS'07,
 ; Lecture Notes in Computer Science, Springer-Verlag, 4634, 2007 (pdf)
 
-#|
-;; Commented: plotting crashes if variables do not vary
 (herbie-test ([d 2] [a 1] [b 1/9] [c 1/9])
   "Rectangular parallelepiped of dimension a×b×c"
   (* d (+ (* a b) (* b c) (* c a)))
   (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b))))
-|#
 
 (herbie-test ([a (<= 56789 default 98765)] [b (<= 0 default 1)]
               [c (<= 0 default 1.6773e-3)] [d (<= 0 default 1.6773e-3)])
@@ -42,8 +39,9 @@
 ; Enhancing the Implementation of Mathematical Formulas for Fixed-Point and Floating-Point Arithmetics,
 ; Journal of Formal Methods in System Design, volume 35, pages 265-278, 2009, Springer (pdf)
 
-; Fixed point expressions note used, as Herbie does not support fixed point.
+; Fixed point expressions not used, as Herbie does not support fixed point.
 
+#|
 (herbie-test ([a (<= -14 default -13)] [b (<= -3 default -2)]
    [c (<= 3 default 3.5)] [d (<= 12.5 default 13.5)])
   "Expression, p6"
@@ -51,6 +49,7 @@
     (* (+ a (+ b (+ c d))) e))
   (let* ([e 2])
     (+ (* (+ a b) e) (* (+ c d) e))))
+|#
 
 ; From Arnault Ioualalen and Matthieu Martel,
 ; Synthesizing accurate floating-point formulas,
