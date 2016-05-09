@@ -8,7 +8,7 @@
   (* d (+ (* a b) (* b c) (* c a)))
   (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b))))
 
-(herbie-test ([a (<= 56789 default 98765)] [b (<= 0 default 1)]
+(herbie-test ([a (uniform 56789 98765)] [b (<= 0 default 1)]
               [c (<= 0 default 1.6773e-3)] [d (<= 0 default 1.6773e-3)])
   "Expression, p14"
   (* a (+ (+ b c) d))
@@ -41,15 +41,13 @@
 
 ; Fixed point expressions not used, as Herbie does not support fixed point.
 
-#|
-(herbie-test ([a (<= -14 default -13)] [b (<= -3 default -2)]
-   [c (<= 3 default 3.5)] [d (<= 12.5 default 13.5)])
+(herbie-test ([a (uniform -14 -13)] [b (uniform -3 -2)]
+   [c (uniform 3 3.5)] [d (uniform 12.5 13.5)])
   "Expression, p6"
   (let* ([e 2])
     (* (+ a (+ b (+ c d))) e))
   (let* ([e 2])
     (+ (* (+ a b) e) (* (+ c d) e))))
-|#
 
 ; From Arnault Ioualalen and Matthieu Martel,
 ; Synthesizing accurate floating-point formulas,
