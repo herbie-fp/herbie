@@ -87,8 +87,8 @@
   (search 0 (vector-length v)))
 
 (define (histogram-function errors-by-out #:bin-size [bin-size 32])
-  (define xs (for/vector ([(x err) (in-pairs errors-by-out)]) x))
-  (define errs (for/vector ([(x err) (in-pairs errors-by-out)]) err))
+  (define xs (for/vector ([(x err) (in-dict errors-by-out)]) x))
+  (define errs (for/vector ([(x err) (in-dict errors-by-out)]) err))
 
   (λ (x)
     (define idx (vector-binary-search xs x -))

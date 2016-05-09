@@ -209,7 +209,7 @@
 (define (symbol-mod v periods)
   (if (assoc v periods)
       (let ([coeff (cdr (assoc v periods))])
-        `(mod ,v ,(if (= 1/2 coeff) pi `(* ,(* 2 coeff) pi))))
+        `(mod ,v ,(if (= 1/2 coeff) 'PI `(* ,(* 2 coeff) PI))))
       v))
 
 (define (coerce-conditions prog periods)

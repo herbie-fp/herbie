@@ -25,9 +25,9 @@
                    result dir profile?)))))
 
 (define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\(| |\\)|/|'|\"" "")]
+  (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
          [index-label (number->string index)])
-    (string-append index-label stripped-tname)))
+    (string-append index-label "-" stripped-tname)))
 
 (define (call-with-output-files names k)
   (let loop ([names names] [ps '()])
@@ -163,7 +163,7 @@
         (run-nothreads progs #:seed seed #:profile profile?)))
   
   (define out (make-vector (length progs) #f))
-  (for ([(idx result) (in-pairs outs)])
+  (for ([(idx result) (in-dict outs)])
     (vector-set! out idx result))
 
   ; The use of > instead of < is a cleverness:

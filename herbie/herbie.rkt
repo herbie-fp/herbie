@@ -87,6 +87,12 @@
            (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test)))
          #f]))
     (when (and (early-exit?) (not success?))
+      (when (test-result? output)
+         (printf "Input: ~a\n" (alt-program (test-result-start-alt output)))
+         (printf "Output:\n")
+         (pretty-print (alt-program (test-result-end-alt output)))
+         (define target (test-output (test-result-test output)))
+         (when target (printf "Target: ~a\n" target)))
       (exit (+ 1 idx)))))
 
 (module+ main
@@ -97,8 +103,9 @@
     (profile? #t)]
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed vector to use in point generation"
-    (set-seed! (read (open-input-string rs)))]
+   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used'"
+    (define given-seed (read (open-input-string rs)))
+    (when given-seed (set-seed! given-seed))]
    [("--test") "Exit with failing status on the first unsuccessful input"
     (early-exit? #t)]
    [("--threads") th "Whether to use threads to run examples in parallel (yes|no|N)"
@@ -121,4 +128,3 @@
       (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
    #:args files
    (run-herbie files))) ; TODO : Handle error
-

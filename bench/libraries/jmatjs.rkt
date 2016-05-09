@@ -16,7 +16,7 @@
                (/ 9.9843695780195716e-6 (+ z* 7))
                (/ 1.5056327351493116e-7 (+ z* 8)))]
          [t (+ z* g 0.5)])
-    (* (sqrt (* pi 2)) (pow t (+ z* 0.5)) (exp (- t)) x)))
+    (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x)))
 
 (herbie-test (z)
   "Jmat.Real.gamma, branch z less than 0.5"
@@ -32,8 +32,8 @@
                (/ 9.9843695780195716e-6 (+ z* 7))
                (/ 1.5056327351493116e-7 (+ z* 8)))]
          [t (+ z* g 0.5)])
-    (* (/ pi (sin (* pi z)))
-       (* (sqrt (* pi 2)) (pow t (+ z* 0.5)) (exp (- t)) x))))
+    (* (/ PI (sin (* PI z)))
+       (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x))))
 
 (herbie-test (x)
   "Jmat.Real.lambertw, estimator"
@@ -63,8 +63,8 @@
 
 (herbie-test (x)
   "Jmat.Real.erfi, branch x less than or equal to 0.5"
-  (let* ([sqrtpi (sqrt pi)]
-         [ps (/ 1 sqrtpi)]
+  (let* ([sqrtPI (sqrt PI)]
+         [ps (/ 1 sqrtPI)]
          [x* (fabs x)]
          [x3 (* x* x* x*)]
          [x5 (* x3 x* x*)]
@@ -74,8 +74,8 @@
 
 (herbie-test (x)
   "Jmat.Real.erfi, branch x greater than or equal to 5"
-  (let* ([sqrtpi (sqrt pi)]
-         [ps (/ 1 sqrtpi)]
+  (let* ([sqrtPI (sqrt PI)]
+         [ps (/ 1 sqrtPI)]
          [x* (fabs x)]
          [xi (/ 1 x*)]
          [xi3 (* xi xi xi)]

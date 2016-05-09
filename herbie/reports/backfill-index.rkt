@@ -28,10 +28,10 @@
 
   (define reps
     (for/list ([suite allowed-suites])
-      (for/first ([(folder info) (in-pairs folders)] #:when (equal? (report-info-note info) suite))
+      (for/first ([(folder info) (in-dict folders)] #:when (equal? (report-info-note info) suite))
         info)))
 
-  (for ([(folder info) (in-pairs folders)])
+  (for ([(folder info) (in-dict folders)])
     (define suite
       (for/first ([suite allowed-suites] [rep reps] #:when (same-tests? info rep))
         suite))

@@ -51,7 +51,7 @@
 
   (cond
    [(constant? pattern)
-    (if (and (number? expr) (= pattern expr))
+    (if (and (constant? expr) (equal? pattern expr))
         '()
         (fail "pattern-match: Literals do not match"
               pattern expr))]
@@ -163,7 +163,7 @@
         ; Do nothing, bind variable
         (list (cons '() (list (cons pattern expr))))]
        [(constant? pattern)
-        (if (and (number? expr) (= expr pattern))
+        (if (and (constant? expr) (equal? expr pattern))
             '((()) . ()) ; Do nothing, bind nothing
             '())] ; No options
        [(and (list? expr) (list? pattern))
@@ -171,7 +171,7 @@
                  (= (length pattern) (length expr)))
             ; Everything is terrible
             (reduce-children
-              (apply list-product ; (list (list ((list cng) * bnd)))
+              (apply cartesian-product ; (list (list ((list cng) * bnd)))
                      (for/list ([i (in-naturals)] [sube expr] [subp pattern]
                                 #:when (> i 0)) ; (list (list ((list cng) * bnd)))
                        ;; Note: we reset the fuel to "depth", not "cdepth"

@@ -10,7 +10,8 @@
 
 (define-table texify-constants
   [l       "\\ell"]
-  [pi      "\\pi"]
+  [PI      "\\pi"]
+  [E       "e"]
   [eps     "\\varepsilon"]
   [epsilon "\\varepsilon"]
   [alpha   "\\alpha"]
@@ -156,8 +157,8 @@
   [fmin      "\\mathsf{fmin}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmin}\\left(~a, ~a\\right)")
              #f #t]
-  [fmod      "~a \\mathsf{mod} ~a"
-             (tag-infix "\\mathsf{mod}")
+  [fmod      "~a \\bmod ~a"
+             (tag-infix "\\bmod")
              #t #f]
   [hypot     "\\sqrt{~a^2 + ~a^2}^*"
              (tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
@@ -286,9 +287,11 @@
          (match (string-split (number->string expr) "e")
            [(list num) num]
            [(list significand exp)
-            (if (equal? significand "1")
-                (format "10^{~a}" exp)
-                (format "~a \\cdot 10^{~a}" significand exp))])]
+            (define num
+              (if (equal? significand "1")
+                  (format "10^{~a}" exp)
+                  (format "~a \\cdot 10^{~a}" significand exp)))
+            (if (parens-< parens #f) num (format "\\left( ~a \\right)" num))])]
         [(? symbol?)
          (if (hash-has-key? texify-constants expr)
            (car (hash-ref texify-constants expr))

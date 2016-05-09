@@ -44,7 +44,12 @@
        (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
        #f])))
 
-(command-line
- #:program "travis.rkt"
- #:args bench-dir
- (exit (if (apply run-tests bench-dir) 0 1)))
+(module+ main
+  (command-line
+   #:program "travis.rkt"
+   #:once-each
+   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used'"
+    (define given-seed (read (open-input-string rs)))
+    (when given-seed (set-seed! given-seed))]
+   #:args bench-dir
+   (exit (if (apply run-tests bench-dir) 0 1))))

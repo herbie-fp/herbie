@@ -30,7 +30,7 @@
   (match expr
     ['default sample-default]
     [(? number? x) (const x)]
-    [`(uniform ,(? number? a) ,(? number? b)) (curry sample-uniform a b)]
+    [`(uniform ,(? number? a) ,(? number? b)) (λ () (sample-uniform a b))]
     ['int sample-int]
     [(list (op op) (? number? lb) sub)
      (define sub* (eval-sampler sub))

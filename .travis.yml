@@ -1,12 +1,39 @@
 language: c
-sudo: false
+sudo: required
+services:
+  - docker
+cache:
+  directories:
+    - docker-images
 env:
-- RACKET_DIR=~/racket
+  global:
+    - RACKET_DIR=~/racket
+  matrix:
+    - RACKET_VERSION="6.3"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+    - RACKET_VERSION="6.4"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+    - RACKET_VERSION="6.5"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+    - RACKET_VERSION="6.5"
+      HERBIE_SEED="#f"
+matrix:
+  allow_failures:
+    - env: RACKET_VERSION="6.5"
+           HERBIE_SEED="#f"
 before_install:
-- curl -L -o racket-install.sh http://mirror.racket-lang.org/installers/6.4/racket-6.4-x86_64-linux-debian-squeeze.sh
-- sh racket-install.sh --in-place --dest ~/racket
+  - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
+  - cat ../travis-racket/install-racket.sh | bash
+  - export PATH="${RACKET_DIR}/bin:${PATH}"
+  - docker load -i docker-images/herbie.image || true
+install:
+  - raco pkg install --auto $TRAVIS_BUILD_DIR/herbie
+  - docker build -t herbie .
 script:
-- "~/racket/bin/racket herbie/herbie.rkt --test bench/tutorial.rkt bench/hamming/"
+  - raco test herbie
+  - raco herbie --test --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
+before_cache:
+  - docker save -o docker-images/herbie.image herbie
 notifications:
   slack:
     secure: QB8ib/gxZWZ8rY9H54BktIgx8LfjdqabSAkmWip0VHlUhrh2ULG566XgmB5h75eNzCil2cw76ma5wfSC0MNIQ1iDHKCxAgTE0+gcPcZAYGfucQ28sKGBG2wcuJfvBLG6lVDxj+luGUh3XohouTLYI9cg509JBgTgpcrXVexYAaE=

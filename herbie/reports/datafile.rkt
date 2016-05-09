@@ -21,11 +21,11 @@
 (struct report-info
   (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
 
-(define (make-report-info tests #:note [note ""])
+(define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
                (git-command "rev-parse" "HEAD")
                (git-command "rev-parse" "--abbrev-ref" "HEAD")
-               (get-seed)
+               (or seed (get-seed))
                (*flags*)
                (*num-points*)
                (*num-iterations*)
@@ -78,9 +78,7 @@
 
 (define (list->flags list)
   (make-hash
-   (for/list ([part (multipartition
-                     (map (compose (curry map string->symbol) (curryr string-split ":")) list)
-                     car)])
+   (for/list ([part (group-by car (map (compose (curry map string->symbol) (curryr string-split ":")) list))])
      (cons (car (first part)) (map cadr part)))))
 
 (define (read-datafile file)

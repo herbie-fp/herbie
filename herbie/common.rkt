@@ -5,17 +5,20 @@
 (require "config.rkt")
 (require "debug.rkt")
 
+(module+ test
+  (require rackunit))
+
 (provide reap define-table println ordinary-float? =-or-nan?
-         take-up-to argmins list-product list-join
+         take-up-to argmins list-join
          common-eval-ns common-eval
          ulp-difference *bit-width* ulps->bits bit-difference
          write-file write-string
          *start-prog* html-escape-unsafe
-         flip-lists argmaxs multipartition
+         flip-lists argmaxs
          binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         get-seed set-seed! in-pairs index-of)
+         get-seed set-seed! index-of)
 
 (define *start-prog* (make-parameter '()))
 
@@ -50,25 +53,35 @@
       (λ () expr)
     (compose car list)))
 
+(module+ test
+  (check-equal? (first-value (values 1 2 3)) 1))
+
 (define (ordinary-float? x)
   (and (real? x) (not (or (infinite? x) (nan? x)))))
+
+(module+ test
+  (check-true (ordinary-float? 2.5))
+  (check-false (ordinary-float? +nan.0))
+  (check-false (ordinary-float? -inf.f)))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
       (and (nan? x1) (nan? x2))))
+
+(module+ test
+  (check-true (=-or-nan? 2.3 2.3))
+  (check-false (=-or-nan? 2.3 7.8))
+  (check-true (=-or-nan? +nan.0 -nan.f))
+  (check-false (=-or-nan? 2.3 +nan.f)))
 
 (define (take-up-to l k)
   ; This is unnecessarily slow. It is O(l), not O(k).
   ; To be honest, it just isn't that big a deal for now.
   (take l (min k (length l))))
 
-;; TODO: Replacable by cartesian-product in 6.3+
-(define (list-product . subs)
-  (if (null? subs)
-      '(())
-      (for*/list ([fst (car subs)]
-                  [rst (apply list-product (cdr subs))])
-         (cons fst rst))))
+(module+ test
+  (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
+  (check-equal? (take-up-to '(a b) 3) '(a b)))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])
@@ -85,8 +98,16 @@
            [(= score best-score)
             (loop lst* best-score (cons elt best-elts))])))))
 
+(module+ test
+  (check-equal? (argmins string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
+                '("g" "f" "a"))) ; should this be in reverse order?
+
 (define (argmaxs f lst)
   (argmins (λ (x) (- (f x))) lst))
+
+(module+ test
+  (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
+                '("eee" "ccc")))
 
 (define-syntax-rule (write-file filename . rest)
    (with-output-to-file filename (lambda () . rest) #:exists 'replace))
@@ -98,6 +119,10 @@
 ;; it returns '((1 4 7) (2 5 8) (3 6 9)).
 (define (flip-lists list-list)
   (apply map list list-list))
+
+(module+ test
+  (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
+                '((1 4 7) (2 5 8) (3 6 9))))
 
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
@@ -133,22 +158,6 @@
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
 
-;; Takes a list of items, and returns a list of lists of items, where
-;; the items are grouped by the value produced when key-func is evaluated
-;; on them.
-;; TODO: Replacable by group-by in 6.3+
-(define (multipartition items key-func)
-  (let loop ([rest-items items] [acc '()])
-    (if (null? rest-items) (reverse (map (compose reverse cdr) acc))
-	(let* ([key (key-func (car rest-items))]
-	       [lookup (assoc key acc)])
-	  (loop (cdr rest-items)
-		(if lookup
-		    (cons (cons (car lookup) (cons (car rest-items) (cdr lookup)))
-			  (remove lookup acc))
-		    (cons (cons key (list (car rest-items)))
-			  acc)))))))
-
 (define-syntax assert
   (syntax-rules ()
     [(assert pred #:loc location)
@@ -165,6 +174,9 @@
 (define (setfindf f s)
   (for/first ([elt (in-set s)] #:when (f elt))
     elt))
+
+(module+ test
+  (check-equal? (setfindf positive? (set -3 6 0)) 6))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -199,14 +211,28 @@
     [(list but-last1 ... last1)
      (append (append-map (curryr cons l2) but-last1) (list last1))]))
 
+(module+ test
+  (check-equal? (list-join '(1 2 3 4 5) '(a b c))
+                '(1 a b c 2 a b c 3 a b c 4 a b c 5)))
+
 (define (html-escape-unsafe err)
   (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
+
+(module+ test
+  (check-equal? (html-escape-unsafe "foo&bar") "foo&amp;bar")
+  (check-equal? (html-escape-unsafe "foo<bar") "foo&lt;bar")
+  (check-equal? (html-escape-unsafe "foo>bar") "foo&gt;bar")
+  (check-equal? (html-escape-unsafe "&foo<bar>") "&amp;foo&lt;bar&gt;"))
 
 (define-syntax-rule (for/append (defs ...)
                                 bodies ...)
   (apply append
          (for/list (defs ...)
            bodies ...)))
+
+(module+ test
+  (check-equal? (for/append ([v (in-range 5)]) (list v v v))
+                '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
 
 (define (get-seed)
   (pseudo-random-generator->vector
@@ -217,21 +243,14 @@
   (current-pseudo-random-generator
    (vector->pseudo-random-generator seed)))
 
-(define (in-pairs seq)
-  "Given a sequence of pairs, returns a sequence of their cars and cdrs."
-  ;; This code is pretty confusing; the sequence APIs are not good
-  (define-values (more? next) (sequence-generate seq))
-  (define stop? #f)
-  (in-producer
-   (λ () (if stop? (values #f #f) (let ([x (next)]) (values (car x) (cdr x)))))
-   (λ _ (begin0 stop? (set! stop? (not (more?)))))))
-
-
 (define (index-of lst elt)
   (for/first ([e lst] [i (in-naturals)]
              #:when (equal? e elt))
              i))
 
+(module+ test
+  (check-equal? (index-of '(a b c d e) 'd) 3)
+  (check-equal? (index-of '(a b c d e) 'foo) #f))
 
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))

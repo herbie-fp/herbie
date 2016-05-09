@@ -5,14 +5,14 @@
 
 (herbie-test (F l)
   "VandenBroeck and Keller, Equation (6)"
-  (- (* pi l) (* (/ (sqr F)) (tan (* pi l)))))
+  (- (* PI l) (* (/ (sqr F)) (tan (* PI l)))))
 
 (herbie-test (f)
   "VandenBroeck and Keller, Equation (20)"
-  (let* ([pi/4 (/ pi 4)]
-         [exp+ (exp (* pi/4 f))]
-         [exp- (exp (- (* pi/4 f)))])
-    (- (* (/ pi/4) (log (/ (+ exp+ exp-) (- exp+ exp-)))))))
+  (let* ([PI/4 (/ PI 4)]
+         [exp+ (exp (* PI/4 f))]
+         [exp- (exp (- (* PI/4 f)))])
+    (- (* (/ PI/4) (log (/ (+ exp+ exp-) (- exp+ exp-)))))))
 
 (herbie-test (F B x)
   "VandenBroeck and Keller, Equation (23)"

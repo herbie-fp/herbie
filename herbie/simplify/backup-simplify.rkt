@@ -14,7 +14,7 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (symbol? (rule-output rule))) (*rules*))))
+  (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
 
 (define (simplify expr)
   (let ([simpl (simplify* expr)])
@@ -46,8 +46,7 @@
     [(or `(+ ,_ ...) `(- ,_ ...))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
-     (let ([terms (combine-mterms (gather-multiplicative-terms expr))])
-       (make-multiplication-node terms))]
+     (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
     [else
@@ -79,7 +78,7 @@
 
       [`(* ,args ...)
        (if (or (not expand) (memq label expand))
-           (for/list ([term-list (apply list-product (map recurse args))])
+           (for/list ([term-list (apply cartesian-product (map recurse args))])
              (list* (apply * (map car term-list))
                     (simplify-node (cons '* (map cadr term-list)))
                     (cons label (append-map cddr term-list))))
@@ -232,7 +231,7 @@
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
-   (for/list ([rootgroup (multipartition terms (compose denominator car))])
+   (for/list ([rootgroup (group-by (compose denominator car) terms)])
      (let* ([denom (denominator (caar rootgroup))]
             [newterms (map (λ (term) (cons (* (car term) denom) (cdr term))) rootgroup)])
        (cons 1

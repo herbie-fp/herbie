@@ -184,7 +184,11 @@
 
 (define-ruleset exp-reduce (exponents simplify)
   [rem-exp-log  (exp (log x))        x]
-  [rem-log-exp  (log (exp x))        x])
+  [rem-log-exp  (log (exp x))        x]
+  [exp-0        (exp 0)              1]
+  [1-exp        1                    (exp 0)]
+  [exp-1-e      (exp 1)              E]
+  [e-exp-1      E                    (exp 1)])
 
 (define-ruleset exp-distribute (exponents simplify)
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
@@ -248,7 +252,14 @@
   [-1-add-cos  (+ (sqr (cos a)) -1)  (- (sqr (sin a)))]
   [-1-add-sin  (+ (sqr (sin a)) -1)  (- (sqr (cos a)))]
   [sin-neg     (sin (- x))           (- (sin x))]
-  [cos-neg     (cos (- x))           (cos x)])
+  [cos-neg     (cos (- x))           (cos x)]
+  [cos-0       (cos 0)               1]
+  [cos-PI/2    (cos (/ PI 2))        0]
+  [cos-PI      (cos PI)              -1]
+  [cos-+PI     (cos (+ x PI))        (- (cos x))]
+  [sin-0       (sin 0)               0]
+  [sin-PI/2    (sin (/ PI 2))        1]
+  [sin-+PI     (sin (+ x PI))        (- (sin x))])
 
 (define-ruleset trig-expand (trigonometry)
   [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
@@ -283,11 +294,11 @@
   [fma-udef      (fma x y z)    (+ (* x y) z)])
 
 (define (*rules*)
-  (for/append ([(rules groups) (in-pairs (*rulesets*))])
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '())))
 
 (define (*simplify-rules*)
-  (for/append ([(rules groups) (in-pairs (*rulesets*))])
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
              (memq 'simplify groups))
         rules

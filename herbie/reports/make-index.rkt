@@ -36,7 +36,7 @@
 (define (print-rows infos #:name name)
   (printf "<thead id='reports-~a' data-branch='~a'><th>Date</th><th>Branch</th><th>Collection</th><th>Tests</th><th>Bits</th></thead>\n" name name)
   (printf "<tbody>\n")
-  (for ([(folder info) (in-pairs infos)])
+  (for ([(folder info) (in-dict infos)])
     (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
 
     (define-values (total-start total-end)
@@ -103,7 +103,7 @@
 
       (define branch-infos*
         (sort
-         (multipartition folders (compose report-info-branch cdr))
+         (group-by (compose report-info-branch cdr) folders)
          > #:key (λ (x) (date->seconds (report-info-date (cdar x))))))
 
       (define-values (master-info* other-infos)
