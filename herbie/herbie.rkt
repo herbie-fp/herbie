@@ -60,9 +60,9 @@
 
 (define (run-herbie files)
   (define seed (get-seed))
-  (for ([output (in-herbie-output files #:seed seed)]
-        [idx (in-naturals)] #:when output)
-    (define success?
+  (with-handlers ([exn:break? (λ (e) (exit 0))])
+    (for ([output (in-herbie-output files #:seed seed)] [idx (in-naturals)]
+          #:when output)
       (match output
         [(test-result test time bits start-alt end-alt points exacts
                       start-est-error end-est-error newpoint newexacts
@@ -72,28 +72,16 @@
                   (test-name test)
                   (~r (errors-score start-error) #:min-width 2 #:precision 0)
                   (~r (errors-score end-error) #:min-width 2 #:precision 0))
-         (when (not (early-exit?))
-           (printf "~a\n" (alt-program end-alt)))
-         (test-successful? test (errors-score start-error) (if target-error (errors-score target-error) #f) (errors-score end-error))]
+         (printf "~a\n" (alt-program end-alt))]
         [(test-failure test bits exn time timeline)
          (eprintf "[   CRASH   ]\t~a\n" (test-name test))
          (when (not (early-exit?))
            (printf ";; Crash in ~a\n" (test-name test)))
-         ((error-display-handler) (exn-message exn) exn)
-         #f]
+         ((error-display-handler) (exn-message exn) exn)]
         [(test-timeout test bits time timeline)
          (eprintf "[  timeout  ]\t~a\n" (test-name test))
          (when (not (early-exit?))
-           (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test)))
-         #f]))
-    (when (and (early-exit?) (not success?))
-      (when (test-result? output)
-         (printf "Input: ~a\n" (alt-program (test-result-start-alt output)))
-         (printf "Output:\n")
-         (pretty-print (alt-program (test-result-end-alt output)))
-         (define target (test-output (test-result-test output)))
-         (when target (printf "Target: ~a\n" target)))
-      (exit (+ 1 idx)))))
+           (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test)))]))))
 
 (module+ main
   (command-line
