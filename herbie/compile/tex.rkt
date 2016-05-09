@@ -10,7 +10,8 @@
 
 (define-table texify-constants
   [l       "\\ell"]
-  [pi      "\\pi"]
+  [PI      "\\pi"]
+  [E       "e"]
   [eps     "\\varepsilon"]
   [epsilon "\\varepsilon"]
   [alpha   "\\alpha"]

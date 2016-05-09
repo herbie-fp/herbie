@@ -5,7 +5,7 @@
 
 (herbie-test (k n)
   "Migdal et al, Equation (51)"
-  (* (/ (sqrt k)) (pow (* 2 pi n) (/ (- 1 k) 2))))
+  (* (/ (sqrt k)) (pow (* 2 PI n) (/ (- 1 k) 2))))
 
 (herbie-test (a1 a2 th)
   "Migdal et al, Equation (64)"

@@ -8,7 +8,7 @@
 ;; NMSE Section 6.1
 (herbie-test (a b)
   "NMSE Section 6.1 mentioned"
-  (* (/ pi 2) (/ 1 (- (sqr b) (sqr a))) (- (/ 1 a) (/ 1 b))))
+  (* (/ PI 2) (/ 1 (- (sqr b) (sqr a))) (- (/ 1 a) (/ 1 b))))
 
 (herbie-test (x y)
   "Radioactive exchange between two surfaces"

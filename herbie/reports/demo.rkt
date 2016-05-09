@@ -52,7 +52,7 @@
       (dd "The inverse trigonometric functions")
       (dt ,@(list-join (for/list ([i '(sinh cosh tanh)]) `(code ,(~a i))) '(", ")))
       (dd "The hyperbolic trigonometric functions"))
-    `(p "You can also use the constants " (code "pi") " and " (code "e") ".")
+    `(p "You can also use the constants " (code "PI") " and " (code "E") ".")
 
     `(p (em "Note") ": all formulas submitted to the Herbie web demo are logged "
         "and made publicly accessible. See what formulas other users submitted "

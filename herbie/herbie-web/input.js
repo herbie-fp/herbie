@@ -1,4 +1,4 @@
-CONSTANTS = ["pi", "e"]
+CONSTANTS = ["PI", "E"]
 FUNCTIONS = {
     "+": [2], "-": [1, 2], "*": [2], "/": [2], "abs": [1],
     "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "expt": [2],

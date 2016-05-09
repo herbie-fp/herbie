@@ -86,8 +86,8 @@
 
 
 (define-table constants->c
-  [pi    "atan2(1.0, 0.0)"]
-  [e     "exp(1.0)"])
+  [PI    "atan2(1.0, 0.0)"]
+  [E     "exp(1.0)"])
 
 (define (comparison? l)
   (and (list? l) (member (car l) '(< > <= >= and or))))
@@ -226,8 +226,8 @@
               "MPFR_RNDN)")])
 
 (define-table constants->mpfr
-  [pi    "mpfr_const_pi(~a, MPFR_RNDN)"]
-  [e     (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN); mpfr_exp(~a, ~a, MPFR_RNDN);" x x x))])
+  [PI    "mpfr_const_pi(~a, MPFR_RNDN)"]
+  [E     (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN); mpfr_exp(~a, ~a, MPFR_RNDN);" x x x))])
 
 (define (program->mpfr prog [bits 128] [fname "f"])
   (define vars (program-variables prog))
