@@ -26,7 +26,7 @@
 
 (define early-exit? (make-parameter #f))
 (define profile? (make-parameter #f))
-(define threads (make-parameter #f))
+#;(define threads (make-parameter #f))
 (define note (make-parameter #f))
 
 (define (herbie-input? fname)
@@ -108,7 +108,7 @@
     (when given-seed (set-seed! given-seed))]
    [("--test") "Exit with failing status on the first unsuccessful input"
     (early-exit? #t)]
-   [("--threads") th "Whether to use threads to run examples in parallel (yes|no|N)"
+   #;[("--threads") th "Whether to use threads to run examples in parallel (yes|no|N)"
     (threads
      (match th
        ["no" #f]
