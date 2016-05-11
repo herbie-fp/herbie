@@ -51,7 +51,10 @@
                                    (*num-iterations*)
                                    #:get-context #t
                                    #:samplers (test-samplers test)))
-        `(good ,(make-alt (test-program test)) ,alt ,context))))
+        (define newcontext
+          (parameterize ([*num-points* (*reeval-pts*)])
+            (prepare-points (alt-program alt) (test-samplers test))))
+        `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext))))
 
   (define (in-engine _)
     (if profile?
@@ -63,10 +66,7 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context)
-       (define newcontext
-         (parameterize ([*num-points* (*reeval-pts*)])
-           (prepare-points (alt-program start) (test-samplers test))))
+      [`(good ,start ,end ,context ,newcontext)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
        (test-result test 

@@ -8,7 +8,7 @@
   (* d (+ (* a b) (* b c) (* c a)))
   (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b))))
 
-(herbie-test ([a (uniform 56789 98765)] [b (<= 0 default 1)]
+(herbie-test ([a (<= 56789 default 98765)] [b (<= 0 default 1)]
               [c (<= 0 default 1.6773e-3)] [d (<= 0 default 1.6773e-3)])
   "Expression, p14"
   (* a (+ (+ b c) d))
