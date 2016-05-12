@@ -6,6 +6,7 @@
 (require "core/matcher.rkt")
 (require "programs.rkt")
 (require "main.rkt")
+(require "interact.rkt")
 (require "core/egraph.rkt")
 (require "syntax/rules.rkt")
 (require "plot.rkt")
@@ -35,7 +36,7 @@
 ;; 	    (sub1 iters-done))))))
 
 (define (print-improve prog max-iters)
-  (match-let ([`(,end-prog ,context) (improve prog max-iters #:get-context #t)])
+  (match-let ([`(,end-prog ,context) (run-improve prog max-iters #:get-context #t)])
     (parameterize ([*pcontext* context])
       (let ([start (make-alt prog)]
 	    [end (make-alt end-prog)])
@@ -45,12 +46,6 @@
                  (- (errors-score (alt-errors start)) (errors-score (alt-errors end)))
                  " bits of precision")
         (void)))))
-
-(define (setup prog)
-  (define pcontext (prepare-points prog (for/list ([var (program-variables prog)])
-					  (cons var sample-float))))
-  (*pcontext* pcontext)
-  (void))
 
 (define (repl-print x)
   (begin (println x) (void)))
