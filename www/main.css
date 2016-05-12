@@ -1,4 +1,4 @@
-html {font-family: sans-serif;}
+html {font-family: sans-serif; font-size: 15px; line-height: 1.2;}
 
 body {min-width: 400px; max-width: 650px; margin: 3em auto;}
 
@@ -8,20 +8,24 @@ h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0; clear: both;}
 h3 {font-size: 14px; line-height: 1.286; margin: 1em 0 .2em 0; clear: both;}
 
 p, li, dd, blockquote, figcaption {
-  font-size: 15px; line-height: 1.2;
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
   margin: .5em;
 }
 
-figcaption {font-size: 14px; line-height: 1.1;}
+figure.showcase { background: #ddd; padding: 1em; margin: 5em 0;}
+.showcase figcaption {font-size: 14px; line-height: 1.1;}
 
-header {margin: 2em 0 2em 0; height: 60px;}
+header {margin: 0 0 2em 0;}
 header h1 {margin: .5em 0 0 0; font-size: 16pt;}
-header p {font-size: 14pt; margin: .5em 0 0 0;}
-header img {float: left; width: 20%; margin: -3em 2em 0 0;}
+header p {font-size: 16px; margin: .5em 0 0 0; text-align: center;}
+header img {width: 150px; margin: 0 auto; display: block;}
 
-.author-list {clear: both; text-align: center; padding: 0; width: 100%; margin: .5em 0 2em 0;}
-.author-list li {display: inline; padding: 0 .5ex 0 0; max-width: 33%;}
+.tool-list { margin-left: 1em; }
+.tool-list dt {float: left; clear:left; margin-right: 1ex; font-weight: bold; }
+.tool-list dd {clear: right; margin-bottom: 1em;}
+
+.author-list {padding: 0; margin: .5em 1em 3em; }
+.author-list li {display: inline; margin: 0; white-space: nowrap;}
 .author-list li:after {content: ","}
 .author-list li:last-child:after {content: ""}
 svg {margin: 0 auto; display: block;}
@@ -53,3 +57,12 @@ a:hover {text-decoration: underline; color: #295785}
 .abstract:after { content: "”"; font-size: 600%; position: absolute; bottom: -.5em; right: 0; font-family: serif; color: #ccc; }
 .paper-thumb { width: 30%; float: left; margin: 1em; }
 .paper-thumb img { width: 100%; border: 1px solid #ccc; }
+
+#news { list-style: none inside; padding: 0; position: relative; }
+#news li { margin-bottom: 12px; margin-left: 100px; }
+#news time {
+    font-weight: bold; text-align: right;
+    position: absolute; left: 0;
+    display: block; width: 90px;
+}
+#news time:after { content: ":"; }
