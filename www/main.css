@@ -72,3 +72,4 @@ a:hover {text-decoration: underline; color: #295785}
     display: block; width: 90px;
 }
 #news time:after { content: ":"; }
+#news .yearmark { border: 0; border-top: 1px solid #bbb; margin: 1em; }

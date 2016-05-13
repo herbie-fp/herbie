@@ -106,12 +106,19 @@
   <ol id="news">
     <li><time>9 May</time>In preparation for the Version 1.0 release, we've renamed the <code>pi</code> and <code>e</code> constants to upper case. This matches <code>libm</code> and should make it a little harder to cause bugs. Herbie will now optimize expressions like <code>(exp 1)</code> to <code>E</code>.</li>
     <li><time>6 May</time>We're proud to announce that we've been collaborating with <a href="http://perso.univ-perp.fr/mmartel/">Prof. Martel</a> and his students to build a <a href="http://fpbench.org">common benchmark suite and format</a> for floating point tools. Version 1.0 of Herbie will support only the FPBench format.</li>
-    <li><time>4 Apr</time><a href="https://pavpanchekha.com/">Pavel</a> gave a talk at Google on how Herbie works and what our plans for the future are.</li>
+    <li><time>4 Apr</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at Google on how Herbie works and what our plans for the future are.</li>
+    <li><time>30 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MIT on how Herbie works internally.</li>
     <li><time>6 Mar</time>In preparation for the Version 1.0 release, we've renamed several functions in Herbie to match the <code>libm</code> names. In particular, look out for <code>abs</code>, which is now <code>fabs</code>, and <code>expt</code>, which is now <code>pow</code>.</li>
-    <li><time>26 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> gave a talk at MathWorks on how Herbie works answered questions on how it could be extended.</li>
+    <li><time>26 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MathWorks on how Herbie works answered questions on how it could be extended.</li>
     <li><time>25 Jan</time>The <a href="https://github.com/mcarton/rust-herbie-lint">Herbie Rust Linter</a> plugs into the Rust compiler to add warnings for numerically unstable expressions, and suggests Herbie's more accurate output as a hint.</li>
+    <hr class="yearmark" />
     <li><time>1 Oct</time>The <a href="https://github.com/mikeizbicki/HerbiePlugin#herbie-ghc-plugin">Herbie GHC Plugin</a> by Mike Izbicki automatically runs Herbie on applicable expressions in a Haskell program. He's also scanned all of <a href="https://www.stackage.org/lts-3.5">Stackage LTS-3.5</a> for numerical inaccuracies with Herbie.</li>
-    <li><time>13 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> gave a <a href="./pldi15.html">Distinguished Paper</a> talk at <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a> on the scientific advances that underpin Herbie.</li>
+    <li><time>13 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="./pldi15.html">Distinguished Paper</a> talk at <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a> on the scientific advances that underpin Herbie.</li>
+    <li><time>9 Apr</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> is giving a talk at Berkeley on how we plan to improve floating point accuracy with Herbie.</li>
+    <hr class="yearmark" />
+    <li><time>17 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">talk</a> at OPLSS on whether floating point accuracy can be improved, and our plans for finding out.</li>
+    <li><time>15 May</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">lightning talk</a> on a new project to improve the accuracy of floating point expressions.</li>
+    <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
   </ol>
   
   <h2 id="docs">Documentation</h2>
@@ -138,27 +145,10 @@
     <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a>: how floating point rounding and primitive operators work.</li>
 
   </ul>
-  
-  <h2>Presentations about Herbie</h2>
-
-  <ul>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      Talk at Mathworks on 26 January 2016.</li>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      The Distinguished Paper talk at PLDI 2015 on 13 June 2015.</li>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      Talk given at Berkeley on 9 April 2015.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">Casio: automatically improving floating-point code</a>.<br/>
-      Talk given at OPLSS on 17 June 2014.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">What the Float‽ And what are we planning to do about it?</a>.<br/>
-      Lightning talk given at UW on 15 May 2014.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">Casio: automatically improving floating-point code</a>.<br/>
-      Talk given at Dropbox on 31 March 2014. <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Video available</a>.</li>
-  </ul>
 
   <h2>The Herbie Developers</h2>
 
-  <p>Herbie is chiefly developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions for a supportive community. The main contributors are:</p>
+  <p>Herbie is chiefly developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions from a supportive community. The main contributors are:</p>
   
   <ol class="author-list">
     <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
