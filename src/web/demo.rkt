@@ -5,7 +5,7 @@
 (require web-server/configuration/responders)
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
-(require "../compile/tex.rkt")
+(require "../formats/tex.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt")
 (require "../web/common.rkt")
 
