@@ -27,11 +27,11 @@ before_install:
   - export PATH="${RACKET_DIR}/bin:${PATH}"
   - docker load -i docker-images/herbie.image || true
 install:
-  - raco pkg install --auto $TRAVIS_BUILD_DIR/herbie
+  - raco pkg install --auto $TRAVIS_BUILD_DIR/src
   - docker build -t herbie .
 script:
-  - raco test herbie
-  - racket herbie/reports/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
+  - raco test src
+  - racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
 before_cache:
   - docker save -o docker-images/herbie.image herbie
 notifications:
