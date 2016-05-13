@@ -1,13 +1,13 @@
 #lang racket
 
-(require "points.rkt")
-(require "alternative.rkt")
-(require "formats/test.rkt")
-(require "formats/datafile.rkt")
-(require "config.rkt")
-(require "plot.rkt")
-(require "common.rkt")
-(require "interact.rkt")
+(require "../points.rkt")
+(require "../alternative.rkt")
+(require "../formats/test.rkt")
+(require "../formats/datafile.rkt")
+(require "../config.rkt")
+(require "../plot.rkt")
+(require "../common.rkt")
+(require "../mainloop.rkt")
 (require json)
 (require math/flonum)
 

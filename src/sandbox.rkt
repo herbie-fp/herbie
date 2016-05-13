@@ -5,13 +5,13 @@
 
 (require "common.rkt")
 (require "debug.rkt")
-(require "interact.rkt")
+(require "mainloop.rkt")
 (require "formats/datafile.rkt")
 (require "programs.rkt")
 (require "points.rkt")
 (require "formats/test.rkt")
 (require "alternative.rkt")
-(require "main.rkt")
+(require "glue.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)

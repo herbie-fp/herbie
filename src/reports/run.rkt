@@ -9,7 +9,7 @@
 (require "../points.rkt")
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
-(require "../main.rkt")
+(require "../glue.rkt")
 (require "../formats/c.rkt")
 (require "thread-pool.rkt")
 (require "../formats/datafile.rkt")

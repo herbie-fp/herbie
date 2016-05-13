@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt")
-(require "main.rkt")
+(require "glue.rkt")
 (require "programs.rkt")
 (require "points.rkt")
 (require "syntax/distributions.rkt")

@@ -1,15 +1,15 @@
 #lang racket
 
-(require "points.rkt")
-(require "alternative.rkt")
-(require "common.rkt")
-(require "core/matcher.rkt")
-(require "programs.rkt")
-(require "main.rkt")
-(require "interact.rkt")
-(require "core/egraph.rkt")
-(require "syntax/rules.rkt")
-(require "plot.rkt")
+(require "../points.rkt")
+(require "../alternative.rkt")
+(require "../common.rkt")
+(require "../core/matcher.rkt")
+(require "../programs.rkt")
+(require "../glue.rkt")
+(require "../mainloop.rkt")
+(require "../core/egraph.rkt")
+(require "../syntax/rules.rkt")
+(require "../plot.rkt")
 
 (provide (all-defined-out))
 

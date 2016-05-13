@@ -14,7 +14,7 @@
 (require "../plot.rkt")
 (require "../points.rkt")
 (require "../float.rkt")
-(require "../main.rkt")
+(require "../glue.rkt")
 (require "../syntax/syntax.rkt")
 (require "../compile/tex.rkt")
 (require "../core/localize-error.rkt")

@@ -5,7 +5,7 @@
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../alternative.rkt")
-(require "../main.rkt")
+(require "../glue.rkt")
 (require "../syntax/syntax.rkt")
 (require "../syntax/rules.rkt")
 (require math/bigfloat)

@@ -6,7 +6,7 @@
 (require "../programs.rkt")
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
-(require "../interact.rkt")
+(require "../mainloop.rkt")
 
 (define (run #:print-points [print-points? #f])
   (eprintf "; Seed: ~a\n" (get-seed))

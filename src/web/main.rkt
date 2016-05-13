@@ -2,7 +2,7 @@
 
 ;;======== Dependencies ===========
 (require "../common.rkt")
-(require "../main.rkt")
+(require "../glue.rkt")
 (require "../points.rkt")
 (require "../core/localize-error.rkt")
 (require "../programs.rkt")

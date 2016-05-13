@@ -10,11 +10,11 @@ HERBROOT="$HOME/herbie"
 
 CORES=4
 
-LOG="$HERBROOT/bot/$(date +%y%m%d%H%M%S).log"
-ln -sf "$LOG" "$HERBROOT/bot/latest.log"
+LOG="$HERBROOT/infra/$(date +%y%m%d%H%M%S).log"
+ln -sf "$LOG" "$HERBROOT/infra/latest.log"
 
-EXC="$HERBROOT/bot/exceptions-$(date +%y%m%d%H%M%S).rkt"
-ln -sf "$EXC" "$HERBROOT/bot/latest-exceptions.rkt"
+EXC="$HERBROOT/infra/exceptions-$(date +%y%m%d%H%M%S).rkt"
+ln -sf "$EXC" "$HERBROOT/infra/latest-exceptions.rkt"
 
 function main {
   cd "$HERBROOT"
@@ -74,7 +74,7 @@ run $@
 
 EOF
   time xvfb-run --auto-servernum \
-    racket "$HERBROOT/herbie/reports/run.rkt" \
+    racket "$HERBROOT/src/reports/run.rkt" \
       --note "$name" \
       --profile \
       --threads $CORES \
