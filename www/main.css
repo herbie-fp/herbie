@@ -2,20 +2,24 @@ html {font-family: sans-serif; font-size: 15px; line-height: 1.2;}
 
 body {min-width: 400px; max-width: 650px; margin: 3em auto;}
 
-h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
-h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
-h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0; clear: both;}
-h3 {font-size: 14px; line-height: 1.286; margin: 1em 0 .2em 0; clear: both;}
+h1, h2, h3 {letter-spacing: .125em; font-weight: 600; margin-top: 4em; }
+h1 {font-size: 18px; line-height: 1; margin-bottom: .5em;}
+h2 {font-size: 16px; line-height: 1.125; margin-bottom: .25em; clear: both;}
+h3 {font-size: 14px; line-height: 1.286; margin-bottom: .2em; clear: both;}
 
 p, li, dd, blockquote, figcaption {
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
   margin: .5em;
 }
 
-figure.showcase { background: #ddd; padding: 1em; margin: 5em 0;}
-.showcase figcaption {font-size: 14px; line-height: 1.1;}
+.showcase { background: #ddd; padding: 1em; margin: 5em 0; clear: both;}
+.showcase figcaption {font-size: 14px; line-height: 1.1; margin-top: 2em;}
+.before-after { font-size: 24px; text-align: center; }
+.before-after code { padding: 0 .5ex; }
+.before-after .before { color: darkred; }
+.before-after .after { color: darkgreen; }
 
-header {margin: 0 0 2em 0;}
+header {margin: 0 0 4em 0;}
 header h1 {margin: .5em 0 0 0; font-size: 16pt;}
 header p {font-size: 16px; margin: .5em 0 0 0; text-align: center;}
 header img {width: 150px; margin: 0 auto; display: block;}
@@ -35,6 +39,8 @@ pre {padding-left: 2.5em; font-size: 16px; font-family: monospace; background-co
 div.column-container > div {width: 25%; float: left; padding: 0 4%}
 div.column-container > div > h3 {margin: auto 10px}
 div.column-container > div > ul {list-style: inside none; margin: 0; padding: 0;}
+div.column-container:after { content: "."; clear: both; display: block; visibility: hidden; height: 0; }
+.column-container + .showcase { margin-top: 4em; }
 
 ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
