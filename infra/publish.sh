@@ -17,7 +17,7 @@ upload () {
 index () {
     rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
           --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
-    racket herbie/reports/make-index.rkt
+    racket infra/make-index.rkt
     rsync --verbose --recursive \
           "index.html" "herbie/reports/index.css" \
           "herbie/reports/report.js" "herbie/reports/regression-chart.js" \
@@ -29,7 +29,7 @@ index () {
 backfill () {
     rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
           --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
-    racket herbie/reports/backfill-index.rkt
+    racket infra/backfill-index.rkt
     rsync --verbose --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
 }
 

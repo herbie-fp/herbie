@@ -15,6 +15,9 @@ publish:
 	bash infra/publish.sh upload graphs/
 	bash infra/publish.sh index
 
+start-server:
+	racket src/web/demo.rkt >> infra/server.log
+
 loc:
 	find herbie/ -type f -exec cat {} \; | wc -l
 
