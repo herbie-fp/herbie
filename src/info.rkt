@@ -3,10 +3,10 @@
 (define collection "herbie")
 
 (define compile-omit-paths
-  '("test" "web" "reports" "util.rkt" "old"))
+  '("test" "web" "reports" "old"))
 
 (define test-omit-paths
-  '("test" "web" "reports" "util.rkt" "old"))
+  '("test" "web" "reports" "old"))
 
 (define raco-commands
   '(("herbie" (submod herbie/herbie main)
