@@ -6,13 +6,13 @@
 (require web-server/configuration/responders)
 (require json)
 
-(require "main.rkt")
 (require "../config.rkt")
 (require "common.rkt")
+(require "session.rkt")
 
 (define *frontend-path* (make-parameter #f))
 (define *style-path* (make-parameter #f))
-(define *input-path* (make-parameter "herbie/herbie-web/input.js"))
+(define *input-path* (make-parameter "src/viz/input.js"))
 
 (define/page (start-page)
   (when (not (and (*frontend-path*) (*style-path*)))

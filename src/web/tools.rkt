@@ -9,15 +9,15 @@
 (require "../common.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
-(require "../core/matcher.rkt")
-(require "../core/infer-regimes.rkt")
 (require "../plot.rkt")
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../glue.rkt")
 (require "../syntax/syntax.rkt")
-(require "../compile/tex.rkt")
-(require "../core/localize-error.rkt")
+(require "../formats/tex.rkt")
+(require "../core/matcher.rkt")
+(require "../core/regimes.rkt")
+(require "../core/localize.rkt")
 
 ;; ================== Interface =======================
 
