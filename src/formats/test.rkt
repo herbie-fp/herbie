@@ -6,7 +6,9 @@
 (require "../syntax/distributions.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file test-target parse-test test-successful? test<?)
+         load-tests load-file test-target parse-test test-successful? test<?
+         ; for convresion tool
+         var&dist args&body)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
