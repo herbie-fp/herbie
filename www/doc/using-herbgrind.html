@@ -21,17 +21,15 @@
   <h2>Compiling the benchmark program</h2>
 
   <p>
-    HerbGrind ships a collection of binaries in its <code>bench/</code>
+    HerbGrind ships test binaries in its <code>bench/</code>
     directory. You can build them with:
   </p>
   
   <pre>make -C bench all</pre>
 
-  <h2>Running HerbGrind</h2>
-
   <p>
     Let's analyze the <code>diff-roots-simple.out</code> binary that
-    you compiled in the previous step. Run HerbGrind on that binary with:
+    you just compiled. Run HerbGrind on that binary with:
   </p>
 
   <pre>valgrind/herbgrind-install/bin/valgrind --tool=herbgrind bench/diff-roots-simple.out</pre>
@@ -81,7 +79,7 @@ Aggregated over 1 instances</pre>
     inaccurate computation: 43.1 bits of error over 1 instance of computing that expression.
   </p>
   
-  <h2>Ignoring library calls</h2>
+  <h2>Turning HerbGrind on and off</h2>
 
   <p>
     While running on <code>diff-roots-simple.out</code>, HerbGrind
@@ -95,15 +93,24 @@ Aggregated over 1 instances</pre>
   <p>
     Simply surround the numerically-interesting parts of your
     computation in the <code>HERBGRIND_BEGIN()</code>
-    and <code>HERBGRIND_END()</code> macros; for
-    example, <code>diff-roots-simple.c</code> does this on lines 11
-    and 13. You can then run HerbGrind with
+    and <code>HERBGRIND_END()</code> macros:
+  </p>
+  
+  <pre>// initialization code ...
+HERBGRIND_BEGIN();
+// numerical code ...
+HERBGRIND_END();
+// cleanup code ...</pre>
+
+  <p>The <code>diff-roots-simple.c</code> example does this on lines
+    11 and 13. You can then run HerbGrind with
     the <code>--start-off</code> flag, which tells HerbGrind not to
     begin analyzing floating point operations until it sees
     a <code>HERBGRIND_BEGIN()</code> region:
   </p>
 
-  <pre>valgrind/herbgrind-install/bin/valgrind --tool=herbgrind --start-off bench/diff-roots-simple.out</pre>
+  <pre>valgrind/herbgrind-install/bin/valgrind --tool=herbgrind \
+      <b>--start-off</b> bench/diff-roots-simple.out</pre>
 
   <p>
     The report file now contains only the inaccurate expression
@@ -111,7 +118,7 @@ Aggregated over 1 instances</pre>
   </p>
   
   <p>
-    <code>HERBGRIND_BEGIN()</code>/<code>HERBGRIND_END()</code>
+    The <code>HERBGRIND_BEGIN()</code>/<code>HERBGRIND_END()</code>
     regions can be sprinkled anywhere in your source code; it's common
     to use them to start HerbGrind only after initializing your
     program and before cleaning up and outputting results. HerbGrind
