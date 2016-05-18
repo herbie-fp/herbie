@@ -14,7 +14,7 @@ p, li, dd, blockquote, figcaption {
 
 .showcase { background: #ddd; padding: 1em; margin: 5em 0; clear: both;}
 .showcase figcaption {font-size: 14px; line-height: 1.1; margin-top: 2em;}
-.before-after { font-size: 24px; text-align: center; }
+.before-after { font-size: 24px; text-align: center; line-height: 1.5; }
 .before-after code { padding: 0 .5ex; display: block; }
 .before-after .before { color: darkred; }
 .before-after .after { color: darkgreen; }
