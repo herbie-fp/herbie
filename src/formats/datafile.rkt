@@ -6,7 +6,6 @@
 (require "../float.rkt")
 
 (provide
- git-command
  (struct-out table-row) (struct-out report-info)
  make-report-info read-datafile write-datafile)
 
@@ -24,8 +23,8 @@
 
 (define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
-               (git-command "rev-parse" "HEAD")
-               (git-command "rev-parse" "--abbrev-ref" "HEAD")
+               (git-command "rev-parse" "HEAD" #:default *herbie-version*)
+               (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release")
                (or seed (get-seed))
                (*flags*)
                (*num-points*)
