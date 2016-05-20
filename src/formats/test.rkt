@@ -52,29 +52,36 @@
   out*)
 
 (define (parse-test expr)
-  (define-values (vars* args*)
-    (match expr
-      [(list 'herbie-test (list vars ...) (? string? name) input)
-       (values vars (list '#:name name input))]
-      [(list 'herbie-test (list vars ...) (? string? name) input output)
-       (values vars (list '#:name name '#:target output input))]
-      [(list 'herbie-test (list vars ...) input output)
-       (values vars (list '#:name "Unnamed Test" '#:target output input))]
-      [(list 'lambda (list vars ...) args ...)
-       (values vars args)]
-      [(list 'define name (list vars ...) args ...)
-       (values vars (list*'#:name name args))]))
-  (match-define (list (cons vars samp) ...) (map var&dist vars*))
-  (match-define (list body args ...) (args&body args*))
-  (define (get kw default)
-    (let ([rec (assoc kw args)])
-      (if rec (cdr rec) default)))
+;  (define-values (vars* args*)
+;    (match expr
+;      [(list 'herbie-test (list vars ...) (? string? name) input)
+;       (values vars (list '#:name name input))]
+;      [(list 'herbie-test (list vars ...) (? string? name) input output)
+;       (values vars (list '#:name name '#:target output input))]
+;      [(list 'herbie-test (list vars ...) input output)
+;       (values vars (list '#:name "Unnamed Test" '#:target output input))]
+;      [(list 'lambda (list vars ...) args ...)
+;       (values vars args)]
+;      [(list 'define name (list vars ...) args ...)
+;       (values vars (list*'#:name name args))]))
 
-  (test (~a (get '#:name body))
-        vars samp
+  (match-define (list 'FPCore (list args ...) props ... body) expr)
+  (define prop-dict
+    (let loop ([props props] [out '()])
+      (if (null? props)
+        out
+        (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+  ;(match-define (list (cons vars samp) ...) (map var&dist vars*))
+  ;(match-define (list body args ...) (args&body args*))
+  ;(define (get kw default)
+  ;  (let ([rec (assoc kw args)])
+  ;    (if rec (cdr rec) default)))
+
+  (test (~a (dict-ref prop-dict ':name body))
+        args (dict-ref prop-dict ':herbie-samplers (map (const 'default) args))
         (desugar-program body)
-        (desugar-program (get '#:target #f))
-        (get '#:expected #t)))
+        (desugar-program (dict-ref prop-dict ':target #f))
+        (dict-ref prop-dict ':herbie-expected #t)))
 
 (define (load-file file)
   (call-with-input-file file
