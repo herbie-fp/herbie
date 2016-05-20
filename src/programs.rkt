@@ -227,13 +227,15 @@
 
 (define (unfold-let expr)
   (match expr
-    [`(let* ,vars ,body)
-     (let loop ([vars vars] [body body])
-       (if (null? vars)
-           body
-           (let ([var (caar vars)] [val (cadar vars)])
-             (loop (map (replace-var var val) (cdr vars))
-                   ((replace-var var val) body)))))]
+    [`(let ([,vars ,vals] ...) ,body)
+     (define bindings (map cons vars vals))
+     (replace-vars bindings body)]
+;     (let loop ([vars vars] [body body])
+;       (if (null? vars)
+;           body
+;           (let ([var (caar vars)] [val (cadar vars)])
+;             (loop  (cdr vars)
+;                   ((replace-var var val) body)))))]
     [`(,head ,args ...)
      (cons head (map unfold-let args))]
     [x
@@ -249,6 +251,13 @@
      (cons op (map expand-associativity a))]
     [_
      expr]))
+
+(define (replace-vars dict expr)
+  (cond
+    [(dict-has-key? dict expr) (dict-ref dict expr)]
+    [(list? expr)
+     (cons (car expr) (map (curry replace-vars dict) (cdr expr)))]
+    [#t expr]))
 
 (define ((replace-var var val) expr)
   (cond
