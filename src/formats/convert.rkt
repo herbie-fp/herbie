@@ -41,5 +41,5 @@
    #:program "herbie-to-fpcore"
    #:args (file)
    (for ([test (in-port read (open-input-file file))])
-     (pretty-print (convert test)))))
+     (pretty-print (convert test) (current-output-port) 1))))
 
