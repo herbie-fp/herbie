@@ -11,6 +11,7 @@
 (require "../formats/test.rkt")
 (require "../glue.rkt")
 (require "../formats/c.rkt")
+(require "../sandbox.rkt")
 (require "thread-pool.rkt")
 (require "../formats/datafile.rkt")
 (provide (all-defined-out))
@@ -59,6 +60,8 @@
  #:once-each
  [("-p" "--profile") "Whether to profile each test"
   (set! *profile?* #t)]
+ [("--timeout") s "Timeout for each test (in seconds)"
+  (*timeout* (* 1000 (string->number s)))]
  [("-r" "--seed") rs "The random seed vector to use in point generation"
   (set-seed! (read (open-input-string rs)))]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
