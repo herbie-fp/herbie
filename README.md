@@ -57,7 +57,7 @@ Running Herbie
 --------------
 
 For details on how to run Herbie, please see the
-[tutorial](http://herbie.uwplse.org/tutorial.html).
+[tutorial](http://herbie.uwplse.org/doc/tutorial.html).
 
 The format of input files is a Scheme-based language;
 you can find several examples in `bench/`.
