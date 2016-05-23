@@ -8,12 +8,8 @@ Current Status
 
 [![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
 
-Herbie can solve many simple and not-so-simple problems.
-It can improve the accuracy of many real-world programs,
-and successfully solves most problems from Richard Hamming’s
-Numerical Methods for Scientists and Engineers, Chapter 3.
-It has successfully been used by colleagues to improve
-the qualitative results of machine learning algorithms.
+Herbie can improve the accuracy of many real-world programs,
+and is used by scientists in many disciplines.
 It has lead to two patches
 (for complex [square roots](https://github.com/josdejong/mathjs/pull/208)
 and [trigonometric functions](https://github.com/josdejong/mathjs/pull/247)),
@@ -37,21 +33,10 @@ He’ll set you up with access to these tools.
 Installing
 ----------
 
-Herbie requires Racket 6.1 or later, and works best on Linux.
-If you're using OS X, use the
-[official Racket installer](http://download.racket-lang.org/),
-not the version that Homebrew installs;
-Homebrew will not build several mathematics libraries.
+Herbie requires Racket 6.3 or later, and works best on Linux.
 
-Herbie also requires GMP, MPFR, and GCC 4.8 or later to test overhead,
-since that involves compiling Herbie’s output to C.
-
-If you are running Racket 6.3 or newer, you will also need to install the
-unstable package:
-
-    raco pkg install unstable
-
-With these libraries installed, you are now ready to run Herbie.
+No installation is needed; just download the source code and you're
+ready to go.
 
 Running Herbie
 --------------
@@ -61,25 +46,33 @@ For details on how to run Herbie, please see the
 
 The format of input files is a Scheme-based language;
 you can find several examples in `bench/`.
-For example,
-consider this simple cancellation test
+For example, consider this simple cancellation test
 
     (herbie-test (x)
       "Cancel like terms"
       (- (+ 1 x) x))
 
-To run Herbie on this example, save the above s-expression
-in the file `bench/example.rkt` and run
+Run Herbie from the top-level directory of the repo:
 
-    racket herbie/reports/run.rkt bench/example.rkt
-
-from the top-level directory of the repo.
-You should see output similar to
-
-    $ racket herbie/reports/run.rkt example.rkt
-    Starting Herbie on 1 problems...
+    $ racket src/herbie.rkt
     Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
-      1/1   [ 1673.401ms]   (29→ 0) Cancel like terms
+
+You can now enter the cancellation test:
+
+    $ racket src/herbie.rkt
+    Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
+    (herbie-test (x)
+      "Cancel like terms"
+      (- (+ 1 x) x))
+    [ 1673.401ms]   (29→ 0) Cancel like terms
+    (λ (x) 1)
+
+The final is Herbie's improved, more-accurate expression, in this case
+the constant `1`.
+
+You can also save expressions to a file and run them with
+
+    racket src/herbie.rkt file
 
 Running Tests
 -------------
@@ -90,7 +83,7 @@ possible, we try to *extract all possible tests* from a source, to
 avoid biasing our selection of tests. To run the tests, go to the
 project root and run
 
-    racket herbie/reports/run.rkt <file>
+    racket src/reports/run.rkt <file>
 
 After a some time (several minutes), you should find the file
 `graphs/report.html`.
@@ -101,14 +94,14 @@ They are the benchmarks that ship in the `bench/` directory.
 
 We often test Herbie on basic but representative examples with:
 
-    racket herbie/reports/run.rkt bench/hamming/
+    racket src/reports/run.rkt bench/hamming/
 
 This takes approximately 15 minutes.
 To run all of the default benchmarks, use:
 
-    racket herbie/reports/run.rkt bench/
+    racket src/reports/run.rkt bench/
 
-This can take an hour or more.
+This can take a few hours or more.
 
 Test results are collected on
 [uwplse.org](http://herbie.uwplse.org/reports/).
