@@ -20,6 +20,5 @@
     (body
      (header
       (img ([class "logo"] [src "/logo.png"]))
-      (h1 ,title)
-      (p "See " (a ([href "/"]) "the main page") " for more info on Herbie."))
+      (h1 ,title))
      ,@body)))

@@ -1,36 +1,46 @@
-html {font-family: sans-serif;}
+html {font-family: sans-serif; font-size: 15px; line-height: 1.2;}
 
 body {min-width: 400px; max-width: 650px; margin: 3em auto;}
 
-h1, h2, h3 {letter-spacing: .125em; font-weight: 600;}
-h1 {font-size: 18px; line-height: 1; margin: 1.5em 0 .5em 0;}
-h2 {font-size: 16px; line-height: 1.125; margin: 1em 0 .25em 0; clear: both;}
-h3 {font-size: 14px; line-height: 1.286; margin: 1em 0 .2em 0; clear: both;}
+h1, h2, h3 {letter-spacing: .125em; font-weight: 600; margin-top: 4em; }
+h1 {font-size: 18px; line-height: 1; margin-bottom: .5em;}
+h2 {font-size: 16px; line-height: 1.125; margin-bottom: .25em; clear: both;}
+h3 {font-size: 14px; line-height: 1.286; margin-bottom: .2em; clear: both;}
 
 p, li, dd, blockquote, figcaption {
-  font-size: 15px; line-height: 1.2;
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
   margin: .5em;
 }
 
-figcaption {font-size: 14px; line-height: 1.1;}
+.showcase { background: #ddd; padding: 1em; margin: 5em 0; clear: both;}
+.showcase figcaption {font-size: 14px; line-height: 1.1; margin-top: 2em;}
+.before-after { font-size: 24px; text-align: center; line-height: 1.5; }
+.before-after code { padding: 0 .5ex; display: block; }
+.before-after .before { color: darkred; }
+.before-after .after { color: darkgreen; }
 
-header {margin: 2em 0 2em 0; height: 60px;}
-header h1 {margin: .5em 0 0 0; font-size: 16pt;}
-header p {font-size: 14pt; margin: .5em 0 0 0;}
-header img {float: left; width: 20%; margin: -3em 2em 0 0;}
+header {margin: 0 0 4em 0;}
+header h1 {margin: .5em 0 0 0; font-size: 16pt; text-align: center; }
+header p {font-size: 16px; margin: .5em 0 0 0; text-align: center;}
+header img {width: 250px; margin: 0 auto; display: block;}
 
-.author-list {clear: both; text-align: center; padding: 0; width: 100%; margin: .5em 0 2em 0;}
-.author-list li {display: inline; padding: 0 .5ex 0 0; max-width: 33%;}
+.tool-list { margin-left: 1em; }
+.tool-list dt {float: left; clear:left; margin-right: 1ex; font-weight: bold; }
+.tool-list dd {clear: right; margin-bottom: 1em;}
+
+.author-list {padding: 0; margin: .5em 1em 3em; }
+.author-list li {display: inline; margin: 0; white-space: nowrap;}
 .author-list li:after {content: ","}
 .author-list li:last-child:after {content: ""}
 svg {margin: 0 auto; display: block;}
 
-pre {padding-left: 2.5em; font-size: 16px; font-family: monospace; background-color: #f1f1f1;}
+pre {padding-left: 2em; font-size: 16px; font-family: monospace;}
 
 div.column-container > div {width: 25%; float: left; padding: 0 4%}
 div.column-container > div > h3 {margin: auto 10px}
 div.column-container > div > ul {list-style: inside none; margin: 0; padding: 0;}
+div.column-container:after { content: "."; clear: both; display: block; visibility: hidden; height: 0; }
+.column-container + .showcase { margin-top: 4em; }
 
 ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
@@ -53,3 +63,13 @@ a:hover {text-decoration: underline; color: #295785}
 .abstract:after { content: "”"; font-size: 600%; position: absolute; bottom: -.5em; right: 0; font-family: serif; color: #ccc; }
 .paper-thumb { width: 30%; float: left; margin: 1em; }
 .paper-thumb img { width: 100%; border: 1px solid #ccc; }
+
+#news { list-style: none inside; padding: 0; position: relative; }
+#news li { margin-bottom: 12px; margin-left: 100px; }
+#news time {
+    font-weight: bold; text-align: right;
+    position: absolute; left: 0;
+    display: block; width: 90px;
+}
+#news time:after { content: ":"; }
+#news .yearmark { border: 0; border-top: 1px solid #bbb; margin: 1em 0; width: 90px; }

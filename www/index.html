@@ -10,32 +10,27 @@
 <body>
   <header>
     <img class="logo" src="logo.png" />
-    <h1>Herbie</h1>
-    <p>Automatically Improving Floating Point Accuracy</p>
+    <p>Herbie aims to make floating point problems easier to find and fix.</p>
   </header>
-
-  <p>
-    Correct-looking floating point code
-    can produce incorrect results due to round-off error.
-    Herbie is a project from the University of Washington
-    to <em>automatically fix these problems</em>.
-    Herbie automatically discovers and applies numerical analysis techniques,
-    producing accurate programs
-    without requiring any specialized knowledge from the user.
-  </p>
 
   <div class="column-container">
     <div>
       <h3>Use</h3>
       <ul>
         <li><a href="/demo/">Web demo</a></li>
-        <li><a href="doc/installing.html">Install</a></li>
+        <li><a href="#tools">Herbie tools</a></li>
         <li><a href="doc/tutorial.html">Tutorial</a></li>
+        <li><a href="#news">News</a></li>
+        <li><a href="#blog">Blog</a></li>
       </ul>
     </div>
     <div>
       <h3>Learn</h3>
       <ul>
+        <li><a href="doc/using-herbie.html">Using Herbie</a></li>
+        <li><a href="doc/using-herbgrind.html">Using HerbGrind</a></li>
+        <li><a href="doc/installing-herbie.html">Install Herbie</a></li>
+        <li><a href="doc/installing-herbgrind.html">Install HerbGrind</a></li>
         <li><a href="#docs">Documentation</a></li>
         <li><a href="pldi15.html">PLDI'15 Paper</a></li>
       </ul>
@@ -43,36 +38,64 @@
     <div>
       <h3>Contribute</h3>
       <ul>
+        <li><a href="https://github.com/uwplse/herbie/issues">Report a Bug</a></li>
         <li><a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">Mailing List</a></li>
         <li><a href="https://github.com/uw-plse/herbie">Source Code</a></li>
         <li><a href="https://github.com/uw-plse/herbie/blob/master/LICENSE.md">License</a></li>
       </ul>
     </div>
   </div>
+  
+  <figure class="showcase">
+    <div class="before-after">
+      <code class="before">sqrt(x + 1) - sqrt(x)</code>
+      ⬇
+      <code class="after">1/(sqrt(x+1) - sqrt(x))</code>
+    </div>
+    <figcaption>
+      Herbie can detect inaccurate floating point expressions
+      and gives you more-accurate replacements.
+      The red expression gives inaccurate answers when <i>x > 0</i>;
+      Herbie rewrites it into the 
+      green expression, accurate for all <i>x</i>.
+    </figcaption>
+  </figure>
+
+  <h2 id="tools">Tools</h2>
 
   <p>
-    If you're using Herbie, please <a href="mailto:herbie@cs.washington.edu">let us know</a>.
+    The Herbie project provides Herbie and HerbGrind, complementary tools for finding and fixing floating point problems:
   </p>
-      
-
-  <h2>Status</h2>
-
+  
+  <dl class="tool-list">
+    <dt>Herbie</dt>
+    <dd>rewrites floating point expressions to make them more accurate.
+      Herbie supports all commonly-used <a href="doc/input.html">floating point functions</a>,
+      and uses a <a href="./pldi15.html">cutting-edge search</a>
+      to identify more-accurate rearrangements of a floating point computation.
+    </dd>
+    <dt>HerbGrind</dt>
+    <dd>analyzes binaries to catch floating point inaccuracies as they occur and extract them for analysis.
+      HerbGrind <a href="http://valgrind.org">analyzes binaries directly</a>,
+      detecting problems on realistic workloads
+      and extracting them in a <a href="http://fpbench.org">standard format</a>.
+    </dd>
+  </dl>
+  
   <p>
-    Herbie works on numerical libraries, scientific publications, and mathematics textbooks.
-    The graph below shows Herbie's accuracy improvements for 28 test cases drawn
-    from Richard Hamming’s <i>Numerical Methods for Scientists and Engineers</i> are below.
-    Herbie improves all results, many to almost-perfect precision.
+    The Herbie tools have been used on large numerical computations,
+    mathematical libraries, graphics programs, and embedded systems.
+    It regularly finds subtle floating point issues and produces fixes.
   </p>
 
-  <figure>
+  <figure class="showcase">
     <style scoped>
       line { pointer-events: all; }
       .good, .bad { stroke-width: 3px; stroke-opacity: 0.6; fill-opacity: 0.6; }
       .good:hover, .bad:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
       .good * { stroke: black; fill: black; }
       .bad * { stroke: darkred; fill: darkred; }
-      .gridline { stroke: rgb(80%, 80%, 80%); }
-      .guide { stroke: rgb(60%, 60%, 60%); }
+      .gridline, .guide { stroke: rgb(40%, 40%, 40%); }
       text { text-anchor: middle; }
     </style>
     <svg id="results" width="525" height="320"></svg>
@@ -80,29 +103,36 @@
     <figcaption>Longer arrows are better. Each arrow measures an improvement in accuracy due to Herbie. Each arrow points from the accuracy of the original program, and to the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
   </figure>
 
-  <p>
-    Herbie has also created multiple patches to <a href="http://mathjs.org">math.js</a>
-    and has helped our colleagues avoid rounding error in their machine learning algorithms.
-    Herbie has been accepted for publication to <a href="http://conf.researchr.org/home/pldi2015">PLDI'15</a>
-    as a distinguished paper—<a href="pldi15-paper.pdf">read it</a>!
-  </p>
-  
-  <p>The <a href="https://github.com/uwplse/herbgrind">HerbGrind</a> sister project can extract inaccurate expressions from binaries in Herbie's format, making it the perfect companion tool.</p>
-
-  <h2>Software using Herbie</h2>
-  <ul>
-    <li>The <a href="https://github.com/mikeizbicki/HerbiePlugin#herbie-ghc-plugin">Herbie GHC Plugin</a> by Mike Izbicki automatically runs Herbie on applicable expressions in a Haskell program. When run on the <a href="https://www.stackage.org/lts-3.5">Stackage LTS-3.5</a> collection of popular Haskell libraries, this Herbie plugin finds 303 numerical expressions, of which 164 (54%) are made more accurate with Herbie.</li>
-    <li>The <a href="https://github.com/mcarton/rust-herbie-lint">Herbie Rust Linter</a> plugs into the Rust compiler to add warnings for numerically unstable expressions, and suggests Herbie's more accurate output as a hint.</li>
-  </ul>
+  <h2>Herbie Project News</h2>
+  <ol id="news">
+    <li><time>9 May</time>In preparation for the Version 1.0 release, we've renamed the <code>pi</code> and <code>e</code> constants to upper case. This matches <code>libm</code> and should make it a little harder to cause bugs. Herbie will now optimize expressions like <code>(exp 1)</code> to <code>E</code>.</li>
+    <li><time>6 May</time>We're proud to announce that we've been collaborating with <a href="http://perso.univ-perp.fr/mmartel/">Prof. Martel</a> and his students to build a <a href="http://fpbench.org">common benchmark suite and format</a> for floating point tools. Version 1.0 of Herbie will support only the FPBench format.</li>
+    <li><time>4 Apr</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at Google on how Herbie works and what our plans for the future are.</li>
+    <li><time>30 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MIT on how Herbie works internally.</li>
+    <li><time>6 Mar</time>In preparation for the Version 1.0 release, we've renamed several functions in Herbie to match the <code>libm</code> names. In particular, look out for <code>abs</code>, which is now <code>fabs</code>, and <code>expt</code>, which is now <code>pow</code>.</li>
+    <li><time>26 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MathWorks on how Herbie works answered questions on how it could be extended.</li>
+    <li><time>25 Jan</time>The <a href="https://github.com/mcarton/rust-herbie-lint">Herbie Rust Linter</a> plugs into the Rust compiler to add warnings for numerically unstable expressions, and suggests Herbie's more accurate output as a hint.</li>
+    <hr class="yearmark" />
+    <li><time>1 Oct</time>The <a href="https://github.com/mikeizbicki/HerbiePlugin#herbie-ghc-plugin">Herbie GHC Plugin</a> by Mike Izbicki automatically runs Herbie on applicable expressions in a Haskell program. He's also scanned all of <a href="https://www.stackage.org/lts-3.5">Stackage LTS-3.5</a> for numerical inaccuracies with Herbie.</li>
+    <li><time>13 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="./pldi15.html">Distinguished Paper</a> talk at <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a> on the scientific advances that underpin Herbie.</li>
+    <li><time>9 Apr</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> is giving a talk at Berkeley on how we plan to improve floating point accuracy with Herbie.</li>
+    <hr class="yearmark" />
+    <li><time>17 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">talk</a> at OPLSS on whether floating point accuracy can be improved, and our plans for finding out.</li>
+    <li><time>15 May</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">lightning talk</a> on a new project to improve the accuracy of floating point expressions.</li>
+    <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
+  </ol>
   
   <h2 id="docs">Documentation</h2>
   
   <ul>
-    <li><a href="doc/installing.html">Installation instructions</a>: installing Racket and Herbie.</li>
+    <li><a href="doc/installing-herbie.html">Installing Herbie</a>: installing Racket and Herbie.</li>
+    <li><a href="doc/installing-herbgrind.html">Installing HerbGrind</a>: installing HerbGrind.</li>
     <li><a href="doc/docker.html">Installing with Docker</a>: an alternate installation method for Docker users.</li>
     <li><a href="doc/tutorial.html">Tutorial</a>: how to prepare inputs to Herbie and run the tool.</li>
+    <li><a href="doc/using-herbie.html">Using Herbie</a>: a guide to running Herbie.</li>
     <li><a href="doc/input.html">Input format</a>: how to write expressions for Herbie to improve.</li>
     <li><a href="doc/options.html">Command-line flags</a>: modifying Herbie's behavior.</li>
+    <li><a href="doc/using-herbgrind.html">Using HerbGrind</a>: a guide to running HerbGrind.</li>
   </ul>
 
   <h2>Blog posts about Herbie</h2>
@@ -119,34 +149,26 @@
     <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a>: how floating point rounding and primitive operators work.</li>
 
   </ul>
-  
-  <h2>Presentations about Herbie</h2>
-
-  <ul>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      Talk at Mathworks on 26 January 2016.</li>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      The Distinguished Paper talk at PLDI 2015 on 13 June 2015.</li>
-    <li><em>Automatically improving accuracy for floating point expressions</em>.<br/>
-      Talk given at Berkeley on 9 April 2015.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">Casio: automatically improving floating-point code</a>.<br/>
-      Talk given at OPLSS on 17 June 2014.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">What the Float‽ And what are we planning to do about it?</a>.<br/>
-      Lightning talk given at UW on 15 May 2014.</li>
-    <li><a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">Casio: automatically improving floating-point code</a>.<br/>
-      Talk given at Dropbox on 31 March 2014. <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Video available</a>.</li>
-  </ul>
 
   <h2>The Herbie Developers</h2>
 
-  <p>Herbie is developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, by</p>
+  <p>Herbie is chiefly developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions from a supportive community. The main contributors are:</p>
   
   <ol class="author-list">
     <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
     <li><a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a></li>
+    <li><a>Chen Qiu</a></li>
+    <li><a href="https://github.com/jackfirth">Jack Firth</a></li>
     <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
     <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
   </ol>
 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
 </body>
 </html>
