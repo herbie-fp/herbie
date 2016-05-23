@@ -41,31 +41,27 @@
   </p>
  
 
-  <pre><strong>$</strong> docker pull uwplse/herbie</pre>
+  <pre>docker pull uwplse/herbie</pre>
   
   <p>
-    To run Herbie, you'll want to create a directory to store Herbie's
-    input, and a directory to store Herbie's output.
+    You can now run Herbie:
+  </p>
+
+  <pre>docker run uwplse/herbie -it</pre>
+  
+  <p>
+    This will run Herbie, reading input from the standard input. To
+    read from a file, you will need to mount the file in the Docker
+    container. Do that with:
   </p>
   
-  <pre><strong>$</strong> mkdir <var>input</var> <var>output</var></pre>
-  
-  <p>You can now run Herbie in Docker:</p>
-
   <pre><strong>$</strong> docker run -it \
-    -v $PWD/<var>input</var>:/herbie/bench \
-    -v $PWD/<var>output</var>:/herbie/graphs \
-    uwplse/herbie bench/</pre>
+    -v <var>dir</var>:/herbie/bench \
+    uwplse/herbie bench/<var>file</var></pre>
 
   <p>
-    This command mounts the <var>input</var> and <var>output</var>
-    directories within the Docker image and then runs the Herbie
-    program.
-  </p>
-  
-  <p>
-    Note that depending on your Docker configuration, the resulting
-    output files might be owned by the root user.
+    In this command, <var>file</var> is a file you want to run Herbie
+    on, located in <var>dir</var>.
   </p>
 
   <script>
