@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie on Docker</title>
+  <link rel='stylesheet' type='text/css' href='../main.css'>
+</head>
+<body>
+  <header>
+    <img class="logo" src="../logo.png" />
+    <h1>Installing with Docker</h1>
+  </header>
+
+  <p>
+    <a href="../">Herbie</a>'s is available
+    through <a href="https://www.docker.com/">Docker</a>, which is a
+    sort of like an easily-scriptable virtual machine. This page
+    describes how to install
+    the <a href="https://hub.docker.com/uwplse/herbie">official Docker
+    image</a> for Herbie.
+  </p>
+  
+  <p>
+    Herbie can also be <a href="./installing.html">installed
+    normally</a>.
+  </p>
+  
+  <h2>Installing the Herbie image</h2>
+
+  <p>
+    First, <a href="https://docs.docker.com/installation/">install
+    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
+    how you install Docker, you may need to prefix
+    all <code>docker</code> commands on this page
+    with <code>sudo</code> or run them as the root or administrative
+    user.
+  </p>
+  
+  <p>
+    With Docker installed, you should be able to download the Herbie image with:
+  </p>
+ 
+
+  <pre>docker pull uwplse/herbie</pre>
+  
+  <p>
+    You can now run Herbie:
+  </p>
+
+  <pre>docker run uwplse/herbie -it</pre>
+  
+  <p>
+    This will run Herbie, reading input from the standard input. To
+    read from a file, you will need to mount the file in the Docker
+    container. Do that with:
+  </p>
+  
+  <pre><strong>$</strong> docker run -it \
+    -v <var>dir</var>:/herbie/bench \
+    uwplse/herbie bench/<var>file</var></pre>
+
+  <p>
+    In this command, <var>file</var> is a file you want to run Herbie
+    on, located in <var>dir</var>.
+  </p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>
