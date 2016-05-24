@@ -6,7 +6,7 @@
 HERBROOT="$HOME/herbie"
 
 # example crontab entry for nightlies
-# 30 2 * * * $HOME/herbie/bot/run.sh
+# 30 2 * * * $HOME/herbie/infra/run.sh
 
 CORES=4
 
