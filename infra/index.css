@@ -18,6 +18,7 @@ figure li { padding: .5ex; display: inline-block; margin: .1em; }
 figure li:hover { background: #e4e4e4; }
 figure li.selected { background: #d3d3d3; }
 figure a { color: black; text-decoration: none; display: block; }
+#graph .no-data { text-anchor: middle; font-size: 18px; fill: rgb(60%, 60%, 60%)}
 
 #toc {
     clear: both; 

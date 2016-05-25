@@ -55,6 +55,15 @@ function step_size(max) {
 }
 
 function make_graph(node, data, type) {
+    if (!data.length) {
+        console.log("hi!!", data.length);
+        node.append("text")
+            .attr("x", width / 2)
+            .attr("y", height / 2 + 9)
+            .attr("class", "no-data").text("No tests found with these parameters.");
+        return;
+    }
+
     var len = data.length;
     var spacing = width / len;
     

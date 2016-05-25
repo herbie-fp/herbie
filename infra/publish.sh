@@ -19,8 +19,7 @@ index () {
           --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
     racket infra/make-index.rkt
     rsync --verbose --recursive \
-          "index.html" "herbie/reports/index.css" \
-          "herbie/reports/report.js" "herbie/reports/regression-chart.js" \
+          "index.html" "infra/index.css" "infra/regression-chart.js" "src/reports/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html
