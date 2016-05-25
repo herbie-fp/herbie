@@ -168,7 +168,6 @@ function draw_results(node) {
 
     function toggle_flag(flag) {
         return function(evt) {
-            console.log(NODE);
             OPTIONS[flag] = !OPTIONS[flag];
             render(NODE, DATA, OPTIONS, TAG);
         }
