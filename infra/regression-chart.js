@@ -219,6 +219,7 @@ function draw_results(node) {
     key = d3.scale.category20().domain(branches);
 
     render(NODE, DATA, OPTIONS, TAG);
+    index();
 }
 
 function index() {
