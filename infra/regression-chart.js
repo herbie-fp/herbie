@@ -8,29 +8,34 @@ precision_step = 8;
 
 key = undefined;
 used_branch = {};
+used_tag = {};
 
 function get_point(tr) {
     var tests = tr.children[3].textContent.split("/");
     var bits = tr.children[4].textContent.split("/");
+    var flags = tr.children[2].getAttribute("title");
+    flags = flags !== "" ? flags.split(" ") : [];
+
+    var note = tr.getElementsByClassName("note")[0];
+    var trtag = note && note.textContent;
     
     return {
+        tag: trtag,
         tests: { got: +tests[0], total: +tests[1]},
         bits: { got: +bits[0], total: +bits[1] },
         branch: tr.children[1].textContent,
         time: +tr.children[0].children[0].getAttribute("data-unix"),
         elt: tr,
+        flags: flags,
     };
 }
 
-function get_data(tag, table) {
-    var trs = table.querySelectorAll("tbody tr");
-    var data = [];
-    for (var i = 0; i < trs.length; i++) {
-        var note = trs[i].getElementsByClassName("note")[0];
-        var trtag = note && note.textContent;
-        if (trtag) used_branch[trs[i].children[1].textContent] = true;
-        if (trtag == tag) data.push(get_point(trs[i]));
-    }
+function get_data(table) {
+    var data = Array.prototype.slice.call(table.querySelectorAll("tbody tr")).map(get_point);
+    data.forEach(function(pt) {
+        if (pt.tag && pt.branch) used_branch[pt.branch] = (used_branch[pt.branch] || 0) + 1;
+        if (pt.tag) used_tag[pt.tag] = (used_tag[pt.tag] || 0) + 1;
+    });
     data.sort(function(a,b) {return a.time - b.time});
     return data;
 }
@@ -125,15 +130,77 @@ function make_graph(node, data, type) {
     });
 }
 
-function draw_results(node) {
-    function draw(tag) {
-        return function(evt) {
-            node.selectAll("*").remove();
-            var old = document.getElementsByClassName("selected")[0];
-            if (old) old.classList.remove("selected");
-            document.getElementById("suite-" + tag).classList.add("selected");
-            make_graph(node, get_data(tag, document.getElementById("reports")), "bits");
+function select_data(data, options, tag) {
+    return data = DATA.filter(function(x) {
+        var out = true;
+        for (var flag in OPTIONS) {
+            out = out && (x.flags.indexOf(flag) !== -1) == OPTIONS[flag];
         }
+        return out && x.tag == tag;
+    });
+}
+
+function render(node, data, options, tag) {
+    node.selectAll("*").remove();
+    // Update classes
+    var olds = Array.prototype.slice.call(document.getElementsByClassName("selected"));
+    olds.forEach(function(old) { old.classList.remove("selected") })
+    document.getElementById("suite-" + tag).classList.add("selected");
+    for (var flag in options) {
+        if (options[flag]) document.getElementById("flag-" + flag).classList.add("selected");
+    }
+    make_graph(node, select_data(data, options, tag), "bits");
+}
+
+function draw_results(node) {
+    DATA = get_data(document.getElementById("reports"));
+    OPTIONS = {"fuel:2": false, "reduce:regimes": true, "precision:double": true,
+               "rules:numerics": false};
+    TAG = null;
+    NODE = node;
+
+    function toggle_tag(tag) {
+        return function(evt) {
+            TAG = tag;
+            render(NODE, DATA, OPTIONS, TAG);
+        }
+    }
+
+    function toggle_flag(flag) {
+        return function(evt) {
+            console.log(NODE);
+            OPTIONS[flag] = !OPTIONS[flag];
+            render(NODE, DATA, OPTIONS, TAG);
+        }
+    }
+
+    var best_type = null;
+    var type_list = document.getElementById("suites");
+    for (var type in used_tag) {
+        if (!type) continue;
+        if (!best_type || used_tag[type] > used_tag[best_type]) best_type = type;
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + type;
+        a.textContent = type;
+        a.addEventListener("click", toggle_tag(type));
+        li.id = "suite-" + type;
+        li.appendChild(a);
+        type_list.appendChild(li)
+    }
+    TAG = best_type;
+
+    var flag_list = document.getElementById("classes");
+    for (var flag in OPTIONS) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + flag;
+        a.textContent = flag;
+        a.addEventListener("click", toggle_flag(flag));
+        li.id = "flag-" + flag;
+        li.appendChild(a);
+        if (OPTIONS[flag]) li.classList.add("selected");
+        flag_list.appendChild(li)
     }
 
     var branches = [];
@@ -141,29 +208,18 @@ function draw_results(node) {
     for (var i = 0; i < toclinks.length; i++) {
         branches.push(toclinks[i].textContent);
     }
-    key = d3.scale.category10().domain(branches);
+    key = d3.scale.category20().domain(branches);
 
-    var types = {};
-    var notes = document.getElementsByClassName("note");
-    for (var i = 0; i < notes.length; i++) {
-        types[notes[i].textContent] = (types[notes[i].textContent] || 0) + 1;
+    render(NODE, DATA, OPTIONS, TAG);
+}
+
+function index() {
+    var branches = [];
+    var toclinks = document.getElementById("toc").querySelectorAll("li a");
+    for (var i = 0; i < toclinks.length; i++) {
+        branches.push(toclinks[i].textContent);
     }
-
-    var best_type = null;
-    var type_list = document.getElementById("suites");
-    for (var type in types) {
-        if (!best_type || types[type] > types[best_type]) best_type = type;
-        var li = document.createElement("li");
-        var a = document.createElement("a");
-        a.href = "#" + type;
-        a.textContent = type;
-        a.addEventListener("click", draw(type));
-        li.id = "suite-" + type;
-        li.appendChild(a);
-        type_list.appendChild(li)
-    }
-
-    draw(best_type)();
+    key = d3.scale.category20().domain(branches);
 
     for (var i = 0; i < toclinks.length; i++) {
         if (used_branch[branches[i]]) {
