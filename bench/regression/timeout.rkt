@@ -4,15 +4,15 @@
 
 (lambda (a b c d)
   #:name "Random Jason Timeout Test 002"
-  (mod (sinh c) (- c (sqr -2.9807307601812193E165))))
+  (fmod (sinh c) (- c (sqr -2.9807307601812193E165))))
 
 (lambda (a b c)
   #:name "Random Jason Timeout Test 003"
-  (sin (expt (sqrt (atan2 b b)) (- b a))))
+  (sin (pow (sqrt (atan2 b b)) (- b a))))
 
 (lambda (a b c d)
   #:name "Random Jason Timeout Test 004"
-  (mod (cosh c) (log1p a)))
+  (fmod (cosh c) (log1p a)))
 
 (lambda (a)
   #:name "Random Jason Timeout Test 005"
@@ -20,7 +20,7 @@
 
 (lambda (a)
   #:name "Random Jason Timeout Test 006"
-  (abs (mod (atan2 (expm1 (sin (expm1 a))) (atan a)) a)))
+  (fabs (fmod (atan2 (expm1 (sin (expm1 a))) (atan a)) a)))
 
 (lambda ((a default) (b default) (c default))
   #:name "Random Jason Timeout Test 007"
@@ -28,11 +28,11 @@
 
 (lambda ((a default) (b default) (c default))
   #:name "Random Jason Timeout Test 008"
-  (* (* (atan (atan 3.882919441585229e-190)) 4.568031610793939e-123) (mod (sqrt -1.0580015533610528e+239) b)))
+  (* (* (atan (atan 3.882919441585229e-190)) 4.568031610793939e-123) (fmod (sqrt -1.0580015533610528e+239) b)))
 
 (lambda (a b c)
   #:name "Random Jason Timeout Test 009"
-  (abs (mod c (asin (- 2.821952756469356E184 b)))))
+  (fabs (fmod c (asin (- 2.821952756469356E184 b)))))
 
 (lambda (a)
   #:name "Random Jason Timeout Test 010"
@@ -40,23 +40,23 @@
 
 (lambda (a)
   #:name "Random Jason Timeout Test 011"
-  (expt (atan (mod a (asin a))) (* a a)))
+  (pow (atan (fmod a (asin a))) (* a a)))
 
 (lambda (a b c)
   #:name "Random Jason Timeout Test 012"
-  (acos (expt (mod (cosh a) (* a a)) (log1p a))))
+  (acos (pow (fmod (cosh a) (* a a)) (log1p a))))
 
 (lambda (a b c)
   #:name "Random Jason Timeout Test 013"
-  (hypot (cos b) (expt a (hypot (sqrt -1.069042078380495E-15) (log b)))))
+  (hypot (cos b) (pow a (hypot (sqrt -1.069042078380495E-15) (log b)))))
 
 (lambda (a b c d)
   #:name "Random Jason Timeout Test 014"
-  (mod (sinh c) (- c (sqr -2.9807307601812193E165))))
+  (fmod (sinh c) (- c (sqr -2.9807307601812193E165))))
 
 (lambda (a b c)
   #:name "Random Jason Timeout Test 015"
-  (sin (expt (sqrt (atan2 b b)) (- b a))))
+  (sin (pow (sqrt (atan2 b b)) (- b a))))
 
 (lambda ((a default) (b default) (c default))
   #:name "Area of a triangle"
