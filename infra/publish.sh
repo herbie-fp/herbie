@@ -10,13 +10,13 @@ upload () {
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
     find "$DIR" -name "debug.txt" -exec gzip -f {} \;
-    rsync --verbose --recursive "$1" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
+    rsync --recursive "$1" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
 }
 
 index () {
     racket infra/make-index.rkt
-    rsync --verbose --recursive \
+    rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/reports/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
@@ -28,12 +28,12 @@ backfill () {
 }
 
 download_reports () {
-    rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
+    rsync --include 'results.json' --include '/*/' --exclude '*' \
           --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
 }
 
 upload_reports () {
-    rsync --verbose --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
+    rsync --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
 }
 
 help () {
