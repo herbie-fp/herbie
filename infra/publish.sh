@@ -15,8 +15,6 @@ upload () {
 }
 
 index () {
-    rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
-          --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
     racket infra/make-index.rkt
     rsync --verbose --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/reports/report.js" \
@@ -26,9 +24,15 @@ index () {
 }
 
 backfill () {
+    racket infra/backfill-index.rkt
+}
+
+download_reports () {
     rsync --verbose --include 'results.json' --include '/*/' --exclude '*' \
           --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
-    racket infra/backfill-index.rkt
+}
+
+upload_reports () {
     rsync --verbose --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
 }
 
@@ -53,9 +57,14 @@ if [[ $CMD = "upload" ]]; then
         upload "$DIR"
     fi
 elif [[ $CMD = "index" ]]; then
+    download_reports
     index
 elif [[ $CMD = "backfill" ]]; then
+    download_reports
     backfill
+elif [[ $CMD = "update-reports" ]]; then
+    upload_reports
+    index
 else
     help
 fi
