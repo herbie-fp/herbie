@@ -22,15 +22,15 @@
   
   <h2 id="sec1">General format</h2>
 
-  <p>The general format of an input expression is:</p>
+  <p>Herbie uses the <a href="http://fpbench.org">FPCore</a> format
+  for its input expression, which looks like this:</p>
 
-  <pre>(herbie-test (<var>inputs ...</var>) "<var>title</var>" <var>expression</var>)</pre>
+  <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
 
   <p>
-    Each input is a variable, like <code>x</code>, or a variable and a
-    distribution, written <code>[x <var>distribution</var>]</code>.
-    The title is any text that describes the expression and the input
-    is the expression to improve the accuracy of.
+    Each input is a variable, like <code>x</code>, which can be used
+    in the expression, whose accuracy Herbie will try to improve.
+    Properties are <a href="#properties">described below</a>.
   </p>
 
   <p>
@@ -39,7 +39,7 @@
     hypotenuse of a triangle with legs <i>a</i> and <i>b</i> is
   </p>
 
-  <pre>(herbie-test (a b) "hypotenuse" (sqrt (+ (sqr a) (sqr b))))</pre>
+  <pre>(FPCore (a b) (sqrt (+ (sqr a) (sqr b))))</pre>
   
   <h2>Supported functions</h2>
   
@@ -54,7 +54,7 @@
     <dd>Squares and square roots</dd>
     <dt><code>exp</code>, <code>log</code></dt>
     <dd>Natural exponent and natural log</dd>
-    <dt><code>expt</code></dt>
+    <dt><code>pow</code></dt>
     <dd>Exponentiation; raising a value to a power</dd>
     <dt><code>sin</code>, <code>cos</code>, <code>tan</code>, <code>cotan</code></dt>
     <dd>The trigonometric functions</dd>
@@ -66,46 +66,70 @@
     <dt><code>expm1</code>, <code>log1p</code>, <code>hypot</code></dt>
     <dd>Specialized numeric functions, as in <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/math.h.html">math.h</a></dd>
   </dl>
+  
+  <p>FPCore writes conditional expressions using <code>if</code>:</p>
+
+  <pre>(if <var>cond</var> <var>if-true</var> <var>if-false</var>)</pre>
 
   <p>
-    Herbie allows the <code>+</code>, <code>-</code>, <code>*</code>,
-    and <code>/</code> functions to be passed more than two arguments,
-    and all of these functions are taken as left-associative.
-  </p>
-  
-  <p>
-    Herbie allows conditional expressions
-    using <code>if</code>: <code>(if cond a b)</code> evaluates the
-    conditional <code>cond</code> and returns either <code>a</code> if
-    it is true or <code>b</code> if it is not. Conditionals may use:
+    An <code>if</code> epxression evaluates the
+    conditional <code>cond</code> and returns either <code>if-true</code> if
+    it is true or <code>if-false</code> if it is not. Conditionals may use:
   </p>
   
   <dl class="function-list">
-    <dt><code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></dt>
+    <dt><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></dt>
     <dd>The usual comparison operators</dd>
     <dt><code>and</code>, <code>or</code>, <code>not</code></dt>
     <dd>The usual logical operators</dd>
   </dl>
   
-  <p>Intermediate variables can be defined using <code>let*</code>:</p>
+  <p>Intermediate variables can be defined using <code>let</code>:</p>
 
-  <pre>(let* ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
+  <pre>(let ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
 
   <p>
-    Each variable is bound to the associated value, in order, with
-    later values allowed to reference prior values. All the defined
-    values are bound in the body. Note that Herbie treats these
-    intermediate values only as a notational convenience, and inlines
-    their values before improving the formula's accuracy.
+    In a <code>let</code> expression, all the values are evaluated first,
+    and then are bound to their variables in the body.
+    This means that you can't use one variable in the value of another;
+    nest <code>let</code> constructs if you want to do that.
+    Note that Herbie treats these intermediate values only as a
+    notational convenience, and inlines their values before improving
+    the formula's accuracy.
   </p>
 
   <p>Herbie also supports the constants <code>PI</code> and <code>E</code>.</p>
   
+  <h2 id="properties">Properties</h2>
+
+  <p>Herbie also uses several FPCore properties for additional meta-data:</p>
+
+  <dl class="function-list">
+    <dt><code>:name <var>string</var></code></dt>
+    <dd>Herbie prints this name in its output when a name is required.</dd>
+    <dt><code>:pre <var>condition</var></code></dt>
+    <dd>Only points where the condition is true are sampled by Herbie.</dd>
+    <dt><code>:herbie-samplers <var>samplers</var></code></dt>
+    <dd>Change the distribution with which variables are sampled (see below).</dd>
+    <dt>
+  </dl>
+  
   <h2>Distributions</h2>
 
   <p>
-    Herbie allows each variable to <a href="#sec1">specify the
-    distribution it is drawn from</a>. These distributions can be:
+    Herbie allows you to specify what distribution is used to randomly
+    sample values for each variable with
+    the <code>:herbie-samplers</code> property. For example:
+  </p>
+  
+  <pre>:herbie-samplers ([x (uniform 0 1)] [n int32])</pre>
+
+  <p>
+    This property tells Herbie to use a uniform distribution to sample
+    a value between 0 and 1 for <code>x</code>, and to sample a random
+    32-bit integer for <code>n</code>. Not all variables need to be
+    given samplers; if a variable isn't given a sampler,
+    the <code>default</code> sampler will be used.
   </p>
   
   <dl class="function-list">
@@ -119,7 +143,8 @@
     <dd>Always bind the variable to a constant</dd>
   </dl>
   
-  <p>Each of these distributions can also be modified:</p>
+  <p>The <code>default</code> and <code>int</code> distributions can
+  optionally have bounds:</p>
 
   <dl class="function-list">
     <dt><code>(&lt; <var>a</var> <var>dist</var> <var>b</var>)</code></dt>

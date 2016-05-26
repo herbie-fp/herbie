@@ -16,7 +16,7 @@
     <a href=".">Herbie</a> rewrites floating point expressions to
     make them more accurate. The expressions could come from
     anywhere—your source code, mathematical papers, or even the output
-    of <a href="doc/0.9/using-herbgrind.html">HerbGrind</a>, our tool for
+    of <a href="doc/1.0/using-herbgrind.html">HerbGrind</a>, our tool for
     finding inaccurate expressions in binaries. This tutorial run
     Herbie on the benchmark programs that Herbie ships with.
   </p>
@@ -28,16 +28,16 @@
     directory. For example, <code>bench/tutorial.rkt</code> contains the following code:
   </p>
   
-  <pre>(herbie-test (x)
-  "Cancel like terms"
+  <pre>(FPCore (x)
+  :name "Cancel like terms"
   (- (+ 1 x) x))
 
-(herbie-test (x)
-  "Expanding a square"
+(FPCore (x)
+  :name "Expanding a square"
   (- (sqr (+ x 1)) 1))
 
-(herbie-test (x y z)
-  "Commute and associate"
+(FPCore (x y z)
+  :name "Commute and associate"
   (- (+ (+ x y) z) (+ x (+ y z))))</pre>
   
   <p>
@@ -45,7 +45,7 @@
     run Herbie on: the expression <code>(1 + x) - x</code>, the
     expression <code>(x + 1)² - 1</code>, and finally the
     expression <code>((x + y) + z) - (x + (y + z))</code>. You can
-    check out our <a href="doc/0.9/input.html">input format documentation</a>
+    check out our <a href="doc/1.0/input.html">input format documentation</a>
     for more information about how to format Herbie inputs.
   </p>
 
@@ -69,11 +69,11 @@ Seed: #(4084085515 1217806925 3915723770 1268025332 545417352 1092579889) </pre>
     You can now paste inputs directly into your terminal for Herbie to improve:
   </p>
 
-  <pre>(herbie-test (x)
-  "Cancel like terms"
+  <pre>(FPCore (x)
+  :name "Cancel like terms"
   (- (+ 1 x) x))
 [ 1586.644ms]	Cancel like terms	(29→ 0)
-(λ (x) 1)</pre>
+(FPCore (x) :name "Cancel like terms" 1)</pre>
 
   <p>
     Alternatively, you can run Herbie on a file with expressions with:
@@ -90,9 +90,17 @@ Seed: #(1637424072 4209802118 1686524629 1009825284 4285017075 2209820745)
     versions of each program:
   </p>
   
-  <pre>(λ (x) 1)
-(λ (x) (+ (* x 2) (* x x)))
-(λ (x y z) (- (+ (+ x y) z) (+ x (+ y z))))</pre>
+  <pre>(FPCore (x)
+ :name "Cancel like terms"
+ 1)
+
+(FPCore (x)
+ :name "Expanding a square"
+ (+ (* x 2) (* x x)))
+
+(FPCore (x y z)
+ :name "Commute and associate"
+ (- (+ (+ x y) z) (+ x (+ y z))))</pre>
   
   <p>
     Note that the final expression was not simplified to <code>0</code> by Herbie,
@@ -101,7 +109,7 @@ Seed: #(1637424072 4209802118 1686524629 1009825284 4285017075 2209820745)
   
   <p>
     For more control over Herbie, see the documentation of
-    Herbie's <a href="doc/0.9/options.html">command-line options</a>.
+    Herbie's <a href="doc/1.0/options.html">command-line options</a>.
   </p>
 
   <script>

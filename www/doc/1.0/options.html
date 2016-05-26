@@ -24,7 +24,7 @@
   and influence the coarse properties of Herbie's search.
 
   <dl>
-    <dt><code>-r</code> or <code>--seed</code></dt>
+    <dt><code>--seed</code></dt>
     <dd>This sets the random seed, which changes the randomly-selected
       points that Herbie evaluates candidate expressions on. The
       format of the seed is that used by the
@@ -33,7 +33,7 @@
       option can be used to make Herbie's results reproducible or to
       compare two different runs.</dd>
 
-    <dt><code>--fuel</code></dt>
+    <dt><code>--num-iters</code></dt>
     <dd>The number of improvements Herbie attempts to make to the
       program. The default, 2, suffices for most programs and helps
       keep Herbie fast. If this is set very high, Herbie may run out
@@ -49,7 +49,12 @@
       most programs. The more points sampled, the slower Herbie is.
       This option can be increased to 512 or 1024 if Herbie gives very
       inconsistent results between runs with different seeds.</dd>
+    
+    <dt><code>--timeout</code></dt>
+    <dd>The timeout to use per-example, in seconds. A fractional
+    number of seconds can be given.</dd>
 
+    <!--
     <dt><code>--threads</code>, for the report generator only</dt>
     <dd>Enables multi-threaded operation. By default, no threads are
       used, a number can be passed to this option to use that many
@@ -57,6 +62,7 @@
       all but one of the hardware threads. This option is not
       supported on OS X or in Racket 6.2, and will warn if used in
       those cases.</dd>
+    -->
   </dl>
 
   <h2>Search Options</h2>
