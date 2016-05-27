@@ -32,6 +32,21 @@
       :herbie-samplers ,samp
       ,body))
 
+; we assume vars and vals are of the same length
+(define (expand-let* vars vals body)
+	(if (and (null? vars) (null? vals))
+			body
+			`(let ([,(car vars) ,(car vals)])
+				,(expand-let* (cdr vars) (cdr vals) body))))
+
+(define (search-replace-let* expr)
+	(match expr
+	 [`(let* ([,vars ,vals] ...) ,body)
+	 	(expand-let* vars vals (search-replace-let* body))]
+	 [(list elements ...)
+		(map search-replace-let* elements)]
+	 [_ expr]))
+
 (define (get kw target default)
   (let ([rec (assoc kw target)])
     (if rec (cdr rec) default)))
