@@ -11,6 +11,9 @@
 (require "matcher.rkt")
 (require "localize.rkt")
 
+(module+ test
+  (require rackunit))
+
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
 
 (define (infer-splitpoints alts [axis #f])
@@ -276,7 +279,18 @@
 	(λ (p)
 	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
 	    (for/or ([point-interval p-intervals])
-	      (let ([lower-bound (sp-point (car point-interval))]
+	      (let ([lower-bound (if (car point-interval) (sp-point (car point-interval)) #f)]
 		    [upper-bound (sp-point (cdr point-interval))])
-		(and (lower-bound . < . expr-val)
+		(and (or (not lower-bound) (lower-bound . < . expr-val))
 		     (expr-val . <= . upper-bound))))))))))
+
+(module+ test
+  (define sps
+    (list (sp 0 '(/ y x) -inf.0)
+          (sp 2 '(/ y x) 0.0)
+          (sp 1 '(/ y x) +inf.0)))
+  (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
+
+  (check-true (p0? '(-1 0)))
+  (check-true (p2? '(-1 1)))
+  (check-true (p1? '(+1 1))))

@@ -70,8 +70,8 @@
 	   (if (null? rest-splits) acc
 	       (loop (cdr rest-splits)
 		     (let ([splitpoint (car rest-splits)])
-		       `(if (< ,(sp-bexpr splitpoint)
-			       ,(sp-point splitpoint))
+		       `(if (<= ,(sp-bexpr splitpoint)
+                                ,(sp-point splitpoint))
 			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
 			    ,acc))))))
      alts splitpoints)))
