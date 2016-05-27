@@ -31,7 +31,7 @@
   (- (sqr a) (sqr b))
   (* (+ a b) (- a b)))
 
-(herbie-test (a b c) ; TODO: restrict to a > b > c
+(herbie-test ([a (< 0 default)] [b (< 0 default)] [c (< 0 default)]) ; TODO: restrict to a > b > c
   "Area of a triangle"
   (let* ([s (/ (+ a b c) 2)])
     (sqrt (* s (- s a) (- s b) (- s c))))
