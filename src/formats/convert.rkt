@@ -4,6 +4,28 @@
 
 (provide convert)
 
+(define (var&dist expr)
+  (match expr
+    [(list var samp) (cons var samp)]
+    [var (cons var 'default)]))
+
+(define (args&body* args)
+  (match args
+    [(list (? keyword? name) value args* ...)
+     (define out* (args&body* args*))
+     (cons (car out*) (cons (cons name value) (cdr out*)))]
+    [(list body args* ...)
+     (define out* (args&body* args*))
+     (assert (not (car out*)) #:extra-info (λ () (format "Two body expressions ~a and ~a" (car out*) body)))
+     (cons body (cdr out*))]
+    [(list)
+     (cons #f '())]))
+
+(define (args&body args)
+  (define out* (args&body* args))
+  (assert (car out*) #:extra-info (λ () "No body expression"))
+  out*)
+
 ; parse old herbie syntax into FPCore
 (define (convert expr)
   (define-values (vars* args*)
