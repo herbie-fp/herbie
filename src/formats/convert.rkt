@@ -21,16 +21,16 @@
   (match-define (list (cons vars samp) ...) (map var&dist vars*))
   (match-define (list body args ...) (args&body args*))
 
-  (define (translate-prop old new)
-    (let ([name (get old args #f)])
-      (if name (list new name) (list))))
+  (define (translate-prop old-name new-name [transformer identity])
+    (let ([prop-value (get old-name args #f)])
+      (if prop-value (list new-name (transformer prop-value)) (list))))
 
   `(FPCore ,vars
       ,@(translate-prop '#:name ':name)
       ,@(translate-prop '#:expected ':herbie-expected)
-      ,@(translate-prop '#:target ':target)
+      ,@(translate-prop '#:target ':target search-replace-let*)
       :herbie-samplers ,samp
-      ,body))
+      ,(search-replace-let* body)))
 
 ; we assume vars and vals are of the same length
 (define (expand-let* vars vals body)
