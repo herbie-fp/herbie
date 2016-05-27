@@ -1,6 +1,6 @@
 #lang racket
 
-(require "test.rkt")
+(require "../common.rkt")
 
 (provide convert)
 
@@ -44,15 +44,15 @@
   (match-define (list body args ...) (args&body args*))
 
   (define (translate-prop old-name new-name [transformer identity])
-    (let ([prop-value (get old-name args #f)])
+    (let ([prop-value (dict-ref args old-name #f)])
       (if prop-value (list new-name (transformer prop-value)) (list))))
 
   `(FPCore ,vars
-      ,@(translate-prop '#:name ':name)
-      ,@(translate-prop '#:expected ':herbie-expected)
-      ,@(translate-prop '#:target ':target search-replace-let*)
-      :herbie-samplers ,samp
-      ,(search-replace-let* body)))
+    ,@(translate-prop '#:name ':name)
+    ,@(translate-prop '#:expected ':herbie-expected)
+    ,@(translate-prop '#:target ':target search-replace-let*)
+    :herbie-samplers ,samp
+    ,(search-replace-let* body)))
 
 ; we assume vars and vals are of the same length
 (define (expand-let* vars vals body)
@@ -68,10 +68,6 @@
 	 [(list elements ...)
 		(map search-replace-let* elements)]
 	 [_ expr]))
-
-(define (get kw target default)
-  (let ([rec (assoc kw target)])
-    (if rec (cdr rec) default)))
 
 (module+ main
  (command-line
