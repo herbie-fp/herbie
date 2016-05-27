@@ -270,8 +270,7 @@
 (define (splitpoints->point-preds splitpoints num-alts)
   (let* ([expr (sp-bexpr (car splitpoints))]
 	 [variables (program-variables (*start-prog*))]
-	 [intervals (map cons (cons (sp #f expr -inf.0)
-				    (drop-right splitpoints 1))
+	 [intervals (map cons (cons #f (drop-right splitpoints 1))
 			 splitpoints)])
     (for/list ([i (in-range num-alts)])
       (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
@@ -285,12 +284,13 @@
 		     (expr-val . <= . upper-bound))))))))))
 
 (module+ test
-  (define sps
-    (list (sp 0 '(/ y x) -inf.0)
-          (sp 2 '(/ y x) 0.0)
-          (sp 1 '(/ y x) +inf.0)))
-  (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
+  (parameterize ([*start-prog* '(λ (x y) (/ x y))])
+    (define sps
+      (list (sp 0 '(/ y x) -inf.0)
+            (sp 2 '(/ y x) 0.0)
+            (sp 1 '(/ y x) +inf.0)))
+    (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
 
-  (check-true (p0? '(-1 0)))
-  (check-true (p2? '(-1 1)))
-  (check-true (p1? '(+1 1))))
+    (check-true (p0? '(0 -1)))
+    (check-true (p2? '(-1 1)))
+    (check-true (p1? '(+1 1)))))
