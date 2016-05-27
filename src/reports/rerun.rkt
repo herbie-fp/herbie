@@ -28,7 +28,7 @@
   (define tests
     (for/list ([row (report-info-tests data)])
       (test (table-row-name row) (table-row-vars row)
-            (table-row-samplers row) (table-row-input row) #f)))
+            (table-row-samplers row) (table-row-input row) (table-row-output row) #t)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
