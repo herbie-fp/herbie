@@ -6,8 +6,8 @@
 
 (define (var&dist expr)
   (match expr
-    [(list var samp) (cons var samp)]
-    [var (cons var 'default)]))
+    [(list var samp) (list var samp)]
+    [var (list var 'default)]))
 
 (define (args&body* args)
   (match args
@@ -40,18 +40,16 @@
        (values vars args)]
       [(list 'define name (list vars ...) args ...)
        (values vars (list*'#:name name args))]))
-  (match-define (list (cons vars samp) ...) (map var&dist vars*))
   (match-define (list body args ...) (args&body args*))
 
   (define (translate-prop old-name new-name [transformer identity])
     (let ([prop-value (dict-ref args old-name #f)])
       (if prop-value (list new-name (transformer prop-value)) (list))))
 
-  `(FPCore ,vars
+  `(FPCore ,(map var&dist vars*)
     ,@(translate-prop '#:name ':name)
     ,@(translate-prop '#:expected ':herbie-expected)
     ,@(translate-prop '#:target ':target search-replace-let*)
-    :herbie-samplers ,samp
     ,(search-replace-let* body)))
 
 ; we assume vars and vals are of the same length
