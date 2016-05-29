@@ -6,8 +6,8 @@
 
 (define (var&dist expr)
   (match expr
-    [(list var samp) (list var samp)]
-    [var (list var 'default)]))
+    [(list var samp) (cons var samp)]
+    [var (cons var 'default)]))
 
 (define (args&body* args)
   (match args
