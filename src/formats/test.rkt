@@ -34,9 +34,10 @@
       (if (null? props)
         out
         (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+	(match-define (list (cons vars samps) ...) args)
 
   (test (~a (dict-ref prop-dict ':name body))
-        args (dict-ref prop-dict ':herbie-samplers (map (const 'default) args))
+        vars samps 
         (desugar-program body)
         (desugar-program (dict-ref prop-dict ':target #f))
         (dict-ref prop-dict ':herbie-expected #t)))
