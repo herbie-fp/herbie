@@ -226,20 +226,13 @@
 	[#t haystack]))
 
 (define (unfold-let expr)
-  (match expr
+	(match expr
     [`(let ([,vars ,vals] ...) ,body)
      (define bindings (map cons vars vals))
-     (replace-vars bindings body)]
-;     (let loop ([vars vars] [body body])
-;       (if (null? vars)
-;           body
-;           (let ([var (caar vars)] [val (cadar vars)])
-;             (loop  (cdr vars)
-;                   ((replace-var var val) body)))))]
-    [`(,head ,args ...)
-     (cons head (map unfold-let args))]
-    [x
-     x]))
+		 (unfold-let (replace-vars bindings body))]
+		[`(,head ,args ...)
+			(cons head (map unfold-let args))]
+		[x x]))
 
 (define (expand-associativity expr)
   (match expr
@@ -256,7 +249,7 @@
   (cond
     [(dict-has-key? dict expr) (dict-ref dict expr)]
     [(list? expr)
-     (cons (car expr) (map (curry replace-vars dict) (cdr expr)))]
+     (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
 (define ((replace-var var val) expr)
