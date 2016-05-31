@@ -219,10 +219,7 @@ function draw_results(node) {
     key = d3.scale.category20().domain(branches);
 
     render(NODE, DATA, OPTIONS, TAG);
-    index();
-}
 
-function index() {
     var branches = [];
     var toclinks = document.getElementById("toc").querySelectorAll("li a");
     for (var i = 0; i < toclinks.length; i++) {
