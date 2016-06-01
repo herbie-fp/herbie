@@ -4,11 +4,6 @@
 
 (provide convert)
 
-(define (var&dist expr)
-  (match expr
-    [(list var samp) (cons var samp)]
-    [var (cons var 'default)]))
-
 (define (args&body* args)
   (match args
     [(list (? keyword? name) value args* ...)
@@ -46,7 +41,7 @@
     (let ([prop-value (dict-ref args old-name #f)])
       (if prop-value (list new-name (transformer prop-value)) (list))))
 
-  `(FPCore ,(map var&dist vars*)
+  `(FPCore ,vars*
     ,@(translate-prop '#:name ':name)
     ,@(translate-prop '#:expected ':herbie-expected)
     ,@(translate-prop '#:target ':target search-replace-let*)

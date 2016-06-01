@@ -1,16 +1,21 @@
-; Suggested by Arvind
-
-(herbie-test (a b)
-  "Exp of sum of logs"
-  (exp (+ (log a) (log b)))
-  (* a b))
-
-(herbie-test (a b)
-  "Quotient of sum of exps"
-  (/ (exp a) (+ (exp a) (exp b)))
-  (/ 1 (+ 1 (exp (- b a)))))
-
-(herbie-test (a1 a2 b1 b2)
-  "Quotient of products"
-  (/ (* a1 a2) (* b1 b2))
-  (* (/ a1 b1) (/ a2 b2)))
+(FPCore
+ (a b)
+ :name
+ "Exp of sum of logs"
+ :target
+ (* a b)
+ (exp (+ (log a) (log b))))
+(FPCore
+ (a b)
+ :name
+ "Quotient of sum of exps"
+ :target
+ (/ 1 (+ 1 (exp (- b a))))
+ (/ (exp a) (+ (exp a) (exp b))))
+(FPCore
+ (a1 a2 b1 b2)
+ :name
+ "Quotient of products"
+ :target
+ (* (/ a1 b1) (/ a2 b2))
+ (/ (* a1 a2) (* b1 b2)))

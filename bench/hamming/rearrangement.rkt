@@ -1,70 +1,66 @@
-
-(lambda (x)
-  #:name "NMSE example 3.1"
-  (- (sqrt (+ x 1)) (sqrt x))
-  #:target
-  (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
-
-(lambda (x eps)
-  #:name "NMSE example 3.3"
-  (- (sin (+ x eps)) (sin x))
-  #:target
-  (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2)))))
-
-(lambda (x)
-  #:name "NMSE example 3.4"
-  (/ (- 1 (cos x)) (sin x))
-  #:expected 3
-  #:target
-  (tan (/ x 2)))
-
-(lambda (N)
-  #:name "NMSE example 3.5"
-  #:expected #f
-  (- (atan (+ N 1)) (atan N))
-  #:target
-  (atan (/ 1 (+ 1 (* N (+ N 1))))))
-
-(lambda (x)
-  #:name "NMSE example 3.6"
-  (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1))))
-  #:target
-  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
-
-(lambda (x)
-  #:name "NMSE problem 3.3.1"
-  (- (/ 1 (+ x 1)) (/ 1 x)))
-
-(lambda (x eps)
-  #:name "NMSE problem 3.3.2"
-  (- (tan (+ x eps)) (tan x))
-  #:target
-  (/ (sin eps) (* (cos x) (cos (+ x eps))))
-  #:expected #f)
-
-(lambda (x)
-  #:name "NMSE problem 3.3.3"
-  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1)))
-  #:target
-  (/ 2 (* x (- (sqr x) 1)))
-  #:expected #f)
-
-(lambda (x)
-  #:name "NMSE problem 3.3.4"
-  #:expected #f
-  (- (pow (+ x 1) (/ 1 3)) (pow x (/ 1 3))))
-
-(lambda (x eps)
-  #:name "NMSE problem 3.3.5"
-  (- (cos (+ x eps)) (cos x)))
-
-(lambda (N)
-  #:name "NMSE problem 3.3.6"
-  (- (log (+ N 1)) (log N)))
-
-(lambda (x)
-  #:name "NMSE problem 3.3.7"
-  (+ (- (exp x) 2) (exp (- x)))
-  #:expected #f
-  #:target
-  (* 4 (sqr (sinh (/ x 2)))))
+(FPCore
+ (x)
+ :name
+ "NMSE example 3.1"
+ :target
+ (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
+ (- (sqrt (+ x 1)) (sqrt x)))
+(FPCore
+ (x eps)
+ :name
+ "NMSE example 3.3"
+ :target
+ (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+ (- (sin (+ x eps)) (sin x)))
+(FPCore
+ (x)
+ :name
+ "NMSE example 3.4"
+ :herbie-expected
+ 3
+ :target
+ (tan (/ x 2))
+ (/ (- 1 (cos x)) (sin x)))
+(FPCore
+ (N)
+ :name
+ "NMSE example 3.5"
+ :target
+ (atan (/ 1 (+ 1 (* N (+ N 1)))))
+ (- (atan (+ N 1)) (atan N)))
+(FPCore
+ (x)
+ :name
+ "NMSE example 3.6"
+ :target
+ (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
+ (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
+(FPCore (x) :name "NMSE problem 3.3.1" (- (/ 1 (+ x 1)) (/ 1 x)))
+(FPCore
+ (x eps)
+ :name
+ "NMSE problem 3.3.2"
+ :target
+ (/ (sin eps) (* (cos x) (cos (+ x eps))))
+ (- (tan (+ x eps)) (tan x)))
+(FPCore
+ (x)
+ :name
+ "NMSE problem 3.3.3"
+ :target
+ (/ 2 (* x (- (sqr x) 1)))
+ (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
+(FPCore
+ (x)
+ :name
+ "NMSE problem 3.3.4"
+ (- (pow (+ x 1) (/ 1 3)) (pow x (/ 1 3))))
+(FPCore (x eps) :name "NMSE problem 3.3.5" (- (cos (+ x eps)) (cos x)))
+(FPCore (N) :name "NMSE problem 3.3.6" (- (log (+ N 1)) (log N)))
+(FPCore
+ (x)
+ :name
+ "NMSE problem 3.3.7"
+ :target
+ (* 4 (sqr (sinh (/ x 2))))
+ (+ (- (exp x) 2) (exp (- x))))

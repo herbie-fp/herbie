@@ -1,97 +1,143 @@
-
-;; Code from Jmat.js, commit 79a386deb5e19c0ee7896e820f3f90855a27fa17
-;; https://raw.githubusercontent.com/lvandeve/jmat/79a386deb5e19c0ee7896e820f3f90855a27fa17/jmat.js
-
-(herbie-test (z)
-  "Jmat.Real.gamma, branch z greater than 0.5"
-  (let* ([z* (- z 1)]
-         [g 7]
-         [x (+ 0.99999999999980993
-               (/ 676.5203681218851 (+ z* 1))
-               (/ -1259.1392167224028 (+ z* 2))
-               (/  771.32342877765313 (+ z* 3))
-               (/ -176.61502916214059 (+ z* 4))
-               (/ 12.507343278686905 (+ z* 5))
-               (/ -0.13857109526572012 (+ z* 6))
-               (/ 9.9843695780195716e-6 (+ z* 7))
-               (/ 1.5056327351493116e-7 (+ z* 8)))]
-         [t (+ z* g 0.5)])
-    (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x)))
-
-(herbie-test (z)
-  "Jmat.Real.gamma, branch z less than 0.5"
-  (let* ([z* (- (- 1 z) 1)]
-         [g 7]
-         [x (+ 0.99999999999980993
-               (/ 676.5203681218851 (+ z* 1))
-               (/ -1259.1392167224028 (+ z* 2))
-               (/  771.32342877765313 (+ z* 3))
-               (/ -176.61502916214059 (+ z* 4))
-               (/ 12.507343278686905 (+ z* 5))
-               (/ -0.13857109526572012 (+ z* 6))
-               (/ 9.9843695780195716e-6 (+ z* 7))
-               (/ 1.5056327351493116e-7 (+ z* 8)))]
-         [t (+ z* g 0.5)])
-    (* (/ PI (sin (* PI z)))
-       (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x))))
-
-(herbie-test (x)
-  "Jmat.Real.lambertw, estimator"
-  (- (log x) (log (log x))))
-
-(herbie-test (wj x)
-  "Jmat.Real.lambertw, newton loop step"
-  (let* ([ew (exp wj)])
-    (- wj (/ (- (* wj ew) x) (+ ew (* wj ew)))))
-  (let* ([ew (exp wj)])
-    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew)))))))
-
-(herbie-test (x)
-  "Jmat.Real.dawson"
-  (let* ([x2 (* x x)]
-         [x4 (* x2 x2)]
-         [x6 (* x4 x2)]
-         [x8 (* x6 x2)]
-         [x10 (* x8 x2)]
-         [x12 (* x10 x2)]
-         [p1 0.1049934947] [p2 0.0424060604] [p3 0.0072644182] [p4 0.0005064034] [p5 0.0001789971]
-         [q1 0.7715471019] [q2 0.2909738639] [q3 0.0694555761] [q4 0.0140005442] [q5 0.0008327945])
-
-         (* (/ (+ 1 (* p1 x2) (* p2 x4) (* p3 x6) (* p4 x8) (* p5 x10))
-               (+ 1 (* q1 x2) (* q2 x4) (* q3 x6) (* q4 x8) (* q5 x10) (* 2 p5 x12)))
-            x)))
-
-(herbie-test (x)
-  "Jmat.Real.erfi, branch x less than or equal to 0.5"
-  (let* ([sqrtPI (sqrt PI)]
-         [ps (/ 1 sqrtPI)]
-         [x* (fabs x)]
-         [x3 (* x* x* x*)]
-         [x5 (* x3 x* x*)]
-         [x7 (* x5 x* x*)]
-         [t (+ (* 2 x*) (* (/ 2 3) x3) (* (/ 1 5) x5) (* (/ 1 21) x7))])
-    (fabs (* ps t))))
-
-(herbie-test (x)
-  "Jmat.Real.erfi, branch x greater than or equal to 5"
-  (let* ([sqrtPI (sqrt PI)]
-         [ps (/ 1 sqrtPI)]
-         [x* (fabs x)]
-         [xi (/ 1 x*)]
-         [xi3 (* xi xi xi)]
-         [xi5 (* xi3 xi xi)]
-         [xi7 (* xi5 xi xi)]
-         [e (exp (* x* x*))]
-         [t (+ xi (* (/ 1 2) xi3) (* (/ 3 4) xi5) (* (/ 15 8) xi7))])
-    (* ps e t)))
-
-; TODO : Jmat.Real.erfi, branch 0.5 < x < 5
-
-(herbie-test (x)
-  "Jmat.Real.erf"
-  (let* ([x* (fabs x)]
-         [t (/ 1 (+ 1 (* 0.3275911 x*)))]
-         [p (* t (+ 0.254829592 (* t (+ -0.284496736 (* t (+ 1.421413741 (* t (+ -1.453152027 (* t 1.061405429)))))))))])
-    (- 1 (* p (exp (- (* x* x*)))))))
-
-; Got no further than erf
+(FPCore
+ (z)
+ :name
+ "Jmat.Real.gamma, branch z greater than 0.5"
+ (let ((z* (- z 1)))
+   (let ((g 7))
+     (let ((x
+            (+
+             0.9999999999998099
+             (/ 676.5203681218851 (+ z* 1))
+             (/ -1259.1392167224028 (+ z* 2))
+             (/ 771.3234287776531 (+ z* 3))
+             (/ -176.6150291621406 (+ z* 4))
+             (/ 12.507343278686905 (+ z* 5))
+             (/ -0.13857109526572012 (+ z* 6))
+             (/ 9.984369578019572e-06 (+ z* 7))
+             (/ 1.5056327351493116e-07 (+ z* 8)))))
+       (let ((t (+ z* g 0.5)))
+         (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x))))))
+(FPCore
+ (z)
+ :name
+ "Jmat.Real.gamma, branch z less than 0.5"
+ (let ((z* (- (- 1 z) 1)))
+   (let ((g 7))
+     (let ((x
+            (+
+             0.9999999999998099
+             (/ 676.5203681218851 (+ z* 1))
+             (/ -1259.1392167224028 (+ z* 2))
+             (/ 771.3234287776531 (+ z* 3))
+             (/ -176.6150291621406 (+ z* 4))
+             (/ 12.507343278686905 (+ z* 5))
+             (/ -0.13857109526572012 (+ z* 6))
+             (/ 9.984369578019572e-06 (+ z* 7))
+             (/ 1.5056327351493116e-07 (+ z* 8)))))
+       (let ((t (+ z* g 0.5)))
+         (*
+          (/ PI (sin (* PI z)))
+          (* (sqrt (* PI 2)) (pow t (+ z* 0.5)) (exp (- t)) x)))))))
+(FPCore (x) :name "Jmat.Real.lambertw, estimator" (- (log x) (log (log x))))
+(FPCore
+ (wj x)
+ :name
+ "Jmat.Real.lambertw, newton loop step"
+ :target
+ (let ((ew (exp wj))) (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew))))))
+ (let ((ew (exp wj))) (- wj (/ (- (* wj ew) x) (+ ew (* wj ew))))))
+(FPCore
+ (x)
+ :name
+ "Jmat.Real.dawson"
+ (let ((x2 (* x x)))
+   (let ((x4 (* x2 x2)))
+     (let ((x6 (* x4 x2)))
+       (let ((x8 (* x6 x2)))
+         (let ((x10 (* x8 x2)))
+           (let ((x12 (* x10 x2)))
+             (let ((p1 0.1049934947))
+               (let ((p2 0.0424060604))
+                 (let ((p3 0.0072644182))
+                   (let ((p4 0.0005064034))
+                     (let ((p5 0.0001789971))
+                       (let ((q1 0.7715471019))
+                         (let ((q2 0.2909738639))
+                           (let ((q3 0.0694555761))
+                             (let ((q4 0.0140005442))
+                               (let ((q5 0.0008327945))
+                                 (*
+                                  (/
+                                   (+
+                                    1
+                                    (* p1 x2)
+                                    (* p2 x4)
+                                    (* p3 x6)
+                                    (* p4 x8)
+                                    (* p5 x10))
+                                   (+
+                                    1
+                                    (* q1 x2)
+                                    (* q2 x4)
+                                    (* q3 x6)
+                                    (* q4 x8)
+                                    (* q5 x10)
+                                    (* 2 p5 x12)))
+                                  x))))))))))))))))))
+(FPCore
+ (x)
+ :name
+ "Jmat.Real.erfi, branch x less than or equal to 0.5"
+ (let ((sqrtPI (sqrt PI)))
+   (let ((ps (/ 1 sqrtPI)))
+     (let ((x* (fabs x)))
+       (let ((x3 (* x* x* x*)))
+         (let ((x5 (* x3 x* x*)))
+           (let ((x7 (* x5 x* x*)))
+             (let ((t
+                    (+
+                     (* 2 x*)
+                     (* (/ 2 3) x3)
+                     (* (/ 1 5) x5)
+                     (* (/ 1 21) x7))))
+               (fabs (* ps t))))))))))
+(FPCore
+ (x)
+ :name
+ "Jmat.Real.erfi, branch x greater than or equal to 5"
+ (let ((sqrtPI (sqrt PI)))
+   (let ((ps (/ 1 sqrtPI)))
+     (let ((x* (fabs x)))
+       (let ((xi (/ 1 x*)))
+         (let ((xi3 (* xi xi xi)))
+           (let ((xi5 (* xi3 xi xi)))
+             (let ((xi7 (* xi5 xi xi)))
+               (let ((e (exp (* x* x*))))
+                 (let ((t
+                        (+
+                         xi
+                         (* (/ 1 2) xi3)
+                         (* (/ 3 4) xi5)
+                         (* (/ 15 8) xi7))))
+                   (* ps e t)))))))))))
+(FPCore
+ (x)
+ :name
+ "Jmat.Real.erf"
+ (let ((x* (fabs x)))
+   (let ((t (/ 1 (+ 1 (* 0.3275911 x*)))))
+     (let ((p
+            (*
+             t
+             (+
+              0.254829592
+              (*
+               t
+               (+
+                -0.284496736
+                (*
+                 t
+                 (+
+                  1.421413741
+                  (* t (+ -1.453152027 (* t 1.061405429)))))))))))
+       (- 1 (* p (exp (- (* x* x*)))))))))
