@@ -1,32 +1,33 @@
-(FPCore
- (u v t1)
- :name
- "Rosa's DopplerBench"
- (/ (* (- t1) v) (* (+ t1 u) (+ t1 u))))
-(FPCore
- (x)
- :name
- "Rosa's Benchmark"
- (- (* 0.954929658551372 x) (* 0.12900613773279798 (* (* x x) x))))
-(FPCore
- (x1 x2)
- :name
- "Rosa's FloatVsDoubleBenchmark"
- (let ((t (- (+ (* 3 x1 x1) (* 2 x2)) x1)))
-   (let ((t* (- (- (* 3 x1 x1) (* 2 x2)) x1)))
-     (let ((d (+ (* x1 x1) 1)))
-       (let ((s (/ t d)))
-         (let ((s* (/ t* d)))
-           (+
-            x1
-            (+
-             (* (+ (* 2 x1 s (- s 3)) (* x1 x1 (- (* 4 s) 6))) d)
-             (* 3 x1 x1 s)
-             (* x1 x1 x1)
-             x1
-             (* 3 s*)))))))))
-(FPCore
- (v w r)
- :name
- "Rosa's TurbineBenchmark"
- (- (+ 3 (/ 2 (* r r))) (/ (* 0.125 (- 3 (* 2 v)) (* w w r r)) (- 1 v)) 4.5))
+
+; All test cases come from the EPFL Rosa project, available at
+; https://github.com/malyzajko/rosa
+; which is the subject of the POPL'14 paper
+; E. Darulova, V. Kuncak, "Sound Compilation of Reals", POPL'14
+
+(herbie-test (u v t1)
+  "Rosa's DopplerBench"
+  (/ (* (- t1) v) (* (+ t1 u) (+ t1 u))))
+
+(herbie-test (x)
+  "Rosa's Benchmark"
+  (- (* 0.954929658551372 x) (* 0.12900613773279798 (* (* x x) x))))
+
+(herbie-test (x1 x2)
+  "Rosa's FloatVsDoubleBenchmark"
+  (let* ([t (- (+ (* 3 x1 x1) (* 2 x2)) x1)]
+         [t* (- (- (* 3 x1 x1) (* 2 x2)) x1)]
+         [d (+ (* x1 x1) 1)]
+         [s (/ t d)]
+         [s* (/ t* d)])
+
+    (+ x1
+       (+
+        (* (+ (* 2 x1 s (- s 3)) (* x1 x1 (- (* 4 s) 6))) d)
+        (* 3 x1 x1 s)
+        (* x1 x1 x1)
+        x1
+        (* 3 s*)))))
+
+(herbie-test (v w r)
+  "Rosa's TurbineBenchmark"
+  (- (+ 3 (/ 2 (* r r))) (/ (* 0.125 (- 3 (* 2 v)) (* w w r r)) (- 1 v)) 4.5))

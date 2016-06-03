@@ -1,0 +1,13 @@
+(FPCore
+ (c_p c_n t s)
+ :herbie-samplers
+ ((c_p (< 0 default)) (c_n (< 0 default)))
+ :name
+ "Harley's example"
+ :target
+ (*
+  (pow (/ (+ 1 (exp (- t))) (+ 1 (exp (- s)))) c_p)
+  (pow (/ (+ 1 (exp t)) (+ 1 (exp s))) c_n))
+ (/
+  (* (pow (/ (+ 1 (exp (- s)))) c_p) (pow (- 1 (/ (+ 1 (exp (- s))))) c_n))
+  (* (pow (/ (+ 1 (exp (- t)))) c_p) (pow (- 1 (/ (+ 1 (exp (- t))))) c_n))))

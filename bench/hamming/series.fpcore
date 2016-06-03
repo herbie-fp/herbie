@@ -1,0 +1,66 @@
+(FPCore
+ (x)
+ :herbie-samplers
+ ((x (< -0.00017 default)))
+ :name
+ "NMSE example 3.7"
+ :target
+ (* x (+ 1 (/ x 2) (/ (sqr x) 6)))
+ (- (exp x) 1))
+(FPCore
+ (N)
+ :herbie-samplers
+ ((N (> default 6.8e+15)))
+ :name
+ "NMSE example 3.8"
+ :target
+ (- (log (+ N 1)) (- (/ 1 (* 2 N)) (- (/ 1 (* 3 (sqr N))) (/ 4 (pow N 3)))))
+ (- (* (+ N 1) (log (+ N 1))) (* N (log N)) 1))
+(FPCore
+ (x)
+ :herbie-samplers
+ ((x (< -0.026 default 0.026)))
+ :name
+ "NMSE example 3.9"
+ :target
+ (if (< (fabs x) 0.026) (* (/ x 3) (+ 1 (/ (sqr x) 15))) (- (/ 1 x) (cotan x)))
+ (- (/ 1 x) (cotan x)))
+(FPCore
+ (x)
+ :herbie-samplers
+ ((x (< -1 default 1)))
+ :name
+ "NMSE example 3.10"
+ :target
+ (- (+ 1 x (/ (sqr x) 2) (* 5/12 (pow x 3))))
+ (/ (log (- 1 x)) (log (+ 1 x))))
+(FPCore (x) :name "NMSE problem 3.4.1" (/ (- 1 (cos x)) (sqr x)))
+(FPCore
+ (a b eps)
+ :herbie-samplers
+ ((eps (< -1 default 1)))
+ :name
+ "NMSE problem 3.4.2"
+ :target
+ (/ (+ a b) (* a b))
+ (/
+  (* eps (- (exp (* (+ a b) eps)) 1))
+  (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))))
+(FPCore
+ (eps)
+ :name
+ "NMSE problem 3.4.3"
+ :target
+ (* -2 (+ eps (/ (pow eps 3) 3) (/ (pow eps 5) 5)))
+ (log (/ (- 1 eps) (+ 1 eps))))
+(FPCore
+ (x)
+ :name
+ "NMSE problem 3.4.4"
+ (sqrt (/ (- (exp (* 2 x)) 1) (- (exp x) 1))))
+(FPCore (x) :name "NMSE problem 3.4.5" (/ (- x (sin x)) (- x (tan x))))
+(FPCore
+ (x n)
+ :name
+ "NMSE problem 3.4.6"
+ (- (pow (+ x 1) (/ 1 n)) (pow x (/ 1 n))))

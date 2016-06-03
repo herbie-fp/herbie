@@ -1,30 +1,47 @@
-(FPCore (x y z) :name "fabs fraction 1" (fabs (- (/ (+ x 4) y) (* (/ x y) z))))
-(FPCore (a b) :name "fabs fraction 2" (/ (fabs (- a b)) 2))
-(FPCore (f n) :name "subtraction fraction" (/ (- (+ f n)) (- f n)))
-(FPCore (x) :name "exp neg sub" (exp (- (- 1 (* x x)))))
-(FPCore (x) :name "sqrt times" (* (sqrt (- x 1)) (sqrt x)))
-(FPCore (x) :name "neg log" (- (log (- (/ 1 x) 1))))
-(FPCore
- (B x)
- :name
- "VandenBroeck and Keller, Equation (24)"
- (+ (- (* x (cotan B))) (/ 1 (sin B))))
-(FPCore
- (x)
- :name
- "sqrt sqr"
- :target
- (if (< x 0) 2 0)
- (- (/ x x) (* (/ 1 x) (sqrt (* x x)))))
-(FPCore
- (a b c)
- :name
- "jeff quadratic root 1"
- (let ((d (sqrt (- (sqr b) (* 4 a c)))))
-   (if (>= b 0) (/ (- (- b) d) (* 2 a)) (/ (* 2 c) (+ (- b) d)))))
-(FPCore
- (a b c)
- :name
- "jeff quadratic root 2"
- (let ((d (sqrt (- (sqr b) (* 4 a c)))))
-   (if (>= b 0) (/ (* 2 c) (- (- b) d)) (/ (+ (- b) d) (* 2 a)))))
+(lambda (x y z)
+  #:name "fabs fraction 1"
+  (fabs (- (/ (+ x 4) y) (* (/ x y) z))))
+
+(lambda (a b)
+  #:name "fabs fraction 2"
+  (/ (fabs (- a b)) 2))
+
+(lambda (f n)
+  #:name "subtraction fraction"
+  (/ (- (+ f n)) (- f n)))
+
+(lambda (x)
+  #:name "exp neg sub"
+  (exp (- (- 1 (* x x)))))
+
+(lambda (x)
+  #:name "sqrt times"
+  (* (sqrt (- x 1)) (sqrt x)))
+
+(lambda (x)
+  #:name "neg log"
+  (- (log (- (/ 1 x) 1))))
+
+(lambda (B x)
+  #:name "VandenBroeck and Keller, Equation (24)"
+  (+ (- (* x (cotan B))) (/ 1 (sin B))))
+
+(lambda (x)
+  #:name "sqrt sqr"
+  (- (/ x x) (* (/ 1 x) (sqrt (* x x))))
+  #:target
+  (if (< x 0) 2 0))
+
+(lambda (a b c)
+  #:name "jeff quadratic root 1"
+  (let* ((d (sqrt (- (sqr b) (* 4 a c)))))
+    (if (>= b 0)
+      (/ (- (- b) d) (* 2 a))
+      (/ (* 2 c) (+ (- b) d)))))
+
+(lambda (a b c)
+  #:name "jeff quadratic root 2"
+  (let* ((d (sqrt (- (sqr b) (* 4 a c)))))
+    (if (>= b 0)
+      (/ (* 2 c) (- (- b) d))
+      (/ (+ (- b) d) (* 2 a)))))

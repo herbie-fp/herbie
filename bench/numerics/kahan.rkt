@@ -1,9 +1,7 @@
-(FPCore
- (x)
- :name
- "Kahan's exp quotient"
- :target
- (if (and (< x 1) (> x -1))
-   (/ (- (exp x) 1) (log (exp x)))
-   (/ (- (exp x) 1) x))
- (/ (- (exp x) 1) x))
+
+(herbie-test (x)
+  "Kahan's exp quotient"
+  (/ (- (exp x) 1) x)
+  (if (and (< x 1) (> x -1))
+      (/ (- (exp x) 1) (log (exp x)))
+      (/ (- (exp x) 1) x)))

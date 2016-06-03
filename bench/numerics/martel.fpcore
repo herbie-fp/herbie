@@ -1,0 +1,73 @@
+(FPCore
+ (d a b c)
+ :herbie-samplers
+ ((d 2) (a 1) (b 1/9) (c 1/9))
+ :name
+ "Rectangular parallelepiped of dimension a×b×c"
+ :target
+ (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b)))
+ (* d (+ (* a b) (* b c) (* c a))))
+(FPCore
+ (a b c d)
+ :herbie-samplers
+ ((a (<= 56789 default 98765))
+  (b (<= 0 default 1))
+  (c (<= 0 default 0.0016773))
+  (d (<= 0 default 0.0016773)))
+ :name
+ "Expression, p14"
+ :target
+ (+ (* a b) (* a (+ c d)))
+ (* a (+ (+ b c) d)))
+(FPCore
+ (a b c d e)
+ :herbie-samplers
+ ((a (uniform 1 2))
+  (b (uniform 2 4))
+  (c (uniform 4 8))
+  (d (uniform 8 16))
+  (e (uniform 16 32)))
+ :name
+ "Expression 1, p15"
+ :target
+ (+ (+ d (+ c (+ a b))) e)
+ (+ (+ (+ (+ e d) c) b) a))
+(FPCore
+ (x)
+ :herbie-samplers
+ ((x (<= 0 default 2)))
+ :name
+ "Expression 2, p15"
+ :target
+ (* (+ 1.0 x) x)
+ (+ x (* x x)))
+(FPCore
+ (x)
+ :herbie-samplers
+ ((x (<= 0 default 2)))
+ :name
+ "Expression 3, p15"
+ :target
+ (* (* (+ 1.0 x) x) x)
+ (+ (* x (* x x)) (* x x)))
+(FPCore
+ (a b)
+ :herbie-samplers
+ ((a (<= 5 default 10)) (b (<= 0 default 0.001)))
+ :name
+ "Expression 4, p15"
+ :target
+ (+ (+ (+ (* b a) (* b b)) (* b a)) (* a a))
+ (* (+ a b) (+ a b)))
+(FPCore
+ (a b c d)
+ :herbie-samplers
+ ((a (uniform -14 -13))
+  (b (uniform -3 -2))
+  (c (uniform 3 3.5))
+  (d (uniform 12.5 13.5)))
+ :name
+ "Expression, p6"
+ :target
+ (let ((e 2)) (+ (* (+ a b) e) (* (+ c d) e)))
+ (let ((e 2)) (* (+ a (+ b (+ c d))) e)))

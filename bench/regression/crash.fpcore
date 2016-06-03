@@ -1,0 +1,5 @@
+(FPCore
+ (x y z t)
+ :name
+ "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1"
+ (* x (/ (* (/ y z) t) t)))

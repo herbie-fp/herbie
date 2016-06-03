@@ -1,0 +1,17 @@
+(FPCore
+ (J K U)
+ :name
+ "Maksimov and Kolovsky, Equation (3)"
+ (* -2 J (cos (/ K 2)) (sqrt (+ 1 (sqr (/ U (* 2 J (cos (/ K 2)))))))))
+(FPCore
+ (J l K U)
+ :name
+ "Maksimov and Kolovsky, Equation (4)"
+ (+ (* J (- (exp l) (exp (- l))) (cos (/ K 2))) U))
+(FPCore
+ (K m n M l)
+ :name
+ "Maksimov and Kolovsky, Equation (32)"
+ (*
+  (cos (- (/ (* K (+ m n)) 2) M))
+  (exp (- (- (sqr (- (/ (+ m n) 2) M))) (- l (fabs (- m n)))))))
