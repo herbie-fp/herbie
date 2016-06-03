@@ -41,11 +41,13 @@
       [(list 'define name (list vars ...) args ...)
        (values vars (list*'#:name name args))]))
   (match-define (list body args ...) (args&body args*))
+  (eprintf "ARGS: ~a\n" args)
   (match-define (list (list vars samps) ...) (map var&dist vars*))
 
   (define (translate-prop old-name new-name [transformer identity])
-    (let ([prop-value (dict-ref args old-name #f)])
-      (if prop-value (list new-name (transformer prop-value)) (list))))
+    (if (dict-has-key? args old-name)
+        (list new-name (transformer (dict-ref args old-name)))
+        (list)))
 
 	(define (translate-samplers)
 	  (define var&samp* (map list vars samps))
