@@ -33,7 +33,7 @@
        (directory-exists? fname)) ; Directory of files
       (and
        (file-name-from-path fname)
-       (regexp-match? #rx"\\.rkt$" (file-name-from-path fname))
+       (regexp-match? #rx"\\.fpcore" (file-name-from-path fname))
        (file-exists? fname)))) ; Herbie input format 1 or 2
 
 (define (in-herbie-files files)

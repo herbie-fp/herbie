@@ -31,7 +31,7 @@ install:
   - docker build -t herbie .
 script:
   - raco test src
-  - racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.rkt bench/hamming/
+  - racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/
 before_cache:
   - docker save -o docker-images/herbie.image herbie
 notifications:

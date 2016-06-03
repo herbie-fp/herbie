@@ -54,7 +54,7 @@
       tests)))
 
 (define (is-racket-file? f)
-  (and (equal? (filename-extension f) #"rkt") (file-exists? f)))
+  (and (equal? (filename-extension f) #"fpcore") (file-exists? f)))
 
 (define (load-directory dir)
   (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
