@@ -41,7 +41,6 @@
       [(list 'define name (list vars ...) args ...)
        (values vars (list*'#:name name args))]))
   (match-define (list body args ...) (args&body args*))
-  (eprintf "ARGS: ~a\n" args)
   (match-define (list (list vars samps) ...) (map var&dist vars*))
 
   (define (translate-prop old-name new-name [transformer identity])

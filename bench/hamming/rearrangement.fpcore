@@ -25,6 +25,8 @@
  (N)
  :name
  "NMSE example 3.5"
+ :herbie-expected
+ #f
  :target
  (atan (/ 1 (+ 1 (* N (+ N 1)))))
  (- (atan (+ N 1)) (atan N)))
@@ -40,6 +42,8 @@
  (x eps)
  :name
  "NMSE problem 3.3.2"
+ :herbie-expected
+ #f
  :target
  (/ (sin eps) (* (cos x) (cos (+ x eps))))
  (- (tan (+ x eps)) (tan x)))
@@ -47,6 +51,8 @@
  (x)
  :name
  "NMSE problem 3.3.3"
+ :herbie-expected
+ #f
  :target
  (/ 2 (* x (- (sqr x) 1)))
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
@@ -54,6 +60,8 @@
  (x)
  :name
  "NMSE problem 3.3.4"
+ :herbie-expected
+ #f
  (- (pow (+ x 1) (/ 1 3)) (pow x (/ 1 3))))
 (FPCore (x eps) :name "NMSE problem 3.3.5" (- (cos (+ x eps)) (cos x)))
 (FPCore (N) :name "NMSE problem 3.3.6" (- (log (+ N 1)) (log N)))
@@ -61,6 +69,8 @@
  (x)
  :name
  "NMSE problem 3.3.7"
+ :herbie-expected
+ #f
  :target
  (* 4 (sqr (sinh (/ x 2))))
  (+ (- (exp x) 2) (exp (- x))))
