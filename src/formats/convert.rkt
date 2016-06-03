@@ -58,8 +58,8 @@
     ,@(translate-samplers)
     ,@(translate-prop '#:name ':name)
     ,@(translate-prop '#:expected ':herbie-expected)
-    ,@(translate-prop '#:target ':target search-replace-let*)
-    ,(search-replace-let* body)))
+    ,@(translate-prop '#:target ':target (curryr search-replace vars))
+    ,(search-replace body vars)))
 
 ; we assume vars and vals are of the same length
 (define (expand-let* vars vals body)
@@ -68,12 +68,24 @@
 			`(let ([,(car vars) ,(car vals)])
 				,(expand-let* (cdr vars) (cdr vals) body))))
 
-(define (search-replace-let* expr)
+(define (search-replace expr bound)
 	(match expr
 	 [`(let* ([,vars ,vals] ...) ,body)
-	 	(expand-let* vars vals (search-replace-let* body))]
+    (define vals*
+      (let loop ([vars vars] [vals vals] [bound bound])
+        (if (null? vars)
+            '()
+            (cons (search-replace (car vals) bound)
+                  (loop (cdr vars) (cdr vals) (cons (car vars) bound))))))
+	 	(expand-let* vars vals* (search-replace body (append vars bound)))]
+   [(list (and (or 'abs 'expt 'mod) f) elements ...)
+	  (define replacements '((abs . fabs) (expt . pow) (mod . fmod)))
+    (cons (dict-ref replacements f) (map (curryr search-replace bound) elements))]
 	 [(list elements ...)
-		(map search-replace-let* elements)]
+		(map (curryr search-replace bound) elements)]
+   [(or 'e 'pi)
+    (define replacements '((e . E) (pi . PI)))
+    (if (member expr bound) expr (dict-ref replacements expr))]
 	 [_ expr]))
 
 (module+ main
