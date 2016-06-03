@@ -21,6 +21,11 @@
   (assert (car out*) #:extra-info (λ () "No body expression"))
   out*)
 
+(define (var&dist expr)
+  (match expr
+    [(list var samp) (list var samp)]
+    [var (list var 'default)]))
+
 ; parse old herbie syntax into FPCore
 (define (convert expr)
   (define-values (vars* args*)
@@ -36,12 +41,21 @@
       [(list 'define name (list vars ...) args ...)
        (values vars (list*'#:name name args))]))
   (match-define (list body args ...) (args&body args*))
+  (match-define (list (list vars samps) ...) (map var&dist vars*))
 
   (define (translate-prop old-name new-name [transformer identity])
     (let ([prop-value (dict-ref args old-name #f)])
       (if prop-value (list new-name (transformer prop-value)) (list))))
 
-  `(FPCore ,vars*
+	(define (translate-samplers)
+	  (define var&samp* (map list vars samps))
+    (define interesting-var&samps (filter (lambda (x) (not (equal? (second x) 'default))) var&samp*))
+    (if (null? interesting-var&samps)
+        '()
+        (list ':herbie-samplers interesting-var&samps)))
+
+  `(FPCore ,vars
+    ,@(translate-samplers)
     ,@(translate-prop '#:name ':name)
     ,@(translate-prop '#:expected ':herbie-expected)
     ,@(translate-prop '#:target ':target search-replace-let*)

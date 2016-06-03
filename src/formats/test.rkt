@@ -34,18 +34,14 @@
       (if (null? props)
         out
         (loop (cddr props) (cons (cons (first props) (second props)) out)))))
-	(match-define (list (list vars samps) ...)(map var&dist args))
+  (define samp-dict (dict-ref prop-dict ':herbie-samplers '()))
+	(define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
 
   (test (~a (dict-ref prop-dict ':name body))
-        vars samps 
+        args samps 
         (desugar-program body)
         (desugar-program (dict-ref prop-dict ':target #f))
         (dict-ref prop-dict ':herbie-expected #t)))
-
-(define (var&dist expr)
-  (match expr
-    [(list var samp) (list var samp)]
-    [var (list var 'default)]))
 
 (define (load-file file)
   (call-with-input-file file
