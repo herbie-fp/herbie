@@ -13,7 +13,7 @@
    (for ([test benchmark-path])
      (bf-precision (*precision-step*))
      (printf ">> ~a" (test-program test))
-     (define ctx (prepare-points (test-program test) (test-samplers test)))
+     (define ctx (prepare-points (test-program test) (test-samplers test) (test-precondition test)))
      (printf " (at ~a bits)\n" (bf-precision))
      (bf-precision 65536)
      (define f (eval-prog (test-program test) mode:bf))

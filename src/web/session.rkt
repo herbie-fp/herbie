@@ -27,7 +27,7 @@
 (define (start-session prog)
   (parameterize ([*start-prog* prog])
     (define samplers (map (curryr cons (eval-sampler 'default)) (program-variables prog)))
-    (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog samplers)))
+    (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog samplers 'TRUE)))
     (define pcontext (random-subsample pcontext-extended 64))
     (parameterize ([*pcontext* pcontext] [*analyze-context* pcontext])
       (define alt (simplify-alt (make-alt prog)))

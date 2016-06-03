@@ -206,7 +206,7 @@
 
 (define *operations* (make-parameter operations))
 
-(define constants '(PI E))
+(define constants '(PI E TRUE FALSE))
 
 (define predicates '(or and < > <= >= =))
 
@@ -234,6 +234,8 @@
         +nan.0)]
      [(eq? x 'PI) (convert pi)]
      [(eq? x 'E) (convert (exp 1.0))]
+     [(eq? x 'TRUE) #t]
+     [(eq? x 'FALSE) #f]
      [else x])))
 
 (define (->bf x)
@@ -244,6 +246,8 @@
     (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
    [(eq? x 'PI) pi.bf]
    [(eq? x 'E) (bfexp 1.bf)]
+   [(eq? x 'TRUE) #t]
+   [(eq? x 'FALSE) #f]
    [else x]))
 
 (define (real-op->bigfloat-op op) (list-ref (hash-ref (*operations*) op) mode:bf))

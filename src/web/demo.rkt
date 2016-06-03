@@ -86,7 +86,7 @@
                      #:seed *fixed-seed*
                      #:setup! (λ () (set-debug-level! 'progress '(3 4)))
                      #:debug p
-                     (test name vars (map (const 'default) vars) body #f #f))))))
+                     (test name vars (map (const 'default) vars) body #f #f 'TRUE))))))
 
           (define make-page
             (cond [(test-result? result) make-graph]

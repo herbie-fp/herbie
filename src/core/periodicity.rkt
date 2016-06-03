@@ -190,7 +190,8 @@
 			     (let ([context
 				    (prepare-points-period
 				     program
-				     (map (compose (curry * 2 pi) cdr) (lp-periods ploc)))])
+				     (map (compose (curry * 2 pi) cdr) (lp-periods ploc))
+                                     'TRUE)])
 			       (parameterize ([*pcontext* context])
 				 (improve-func (make-alt program)))))))
 		     plocs)]

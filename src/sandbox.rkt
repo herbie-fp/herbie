@@ -50,10 +50,11 @@
                       (run-improve (test-program test)
                                    (*num-iterations*)
                                    #:get-context #t
-                                   #:samplers (test-samplers test)))
+                                   #:samplers (test-samplers test)
+                                   #:precondition (test-precondition test)))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (alt-program alt) (test-samplers test))))
+            (prepare-points (alt-program alt) (test-samplers test) (test-precondition test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext))))
 
   (define (in-engine _)
@@ -133,13 +134,13 @@
                    link)))]
    [(test-failure? result)
     (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _) (test-failure-test result))
+    (match-define (test name vars sampling-expr input output _ pre) (test-failure-test result))
     (table-row (test-name (test-failure-test result)) "crash"
                #f #f #f #f #f #f vars sampling-expr input #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _) (test-timeout-test result))
+    (match-define (test name vars sampling-expr input output _ pre) (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f vars sampling-expr input #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
