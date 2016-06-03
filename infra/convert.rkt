@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt")
+(require "../src/common.rkt")
 
 (provide convert)
 
