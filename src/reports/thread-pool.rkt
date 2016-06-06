@@ -27,7 +27,10 @@
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
          [index-label (number->string index)])
-    (string-append index-label "-" stripped-tname)))
+    (string-append index-label "-"
+                   (if (> (string-length stripped-tname) 50)
+                       (substring stripped-tname 0 50)
+                       stripped-tname))))
 
 (define (call-with-output-files names k)
   (let loop ([names names] [ps '()])
