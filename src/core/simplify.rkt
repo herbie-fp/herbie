@@ -71,7 +71,9 @@
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters)
-	(extract-smallest eg))))
+	(define out (extract-smallest eg))
+        (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
+        out)))
 
 (define (num-nodes expr)
   (if (not (list? expr)) 1
