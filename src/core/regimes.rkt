@@ -106,8 +106,9 @@
     (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
 		       (map alt-errors alts))]
 	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
-	   [split-indices (err-lsts->split-indices bit-err-lsts)]
-	   [split-points (sindices->spoints pts expr alts split-indices)])
+           [merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts)]
+	   [split-indices (err-lsts->split-indices merged-err-lsts)]
+	   [split-points (sindices->spoints (remove-duplicates pts) expr alts split-indices)])
       (option split-points (pick-errors split-points pts err-lsts vars)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
@@ -151,6 +152,14 @@
 	   (sp (si-cidx last-sidx)
 	       expr
 	       +inf.0)))))
+
+(define (merge-err-lsts pts errs)
+  (let loop ([pt (car pts)] [pts (cdr pts)] [err (car errs)] [errs (cdr errs)])
+    (if (null? pts)
+        (list err)
+        (if (equal? pt (car pts))
+            (loop pt (cdr pts) (+ err (car errs)) (cdr errs))
+            (cons err (loop (car pts) (cdr pts) (car errs) (cdr errs)))))))
 
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))
