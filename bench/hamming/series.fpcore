@@ -1,7 +1,7 @@
 (FPCore
  (x)
- :herbie-samplers
- ((x (< -0.00017 default)))
+ :pre
+ (and (< -0.00017 x))
  :name
  "NMSE example 3.7"
  :target
@@ -9,8 +9,8 @@
  (- (exp x) 1))
 (FPCore
  (N)
- :herbie-samplers
- ((N (> default 6.8e+15)))
+ :pre
+ (and (> N 6.8e+15))
  :name
  "NMSE example 3.8"
  :herbie-expected
@@ -20,8 +20,8 @@
  (- (* (+ N 1) (log (+ N 1))) (* N (log N)) 1))
 (FPCore
  (x)
- :herbie-samplers
- ((x (< -0.026 default 0.026)))
+ :pre
+ (and (< -0.026 x) (< x 0.026))
  :name
  "NMSE example 3.9"
  :herbie-expected
@@ -31,8 +31,8 @@
  (- (/ 1 x) (cotan x)))
 (FPCore
  (x)
- :herbie-samplers
- ((x (< -1 default 1)))
+ :pre
+ (and (< -1 x) (< x 1))
  :name
  "NMSE example 3.10"
  :herbie-expected
@@ -43,8 +43,8 @@
 (FPCore (x) :name "NMSE problem 3.4.1" (/ (- 1 (cos x)) (sqr x)))
 (FPCore
  (a b eps)
- :herbie-samplers
- ((eps (< -1 default 1)))
+ :pre
+ (and (< -1 eps) (< eps 1))
  :name
  "NMSE problem 3.4.2"
  :target
