@@ -69,7 +69,7 @@
                   (test-name test)
                   (~r (errors-score start-error) #:min-width 2 #:precision 0)
                   (~r (errors-score end-error) #:min-width 2 #:precision 0))
-         (printf "~a\n" (alt-program end-alt))]
+         (printf "~a\n" (unparse-test (alt-program end-alt)))]
         [(test-failure test bits exn time timeline)
          (eprintf "[   CRASH   ]\t~a\n" (test-name test))
          (printf ";; Crash in ~a\n" (test-name test))

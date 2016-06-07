@@ -6,7 +6,7 @@
 (require "../syntax/distributions.rkt")
 
 (provide (struct-out test) test-program test-samplers
-         load-tests load-file test-target parse-test test-successful? test<?)
+         load-tests load-file test-target parse-test unparse-test test-successful? test<?)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -43,6 +43,9 @@
         (desugar-program (dict-ref prop-dict ':target #f))
         (dict-ref prop-dict ':herbie-expected #t)
         (dict-ref prop-dict ':pre 'TRUE)))
+(define (unparse-test expr)
+  (match-define (list (or 'λ 'lambda) (list vars ...) body) expr)
+  `(FPCore (,@vars) ,body))
 
 (define (load-file file)
   (call-with-input-file file
