@@ -40,6 +40,23 @@
   </p>
 
   <pre>(FPCore (a b) (sqrt (+ (sqr a) (sqr b))))</pre>
+
+  <p>
+    We recommend the <code>.fpcore</code> file extension for Herbie input files.
+  </p>
+
+  <h2>Converting from Herbie 0.9</h2>
+
+  <p>
+    Herbie 0.9 used a <a href="../0.9/input.html">different input
+    format</a>, which is no longer supported in Herbie 1.0. To
+    simplify the transition, the <code>infra/convert.rkt</code> script
+    converts from the old to the new format.
+  </p>
+  
+  <p>To use the conversion tool, run:</p>
+
+  <pre>racket infra/convert.rkt <var>file.rkt</var> > <var>file.fpcore</var></pre>
   
   <h2>Supported functions</h2>
   
