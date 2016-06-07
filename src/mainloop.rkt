@@ -118,6 +118,7 @@
 					       #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
+    (debug #:from 'pick #:depth 4 "Picked " picked)
     (void)))
 
 ;; Invoke the subsystems individually
