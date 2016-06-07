@@ -38,6 +38,15 @@ Herbie requires Racket 6.3 or later, and works best on Linux.
 No installation is needed; just download the source code and you're
 ready to go.
 
+Upgrading
+---------
+
+Herbie 1.0 differs from previous versions by having a new input
+format. Herbie now uses the FPCore standard for floating point tools.
+To convert existing files to the new format, use:
+
+    racket infra/convert.rkt [file].rkt > [file].fpcore
+
 Running Herbie
 --------------
 
@@ -48,8 +57,7 @@ The format of input files is a Scheme-based language;
 you can find several examples in `bench/`.
 For example, consider this simple cancellation test
 
-    (herbie-test (x)
-      "Cancel like terms"
+    (FPCore (x)
       (- (+ 1 x) x))
 
 Run Herbie from the top-level directory of the repo:
@@ -61,8 +69,7 @@ You can now enter the cancellation test:
 
     $ racket src/herbie.rkt
     Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
-    (herbie-test (x)
-      "Cancel like terms"
+    (FPCore (x)
       (- (+ 1 x) x))
     [ 1673.401ms]   (29→ 0) Cancel like terms
     (λ (x) 1)
@@ -72,7 +79,7 @@ the constant `1`.
 
 You can also save expressions to a file and run them with
 
-    racket src/herbie.rkt file
+    racket src/herbie.rkt [file]
 
 Running Tests
 -------------
@@ -83,23 +90,19 @@ possible, we try to *extract all possible tests* from a source, to
 avoid biasing our selection of tests. To run the tests, go to the
 project root and run
 
-    racket src/reports/run.rkt <file>
+    racket infra/travis.rkt [file]
 
-After a some time (several minutes), you should find the file
-`graphs/report.html`.
-
-Herbie's main tests are integration tests
-that test Herbie end-to-end.
+Herbie's main tests are integration tests that test Herbie end-to-end.
 They are the benchmarks that ship in the `bench/` directory.
 
 We often test Herbie on basic but representative examples with:
 
-    racket src/reports/run.rkt bench/hamming/
+    racket infra/travis.rkt bench/hamming/
 
 This takes approximately 15 minutes.
 To run all of the default benchmarks, use:
 
-    racket src/reports/run.rkt bench/
+    racket infra/travis.rkt bench/
 
 This can take a few hours or more.
 
