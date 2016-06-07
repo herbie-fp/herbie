@@ -120,7 +120,7 @@
    and a list of exact values for those points (each a flonum)"
   ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
-    (cond [(> num-loops 200) (error "[ERROR] After many loops in prepare-points still have insufficient number of sampled points\n")]
+    (cond [(> num-loops 200) (raise-user-error 'sample-points "Cannot sample enough valid points.\nSee <http://herbie.uwplse.org/doc/~a/faq.html#sample-valid-points> for more." *herbie-version*)]
           [(>= (length pts) (*num-points*))
            (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
           [#t (let* ([num (- (*num-points*) (length pts))]

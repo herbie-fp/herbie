@@ -28,21 +28,25 @@
     (cons var (eval-sampler samp))))
 
 (define (parse-test expr)
-  (match-define (list 'FPCore (list args ...) props ... body) expr)
-  (define prop-dict
-    (let loop ([props props] [out '()])
-      (if (null? props)
-        out
-        (loop (cddr props) (cons (cons (first props) (second props)) out)))))
-  (define samp-dict (dict-ref prop-dict ':herbie-samplers '()))
-	(define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
+  (match expr
+    [(list 'FPCore (list args ...) props ... body)
+     (define prop-dict
+       (let loop ([props props] [out '()])
+         (if (null? props)
+             out
+             (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+     (define samp-dict (dict-ref prop-dict ':herbie-samplers '()))
+     (define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
+     
+     (test (~a (dict-ref prop-dict ':name body))
+           args samps 
+           (desugar-program body)
+           (desugar-program (dict-ref prop-dict ':target #f))
+           (dict-ref prop-dict ':herbie-expected #t)
+           (dict-ref prop-dict ':pre 'TRUE))]
+    [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
+     (raise-user-error 'parse-input "Herbie 1.0+ no longer supports input formats other than FPCore.\nSee <http://herbie.uwplse.org/~a/input.html> for more." *herbie-version*)]))
 
-  (test (~a (dict-ref prop-dict ':name body))
-        args samps 
-        (desugar-program body)
-        (desugar-program (dict-ref prop-dict ':target #f))
-        (dict-ref prop-dict ':herbie-expected #t)
-        (dict-ref prop-dict ':pre 'TRUE)))
 (define (unparse-test expr)
   (match-define (list (or 'λ 'lambda) (list vars ...) body) expr)
   `(FPCore (,@vars) ,body))
