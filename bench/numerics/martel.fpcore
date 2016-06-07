@@ -9,11 +9,15 @@
  (* d (+ (* a b) (* b c) (* c a))))
 (FPCore
  (a b c d)
- :herbie-samplers
- ((a (<= 56789 default 98765))
-  (b (<= 0 default 1))
-  (c (<= 0 default 0.0016773))
-  (d (<= 0 default 0.0016773)))
+ :pre
+ (and (<= 56789 a)
+      (<= a 98765)
+      (<= 0 b)
+      (<= b 1)
+      (<= 0 c)
+      (<= c 0.0016773)
+      (<= 0 d)
+      (<= d 0.0016773))
  :name
  "Expression, p14"
  :target
@@ -34,8 +38,8 @@
  (+ (+ (+ (+ e d) c) b) a))
 (FPCore
  (x)
- :herbie-samplers
- ((x (<= 0 default 2)))
+ :pre
+ (and (<= 0 x) (<= x 2))
  :name
  "Expression 2, p15"
  :target
@@ -43,8 +47,8 @@
  (+ x (* x x)))
 (FPCore
  (x)
- :herbie-samplers
- ((x (<= 0 default 2)))
+ :pre
+ (and (<= 0 x) (<= x 2))
  :name
  "Expression 3, p15"
  :target
@@ -52,8 +56,8 @@
  (+ (* x (* x x)) (* x x)))
 (FPCore
  (a b)
- :herbie-samplers
- ((a (<= 5 default 10)) (b (<= 0 default 0.001)))
+ :pre
+ (and (<= 5 a) (<= a 10) (<= 0 b) (<= b 0.001))
  :name
  "Expression 4, p15"
  :target

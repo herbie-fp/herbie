@@ -2,10 +2,10 @@
 
 (require math/flonum)
 (require math/bigfloat)
+(require "float.rkt")
 (require "common.rkt")
 (require "programs.rkt")
 (require "config.rkt")
-(require "float.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points prepare-points-period make-exacts
@@ -77,24 +77,25 @@
      [else
       (loop (cdr l) (- count 1))])))
 
-(define (make-exacts* prog pts)
-  (let ([f (eval-prog prog mode:bf)] [n (length pts)])
+(define (make-exacts* prog pts precondition)
+  (let ([f (eval-prog prog mode:bf)] [n (length pts)]
+        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) mode:bf)])
     (let loop ([prec (- (bf-precision) (*precision-step*))]
                [prev #f])
       (bf-precision prec)
-      (let ([curr (map f pts)])
-        (if (and prev (andmap =-or-nan? prev curr))
-            curr
+      (let ([curr (map f pts)] [good? (map pre pts)])
+        (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
+            (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
 
-(define (make-exacts prog pts)
+(define (make-exacts prog pts precondition)
   (define n (length pts))
   (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
     (cond
      [(>= n* n)
-      (make-exacts* prog pts)]
+      (make-exacts* prog pts precondition)]
      [else
-      (make-exacts* prog (select-every (round (/ n n*)) pts))
+      (make-exacts* prog (select-every (round (/ n n*)) pts) precondition)
       (loop (* n* 2))])))
 
 (define (filter-points pts exacts)
@@ -113,7 +114,7 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points prog samplers)
+(define (prepare-points prog samplers precondition)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
@@ -126,7 +127,7 @@
                  [pts1
                   (for/list ([n (in-range num)])
                     (for/list ([rec samplers]) (sample (cdr rec))))]
-                 [exs1 (make-exacts prog pts1)]
+                 [exs1 (make-exacts prog pts1 precondition)]
                  ; Then, we remove the points for which the answers
                  ; are not representable
                  [pts* (filter-points pts1 exs1)]

@@ -1,7 +1,7 @@
 (FPCore
  (alpha beta)
- :herbie-samplers
- ((alpha (> default -1)) (beta (> default -1)))
+ :pre
+ (and (> alpha -1) (> beta -1))
  :name
  "Octave 3.8, jcobi/1"
  (let ((ab (+ alpha beta)))
@@ -10,7 +10,9 @@
 (FPCore
  (alpha beta i)
  :herbie-samplers
- ((alpha (> default -1)) (beta (> default -1)) (i (> int 0)))
+ ((i int))
+ :pre
+ (and (> alpha -1) (> beta -1) (> i 0))
  :name
  "Octave 3.8, jcobi/2"
  (let ((ab (+ alpha beta)))
@@ -19,8 +21,8 @@
        (let ((z (+ ab (* 2 i)))) (/ (+ (/ (* ab ad) z (+ z 2.0)) 1.0) 2.0))))))
 (FPCore
  (alpha beta)
- :herbie-samplers
- ((alpha (> default -1)) (beta (> default -1)))
+ :pre
+ (and (> alpha -1) (> beta -1))
  :name
  "Octave 3.8, jcobi/3"
  (let ((i 1))
@@ -32,7 +34,9 @@
 (FPCore
  (alpha beta i)
  :herbie-samplers
- ((alpha (> default -1)) (beta (> default -1)) (i (> int 1)))
+ ((i int))
+ :pre
+ (and (> alpha -1) (> beta -1) (> i 1))
  :name
  "Octave 3.8, jcobi/4"
  (let ((ab (+ alpha beta)))
@@ -45,7 +49,9 @@
 (FPCore
  (i)
  :herbie-samplers
- ((i (> int 0)))
+ ((i int))
+ :pre
+ (and (> i 0))
  :name
  "Octave 3.8, jcobi/4, as called"
  (let ((z (* 2 i)))

@@ -21,7 +21,7 @@
     [(#f #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
-(struct test (name vars sampling-expr input output expected) #:prefab)
+(struct test (name vars sampling-expr input output expected precondition) #:prefab)
 
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
@@ -41,7 +41,8 @@
         args samps 
         (desugar-program body)
         (desugar-program (dict-ref prop-dict ':target #f))
-        (dict-ref prop-dict ':herbie-expected #t)))
+        (dict-ref prop-dict ':herbie-expected #t)
+        (dict-ref prop-dict ':pre 'TRUE)))
 
 (define (load-file file)
   (call-with-input-file file

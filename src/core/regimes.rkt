@@ -133,7 +133,8 @@
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
 			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
-							      (program-variables start-prog*))))])
+							      (program-variables start-prog*))
+                                             'TRUE))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)

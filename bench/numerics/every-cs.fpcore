@@ -26,8 +26,8 @@
  (- (sqr a) (sqr b)))
 (FPCore
  (a b c)
- :herbie-samplers
- ((a (< 0 default)) (b (< 0 default)) (c (< 0 default)))
+ :pre
+ (and (< 0 a) (< 0 b) (< 0 c))
  :name
  "Area of a triangle"
  :target

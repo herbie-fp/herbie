@@ -1,5 +1,13 @@
 #!/bin/bash
-find . -name '*.rkt' | while read line; do
+set -e
+
+DIR=$1
+if [[ -z "$DIR" ]]; then
+    DIR=.
+fi
+
+find "$DIR" -name '*.rkt' | while read line; do
   OUTNAME=${line%rkt}fpcore
-	racket ../src/formats/convert.rkt $line > $OUTNAME
+  echo "Converting $line"
+  racket infra/convert.rkt "$line" > "$OUTNAME"
 done

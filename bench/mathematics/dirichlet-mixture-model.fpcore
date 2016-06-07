@@ -1,7 +1,7 @@
 (FPCore
  (c_p c_n t s)
- :herbie-samplers
- ((c_p (< 0 default)) (c_n (< 0 default)))
+ :pre
+ (and (< 0 c_p) (< 0 c_n))
  :name
  "Harley's example"
  :target

@@ -48,12 +48,28 @@
         (list new-name (transformer (dict-ref args old-name)))
         (list)))
 
-	(define (translate-samplers)
-	  (define var&samp* (map list vars samps))
-    (define interesting-var&samps (filter (lambda (x) (not (equal? (second x) 'default))) var&samp*))
-    (if (null? interesting-var&samps)
-        '()
-        (list ':herbie-samplers interesting-var&samps)))
+  (define (translate-samplers)
+    (define-values (samplers pre)
+      (reap [samplers pre]
+            (for ([var vars] [samp samps])
+              (define samp*
+                (match samp
+                  [(list (and (or '> '< '<= '>=) op) (? number? lb) samp)
+                   (pre (list op lb var))
+                   samp]
+                  [(list (and (or '> '< '<= '>=) op) samp (? number? ub))
+                   (pre (list op var ub))
+                   samp]
+                  [(list (and (or '> '< '<= '>=) op) (? number? lb) samp (? number? ub))
+                   (pre (list op lb var))
+                   (pre (list op var ub))
+                   samp]
+                  [_ samp]))
+              (unless (equal? samp* 'default)
+                (samplers (list var samp*))))))
+    (append
+     (if (null? samplers) '() (list ':herbie-samplers samplers))
+     (if (null? pre) '() (list ':pre (cons 'and pre)))))
 
   `(FPCore ,vars
     ,@(translate-samplers)

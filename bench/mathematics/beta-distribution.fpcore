@@ -1,14 +1,14 @@
 (FPCore
  (m v)
- :herbie-samplers
- ((m (< 0 default)) (v (< 0 default 0.25)))
+ :pre
+ (and (< 0 m) (< 0 v) (< v 0.25))
  :name
  "a parameter of renormalized beta distribution"
  (* (- (/ (* m (- 1 m)) v) 1) m))
 (FPCore
  (m v)
- :herbie-samplers
- ((m (< 0 default)) (v (< 0 default 0.25)))
+ :pre
+ (and (< 0 m) (< 0 v) (< v 0.25))
  :name
  "b parameter of renormalized beta distribution"
  (* (- (/ (* m (- 1 m)) v) 1) (- 1 m)))
