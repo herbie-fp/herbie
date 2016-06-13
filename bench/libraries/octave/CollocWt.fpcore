@@ -7,10 +7,9 @@
  (let ((ab (+ alpha beta)))
    (let ((ad (- beta alpha)))
      (let ((ap (* beta alpha))) (/ (+ (/ ad (+ ab 2.0)) 1.0) 2.0)))))
-(FPCore
+
+(FPCore ; TODO: i should be an integer
  (alpha beta i)
- :herbie-samplers
- ((i int))
  :pre
  (and (> alpha -1) (> beta -1) (> i 0))
  :name
@@ -32,9 +31,7 @@
          (let ((z1 i))
            (let ((z (+ ab (* 2 z1)))) (/ (+ ab ap 1.0) z z (+ z 1.0)))))))))
 (FPCore
- (alpha beta i)
- :herbie-samplers
- ((i int))
+ (alpha beta i) ; TODO: i should be an integer
  :pre
  (and (> alpha -1) (> beta -1) (> i 1))
  :name
@@ -47,9 +44,7 @@
            (let ((y (* i (+ ab i))))
              (let ((y* (* y (+ ap y)))) (/ y* z* (- z* 1.0))))))))))
 (FPCore
- (i)
- :herbie-samplers
- ((i int))
+ (i) ; TODO: i should be an integer
  :pre
  (and (> i 0))
  :name

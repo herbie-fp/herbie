@@ -1,12 +1,13 @@
-(FPCore
- (d a b c)
- :herbie-samplers
- ((d 2) (a 1) (b 1/9) (c 1/9))
+;; This test commented out until Herbie supports no-argument expressions
+#;(FPCore
+ ()
  :name
  "Rectangular parallelepiped of dimension a×b×c"
  :target
- (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b)))
- (* d (+ (* a b) (* b c) (* c a))))
+ (let ([d 2] [a 1] [b (/ 1 9)] [c (/ 1 9)])
+   (+ (+ (* (* c a) d) (* d (* b c))) (* d (* a b))))
+ (let ([d 2] [a 1] [b (/ 1 9)] [c (/ 1 9)])
+   (* d (+ (* a b) (* b c) (* c a)))))
 (FPCore
  (a b c d)
  :pre

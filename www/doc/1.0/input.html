@@ -139,14 +139,14 @@
     the <code>:herbie-samplers</code> property. For example:
   </p>
   
-  <pre>:herbie-samplers ([x (uniform 0 1)] [n int32])</pre>
+  <pre>:herbie-samplers ([x (uniform 0 1)] [y (uniform -1 1)])</pre>
 
   <p>
     This property tells Herbie to use a uniform distribution to sample
-    a value between 0 and 1 for <code>x</code>, and to sample a random
-    32-bit integer for <code>n</code>. Not all variables need to be
-    given samplers; if a variable isn't given a sampler,
-    the <code>default</code> sampler will be used.
+    a value between 0 and 1 for <code>x</code>, and between -1 and 1
+    for <code>y</code>. Not all variables need to be given distributions;
+    if a variable isn't given a distribution, the <code>default</code>
+    distribution will be used.
   </p>
   
   <dl class="function-list">
@@ -154,19 +154,6 @@
     <dd>Interpret a random bit pattern as a float</dd>
     <dt><code>(uniform <var>a</var> <var>b</var>)</code></dt>
     <dd>A uniform real value between <var>a</var> and <var>b</var><br/>Both bounds must be numeric constants</dd>
-    <dt><code>int</code></dt>
-    <dd>Samples a random 32-bit signed integer</dd>
-    <dt><code><var>n</var></code></dt>
-    <dd>Always bind the variable to a constant</dd>
-  </dl>
-  
-  <p>The <code>default</code> and <code>int</code> distributions can
-  optionally have bounds:</p>
-
-  <dl class="function-list">
-    <dt><code>(&lt; <var>a</var> <var>dist</var> <var>b</var>)</code></dt>
-    <dd>Only values between <var>a</var> and <var>b</var> from <var>dist</var><br/>
-      Both bounds are optional numeric constants.</dd>
   </dl>
 
   <script>
