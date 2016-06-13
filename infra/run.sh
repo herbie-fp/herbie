@@ -25,7 +25,7 @@ function main {
     --size  5 --size-wiggle  5 \
     --nvars 1 --nvars-wiggle 3 \
     --ntests 20 \
-    > "$HERBROOT/bench/random.rkt"
+    > "$HERBROOT/bench/random.fpcore"
 
   # choose configs based on day of year
   d=$(date "+%j")
@@ -104,7 +104,7 @@ EOF
 
 function runEach {
   for bench in $HERBROOT/bench/*; do
-    name=$(basename "$bench" .rkt)
+    name=$(basename "$bench" .fpcore)
     # add cases to skip large or misbehaving benchmarks
     case $name in
       haskell|random)

@@ -107,9 +107,8 @@ public class OperatorTree {
 
   public String toString() {
     return String.format(
-        "(herbie-test (%s)\n  %s\n  %s)"
+        "(FPCore (%s)\n  %s)"
         , String.join(" ", makeDist())
-        , name
         , expr.toString());
   }
 
