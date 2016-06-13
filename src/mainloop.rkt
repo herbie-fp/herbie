@@ -242,7 +242,7 @@
 (define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:samplers samplers #:precondition precondition)
-  (if (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*))))
+  (if ((flag 'setup 'early-exit) (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*)))) #f)
       (let ([init-alt (make-alt (*start-prog*))])
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
 	(if get-context?
