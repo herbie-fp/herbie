@@ -10,7 +10,8 @@
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
          compile expression-cost program-cost
-         free-variables unused-variables replace-expression valid-program?
+         free-variables unused-variables replace-expression
+         valid-expression? valid-program?
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -98,18 +99,19 @@
   (remove* (free-variables (program-body prog))
            (program-variables prog)))
 
+(define (valid-expression? expr vars)
+  (match expr
+    [(? constant?) #t]
+    [(? variable?) (member expr vars)]
+    [`(,f ,args ...)
+     (and (andmap (curryr valid-expression? vars) args)
+          (hash-has-key? (*operations*) f)
+          (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
+    [_ #f]))
+
 (define (valid-program? prog)
-  (define (valid-expression? expr vars)
-    (match expr
-      [(? constant?) #t]
-      [(? variable?) (member expr vars)]
-      [`(,f ,args ...)
-       (and (andmap (curryr valid-expression? vars) args)
-            (hash-has-key? (*operations*) f)
-            (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
-      [_ #f]))
   (match prog
-    [(list (or 'λ 'lambda) vars body)
+    [(list 'FPCore vars body)
      (valid-expression? body vars)]
     [_
      #f]))

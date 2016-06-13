@@ -1,13 +1,13 @@
 CONSTANTS = ["PI", "E"]
 FUNCTIONS = {
-    "+": [2], "-": [1, 2], "*": [2], "/": [2], "abs": [1],
+    "+": [2], "-": [1, 2], "*": [2], "/": [2], "fabs": [1],
     "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "pow": [2],
     "sin": [1], "cos": [1], "tan": [1], "cot": [1],
     "asin": [1], "acos": [1], "atan": [1],
     "sinh": [1], "cosh": [1], "tanh": [1]
 }
 
-SECRETFUNCTIONS = {"^": "pow", "**": "pow"}
+SECRETFUNCTIONS = {"^": "pow", "**": "pow", "abs": "fabs"}
 
 function tree_errors(tree) /* tree -> list */ {
     var messages = [];
@@ -91,7 +91,7 @@ function dump_tree(tree) /* tree -> string */ {
         if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
     }
 
-    return "(lambda (" + dnames.join(" ") + ") " + body.res + ")";
+    return "(FPCore (" + dnames.join(" ") + ") " + body.res + ")";
 }
 
 function onload() /* null -> null */ {
