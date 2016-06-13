@@ -93,6 +93,13 @@
       error, say if the association of operations is cleverly
       chosen.</dd>
 
+    <dt><code>setup:early-exit</code></dt>
+    <dd>This option, off by default, causes Herbie to exit without
+      modifying the input program if it determines that the input
+      program has less than 0.1 bits of error. You will want to turn
+      this option on if you are running Herbie on a large corpus of
+      programs that you do not believe to be inaccurate.</dd>
+
     <dt><code>generate:rr</code></dt>
     <dd>This option, on by default, uses Herbie's recursive rewriting
       algorithm to generate candidate programs. If turned off, Herbie
