@@ -16,7 +16,7 @@ publish:
 	bash infra/publish.sh index
 
 start-server:
-	racket src/web/demo.rkt >> infra/server.log
+	racket src/web/demo.rkt >> infra/server.log 2>&1
 
 loc:
 	find herbie/ -type f -exec cat {} \; | wc -l

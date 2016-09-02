@@ -40,7 +40,7 @@
 
 (FPCore (x eps)
  :name "NMSE problem 3.3.2"
- :herbie-expected 25
+ :herbie-expected 28
  :target
  (/ (sin eps) (* (cos x) (cos (+ x eps))))
 
