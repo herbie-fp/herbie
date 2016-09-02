@@ -21,7 +21,7 @@
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(embed/url improve)] [method "post"] [id "formula"]
             [data-progress ,(embed/url improve-start)])
-           (input ([name "formula"] [autofocus "true"] [placeholder "(lambda (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+           (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
@@ -32,7 +32,9 @@
         " on your own computer.")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as Scheme expressions with a top-level " (code "lambda") " form, "
+        "Please enter formulas as"
+        (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        "expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "You can write ordinary mathematical expressions (parsed with "
@@ -75,7 +77,7 @@
          [#f
           (make-directory dir)
           (printf "Job ~a started for ~a\n" hash name)
-          (match-define (list (or 'λ 'lambda) vars body) formula)
+          (match-define (list 'FPCore vars body) formula)
 
           (define result
             (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
@@ -140,7 +142,7 @@
       [else
        (response/error "Demo Error"
                        `(p "Invalid formula " (code ,formula-str) ". "
-                           "Formula must be a valid list function using only the supported functions. "
+                           "Formula must be a valid program using only the supported functions. "
                            "Please " (a ([href ,go-back]) "go back") " and try again."))])]
     [_
      (response/error "Demo Error"
