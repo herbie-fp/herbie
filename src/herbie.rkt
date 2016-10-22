@@ -67,8 +67,8 @@
          (eprintf "[ ~ams]\t~a\t(~a→~a)\n"
                   (~a time #:width 8)
                   (test-name test)
-                  (~r (errors-score start-error) #:min-width 2 #:precision 0)
-                  (~r (errors-score end-error) #:min-width 2 #:precision 0))
+                  (~r (errors-score start-error) #:min-width 2 #:precision 1)
+                  (~r (errors-score end-error) #:min-width 2 #:precision 1))
          (printf "~a\n" (unparse-test (alt-program end-alt)))]
         [(test-failure test bits exn time timeline)
          (eprintf "[   CRASH   ]\t~a\n" (test-name test))
