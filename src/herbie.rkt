@@ -29,7 +29,7 @@
        values
        (sequence-map
         (λ (e) 
-          (with-handlers ([exn:fail:user:herbie? (λ (e) (eprintf "~a\n" (herbie-error->string e)) #f)])
+          (with-handlers ([exn:fail:user? (λ (e) ((error-display-handler) e) #f)])
             (parse-test e)))
         (in-port read (current-input-port))))
       (all-herbie-tests files)))
@@ -91,10 +91,15 @@
    [("--num-points") points "The number of points to use"
     (*num-points* (string->number points))]
    #:multi
-   [("-o" "--option") tf "Toggle flags, specified in the form category:flag"
-    (let ([split-strings (string-split tf ":")])
-      (when (not (= 2 (length split-strings)))
-        (error "Badly formatted input " tf))
-      (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
+   [("-o" "--disable") tf "Disable flag formatted category:name"
+    (define flag (parse-flag tf))
+    (when (not flag)
+      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+    (apply disable-flag! flag)]
+   [("+o" "--enable") tf "Enable flag formatted category:name"
+    (define flag (parse-flag tf))
+    (when (not flag)
+      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+    (apply enable-flag! flag)]
    #:args files
    (run-herbie files))) ; TODO : Handle error

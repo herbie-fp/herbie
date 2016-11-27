@@ -2,8 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "config.rkt")
-(require "debug.rkt")
+(require "config.rkt" "errors.rkt" "debug.rkt")
 
 (module+ test
   (require rackunit))
@@ -17,7 +16,8 @@
          binary-search-floats binary-search-ints binary-search
          random-exp assert setfindf first-value log2 for/append
          (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         get-seed set-seed! index-of)
+         get-seed set-seed! index-of
+         parse-flag)
 
 (define *start-prog* (make-parameter '()))
 
@@ -230,3 +230,12 @@
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
+
+(define (parse-flag s)
+  (match (string-split s ":")
+    [(list (app string->symbol category) (app string->symbol flag))
+     (and
+      (dict-has-key? all-flags category)
+      (set-member? (dict-ref all-flags category) flag)
+      (list category flag))]
+    [_ #f]))

@@ -1,6 +1,5 @@
 #lang racket
 (require racket/runtime-path)
-
 (provide (all-defined-out))
 
 (define-runtime-path report-output-path "../graphs/")
@@ -10,25 +9,29 @@
 
 ;; Flag Stuff
 
-(define *flags*
-  (make-parameter
-   #hash([precision . (double)]
-         [setup    . (simplify)]
-         [generate . (rr taylor simplify)]
-         [reduce   . (regimes taylor simplify avg-error)]
-         [rules . (arithmetic polynomials fractions exponents trigonometry)])))
+(define all-flags
+  #hash([precision . (double)]
+        [setup . (simplify early-exit)]
+        [generate . (rr taylor simplify)]
+        [reduce . (regimes taylor simplify avg-error post-process)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry numerics)]))
 
-(define (toggle-flag! category flag)
-  (*flags*
-   (hash-update (*flags*) category
-		(λ (flag-list)
-		  (if (member flag flag-list)
-		      (remove flag flag-list)
-		      (cons flag flag-list))))))
+(define (enable-flag! category flag)
+  (define (update cat-flags) (set-add cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (disable-flag! category flag)
+  (define (update cat-flags) (set-remove cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define *flags* (make-parameter all-flags))
+
+(disable-flag! 'setup 'early-exit)
+(disable-flag! 'reduce 'post-process)
+(disable-flag! 'rules 'numerics)
 
 (define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type
-                          (λ () (error "Invalid flag type" type))))
+  (if (member f (hash-ref (*flags*) type (λ () (error "Invalid flag type" type))))
       a
       b))
 

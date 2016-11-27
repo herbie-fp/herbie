@@ -48,13 +48,13 @@ function main {
   if [ $(expr $d % 2) -eq 0 ]; then
     regime=""
   else
-    regime="--option reduce:regimes"
+    regime="--disable reduce:regimes"
   fi
 
   # toggle some configs every day
-  for prec in "" "--option precision:double"; do
-    for postproc in "" "--option reduce:post-process"; do
-      for num in "" "--option rules:numerics"; do
+  for prec in "" "--disable precision:double"; do
+    for postproc in "" "--enable reduce:post-process"; do
+      for num in "" "--enable rules:numerics"; do
         runEach --seed "$seed" $fuel $regime $prec $postproc $num
       done
     done

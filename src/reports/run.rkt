@@ -14,6 +14,7 @@
 (require "../sandbox.rkt")
 (require "thread-pool.rkt")
 (require "../formats/datafile.rkt")
+(require "../errors.rkt")
 (provide (all-defined-out))
 
 (define *threads* #f)
@@ -76,10 +77,15 @@
  [("--note") note "Add a note for this run"
   (set! *note* note)]
  #:multi
- [("-o" "--option") tf "Toggle flags, specified in the form category:flag"
-  (let ([split-strings (string-split tf ":")])
-    (when (not (= 2 (length split-strings)))
-      (error "Badly formatted input " tf))
-    (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
+ [("-o" "--disable") tf "Disable flag formatted category:name"
+  (define flag (parse-flag tf))
+  (when (not flag)
+    (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+  (apply disable-flag! flag)]
+ [("+o" "--enable") tf "Enable flag formatted category:name"
+  (define flag (parse-flag tf))
+  (when (not flag)
+    (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+  (apply enable-flag! flag)]
  #:args bench-dir
  (apply make-report bench-dir))
