@@ -1,6 +1,7 @@
 #lang racket
 
 (require "../common.rkt")
+(require "../errors.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
 (require "../syntax/distributions.rkt")
@@ -41,7 +42,8 @@
      (define body* (desugar-program body))
 
      (when (not (valid-expression? body* args))
-       (raise-user-error 'parse-input "Invalid program body ~a.\nSee <http://herbie.uwplse.org/doc/~a/faq.html#invalid-program> for more." expr *herbie-version*))
+       (raise-herbie-error "Invalid program body ~a." expr
+                           #:url "faq.html#invalid-program"))
 
      (test (~a (dict-ref prop-dict ':name body))
            args samps
@@ -50,9 +52,10 @@
            (dict-ref prop-dict ':herbie-expected #t)
            (dict-ref prop-dict ':pre 'TRUE))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
-     (raise-user-error 'parse-input "Herbie 1.0+ no longer supports input formats other than FPCore.\nSee <http://herbie.uwplse.org/~a/input.html> for more." *herbie-version*)]
+     (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
+                         #:url "input.html")]
     [_
-     (raise-user-error 'parse-input "Invalid input expression.\nSee <http://herbie.uwplse.org/~a/input.html> for more." *herbie-version*)]))
+     (raise-herbie-error "Invalid input expression." #:url "input.html")]))
 
 (define (unparse-test expr)
   (match-define (list (or 'λ 'lambda) (list vars ...) body) expr)

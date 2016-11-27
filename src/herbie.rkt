@@ -2,27 +2,14 @@
 
 ;;; This file is the main command-line entry point to Herbie.
 ;;;
-;;; USAGE:
-;;; - `herbie`
-;;;   run Herbie, with input from and output to the console
-;;; - `herbie [file ...]`
-;;;   run Herbie with input from the files and output to the console
-;;; - `herbie -o results.json [file ...]`
-;;;   as above, but with output to a single JSON file
-;;; - `herbie -o graphs/ [file ...]`
-;;;   as above, but with output to a folder of reports. The `/` is required
-;;;
-;;; File inputs must end in `.rkt` or `/` to be valid inputs.
+;;; File inputs must end in `.fpcore` or `/` to be valid inputs.
 ;;;
 ;;; In the future, this might evolve to have subcommands as well,
-;;; which you can distinguish due to the lack of a trailing `.rkt` or
+;;; which you can distinguish due to the lack of a trailing `.fpcore` or
 ;;; `/`.
 
-(require "common.rkt")
-(require "points.rkt")
-(require "alternative.rkt")
-(require "formats/test.rkt")
-(require "sandbox.rkt")
+(require "common.rkt" "errors.rkt" "points.rkt" "alternative.rkt"
+         "formats/test.rkt" "sandbox.rkt")
 
 #;(define threads (make-parameter #f))
 
@@ -38,7 +25,13 @@
 
 (define (in-herbie-files files)
   (if (null? files)
-      (sequence-map parse-test (in-port read (current-input-port)))
+      (sequence-filter
+       values
+       (sequence-map
+        (λ (e) 
+          (with-handlers ([exn:fail:user:herbie? (λ (e) (eprintf "~a\n" (herbie-error->string e)) #f)])
+            (parse-test e)))
+        (in-port read (current-input-port))))
       (all-herbie-tests files)))
 
 (define (all-herbie-tests files)
