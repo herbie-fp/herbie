@@ -58,12 +58,27 @@ function setup_timeline() {
     }
 }
 
+function setup_program_arrow() {
+    var progelt = document.getElementById("program");
+    var progs = progelt.getElementsByClassName("program");
+    var arrs = progelt.getElementsByClassName("arrow");
+
+    progelt.classList.add("horizontal");
+    var progBot = progs[0].offsetTop + progs[0].offsetHeight;
+    for (var i in progs) {
+        if (progs[i].offsetTop >= progBot) {
+            return progelt.classList.remove("horizontal");
+        }
+    }
+}
+
 function load_graph() {
     var figs = document.querySelectorAll("#graphs figure");
     for (var i = 0; i < figs.length; i++) {
         setup_figure(figs[i]);
     }
     setup_timeline();
+    setup_program_arrow();
 }
 
 function report() {load_report();}

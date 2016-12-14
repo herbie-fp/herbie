@@ -1,8 +1,12 @@
 body { width: 800px; margin: 1em auto; font-family: sans; }
 section { margin: 5em 0; }
 
-#program { background: #ddd; padding: 1em; }
-#program .arrow { text-align: center; }
+#program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
+#program .program { display: inline-block; }
+#program .arrow { color: transparent; font-size: 0; }
+#program .arrow:after { content: "⬇"; color: black; font-size: 24px; }
+#program.horizontal .arrow { display: inline-block; }
+#program.horizontal .arrow:after { margin: 0 1em; content: "⮕" }
 
 #graphs { }
 #graphs figure { margin: 1em auto; position: relative; padding-top: 200px; width: 400px; }
