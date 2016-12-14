@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../points.rkt")
+(require "../common.rkt" "common.rkt")
+(require "../points.rkt" "../float.rkt")
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
 (require "../formats/datafile.rkt")
@@ -14,20 +14,6 @@
 
 (provide make-graph make-traceback make-timeout)
 
-;; TODO: Move to a common file
-(define (format-time ms)
-  (cond
-   [(< ms 1000) (format "~a ms" (round ms))]
-   [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
-   [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
-   [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
-
-(define (display-bits r #:sign [sign #f])
-  (cond
-   [(not r) ""]
-   [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
-   [else (format "~a" (/ (round (* r 10)) 10))]))
-
 (define (make-axis pts #:axis idx #:out path)
   (call-with-output-file path #:exists 'replace
     (λ (out) (herbie-plot #:port out #:kind 'png (error-axes pts #:axis idx)))))
@@ -38,17 +24,6 @@
       (herbie-plot #:port out #:kind 'png
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
-
-(define (print-test t)
-  (printf "(lambda ~a\n  #:name ~s\n  ~a~a)\n\n"
-          (for/list ([v (test-vars t)]
-                     [s (test-sampling-expr t)])
-                    (list v s))
-          (test-name t)
-          (test-input t)
-          (if (test-output t)
-              (format "\n  #:target\n  ~a" (test-output t))
-              "")))
 
 (define (make-graph result rdir profile?)
   (match result
@@ -66,17 +41,29 @@
      (printf "</head>\n")
      (printf "<body onload='graph()'>\n")
 
-     (printf "<section id='about'>\n")
 
-     (printf "<div>\\[~a\\]</div>\n"
+     ; Big bold numbers
+     (printf "<section id='large'>\n")
+     (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
+     (printf "<div>Input Error: <span class='number'>~a</span></div>\n"
+             (format-bits (errors-score start-error)))
+     (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
+             (format-bits (errors-score end-error)))
+     (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*)))
+     (printf "<div>Ground Truth: <span class='number'>~a</span></div>\n" (format-bits bits))
+     (printf "</section>\n")
+
+
+     (printf "<section id='program'>\n")
+     (printf "<div class='program'>\\[~a\\]</div>\n"
              (texify-prog (alt-program start-alt)))
+     (printf "<div class='arrow'>⬇</div>")
+     (printf "<div class='program'>\\[~a\\]</div>\n"
+             (texify-prog (alt-program end-alt)))
+     (printf "</section>\n")
 
-     (printf "<dl id='kv'>\n")
-     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-     (printf "</dl>\n")
 
-     (printf "<div id='graphs'>\n")
+     (printf "<section id='graphs'>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
          (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
@@ -95,45 +82,33 @@
          (printf "<img width='400' height='200' src='plot-~ab.png' data-name='Result'/>" idx)
          (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
-     (printf "</div>\n")
-
      (printf "</section>\n")
 
-     (printf "<section id='details'>\n")
 
-     ; Big bold numbers
-     (printf "<div id='large'>\n")
-     (printf "<div>Time: <span class='number'>~a</span></div>\n"
-             (format-time time))
-     (printf "<div>Input Error: <span class='number'>~a</span></div>\n"
-             (display-bits (errors-score start-error)))
-     (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
-             (display-bits (errors-score end-error)))
-     ; TODO : Make icons
-     (printf "<div>Log: <a href='debug.txt' class='icon'><span style='display: block; transform: rotate(-45deg);'>&#x26b2;</span></a></div>")
-     (when profile?
-       (printf "<div>Profile: <a href='profile.txt' class='icon'>&#x1F552;</a></div>"))
-     (printf "</div>\n")
-
-     (printf "<div id='output'>\\(~a\\)</div>\n"
-             (texify-prog (alt-program end-alt)))
-
-     (output-timeline timeline)
-
-     (printf "<ol id='process-info'>\n")
+     (printf "<ol class='history'>\n")
      (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
                     [*start-prog* (alt-program start-alt)])
        (output-history end-alt))
      (printf "</ol>\n")
 
-     (printf "</section>\n")
 
-     (printf "<div style='clear:both;'>\n")
-     (printf "<p>Original test:</p>\n")
-     (printf "<pre><code>\n")
-     (print-test test)
+     (printf "<section id='process-info'>\n")
+     (printf "<div id='runtime'>\n")
+     (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
+     (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
+     (when profile?
+       (printf "<a class='attachment' href='profile.txt'>Profile</a></div>"))
+     (output-timeline timeline)
+     (printf "<div id='reproduce'>\n")
+     (printf "<pre><code>")
+     (printf "herbie --seed '~a'\n" (get-seed))
+     (printf "(FPCore ~a\n  :name ~s\n  ~a~a)"
+          (test-vars test) (test-name test)
+          (if (test-output test) (format "\n  :target\n  ~a" (test-output test)) "") (test-input test))
      (printf "</code></pre>\n")
      (printf "</div>\n")
+     (printf "</section>\n")
+
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -206,7 +181,7 @@
 (struct interval (alt-idx start-point end-point expr))
 
 (define (output-history altn)
-  (define err (display-bits (errors-score (alt-errors altn))))
+  (define err (format-bits (errors-score (alt-errors altn))))
   (match altn
     [(alt-event prog 'start _)
      (printf "<li>Started with <div>\\[~a\\]</div> <div class='error'>~a</div></li>\n"
