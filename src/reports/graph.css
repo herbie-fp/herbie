@@ -1,4 +1,6 @@
 body { width: 800px; margin: 1em auto; font-family: sans; }
+a {color: #2A6496; text-decoration: none}
+a:hover {text-decoration: underline; color: #295785}
 
 section { margin: 5em 0; position: relative; }
 section h1 {
@@ -39,7 +41,7 @@ a.icon:hover { opacity: 1.0; }
 .history li { position: relative; overflow-x: auto; }
 .history li p { width: 150px; display: inline-block; margin: 0 25px 0 0; }
 .history li .error { display: block; color: #666; }
-.history li > div { display: inline-block; margin: 0; width: 600px; vertical-align: top; }
+.history li > div { display: inline-block; margin: 0; width: 600px; vertical-align: middle; }
 .history li > div > div { margin: 0; display: inline-block; text-align: right !important; }
 
 .history h2 { margin-top: 3em; }
@@ -48,7 +50,14 @@ a.icon:hover { opacity: 1.0; }
 .history .rule { text-decoration: underline; }
 .history .event { display: block; margin: .5em 0; }
 
-.timeline { height: 2em; }
+#process-info { background: #ddd; }
+#process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
+#process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
+#process-info pre { padding: 1em; margin: 0; font-family: monospace; }
+
+pre.shell code:before { content: "$ "; font-weight: bold; }
+
+.timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; }
 .timeline-phase { height: 2em; display: inline-block; }
 .timeline-phase.start    { background: #d3d7cf; }
 .timeline-phase.setup    { background: #edd400; }
@@ -58,7 +67,4 @@ a.icon:hover { opacity: 1.0; }
 .timeline-phase.simplify { background: #8ae234; }
 .timeline-phase.prune    { background: #ad7fa8; }
 .timeline-phase.regimes  { background: #a40000; }
-#runtime .attachment { float: right; margin: 0 0 0 1em; }
-#reproduce pre code:before { content: "$ "; font-weight: bold; }
-a {color: #2A6496; text-decoration: none}
-a:hover {text-decoration: underline; color: #295785}
+

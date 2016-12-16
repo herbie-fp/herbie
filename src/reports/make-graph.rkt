@@ -76,11 +76,11 @@
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
          (printf "<figure>")
-         (printf "<img width='800' height='300' src='plot-~a.png'/>" idx)
-         (printf "<img width='800' height='300' src='plot-~ar.png' data-name='Input'/>" idx)
+         (printf "<img width='800' height='300' src='plot-~a.png' title='The X axis may use a short exponential scale'/>" idx)
+         (printf "<img width='800' height='300' src='plot-~ar.png' title='The X axis may use a short exponential scale' data-name='Input'/>" idx)
          (when target-error
-           (printf "<img width='800' height='300' src='plot-~ag.png' data-name='Target'/>" idx))
-         (printf "<img width='800' height='300' src='plot-~ab.png' data-name='Result'/>" idx)
+           (printf "<img width='800' height='300' src='plot-~ag.png' title='The X axis may use a short exponential scale' data-name='Target'/>" idx))
+         (printf "<img width='800' height='300' src='plot-~ab.png' title='The X axis may use a short exponential scale' data-name='Result'/>" idx)
          (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
      (printf "</section>\n")
@@ -98,20 +98,19 @@
 
      (printf "<section id='process-info'>\n")
      (printf "<h1>Runtime</h1>\n")
-     (printf "<div id='runtime'>\n")
+     (printf "<p class='header'>")
      (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
      (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
      (when profile?
-       (printf "<a class='attachment' href='profile.txt'>Profile</a></div>"))
+       (printf "<a class='attachment' href='profile.txt'>Profile</a>"))
+     (printf "</p>")
      (output-timeline timeline)
-     (printf "<div id='reproduce'>\n")
-     (printf "<pre><code>")
+     (printf "<pre class='shell'><code>")
      (printf "herbie --seed '~a'\n" (get-seed))
      (printf "(FPCore ~a\n  :name ~s\n  ~a~a)"
           (test-vars test) (test-name test)
           (if (test-output test) (format "\n  :target\n  ~a" (test-output test)) "") (test-input test))
      (printf "</code></pre>\n")
-     (printf "</div>\n")
      (printf "</section>\n")
 
 

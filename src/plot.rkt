@@ -25,12 +25,42 @@
 (define double-axis
   (make-axis-transform double-transform))
 
+(define (power10-upto x)
+  (if (= x 0)
+      '()
+      (reverse
+       (let loop ([power (round (/ (log x) (log 10)))])
+         (define value (expt 10 power))
+         (if (= value 0) '() (cons value (loop (- power 1))))))))
+
 (define double-ticks
   (ticks
-   (ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform))
+   (λ (min max)
+     ;; There are three cases:
+     ;; 1) 0 is between min and max
+     ;; 2) 0 is one of min and max
+     ;; 3) min and max are on the same side of 0
+     (define possible-ticks
+       (cond
+        [(< (* min max) 0) (append (map - (power10-upto (- min))) '(0) (power10-upto max))]
+        [(= min 0) (cons 0 (power10-upto max))]
+        [(= max 0) (append (map - (power10-upto (abs min))) '(0))]
+        [(> min 0) (set-subtract (power10-upto max) (power10-upto min))]
+        [(< max 0) (map - (set-subtract (power10-upto (abs min)) (power10-upto (abs max))))]))
+     (define N (length possible-ticks))
+     (cond
+      [(< N 20)
+       ;; If there aren't enough possible big ticks, we fall back to the standard method
+       ((ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform)))]
+      [else
+       (for/list ([n (range 0 20) ] [i (cdr (range 0 (- N 1) (/ N 20)))])
+         (pre-tick (list-ref possible-ticks (inexact->exact (floor i))) (even? n)))]))
    (λ (lft rgt pticks)
      (for/list ([ptick pticks])
-       (~r (pre-tick-value ptick) #:notation 'exponential #:precision 0)))))
+       (define val (pre-tick-value ptick))
+       (if (or (= val 0) (< 0.01 (abs val) 100))
+           (~a val)
+           (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e"))))))
 
 (define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
   (define x
@@ -54,7 +84,8 @@
                  [plot-x-ticks double-ticks]
                  [plot-x-tick-label-anchor 'top]
                  [plot-x-label #f]
-                 [plot-x-far-axis? #f]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
                  [plot-y-far-axis? #t]
                  [plot-y-axis? #t]
                  [plot-font-size 10]
