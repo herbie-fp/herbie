@@ -44,11 +44,11 @@
 
      ; Big bold numbers
      (printf "<section id='large'>\n")
-     (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
      (printf "<div>Input Error: <span class='number'>~a</span></div>\n"
              (format-bits (errors-score start-error)))
      (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
              (format-bits (errors-score end-error)))
+     (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
      (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*)))
      (printf "<div>Ground Truth: <span class='number'>~a</span></div>\n" (format-bits bits))
      (printf "</section>\n")
@@ -64,6 +64,7 @@
 
 
      (printf "<section id='graphs'>\n")
+     (printf "<h1>Error</h1>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
          (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
@@ -75,24 +76,28 @@
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
          (printf "<figure>")
-         (printf "<img width='400' height='200' src='plot-~a.png'/>" idx)
-         (printf "<img width='400' height='200' src='plot-~ar.png' data-name='Input'/>" idx)
+         (printf "<img width='800' height='300' src='plot-~a.png'/>" idx)
+         (printf "<img width='800' height='300' src='plot-~ar.png' data-name='Input'/>" idx)
          (when target-error
-           (printf "<img width='400' height='200' src='plot-~ag.png' data-name='Target'/>" idx))
-         (printf "<img width='400' height='200' src='plot-~ab.png' data-name='Result'/>" idx)
+           (printf "<img width='800' height='300' src='plot-~ag.png' data-name='Target'/>" idx))
+         (printf "<img width='800' height='300' src='plot-~ab.png' data-name='Result'/>" idx)
          (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
      (printf "</section>\n")
 
 
+     (printf "<section id='history'>\n")
+     (printf "<h1>Derivation</h1>\n")
      (printf "<ol class='history'>\n")
      (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
                     [*start-prog* (alt-program start-alt)])
        (output-history end-alt))
      (printf "</ol>\n")
+     (printf "</section>\n")
 
 
      (printf "<section id='process-info'>\n")
+     (printf "<h1>Runtime</h1>\n")
      (printf "<div id='runtime'>\n")
      (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
      (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
@@ -184,13 +189,13 @@
   (define err (format-bits (errors-score (alt-errors altn))))
   (match altn
     [(alt-event prog 'start _)
-     (printf "<li>Started with <div>\\[~a\\]</div> <div class='error'>~a</div></li>\n"
-             (texify-prog prog) err)]
+     (printf "<li><p>Initial program <span class='error'>~a</span></p><div>\\[~a\\]</div></li>\n"
+             err (texify-prog prog))]
 
     [(alt-event prog `(start ,strategy) `(,prev))
      (output-history prev)
-     (printf "<li class='event'>Using strategy <code>~a</code> <div class='error'>~a</div></li>\n"
-             strategy err)]
+     (printf "<li class='event'>Using strategy <code>~a</code></li>\n"
+             strategy)]
 
     [(alt-event _ `(regimes ,splitpoints) prevs)
      (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]
@@ -235,35 +240,30 @@
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
-     (printf "<li>Taylor expanded around ~a to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>"
-             pt
-             (texify-prog (alt-program prev) #:loc loc #:color "red")
-             (texify-prog prog               #:loc loc #:color "blue")
-             err)]
+     (printf "<li><p>Taylor expanded around ~a <span class='error'>~a</span></p> <div>\\[\\leadsto ~a\\]</div></li>"
+             pt err (texify-prog prog #:loc loc #:color "blue"))]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
      (output-history base)
      (for ([sub subs])
-       (printf "<hr/><li class='event'>Optimizing periodic subexpression</li>\n")
+       (printf "<li class='event'>Optimizing periodic subexpression</li>\n")
        (output-history sub))
-     (printf "<hr/><li class='event'>Combined periodic subexpressions</li>\n")]
+     (printf "<li class='event'>Combined periodic subexpressions</li>\n")]
 
     [(alt-event prog 'removed-pows `(,alt))
      (output-history alt)
-     (printf "<hr/><li class='event'>Removed slow pow expressions</li>\n")]
+     (printf "<li class='event'>Removed slow pow expressions</li>\n")]
 
     [(alt-event prog 'final-simplify `(,alt))
      (output-history alt)
-     (printf "<hr/><li class='event'>Applied final simplification</li>\n")]
+     (printf "<li class='event'>Applied final simplification</li>\n")]
 
     [(alt-delta prog cng prev)
      (output-history prev)
-     (printf "<li>Applied <span class='rule'>~a</span> "
-             (rule-name (change-rule cng)))
-     (printf "to get <div>\\[~a \\leadsto ~a\\]</div> <div class='error'>~a</div></li>\n"
-             (texify-prog (alt-program prev) #:loc (change-location cng) #:color "red")
-             (texify-prog prog               #:loc (change-location cng) #:color "blue")
-             err)]))
+     (printf "<li><p>Applied <span class='rule'>~a</span> <span class='error'>~a</span></p>"
+             (rule-name (change-rule cng)) err)
+     (printf "<div>\\[\\leadsto ~a\\]</div></li>\n"
+             (texify-prog prog #:loc (change-location cng) #:color "blue"))]))
 
 (define (output-timeline timeline)
   (printf "<div class='timeline'>")

@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum)
-(require plot/no-gui plot/pict)
+(require plot/no-gui)
 (require "common.rkt")
 (require "float.rkt")
 (require "points.rkt")
@@ -27,7 +27,7 @@
 
 (define double-ticks
   (ticks
-   (ticks-layout (ticks-scale (linear-ticks #:number 10) double-transform))
+   (ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform))
    (λ (lft rgt pticks)
      (for/list ([ptick pticks])
        (~r (pre-tick-value ptick) #:notation 'exponential #:precision 0)))))
@@ -43,20 +43,21 @@
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (error-axes pts #:axis [axis 0])
-  (error-points (map (const 1) pts) pts #:axis axis #:alpha 0))
+  (list
+   (y-tick-lines)
+   (error-points (map (const 1) pts) pts #:axis axis #:alpha 0)))
 
 (define (with-herbie-plot #:title [title #f] thunk)
-  (parameterize ([plot-width 400] [plot-height 200]
+  (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
                  [plot-x-transform double-axis]
                  [plot-x-ticks double-ticks]
                  [plot-x-tick-label-anchor 'top]
-                 [plot-x-tick-label-angle 45]
                  [plot-x-label #f]
                  [plot-x-far-axis? #f]
-                 [plot-y-far-axis? #f]
-                 [plot-y-axis? #f]
-                 [plot-font-size 8]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-font-size 10]
                  [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
                  [plot-y-label title])
     (thunk)))
@@ -65,7 +66,7 @@
   (define thunk
     (if port
         (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max (*bit-width*)))
-        (lambda () (plot (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
+        (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
   (with-herbie-plot #:title title thunk))
 
 (define (errors-by x errs pts)
