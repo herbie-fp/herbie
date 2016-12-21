@@ -64,9 +64,8 @@
 
      ; Big bold numbers
      (printf "<section id='large'>\n")
-     (printf "<div>Input Error: <span class='number'>~a</span></div>\n"
-             (format-bits (errors-score start-error) #:unit #f))
-     (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
+     (printf "<div>Error: <span class='number'>~a → ~a</span></div>\n"
+             (format-bits (errors-score start-error) #:unit #f)
              (format-bits (errors-score end-error) #:unit #f))
      (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
      (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*) #:unit #f))

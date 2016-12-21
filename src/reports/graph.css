@@ -40,7 +40,6 @@ a.icon:hover { opacity: 1.0; }
 
 .history, .history ol { list-style: none inside; width: 800px; margin: 0; padding: 0; }
 
-.history li { position: relative; overflow-x: auto; }
 .history li p { width: 150px; display: inline-block; margin: 0 25px 0 0; }
 .history li .error { display: block; color: #666; }
 .history li > div { display: inline-block; margin: 0; width: 600px; vertical-align: middle; }
