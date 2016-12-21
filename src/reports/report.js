@@ -47,6 +47,53 @@ function setup_figure(figure) {
     }
 }
 
+function select_tab(id) {
+    var tab = document.getElementById("tab-" + id);
+    var pane = document.getElementById(id);
+
+    var old_tab = tab.parentNode.getElementsByClassName("selected");
+    if (old_tab.length > 0) {
+        var old_pane = document.getElementById(old_tab[0].id.substr(4));
+        old_pane.style.display = "none";
+        old_tab[0].classList.remove("selected")
+    }
+
+    tab.classList.add("selected");
+    pane.style.display = "block";
+}
+
+function setup_figure_tabs(figure_container) {
+    var figures = figure_container.getElementsByTagName("figure");
+    var figure_array = {};
+    var default_figure = null;
+    for (var i = 0; i < figures.length; i++) {
+        var idx = figures[i].id;
+        var variable = figures[i].getElementsByTagName("var")[0].innerText;
+        if (figures[i].classList.contains("default")) default_figure = idx;
+        figure_array[idx] = { elt: figures[i], name: variable };
+        figures[i].style.display = "none";
+    }
+    if (default_figure === null) default_figure = figures[0].id;
+
+    var tab_bar = document.createElement("ul");
+    tab_bar.classList.add("tabbar");
+    var p = document.createElement("p");
+    p.innerText = "Variable:"
+    tab_bar.appendChild(p)
+    figure_container.insertBefore(tab_bar, figures[0]);
+    for (var idx in figure_array) {
+        var tab_button = document.createElement("li");
+        tab_button.id = "tab-" + idx;
+        tab_button.innerText = figure_array[idx].name;
+        tab_button.addEventListener("click", function() {
+            select_tab(this.id.substr(4));
+        });
+        tab_bar.appendChild(tab_button);
+    }
+
+    select_tab(default_figure);
+}
+
 function setup_timeline() {
     var ts = document.getElementsByClassName("timeline-phase");
     var total_time = 0;
@@ -78,6 +125,7 @@ function load_graph() {
     for (var i = 0; i < figs.length; i++) {
         setup_figure(figs[i]);
     }
+    setup_figure_tabs(document.querySelector("#graphs div"));
     setup_timeline();
     // Run the program_arrow after rendering happens
     MathJax.Hub.Queue(setup_program_arrow);

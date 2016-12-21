@@ -84,6 +84,7 @@
 
      (printf "<section id='graphs'>\n")
      (printf "<h1>Error</h1>\n")
+     (printf "<div>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
          (define title "The X axis may use a short exponential scale")
@@ -95,7 +96,7 @@
                       #:out (build-path rdir (format "plot-~ag.png" idx))))
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
-         (printf "<figure>")
+         (printf "<figure id='fig-~a'>" idx)
          (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
          (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)
          (when target-error
@@ -103,6 +104,7 @@
          (printf "<img width='800' height='300' src='plot-~ab.png' title='~a' data-name='Result'/>" idx title)
          (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
+     (printf "</div>\n")
      (printf "</section>\n")
 
 

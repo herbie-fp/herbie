@@ -74,3 +74,9 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 #backtrace th { text-align: right; }
 #backtrace td:nth-child(3), #backtrace td:nth-child(4) { text-align: right; }
 #backtrace td.procedure { font-family: monospace; }
+
+.tabbar { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
+.tabbar p { display: inline-block; margin: 0 1em 0 0}
+.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
+.tabbar li:hover { background: #e4e4e4; }
+.tabbar li.selected { background: #d3d3d3; }
