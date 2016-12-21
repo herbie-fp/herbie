@@ -156,4 +156,4 @@
             #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
-  (inverse (const x-val) #:color "gray"))
+  (inverse (const x-val) #:color "gray" #:width 3))

@@ -125,7 +125,7 @@
          (when target-error
            (printf "<img width='800' height='300' src='plot-~ag.png' title='~a' data-name='Target'/>" idx title))
          (printf "<img width='800' height='300' src='plot-~ab.png' title='~a' data-name='Result'/>" idx title)
-         (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
+         (printf "<figcaption><p>Bits error versus <var>~a</var></p></figcaption>" var)
          (printf "</figure>\n")))
      (printf "</div>\n")
      (printf "</section>\n")

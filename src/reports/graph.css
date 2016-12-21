@@ -19,7 +19,7 @@ section h1 {
 #graphs figcaption { text-align: left; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 #graphs figcaption button {
-    float: right; margin: 0 .25em;
+    float: right; margin: 0 .25em; cursor: pointer;
     border: 3px solid black; background: gray; color: transparent;
     height: 1.5em; width: 1.5em; border-radius: .75em;
     overflow: hidden;
@@ -29,6 +29,11 @@ section h1 {
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
 
+.tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
+.tabbar p { display: inline-block; margin: 0 .5em 0 0}
+.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
+.tabbar li:hover { background: #e4e4e4; }
+.tabbar li.selected { background: #d3d3d3; }
 h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
 
 #large { margin: 2em 0; text-align: center; }
@@ -75,8 +80,3 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 #backtrace td:nth-child(3), #backtrace td:nth-child(4) { text-align: right; }
 #backtrace td.procedure { font-family: monospace; }
 
-.tabbar { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
-.tabbar p { display: inline-block; margin: 0 1em 0 0}
-.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
-.tabbar li:hover { background: #e4e4e4; }
-.tabbar li.selected { background: #d3d3d3; }

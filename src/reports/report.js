@@ -33,6 +33,7 @@ function toggle_figure(figure, name) {
 
 function setup_figure(figure) {
     var names = figure_names(figure);
+    var caption_text = figure.querySelector("figcaption p");
     for (var name in names) {
         var control = document.createElement("button");
         control.className = name;
@@ -43,7 +44,7 @@ function setup_figure(figure) {
                 toggle_figure(figure, name);
             });
         })(name);
-        figure.querySelector("figcaption").appendChild(control);
+        figure.querySelector("figcaption").insertBefore(control, caption_text);
     }
 }
 
@@ -72,15 +73,16 @@ function setup_figure_tabs(figure_container) {
         if (figures[i].classList.contains("default")) default_figure = idx;
         figure_array[idx] = { elt: figures[i], name: variable };
         figures[i].style.display = "none";
+        figures[i].querySelector("figcaption > p").style.display = "none";
     }
     if (default_figure === null) default_figure = figures[0].id;
 
     var tab_bar = document.createElement("ul");
     tab_bar.classList.add("tabbar");
     var p = document.createElement("p");
-    p.innerText = "Variable:"
+    p.innerText = "Bits error vs value of"
     tab_bar.appendChild(p)
-    figure_container.insertBefore(tab_bar, figures[0]);
+    figure_container.appendChild(tab_bar);
     for (var idx in figure_array) {
         var tab_button = document.createElement("li");
         tab_button.id = "tab-" + idx;
