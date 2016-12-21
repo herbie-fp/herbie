@@ -78,7 +78,8 @@ function load_graph() {
         setup_figure(figs[i]);
     }
     setup_timeline();
-    setup_program_arrow();
+    // Run the program_arrow after rendering happens
+    MathJax.Hub.Queue(setup_program_arrow);
 }
 
 function report() {load_report();}

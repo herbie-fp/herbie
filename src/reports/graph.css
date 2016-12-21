@@ -29,6 +29,8 @@ section h1 {
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
 
+h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
+
 #large { margin: 2em 0; text-align: center; }
 #large div { margin: 0 1em; display: inline-block; vertical-align: top; }
 #large .number { font-size: 3em; display: block; }
@@ -54,7 +56,7 @@ a.icon:hover { opacity: 1.0; }
 #process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
 #process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
 #process-info pre { padding: 1em; margin: 0; font-family: monospace; }
-
+#process-info p { margin: 1em .75em 0; }
 pre.shell code:before { content: "$ "; font-weight: bold; }
 
 .timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; }
@@ -68,3 +70,8 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 .timeline-phase.prune    { background: #ad7fa8; }
 .timeline-phase.regimes  { background: #a40000; }
 
+#backtrace table { width: 100%; }
+#backtrace th[colspan] { text-align: left; }
+#backtrace th { text-align: right; }
+#backtrace td:nth-child(3), #backtrace td:nth-child(4) { text-align: right; }
+#backtrace td.procedure { font-family: monospace; }

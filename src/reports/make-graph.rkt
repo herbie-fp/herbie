@@ -25,6 +25,26 @@
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
 
+(define (render-process-info time timeline profile? test #:bug? [bug? #t])
+  (printf "<section id='process-info'>\n")
+  (printf "<h1>Runtime</h1>\n")
+  (printf "<p class='header'>")
+  (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
+  (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
+  (when profile?
+    (printf "<a class='attachment' href='profile.txt'>Profile</a>"))
+  (printf "</p>")
+  (output-timeline timeline)
+  (when bug?
+    (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report a bug</a> with the following info:</p>\n"))
+  (printf "<pre class='shell'><code>")
+  (printf "herbie --seed '~a'\n" (get-seed))
+  (printf "(FPCore ~a\n  :name ~s\n  ~a~a)"
+       (test-vars test) (test-name test)
+       (if (test-output test) (format "\n  :target\n  ~a" (test-output test)) "") (test-input test))
+  (printf "</code></pre>\n")
+  (printf "</section>\n"))
+
 (define (make-graph result rdir profile?)
   (match result
     [(test-result test time bits start-alt end-alt points exacts
@@ -96,22 +116,7 @@
      (printf "</section>\n")
 
 
-     (printf "<section id='process-info'>\n")
-     (printf "<h1>Runtime</h1>\n")
-     (printf "<p class='header'>")
-     (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
-     (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
-     (when profile?
-       (printf "<a class='attachment' href='profile.txt'>Profile</a>"))
-     (printf "</p>")
-     (output-timeline timeline)
-     (printf "<pre class='shell'><code>")
-     (printf "herbie --seed '~a'\n" (get-seed))
-     (printf "(FPCore ~a\n  :name ~s\n  ~a~a)"
-          (test-vars test) (test-name test)
-          (if (test-output test) (format "\n  :target\n  ~a" (test-output test)) "") (test-input test))
-     (printf "</code></pre>\n")
-     (printf "</section>\n")
+     (render-process-info time timeline profile? test)
 
 
      (printf "</body>\n")
@@ -129,26 +134,27 @@
      (printf "</head>")
      (printf "<body>\n")
 
-     (printf "<dl id='about'>\n")
-     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-     (printf "<dt>Logs:</dt>")
-     (printf "<dd><a href='debug.txt'>Debug output</a>")
-     (when profile?
-       (printf ", <a href='profile.txt'>Profiling report</a>"))
-     (printf "</dd>\n")
-     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-     (printf "</dl>\n")
+     ; Big bold numbers
+     (printf "<h1>Error in ~a</h1>\n" (format-time time))
 
-     (printf "<h2 id='error-message'>~a</h2>\n" (html-escape-unsafe (exn-message exn)))
-     (printf "<ol id='traceback'>\n")
+     (render-process-info time timeline profile? test #:bug? #t)
+
+     (printf "<section id='backtrace'>\n")
+     (printf "<h1>Backtrace</h1>\n")
+     (printf "<table>\n")
+     (printf "<thead>\n")
+     (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
+     (printf "</thead>\n")
      (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-       (printf "<li><code>~a</code> in <code>~a</code></li>\n"
-               (html-escape-unsafe (~a (car tb))) (srcloc->string (cdr tb))))
-     (printf "</ol>\n")
-
-     (output-timeline timeline)
-     
-     (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report this bug</a>!</p>\n")
+       (match (cdr tb)
+         [(srcloc file line col _ _)
+          (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
+                  (procedure-name->string (car tb)) file line col)]
+         [#f
+          (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
+                  (procedure-name->string (car tb)))]))
+     (printf "</table>\n")
+     (printf "<section>")
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -164,20 +170,10 @@
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
      (printf "</head>")
      (printf "<body>\n")
+     
+     (printf "<h1>Timeout in ~a</h1>\n" (format-time time))
 
-     (printf "<dl id='about'>\n")
-     (printf "<dt>Test:</dt><dd>~a</dd>" (test-name test))
-     (printf "<dt>Logs:</dt>")
-     (printf "<dd><a href='debug.txt'>Debug output</a>")
-     (when profile?
-       (printf ", <a href='profile.txt'>Profiling report</a>"))
-     (printf "</dd>\n")
-     (printf "<dt>Bits:</dt><dd>~a bits</dd>\n" bits)
-     (printf "</dl>\n")
-
-     (printf "<h2>Test timed out</h2>\n")
-
-     (output-timeline timeline)
+     (render-process-info time timeline profile? test)
 
      (printf "</body>\n")
      (printf "</html>\n")]))
@@ -275,12 +271,8 @@
     (printf "></div>"))
   (printf "</div>\n"))
 
-(define (srcloc->string sl)
-  (if sl
-      (string-append
-       (path->string (srcloc-source sl))
-       ":"
-       (number->string (srcloc-line sl))
-       ":"
-       (number->string (srcloc-column sl)))
-      "???"))
+
+(define (procedure-name->string name)
+  (if name
+      (html-escape-unsafe (~a name))
+      "(unnamed)"))
