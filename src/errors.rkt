@@ -1,6 +1,7 @@
 #lang racket
 (require "config.rkt")
-(provide raise-herbie-error herbie-error->string exn:fail:user:herbie?)
+(provide raise-herbie-error herbie-error->string
+         (struct-out exn:fail:user:herbie))
 
 (struct exn:fail:user:herbie exn:fail:user (url location)
         #:extra-constructor-name make-exn:fail:user:herbie)

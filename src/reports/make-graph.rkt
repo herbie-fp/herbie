@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "common.rkt")
 (require "../points.rkt" "../float.rkt")
-(require "../alternative.rkt")
+(require "../alternative.rkt" "../errors.rkt")
 (require "../formats/test.rkt")
 (require "../formats/datafile.rkt")
 (require "../core/matcher.rkt")
@@ -65,12 +65,12 @@
      ; Big bold numbers
      (printf "<section id='large'>\n")
      (printf "<div>Input Error: <span class='number'>~a</span></div>\n"
-             (format-bits (errors-score start-error)))
+             (format-bits (errors-score start-error) #:unit #f))
      (printf "<div>Output Error: <span class='number'>~a</span></div>\n"
-             (format-bits (errors-score end-error)))
+             (format-bits (errors-score end-error) #:unit #f))
      (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
-     (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*)))
-     (printf "<div>Ground Truth: <span class='number'>~a</span></div>\n" (format-bits bits))
+     (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*) #:unit #f))
+     (printf "<div>Ground Truth: <span class='number'>~a</span></div>\n" (format-bits bits #:unit #f))
      (printf "</section>\n")
 
 
@@ -87,6 +87,7 @@
      (printf "<h1>Error</h1>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
+         (define title "The X axis may use a short exponential scale")
          (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
          (make-plot start-error newpoints #:axis idx #:color *red-theme*
                     #:out (build-path rdir (format "plot-~ar.png" idx)))
@@ -96,11 +97,11 @@
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
          (printf "<figure>")
-         (printf "<img width='800' height='300' src='plot-~a.png' title='The X axis may use a short exponential scale'/>" idx)
-         (printf "<img width='800' height='300' src='plot-~ar.png' title='The X axis may use a short exponential scale' data-name='Input'/>" idx)
+         (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
+         (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)
          (when target-error
-           (printf "<img width='800' height='300' src='plot-~ag.png' title='The X axis may use a short exponential scale' data-name='Target'/>" idx))
-         (printf "<img width='800' height='300' src='plot-~ab.png' title='The X axis may use a short exponential scale' data-name='Result'/>" idx)
+           (printf "<img width='800' height='300' src='plot-~ag.png' title='~a' data-name='Target'/>" idx title))
+         (printf "<img width='800' height='300' src='plot-~ab.png' title='~a' data-name='Result'/>" idx title)
          (printf "<figcaption>Bits error versus <var>~a</var></figcaption>" var)
          (printf "</figure>\n")))
      (printf "</section>\n")
@@ -137,23 +138,29 @@
      ; Big bold numbers
      (printf "<h1>Error in ~a</h1>\n" (format-time time))
 
-     (render-process-info time timeline profile? test #:bug? #t)
+     (match exn
+       [(exn:fail:user:herbie message _ url location)
+        (printf "<section id='user-error'>\n")
+        (printf "<h2>~a <a href='https://herbie.uwplse.org/~a/~a'>(more)</a></h2>\n" message *herbie-version* url)
+        (printf "</section>")]
+       [_
+        (render-process-info time timeline profile? test #:bug? #t)
 
-     (printf "<section id='backtrace'>\n")
-     (printf "<h1>Backtrace</h1>\n")
-     (printf "<table>\n")
-     (printf "<thead>\n")
-     (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
-     (printf "</thead>\n")
-     (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-       (match (cdr tb)
-         [(srcloc file line col _ _)
-          (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
-                  (procedure-name->string (car tb)) file line col)]
-         [#f
-          (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
-                  (procedure-name->string (car tb)))]))
-     (printf "</table>\n")
+        (printf "<section id='backtrace'>\n")
+        (printf "<h1>Backtrace</h1>\n")
+        (printf "<table>\n")
+        (printf "<thead>\n")
+        (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
+        (printf "</thead>\n")
+        (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
+          (match (cdr tb)
+            [(srcloc file line col _ _)
+             (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
+                     (procedure-name->string (car tb)) file line col)]
+            [#f
+             (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
+                     (procedure-name->string (car tb)))]))
+        (printf "</table>\n")])
      (printf "<section>")
 
      (printf "</body>\n")

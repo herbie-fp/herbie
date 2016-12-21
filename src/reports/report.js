@@ -37,6 +37,7 @@ function setup_figure(figure) {
         var control = document.createElement("button");
         control.className = name;
         control.textContent = name;
+        control.title = ("Click to toggle " + name.toLowerCase() + " graph");
         (function(name){
             control.addEventListener("click", function() {
                 toggle_figure(figure, name);
