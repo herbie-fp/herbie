@@ -14,9 +14,12 @@
 
 (provide make-graph make-traceback make-timeout)
 
-(define (make-axis pts #:axis idx #:out path)
+(define (make-axis pts #:axis idx #:out path #:regimes regimes)
   (call-with-output-file path #:exists 'replace
-    (λ (out) (herbie-plot #:port out #:kind 'png (error-axes pts #:axis idx)))))
+    (λ (out)
+      (herbie-plot #:port out #:kind 'png
+                   (error-axes pts #:axis idx)
+                   (map error-mark regimes)))))
 
 (define (make-plot err pts #:axis idx #:color theme #:out path)
   (call-with-output-file path #:exists 'replace
@@ -24,6 +27,24 @@
       (herbie-plot #:port out #:kind 'png
                    (error-points err pts #:axis idx #:color theme)
                    (error-avg err pts #:axis idx #:color theme)))))
+
+(define (regime-var alt)
+  (let loop ([alt alt])
+    (match alt
+      [(alt-event _ `(regimes ,splitpoints) prevs)
+       (sp-bexpr (car splitpoints))]
+      [(alt-event _ _ (list)) #f]
+      [(alt-event _ _ (list prev _ ...)) (loop prev)]
+      [(alt-delta _ _ prev) (loop prev)])))
+
+(define (regime-splitpoints alt)
+  (let loop ([alt alt])
+    (match alt
+      [(alt-event _ `(regimes ,splitpoints) prevs)
+       (map sp-point (take splitpoints (sub1 (length splitpoints))))]
+      [(alt-event _ _ (list)) #f]
+      [(alt-event _ _ (list prev _ ...)) (loop prev)]
+      [(alt-delta _ _ prev) (loop prev)])))
 
 (define (render-process-info time timeline profile? test #:bug? [bug? #t])
   (printf "<section id='process-info'>\n")
@@ -87,8 +108,10 @@
      (printf "<div>\n")
      (for ([var (test-vars test)] [idx (in-naturals)])
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
+         (define split-var? (equal? var (regime-var end-alt)))
+
          (define title "The X axis may use a short exponential scale")
-         (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)))
+         (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)) #:regimes (if split-var? (regime-splitpoints end-alt) '()))
          (make-plot start-error newpoints #:axis idx #:color *red-theme*
                     #:out (build-path rdir (format "plot-~ar.png" idx)))
          (when target-error
@@ -96,7 +119,7 @@
                       #:out (build-path rdir (format "plot-~ag.png" idx))))
          (make-plot end-error newpoints #:axis idx #:color *blue-theme*
                     #:out (build-path rdir (format "plot-~ab.png" idx)))
-         (printf "<figure id='fig-~a'>" idx)
+         (printf "<figure id='fig-~a' ~a>" idx (if split-var? "class='default'" ""))
          (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
          (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)
          (when target-error
