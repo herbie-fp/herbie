@@ -60,9 +60,20 @@
     (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report a bug</a> with the following info:</p>\n"))
   (printf "<pre class='shell'><code>")
   (printf "herbie --seed '~a'\n" (get-seed))
-  (printf "(FPCore ~a\n  :name ~s\n  ~a~a)"
-       (test-vars test) (test-name test)
-       (if (test-output test) (format "\n  :target\n  ~a" (test-output test)) "") (test-input test))
+
+  (printf "(FPCore ~a\n" (test-vars test))
+  (printf "  :name ~s\n" (test-name test))
+  (unless (equal? (test-precondition test) 'TRUE)
+    (printf "  :pre ~a\n" (test-precondition test)))
+  (unless (andmap (curry equal? 'default) (test-sampling-expr test))
+    (printf "  :herbie-samplers ~a\n"
+            (for/list ([var (test-vars test)] [samp (test-sampling-expr test)]
+                       #:unless (equal? samp 'default))
+              (list var samp))))
+  (unless (equal? (test-expected test) #t)
+    (printf "  :herbie-expected ~a\n" (test-expected test)))
+  (when (test-output test) (printf "\n  :target\n  ~a\n\n" (test-output test)))
+  (printf "  ~a)" (test-input test))
   (printf "</code></pre>\n")
   (printf "</section>\n"))
 

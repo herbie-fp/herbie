@@ -50,7 +50,7 @@ a.icon:hover { opacity: 1.0; }
 .history li > div { display: inline-block; margin: 0; width: 600px; vertical-align: middle; }
 .history li > div > div { margin: 0; display: inline-block; text-align: right !important; }
 
-.history h2 { margin-top: 3em; }
+.history h2 { margin: 1.333em 0 .333em; }
 .history li {margin: .5em 0; border-top: 1px solid #ddd; padding-top: .5em; }
 .history li:first-child { border-top: none; padding-top: 0; }
 .history .rule { text-decoration: underline; }
