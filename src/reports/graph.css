@@ -59,7 +59,7 @@ a.icon:hover { opacity: 1.0; }
 #process-info { background: #ddd; }
 #process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
 #process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
-#process-info pre { padding: 1em; margin: 0; font-family: monospace; }
+#process-info pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
 #process-info p { margin: 1em .75em 0; }
 pre.shell code:before { content: "$ "; font-weight: bold; }
 

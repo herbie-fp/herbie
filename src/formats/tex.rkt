@@ -297,18 +297,21 @@
            (car (hash-ref texify-constants expr))
            (symbol->string expr))]
         [`(if ,cond ,ift ,iff)
-          (let ([texed-branches
-                  (for/list ([branch (collect-branches expr loc)])
-                    (match branch
-                           [(list #t bexpr bloc)
-                            (format "~a & \\text{otherwise}"
-                              (texify bexpr #t (cons 2 bloc)))]
-                           [(list bcond bexpr bloc)
-                            (format "~a & \\text{when } ~a"
-                              (texify bexpr #t (cons 2 bloc))
-                              (texify bcond #t (cons 1 bloc)))]))])
-            (format "\\begin{cases} ~a \\end{cases}"
-                 (string-join texed-branches " \\\\ ")))]
+         (define NL "\\\\\n")
+         (define IND "\\;\\;\\;\\;")
+         (with-output-to-string
+           (λ ()
+             (printf "\\begin{array}{l}\n")
+             (for ([branch (collect-branches expr loc)])
+               (match branch
+                 [(list #t bexpr bloc)
+                  (printf "\\mathbf{else}:~a~a~a~a\n"
+                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]
+                 [(list bcond bexpr bloc)
+                  (printf "\\mathbf{if}\\;~a:~a~a~a~a\n"
+                          (texify bcond #t (cons 1 bloc))
+                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
+             (printf "\\end{array}")))]
         [`(,f ,args ...)
          (match (hash-ref texify-operators f)
            [(list template highlight-template self-paren-level arg-paren-level)
