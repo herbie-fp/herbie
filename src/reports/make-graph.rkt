@@ -153,8 +153,8 @@
                (format-bits (errors-score target-error)))
        (printf "<tr><th>Herbie</th><td>~a</td></tr>\n"
                (format-bits (errors-score end-error)))
-       (printf "</table>\n")
-       (printf "<div>\\[ ~a \\]</div>\n"
+       (printf "</table><!--\n")
+       (printf "--><div>\\[ ~a \\]</div>\n"
                (texify-prog `(λ ,(test-vars test) ,(test-output test))))
        (printf "</section>\n"))
 
