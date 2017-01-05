@@ -63,6 +63,11 @@ a.icon:hover { opacity: 1.0; }
 #process-info p { margin: 1em .75em 0; }
 pre.shell code:before { content: "$ "; font-weight: bold; }
 
+#comparison table { width: 300px; display: inline-table; vertical-align: top; }
+#comparison table th { text-align: left; }
+#comparison table td { text-align: right; }
+#comparison div { display: inline-block; width: 500px; }
+
 .timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; }
 .timeline-phase { height: 2em; display: inline-block; }
 .timeline-phase.start    { background: #d3d7cf; }

@@ -96,7 +96,9 @@
 
      ; Big bold numbers
      (printf "<section id='large'>\n")
-     (printf "<div>Error: <span class='number'>~a → ~a</span></div>\n"
+     (printf "<div>Average Error: <span class='number' title='Maximum error: ~a → ~a'>~a → ~a</span></div>\n"
+             (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
+             (format-bits (apply max (map ulps->bits end-error)) #:unit #f)
              (format-bits (errors-score start-error) #:unit #f)
              (format-bits (errors-score end-error) #:unit #f))
      (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
@@ -140,6 +142,21 @@
          (printf "</figure>\n")))
      (printf "</div>\n")
      (printf "</section>\n")
+
+     (when (test-output test)
+       (printf "<section id='comparison'>\n")
+       (printf "<h1>Target</h1>")
+       (printf "<table>\n")
+       (printf "<tr><th>Original</th><td>~a</td></tr>\n"
+               (format-bits (errors-score start-error)))
+       (printf "<tr><th>Comparison</th><td>~a</td></tr>\n"
+               (format-bits (errors-score target-error)))
+       (printf "<tr><th>Herbie</th><td>~a</td></tr>\n"
+               (format-bits (errors-score end-error)))
+       (printf "</table>\n")
+       (printf "<div>\\[ ~a \\]</div>\n"
+               (texify-prog `(λ ,(test-vars test) ,(test-output test))))
+       (printf "</section>\n"))
 
 
      (printf "<section id='history'>\n")
