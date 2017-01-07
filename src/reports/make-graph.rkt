@@ -59,7 +59,12 @@
   (when bug?
     (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report a bug</a> with the following info:</p>\n"))
   (printf "<pre class='shell'><code>")
-  (printf "herbie --seed '~a'\n" (get-seed))
+  (printf "herbie --seed '~a'" (get-seed))
+  (for ([rec (changed-flags)])
+    (match rec
+      [(list 'enabled class flag) (printf " +o ~a:~a" class flag)]
+      [(list 'disabled class flag) (printf " -o ~a:~a" class flag)]))
+  (printf "\n")
 
   (printf "(FPCore ~a\n" (test-vars test))
   (printf "  :name ~s\n" (test-name test))
