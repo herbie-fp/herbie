@@ -135,10 +135,19 @@
        (printf "<tr><th>Points:</th><td>~a</td></tr>\n" (*num-points*))
        (printf "<tr><th>Fuel:</th><td>~a</td></tr>\n" (*num-iterations*))
        (printf "<tr><th>Seed:</th><td>~a</td></tr>\n" seed)
-       (printf "<tr><th>Flags:</th><td id='flag-list'>")
-       (for ([rec (hash->list (*flags*))])
-         (for ([fl (cdr rec)])
-           (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+       (printf "<tr><th>Flags:</th><td id='flag-list'>\n")
+       (printf "<div id='all-flags'>")
+       (for* ([(class flags) (*flags*)] [flag flags])
+         (printf "<kbd>~a:~a</kbd>" class flag))
+       (printf "</div>\n")
+       (printf "<div id='changed-flags'>")
+       (when (null? (changed-flags))
+         (printf "default"))
+       (for ([rec (changed-flags)])
+         (match rec
+           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>")]
+           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>")]))
+       (printf "</div>\n")
        (printf "</td></tr>")
        (printf "</table>\n")
 

@@ -2,11 +2,30 @@ function tr_click() {
     this.querySelector("td a").click();
 }
 
-function load_report() {
-    var trs = document.querySelectorAll("tbody tr");
+function clickable_rows(elt) {
+    var trs = elt.querySelectorAll("tbody tr");
     for (var i = 0; i < trs.length; i++) {
         trs[i].addEventListener("click", tr_click);
     }
+}
+
+function toggle_flag_list() {
+    var flags = document.getElementById("flag-list");
+    console.log(flags);
+    flags.classList.toggle("changed-flags");
+    var changed_only = flags.classList.contains("changed-flags");
+    var button = document.getElementById("flag-list-toggle");
+    button.innerText = changed_only ? "see all" : "see diff";
+}
+
+function togglable_flags() {
+    var flags = document.getElementById("flag-list");
+    flags.classList.add("changed-flags");
+    var button = document.createElement("a");
+    button.setAttribute("id", "flag-list-toggle");
+    button.innerText = "see all";
+    button.addEventListener("click", toggle_flag_list);
+    flags.insertBefore(button, flags.children[0]);
 }
 
 function figure_names(figure) {
@@ -133,6 +152,15 @@ function load_graph() {
     MathJax.Hub.Queue(setup_program_arrow);
 }
 
+function load_report() {
+    clickable_rows(document.getElementById("results"));
+    togglable_flags();
+}
+
+function load_index() {
+    clickable_rows(document.getElementById("reports"));
+}
+
 function report() {load_report();}
 function graph() {load_graph();}
-function index() {load_report();}
+function index() {load_index();}
