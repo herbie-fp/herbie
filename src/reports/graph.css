@@ -43,7 +43,7 @@ h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3e
 a.icon { color: black; opacity: 0.5; text-decoration: none; font-weight: bold; }
 a.icon:hover { opacity: 1.0; }
 
-.history, .history ol { list-style: none inside; width: 800px; margin: 0; padding: 0; }
+.history, .history ol { list-style: none inside; width: 800px; margin: 0 0 2em; padding: 0; }
 
 .history li p { width: 150px; display: inline-block; margin: 0 25px 0 0; }
 .history li .error { display: block; color: #666; }
