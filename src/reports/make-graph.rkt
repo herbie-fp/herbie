@@ -269,6 +269,8 @@
                  (if (ordinary-float? (interval-end-point ival))
                      (format " &lt; ~a" (interval-end-point ival))
                      ""))))])
+       (printf "<li class='event'>Split input into ~a regimes.</li>\n" (length prevs))
+       (printf "<li>\n")
        (for ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
          (let* ([entry-ivals
                  (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
@@ -290,7 +292,10 @@
              (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
            (parameterize ([*pcontext* new-pcontext])
              (output-history entry))
-           (printf "</ol>\n"))))]
+           (printf "</ol>\n")))
+       (printf "</li>\n")
+       (printf "<li class='event'>Recombined ~a regimes into one program.</li>\n"
+               (length prevs)))]
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
      (output-history prev)
