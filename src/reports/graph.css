@@ -3,12 +3,14 @@ a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
 section { margin: 5em 0; position: relative; }
+@media print { section { margin: 3em 0; } }
 section h1 {
     position: absolute; width: 300px; text-align: left; right: -340px; top: -15px;
     font-size: 24px; color: #aaa; transform: rotate(90deg); transform-origin: top left;
 }
 
 #program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
+@media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
 #program .program { display: inline-block; }
 #program .arrow { color: transparent; font-size: 0; }
 #program .arrow:after { content: "⬇"; color: black; font-size: 24px; }
@@ -37,6 +39,7 @@ section h1 {
 h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
 
 #large { margin: 2em 0; text-align: center; }
+@media print { #large { margin-top: 0; }}
 #large div { margin: 0 1em; display: inline-block; vertical-align: top; }
 #large .number { font-size: 3em; display: block; }
 #large .icon { font-size: 3em; display: block; }
@@ -78,6 +81,10 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 .timeline-phase.simplify { background: #8ae234; }
 .timeline-phase.prune    { background: #ad7fa8; }
 .timeline-phase.regimes  { background: #a40000; }
+@media print {
+    .timeline { border: none; }
+    .timeline-phase { outline: 1px solid black; }
+}
 
 #backtrace table { width: 100%; }
 #backtrace th[colspan] { text-align: left; }
