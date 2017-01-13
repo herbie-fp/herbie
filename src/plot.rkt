@@ -33,28 +33,77 @@
          (define value (expt 10 power))
          (if (= value 0) '() (cons value (loop (- power 1))))))))
 
+(define (possible-ticks min max)
+  ;; Either
+  ;; + 0 is between min and max
+  ;; + 0 is one of min and max (two cases)
+  ;; + min and max are on the same side of 0 (two cases)
+  (sort 
+   (cond
+    [(< (* min max) 0) (append (map - (power10-upto (- min))) '(0.0) (power10-upto max))]
+    [(= min 0) (cons 0 (power10-upto max))]
+    [(= max 0) (append (map - (power10-upto (abs min))) '(0.0))]
+    [(> min 0) (set-subtract (power10-upto max) (power10-upto min))]
+    [(< max 0) (map - (set-subtract (power10-upto (abs min)) (power10-upto (abs max))))])
+   <))
+
+(define (pick-spaced-indices necessary possible number)
+  "Choose `number` entries from among `possible`, with every index in `necessary` chosen and even spacing between choices."
+
+  ;; `possible` and `number` are numbers; `necessary` is a list of numbers less than `possible`
+  ;; The approach here is a dynamic programming algorithm.
+  ;; The algorithm minimizes the sum squared of gaps between chosen ticks.
+  ;; State is a vector of ticks chosen left of point + total weight left of point.
+  ;; At the Nth iter, the Ith entry in array has N ticks including I (except first few)
+  (define initial
+    (for/vector ([i (in-range possible)])
+      (define chosen (sort (filter (curryr <= i) necessary) <))
+      (define weight (apply + (for/list ([left (cons 0 chosen)] [right chosen]) (sqr (- right left)))))
+      (cons (reverse chosen) weight)))
+
+  (define final
+    (for/fold ([initial initial]) ([iter (in-range number)])
+      (define upper
+        (if (< iter (length necessary))
+            (last (take (sort necessary <) (+ 1 iter)))
+            possible))
+      (for/vector ([i (in-range possible)])
+        (if (< i upper)
+            (let*-values ([(stoppers) (filter (curryr < i) necessary)]
+                          [(stopper) (if (null? stoppers) 0 (apply max stoppers))]
+                          [(j* score*)
+                           (for/fold ([j* #f] [score* #f]) ([j (in-range stopper i)])
+                             (match-define (cons *j *score) (vector-ref initial j))
+                             (define score (+ *score (if (null? *j) (sqr i) (sqr (- i (car *j))))))
+                             (if (or (not j*) (< score score*)) (values (cons i *j) score) (values j* score*)))])
+              (if j*
+                  (cons j* score*)
+                  (cons (list i) 1)))
+            (vector-ref initial i)))))
+
+  (define stopper (if (null? necessary) 0 (apply max necessary)))
+  (car (argmin (λ (x) (+ (cdr x) (sqr (- (- possible 1) (caar x))))) (drop (vector->list final) stopper))))
+
+(define (choose-ticks min max)
+  (define possible (possible-ticks min max))
+
+  (cond
+   [(< (length possible) 12)
+    ;; If there aren't enough possible big ticks, we fall back to the standard method
+    (append
+     (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
+     (if (<= min 0.0 max) (pre-tick 0.0 #t) '())
+     (if (<= min -1.0 max) (pre-tick -1.0 #t) '())
+     ((ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform))))]
+   [else
+    (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
+    (define major-indices (pick-spaced-indices necessary (length possible) 12))
+    (for/list ([idx major-indices])
+      (pre-tick (list-ref possible idx) #t))]))
+
 (define double-ticks
   (ticks
-   (λ (min max)
-     ;; There are three cases:
-     ;; 1) 0 is between min and max
-     ;; 2) 0 is one of min and max
-     ;; 3) min and max are on the same side of 0
-     (define possible-ticks
-       (cond
-        [(< (* min max) 0) (append (map - (power10-upto (- min))) '(0) (power10-upto max))]
-        [(= min 0) (cons 0 (power10-upto max))]
-        [(= max 0) (append (map - (power10-upto (abs min))) '(0))]
-        [(> min 0) (set-subtract (power10-upto max) (power10-upto min))]
-        [(< max 0) (map - (set-subtract (power10-upto (abs min)) (power10-upto (abs max))))]))
-     (define N (length possible-ticks))
-     (cond
-      [(< N 20)
-       ;; If there aren't enough possible big ticks, we fall back to the standard method
-       ((ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform)))]
-      [else
-       (for/list ([n (range 0 20) ] [i (cdr (range 0 (- N 1) (/ N 20)))])
-         (pre-tick (list-ref possible-ticks (inexact->exact (floor i))) (even? n)))]))
+   choose-ticks
    (λ (lft rgt pticks)
      (for/list ([ptick pticks])
        (define val (pre-tick-value ptick))
