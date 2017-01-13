@@ -236,6 +236,7 @@
      (printf "<body>\n")
      
      (printf "<h1>Timeout in ~a</h1>\n" (format-time time))
+     (printf "<p>Use the <code>--timeout</code> flag to change the timeout.</p>\n")
 
      (render-process-info time timeline profile? test)
 
