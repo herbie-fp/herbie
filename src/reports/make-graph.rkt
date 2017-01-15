@@ -57,7 +57,7 @@
   (printf "</p>")
   (output-timeline timeline)
   (when bug?
-    (printf "<p>Please <a href='https://github.com/uwplse/herbie/issues'>report a bug</a> with the following info:</p>\n"))
+    (printf "<p>Please include this information when filing a <a href='https://github.com/uwplse/herbie/issues'>bug report</a>:</p>\n"))
   (printf "<pre class='shell'><code>")
   (printf "herbie --seed '~a'" (get-seed))
   (for ([rec (changed-flags)])
