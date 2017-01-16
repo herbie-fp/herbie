@@ -43,12 +43,30 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #about { margin: 3em auto; }
 #about th { font-weight: bold; }
 
+#flag-list { position: relative; }
 #flag-list kbd:not(:last-child):after {content: ", ";}
+#flag-list a {
+    float: right; margin: 0 .5em;
+    color: #2A6496; text-decoration: none; cursor: pointer;
+}
+#flag-list a:before { content: "("; }
+#flag-list a:after { content: ")"; }
+#flag-list a:hover { text-decoration: underline; color: #295785 }
+#flag-list #changed-flags { display: none; }
+#flag-list #all-flags { display: block; }
+#flag-list.changed-flags #changed-flags { display: block; }
+#flag-list.changed-flags #all-flags { display: none; }
 
 #results { border-collapse: collapse; width:100%; }
 #results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
 #results td.bad-est {border-right: 5px solid #c86edf;}
 #results tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
+
+#results tr { position: relative; }
+#results a {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+    padding: .5em;
+}
 
 #results td:nth-child(1) {text-align: left;}
 #results td:nth-child(7) {width: 0;}

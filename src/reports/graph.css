@@ -1,12 +1,27 @@
-body { width: 1200px; margin: 1em auto; font-family: sans; }
+body { width: 800px; margin: 1em auto; font-family: sans; }
+a {color: #2A6496; text-decoration: none}
+a:hover {text-decoration: underline; color: #295785}
 
-#about { float: left; width: 400px; }
-#graphs { width: 400px; }
-#graphs figure { margin: 1em 0; position: relative; padding-top: 200px; }
+section { margin: 5em 0; position: relative; }
+@media print { section { margin: 3em 0; } }
+section h1 {
+    position: absolute; width: 300px; text-align: left; right: -340px; top: -15px;
+    font-size: 24px; color: #aaa; transform: rotate(90deg); transform-origin: top left;
+}
+
+#program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
+@media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
+#program .program { display: inline-block; }
+#program .arrow { color: transparent; font-size: 0; }
+#program .arrow:after { content: "⬇"; color: black; font-size: 24px; }
+#program.horizontal .arrow { display: inline-block; }
+#program.horizontal .arrow:after { margin: 0 1em; content: "⮕" }
+
+#graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 #graphs figcaption button {
-    float: right; margin: 0 .25em;
+    float: right; margin: 0 .25em; cursor: pointer;
     border: 3px solid black; background: gray; color: transparent;
     height: 1.5em; width: 1.5em; border-radius: .75em;
     overflow: hidden;
@@ -16,32 +31,47 @@ body { width: 1200px; margin: 1em auto; font-family: sans; }
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
 
-#details { width: 800px; float: right; }
-#output { margin: 2em 0; text-align: center; }
+.tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
+.tabbar p { display: inline-block; margin: 0 .5em 0 0}
+.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
+.tabbar li:hover { background: #e4e4e4; }
+.tabbar li.selected { background: #d3d3d3; }
+h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
 
 #large { margin: 2em 0; text-align: center; }
+@media print { #large { margin-top: 0; }}
 #large div { margin: 0 1em; display: inline-block; vertical-align: top; }
 #large .number { font-size: 3em; display: block; }
 #large .icon { font-size: 3em; display: block; }
 a.icon { color: black; opacity: 0.5; text-decoration: none; font-weight: bold; }
 a.icon:hover { opacity: 1.0; }
 
-dt { font-weight: bold; float: left; width: 7em; }
+.history, .history ol { list-style: none inside; width: 800px; margin: 0 0 2em; padding: 0; }
 
-#process-info, #process-info ol { list-style: square; width: 800px; }
-#process-info h2 { margin-top: 3em; }
-#process-info li {margin: .5em 0;}
-#process-info .rule { text-decoration: underline; }
-#process-info .event {
-    list-style-type: none; display: block;
-    margin: 1.5em 5em; font-size: 95%; color: gray;
-}
+.history li p { width: 150px; display: inline-block; margin: 0 25px 0 0; }
+.history li .error { display: block; color: #666; }
+.history li > div { display: inline-block; margin: 0; width: 600px; vertical-align: middle; }
+.history li > div > div { margin: 0; display: inline-block; text-align: right !important; }
 
-li { position: relative; }
-.error { position: absolute; right: 0; top: 0; color: #666; }
-.error:after { content: " bits"; }
+.history h2 { margin: 1.333em 0 .333em; }
+.history li {margin: .5em 0; border-top: 1px solid #ddd; padding-top: .5em; }
+.history li:first-child { border-top: none; padding-top: 0; }
+.history .rule { text-decoration: underline; }
+.history .event { display: block; margin: .5em 0; }
 
-.timeline { height: 2em; }
+#process-info { background: #ddd; }
+#process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
+#process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
+#process-info pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
+#process-info p { margin: 1em .75em 0; }
+pre.shell code:before { content: "$ "; font-weight: bold; }
+
+#comparison table { width: 300px; display: inline-table; vertical-align: top; }
+#comparison table th { text-align: left; }
+#comparison table td { text-align: right; }
+#comparison div { display: inline-block; width: 500px; }
+
+.timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; }
 .timeline-phase { height: 2em; display: inline-block; }
 .timeline-phase.start    { background: #d3d7cf; }
 .timeline-phase.setup    { background: #edd400; }
@@ -51,3 +81,14 @@ li { position: relative; }
 .timeline-phase.simplify { background: #8ae234; }
 .timeline-phase.prune    { background: #ad7fa8; }
 .timeline-phase.regimes  { background: #a40000; }
+@media print {
+    .timeline { border: none; }
+    .timeline-phase { outline: 1px solid black; }
+}
+
+#backtrace table { width: 100%; }
+#backtrace th[colspan] { text-align: left; }
+#backtrace th { text-align: right; }
+#backtrace td:nth-child(3), #backtrace td:nth-child(4) { text-align: right; }
+#backtrace td.procedure { font-family: monospace; }
+

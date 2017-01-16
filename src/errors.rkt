@@ -1,6 +1,7 @@
 #lang racket
 (require "config.rkt")
-(provide raise-herbie-error herbie-error->string exn:fail:user:herbie?)
+(provide raise-herbie-error herbie-error->string
+         (struct-out exn:fail:user:herbie))
 
 (struct exn:fail:user:herbie exn:fail:user (url location)
         #:extra-constructor-name make-exn:fail:user:herbie)
@@ -20,9 +21,9 @@
       (when url
         (eprintf "See <https://herbie.uwplse.org/~a/~a> for more.\n" *herbie-version* url)))))
 
+(define old-error-display-handler (error-display-handler))
 (error-display-handler
- (let ([error-display-handler* (error-display-handler)])
-   (λ (message err)
-     (if (exn:fail:user:herbie? err)
-         (display (herbie-error->string err) (current-error-port))
-         (error-display-handler message err)))))
+ (λ (message err)
+   (if (exn:fail:user:herbie? err)
+       (display (herbie-error->string err) (current-error-port))
+       (old-error-display-handler message err))))

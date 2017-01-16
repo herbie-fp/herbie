@@ -16,6 +16,13 @@
         [reduce . (regimes taylor simplify avg-error post-process)]
         [rules . (arithmetic polynomials fractions exponents trigonometry numerics)]))
 
+(define default-flags
+  #hash([precision . (double)]
+        [setup . (simplify)]
+        [generate . (rr taylor simplify)]
+        [reduce . (regimes taylor simplify avg-error)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry)]))
+
 (define (enable-flag! category flag)
   (define (update cat-flags) (set-add cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
@@ -24,16 +31,23 @@
   (define (update cat-flags) (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
-(define *flags* (make-parameter all-flags))
+(define (has-flag? class flag)
+  (set-member? (dict-ref (*flags*) class) flag))
 
-(disable-flag! 'setup 'early-exit)
-(disable-flag! 'reduce 'post-process)
-(disable-flag! 'rules 'numerics)
+(define *flags* (make-parameter (hash-copy default-flags)))
+
+(define (changed-flags)
+  (filter identity
+          (for*/list ([(class flags) all-flags] [flag flags])
+            (match* ((has-flag? class flag)
+                     (parameterize ([*flags* default-flags]) (has-flag? class flag)))
+              [(#t #t) #f]
+              [(#f #f) #f]
+              [(#t #f) (list 'enabled class flags)]
+              [(#f #t) (list 'disabled class flag)]))))
 
 (define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type (λ () (error "Invalid flag type" type))))
-      a
-      b))
+  (if (has-flag? type f) a b))
 
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))

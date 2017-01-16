@@ -1,23 +1,10 @@
 #lang racket
 
 (require racket/date)
-(require "../common.rkt")
+(require "../common.rkt" "common.rkt")
 (require "../formats/datafile.rkt")
 
 (provide (all-defined-out))
-
-(define (format-time ms)
-  (cond
-   [(< ms 1000) (format "~a ms" (round ms))]
-   [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
-   [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
-   [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
-
-(define (display-bits r #:sign [sign #f])
-  (cond
-   [(not r) ""]
-   [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
-   [else (format "~a" (/ (round (* r 10)) 10))]))
 
 (define (log-exceptions file info)
   (define (print-test t)
@@ -131,13 +118,13 @@
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
                  (html-escape-unsafe (table-row-name result))
-                 (display-bits (table-row-start result))
-                 (display-bits (table-row-result result))
+                 (format-bits (table-row-start result))
+                 (format-bits (table-row-result result))
                  id
                  (match (table-row-status result)
                    ["crash" "ERR"]
                    ["timeout" "TIME"]
-                   [_ (display-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
+                   [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
        (printf "</ul>\n")
        (printf "<hr style='clear:both;visibility:hidden'>\n")
 
@@ -148,10 +135,19 @@
        (printf "<tr><th>Points:</th><td>~a</td></tr>\n" (*num-points*))
        (printf "<tr><th>Fuel:</th><td>~a</td></tr>\n" (*num-iterations*))
        (printf "<tr><th>Seed:</th><td>~a</td></tr>\n" seed)
-       (printf "<tr><th>Flags:</th><td id='flag-list'>")
-       (for ([rec (hash->list (*flags*))])
-         (for ([fl (cdr rec)])
-           (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+       (printf "<tr><th>Flags:</th><td id='flag-list'>\n")
+       (printf "<div id='all-flags'>")
+       (for* ([(class flags) (*flags*)] [flag flags])
+         (printf "<kbd>~a:~a</kbd>" class flag))
+       (printf "</div>\n")
+       (printf "<div id='changed-flags'>")
+       (when (null? (changed-flags))
+         (printf "default"))
+       (for ([rec (changed-flags)])
+         (match rec
+           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>")]
+           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>")]))
+       (printf "</div>\n")
        (printf "</td></tr>")
        (printf "</table>\n")
 
@@ -171,16 +167,16 @@
          (printf "<tr class='~a'>" (table-row-status result))
 
          (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
-         (printf "<td>~a</td>" (display-bits (table-row-start result)))
+         (printf "<td>~a</td>" (format-bits (table-row-start result)))
 
          (if (and (table-row-result result) (table-row-result-est result)
                   (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
              (printf "<td class='bad-est'>[~a ≉] ~a </td>"
-                     (display-bits (table-row-result-est result))
-                     (display-bits (table-row-result result)))
-             (printf "<td>~a</td>" (display-bits (table-row-result result))))
+                     (format-bits (table-row-result-est result))
+                     (format-bits (table-row-result result)))
+             (printf "<td>~a</td>" (format-bits (table-row-result result))))
 
-         (printf "<td>~a</td>" (display-bits (table-row-target result)))
+         (printf "<td>~a</td>" (format-bits (table-row-target result)))
          (printf "<td>~a~a</td>"
                  (let ([inf- (table-row-inf- result)])
                    (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
@@ -292,7 +288,7 @@
                   (match (table-row-status result)
                     ["crash" "ERR"]
                     ["timeout" "TIME"]
-                    [_ (display-bits (- (table-row-start result)
+                    [_ (format-bits (- (table-row-start result)
                                         (table-row-result result))
                                      #:sign #t)]))
 
@@ -305,10 +301,10 @@
                                          tests2))
                   (printf "<li class='badge' title='~a (~a to ~a) vs. (~a to ~a)'>"
                           (html-escape-unsafe (table-row-name result1))
-                          (display-bits (table-row-start result1))
-                          (display-bits (table-row-result result1))
-                          (display-bits (table-row-start result2))
-                          (display-bits (table-row-result result2)))
+                          (format-bits (table-row-start result1))
+                          (format-bits (table-row-result result1))
+                          (format-bits (table-row-start result2))
+                          (format-bits (table-row-result result2)))
                   (printf "<table><tbody><tr><td class='~a'>~a</td><td class='~a'>~a</td></tr></tbody></table>"
                           (table-row-status result1)
                           (badge-label result1)
@@ -362,28 +358,28 @@
                   (printf "<td>~a</td>" (html-escape-unsafe name))
 
                   ;; Some helper functions for displaying the different boxes for results
-                  (define (display-bits-vs-other bits other)
+                  (define (format-bits-vs-other bits other)
                     (cond [(and (not bits) other)
-                           (printf "<td>~a</td>" (display-bits other))]
+                           (printf "<td>~a</td>" (format-bits other))]
                           [(and bits (not other))
-                           (printf "<td>~a</td>" (display-bits bits))]
+                           (printf "<td>~a</td>" (format-bits bits))]
                           [(and (not bits) (not other))
                            (printf "<td></td>")]
                           [((abs (- bits other)) . > . 1)
                            (printf "<td>~a/~a</td>"
-                                   (display-bits bits)
-                                   (display-bits other))]
+                                   (format-bits bits)
+                                   (format-bits other))]
                           [#t
                            (printf "<td>~a</td>"
-                                   (display-bits bits))]))
+                                   (format-bits bits))]))
 
-                  (define (display-bits-vs-est result est-result status)
+                  (define (format-bits-vs-est result est-result status)
                     (if (and result est-result
                              (> (abs (- result est-result)) 1))
                         (printf "<td class='bad-est ~a'>[~a ≉] ~a </td>"
-                                status (display-bits est-result) (display-bits result))
+                                status (format-bits est-result) (format-bits result))
                         (printf "<td class='~a'>~a</td>"
-                                status (display-bits result))))
+                                status (format-bits result))))
 
                   (define (display-num-infs inf- inf+)
                     (printf "<td class='infs'>~a~a</td>"
@@ -391,17 +387,17 @@
                             (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
                   
                   ;; The starting bits
-                  (display-bits-vs-other (table-row-start result1) (table-row-start result2))
+                  (format-bits-vs-other (table-row-start result1) (table-row-start result2))
 
                   ;; The first result bits box
-                  (display-bits-vs-est (table-row-result result1) (table-row-result-est result1)
+                  (format-bits-vs-est (table-row-result result1) (table-row-result-est result1)
                                        (table-row-status result1))
                   ;; The second result bits box
-                  (display-bits-vs-est (table-row-result result2) (table-row-result-est result2)
+                  (format-bits-vs-est (table-row-result result2) (table-row-result-est result2)
                                        (table-row-status result2))
 
                   ;; The target bits
-                  (display-bits-vs-other (table-row-target result1) (table-row-target result2))
+                  (format-bits-vs-other (table-row-target result1) (table-row-target result2))
 
                   ;; The number of points that went to infinity and back
                   (display-num-infs (table-row-inf- result1) (table-row-inf+ result1))
