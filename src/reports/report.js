@@ -11,7 +11,6 @@ function clickable_rows(elt) {
 
 function toggle_flag_list() {
     var flags = document.getElementById("flag-list");
-    console.log(flags);
     flags.classList.toggle("changed-flags");
     var changed_only = flags.classList.contains("changed-flags");
     var button = document.getElementById("flag-list-toggle");

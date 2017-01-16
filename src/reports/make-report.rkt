@@ -45,7 +45,7 @@
 
      (copy-file "src/reports/report.js" (build-path dir "report.js") #t)
      (copy-file "src/reports/report.css" (build-path dir "report.css") #t)
-     ;(copy-file "src/reports/graph.css" (build-path dir "graph.css") #t)
+     (copy-file "src/reports/graph.css" (build-path dir "graph.css") #t)
      (copy-file "src/reports/arrow-chart.js" (build-path dir "arrow-chart.js") #t)
 
      (define total-time (apply + (map table-row-time tests)))
