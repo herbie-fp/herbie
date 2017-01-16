@@ -1,14 +1,3 @@
-function tr_click() {
-    this.querySelector("td a").click();
-}
-
-function clickable_rows(elt) {
-    var trs = elt.querySelectorAll("tbody tr");
-    for (var i = 0; i < trs.length; i++) {
-        trs[i].addEventListener("click", tr_click);
-    }
-}
-
 function toggle_flag_list() {
     var flags = document.getElementById("flag-list");
     flags.classList.toggle("changed-flags");
@@ -152,12 +141,11 @@ function load_graph() {
 }
 
 function load_report() {
-    clickable_rows(document.getElementById("results"));
     togglable_flags();
 }
 
 function load_index() {
-    clickable_rows(document.getElementById("reports"));
+    // Nothing
 }
 
 function report() {load_report();}

@@ -62,6 +62,12 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #results td.bad-est {border-right: 5px solid #c86edf;}
 #results tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
 
+#results tr { position: relative; }
+#results a {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+    padding: .5em;
+}
+
 #results td:nth-child(1) {text-align: left;}
 #results td:nth-child(7) {width: 0;}
 
