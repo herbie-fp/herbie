@@ -287,7 +287,6 @@
   [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
   [tan-PI/4    (tan (/ PI 4))        1]
   [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
-  [tan-PI/2    (tan (/ PI 2))        +inf.0]
   [tan-PI      (tan PI)              0]
   [tan-+PI     (tan (+ x PI))        (tan x)]
   [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
