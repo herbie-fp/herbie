@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Installing Herbie</title>
+  <base href="../.."/>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <a href="."><img class="logo" src="logo.png" /></a>
+    <h1>Installing Herbie</h1>
+  </header>
+
+  <p>
+    <a href=".">Herbie</a> depends
+    on <a href="https://racket-lang.org">Racket</a>, a dynamic
+    language developed by Northeastern University. To install Herbie,
+    one must first install Racket. Once Racket is installed, Herbie
+    should run without problems.
+  </p>
+
+  <h2>Installing Racket</h2>
+
+  <p>
+    Herbie currently supports Linux and OS X. Windows has known bugs
+    we are working to resolve, due to the lack of a
+    full <code>math.h</code> library. Use
+    the <a href="http://download.racket-lang.org/racket-v6.5.html">official
+    installer</a> to install Racket, or use distro-provided packages
+    provided they are version 6.4 or later of Racket (earlier versions
+    are not supported).
+  </p>
+
+  <p>
+    Test that Racket is installed correctly and has a correct version:
+  </p>
+
+  <pre><strong>$</strong> racket
+Welcome to Racket v6.4.
+> (exit)</pre>
+  
+  <h2>Installing Herbie</h2>
+
+  <p>
+    Once Racket is installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
+
+  <pre>git clone https://github.com/uwplse/herbie</pre>
+
+  <p>
+    If you go to the <code>herbie</code> directory,
+    you should see a <code>README.md</code> file, a directory named <code>herbie</code>,
+    a directory named <code>bench/</code>, and a variety of other directories.
+    Do a trial run of Herbie to make sure everything is installed and working correctly:
+  </p>
+
+  <pre>racket src/reports/run.rkt bench/hamming/</pre>
+
+  <p>
+    This command will take approximately fifteen minutes to run;
+      it runs Herbie on problems from Richard Hamming's
+      <i>Numerical Methods for Scientists and Engineers</i>, Chapter 3.
+    After the command completes,
+      a directory named <code>graphs</code> should have appeared.
+    Open up the <code>report.html</code> file inside with your browser;
+      you should see a listing of the expressions Herbie was run on,
+      most of which should be green.
+    A score of 24/28 or greater suggests that everything is working correctly.
+  </p>
+
+  <p>
+    If any of the test results are crashes (there will be a “crashes” count at the top),
+      installation issues are to blame.
+    Check that your Racket installation is at least version 6.1
+      and that you installed Racket from the official installation packages.
+    If you're confident the installation is correct
+      please <a href="mailto:herbie@cs.washington.edu">report the error</a> to the Herbie developers,
+      attaching an archive of the complete <code>graphs/</code> directory.
+  </p>
+
+  <p>If this all works correctly, you can make Herbie start up faster by byte-compiling it:</p>
+
+  <pre>raco make src/reports/run.rkt</pre>
+
+  <p>
+    Once Herbie is installed and working correctly,
+    check out the <a href="doc/1.0/tutorial.html">tutorial</a>.
+  </p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>

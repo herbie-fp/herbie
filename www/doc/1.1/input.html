@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Input Format</title>
+  <base href="../.."/>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <a href="."><img class="logo" src="logo.png" /></a>
+    <h1>The Input Format</h1>
+  </header>
+
+  <p>
+    <a href=".">Herbie</a>'s input format is designed for
+    expressing mathematical functions, which Herbie can then search
+    for accurate implementations of. It also allows specifying the
+    distribution that Herbie draws inputs from when evaluating the
+    accuracy of an expression.
+  </p>
+  
+  <h2 id="sec1">General format</h2>
+
+  <p>Herbie uses the <a href="http://fpbench.org">FPCore</a> format
+  for its input expression, which looks like this:</p>
+
+  <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
+
+  <p>
+    Each input is a variable, like <code>x</code>, which can be used
+    in the expression, whose accuracy Herbie will try to improve.
+    Properties are <a href="#properties">described below</a>.
+  </p>
+
+  <p>
+    The expression is written in prefix form, with every function call
+    parenthesized, as in Lisp. For example, the formula for the
+    hypotenuse of a triangle with legs <i>a</i> and <i>b</i> is
+  </p>
+
+  <pre>(FPCore (a b) (sqrt (+ (sqr a) (sqr b))))</pre>
+
+  <p>
+    We recommend the <code>.fpcore</code> file extension for Herbie input files.
+  </p>
+
+  <h2>Converting from Herbie 0.9</h2>
+
+  <p>
+    Herbie 0.9 used a <a href="../0.9/input.html">different input
+    format</a>, which is no longer supported in Herbie 1.0. To
+    simplify the transition, the <code>infra/convert.rkt</code> script
+    converts from the old to the new format.
+  </p>
+  
+  <p>To use the conversion tool, run:</p>
+
+  <pre>racket infra/convert.rkt <var>file.rkt</var> > <var>file.fpcore</var></pre>
+  
+  <h2>Supported functions</h2>
+  
+  <p>
+    The full list of supported functions and is as follows:
+  </p>
+
+  <dl class="function-list">
+    <dt><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>abs</code></dt>
+    <dd>The usual arithmetic functions<br/><code>-</code> is both negation and subtraction</dd>
+    <dt><code>sqr</code>, <code>sqrt</code></dt>
+    <dd>Squares and square roots</dd>
+    <dt><code>exp</code>, <code>log</code></dt>
+    <dd>Natural exponent and natural log</dd>
+    <dt><code>pow</code></dt>
+    <dd>Exponentiation; raising a value to a power</dd>
+    <dt><code>sin</code>, <code>cos</code>, <code>tan</code></dt>
+    <dd>The trigonometric functions</dd>
+    <dt><code>asin</code>, <code>acos</code>, <code>atan</code>, <code>atan2</code></dt>
+    <dd>The inverse trigonometric functions<br/><code>atan2</code> is the
+    two-argument inverse tangent</dd>
+    <dt><code>sinh</code>, <code>cosh</code>, <code>tanh</code></dt>
+    <dd>The hyperbolic trigonometric functions</dd>
+    <dt><code>expm1</code>, <code>log1p</code>, <code>hypot</code></dt>
+    <dd>Specialized numeric functions, as in <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/math.h.html">math.h</a></dd>
+  </dl>
+  
+  <p>FPCore writes conditional expressions using <code>if</code>:</p>
+
+  <pre>(if <var>cond</var> <var>if-true</var> <var>if-false</var>)</pre>
+
+  <p>
+    An <code>if</code> epxression evaluates the
+    conditional <code>cond</code> and returns either <code>if-true</code> if
+    it is true or <code>if-false</code> if it is not. Conditionals may use:
+  </p>
+  
+  <dl class="function-list">
+    <dt><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></dt>
+    <dd>The usual comparison operators</dd>
+    <dt><code>and</code>, <code>or</code>, <code>not</code></dt>
+    <dd>The usual logical operators</dd>
+  </dl>
+  
+  <p>Intermediate variables can be defined using <code>let</code>:</p>
+
+  <pre>(let ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
+
+  <p>
+    In a <code>let</code> expression, all the values are evaluated first,
+    and then are bound to their variables in the body.
+    This means that you can't use one variable in the value of another;
+    nest <code>let</code> constructs if you want to do that.
+    Note that Herbie treats these intermediate values only as a
+    notational convenience, and inlines their values before improving
+    the formula's accuracy.
+  </p>
+
+  <p>Herbie also supports the constants <code>PI</code> and <code>E</code>.</p>
+  
+  <h2 id="properties">Properties</h2>
+
+  <p>Herbie also uses several FPCore properties for additional meta-data:</p>
+
+  <dl class="function-list">
+    <dt><code>:name <var>string</var></code></dt>
+    <dd>Herbie prints this name in its output when a name is required.</dd>
+    <dt><code>:pre <var>condition</var></code></dt>
+    <dd>Only points where the condition is true are sampled by Herbie.</dd>
+    <dt><code>:herbie-samplers <var>samplers</var></code></dt>
+    <dd>Change the distribution with which variables are sampled (see below).</dd>
+    <dt>
+  </dl>
+  
+  <h2>Distributions</h2>
+
+  <p>
+    Herbie allows you to specify what distribution is used to randomly
+    sample values for each variable with
+    the <code>:herbie-samplers</code> property. For example:
+  </p>
+  
+  <pre>:herbie-samplers ([x (uniform 0 1)] [y (uniform -1 1)])</pre>
+
+  <p>
+    This property tells Herbie to use a uniform distribution to sample
+    a value between 0 and 1 for <code>x</code>, and between -1 and 1
+    for <code>y</code>. Not all variables need to be given distributions;
+    if a variable isn't given a distribution, the <code>default</code>
+    distribution will be used.
+  </p>
+  
+  <dl class="function-list">
+    <dt><code>default</code></dt>
+    <dd>Interpret a random bit pattern as a float</dd>
+    <dt><code>(uniform <var>a</var> <var>b</var>)</code></dt>
+    <dd>A uniform real value between <var>a</var> and <var>b</var><br/>Both bounds must be numeric constants</dd>
+  </dl>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>

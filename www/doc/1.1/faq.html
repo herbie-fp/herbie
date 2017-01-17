@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie FAQ</title>
+  <base href="../.."/>
+  <link rel='stylesheet' type='text/css' href='main.css'>
+</head>
+<body>
+  <header>
+    <a href="."><img class="logo" src="logo.png" /></a>
+    <h1>Frequently Asked Questions</h1>
+  </header>
+
+  <p>
+    <a href=".">Herbie</a> automatically transforms floating point
+    expressions into more accurate forms. This page catalogs questions
+    frequently asked questions about Herbie.
+  </p>
+  
+  <h2>Troubleshooting common errors</h2>
+  
+  <p>
+    Several Herbie error messages refer to this page for additional
+    information and debugging tips.
+  </p>
+  
+  <h3 id="invalid-program">“Invalid program” error</h3>
+
+  <p>
+    This error is most likely due to an error in preparing the input
+    to Herbie. Common errors include misspelling function names and
+    parenthesizing expressions that must not be parenthesized. The
+    stack trace will contain additional information. For example, in
+    the expression <code>(- (exp (x)) 1)</code>, the use
+    of <code>x</code> as invalid because <code>x</code> is a variable,
+    so cannot be parenthesized. <code>(- (exp x) 1)</code> would
+    be the correct way of describing that expression.
+  </p>
+  
+  <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
+  
+  <p>
+    Herbie uses random sampling to select the points which it will use
+    to evaluate the error of an expression. This error occurs when it
+    is not able to find enough valid points. For example, consider the
+    expression <code>(acos (+ 1000 x))</code>. This expression yields
+    a valid result only when <code>x</code> is between -1001 and -999,
+    a rather narrow range.
+  </p>
+  
+  <p>
+    The solution is to give a <a href="input.html">distribution</a>
+    which specifies the bounds on <code>x</code> by adding the line
+    <code>:herbie-samplers ([x (uniform -1001 -999)])</code> after the
+    parameter list.
+  </p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>
