@@ -240,8 +240,6 @@
      (taylor var `(exp (* ,power (log ,base))))]
     [`(tan ,arg)
      (taylor var `(/ (sin ,arg) (cos ,arg)))]
-    [`(cotan ,arg)
-     (taylor var `(/ (cos ,arg) (sin ,arg)))]
     [_
      (taylor-exact expr)]))
 

@@ -12,7 +12,6 @@ public class OperatorTree {
     , "sin"
     , "cos"
     , "tan"
-    , "cotan"
     , "asin"
     , "acos"
     , "atan"

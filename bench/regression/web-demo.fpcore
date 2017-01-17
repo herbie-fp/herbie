@@ -8,7 +8,7 @@
  (B x)
  :name
  "VandenBroeck and Keller, Equation (24)"
- (+ (- (* x (cotan B))) (/ 1 (sin B))))
+ (+ (- (* x (/ 1 (tan B)))) (/ 1 (sin B))))
 (FPCore
  (x)
  :name

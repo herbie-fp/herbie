@@ -12,7 +12,7 @@
 ;  - Periodic (and the period)
 ;  - Other
 ;
-; Known periodic functions, like sin or cotan, transform linear
+; Known periodic functions, like sin or tan, transform linear
 ; expressions into periodic expressions. Periods are then properly
 ; bubbled up the expression tree.
 
@@ -170,12 +170,6 @@
             [(linear? a)
              (out 'periodic (alist-map / (coeffs a)))]
             [else #f])]
-          [`(cotan ,a)
-           (cond
-            [(linear? a)
-             (out 'periodic (alist-map / (coeffs a)))]
-            [else #f])]
-
           [_ #f])))))
 
 (define (optimize-periodicity improve-func altn)

@@ -98,9 +98,6 @@
 (libm_op1  _fly0         y0         y0f)
 (libm_op1  _fly1         y1         y1f)
 
-(define (_flcotan x)
-  (/ 1 (tan x)))
-
 (define (_flcube x)
   (* x (* x x)))
 
@@ -143,7 +140,6 @@
 
   [sqr    '(1)  bfsqr   _flsqr     40]
   [cube   '(1)  bfcube  _flcube    80]
-  [cotan  '(1)  bfcot   _flcotan  135]
   ; TODO sec and cosec
 
   [acos      '(1)  bfacos       _flacos        90]

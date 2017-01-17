@@ -269,11 +269,7 @@
   [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)]
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
-  [cotan-quot  (cotan x)              (/ (cos x) (sin x))]
-  [quot-tan    (/ (sin x) (cos x))    (tan x)]
-  [quot-cotan  (/ (cos x) (sin x))    (cotan x)]
-  [cotan-tan   (cotan x)              (/ 1 (tan x))]
-  [tan-cotan   (tan x)                (/ 1 (cotan x))])
+  [quot-tan    (/ (sin x) (cos x))    (tan x)])
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
