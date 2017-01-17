@@ -421,3 +421,61 @@
              (memq 'simplify groups))
         rules
         '())))
+
+(module+ test
+  (require rackunit math/bigfloat)
+  (require "../programs.rkt" "../float.rkt" "distributions.rkt")
+  (define sampler (eval-sampler 'default))
+  (define num-test-points 2000)
+
+  (define *conditions*
+    '([acosh-def  . (>= x 1)]
+      [atanh-def  . (< (fabs x) 1)]
+      [acosh-2    . (>= x 1)]
+      [asinh-2    . (>= x 0)]
+      [sinh-acosh . (> (fabs x) 1)]
+      [sinh-atanh . (< (fabs x) 1)]
+      [cosh-atanh . (< (fabs x) 1)]
+      [tanh-acosh . (> (fabs x) 1)]))
+
+  (define *skip-tests*
+    ;; All these tests fail due to underflow to 0 and are irrelevant
+    '(exp-prod pow-unpow pow-pow pow-exp
+      asinh-2 tanh-1/2* sinh-cosh))
+
+  (for ([test-rule (*rules*)] #:when (not (set-member? *skip-tests* (rule-name test-rule))))
+    (parameterize ([bf-precision 2000])
+    (with-check-info (['rule test-rule])
+      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
+        (match-define (rule name p1 p2) test-rule)
+        ;; Not using the normal prepare-points machinery for speed.
+        (define fv (free-variables p1))
+        (define valid-point?
+          (if (dict-has-key? *conditions* name)
+              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) mode:bf)
+              (const true)))
+
+        (define (make-point) (for/list ([v fv]) (sampler)))
+        (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
+        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+        (define prog1 (eval-prog `(λ ,fv ,p1) mode:bf))
+        (define prog2 (eval-prog `(λ ,fv ,p2) mode:bf))
+        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+          (define ex1 (map prog1 points))
+          (define ex2 (map prog2 points))
+          (define errs
+            (for/list ([v1 ex1] [v2 ex2])
+              ;; Ignore points not in the input or output domain
+              (if (and (ordinary-float? v1) (ordinary-float? v2))
+                  (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
+                  #f)))
+          (when (< (length (filter identity errs)) 100)
+            (eprintf "Could not sample enough points to test ~a\n" name))
+          (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
+          (define max-error
+            (argmax car (filter car (map list errs points ex1 ex2 errs))))
+          (with-check-info (['max-error (first max-error)]
+                            ['max-point (map cons fv (second max-error))]
+                            ['max-input (third max-error)]
+                            ['max-output (fourth max-error)])
+                           (check-pred (curryr <= 1) score))))))))
