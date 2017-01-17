@@ -303,6 +303,11 @@
   [sqr-cos     (sqr (sin x))          (+ 1/2 (* 1/2 (cos (* 2 x))))]
   [diff-sin    (- (sin x) (sin y))    (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
   [diff-cos    (- (cos x) (cos y))    (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
+  [sum-sin     (+ (sin x) (sin y))    (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
+  [sum-cos     (+ (cos x) (cos y))    (* 2 (* (cos (/ (+ x y) 2)) (sin (/ (- x y) 2))))]
+  [cos-mult    (* (cos x) (cos y))    (/ (+ (cos (+ x y)) (cos (- x y))) 2)]
+  [sin-mult    (* (sin x) (sin y))    (/ (- (cos (- x y)) (cos (+ x y))) 2)]
+  [sin-cos-mult (* (sin x) (cos y))   (/ (+ (sin (- x y)) (sin (+ x y))) 2)]
   [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)])
@@ -313,14 +318,12 @@
   [cosh-def    (cosh x)               (/ (+ (exp x) (exp (- x))) 2)]
   [tanh-def    (tanh x)               (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x))))]
   [sinh-cosh   (+ (sqr (cosh x)) (sqr (sinh x))) 1]
-  [tanh-cosh   (+ (sqr (tanh x)) (/ 1 (sqr (cosh x)))) 1]
-  )
+  [tanh-cosh   (+ (sqr (tanh x)) (/ 1 (sqr (cosh x)))) 1])
 
 (define-ruleset htrig-expand (hyperbolic)
   [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
   [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
-  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
-  )
+  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)])
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
