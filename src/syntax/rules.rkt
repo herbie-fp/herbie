@@ -65,10 +65,6 @@
   [distribute-rgt-neg-out (* a (- b))          (- (* a b))]
   [distribute-neg-in      (- (+ a b))           (+ (- a) (- b))]
   [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
-  [distribute-inv-in      (/ (* a b))           (* (/ a) (/ b))]
-  [distribute-inv-out     (* (/ a) (/ b))       (/ (* a b))]
-  [distribute-inv-neg     (/ (- a))             (- (/ a))]
-  [distribute-neg-inv     (- (/ a))             (/ (- a))]
   [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
   [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
 
@@ -82,17 +78,6 @@
   [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
   [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
 
-; Difference of cubes
-(define-ruleset difference-of-cubes (polynomials)
-  [sum-cubes        (+ (pow a 3) (pow b 3))
-                    (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
-  [difference-cubes (- (pow a 3) (pow b 3))
-                    (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
-  [flip3-+          (+ a b)
-                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
-  [flip3--          (- a b)
-                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
-
 ; Identity
 (define-ruleset id-reduce (arithmetic simplify)
   [+-lft-identity    (+ 0 a)               a]
@@ -104,8 +89,11 @@
   [*-rgt-identity    (* a 1)               a]
   [*-inverses        (/ a a)               1]
   [remove-double-div (/ 1 (/ 1 a))         a]
+  [rgt-mult-inverse  (* a (/ 1 a))         1]
+  [lft-mult-inverse  (* (/ 1 a) a)         1]
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
+  [mul0              (* a 0)               0]
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
@@ -117,6 +105,17 @@
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [neg-mul-1         (- a)                 (* -1 a)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
+
+; Difference of cubes
+(define-ruleset difference-of-cubes (polynomials)
+  [sum-cubes        (+ (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
+  [difference-cubes (- (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
+  [flip3-+          (+ a b)
+                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
+  [flip3--          (- a b)
+                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Dealing with fractions
 (define-ruleset fractions-distribute (fractions simplify)
@@ -195,12 +194,15 @@
   [exp-neg      (exp (- a))          (/ 1 (exp a))]
   [exp-diff     (exp (- a b))        (/ (exp a) (exp b))])
 
-; TODO added this to simplify, good idea?
 (define-ruleset exp-factor (exponents simplify)
   [prod-exp     (* (exp a) (exp b))  (exp (+ a b))]
   [rec-exp      (/ 1 (exp a))        (exp (- a))]
   [div-exp      (/ (exp a) (exp b))  (exp (- a b))]
-  [exp-prod     (exp (* a b))        (pow (exp a) b)])
+  [exp-prod     (exp (* a b))        (pow (exp a) b)]
+  [exp-sqrt     (exp (/ a 2))        (sqrt (exp a))]
+  [exp-cbrt     (exp (/ a 3))        (cbrt (exp a))]
+  [exp-lft-sqr  (exp (* a 2))        (sqr (exp a))]
+  [exp-lft-cube (exp (* a 3))        (cube (exp a))])
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
@@ -224,6 +226,12 @@
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-prod-down    (* (pow b a) (pow c a))     (pow (* b c) a)]
+  [pow-pow          (pow (pow a b) c)           (pow a (* b c))]
+  [pow-neg          (pow a (- b))               (/ 1 (pow a b))]
+  [pow-flip         (/ 1 (pow a b))             (pow a (- b))]
+  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))]
+  [pow-sub          (pow a (- b c))             (/ (pow a b) (pow a c))]
+  [pow-unpow        (pow a (* b c))             (pow (pow a b) c)]
   [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
   [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))]
   [inv-pow          (/ 1 a)                     (pow a -1)]
@@ -237,7 +245,8 @@
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (- (log a))]
-  [log-pow      (log (pow a b))     (* b (log a))])
+  [log-pow      (log (pow a b))     (* b (log a))]
+  [log-E        (log E)             1])
 
 (define-ruleset log-factor (exponents)
   [sum-log      (+ (log a) (log b))  (log (* a b))]
@@ -246,28 +255,55 @@
 
 ; Trigonometry
 (define-ruleset trig-reduce (trigonometry simplify)
-  [cos-sin-sum (+ (sqr (cos a))      (sqr (sin a))) 1]
+  [cos-sin-sum (+ (sqr (cos a)) (sqr (sin a))) 1]
   [1-sub-cos   (- 1 (sqr (cos a)))   (sqr (sin a))]
   [1-sub-sin   (- 1 (sqr (sin a)))   (sqr (cos a))]
   [-1-add-cos  (+ (sqr (cos a)) -1)  (- (sqr (sin a)))]
   [-1-add-sin  (+ (sqr (sin a)) -1)  (- (sqr (cos a)))]
+  [sub-1-cos   (- (sqr (cos a)) 1)   (- (sqr (sin a)))]
+  [sub-1-sin   (- (sqr (sin a)) 1)   (- (sqr (cos a)))]
   [sin-neg     (sin (- x))           (- (sin x))]
+  [sin-0       (sin 0)               0]
+  [sin-PI/6    (sin (/ PI 6))        1/2]
+  [sin-PI/4    (sin (/ PI 4))        (/ (sqrt 2) 2)]
+  [sin-PI/3    (sin (/ PI 3))        (/ (sqrt 3) 2)]
+  [sin-PI/2    (sin (/ PI 2))        1]
+  [sin-PI      (sin PI)              0]
+  [sin-+PI     (sin (+ x PI))        (- (sin x))]
   [cos-neg     (cos (- x))           (cos x)]
   [cos-0       (cos 0)               1]
+  [cos-PI/6    (cos (/ PI 6))        (/ (sqrt 3) 2)]
+  [cos-PI/4    (cos (/ PI 4))        (/ (sqrt 2) 2)]
+  [cos-PI/3    (cos (/ PI 3))        1/2]
   [cos-PI/2    (cos (/ PI 2))        0]
   [cos-PI      (cos PI)              -1]
   [cos-+PI     (cos (+ x PI))        (- (cos x))]
-  [sin-0       (sin 0)               0]
-  [sin-PI/2    (sin (/ PI 2))        1]
-  [sin-+PI     (sin (+ x PI))        (- (sin x))])
+  [tan-neg     (tan (- x))           (- (tan x))]
+  [tan-0       (tan 0)               0]
+  [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
+  [tan-PI/4    (tan (/ PI 4))        1]
+  [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
+  [tan-PI/2    (tan (/ PI 2))        +inf.0]
+  [tan-PI      (tan PI)              0]
+  [tan-+PI     (tan (+ x PI))        (tan x)]
+  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
 
 (define-ruleset trig-expand (trigonometry)
   [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))          (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [sin-diff    (sin (- x y))          (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-diff    (cos (- x y))          (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [sin-2       (sin (* 2 x))          (* 2 (* (sin x) (cos x)))]
+  [2-sin       (* 2 (* (sin x) (cos x))) (sin (* 2 x))]
+  [cos-2       (cos (* 2 x))          (- (sqr (sin x)) (sqr (cos x)))]
+  [2-cos       (- (sqr (sin x)) (sqr (cos x))) (cos (* 2 x))]
+  [tan-2       (tan (* 2 x))          (/ (* 2 (tan x)) (- 1 (sqr (tan x))))]
+  [2-tan       (/ (* 2 (tan x)) (- 1 (sqr (tan x)))) (tan (* 2 x))]
+  [sqr-sin     (sqr (sin x))          (- 1/2 (* 1/2 (cos (* 2 x))))]
+  [sqr-cos     (sqr (sin x))          (+ 1/2 (* 1/2 (cos (* 2 x))))]
+  [diff-sin    (- (sin x) (sin y))    (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
+  [diff-cos    (- (cos x) (cos y))    (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
   [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
-  [quot-tan    (/ (sin x) (cos x))    (tan x)]
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)])
 
