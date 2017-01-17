@@ -324,6 +324,23 @@
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)])
 
+(define-ruleset atrig-expand (trigonometry)
+  [sin-asin    (sin (asin x))         x]
+  [cos-asin    (cos (asin x))         (sqrt (- 1 (sqr x)))]
+  [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (sqr x))))]
+  [sin-acos    (sin (acos x))         (sqrt (- 1 (sqr x)))]
+  [cos-acos    (cos (acos x))         x]
+  [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (sqr x))) x)]
+  [sin-atan    (sin (acos x))         (/ x (sqrt (+ 1 (sqr x))))]
+  [cos-atan    (cos (acos x))         (/ 1 (sqrt (+ 1 (sqr x))))]
+  [tan-atan    (tan (acos x))         x]
+  [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
+  [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
+  [asin-neg    (asin (- x))           (- (asin x))]
+  [acos-neg    (acos (- x))           (- PI (acos x))]
+  [atan-neg    (atan (- x))           (- (atan x))]
+ )
+
 ; Hyperbolic trigonometric functions
 (define-ruleset htrig-reduce (hyperbolic simplify)
   [sinh-def    (sinh x)               (/ (- (exp x) (exp (- x))) 2)]
@@ -368,12 +385,15 @@
   [atanh-def   (atanh x)              (/ (log (/ (+ 1 x) (- 1 x))) 2)] ; for |x| < 1
   [acosh-2     (acosh (- (* 2 (sqr x)) 1)) (* 2 (acosh x))]
   [asinh-2     (acosh (+ (* 2 (sqr x)) 1)) (* 2 (asinh x))]
+  [sinh-asinh  (sinh (asinh x))       x]
   [sinh-acosh  (sinh (acosh x))       (sqrt (- (sqr x) 1))] ; for |x| > 1
   [sinh-atanh  (sinh (atanh x))       (/ x (sqrt (- 1 (sqr x))))] ; |x| < 1
   [cosh-asinh  (cosh (asinh x))       (sqrt (+ (sqr x) 1))]
+  [cosh-acosh  (cosh (acosh x))       x]
   [cosh-atanh  (cosh (atanh x))       (/ 1 (sqrt (- 1 (sqr x))))] ; for |x| < 1
   [tanh-asinh  (tanh (asinh x))       (/ x (sqrt (+ 1 (sqr x))))]
-  [tanh-acosh  (tanh (acosh x))       (/ (sqrt (- (sqr x) 1)) x)]) ; for |x| > 1
+  [tanh-acosh  (tanh (acosh x))       (/ (sqrt (- (sqr x) 1)) x)] ; for |x| > 1
+  [tanh-atanh  (tanh (atanh x))       x])
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
