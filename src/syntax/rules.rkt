@@ -271,6 +271,21 @@
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)])
 
+; Hyperbolic trigonometric functions
+(define-ruleset htrig-reduce (hyperbolic simplify)
+  [sinh-def    (sinh x)               (/ (- (exp x) (exp (- x))) 2)]
+  [cosh-def    (cosh x)               (/ (+ (exp x) (exp (- x))) 2)]
+  [tanh-def    (tanh x)               (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x))))]
+  [sinh-cosh   (+ (sqr (cosh x)) (sqr (sinh x))) 1]
+  [tanh-cosh   (+ (sqr (tanh x)) (/ 1 (sqr (cosh x)))) 1]
+  )
+
+(define-ruleset htrig-expand (hyperbolic)
+  [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
+  [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
+  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
+  )
+
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
   [expm1-def   (- (exp x) 1)              (expm1 x)]
