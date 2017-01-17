@@ -61,12 +61,14 @@
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
   [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
   [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
-  [distribute-lft-neg-out (* (- a) b)          (- (* a b))]
-  [distribute-rgt-neg-out (* a (- b))          (- (* a b))]
+  [distribute-lft-neg-out (* (- a) b)           (- (* a b))]
+  [distribute-rgt-neg-out (* a (- b))           (- (* a b))]
   [distribute-neg-in      (- (+ a b))           (+ (- a) (- b))]
   [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
   [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
-  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
+  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)]
+  [sum-double             (+ a a)               (* 2 a)]
+  [double-sum             (* 2 a)               (+ a a)])
 
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
@@ -270,6 +272,7 @@
   [sin-PI/2    (sin (/ PI 2))        1]
   [sin-PI      (sin PI)              0]
   [sin-+PI     (sin (+ x PI))        (- (sin x))]
+  [sin-+PI/2   (sin (+ x (/ PI 2)))  (cos x)]
   [cos-neg     (cos (- x))           (cos x)]
   [cos-0       (cos 0)               1]
   [cos-PI/6    (cos (/ PI 6))        (/ (sqrt 3) 2)]
@@ -278,6 +281,7 @@
   [cos-PI/2    (cos (/ PI 2))        0]
   [cos-PI      (cos PI)              -1]
   [cos-+PI     (cos (+ x PI))        (- (cos x))]
+  [cos-+PI/2   (cos (+ x (/ PI 2)))  (- (sin x))]
   [tan-neg     (tan (- x))           (- (tan x))]
   [tan-0       (tan 0)               0]
   [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
@@ -289,14 +293,21 @@
   [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
 
 (define-ruleset trig-expand (trigonometry)
+  [sin-sqrt    (sin x)                (sqrt (- 1 (sqr (cos x))))]
+  [cos-sqrt    (cos x)                (sqrt (- 1 (sqr (sin x))))]
   [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))          (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [tan-sum     (tan (+ x y))          (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
   [sin-diff    (sin (- x y))          (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-diff    (cos (- x y))          (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [sin-2       (sin (* 2 x))          (* 2 (* (sin x) (cos x)))]
+  [sin-3       (sin (* 3 x))          (- (* 3 (sin x)) (* 4 (cube (sin x))))]
   [2-sin       (* 2 (* (sin x) (cos x))) (sin (* 2 x))]
+  [3-sin       (- (* 3 (sin x)) (* 4 (cube (sin x)))) (sin (* 3 x))]
   [cos-2       (cos (* 2 x))          (- (sqr (sin x)) (sqr (cos x)))]
+  [cos-3       (cos (* 3 x))          (- (* 4 (cube (cos x))) (* 3 (cos x)))]
   [2-cos       (- (sqr (sin x)) (sqr (cos x))) (cos (* 2 x))]
+  [3-cos       (- (* 4 (cube (cos x))) (* 3 (cos x))) (cos (* 3 x))]
   [tan-2       (tan (* 2 x))          (/ (* 2 (tan x)) (- 1 (sqr (tan x))))]
   [2-tan       (/ (* 2 (tan x)) (- 1 (sqr (tan x)))) (tan (* 2 x))]
   [sqr-sin     (sqr (sin x))          (- 1/2 (* 1/2 (cos (* 2 x))))]
@@ -309,6 +320,7 @@
   [sin-mult    (* (sin x) (sin y))    (/ (- (cos (- x y)) (cos (+ x y))) 2)]
   [sin-cos-mult (* (sin x) (cos y))   (/ (+ (sin (- x y)) (sin (+ x y))) 2)]
   [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
+  [diff-atan2  (- (atan2 y1 x1) (atan y2 x2)) (atan2 (- (* y1 x2) (* y2 x1)) (+ (* x1 x2) (* y1 y2)))]
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))    (tan x)])
 
@@ -317,13 +329,51 @@
   [sinh-def    (sinh x)               (/ (- (exp x) (exp (- x))) 2)]
   [cosh-def    (cosh x)               (/ (+ (exp x) (exp (- x))) 2)]
   [tanh-def    (tanh x)               (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x))))]
-  [sinh-cosh   (+ (sqr (cosh x)) (sqr (sinh x))) 1]
-  [tanh-cosh   (+ (sqr (tanh x)) (/ 1 (sqr (cosh x)))) 1])
+  [tanh-def    (tanh x)               (/ (- (exp (* 2 x)) 1) (+ (exp (* 2 x)) 1))]
+  [tanh-def    (tanh x)               (/ (- 1 (exp (* -2 x))) (+ 1 (exp (* -2 x))))]
+  [sinh-cosh   (- (sqr (cosh x)) (sqr (sinh x))) 1]
+  [sinh-+-cosh (+ (cosh x) (sinh x))  (exp x)]
+  [sinh---cosh (- (cosh x) (sinh x))  (exp (- x))])
 
 (define-ruleset htrig-expand (hyperbolic)
   [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
   [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
-  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)])
+  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
+  [sinh-neg    (sinh (- x))           (- (sinh x))]
+  [sinh-0      (sinh 0)               0]
+  [cosh-neg    (cosh (- x))           (cosh x)]
+  [cosh-0      (cosh 0)               1]
+  [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
+  [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
+  [cosh-2      (cosh (* 2 x))         (+ (sqr (sinh x)) (sqr (cosh x)))]
+  [cosh-1/2    (cosh (/ x 2))         (sqrt (/ (+ (cosh x) 1) 2))]
+  [sinh-sum    (sinh (+ x y))         (+ (* (sinh x) (cosh y)) (* (cosh x) (sinh y)))]
+  [sinh-diff   (sinh (- x y))         (- (* (sinh x) (cosh y)) (* (cosh x) (sinh y)))]
+  [sinh-2      (sinh (* 2 x))         (* 2 (* (sinh x) (cosh x)))]
+  [sinh-1/2    (sinh (/ x 2))         (/ (sinh x) (sqrt (* 2 (+ (cosh x) 1))))]
+  [sinh-1/2*   (sinh (/ x 2))         (sqrt (/ (- (cosh x) 1) 2))]
+  [tanh-sum    (tanh (+ x y))         (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y))))]
+  [tanh-2      (tanh (* 2 x))         (/ (* 2 (tanh x)) (+ 1 (sqr (tanh x))))]
+  [tanh-1/2    (tanh (/ 2 x))         (sqrt (/ (- (cosh x) 1) (+ (cosh x) 1)))]
+  [tanh-1/2*   (tanh (/ 2 x))         (/ (sinh x) (+ (cosh x) 1))]
+  [tanh-1/2**  (tanh (/ 2 x))         (/ (- (cosh x) 1) (sinh x))]
+  [sum-sinh    (+ (sinh x) (sinh y))  (* 2 (* (sinh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
+  [sum-cosh    (+ (cosh x) (cosh y))  (* 2 (* (cosh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
+  [diff-sinh   (- (sinh x) (sinh y))  (* 2 (* (cosh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
+  [diff-cosh   (- (cosh x) (cosh y))  (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))])
+
+(define-ruleset ahtrig-expand (hyperbolic)
+  [asinh-def   (asinh x)              (log (+ x (sqrt (+ (sqr x) 1))))]
+  [acosh-def   (acosh x)              (log (+ x (sqrt (- (sqr x) 1))))] ; for x >= 1
+  [atanh-def   (atanh x)              (/ (log (/ (+ 1 x) (- 1 x))) 2)] ; for |x| < 1
+  [acosh-2     (acosh (- (* 2 (sqr x)) 1)) (* 2 (acosh x))]
+  [asinh-2     (acosh (+ (* 2 (sqr x)) 1)) (* 2 (asinh x))]
+  [sinh-acosh  (sinh (acosh x))       (sqrt (- (sqr x) 1))] ; for |x| > 1
+  [sinh-atanh  (sinh (atanh x))       (/ x (sqrt (- 1 (sqr x))))] ; |x| < 1
+  [cosh-asinh  (cosh (asinh x))       (sqrt (+ (sqr x) 1))]
+  [cosh-atanh  (cosh (atanh x))       (/ 1 (sqrt (- 1 (sqr x))))] ; for |x| < 1
+  [tanh-asinh  (tanh (asinh x))       (/ x (sqrt (+ 1 (sqr x))))]
+  [tanh-acosh  (tanh (acosh x))       (/ (sqrt (- (sqr x) 1)) x)]) ; for |x| > 1
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
