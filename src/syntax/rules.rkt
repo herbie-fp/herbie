@@ -61,16 +61,14 @@
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
   [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
   [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
-  [distribute-lft-neg-out (* (- a) b)          (- (* a b))]
-  [distribute-rgt-neg-out (* a (- b))          (- (* a b))]
+  [distribute-lft-neg-out (* (- a) b)           (- (* a b))]
+  [distribute-rgt-neg-out (* a (- b))           (- (* a b))]
   [distribute-neg-in      (- (+ a b))           (+ (- a) (- b))]
   [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
-  [distribute-inv-in      (/ (* a b))           (* (/ a) (/ b))]
-  [distribute-inv-out     (* (/ a) (/ b))       (/ (* a b))]
-  [distribute-inv-neg     (/ (- a))             (- (/ a))]
-  [distribute-neg-inv     (- (/ a))             (/ (- a))]
   [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
-  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
+  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)]
+  [sum-double             (+ a a)               (* 2 a)]
+  [double-sum             (* 2 a)               (+ a a)])
 
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
@@ -81,17 +79,6 @@
 (define-ruleset difference-of-squares-flip (polynomials)
   [flip-+     (+ a b)  (/ (- (sqr a) (sqr b)) (- a b))]
   [flip--     (- a b)  (/ (- (sqr a) (sqr b)) (+ a b))])
-
-; Difference of cubes
-(define-ruleset difference-of-cubes (polynomials)
-  [sum-cubes        (+ (pow a 3) (pow b 3))
-                    (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
-  [difference-cubes (- (pow a 3) (pow b 3))
-                    (* (+ (sqr a) (+ (sqr b) (* a b))) (+ a b))]
-  [flip3-+          (+ a b)
-                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
-  [flip3--          (- a b)
-                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Identity
 (define-ruleset id-reduce (arithmetic simplify)
@@ -104,8 +91,11 @@
   [*-rgt-identity    (* a 1)               a]
   [*-inverses        (/ a a)               1]
   [remove-double-div (/ 1 (/ 1 a))         a]
+  [rgt-mult-inverse  (* a (/ 1 a))         1]
+  [lft-mult-inverse  (* (/ 1 a) a)         1]
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
+  [mul0              (* a 0)               0]
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
@@ -117,6 +107,17 @@
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [neg-mul-1         (- a)                 (* -1 a)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
+
+; Difference of cubes
+(define-ruleset difference-of-cubes (polynomials)
+  [sum-cubes        (+ (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (- (sqr b) (* a b))) (+ a b))]
+  [difference-cubes (- (pow a 3) (pow b 3))
+                    (* (+ (sqr a) (+ (sqr b) (* a b))) (- a b))]
+  [flip3-+          (+ a b)
+                    (/ (+ (pow a 3) (pow b 3)) (+ (sqr a) (- (sqr b) (* a b))))]
+  [flip3--          (- a b)
+                    (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Dealing with fractions
 (define-ruleset fractions-distribute (fractions simplify)
@@ -195,12 +196,15 @@
   [exp-neg      (exp (- a))          (/ 1 (exp a))]
   [exp-diff     (exp (- a b))        (/ (exp a) (exp b))])
 
-; TODO added this to simplify, good idea?
 (define-ruleset exp-factor (exponents simplify)
   [prod-exp     (* (exp a) (exp b))  (exp (+ a b))]
   [rec-exp      (/ 1 (exp a))        (exp (- a))]
   [div-exp      (/ (exp a) (exp b))  (exp (- a b))]
-  [exp-prod     (exp (* a b))        (pow (exp a) b)])
+  [exp-prod     (exp (* a b))        (pow (exp a) b)]
+  [exp-sqrt     (exp (/ a 2))        (sqrt (exp a))]
+  [exp-cbrt     (exp (/ a 3))        (cbrt (exp a))]
+  [exp-lft-sqr  (exp (* a 2))        (sqr (exp a))]
+  [exp-lft-cube (exp (* a 3))        (cube (exp a))])
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
@@ -224,6 +228,12 @@
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-prod-down    (* (pow b a) (pow c a))     (pow (* b c) a)]
+  [pow-pow          (pow (pow a b) c)           (pow a (* b c))]
+  [pow-neg          (pow a (- b))               (/ 1 (pow a b))]
+  [pow-flip         (/ 1 (pow a b))             (pow a (- b))]
+  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))]
+  [pow-sub          (pow a (- b c))             (/ (pow a b) (pow a c))]
+  [pow-unpow        (pow a (* b c))             (pow (pow a b) c)]
   [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
   [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))]
   [inv-pow          (/ 1 a)                     (pow a -1)]
@@ -237,7 +247,8 @@
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (- (log a))]
-  [log-pow      (log (pow a b))     (* b (log a))])
+  [log-pow      (log (pow a b))     (* b (log a))]
+  [log-E        (log E)             1])
 
 (define-ruleset log-factor (exponents)
   [sum-log      (+ (log a) (log b))  (log (* a b))]
@@ -246,34 +257,140 @@
 
 ; Trigonometry
 (define-ruleset trig-reduce (trigonometry simplify)
-  [cos-sin-sum (+ (sqr (cos a))      (sqr (sin a))) 1]
+  [cos-sin-sum (+ (sqr (cos a)) (sqr (sin a))) 1]
   [1-sub-cos   (- 1 (sqr (cos a)))   (sqr (sin a))]
   [1-sub-sin   (- 1 (sqr (sin a)))   (sqr (cos a))]
   [-1-add-cos  (+ (sqr (cos a)) -1)  (- (sqr (sin a)))]
   [-1-add-sin  (+ (sqr (sin a)) -1)  (- (sqr (cos a)))]
+  [sub-1-cos   (- (sqr (cos a)) 1)   (- (sqr (sin a)))]
+  [sub-1-sin   (- (sqr (sin a)) 1)   (- (sqr (cos a)))]
   [sin-neg     (sin (- x))           (- (sin x))]
+  [sin-0       (sin 0)               0]
+  [sin-PI/6    (sin (/ PI 6))        1/2]
+  [sin-PI/4    (sin (/ PI 4))        (/ (sqrt 2) 2)]
+  [sin-PI/3    (sin (/ PI 3))        (/ (sqrt 3) 2)]
+  [sin-PI/2    (sin (/ PI 2))        1]
+  [sin-PI      (sin PI)              0]
+  [sin-+PI     (sin (+ x PI))        (- (sin x))]
+  [sin-+PI/2   (sin (+ x (/ PI 2)))  (cos x)]
   [cos-neg     (cos (- x))           (cos x)]
   [cos-0       (cos 0)               1]
+  [cos-PI/6    (cos (/ PI 6))        (/ (sqrt 3) 2)]
+  [cos-PI/4    (cos (/ PI 4))        (/ (sqrt 2) 2)]
+  [cos-PI/3    (cos (/ PI 3))        1/2]
   [cos-PI/2    (cos (/ PI 2))        0]
   [cos-PI      (cos PI)              -1]
   [cos-+PI     (cos (+ x PI))        (- (cos x))]
-  [sin-0       (sin 0)               0]
-  [sin-PI/2    (sin (/ PI 2))        1]
-  [sin-+PI     (sin (+ x PI))        (- (sin x))])
+  [cos-+PI/2   (cos (+ x (/ PI 2)))  (- (sin x))]
+  [tan-neg     (tan (- x))           (- (tan x))]
+  [tan-0       (tan 0)               0]
+  [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
+  [tan-PI/4    (tan (/ PI 4))        1]
+  [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
+  [tan-PI      (tan PI)              0]
+  [tan-+PI     (tan (+ x PI))        (tan x)]
+  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
 
 (define-ruleset trig-expand (trigonometry)
+  [sqr-sin     (sqr (sin x))          (- 1 (sqr (cos x)))]
+  [sqr-cos     (sqr (cos x))          (- 1 (sqr (sin x)))]
   [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))          (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [tan-sum     (tan (+ x y))          (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
   [sin-diff    (sin (- x y))          (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-diff    (cos (- x y))          (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [sin-2       (sin (* 2 x))          (* 2 (* (sin x) (cos x)))]
+  [sin-3       (sin (* 3 x))          (- (* 3 (sin x)) (* 4 (cube (sin x))))]
+  [2-sin       (* 2 (* (sin x) (cos x))) (sin (* 2 x))]
+  [3-sin       (- (* 3 (sin x)) (* 4 (cube (sin x)))) (sin (* 3 x))]
+  [cos-2       (cos (* 2 x))          (- (sqr (cos x)) (sqr (sin x)))]
+  [cos-3       (cos (* 3 x))          (- (* 4 (cube (cos x))) (* 3 (cos x)))]
+  [2-cos       (- (sqr (cos x)) (sqr (sin x))) (cos (* 2 x))]
+  [3-cos       (- (* 4 (cube (cos x))) (* 3 (cos x))) (cos (* 3 x))]
+  [tan-2       (tan (* 2 x))          (/ (* 2 (tan x)) (- 1 (sqr (tan x))))]
+  [2-tan       (/ (* 2 (tan x)) (- 1 (sqr (tan x)))) (tan (* 2 x))]
+  [sqr-sin     (sqr (sin x))          (- 1/2 (* 1/2 (cos (* 2 x))))]
+  [sqr-cos     (sqr (cos x))          (+ 1/2 (* 1/2 (cos (* 2 x))))]
+  [diff-sin    (- (sin x) (sin y))    (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
+  [diff-cos    (- (cos x) (cos y))    (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
+  [sum-sin     (+ (sin x) (sin y))    (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
+  [sum-cos     (+ (cos x) (cos y))    (* 2 (* (cos (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
+  [cos-mult    (* (cos x) (cos y))    (/ (+ (cos (+ x y)) (cos (- x y))) 2)]
+  [sin-mult    (* (sin x) (sin y))    (/ (- (cos (- x y)) (cos (+ x y))) 2)]
+  [sin-cos-mult (* (sin x) (cos y))   (/ (+ (sin (- x y)) (sin (+ x y))) 2)]
   [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
-  [quot-tan    (/ (sin x) (cos x))    (tan x)]
+  [sum-atan    (+ (atan x) (atan y))  (atan2 (+ x y) (- 1 (* x y)))]
   [tan-quot    (tan x)                (/ (sin x) (cos x))]
-  [cotan-quot  (cotan x)              (/ (cos x) (sin x))]
-  [quot-tan    (/ (sin x) (cos x))    (tan x)]
-  [quot-cotan  (/ (cos x) (sin x))    (cotan x)]
-  [cotan-tan   (cotan x)              (/ 1 (tan x))]
-  [tan-cotan   (tan x)                (/ 1 (cotan x))])
+  [quot-tan    (/ (sin x) (cos x))    (tan x)])
+
+(define-ruleset atrig-expand (trigonometry)
+  [sin-asin    (sin (asin x))         x]
+  [cos-asin    (cos (asin x))         (sqrt (- 1 (sqr x)))]
+  [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (sqr x))))]
+  [sin-acos    (sin (acos x))         (sqrt (- 1 (sqr x)))]
+  [cos-acos    (cos (acos x))         x]
+  [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (sqr x))) x)]
+  [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (sqr x))))]
+  [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (sqr x))))]
+  [tan-atan    (tan (atan x))         x]
+  [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
+  [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
+  [asin-neg    (asin (- x))           (- (asin x))]
+  [acos-neg    (acos (- x))           (- PI (acos x))]
+  [atan-neg    (atan (- x))           (- (atan x))]
+ )
+
+; Hyperbolic trigonometric functions
+(define-ruleset htrig-reduce (hyperbolic simplify)
+  [sinh-def    (sinh x)               (/ (- (exp x) (exp (- x))) 2)]
+  [cosh-def    (cosh x)               (/ (+ (exp x) (exp (- x))) 2)]
+  [tanh-def    (tanh x)               (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x))))]
+  [tanh-def    (tanh x)               (/ (- (exp (* 2 x)) 1) (+ (exp (* 2 x)) 1))]
+  [tanh-def    (tanh x)               (/ (- 1 (exp (* -2 x))) (+ 1 (exp (* -2 x))))]
+  [sinh-cosh   (- (sqr (cosh x)) (sqr (sinh x))) 1]
+  [sinh-+-cosh (+ (cosh x) (sinh x))  (exp x)]
+  [sinh---cosh (- (cosh x) (sinh x))  (exp (- x))])
+
+(define-ruleset htrig-expand (hyperbolic)
+  [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
+  [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
+  [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
+  [sinh-neg    (sinh (- x))           (- (sinh x))]
+  [sinh-0      (sinh 0)               0]
+  [cosh-neg    (cosh (- x))           (cosh x)]
+  [cosh-0      (cosh 0)               1]
+  [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
+  [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
+  [cosh-2      (cosh (* 2 x))         (+ (sqr (sinh x)) (sqr (cosh x)))]
+  [cosh-1/2    (cosh (/ x 2))         (sqrt (/ (+ (cosh x) 1) 2))]
+  [sinh-sum    (sinh (+ x y))         (+ (* (sinh x) (cosh y)) (* (cosh x) (sinh y)))]
+  [sinh-diff   (sinh (- x y))         (- (* (sinh x) (cosh y)) (* (cosh x) (sinh y)))]
+  [sinh-2      (sinh (* 2 x))         (* 2 (* (sinh x) (cosh x)))]
+  [sinh-1/2    (sinh (/ x 2))         (/ (sinh x) (sqrt (* 2 (+ (cosh x) 1))))]
+  [tanh-sum    (tanh (+ x y))         (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y))))]
+  [tanh-2      (tanh (* 2 x))         (/ (* 2 (tanh x)) (+ 1 (sqr (tanh x))))]
+  [tanh-1/2    (tanh (/ x 2))         (/ (sinh x) (+ (cosh x) 1))]
+  [tanh-1/2*   (tanh (/ x 2))         (/ (- (cosh x) 1) (sinh x))]
+  [sum-sinh    (+ (sinh x) (sinh y))  (* 2 (* (sinh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
+  [sum-cosh    (+ (cosh x) (cosh y))  (* 2 (* (cosh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
+  [diff-sinh   (- (sinh x) (sinh y))  (* 2 (* (cosh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
+  [diff-cosh   (- (cosh x) (cosh y))  (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))])
+
+(define-ruleset ahtrig-expand (hyperbolic)
+  [asinh-def   (asinh x)              (log (+ x (sqrt (+ (sqr x) 1))))]
+  [acosh-def   (acosh x)              (log (+ x (sqrt (- (sqr x) 1))))]
+  [atanh-def   (atanh x)              (/ (log (/ (+ 1 x) (- 1 x))) 2)]
+  [acosh-2     (acosh (- (* 2 (sqr x)) 1)) (* 2 (acosh x))]
+  [asinh-2     (acosh (+ (* 2 (sqr x)) 1)) (* 2 (asinh x))]
+  [sinh-asinh  (sinh (asinh x))       x]
+  [sinh-acosh  (sinh (acosh x))       (sqrt (- (sqr x) 1))]
+  [sinh-atanh  (sinh (atanh x))       (/ x (sqrt (- 1 (sqr x))))]
+  [cosh-asinh  (cosh (asinh x))       (sqrt (+ (sqr x) 1))]
+  [cosh-acosh  (cosh (acosh x))       x]
+  [cosh-atanh  (cosh (atanh x))       (/ 1 (sqrt (- 1 (sqr x))))]
+  [tanh-asinh  (tanh (asinh x))       (/ x (sqrt (+ 1 (sqr x))))]
+  [tanh-acosh  (tanh (acosh x))       (/ (sqrt (- (sqr x) 1)) x)]
+  [tanh-atanh  (tanh (atanh x))       x])
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
@@ -303,3 +420,61 @@
              (memq 'simplify groups))
         rules
         '())))
+
+(module+ test
+  (require rackunit math/bigfloat)
+  (require "../programs.rkt" "../float.rkt" "distributions.rkt")
+  (define sampler (eval-sampler 'default))
+  (define num-test-points 2000)
+
+  (define *conditions*
+    '([acosh-def  . (>= x 1)]
+      [atanh-def  . (< (fabs x) 1)]
+      [acosh-2    . (>= x 1)]
+      [asinh-2    . (>= x 0)]
+      [sinh-acosh . (> (fabs x) 1)]
+      [sinh-atanh . (< (fabs x) 1)]
+      [cosh-atanh . (< (fabs x) 1)]
+      [tanh-acosh . (> (fabs x) 1)]))
+
+  (define *skip-tests*
+    ;; All these tests fail due to underflow to 0 and are irrelevant
+    '(exp-prod pow-unpow pow-pow pow-exp
+      asinh-2 tanh-1/2* sinh-cosh))
+
+  (for ([test-rule (*rules*)] #:when (not (set-member? *skip-tests* (rule-name test-rule))))
+    (parameterize ([bf-precision 2000])
+    (with-check-info (['rule test-rule])
+      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
+        (match-define (rule name p1 p2) test-rule)
+        ;; Not using the normal prepare-points machinery for speed.
+        (define fv (free-variables p1))
+        (define valid-point?
+          (if (dict-has-key? *conditions* name)
+              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) mode:bf)
+              (const true)))
+
+        (define (make-point) (for/list ([v fv]) (sampler)))
+        (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
+        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+        (define prog1 (eval-prog `(λ ,fv ,p1) mode:bf))
+        (define prog2 (eval-prog `(λ ,fv ,p2) mode:bf))
+        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+          (define ex1 (map prog1 points))
+          (define ex2 (map prog2 points))
+          (define errs
+            (for/list ([v1 ex1] [v2 ex2])
+              ;; Ignore points not in the input or output domain
+              (if (and (ordinary-float? v1) (ordinary-float? v2))
+                  (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
+                  #f)))
+          (when (< (length (filter identity errs)) 100)
+            (eprintf "Could not sample enough points to test ~a\n" name))
+          (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
+          (define max-error
+            (argmax car (filter car (map list errs points ex1 ex2 errs))))
+          (with-check-info (['max-error (first max-error)]
+                            ['max-point (map cons fv (second max-error))]
+                            ['max-input (third max-error)]
+                            ['max-output (fourth max-error)])
+                           (check-pred (curryr <= 1) score))))))))

@@ -14,14 +14,14 @@
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error post-process)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry numerics)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics)]))
 
 (define default-flags
   #hash([precision . (double)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]))
 
 (define (enable-flag! category flag)
   (define (update cat-flags) (set-add cat-flags flag))

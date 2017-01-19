@@ -84,10 +84,6 @@
   [cube     "{~a}^3"
             (lambda (idx a) (format "{~a}^{~a}" a (tag "3" idx)))
             #f #f]
-  [cotan    "\\cot ~a"
-            (tag-inner-untag "\\cot ~a")
-            'fn #f]
-
   [acos      "\\cos^{-1} ~a"
              (tag-inner-untag "\\cos^{-1} ~a")
              'fn #f]
