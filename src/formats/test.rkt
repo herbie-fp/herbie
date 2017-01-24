@@ -54,7 +54,7 @@
                   (syntax-source stx)))
             (format "  ~a:~a:~a: ~a" file (or (syntax-line stx) "") (or (syntax-column stx) (syntax-position stx)) msg)))
         (raise-herbie-error (format "Invalid syntax in ~a.\n~a" (syntax-source stx) (string-join err-lines "\n"))
-                            #:url "faq.html#invalid-program")])
+                            #:url "faq.html#invalid-syntax")])
 
      (test (~a (dict-ref prop-dict ':name body))
            args samps

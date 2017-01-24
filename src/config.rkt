@@ -73,4 +73,4 @@
 
 (define *binary-search-test-points* (make-parameter 16))
 
-(define *herbie-version* "1.0")
+(define *herbie-version* "1.1")

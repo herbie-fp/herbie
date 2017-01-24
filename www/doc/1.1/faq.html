@@ -25,17 +25,16 @@
     information and debugging tips.
   </p>
   
-  <h3 id="invalid-program">“Invalid program” error</h3>
+  <h3 id="invalid-syntax">“Invalid synatx” error</h3>
 
   <p>
-    This error is most likely due to an error in preparing the input
-    to Herbie. Common errors include misspelling function names and
-    parenthesizing expressions that must not be parenthesized. The
-    stack trace will contain additional information. For example, in
-    the expression <code>(- (exp (x)) 1)</code>, the use
-    of <code>x</code> as invalid because <code>x</code> is a variable,
-    so cannot be parenthesized. <code>(- (exp x) 1)</code> would
-    be the correct way of describing that expression.
+    This error means you mis-formatted Herbie's input. Common errors
+    include misspelling function names and parenthesizing expressions
+    that must not be parenthesized. For example, in 
+    <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
+    <code>x</code> is a variable so isn't parenthesized. <code>(- (exp
+    x) 1)</code> would be the correct way of writing that expression.
+    The error message will contain additional information.
   </p>
   
   <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
