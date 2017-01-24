@@ -19,7 +19,7 @@
         (eprintf "~a: " (string-join (map ~a location))))
       (eprintf "~a\n" message)
       (when url
-        (eprintf "See <https://herbie.uwplse.org/~a/~a> for more.\n" *herbie-version* url)))))
+        (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url)))))
 
 (define old-error-display-handler (error-display-handler))
 (error-display-handler
