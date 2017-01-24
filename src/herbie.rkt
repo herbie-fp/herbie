@@ -29,9 +29,9 @@
        values
        (sequence-map
         (λ (e) 
-          (with-handlers ([exn:fail:user? (λ (e) ((error-display-handler) e) #f)])
+          (with-handlers ([exn:fail:user? (λ (e) ((error-display-handler) (exn-message e) e) #f)])
             (parse-test e)))
-        (in-port read (current-input-port))))
+        (in-port (curry read-syntax "stdin") (current-input-port))))
       (all-herbie-tests files)))
 
 (define (all-herbie-tests files)
@@ -40,7 +40,10 @@
      (if (directory-exists? file)
          (all-herbie-tests (filter herbie-input? (directory-list file #:build? #t)))
          (call-with-input-file file
-           (λ (port) (map parse-test (sequence->list (in-port read port)))))))))
+           (λ (port)
+             (define file* (if (string? file) (string->path file) file))
+             (port-count-lines! port)
+             (map parse-test (sequence->list (in-port (curry read-syntax file*) port)))))))))
 
 (define (in-herbie-output files #:seed seed)
   (eprintf "Seed: ~a\n" seed)
