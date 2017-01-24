@@ -11,7 +11,7 @@
          eval-prog replace-subexpr
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         valid-expression? valid-program?
+         valid-expression? valid-program? check-expression check-program
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -98,6 +98,46 @@
 (define (unused-variables prog)
   (remove* (free-variables (program-body prog))
            (program-variables prog)))
+
+(define (check-expression* stx vars error!)
+  (match (or (syntax->list stx) (syntax-e stx))
+    [(? constant?) (void)]
+    [(? variable?)
+     (unless (set-member? vars (syntax-e stx))
+       (error! stx "Unknown variable ~a" (syntax-e stx)))]
+    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list vars* vals)) ...)) body)
+     ;; These are unfolded by desugaring
+     (for ([var vars*] [val vals])
+       (unless (identifier? var)
+         (error! var "Invalid variable name ~a" (syntax-e var)))
+       (check-expression* val vars error!))
+     (check-expression* body (append vars (map syntax-e vars*)) error!)]
+    [(list (app syntax-e (? (curry set-member? '(+ - * /)))) args ...)
+     ;; These expand associativity so we don't check the number of arguments
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [(list f args ...)
+     (if (hash-has-key? (*operations*) (syntax->datum f))
+         (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
+           (unless (set-member? num-args (length args))
+             (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                                 (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
+         (error! stx "Unknown operator ~a" (syntax->datum f)))
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
+
+(define (check-program* stx error!)
+  (match (syntax->list stx)
+    [(list (app syntax-e 'FPCore) vars body)
+     (unless (and (list? (syntax->list vars)) (andmap identifier? (syntax->list vars)))
+       (error! stx (format "Invalid arguments list ~a" (syntax->datum stx))))
+     (check-expression* body (syntax->datum vars) error!)]
+    [_ (error! stx (format "Unknown syntax ~a" (syntax->datum stx)))]))
+
+(define (check-expression stx vars)
+  (reap [error!] (check-expression* stx vars (λ (stx fmt . args) (error! (cons stx (apply format fmt args)))))))
+
+(define (check-program stx)
+  (reap [error!] (check-program* stx (λ (stx fmt . args) (error! (cons stx (apply format fmt args)))))))
 
 (define (valid-expression? expr vars)
   (match expr
