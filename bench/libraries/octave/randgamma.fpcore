@@ -1,9 +1,9 @@
-(FPCore
- (a rand)
- :name
- "Octave 3.8, oct_fill_randg"
+; -*- mode: scheme -*-
+
+(FPCore (a rand)
+ :name "Octave 3.8, oct_fill_randg"
  (let ((d (- a (/ 1.0 3.0))))
-   (let ((c (/ 1 (sqrt (* 9 d)))))
-     (let ((x rand))
-       (let ((v (+ 1 (* c x))))
-         (let ((v* (* v (* v v)))) (let ((xsq (* x x))) (* d v))))))))
+   (let ((c (/ 1 (sqrt (* 9 d)))) (x rand))
+     (let ((v (+ 1 (* c x))))
+       (let ((v* (* v (* v v))) (xsq (* x x)))
+         (* d v))))))

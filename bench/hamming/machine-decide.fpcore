@@ -1,3 +1,5 @@
+; -*- mode: scheme -*-
+
 (FPCore (a x)
  :name "NMSE section 3.5"
  :target

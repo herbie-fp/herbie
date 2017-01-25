@@ -1,9 +1,8 @@
-(FPCore
- (c_p c_n t s)
- :pre
- (and (< 0 c_p) (< 0 c_n))
- :name
- "Harley's example"
+; -*- mode: scheme -*-
+
+(FPCore (c_p c_n t s)
+ :pre (and (< 0 c_p) (< 0 c_n))
+ :name "Harley's example"
  :target
  (*
   (pow (/ (+ 1 (exp (- t))) (+ 1 (exp (- s)))) c_p)

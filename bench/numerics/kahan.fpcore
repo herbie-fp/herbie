@@ -1,7 +1,7 @@
-(FPCore
- (x)
- :name
- "Kahan's exp quotient"
+; -*- mode: scheme -*-
+
+(FPCore (x)
+ :name "Kahan's exp quotient"
  :target
  (if (and (< x 1) (> x -1))
    (/ (- (exp x) 1) (log (exp x)))

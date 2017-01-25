@@ -1,9 +1,9 @@
+; -*- mode: scheme -*-
 
 ;; This test commented out until Herbie supports no-argument expressions
-#;(FPCore
- ()
- :name
- "From Warwick Tucker's Validated Numerics"
+#;
+(FPCore ()
+ :name "From Warwick Tucker's Validated Numerics"
  (let ([x 77617] [y 33096])
    (+
     (* 333.75 (pow y 6))

@@ -1,19 +1,17 @@
-(FPCore
- (x eps)
- :name
- "NMSE Section 6.1 mentioned, A"
+; -*- mode: scheme -*-
+
+(FPCore (x eps)
+ :name "NMSE Section 6.1 mentioned, A"
  (/
   (-
    (* (+ 1 (/ 1 eps)) (exp (- (* (- 1 eps) x))))
    (* (- (/ 1 eps) 1) (exp (- (* (+ 1 eps) x)))))
   2))
-(FPCore
- (a b)
- :name
- "NMSE Section 6.1 mentioned, B"
+
+(FPCore (a b)
+ :name "NMSE Section 6.1 mentioned, B"
  (* (/ PI 2) (/ 1 (- (sqr b) (sqr a))) (- (/ 1 a) (/ 1 b))))
-(FPCore
- (x y)
- :name
- "Radioactive exchange between two surfaces"
+
+(FPCore (x y)
+ :name "Radioactive exchange between two surfaces"
  (- (pow x 4) (pow y 4)))
