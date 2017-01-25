@@ -1,10 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "matcher.rkt")
-(require "../syntax/rules.rkt")
-(require "../syntax/syntax.rkt")
+(require "../common.rkt" "../programs.rkt" "matcher.rkt"
+         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt")
 
 (provide simplify)
 
@@ -20,7 +17,8 @@
     (debug #:from 'backup-simplify "Simplify" expr "into" simpl)
     simpl))
 
-(define (simplify* expr)
+(define (simplify* expr*)
+  (define expr ((get-evaluator) expr*))
   (match expr
     [(? constant?) expr]
     [(? variable?) expr]
