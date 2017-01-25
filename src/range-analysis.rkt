@@ -1,4 +1,5 @@
 #lang racket
+(require "syntax/syntax.rkt")
 
 (module+ test
  (require rackunit))
@@ -117,3 +118,33 @@
 (module+ test
   (check-equal? (interval 1 4 #t #t) (hash-ref (range-table-union rt-x1 rt-x2) 'x))
   (check-true (hash-empty? (range-table-union rt-x1 rt-y2))))
+
+(define (condition->range-table condition)
+  (match condition
+    [`(== ,(? variable? var) ,(? number? num))
+     (make-range-table var (interval num num #t #t))]
+    [`(< ,(? variable? var) ,(? number? num))
+     (make-range-table var (interval -inf.0 num #f #f))]
+    [`(<= ,(? variable? var) ,(? number? num))
+     (make-range-table var (interval -inf.0 num #f #t))]
+    [`(> ,(? variable? var) ,(? number? num))
+     (make-range-table var (interval num +inf.0 #f #f))]
+    [`(>= ,(? variable? var) ,(? number? num))
+     (make-range-table var (interval num +inf.0 #t #f))]
+    [`(and ,cond1 ,cond2)
+     (range-table-intersect (condition->range-table cond1) (condition->range-table cond2))]
+    [`(or ,cond1 ,cond2)
+     (range-table-union (condition->range-table cond1) (condition->range-table cond2))]
+    [_
+     (make-empty-range-table)]))
+
+(module+ test
+  (check-equal? (condition->range-table '(> x 1)) (make-hash (list (cons 'x (interval 1 +inf.0 #f #f)))))
+  (check-equal? (condition->range-table '(>= x 1)) (make-hash (list (cons 'x (interval 1 +inf.0 #t #f)))))
+  (check-equal? (condition->range-table '(<= x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #t)))))
+  (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
+  (check-equal? (condition->range-table '(< 1 1)) (make-hash))
+  (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
+  (check-equal? (condition->range-table '(and (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -1.0 1.0 #f #f)))))
+  (check-equal? (condition->range-table '(or (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
+  (check-equal? (condition->range-table '(or (< x -1) (> x 1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f))))))
