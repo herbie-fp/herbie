@@ -76,3 +76,44 @@
  ;; Disjoint intervals
  (check-equal? (interval-union (interval 0 1 #t #f) (interval 2 3 #f #t)) (interval 0 3 #t #t)))
 
+(define (make-range-table x intvl)
+  (make-hash (list (cons x intvl))))
+
+(define (make-empty-range-table)
+  (make-hash))
+
+(define (range-table-ref rt x)
+  (hash-ref rt x (interval -inf.0 +inf.0 #f #f)))
+
+(module+ test
+  (define rt-x1 (make-range-table 'x (interval 1 3 #t #t)))
+  (define rt-x2 (make-range-table 'x (interval 2 4 #t #t)))
+  (define rt-y2 (make-range-table 'y (interval 2 4 #t #t)))
+
+  (check-equal? (interval -inf.0 +inf.0 #f #f) (range-table-ref rt-x1 'y))
+  (check-equal? (range-table-ref rt-x2 'x) (range-table-ref rt-y2 'y)))
+
+(define (range-table-intersect table1 table2)
+  (define new-range-table (make-hash))
+  (for ([key1 (hash-keys table1)])
+    (if (hash-has-key? table2 key1)
+        (hash-set! new-range-table key1 (interval-intersect (hash-ref table1 key1) (hash-ref table2 key1)))
+        (hash-set! new-range-table key1 (hash-ref table1 key1))))
+  (for ([key2 (hash-keys table2)] #:unless (hash-has-key? new-range-table key2))
+    (hash-set! new-range-table key2 (hash-ref table2 key2)))
+  new-range-table)
+
+(module+ test  
+  (check-equal? (interval 2 3 #t #t) (hash-ref (range-table-intersect rt-x1 rt-x2) 'x))
+  (check-equal? (interval 1 3 #t #t) (hash-ref (range-table-intersect rt-x1 rt-y2) 'x))
+  (check-equal? (interval 2 4 #t #t) (hash-ref (range-table-intersect rt-x1 rt-y2) 'y)))
+
+(define (range-table-union table1 table2)
+  (define new-range-table (make-hash))
+  (for ([key1 (hash-keys table1)] #:when (hash-has-key? table2 key1))
+    (hash-set! new-range-table key1 (interval-union (hash-ref table1 key1) (hash-ref table2 key1))))
+  new-range-table)
+
+(module+ test
+  (check-equal? (interval 1 4 #t #t) (hash-ref (range-table-union rt-x1 rt-x2) 'x))
+  (check-true (hash-empty? (range-table-union rt-x1 rt-y2))))
