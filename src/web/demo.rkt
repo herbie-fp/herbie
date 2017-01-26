@@ -6,7 +6,7 @@
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
 (require "../formats/tex.rkt")
-(require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt")
+(require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
 
 (define/page (demo)
@@ -130,20 +130,23 @@
      (define formula
        (with-handlers ([exn:fail? (λ (e) #f)])
          (read (open-input-string formula-str))))
-     (cond
-      [(valid-program? formula)
+     (with-handlers
+         ([exn:fail:user:herbie?
+           (λ (e)
+             (response/error
+              "Demo Error"
+              `(p "Invalid formula " (code ,formula-str) ". "
+                  "Formula must be a valid program using only the supported functions. "
+                  "Please " (a ([href ,go-back]) "go back") " and try again.")))])
+
+       (assert-program! formula)
        (define hash (md5 (open-input-string formula-str)))
        (define name
          (match (get-bindings 'formula-math)
            [(list formula-math) formula-math]
            [_ formula-str]))
 
-       (body name hash formula)]
-      [else
-       (response/error "Demo Error"
-                       `(p "Invalid formula " (code ,formula-str) ". "
-                           "Formula must be a valid program using only the supported functions. "
-                           "Please " (a ([href ,go-back]) "go back") " and try again."))])]
+       (body name hash formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified serveral). "

@@ -7,7 +7,7 @@
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
 
-(struct exn:fail:user:herbie:syntax exn:fail:user:herbie (locations messages)
+(struct exn:fail:user:herbie:syntax exn:fail:user:herbie (locations)
         #:extra-constructor-name make-exn:fail:user:herbie:syntax)
 
 (define (raise-herbie-error message #:url [url #f] . args)
@@ -22,10 +22,6 @@
   (with-output-to-string
     (λ ()
       (match err
-        [(exn:fail:user:herbie message marks url)
-         (eprintf "~a\n" message)
-         (when url
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]
         [(exn:fail:user:herbie:syntax message marks url locations)
          (eprintf "~a\n" message)
          (for ([(stx message) (in-dict locations)])
@@ -37,7 +33,11 @@
            (eprintf "  ~a:~a:~a: ~a\n" file (or (syntax-line stx) "")
                     (or (syntax-column stx) (syntax-position stx)) message))
          (when url
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a\n" *herbie-version* url)])))))
+           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a\n" *herbie-version* url))]
+        [(exn:fail:user:herbie message marks url)
+         (eprintf "~a\n" message)
+         (when url
+           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]))))
 
 (define old-error-display-handler (error-display-handler))
 (error-display-handler

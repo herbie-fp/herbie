@@ -1,9 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
-(require math/flonum)
-(require "common.rkt")
-(require "syntax/syntax.rkt")
+(require math/bigfloat math/flonum)
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          location-induct program-induct expression-induct location-hash
@@ -11,7 +9,7 @@
          eval-prog replace-subexpr
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         valid-expression? valid-program? assert-expression! assert-program~
+         assert-expression! assert-program!
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -140,7 +138,7 @@
             (sow (cons stx (apply format fmt args))))
           (check-expression* stx vars error!)))
   (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid expression" #:locations locs)))
+    (raise-herbie-syntax-error "Invalid expression" #:locations errs)))
 
 (define (assert-program! stx)
   (define errs
@@ -149,24 +147,7 @@
             (sow (cons stx (apply format fmt args))))
           (check-program* stx error!)))
   (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid program" #:locations locs)))
-
-(define (valid-expression? expr vars)
-  (match expr
-    [(? constant?) #t]
-    [(? variable?) (member expr vars)]
-    [`(,f ,args ...)
-     (and (andmap (curryr valid-expression? vars) args)
-          (hash-has-key? (*operations*) f)
-          (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
-    [_ #f]))
-
-(define (valid-program? prog)
-  (match prog
-    [(list 'FPCore vars body)
-     (valid-expression? body vars)]
-    [_
-     #f]))
+    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
 
 (define (replace-expression program from to)
   (cond
