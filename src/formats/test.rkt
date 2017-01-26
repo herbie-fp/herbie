@@ -91,7 +91,7 @@
     (load-file fname)))
 
 (define (load-tests [path benchmark-path])
-  (define path* (if (string? path) (path->string path) path))
+  (define path* (if (string? path) (string->path path) path))
   (if (directory-exists? path*)
       (load-directory path*)
       (load-file path*)))
