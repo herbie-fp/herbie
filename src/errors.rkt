@@ -7,7 +7,6 @@
         #:extra-constructor-name make-exn:fail:user:herbie)
 
 (define (raise-herbie-error message #:location [location #f] #:url [url #f] . args)
-  
   (raise (make-exn:fail:user:herbie
           (apply format message args) (current-continuation-marks) url location)))
 
@@ -24,6 +23,11 @@
 (define old-error-display-handler (error-display-handler))
 (error-display-handler
  (λ (message err)
-   (if (exn:fail:user:herbie? err)
-       (display (herbie-error->string err) (current-error-port))
-       (old-error-display-handler message err))))
+   (cond
+    [(exn:fail:user:herbie? err)
+     (display (herbie-error->string err) (current-error-port))]
+    [(exn:fail:read? err)
+     (printf "~a in ~a.\nSee <https://herbie.uwplse.org/doc/~a/input.html> for more.\n"
+             (exn-message err) (srcloc-source (car (exn:fail:read-srclocs err))) *herbie-version*)]
+    [else
+     (old-error-display-handler message err)])))
