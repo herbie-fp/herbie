@@ -41,20 +41,7 @@
      (define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
 
      (define body* (desugar-program body))
-
-     (match (check-expression (last (syntax->list stx)) args)
-       [(list) (void)]
-       [(list (cons stxs msgs) ...)
-        (define err-lines
-          (for/list ([stx stxs] [msg msgs])
-            (define file
-              (if (path? (syntax-source stx))
-                  (let-values ([(base name dir?) (split-path (syntax-source stx))])
-                    (path->string name))
-                  (syntax-source stx)))
-            (format "  ~a:~a:~a: ~a" file (or (syntax-line stx) "") (or (syntax-column stx) (syntax-position stx)) msg)))
-        (raise-herbie-error (format "Invalid syntax in ~a.\n~a" (syntax-source stx) (string-join err-lines "\n"))
-                            #:url "faq.html#invalid-syntax")])
+     (assert-expression! (last (syntax->list stx)) args)
 
      (test (~a (dict-ref prop-dict ':name body))
            args samps

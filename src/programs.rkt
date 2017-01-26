@@ -11,7 +11,7 @@
          eval-prog replace-subexpr
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         valid-expression? valid-program? check-expression check-program
+         valid-expression? valid-program? assert-expression! assert-program~
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -133,11 +133,23 @@
      (check-expression* body (syntax->datum vars) error!)]
     [_ (error! stx (format "Unknown syntax ~a" (syntax->datum stx)))]))
 
-(define (check-expression stx vars)
-  (reap [error!] (check-expression* stx vars (λ (stx fmt . args) (error! (cons stx (apply format fmt args)))))))
+(define (assert-expression! stx vars)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-expression* stx vars error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid expression" #:locations locs)))
 
-(define (check-program stx)
-  (reap [error!] (check-program* stx (λ (stx fmt . args) (error! (cons stx (apply format fmt args)))))))
+(define (assert-program! stx)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-program* stx error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid program" #:locations locs)))
 
 (define (valid-expression? expr vars)
   (match expr
