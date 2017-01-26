@@ -192,32 +192,44 @@
      (printf "</head>")
      (printf "<body>\n")
 
-     ; Big bold numbers
      (printf "<h1>Error in ~a</h1>\n" (format-time time))
 
-     (match exn
-       [(exn:fail:user:herbie message _ url location)
-        (printf "<section id='user-error'>\n")
-        (printf "<h2>~a <a href='https://herbie.uwplse.org/~a/~a'>(more)</a></h2>\n" message *herbie-version* url)
-        (printf "</section>")]
-       [_
-        (render-process-info time timeline profile? test #:bug? #t)
+     (cond
+      [(exn:fail:user:herbie? exn)
+       (printf "<section id='user-error'>\n")
+       (printf "<h2>~a <a href='https://herbie.uwplse.org/~a/~a'>(more)</a></h2>\n"
+               (exn-message) *herbie-version* (exn:fail:user:herbie-url url))
 
-        (printf "<section id='backtrace'>\n")
-        (printf "<h1>Backtrace</h1>\n")
-        (printf "<table>\n")
-        (printf "<thead>\n")
-        (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
-        (printf "</thead>\n")
-        (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-          (match (cdr tb)
-            [(srcloc file line col _ _)
-             (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
-                     (procedure-name->string (car tb)) file line col)]
-            [#f
-             (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
-                     (procedure-name->string (car tb)))]))
-        (printf "</table>\n")])
+       (when (exn:fail:user:herbie:syntax? exn)
+         (printf "<table>\n")
+         (printf "<thead>\n")
+         (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
+         (printf "</thead>\n")
+         (for ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
+           (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
+                   msg (syntax-source stx) (or (syntax-line stx) "")
+                   (or (syntax-column col) (syntax-position stx))))
+         (printf "</table>\n"))
+
+       (printf "</section>")]
+      [else
+       (render-process-info time timeline profile? test #:bug? #t)
+
+       (printf "<section id='backtrace'>\n")
+       (printf "<h1>Backtrace</h1>\n")
+       (printf "<table>\n")
+       (printf "<thead>\n")
+       (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
+       (printf "</thead>\n")
+       (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
+         (match (cdr tb)
+           [(srcloc file line col _ _)
+            (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
+                    (procedure-name->string (car tb)) file line col)]
+           [#f
+            (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
+                    (procedure-name->string (car tb)))]))
+       (printf "</table>\n")])
      (printf "<section>")
 
      (printf "</body>\n")
