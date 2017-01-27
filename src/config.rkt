@@ -44,7 +44,7 @@
                      (parameterize ([*flags* default-flags]) (has-flag? class flag)))
               [(#t #t) #f]
               [(#f #f) #f]
-              [(#t #f) (list 'enabled class flags)]
+              [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
 
 (define ((flag type f) a b)
