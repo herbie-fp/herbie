@@ -400,7 +400,8 @@
   [expm1-log1p (expm1 (log1p x))          x]
   [hypot-def   (sqrt (+ (sqr x) (sqr y))) (hypot x y)]
   [hypot-1-def (sqrt (+ 1 (sqr y)))       (hypot 1 y)]
-  [fma-def     (+ (* x y) z)              (fma x y z)])
+  [fma-def     (+ (* x y) z)              (fma x y z)]
+  [fma-neg     (- (* x y) z)              (fma x y (- z))])
 
 (define-ruleset special-numerical-expand (numerics)
   [expm1-udef    (expm1 x)      (- (exp x) 1)]
