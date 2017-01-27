@@ -34,7 +34,8 @@
 (define (has-flag? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
 
-(define *flags* (make-parameter (hash-copy default-flags)))
+; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
+(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
 
 (define (changed-flags)
   (filter identity
