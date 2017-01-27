@@ -94,7 +94,7 @@
      (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
      (if (<= min 0.0 max) (pre-tick 0.0 #t) '())
      (if (<= min -1.0 max) (pre-tick -1.0 #t) '())
-     ((ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform))))]
+     ((ticks-layout (ticks-scale (linear-ticks #:number 10 #:base 10 #:divisors '(1 2 5)) double-transform)) min max))]
    [else
     (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
     (define major-indices (pick-spaced-indices necessary (length possible) 12))
