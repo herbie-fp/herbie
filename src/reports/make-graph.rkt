@@ -198,7 +198,7 @@
       [(exn:fail:user:herbie? exn)
        (printf "<section id='user-error'>\n")
        (printf "<h2>~a <a href='https://herbie.uwplse.org/~a/~a'>(more)</a></h2>\n"
-               (exn-message) *herbie-version* (exn:fail:user:herbie-url url))
+               (exn-message exn) *herbie-version* (exn:fail:user:herbie-url exn))
 
        (when (exn:fail:user:herbie:syntax? exn)
          (printf "<table>\n")
@@ -208,7 +208,7 @@
          (for ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
            (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
                    msg (syntax-source stx) (or (syntax-line stx) "")
-                   (or (syntax-column col) (syntax-position stx))))
+                   (or (syntax-column stx) (syntax-position stx))))
          (printf "</table>\n"))
 
        (printf "</section>")]

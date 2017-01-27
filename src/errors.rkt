@@ -2,7 +2,8 @@
 (require "config.rkt")
 (provide raise-herbie-error raise-herbie-syntax-error
          herbie-error->string 
-         (struct-out exn:fail:user:herbie))
+         (struct-out exn:fail:user:herbie)
+         (struct-out exn:fail:user:herbie:syntax))
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
