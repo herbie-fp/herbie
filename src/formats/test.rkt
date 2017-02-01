@@ -4,6 +4,7 @@
 (require "../errors.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../range-analysis.rkt")
 (require "../syntax/distributions.rkt")
 
 (provide (struct-out test) test-program test-samplers
@@ -25,8 +26,9 @@
 (struct test (name vars sampling-expr input output expected precondition) #:prefab)
 
 (define (test-samplers test)
+  (define range-table (condition->range-table (test-precondition test)))
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (cons var (eval-sampler samp))))
+    (cons var (eval-sampler samp (range-table-ref range-table var)))))
 
 (define (parse-test expr)
   (match expr

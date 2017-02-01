@@ -1,5 +1,8 @@
 #lang racket
 (require "syntax/syntax.rkt")
+(provide (struct-out interval) interval-union interval-intersect
+         make-empty-range-table make-range-table range-table-ref range-table-union range-table-intersect
+         condition->range-table)
 
 (module+ test
  (require rackunit))
@@ -119,6 +122,14 @@
   (check-equal? (interval 1 4 #t #t) (hash-ref (range-table-union rt-x1 rt-x2) 'x))
   (check-true (hash-empty? (range-table-union rt-x1 rt-y2))))
 
+(define (flip-cmp cmp)
+  (match cmp
+    ['< '>]
+    ['> '<]
+    ['<= '>=]
+    ['>= '<=]
+    ['== '==]))
+
 (define (condition->range-table condition)
   (match condition
     [`(== ,(? variable? var) ,(? number? num))
@@ -131,10 +142,17 @@
      (make-range-table var (interval num +inf.0 #f #f))]
     [`(>= ,(? variable? var) ,(? number? num))
      (make-range-table var (interval num +inf.0 #t #f))]
-    [`(and ,cond1 ,cond2)
-     (range-table-intersect (condition->range-table cond1) (condition->range-table cond2))]
-    [`(or ,cond1 ,cond2)
-     (range-table-union (condition->range-table cond1) (condition->range-table cond2))]
+    [(list (and (or '< '<= '== '>= '>) cmp) (? number? num) (? variable? var))
+     (condition->range-table (list (flip-cmp cmp) var num))]
+    [(list (and (or '== '< '<= '> '>=) cmp) exprs ...)
+     (foldl range-table-intersect
+            (make-empty-range-table)
+            (for/list ([left exprs] [right (cdr exprs)])
+              (condition->range-table (list cmp left right))))]
+    [`(and ,cond1 ...)
+     (foldl range-table-intersect (make-empty-range-table) (map condition->range-table cond1))]
+    [`(or ,cond1 ,conds ...)
+     (foldl range-table-union (condition->range-table cond1) (map condition->range-table conds))]
     [_
      (make-empty-range-table)]))
 
@@ -145,6 +163,11 @@
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
   (check-equal? (condition->range-table '(< 1 1)) (make-hash))
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
+  ; TODO: More tests with conditionals and >2 arguments
+  ; TODO
+  #;(check-equal? (condition->range-table '(< 1 x y 2)) (make-hash (list (cons 'x (interval 1.0 2.0 #f #f)) (cons 'y (interval 1.0 2.0 #f #f)))))
   (check-equal? (condition->range-table '(and (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -1.0 1.0 #f #f)))))
   (check-equal? (condition->range-table '(or (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
-  (check-equal? (condition->range-table '(or (< x -1) (> x 1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f))))))
+  (check-equal? (condition->range-table '(or (< x -1) (> x 1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
+  (check-equal? (condition->range-table '(or (< x 1) (< x 2) (> x -1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
+  (check-equal? (condition->range-table '(and (< x 1) (< x 2) (> x -1))) (make-hash (list (cons 'x (interval -1.0 1.0 #f #f))))))

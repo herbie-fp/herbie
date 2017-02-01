@@ -1,5 +1,5 @@
 #lang racket
-(require "../common.rkt")
+(require "../common.rkt" "../range-analysis.rkt")
 (require math/flonum)
 (provide eval-sampler)
 
@@ -59,11 +59,12 @@
       [(_ val)
        #'(and (or '< '> '>= '<=) (app eval-op val))])))
 
-(define (eval-sampler expr)
+(define (eval-sampler expr intval)
+  (match-define (interval lo hi lo? hi?) intval)
   (match expr
-    ['default sample-default]
+    ['default (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))]
     [(? number? x) (const x)]
-    [`(uniform ,(? number? a) ,(? number? b)) (λ () (sample-uniform a b))]
+    [`(uniform ,(? number? a) ,(? number? b)) (λ () (sample-uniform (max a lo) (min b hi)))]
     ['int sample-int]
     [(list (op op) (? number? lb) sub)
      (define sub* (eval-sampler sub))
