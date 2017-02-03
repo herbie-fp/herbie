@@ -19,7 +19,8 @@
         (λ (e)
           ((error-display-handler) (exn-message e) e)
           (read-fpcore name port))])
-    (parse-test (read-syntax name port))))
+    (define input (read-syntax name port))
+    (if (eof-object? input) eof (parse-test input))))
 
 (define (herbie-input? fname)
   (or (not fname) ; Command line
