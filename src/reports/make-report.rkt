@@ -145,8 +145,8 @@
          (printf "default"))
        (for ([rec (changed-flags)])
          (match rec
-           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>")]
-           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>")]))
+           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>" class flag)]
+           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>" class flag)]))
        (printf "</div>\n")
        (printf "</td></tr>")
        (printf "</table>\n")

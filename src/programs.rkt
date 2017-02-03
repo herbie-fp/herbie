@@ -1,9 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
-(require math/flonum)
-(require "common.rkt")
-(require "syntax/syntax.rkt")
+(require math/bigfloat math/flonum)
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          location-induct program-induct expression-induct location-hash
@@ -11,7 +9,7 @@
          eval-prog replace-subexpr
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         valid-expression? valid-program?
+         assert-expression! assert-program!
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -99,22 +97,57 @@
   (remove* (free-variables (program-body prog))
            (program-variables prog)))
 
-(define (valid-expression? expr vars)
-  (match expr
-    [(? constant?) #t]
-    [(? variable?) (member expr vars)]
-    [`(,f ,args ...)
-     (and (andmap (curryr valid-expression? vars) args)
-          (hash-has-key? (*operations*) f)
-          (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
-    [_ #f]))
+(define (check-expression* stx vars error!)
+  (match (or (syntax->list stx) (syntax-e stx))
+    [(? constant?) (void)]
+    [(? variable?)
+     (unless (set-member? vars (syntax-e stx))
+       (error! stx "Unknown variable ~a" (syntax-e stx)))]
+    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list vars* vals)) ...)) body)
+     ;; These are unfolded by desugaring
+     (for ([var vars*] [val vals])
+       (unless (identifier? var)
+         (error! var "Invalid variable name ~a" (syntax-e var)))
+       (check-expression* val vars error!))
+     (check-expression* body (append vars (map syntax-e vars*)) error!)]
+    [(list (app syntax-e (? (curry set-member? '(+ - * /)))) args ...)
+     ;; These expand associativity so we don't check the number of arguments
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [(list f args ...)
+     (if (hash-has-key? (*operations*) (syntax->datum f))
+         (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
+           (unless (set-member? num-args (length args))
+             (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                                 (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
+         (error! stx "Unknown operator ~a" (syntax->datum f)))
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
-(define (valid-program? prog)
-  (match prog
-    [(list 'FPCore vars body)
-     (valid-expression? body vars)]
-    [_
-     #f]))
+(define (check-program* stx error!)
+  (match (syntax->list stx)
+    [(list (app syntax-e 'FPCore) vars body)
+     (unless (and (list? (syntax->list vars)) (andmap identifier? (syntax->list vars)))
+       (error! stx (format "Invalid arguments list ~a" (syntax->datum stx))))
+     (check-expression* body (syntax->datum vars) error!)]
+    [_ (error! stx (format "Unknown syntax ~a" (syntax->datum stx)))]))
+
+(define (assert-expression! stx vars)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-expression* stx vars error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid expression" #:locations errs)))
+
+(define (assert-program! stx)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-program* stx error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
 
 (define (replace-expression program from to)
   (cond

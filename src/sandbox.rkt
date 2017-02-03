@@ -134,13 +134,13 @@
                    link)))]
    [(test-failure? result)
     (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _ pre) (test-failure-test result))
-    (table-row (test-name (test-failure-test result)) "crash"
-               #f #f #f #f #f #f vars sampling-expr input #f
+    (define test (test-failure-test result))
+    (table-row (test-name test) "crash"
+               #f #f #f #f #f #f (test-sampling-expr test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _ pre) (test-timeout-test result))
+    (define test (test-failure-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f vars sampling-expr input #f
+               #f #f #f #f #f #f (test-sampling-expr test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))

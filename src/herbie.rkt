@@ -13,6 +13,14 @@
 
 #;(define threads (make-parameter #f))
 
+(define (read-fpcore name port)
+  (with-handlers
+      ([(or/c exn:fail:user? exn:fail:read?)
+        (λ (e)
+          ((error-display-handler) (exn-message e) e)
+          (read-fpcore name port))])
+    (parse-test (read-syntax name port))))
+
 (define (herbie-input? fname)
   (or (not fname) ; Command line
       (and
@@ -25,13 +33,7 @@
 
 (define (in-herbie-files files)
   (if (null? files)
-      (sequence-filter
-       values
-       (sequence-map
-        (λ (e) 
-          (with-handlers ([exn:fail:user? (λ (e) ((error-display-handler) e) #f)])
-            (parse-test e)))
-        (in-port read (current-input-port))))
+      (in-port (curry read-fpcore "stdin") (current-input-port))
       (all-herbie-tests files)))
 
 (define (all-herbie-tests files)
@@ -40,7 +42,10 @@
      (if (directory-exists? file)
          (all-herbie-tests (filter herbie-input? (directory-list file #:build? #t)))
          (call-with-input-file file
-           (λ (port) (map parse-test (sequence->list (in-port read port)))))))))
+           (λ (port)
+             (define file* (if (string? file) (string->path file) file))
+             (port-count-lines! port)
+             (sequence->list (in-port (curry read-fpcore file*) port))))))))
 
 (define (in-herbie-output files #:seed seed)
   (eprintf "Seed: ~a\n" seed)

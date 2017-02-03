@@ -22,13 +22,14 @@
     [(#f #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
-(struct test (name vars sampling-expr input output expected precondition) #:prefab)
+(struct test (name vars sampling-expr input output input-syntax expected precondition) #:prefab)
 
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
     (cons var (eval-sampler samp))))
 
-(define (parse-test expr)
+(define (parse-test stx)
+  (define expr (syntax->datum stx))
   (match expr
     [(list 'FPCore (list args ...) props ... body)
      (define prop-dict
@@ -40,15 +41,13 @@
      (define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
 
      (define body* (desugar-program body))
-
-     (when (not (valid-expression? body* args))
-       (raise-herbie-error "Invalid program body ~a." expr
-                           #:url "faq.html#invalid-program"))
+     (assert-expression! (last (syntax->list stx)) args)
 
      (test (~a (dict-ref prop-dict ':name body))
            args samps
            body*
            (desugar-program (dict-ref prop-dict ':target #f))
+           stx
            (dict-ref prop-dict ':herbie-expected #t)
            (dict-ref prop-dict ':pre 'TRUE))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
@@ -64,11 +63,8 @@
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
-      (define tests (for/list ([test (in-port read port)])
+      (define tests (for/list ([test (in-port (curry read-syntax file) port)])
                       (parse-test test)))
-      (let ([duplicate-name (check-duplicates tests #:key test-name)])
-        (assert (not duplicate-name)
-                #:extra-info (λ () (format "Two tests with the same name ~a" duplicate-name))))
       tests)))
 
 (define (is-racket-file? f)
@@ -79,9 +75,10 @@
     (load-file fname)))
 
 (define (load-tests [path benchmark-path])
-  (if (directory-exists? path)
-      (load-directory path)
-      (load-file path)))
+  (define path* (if (string? path) (string->path path) path))
+  (if (directory-exists? path*)
+      (load-directory path*)
+      (load-file path*)))
 
 (define (test<? t1 t2)
   (cond
