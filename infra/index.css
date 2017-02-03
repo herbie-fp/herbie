@@ -37,12 +37,10 @@ figure a { color: black; text-decoration: none; display: block; }
 #reports td:nth-child(2), #reports th:nth-child(2) { text-align: center; display: none; }
 #reports td:nth-child(3) { text-align: center; }
 #reports thead { border-bottom: 1px solid black; height: 5em; vertical-align: bottom; }
-#results tr { position: relative; }
-#results a {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
-    padding: .5em;
+#reports a {
+    position: absolute; left: 0; right: 0; z-index: 100;
+    padding: .5em; margin-top: -1.25em;
 }
-
 #reports thead:after {
     position: absolute; width: 300px; text-align: left; right: -325px;
     font-size: 32px; color: #888; content: attr(data-branch);
