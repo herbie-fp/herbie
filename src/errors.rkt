@@ -47,7 +47,7 @@
     [(exn:fail:user:herbie? err)
      (display (herbie-error->string err) (current-error-port))]
     [(exn:fail:read? err)
-     (printf "~a in ~a.\nSee <https://herbie.uwplse.org/doc/~a/input.html> for more.\n"
-             (exn-message err) (srcloc-source (car (exn:fail:read-srclocs err))) *herbie-version*)]
+     (printf "Invalid syntax\n  ~a\nSee <https://herbie.uwplse.org/doc/~a/input.html> for more.\n"
+             (exn-message err) *herbie-version*)]
     [else
      (old-error-display-handler message err)])))
