@@ -17,10 +17,10 @@
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
 
 (define (infer-splitpoints alts [axis #f])
-  (cond
-   [(null? (program-variables (*start-prog*)))
-    (list (list (sp 0 0 +inf.0)) (list (argmin (compose errors-score alt-errors) alts)))]
-   [else
+  (match alts
+   [(list alt)
+    (list (list (sp 0 0 +inf.0)) (list alt))]
+   [_
     (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
     (define options
       (map (curry option-on-expr alts)
