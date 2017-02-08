@@ -29,6 +29,7 @@
     (cons var (eval-sampler samp))))
 
 (define (parse-test stx)
+  (assert-program! stx)
   (define expr (syntax->datum stx))
   (match expr
     [(list 'FPCore (list args ...) props ... body)
@@ -41,7 +42,6 @@
      (define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
 
      (define body* (desugar-program body))
-     (assert-expression! (last (syntax->list stx)) args)
 
      (test (~a (dict-ref prop-dict ':name body))
            args samps

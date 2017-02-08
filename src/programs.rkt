@@ -123,13 +123,65 @@
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
+(define (check-property* prop error!)
+  (unless (identifier? prop)
+    (error! prop "Invalid property name ~a" (syntax->datum prop)))
+  (define name (~a (syntax-e prop)))
+  (unless (equal? (substring name 0 1) ":")
+    (error! prop "Invalid property name ~a" (syntax->datum prop))))
+
+(define (check-properties* props vars error!)
+  (define prop-dict
+    (let loop ([props props] [out '()])
+      (match props
+        [(list (? identifier? prop-name) value rest ...)
+         (check-property* prop-name error!)
+         (loop rest (cons (cons (syntax-e prop-name) value) out))]
+        [(list head)
+         (check-property* head error!)
+         (error! head "Property ~a has no value" (syntax->datum head))]
+        [(list)
+         out])))
+
+  (when (dict-has-key? prop-dict ':name)
+    (define name (dict-ref prop-dict ':name))
+    (unless (string? (syntax-e name))
+      (error! name "Invalid :name ~a; must be a string" (syntax->datum name))))
+
+  (when (dict-has-key? prop-dict ':description)
+    (define desc (dict-ref prop-dict ':description))
+    (unless (string? (syntax-e desc))
+      (error! desc "Invalid :description ~a; must be a string" (syntax->datum desc))))
+
+  (when (dict-has-key? prop-dict ':cite)
+    (define cite (dict-ref prop-dict ':cite))
+    (unless (list? (syntax-e cite))
+      (error! cite "Invalid :cite ~a; must be a list" (syntax->datum cite)))
+    (when (list? (syntax-e cite))
+      (for ([citation (syntax->list cite)] #:unless (identifier? citation))
+        (error! citation "Invalid citation ~a; must be a variable name" (syntax->datum citation)))))
+
+  (when (dict-has-key? prop-dict ':pre)
+    (check-expression* (dict-ref prop-dict ':pre) vars error!))
+
+  (when (dict-has-key? prop-dict ':target)
+    (check-expression* (dict-ref prop-dict ':target) vars error!)))
+
 (define (check-program* stx error!)
   (match (syntax->list stx)
-    [(list (app syntax-e 'FPCore) vars body)
-     (unless (and (list? (syntax->list vars)) (andmap identifier? (syntax->list vars)))
-       (error! stx (format "Invalid arguments list ~a" (syntax->datum stx))))
-     (check-expression* body (syntax->datum vars) error!)]
-    [_ (error! stx (format "Unknown syntax ~a" (syntax->datum stx)))]))
+    [(list (app syntax-e 'FPCore) vars props ... body)
+     (unless (list? (syntax->list vars))
+       (error! stx "Invalid arguments list ~a; must be a list" (syntax->datum stx)))
+     (when (list? (syntax->list vars))
+       (for ([var (syntax->list vars)] #:unless (identifier? var))
+         (error! stx "Argument ~a is not a variable name" (syntax->datum stx)))
+       (when (check-duplicate-identifier (syntax->list vars))
+         (error! stx "Duplicate argument name ~a"
+                 (syntax->datum (check-duplicate-identifier (syntax->list vars))))))
+     (define vars* (if (list? (syntax->datum vars)) (syntax->datum vars) '()))
+     (check-properties* props vars* error!)
+     (check-expression* body vars* error!)]
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
 (define (assert-expression! stx vars)
   (define errs
