@@ -28,14 +28,14 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8"
+     inkscape:zoom="5.6"
      inkscape:cx="90.97158"
      inkscape:cy="34.840316"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1918"
-     inkscape:window-height="1054"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
      inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="0"
@@ -87,7 +87,7 @@
        sodipodi:end="4.5204028" />
     <g
        id="g4613"
-       transform="matrix(0.89506864,0,0,0.85818077,-32.609892,148.79529)">
+       transform="matrix(-0.89506864,0,0,0.85818077,182.63506,148.79529)">
       <circle
          transform="translate(0.35714286,902.36218)"
          id="path4573"
@@ -152,40 +152,41 @@
          sodipodi:linespacing="125%"
          id="text4609"
          y="1003.859"
-         x="104.53592"
+         x="-115.38992"
          style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:40px;line-height:125%;font-family:Japanette;-inkscape-font-specification:'Japanette Medium';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
-         xml:space="preserve"><tspan
+         xml:space="preserve"
+         transform="scale(-1,1)"><tspan
            style="font-size:18px"
            y="1003.859"
-           x="104.53592"
+           x="-115.38992"
            id="tspan4611"
            sodipodi:role="line">𝓔</tspan></text>
     </g>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:35.05722427px;line-height:125%;font-family:Japanette;-inkscape-font-specification:'Japanette Medium';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
-       x="19.402941"
-       y="1042.042"
+       x="27.573101"
+       y="1041.4949"
        id="text4626"
        sodipodi:linespacing="125%"
        transform="scale(1.0212658,0.97917702)"><tspan
          sodipodi:role="line"
          id="tspan4628"
-         x="19.402941"
-         y="1042.042"
+         x="27.573101"
+         y="1041.4949"
          style="font-size:15.77575207px">ℝ</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:35.05722427px;line-height:125%;font-family:Japanette;-inkscape-font-specification:'Japanette Medium';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
-       x="107.85985"
-       y="1042.6681"
+       x="115.56348"
+       y="1042.121"
        id="text4630"
        sodipodi:linespacing="125%"
        transform="scale(1.0212658,0.97917702)"><tspan
          sodipodi:role="line"
          id="tspan4632"
-         x="107.85985"
-         y="1042.6681"
+         x="115.56348"
+         y="1042.121"
          style="font-size:15.77575207px">𝔽</tspan></text>
   </g>
 </svg>
