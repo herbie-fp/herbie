@@ -17,19 +17,23 @@
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
 
 (define (infer-splitpoints alts [axis #f])
-  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
-  (define options
-    (map (curry option-on-expr alts)
-         (if axis (list axis) (exprs-to-branch-on alts))))
-  (define options*
-    (for/list ([option options] #:unless (check-duplicates (map sp-point (option-splitpoints option))))
-      option))
-  (define best-option (argmin (compose errors-score option-errors) options*))
-  (define splitpoints (option-splitpoints best-option))
-  (define altns (used-alts splitpoints alts))
-  (define splitpoints* (coerce-indices splitpoints))
-  (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
-  (list splitpoints* altns))
+  (match alts
+   [(list alt)
+    (list (list (sp 0 0 +inf.0)) (list alt))]
+   [_
+    (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
+    (define options
+      (map (curry option-on-expr alts)
+           (if axis (list axis) (exprs-to-branch-on alts))))
+    (define options*
+      (for/list ([option options] #:unless (check-duplicates (map sp-point (option-splitpoints option))))
+        option))
+    (define best-option (argmin (compose errors-score option-errors) options*))
+    (define splitpoints (option-splitpoints best-option))
+    (define altns (used-alts splitpoints alts))
+    (define splitpoints* (coerce-indices splitpoints))
+    (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
+    (list splitpoints* altns)]))
 
 (struct option (splitpoints errors) #:transparent
 	#:methods gen:custom-write
