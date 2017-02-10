@@ -1,6 +1,5 @@
 #lang racket
-(require openssl/md5)
-(require xml)
+(require openssl/md5 xml)
 (require web-server/servlet web-server/servlet-env web-server/dispatch web-server/page)
 (require web-server/configuration/responders)
 (require "../sandbox.rkt")
@@ -8,6 +7,28 @@
 (require "../formats/tex.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
+
+(define *demo* (make-parameter #f))
+
+(define (if-demo val)
+  val)
+
+(define (function-list fn-classes)
+  (define (fn->html fn)
+    `(code ,(~a fn)))
+
+  (define (fn-class class)
+    (match-define (list fns description ...) class)
+    `((dt () ,@(cons (fn->html (car fns))
+                     (let loop ([fns (cdr fns)])
+                       (match fns
+                         ['() '()]
+                         [(cons fn rest ...)
+                          (list* ", " (fn->html fn) (loop rest))]))))
+      (dd () ,@description)))
+
+  `(dl ([class "function-list"])
+     ,@(append-map fn-class fn-classes)))
 
 (define/page (demo)
   (when (not (directory-exists? demo-output-path))
@@ -25,35 +46,30 @@
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
-    `(p "To handle the high volume of requests, web requests are queued; "
-        "there are " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue right now. "
-        "Web demo requests may also time out and cap the number of improvement iterations. "
-        "To avoid these limitations, " (a ([href "/installing.html"]) "install Herbie")
-        " on your own computer.")
+    (if (*demo*)
+        `(p "To handle the high volume of requests, web requests are queued; "
+            "there are " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue right now. "
+            "Web demo requests may also time out and cap the number of improvement iterations. "
+            "To avoid these limitations, " (a ([href "/installing.html"]) "install Herbie")
+            " on your own computer.")
+        "")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as"
-        (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        "Please enter formulas as" (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
         "expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "You can write ordinary mathematical expressions (parsed with "
         (a ([href "https://mathjs.org"]) "math.js") ") using only the following supported functions:")
-    `(dl ([class "function-list"])
-      (dt ,@(list-join (for/list ([i '(+ - * / abs)]) `(code ,(~a i))) '(", ")))
-      (dd "The usual arithmetic functions")
-      (dt ,@(list-join (for/list ([i '(sqrt sqr)]) `(code ,(~a i))) '(", ")))
-      (dd "Squares and square roots")
-      (dt ,@(list-join (for/list ([i '(exp log)]) `(code ,(~a i))) '(", ")))
-      (dd "Natural exponent and natural log")
-      (dt ,@(list-join (for/list ([i '(expt)]) `(code ,(~a i))) '(", ")))
-      (dd "Raising a value to a power (also called " (code "pow") ")")
-      (dt ,@(list-join (for/list ([i '(sin cos tan cot)]) `(code ,(~a i))) '(", ")))
-      (dd "The trigonometric functions")
-      (dt ,@(list-join (for/list ([i '(asin acos atan)]) `(code ,(~a i))) '(", ")))
-      (dd "The inverse trigonometric functions")
-      (dt ,@(list-join (for/list ([i '(sinh cosh tanh)]) `(code ,(~a i))) '(", ")))
-      (dd "The hyperbolic trigonometric functions"))
+
+    (function-list
+     '((+ - * / abs) "The usual arithmetic functions")
+     '((sqrt sqr) "Squares and square roots")
+     '((exp log) "Natural exponent and natural log")
+     '((expt) "Raising a value to an exponent (also called " (code "pow") ")")
+     '((sin cos tan) "The trigonometric functions")
+     '((asin acos atan) "The inverse trigonometric functions")
+     '((sinh cosh tanh) "The hyperbolic trigonometric functions"))
     `(p "You can also use the constants " (code "PI") " and " (code "E") ".")
 
     `(p (em "Note") ": all formulas submitted to the Herbie web demo are logged "
@@ -76,7 +92,7 @@
          [#t (semaphore-post sema)]
          [#f
           (make-directory dir)
-          (printf "Job ~a started for ~a\n" hash name)
+          (eprintf "Job ~a started for ~a\n" hash name)
           (match-define (list 'FPCore vars body) formula)
 
           (define result
@@ -98,18 +114,16 @@
             (λ () (make-page result dir #f)))
 
           (define data (get-table-data result dir))
-
-          ; Save new report data
           (define info
             (if (file-exists? (build-path demo-output-path "results.json"))
                 (let ([info (read-datafile (build-path demo-output-path "results.json"))])
                   (set-report-info-tests! info (cons data (report-info-tests info)))
                   info)
-                (make-report-info (list data) #:note "Web demo results")))
+                (make-report-info (list data) #:note (if (*demo*) "Web demo results" "Herbie web results"))))
           (write-datafile (build-path demo-output-path "results.json") info)
           (make-report-page (build-path demo-output-path "report.html") info)
 
-          (printf "Job ~a complete for ~a\n" hash name)
+          (eprintf "Job ~a complete for ~a\n" hash name)
           (hash-remove! *jobs* hash)
           (semaphore-post sema)])
        (loop)))))

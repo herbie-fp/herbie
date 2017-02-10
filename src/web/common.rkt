@@ -2,11 +2,7 @@
 
 (provide herbie-page)
 
-(define (herbie-page #:title title
-		     #:scripts [scripts '()]
-		     #:styles [styles '()]
-		     #:head-include [other-include-head '()]
-		     . body)
+(define (herbie-page #:title title #:scripts [scripts '()] #:styles [styles '()] #:head-include [other-include-head '()] . body)
   `(html
     (head
      (meta ([charset "utf-8"]))
