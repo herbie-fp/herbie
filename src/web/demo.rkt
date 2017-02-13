@@ -13,7 +13,7 @@
 (define (if-demo val)
   val)
 
-(define (function-list fn-classes)
+(define (function-list . fn-classes)
   (define (fn->html fn)
     `(code ,(~a fn)))
 
@@ -23,7 +23,7 @@
                      (let loop ([fns (cdr fns)])
                        (match fns
                          ['() '()]
-                         [(cons fn rest ...)
+                         [(list fn rest ...)
                           (list* ", " (fn->html fn) (loop rest))]))))
       (dd () ,@description)))
 
@@ -85,56 +85,62 @@
   (thread
    (λ ()
      (let loop ()
-       (match-define (list name hash formula sema) (thread-receive))
-       (define dir (build-path demo-output-path hash))
+       (match-define (list hash formula sema) (thread-receive))
 
-       (match (directory-exists? dir)
-         [#t (semaphore-post sema)]
-         [#f
-          (make-directory dir)
-          (eprintf "Job ~a started for ~a\n" hash name)
-          (match-define (list 'FPCore vars body) formula)
+       (cond
+        [(directory-exists? (build-path demo-output-path hash))
+         (semaphore-post sema)]
+        [(directory-exists?
+          (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))
+         (semaphore-post sema)]
+        [else
+         (eprintf "Job ~a started..." hash)
 
-          (define result
-            (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-              (call-with-output-file
-                  (build-path dir "debug.txt") #:exists 'replace
-                  (λ (p)
-                    (get-test-result
-                     #:seed *fixed-seed*
-                     #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-                     #:debug p
-                     (test name vars (map (const 'default) vars) body #f #f #f 'TRUE))))))
+         (define result
+           (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+             (get-test-result
+              #:seed *fixed-seed*
+              #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+              #:debug (hash-ref *jobs* hash)
+              (parse-test formula))))
 
-          (define make-page
-            (cond [(test-result? result) make-graph]
-                  [(test-timeout? result) make-timeout]
-                  [(test-failure? result) make-traceback]))
-          (with-output-to-file (build-path dir "graph.html")
-            (λ () (make-page result dir #f)))
+         ;; Output results
 
-          (define data (get-table-data result dir))
-          (define info
-            (if (file-exists? (build-path demo-output-path "results.json"))
-                (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-                  (set-report-info-tests! info (cons data (report-info-tests info)))
-                  info)
-                (make-report-info (list data) #:note (if (*demo*) "Web demo results" "Herbie web results"))))
-          (write-datafile (build-path demo-output-path "results.json") info)
-          (make-report-page (build-path demo-output-path "report.html") info)
+         (define dir
+           (cond 
+            [(test-result? result) hash]
+            [(test-timeout? result) hash]
+            [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
+         (make-directory (build-path demo-output-path dir))
+         (define make-page
+           (cond [(test-result? result) make-graph]
+                 [(test-timeout? result) make-timeout]
+                 [(test-failure? result) make-traceback]))
+         (with-output-to-file (build-path demo-output-path dir "graph.html")
+           (λ () (make-page result (build-path demo-output-path dir) #f)))
 
-          (eprintf "Job ~a complete for ~a\n" hash name)
-          (hash-remove! *jobs* hash)
-          (semaphore-post sema)])
+         (define data (get-table-data result dir))
+         (define info
+           (if (file-exists? (build-path demo-output-path "results.json"))
+               (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+                 (set-report-info-tests! info (cons data (report-info-tests info)))
+                 info)
+               (make-report-info (list data) #:note (if (*demo*) "Web demo results" "Herbie web results"))))
+         (write-datafile (build-path demo-output-path "results.json") info)
+         (make-report-page (build-path demo-output-path "report.html") info)
+
+         (eprintf " complete\n")
+         (hash-remove! *jobs* hash)
+         (semaphore-post sema)])
        (loop)))))
 
-(define (run-improve name hash formula)
-  (hash-set! *jobs* hash #t)
+(define (run-improve hash formula)
+  (hash-set! *jobs* hash (open-output-string))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list name hash formula sema))
+  (thread-send *worker-thread* (list hash formula sema))
   sema)
 
-(define (already-computed? name hash formula)
+(define (already-computed? hash formula)
   (and (not (hash-has-key? *jobs* hash))
        (directory-exists? (build-path demo-output-path hash))))
 
@@ -143,7 +149,7 @@
     [(list formula-str)
      (define formula
        (with-handlers ([exn:fail? (λ (e) #f)])
-         (read (open-input-string formula-str))))
+         (read-syntax 'web (open-input-string formula-str))))
      (with-handlers
          ([exn:fail:user:herbie?
            (λ (e)
@@ -155,12 +161,7 @@
 
        (assert-program! formula)
        (define hash (md5 (open-input-string formula-str)))
-       (define name
-         (match (get-bindings 'formula-math)
-           [(list formula-math) formula-math]
-           [_ formula-str]))
-
-       (body name hash formula))]
+       (body hash formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified serveral). "
@@ -168,9 +169,9 @@
 
 (define/page (improve-start)
   (improve-common
-   (λ (name hash formula)
-     (unless (already-computed? name hash formula)
-       (run-improve name hash formula))
+   (λ (hash formula)
+     (unless (already-computed? hash formula)
+       (run-improve hash formula))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -181,20 +182,17 @@
   (if (hash-has-key? *jobs* hash)
       (response 202 #"Job in progress" (current-seconds) #"text/plain"
                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                (λ (out)
-                  (when (file-exists? (build-path demo-output-path hash "debug.txt"))
-                    (call-with-input-file (build-path demo-output-path hash "debug.txt")
-                      (λ (in) (copy-port in out))))))
-     (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                    '())))
+                (λ (out) (display (get-output-string (hash-ref *jobs* hash)) out)))
+      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
+                     (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
+                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                     '())))
 
 (define/page (improve)
   (improve-common
-   (λ (name hash formula)
-     (unless (already-computed? name hash formula)
-       (semaphore-wait (run-improve name hash formula)))
+   (λ (hash formula)
+     (unless (already-computed? hash formula)
+       (semaphore-wait (run-improve hash formula)))
 
      (redirect-to (format "/demo/~a/graph.html" hash) see-other))
    (embed/url demo)))

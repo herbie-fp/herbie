@@ -45,7 +45,7 @@
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
       (when setup! (setup!))
-      (with-handlers ([(const #t) on-error])
+      (with-handlers ([exn? on-error])
         (match-define (list alt context)
                       (run-improve (test-program test)
                                    (*num-iterations*)
