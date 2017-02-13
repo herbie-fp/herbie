@@ -10,9 +10,6 @@
 
 (define *demo* (make-parameter #f))
 
-(define (if-demo val)
-  val)
-
 (define (function-list . fn-classes)
   (define (fn->html fn)
     `(code ,(~a fn)))
