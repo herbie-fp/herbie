@@ -73,4 +73,18 @@
 
 (define *binary-search-test-points* (make-parameter 16))
 
+;;; About Herbie:
+
+(define (git-command #:default [default ""] gitcmd . args)
+  (if (directory-exists? ".git")
+      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
+        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      default))
+
 (define *herbie-version* "1.1")
+
+(define *herbie-commit*
+  (git-command "rev-parse" "HEAD" #:default *herbie-version*))
+
+(define *herbie-branch*
+  (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
