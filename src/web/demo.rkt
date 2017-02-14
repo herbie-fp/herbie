@@ -34,7 +34,7 @@
   (response/xexpr
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
    (herbie-page
-    #:title "Herbie web demo"
+    #:title (if (*demo*) "Herbie web demo" "Herbie")
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(embed/url improve)] [method "post"] [id "formula"]
