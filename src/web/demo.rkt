@@ -81,60 +81,66 @@
 (define *worker-thread*
   (thread
    (λ ()
-     (let loop ()
-       (match-define (list hash formula sema) (thread-receive))
+     (let loop ([seed #f])
+       (match (thread-receive)
+         [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points)
+          (set! seed vec)
+          (*flags* flag-table)
+          (*num-iterations* iterations)
+          (*num-points* points)]
+         [(list 'improve hash formula sema)
+          (cond
+           [(directory-exists? (build-path demo-output-path hash))
+            (semaphore-post sema)]
+           [(directory-exists?
+             (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))
+            (semaphore-post sema)]
+           [else
+            (eprintf "Job ~a started..." hash)
 
-       (cond
-        [(directory-exists? (build-path demo-output-path hash))
-         (semaphore-post sema)]
-        [(directory-exists?
-          (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))
-         (semaphore-post sema)]
-        [else
-         (eprintf "Job ~a started..." hash)
+            (define result
+              (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
+                (get-test-result
+                 #:seed seed
+                 #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+                 #:debug (hash-ref *jobs* hash)
+                 (parse-test formula))))
 
-         (define result
-           (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-             (get-test-result
-              #:seed *fixed-seed*
-              #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-              #:debug (hash-ref *jobs* hash)
-              (parse-test formula))))
+            ;; Output results
 
-         ;; Output results
+            (define dir
+              (cond 
+               [(test-result? result) hash]
+               [(test-timeout? result) hash]
+               [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
+            (make-directory (build-path demo-output-path dir))
+            (define make-page
+              (cond [(test-result? result) make-graph]
+                    [(test-timeout? result) make-timeout]
+                    [(test-failure? result) make-traceback]))
+            (with-output-to-file (build-path demo-output-path dir "graph.html")
+              (λ () (make-page result (build-path demo-output-path dir) #f)))
 
-         (define dir
-           (cond 
-            [(test-result? result) hash]
-            [(test-timeout? result) hash]
-            [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
-         (make-directory (build-path demo-output-path dir))
-         (define make-page
-           (cond [(test-result? result) make-graph]
-                 [(test-timeout? result) make-timeout]
-                 [(test-failure? result) make-traceback]))
-         (with-output-to-file (build-path demo-output-path dir "graph.html")
-           (λ () (make-page result (build-path demo-output-path dir) #f)))
+            (define data (get-table-data result dir))
+            (define info
+              (if (file-exists? (build-path demo-output-path "results.json"))
+                  (let ([info (read-datafile (build-path demo-output-path "results.json"))])
+                    (set-report-info-tests! info (cons data (report-info-tests info)))
+                    info)
+                  (make-report-info (list data) #:seed seed
+                                    #:note (if (*demo*) "Web demo results" "Herbie web results"))))
+            (write-datafile (build-path demo-output-path "results.json") info)
+            (make-report-page (build-path demo-output-path "report.html") info)
 
-         (define data (get-table-data result dir))
-         (define info
-           (if (file-exists? (build-path demo-output-path "results.json"))
-               (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-                 (set-report-info-tests! info (cons data (report-info-tests info)))
-                 info)
-               (make-report-info (list data) #:note (if (*demo*) "Web demo results" "Herbie web results"))))
-         (write-datafile (build-path demo-output-path "results.json") info)
-         (make-report-page (build-path demo-output-path "report.html") info)
-
-         (eprintf " complete\n")
-         (hash-remove! *jobs* hash)
-         (semaphore-post sema)])
-       (loop)))))
+            (eprintf " complete\n")
+            (hash-remove! *jobs* hash)
+            (semaphore-post sema)])])
+       (loop seed)))))
 
 (define (run-improve hash formula)
   (hash-set! *jobs* hash (open-output-string))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list hash formula sema))
+  (thread-send *worker-thread* (list 'improve hash formula sema))
   sema)
 
 (define (already-computed? hash formula)
@@ -176,14 +182,16 @@
    (embed/url demo)))
 
 (define/page (check-status hash)
-  (if (hash-has-key? *jobs* hash)
-      (response 202 #"Job in progress" (current-seconds) #"text/plain"
-                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                (λ (out) (display (get-output-string (hash-ref *jobs* hash)) out)))
-      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                     (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
-                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                     '())))
+  (match (hash-ref *jobs* hash #f)
+    [(? output-port? progress)
+     (response 202 #"Job in progress" (current-seconds) #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+               (λ (out) (display (get-output-string progress) out)))]
+    [#f
+     (response/full 201 #"Job complete" (current-seconds) #"text/plain"
+                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                    '())]))
 
 (define/page (improve)
   (improve-common
@@ -200,6 +208,14 @@
 
 (define (go [command-line #f])
   (eprintf "Server loaded and starting up.\n")
+
+  (define config
+    `(init rand ,(get-seed)
+           flags ,(*flags*)
+           num-iters ,(*num-iterations*)
+           points ,(*num-points*)))
+  (thread-send *worker-thread* config)
+
   (serve/servlet
    demo
    #:log-file (build-path demo-output-path "../../demo.log")
