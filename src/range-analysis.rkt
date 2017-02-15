@@ -10,6 +10,15 @@
 ;; NOTE: an interval can also be #f for an empty interval
 (struct interval (l u l? u?) #:transparent)
 
+(define (make-interval l u [l? #f] [u? #f])
+  (and
+   (not (and (= l -inf.0) l?))
+   (not (and (= u +inf.0) u?))
+   (cond
+     [(< l u) (interval l u l? u?)]
+     [(and (= l u) l? u?) (interval l u l? u?)]
+     [else #f])))
+
 (define (interval-intersect interval1 interval2)
   (cond
    [(and interval1 interval2)
@@ -27,9 +36,7 @@
     (define l (max l1 l2))
     (define u (min u1 u2))
 
-    (if (or (< u1 l2) (< u2 l1) (and (= l u) (not (and l? u?))))
-        #f
-        (interval l u l? u?))]
+    (make-interval l u l? u?)]
    [else #f]))
 
 (module+ test
@@ -64,7 +71,7 @@
     (define l (min l1 l2))
     (define u (max u1 u2))
 
-    (interval l u l? u?)]
+    (make-interval l u l? u?)]
    [interval1 interval1]
    [else interval2]))
 
@@ -132,6 +139,7 @@
 
 (define (condition->range-table condition)
   (match condition
+    [(list (or '< '> '<= '>= '==) (? number?) (? number?)) (make-empty-range-table)] ;TODO return #f in some cases
     [`(== ,(? variable? var) ,(? number? num))
      (make-range-table var (interval num num #t #t))]
     [`(< ,(? variable? var) ,(? number? num))
@@ -144,17 +152,35 @@
      (make-range-table var (interval num +inf.0 #t #f))]
     [(list (and (or '< '<= '== '>= '>) cmp) (? number? num) (? variable? var))
      (condition->range-table (list (flip-cmp cmp) var num))]
-    [(list (and (or '== '< '<= '> '>=) cmp) exprs ...)
+    [(list (and (or '< '<= '> '>=) cmp) exprs ...)
+     (define from-left (last-number exprs))
+     (define from-right (reverse (last-number (reverse exprs))))
      (foldl range-table-intersect
             (make-empty-range-table)
-            (for/list ([left exprs] [right (cdr exprs)])
-              (condition->range-table (list cmp left right))))]
+            (for/list ([left from-left] [expr exprs] [right from-right]
+                       #:when (variable? expr))
+              (range-table-intersect
+               (if left
+                   (condition->range-table (list cmp left expr))
+                   (make-empty-range-table))
+               (if right
+                   (condition->range-table (list cmp expr right))
+                   (make-empty-range-table)))))]
     [`(and ,cond1 ...)
      (foldl range-table-intersect (make-empty-range-table) (map condition->range-table cond1))]
     [`(or ,cond1 ,conds ...)
      (foldl range-table-union (condition->range-table cond1) (map condition->range-table conds))]
     [_
      (make-empty-range-table)]))
+
+(define (last-number lst)
+  (let loop ([lst lst] [last #f])
+    (match lst
+      ['() '()]
+      [(cons (? number? x) rest)
+       (cons x (loop rest x))]
+      [(cons _ rest)
+       (cons last (loop rest last))])))
 
 (module+ test
   (check-equal? (condition->range-table '(> x 1)) (make-hash (list (cons 'x (interval 1 +inf.0 #f #f)))))
@@ -164,8 +190,8 @@
   (check-equal? (condition->range-table '(< 1 1)) (make-hash))
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
   ; TODO: More tests with conditionals and >2 arguments
-  ; TODO
-  #;(check-equal? (condition->range-table '(< 1 x y 2)) (make-hash (list (cons 'x (interval 1.0 2.0 #f #f)) (cons 'y (interval 1.0 2.0 #f #f)))))
+  (check-equal? (condition->range-table '(< x y 2)) (make-hash (list (cons 'x (interval -inf.0 2 #f #f)) (cons 'y (interval -inf.0 2 #f #f)))))
+  (check-equal? (condition->range-table '(< 1 x y 2)) (make-hash (list (cons 'x (interval 1.0 2.0 #f #f)) (cons 'y (interval 1.0 2.0 #f #f)))))
   (check-equal? (condition->range-table '(and (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -1.0 1.0 #f #f)))))
   (check-equal? (condition->range-table '(or (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
   (check-equal? (condition->range-table '(or (< x -1) (> x 1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
