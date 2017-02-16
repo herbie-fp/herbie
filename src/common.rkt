@@ -8,8 +8,8 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table first-value assert
-         ordinary-float? =-or-nan?
+         reap define-table first-value assert for/append
+         ordinary-float? =-or-nan? log2
          take-up-to flip-lists argmins argmaxs setfindf index-of
          write-file write-string
          binary-search-floats binary-search-ints binary-search
@@ -62,6 +62,15 @@
      (when (not pred)
        (error 'assert "~a returned false!" 'pred))]))
 
+(define-syntax-rule (for/append (defs ...)
+                                bodies ...)
+  (apply append
+         (for/list (defs ...)
+           bodies ...)))
+
+(module+ test
+  (check-equal? (for/append ([v (in-range 5)]) (list v v v))
+
 ;; Simple floating-point functions
 
 (define (ordinary-float? x)
@@ -81,6 +90,9 @@
   (check-false (=-or-nan? 2.3 7.8))
   (check-true (=-or-nan? +nan.0 -nan.f))
   (check-false (=-or-nan? 2.3 +nan.f)))
+
+(define (log2 x)
+  (/ (log x) (log 2)))
 
 ;; Utility list functions
 
