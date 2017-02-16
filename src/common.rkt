@@ -8,7 +8,7 @@
   (require rackunit))
 
 (provide reap define-table println ordinary-float? =-or-nan?
-         take-up-to argmins list-join
+         take-up-to argmins
          common-eval-ns common-eval
          write-file write-string
          *start-prog* html-escape-unsafe
@@ -179,16 +179,6 @@
 
 (define (log2 x)
   (/ (log x) (log 2)))
-
-(define (list-join l1 l2)
-  (match l1
-    ['() '()]
-    [(list but-last1 ... last1)
-     (append (append-map (curryr cons l2) but-last1) (list last1))]))
-
-(module+ test
-  (check-equal? (list-join '(1 2 3 4 5) '(a b c))
-                '(1 a b c 2 a b c 3 a b c 4 a b c 5)))
 
 (define (html-escape-unsafe err)
   (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))

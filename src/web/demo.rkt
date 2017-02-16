@@ -16,12 +16,7 @@
 
   (define (fn-class class)
     (match-define (list fns description ...) class)
-    `((dt () ,@(cons (fn->html (car fns))
-                     (let loop ([fns (cdr fns)])
-                       (match fns
-                         ['() '()]
-                         [(list fn rest ...)
-                          (list* ", " (fn->html fn) (loop rest))]))))
+    `((dt () ,@(add-between (map fn->html fn) ", "))
       (dd () ,@description)))
 
   `(dl ([class "function-list"])
