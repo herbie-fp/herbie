@@ -74,6 +74,7 @@
         (a ([href "./report.html"]) "here") ".")
     )))
 
+(define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
 
 (define *fixed-seed* #(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636))
@@ -90,6 +91,8 @@
           (*num-points* points)]
          [(list 'improve hash formula sema)
           (cond
+           [(hash-has-key? *completed-jobs* hash)
+            (semaphore-post sema)]
            [(directory-exists? (build-path demo-output-path hash))
             (semaphore-post sema)]
            [(directory-exists?
@@ -106,10 +109,12 @@
                  #:debug (hash-ref *jobs* hash)
                  (parse-test formula))))
 
+            (hash-set! *completed-jobs* result)
+
             ;; Output results
 
             (define dir
-              (cond 
+              (cond
                [(test-result? result) hash]
                [(test-timeout? result) hash]
                [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
@@ -144,8 +149,9 @@
   sema)
 
 (define (already-computed? hash formula)
-  (and (not (hash-has-key? *jobs* hash))
-       (directory-exists? (build-path demo-output-path hash))))
+  (or (hash-has-key? *completed-jobs* hash)
+      (directory-exists? (build-path demo-output-path hash))
+      (directory-exists? (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))))
 
 (define (improve-common body go-back)
   (match (get-bindings 'formula)
