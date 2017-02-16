@@ -7,7 +7,7 @@
 (module+ test
   (require rackunit))
 
-(provide reap define-table println ordinary-float? =-or-nan?
+(provide reap define-table ordinary-float? =-or-nan?
          take-up-to argmins
          common-eval-ns common-eval
          write-file write-string
@@ -20,16 +20,6 @@
          parse-flag)
 
 (define *start-prog* (make-parameter '()))
-
-(define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
-  (for ([val args])
-    (if (string? val)
-        (display val p)
-        (write val p)))
-  (when end (display end p))
-  (let ([possible-returns (filter (negate string?) args)])
-    (when (not (null? possible-returns))
-      (last possible-returns))))
 
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])

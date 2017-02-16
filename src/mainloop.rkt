@@ -92,25 +92,27 @@
 
 ;; Information
 (define (list-alts)
-  (println "Here are the current alts in the table")
-  (println "Key:")
-  (println "x = already expanded")
-  (println "+ = currently chosen")
-  (println "* = left to expand")
-  (println)
+  (printf "Here are the current alts in the table\n")
+  (printf "Key:\n")
+  (printf "x = already expanded\n")
+  (printf "+ = currently chosen\n")
+  (printf "* = left to expand\n")
+  (printf)
   (let ([ndone-alts (atab-not-done-alts (^table^))])
     (for ([alt (atab-all-alts (^table^))]
 	  [n (in-naturals)])
-      (println (cond [(equal? alt (^next-alt^)) "+"]
-		     [(member alt ndone-alts) "*"]
-		     [#t "x"])
-	       " " n " " alt)))
+      (printf "~a ~a ~a\n"
+       (cond [(equal? alt (^next-alt^)) "+"]
+             [(set-member? ndone-alts alt) "*"]
+             [else "x"])
+       n
+       alt)))
   (void))
 
 ;; Begin iteration
 (define (choose-alt! n)
   (if (>= n (length (atab-all-alts (^table^))))
-      (println "We don't have that many alts!")
+      (printf "We don't have that many alts!\n")
       (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func (curryr list-ref n)
 						   #:only-fresh #f)])
 	(^next-alt^ picked)
@@ -166,7 +168,7 @@
       (for/list ([child (^children^)]
                  [n (sequence-tail (in-naturals) 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
-        (with-handlers ([exn:fail? (λ (e) (println "Failed while simplifying candidate" child) (raise e))])
+        (with-handlers ([exn:fail? (λ (e) (printf "Failed while simplifying candidate ~a\n" child) (raise e))])
           (apply alt-apply child (simplify child)))))
     (^children^ simplified))
   (^simplified^ #t)
@@ -222,9 +224,9 @@
 ;; Run a complete iteration
 (define (run-iter!)
   (if (^next-alt^)
-      (begin (println "An iteration is already in progress!")
-	     (println "Finish it up manually, or by running (finish-iter!)")
-	     (println "Or, you can just run (rollback-iter!) to roll it back and start it over."))
+      (begin (printf "An iteration is already in progress!\n")
+	     (printf "Finish it up manually, or by running (finish-iter!)\n")
+	     (printf "Or, you can just run (rollback-iter!) to roll it back and start it over.\n"))
       (begin (debug #:from 'progress #:depth 3 "picking best candidate")
 	     (choose-best-alt!)
 	     (debug #:from 'progress #:depth 3 "localizing error")
