@@ -1,7 +1,7 @@
 #lang racket
-(require openssl/md5 xml)
-(require web-server/servlet web-server/servlet-env web-server/dispatch web-server/page)
-(require web-server/configuration/responders)
+(require openssl/sha1 xml)
+(require web-server/servlet web-server/servlet-env web-server/dispatch
+         web-server/http/bindings web-server/configuration/responders)
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
 (require "../formats/tex.rkt")
@@ -9,6 +9,19 @@
 (require "../web/common.rkt")
 
 (define *demo* (make-parameter #f))
+(define *prefix* (make-parameter "/"))
+
+(define (add-prefix url)
+  (string-replace (string-append (*prefix*) url) "//" "/"))
+
+(define-values (dispatch url*)
+  (dispatch-rules
+   [("") main]
+   [("improve-start") #:method "post" improve-start]
+   [("improve") #:method "post" improve]
+   [("check-status" (string-arg)) check-status]))
+
+(define url (compose add-prefix url*))
 
 (define (function-list . fn-classes)
   (define (fn->html fn)
@@ -16,13 +29,13 @@
 
   (define (fn-class class)
     (match-define (list fns description ...) class)
-    `((dt () ,@(add-between (map fn->html fn) ", "))
+    `((dt () ,@(add-between (map fn->html fns) ", "))
       (dd () ,@description)))
 
   `(dl ([class "function-list"])
      ,@(append-map fn-class fn-classes)))
 
-(define/page (demo)
+(define (main req)
   (when (not (directory-exists? demo-output-path))
     (make-directory demo-output-path))
 
@@ -32,8 +45,8 @@
     #:title (if (*demo*) "Herbie web demo" "Herbie")
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
-    `(form ([action ,(embed/url improve)] [method "post"] [id "formula"]
-            [data-progress ,(embed/url improve-start)])
+    `(form ([action ,(url improve)] [method "post"] [id "formula"]
+            [data-progress ,(url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
@@ -104,7 +117,7 @@
                  #:debug (hash-ref *jobs* hash)
                  (parse-test formula))))
 
-            (hash-set! *completed-jobs* result)
+            (hash-set! *completed-jobs* hash result)
 
             ;; Output results
 
@@ -148,8 +161,8 @@
       (directory-exists? (build-path demo-output-path hash))
       (directory-exists? (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))))
 
-(define (improve-common body go-back)
-  (match (get-bindings 'formula)
+(define (improve-common req body go-back)
+  (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
      (define formula
        (with-handlers ([exn:fail? (λ (e) #f)])
@@ -164,25 +177,26 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (assert-program! formula)
-       (define hash (md5 (open-input-string formula-str)))
+       (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified serveral). "
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
-(define/page (improve-start)
+(define (improve-start req)
   (improve-common
+   req
    (λ (hash formula)
      (unless (already-computed? hash formula)
        (run-improve hash formula))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (embed/url (curryr check-status hash))))
+                    (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '(#"")))
-   (embed/url demo)))
+   (url main)))
 
-(define/page (check-status hash)
+(define (check-status req hash)
   (match (hash-ref *jobs* hash #f)
     [(? output-port? progress)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
@@ -190,18 +204,19 @@
                (λ (out) (display (get-output-string progress) out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (format "/demo/~a/graph.html" hash)))
+                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a/graph.html" hash))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '())]))
 
-(define/page (improve)
+(define (improve req)
   (improve-common
+   req
    (λ (hash formula)
      (unless (already-computed? hash formula)
        (semaphore-wait (run-improve hash formula)))
 
-     (redirect-to (format "/demo/~a/graph.html" hash) see-other))
-   (embed/url demo)))
+     (redirect-to (add-prefix (format "~a/graph.html" hash)) see-other))
+   (url main)))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
@@ -218,7 +233,7 @@
   (thread-send *worker-thread* config)
 
   (serve/servlet
-   demo
+   dispatch
    #:log-file (build-path demo-output-path "../../demo.log")
    #:file-not-found-responder
    (gen-file-not-found-responder
@@ -228,8 +243,9 @@
    #:banner? (not command-line)
    #:servlets-root (build-path demo-output-path "../..")
    #:server-root-path (build-path demo-output-path "..")
-   #:servlet-path "/demo/"
-   #:extra-files-paths (list (build-path demo-output-path ".."))))
+   #:servlet-path "/"
+   #:servlet-regexp #rx""
+   #:extra-files-paths (list (build-path demo-output-path))))
 
 (module+ main
   (go #t))
