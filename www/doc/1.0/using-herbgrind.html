@@ -2,27 +2,27 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Using HerbGrind</title>
+  <title>Using Herbgrind</title>
   <base href="../.."/>
   <link rel='stylesheet' type='text/css' href='main.css'>
 </head>
 <body>
   <header>
     <a href="."><img class="logo" src="logo.png" /></a>
-    <h1>Using HerbGrind</h1>
+    <h1>Using Herbgrind</h1>
   </header>
 
   <p>
-    <a href=".">HerbGrind</a> analyzes binaries to find inaccurate
+    <a href=".">Herbgrind</a> analyzes binaries to find inaccurate
     floating point expressions. The binaries can come from anywhere—C
     source, Fortran source, even unknown origins. This tutorial
-    runs HerbGrind on the benchmark programs that HerbGrind ships with.
+    runs Herbgrind on the benchmark programs that Herbgrind ships with.
   </p>
   
   <h2>Compiling the benchmark program</h2>
 
   <p>
-    HerbGrind ships test binaries in its <code>bench/</code>
+    Herbgrind ships test binaries in its <code>bench/</code>
     directory. You can build them with:
   </p>
   
@@ -30,7 +30,7 @@
 
   <p>
     Let's analyze the <code>diff-roots-simple.out</code> binary that
-    you just compiled. Run HerbGrind on that binary with:
+    you just compiled. Run Herbgrind on that binary with:
   </p>
 
   <pre>valgrind/herbgrind-install/bin/valgrind --tool=herbgrind bench/diff-roots-simple.out</pre>
@@ -39,7 +39,7 @@
     This should produce output that looks like this:
   </p>
   
-  <pre>==16725== HerbGrind, a valgrind tool for Herbie
+  <pre>==16725== Herbgrind, a valgrind tool for Herbie
 ==16725== 
 ==16725== Using Valgrind-3.12.0.SVN and LibVEX; rerun with -h for copyright info
 ==16725== Command: bench/diff-roots-simple.out
@@ -49,7 +49,7 @@
 Writing report out to bench/diff-roots-simple.out-errors.gh</pre>
 
   <p>The printed value, <code>1.578592e-07</code>, is printed by
-  the <code>diff-roots-simple.out</code> binary. HerbGrind writes its
+  the <code>diff-roots-simple.out</code> binary. Herbgrind writes its
   results to the named
   file, <code>bench/diff-roots-simple.out-errors.gh</code>. This file
   contains one record for each operation; the only operation found
@@ -72,7 +72,7 @@ Aggregated over 1 instances</pre>
   <pre>y = sqrt(x + 1) - sqrt(x);</pre>
   
   <p>
-    Since this line of code is run only once, HerbGrind doesn't know
+    Since this line of code is run only once, Herbgrind doesn't know
     that <code>x</code> is intended to be a variable, and instead
     inlines its value.
   </p>
@@ -82,13 +82,13 @@ Aggregated over 1 instances</pre>
     inaccurate computation: 43.1 bits of error over 1 instance of computing that expression.
   </p>
   
-  <h2>Turning HerbGrind on and off</h2>
+  <h2>Turning Herbgrind on and off</h2>
 
   <p>
-    While running on <code>diff-roots-simple.out</code>, HerbGrind
+    While running on <code>diff-roots-simple.out</code>, Herbgrind
     found inaccurate computations not only
     in <code>diff-roots-simple.out</code> but also in several GNU
-    library calls. HerbGrind has a feature to avoid tracking floating
+    library calls. Herbgrind has a feature to avoid tracking floating
     point operations in libraries and other code not within your
     control by adding instrumentation to your source code.
   </p>
@@ -106,8 +106,8 @@ HERBGRIND_END();
 // cleanup code ...</pre>
 
   <p>The <code>diff-roots-simple.c</code> example does this on lines
-    11 and 13. You can then run HerbGrind with
-    the <code>--start-off</code> flag, which tells HerbGrind not to
+    11 and 13. You can then run Herbgrind with
+    the <code>--start-off</code> flag, which tells Herbgrind not to
     begin analyzing floating point operations until it sees
     a <code>HERBGRIND_BEGIN()</code> region:
   </p>
@@ -123,8 +123,8 @@ HERBGRIND_END();
   <p>
     The <code>HERBGRIND_BEGIN()</code>/<code>HERBGRIND_END()</code>
     regions can be sprinkled anywhere in your source code; it's common
-    to use them to start HerbGrind only after initializing your
-    program and before cleaning up and outputting results. HerbGrind
+    to use them to start Herbgrind only after initializing your
+    program and before cleaning up and outputting results. Herbgrind
     can be turned on and off multiple times.
   </p>
 

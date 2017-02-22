@@ -2,36 +2,36 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Installing HerbGrind</title>
+  <title>Installing Herbgrind</title>
   <base href="../.."/>
   <link rel='stylesheet' type='text/css' href='main.css'>
 </head>
 <body>
   <header>
     <a href="."><img class="logo" src="logo.png" /></a>
-    <h1>Installing HerbGrind</h1>
+    <h1>Installing Herbgrind</h1>
   </header>
 
   <p>
-    <a href=".">HerbGrind</a> depends
+    <a href=".">Herbgrind</a> depends
     on <a href="http://valgrind.org">Valgrind</a>, a binary
     instrumentation and memory analysis framework. To install
-    HerbGrind, you must first install a C compiler and
+    Herbgrind, you must first install a C compiler and
     GNU <code>awk</code> and <code>sed</code>.
   </p>
   
   <p class="note">
-    HerbGrind is <strong>α</strong> software. It is currently known to
+    Herbgrind is <strong>α</strong> software. It is currently known to
     work only on 64-bit GNU Linux platforms. Support for 32-bit
     architectures, for OS X, for Clang, and for BSD core tools is
     still in progress. Please <a href="https://github.com/uwplse/herbgrind/issues">file a bug</a>
-    if HerbGrind does not work on your system.
+    if Herbgrind does not work on your system.
   </p>
 
   <h2>Installing GNU AWK and Sed</h2>
 
   <p>
-    HerbGrind currently supports 64-bit GNU Linux with GCC; OS X has
+    Herbgrind currently supports 64-bit GNU Linux with GCC; OS X has
     known bugs, and other configurations are untested. On Linux,
     install GCC, AWK, and Sed using distro-provided packages; on
     Debian-derivatives, use the <code>build-essentials</code> pacakge:
@@ -51,10 +51,10 @@ brew install gcc</pre>
 
   <pre>xcode-select --install</pre>
   
-  <h2>Installing HerbGrind</h2>
+  <h2>Installing Herbgrind</h2>
 
   <p>
-    Once the GNU tools are installed, download the HerbGrind source
+    Once the GNU tools are installed, download the Herbgrind source
     <a href="https://github.com/uwplse/herbgrind">from GitHub</a> with:
   </p>
 
@@ -77,7 +77,7 @@ brew install gcc</pre>
   
   <dl>
     <dt><code>TARGET_PLAT</code></dt>
-    <dd>The platform you want to run HerbGrind on; the default
+    <dd>The platform you want to run Herbgrind on; the default
     is <code>amd64-darwin</code> on OS X and <code>amd64-linux</code>
     otherwise.</dd>
     <dt><code>ARCH_PRIM</code> and <code>ARCH_SEC</code></dt>
@@ -89,7 +89,7 @@ brew install gcc</pre>
   <p>You can also configure without compiling using <code>make setup</code>.</p>
 
   <p>
-    Once HerbGrind is installed and working correctly,
+    Once Herbgrind is installed and working correctly,
     check out the <a href="doc/1.0/using-herbgrind.html">usage instructions</a>.
   </p>
 
