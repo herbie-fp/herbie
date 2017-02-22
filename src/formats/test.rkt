@@ -28,7 +28,11 @@
 (define (test-samplers test)
   (define range-table (condition->range-table (test-precondition test)))
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (cons var (eval-sampler samp (range-table-ref range-table var)))))
+    (define intvl (range-table-ref range-table var))
+    (unless intvl
+     (raise-herbie-error "No valid values of variable ~a" var
+                         #:url "faq.html#no-valid-values"))
+    (cons var (eval-sampler samp intvl))))
 
 (define (parse-test expr)
   (match expr
