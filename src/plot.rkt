@@ -108,7 +108,7 @@
      (for/list ([ptick pticks])
        (define val (pre-tick-value ptick))
        (if (or (= val 0) (< 0.01 (abs val) 100))
-           (~r (exact->inexact val) #:precision 2)
+           (~r (exact->inexact val) #:precision 4)
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e"))))))
 
 (define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
