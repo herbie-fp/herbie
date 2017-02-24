@@ -1,6 +1,7 @@
 #lang racket
 (require openssl/sha1 xml)
 (require web-server/servlet web-server/servlet-env web-server/dispatch
+         web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders)
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
@@ -8,18 +9,35 @@
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
 
-(define *demo* (make-parameter #f))
+(define *demo* (make-parameter false))
 (define *prefix* (make-parameter "/"))
+(define *save-session* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*prefix*) url) "//" "/"))
+
+(define-coercion-match-expander hash-arg/m
+  (λ (x)
+    (and (not (*save-session*))
+         (or
+          (and (regexp-match #rx"^[0-9a-f]+$" x) (hash-has-key? *completed-jobs* x))
+          (let ([m (regexp-match #rx"^([0-9a-f]+).crash.[0-9a-f]+" x)])
+            (and m (hash-has-key? *completed-jobs* (second m)))))))
+  (λ (x)
+    (let ([m (regexp-match #rx"^([0-9a-f]+).crash.[0-9a-f]+" x)])
+      (hash-ref *completed-jobs* (if m (second m) x)))))
+
+(define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
 (define-values (dispatch url*)
   (dispatch-rules
    [("") main]
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method "post" improve]
-   [("check-status" (string-arg)) check-status]))
+   [("check-status" (string-arg)) check-status]
+   [((hash-arg) "graph.html") generate-report]
+   [((hash-arg) "debug.log") generate-debug]
+   [((hash-arg) (string-arg)) generate-plot]))
 
 (define url (compose add-prefix url*))
 
@@ -36,13 +54,13 @@
      ,@(append-map fn-class fn-classes)))
 
 (define (main req)
-  (when (not (directory-exists? demo-output-path))
+  (when (and (not (directory-exists? demo-output-path)) (*save-session*))
     (make-directory demo-output-path))
 
   (response/xexpr
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
    (herbie-page
-    #:title (if (*demo*) "Herbie web demo" "Herbie")
+    #:title (if (*demo*) "Herbie web demo" "")
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
@@ -77,10 +95,15 @@
      '((sinh cosh tanh) "The hyperbolic trigonometric functions"))
     `(p "You can also use the constants " (code "PI") " and " (code "E") ".")
 
-    `(p (em "Note") ": all formulas submitted to the Herbie web demo are logged "
-        "and made publicly accessible. See what formulas other users submitted "
-        (a ([href "./report.html"]) "here") ".")
-    )))
+    `(p (em "Note") ": "
+        ,@(cond
+           [(not (*save-session*))
+            '("formulas submitted here are not logged.")]
+           [(*demo*)
+            `("all formulas submitted here are logged and made public."
+              (a ([href "./report.html"])" See what formulas other users submitted."))]
+           [else
+            `("all formulas submitted here are " (a ([href "./report.html"]) "logged") ".")])))))
 
 (define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
@@ -117,38 +140,41 @@
                  #:debug (hash-ref *jobs* hash)
                  (parse-test formula))))
 
-            (hash-set! *completed-jobs* hash result)
+            (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
 
-            ;; Output results
+            (when (*save-session*)
+              ;; Output results
+              (define dir
+                (cond
+                 [(test-result? result) hash]
+                 [(test-timeout? result) hash]
+                 [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
+              (make-directory (build-path demo-output-path dir))
+              (define make-page
+                (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
+                      [(test-timeout? result) make-timeout]
+                      [(test-failure? result) make-traceback]))
+              (with-output-to-file (build-path demo-output-path dir "graph.html")
+                (λ () (make-page result (build-path demo-output-path dir) #f)))
 
-            (define dir
-              (cond
-               [(test-result? result) hash]
-               [(test-timeout? result) hash]
-               [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
-            (make-directory (build-path demo-output-path dir))
-            (define make-page
-              (cond [(test-result? result) make-graph]
-                    [(test-timeout? result) make-timeout]
-                    [(test-failure? result) make-traceback]))
-            (with-output-to-file (build-path demo-output-path dir "graph.html")
-              (λ () (make-page result (build-path demo-output-path dir) #f)))
-
-            (define data (get-table-data result dir))
-            (define info
-              (if (file-exists? (build-path demo-output-path "results.json"))
-                  (let ([info (read-datafile (build-path demo-output-path "results.json"))])
-                    (set-report-info-tests! info (cons data (report-info-tests info)))
-                    info)
-                  (make-report-info (list data) #:seed seed
-                                    #:note (if (*demo*) "Web demo results" "Herbie web results"))))
-            (write-datafile (build-path demo-output-path "results.json") info)
-            (make-report-page (build-path demo-output-path "report.html") info)
+              (update-report result dir seed
+                             (build-path demo-output-path "results.json")
+                             (build-path demo-output-path "results.html")))
 
             (eprintf " complete\n")
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])])
        (loop seed)))))
+
+(define (update-report result dir seed data-file html-file)
+  (define data (get-table-data result dir))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (read-datafile data-file)])
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed seed #:note (if (*demo*) "Web demo results" ""))))
+  (write-datafile data-file info)
+  (make-report-page html-file info))
 
 (define (run-improve hash formula)
   (hash-set! *jobs* hash (open-output-string))
@@ -218,6 +244,37 @@
      (redirect-to (add-prefix (format "~a/graph.html" hash)) see-other))
    (url main)))
 
+(define (generate-report req results)
+  (match-define (cons result debug) results)
+
+  (response 200 #"OK" (current-seconds) #"text/html"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out)
+              (parameterize ([current-output-port out])
+                (make-graph result hash #f)))))
+
+(define (generate-plot req results plotname)
+  (match-define (cons result debug) results)
+
+  (define responder
+    (match (regexp-match #rx"^plot-([0-9]+)([rbg]?).png$" plotname)
+      [#f (next-dispatcher)]
+      [(list _ (app string->number idx) "")
+       ;; TODO: rdir?
+       (curry make-axis-plot result idx)]
+      [(list _ (app string->number idx) (and (or "r" "g" "b") (app string->symbol letter)))
+       (curry make-points-plot result idx letter)]))
+  (response 200 #"OK" (current-seconds) #"text/html"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            responder))
+
+(define (generate-debug req results)
+  (match-define (cons result debug) results)
+
+  (response 200 #"OK" (current-seconds) #"text/html"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out) (display debug out))))
+
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
@@ -245,7 +302,7 @@
    #:server-root-path (build-path demo-output-path "..")
    #:servlet-path "/"
    #:servlet-regexp #rx""
-   #:extra-files-paths (list (build-path demo-output-path))))
+   #:extra-files-paths (list demo-output-path (build-path demo-output-path ".."))))
 
 (module+ main
   (go #t))

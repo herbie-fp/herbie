@@ -19,7 +19,8 @@
         (make-directory dir))
 
       (write-file (build-path dir "graph.html")
-                  ((cond [(test-result? result) make-graph]
+                  ((cond [(test-result? result)
+                          (λ args (apply make-graph args) (apply make-plots args))]
                          [(test-timeout? result) make-timeout]
                          [(test-failure? result) make-traceback])
                    result dir profile?)))))
