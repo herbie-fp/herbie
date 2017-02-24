@@ -2,16 +2,21 @@
 (require openssl/sha1 xml)
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
-         web-server/http/bindings web-server/configuration/responders)
+         web-server/http/bindings web-server/configuration/responders
+         web-server/managers/none)
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
 (require "../formats/tex.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
 
+(provide run-demo)
+
 (define *demo* (make-parameter false))
 (define *prefix* (make-parameter "/"))
-(define *save-session* (make-parameter false))
+(define *save-session* (make-parameter true))
+(define *log* (make-parameter (build-path demo-output-path "../../demo.log")))
+(define *dir* (make-parameter demo-output-path))
 
 (define (add-prefix url)
   (string-replace (string-append (*prefix*) url) "//" "/"))
@@ -54,8 +59,8 @@
      ,@(append-map fn-class fn-classes)))
 
 (define (main req)
-  (when (and (not (directory-exists? demo-output-path)) (*save-session*))
-    (make-directory demo-output-path))
+  (when (and (not (directory-exists? (*dir*))) (*save-session*))
+    (make-directory (*dir*)))
 
   (response/xexpr
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -125,10 +130,10 @@
           (cond
            [(hash-has-key? *completed-jobs* hash)
             (semaphore-post sema)]
-           [(directory-exists? (build-path demo-output-path hash))
+           [(directory-exists? (build-path (*dir*) hash))
             (semaphore-post sema)]
            [(directory-exists?
-             (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))
+             (build-path (*dir*) (format "~a.crash.~a" hash *herbie-commit*)))
             (semaphore-post sema)]
            [else
             (eprintf "Job ~a started..." hash)
@@ -150,17 +155,17 @@
                  [(test-result? result) hash]
                  [(test-timeout? result) hash]
                  [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
-              (make-directory (build-path demo-output-path dir))
+              (make-directory (build-path (*dir*) dir))
               (define make-page
                 (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
-              (with-output-to-file (build-path demo-output-path dir "graph.html")
-                (λ () (make-page result (build-path demo-output-path dir) #f)))
+              (with-output-to-file (build-path (*dir*) dir "graph.html")
+                (λ () (make-page result (build-path (*dir*) dir) #f)))
 
               (update-report result dir seed
-                             (build-path demo-output-path "results.json")
-                             (build-path demo-output-path "results.html")))
+                             (build-path (*dir*) "results.json")
+                             (build-path (*dir*) "results.html")))
 
             (eprintf " complete\n")
             (hash-remove! *jobs* hash)
@@ -185,8 +190,8 @@
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
-      (directory-exists? (build-path demo-output-path hash))
-      (directory-exists? (build-path demo-output-path (format "~a.crash.~a" hash *herbie-commit*)))))
+      (directory-exists? (build-path (*dir*) hash))
+      (directory-exists? (build-path (*dir*) (format "~a.crash.~a" hash *herbie-commit*)))))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -280,7 +285,7 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (go [command-line #f])
+(define (run-demo [command-line #f])
   (eprintf "Server loaded and starting up.\n")
 
   (define config
@@ -292,18 +297,22 @@
 
   (serve/servlet
    dispatch
-   #:log-file (build-path demo-output-path "../../demo.log")
-   #:file-not-found-responder
-   (gen-file-not-found-responder
-    (build-path demo-output-path "../404.html"))
-   #:listen-ip #f
+   #:listen-ip (if (*demo*) #f "127.0.0.1")
+   #:servlet-current-directory (current-directory)
+   #:manager (create-none-manager #f)
+
    #:command-line? command-line
    #:banner? (not command-line)
-   #:servlets-root (build-path demo-output-path "../..")
-   #:server-root-path (build-path demo-output-path "..")
+   #:servlets-root (build-path (*dir*) "../..")
+   #:server-root-path (build-path (*dir*) "..")
    #:servlet-path "/"
    #:servlet-regexp #rx""
-   #:extra-files-paths (list demo-output-path (build-path demo-output-path ".."))))
+   #:extra-files-paths (list (*dir*) (build-path (*dir*) ".."))
+
+   #:log-file (and (*save-session*) (*log*))
+   #:file-not-found-responder
+   (gen-file-not-found-responder
+    (build-path (*dir*) "../404.html"))))
 
 (module+ main
-  (go #t))
+  (run-demo #t))
