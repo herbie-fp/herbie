@@ -8,8 +8,13 @@
 ;;; which you can distinguish due to the lack of a trailing `.fpcore` or
 ;;; `/`.
 
+(require syntax/parse racket/lazy-require)
 (require "common.rkt" "errors.rkt" "points.rkt" "alternative.rkt"
-         "formats/test.rkt" "sandbox.rkt")
+         "formats/test.rkt" "sandbox.rkt" "multi-command-line.rkt")
+
+(lazy-require
+ ["web/demo.rkt" (run-demo)]
+ ["reports/run.rkt" (make-report)])
 
 #;(define threads (make-parameter #f))
 
@@ -78,7 +83,7 @@
          (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test))]))))
 
 (module+ main
-  (command-line
+  (multi-command-line
    #:program "herbie"
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
@@ -107,5 +112,23 @@
     (when (not flag)
       (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
     (apply enable-flag! flag)]
+
+   #:subcommands
+   ["shell"
+    #:args ()
+    (run-herbie '())]
+   ["web"
+    ;; TODO: --save-session out, --log out, --prefix prefix, --quiet
+    #:args ()
+    (run-demo #t)]
+   ["improve"
+    ;; TODO: --threads
+    #:args (input output)
+    (with-output-to-file output #:exists 'replace (λ () (run-herbie (list input))))]
+   ["report"
+    ;; TODO: --profile, --threads, --note
+    #:args (input output)
+    (make-report input #:dir output)]
+
    #:args files
-   (run-herbie files))) ; TODO : Handle error
+   (run-herbie files)))
