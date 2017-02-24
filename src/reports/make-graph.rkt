@@ -104,7 +104,7 @@
       (open-file idx #:type 'r make-points-plot result idx 'r)
       (when (test-result-target-error result)
         (open-file idx #:type 'g make-points-plot result idx 'g))
-      (open-file idx #:type 'g make-points-plot result idx 'g))))
+      (open-file idx #:type 'b make-points-plot result idx 'b))))
 
 (define (make-graph result rdir profile?)
   (match result

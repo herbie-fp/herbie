@@ -2,7 +2,8 @@
 
 (provide herbie-page)
 
-(define (herbie-page #:title title #:scripts [scripts '()] #:styles [styles '()] #:head-include [other-include-head '()] . body)
+(define (herbie-page #:title title #:show-title [title? true]
+                     #:scripts [scripts '()] #:styles [styles '()] #:head-include [other-include-head '()] . body)
   `(html
     (head
      (meta ([charset "utf-8"]))
@@ -16,5 +17,5 @@
     (body
      (header
       (img ([class "logo"] [src "/logo.png"]))
-      (h1 ,title))
+      ,@(if title? `((h1 ,title)) `()))
      ,@body)))
