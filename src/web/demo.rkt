@@ -102,9 +102,9 @@
             '("formulas submitted here are not logged.")]
            [(*demo*)
             `("all formulas submitted here are logged and made public."
-              (a ([href "./report.html"])" See what formulas other users submitted."))]
+              (a ([href "./results.html"])" See what formulas other users submitted."))]
            [else
-            `("all formulas submitted here are " (a ([href "./report.html"]) "logged") ".")])))))
+            `("all formulas submitted here are " (a ([href "./results.html"]) "logged") ".")])))))
 
 (define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
