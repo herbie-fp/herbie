@@ -13,17 +13,16 @@
 (provide get-test-results)
 
 (define (make-graph-if-valid result tname index rdir #:profile profile?)
-  (let* ([dir (build-path report-output-path rdir)])
-    (with-handlers ([(const #f) (λ _ #f)])
-      (when (not (directory-exists? dir))
-        (make-directory dir))
+  (with-handlers ([(const #f) (λ _ #f)])
+    (when (not (directory-exists? rdir))
+      (make-directory rdir))
 
-      (write-file (build-path dir "graph.html")
-                  ((cond [(test-result? result)
-                          (λ args (apply make-graph args) (apply make-plots args))]
-                         [(test-timeout? result) make-timeout]
-                         [(test-failure? result) make-traceback])
-                   result dir profile?)))))
+    (write-file (build-path rdir "graph.html")
+                ((cond [(test-result? result)
+                        (λ args (apply make-graph args) (apply make-plots args))]
+                       [(test-timeout? result) make-timeout]
+                       [(test-failure? result) make-traceback])
+                 result rdir profile?))))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
@@ -43,7 +42,7 @@
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
 
-(define (run-test index test #:seed seed #:profile profile?)
+(define (run-test index test #:seed seed #:profile profile? #:dir dir)
   (let* ([rdir (graph-folder-path (test-name test) index)]
          [rdir* (build-path report-output-path rdir)])
 
@@ -55,30 +54,32 @@
        (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
        (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp #:setup! (λ () (set-debug-level! #t #t))))))
     
-    (make-graph-if-valid result (test-name test) index rdir #:profile profile?)
+    (make-graph-if-valid result (test-name test) index (build-path dir rdir) #:profile profile?)
     (get-table-data result rdir)))
 
 (define (make-worker)
   (place ch
-    (let loop ([seed #f] [profile? #f])
+    (let loop ([seed #f] [profile? #f] [dir #f])
       (match (place-channel-get ch)
 	[`(init
 	   rand ,vec
 	   flags ,flag-table
 	   num-iters ,iterations
            points ,points
-           profile? ,profile)
+           profile? ,profile
+           dir ,path)
 
 	 (set! seed vec)
          (set! profile? profile)
+         (set! dir path)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)
          (*num-points* points)]
         [`(apply ,self ,id ,test)
-         (let ([result (run-test id test #:seed seed #:profile profile?)])
+         (let ([result (run-test id test #:seed seed #:profile profile? #:dir dir)])
            (place-channel-put ch
              `(done ,id ,self ,result)))])
-      (loop seed profile?))))
+      (loop seed profile? dir))))
 
 (define (print-test-result tr)
   (match (table-row-status tr)
@@ -92,13 +93,14 @@
              (~r (table-row-result tr) #:min-width 2 #:precision 0)
              (table-row-name tr))]))
 
-(define (run-workers progs threads #:seed seed #:profile profile?)
+(define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
   (define config
     `(init rand ,seed
            flags ,(*flags*)
            num-iters ,(*num-iterations*)
            points ,(*num-points*)
-           profile? ,profile?))
+           profile? ,profile?
+           dir ,dir))
 
   (define workers
     (for/list ([wid (in-range threads)])
@@ -142,7 +144,7 @@
 
   outs)
 
-(define (run-nothreads progs #:seed seed #:profile profile?)
+(define (run-nothreads progs #:seed seed #:profile profile? #:dir dir)
   (printf "Starting Herbie on ~a problems...\n" (length progs))
   (printf "Seed: ~a\n" seed)
   (define out '())
@@ -151,20 +153,20 @@
                      (printf "Terminating after ~a problem~a!\n"
                              (length out) (if (= (length out) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
-      (define tr (run-test i test #:seed seed #:profile profile?))
+      (define tr (run-test i test #:seed seed #:profile profile? #:dir dir))
       (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
       (print-test-result tr)
       (set! out (cons (cons i tr) out))))
   out)
 
-(define (get-test-results progs #:threads [threads #f] #:seed seed #:profile [profile? #f])
+(define (get-test-results progs #:threads [threads #f] #:seed seed #:profile [profile? #f] #:dir dir)
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))
 
   (define outs
     (if threads
-        (run-workers progs threads #:seed seed #:profile profile?)
-        (run-nothreads progs #:seed seed #:profile profile?)))
+        (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
+        (run-nothreads progs #:seed seed #:profile profile? #:dir dir)))
   
   (define out (make-vector (length progs) #f))
   (for ([(idx result) (in-dict outs)])

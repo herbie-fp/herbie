@@ -420,30 +420,30 @@
       (for ([subdir extra-dirs])
         (delete-directory/files (build-path dir subdir))))))
 
-(define (render-json file)
+(define (render-json dir file)
   (define info (read-datafile file))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-report-page (build-path report-output-path "report.html") info))
+  (make-report-page (build-path dir "report.html") info))
 
-(define (render-json-compare file1 file2)
+(define (render-json-compare dir file1 file2)
   (define info1 (read-datafile file1))
   (define info2 (read-datafile file2))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-compare-page (build-path report-output-path "compare.html") info1 info2))
+  (make-compare-page (build-path dir "compare.html") info1 info2))
 
-(define (render files)
+(define (render dir files)
   (if (= 1 (length files))
-      (render-json (car files))
-      (render-json-compare (car files) (cadr files))))
+      (render-json dir (car files))
+      (render-json-compare dir (car files) (cadr files))))
 
 (module+ main
   (command-line
    #:program "make-report"
-   #:args info-files
-   (render info-files)))
+   #:args (dir info-files)
+   (render dir info-files)))

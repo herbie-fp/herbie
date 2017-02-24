@@ -20,8 +20,7 @@
 
 (define *profile?* #f)
 
-(define (rerun-report json-file)
-  (define dir report-output-path)
+(define (rerun-report json-file #:dir [dir report-output-path])
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define data (read-datafile json-file))
@@ -34,7 +33,7 @@
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
 
-  (define results (get-test-results tests #:threads *max-test-threads*
+  (define results (get-test-results tests #:threads *max-test-threads* #:dir dir
                                     #:seed (get-seed) #:profile *profile?*))
   (define info (make-report-info (filter identity results)))
 

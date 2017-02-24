@@ -23,15 +23,13 @@
 (define *profile?* #f)
 (define *note* #f)
 
-(define (make-report . bench-dirs)
+(define (make-report #:dir [dir report-output-path] . bench-dirs)
   (define seed (get-seed))
-  (define dir report-output-path)
-
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define tests (allowed-tests bench-dirs))
   (define results
-    (get-test-results tests #:threads *threads* #:seed seed #:profile *profile?*))
+    (get-test-results tests #:threads *threads* #:seed seed #:profile *profile?* #:dir dir))
   (define info (make-report-info (filter identity results) #:note *note* #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
@@ -56,15 +54,16 @@
     ; Put things with an output first
     (test-output t1)]))
 
+(module+ main
 (command-line
  #:program "run"
  #:once-each
- [("-p" "--profile") "Whether to profile each test"
-  (set! *profile?* #t)]
  [("--timeout") s "Timeout for each test (in seconds)"
   (*timeout* (* 1000 (string->number s)))]
  [("-r" "--seed") rs "The random seed vector to use in point generation"
   (set-seed! (read (open-input-string rs)))]
+ [("-p" "--profile") "Whether to profile each test"
+  (set! *profile?* #t)]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
   (set! *threads*
         (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))]
@@ -88,4 +87,4 @@
     (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
   (apply enable-flag! flag)]
  #:args bench-dir
- (apply make-report bench-dir))
+ (apply make-report bench-dir)))
