@@ -44,7 +44,7 @@
 
 (define (run-test index test #:seed seed #:profile profile? #:dir dir)
   (let* ([rdir (graph-folder-path (test-name test) index)]
-         [rdir* (build-path report-output-path rdir)])
+         [rdir* (build-path dir rdir)])
 
     (when (not (directory-exists? rdir*))
       (make-directory rdir*))
@@ -54,7 +54,7 @@
        (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
        (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp #:setup! (λ () (set-debug-level! #t #t))))))
     
-    (make-graph-if-valid result (test-name test) index (build-path dir rdir) #:profile profile?)
+    (make-graph-if-valid result (test-name test) index rdir* #:profile profile?)
     (get-table-data result rdir)))
 
 (define (make-worker)

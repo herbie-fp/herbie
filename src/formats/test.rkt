@@ -22,7 +22,7 @@
     [(#f #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
-(struct test (name vars sampling-expr input output input-syntax expected precondition) #:prefab)
+(struct test (name vars sampling-expr input output expected precondition) #:prefab)
 
 (define (test-samplers test)
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
@@ -47,7 +47,6 @@
            args samps
            body*
            (desugar-program (dict-ref prop-dict ':target #f))
-           stx
            (dict-ref prop-dict ':herbie-expected #t)
            (dict-ref prop-dict ':pre 'TRUE))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
@@ -74,7 +73,7 @@
   (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
     (load-file fname)))
 
-(define (load-tests [path benchmark-path])
+(define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
   (if (directory-exists? path*)
       (load-directory path*)

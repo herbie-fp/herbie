@@ -83,6 +83,20 @@
          (printf ";; ~as timeout in ~a\n;; use --timeout to change timeout\n" (/ time 1000) (test-name test))]))))
 
 (module+ main
+  (define quiet? #f)
+  (define demo-output #f)
+  (define demo-log #f)
+  (define demo-prefix "/")
+  (define demo? #f)
+  (define demo-port 8000)
+
+  (define threads #f)
+  (define report-profile? #f)
+  (define report-note #f)
+
+  (define (string->thread-count th)
+    (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
+
   (multi-command-line
    #:program "herbie"
    #:once-each
@@ -118,17 +132,38 @@
     #:args ()
     (run-herbie '())]
    ["web"
-    ;; TODO: --save-session out, --log out, --prefix prefix, --quiet
+    #:once-each
+    [("--port") port "Port to run the web shell on"
+     (set! demo-port (string->number port))]
+    [("--save-session") dir "The dir to place a report from submitted expressions"
+     (set! demo-output dir)]
+    [("--log") file "The file to write web access log to"
+     (set! demo-log file)]
+    [("--prefix") prefix "Prefix for proxying demo"
+     (set! demo-prefix prefix)]
+    [("--demo") "Run in Herbie web demo mode. Changes some text"
+     (set! demo? true)]
+    [("--quiet") "Print a smaller banner and don't start a browser."
+     (set! quiet? true)]
     #:args ()
-    (run-demo #t)]
+    (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
    ["improve"
-    ;; TODO: --threads
+    #:once-each
+    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count th))]
     #:args (input output)
+    ;; TODO: Incorrect
     (with-output-to-file output #:exists 'replace (λ () (run-herbie (list input))))]
    ["report"
-    ;; TODO: --profile, --threads, --note
+    #:once-each
+    [("--note") note "Add a note for this run"
+     (set! report-note note)]
+    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count th))]
+    [("--profile") "Whether to profile each run"
+     (set! report-profile? true)]
     #:args (input output)
-    (make-report input #:dir output)]
+    (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
    (run-herbie files)))

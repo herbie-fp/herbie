@@ -2,10 +2,8 @@
 (require racket/runtime-path)
 (provide (all-defined-out))
 
-(define-runtime-path report-output-path "../graphs/")
-(define-runtime-path demo-output-path "../www/demo/")
 (define-runtime-path viz-output-path "../www/viz/")
-(define-runtime-path benchmark-path "../bench/")
+(define-runtime-path web-resource-path "../www/")
 
 ;; Flag Stuff
 

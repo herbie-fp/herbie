@@ -15,7 +15,7 @@
 (define name->timestamp (compose string->number first parse-folder-name))
 
 (define (read-report-info folder)
-  (let ([info-file (build-path report-output-path "reports" folder "results.json")])
+  (let ([info-file (build-path "graph" "reports" folder "results.json")])
     (if (file-exists? info-file)
         (read-datafile info-file)
         (match (parse-folder-name folder)
@@ -90,7 +90,7 @@
   (printf "</tbody>\n"))
 
 (define (make-index-page)
-  (define dirs (directory-list (build-path report-output-path "reports/")))
+  (define dirs (directory-list (build-path "graphs" "reports")))
 
   (let* ([folders
           (map (λ (dir) (cons dir (read-report-info dir)))

@@ -12,18 +12,17 @@
 
 (provide run-demo)
 
-(define *demo* (make-parameter false))
-(define *prefix* (make-parameter "/"))
-(define *save-session* (make-parameter true))
-(define *log* (make-parameter (build-path demo-output-path "../../demo.log")))
-(define *dir* (make-parameter demo-output-path))
+(define *demo?* (make-parameter false))
+(define *demo-prefix* (make-parameter "/"))
+(define *demo-output* (make-parameter false))
+(define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
-  (string-replace (string-append (*prefix*) url) "//" "/"))
+  (string-replace (string-append (*demo-prefix*) url) "//" "/"))
 
 (define-coercion-match-expander hash-arg/m
   (λ (x)
-    (and (not (*save-session*))
+    (and (not (*demo-output*))
          (or
           (and (regexp-match #rx"^[0-9a-f]+$" x) (hash-has-key? *completed-jobs* x))
           (let ([m (regexp-match #rx"^([0-9a-f]+).crash.[0-9a-f]+" x)])
@@ -59,14 +58,14 @@
      ,@(append-map fn-class fn-classes)))
 
 (define (main req)
-  (when (and (not (directory-exists? (*dir*))) (*save-session*))
-    (make-directory (*dir*)))
+  (when (and (*demo-output*) (not (directory-exists? (*demo-output*))))
+    (make-directory (*demo-output*)))
 
   (response/xexpr
    #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
    (herbie-page
-    #:title (if (*demo*) "Herbie web demo" "Herbie")
-    #:show-title (*demo*)
+    #:title (if (*demo?*) "Herbie web demo" "Herbie")
+    #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "/demo.js")
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
@@ -75,7 +74,7 @@
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
-    (if (*demo*)
+    (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
             "there are " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue right now. "
             "Web demo requests may also time out and cap the number of improvement iterations. "
@@ -103,9 +102,9 @@
 
     `(p (em "Note") ": "
         ,@(cond
-           [(not (*save-session*))
+           [(not (*demo-output*))
             '("formulas submitted here are not logged.")]
-           [(*demo*)
+           [(*demo?*)
             `("all formulas submitted here are logged and made public."
               (a ([href "./results.html"])" See what formulas other users submitted."))]
            [else
@@ -130,10 +129,10 @@
           (cond
            [(hash-has-key? *completed-jobs* hash)
             (semaphore-post sema)]
-           [(directory-exists? (build-path (*dir*) hash))
+           [(directory-exists? (build-path (*demo-output*) hash))
             (semaphore-post sema)]
            [(directory-exists?
-             (build-path (*dir*) (format "~a.crash.~a" hash *herbie-commit*)))
+             (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))
             (semaphore-post sema)]
            [else
             (eprintf "Job ~a started..." hash)
@@ -148,24 +147,24 @@
 
             (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
 
-            (when (*save-session*)
+            (when (*demo-output*)
               ;; Output results
               (define dir
                 (cond
                  [(test-result? result) hash]
                  [(test-timeout? result) hash]
                  [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
-              (make-directory (build-path (*dir*) dir))
+              (make-directory (build-path (*demo-output*) dir))
               (define make-page
                 (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
-              (with-output-to-file (build-path (*dir*) dir "graph.html")
-                (λ () (make-page result (build-path (*dir*) dir) #f)))
+              (with-output-to-file (build-path (*demo-output*) dir "graph.html")
+                (λ () (make-page result (build-path (*demo-output*) dir) #f)))
 
               (update-report result dir seed
-                             (build-path (*dir*) "results.json")
-                             (build-path (*dir*) "results.html")))
+                             (build-path (*demo-output*) "results.json")
+                             (build-path (*demo-output*) "results.html")))
 
             (eprintf " complete\n")
             (hash-remove! *jobs* hash)
@@ -178,7 +177,7 @@
     (if (file-exists? data-file)
         (let ([info (read-datafile data-file)])
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed seed #:note (if (*demo*) "Web demo results" ""))))
+        (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (write-datafile data-file info)
   (make-report-page html-file info))
 
@@ -190,8 +189,8 @@
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
-      (directory-exists? (build-path (*dir*) hash))
-      (directory-exists? (build-path (*dir*) (format "~a.crash.~a" hash *herbie-commit*)))))
+      (directory-exists? (build-path (*demo-output*) hash))
+      (directory-exists? (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -285,8 +284,11 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (run-demo [command-line #f])
-  (eprintf "Server loaded and starting up.\n")
+(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port)
+  (*demo?* demo?)
+  (*demo-output* output)
+  (*demo-prefix* prefix)
+  (*demo-log* log)
 
   (define config
     `(init rand ,(get-seed)
@@ -297,22 +299,27 @@
 
   (serve/servlet
    dispatch
-   #:listen-ip (if (*demo*) #f "127.0.0.1")
+   #:listen-ip (if (*demo?*) #f "127.0.0.1")
+   #:port port
    #:servlet-current-directory (current-directory)
    #:manager (create-none-manager #f)
 
-   #:command-line? command-line
-   #:banner? (not command-line)
-   #:servlets-root (build-path (*dir*) "../..")
-   #:server-root-path (build-path (*dir*) "..")
+   #:command-line? true
+   #:launch-browser? (not quiet?)
+   #:banner? true
+   #:servlets-root web-resource-path
+   #:server-root-path web-resource-path
    #:servlet-path "/"
    #:servlet-regexp #rx""
-   #:extra-files-paths (list (*dir*) (build-path (*dir*) ".."))
+   #:extra-files-paths
+   (if (*demo-output*)
+       (list web-resource-path (*demo-output*))
+       (list web-resource-path))
 
-   #:log-file (and (*save-session*) (*log*))
+   #:log-file (*demo-log*)
    #:file-not-found-responder
    (gen-file-not-found-responder
-    (build-path (*dir*) "../404.html"))))
+    (build-path web-resource-path "404.html"))))
 
 (module+ main
   (run-demo #t))

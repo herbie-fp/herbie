@@ -20,7 +20,7 @@
 
 (define *profile?* #f)
 
-(define (rerun-report json-file #:dir [dir report-output-path])
+(define (rerun-report json-file #:dir dir)
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define data (read-datafile json-file))
