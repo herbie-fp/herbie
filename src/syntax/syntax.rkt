@@ -129,6 +129,16 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
+(define (!=-fn . args)
+  (not (check-duplicates args =)))
+
+(define (bf!=-fn . args)
+  (not (check-duplicates args bf=)))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
@@ -190,21 +200,22 @@
   [y1        '(1)  bfbesy1      _fly1          55]
 
   ; TODO : These are different and should be treated differently
-  [if       '(3)      if-fn     if-fn      65]
-  [=        '(2)      bf=       =          65]
-  [>        '(2)      bf>       >          65]
-  [<        '(2)      bf<       <          65]
-  [>=       '(2)      bf>=      >=         65]
-  [<=       '(2)      bf<=      <=         65]
-  [not      '(1)      not       not        65]
-  [and      '(2)      and-fn    and-fn     55]
-  [or       '(2)      or-fn     or-fn      55])
+  [if       '(3)      if-fn                  if-fn                   65]
+  [==       '(*)      (comparator bf=)       (comparator =)          65]
+  [!=       '(*)      bf!=-fn                !=-fn                   65]
+  [>        '(*)      (comparator bf>)       (comparator >)          65]
+  [<        '(*)      (comparator bf<)       (comparator <)          65]
+  [>=       '(*)      (comparator bf>=)      (comparator >=)         65]
+  [<=       '(*)      (comparator bf<=)      (comparator <=)         65]
+  [not      '(1)      not                    not                     65]
+  [and      '(2)      and-fn                 and-fn                  55]
+  [or       '(2)      or-fn                  or-fn                   55])
 
 (define *operations* (make-parameter operations))
 
 (define constants '(PI E TRUE FALSE))
 
-(define predicates '(or and < > <= >= =))
+(define predicates '(or and < > <= >= == !=))
 
 (define mode:args 0)
 (define mode:bf 1)

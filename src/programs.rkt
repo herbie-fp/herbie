@@ -116,7 +116,7 @@
     [(list f args ...)
      (if (hash-has-key? (*operations*) (syntax->datum f))
          (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
-           (unless (set-member? num-args (length args))
+           (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
                                  (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
          (error! stx "Unknown operator ~a" (syntax->datum f)))
