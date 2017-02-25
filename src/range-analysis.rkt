@@ -87,6 +87,20 @@
  ;; Disjoint intervals
  (check-equal? (interval-union (interval 0 1 #t #f) (interval 2 3 #f #t)) (interval 0 3 #t #t)))
 
+(define (interval-invert intvl)
+  (match intvl
+    [(interval -inf.0 +inf.0 _ _) #f]
+    [(interval -inf.0 u _ u?) (interval u +inf.0 (not u?) #f)]
+    [(interval l +inf.0 l? _) (interval -inf.0 l #f (not l?))]
+    [_ (interval -inf.0 +inf.0 #f #f)])) ; somehow (interval -inf.0 -inf.0 #f #f) will be matched to this case
+
+(module+ test
+  (check-equal? (interval-invert (interval -inf.0 +inf.0 #f #f)) #f)
+  (check-equal? (interval-invert (interval -inf.0 1 #f #f)) (interval 1 +inf.0 #t #f))
+  (check-equal? (interval-invert (interval 1 +inf.0 #t #f)) (interval -inf.0 1 #f #f))
+  (check-equal? (interval-invert (interval 1 2 #t #f)) (interval -inf.0 +inf.0 #f #f))
+  (check-equal? (interval-invert #f) (interval -inf.0 +inf.0 #f #f)))
+
 (define (make-range-table x intvl)
   (make-hash (list (cons x intvl))))
 
