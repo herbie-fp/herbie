@@ -1,5 +1,5 @@
 #lang racket
-(require "reports/thread-pool.rkt" "formats/test.rkt")
+(require "reports/thread-pool.rkt" "formats/test.rkt" "common.rkt")
 (provide run-improve)
 
 (define (run-improve input output #:threads [threads #f])
