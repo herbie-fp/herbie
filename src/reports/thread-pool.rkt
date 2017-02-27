@@ -67,14 +67,18 @@
 	   num-iters ,iterations
            points ,points
            profile? ,profile
-           dir ,path)
+           dir ,path
+           timeout ,timeout
+           reeval ,reeval)
 
 	 (set! seed vec)
          (set! profile? profile)
          (set! dir path)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)
-         (*num-points* points)]
+         (*num-points* points)
+         (*timeout* timeout)
+         (*reeval-pts* reeval)]
         [`(apply ,self ,id ,test)
          (let ([result (run-test id test #:seed seed #:profile profile? #:dir dir)])
            (place-channel-put ch
@@ -100,7 +104,9 @@
            num-iters ,(*num-iterations*)
            points ,(*num-points*)
            profile? ,profile?
-           dir ,dir))
+           dir ,dir
+           timeout ,(*timeout*)
+           reeval ,(*reeval-pts*)))
 
   (define workers
     (for/list ([wid (in-range threads)])

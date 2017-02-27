@@ -120,30 +120,36 @@
    (λ ()
      (let loop ([seed #f])
        (match (thread-receive)
-         [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points)
+         [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
+                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
           (set! seed vec)
           (*flags* flag-table)
           (*num-iterations* iterations)
-          (*num-points* points)]
+          (*num-points* points)
+          (*timeout* timeout)
+          (*demo-output* output)
+          (*reeval-pts* reeval)
+          (*demo?* demo?)]
          [(list 'improve hash formula sema)
           (cond
            [(hash-has-key? *completed-jobs* hash)
             (semaphore-post sema)]
-           [(directory-exists? (build-path (*demo-output*) hash))
+           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) hash)))
             (semaphore-post sema)]
-           [(directory-exists?
-             (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))
+           [(and
+             (*demo-output*)
+             (directory-exists?
+              (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*))))
             (semaphore-post sema)]
            [else
             (eprintf "Job ~a started..." hash)
 
             (define result
-              (parameterize ([*timeout* (* 1000 60)] [*reeval-pts* 1000])
-                (get-test-result
-                 #:seed seed
-                 #:setup! (λ () (set-debug-level! 'progress '(3 4)))
-                 #:debug (hash-ref *jobs* hash)
-                 (parse-test formula))))
+              (get-test-result
+               #:seed seed
+               #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+               #:debug (hash-ref *jobs* hash)
+               (parse-test formula)))
 
             (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
 
@@ -189,8 +195,10 @@
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
-      (directory-exists? (build-path (*demo-output*) hash))
-      (directory-exists? (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))))
+      (and (*demo-output*)
+           (or
+            (directory-exists? (build-path (*demo-output*) hash))
+            (directory-exists? (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))))))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -291,10 +299,8 @@
   (*demo-log* log)
 
   (define config
-    `(init rand ,(get-seed)
-           flags ,(*flags*)
-           num-iters ,(*num-iterations*)
-           points ,(*num-points*)))
+    `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
+           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (thread-send *worker-thread* config)
 
   (serve/servlet

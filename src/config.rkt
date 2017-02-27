@@ -3,7 +3,7 @@
 (provide (all-defined-out))
 
 (define-runtime-path viz-output-path "../www/viz/")
-(define-runtime-path web-resource-path "./web/")
+(define-runtime-path web-resource-path "web/")
 
 ;; Flag Stuff
 

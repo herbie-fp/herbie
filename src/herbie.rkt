@@ -170,6 +170,6 @@
      (eprintf "Warning: deprecated command-line syntax used.\n")
      (if (null? files)
          (eprintf "  cmdline::: Use `herbie shell` to use Herbie on the command line\n")
-         (eprintf "  cmdline::: User `herbie improve` to run Herbie on FPCore files\n"))
+         (eprintf "  cmdline::: Use `herbie improve` to run Herbie on FPCore files\n"))
      (eprintf "See <https://herbie.uwplse.org/doc/options.html> for more.\n")
      (run-herbie files))))

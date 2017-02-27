@@ -421,7 +421,8 @@
            [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
            [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
       (for ([subdir extra-dirs])
-        (delete-directory/files (build-path dir subdir))))))
+        (with-handlers ([exn? (const 'ok)])
+          (delete-directory/files (build-path dir subdir)))))))
 
 (define (render-json dir file)
   (define info (read-datafile file))
