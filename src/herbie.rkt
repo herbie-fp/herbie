@@ -102,7 +102,7 @@
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used'"
+   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    #;[("--threads") th "Whether to use threads to run examples in parallel (yes|no|N)"
@@ -116,22 +116,22 @@
    [("--num-points") points "The number of points to use"
     (*num-points* (string->number points))]
    #:multi
-   [("-o" "--disable") tf "Disable flag formatted category:name"
+   [("-o" "--disable") tf "Disable a flag (formatted category:name)"
     (define flag (parse-flag tf))
     (when (not flag)
       (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
     (apply disable-flag! flag)]
-   [("+o" "--enable") tf "Enable flag formatted category:name"
+   [("+o" "--enable") tf "Enable a flag (formatted category:name)"
     (define flag (parse-flag tf))
     (when (not flag)
       (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
     (apply enable-flag! flag)]
 
    #:subcommands
-   ["shell"
+   [shell "Interact with Herbie from the shell"
     #:args ()
     (run-herbie '())]
-   ["web"
+   [web "Interact with Herbie from your browser"
     #:once-each
     [("--port") port "Port to run the web shell on"
      (set! demo-port (string->number port))]
@@ -147,14 +147,14 @@
      (set! quiet? true)]
     #:args ()
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
-   ["improve"
+   [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count th))]
     #:args (input output)
     ;; TODO: Incorrect
     (with-output-to-file output #:exists 'replace (λ () (run-herbie (list input))))]
-   ["report"
+   [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
     [("--note") note "Add a note for this run"
      (set! report-note note)]
