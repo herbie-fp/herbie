@@ -34,6 +34,9 @@
 				   (print-test t)]
 				  [_ #f])))]))
 
+(define (web-resource name)
+  (build-path web-resource-path name))
+
 (define (make-report-page file info)
   (match info
     [(report-info date commit branch seed flags points iterations bit-width note tests)
@@ -43,10 +46,10 @@
 
      (define-values (dir _name _must-be-dir?) (split-path file))
 
-     (copy-file "src/reports/report.js" (build-path dir "report.js") #t)
-     (copy-file "src/reports/report.css" (build-path dir "report.css") #t)
-     (copy-file "src/reports/graph.css" (build-path dir "graph.css") #t)
-     (copy-file "src/reports/arrow-chart.js" (build-path dir "arrow-chart.js") #t)
+     (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
+     (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
+     (copy-file (web-resource "graph.css") (build-path dir "graph.css") #t)
+     (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
 
      (define total-time (apply + (map table-row-time tests)))
      (define total-passed
@@ -209,7 +212,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
-    (copy-file "src/reports/compare.css" (build-path dir "compare.css") #t)
+    (copy-file (web-resource "compare.css") (build-path dir "compare.css") #t)
 
     (define total-time1 (apply + (map table-row-time tests1)))
     (define total-time2 (apply + (map table-row-time tests2)))
