@@ -3,7 +3,7 @@
 (provide run-improve)
 
 (define (run-improve input output #:threads [threads #f])
-  (define tests (load-tests fname))
+  (define tests (load-tests input))
   (define results (get-test-results tests #:threads threads #:seed (get-seed) #:dir #f))
 
   (call-with-output-file output #:exists 'replace
