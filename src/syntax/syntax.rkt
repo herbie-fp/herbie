@@ -208,8 +208,8 @@
   [>=       '(*)      (comparator bf>=)      (comparator >=)         65]
   [<=       '(*)      (comparator bf<=)      (comparator <=)         65]
   [not      '(1)      not                    not                     65]
-  [and      '(2)      and-fn                 and-fn                  55]
-  [or       '(2)      or-fn                  or-fn                   55])
+  [and      '(*)      and-fn                 and-fn                  55]
+  [or       '(*)      or-fn                  or-fn                   55])
 
 (define *operations* (make-parameter operations))
 
