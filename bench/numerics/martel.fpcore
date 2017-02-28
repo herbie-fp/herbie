@@ -9,54 +9,42 @@
    (* d (+ (* a b) (* b c) (* c a)))))
 
 (FPCore (a b c d)
- :pre (and (<= 56789 a) (<= a 98765)
-           (<= 0 b) (<= b 1)
-           (<= 0 c) (<= c 0.0016773)
-           (<= 0 d) (<= d 0.0016773))
+ :pre (and (<= 56789 a 98765) (<= 0 b 1) (<= 0 c 0.0016773) (<= 0 d 0.0016773))
  :name "Expression, p14"
  :target
  (+ (* a b) (* a (+ c d)))
  (* a (+ (+ b c) d)))
 
 (FPCore (a b c d e)
- :herbie-samplers
- ((a (uniform 1 2))
-  (b (uniform 2 4))
-  (c (uniform 4 8))
-  (d (uniform 8 16))
-  (e (uniform 16 32)))
+ :pre (<= 1 a 2 b 4 c 8 d 16 e 32)
  :name "Expression 1, p15"
  :target
  (+ (+ d (+ c (+ a b))) e)
  (+ (+ (+ (+ e d) c) b) a))
 
 (FPCore (x)
- :pre (and (<= 0 x) (<= x 2))
+ :pre (<= 0 x 2)
  :name "Expression 2, p15"
  :target
  (* (+ 1.0 x) x)
  (+ x (* x x)))
 
 (FPCore (x)
- :pre (and (<= 0 x) (<= x 2))
+ :pre (<= 0  x 2)
  :name "Expression 3, p15"
  :target
  (* (* (+ 1.0 x) x) x)
  (+ (* x (* x x)) (* x x)))
 
 (FPCore (a b)
- :pre (and (<= 5 a) (<= a 10) (<= 0 b) (<= b 0.001))
+ :pre (and (<= 5 a 10) (<= 0 b 0.001))
  :name "Expression 4, p15"
  :target
  (+ (+ (+ (* b a) (* b b)) (* b a)) (* a a))
  (* (+ a b) (+ a b)))
 
 (FPCore (a b c d)
- :herbie-samplers
- ((a (uniform -14 -13))
-  (b (uniform -3 -2))
-  (c (uniform 3 3.5))
-  (d (uniform 12.5 13.5)))
+ :pre (and (<= -14 a -13) (<= -3 b -2) (<= 3 c 3.5) (<= 12.5 d 13.5))
  :name "Expression, p6"
  :target
  (let ((e 2)) (+ (* (+ a b) e) (* (+ c d) e)))

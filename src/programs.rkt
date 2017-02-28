@@ -165,7 +165,19 @@
     (check-expression* (dict-ref prop-dict ':pre) vars error!))
 
   (when (dict-has-key? prop-dict ':target)
-    (check-expression* (dict-ref prop-dict ':target) vars error!)))
+    (check-expression* (dict-ref prop-dict ':target) vars error!))
+
+  (when (dict-has-key? prop-dict ':herbie-samplers)
+    (let ([stx (dict-ref prop-dict ':herbie-samplers)])
+      (eprintf "Deprecated :herbie-samplers property used.\n")
+      (define file
+        (if (path? (syntax-source stx))
+            (let-values ([(base name dir?) (split-path (syntax-source stx))])
+              (path->string name))
+            (syntax-source stx)))
+      (eprintf "  ~a:~a:~a: Use the :pre property to specify bounds\n" file (or (syntax-line stx) "")
+               (or (syntax-column stx) (syntax-position stx)))
+      (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n"))))
 
 (define (check-program* stx error!)
   (match (syntax->list stx)

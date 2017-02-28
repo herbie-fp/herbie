@@ -89,9 +89,9 @@
 
    #:args files
    (begin
-     (eprintf "Warning: deprecated command-line syntax used.\n")
+     (eprintf "Deprecated command-line syntax used.\n")
      (if (null? files)
          (eprintf "  cmdline::: Use `herbie shell` to use Herbie on the command line\n")
          (eprintf "  cmdline::: Use `herbie improve` to run Herbie on FPCore files\n"))
-     (eprintf "See <https://herbie.uwplse.org/doc/options.html> for more.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n")
      (run-herbie files))))
