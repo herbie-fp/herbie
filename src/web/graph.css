@@ -1,6 +1,16 @@
+/* Standard Herbie header */
+
 body { width: 800px; margin: 1em auto; font-family: sans; }
-a {color: #2A6496; text-decoration: none}
+
+a {color: #2A6496; text-decoration: none; cursor: pointer}
 a:hover {text-decoration: underline; color: #295785}
+
+#large { margin: 2em 0; text-align: center; }
+#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
+#large .number { font-size: 3em; display: block; }
+@media print { #large { margin-top: 0; }}
+
+/* Detail page layout */
 
 section { margin: 5em 0; position: relative; }
 @media print { section { margin: 3em 0; } }
@@ -37,14 +47,6 @@ section h1 {
 .tabbar li:hover { background: #e4e4e4; }
 .tabbar li.selected { background: #d3d3d3; }
 h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
-
-#large { margin: 2em 0; text-align: center; }
-@media print { #large { margin-top: 0; }}
-#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
-#large .number { font-size: 3em; display: block; }
-#large .icon { font-size: 3em; display: block; }
-a.icon { color: black; opacity: 0.5; text-decoration: none; font-weight: bold; }
-a.icon:hover { opacity: 1.0; }
 
 .history, .history ol { list-style: none inside; width: 800px; margin: 0 0 2em; padding: 0; }
 

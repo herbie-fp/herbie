@@ -1,11 +1,16 @@
+/* Standard Herbie header */
 
-body {width: 800px; margin: 1em auto; font-family: sans;}
+body { width: 800px; margin: 1em auto; font-family: sans; }
 
-#large {margin: 2em 0; text-align: center;}
-#large div {margin: 0 1em; display: inline-block;}
-#large .number {font-size: 3em; display: block;}
+a {color: #2A6496; text-decoration: none; cursor: pointer}
+a:hover {text-decoration: underline; color: #295785}
 
-.column-container { margin: 2em 0; }
+#large { margin: 2em 0; text-align: center; }
+#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
+#large .number { font-size: 3em; display: block; }
+@media print { #large { margin-top: 0; }}
+
+/* Detail page layout */
 
 figure { float: left; margin: 0; }
 #graph { cursor: pointer; }
@@ -45,13 +50,9 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 
 #flag-list { position: relative; }
 #flag-list kbd:not(:last-child):after {content: ", ";}
-#flag-list a {
-    float: right; margin: 0 .5em;
-    color: #2A6496; text-decoration: none; cursor: pointer;
-}
+#flag-list a {float: right; margin: 0 .5em;}
 #flag-list a:before { content: "("; }
 #flag-list a:after { content: ")"; }
-#flag-list a:hover { text-decoration: underline; color: #295785 }
 #flag-list #changed-flags { display: none; }
 #flag-list #all-flags { display: block; }
 #flag-list.changed-flags #changed-flags { display: block; }
