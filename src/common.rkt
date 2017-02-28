@@ -7,29 +7,23 @@
 (module+ test
   (require rackunit))
 
-(provide reap define-table println ordinary-float? =-or-nan?
-         take-up-to argmins list-join
-         common-eval-ns common-eval
+(provide *start-prog*
+         reap define-table first-value assert for/append
+         ordinary-float? =-or-nan? log2
+         take-up-to flip-lists argmins argmaxs setfindf index-of
          write-file write-string
-         *start-prog* html-escape-unsafe
-         flip-lists argmaxs
          binary-search-floats binary-search-ints binary-search
-         random-exp assert setfindf first-value log2 for/append
-         (all-from-out "config.rkt") (all-from-out "debug.rkt")
-         get-seed set-seed! index-of
-         parse-flag)
+         html-escape-unsafe random-exp parse-flag get-seed set-seed!
+         common-eval-ns common-eval
+         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+
+;; A useful parameter for many of Herbie's subsystems, though
+;; utlimately one that should be located somewhere else or perhaps
+;; exorcised
 
 (define *start-prog* (make-parameter '()))
 
-(define (println #:port [p (current-error-port)] #:end [end "\n"] . args)
-  (for ([val args])
-    (if (string? val)
-        (display val p)
-        (write val p)))
-  (when end (display end p))
-  (let ([possible-returns (filter (negate string?) args)])
-    (when (not (null? possible-returns))
-      (last possible-returns))))
+;; Various syntactic forms of convenience used in Herbie
 
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
@@ -55,6 +49,31 @@
 (module+ test
   (check-equal? (first-value (values 1 2 3)) 1))
 
+(define-syntax assert
+  (syntax-rules ()
+    [(assert pred #:loc location)
+     (when (not pred)
+       (error location "~a returned false!" 'pred))]
+    [(assert pred #:extra-info func)
+     (when (not pred)
+       (error 'assert (format "~a returned false! Extra info: ~a"
+			       'pred (func))))]
+    [(assert pred)
+     (when (not pred)
+       (error 'assert "~a returned false!" 'pred))]))
+
+(define-syntax-rule (for/append (defs ...)
+                                bodies ...)
+  (apply append
+         (for/list (defs ...)
+           bodies ...)))
+
+(module+ test
+  (check-equal? (for/append ([v (in-range 5)]) (list v v v))
+                '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
+
+;; Simple floating-point functions
+
 (define (ordinary-float? x)
   (and (real? x) (not (or (infinite? x) (nan? x)))))
 
@@ -73,6 +92,11 @@
   (check-true (=-or-nan? +nan.0 -nan.f))
   (check-false (=-or-nan? 2.3 +nan.f)))
 
+(define (log2 x)
+  (/ (log x) (log 2)))
+
+;; Utility list functions
+
 (define (take-up-to l k)
   ; This is unnecessarily slow. It is O(l), not O(k).
   ; To be honest, it just isn't that big a deal for now.
@@ -85,7 +109,7 @@
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])
     (if (null? lst)
-        best-elts
+        (reverse best-elts)
         (let* ([elt (car lst)] [lst* (cdr lst)] [score (f elt)])
           (cond
            [(not best-score)
@@ -99,14 +123,40 @@
 
 (module+ test
   (check-equal? (argmins string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
-                '("g" "f" "a"))) ; should this be in reverse order?
+                '("a" "f" "g")))
 
 (define (argmaxs f lst)
   (argmins (λ (x) (- (f x))) lst))
 
 (module+ test
   (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
-                '("eee" "ccc")))
+                '("ccc" "eee")))
+
+(define (flip-lists list-list)
+  "Flip a list of rows into a list of columns"
+  (apply map list list-list))
+
+(module+ test
+  (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
+                '((1 4 7) (2 5 8) (3 6 9))))
+
+(define (setfindf f s)
+  (for/first ([elt (in-set s)] #:when (f elt))
+    elt))
+
+(module+ test
+  (check-equal? (setfindf positive? (set -3 6 0)) 6))
+
+(define (index-of lst elt)
+  (for/first ([e lst] [i (in-naturals)]
+             #:when (equal? e elt))
+             i))
+
+(module+ test
+  (check-equal? (index-of '(a b c d e) 'd) 3)
+  (check-equal? (index-of '(a b c d e) 'foo) #f))
+
+;; Utility output functions
 
 (define-syntax-rule (write-file filename . rest)
    (with-output-to-file filename (lambda () . rest) #:exists 'replace))
@@ -114,14 +164,7 @@
 (define-syntax-rule (write-string . rest)
   (with-output-to-string (lambda () . rest)))
 
-;; Basically matrix flipping, but for lists. So, if you pass it '((1 2 3) (4 5 6) (7 8 9)),
-;; it returns '((1 4 7) (2 5 8) (3 6 9)).
-(define (flip-lists list-list)
-  (apply map list list-list))
-
-(module+ test
-  (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
-                '((1 4 7) (2 5 8) (3 6 9))))
+;; Binary search implementation
 
 ;; Given two points, the first of which is pred, and the second is not,
 ;; finds the point where pred becomes false, by calling split to binary
@@ -150,45 +193,14 @@
 ;; Implemented here for example.
 (define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
+;; Miscellaneous helper
+
 (define (random-exp k)
   "Like (random (expt 2 k)), but k is allowed to be arbitrarily large"
   (if (< k 31) ; Racket generates random numbers in the range [0, 2^32-2]; I think it's a bug
       (random (expt 2 k))
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
-
-(define-syntax assert
-  (syntax-rules ()
-    [(assert pred #:loc location)
-     (when (not pred)
-       (error location "~a returned false!" 'pred))]
-    [(assert pred #:extra-info func)
-     (when (not pred)
-       (error 'assert (format "~a returned false! Extra info: ~a"
-			       'pred (func))))]
-    [(assert pred)
-     (when (not pred)
-       (error 'assert "~a returned false!" 'pred))]))
-
-(define (setfindf f s)
-  (for/first ([elt (in-set s)] #:when (f elt))
-    elt))
-
-(module+ test
-  (check-equal? (setfindf positive? (set -3 6 0)) 6))
-
-(define (log2 x)
-  (/ (log x) (log 2)))
-
-(define (list-join l1 l2)
-  (match l1
-    ['() '()]
-    [(list but-last1 ... last1)
-     (append (append-map (curryr cons l2) but-last1) (list last1))]))
-
-(module+ test
-  (check-equal? (list-join '(1 2 3 4 5) '(a b c))
-                '(1 a b c 2 a b c 3 a b c 4 a b c 5)))
 
 (define (html-escape-unsafe err)
   (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
@@ -199,15 +211,14 @@
   (check-equal? (html-escape-unsafe "foo>bar") "foo&gt;bar")
   (check-equal? (html-escape-unsafe "&foo<bar>") "&amp;foo&lt;bar&gt;"))
 
-(define-syntax-rule (for/append (defs ...)
-                                bodies ...)
-  (apply append
-         (for/list (defs ...)
-           bodies ...)))
-
-(module+ test
-  (check-equal? (for/append ([v (in-range 5)]) (list v v v))
-                '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
+(define (parse-flag s)
+  (match (string-split s ":")
+    [(list (app string->symbol category) (app string->symbol flag))
+     (and
+      (dict-has-key? all-flags category)
+      (set-member? (dict-ref all-flags category) flag)
+      (list category flag))]
+    [_ #f]))
 
 (define (get-seed)
   (pseudo-random-generator->vector
@@ -218,24 +229,8 @@
   (current-pseudo-random-generator
    (vector->pseudo-random-generator seed)))
 
-(define (index-of lst elt)
-  (for/first ([e lst] [i (in-naturals)]
-             #:when (equal? e elt))
-             i))
-
-(module+ test
-  (check-equal? (index-of '(a b c d e) 'd) 3)
-  (check-equal? (index-of '(a b c d e) 'foo) #f))
+;; Common namespace for evaluation
 
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
-
-(define (parse-flag s)
-  (match (string-split s ":")
-    [(list (app string->symbol category) (app string->symbol flag))
-     (and
-      (dict-has-key? all-flags category)
-      (set-member? (dict-ref all-flags category) flag)
-      (list category flag))]
-    [_ #f]))

@@ -315,12 +315,7 @@
   (require racket/cmdline)
   (require "../config.rkt")
 
-  (define dir report-output-path)
-
   (command-line
    #:program "compile/c.rkt"
-   #:once-each
-   [("-d") dir* "Report output directory"
-    (set! dir dir*)]
-   #:args (single-json-file double-json-file)
+   #:args (single-json-file double-json-file dir)
    (compile-info dir (read-datafile single-json-file) (read-datafile double-json-file))))

@@ -40,15 +40,11 @@
     (parameterize ([*pcontext* context])
       (let ([start (make-alt prog)]
 	    [end (make-alt end-prog)])
-        (println "Started at: " start)
-        (println "Ended at: " end)
-        (println "Improvement by an average of "
-                 (- (errors-score (alt-errors start)) (errors-score (alt-errors end)))
-                 " bits of precision")
+        (printf "Started at: ~a\n" start)
+        (printf "Ended at: ~a\n" end)
+        (printf "Improvement by an average of ~a bits of precision\n"
+                 (- (errors-score (alt-errors start)) (errors-score (alt-errors end))))
         (void)))))
-
-(define (repl-print x)
-  (begin (println x) (void)))
 
 (define (prog-improvement prog1 prog2)
   (let-values ([(points exacts) (prepare-points prog1)])
@@ -60,7 +56,7 @@
       (annotated-errors-compare (alt-errors alt1) (alt-errors alt2)))))
 
 (define (annotated-errors-compare errs1 errs2)
-  (repl-print
+  (printf "~a\n"
    (reverse
     (first-value
      (for/fold ([acc '()] [region #f])
@@ -76,7 +72,7 @@
 		   err-diff)))))))
 
 (define (compare-alts . altns)
-  (repl-print
+  (printf "~a\n"
    (reverse
     (first-value
      (for/fold ([acc '()] [region-idx -1])
@@ -92,20 +88,20 @@
 
 (define (print-alt-info altn)
   (if (not (alt-prev altn))
-      (println "Started with: " (alt-program altn))
+      (printf "Started with: ~a\n" (alt-program altn))
       (begin (print-alt-info (alt-prev altn))
              (let ([chng (alt-change altn)])
-               (println "Applied rule " (change-rule chng)
-                        " at " (change-location chng)
-                        " [ " (location-get (change-location chng)
-                                            (alt-program (alt-prev altn)))
-                        " ], and got:" (alt-program altn))
+               (printf "Applied rule ~a at ~a [ ~a ], and got: ~a\n"
+                       (change-rule chng) (change-location chng)
+                       (location-get (change-location chng)
+                                     (alt-program (alt-prev altn)))
+                        (alt-program altn))
                (void)))))
 
 (define (incremental-changes-apply changes expr)
   (let loop ([rest-chngs changes] [cur-expr expr])
     (if (null? rest-chngs)
 	cur-expr
-	(begin (println cur-expr)
-	       (println (car rest-chngs))
+	(begin (printf "~a\n" cur-expr)
+	       (printf "~a\n" (car rest-chngs))
 	       (loop (cdr rest-chngs) (change-apply (car rest-chngs) cur-expr))))))

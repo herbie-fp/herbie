@@ -34,6 +34,9 @@
 				   (print-test t)]
 				  [_ #f])))]))
 
+(define (web-resource name)
+  (build-path web-resource-path name))
+
 (define (make-report-page file info)
   (match info
     [(report-info date commit branch seed flags points iterations bit-width note tests)
@@ -43,10 +46,10 @@
 
      (define-values (dir _name _must-be-dir?) (split-path file))
 
-     (copy-file "src/reports/report.js" (build-path dir "report.js") #t)
-     (copy-file "src/reports/report.css" (build-path dir "report.css") #t)
-     (copy-file "src/reports/graph.css" (build-path dir "graph.css") #t)
-     (copy-file "src/reports/arrow-chart.js" (build-path dir "arrow-chart.js") #t)
+     (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
+     (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
+     (copy-file (web-resource "graph.css") (build-path dir "graph.css") #t)
+     (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
 
      (define total-time (apply + (map table-row-time tests)))
      (define total-passed
@@ -209,7 +212,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
-    (copy-file "src/reports/compare.css" (build-path dir "compare.css") #t)
+    (copy-file (web-resource "compare.css") (build-path dir "compare.css") #t)
 
     (define total-time1 (apply + (map table-row-time tests1)))
     (define total-time2 (apply + (map table-row-time tests2)))
@@ -418,32 +421,33 @@
            [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
            [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
       (for ([subdir extra-dirs])
-        (delete-directory/files (build-path dir subdir))))))
+        (with-handlers ([exn? (const 'ok)])
+          (delete-directory/files (build-path dir subdir)))))))
 
-(define (render-json file)
+(define (render-json dir file)
   (define info (read-datafile file))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-report-page (build-path report-output-path "report.html") info))
+  (make-report-page (build-path dir "report.html") info))
 
-(define (render-json-compare file1 file2)
+(define (render-json-compare dir file1 file2)
   (define info1 (read-datafile file1))
   (define info2 (read-datafile file2))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-compare-page (build-path report-output-path "compare.html") info1 info2))
+  (make-compare-page (build-path dir "compare.html") info1 info2))
 
-(define (render files)
+(define (render dir files)
   (if (= 1 (length files))
-      (render-json (car files))
-      (render-json-compare (car files) (cadr files))))
+      (render-json dir (car files))
+      (render-json-compare dir (car files) (cadr files))))
 
 (module+ main
   (command-line
    #:program "make-report"
-   #:args info-files
-   (render info-files)))
+   #:args (dir info-files)
+   (render dir info-files)))

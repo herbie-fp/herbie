@@ -2,10 +2,8 @@
 (require racket/runtime-path)
 (provide (all-defined-out))
 
-(define-runtime-path report-output-path "../graphs/")
-(define-runtime-path demo-output-path "../www/demo/")
 (define-runtime-path viz-output-path "../www/viz/")
-(define-runtime-path benchmark-path "../bench/")
+(define-runtime-path web-resource-path "web/")
 
 ;; Flag Stuff
 
@@ -73,4 +71,18 @@
 
 (define *binary-search-test-points* (make-parameter 16))
 
+;;; About Herbie:
+
+(define (git-command #:default [default ""] gitcmd . args)
+  (if (directory-exists? ".git")
+      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
+        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      default))
+
 (define *herbie-version* "1.1")
+
+(define *herbie-commit*
+  (git-command "rev-parse" "HEAD" #:default *herbie-version*))
+
+(define *herbie-branch*
+  (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))

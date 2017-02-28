@@ -9,11 +9,6 @@
  (struct-out table-row) (struct-out report-info)
  make-report-info read-datafile write-datafile)
 
-(define (git-command #:default [default ""] gitcmd . args)
-  (if (directory-exists? ".git")
-      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
-      default))
 
 (struct table-row
   (name status start result target inf- inf+ result-est vars samplers input output time bits link) #:prefab)
@@ -23,8 +18,8 @@
 
 (define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
-               (git-command "rev-parse" "HEAD" #:default *herbie-version*)
-               (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release")
+               *herbie-commit*
+               *herbie-branch*
                (or seed (get-seed))
                (*flags*)
                (*num-points*)

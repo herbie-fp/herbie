@@ -12,21 +12,7 @@
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
 
-(provide make-graph make-traceback make-timeout)
-
-(define (make-axis pts #:axis idx #:out path #:regimes regimes)
-  (call-with-output-file path #:exists 'replace
-    (λ (out)
-      (herbie-plot #:port out #:kind 'png
-                   (error-axes pts #:axis idx)
-                   (map error-mark regimes)))))
-
-(define (make-plot err pts #:axis idx #:color theme #:out path)
-  (call-with-output-file path #:exists 'replace
-    (λ (out)
-      (herbie-plot #:port out #:kind 'png
-                   (error-points err pts #:axis idx #:color theme)
-                   (error-avg err pts #:axis idx #:color theme)))))
+(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
 
 (define (regime-var alt)
   (let loop ([alt alt])
@@ -82,6 +68,44 @@
   (printf "</code></pre>\n")
   (printf "</section>\n"))
 
+(define (make-axis-plot result idx out)
+  (define var (list-ref (test-vars (test-result-test result)) idx))
+  (define split-var? (equal? var (regime-var (test-result-end-alt result))))
+  (define pts (test-result-newpoints result))
+  (herbie-plot
+   #:port out #:kind 'png
+   (error-axes pts #:axis idx)
+   (map error-mark (if split-var? (regime-splitpoints (test-result-end-alt result)) '()))))
+
+(define (make-points-plot result idx letter out)
+  (define-values (theme accessor)
+    (match letter
+      ['r (values *red-theme*   test-result-start-error)]
+      ['g (values *green-theme* test-result-target-error)]
+      ['b (values *blue-theme*  test-result-end-error)]))
+
+  (define pts (test-result-newpoints result))
+  (define err (accessor result))
+
+  (herbie-plot
+   #:port out #:kind 'png
+   (error-points err pts #:axis idx #:color theme)
+   (error-avg err pts #:axis idx #:color theme)))
+
+(define (make-plots result rdir profile?)
+  (define (open-file #:type [type #f] idx fun . args)
+    (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
+      (apply curry fun args)))
+
+  (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
+    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
+      ;; This is bad code
+      (open-file idx make-axis-plot result idx)
+      (open-file idx #:type 'r make-points-plot result idx 'r)
+      (when (test-result-target-error result)
+        (open-file idx #:type 'g make-points-plot result idx 'g))
+      (open-file idx #:type 'b make-points-plot result idx 'b))))
+
 (define (make-graph result rdir profile?)
   (match result
     [(test-result test time bits start-alt end-alt points exacts
@@ -129,14 +153,6 @@
          (define split-var? (equal? var (regime-var end-alt)))
 
          (define title "The X axis may use a short exponential scale")
-         (make-axis newpoints #:axis idx #:out (build-path rdir (format "plot-~a.png" idx)) #:regimes (if split-var? (regime-splitpoints end-alt) '()))
-         (make-plot start-error newpoints #:axis idx #:color *red-theme*
-                    #:out (build-path rdir (format "plot-~ar.png" idx)))
-         (when target-error
-           (make-plot target-error newpoints #:axis idx #:color *green-theme*
-                      #:out (build-path rdir (format "plot-~ag.png" idx))))
-         (make-plot end-error newpoints #:axis idx #:color *blue-theme*
-                    #:out (build-path rdir (format "plot-~ab.png" idx)))
          (printf "<figure id='fig-~a' ~a>" idx (if split-var? "class='default'" ""))
          (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
          (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)

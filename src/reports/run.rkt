@@ -17,22 +17,14 @@
 (require "../errors.rkt")
 (provide (all-defined-out))
 
-(define *threads* #f)
-(define *test-name* #f)
-
-(define *profile?* #f)
-(define *note* #f)
-
-(define (make-report . bench-dirs)
+(define (make-report bench-dirs #:dir dir #:profile profile? #:note note #:threads threads)
   (define seed (get-seed))
-  (define dir report-output-path)
-
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define tests (allowed-tests bench-dirs))
   (define results
-    (get-test-results tests #:threads *threads* #:seed seed #:profile *profile?*))
-  (define info (make-report-info (filter identity results) #:note *note* #:seed seed))
+    (get-test-results tests #:threads threads #:seed seed #:profile profile? #:dir dir))
+  (define info (make-report-info (filter identity results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
@@ -42,9 +34,7 @@
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))
-  (if *test-name*
-      (filter (λ (t) (equal? *test-name* (test-name test))) unsorted-tests)
-      (reverse (sort unsorted-tests test<?))))
+  (reverse (sort unsorted-tests test<?)))
 
 (define (test<? t1 t2)
   (cond
@@ -56,26 +46,29 @@
     ; Put things with an output first
     (test-output t1)]))
 
+(module+ main
+(define threads #f)
+(define profile? #f)
+(define note #f)
+
 (command-line
  #:program "run"
  #:once-each
- [("-p" "--profile") "Whether to profile each test"
-  (set! *profile?* #t)]
  [("--timeout") s "Timeout for each test (in seconds)"
   (*timeout* (* 1000 (string->number s)))]
  [("-r" "--seed") rs "The random seed vector to use in point generation"
   (set-seed! (read (open-input-string rs)))]
+ [("-p" "--profile") "Whether to profile each test"
+  (set! profile? #t)]
  [("--threads") th "How many tests to run in parallel to use. Pass 'no' to use no threads (default), 'yes' to use the number of machine cores less one, and a number to use that many."
-  (set! *threads*
+  (set! threads
         (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))]
  [("--fuel") fu "The amount of 'fuel' to use"
   (*num-iterations* (string->number fu))]
  [("--num-points") points "The number of points to use"
   (*num-points* (string->number points))]
- [("--run-single") test-name "If specified, run a single test (specify the test name)"
-  (set! *test-name* test-name)]
  [("--note") note "Add a note for this run"
-  (set! *note* note)]
+  (set! note note)]
  #:multi
  [("-o" "--disable") tf "Disable flag formatted category:name"
   (define flag (parse-flag tf))
@@ -88,4 +81,4 @@
     (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
   (apply enable-flag! flag)]
  #:args bench-dir
- (apply make-report bench-dir))
+ (make-report bench-dir #:dir "graphs/" #:profile profile? #:note note)))
