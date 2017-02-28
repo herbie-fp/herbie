@@ -4,6 +4,7 @@
 (require "../errors.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../range-analysis.rkt")
 (require "../syntax/distributions.rkt")
 
 (provide (struct-out test) test-program test-samplers
@@ -25,8 +26,13 @@
 (struct test (name vars sampling-expr input output expected precondition) #:prefab)
 
 (define (test-samplers test)
+  (define range-table (condition->range-table (test-precondition test)))
   (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (cons var (eval-sampler samp))))
+    (define intvl (range-table-ref range-table var))
+    (unless intvl
+     (raise-herbie-error "No valid values of variable ~a" var
+                         #:url "faq.html#no-valid-values"))
+    (cons var (eval-sampler samp intvl))))
 
 (define (parse-test stx)
   (assert-program! stx)
