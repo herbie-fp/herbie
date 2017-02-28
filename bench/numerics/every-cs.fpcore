@@ -36,14 +36,14 @@
 (FPCore (x)
  :name "ln(1 + x)"
  :target
- (if (= (+ 1 x) 1) x (/ (* x (log (+ 1 x))) (- (+ 1 x) 1)))
+ (if (== (+ 1 x) 1) x (/ (* x (log (+ 1 x))) (- (+ 1 x) 1)))
  (log (+ 1 x)))
 
 (FPCore (i n)
  :name "Compound Interest"
  :target
  (let ((lnbase
-        (if (= (+ 1 (/ i n)) 1)
+        (if (== (+ 1 (/ i n)) 1)
           (/ i n)
           (/ (* (/ i n) (log (+ 1 (/ i n)))) (- (+ (/ i n) 1) 1)))))
    (* 100 (/ (- (exp (* n lnbase)) 1) (/ i n))))

@@ -42,9 +42,8 @@
    (let ((Bx (* (cos phi2) (cos dlambda))) (By (* (cos phi2) (sin dlambda))))
      (let ((phim
             (atan2
-             (+
-              (sin phi1 phi2)
-              (sqrt (+ (sqr (+ (cos phi1) Bx)) (sqr By))))))
+             (+ (sin phi1) (sin phi2))
+             (sqrt (+ (sqr (+ (cos phi1) Bx)) (sqr By)))))
            (lambdam (+ lambda1 (atan2 By (+ (cos phi1) Bx)))))
        lambdam))))
 
