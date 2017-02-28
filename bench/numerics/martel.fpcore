@@ -1,7 +1,5 @@
 ; -*- mode: scheme -*-
 
-;; This test commented out until Herbie supports no-argument expressions
-#;
 (FPCore ()
  :name "Rectangular parallelepiped of dimension a×b×c"
  :target
