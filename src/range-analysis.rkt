@@ -52,7 +52,9 @@
  (check-equal? (interval-intersect (interval 0 1 #t #t) (interval 2 3 #t #t)) #f)
  ;; Single point intervals
  (check-equal? (interval-intersect (interval 1 1 #t #t) (interval 0 2 #f #f)) (interval 1 1 #t #t))
- (check-equal? (interval-intersect (interval 1 1 #t #t) (interval 1 2 #f #f)) #f))
+ (check-equal? (interval-intersect (interval 1 1 #t #t) (interval 1 2 #f #f)) #f)
+ (check-equal? (interval-intersect (interval 1 2 #t #t) #f) #f)
+ (check-equal? (interval-intersect #f #f) #f))
 
 (define (interval-union interval1 interval2)
   (cond
@@ -85,14 +87,16 @@
  (check-equal? (interval-union (interval 2 2 #t #t) (interval 2 3 #f #f)) (interval 2 3 #t #f))
  (check-equal? (interval-union (interval 0 0 #t #t) (interval 3 3 #t #t)) (interval 0 3 #t #t))
  ;; Disjoint intervals
- (check-equal? (interval-union (interval 0 1 #t #f) (interval 2 3 #f #t)) (interval 0 3 #t #t)))
+ (check-equal? (interval-union (interval 0 1 #t #f) (interval 2 3 #f #t)) (interval 0 3 #t #t))
+ (check-equal? (interval-union #f #f) #f)
+ (check-equal? (interval-union #f (interval -inf.0 +inf.0 #f #f)) (interval -inf.0 +inf.0 #f #f)))
 
 (define (interval-invert intvl)
   (match intvl
     [(interval -inf.0 +inf.0 _ _) #f]
     [(interval -inf.0 u _ u?) (interval u +inf.0 (not u?) #f)]
     [(interval l +inf.0 l? _) (interval -inf.0 l #f (not l?))]
-    [_ (interval -inf.0 +inf.0 #f #f)])) ; somehow (interval -inf.0 -inf.0 #f #f) will be matched to this case
+    [_ (interval -inf.0 +inf.0 #f #f)]))
 
 (module+ test
   (check-equal? (interval-invert (interval -inf.0 +inf.0 #f #f)) #f)
@@ -106,6 +110,8 @@
 
 (define (make-empty-range-table)
   (make-hash))
+
+;; NOTE: an range-table can also be #f for an invalid range-table 
 (define (make-null-range-table)
   #f)
 
@@ -115,6 +121,7 @@
 (module+ test
   (define rt-x1 (make-range-table 'x (interval 1 3 #t #t)))
   (define rt-x2 (make-range-table 'x (interval 2 4 #t #t)))
+  (define rt-x3 (make-range-table 'x(interval -3 -1 #f #f)))
   (define rt-y2 (make-range-table 'y (interval 2 4 #t #t)))
   (define rt-x-neginf (make-range-table 'x (interval -inf.0 1 #f #t)))
   (define rt-x-posinf (make-range-table 'x (interval 1 +inf.0 #t #f)))
@@ -143,7 +150,8 @@
   (check-equal? (interval 2 3 #t #t) (hash-ref (range-table-intersect rt-x1 rt-x2) 'x))
   (check-equal? (interval 1 3 #t #t) (hash-ref (range-table-intersect rt-x1 rt-y2) 'x))
   (check-equal? (interval 2 4 #t #t) (hash-ref (range-table-intersect rt-x1 rt-y2) 'y))
-  (check-equal? #f (range-table-intersect rt-x1 #f)))
+  (check-equal? #f (range-table-intersect rt-x1 #f))
+  (check-equal? #f (hash-ref (range-table-intersect rt-x3 rt-x1) 'x)))
 
 (define (range-table-union table1 table2)
   (cond
@@ -171,7 +179,8 @@
 (module+ test
   (check-equal? (range-table-invert rt-x-neginf) (make-range-table 'x (interval 1 +inf.0 #f #f)))
   (check-equal? (range-table-invert rt-x-posinf) (make-range-table 'x (interval -inf.0 1 #f #f)))
-  (check-equal? (range-table-invert rt-x1y1) (make-empty-range-table)))
+  (check-equal? (range-table-invert rt-x1y1) (make-empty-range-table))
+  (check-equal? (range-table-invert #f) (make-empty-range-table)))
 
 (define (flip-cmp cmp)
   (match cmp
@@ -181,10 +190,13 @@
     ['>= '<=]
     ['== '==]))
 
+(define (parse-cmp cmp)
+  (match cmp ['< <] ['> >] ['<= <=] ['>= >=] ['== =]))
+
 (define (condition->range-table condition)
   (match condition
     [(list (and (or '< '> '<= '>= '==) cmp) (? number? a) (? number? b))
-     (if ((match cmp ['< <] ['> >] ['<= <=] ['>= >=] ['== =]) a b)
+     (if ((parse-cmp cmp) a b)
          (make-empty-range-table)
          (make-null-range-table))]
     ['TRUE (make-empty-range-table)]
@@ -208,19 +220,22 @@
     [(list (and (or '< '<= '== '>= '>) cmp) (? number? num) var) ; don't check for variable? here b/c fabs
      (condition->range-table (list (flip-cmp cmp) var num))]
     [(list (and (or '< '<= '> '>=) cmp) exprs ...)
-     (define from-left (last-number exprs))
-     (define from-right (reverse (last-number (reverse exprs))))
-     (foldl range-table-intersect
-            (make-empty-range-table)
-            (for/list ([left from-left] [expr exprs] [right from-right]
-                       #:unless (number? expr))
-              (range-table-intersect
-               (if left
-                   (condition->range-table (list cmp left expr))
-                   (make-empty-range-table))
-               (if right
-                   (condition->range-table (list cmp expr right))
-                   (make-empty-range-table)))))]
+     (if (not (equal? (filter number? exprs) (sort (filter number? exprs) (parse-cmp cmp))))
+       #f
+       (let
+         ([from-left (last-number exprs)]
+          [from-right (reverse (last-number (reverse exprs)))])
+         (foldl range-table-intersect
+                (make-empty-range-table)
+                (for/list ([left from-left] [expr exprs] [right from-right]
+                          #:unless (number? expr))
+                  (range-table-intersect
+                   (if left
+                       (condition->range-table (list cmp left expr))
+                       (make-empty-range-table))
+                   (if right
+                       (condition->range-table (list cmp expr right))
+                       (make-empty-range-table)))))))]
     [(list '== exprs ...)
      (define num (get-all-equal-value exprs))
      (if num
@@ -263,9 +278,11 @@
   (check-equal? (condition->range-table '(< 1 1)) #f)
   (check-equal? (condition->range-table '(< 1 2)) (make-hash))
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (cons 'x (interval -inf.0 1 #f #f)))))
-  ; TODO: More tests with conditionals and >2 arguments
   (check-equal? (condition->range-table '(< x y 2)) (make-hash (list (cons 'x (interval -inf.0 2 #f #f)) (cons 'y (interval -inf.0 2 #f #f)))))
   (check-equal? (condition->range-table '(< 1 x y 2)) (make-hash (list (cons 'x (interval 1.0 2.0 #f #f)) (cons 'y (interval 1.0 2.0 #f #f)))))
+  (check-equal? (range-table-ref (condition->range-table '(< 1 2 3)) 'x) (interval -inf.0 +inf.0 #f #f))
+  (check-equal? (range-table-ref (condition->range-table '(< 10 2 3)) 'x) #f)
+  (check-equal? (range-table-ref (condition->range-table '(< 0 x 4 3)) 'x) #f)
   (check-equal? (condition->range-table '(and (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -1.0 1.0 #f #f)))))
   (check-equal? (condition->range-table '(or (< x 1) (> x -1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
   (check-equal? (condition->range-table '(or (< x -1) (> x 1))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
@@ -274,9 +291,10 @@
   (check-equal? (condition->range-table '(not (< x 1))) (make-hash (list (cons 'x (interval 1 +inf.0 #t #f)))))
   (check-equal? (condition->range-table '(not (> x 1))) (make-hash (list (cons 'x (interval -inf.0 1 #f #t)))))
   (check-equal? (condition->range-table '(and (not (> x 1)) (not (< x -2)))) (make-hash (list (cons 'x (interval -2.0 1.0 #t #t)))))
-  ; this following two test tells me that we could have two representations of empty range-table
-  (check-equal? (condition->range-table '(or (not (> x 1)) (not (< x -2)))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
-  ;(check-equal? (condition->range-table '(not (> x +inf.0))) (make-hash (list (cons 'x (interval -inf.0 +inf.0 #f #f)))))
+  ; this following two test tells us that we could have two representations of empty range-table
+  ; therefore we use range-table-ref to hide the internal representation of range-table
+  (check-equal? (range-table-ref (condition->range-table '(or (not (> x 1)) (not (< x -2)))) 'x) (interval -inf.0 +inf.0 #f #f))
+  (check-equal? (range-table-ref (condition->range-table '(not (> x +inf.0))) 'x) (interval -inf.0 +inf.0 #f #f))
   (check-equal? (condition->range-table '(< (fabs x) 3)) (make-hash (list (cons 'x (interval -3 3 #f #f)))))
   (check-equal? (condition->range-table '(<= (fabs x) 3)) (make-hash (list (cons 'x (interval -3 3 #t #t)))))
   (check-equal? (condition->range-table '(> (fabs x) 3)) (make-hash))
