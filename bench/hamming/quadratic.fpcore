@@ -1,7 +1,7 @@
 ; -*- mode: scheme -*-
 
 (FPCore (a b c)
- :name "NMSE p42, positive"
+ :name "quadp (p42, positive)"
  :target
  (let ([d (sqrt (- (sqr b) (* 4 (* a c))))])
    (let ([r1 (/ (+ (- b) d) (* 2 a))]
@@ -12,7 +12,7 @@
    (/ (+ (- b) d) (* 2 a))))
 
 (FPCore (a b c)
- :name "NMSE p42, negative"
+ :name "quadm (p42, negative)"
  :target
  (let ((d (sqrt (- (sqr b) (* 4 (* a c))))))
    (let ([r1 (/ (+ (- b) d) (* 2 a))] [r2 (/ (- (- b) d) (* 2 a))])
@@ -22,11 +22,11 @@
    (/ (- (- b) d) (* 2 a))))
 
 (FPCore (a b/2 c)
- :name "NMSE problem 3.2.1, negative"
+ :name "quad2m (problem 3.2.1, negative)"
  (let ([d (sqrt (- (sqr b/2) (* a c)))])
    (/ (- (- b/2) d) a)))
 
 (FPCore (a b/2 c)
- :name "NMSE problem 3.2.1, positive"
+ :name "quad2p (problem 3.2.1, positive)"
  (let ([d (sqrt (- (sqr b/2) (* a c)))])
    (/ (+ (- b/2) d) a)))

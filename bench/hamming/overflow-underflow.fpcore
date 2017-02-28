@@ -1,7 +1,7 @@
 ; -*- mode: scheme -*-
 
 (FPCore (x)
- :name "NMSE section 3.11"
+ :name "expq2 (section 3.11)"
  :target
  (/ 1 (- 1 (exp (- x))))
 

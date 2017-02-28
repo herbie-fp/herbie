@@ -1,7 +1,7 @@
 ; -*- mode: scheme -*-
 
 (FPCore (x)
- :name "NMSE example 3.7"
+ :name "expm1 (example 3.7)"
  :pre (< -0.00017 x)
  :target
  (* x (+ 1 (/ x 2) (/ (sqr x) 6)))
@@ -9,7 +9,7 @@
  (- (exp x) 1))
 
 (FPCore (n)
- :name "NMSE example 3.8"
+ :name "logs (example 3.8)"
  :pre (> n 6.8e+15)
  :target
  (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (sqr n))) (/ 4 (pow n 3)))))
@@ -17,7 +17,7 @@
  (- (* (+ n 1) (log (+ n 1))) (* n (log n)) 1))
 
 (FPCore (x)
- :name "NMSE example 3.9"
+ :name "invcot (example 3.9)"
  :pre (and (< -0.026 x) (< x 0.026))
  :target
  (if (< (fabs x) 0.026)
@@ -27,7 +27,7 @@
  (- (/ 1 x) (/ 1 (tan x))))
 
 (FPCore (x)
- :name "NMSE example 3.10"
+ :name "qlog (example 3.10)"
  :pre (and (< -1 x) (< x 1))
  :target
  (- (+ 1 x (/ (sqr x) 2) (* 5/12 (pow x 3))))
@@ -35,11 +35,11 @@
  (/ (log (- 1 x)) (log (+ 1 x))))
 
 (FPCore (x)
-  :name "NMSE problem 3.4.1"
-  (/ (- 1 (cos x)) (sqr x)))
+ :name "cos2 (problem 3.4.1)"
+ (/ (- 1 (cos x)) (sqr x)))
 
 (FPCore (a b eps)
- :name "NMSE problem 3.4.2"
+ :name "expq3 (problem 3.4.2)"
  :pre (and (< -1 eps) (< eps 1))
  :target
  (/ (+ a b) (* a b))
@@ -49,20 +49,20 @@
   (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))))
 
 (FPCore (eps)
- :name "NMSE problem 3.4.3"
+ :name "logq (problem 3.4.3)"
  :target
  (* -2 (+ eps (/ (pow eps 3) 3) (/ (pow eps 5) 5)))
 
  (log (/ (- 1 eps) (+ 1 eps))))
 
 (FPCore (x)
- :name "NMSE problem 3.4.4"
+ :name "sqrtexp (problem 3.4.4)"
  (sqrt (/ (- (exp (* 2 x)) 1) (- (exp x) 1))))
 
 (FPCore (x)
-  :name "NMSE problem 3.4.5"
-  (/ (- x (sin x)) (- x (tan x))))
+ :name "sintan (problem 3.4.5)"
+ (/ (- x (sin x)) (- x (tan x))))
 
 (FPCore (x n)
- :name "NMSE problem 3.4.6"
+ :name "2nthrt (problem 3.4.6)"
  (- (pow (+ x 1) (/ 1 n)) (pow x (/ 1 n))))
