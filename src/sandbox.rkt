@@ -140,7 +140,7 @@
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define link (path-element->string (last (explode-path rdir))))
-    (define test (test-failure-test result))
+    (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f (test-sampling-expr test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))

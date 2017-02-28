@@ -68,12 +68,15 @@
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
-      (define tests (for/list ([test (in-port (curry read-syntax file) port)])
-                      (parse-test test)))
-      tests)))
+      (for/list ([test (in-port (curry read-syntax file) port)])
+        (parse-test test)))))
 
 (define (is-racket-file? f)
   (and (equal? (filename-extension f) #"fpcore") (file-exists? f)))
+
+(define (load-stdin)
+  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
+    (parse-test test)))
 
 (define (load-directory dir)
   (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
@@ -81,9 +84,13 @@
 
 (define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
-  (if (directory-exists? path*)
-      (load-directory path*)
-      (load-file path*)))
+  (cond
+   [(equal? path "-")
+    (load-stdin)]
+   [(directory-exists? path*)
+    (load-directory path*)]
+   [else
+    (load-file path*)]))
 
 (define (test<? t1 t2)
   (cond
