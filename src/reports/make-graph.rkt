@@ -36,7 +36,7 @@
   (printf "<section id='process-info'>\n")
   (printf "<h1>Runtime</h1>\n")
   (printf "<p class='header'>")
-  (printf "Total time: <span class='number'>~a</span>\n" (format-time time))
+  (printf "Time bar (total: <span class='number'>~a</span>)\n" (format-time time))
   (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
   (when profile?
     (printf "<a class='attachment' href='profile.txt'>Profile</a>"))
@@ -132,7 +132,7 @@
              (format-bits (errors-score end-error) #:unit #f))
      (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
      (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*) #:unit #f))
-     (printf "<div>Ground Truth: <span class='number'>~a</span></div>\n" (format-bits bits #:unit #f))
+     (printf "<div>Internal precision: <span class='number'>~a</span></div>\n" (format-bits bits #:unit #f))
      (printf "</section>\n")
 
 
