@@ -1,4 +1,8 @@
 #lang racket
+(require racket/runtime-path)
+
+(define-runtime-path report-json-path "../graphs/reports/")
+
 
 (require racket/date)
 (require "../src/common.rkt")
@@ -15,7 +19,7 @@
 (define name->timestamp (compose string->number first parse-folder-name))
 
 (define (read-report-info folder)
-  (let ([info-file (build-path "graph" "reports" folder "results.json")])
+  (let ([info-file (build-path report-json-path folder "results.json")])
     (if (file-exists? info-file)
         (read-datafile info-file)
         (match (parse-folder-name folder)
@@ -53,12 +57,12 @@
          (+ start (or (table-row-start row) 0))
          (+ end (or (table-row-result row) 0)))))
 
-     (define total-passed
-       (for/sum ([row (or tests '())])
-         (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-     (define total-available
-       (for/sum ([row (or tests '())])
-         (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+    (define total-passed
+      (for/sum ([row (or tests '())])
+        (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
+    (define total-available
+      (for/sum ([row (or tests '())])
+        (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
 
     (define (round* x)
       (cond
@@ -90,7 +94,7 @@
   (printf "</tbody>\n"))
 
 (define (make-index-page)
-  (define dirs (directory-list (build-path "graphs" "reports")))
+  (define dirs (directory-list report-json-path))
 
   (let* ([folders
           (map (λ (dir) (cons dir (read-report-info dir)))

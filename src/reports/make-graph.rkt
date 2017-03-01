@@ -152,7 +152,7 @@
        (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
          (define split-var? (equal? var (regime-var end-alt)))
 
-         (define title "The X axis may use a short exponential scale")
+         (define title "The X axis uses an exponential scale")
          (printf "<figure id='fig-~a' ~a>" idx (if split-var? "class='default'" ""))
          (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
          (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)

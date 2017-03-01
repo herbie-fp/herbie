@@ -227,7 +227,10 @@
           (lambda (idx a b c)
             (format "~a ~a ~a : ~a" a (tag "?" idx) b c))
           #t #t]
-  [=      "~a = ~a"
+  [!=      "~a \\ne ~a"
+          (tag-infix "\\ne")
+          #f #t]
+  [==      "~a = ~a"
           (tag-infix "=")
           #f #t]
   [>      "~a \\gt ~a"
