@@ -42,7 +42,7 @@
           (ninf . ,inf-)
           (pinf . ,inf+)
           (end-est . ,end-est)
-          (vars . ,(if vars (map ~a vars) #f))
+          (vars . ,(if vars (map symbol->string vars) #f))
           (samplers . ,(if samplers (map ~a samplers) #f))
           (input . ,(~a input))
           (output . ,(~a output))
