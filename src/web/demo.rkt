@@ -88,7 +88,7 @@
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "You can write ordinary mathematical expressions (parsed with "
-        (a ([href "https://mathjs.org"]) "math.js") ") using only the following supported functions:")
+        (a ([href "https://mathjs.org"]) "math.js") ") using:")
 
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
@@ -97,8 +97,8 @@
      '((expt) "Raising a value to an exponent (also called " (code "pow") ")")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
-     '((sinh cosh tanh) "The hyperbolic trigonometric functions"))
-    `(p "You can also use the constants " (code "PI") " and " (code "E") ".")
+     '((sinh cosh tanh) "The hyperbolic trigonometric functions")
+     '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "
         ,@(cond
