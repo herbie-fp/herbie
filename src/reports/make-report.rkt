@@ -168,17 +168,9 @@
        (printf "<tbody>")
        (for ([result tests] [id (in-naturals)])
          (printf "<tr class='~a'>" (table-row-status result))
-
          (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
          (printf "<td>~a</td>" (format-bits (table-row-start result)))
-
-         (if (and (table-row-result result) (table-row-result-est result)
-                  (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
-             (printf "<td class='bad-est'>[~a ≉] ~a </td>"
-                     (format-bits (table-row-result-est result))
-                     (format-bits (table-row-result result)))
-             (printf "<td>~a</td>" (format-bits (table-row-result result))))
-
+         (printf "<td>~a</td>" (format-bits (table-row-result result)))
          (printf "<td>~a</td>" (format-bits (table-row-target result)))
          (printf "<td>~a~a</td>"
                  (let ([inf- (table-row-inf- result)])
