@@ -55,7 +55,9 @@ Writing report out to bench/diff-roots-simple.out-errors.gh</pre>
   contains one record for each operation; the only operation found
   in <code>diff-roots-simple.c</code> is:</p>
   
-  <pre>(- (sqrt (+ 1.000000 10000000000000.000000)) (sqrt 10000000000000.000000))
+  <pre>(FPCore ()
+  :type binary64
+  (- (sqrt (+ 1.000000 10000000000000.000000)) (sqrt 10000000000000.000000)))
 subtraction in main at diff-roots-simple.c:12 (address 400A00)
 43.129555 bits average error
 43.129555 bits max error
