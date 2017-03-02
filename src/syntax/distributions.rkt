@@ -59,7 +59,7 @@
       [(_ val)
        #'(and (or '< '> '>= '<=) (app eval-op val))])))
 
-(define (eval-sampler expr intval)
+(define (eval-sampler expr [intval (interval -inf.0 +inf.0 #f #t)])
   (match-define (interval lo hi lo? hi?) intval)
   (match expr
     ['default (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))]
