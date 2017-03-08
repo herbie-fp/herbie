@@ -2,7 +2,6 @@
 
 (require racket/date)
 (require racket/cmdline)
-(require srfi/13)
 (require "make-report.rkt")
 (require "../common.rkt")
 (require "../programs.rkt")
