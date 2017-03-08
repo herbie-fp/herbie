@@ -14,12 +14,7 @@
 (require "thread-pool.rkt")
 (provide (all-defined-out))
 
-(define *max-test-threads* #f)
-(define *test-name* #f)
-
-(define *profile?* #f)
-
-(define (rerun-report json-file #:dir dir)
+(define (rerun-report json-file #:dir dir #:threads threads #:profile? profile?)
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define data (read-datafile json-file))
@@ -32,8 +27,8 @@
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
 
-  (define results (get-test-results tests #:threads *max-test-threads* #:dir dir
-                                    #:seed (get-seed) #:profile *profile?*))
+  (define results (get-test-results tests #:threads threads #:dir dir
+                                    #:seed (get-seed) #:profile profile?))
   (define info (make-report-info (filter identity results)))
 
   (write-datafile (build-path dir "results.json") info)
@@ -43,9 +38,7 @@
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))
-  (if *test-name*
-      (filter (λ (t) (equal? *test-name* (test-name test))) unsorted-tests)
-      (reverse (sort unsorted-tests test<?))))
+  (reverse (sort unsorted-tests test<?)))
 
 (define (test<? t1 t2)
   (cond
@@ -58,6 +51,10 @@
     (test-output t1)]))
 
 (module+ main
+
+(define *profile?* #f)
+(define *max-test-threads* #f)
+
 (command-line
  #:program "herbie-rerun"
  #:once-each
@@ -72,4 +69,4 @@
           ["yes" (max (- (processor-count) 1) 1)]
           [_ (string->number th)]))]
  #:args (json)
- (rerun-report json)))
+ (rerun-report json #:profile? *profile?* #:threads *max-test-threads*)))
