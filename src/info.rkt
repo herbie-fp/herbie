@@ -3,6 +3,8 @@
 (define collection "herbie")
 (define version "1.1")
 
+;; Packaging information
+
 (define pkg-desc "A tool for automatically improving the accuracy of floating point expressions")
 (define pkg-authors
   '("Pavel Panchekha"
@@ -12,12 +14,12 @@
     "Zachary Tatlock"
     "Jack Firth"))
 
-(define compile-omit-paths '("test" "old"))
-(define test-omit-paths '("test" "old"))
+;; The `herbie` command-line tool
 
 (define racket-launcher-names '("herbie"))
-
 (define racket-launcher-libraries '("herbie.rkt"))
+
+;; Dependencies
 
 (define deps
   '(("base" #:version "6.3")
@@ -29,3 +31,6 @@
 
 (define build-deps
   '("rackunit-lib"))
+
+(define compile-omit-paths '("test" "old"))
+(define test-omit-paths '("test" "old"))

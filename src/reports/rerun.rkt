@@ -57,6 +57,7 @@
     ; Put things with an output first
     (test-output t1)]))
 
+(module+ main
 (command-line
  #:program "herbie-rerun"
  #:once-each
@@ -71,4 +72,4 @@
           ["yes" (max (- (processor-count) 1) 1)]
           [_ (string->number th)]))]
  #:args (json)
- (rerun-report json))
+ (rerun-report json)))

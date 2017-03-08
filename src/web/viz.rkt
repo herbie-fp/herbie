@@ -143,7 +143,8 @@
      #:servlet-path "/viz/"
      #:extra-files-paths (list (build-path viz-output-path "..")))))
 
+(module+ main
 (command-line
  #:program "herbie-viz"
  #:args arguments
- (apply start-server arguments))
+ (apply start-server arguments)))
