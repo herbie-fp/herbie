@@ -2,102 +2,104 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.0 Release Notes</title>
-  <base href="../../" />
-  <link rel='stylesheet' type='text/css' href='main.css'>
+  <title>Herbie 1.1 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="/main.css">
 </head>
 <body>
   <header>
-    <a href="."><img class="logo" src="logo.png" /></a>
-    <h1>Herbie 1.0 Release Notes</h1>
+    <a href="."><img class="logo" src="/logo.png" /></a>
+    <h1>Herbie 1.1 Release Notes</h1>
   </header>
 
   <p>
-    After two years of work, the <a href=".">Herbie</a> developers are
-    excited to announce Herbie 1.0! This is the first release of
-    Herbie, marking its transition from research software to a tool
-    for scientists and engineers to improve the accuracy of their
-    floating point software.
+    After six months of work, the <a href=".">Herbie</a> developers
+    are excited to announce Herbie 1.1! This release focuses on making
+    Herbie easier to use, including a web interface, clear syntax
+    errors, and detailed reports. This release also expands support
+    for trigonometric and hyperbolic functions, and speeds up
+    preconditions.
   </p>
 
   <p>
     Herbie automatically improves the accuracy of floating point
     expressions. This avoids the bugs, errors, and surprises that so
     often occur when working with floating point. Since
-    our <a href="pldi15.html">PLDI'15 paper</a>, we've been hard at
+    our <a href="/pldi15.html">PLDI'15 paper</a>, we've been hard at
     work making Herbie more versatile and easier to use.
   </p>
+
+  <h2>Breaking Changes and Deprecations</h2>
+
+  <ul>
+    <li> In line
+    with <a href="http://fpbench.org/spec/fpcore-1.0.html">FPCore
+    1.0</a>, we have removed support for the <code>cotan</code>
+    function, renamed <code>=</code> to <code>==</code>, and added
+    the <code>!=</code> function.</li>
+    <li>In line with the new syntax for calling Herbie from the
+    command line, the old syntax is deprecated and will be removed in
+    the next version.</li>
+    <li>In line with the faster preconditions, we have deprecated
+    the <code>:herbie-samplers</code> property and will remove it in
+    the next release.</li>
+    <li>We have changed the syntax for
+    specifying <a href="options.html">search options</a> for Herbie.
+    Instead of using <code>-o</code> to toggle options,
+    use <code>-o</code> to disable options and <code>+o</code> to
+    enable them.</li>
+  </ul>
 
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>A switch to the standard FPCore <a href="doc/1.0/input.html">input
-    format</a>. This makes it easy to use Herbie together with other
-    floating point tools,
-    like <a href="doc/1.0/using-herbgrind.html">Herbgrind</a>.</li>
-    <li>A <a href="/demo/">web demo</a>, which makes it easy to try
-    out Herbie and also gives us a sense of what problems people are
-    trying to solve using Herbie.</li>
-    <li>Easier <a href="doc/1.0/installing-herbie.html">installation</a>.
-    We've removed dependencies on several external libraries, upgraded
-    to the latest versions of Racket, and eliminated a confusing
-    linking step.</li>
-    <li>OS X support. We've tracked down several bugs that prevented
-    Herbie from working on OS X.</li>
-    <li>Support for more functions. Every function available
-    in <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/math.h.html">math.h</a>
-    is supported, and some additional functions from GNU libc are as
-    well.</li>
-    <li><a href="doc/1.0/docker.html">Docker support</a> for Herbie. You can
-    now use the popular container tool to make installation even
-    easier.</li>
-    <li>More informative report pages, visible in the web demo, which
-    makes them more useful both for users and for debugging. In
-    particular, the new graph gives a quick overview of how Herbie did
-    on a collection of inputs.</li>
-    <li>Make it possible to <a href="doc/1.0/options.html">toggle rulesets</a>
-    in Herbie.</li>
-    <li>A new entry point into Herbie, cleaning up a haphazard
-    collection of different scripts.</li>
-    <li>New website!</li>
+    <li><a href="herbie-web.html#batch">HTML reports</a>. Herbie can
+      now generate reports that show graphs, describe how Herbie
+      achieved its result, and more.</li>
+    <li><a href="herbie-web.html#interactive">Web shell</a>. The
+      old <a href="/demo/">web demo</a> has been cleaned up and made
+      available to users, providing a graphical interface to
+      Herbie.</li>
+    <li><a href="herbie-cli.html#batch">Batch mode</a>. It's now
+      simpler to run Herbie on an FPCore file and save the results in
+      an output file.
+      The <a href="herbie-cli.html#interactive">command-line shell</a>
+      is also more user-friendly.</li>
+    <li>Easier <a href="installing-herbie.html">installation</a> using
+      the Racket package manager.</li>
+    <li>Simpler, clearer syntax errors. Instead of stack traces,
+      syntax errors now come with file, line, and column
+      information.</li>
   </ul>
 
   <h2>Improvement to core algorithm</h2>
 
   <ul>
-    <li>Herbie is now faster! A new measurement infrastructure helped
-    us track down some time sinks.</li>
-    <li>Bounds on variables. You can now specifiy bounds within which
-    to sample variables.</li>
-    <li>Branch on expressions. Herbie can now sometimes infer
-    conditionals that use expressions, not variables, to determine
-    which expression to use.</li>
-    <li>Support expansions around ±∞ in Taylor expansions. The
-    framework behind this should eventually make it possible to
-    support Puiseux series as well.</li>
-    <li>Simplify expressions such as <code>(exp 1)</code>
-    or <code>(cos PI)</code>, by supporting symbolic constants in the
-    simplification algorithm.</li>
-    <li>Faster Taylor series routine. Several large tweaks have helped
-    make Taylor series orders of magnitude faster, which has sped up
-    Herbie.</li>
+    <li>Faster preconditions. A precondition like <code>(&lt; 10 x
+      12)</code> now causes Herbie to only sample points in the
+      relevant range, significantly speeding up Herbie and obviating
+      many "cannot sample enough valid points" errors.</li>
+    <li>Better support for trigonometric and hyperbolic functions.
+      We've taught Herbie about many trigonometric identities, which
+      it can now use to improve expressions.</li>
+    <li>Better series expansion. We've taught Herbie to take series
+      expansions of many more functions.</li>
+    <li>Zero-argument expressions are now supported.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
 
   <ul>
-    <li>Use a proper parser for input files. We used to use a bizarre
-    system of <code>eval</code>ing input files and poking around
-    global storage for the results.</li>
-    <li>Many crashes fixed. Herbie is stabler than ever!</li>
-    <li>A new debugging and logging system, which makes Herbie
-    debugging from the REPL significantly easier</li>
-    <li>A new measurement system that lets us see where Herbie spend
-    its time. This has helped speed up Herbie.</li>
-    <li>A new implementation of the Herbie main loop, which is much
-    easier to work with in the debugger.</li>
-    <li>Unit tests and more integration with the Racket toolchain.</li>
-    <li>A fuzzer for Herbie, which has allowed us to track down many bugs.</li>
+    <li>We have a new, right-facing logo!</li>
+    <li>We now have a complete syntax checker for inputs, giving the
+      Herbie core confidence that it's dealing with valid expressions.</li>
+    <li>The infrastructure for generating reports has been cleaned up.</li>
+    <li>The web demo has been rearchitected. It no longer needs to
+      output files, no longer uses continuations, and is now much more configurable.</li>
+    <li>The new command-line syntax unifies the mess of invokable
+      scripts in Herbie. We will continue the unification in future
+      releases.</li>
+    <li>More unit tests continue to be written, and including a test
+      that ensures that all our rules are valid.</il>
   </ul>
   
   <h2>Try it out!</h2>
