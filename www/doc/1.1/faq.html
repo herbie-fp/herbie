@@ -3,17 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <title>Herbie FAQ</title>
-  <base href="../.."/>
-  <link rel='stylesheet' type='text/css' href='main.css'>
+  <link rel='stylesheet' type='text/css' href='/main.css'>
 </head>
 <body>
   <header>
-    <a href="."><img class="logo" src="logo.png" /></a>
+    <a href="/"><img class="logo" src="/logo.png" /></a>
     <h1>Frequently Asked Questions</h1>
   </header>
 
   <p>
-    <a href=".">Herbie</a> automatically transforms floating point
+    <a href="/">Herbie</a> automatically transforms floating point
     expressions into more accurate forms. This page catalogs questions
     frequently asked questions about Herbie.
   </p>
@@ -34,7 +33,8 @@
     <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
     <code>x</code> is a variable so isn't parenthesized. <code>(- (exp
     x) 1)</code> would be the correct way of writing that expression.
-    The error message will contain additional information.
+    Please review the <a href="input.html">input format</a>
+    documentation for more.
   </p>
   
   <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
@@ -49,10 +49,51 @@
   </p>
   
   <p>
-    The solution is to give a <a href="input.html">distribution</a>
-    which specifies the bounds on <code>x</code> by adding the line
-    <code>:herbie-samplers ([x (uniform -1001 -999)])</code> after the
-    parameter list.
+    The solution is to help out Herbie by specifying a precondition.
+    Specify <code>:pre (&lt; -1001 x -999)</code> for the example
+    above. Herbie will use the precondition to improve its sampling
+    strategy.
+  </p>
+
+  <h3 id="no-valid-values">“No valid values” error</h3>
+
+  <p>
+    This error indicates that your precondition excludes all possible
+    inputs. For example, the precondition <code>(&lt 3 x 2)</code>
+    excludes all inputs. Herbie raises this exception only when it can
+    determine that no inputs work. The solution is to fix the
+    precondition to allow some inputs. Note that sufficiently complex
+    unsatisfiable preconditions instead raise the error above.
+  </p>
+
+  <h3>Missing reports chart on Chrome</h3>
+
+  <p>
+    When using Chrome to view web pages on your local machine, Chrome
+    disables certain APIs for security reasons; this prevents the
+    Herbie reports from drawing the chart. Run Chrome
+    with <code>--allow-file-access-from-files</code> to fix this error.
+  </p>
+
+  <h2>Reported but unreproduced errors</h2>
+
+  <p>
+    We've not been able to reproduce these error, but
+    please <a href="https://github.com/uwplse/herbie/issues">report an
+    issue</a>.
+
+  <h3>“place-channel-put” error with threads</h3>
+
+  <p>
+    <a href="https://github.com/uwplse/herbie/issues/145">Some
+    users</a> report errors with using Herbie threads.
+  </p>
+
+  <h3>“tcp-write: error writing” error with web shell</h3>
+
+  <p>
+    Early versions of the web shell intermittently showed this error,
+    which seems to be due to the Racket web server library.
   </p>
 
   <script>
