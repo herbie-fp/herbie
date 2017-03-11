@@ -214,7 +214,7 @@
 
 (define constants '(PI E TRUE FALSE))
 
-(define predicates '(or and < > <= >= == !=))
+(define predicates '(not or and < > <= >= == !=))
 
 (define mode:args 0)
 (define mode:bf 1)
