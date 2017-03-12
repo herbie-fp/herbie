@@ -58,7 +58,8 @@
       (make-graph-if-valid result (test-name test) index rdir* #:profile profile?)
       (get-table-data result rdir))]
    [else
-    (get-test-result test #:seed seed)]))
+    (define result (get-test-result test #:seed seed))
+    (get-table-data result "")]))
 
 (define (make-worker)
   (place ch
