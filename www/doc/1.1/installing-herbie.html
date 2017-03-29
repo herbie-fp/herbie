@@ -3,30 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <title>Installing Herbie</title>
-  <base href="../.."/>
-  <link rel='stylesheet' type='text/css' href='main.css'>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
 </head>
 <body>
   <header>
-    <a href="."><img class="logo" src="logo.png" /></a>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
     <h1>Installing Herbie</h1>
   </header>
 
   <p>
-    <a href=".">Herbie</a> depends
-    on <a href="https://racket-lang.org">Racket</a>, a dynamic
-    language developed by Northeastern University. To install Herbie,
-    one must first install Racket. Once Racket is installed, Herbie
-    should run without problems.
+    <a href="../../">Herbie</a> can be installed from a package or
+    from source. (It is also available in
+    a <a href="docker.html">Docker</a> image.) To install Herbie, first install
+    <a href="https://racket-lang.org">Racket</a>, which Herbie is
+    written in.
   </p>
 
   <h2>Installing Racket</h2>
 
   <p>
-    Herbie currently supports Linux and OS X. Windows has known bugs
+    Herbie currently supports Linux and OS X. (Windows has known bugs
     we are working to resolve, due to the lack of a
-    full <code>math.h</code> library. Use
-    the <a href="http://download.racket-lang.org/racket-v6.5.html">official
+    full <code>math.h</code> library.) Use
+    the <a href="http://download.racket-lang.org/racket-v6.8.html">official
     installer</a> to install Racket, or use distro-provided packages
     provided they are version 6.4 or later of Racket (earlier versions
     are not supported).
@@ -37,10 +36,24 @@
   </p>
 
   <pre><strong>$</strong> racket
-Welcome to Racket v6.4.
+Welcome to Racket v6.8.
 > (exit)</pre>
   
-  <h2>Installing Herbie</h2>
+  <h2>Installing Herbie from a package</h2>
+
+  <p>Once Racket is installed, install Herbie with:</p>
+
+  <pre>raco pkg install herbie</pre>
+
+  <p>
+    This will install Herbie, compile it for faster startup, and place
+    an executable in your Racket user path, likely
+    into <code>~/.racket/6.8/</code>. If you add this directory to
+    your <code>PATH</code> you will be able to run herbie with
+    the <code>herbie</code> command.
+  </p>
+
+  <h2>Installing Herbie from source</h2>
 
   <p>
     Once Racket is installed, download the Herbie source
@@ -51,42 +64,61 @@ Welcome to Racket v6.4.
 
   <p>
     If you go to the <code>herbie</code> directory,
-    you should see a <code>README.md</code> file, a directory named <code>herbie</code>,
-    a directory named <code>bench/</code>, and a variety of other directories.
+    you should see a <code>README.md</code> file, a directory named <code>src</code>,
+    a directory named <code>bench/</code>, and a few other directories.
     Do a trial run of Herbie to make sure everything is installed and working correctly:
   </p>
 
-  <pre>racket src/reports/run.rkt bench/hamming/</pre>
+  <pre>racket src/herbie.rkt report bench/tutorial.rkt graphs/</pre>
 
   <p>
-    This command will take approximately fifteen minutes to run;
-      it runs Herbie on problems from Richard Hamming's
-      <i>Numerical Methods for Scientists and Engineers</i>, Chapter 3.
+    This command will take approximately a minute to run.
     After the command completes,
-      a directory named <code>graphs</code> should have appeared.
-    Open up the <code>report.html</code> file inside with your browser;
-      you should see a listing of the expressions Herbie was run on,
-      most of which should be green.
-    A score of 24/28 or greater suggests that everything is working correctly.
+      a directory named <code>graphs</code> should be created.
+    Open the <code>report.html</code> file inside with your browser;
+      you will see a listing of the expressions Herbie was run on,
+      all of which should be green.
+    If not, please check that your Racket installation is at least version 6.4,
+      and if the error still persists,
+      please <a href="https://github.com/uwplse/herbie/issues">submit a bug</a>.
   </p>
 
-  <p>
-    If any of the test results are crashes (there will be a “crashes” count at the top),
-      installation issues are to blame.
-    Check that your Racket installation is at least version 6.1
-      and that you installed Racket from the official installation packages.
-    If you're confident the installation is correct
-      please <a href="mailto:herbie@cs.washington.edu">report the error</a> to the Herbie developers,
-      attaching an archive of the complete <code>graphs/</code> directory.
-  </p>
+  <p>You can make Herbie start up faster by byte-compiling it:</p>
 
-  <p>If this all works correctly, you can make Herbie start up faster by byte-compiling it:</p>
-
-  <pre>raco make src/reports/run.rkt</pre>
+  <pre>raco make src/herbie.rkt</pre>
 
   <p>
     Once Herbie is installed and working correctly,
     check out the <a href="doc/1.0/tutorial.html">tutorial</a>.
+  </p>
+
+  <h2>Installing Herbie from Docker</h2>
+
+  <p>
+    <a href="https://docker.com">Docker</a> is a container manager,
+    which is sort of like an easily-scriptable virtual machine. We do
+    not recommend using Herbie through Docker without prior Docker
+    experience.
+  </p>
+
+  <p>
+    First, <a href="https://docs.docker.com/installation/">install
+    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
+    how you install Docker, you may need to prefix
+    all <code>docker</code> commands on this page
+    with <code>sudo</code> or run them as the root or administrative
+    user.
+  </p>
+
+  <p>
+    With Docker installed, you should be able to download the Herbie image with:
+  </p>
+ 
+  <pre>docker pull uwplse/herbie</pre>
+  
+  <p>
+    Check out the <a href="docker.html">Docker page</a> for more on
+    how to run Herbie with Docker.
   </p>
 
   <script>
