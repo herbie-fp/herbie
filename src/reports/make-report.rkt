@@ -192,7 +192,8 @@
             [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
             [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
        (for ([subdir extra-dirs])
-         (delete-directory/files (build-path dir subdir))))]))
+         (with-handlers ([exn:fail:filesystem? (const true)])
+           (delete-directory/files (build-path dir subdir)))))]))
 
 (define (make-compare-page out-file info1 info2)
   (match-let ([(report-info date1 commit1 branch1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
