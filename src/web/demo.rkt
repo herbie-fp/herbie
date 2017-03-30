@@ -23,12 +23,10 @@
 (define-coercion-match-expander hash-arg/m
   (λ (x)
     (and (not (*demo-output*))
-         (or
-          (and (regexp-match #rx"^[0-9a-f]+$" x) (hash-has-key? *completed-jobs* x))
-          (let ([m (regexp-match #rx"^([0-9a-f]+).crash.[0-9a-f]+" x)])
-            (and m (hash-has-key? *completed-jobs* (second m)))))))
+         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+           (and m (hash-has-key? *completed-jobs* (second m))))))
   (λ (x)
-    (let ([m (regexp-match #rx"^([0-9a-f]+).crash.[0-9a-f]+" x)])
+    (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
       (hash-ref *completed-jobs* (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
@@ -131,15 +129,11 @@
           (*reeval-pts* reeval)
           (*demo?* demo?)]
          [(list 'improve hash formula sema)
+          (define path (format "~a.~a" hash *herbie-commit*))
           (cond
            [(hash-has-key? *completed-jobs* hash)
             (semaphore-post sema)]
-           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) hash)))
-            (semaphore-post sema)]
-           [(and
-             (*demo-output*)
-             (directory-exists?
-              (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*))))
+           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
             (eprintf "Job ~a started..." hash)
@@ -155,20 +149,15 @@
 
             (when (*demo-output*)
               ;; Output results
-              (define dir
-                (cond
-                 [(test-result? result) hash]
-                 [(test-timeout? result) hash]
-                 [(test-failure? result) (format "~a.crash.~a" hash *herbie-commit*)]))
-              (make-directory (build-path (*demo-output*) dir))
+              (make-directory (build-path (*demo-output*) path))
               (define make-page
                 (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
-              (with-output-to-file (build-path (*demo-output*) dir "graph.html")
-                (λ () (make-page result (build-path (*demo-output*) dir) #f)))
+              (with-output-to-file (build-path (*demo-output*) path "graph.html")
+                (λ () (make-page result (build-path (*demo-output*) path) #f)))
 
-              (update-report result dir seed
+              (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
 
@@ -197,9 +186,7 @@
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
       (and (*demo-output*)
-           (or
-            (directory-exists? (build-path (*demo-output*) hash))
-            (directory-exists? (build-path (*demo-output*) (format "~a.crash.~a" hash *herbie-commit*)))))))
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" hash *herbie-commit*))))))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -244,7 +231,7 @@
                (λ (out) (display (get-output-string progress) out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a/graph.html" hash))))
+                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '())]))
 
@@ -255,7 +242,7 @@
      (unless (already-computed? hash formula)
        (semaphore-wait (run-improve hash formula)))
 
-     (redirect-to (add-prefix (format "~a/graph.html" hash)) see-other))
+     (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
 (define (generate-report req results)
@@ -265,7 +252,7 @@
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
             (λ (out)
               (parameterize ([current-output-port out])
-                (make-graph result hash #f)))))
+                (make-graph result (format "~a.~a" hash *herbie-commit*) #f)))))
 
 (define (generate-plot req results plotname)
   (match-define (cons result debug) results)
