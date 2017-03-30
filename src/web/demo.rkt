@@ -38,7 +38,7 @@
    [("improve") #:method "post" improve]
    [("check-status" (string-arg)) check-status]
    [((hash-arg) "graph.html") generate-report]
-   [((hash-arg) "debug.log") generate-debug]
+   [((hash-arg) "debug.txt") generate-debug]
    [((hash-arg) (string-arg)) generate-plot]))
 
 (define url (compose add-prefix url*))
@@ -157,6 +157,9 @@
               (with-output-to-file (build-path (*demo-output*) path "graph.html")
                 (λ () (make-page result (build-path (*demo-output*) path) #f)))
 
+              (with-output-to-file (build-path (*demo-output*) path "debug.txt")
+                (λ () (display (get-output-string (hash-ref *jobs* hash)))))
+
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
@@ -272,7 +275,7 @@
 (define (generate-debug req results)
   (match-define (cons result debug) results)
 
-  (response 200 #"OK" (current-seconds) #"text/html"
+  (response 200 #"OK" (current-seconds) #"text/plain"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
             (λ (out) (display debug out))))
 
