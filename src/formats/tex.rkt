@@ -6,7 +6,7 @@
 (provide mathjax-url texify-expr texify-prog)
 
 (define mathjax-url
-  "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
   [l       "\\ell"]
