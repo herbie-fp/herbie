@@ -7,7 +7,7 @@
 (require json)
 
 (require "../config.rkt")
-(require "../compile/tex.rkt")
+(require "../formats/tex.rkt")
 (require "common.rkt")
 (require "session.rkt")
 
