@@ -53,7 +53,7 @@ Running Herbie
 --------------
 
 For full details on running Herbie, please see the
-[tutorial](http://herbie.uwplse.org/doc/latest/using-herbie.html).
+[tutorial](http://herbie.uwplse.org/doc/latest/using-web.html).
 
 Herbie's input is a Scheme-based language called [FPCore](http://fpbench.org/spec/fpcore-1.0.html);
 you can several examples in `bench/`.
@@ -76,7 +76,7 @@ the constant `1`.
 Besides the `shell`, Herbie also has a `web` interface, and can run on
 files of FPCore expressions with the `improve` and `report` commands.
 Consult the
-[documentation](http://herbie.uwplse.org/doc/latest/using-herbie.html).
+[documentation](http://herbie.uwplse.org/doc/latest/options.html).
 for more.
 
 Running Tests
