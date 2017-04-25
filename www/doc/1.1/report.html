@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie reports</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie reports</h1>
+  </header>
+
+  
+  <h1>The Herbie report</h1>
+
+  <p>The report lists five items.</p>
+
+  <p>First, a brief summary of the results.
+    For most uses, the “Average Error”
+      number, which summarizes how accurate the input and output
+      expressions are, is the most important number in this section.
+    The other numbers are:
+      the time Herbie took to improve the program;
+      the precision Herbie assumed floating-point operations
+      (which can be set at the <a href="options.html">command line</a>);
+      and the internal precision used to ensure accurate results.</p>
+
+  <figure>
+    <img width="100%" src="report-large.png" />
+    <figcaption>A summary of results from a Herbie report.</figcaption>
+  </figure>
+
+  <p>Second, the input and output programs themselves.
+    These are printed in standard mathematical syntax.
+    Library functions not often used by mathematicians,
+      including <code>atan2</code>, <code>expm1</code>,
+      <code>fma</code>, <code>hypot</code>, <code>lgamma</code>,
+      <code>log1p</code>, and <code>logb</code>
+      are drawn with a sub- or super-script asterisk,
+      while <code>if</code> statements are rendered as in a program.
+  </p>
+
+  <figure>
+    <img width="100%" src="report-prog.png" />
+    <figcaption>Input and output program from a Herbie report.</figcaption>
+  </figure>
+
+  <p>
+    Third, under <em>Error</em>, a graph of floating-point error
+    versus input value. This is helpful for understanding the sorts of
+    inputs Herbie is improving accuracy on. Sometimes, Herbie improved
+    accuracy on some inputs at the cost of accuracy on other inputs
+    that you care more about. In these cases, you can add
+    a <code>:pre</code>condition to restrict the inputs Herbie reasons
+    about.
+  </p>
+
+  <p>
+    On these graphs, the red line is the error of the input program,
+    while the blue line is the error of the output program
+    (both can be toggled).
+    For expressions with multiple variables,
+    the variable on the horizontal axis can be selected.
+    If Herbie decided to insert
+    an <code>if</code> statement into the program,
+    the locations of those <code>if</code> statements
+    will be marked with vertical bars.
+  </p>
+
+  <figure>
+    <img width="100%" src="report-error.png" />
+    <figcaption>An error graph from a Herbie report. Note the variable
+    selector (<code>x</code> is selected) and the toggles for the
+    input and output program (both are toggled on).</figcaption>
+  </figure>
+
+  <p>Fourth, a derivation of the output from the input.
+    For complex or unexpected programs, these can be helpful.
+    Each substantive step in the derivation also lists the error,
+    in bits, of that step's output.</p>
+
+  <p>The derivations may name rules built into Herbie,
+    or may claim derivation steps are done by simplification,
+    series expansion, or other Herbie strategies. The derivation will
+    also call out splits of the input into regimes, and strategies
+    Herbie is invoking. When one part of the term is colored blue,
+    that is the only part of the term modified by the operation.
+  </p>
+
+  <figure>
+    <img width="100%" src="report-derivation.png" />
+    <figcaption>A short derivation from a Herbie report. Note the
+    error at each step, in bits, in gray.</figcaption>
+  </figure>
+  
+  <p>Fifth and finally, a breakdown of Herbie's runtime.
+    This can usually be ignored.
+    The colored bar is a timeline of Herbie's run,
+    with each section of the bar sized proportionally to its runtime,
+    and each color corresponding to a strategy;
+    hover over that section of the bar to learn which strategy.</p>
+
+  <p>If you find a bug, include the code snippet in this section when
+  filing the bug. Please also include the debug log linked from this block.</p>
+    
+  <figure>
+    <img width="100%" src="report-runtime.png" />
+    <figcaption>Runtime breakdown from a Herbie report.</figcaption>
+  </figure>
+
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>
