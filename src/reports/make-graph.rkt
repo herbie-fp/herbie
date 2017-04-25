@@ -45,7 +45,7 @@
   (when bug?
     (printf "<p>Please include this information when filing a <a href='https://github.com/uwplse/herbie/issues'>bug report</a>:</p>\n"))
   (printf "<pre class='shell'><code>")
-  (printf "herbie --seed '~a'" (get-seed))
+  (printf "herbie shell --seed '~a'" (get-seed))
   (for ([rec (changed-flags)])
     (match rec
       [(list 'enabled class flag) (printf " +o ~a:~a" class flag)]
