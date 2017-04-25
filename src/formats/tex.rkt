@@ -144,8 +144,8 @@
   [floor     "\\left\\lfloor~a\\right\\rfloor"
              (tag-inner-untag "\\left\\lfloor~a\\right\\rfloor")
              #f #t]
-  [fma       "(~a * ~a + ~a)_*"
-             (tag-inner-untag "(~a * ~a + ~a)_*")
+  [fma       "(~a \cdot ~a + ~a)_*"
+             (tag-inner-untag "(~a \cdot ~a + ~a)_*")
              #f #f]
   [fmax      "\\mathsf{fmax}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmax}\\left(~a, ~a\\right)")
