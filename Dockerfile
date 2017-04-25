@@ -5,4 +5,4 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ADD src /src/herbie
 RUN raco pkg install --auto /src/herbie
-ENTRYPOINT ["raco", "herbie"]
+ENTRYPOINT ["racket", "/src/herbie.rkt"]
