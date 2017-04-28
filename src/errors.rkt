@@ -34,7 +34,7 @@
            (eprintf "  ~a:~a:~a: ~a\n" file (or (syntax-line stx) "")
                     (or (syntax-column stx) (syntax-position stx)) message))
          (when url
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a\n" *herbie-version* url))]
+           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]
         [(exn:fail:user:herbie message marks url)
          (eprintf "~a\n" message)
          (when url

@@ -12,11 +12,12 @@
 
 (provide get-test-results)
 
-(define (make-graph-if-valid result tname index rdir #:profile profile?)
+(define (make-graph-if-valid result tname index rdir #:profile profile? #:seed seed)
   (with-handlers ([(const #f) (λ _ #f)])
     (when (not (directory-exists? rdir))
       (make-directory rdir))
 
+    (set-seed! seed)
     (write-file (build-path rdir "graph.html")
                 ((cond [(test-result? result)
                         (λ args (apply make-graph args) (apply make-plots args))]
@@ -55,10 +56,11 @@
          (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
          (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp #:setup! (λ () (set-debug-level! #t #t))))))
 
-      (make-graph-if-valid result (test-name test) index rdir* #:profile profile?)
+      (make-graph-if-valid result (test-name test) index rdir* #:profile profile? #:seed seed)
       (get-table-data result rdir))]
    [else
-    (get-test-result test #:seed seed)]))
+    (define result (get-test-result test #:seed seed))
+    (get-table-data result "")]))
 
 (define (make-worker)
   (place ch

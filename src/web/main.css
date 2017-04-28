@@ -54,8 +54,9 @@ a:hover {text-decoration: underline; color: #295785}
 }
 #num-jobs { font-weight: bold; }
 
-.function-list dt { font-weight: bold; float: left; width: 200px; clear: left; margin: 0 0 .5em 2em; height: 18px; }
-.function-list dd { clear: right; height: 18px; }
+.function-list dt { font-weight: bold; float: left; width: 200px; clear: left; margin: 0 1em .5em 1em; }
+.function-list dd { clear: right; margin: 0; }
+.function-list dd:after { clear: both; height: 1px; display: block; content: "."; visibility: hidden; margin: 0;}
 
 .video { display: block; margin: auto; }
 .abstract { padding: 1em 3em; position: relative; }

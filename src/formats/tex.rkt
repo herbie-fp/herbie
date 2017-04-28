@@ -6,7 +6,7 @@
 (provide mathjax-url texify-expr texify-prog)
 
 (define mathjax-url
-  "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
   [l       "\\ell"]
@@ -144,8 +144,8 @@
   [floor     "\\left\\lfloor~a\\right\\rfloor"
              (tag-inner-untag "\\left\\lfloor~a\\right\\rfloor")
              #f #t]
-  [fma       "(~a * ~a + ~a)_*"
-             (tag-inner-untag "(~a * ~a + ~a)_*")
+  [fma       "(~a \\cdot ~a + ~a)_*"
+             (tag-inner-untag "(~a \\cdot ~a + ~a)_*")
              #f #f]
   [fmax      "\\mathsf{fmax}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmax}\\left(~a, ~a\\right)")

@@ -47,10 +47,6 @@ function tree_errors(tree) /* tree -> list */ {
         }
     });
 
-    if (names.length == 0) {
-        messages.push("No variables mentioned.");
-    }
-
     return messages;
 }
 

@@ -26,7 +26,7 @@
 	(car results))))
 
 ; Commutativity
-(define-ruleset commutivity (arithmetic simplify)
+(define-ruleset commutativity (arithmetic simplify)
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 

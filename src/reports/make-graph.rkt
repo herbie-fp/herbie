@@ -45,7 +45,7 @@
   (when bug?
     (printf "<p>Please include this information when filing a <a href='https://github.com/uwplse/herbie/issues'>bug report</a>:</p>\n"))
   (printf "<pre class='shell'><code>")
-  (printf "herbie --seed '~a'" (get-seed))
+  (printf "herbie shell --seed '~a'" (get-seed))
   (for ([rec (changed-flags)])
     (match rec
       [(list 'enabled class flag) (printf " +o ~a:~a" class flag)]
@@ -116,8 +116,7 @@
      (printf "<meta charset='utf-8' />")
      (printf "<title>Results for ~a</title>" (test-name test))
      (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-     (printf "<script src='~a'></script>" ; MathJax URL for prettifying programs
-             "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
+     (printf "<script src='~a'></script>" mathjax-url)
      (printf "<script src='../report.js'></script>")
      (printf "</head>\n")
      (printf "<body onload='graph()'>\n")

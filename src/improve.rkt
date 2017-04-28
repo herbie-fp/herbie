@@ -1,25 +1,22 @@
 #lang racket
-(require "reports/thread-pool.rkt" "formats/test.rkt" "common.rkt" "sandbox.rkt" "alternative.rkt")
+(require "formats/datafile.rkt" "reports/thread-pool.rkt" "formats/test.rkt" "common.rkt" "sandbox.rkt" "alternative.rkt")
 (provide run-improve)
 
 (define (print-outputs tests results p #:seed [seed #f])
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
-  (for ([output results] [test tests])
-    (match output
-      [(? test-result?)
-       (fprintf p "~a\n" (unparse-test (alt-program (test-result-end-alt output))))]
+  (for ([res results] [test tests])
+    (match-define (table-row name status start result target inf- inf+ result-elt vars samplers input output time bits link) res)
+    (match status
       [(? test-failure?)
-       (fprintf p ";; Crash in ~a\n" (test-name test))
-       (let ([out (open-output-string)])
-         (parameterize ([current-error-port out])
-           ((error-display-handler) (exn-message exn) exn))
-         (fprintf "; ~a" (string-replace (string-trim (get-output-string out) "\n" #:left? #f) "\n" "\n; ")))
-       (fprintf p "~a\n" (unparse-test (test-input test)))]
+       (fprintf p ";; Crash in ~a\n" name)
+       (fprintf p "~a\n" `(FPCore ,vars ,input))]
       [(? test-timeout?)
-       (fprintf p ";; ~as timeout in ~as\n (use --timeout to change timeout)\n"
-                (/ (*timeout*) 1000) (test-name test))
-       (fprintf p "~a\n" (unparse-test (test-input test)))])))
+       (fprintf p ";; ~a times out in ~as\n"
+                (/ (*timeout*) 1000) name)
+       (fprintf p "~a\n" `(FPCore ,vars ,input))]
+      [_
+       (fprintf p "~a\n" `(FPCore ,vars ,output))])))
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
