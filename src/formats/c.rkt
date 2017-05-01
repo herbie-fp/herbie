@@ -5,7 +5,7 @@
 (require "../programs.rkt")
 (require "datafile.rkt")
 
-(provide compile-info)
+(provide compile-info program->c)
 
 (define (fix-name name)
   (string-replace (uri-encode (~a name)) #rx"[^a-zA-Z0-9]" "_"))
