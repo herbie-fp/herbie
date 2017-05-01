@@ -87,8 +87,12 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define (rule-rewrite rule prog loc)
-  (location-do loc prog (compose car (curry rule-apply rule))))
+(define (rule-rewrite rule prog [loc '()])
+  (let/ec return
+    (location-do loc prog
+                 (λ (x) (match (rule-apply rule x)
+                          [(cons out bindings) out]
+                          [#f (return #f)])))))
 
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))

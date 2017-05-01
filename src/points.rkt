@@ -2,10 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt")
-(require "common.rkt")
-(require "programs.rkt")
-(require "config.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points prepare-points-period make-exacts
@@ -120,7 +117,8 @@
    and a list of exact values for those points (each a flonum)"
   ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
-    (cond [(> num-loops 200) (raise-user-error 'sample-points "Cannot sample enough valid points.\nSee <http://herbie.uwplse.org/doc/~a/faq.html#sample-valid-points> for more." *herbie-version*)]
+    (cond [(> num-loops 200)
+           (raise-herbie-error "Cannot sample enough valid points." #:url "faq.html#sample-valid-points")]
           [(>= (length pts) (*num-points*))
            (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
           [#t (let* ([num (- (*num-points*) (length pts))]

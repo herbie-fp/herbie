@@ -7,6 +7,7 @@
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
 (require "../mainloop.rkt")
+(require "../errors.rkt")
 
 (define (run #:print-points [print-points? #f])
   (eprintf "; Seed: ~a\n" (get-seed))
@@ -49,10 +50,15 @@
    [("--print-points") "Print all sampled points"
     (set! print-points #t)]
    #:multi
-   [("-o" "--option") tf "Toggle flags, specified in the form category:flag"
-    (let ([split-strings (string-split tf ":")])
-      (when (not (= 2 (length split-strings)))
-        (error "Badly formatted input " tf))
-      (toggle-flag! (string->symbol (car split-strings)) (string->symbol (cadr split-strings))))]
+   [("-o" "--disable") tf "Disable flag formatted category:name"
+    (define flag (parse-flag tf))
+    (when (not flag)
+      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+    (apply disable-flag! flag)]
+   [("+o" "--enable") tf "Enable flag formatted category:name"
+    (define flag (parse-flag tf))
+    (when (not flag)
+      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
+    (apply enable-flag! flag)]
    #:args ()
    (run #:print-points print-points)))

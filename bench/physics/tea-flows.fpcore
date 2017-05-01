@@ -1,25 +1,22 @@
-(FPCore
- (F l)
- :name
- "VandenBroeck and Keller, Equation (6)"
+; -*- mode: scheme -*-
+
+(FPCore (F l)
+ :name "VandenBroeck and Keller, Equation (6)"
  (- (* PI l) (* (/ (sqr F)) (tan (* PI l)))))
-(FPCore
- (f)
- :name
- "VandenBroeck and Keller, Equation (20)"
+
+(FPCore (f)
+ :name "VandenBroeck and Keller, Equation (20)"
  (let ((PI/4 (/ PI 4)))
    (let ((exp+ (exp (* PI/4 f))))
      (let ((exp- (exp (- (* PI/4 f)))))
        (- (* (/ PI/4) (log (/ (+ exp+ exp-) (- exp+ exp-)))))))))
-(FPCore
- (F B x)
- :name
- "VandenBroeck and Keller, Equation (23)"
+
+(FPCore (F B x)
+ :name "VandenBroeck and Keller, Equation (23)"
  (+
-  (- (* x (cotan B)))
+  (- (* x (/ 1 (tan B))))
   (* (/ F (sin B)) (pow (+ (sqr F) 2 (* 2 x)) (- (/ 1 2))))))
-(FPCore
- (B x)
- :name
- "VandenBroeck and Keller, Equation (24)"
- (+ (- (* x (cotan B))) (/ 1 (sin B))))
+
+(FPCore (B x)
+ :name "VandenBroeck and Keller, Equation (24)"
+ (+ (- (* x (/ 1 (tan B)))) (/ 1 (sin B))))

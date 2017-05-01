@@ -2,113 +2,107 @@
 
 Herbie synthesizes floating-point programs from real-number programs,
 automatically handling simple numerical instabilities.
+Visit [our website](https://herbie.uwplse.org) for tutorials,
+documentation, and an online demo.
 
 Current Status
 --------------
 
 [![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
 
-Herbie can improve the accuracy of many real-world programs,
-and is used by scientists in many disciplines.
-It has lead to two patches
-(for complex [square roots](https://github.com/josdejong/mathjs/pull/208)
-and [trigonometric functions](https://github.com/josdejong/mathjs/pull/247)),
+Herbie can improve the accuracy of many real-world programs, and is
+used by scientists in many disciplines. It has lead to two patches
+(for
+complex [square roots](https://github.com/josdejong/mathjs/pull/208)
+and
+[trigonometric functions](https://github.com/josdejong/mathjs/pull/247)),
 in [math.js](http://mathjs.org/) an open-source mathematics library.
+Herbie has semi-regular releases twice a year, maintains backwards
+compatibility, and uses standardized formats.
 
 Helping Out
 -----------
 
-Herbie is organized on
-[Github](https://github.com/uwplse/herbie) and
-[Trello](https://trello.com/b/lh7b33Dr/herbie).
-We also have a
+Herbie development is organized on our
 [mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie)
-where we discuss Herbie's development and announce major improvements.
-Our test results are on
-[uwplse.org](http://herbie.uwplse.org/reports/).
+where we discuss work in progress and announce major improvements.
+[Email us](mailto:herbie@cs.washington.edu) to get involved!
 
-Email [Zach Tatlock](mailto:ztatlock@cs.uw.edu) to get involved.
-He’ll set you up with access to these tools.
+We use [Github](https://github.com/uwplse/herbie)
+and [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize some
+development goals Our test results
+are [archived](http://herbie.uwplse.org/reports/).
 
 Installing
 ----------
 
-Herbie requires Racket 6.3 or later, and works best on Linux.
+For full details on installing Herbie, please see the
+[tutorial](http://herbie.uwplse.org/doc/latest/installing-herbie.html).
 
-No installation is needed; just download the source code and you're
-ready to go.
+Herbie requires Racket 6.3 or later, and supports Linux and OS X.
+Install it with:
 
-Upgrading
----------
+    raco pkg install herbie
 
-Herbie 1.0 differs from previous versions by having a new input
-format. Herbie now uses the FPCore standard for floating point tools.
-To convert existing files to the new format, use:
-
-    racket infra/convert.rkt [file].rkt > [file].fpcore
+This will install a `herbie` binary to somewhere in your home
+directory. You can also run `src/herbie.rkt` directly instead of using
+the `herbie` command, for example if you'd like to download the source
+directly instead of through the package manager.
 
 Running Herbie
 --------------
 
-For details on how to run Herbie, please see the
-[tutorial](http://herbie.uwplse.org/doc/latest/using-herbie.html).
+For full details on running Herbie, please see the
+[tutorial](http://herbie.uwplse.org/doc/latest/using-web.html).
 
-The format of input files is a Scheme-based language;
-you can find several examples in `bench/`.
-For example, consider this simple cancellation test
+Herbie's input is a Scheme-based language called [FPCore](http://fpbench.org/spec/fpcore-1.0.html);
+you can several examples in `bench/`.
+For example, consider this simple expression:
 
     (FPCore (x)
       (- (+ 1 x) x))
 
-Run Herbie from the top-level directory of the repo:
+Run Herbie from the top-level directory of the repo, and enter the
+cancellation test:
 
-    $ racket src/herbie.rkt
+    $ herbie shell
     Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
+    herbie> (FPCore (x) (- (+ 1 x) x))
+    (FPCore (x) 1)
 
-You can now enter the cancellation test:
-
-    $ racket src/herbie.rkt
-    Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
-    (FPCore (x)
-      (- (+ 1 x) x))
-    [ 1673.401ms]   (29→ 0) Cancel like terms
-    (λ (x) 1)
-
-The final is Herbie's improved, more-accurate expression, in this case
+The output is Herbie's improved, more-accurate expression, in this case
 the constant `1`.
 
-You can also save expressions to a file and run them with
-
-    racket src/herbie.rkt [file]
+Besides the `shell`, Herbie also has a `web` interface, and can run on
+files of FPCore expressions with the `improve` and `report` commands.
+Consult the
+[documentation](http://herbie.uwplse.org/doc/latest/options.html).
+for more.
 
 Running Tests
 -------------
 
-Herbie draws its test suite from open source projects, examples emailed
-to the developers, and from numerical analysis textbooks. Whenever
-possible, we try to *extract all possible tests* from a source, to
-avoid biasing our selection of tests. To run the tests, go to the
-project root and run
+Herbie contains unit tests to test basic functionality, though
+coverage is far from complete. You can run the test suite with:
 
-    racket infra/travis.rkt [file]
+    raco test src/
 
-Herbie's main tests are integration tests that test Herbie end-to-end.
-They are the benchmarks that ship in the `bench/` directory.
+Herbie also contains a large integration suite from open source
+projects, examples emailed to the developers, and from numerical
+analysis textbooks. This suite is found in `bench/`. The full test can
+be run with
 
-We often test Herbie on basic but representative examples with:
+    herbie report bench/
 
-    racket infra/travis.rkt bench/hamming/
+This full test can take several hours to run. We often test Herbie on
+basic but representative examples with:
+
+    herbie report bench/hamming/
 
 This takes approximately 15 minutes.
-To run all of the default benchmarks, use:
-
-    racket infra/travis.rkt bench/
-
-This can take a few hours or more.
 
 Test results are collected on
-[uwplse.org](http://herbie.uwplse.org/reports/).
-If you have an account on this server, you can publish your test
-report with
+[uwplse.org](http://herbie.uwplse.org/reports/). If you have an
+account on this server, you can publish your test results with
 
     make publish

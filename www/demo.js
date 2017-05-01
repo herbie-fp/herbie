@@ -64,7 +64,7 @@ function bottom_up(tree, cb) {
     return tree;
 }
 
-function dump_tree(tree) /* tree -> string */ {
+function dump_tree(tree, txt) /* tree string -> string */ {
     function extract(args) {return args.map(function(n) {return n.res});}
     var names = [];
     var body = bottom_up(tree, function(node) {
@@ -91,7 +91,8 @@ function dump_tree(tree) /* tree -> string */ {
         if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
     }
 
-    return "(FPCore (" + dnames.join(" ") + ") " + body.res + ")";
+    var name = txt.replace("\\", "\\\\").replace("\"", "\\\"");
+    return "(FPCore (" + dnames.join(" ") + ") :name \"" + name + "\" "  + body.res + ")";
 }
 
 function onload() /* null -> null */ {
@@ -143,7 +144,7 @@ function onload() /* null -> null */ {
             document.getElementById("errors").innerHTML = "";
         }
 
-        var lisp = dump_tree(tree);
+        var lisp = dump_tree(tree, txt);
         hidden.setAttribute("value", lisp);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
@@ -202,7 +203,8 @@ function ajax_submit(url, text, lisp) {
         if (req.readyState == 4) {
             if (req.status == 201) {
                 var jobcount = req.getResponseHeader("X-Job-Count");
-                document.getElementById("num-jobs").innerHTML = jobcount - 1;
+                var jobelt = document.getElementById("num-jobs")
+                if (jobelt) jobelt.innerHTML = jobcount - 1;
                 var loc = req.getResponseHeader("Location");
                 get_progress(loc);
             } else {

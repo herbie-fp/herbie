@@ -2,7 +2,6 @@
 
 (require racket/date)
 (require racket/cmdline)
-(require srfi/13)
 (require "make-report.rkt")
 (require "../common.rkt")
 (require "../programs.rkt")
@@ -15,27 +14,21 @@
 (require "thread-pool.rkt")
 (provide (all-defined-out))
 
-(define *max-test-threads* #f)
-(define *test-name* #f)
-
-(define *profile?* #f)
-
-(define (rerun-report json-file)
-  (define dir report-output-path)
+(define (rerun-report json-file #:dir dir #:threads threads #:profile? profile?)
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define data (read-datafile json-file))
   (define tests
     (for/list ([row (report-info-tests data)])
       (test (table-row-name row) (table-row-vars row)
-            (table-row-samplers row) (table-row-input row) (table-row-output row) #t 'TRUE)))
+            (table-row-samplers row) (table-row-input row) (table-row-output row) #f #t 'TRUE)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
 
-  (define results (get-test-results tests #:threads *max-test-threads*
-                                    #:seed (get-seed) #:profile *profile?*))
+  (define results (get-test-results tests #:threads threads #:dir dir
+                                    #:seed (get-seed) #:profile profile?))
   (define info (make-report-info (filter identity results)))
 
   (write-datafile (build-path dir "results.json") info)
@@ -45,9 +38,7 @@
 
 (define (allowed-tests bench-dirs)
   (define unsorted-tests (append-map load-tests bench-dirs))
-  (if *test-name*
-      (filter (λ (t) (equal? *test-name* (test-name test))) unsorted-tests)
-      (reverse (sort unsorted-tests test<?))))
+  (reverse (sort unsorted-tests test<?)))
 
 (define (test<? t1 t2)
   (cond
@@ -58,6 +49,11 @@
    [else
     ; Put things with an output first
     (test-output t1)]))
+
+(module+ main
+
+(define *profile?* #f)
+(define *max-test-threads* #f)
 
 (command-line
  #:program "herbie-rerun"
@@ -73,4 +69,4 @@
           ["yes" (max (- (processor-count) 1) 1)]
           [_ (string->number th)]))]
  #:args (json)
- (rerun-report json))
+ (rerun-report json #:profile? *profile?* #:threads *max-test-threads*)))

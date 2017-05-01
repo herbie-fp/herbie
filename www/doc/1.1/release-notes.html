@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 1.1 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="compare.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie 1.1 Release Notes</h1>
+  </header>
+
+  <p>
+    After six months of work, the <a href="../..">Herbie</a> developers
+    are excited to announce Herbie 1.1! This release focuses on making
+    Herbie easier to use, including a web interface, clear syntax
+    errors, and detailed reports. This release also expands support
+    for trigonometric and hyperbolic functions, and speeds up
+    preconditions.
+  </p>
+
+  <p>
+    Herbie automatically improves the accuracy of floating point
+    expressions. This avoids the bugs, errors, and surprises that so
+    often occur when working with floating point. Since
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
+    work making Herbie more versatile and easier to use.
+  </p>
+
+  <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
+
+  <h2>Breaking Changes and Deprecations</h2>
+
+  <ul>
+    <li> In line
+    with <a href="http://fpbench.org/spec/fpcore-1.0.html">FPCore
+    1.0</a>, we have removed support for the <code>cotan</code>
+    function, renamed <code>=</code> to <code>==</code>, and added
+    the <code>!=</code> function.</li>
+    <li>In line with the new syntax for calling Herbie from the
+    command line, the old syntax is deprecated and will be removed in
+    the next version.</li>
+    <li>In line with the faster preconditions, we have deprecated
+    the <code>:herbie-samplers</code> property and will remove it in
+    the next release.</li>
+    <li>We have changed the syntax for
+    specifying <a href="options.html">search options</a> for Herbie.
+    Instead of using <code>-o</code> to toggle options,
+    use <code>-o</code> to disable options and <code>+o</code> to
+    enable them.</li>
+  </ul>
+
+  <h2>Usability improvements</h2>
+
+  <ul>
+    <li><a href="herbie-web.html#batch">HTML reports</a>. Herbie can
+      now generate reports that show graphs, describe how Herbie
+      achieved its result, and more.</li>
+    <li><a href="herbie-web.html#interactive">Web shell</a>. The
+      old <a href="/demo/">web demo</a> has been cleaned up and made
+      available to users, providing a graphical interface to
+      Herbie.</li>
+    <li><a href="herbie-cli.html#batch">Batch mode</a>. It's now
+      simpler to run Herbie on an FPCore file and save the results in
+      an output file.
+      The <a href="herbie-cli.html#interactive">command-line shell</a>
+      is also more user-friendly.</li>
+    <li>Easier <a href="installing.html">installation</a> using
+      the Racket package manager.</li>
+    <li>Simpler, clearer syntax errors. Instead of stack traces,
+      syntax errors now come with file, line, and column
+      information.</li>
+  </ul>
+
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    <style scoped>
+      line { pointer-events: all; }
+      .old, .new { stroke-width: 3px; stroke-opacity: 1.0; fill-opacity: 1.0; }
+      .old { stroke: lightgray; fill: lightgray; }
+      .new { stroke: darkgreen; fill: darkgreen; }
+      .gridline, .guide { stroke: lightgray; }
+      text { text-anchor: middle; }
+    </style>
+    <svg id="results" width="525" height="320"></svg>
+    <script>draw_results(d3.select("#results"))</script>
+    <figcaption>Improvement on the Hamming benchmarks from Herbie 1.0 to Herbie 1.1. The improved series expansions, expanded trigonometric and hyperbolic knowledge, and miscellaneous bug fixes have made Herbie smarter.</figcaption>
+  </figure>
+
+  <h2>Improvement to core algorithm</h2>
+
+  <ul>
+    <li>Faster preconditions. A precondition like <code>(&lt; 10 x
+      12)</code> now causes Herbie to only sample points in the
+      relevant range, significantly speeding up Herbie and obviating
+      many "cannot sample enough valid points" errors.</li>
+    <li>Better support for trigonometric and hyperbolic functions.
+      We've taught Herbie about many trigonometric identities, which
+      it can now use to improve expressions.</li>
+    <li>Better series expansion. We've taught Herbie to take series
+      expansions of many more functions.</li>
+    <li>Zero-argument expressions are now supported.</li>
+  </ul>
+
+  <h2>Code Cleanup</h2>
+
+  <ul>
+    <li>We have a new, right-facing logo!</li>
+    <li>We now have a complete syntax checker for inputs, giving the
+      Herbie core confidence that it's dealing with valid expressions.</li>
+    <li>The infrastructure for generating reports has been cleaned up.</li>
+    <li>The web demo has been rearchitected. It no longer needs to
+      output files, no longer uses continuations, and is now much more configurable.</li>
+    <li>The new command-line syntax unifies the mess of invokable
+      scripts in Herbie. We will continue the unification in future
+      releases.</li>
+    <li>More unit tests continue to be written, and including a test
+      that ensures that all our rules are valid.</il>
+  </ul>
+  
+  <h2>Try it out!</h2>
+
+  <p>
+    We're excited to continue to improve Herbie and make it more
+    useful to scientists, engineers, and programmers around the world.
+    We've got a lot of features we're excited to work on in the coming
+    months. Please
+    <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
+    join
+    <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
+    mailing list</a>,
+    or <a href="https://github.com/uw-plse/herbie">contribute</a>.
+  </p>
+  
+  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new
+    Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>

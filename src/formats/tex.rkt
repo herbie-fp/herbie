@@ -6,7 +6,7 @@
 (provide mathjax-url texify-expr texify-prog)
 
 (define mathjax-url
-  "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
 (define-table texify-constants
   [l       "\\ell"]
@@ -84,10 +84,6 @@
   [cube     "{~a}^3"
             (lambda (idx a) (format "{~a}^{~a}" a (tag "3" idx)))
             #f #f]
-  [cotan    "\\cot ~a"
-            (tag-inner-untag "\\cot ~a")
-            'fn #f]
-
   [acos      "\\cos^{-1} ~a"
              (tag-inner-untag "\\cos^{-1} ~a")
              'fn #f]
@@ -148,8 +144,8 @@
   [floor     "\\left\\lfloor~a\\right\\rfloor"
              (tag-inner-untag "\\left\\lfloor~a\\right\\rfloor")
              #f #t]
-  [fma       "(~a * ~a + ~a)_*"
-             (tag-inner-untag "(~a * ~a + ~a)_*")
+  [fma       "(~a \\cdot ~a + ~a)_*"
+             (tag-inner-untag "(~a \\cdot ~a + ~a)_*")
              #f #f]
   [fmax      "\\mathsf{fmax}\\left(~a, ~a\\right)"
              (tag-inner-untag "\\mathsf{fmax}\\left(~a, ~a\\right)")
@@ -231,7 +227,10 @@
           (lambda (idx a b c)
             (format "~a ~a ~a : ~a" a (tag "?" idx) b c))
           #t #t]
-  [=      "~a = ~a"
+  [!=      "~a \\ne ~a"
+          (tag-infix "\\ne")
+          #f #t]
+  [==      "~a = ~a"
           (tag-infix "=")
           #f #t]
   [>      "~a \\gt ~a"
@@ -297,18 +296,21 @@
            (car (hash-ref texify-constants expr))
            (symbol->string expr))]
         [`(if ,cond ,ift ,iff)
-          (let ([texed-branches
-                  (for/list ([branch (collect-branches expr loc)])
-                    (match branch
-                           [(list #t bexpr bloc)
-                            (format "~a & \\text{otherwise}"
-                              (texify bexpr #t (cons 2 bloc)))]
-                           [(list bcond bexpr bloc)
-                            (format "~a & \\text{when } ~a"
-                              (texify bexpr #t (cons 2 bloc))
-                              (texify bcond #t (cons 1 bloc)))]))])
-            (format "\\begin{cases} ~a \\end{cases}"
-                 (string-join texed-branches " \\\\ ")))]
+         (define NL "\\\\\n")
+         (define IND "\\;\\;\\;\\;")
+         (with-output-to-string
+           (λ ()
+             (printf "\\begin{array}{l}\n")
+             (for ([branch (collect-branches expr loc)])
+               (match branch
+                 [(list #t bexpr bloc)
+                  (printf "\\mathbf{else}:~a~a~a~a\n"
+                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]
+                 [(list bcond bexpr bloc)
+                  (printf "\\mathbf{if}\\;~a:~a~a~a~a\n"
+                          (texify bcond #t (cons 1 bloc))
+                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
+             (printf "\\end{array}")))]
         [`(,f ,args ...)
          (match (hash-ref texify-operators f)
            [(list template highlight-template self-paren-level arg-paren-level)

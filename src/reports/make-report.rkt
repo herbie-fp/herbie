@@ -1,23 +1,10 @@
 #lang racket
 
 (require racket/date)
-(require "../common.rkt")
+(require "../common.rkt" "common.rkt")
 (require "../formats/datafile.rkt")
 
 (provide (all-defined-out))
-
-(define (format-time ms)
-  (cond
-   [(< ms 1000) (format "~a ms" (round ms))]
-   [(< ms 60000) (format "~a s" (/ (round (/ ms 100.0)) 10))]
-   [(< ms 3600000) (format "~a m" (/ (round (/ ms 6000.0)) 10))]
-   [else (format "~a hr" (/ (round (/ ms 360000.0)) 10))]))
-
-(define (display-bits r #:sign [sign #f])
-  (cond
-   [(not r) ""]
-   [(and (r . > . 0) sign) (format "+~a" (/ (round (* r 10)) 10))]
-   [else (format "~a" (/ (round (* r 10)) 10))]))
 
 (define (log-exceptions file info)
   (define (print-test t)
@@ -47,6 +34,9 @@
 				   (print-test t)]
 				  [_ #f])))]))
 
+(define (web-resource name)
+  (build-path web-resource-path name))
+
 (define (make-report-page file info)
   (match info
     [(report-info date commit branch seed flags points iterations bit-width note tests)
@@ -56,10 +46,10 @@
 
      (define-values (dir _name _must-be-dir?) (split-path file))
 
-     (copy-file "src/reports/report.js" (build-path dir "report.js") #t)
-     (copy-file "src/reports/report.css" (build-path dir "report.css") #t)
-     (copy-file "src/reports/graph.css" (build-path dir "graph.css") #t)
-     (copy-file "src/reports/arrow-chart.js" (build-path dir "arrow-chart.js") #t)
+     (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
+     (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
+     (copy-file (web-resource "graph.css") (build-path dir "graph.css") #t)
+     (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
 
      (define total-time (apply + (map table-row-time tests)))
      (define total-passed
@@ -131,13 +121,13 @@
          (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
                  (table-row-status result)
                  (html-escape-unsafe (table-row-name result))
-                 (display-bits (table-row-start result))
-                 (display-bits (table-row-result result))
+                 (format-bits (table-row-start result))
+                 (format-bits (table-row-result result))
                  id
                  (match (table-row-status result)
                    ["crash" "ERR"]
                    ["timeout" "TIME"]
-                   [_ (display-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
+                   [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
        (printf "</ul>\n")
        (printf "<hr style='clear:both;visibility:hidden'>\n")
 
@@ -148,10 +138,19 @@
        (printf "<tr><th>Points:</th><td>~a</td></tr>\n" (*num-points*))
        (printf "<tr><th>Fuel:</th><td>~a</td></tr>\n" (*num-iterations*))
        (printf "<tr><th>Seed:</th><td>~a</td></tr>\n" seed)
-       (printf "<tr><th>Flags:</th><td id='flag-list'>")
-       (for ([rec (hash->list (*flags*))])
-         (for ([fl (cdr rec)])
-           (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
+       (printf "<tr><th>Flags:</th><td id='flag-list'>\n")
+       (printf "<div id='all-flags'>")
+       (for* ([(class flags) (*flags*)] [flag flags])
+         (printf "<kbd>~a:~a</kbd>" class flag))
+       (printf "</div>\n")
+       (printf "<div id='changed-flags'>")
+       (when (null? (changed-flags))
+         (printf "default"))
+       (for ([rec (changed-flags)])
+         (match rec
+           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>" class flag)]
+           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>" class flag)]))
+       (printf "</div>\n")
        (printf "</td></tr>")
        (printf "</table>\n")
 
@@ -169,18 +168,10 @@
        (printf "<tbody>")
        (for ([result tests] [id (in-naturals)])
          (printf "<tr class='~a'>" (table-row-status result))
-
          (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
-         (printf "<td>~a</td>" (display-bits (table-row-start result)))
-
-         (if (and (table-row-result result) (table-row-result-est result)
-                  (> (abs (- (table-row-result result) (table-row-result-est result))) 1))
-             (printf "<td class='bad-est'>[~a ≉] ~a </td>"
-                     (display-bits (table-row-result-est result))
-                     (display-bits (table-row-result result)))
-             (printf "<td>~a</td>" (display-bits (table-row-result result))))
-
-         (printf "<td>~a</td>" (display-bits (table-row-target result)))
+         (printf "<td>~a</td>" (format-bits (table-row-start result)))
+         (printf "<td>~a</td>" (format-bits (table-row-result result)))
+         (printf "<td>~a</td>" (format-bits (table-row-target result)))
          (printf "<td>~a~a</td>"
                  (let ([inf- (table-row-inf- result)])
                    (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
@@ -201,7 +192,8 @@
             [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
             [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
        (for ([subdir extra-dirs])
-         (delete-directory/files (build-path dir subdir))))]))
+         (with-handlers ([exn:fail:filesystem? (const true)])
+           (delete-directory/files (build-path dir subdir)))))]))
 
 (define (make-compare-page out-file info1 info2)
   (match-let ([(report-info date1 commit1 branch1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
@@ -213,7 +205,7 @@
 
     (define-values (dir _name _must-be-dir?) (split-path out-file))
 
-    (copy-file "src/reports/compare.css" (build-path dir "compare.css") #t)
+    (copy-file (web-resource "compare.css") (build-path dir "compare.css") #t)
 
     (define total-time1 (apply + (map table-row-time tests1)))
     (define total-time2 (apply + (map table-row-time tests2)))
@@ -292,7 +284,7 @@
                   (match (table-row-status result)
                     ["crash" "ERR"]
                     ["timeout" "TIME"]
-                    [_ (display-bits (- (table-row-start result)
+                    [_ (format-bits (- (table-row-start result)
                                         (table-row-result result))
                                      #:sign #t)]))
 
@@ -305,10 +297,10 @@
                                          tests2))
                   (printf "<li class='badge' title='~a (~a to ~a) vs. (~a to ~a)'>"
                           (html-escape-unsafe (table-row-name result1))
-                          (display-bits (table-row-start result1))
-                          (display-bits (table-row-result result1))
-                          (display-bits (table-row-start result2))
-                          (display-bits (table-row-result result2)))
+                          (format-bits (table-row-start result1))
+                          (format-bits (table-row-result result1))
+                          (format-bits (table-row-start result2))
+                          (format-bits (table-row-result result2)))
                   (printf "<table><tbody><tr><td class='~a'>~a</td><td class='~a'>~a</td></tr></tbody></table>"
                           (table-row-status result1)
                           (badge-label result1)
@@ -362,28 +354,28 @@
                   (printf "<td>~a</td>" (html-escape-unsafe name))
 
                   ;; Some helper functions for displaying the different boxes for results
-                  (define (display-bits-vs-other bits other)
+                  (define (format-bits-vs-other bits other)
                     (cond [(and (not bits) other)
-                           (printf "<td>~a</td>" (display-bits other))]
+                           (printf "<td>~a</td>" (format-bits other))]
                           [(and bits (not other))
-                           (printf "<td>~a</td>" (display-bits bits))]
+                           (printf "<td>~a</td>" (format-bits bits))]
                           [(and (not bits) (not other))
                            (printf "<td></td>")]
                           [((abs (- bits other)) . > . 1)
                            (printf "<td>~a/~a</td>"
-                                   (display-bits bits)
-                                   (display-bits other))]
+                                   (format-bits bits)
+                                   (format-bits other))]
                           [#t
                            (printf "<td>~a</td>"
-                                   (display-bits bits))]))
+                                   (format-bits bits))]))
 
-                  (define (display-bits-vs-est result est-result status)
+                  (define (format-bits-vs-est result est-result status)
                     (if (and result est-result
                              (> (abs (- result est-result)) 1))
                         (printf "<td class='bad-est ~a'>[~a ≉] ~a </td>"
-                                status (display-bits est-result) (display-bits result))
+                                status (format-bits est-result) (format-bits result))
                         (printf "<td class='~a'>~a</td>"
-                                status (display-bits result))))
+                                status (format-bits result))))
 
                   (define (display-num-infs inf- inf+)
                     (printf "<td class='infs'>~a~a</td>"
@@ -391,17 +383,17 @@
                             (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
                   
                   ;; The starting bits
-                  (display-bits-vs-other (table-row-start result1) (table-row-start result2))
+                  (format-bits-vs-other (table-row-start result1) (table-row-start result2))
 
                   ;; The first result bits box
-                  (display-bits-vs-est (table-row-result result1) (table-row-result-est result1)
+                  (format-bits-vs-est (table-row-result result1) (table-row-result-est result1)
                                        (table-row-status result1))
                   ;; The second result bits box
-                  (display-bits-vs-est (table-row-result result2) (table-row-result-est result2)
+                  (format-bits-vs-est (table-row-result result2) (table-row-result-est result2)
                                        (table-row-status result2))
 
                   ;; The target bits
-                  (display-bits-vs-other (table-row-target result1) (table-row-target result2))
+                  (format-bits-vs-other (table-row-target result1) (table-row-target result2))
 
                   ;; The number of points that went to infinity and back
                   (display-num-infs (table-row-inf- result1) (table-row-inf+ result1))
@@ -422,32 +414,33 @@
            [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir))]
            [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
       (for ([subdir extra-dirs])
-        (delete-directory/files (build-path dir subdir))))))
+        (with-handlers ([exn? (const 'ok)])
+          (delete-directory/files (build-path dir subdir)))))))
 
-(define (render-json file)
+(define (render-json dir file)
   (define info (read-datafile file))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-report-page (build-path report-output-path "report.html") info))
+  (make-report-page (build-path dir "report.html") info))
 
-(define (render-json-compare file1 file2)
+(define (render-json-compare dir file1 file2)
   (define info1 (read-datafile file1))
   (define info2 (read-datafile file2))
 
-  (when (not (directory-exists? report-output-path))
-    (make-directory report-output-path))
+  (when (not (directory-exists? dir))
+    (make-directory dir))
 
-  (make-compare-page (build-path report-output-path "compare.html") info1 info2))
+  (make-compare-page (build-path dir "compare.html") info1 info2))
 
-(define (render files)
+(define (render dir files)
   (if (= 1 (length files))
-      (render-json (car files))
-      (render-json-compare (car files) (cadr files))))
+      (render-json dir (car files))
+      (render-json-compare dir (car files) (cadr files))))
 
 (module+ main
   (command-line
    #:program "make-report"
-   #:args info-files
-   (render info-files)))
+   #:args (dir info-files)
+   (render dir info-files)))

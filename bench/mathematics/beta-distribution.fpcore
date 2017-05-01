@@ -1,14 +1,11 @@
-(FPCore
- (m v)
- :pre
- (and (< 0 m) (< 0 v) (< v 0.25))
- :name
- "a parameter of renormalized beta distribution"
+; -*- mode: scheme -*-
+
+(FPCore (m v)
+ :pre (and (< 0 m) (< 0 v) (< v 0.25))
+ :name "a parameter of renormalized beta distribution"
  (* (- (/ (* m (- 1 m)) v) 1) m))
-(FPCore
- (m v)
- :pre
- (and (< 0 m) (< 0 v) (< v 0.25))
- :name
- "b parameter of renormalized beta distribution"
+
+(FPCore (m v)
+ :pre (and (< 0 m) (< 0 v) (< v 0.25))
+ :name "b parameter of renormalized beta distribution"
  (* (- (/ (* m (- 1 m)) v) 1) (- 1 m)))

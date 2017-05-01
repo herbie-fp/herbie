@@ -1,9 +1,17 @@
+/* Standard Herbie header */
 
-body {width: 800px; margin: 1em auto; font-family: sans;}
+body { width: 800px; margin: 1em auto; font-family: sans; }
 
-#large {margin: 2em 0; text-align: center;}
-#large div {margin: 0 1em; display: inline-block;}
-#large .number {font-size: 3em; display: block;}
+a {color: #2A6496; text-decoration: none; cursor: pointer}
+a:hover {text-decoration: underline; color: #295785}
+
+#large { margin: 2em 0; text-align: center; }
+#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
+#large .number { font-size: 3em; display: block; }
+@media print { #large { margin-top: 0; }}
+
+/* Detail page layout */
+
 
 figure { margin: 0; overflow: auto; }
 #graph { float: left; }
@@ -37,7 +45,10 @@ figure a { color: black; text-decoration: none; display: block; }
 #reports td:nth-child(2), #reports th:nth-child(2) { text-align: center; display: none; }
 #reports td:nth-child(3) { text-align: center; }
 #reports thead { border-bottom: 1px solid black; height: 5em; vertical-align: bottom; }
-
+#reports a {
+    position: absolute; left: 0; right: 0; z-index: 100;
+    padding: .5em; margin-top: -1.25em;
+}
 #reports thead:after {
     position: absolute; width: 300px; text-align: left; right: -325px;
     font-size: 32px; color: #888; content: attr(data-branch);

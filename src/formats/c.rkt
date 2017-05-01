@@ -25,7 +25,6 @@
 
   [sqr    (lambda (x) (format "~a * ~a" x x))]
   [cube   (lambda (x) (format "~a * (~a * ~a)" x x x))]
-  [cotan  "1.0 / tan(~a)"]
 
   [acos       "acos(~a)"]
   [acosh      "acosh(~a)"]
@@ -75,7 +74,8 @@
   [y1         "y1(~a)"]
 
   [if   "~a ? ~a : ~a"]
-  [=    "~a == ~a"]
+  [==    "~a == ~a"]
+  [!=    "~a != ~a"]
   [>    "~a > ~a"]
   [<    "~a < ~a"]
   [>=   "~a >= ~a"]
@@ -149,7 +149,6 @@
         "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
 
   [sqr      "mpfr_sqr(~a, ~a, MPFR_RNDN)"]
-  [cotan    "mpfr_cot(~a, ~a, MPFR_RNDN)"]
   [cube     (λ (x y) (string-append
               (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN); "
                       x y y)
@@ -317,12 +316,7 @@
   (require racket/cmdline)
   (require "../config.rkt")
 
-  (define dir report-output-path)
-
   (command-line
    #:program "compile/c.rkt"
-   #:once-each
-   [("-d") dir* "Report output directory"
-    (set! dir dir*)]
-   #:args (single-json-file double-json-file)
+   #:args (single-json-file double-json-file dir)
    (compile-info dir (read-datafile single-json-file) (read-datafile double-json-file))))

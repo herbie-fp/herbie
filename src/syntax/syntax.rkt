@@ -98,9 +98,6 @@
 (libm_op1  _fly0         y0         y0f)
 (libm_op1  _fly1         y1         y1f)
 
-(define (_flcotan x)
-  (/ 1 (tan x)))
-
 (define (_flcube x)
   (* x (* x x)))
 
@@ -132,6 +129,16 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
+(define (!=-fn . args)
+  (not (check-duplicates args =)))
+
+(define (bf!=-fn . args)
+  (not (check-duplicates args bf=)))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
@@ -143,8 +150,6 @@
 
   [sqr    '(1)  bfsqr   _flsqr     40]
   [cube   '(1)  bfcube  _flcube    80]
-  [cotan  '(1)  bfcot   _flcotan  135]
-  ; TODO sec and cosec
 
   [acos      '(1)  bfacos       _flacos        90]
   [acosh     '(1)  bfacosh      _flacosh       55]
@@ -194,21 +199,22 @@
   [y1        '(1)  bfbesy1      _fly1          55]
 
   ; TODO : These are different and should be treated differently
-  [if       '(3)      if-fn     if-fn      65]
-  [=        '(2)      bf=       =          65]
-  [>        '(2)      bf>       >          65]
-  [<        '(2)      bf<       <          65]
-  [>=       '(2)      bf>=      >=         65]
-  [<=       '(2)      bf<=      <=         65]
-  [not      '(1)      not       not        65]
-  [and      '(2)      and-fn    and-fn     55]
-  [or       '(2)      or-fn     or-fn      55])
+  [if       '(3)      if-fn                  if-fn                   65]
+  [==       '(*)      (comparator bf=)       (comparator =)          65]
+  [!=       '(*)      bf!=-fn                !=-fn                   65]
+  [>        '(*)      (comparator bf>)       (comparator >)          65]
+  [<        '(*)      (comparator bf<)       (comparator <)          65]
+  [>=       '(*)      (comparator bf>=)      (comparator >=)         65]
+  [<=       '(*)      (comparator bf<=)      (comparator <=)         65]
+  [not      '(1)      not                    not                     65]
+  [and      '(*)      and-fn                 and-fn                  55]
+  [or       '(*)      or-fn                  or-fn                   55])
 
 (define *operations* (make-parameter operations))
 
 (define constants '(PI E TRUE FALSE))
 
-(define predicates '(or and < > <= >= =))
+(define predicates '(not or and < > <= >= == !=))
 
 (define mode:args 0)
 (define mode:bf 1)

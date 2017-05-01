@@ -2,6 +2,7 @@
 
 (require math/number-theory)
 (require "../common.rkt")
+(require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
 (require "matcher.rkt")
@@ -154,17 +155,24 @@
           (loop (- i (length seg)) (+ sum 1))
           (list-ref seg i)))))
 
-(define (taylor var expr)
+(define taylor-expansion-known
+  '(+ - * / sqr sqrt exp sin cos log pow))
+
+(define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (debug #:from 'taylor "Taking taylor expansion of" expr "in" var)
+  (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
+  (define expr
+    (if (and (list? expr*) (not (set-member? taylor-expansion-known (car expr*))))
+        ((get-expander taylor-expansion-known) expr*)
+        expr*))
+  (unless (equal? expr expr*)
+    (debug #:from 'taylor "Rewrote expression to" expr))
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
     [(? constant?)
      (taylor-exact expr)]
     [(? variable?)
-     (taylor-exact expr)]
-    [`(fabs ,arg)
      (taylor-exact expr)]
     [`(+ ,args ...)
      (apply taylor-add (map (curry taylor var) args))]
@@ -180,10 +188,6 @@
      (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
      (taylor-quotient (taylor var num) (taylor var den))]
-    [`(if ,cond ,btrue ,bfalse)
-     (taylor-exact expr)]
-    [`(fmod ,a ,b)
-     (taylor-exact expr)]
     [`(sqr ,a)
      (let ([ta (taylor var a)])
        (taylor-mult ta ta))]
@@ -238,10 +242,6 @@
      (cons (- power) (λ (n) (if (= n 0) 1 0)))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
-    [`(tan ,arg)
-     (taylor var `(/ (sin ,arg) (cos ,arg)))]
-    [`(cotan ,arg)
-     (taylor var `(/ (cos ,arg) (sin ,arg)))]
     [_
      (taylor-exact expr)]))
 

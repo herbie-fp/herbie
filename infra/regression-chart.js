@@ -197,6 +197,7 @@ function draw_results(node) {
         type_list.appendChild(li)
     }
     TAG = best_type;
+    if (!TAG) return;
 
     var flag_list = document.getElementById("classes");
     for (var flag in OPTIONS) {

@@ -17,7 +17,7 @@ upload () {
 index () {
     racket infra/make-index.rkt
     rsync --recursive \
-          "index.html" "infra/index.css" "infra/regression-chart.js" "src/reports/report.js" \
+          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html

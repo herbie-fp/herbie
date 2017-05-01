@@ -1,9 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
-(require math/flonum)
-(require "common.rkt")
-(require "syntax/syntax.rkt")
+(require math/bigfloat math/flonum)
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          location-induct program-induct expression-induct location-hash
@@ -11,7 +9,7 @@
          eval-prog replace-subexpr
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         valid-expression? valid-program?
+         assert-expression! assert-program!
          eval-exact eval-const-expr
          desugar-program expr->prog)
 
@@ -99,22 +97,121 @@
   (remove* (free-variables (program-body prog))
            (program-variables prog)))
 
-(define (valid-expression? expr vars)
-  (match expr
-    [(? constant?) #t]
-    [(? variable?) (member expr vars)]
-    [`(,f ,args ...)
-     (and (andmap (curryr valid-expression? vars) args)
-          (hash-has-key? (*operations*) f)
-          (member (length args) (list-ref (hash-ref (*operations*) f) mode:args)))]
-    [_ #f]))
+(define (check-expression* stx vars error!)
+  (match (or (syntax->list stx) (syntax-e stx))
+    [(? constant?) (void)]
+    [(? variable?)
+     (unless (set-member? vars (syntax-e stx))
+       (error! stx "Unknown variable ~a" (syntax-e stx)))]
+    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list vars* vals)) ...)) body)
+     ;; These are unfolded by desugaring
+     (for ([var vars*] [val vals])
+       (unless (identifier? var)
+         (error! var "Invalid variable name ~a" (syntax-e var)))
+       (check-expression* val vars error!))
+     (check-expression* body (append vars (map syntax-e vars*)) error!)]
+    [(list (app syntax-e (? (curry set-member? '(+ - * /)))) args ...)
+     ;; These expand associativity so we don't check the number of arguments
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [(list f args ...)
+     (if (hash-has-key? (*operations*) (syntax->datum f))
+         (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
+           (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
+             (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                                 (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
+         (error! stx "Unknown operator ~a" (syntax->datum f)))
+     (for ([arg args]) (check-expression* arg vars error!))]
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
-(define (valid-program? prog)
-  (match prog
-    [(list 'FPCore vars body)
-     (valid-expression? body vars)]
-    [_
-     #f]))
+(define (check-property* prop error!)
+  (unless (identifier? prop)
+    (error! prop "Invalid property name ~a" (syntax->datum prop)))
+  (define name (~a (syntax-e prop)))
+  (unless (equal? (substring name 0 1) ":")
+    (error! prop "Invalid property name ~a" (syntax->datum prop))))
+
+(define (check-properties* props vars error!)
+  (define prop-dict
+    (let loop ([props props] [out '()])
+      (match props
+        [(list (? identifier? prop-name) value rest ...)
+         (check-property* prop-name error!)
+         (loop rest (cons (cons (syntax-e prop-name) value) out))]
+        [(list head)
+         (check-property* head error!)
+         (error! head "Property ~a has no value" (syntax->datum head))]
+        [(list)
+         out])))
+
+  (when (dict-has-key? prop-dict ':name)
+    (define name (dict-ref prop-dict ':name))
+    (unless (string? (syntax-e name))
+      (error! name "Invalid :name ~a; must be a string" (syntax->datum name))))
+
+  (when (dict-has-key? prop-dict ':description)
+    (define desc (dict-ref prop-dict ':description))
+    (unless (string? (syntax-e desc))
+      (error! desc "Invalid :description ~a; must be a string" (syntax->datum desc))))
+
+  (when (dict-has-key? prop-dict ':cite)
+    (define cite (dict-ref prop-dict ':cite))
+    (unless (list? (syntax-e cite))
+      (error! cite "Invalid :cite ~a; must be a list" (syntax->datum cite)))
+    (when (list? (syntax-e cite))
+      (for ([citation (syntax->list cite)] #:unless (identifier? citation))
+        (error! citation "Invalid citation ~a; must be a variable name" (syntax->datum citation)))))
+
+  (when (dict-has-key? prop-dict ':pre)
+    (check-expression* (dict-ref prop-dict ':pre) vars error!))
+
+  (when (dict-has-key? prop-dict ':target)
+    (check-expression* (dict-ref prop-dict ':target) vars error!))
+
+  (when (dict-has-key? prop-dict ':herbie-samplers)
+    (let ([stx (dict-ref prop-dict ':herbie-samplers)])
+      (eprintf "Deprecated :herbie-samplers property used.\n")
+      (define file
+        (if (path? (syntax-source stx))
+            (let-values ([(base name dir?) (split-path (syntax-source stx))])
+              (path->string name))
+            (syntax-source stx)))
+      (eprintf "  ~a:~a:~a: Use the :pre property to specify bounds\n" file (or (syntax-line stx) "")
+               (or (syntax-column stx) (syntax-position stx)))
+      (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n"))))
+
+(define (check-program* stx error!)
+  (match (syntax->list stx)
+    [(list (app syntax-e 'FPCore) vars props ... body)
+     (unless (list? (syntax->list vars))
+       (error! stx "Invalid arguments list ~a; must be a list" (syntax->datum stx)))
+     (when (list? (syntax->list vars))
+       (for ([var (syntax->list vars)] #:unless (identifier? var))
+         (error! stx "Argument ~a is not a variable name" (syntax->datum stx)))
+       (when (check-duplicate-identifier (syntax->list vars))
+         (error! stx "Duplicate argument name ~a"
+                 (syntax->datum (check-duplicate-identifier (syntax->list vars))))))
+     (define vars* (if (list? (syntax->datum vars)) (syntax->datum vars) '()))
+     (check-properties* props vars* error!)
+     (check-expression* body vars* error!)]
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
+
+(define (assert-expression! stx vars)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-expression* stx vars error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid expression" #:locations errs)))
+
+(define (assert-program! stx)
+  (define errs
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (sow (cons stx (apply format fmt args))))
+          (check-program* stx error!)))
+  (unless (null? errs)
+    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
 
 (define (replace-expression program from to)
   (cond

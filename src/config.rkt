@@ -1,36 +1,52 @@
 #lang racket
 (require racket/runtime-path)
-
 (provide (all-defined-out))
 
-(define-runtime-path report-output-path "../graphs/")
-(define-runtime-path demo-output-path "../www/demo/")
 (define-runtime-path viz-output-path "../www/viz/")
-(define-runtime-path benchmark-path "../bench/")
+(define-runtime-path web-resource-path "web/")
 
 ;; Flag Stuff
 
-(define *flags*
-  (make-parameter
-   #hash([precision . (double)]
-         [setup    . (simplify)]
-         [generate . (rr taylor simplify)]
-         [reduce   . (regimes taylor simplify avg-error)]
-         [rules . (arithmetic polynomials fractions exponents trigonometry)])))
+(define all-flags
+  #hash([precision . (double)]
+        [setup . (simplify early-exit)]
+        [generate . (rr taylor simplify)]
+        [reduce . (regimes taylor simplify avg-error post-process)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics)]))
 
-(define (toggle-flag! category flag)
-  (*flags*
-   (hash-update (*flags*) category
-		(λ (flag-list)
-		  (if (member flag flag-list)
-		      (remove flag flag-list)
-		      (cons flag flag-list))))))
+(define default-flags
+  #hash([precision . (double)]
+        [setup . (simplify)]
+        [generate . (rr taylor simplify)]
+        [reduce . (regimes taylor simplify avg-error)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]))
+
+(define (enable-flag! category flag)
+  (define (update cat-flags) (set-add cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (disable-flag! category flag)
+  (define (update cat-flags) (set-remove cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (has-flag? class flag)
+  (set-member? (dict-ref (*flags*) class) flag))
+
+; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
+(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
+
+(define (changed-flags)
+  (filter identity
+          (for*/list ([(class flags) all-flags] [flag flags])
+            (match* ((has-flag? class flag)
+                     (parameterize ([*flags* default-flags]) (has-flag? class flag)))
+              [(#t #t) #f]
+              [(#f #f) #f]
+              [(#t #f) (list 'enabled class flag)]
+              [(#f #t) (list 'disabled class flag)]))))
 
 (define ((flag type f) a b)
-  (if (member f (hash-ref (*flags*) type
-                          (λ () (error "Invalid flag type" type))))
-      a
-      b))
+  (if (has-flag? type f) a b))
 
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
@@ -55,4 +71,18 @@
 
 (define *binary-search-test-points* (make-parameter 16))
 
-(define *herbie-version* "1.0")
+;;; About Herbie:
+
+(define (git-command #:default [default ""] gitcmd . args)
+  (if (directory-exists? ".git")
+      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
+        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      default))
+
+(define *herbie-version* "1.1")
+
+(define *herbie-commit*
+  (git-command "rev-parse" "HEAD" #:default *herbie-version*))
+
+(define *herbie-branch*
+  (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))

@@ -1,2 +1,9 @@
-(FPCore (r a b) :name "r*sin(b)/cos(a+b), A" (/ (* r (sin b)) (cos (+ a b))))
-(FPCore (r a b) :name "r*sin(b)/cos(a+b), B" (* r (/ (sin b) (cos (+ a b)))))
+; -*- mode: scheme -*-
+
+(FPCore (r a b)
+ :name "r*sin(b)/cos(a+b), A"
+ (/ (* r (sin b)) (cos (+ a b))))
+
+(FPCore (r a b)
+ :name "r*sin(b)/cos(a+b), B"
+ (* r (/ (sin b) (cos (+ a b)))))

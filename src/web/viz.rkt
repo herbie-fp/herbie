@@ -7,6 +7,7 @@
 (require json)
 
 (require "../config.rkt")
+(require "../formats/tex.rkt")
 (require "common.rkt")
 (require "session.rkt")
 
@@ -47,7 +48,7 @@
 	#:head-include
 	`((script ([type "text/x-mathjax-config"])
 		 "MathJax.Hub.Config({ TeX: { extensions: [\"enclose.js\"] } });"))
-        #:scripts `("//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"
+        #:scripts (list mathjax-url
                     "http://d3js.org/d3.v3.min.js")
         #:styles '("style.css")
         `(div ([class "placeholder"]
@@ -97,7 +98,7 @@
     (response/xexpr
      (herbie-page
       #:title "Herbie Visual Shell"
-      #:scripts `("//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML")
+      #:scripts (list mathjax-url)
       `(h1 "Here's the final result:")
       `(p ,(hash-ref response 'formula))
       (let* ([filename (symbol->string (gensym "image"))]
@@ -143,7 +144,8 @@
      #:servlet-path "/viz/"
      #:extra-files-paths (list (build-path viz-output-path "..")))))
 
+(module+ main
 (command-line
  #:program "herbie-viz"
  #:args arguments
- (apply start-server arguments))
+ (apply start-server arguments)))

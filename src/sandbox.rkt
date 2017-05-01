@@ -45,7 +45,7 @@
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
       (when setup! (setup!))
-      (with-handlers ([(const #t) on-error])
+      (with-handlers ([exn? on-error])
         (match-define (list alt context)
                       (run-improve (test-program test)
                                    (*num-iterations*)
@@ -55,7 +55,8 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (alt-program alt) (test-samplers test) (test-precondition test))))
-        `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext))))
+        `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
+               ,(^timeline^) ,(bf-precision)))))
 
   (define (in-engine _)
     (if profile?
@@ -67,12 +68,12 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext)
+      [`(good ,start ,end ,context ,newcontext ,timeline ,bits)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
        (test-result test 
                     (- (current-inexact-milliseconds) start-time)
-                    (bf-precision)
+                    bits
                     start end points exacts
                     (errors (alt-program start) context)
                     (errors (alt-program end) context)
@@ -82,13 +83,13 @@
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
-                    (^timeline^))]
+                    timeline)]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) (^timeline^))]
       [#f
        (test-timeout test (bf-precision) (*timeout*) (^timeline^))])))
 
-(define (get-table-data result rdir)
+(define (get-table-data result link)
   (cond
    [(test-result? result)
     (let* ([name (test-name (test-result-test result))]
@@ -104,8 +105,7 @@
            [est-end-score (errors-score (test-result-end-est-error result))])
 
       (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
-                    [(good-inf bad-inf) (partition positive? infs)]
-                    [(link) (path-element->string (last (explode-path rdir)))])
+                    [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
                        (cond
@@ -133,14 +133,12 @@
                    (test-result-bits result)
                    link)))]
    [(test-failure? result)
-    (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _ pre) (test-failure-test result))
-    (table-row (test-name (test-failure-test result)) "crash"
-               #f #f #f #f #f #f vars sampling-expr input #f
+    (define test (test-failure-test result))
+    (table-row (test-name test) "crash"
+               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
-    (define link (path-element->string (last (explode-path rdir))))
-    (match-define (test name vars sampling-expr input output _ pre) (test-timeout-test result))
+    (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f vars sampling-expr input #f
+               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
