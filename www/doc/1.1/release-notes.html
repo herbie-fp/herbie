@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <title>Herbie 1.1 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="compare.js"></script>
 </head>
 <body>
   <header>
@@ -72,6 +74,20 @@
       syntax errors now come with file, line, and column
       information.</li>
   </ul>
+
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    <style scoped>
+      line { pointer-events: all; }
+      .old, .new { stroke-width: 3px; stroke-opacity: 1.0; fill-opacity: 1.0; }
+      .old { stroke: lightgray; fill: lightgray; }
+      .new { stroke: darkgreen; fill: darkgreen; }
+      .gridline, .guide { stroke: lightgray; }
+      text { text-anchor: middle; }
+    </style>
+    <svg id="results" width="525" height="320"></svg>
+    <script>draw_results(d3.select("#results"))</script>
+    <figcaption>Improvement on the Hamming benchmarks from Herbie 1.0 to Herbie 1.1. The improved series expansions, expanded trigonometric and hyperbolic knowledge, and miscellaneous bug fixes have made Herbie smarter.</figcaption>
+  </figure>
 
   <h2>Improvement to core algorithm</h2>
 
