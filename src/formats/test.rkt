@@ -4,6 +4,7 @@
 (require "../errors.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../type-check.rkt")
 (require "../range-analysis.rkt")
 (require "../syntax/distributions.rkt")
 
@@ -36,6 +37,7 @@
 
 (define (parse-test stx)
   (assert-program! stx)
+  (assert-program-type! stx)
   (define expr (syntax->datum stx))
   (match expr
     [(list 'FPCore (list args ...) props ... body)
