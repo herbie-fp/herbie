@@ -411,6 +411,10 @@
   [hypot-udef    (hypot x y)    (sqrt (+ (sqr x) (sqr y)))]
   [fma-udef      (fma x y z)    (+ (* x y) z)])
 
+(define-ruleset complex-number-basics (complex simplify)
+  [real-part     (re (complex x y))     x]
+  [imag-part     (im (complex x y))     y])
+
 (define (*rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '())))

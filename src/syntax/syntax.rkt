@@ -125,6 +125,12 @@
 (define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
 
+(define (bf-make-rectangular x y)
+  (cons x y))
+
+(define bf-real-part car)
+(define bf-imag-part cdr)
+
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
@@ -198,6 +204,10 @@
   [y0        '(1)  bfbesy0      _fly0          55]
   [y1        '(1)  bfbesy1      _fly1          55]
 
+  [complex   '(2)  bf-make-rectangular        make-rectangular       0]
+  [re        '(1)  bf-real-part        real-part              0]
+  [im        '(1)  bf-imag-part        imag-part              0]
+
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn                  if-fn                   65]
   [==       '(*)      (comparator bf=)       (comparator =)          65]
@@ -234,10 +244,8 @@
     (cond
      [(real? x) (convert x)]
      [(bigfloat? x) (convert (bigfloat->flonum x))]
-     [(complex? x)
-      (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
+     [(and (pair? x) (bigfloat? (car x)) (bigfloat? (cdr x)))
+      (make-rectangular (->flonum (car x)) (->flonum (cdr x)))]
      [(eq? x 'PI) (convert pi)]
      [(eq? x 'E) (convert (exp 1.0))]
      [(eq? x 'TRUE) #t]
@@ -249,7 +257,7 @@
    [(real? x) (bf x)]
    [(bigfloat? x) x]
    [(complex? x)
-    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+    (cons (->bf (real-part x)) (->bf (imag-part x)))]
    [(eq? x 'PI) pi.bf]
    [(eq? x 'E) (bfexp 1.bf)]
    [(eq? x 'TRUE) #t]

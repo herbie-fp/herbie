@@ -17,7 +17,12 @@
   (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
 
 (define (ulp-difference x y)
-  (((flag 'precision 'double) flonums-between single-flonums-between) x y))
+  (match* (x y)
+    [((? real?) (? real?))
+     (((flag 'precision 'double) flonums-between single-flonums-between) x y)]
+    [((? complex?) (? complex?))
+     (+ (ulp-difference (real-part x) (real-part y))
+        (ulp-difference (imag-part x) (imag-part y)))]))
 
 (define (*bit-width*) ((flag 'precision 'double) 64 32))
 

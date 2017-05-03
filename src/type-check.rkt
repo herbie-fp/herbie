@@ -27,19 +27,25 @@
     [(? constant? x) 'real]
     [(? variable? x) (dict-ref env x)]
     [(list (app syntax-e (? operator? op)) exprs ...)
-     (match (get-params op (length exprs))
-       [(list '* each-type)
-        (for ([arg exprs] [i (in-naturals)])
-          (define actual-type (expression->type arg env error!))
-          (unless (equal? actual-type each-type)
-            (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) each-type actual-type)))]
-       [(? list? param-types)
-        (for/and ([arg exprs] [type param-types] [i (in-naturals)])
-          (define actual-type (expression->type arg env error!))
-          (unless (equal? actual-type type)
-            (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) type actual-type)))]
-       [_ (error "Operator has no type signature" op (length exprs))])
-     (get-rt-type op (length exprs))]
+     (define sigs (get-sigs op (length exprs)))
+     (unless sigs (error "Operator has no type signature" op (length exprs)))
+
+     (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
+     (define rtype
+       (for/or ([sig sigs])
+         (argtypes->rtype actual-types sig)))
+     (unless rtype
+       (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+               (string-join
+                (for/list ([sig sigs])
+                  (match sig
+                    [`((* ,atype) ,rtype)
+                     (format "(~a <~a> ...)" op atype)]
+                    [`((,atypes ...) ,rtype)
+                     (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]))
+                " or ")
+               op (string-join (map (curry format "<~a>") actual-types) " ")))
+     rtype]
     [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list (app syntax-e id) expr)) ...)) body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -81,4 +87,9 @@
   (check-fails #'(if (== a 1) 1 0) #:env #hash((a . bool)))
   (check-fails #'(if (== a 1) 1 TRUE) #:env #hash((a . real)))
   (check-type 'bool #'(let ([a 1]) TRUE))
-  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool))))
+  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool)))
+
+  (check-type 'complex #'(complex 2 3))
+  (check-type 'complex #'(+ (complex 1 2) (complex 3 4)))
+  (check-fails #'(+ 2 (complex 1 2)))
+  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4)))))
