@@ -210,7 +210,8 @@
 (define-ruleset pow-reduce (exponents simplify)
   [unpow-1        (pow a -1)                 (/ 1 a)]
   [unpow1         (pow a 1)                  a]
-  [unpow0         (pow a 0)                  1])
+  [unpow0         (pow a 0)                  1]
+  [pow-base-1     (pow 1 a)                  1])
 
 (define-ruleset pow-expand (exponents)
   [pow1           a                           (pow a 1)])
@@ -224,6 +225,7 @@
   [unpow1/3        (pow a 1/3)                (cbrt a)] )
 
 (define-ruleset pow-transform (exponents)
+  [pow-base-0       (pow 0 a)                   0]
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
