@@ -168,7 +168,7 @@
 		   (not (matches? constexpr `(log 0)))
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
-	  (let ([res (eval-const-expr constexpr)])
+	  (let ([res (eval constexpr common-eval-ns)])
 	    (when (and (ordinary-float? res) (exact? res))
 	      (reduce-to-new! eg en res))))))))
 
@@ -209,3 +209,21 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(module+ test
+  (require rackunit)
+  (define test-exprs
+  '([1 1]
+    [0 0]
+    [(+ 1 0) 1]
+    [(+ 1 5) 6]
+    [(+ x 0) x]
+    [(* x 1) x]
+    [(- (+ x 1) x) 1]
+    [(- (+ x 1) 1) x]
+    [(/ (* x 3) x) 3]
+    [(- (sqr (sqrt (+ x 1))) (sqr (sqrt x))) 1]))
+
+  (for ([entry test-exprs])
+    (match-let ([(list orig simpled) entry])
+      (check-equal? (simplify-expr orig) simpled))))
