@@ -20,6 +20,16 @@ function main {
   cd "$HERBROOT"
   git pull --quiet
 
+  COMMIT="$HERBROOT/infra/latest-commit.txt"
+  C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
+  if [ -f "$COMMIT" -a "$C" = "$(cat "$COMMIT")" ]; then
+    echo "No new commits, exiting."
+    exit 0
+  else
+    echo "$C" > "$COMMIT"
+    echo "Latest commit updated to $C."
+  fi
+
 ##  make --quiet --directory="$HERBROOT/randTest"
 ##  java -classpath "$HERBROOT/randTest/" RandomTest \
 ##    --size  5 --size-wiggle  5 \
