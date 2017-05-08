@@ -168,7 +168,7 @@
 		   (not (matches? constexpr `(log 0)))
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
-	  (let ([res (eval-const-expr constexpr)])
+	  (let ([res (eval constexpr common-eval-ns)])
 	    (when (and (ordinary-float? res) (exact? res))
 	      (reduce-to-new! eg en res))))))))
 
