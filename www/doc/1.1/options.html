@@ -57,9 +57,9 @@
   produces of error versus input, which can help you understand
   whether Herbie's improvements matter for your user cases.</p>
 
-  <p>For any tool, you can run <code>herbie tool --help</code> to see
-  a listing of all available command-line options. This listing will
-  include unsupported options not listed on this page.</p>
+  <p>For any tool, you can run <code>herbie <var>tool</var> --help</code>
+    to see a listing of all available command-line options. This listing
+    will include unsupported options not listed on this page.</p>
 
   <h2>Upgrading from Herbie 1.0</h2>
 
@@ -84,8 +84,12 @@
 
   <p>
     These options can be set on any tool. Pass them after the tool
-    name but before other arguments.
+    name but before other arguments, such as:
   </p>
+
+  <pre><code>herbie improve --timeout 60 in.fpcore out.fpcore</code></pre>
+
+  <p>Arguments cannot be put anywhere else.</p>
 
   <dl>
     <dt><code>--seed S</code></dt>
