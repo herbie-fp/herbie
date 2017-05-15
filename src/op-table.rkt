@@ -107,5 +107,6 @@
   (require rackunit)
   (for* ([(op record) (in-hash op-table)]
          [(num types) (in-hash record)]
+         [type types]
          #:unless (equal? num '*))
-    (check-equal? num (length (car types)))))
+    (check-equal? num (length (car type)))))

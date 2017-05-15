@@ -131,6 +131,47 @@
 (define bf-real-part car)
 (define bf-imag-part cdr)
 
+(define (bf-complex-add x y)
+  (cons (bf+ (bf-real-part x) (bf-real-part y)) (bf+ (bf-imag-part x) (bf-imag-part y))))
+
+(define (bf-complex-sub x [y #f])
+  (if y
+      (bf-complex-add x (bf-complex-neg y))
+      (bf-complex-neg x)))
+
+(define (bf-complex-neg x)
+  (cons (bf- (bf-real-part x)) (bf- (bf-imag-part x))))
+
+(define (bf-complex-mult x y)
+  (cons (bf+ (bf* (bf-real-part x) (bf-real-part y)) (bf- (bf* (bf-imag-part x) (bf-imag-part y))))
+        (bf+ (bf* (bf-imag-part x) (bf-real-part y)) (bf* (bf-real-part x) (bf-imag-part y)))))
+
+(define (bf-complex-conjugate x)
+  (cons (bf-real-part x) (bf- (bf-imag-part x))))
+
+(define (bf-complex-div x y)
+  (define numer (bf-complex-mult x (bf-complex-conjugate y)))
+  (define denom (bf-complex-mult y (bf-complex-conjugate y)))
+  (cons (bf/ (bf-real-part numer) (bf-real-part denom)) (bf/ (bf-imag-part numer) (bf-real-part denom))))
+
+(define (make-exact-fun bf-fun bf-complex-fun)
+  (lambda args
+    (match args
+      [(list (? bigfloat?) ...)
+       (apply bf-fun args)]
+      [(list (? pair?) ...)
+       (apply bf-complex-fun args)])))
+
+(define exact+ (make-exact-fun bf+ bf-complex-add))
+(define exact- (make-exact-fun bf- bf-complex-sub))
+(define exact* (make-exact-fun bf* bf-complex-mult))
+(define exact/ (make-exact-fun bf/ bf-complex-div))
+
+(module+ test
+  (require rackunit)
+  (check-equal? (bf-complex-mult (cons (bf 5) (bf 2)) (cons (bf 7) (bf 12))) (cons (bf 11) (bf 74)))
+  (check-equal? (bf-complex-div (cons (bf 5) (bf 2)) (cons (bf 7) (bf 4))) (cons (bf 43/65) (bf -6/65))))
+
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
@@ -149,10 +190,10 @@
 ; See "costs.c" for details of how these costs were determined
 (define-table operations
   ; arithmetic
-  [+  '(2)    bf+  +  40]
-  [-  '(1 2)  bf-  -  40]
-  [*  '(2)    bf*  *  40]
-  [/  '(2)    bf/  /  40]
+  [+  '(2)    exact+  +  40]
+  [-  '(1 2)  exact-  -  40]
+  [*  '(2)    exact*  *  40]
+  [/  '(2)    exact/  /  40]
 
   [sqr    '(1)  bfsqr   _flsqr     40]
   [cube   '(1)  bfcube  _flcube    80]

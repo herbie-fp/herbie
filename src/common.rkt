@@ -75,7 +75,11 @@
 ;; Simple floating-point functions
 
 (define (ordinary-float? x)
-  (and (real? x) (not (or (infinite? x) (nan? x)))))
+  (match x
+    [(? real?)
+     (not (or (infinite? x) (nan? x)))]
+    [(? complex?)
+     (and (ordinary-float? (real-part x)) (ordinary-float? (imag-part x)))]))
 
 (module+ test
   (check-true (ordinary-float? 2.5))
