@@ -421,7 +421,7 @@
   [complex-neg-def  (- (complex a b)) (complex (- a) (- b))]
   [complex-def-neg  (complex (- a) (- b)) (- (complex a b))]
   [complex-mul-def  (* (complex a b) (complex c d)) (complex (- (* a c) (* b d)) (+ (* a d) (* b c)))]
-  [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) ) (+ (* c c) (* d d)))]
+  [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
 

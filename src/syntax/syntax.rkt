@@ -245,9 +245,10 @@
   [y0        '(1)  bfbesy0      _fly0          55]
   [y1        '(1)  bfbesy1      _fly1          55]
 
-  [complex   '(2)  bf-make-rectangular        make-rectangular       0]
-  [re        '(1)  bf-real-part        real-part              0]
-  [im        '(1)  bf-imag-part        imag-part              0]
+  [complex   '(2)  bf-make-rectangular      make-rectangular       0]
+  [re        '(1)  bf-real-part             real-part              0]
+  [im        '(1)  bf-imag-part             imag-part              0]
+  [conj      '(1)  bf-complex-conjugate     conjugate              0] 
 
   ; TODO : These are different and should be treated differently
   [if       '(3)      if-fn                  if-fn                   65]

@@ -18,6 +18,7 @@
          (complex . #hash((2 . (((real real) complex)))))
          (re . #hash((1 . (((complex) real)))))
          (im . #hash((1 . (((complex) real)))))
+         (conj . #hash((1 . (((complex) complex)))))
          (sqr . #hash((1 . (((real) real)))))
          (cube . #hash((1 . (((real) real)))))
          (acos . #hash((1 . (((real) real)))))

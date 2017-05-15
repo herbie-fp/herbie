@@ -40,7 +40,7 @@
     (mk-pcontext points exacts)))
 
 (define (sorted-context-list context vidx)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (eprintf "pt is ~a and ex is ~a" pt ex) (cons pt ex))
 		   < #:key (compose (curryr list-ref vidx) car))])
     (list (map car p&e) (map cdr p&e))))
 
