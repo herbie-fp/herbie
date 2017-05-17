@@ -10,6 +10,7 @@
 (require "../syntax/distributions.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
+(require "../type-check.rkt")
 
 (module+ test
   (require rackunit))
@@ -47,7 +48,9 @@
   (define vars (program-variables (alt-program (car alts))))
 
   (if critexpr
-      (cons critexpr vars)
+      (if (equal? (type-of critexpr (for/hash ([var vars]) (values var 'real))) 'complex)
+          (list* `(re ,critexpr) `(im ,critexpr) vars)
+          (cons critexpr vars))
       vars))
 
 (define (critical-subexpression prog)

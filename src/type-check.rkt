@@ -1,6 +1,6 @@
 #lang racket
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "op-table.rkt")
-(provide assert-program-type! assert-expression-type!)
+(provide assert-program-type! assert-expression-type! type-of)
 
 ;; Unit tests
 ;; Rewrite expression->type so that expr is a syntax object
@@ -20,6 +20,12 @@
             (error! stx "Expected program of type ~a, got type ~a" expected-rtype actual-rtype))))
   (unless (null? errs)
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
+
+(define (type-of expr env)
+  (expression->type (datum->syntax #f expr) env
+                    (lambda (stx msg . args)
+                      (error "Unexpected call to error! within type-of"
+                             stx (apply format msg args)))))
 
 (define (expression->type stx env error!)
   (match (or (syntax->list stx) (syntax-e stx))
