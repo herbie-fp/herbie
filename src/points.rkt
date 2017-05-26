@@ -2,12 +2,44 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "syntax/distributions.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points prepare-points-period make-exacts
          errors errors-score sorted-context-list sort-context-on-expr
          random-subsample)
+
+(module+ test
+  (require rackunit))
+
+(define (sample-bounded lo hi #:left-closed? [left-closed? #t] #:right-closed? [right-closed? #t])
+  (define lo* (exact->inexact lo))
+  (define hi* (exact->inexact hi))
+  (cond
+   [(> lo* hi*) #f]
+   [(= lo* hi*)
+    (if (and left-closed? right-closed?) lo* #f)]
+   [(< lo* hi*)
+    (define ordinal (- (flonum->ordinal hi*) (flonum->ordinal lo*)))
+    (define num-bits (ceiling (/ (log ordinal) (log 2))))
+    (define random-num (random-exp (inexact->exact num-bits)))
+    (if (or (and (not left-closed?) (equal? 0 random-num))
+            (and (not right-closed?) (equal? ordinal random-num))
+            (> random-num ordinal))
+      ;; Happens with p < .5 so will not loop forever
+      (sample-bounded lo hi #:left-closed? left-closed? #:right-closed? right-closed?)
+      (ordinal->flonum (+ (flonum->ordinal lo*) random-num)))]))
+
+(module+ test
+  (check-true (<= 1.0 (sample-bounded 1 2) 2.0))
+  (let ([a (sample-bounded 1 2 #:left-closed? #f)])
+    (check-true (< 1 a))
+    (check-true (<= a 2)))
+  (check-false (sample-bounded 1 1.0 #:left-closed? #f) "Empty interval due to left openness")
+  (check-false (sample-bounded 1 1.0 #:right-closed? #f) "Empty interval due to right openness")
+  (check-false (sample-bounded 1 1.0 #:left-closed? #f #:right-closed? #f)
+               "Empty interval due to both-openness")
+  (check-false (sample-bounded 2.0 1.0) "Interval bounds flipped"))
 
 (define *pcontext* (make-parameter #f))
 
@@ -113,6 +145,16 @@
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
 
+  (define range-table (condition->range-table precondition))
+
+  (define samplers
+    (for/list ([var (program-variables prog)])
+      (match (range-table-ref range-table var)
+        [#f
+         (raise-herbie-error "No valid values of variable ~a" var #:url "faq.html#no-valid-values")]
+        [(interval lo hi lo? hi?)
+         (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))])))
+
   ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (cond [(> num-loops 200)
@@ -121,7 +163,10 @@
            (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
           [#t
            (let* ([num (- (*num-points*) (length pts))]
-                  [pts1 (for/list ([n (in-range num)]) (for/list ([var (program-variables prog)]) (sample-default)))]
+                  [pts1 (for/list ([n (in-range num)])
+                          (for/list ([var (program-variables prog)]
+                                     [sampler samplers])
+                            (sampler)))]
                   [exs1 (make-exacts prog pts1 precondition)]
                                         ;; Then, we remove the points for which the answers
                                         ;; are not representable

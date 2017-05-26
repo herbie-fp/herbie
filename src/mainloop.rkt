@@ -4,7 +4,6 @@
 (require "glue.rkt")
 (require "programs.rkt")
 (require "points.rkt")
-(require "syntax/distributions.rkt")
 (require "core/localize.rkt")
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")

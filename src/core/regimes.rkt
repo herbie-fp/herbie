@@ -7,7 +7,6 @@
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../syntax/syntax.rkt")
-(require "../syntax/distributions.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
 
@@ -140,9 +139,7 @@
 			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
-							      (program-variables start-prog*))
-                                             'TRUE))])
+			     (prepare-points start-prog* 'TRUE))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)

@@ -5,8 +5,6 @@
 (require "../alternative.rkt")
 (require "../programs.rkt")
 (require "../type-check.rkt")
-(require "../range-analysis.rkt")
-(require "../syntax/distributions.rkt")
 
 (provide (struct-out test) test-program
          load-tests load-file test-target parse-test unparse-test test-successful? test<?)
