@@ -7,8 +7,7 @@
  ["web/demo.rkt" (run-demo)]
  ["reports/run.rkt" (make-report)]
  ["shell.rkt" (run-shell)]
- ["improve.rkt" (run-improve)]
- ["old/herbie.rkt" (run-herbie)])
+ ["improve.rkt" (run-improve)])
 
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
@@ -89,9 +88,10 @@
 
    #:args files
    (begin
-     (eprintf "Deprecated command-line syntax used.\n")
-     (if (null? files)
-         (eprintf "  cmdline::: Use `herbie shell` to use Herbie on the command line\n")
-         (eprintf "  cmdline::: Use `herbie improve` to run Herbie on FPCore files\n"))
-     (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n")
-     (run-herbie files))))
+     (match files
+       ['()
+        (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
+        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" (*herbie-version*))]
+       [(cons tool _)
+        (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
+        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" (*herbie-version*))]))))
