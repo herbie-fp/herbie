@@ -56,11 +56,6 @@
   (printf "  :name ~s\n" (test-name test))
   (unless (equal? (test-precondition test) 'TRUE)
     (printf "  :pre ~a\n" (test-precondition test)))
-  (unless (andmap (curry equal? 'default) (test-sampling-expr test))
-    (printf "  :herbie-samplers ~a\n"
-            (for/list ([var (test-vars test)] [samp (test-sampling-expr test)]
-                       #:unless (equal? samp 'default))
-              (list var samp))))
   (unless (equal? (test-expected test) #t)
     (printf "  :herbie-expected ~a\n" (test-expected test)))
   (when (test-output test) (printf "\n  :target\n  ~a\n\n" (test-output test)))

@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "syntax/distributions.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points prepare-points-period make-exacts
@@ -62,9 +62,6 @@
 		      (+ (* i bucket-width) (* bucket-width (random))))))
 		periods))))
 
-(define (sample sampler)
-  (or (sampler) (sample sampler)))
-
 (define (select-every skip l)
   (let loop ([l l] [count skip])
     (cond
@@ -111,23 +108,23 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points prog samplers precondition)
+(define (prepare-points prog precondition)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
+
   ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (cond [(> num-loops 200)
            (raise-herbie-error "Cannot sample enough valid points." #:url "faq.html#sample-valid-points")]
           [(>= (length pts) (*num-points*))
            (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
-          [#t (let* ([num (- (*num-points*) (length pts))]
-                 [pts1
-                  (for/list ([n (in-range num)])
-                    (for/list ([rec samplers]) (sample (cdr rec))))]
-                 [exs1 (make-exacts prog pts1 precondition)]
-                 ; Then, we remove the points for which the answers
-                 ; are not representable
+          [#t
+           (let* ([num (- (*num-points*) (length pts))]
+                  [pts1 (for/list ([n (in-range num)]) (for/list ([var (program-variables prog)]) (sample-default)))]
+                  [exs1 (make-exacts prog pts1 precondition)]
+                                        ;; Then, we remove the points for which the answers
+                                        ;; are not representable
                  [pts* (filter-points pts1 exs1)]
                  [exs* (filter-exacts pts1 exs1)])
             (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))])))

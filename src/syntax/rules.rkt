@@ -427,7 +427,6 @@
 (module+ test
   (require rackunit math/bigfloat)
   (require "../programs.rkt" "../float.rkt" "distributions.rkt")
-  (define sampler (eval-sampler 'default))
   (define num-test-points 2000)
 
   (define *conditions*
@@ -457,7 +456,7 @@
               (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) mode:bf)
               (const true)))
 
-        (define (make-point) (for/list ([v fv]) (sampler)))
+        (define (make-point) (for/list ([v fv]) (sample-default)))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) mode:bf))

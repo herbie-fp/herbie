@@ -8,7 +8,7 @@
 (require "../range-analysis.rkt")
 (require "../syntax/distributions.rkt")
 
-(provide (struct-out test) test-program test-samplers
+(provide (struct-out test) test-program
          load-tests load-file test-target parse-test unparse-test test-successful? test<?)
 
 (define (test-program test)
@@ -24,16 +24,7 @@
     [(#f #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
-(struct test (name vars sampling-expr input output expected precondition) #:prefab)
-
-(define (test-samplers test)
-  (define range-table (condition->range-table (test-precondition test)))
-  (for/list ([var (test-vars test)] [samp (test-sampling-expr test)])
-    (define intvl (range-table-ref range-table var))
-    (unless intvl
-     (raise-herbie-error "No valid values of variable ~a" var
-                         #:url "faq.html#no-valid-values"))
-    (cons var (eval-sampler samp intvl))))
+(struct test (name vars input output expected precondition) #:prefab)
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -46,13 +37,11 @@
          (if (null? props)
              out
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
-     (define samp-dict (dict-ref prop-dict ':herbie-samplers '()))
-     (define samps (map (lambda (x) (car (dict-ref samp-dict x '(default)))) args))
 
      (define body* (desugar-program body))
 
      (test (~a (dict-ref prop-dict ':name body))
-           args samps
+           args
            body*
            (desugar-program (dict-ref prop-dict ':target #f))
            (dict-ref prop-dict ':herbie-expected #t)

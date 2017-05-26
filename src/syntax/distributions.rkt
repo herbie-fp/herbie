@@ -1,7 +1,7 @@
 #lang racket
 (require "../common.rkt" "../range-analysis.rkt")
 (require math/flonum)
-(provide eval-sampler)
+(provide eval-sampler sample-default)
 
 (module+ test
   (require rackunit))
