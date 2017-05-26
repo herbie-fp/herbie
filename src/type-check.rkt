@@ -22,11 +22,11 @@
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
 
 (define (expression->type stx env error!)
-  (match (or (syntax->list stx) (syntax-e stx))
-    [(or 'TRUE 'FALSE) 'bool]
-    [(? constant? x) 'real]
-    [(? variable? x) (dict-ref env x)]
-    [(list (app syntax-e (? operator? op)) exprs ...)
+  (match stx
+    [(or #`TRUE #`FALSE) 'bool]
+    [#`,(? constant? x) 'real]
+    [#`,(? variable? x) (dict-ref env x)]
+    [#`(,(? operator? op) #,exprs ...)
      (match (get-params op (length exprs))
        [(list '* each-type)
         (for ([arg exprs] [i (in-naturals)])
@@ -40,12 +40,12 @@
             (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) type actual-type)))]
        [_ (error "Operator has no type signature" op (length exprs))])
      (get-rt-type op (length exprs))]
-    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list (app syntax-e id) expr)) ...)) body)
+    [#`(let ((,id #,expr)) ... #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
          (dict-set env2 var (expression->type val env error!))))
      (expression->type body env2 error!)]
-    [(list (app syntax-e 'if) branch ifstmt elsestmt)
+    [#`(if #,branch #,ifstmt #,elsestmt)
      (define branch-type (expression->type branch env error!))
      (unless (equal? branch-type 'bool)
        (error! stx "If statement has non-boolean type for branch ~a" branch-type))

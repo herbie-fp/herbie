@@ -98,28 +98,28 @@
            (program-variables prog)))
 
 (define (check-expression* stx vars error!)
-  (match (or (syntax->list stx) (syntax-e stx))
-    [(? constant?) (void)]
-    [(? variable?)
-     (unless (set-member? vars (syntax-e stx))
-       (error! stx "Unknown variable ~a" (syntax-e stx)))]
-    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list vars* vals)) ...)) body)
+  (match stx
+    [#`,(? constant?) (void)]
+    [#`,(? variable? var)
+     (unless (set-member? vars var)
+       (error! stx "Unknown variable ~a" var))]
+    [#`(let ((#,vars* #,vals) ...) #,body)
      ;; These are unfolded by desugaring
      (for ([var vars*] [val vals])
        (unless (identifier? var)
          (error! var "Invalid variable name ~a" (syntax-e var)))
        (check-expression* val vars error!))
      (check-expression* body (append vars (map syntax-e vars*)) error!)]
-    [(list (app syntax-e (? (curry set-member? '(+ - * /)))) args ...)
+    [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
-    [(list f args ...)
-     (if (hash-has-key? (*operations*) (syntax->datum f))
-         (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
+    [#`(,f #,args ...)
+     (if (hash-has-key? (*operations*) f)
+         (let ([num-args (list-ref (hash-ref (*operations*) f) mode:args)])
            (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                                 (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
-         (error! stx "Unknown operator ~a" (syntax->datum f)))
+                                 f (length args) (string-join (map ~a num-args) " or "))))
+         (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
@@ -165,23 +165,11 @@
     (check-expression* (dict-ref prop-dict ':pre) vars error!))
 
   (when (dict-has-key? prop-dict ':target)
-    (check-expression* (dict-ref prop-dict ':target) vars error!))
-
-  (when (dict-has-key? prop-dict ':herbie-samplers)
-    (let ([stx (dict-ref prop-dict ':herbie-samplers)])
-      (eprintf "Deprecated :herbie-samplers property used.\n")
-      (define file
-        (if (path? (syntax-source stx))
-            (let-values ([(base name dir?) (split-path (syntax-source stx))])
-              (path->string name))
-            (syntax-source stx)))
-      (eprintf "  ~a:~a:~a: Use the :pre property to specify bounds\n" file (or (syntax-line stx) "")
-               (or (syntax-column stx) (syntax-position stx)))
-      (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n"))))
+    (check-expression* (dict-ref prop-dict ':target) vars error!)))
 
 (define (check-program* stx error!)
-  (match (syntax->list stx)
-    [(list (app syntax-e 'FPCore) vars props ... body)
+  (match stx
+    [#`(FPCore #,vars #,props ... #,body)
      (unless (list? (syntax->list vars))
        (error! stx "Invalid arguments list ~a; must be a list" (syntax->datum stx)))
      (when (list? (syntax->list vars))
