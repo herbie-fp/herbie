@@ -82,7 +82,12 @@
   (let* ([locs (localize-error prog)])
     (if (null? locs)
         #f
-        (critical-child (location-get (car locs) prog)))))
+        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
+               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
+          (if (for/or ([(pt ex) (in-pcontext (*pcontext*))])
+                (nan? ((eval-prog candidate-prog mode:fl) pt)))
+              #f
+              candidate-expr)))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
