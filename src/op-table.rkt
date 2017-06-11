@@ -1,13 +1,10 @@
 #lang racket
-; an op-table is a hash table with the name of the functions as keys and (1) either a pair or
-; (2) inner hash table as values.
-; The value is a list if there is only one way to use this function. Then the first element of
-; this pair is the number of arguments and second element is parameter list and third element
-; is the return type
-; e.g. (hash-ref op-table '+) = '(2 ('real 'real) 'real))
-; if there are multiple ways to call this function then the value is an inner hash table
-; e.g. (hash-ref op-table '-) = '#hash((1 . (('real)  'real)) (2 . (('real 'real) 'real)))
-
+; an op-table is a hash table from operator to a hash table
+; from num of args to a list of function signature
+; a function signature have two parts: parameter list and return type
+; a paramter list is either list of parameter types in the order they are passed in
+; or a * followed by one type, which means it takes in an arbitrary number of paramters
+; of that type. A return type is just one type.
 (provide get-sigs argtypes->rtype #|get-params get-rt-type|# operator?)
 
 (define op-table
@@ -19,7 +16,7 @@
          (re . #hash((1 . (((complex) real)))))
          (im . #hash((1 . (((complex) real)))))
          (conj . #hash((1 . (((complex) complex)))))
-         (sqr . #hash((1 . (((real) real)))))
+         (sqr . #hash((1 . (((real) real) ((complex) complex)))))
          (cube . #hash((1 . (((real) real)))))
          (acos . #hash((1 . (((real) real)))))
          (acosh . #hash((1 . (((real) real)))))
@@ -35,7 +32,7 @@
          (cosh . #hash((1 . (((real) real)))))
          (erf . #hash((1 . (((real) real)))))
          (efrc . #hash((1 . (((real) real)))))
-         (exp . #hash((1 . (((real) real)))))
+         (exp . #hash((1 . (((real) real) ((complex) complex)))))
          (exp2 . #hash((1 . (((real) real)))))
          (expm1 . #hash((1 . (((real) real)))))
          (fabs . #hash((1 . (((real) real)))))
@@ -49,18 +46,18 @@
          (j0 . #hash((1 . (((real) real)))))
          (j1 . #hash((1 . (((real) real)))))
          (lgamma . #hash((1 . (((real) real)))))
-         (log . #hash((1 . (((real) real)))))
+         (log . #hash((1 . (((real) real) ((complex) complex)))))
          (log10 . #hash((1 . (((real) real)))))
          (log1p . #hash((1 . (((real) real)))))
          (log2 . #hash((1 . (((real) real)))))
          (logb . #hash((1 . (((real) real)))))
-         (pow . #hash((2 . (((real real) real)))))
+         (pow . #hash((2 . (((real real) real) ((complex complex) complex)))))
          (remainder . #hash((2 . (((real real) real)))))
          (rin . #hash((1 . (((real) real)))))
          (round . #hash((1 . (((real) real)))))
          (sin . #hash((1 . (((real) real)))))
          (sinh . #hash((1 . (((real) real)))))
-         (sqrt . #hash((1 . (((real) real)))))
+         (sqrt . #hash((1 . (((real) real) ((complex) complex)))))
          (tan . #hash((1 . (((real) real)))))
          (tanh . #hash((1 . (((real) real)))))
          (tgamma . #hash((1 . (((real) real)))))
@@ -80,11 +77,11 @@
          ))
 
 (define (get-sigs fun-name num-args)
-  (if (and (hash-has-key? op-table fun-name) (hash-has-key? (hash-ref op-table fun-name) num-args))
-      (hash-ref (hash-ref op-table fun-name) num-args)
-      (if (hash-has-key? (hash-ref op-table fun-name) '*)
-          (hash-ref (hash-ref op-table fun-name) '*)
-          #f)))
+  (cond
+    [(not (hash-has-key? op-table fun-name)) #f]
+    [(hash-has-key? (hash-ref op-table fun-name) num-args) (hash-ref (hash-ref op-table fun-name) num-args)]
+    [(hash-has-key? (hash-ref op-table fun-name) '*) (hash-ref (hash-ref op-table fun-name) '*)]
+    [else #f]))
 
 (define (argtypes->rtype argtypes sig)
   (match sig

@@ -26,6 +26,7 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
+
 (struct shellstate
   (table next-alt locs children gened-series gened-rewrites simplified samplers precondition timeline)
   #:mutable)

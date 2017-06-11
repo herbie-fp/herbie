@@ -4,7 +4,7 @@
 
 (require "../common.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* get-rule)
+(provide (struct-out rule) *complex-rules* rule-valid-at-type? *rules* *simplify-rules* get-rule)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -26,12 +26,12 @@
 	(car results))))
 
 ; Commutativity
-(define-ruleset commutativity (arithmetic simplify)
+(define-ruleset commutativity (arithmetic simplify complex)
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
 ; Associativity
-(define-ruleset associativity (arithmetic simplify)
+(define-ruleset associativity (arithmetic simplify complex)
   [associate-+r+     (+ a (+ b c))         (+ (+ a b) c)]
   [associate-+l+     (+ (+ a b) c)         (+ a (+ b c))]
   [associate-+r-     (+ a (- b c))         (- (+ a b) c)]
@@ -47,18 +47,18 @@
   [associate-/r*     (/ a (* b c))         (/ (/ a b) c)]
   [associate-/l*     (/ (* b c) a)         (/ b (/ a c))]
   [associate-/r/     (/ a (/ b c))         (* (/ a b) c)]
-  [associate-/l/     (/ (/ b c) a)         (/ b (* a c))])
+  [associate-/l/     (/ (/ b c) a)         (/ b (* a c))]
+  [sub-neg           (- a b)               (+ a (- b))]
+  [unsub-neg         (+ a (- b))           (- a b)])
 
 ; Distributivity
-(define-ruleset distributivity (arithmetic simplify)
+(define-ruleset distributivity (arithmetic simplify complex)
   [distribute-lft-in      (* a (+ b c))         (+ (* a b) (* a c))]
   [distribute-rgt-in      (* a (+ b c))         (+ (* b a) (* c a))]
   [distribute-lft-out     (+ (* a b) (* a c))   (* a (+ b c))]
   [distribute-lft-out--   (- (* a b) (* a c))   (* a (- b c))]
   [distribute-rgt-out     (+ (* b a) (* c a))   (* a (+ b c))]
   [distribute-rgt-out--   (- (* b a) (* c a))   (* a (- b c))]
-  [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
-  [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
   [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
   [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
   [distribute-lft-neg-out (* (- a) b)           (- (* a b))]
@@ -66,10 +66,7 @@
   [distribute-neg-in      (- (+ a b))           (+ (- a) (- b))]
   [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
   [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
-  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)]
-  [sum-double             (+ a a)               (* 2 a)]
-  [double-sum             (* 2 a)               (+ a a)])
-
+  [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
   [difference-of-squares (- (sqr a) (sqr b))   (* (+ a b) (- a b))]
@@ -96,11 +93,13 @@
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
   [mul0              (* a 0)               0]
-  [mul-1-neg         (* -1 a)              (- a)])
+  [mul-1-neg         (* -1 a)              (- a)]
+  [sum-double             (+ a a)               (* 2 a)]
+  [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
+  [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
+  [double-sum             (* 2 a)               (+ a a)])
 
 (define-ruleset id-transform (arithmetic)
-  [sub-neg           (- a b)               (+ a (- b))]
-  [unsub-neg         (+ a (- b))           (- a b)]
   [neg-sub0          (- b)                 (- 0 b)]
   [*-un-lft-identity a                     (* 1 a)]
   [div-inv           (/ a b)               (* a (/ 1 b))]
@@ -120,11 +119,11 @@
                     (/ (- (pow a 3) (pow b 3)) (+ (sqr a) (+ (sqr b) (* a b))))])
 
 ; Dealing with fractions
-(define-ruleset fractions-distribute (fractions simplify)
+(define-ruleset fractions-distribute (fractions simplify complex)
   [div-sub     (/ (- a b) c)        (- (/ a c) (/ b c))]
   [times-frac  (/ (* a b) (* c d))  (* (/ a c) (/ b d))])
 
-(define-ruleset fractions-transform (fractions)
+(define-ruleset fractions-transform (fractions complex)
   [sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)]
   [frac-add    (+ (/ a b) (/ c d))  (/ (+ (* a d) (* b c)) (* b d))]
   [frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))]
@@ -424,6 +423,22 @@
   [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
+
+(define (rule-valid-at-type? rule type)
+  (match type
+    ['complex (set-member? (for/set ([r (*complex-rules*)]) (values (rule-name r))) (rule-name rule))]
+    ['real #t]
+    [_ #f]))
+
+(module+ test
+  (for ([r (*complex-rules*)])
+    (check-equal? #t (rule-valid-at-type? r 'complex)))
+  (for ([r (*rules*)])
+    (check-equal? #t (rule-valid-at-type? r 'real))))
+
+(define (*complex-rules*)
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
+    (if (set-member? groups 'complex) rules '())))
 
 (define (*rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])

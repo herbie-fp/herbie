@@ -149,6 +149,26 @@
 (define (bf-complex-conjugate x)
   (cons (bf-real-part x) (bf- (bf-imag-part x))))
 
+(define (bf-complex-sqr x)
+  (bf-complex-mult x x))
+
+(define (bf-complex-exp x)
+  (match-define (cons re im) x)
+  (define scale (bfexp re))
+  (cons (bf* scale (bfcos im)) (bf* scale (bfsin im))))
+
+(define (bf-complex-log x)
+  (match-define (cons re im) x)
+  (define mag (bfhypot re im))
+  (define arg (bfatan2 re im))
+  (cons (bflog mag) arg))
+
+(define (bf-complex-sqrt x)
+  (bf-complex-pow x (cons (bf 0.5) 0.bf)))
+
+(define (bf-complex-pow x n)
+  (bf-complex-exp (bf-complex-mult n (bf-complex-log x))))
+
 (define (bf-complex-div x y)
   (define numer (bf-complex-mult x (bf-complex-conjugate y)))
   (define denom (bf-complex-mult y (bf-complex-conjugate y)))
@@ -162,15 +182,30 @@
       [(list (? pair?) ...)
        (apply bf-complex-fun args)])))
 
+(define exp-for-type
+  (lambda arg
+    (match arg
+      [(list (? real?))
+       (apply _flexp arg)]
+      [(list (? complex?))
+       (apply exp arg)])))
+
 (define exact+ (make-exact-fun bf+ bf-complex-add))
 (define exact- (make-exact-fun bf- bf-complex-sub))
 (define exact* (make-exact-fun bf* bf-complex-mult))
 (define exact/ (make-exact-fun bf/ bf-complex-div))
+(define exact-exp (make-exact-fun bfexp bf-complex-exp))
+(define exact-log (make-exact-fun bflog bf-complex-log))
+(define exact-pow (make-exact-fun bfexpt bf-complex-pow))
+(define exact-sqr (make-exact-fun bfsqr bf-complex-sqr))
+(define exact-sqrt (make-exact-fun bfsqrt bf-complex-sqrt))
 
 (module+ test
   (require rackunit)
   (check-equal? (bf-complex-mult (cons (bf 5) (bf 2)) (cons (bf 7) (bf 12))) (cons (bf 11) (bf 74)))
-  (check-equal? (bf-complex-div (cons (bf 5) (bf 2)) (cons (bf 7) (bf 4))) (cons (bf 43/65) (bf -6/65))))
+  (check-equal? (bf-complex-div (cons (bf 5) (bf 2)) (cons (bf 7) (bf 4))) (cons (bf 43/65) (bf -6/65)))
+  (check-equal? (bf-complex-pow (cons (bf 2) (bf 3)) 3) (cons (bf (- 46)) (bf 9)))
+  (check-equal? (bf-complex-pow (cons (bf 2) (bf 3)) 4) (cons (bf (- 119)) (bf (- 120)))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -195,7 +230,7 @@
   [*  '(2)    exact*  *  40]
   [/  '(2)    exact/  /  40]
 
-  [sqr    '(1)  bfsqr   _flsqr     40]
+  [sqr    '(1)  exact-sqr   _flsqr     40]
   [cube   '(1)  bfcube  _flcube    80]
 
   [acos      '(1)  bfacos       _flacos        90]
@@ -212,7 +247,7 @@
   [cosh      '(1)  bfcosh       _flcosh        55]
   [erf       '(1)  bferf        _flerf         70]
   [erfc      '(1)  bferfc       _flerfc        70]
-  [exp       '(1)  bfexp        _flexp         70]
+  [exp       '(1)  exact-exp    exp-for-type   70]
   [exp2      '(1)  bfexp2       _flexp2        70]
   [expm1     '(1)  bfexpm1      _flexpm1       70]
   [fabs      '(1)  bfabs        _flfabs        40]
@@ -226,18 +261,18 @@
   [j0        '(1)  bfbesj0      _flj0          55]
   [j1        '(1)  bfbesj1      _flj1          55]
   [lgamma    '(1)  bflog-gamma  _fllgamma      55]
-  [log       '(1)  bflog        _fllog         70]
+  [log       '(1)  exact-log    _fllog         70]
   [log10     '(1)  bflog10      _fllog10       70]
   [log1p     '(1)  bflog1p      _fllog1p       90]
   [log2      '(1)  bflog2       _fllog2        70]
   [logb      '(1)  bflogb       _fllogb        70]
-  [pow       '(2)  bfexpt       _flpow        210]
+  [pow       '(2)  exact-pow    _flpow        210]
   [remainder '(2)  bfremainder  _flremainder   70]
   [rint      '(1)  bfrint       _flrint        70]
   [round     '(1)  bfround      _flround       70]
   [sin       '(1)  bfsin        _flsin         60]
   [sinh      '(1)  bfsinh       _flsinh        55]
-  [sqrt      '(1)  bfsqrt       _flsqrt        40]
+  [sqrt      '(1)  exact-sqrt   _flsqrt        40]
   [tan       '(1)  bftan        _fltan         95]
   [tanh      '(1)  bftanh       _fltanh        55]
   [tgamma    '(1)  bfgamma      _fltgamma      55]

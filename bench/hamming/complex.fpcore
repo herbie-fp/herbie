@@ -1,0 +1,33 @@
+; -*- mode: scheme -*-
+
+#;(FPCore (xre xim)
+  :name "exp with complex power real part (p55)"
+  (let ([x (complex xre xim)])
+    (re (/ (+ (exp x) (exp (- x))) (complex 2 0)))))
+
+(FPCore (xre xim)
+  :name "exp with complex power imaginary part (p55)"
+  (let ([x (complex xre xim)])
+    (im (/ (+ (exp x) (exp (- x))) (complex 2 0)))))
+
+(FPCore (x y)
+  :name "Euler formula real part (p55)"
+  (let ([a (/ (+ (exp x) (exp (- x))) 2)]
+	[b (/ (- (exp x) (exp (- x))) 2)])
+    (re (complex (* a (cos y)) (* b (sin y))))))
+
+(FPCore (x y)
+  :name "Euler formula imaginary part (p55)"
+  (let ([a (/ (+ (exp x) (exp (- x))) 2)]
+	[b (/ (- (exp x) (exp (- x))) 2)])
+    (im (complex (* a (cos y)) (* b (sin y))))))
+
+(FPCore (xre xim)
+ :name "3.9.1 (p56)"
+ (let ([x (complex xre xim)])
+   (re (+ (* x x x x x x) (* (complex 6 0) x x x x x) (* (complex 15 0) x x x x) (* (complex 20 0) x x x) (* (complex 15 0)x x) (* (complex 6 0) x) (complex 1 0)))))
+
+(FPCore (xre xim)
+ :name "3.9.2 (p56)"
+ (let ([x (complex xre xim)])
+   (re (+ (* x x x x) (* (complex (- 2) 0) x x x) (* (complex 5 0) x x) (* (complex 4 0) x) (complex 7 0)))))

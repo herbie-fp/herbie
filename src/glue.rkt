@@ -12,6 +12,7 @@
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")
 (require "core/matcher.rkt")
+(require  "type-check.rkt")
 
 (provide remove-pows setup-prog post-process
          split-table extract-alt combine-alts
@@ -141,17 +142,22 @@
 
 (define (taylor-alt altn loc)
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
-  (for/list ([transform transforms-to-try])
-    (match transform
-      [(list name f finv)
-       (alt-add-event
-        (make-delta altn
-		    (location-do loc (alt-program altn)
-				 (λ (expr) (let ([fv (free-variables expr)])
-					     (if (null? fv) expr
-						 (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
-		    'taylor)
-        `(taylor ,name ,loc))])))
+  (define expr (location-get loc (alt-program altn)))
+  (match (type-of expr (for/hash ([var (free-variables expr)]) (values var 'real)))
+    ['real
+     (for/list ([transform transforms-to-try])
+       (match transform
+         [(list name f finv)
+          (alt-add-event
+           (make-delta altn
+                       (location-do loc (alt-program altn)
+                                    (λ (expr) (let ([fv (free-variables expr)])
+                                                (if (null? fv) expr
+                                                    (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+                       'taylor)
+           `(taylor ,name ,loc))]))]
+    ['complex
+     (list altn)]))
 
 (define (make-delta old-alt new-prog name)
   (alt-delta new-prog (change (rule name (alt-program old-alt) new-prog) '()

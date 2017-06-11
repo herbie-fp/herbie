@@ -114,7 +114,8 @@
   (define (find-matches ens)
     (filter (negate null?)
 	    (for*/list ([rl rls]
-			[en ens])
+			[en ens]
+                        #:when (rule-valid-at-type? rl (enode-type en)))
 	      (if (rule-applied? en rl) '()
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
