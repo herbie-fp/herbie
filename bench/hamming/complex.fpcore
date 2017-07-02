@@ -1,6 +1,6 @@
 ; -*- mode: scheme -*-
 
-#;(FPCore (xre xim)
+(FPCore (xre xim)
   :name "exp with complex power real part (p55)"
   (let ([x (complex xre xim)])
     (re (/ (+ (exp x) (exp (- x))) (complex 2 0)))))

@@ -182,13 +182,14 @@
       [(list (? pair?) ...)
        (apply bf-complex-fun args)])))
 
+(require (only-in racket/base [exp e]))
 (define exp-for-type
   (lambda arg
     (match arg
       [(list (? real?))
        (apply _flexp arg)]
       [(list (? complex?))
-       (apply exp arg)])))
+       (apply e arg)])))
 
 (define exact+ (make-exact-fun bf+ bf-complex-add))
 (define exact- (make-exact-fun bf- bf-complex-sub))
