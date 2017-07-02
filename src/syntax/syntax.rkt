@@ -160,7 +160,7 @@
 (define (bf-complex-log x)
   (match-define (cons re im) x)
   (define mag (bfhypot re im))
-  (define arg (bfatan2 re im))
+  (define arg (bfatan2 im re))
   (cons (bflog mag) arg))
 
 (define (bf-complex-sqrt x)
@@ -202,11 +202,14 @@
 (define exact-sqrt (make-exact-fun bfsqrt bf-complex-sqrt))
 
 (module+ test
+  (define (bf-complex-eq-approx bf1 bf2)
+    (check-equal? (bfround (car bf1)) (bfround (car bf2)))
+    (check-equal? (bfround (cdr bf1)) (bfround (cdr bf2))))
   (require rackunit)
   (check-equal? (bf-complex-mult (cons (bf 5) (bf 2)) (cons (bf 7) (bf 12))) (cons (bf 11) (bf 74)))
   (check-equal? (bf-complex-div (cons (bf 5) (bf 2)) (cons (bf 7) (bf 4))) (cons (bf 43/65) (bf -6/65)))
-  (check-equal? (bf-complex-pow (cons (bf 2) (bf 3)) 3) (cons (bf (- 46)) (bf 9)))
-  (check-equal? (bf-complex-pow (cons (bf 2) (bf 3)) 4) (cons (bf (- 119)) (bf (- 120)))))
+  (bf-complex-eq-approx (bf-complex-pow (cons (bf 2) (bf 3)) (cons (bf 3) (bf 0))) (cons (bf (- 46)) (bf 9)))
+  (bf-complex-eq-approx (bf-complex-pow (cons (bf 2) (bf 3)) (cons (bf 4) (bf 0))) (cons (bf (- 119)) (bf (- 120)))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
