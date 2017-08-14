@@ -22,12 +22,22 @@
 	[b (/ (- (exp x) (exp (- x))) 2)])
     (im (complex (* a (cos y)) (* b (sin y))))))
 
-(FPCore (xre xim)
- :name "3.9.1 (p56)"
- (let ([x (complex xre xim)])
-   (re (+ (* x x x x x x) (* (complex 6 0) x x x x x) (* (complex 15 0) x x x x) (* (complex 20 0) x x x) (* (complex 15 0)x x) (* (complex 6 0) x) (complex 1 0)))))
+(FPCore ()
+ :name "3.9.1 real part (p56)"
+ (let ([x (complex -1 1)])
+   (re (+ (* x x x x x x) (* (complex 6 0) x x x x x) (* (complex 15 0) x x x x) (* (complex 20 0) x x x) (* (complex 15 0) x x) (* (complex 6 0) x) (complex 1 0)))))
 
-(FPCore (xre xim)
- :name "3.9.2 (p56)"
- (let ([x (complex xre xim)])
+(FPCore ()
+ :name "3.9.1 imaginary part (p56)"
+ (let ([x (complex -1 1)])
+   (im (+ (* x x x x x x) (* (complex 6 0) x x x x x) (* (complex 15 0) x x x x) (* (complex 20 0) x x x) (* (complex 15 0) x x) (* (complex 6 0) x) (complex 1 0)))))
+
+(FPCore ()
+ :name "3.9.2 real part (p56)"
+ (let ([x (complex (/ (- 1) 2) (/ (sqrt 3) 2))])
    (re (+ (* x x x x) (* (complex (- 2) 0) x x x) (* (complex 5 0) x x) (* (complex 4 0) x) (complex 7 0)))))
+
+(FPCore ()
+ :name "3.9.2 imaginary part (p56)"
+ (let ([x (complex (/ (- 1) 2) (/ (sqrt 3) 2))])
+   (im (+ (* x x x x) (* (complex (- 2) 0) x x x) (* (complex 5 0) x x) (* (complex 4 0) x) (complex 7 0)))))
