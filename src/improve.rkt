@@ -2,6 +2,10 @@
 (require "formats/datafile.rkt" "reports/thread-pool.rkt" "formats/test.rkt" "common.rkt" "sandbox.rkt" "alternative.rkt")
 (provide run-improve)
 
+(define (build-fpcore test expr)
+  (define vars (test-vars test))
+  `(FPCore ,vars :name ,(test-name test) :pre ,(test-precondition test) ,expr))
+
 (define (print-outputs tests results p #:seed [seed #f])
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
@@ -10,13 +14,16 @@
     (match status
       [(? test-failure?)
        (fprintf p ";; Crash in ~a\n" name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
+       (write (build-fpcore test input) p)
+       (newline p)]
       [(? test-timeout?)
        (fprintf p ";; ~a times out in ~as\n"
                 (/ (*timeout*) 1000) name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
+       (write (build-fpcore test input) p)
+       (newline p)]
       [_
-       (fprintf p "~a\n" `(FPCore ,vars ,output))])))
+       (write (build-fpcore test output) p)
+       (newline p)])))
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
