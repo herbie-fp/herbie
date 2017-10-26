@@ -147,7 +147,7 @@
   [sqrt-div          (sqrt (/ x y))         (/ (sqrt x) (sqrt y))]
   [sqrt-unprod       (* (sqrt x) (sqrt y))  (sqrt (* x y))]
   [sqrt-undiv        (/ (sqrt x) (sqrt y))  (sqrt (/ x y))]
-  [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))]
+  [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))])
 
 ;;  should no longer introduce `sqr`
 ;;  [square-unprod     (* (* x x) (* y y))    (sqr (* x y))]
