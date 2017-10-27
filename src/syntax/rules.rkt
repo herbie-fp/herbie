@@ -158,27 +158,27 @@
 
 ; Cube root
 (define-ruleset cubes-reduce (arithmetic simplify)
-  [rem-cube-cbrt     (cube (cbrt x))     x]
-  [rem-cbrt-cube     (cbrt (cube x))     x]
-  [cube-neg          (cube (- x))        (- (cube x))])
+  [rem-cube-cbrt     (* (cbrt x) (cbrt x) (cbrt x)) x]
+  [rem-cbrt-cube     (cbrt (* x x x))               x]
+  [cube-neg          (* (- x) (- x) (- x))          (- (* x x x))])
 
 (define-ruleset cubes-distribute (arithmetic simplify)
-  [cube-prod       (cube (* x y))      (* (cube x) (cube y))]
-  [cube-div        (cube (/ x y))      (/ (cube x) (cube y))]
-  [cube-mult       (cube x)            (* x (* x x))])
+  [cube-prod       (* (* x y) (* x y) (* x y))      (* (* x x x) (* y y y))]
+  [cube-div        (* (/ x y) (/ x y) (/ x y))      (/ (* x x x) (* y y y))]
+  [cube-mult       (* x x x)                        (* x (* x x))])
 
 (define-ruleset cubes-transform (arithmetic)
-  [cbrt-prod         (cbrt (* x y))         (* (cbrt x) (cbrt y))]
-  [cbrt-div          (cbrt (/ x y))         (/ (cbrt x) (cbrt y))]
-  [cbrt-unprod       (* (cbrt x) (cbrt y))  (cbrt (* x y))]
-  [cbrt-undiv        (/ (cbrt x) (cbrt y))  (cbrt (/ x y))]
-  [add-cube-cbrt     x                      (cube (cbrt x))]
-  [add-cbrt-cube     x                      (cbrt (cube x))]
-  [cube-unprod       (* (cube x) (cube y))  (cube (* x y))]
-  [cube-undiv        (/ (cube x) (cube y))  (cube (/ x y))])
+  [cbrt-prod         (cbrt (* x y))           (* (cbrt x) (cbrt y))]
+  [cbrt-div          (cbrt (/ x y))           (/ (cbrt x) (cbrt y))]
+  [cbrt-unprod       (* (cbrt x) (cbrt y))    (cbrt (* x y))]
+  [cbrt-undiv        (/ (cbrt x) (cbrt y))    (cbrt (/ x y))]
+  [add-cube-cbrt     x                        (* (cbrt x) (cbrt x) (cbrt x))]
+  [add-cbrt-cube     x                        (cbrt (* x x x))]
+  [cube-unprod       (* (* x x x) (* y y y))  (* (* x y) (* x y) (* x y))]
+  [cube-undiv        (/ (* x x x) (* y y y))  (* (/ x y) (/ x y) (/ x y))])
 
 (define-ruleset cubes-canonicalize (arithmetic simplify)
-  [cube-unmult       (* x (* x x))          (cube x)])
+  [cube-unmult       (* x (* x x))          (* x x x)])
 
 ; Exponentials
 (define-ruleset exp-expand (exponents)
@@ -206,7 +206,7 @@
   [exp-sqrt     (exp (/ a 2))        (sqrt (exp a))]
   [exp-cbrt     (exp (/ a 3))        (cbrt (exp a))]
   [exp-lft-sqr  (exp (* a 2))        (* (exp a) (exp a))]
-  [exp-lft-cube (exp (* a 3))        (cube (exp a))])
+  [exp-lft-cube (exp (* a 3))        (* (exp a) (exp a) (exp a))])
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
@@ -222,7 +222,7 @@
   [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
   [unpow2          (pow a 2)                  (* a a)]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
-  [unpow3          (pow a 3)                  (cube a)]
+  [unpow3          (pow a 3)                  (* a a a)]
   [unpow1/3        (pow a 1/3)                (cbrt a)] )
 
 (define-ruleset pow-transform (exponents)
@@ -242,7 +242,7 @@
   [pow1/2           (sqrt a)                    (pow a 1/2)]
   [pow2             (* a a)                     (pow a 2)]
   [pow1/3           (cbrt a)                    (pow a 1/3)]
-  [pow3             (cube a)                    (pow a 3)])
+  [pow3             (* a a a)                   (pow a 3)])
 
 ; Logarithms
 (define-ruleset log-distribute (exponents simplify)
@@ -294,36 +294,36 @@
   [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
 
 (define-ruleset trig-expand (trigonometry)
-  [sqr-sin     (* (sin x) (sin x))          (- 1 (* (cos x) (cos x)))]
-  [sqr-cos     (* (cos x) (cos x))          (- 1 (* (sin x) (sin x)))]
-  [sin-sum     (sin (+ x y))          (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
-  [cos-sum     (cos (+ x y))          (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
-  [tan-sum     (tan (+ x y))          (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
-  [sin-diff    (sin (- x y))          (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
-  [cos-diff    (cos (- x y))          (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
-  [sin-2       (sin (* 2 x))          (* 2 (* (sin x) (cos x)))]
-  [sin-3       (sin (* 3 x))          (- (* 3 (sin x)) (* 4 (cube (sin x))))]
+  [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
+  [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))]
+  [sin-sum     (sin (+ x y))             (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
+  [cos-sum     (cos (+ x y))             (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [tan-sum     (tan (+ x y))             (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
+  [sin-diff    (sin (- x y))             (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
+  [cos-diff    (cos (- x y))             (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [sin-2       (sin (* 2 x))             (* 2 (* (sin x) (cos x)))]
+  [sin-3       (sin (* 3 x))             (- (* 3 (sin x)) (* 4 (* (sin x) (sin x) (sin x))))]
   [2-sin       (* 2 (* (sin x) (cos x))) (sin (* 2 x))]
-  [3-sin       (- (* 3 (sin x)) (* 4 (cube (sin x)))) (sin (* 3 x))]
-  [cos-2       (cos (* 2 x))          (- (* (cos x) (cos x)) (* (sin x) (sin x)))]
-  [cos-3       (cos (* 3 x))          (- (* 4 (cube (cos x))) (* 3 (cos x)))]
-  [2-cos       (- (* (cos x) (cos x)) (* (sin x) (sin x))) (cos (* 2 x))]
-  [3-cos       (- (* 4 (cube (cos x))) (* 3 (cos x))) (cos (* 3 x))]
-  [tan-2       (tan (* 2 x))          (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
-  [2-tan       (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
-  [sqr-sin     (* (sin x) (sin x))          (- 1/2 (* 1/2 (cos (* 2 x))))]
-  [sqr-cos     (* (cos x) (cos x))          (+ 1/2 (* 1/2 (cos (* 2 x))))]
-  [diff-sin    (- (sin x) (sin y))    (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
-  [diff-cos    (- (cos x) (cos y))    (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
-  [sum-sin     (+ (sin x) (sin y))    (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
-  [sum-cos     (+ (cos x) (cos y))    (* 2 (* (cos (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
-  [cos-mult    (* (cos x) (cos y))    (/ (+ (cos (+ x y)) (cos (- x y))) 2)]
-  [sin-mult    (* (sin x) (sin y))    (/ (- (cos (- x y)) (cos (+ x y))) 2)]
-  [sin-cos-mult (* (sin x) (cos y))   (/ (+ (sin (- x y)) (sin (+ x y))) 2)]
-  [diff-atan   (- (atan x) (atan y))  (atan2 (- x y) (+ 1 (* x y)))]
-  [sum-atan    (+ (atan x) (atan y))  (atan2 (+ x y) (- 1 (* x y)))]
-  [tan-quot    (tan x)                (/ (sin x) (cos x))]
-  [quot-tan    (/ (sin x) (cos x))    (tan x)])
+  [3-sin       (- (* 3 (sin x))          (* 4 (* (sin x) (sin x) (sin x)))) (sin (* 3 x))]
+  [cos-2       (cos (* 2 x))             (- (* (cos x) (cos x)) (* (sin x) (sin x)))]
+  [cos-3       (cos (* 3 x))             (- (* 4 (* (cos x) (cos x) (cos x))) (* 3 (cos x)))]
+  [2-cos       (- (* (cos x) (cos x))    (* (sin x) (sin x))) (cos (* 2 x))]
+  [3-cos       (- (* 4 (* (cos x) (cos x) (cos x))) (* 3 (cos x))) (cos (* 3 x))]
+  [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
+  [2-tan       (/ (* 2 (tan x))          (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
+  [sqr-sin     (* (sin x) (sin x))       (- 1/2 (* 1/2 (cos (* 2 x))))]
+  [sqr-cos     (* (cos x) (cos x))       (+ 1/2 (* 1/2 (cos (* 2 x))))]
+  [diff-sin    (- (sin x) (sin y))       (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
+  [diff-cos    (- (cos x) (cos y))       (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
+  [sum-sin     (+ (sin x) (sin y))       (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
+  [sum-cos     (+ (cos x) (cos y))       (* 2 (* (cos (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
+  [cos-mult    (* (cos x) (cos y))       (/ (+ (cos (+ x y)) (cos (- x y))) 2)]
+  [sin-mult    (* (sin x) (sin y))       (/ (- (cos (- x y)) (cos (+ x y))) 2)]
+  [sin-cos-mult (* (sin x) (cos y))      (/ (+ (sin (- x y)) (sin (+ x y))) 2)]
+  [diff-atan   (- (atan x) (atan y))     (atan2 (- x y) (+ 1 (* x y)))]
+  [sum-atan    (+ (atan x) (atan y))     (atan2 (+ x y) (- 1 (* x y)))]
+  [tan-quot    (tan x)                   (/ (sin x) (cos x))]
+  [quot-tan    (/ (sin x) (cos x))       (tan x)])
 
 (define-ruleset atrig-expand (trigonometry)
   [sin-asin    (sin (asin x))         x]
