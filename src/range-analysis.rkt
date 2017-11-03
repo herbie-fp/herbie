@@ -219,6 +219,8 @@
      (make-range-table var (make-interval num +inf.0 #t #f))]
     [(list (and (or '< '<= '== '>= '>) cmp) (? number? num) var) ; don't check for variable? here b/c fabs
      (condition->range-table (list (flip-cmp cmp) var num))]
+    [(list (and (or '< '<= '== '>= '>) cmp) _ _) ; handle case of complex expressions
+     (make-empty-range-table)]
     [(list (and (or '< '<= '> '>=) cmp) exprs ...)
      (if (not (equal? (filter number? exprs) (sort (filter number? exprs) (parse-cmp cmp))))
        #f
