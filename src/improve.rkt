@@ -10,18 +10,18 @@
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
   (for ([res results] [test tests])
-    (match-define (table-row name status start result target inf- inf+ result-elt vars input output time bits link) res)
+    (match-define (table-row name status start result target inf- inf+ result-est vars input output time bits link) res)
     (match status
-      [(? test-failure?)
+      ["crash"
        (fprintf p ";; Crash in ~a\n" name)
        (write (build-fpcore test input) p)
        (newline p)]
-      [(? test-timeout?)
+      ["timeout"
        (fprintf p ";; ~a times out in ~as\n"
                 (/ (*timeout*) 1000) name)
        (write (build-fpcore test input) p)
        (newline p)]
-      [_
+      [(? string?)
        (write (build-fpcore test output) p)
        (newline p)])))
 
