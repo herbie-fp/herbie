@@ -83,8 +83,9 @@
         #f
         (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
                [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
-          (if (for/or ([(pt ex) (in-pcontext (*pcontext*))])
-                (nan? ((eval-prog candidate-prog mode:fl) pt)))
+          (if (and candidate-expr
+                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
+                     (nan? ((eval-prog candidate-prog mode:fl) pt))))
               #f
               candidate-expr)))))
 
