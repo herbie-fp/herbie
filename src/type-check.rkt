@@ -40,7 +40,7 @@
             (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) type actual-type)))]
        [_ (error "Operator has no type signature" op (length exprs))])
      (get-rt-type op (length exprs))]
-    [#`(let ((,id #,expr)) ... #,body)
+    [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
          (dict-set env2 var (expression->type val env error!))))
