@@ -37,7 +37,8 @@
       (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
                        (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
                          (inductor arg (cons idx location))))
-		 (reverse location))]))
+		 (reverse location))]
+     [else (error (format "Invalid program ~a" prog))]))
   (inductor prog '()))
 
 (define (location-hash prog)
@@ -80,7 +81,8 @@
 		       (map inductor (cdr prog))))]
      [(list? prog)
       (primitive (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]))
+		       (map inductor (cdr prog))))]
+     [else (error (format "Invalid program ~a" prog))]))
 
   (inductor prog))
 
