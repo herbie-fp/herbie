@@ -36,14 +36,12 @@
              out
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
 
-     (define body* (desugar-program body))
-
      (test (~a (dict-ref prop-dict ':name body))
            args
-           body*
+           (desugar-program body)
            (desugar-program (dict-ref prop-dict ':target #f))
            (dict-ref prop-dict ':herbie-expected #t)
-           (dict-ref prop-dict ':pre 'TRUE))]
+           (desugar-program (dict-ref prop-dict ':pre 'TRUE)))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
      (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
                          #:url "input.html")]
