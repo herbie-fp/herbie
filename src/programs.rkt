@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat math/flonum)
+(require math/bigfloat math/flonum syntax/id-set)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
@@ -103,7 +103,7 @@
   (match stx
     [#`,(? constant?) (void)]
     [#`,(? variable? var)
-     (unless (set-member? vars var)
+     (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]
     [#`(let ((#,vars* #,vals) ...) #,body)
      ;; These are unfolded by desugaring
@@ -111,7 +111,7 @@
        (unless (identifier? var)
          (error! var "Invalid variable name ~a" var))
        (check-expression* val vars error!))
-     (check-expression* body (append vars (map syntax-e vars*)) error!)]
+     (check-expression* body (bound-id-set-union vars (immutable-bound-id-set vars*)) error!)]
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
@@ -160,7 +160,7 @@
     (unless (list? (syntax-e cite))
       (error! cite "Invalid :cite ~a; must be a list" cite))
     (when (list? (syntax-e cite))
-      (for ([citation (syntax->list cite)] #:unless (identifier? citation))
+      (for ([citation (syntax-e cite)] #:unless (identifier? citation))
         (error! citation "Invalid citation ~a; must be a variable name" citation))))
 
   (when (dict-has-key? prop-dict ':pre)
@@ -172,15 +172,15 @@
 (define (check-program* stx error!)
   (match stx
     [#`(FPCore #,vars #,props ... #,body)
-     (unless (list? (syntax->list vars))
+     (unless (list? (syntax-e vars))
        (error! stx "Invalid arguments list ~a; must be a list" stx))
-     (when (list? (syntax->list vars))
-       (for ([var (syntax->list vars)] #:unless (identifier? var))
+     (when (list? (syntax-e vars))
+       (for ([var (syntax-e vars)] #:unless (identifier? var))
          (error! stx "Argument ~a is not a variable name" stx))
-       (when (check-duplicate-identifier (syntax->list vars))
+       (when (check-duplicate-identifier (syntax-e vars))
          (error! stx "Duplicate argument name ~a"
-                 (check-duplicate-identifier (syntax->list vars)))))
-     (define vars* (if (list? (syntax->datum vars)) (syntax->datum vars) '()))
+                 (check-duplicate-identifier (syntax-e vars)))))
+     (define vars* (immutable-bound-id-set (if (list? (syntax-e vars)) (syntax-e vars) '())))
      (check-properties* props vars* error!)
      (check-expression* body vars* error!)]
     [_ (error! stx "Unknown syntax ~a" stx)]))
