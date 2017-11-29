@@ -57,7 +57,7 @@
 
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
- (- (pow (+ x 1) (/ 1 3)) (pow x (/ 1 3))))
+ (- (cbrt (+ x 1)) (cbrt x)))
 
 (FPCore (x eps)
  :name "2cos (problem 3.3.5)"
