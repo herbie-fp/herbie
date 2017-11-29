@@ -159,17 +159,14 @@
 
 ; Cube root
 (define-ruleset cubes-reduce (arithmetic simplify)
-  [rem-cube-cbrt     (* (* (cbrt x) (cbrt x)) (cbrt x)) x]
-  [rem-cbrt-cube     (cbrt (* (* x x) x))               x]
-  [cube-neg          (* (* (- x) (- x)) (- x))          (- (* (* x x) x))])
+  [rem-cube-cbrt     (pow (cbrt x) 3) x]
+  [rem-cbrt-cube     (cbrt (pow x 3)) x]
+  [cube-neg          (pow (- x) 3)    (- (pow x 3))])
 
 (define-ruleset cubes-distribute (arithmetic simplify)
-  [cube-prod       (* (* (* x y) (* x y)) (* x y))
-                   (* (* (* x x) x) (* (* y y) y))]
-  [cube-div        (* (* (/ x y) (/ x y)) (/ x y))
-                   (/ (* (* x x) x) (* (* y y) y))]
-  [cube-mult       (* (* x x) x)
-                   (* x (* x x))])
+  [cube-prod       (pow (* x y) 3) (* (pow x 3) (pow y 3))]
+  [cube-div        (pow (/ x y) 3) (/ (pow x 3) (pow y 3))]
+  [cube-mult       (pow x 3)       (* x (* x x))])
 
 (define-ruleset cubes-transform (arithmetic)
   [cbrt-prod         (cbrt (* x y))           (* (cbrt x) (cbrt y))]
@@ -177,14 +174,10 @@
   [cbrt-unprod       (* (cbrt x) (cbrt y))    (cbrt (* x y))]
   [cbrt-undiv        (/ (cbrt x) (cbrt y))    (cbrt (/ x y))]
   [add-cube-cbrt     x                        (* (* (cbrt x) (cbrt x)) (cbrt x))]
-  [add-cbrt-cube     x                        (cbrt (* (* x x) x))]
-  [cube-unprod       (* (* (* x x) x) (* (* y y) y))
-                     (* (* (* x y) (* x y)) (* x y))]
-  [cube-undiv        (/ (* (* x x) x) (* (* y y) y))
-                     (* (* (/ x y) (/ x y)) (/ x y))])
+  [add-cbrt-cube     x                        (cbrt (* (* x x) x))])
 
 (define-ruleset cubes-canonicalize (arithmetic simplify)
-  [cube-unmult       (* x (* x x))          (* (* x x) x)])
+  [cube-unmult       (* x (* x x))          (pow x 3)])
 
 ; Exponentials
 (define-ruleset exp-expand (exponents)
@@ -212,7 +205,7 @@
   [exp-sqrt     (exp (/ a 2))        (sqrt (exp a))]
   [exp-cbrt     (exp (/ a 3))        (cbrt (exp a))]
   [exp-lft-sqr  (exp (* a 2))        (* (exp a) (exp a))]
-  [exp-lft-cube (exp (* a 3))        (* (* (exp a) (exp a)) (exp a))])
+  [exp-lft-cube (exp (* a 3))        (pow (exp a) 3)])
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
@@ -310,18 +303,18 @@
   [sin-2       (sin (* 2 x))
                (* 2 (* (sin x) (cos x)))]
   [sin-3       (sin (* 3 x))
-               (- (* 3 (sin x)) (* 4 (* (* (sin x) (sin x)) (sin x))))]
+               (- (* 3 (sin x)) (* 4 (pow (sin x) 3)))]
   [2-sin       (* 2 (* (sin x) (cos x)))
                (sin (* 2 x))]
-  [3-sin       (- (* 3 (sin x)) (* 4 (* (* (sin x) (sin x)) (sin x))))
+  [3-sin       (- (* 3 (sin x)) (* 4 (pow (sin x) 3)))
                (sin (* 3 x))]
   [cos-2       (cos (* 2 x))
                (- (* (cos x) (cos x)) (* (sin x) (sin x)))]
   [cos-3       (cos (* 3 x))
-               (- (* 4 (* (* (cos x) (cos x)) (cos x))) (* 3 (cos x)))]
+               (- (* 4 (pow (cos x) 3)) (* 3 (cos x)))]
   [2-cos       (- (* (cos x) (cos x)) (* (sin x) (sin x)))
                (cos (* 2 x))]
-  [3-cos       (- (* 4 (* (* (cos x) (cos x)) (cos x))) (* 3 (cos x)))
+  [3-cos       (- (* 4 (pow (cos x) 3)) (* 3 (cos x)))
                (cos (* 3 x))]
   [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
   [2-tan       (/ (* 2 (tan x))          (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
