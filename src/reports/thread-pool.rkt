@@ -183,6 +183,4 @@
   (for ([(idx result) (in-dict outs)])
     (vector-set! out idx result))
 
-  ; The use of > instead of < is a cleverness:
-  ; the list of tests is accumulated in reverse, this reverses again.
   (vector->list out))

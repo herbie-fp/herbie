@@ -11,7 +11,7 @@
 
 
 (struct table-row
-  (name status start result target inf- inf+ result-est vars samplers input output time bits link) #:prefab)
+  (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (struct report-info
   (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
@@ -32,7 +32,7 @@
   (define (simplify-test test)
     (match test
       [(table-row name status start-bits end-bits target-bits
-                  inf- inf+ end-est vars samplers input output time bits link)
+                  inf- inf+ end-est vars input output time bits link)
        (make-hash
         `((name . ,name)
           (status . ,status)
@@ -43,7 +43,6 @@
           (pinf . ,inf+)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
-          (samplers . ,(if samplers (map ~a samplers) #f))
           (input . ,(~a input))
           (output . ,(~a output))
           (time . ,time)
@@ -94,12 +93,7 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (define samplers
-                       (match (hash-ref test 'samplers #f)
-                         ['#f (if vars (map (const 'default) vars) #f)]
-                         [(list sampler ...) (map parse-string sampler)]))
                      (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref test 'end-est 0)
-                                vars samplers
-                                (parse-string (get 'input)) (parse-string (get 'output))
+                                vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))

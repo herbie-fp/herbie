@@ -211,7 +211,8 @@
 (define-ruleset pow-reduce (exponents simplify)
   [unpow-1        (pow a -1)                 (/ 1 a)]
   [unpow1         (pow a 1)                  a]
-  [unpow0         (pow a 0)                  1])
+  [unpow0         (pow a 0)                  1]
+  [pow-base-1     (pow 1 a)                  1])
 
 (define-ruleset pow-expand (exponents)
   [pow1           a                           (pow a 1)])
@@ -225,6 +226,7 @@
   [unpow1/3        (pow a 1/3)                (cbrt a)] )
 
 (define-ruleset pow-transform (exponents)
+  [pow-base-0       (pow 0 a)                   0]
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
@@ -433,8 +435,7 @@
 
 (module+ test
   (require rackunit math/bigfloat)
-  (require "../programs.rkt" "../float.rkt" "distributions.rkt")
-  (define sampler (eval-sampler 'default))
+  (require "../programs.rkt" "../float.rkt")
   (define num-test-points 2000)
 
   (define *conditions*
@@ -464,7 +465,7 @@
               (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) mode:bf)
               (const true)))
 
-        (define (make-point) (for/list ([v fv]) (sampler)))
+        (define (make-point) (for/list ([v fv]) (sample-double)))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) mode:bf))

@@ -2,21 +2,28 @@
 (require "formats/datafile.rkt" "reports/thread-pool.rkt" "formats/test.rkt" "common.rkt" "sandbox.rkt" "alternative.rkt")
 (provide run-improve)
 
+(define (build-fpcore test expr)
+  (define vars (test-vars test))
+  `(FPCore ,vars :name ,(test-name test) :pre ,(test-precondition test) ,expr))
+
 (define (print-outputs tests results p #:seed [seed #f])
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
   (for ([res results] [test tests])
-    (match-define (table-row name status start result target inf- inf+ result-elt vars samplers input output time bits link) res)
+    (match-define (table-row name status start result target inf- inf+ result-est vars input output time bits link) res)
     (match status
-      [(? test-failure?)
+      ["crash"
        (fprintf p ";; Crash in ~a\n" name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
-      [(? test-timeout?)
+       (write (build-fpcore test input) p)
+       (newline p)]
+      ["timeout"
        (fprintf p ";; ~a times out in ~as\n"
                 (/ (*timeout*) 1000) name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
-      [_
-       (fprintf p "~a\n" `(FPCore ,vars ,output))])))
+       (write (build-fpcore test input) p)
+       (newline p)]
+      [(? string?)
+       (write (build-fpcore test output) p)
+       (newline p)])))
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))

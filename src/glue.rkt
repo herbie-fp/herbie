@@ -2,7 +2,6 @@
 
 (require "common.rkt")
 (require "points.rkt")
-(require "syntax/distributions.rkt")
 (require "alternative.rkt")
 (require "programs.rkt")
 (require "core/simplify.rkt")

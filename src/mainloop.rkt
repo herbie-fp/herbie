@@ -4,7 +4,6 @@
 (require "glue.rkt")
 (require "programs.rkt")
 (require "points.rkt")
-(require "syntax/distributions.rkt")
 (require "core/localize.rkt")
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")
@@ -27,10 +26,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified samplers precondition timeline)
+  (table next-alt locs children gened-series gened-rewrites simplified precondition timeline)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f #f 'TRUE '())))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE '())))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -44,9 +43,6 @@
 (define (^children^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
   (shellstate-children (^shell-state^)))
-(define (^samplers^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-samplers! (^shell-state^) newval))
-  (shellstate-samplers (^shell-state^)))
 (define (^precondition^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
   (shellstate-precondition (^shell-state^)))
@@ -73,15 +69,12 @@
     (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
 ;; Setting up
-(define (setup-prog! prog #:samplers [samplers #f] #:precondition [precondition 'TRUE])
+(define (setup-prog! prog #:precondition [precondition 'TRUE])
   (*start-prog* prog)
   (rollback-improve!)
   (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([samplers (or samplers (map (curryr cons (eval-sampler 'default))
-				     (program-variables prog)))]
-	 [context (prepare-points prog samplers precondition)])
-    (^samplers^ samplers)
+  (let* ([context (prepare-points prog precondition)])
     (^precondition^ precondition)
     (*pcontext* context)
     (*analyze-context* context)
@@ -241,9 +234,9 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:samplers samplers #:precondition precondition)
+  (setup-prog! prog #:precondition precondition)
   (if ((flag 'setup 'early-exit) (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*)))) #f)
       (let ([init-alt (make-alt (*start-prog*))])
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
@@ -281,7 +274,7 @@
 
 ;; Other tools
 (define (resample!)
-  (let ([context (prepare-points (*start-prog*) (^samplers^) (^precondition^))])
+  (let ([context (prepare-points (*start-prog*) (^precondition^))])
     (*pcontext* context)
     (^table^ (atab-new-context (^table^) context)))
   (void))

@@ -8,10 +8,8 @@
 
 (define (log-exceptions file info)
   (define (print-test t)
-    (printf "(lambda ~a\n  #:name ~s\n  ~a)\n\n"
-            (for/list ([v (table-row-vars t)]
-                       [s (table-row-samplers t)])
-                      (list v s))
+    (printf "(FPCore ~a\n  :name ~s\n  ~a)\n\n"
+            (table-row-vars t)
             (table-row-name t)
             (table-row-input t)))
   (match info

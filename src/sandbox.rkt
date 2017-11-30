@@ -50,11 +50,10 @@
                       (run-improve (test-program test)
                                    (*num-iterations*)
                                    #:get-context #t
-                                   #:samplers (test-samplers test)
                                    #:precondition (test-precondition test)))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (alt-program alt) (test-samplers test) (test-precondition test))))
+            (prepare-points (alt-program alt) (test-precondition test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,(^timeline^) ,(bf-precision)))))
 
@@ -126,7 +125,6 @@
                    (length bad-inf)
                    est-end-score
                    (program-variables (alt-program (test-result-start-alt result)))
-                   (test-sampling-expr (test-result-test result))
                    (program-body (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-end-alt result)))
                    (test-result-time result)
@@ -135,10 +133,10 @@
    [(test-failure? result)
     (define test (test-failure-test result))
     (table-row (test-name test) "crash"
-               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
+               #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
+               #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))

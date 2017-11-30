@@ -57,9 +57,9 @@
   produces of error versus input, which can help you understand
   whether Herbie's improvements matter for your user cases.</p>
 
-  <p>For any tool, you can run <code>herbie tool --help</code> to see
-  a listing of all available command-line options. This listing will
-  include unsupported options not listed on this page.</p>
+  <p>For any tool, you can run <code>herbie <var>tool</var> --help</code>
+    to see a listing of all available command-line options. This listing
+    will include unsupported options not listed on this page.</p>
 
   <h2>Upgrading from Herbie 1.0</h2>
 
@@ -84,8 +84,12 @@
 
   <p>
     These options can be set on any tool. Pass them after the tool
-    name but before other arguments.
+    name but before other arguments, such as:
   </p>
+
+  <pre><code>herbie improve --timeout 60 in.fpcore out.fpcore</code></pre>
+
+  <p>Arguments cannot be put anywhere else.</p>
 
   <dl>
     <dt><code>--seed S</code></dt>
@@ -161,13 +165,13 @@
   </p>
 
   <p>
-    Each option can be turned on with the <code>-o X</code>
-    or <code>--disable X</code> command-line flag, and turned off with
-    the <code>+o X</code> or <code>--enable X</code>. The recommended
-    set of options is the default set; turning a default-on option off
-    typically results in less-accurate results, while turning a
-    default-off option on typically results in more-complex and
-    more-surprising output expressions.
+    Each option can be turned off with the <code>-o X</code>
+    or <code>--disable X</code> command-line flag, and turned on with
+    the <code>+o X</code> or <code>--enable X</code>. The defaults are
+    the recommended options; turning a default-on option off typically
+    results in less-accurate results, while turning a default-off
+    option on typically results in more-complex and more-surprising
+    output expressions.
   </p>
 
   <dl>

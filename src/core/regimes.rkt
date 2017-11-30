@@ -7,7 +7,6 @@
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../syntax/syntax.rkt")
-(require "../syntax/distributions.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
 
@@ -82,7 +81,13 @@
   (let* ([locs (localize-error prog)])
     (if (null? locs)
         #f
-        (critical-child (location-get (car locs) prog)))))
+        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
+               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
+          (if (and candidate-expr
+                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
+                     (nan? ((eval-prog candidate-prog mode:fl) pt))))
+              #f
+              candidate-expr)))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
@@ -140,9 +145,7 @@
 			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
-							      (program-variables start-prog*))
-                                             'TRUE))])
+			     (prepare-points start-prog* 'TRUE))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)

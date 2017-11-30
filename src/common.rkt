@@ -14,7 +14,7 @@
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval
+         common-eval-ns common-eval quasisyntax
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -234,3 +234,30 @@
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
+
+;; Matching support for syntax objects.
+
+;; Begin the match with a #`
+;; Think of the #` as just like a ` match, same behavior
+;; In fact, matching x with #`pat should do the same
+;; as matching (syntax->datum x) with `pat
+;; Inside the #`, you can use #, to bind not a value but a syntax object.
+
+(define-match-expander quasisyntax
+  (λ (stx)
+    (syntax-case stx (unsyntax unquote)
+      [(_ (unsyntax pat))
+       #'pat]
+      [(_ (unquote pat))
+       #'(app syntax-e pat)]
+      [(_ (pats ...))
+       (let ([parts
+              (for/list ([pat (syntax-e #'(pats ...))])
+                (syntax-case pat (unsyntax unquote ...)
+                  [... pat]
+                  [(unsyntax a) #'a]
+                  [(unquote a) #'(app syntax-e a)]
+                  [a #'(quasisyntax a)]))])
+         #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
+      [(_ a)
+       #'(app syntax-e 'a)])))

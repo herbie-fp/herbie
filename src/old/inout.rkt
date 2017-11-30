@@ -17,8 +17,7 @@
       [`(herbie-test . ,_)
        (let ([tst (parse-test in-expr)])
          (set! in-expr (test-program tst))
-         (run-improve (test-program tst) (*num-iterations*)
-                      #:samplers (test-samplers tst)))]
+         (run-improve (test-program tst) (*num-iterations*)))]
       [`(,(or 'λ 'lambda) ,vars ,body)
        (run-improve in-expr (*num-iterations*))]
       [_ (error "did not recognize input")]))
