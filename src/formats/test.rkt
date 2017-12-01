@@ -7,7 +7,7 @@
 (require "../type-check.rkt")
 
 (provide (struct-out test) test-program
-         load-tests load-file test-target parse-test unparse-test test-successful? test<?)
+         load-tests load-file test-target parse-test test-successful? test<?)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -47,10 +47,6 @@
                          #:url "input.html")]
     [_
      (raise-herbie-error "Invalid input expression." #:url "input.html")]))
-
-(define (unparse-test expr)
-  (match-define (list (or 'λ 'lambda) (list vars ...) body) expr)
-  `(FPCore (,@vars) ,body))
 
 (define (load-file file)
   (call-with-input-file file

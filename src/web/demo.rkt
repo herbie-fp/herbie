@@ -171,7 +171,7 @@
 
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data result link))
+  (match-define (cons _ data) (get-table-data result link))
   (define info
     (if (file-exists? data-file)
         (let ([info (read-datafile data-file)])

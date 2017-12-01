@@ -15,7 +15,7 @@
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)
-         get-table-data)
+         get-table-data unparse-result)
 
 
 ; For things that don't leave a thread
@@ -89,6 +89,9 @@
        (test-timeout test (bf-precision) (*timeout*) (^timeline^))])))
 
 (define (get-table-data result link)
+  (cons (unparse-result result) (get-table-data* result link)))
+
+(define (get-table-data* result link)
   (cond
    [(test-result? result)
     (let* ([name (test-name (test-result-test result))]
@@ -140,3 +143,54 @@
     (table-row (test-name (test-timeout-test result)) "timeout"
                #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
+
+(define (unparse-result result)
+  (match result
+    [(test-result test time bits
+                  start-alt end-alt points exacts start-est-error end-est-error
+                  newpoints newexacts start-error end-error target-error timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :herbie-error-input
+              ([,(*num-points*) ,(errors-score start-est-error)]
+               [,(*reeval-pts*) ,(errors-score start-error)])
+              :herbie-error-output
+              ([,(*num-points*) ,(errors-score end-est-error)]
+               [,(*reeval-pts*) ,(errors-score end-error)])
+              ,@(if target-error
+                    `(:herbie-error-target
+                      ([,(*reeval-pts*) ,(errors-score target-error)]))
+                    '())
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(program-body (alt-program end-alt)))]
+    [(test-failure test bits exn time timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(test-input test))]
+    [(test-timeout test bits time timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(test-input test))]))

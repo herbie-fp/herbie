@@ -29,7 +29,7 @@
 
   (define results (get-test-results tests #:threads threads #:dir dir
                                     #:seed (get-seed) #:profile profile?))
-  (define info (make-report-info (filter identity results)))
+  (define info (make-report-info (map cdr results)))
 
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)

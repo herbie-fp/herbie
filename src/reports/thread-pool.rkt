@@ -90,7 +90,8 @@
              `(done ,id ,self ,result)))])
       (loop seed profile? dir))))
 
-(define (print-test-result tr)
+(define (print-test-result data)
+  (match-define (cons fpcore tr) data)
   (match (table-row-status tr)
     ["crash"  
      (printf "[   CRASH   ]\t~a\n" (table-row-name tr))]
