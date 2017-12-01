@@ -141,7 +141,8 @@
          (loop rest (cons (cons (syntax-e prop-name) value) out))]
         [(list head)
          (check-property* head error!)
-         (error! head "Property ~a has no value" head)]
+         (error! head "Property ~a has no value" head)
+         out]
         [(list)
          out])))
 
