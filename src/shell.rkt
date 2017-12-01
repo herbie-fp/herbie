@@ -23,7 +23,7 @@
       (define output (get-test-result test #:seed seed))
       (match output
         [(? test-result?)
-         (printf "~a\n" (unparse-test (alt-program (test-result-end-alt output))))]
+         (printf "~a\n" (unparse-result output))]
         [(test-failure test bits exn time timeline)
          ((error-display-handler) (exn-message exn) exn)]
         [(test-timeout test bits time timeline)
