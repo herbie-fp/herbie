@@ -36,10 +36,10 @@
 
 (FPCore (a b c)
  :name "jeff quadratic root 1"
- (let ((d (sqrt (- (sqr b) (* 4 a c)))))
+ (let ((d (sqrt (- (* b b) (* 4 a c)))))
    (if (>= b 0) (/ (- (- b) d) (* 2 a)) (/ (* 2 c) (+ (- b) d)))))
 
 (FPCore (a b c)
  :name "jeff quadratic root 2"
- (let ((d (sqrt (- (sqr b) (* 4 a c)))))
+ (let ((d (sqrt (- (* b b) (* 4 a c)))))
    (if (>= b 0) (/ (* 2 c) (- (- b) d)) (/ (+ (- b) d) (* 2 a)))))

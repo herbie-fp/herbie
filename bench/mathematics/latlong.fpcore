@@ -6,7 +6,7 @@
    (let ((dphi (- phi1 phi2)))
      (let ((a
             (+
-             (sqr (sin (/ dphi 2)))
+             (pow (sin (/ dphi 2)) 2)
              (*
               (cos phi1)
               (cos phi2)
@@ -25,7 +25,7 @@
  :name "Equirectangular approximation to distance on a great circle"
  (let ((x (* (- lambda1 lambda2) (cos (/ (+ phi1 phi2) 2)))))
    (let ((y (- phi1 phi2)))
-     (let ((d (* R (sqrt (+ (sqr x) (sqr y))))))
+     (let ((d (* R (sqrt (+ (* x x) (* y y))))))
        d))))
 
 (FPCore (lambda1 lambda2 phi1 phi2)
@@ -43,7 +43,7 @@
      (let ((phim
             (atan2
              (+ (sin phi1) (sin phi2))
-             (sqrt (+ (sqr (+ (cos phi1) Bx)) (sqr By)))))
+             (sqrt (+ (pow (+ (cos phi1) Bx) 2) (* By By)))))
            (lambdam (+ lambda1 (atan2 By (+ (cos phi1) Bx)))))
        lambdam))))
 

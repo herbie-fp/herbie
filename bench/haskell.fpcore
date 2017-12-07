@@ -70,14 +70,14 @@
    (+
     (-
      (* x (- (* y z) (* t a)))
-     (/ (* b (- (sqr (* c z)) (sqr (* t i)))) (+ (* c z) (* t i))))
+     (/ (* b (- (pow (* c z) 2) (pow (* t i) 2))) (+ (* c z) (* t i))))
     (* j (- (* c a) (* y i))))
    (if (< x 3.2113527362226803e-147)
      (- (* (- (* b i) (* x a)) t) (- (* z (* c b)) (* j (- (* c a) (* y i)))))
      (+
       (-
        (* x (- (* y z) (* t a)))
-       (/ (* b (- (sqr (* c z)) (sqr (* t i)))) (+ (* c z) (* t i))))
+       (/ (* b (- (pow (* c z) 2) (pow (* t i) 2))) (+ (* c z) (* t i))))
       (* j (- (* c a) (* y i))))))
  (+
   (- (* x (- (* y z) (* t a))) (* b (- (* c z) (* t i))))
@@ -515,7 +515,7 @@
  (+ x (* y (+ z x)))
  (+ x (* y (+ z x))))
 
-(FPCore (x) :name "Main:bigenough1 from B" :target (+ (sqr x) x) (+ x (* x x)))
+(FPCore (x) :name "Main:bigenough1 from B" :target (+ (* x x) x) (+ x (* x x)))
 
 (FPCore  (x)
  :name "Main:bigenough3 from C"
@@ -550,13 +550,13 @@
 (FPCore  (x y)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, E"
  :target
- (+ (sqr x) (* y (+ y (+ y y))))
+ (+ (* x x) (* y (+ y (+ y y))))
  (+ (+ (+ (* x x) (* y y)) (* y y)) (* y y)))
 
 (FPCore  (x y)
  :name "Graphics.Rasterific.Linear:$cquadrance from Rasterific-0.6.1"
  :target
- (+ (sqr x) (sqr y))
+ (+ (* x x) (* x y))
  (+ (* x x) (* y y)))
 
 (FPCore  (x y z)
@@ -608,7 +608,7 @@
  :target
  (if (< x -1.5097698010472593e+153)
    (- (+ (* 1/2 (/ y x)) x))
-   (if (< x 5.582399551122541e+57) (sqrt (+ (sqr x) y)) (+ (* 1/2 (/ y x)) x)))
+   (if (< x 5.582399551122541e+57) (sqrt (+ (* x x) y)) (+ (* 1/2 (/ y x)) x)))
  (sqrt (+ (* x x) y)))
 
 (FPCore  (x y)
@@ -733,7 +733,7 @@
    (if (< t -4.712553818218485e-169)
      (+
       (- (* x (- (* y z) (* t a))) (* b (- (* c z) (* i a))))
-      (/ (* j (- (sqr (* c t)) (sqr (* i y)))) (+ (* c t) (* i y))))
+      (/ (* j (- (pow (* c t) 2) (pow (* i y) 2))) (+ (* c t) (* i y))))
      (if (< t -7.633533346031584e-308)
        (-
         (* x (- (* z y) (* a t)))
@@ -741,7 +741,7 @@
        (if (< t 1.0535888557455487e-139)
          (+
           (- (* x (- (* y z) (* t a))) (* b (- (* c z) (* i a))))
-          (/ (* j (- (sqr (* c t)) (sqr (* i y)))) (+ (* c t) (* i y))))
+          (/ (* j (- (pow (* c t) 2) (pow (* i y) 2))) (+ (* c t) (* i y))))
          (-
           (* x (- (* z y) (* a t)))
           (- (* b (- (* z c) (* a i))) (* (- (* c t) (* y i)) j)))))))
@@ -822,7 +822,7 @@
 (FPCore  (x y z t a b)
  :name "Codec.Picture.Jpg.FastDct:referenceDct from JuicyPixels-3.2.6.1"
  :target
- (* x (cos (* (/ b 16.0) (/ t (+ (- 1.0 (* a 2.0)) (sqr (* a 2.0)))))))
+ (* x (cos (* (/ b 16.0) (/ t (+ (- 1.0 (* a 2.0)) (pow (* a 2.0) 2))))))
  (*
   (* x (cos (/ (* (* (+ (* y 2.0) 1.0) z) t) 16.0)))
   (cos (/ (* (* (+ (* a 2.0) 1.0) b) t) 16.0))))
@@ -922,7 +922,7 @@
 (FPCore  (x)
  :name "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, E"
  :target
- (- (* 6.0 x) (* 9.0 (sqr x)))
+ (- (* 6.0 x) (* 9.0 (* x x)))
  (* (* 3.0 (- 2.0 (* x 3.0))) x))
 
 (FPCore  (x)
@@ -941,10 +941,10 @@
  :name "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, B"
  :target
  (if (< y -3693.8482788297247)
-   (- (/ x (sqr y)) (- (/ x y) x))
+   (- (/ x (* y y)) (- (/ x y) x))
    (if (< y 6799310503.41891)
      (/ (* x y) (+ y 1.0))
-     (- (/ x (sqr y)) (- (/ x y) x))))
+     (- (/ x (* y y)) (- (/ x y) x))))
  (/ (* x y) (+ y 1.0)))
 
 (FPCore  (x y)
@@ -976,17 +976,17 @@
       (/ (- (* x x) (* (* y 4.0) y)) (+ (* x x) (* (* y 4.0) y)))
       0.9743233849626781)
    (-
-    (/ (sqr x) (+ (sqr x) (* (sqr y) 4.0)))
-    (/ (* (sqr y) 4.0) (+ (sqr x) (* (sqr y) 4.0))))
+    (/ (* x x) (+ (* x x) (* (* y y) 4.0)))
+    (/ (* (* y y) 4.0) (+ (* x x) (* (* y y) 4.0))))
    (-
-    (sqr (/ x (sqrt (+ (sqr x) (* (sqr y) 4.0)))))
-    (/ (* (sqr y) 4.0) (+ (sqr x) (* (sqr y) 4.0)))))
+    (pow (/ x (sqrt (+ (* x x) (* (* y y) 4.0)))) 2)
+    (/ (* (* y y) 4.0) (+ (* x x) (* (* y y) 4.0)))))
  (/ (- (* x x) (* (* y 4.0) y)) (+ (* x x) (* (* y 4.0) y))))
 
 (FPCore  (x)
  :name "Diagrams.TwoD.Ellipse:ellipse from diagrams-lib-1.3.0.3"
  :target
- (sqrt (- 1.0 (sqr x)))
+ (sqrt (- 1.0 (* x x)))
  (sqrt (- 1.0 (* x x))))
 
 (FPCore  (x y z t a)
@@ -1010,13 +1010,13 @@
  :target
  (if (< x -1.1236950826599826e+145)
    (- x)
-   (if (< x 1.116557621183362e+93) (sqrt (+ (sqr x) (sqr y))) x))
+   (if (< x 1.116557621183362e+93) (sqrt (+ (* x x) (* y y))) x))
  (sqrt (+ (* x x) (* y y))))
 
 (FPCore  (x y)
  :name "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1"
  :target
- (- x (sqr y))
+ (- x (* y y))
  (- x (* y y)))
 
 (FPCore  (x y)
@@ -1117,7 +1117,7 @@
 (FPCore  (x y)
  :name "System.Random.MWC.Distributions:standard from mwc-random-0.13.3.2"
  :target
- (* 0.5 (- (sqr x) y))
+ (* 0.5 (- (* x x) y))
  (* 0.5 (- (* x x) y)))
 
 (FPCore  (x y z)
@@ -1131,8 +1131,8 @@
  :target
  (if (< z -2.8874623088207947e+119)
    (-
-    (- x (/ (/ (- 0.5) (* y t)) (sqr z)))
-    (* (/ (- 0.5) (* y t)) (/ (/ 2.0 z) (sqr z))))
+    (- x (/ (/ (- 0.5) (* y t)) (* z z)))
+    (* (/ (- 0.5) (* y t)) (/ (/ 2.0 z) (* z z))))
    (- x (/ (log (+ 1.0 (* z y))) t)))
  (- x (/ (log (+ (- 1.0 y) (* y (exp z)))) t)))
 
@@ -1157,7 +1157,7 @@
 (FPCore  (x y z)
  :name "Graphics.Rasterific.QuadraticFormula:discriminant from Rasterific-0.6.1"
  :target
- (- (sqr x) (* z (* y 4.0)))
+ (- (* x x) (* z (* y 4.0)))
  (- (* x x) (* (* y 4.0) z)))
 
 (FPCore  (x y z t a b)
@@ -1185,13 +1185,13 @@
 (FPCore  (x)
  :name "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, A"
  :target
- (+ (sqr x) 1.0)
+ (+ (* x x) 1.0)
  (+ (* x x) 1.0))
 
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, B"
  :target
- (- (sqr x) (* 4.0 (* y (- (sqr z) t))))
+ (- (* x x) (* 4.0 (* y (- (* z z) t))))
  (- (* x x) (* (* y 4.0) (- (* z z) t))))
 
 (FPCore  (x y)
@@ -1239,7 +1239,7 @@
 (FPCore  (x y)
  :name "Numeric.Log:$clog1p from log-domain-0.10.2.1, A"
  :target
- (+ (sqr y) (+ (* 2.0 x) (sqr x)))
+ (+ (* y y) (+ (* 2.0 x) (* x x)))
  (+ (+ (* x 2.0) (* x x)) (* y y)))
 
 (FPCore  (x)
@@ -1275,7 +1275,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Svg.PathConverter:arcToSegments from rasterific-svg-0.2.3.1"
  :target
- (+ (sqr (/ x y)) (sqr (/ z t)))
+ (+ (pow (/ x y) 2) (pow (/ z t) 2))
  (+ (/ (* x x) (* y y)) (/ (* z z) (* t t))))
 
 (FPCore  (x)
@@ -1436,7 +1436,7 @@
  (if (< z -8120153.652456675)
    (-
     (* (+ (/ 0.07512208616047561 z) 0.0692910599291889) y)
-    (- (/ (* 0.40462203869992125 y) (sqr z)) x))
+    (- (/ (* 0.40462203869992125 y) (* z z)) x))
    (if (< z 6.576118972787377e+20)
      (+
       x
@@ -1449,7 +1449,7 @@
        (/ 1 (+ (* (+ z 6.012459259764103) z) 3.350343815022304))))
      (-
       (* (+ (/ 0.07512208616047561 z) 0.0692910599291889) y)
-      (- (/ (* 0.40462203869992125 y) (sqr z)) x))))
+      (- (/ (* 0.40462203869992125 y) (* z z)) x))))
  (+
   x
   (/
@@ -1464,7 +1464,7 @@
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, C"
  :target
  (if (< x -3.326128725870005e+62)
-   (- (+ (/ y (sqr x)) (* 4.16438922228 x)) 110.1139242984811)
+   (- (+ (/ y (* x x)) (* 4.16438922228 x)) 110.1139242984811)
    (if (< x 9.429991714554673e+55)
      (*
       (/ (- x 2.0) 1)
@@ -1479,11 +1479,11 @@
        (+
         (*
          (+
-          (+ (* 263.505074721 x) (+ (* 43.3400022514 (sqr x)) (* x (* x x))))
+          (+ (* 263.505074721 x) (+ (* 43.3400022514 (* x x)) (* x (* x x))))
           313.399215894)
          x)
         47.066876606)))
-     (- (+ (/ y (sqr x)) (* 4.16438922228 x)) 110.1139242984811)))
+     (- (+ (/ y (* x x)) (* 4.16438922228 x)) 110.1139242984811)))
  (/
   (*
    (- x 2.0)
@@ -1502,7 +1502,7 @@
  (if (< z -6.499344996252632e+53)
    (+
     x
-    (* (+ (- 3.13060547623 (/ 36.527041698806414 z)) (/ t (sqr z))) (/ y 1)))
+    (* (+ (- 3.13060547623 (/ 36.527041698806414 z)) (/ t (* z z))) (/ y 1)))
    (if (< z 7.066965436914287e+59)
      (+
       x
@@ -1520,7 +1520,7 @@
      (+
       x
       (*
-       (+ (- 3.13060547623 (/ 36.527041698806414 z)) (/ t (sqr z)))
+       (+ (- 3.13060547623 (/ 36.527041698806414 z)) (/ t (* z z)))
        (/ y 1)))))
  (+
   x
@@ -1561,7 +1561,7 @@
 (FPCore  (x)
  :name "Numeric.SpecFunctions:logGammaCorrection from math-functions-0.1.5.2"
  :target
- (- (* (sqr x) 2.0) 1.0)
+ (- (* (* x x) 2.0) 1.0)
  (- (* (* x x) 2.0) 1.0))
 
 (FPCore  (x y)
@@ -1579,7 +1579,7 @@
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, A"
  :target
- (+ (+ (+ x y) (/ (* (- 1 (sqr (log t))) z) (+ 1 (log t)))) (* (- a 0.5) b))
+ (+ (+ (+ x y) (/ (* (- 1 (pow (log t) 2)) z) (+ 1 (log t)))) (* (- a 0.5) b))
  (+ (- (+ (+ x y) z) (* z (log t))) (* (- a 0.5) b)))
 
 (FPCore  (x y z t a b c i)
@@ -1622,10 +1622,10 @@
  :name "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, B"
  :target
  (if (< y -81284752.61947241)
-   (- 1.0 (log (- (/ x (sqr y)) (- (/ 1.0 y) (/ x y)))))
+   (- 1.0 (log (- (/ x (* y y)) (- (/ 1.0 y) (/ x y)))))
    (if (< y 3.0094271212461764e+25)
      (log (/ (exp 1.0) (- 1.0 (/ (- x y) (- 1.0 y)))))
-     (- 1.0 (log (- (/ x (sqr y)) (- (/ 1.0 y) (/ x y)))))))
+     (- 1.0 (log (- (/ x (* y y)) (- (/ 1.0 y) (/ x y)))))))
  (- 1.0 (log (- 1.0 (/ (- x y) (- 1.0 y))))))
 
 (FPCore  (x)
@@ -1668,7 +1668,7 @@
  (-
   (*
    (- z)
-   (+ (+ (* 0.5 (sqr y)) y) (* (/ 1/3 (* 1.0 (* 1.0 1.0))) (* y (* y y)))))
+   (+ (+ (* 0.5 (* y y)) y) (* (/ 1/3 (* 1.0 (* 1.0 1.0))) (* y (* y y)))))
   (- t (* x (log y))))
  (- (+ (* x (log y)) (* z (log (- 1.0 y)))) t))
 
@@ -1717,7 +1717,7 @@
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, H"
  :target
- (/ (- (sqr x) 3.0) 6.0)
+ (/ (- (* x x) 3.0) 6.0)
  (/ (- (* x x) 3.0) 6.0))
 
 (FPCore  (x y z t a b c)
@@ -1743,7 +1743,7 @@
             (*
              (- (* (+ (/ 5.0 6.0) a) (* 3.0 t)) 2.0)
              (* (- a (/ 5.0 6.0)) (* (- b c) t))))
-           (* (* (sqr t) 3.0) (- a (/ 5.0 6.0)))))))))
+           (* (* (* t t) 3.0) (- a (/ 5.0 6.0)))))))))
      (/
       x
       (+
@@ -1793,7 +1793,7 @@
  (if (< z -3.1921305903852764e+46)
    (- (* y x))
    (if (< z 5.976268120920894e+90)
-     (/ (* x z) (/ (sqrt (- (sqr z) (* a t))) y))
+     (/ (* x z) (/ (sqrt (- (* z z) (* a t))) y))
      (* y x)))
  (/ (* (* x y) z) (sqrt (- (* z z) (* t a)))))
 
@@ -1812,7 +1812,7 @@
 (FPCore  (x)
  :name "Statistics.Correlation.Kendall:numOfTiesBy from math-functions-0.1.5.2"
  :target
- (- (sqr x) x)
+ (- (* x x) x)
  (* x (- x 1.0)))
 
 (FPCore  (x y z)
@@ -1843,7 +1843,7 @@
  :name "Statistics.Distribution.Beta:$cvariance from math-functions-0.1.5.2"
  :target
  (if (< z 249.6182814532307)
-   (/ (* y (/ x z)) (+ z (sqr z)))
+   (/ (* y (/ x z)) (+ z (* z z)))
    (/ (* (/ (/ y z) (+ 1 z)) x) z))
  (/ (* x y) (* (* z z) (+ z 1.0))))
 
@@ -1869,22 +1869,22 @@
  :name "Statistics.Distribution.CauchyLorentz:$cdensity from math-functions-0.1.5.2"
  :target
  (if (< (* y (+ 1.0 (* z z))) -inf.0)
-   (/ (/ 1.0 y) (* (+ 1.0 (sqr z)) x))
+   (/ (/ 1.0 y) (* (+ 1.0 (* z z)) x))
    (if (< (* y (+ 1.0 (* z z))) 8.680743250567252e+305)
-     (/ (/ 1.0 x) (* (+ 1.0 (sqr z)) y))
-     (/ (/ 1.0 y) (* (+ 1.0 (sqr z)) x))))
+     (/ (/ 1.0 x) (* (+ 1.0 (* z z)) y))
+     (/ (/ 1.0 y) (* (+ 1.0 (* z z)) x))))
  (/ (/ 1.0 x) (* y (+ 1.0 (* z z)))))
 
 (FPCore  (x y)
  :name "Examples.Basics.BasicTests:f3 from sbv-4.4"
  :target
- (+ (sqr x) (+ (sqr y) (* 2 (* y x))))
+ (+ (* x x) (+ (* y y) (* 2 (* y x))))
  (* (+ x y) (+ x y)))
 
 (FPCore  (x y)
  :name "Examples.Basics.BasicTests:f2 from sbv-4.4"
  :target
- (- (sqr x) (sqr y))
+ (- (* x x) (* y y))
  (- (* x x) (* y y)))
 
 (FPCore  (x y)
@@ -1896,7 +1896,7 @@
 (FPCore  (x y)
  :name "Examples.Basics.ProofTests:f4 from sbv-4.4"
  :target
- (+ (sqr x) (+ (sqr y) (* (* x y) 2.0)))
+ (+ (* x x) (+ (* y y) (* (* x y) 2.0)))
  (+ (+ (* x x) (* (* x 2.0) y)) (* y y)))
 
 (FPCore  (x y)
@@ -1914,7 +1914,7 @@
 (FPCore  (x y)
  :name "Data.Random.Distribution.Normal:normalTail from random-fu-0.2.6.2"
  :target
- (+ (+ y y) (sqr x))
+ (+ (+ y y) (* x x))
  (+ (+ (* x x) y) y))
 
 (FPCore  (x)
@@ -1946,7 +1946,7 @@
 (FPCore  (x)
  :name "Data.Random.Dice:roll from dice-0.1"
  :target
- (- (sqr x) 1.0)
+ (- (* x x) 1.0)
  (- (* x x) 1.0))
 
 (FPCore  (x)
@@ -2135,7 +2135,7 @@
  (if (< z -6.396479394109776e+136)
    (/ (- z) (sqrt 3.0))
    (if (< z 7.320293694404182e+117)
-     (/ (sqrt (+ (+ (sqr z) (sqr x)) (sqr y))) (sqrt 3.0))
+     (/ (sqrt (+ (+ (* z z) (* x x)) (* y y))) (sqrt 3.0))
      (* (sqrt 0.3333333333333333) z)))
  (sqrt (/ (+ (+ (* x x) (* y y)) (* z z)) 3.0)))
 
@@ -2168,7 +2168,7 @@
  :target
  (if (< z -6.396479394109776e+136)
    (- z)
-   (if (< z 7.320293694404182e+117) (sqrt (+ (+ (sqr z) (sqr x)) (sqr y))) z))
+   (if (< z 7.320293694404182e+117) (sqrt (+ (+ (* z z) (* x x)) (* y y))) z))
  (sqrt (+ (+ (* x x) (* y y)) (* z z))))
 
 (FPCore  (x y z t)
