@@ -167,8 +167,8 @@
   (when (dict-has-key? prop-dict ':pre)
     (check-expression* (dict-ref prop-dict ':pre) vars error!))
 
-  (when (dict-has-key? prop-dict ':target)
-    (check-expression* (dict-ref prop-dict ':target) vars error!)))
+  (when (dict-has-key? prop-dict ':herbie-target)
+    (check-expression* (dict-ref prop-dict ':herbie-target) vars error!)))
 
 (define (check-program* stx error!)
   (match stx

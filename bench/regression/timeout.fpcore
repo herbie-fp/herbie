@@ -117,7 +117,7 @@
 
 (FPCore (a b c)
  :name "The quadratic formula (r1)"
- :target
+ :herbie-target
  (let ((d (- (* b b) (* 4 a c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))) (r2 (/ (- (- b) (sqrt d)) (* 2 a))))
      (if (< b 0) r1 (/ c (* a r2)))))

@@ -2,7 +2,7 @@
 
 (FPCore (a b c)
  :name "quadp (p42, positive)"
- :target
+ :herbie-target
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (let ([r1 (/ (+ (- b) d) (* 2 a))]
          [r2 (/ (- (- b) d) (* 2 a))])
@@ -13,7 +13,7 @@
 
 (FPCore (a b c)
  :name "quadm (p42, negative)"
- :target
+ :herbie-target
  (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
    (let ([r1 (/ (+ (- b) d) (* 2 a))] [r2 (/ (- (- b) d) (* 2 a))])
      (if (< b 0) (/ c (* a r1)) r2)))

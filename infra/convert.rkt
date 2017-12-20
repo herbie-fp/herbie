@@ -75,7 +75,7 @@
     ,@(translate-samplers)
     ,@(translate-prop '#:name ':name)
     ,@(translate-prop '#:expected ':herbie-expected)
-    ,@(translate-prop '#:target ':target (curryr search-replace vars))
+    ,@(translate-prop '#:target ':herbie-target (curryr search-replace vars))
     ,(search-replace body vars)))
 
 ; we assume vars and vals are of the same length

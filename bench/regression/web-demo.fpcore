@@ -30,7 +30,7 @@
 
 (FPCore (x)
  :name "sqrt sqr"
- :target
+ :herbie-target
  (if (< x 0) 2 0)
  (- (/ x x) (* (/ 1 x) (sqrt (* x x)))))
 

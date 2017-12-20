@@ -6,7 +6,7 @@
 
 (FPCore (x)
  :name "math.cube on real"
- :target (pow x 3)
+ :herbie-target (pow x 3)
  (* (* x x) x))
 
 (FPCore (x.re x.im)
@@ -99,7 +99,7 @@
 
 (FPCore (re im)
  :name "math.sqrt on complex, real part"
- :target
+ :herbie-target
  (if (< re 0)
    (* 0.5 (* (sqrt 2) (sqrt (/ (* im im) (- (sqrt (+ (* re re) (* im im))) re)))))
    (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re)))))

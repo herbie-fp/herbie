@@ -58,7 +58,7 @@
     (printf "  :pre ~a\n" (test-precondition test)))
   (unless (equal? (test-expected test) #t)
     (printf "  :herbie-expected ~a\n" (test-expected test)))
-  (when (test-output test) (printf "\n  :target\n  ~a\n\n" (test-output test)))
+  (when (test-output test) (printf "\n  :herbie-target\n  ~a\n\n" (test-output test)))
   (printf "  ~a)" (test-input test))
   (printf "</code></pre>\n")
   (printf "</section>\n"))

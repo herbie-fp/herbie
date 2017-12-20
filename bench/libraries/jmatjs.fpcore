@@ -42,7 +42,7 @@
 
 (FPCore (wj x)
  :name "Jmat.Real.lambertw, newton loop step"
- :target
+ :herbie-target
  (let ((ew (exp wj)))
    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew))))))
  (let ((ew (exp wj)))

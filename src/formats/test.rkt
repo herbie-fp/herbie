@@ -39,7 +39,7 @@
      (test (~a (dict-ref prop-dict ':name body))
            args
            (desugar-program body)
-           (desugar-program (dict-ref prop-dict ':target #f))
+           (desugar-program (dict-ref prop-dict ':herbie-target #f))
            (dict-ref prop-dict ':herbie-expected #t)
            (desugar-program (dict-ref prop-dict ':pre 'TRUE)))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)

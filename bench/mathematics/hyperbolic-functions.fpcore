@@ -14,7 +14,7 @@
 
 (FPCore (x)
  :name "Hyperbolic arcsine"
- :target
+ :herbie-target
  (if (< x 0)
    (log (/ -1 (- x (sqrt (+ (* x x) 1)))))
    (log (+ x (sqrt (+ (* x x) 1)))))
