@@ -25,7 +25,7 @@ section h1 {
 #program .arrow { color: transparent; font-size: 0; }
 #program .arrow:after { content: "⬇"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
-#program.horizontal .arrow:after { margin: 0 1em; content: "⮕" }
+#program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
 
 #graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
