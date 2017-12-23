@@ -92,73 +92,64 @@
 
 (define (make-index-page)
   (define dirs (directory-list report-json-path))
-
   (let* ([folders
           (map (λ (dir) (cons dir (read-report-info dir)))
                (remove-duplicates
                 (sort (filter name->timestamp dirs) > #:key name->timestamp)
                 #:key name->timestamp))])
 
+    (define branch-infos*
+      (sort
+       (group-by (compose report-info-branch cdr) folders)
+       > #:key (λ (x) (date->seconds (report-info-date (cdar x))))))
+
+    (define-values (master-info* other-infos)
+      (partition (λ (x) (equal? (report-info-branch (cdar x)) "master"))
+                 branch-infos*))
+
+    ;; This is a hack due to the use of partition to simultaneously
+    ;; find the reports with branch master, and also to remove it
+    ;; from the list.
+    (define master-info (and (not (null? master-info*)) (car master-info*)))
+
     (write-file "index.html"
       (printf "<!doctype html>\n")
-      (printf "<html>")
-      (printf "<head>")
-      (printf "<meta charset='utf-8' /><title>Herbie Reports</title>\n")
-      (printf "<link rel='stylesheet' href='index.css' />\n")
-      (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
-      (printf "<script src='regression-chart.js'></script>\n")
-      (printf "<script src='report.js'></script>\n")
-      (printf "</head>\n")
-      (printf "<body onload='index()'>\n")
-
-      (define branch-infos*
-        (sort
-         (group-by (compose report-info-branch cdr) folders)
-         > #:key (λ (x) (date->seconds (report-info-date (cdar x))))))
-
-      (define-values (master-info* other-infos)
-        (partition (λ (x) (equal? (report-info-branch (cdar x)) "master"))
-                   branch-infos*))
-
-      ;; This is a hack due to the use of partition to simultaneously
-      ;; find the reports with branch master, and also to remove it
-      ;; from the list.
-      (define master-info (and (not (null? master-info*)) (car master-info*)))
-
-      ; Big bold numbers
-      (printf "<div id='large'>\n")
-      (printf "<div>Reports: <span class='number'>~a</span></div>\n"
-              (length folders))
-      (printf "<div>Branches: <span class='number'>~a</span></div>\n"
-              (length branch-infos*))
-      (when master-info
-        (printf "<div>On Master: <span class='number'>~a</span></div>\n"
-                (length master-info)))
-      (printf "</div>\n")
-
-      (printf "<ul id='toc'>")
-      (for ([rows (if master-info (cons master-info other-infos) other-infos)])
-        (define branch (report-info-branch (cdar rows)))
-        (printf "<li><a href='#reports-~a'>~a</a></li>" branch branch))
-      (printf "</ul>")
-
-      (printf "<figure>")
-      (printf "<ul id='classes'></ul>")
-      (printf "<svg id='graph' width='800'></svg>\n")
-      (printf "<ul id='suites'></ul>")
-      (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#graph'))})</script>\n")
-      (printf "</figure>\n")
-
-      (printf "<table id='reports'>\n")
-      (when master-info
-        (for-each (curryr write-xexpr (current-output-port))
-                  (print-rows master-info #:name "master")))
-      (for ([rows other-infos])
-        (print-rows rows #:name (report-info-branch (cdar rows))))
-      (printf "</table>\n")
-
-      (printf "</body>\n")
-      (printf "</html>\n"))))
+      (write-xexpr
+       `(html
+         (head
+          (meta ((charset "utf-8")))
+          (title "Herbie Reports")
+          (link ((rel "stylesheet") (href "index.css")))
+          (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+          (script ((src "regression-chart.js")))
+          (script ((src "report.js"))))
+         (body
+          ((onload "index()"))
+          (div
+           ((id "large"))
+           (div "Reports: " (span ((class "number")) ,(~a (length folders))))
+           (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
+           ,(if master-info
+                `(div "On Master: " (span ((class "number")) ,(~a (length master-info))))
+                ""))
+          (ul ((id "toc"))
+              ,@(for/list ([rows (if master-info (cons master-info other-infos) other-infos)])
+                  (define branch (report-info-branch (cdar rows)))
+                  `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
+          (figure
+           (ul ((id "classes")))
+           (svg ((id "graph") (width "800")))
+           (ul ((id "suites")))
+           (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
+          (table
+           ((id "reports"))
+           ,@(if master-info
+                 (print-rows master-info #:name "master")
+                 '())
+           ,@(apply
+              append
+              (for/list ([rows other-infos])
+                (print-rows rows #:name (report-info-branch (cdar rows))))))))))))
 
 (module+ main
   (make-index-page))
