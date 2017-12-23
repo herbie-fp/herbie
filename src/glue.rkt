@@ -143,19 +143,13 @@
   (for/list ([transform transforms-to-try])
     (match transform
       [(list name f finv)
-       (alt-add-event
-        (make-delta altn
-		    (location-do loc (alt-program altn)
-				 (λ (expr) (let ([fv (free-variables expr)])
-					     (if (null? fv) expr
-						 (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
-		    'taylor)
-        `(taylor ,name ,loc))])))
-
-(define (make-delta old-alt new-prog name)
-  (alt-delta new-prog (change (rule name (alt-program old-alt) new-prog) '()
-			      (for/list ([var (program-variables new-prog)]) (cons var var)))
-	     old-alt))
+       (alt-event
+        (location-do loc (alt-program altn)
+                     (λ (expr) (let ([fv (free-variables expr)])
+                                 (if (null? fv) expr
+                                     (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+        `(taylor ,name ,loc)
+        (list altn))])))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)]

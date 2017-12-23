@@ -39,7 +39,7 @@
 (define (simplify altn)
   (define prog (alt-program altn))
   (cond
-   [(or (not (alt-change altn)) (null? (change-location (alt-change altn))))
+   [(not (alt-delta? altn))
     (define prog* (simplify-expr (program-body prog)))
     (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
         (list (make-simplify-change prog '(2) prog*))
