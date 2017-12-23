@@ -1,6 +1,6 @@
 #lang racket
 (require racket/runtime-path)
-
+(require (only-in xml write-xexpr))
 (define-runtime-path report-json-path "../graphs/reports/")
 
 
@@ -46,52 +46,49 @@
       flags))
 
 (define (print-rows infos #:name name)
-  (printf "<thead id='reports-~a' data-branch='~a'><th>Date</th><th>Branch</th><th>Collection</th><th>Tests</th><th>Bits</th></thead>\n" name name)
-  (printf "<tbody>\n")
-  (for ([(folder info) (in-dict infos)])
-    (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
+  `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
+           (th "Date") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
+    (tbody
+     ,@(for/list ([(folder info) (in-dict infos)])
+         (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
 
-    (define-values (total-start total-end)
-      (for/fold ([start 0] [end 0]) ([row (or tests '())])
-        (values
-         (+ start (or (table-row-start row) 0))
-         (+ end (or (table-row-result row) 0)))))
+         (define-values (total-start total-end)
+           (for/fold ([start 0] [end 0]) ([row (or tests '())])
+             (values
+              (+ start (or (table-row-start row) 0))
+              (+ end (or (table-row-result row) 0)))))
 
-    (define total-passed
-      (for/sum ([row (or tests '())])
-        (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-    (define total-available
-      (for/sum ([row (or tests '())])
-        (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+         (define total-passed
+           (for/sum ([row (or tests '())])
+             (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
+         (define total-available
+           (for/sum ([row (or tests '())])
+             (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
 
-    (define (round* x)
-      (cond
-       [(>= (abs x) (expt 10 6))
-        "?"]
-       [(>= (abs x) 10)
-        (~a (inexact->exact (round x)))]
-       [else
-        (~r x #:precision 2)]))
+         (define (round* x)
+           (cond
+            [(>= (abs x) (expt 10 6))
+             "?"]
+            [(>= (abs x) 10)
+             (~a (inexact->exact (round x)))]
+            [else
+             (~r x #:precision 2)]))
 
-    (printf "<tr>")
-    (printf "<td title='~a:~a on ~a'><time data-unix='~a'>~a</time></td>"
-            (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0")
-            ;; TODO: Best to output a datetime field in RFC3338 format,
-            ;; but Racket doesn't make that easy.
-            (date->string date) (date->seconds date) (date->string/short date))
-    (printf "<td title='~a'>~a</td>" commit branch)
-    (if note
-        (printf "<td title='~a' class='note'>~a</td>" (string-join (map ~a (get-options info)) " ") note)
-        (printf "<td title='~a'>⭐</td>" (string-join (map ~a (get-options info)) " ")))
-    (if tests
-        (printf "<td>~a/~a</td>" total-passed total-available)
-        (printf "<td></td>"))
-    (if (> total-start 0)
-        (printf "<td>~a/~a</td>" (round* (- total-start total-end)) (round* total-start))
-        (printf "<td></td>"))
-    (printf "<td><a href='./~a/report.html'>»</a></td>" folder)
-    (printf "</tr>\n"))
-  (printf "</tbody>\n"))
+         `(tr
+           ;; TODO: Best to output a datetime field in RFC3338 format,
+           ;; but Racket doesn't make that easy.
+           (td ((title ,(format "~a:~a on ~a" (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0") (date->string date))))
+               (time ((data-unix ,(format "~a" (date->seconds date))))
+                     ,(date->string/short date)))
+           (td ((title ,commit)) ,branch)
+           (td ((title ,(string-join (map ~a (get-options info)) " "))
+                (class ,(if note "note" "")))
+               ,(if note note "⭐"))
+           (td ,(if tests (format "~a/~a" total-passed total-available) ""))
+           (td ,(if total-start (format "~a/~a" (round* (- total-start total-end))
+                                        (round* total-start))
+                    ""))
+           (td (a ((href ,(format "./~a/report.html" folder))) "»")))))))
 
 (define (make-index-page)
   (define dirs (directory-list report-json-path))
@@ -154,7 +151,8 @@
 
       (printf "<table id='reports'>\n")
       (when master-info
-        (print-rows master-info #:name "master"))
+        (for-each (curryr write-xexpr (current-output-port))
+                  (print-rows master-info #:name "master")))
       (for ([rows other-infos])
         (print-rows rows #:name (report-info-branch (cdar rows))))
       (printf "</table>\n")
