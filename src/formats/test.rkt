@@ -33,7 +33,7 @@
      (define prop-dict
        (let loop ([props props] [out '()])
          (if (null? props)
-             out
+             (reverse out)
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
 
      (test (~a (dict-ref prop-dict ':name body))
