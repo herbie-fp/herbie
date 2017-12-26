@@ -220,79 +220,65 @@
      (printf "</html>\n")]))
 
 (define (make-traceback result rdir profile?)
-  (match result
-    [(test-failure test bits exn time timeline)
-     (printf "<!doctype html>\n")
-     (printf "<html>\n")
-     (printf "<head>\n")
-     (printf "<meta charset='utf-8' />\n")
-     (printf "<title>Exception for ~a</title>" (test-name test))
-     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-     (printf "</head>")
-     (printf "<body>\n")
-
-     (printf "<h1>Error in ~a</h1>\n" (format-time time))
-
-     (cond
-      [(exn:fail:user:herbie? exn)
-       (printf "<section id='user-error'>\n")
-       (printf "<h2>~a <a href='https://herbie.uwplse.org/~a/~a'>(more)</a></h2>\n"
-               (exn-message exn) *herbie-version* (exn:fail:user:herbie-url exn))
-
-       (when (exn:fail:user:herbie:syntax? exn)
-         (printf "<table>\n")
-         (printf "<thead>\n")
-         (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
-         (printf "</thead>\n")
-         (for ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
-           (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
-                   msg (syntax-source stx) (or (syntax-line stx) "")
-                   (or (syntax-column stx) (syntax-position stx))))
-         (printf "</table>\n"))
-
-       (printf "</section>")]
-      [else
-       (write-xexpr (render-process-info time timeline profile? test #:bug? #t))
-
-       (printf "<section id='backtrace'>\n")
-       (printf "<h1>Backtrace</h1>\n")
-       (printf "<table>\n")
-       (printf "<thead>\n")
-       (printf "<th colspan='2'>~a</th><th>L</th><th>C</th>\n" (html-escape-unsafe (exn-message exn)))
-       (printf "</thead>\n")
-       (for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-         (match (cdr tb)
-           [(srcloc file line col _ _)
-            (printf "<tr><td class='procedure'>~a</td><td>~a</td><td>~a</td><td>~a</td></tr>\n"
-                    (procedure-name->string (car tb)) file line col)]
-           [#f
-            (printf "<tr><td class='procedure'>~a</td><td colspan='3'>unknown</td></tr>"
-                    (procedure-name->string (car tb)))]))
-       (printf "</table>\n")])
-     (printf "<section>")
-
-     (printf "</body>\n")
-     (printf "</html>\n")]))
+  (match-define (test-failure test bits exn time timeline) result)
+  (printf "<!doctype html>\n")
+  (write-xexpr
+   '(html
+     (head
+      (meta ((charset "utf-8")))
+      (title "Exception for " ,(~a (test-name test)))
+      (link ((rel "stylesheet") (type "text/css") (href "../graph.css"))))
+     (body
+      (h1 "Error in " ,(format-time time))
+      (cond
+       [(exn:fail:user:herbie? exn)
+        `((section ([id "user-error"])
+           (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) "(more)"))
+           ,(if (exn:fail:user:herbie:syntax? exn)
+                `(table
+                  (thead
+                   (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+                  (tbody
+                   ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
+                       `(tr
+                         (td ([class "procedure"]) ,(~a msg))
+                         (td ,(~a (syntax-source stx)))
+                         (td ,(or (~a (syntax-line stx) "")))
+                         (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx)))))))))))]
+       [else
+        `(,(render-process-info time timeline profile? test #:bug? #t)
+          (section ([id "backtrace"])
+           (h1 "Backtrace")
+           (table
+            (thead
+             (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+            (tbody
+             ,@(for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
+                 (match (cdr tb)
+                   [(srcloc file line col _ _)
+                    `(tr
+                      (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                      (td ,(~a file))
+                      (td ,(~a line))
+                      (td ,(~a col)))]
+                   [#f
+                    `(tr
+                      (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                      (td ([colspan "3"]) "unknown"))]))))))])))))
 
 (define (make-timeout result rdir profile?)
-  (match result
-    [(test-timeout test bits time timeline)
-     (printf "<!doctype html>\n")
-     (printf "<html>\n")
-     (printf "<head>\n")
-     (printf "<meta charset='utf-8' />\n")
-     (printf "<title>Timeout for ~a</title>" (test-name test))
-     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-     (printf "</head>")
-     (printf "<body>\n")
-     
-     (printf "<h1>Timeout in ~a</h1>\n" (format-time time))
-     (printf "<p>Use the <code>--timeout</code> flag to change the timeout.</p>\n")
-
-     (write-xexpr (render-process-info time timeline profile? test))
-
-     (printf "</body>\n")
-     (printf "</html>\n")]))
+  (match-define (test-timeout test bits time timeline) result)
+  (printf "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (meta ((charset "utf-8")))
+      (title ,(format "Timeout for ~a" (test-name test)))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"])))
+     (body
+      (h1 "Timeout in " (format-time time))
+      (p "Use the " (code "--timeout") " flag to change the timeout.")
+      ,(render-process-info time timeline profile? test)))))
 
 (struct interval (alt-idx start-point end-point expr))
 
