@@ -139,93 +139,79 @@
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
 (define (make-graph result rdir profile?)
-  (match result
-    [(test-result test time bits start-alt end-alt points exacts
-                  start-est-error end-est-error newpoints newexacts start-error end-error target-error timeline)
-     (printf "<!doctype html>\n")
-     (printf "<html>\n")
-     (printf "<head>")
-     (printf "<meta charset='utf-8' />")
-     (printf "<title>Results for ~a</title>" (test-name test))
-     (printf "<link rel='stylesheet' type='text/css' href='../graph.css' />")
-     (printf "<script src='~a'></script>" mathjax-url)
-     (printf "<script src='../report.js'></script>")
-     (printf "</head>\n")
-     (printf "<body onload='graph()'>\n")
+  (match-define
+   (test-result test time bits start-alt end-alt
+                points exacts start-est-error end-est-error
+                newpoints newexacts start-error end-error target-error timeline)
+   result)
 
+   (printf "<!doctype html>\n")
+   (write-xexpr
+    `(html
+      (head
+       (meta ([charset "utf-8"]))
+       (title "Result for " ,(~a (test-name test)))
+       (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
+       (script ([src ,mathjax-url]))
+       (script ([src "../report.js"])))
+      (body ([onload "graph()"])
 
-     ; Big bold numbers
-     (printf "<section id='large'>\n")
-     (printf "<div>Average Error: <span class='number' title='Maximum error: ~a → ~a'>~a → ~a</span></div>\n"
-             (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
-             (format-bits (apply max (map ulps->bits end-error)) #:unit #f)
-             (format-bits (errors-score start-error) #:unit #f)
-             (format-bits (errors-score end-error) #:unit #f))
-     (printf "<div>Time: <span class='number'>~a</span></div>\n" (format-time time))
-     (printf "<div>Precision: <span class='number'>~a</span></div>\n" (format-bits (*bit-width*) #:unit #f))
-     (printf "<div>Internal precision: <span class='number'>~a</span></div>\n" (format-bits bits #:unit #f))
-     (printf "</section>\n")
+       (section ([id "large"])
+        (div "Average Error: "
+             (span ([class "number"]
+                    [title ,(format "Maximum error: ~a → ~a"
+                                    (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
+                                    (format-bits (apply max (map ulps->bits end-error)) #:unit #f))])
+                   ,(format-bits (errors-score start-error) #:unit #f)
+                   " → "
+                   ,(format-bits (errors-score end-error) #:unit #f)))
+        (div "Time: " (span ([class "number"]) ,(format-time time)))
+        (div "Precision: " (span ([class "number"]) ,(format-bits (*bit-width*) #:unit #f)))
+        (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
 
+       (section ([id "program"])
+        (div ([class "program"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
+        (div ([class "arrow"]) "↓")
+        (div ([class "program"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
 
-     (printf "<section id='program'>\n")
-     (printf "<div class='program'>\\[~a\\]</div>\n"
-             (texify-prog (alt-program start-alt)))
-     (printf "<div class='arrow'>⬇</div>")
-     (printf "<div class='program'>\\[~a\\]</div>\n"
-             (texify-prog (alt-program end-alt)))
-     (printf "</section>\n")
+       (section ([id "graphs"])
+        (h1 "Error")
+        (div
+         ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
+             (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
+               (define split-var? (equal? var (regime-var end-alt)))
+               (define title "The X axis uses an exponential scale")
+               `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
+                 (img ([width "800"] [height "300"] [title ,title]
+                       [src ,(format "plot-~a.png" idx)]))
+                 (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
+                       [src ,(format "plot-~ar.png" idx)]))
+                 ,(if target-error
+                      `(img ([width "800"] [height "300"] [title ,title] [data-name "Target"]
+                             [src ,(format "plot-~ag.png" idx)]))
+                      "")
+                 (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
+                       [src ,(format "plot-~ab.png" idx)]))
+                 (figcaption (p "Bits error versus " (var ,(~a var)))))))))
 
+       ,(if (test-output test)
+            `(section ([id "comparison"])
+              (h1 "Target")
+              (table
+               (tr (th "Original") (td ,(format-bits (errors-score start-error))))
+               (tr (th "Target") (td ,(format-bits (errors-score target-error))))
+               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
+              (div "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
+            "")
+       
+       (section ([id "history"])
+        (h1 "Derivation")
+        (ol ([class "history"])
+         ,@(parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
+                        [*start-prog* (alt-program start-alt)])
+             (render-history end-alt))))
 
-     (printf "<section id='graphs'>\n")
-     (printf "<h1>Error</h1>\n")
-     (printf "<div>\n")
-     (for ([var (test-vars test)] [idx (in-naturals)])
-       (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
-         (define split-var? (equal? var (regime-var end-alt)))
-
-         (define title "The X axis uses an exponential scale")
-         (printf "<figure id='fig-~a' ~a>" idx (if split-var? "class='default'" ""))
-         (printf "<img width='800' height='300' src='plot-~a.png' title='~a'/>" idx title)
-         (printf "<img width='800' height='300' src='plot-~ar.png' title='~a' data-name='Input'/>" idx title)
-         (when target-error
-           (printf "<img width='800' height='300' src='plot-~ag.png' title='~a' data-name='Target'/>" idx title))
-         (printf "<img width='800' height='300' src='plot-~ab.png' title='~a' data-name='Result'/>" idx title)
-         (printf "<figcaption><p>Bits error versus <var>~a</var></p></figcaption>" var)
-         (printf "</figure>\n")))
-     (printf "</div>\n")
-     (printf "</section>\n")
-
-     (when (test-output test)
-       (printf "<section id='comparison'>\n")
-       (printf "<h1>Target</h1>")
-       (printf "<table>\n")
-       (printf "<tr><th>Original</th><td>~a</td></tr>\n"
-               (format-bits (errors-score start-error)))
-       (printf "<tr><th>Comparison</th><td>~a</td></tr>\n"
-               (format-bits (errors-score target-error)))
-       (printf "<tr><th>Herbie</th><td>~a</td></tr>\n"
-               (format-bits (errors-score end-error)))
-       (printf "</table><!--\n")
-       (printf "--><div>\\[ ~a \\]</div>\n"
-               (texify-prog `(λ ,(test-vars test) ,(test-output test))))
-       (printf "</section>\n"))
-
-
-     (printf "<section id='history'>\n")
-     (printf "<h1>Derivation</h1>\n")
-     (printf "<ol class='history'>\n")
-     (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
-                    [*start-prog* (alt-program start-alt)])
-       (for-each write-xexpr (render-history end-alt)))
-     (printf "</ol>\n")
-     (printf "</section>\n")
-
-
-     (write-xexpr (render-process-info time timeline profile? test))
-
-
-     (printf "</body>\n")
-     (printf "</html>\n")]))
+       ,(render-process-info time timeline profile? test)))))
 
 (define (make-traceback result rdir profile?)
   (match-define (test-failure test bits exn time timeline) result)
