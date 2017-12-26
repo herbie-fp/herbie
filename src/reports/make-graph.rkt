@@ -11,11 +11,12 @@
 (require "../plot.rkt")
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
-(require (only-in xml write-xexpr))
+(require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
 
-(define (regime-var alt)
+(define/contract (regime-var alt)
+  (-> alternative? (or/c expr? #f))
   (let loop ([alt alt])
     (match alt
       [(alt-event _ `(regimes ,splitpoints) prevs)
@@ -24,7 +25,8 @@
       [(alt-event _ _ (list prev _ ...)) (loop prev)]
       [(alt-delta _ _ prev) (loop prev)])))
 
-(define (regime-splitpoints alt)
+(define/contract (regime-splitpoints alt)
+  (-> alternative? (listof number?))
   (let loop ([alt alt])
     (match alt
       [(alt-event _ `(regimes ,splitpoints) prevs)
@@ -33,7 +35,8 @@
       [(alt-event _ _ (list prev _ ...)) (loop prev)]
       [(alt-delta _ _ prev) (loop prev)])))
 
-(define (render-command-line)
+(define/contract (render-command-line)
+  (-> string?)
   (format
    "herbie shell --seed '~a' ~a"
    (get-seed)
@@ -44,7 +47,8 @@
         [(list 'disabled class flag) (format "-o ~a:~a" class flag)]))
     " ")))
 
-(define (render-fpcore test)
+(define/contract (render-fpcore test)
+  (-> test? string?)
   (string-join
    (filter
     identity
@@ -63,7 +67,10 @@
      (format "  ~a)" (test-input test))))
    "\n"))
 
-(define (render-timeline timeline)
+(define timeline? any/c)
+
+(define/contract (render-timeline timeline)
+  (-> timeline? xexpr?)
   `(div ((class "timeline"))
         ,@(for/list ([curr timeline] [next (cdr timeline)])
             `(div
@@ -73,7 +80,8 @@
                    `(,(string->symbol (format "data-~a" type)) ,(~a value))))))))
 
 
-(define (render-process-info time timeline profile? test #:bug? [bug? #t])
+(define/contract (render-process-info time timeline profile? test #:bug? [bug? #f])
+  (->* (number? timeline? boolean? test?) (#:bug? boolean?) xexpr?)
   `(section ((id "process-info"))
     (h1 "Runtime")
     (p ((class "header"))

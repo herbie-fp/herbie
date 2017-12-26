@@ -11,7 +11,9 @@
          free-variables unused-variables replace-expression
          assert-expression! assert-program!
          eval-exact eval-const-expr
-         desugar-program expr->prog)
+         desugar-program expr->prog expr?)
+
+(define expr? (or/c list? symbol? number?))
 
 (define (location-induct
 	 prog

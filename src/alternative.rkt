@@ -5,7 +5,7 @@
 (require "core/matcher.rkt")
 (require "common.rkt")
 
-(provide (struct-out alt-delta) (struct-out alt-event)
+(provide (struct-out alt-delta) (struct-out alt-event) alternative?
          make-alt alt? alt-program alt-change alt-prev alt-add-event
          make-regime-alt
          alt-apply alt-rewrite-tree alt-rewrite-expression
@@ -30,6 +30,8 @@
            (display "#<alt-event " port)
            (write (alt-program alt) port)
            (display ">" port))])
+
+(define alternative? (or/c alt-delta? alt-event?))
 
 (define (make-alt prog)
   (alt-event prog 'start '()))
