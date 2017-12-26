@@ -216,7 +216,7 @@
      (printf "<ol class='history'>\n")
      (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
                     [*start-prog* (alt-program start-alt)])
-       (render-history end-alt))
+       (for-each write-xexpr (render-history end-alt)))
      (printf "</ol>\n")
      (printf "</section>\n")
 
@@ -291,16 +291,17 @@
 (struct interval (alt-idx start-point end-point expr))
 
 (define (render-history altn)
+  (-> alternative? (listof xexpr?))
+
   (define err (format-bits (errors-score (alt-errors altn))))
   (match altn
     [(alt-event prog 'start _)
-     (printf "<li><p>Initial program <span class='error'>~a</span></p><div>\\[~a\\]</div></li>\n"
-             err (texify-prog prog))]
-
+     (list
+      `(li (p "Initial program " (span ([class "error"]) ,err))
+           (div "\\[" ,(texify-prog prog) "\\]")))]
     [(alt-event prog `(start ,strategy) `(,prev))
-     (render-history prev)
-     (printf "<li class='event'>Using strategy <code>~a</code></li>\n"
-             strategy)]
+     `(,@(render-history prev)
+       (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt-event _ `(regimes ,splitpoints) prevs)
      (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]
@@ -314,66 +315,57 @@
                (string-join
                 (list
                  (if (ordinary-float? (interval-start-point ival))
-                     (format "~a &lt; " (interval-start-point ival))
+                     (format "~a < " (interval-start-point ival))
                      "")
                  (~a (interval-expr ival))
                  (if (ordinary-float? (interval-end-point ival))
-                     (format " &lt; ~a" (interval-end-point ival))
+                     (format " < ~a" (interval-end-point ival))
                      ""))))])
-       (printf "<li class='event'>Split input into ~a regimes.</li>\n" (length prevs))
-       (printf "<li>\n")
-       (for ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
-         (let* ([entry-ivals
-                 (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
-                [condition
-                 (string-join (map interval->string entry-ivals) " or ")])
-           (define-values (ivalpoints ivalexacts)
-             (for/lists (pts exs) ([(pt ex) (in-pcontext (*pcontext*))] #:when (pred pt))
-               (values pt ex)))
-           (printf "<h2><code>if <span class='condition'>~a</span></code></h2>\n" condition)
-           (printf "<ol>\n")
-           ;; TODO: The (if) here just corrects for the possibility
-           ;; that we might have sampled new points that include no
-           ;; points in a given regime. Instead it would be best to
-           ;; continue sampling until we actually have many points in
-           ;; each regime. That would require breaking some
-           ;; abstraction boundaries right now so we haven't dont it
-           ;; yet.
-           (define new-pcontext
-             (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
-           (parameterize ([*pcontext* new-pcontext])
-             (render-history entry))
-           (printf "</ol>\n")))
-       (printf "</li>\n")
-       (printf "<li class='event'>Recombined ~a regimes into one program.</li>\n"
-               (length prevs)))]
+       `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
+         (li
+          ,@(apply
+             append
+             (for/list ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
+               (let* ([entry-ivals
+                       (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
+                      [condition
+                       (string-join (map interval->string entry-ivals) " or ")])
+                 (define-values (ivalpoints ivalexacts)
+                   (for/lists (pts exs) ([(pt ex) (in-pcontext (*pcontext*))] #:when (pred pt))
+                     (values pt ex)))
+
+                 ;; TODO: The (if) here just corrects for the possibility
+                 ;; that we might have sampled new points that include no
+                 ;; points in a given regime. Instead it would be best to
+                 ;; continue sampling until we actually have many points in
+                 ;; each regime. That would require breaking some
+                 ;; abstraction boundaries right now so we haven't done it
+                 ;; yet.
+                 (define new-pcontext
+                   (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
+
+                 `((h2 (code "if " (span ([class "condition"]) ,condition)))
+                   (ol ,@(parameterize ([*pcontext* new-pcontext]) (render-history entry))))))))
+         (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program.")))]
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
-     (render-history prev)
-     (printf "<li><p>Taylor expanded around ~a <span class='error'>~a</span></p> <div>\\[\\leadsto ~a\\]</div></li>"
-             pt err (texify-prog prog #:loc loc #:color "blue"))]
-
-    [(alt-event prog 'periodicity `(,base ,subs ...))
-     (render-history base)
-     (for ([sub subs])
-       (printf "<li class='event'>Optimizing periodic subexpression</li>\n")
-       (render-history sub))
-     (printf "<li class='event'>Combined periodic subexpressions</li>\n")]
+     `(,@(render-history prev)
+       (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"]) ,err))
+           (div "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
     [(alt-event prog 'removed-pows `(,alt))
-     (render-history alt)
-     (printf "<li class='event'>Removed slow pow expressions</li>\n")]
+     `(,@(render-history alt)
+       (li ([class "event"]) "Removed slow " (code "pow") " expressions."))]
 
     [(alt-event prog 'final-simplify `(,alt))
-     (render-history alt)
-     (printf "<li class='event'>Applied final simplification</li>\n")]
+     `(,@(render-history alt)
+       (li ([class "event"]) "Applied final simplification."))]
 
     [(alt-delta prog cng prev)
-     (render-history prev)
-     (printf "<li><p>Applied <span class='rule'>~a</span> <span class='error'>~a</span></p>"
-             (rule-name (change-rule cng)) err)
-     (printf "<div>\\[\\leadsto ~a\\]</div></li>\n"
-             (texify-prog prog #:loc (change-location cng) #:color "blue"))]))
+     `(,@(render-history prev)
+       (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
+              (span ([class "error"]) ,err))
+           (div "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
 
 (define (procedure-name->string name)
   (if name
