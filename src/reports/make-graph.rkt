@@ -11,6 +11,7 @@
 (require "../plot.rkt")
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
+(require (only-in xml write-xexpr))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
 
@@ -32,36 +33,64 @@
       [(alt-event _ _ (list prev _ ...)) (loop prev)]
       [(alt-delta _ _ prev) (loop prev)])))
 
-(define (render-process-info time timeline profile? test #:bug? [bug? #t])
-  (printf "<section id='process-info'>\n")
-  (printf "<h1>Runtime</h1>\n")
-  (printf "<p class='header'>")
-  (printf "Time bar (total: <span class='number'>~a</span>)\n" (format-time time))
-  (printf "<a class='attachment' href='debug.txt'>Debug log</a>")
-  (when profile?
-    (printf "<a class='attachment' href='profile.txt'>Profile</a>"))
-  (printf "</p>")
-  (output-timeline timeline)
-  (when bug?
-    (printf "<p>Please include this information when filing a <a href='https://github.com/uwplse/herbie/issues'>bug report</a>:</p>\n"))
-  (printf "<pre class='shell'><code>")
-  (printf "herbie shell --seed '~a'" (get-seed))
-  (for ([rec (changed-flags)])
-    (match rec
-      [(list 'enabled class flag) (printf " +o ~a:~a" class flag)]
-      [(list 'disabled class flag) (printf " -o ~a:~a" class flag)]))
-  (printf "\n")
+(define (render-command-line)
+  (format
+   "herbie shell --seed '~a' ~a"
+   (get-seed)
+   (string-join
+    (for/list ([rec (changed-flags)])
+      (match rec
+        [(list 'enabled class flag) (format "+o ~a:~a" class flag)]
+        [(list 'disabled class flag) (format "-o ~a:~a" class flag)]))
+    " ")))
 
-  (printf "(FPCore ~a\n" (test-vars test))
-  (printf "  :name ~s\n" (test-name test))
-  (unless (equal? (test-precondition test) 'TRUE)
-    (printf "  :pre ~a\n" (test-precondition test)))
-  (unless (equal? (test-expected test) #t)
-    (printf "  :herbie-expected ~a\n" (test-expected test)))
-  (when (test-output test) (printf "\n  :herbie-target\n  ~a\n\n" (test-output test)))
-  (printf "  ~a)" (test-input test))
-  (printf "</code></pre>\n")
-  (printf "</section>\n"))
+(define (render-fpcore test)
+  (string-join
+   (filter
+    identity
+    (list
+     (format "(FPCore ~a" (test-vars test))
+     (format "  :name ~s" (test-name test))
+     (if (equal? (test-precondition test) 'TRUE)
+         #f
+         (format "  :pre ~a" (test-precondition test)))
+     (if (equal? (test-expected test) #t)
+         #f
+         (format "  :herbie-expected ~a" (test-expected test)))
+     (if (test-output test)
+         (format "\n  :herbie-target\n  ~a\n" (test-output test)) ; Extra newlines for clarity
+         #f)
+     (format "  ~a)" (test-input test))))
+   "\n"))
+
+(define (render-timeline timeline)
+  `(div ((class "timeline"))
+        ,@(for/list ([curr timeline] [next (cdr timeline)])
+            `(div
+              ((class ,(format "timeline-phase ~a" (dict-ref curr 'type)))
+               (data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time))))
+               ,@(for/list ([(type value) (in-dict curr)] #:when (not (member type '(time))))
+                   `(,(string->symbol (format "data-~a" type)) ,(~a value))))))))
+
+
+(define (render-process-info time timeline profile? test #:bug? [bug? #t])
+  `(section ((id "process-info"))
+    (h1 "Runtime")
+    (p ((class "header"))
+     "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
+     (a ((class "attachment") (href "debug.txt")) "Debug log")
+     ,(if profile?
+          `(a ((class "attachment") (href "profile.txt")) "Profile")
+          "")
+     ,(render-timeline timeline)
+     ,(if bug?
+          `(p "Please include this information when filing a "
+              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+          "")
+     (pre ((class "shell"))
+      (code
+       ,(render-command-line) "\n"
+       ,(render-fpcore test) "\n")))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
@@ -179,12 +208,12 @@
      (printf "<ol class='history'>\n")
      (parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
                     [*start-prog* (alt-program start-alt)])
-       (output-history end-alt))
+       (render-history end-alt))
      (printf "</ol>\n")
      (printf "</section>\n")
 
 
-     (render-process-info time timeline profile? test)
+     (write-xexpr (render-process-info time timeline profile? test))
 
 
      (printf "</body>\n")
@@ -223,7 +252,7 @@
 
        (printf "</section>")]
       [else
-       (render-process-info time timeline profile? test #:bug? #t)
+       (write-xexpr (render-process-info time timeline profile? test #:bug? #t))
 
        (printf "<section id='backtrace'>\n")
        (printf "<h1>Backtrace</h1>\n")
@@ -260,14 +289,14 @@
      (printf "<h1>Timeout in ~a</h1>\n" (format-time time))
      (printf "<p>Use the <code>--timeout</code> flag to change the timeout.</p>\n")
 
-     (render-process-info time timeline profile? test)
+     (write-xexpr (render-process-info time timeline profile? test))
 
      (printf "</body>\n")
      (printf "</html>\n")]))
 
 (struct interval (alt-idx start-point end-point expr))
 
-(define (output-history altn)
+(define (render-history altn)
   (define err (format-bits (errors-score (alt-errors altn))))
   (match altn
     [(alt-event prog 'start _)
@@ -275,7 +304,7 @@
              err (texify-prog prog))]
 
     [(alt-event prog `(start ,strategy) `(,prev))
-     (output-history prev)
+     (render-history prev)
      (printf "<li class='event'>Using strategy <code>~a</code></li>\n"
              strategy)]
 
@@ -319,50 +348,38 @@
            (define new-pcontext
              (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
            (parameterize ([*pcontext* new-pcontext])
-             (output-history entry))
+             (render-history entry))
            (printf "</ol>\n")))
        (printf "</li>\n")
        (printf "<li class='event'>Recombined ~a regimes into one program.</li>\n"
                (length prevs)))]
 
     [(alt-event prog `(taylor ,pt ,loc) `(,prev))
-     (output-history prev)
+     (render-history prev)
      (printf "<li><p>Taylor expanded around ~a <span class='error'>~a</span></p> <div>\\[\\leadsto ~a\\]</div></li>"
              pt err (texify-prog prog #:loc loc #:color "blue"))]
 
     [(alt-event prog 'periodicity `(,base ,subs ...))
-     (output-history base)
+     (render-history base)
      (for ([sub subs])
        (printf "<li class='event'>Optimizing periodic subexpression</li>\n")
-       (output-history sub))
+       (render-history sub))
      (printf "<li class='event'>Combined periodic subexpressions</li>\n")]
 
     [(alt-event prog 'removed-pows `(,alt))
-     (output-history alt)
+     (render-history alt)
      (printf "<li class='event'>Removed slow pow expressions</li>\n")]
 
     [(alt-event prog 'final-simplify `(,alt))
-     (output-history alt)
+     (render-history alt)
      (printf "<li class='event'>Applied final simplification</li>\n")]
 
     [(alt-delta prog cng prev)
-     (output-history prev)
+     (render-history prev)
      (printf "<li><p>Applied <span class='rule'>~a</span> <span class='error'>~a</span></p>"
              (rule-name (change-rule cng)) err)
      (printf "<div>\\[\\leadsto ~a\\]</div></li>\n"
              (texify-prog prog #:loc (change-location cng) #:color "blue"))]))
-
-(define (output-timeline timeline)
-  (printf "<div class='timeline'>")
-  (for ([curr timeline] [next (cdr timeline)])
-    (printf "<div class='timeline-phase ~a' data-timespan='~a'"
-            (cdr (assoc 'type curr))
-            (- (cdr (assoc 'time next)) (cdr (assoc 'time curr))))
-    (for ([(type value) (in-dict curr)] #:when (not (member type '(time))))
-      (printf " data-~a='~a'" type value))
-    (printf "></div>"))
-  (printf "</div>\n"))
-
 
 (define (procedure-name->string name)
   (if name
