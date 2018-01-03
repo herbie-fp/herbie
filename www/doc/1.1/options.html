@@ -221,10 +221,11 @@
     <dt><code>reduce:regimes</code></dt>
     <dd>This option, on by default, uses Herbie's regime inference
       algorithm to branch between several program candidates. If
-      turned off, branches will be inferred and the output program will
-      be straight-line code (if the input was). You will want to turn
-      this option off if your programming environment makes branches
-      too expensive, such as in some cases of GPU programming.</dd>
+      turned off, branches will not be inferred and the output program
+      will be straight-line code (if the input was). You will want to
+      turn this option off if your programming environment makes
+      branches very expensive, such as in some cases of GPU
+      programming.</dd>
 
     <dt><code>reduce:taylor</code></dt>
     <dd>This option, on by default, uses a final set of series
@@ -272,16 +273,18 @@
     <dt><code>rules:exponents</code></dt>
     <dd>This option, on by default, allows Herbie to use facts about
       exponents during its search. If turned off, Herbie will not be
-      able to use those facts. You rarely want to turn this option off
-      if you do not want to use exponents or logarithms in the output
-      expressions, which might be the case when code runtime is more
-      important than accuracy.</dd>
+      able to use those facts. You may want to turn this option off in
+      the rare case that you do not want exponents or logarithms
+      used in Herbie's output expressions, which may be the case when
+      code runtime is more important than accuracy.</dd>
 
     <dt><code>rules:trigonometry</code></dt>
     <dd>This option, on by default, allows Herbie to use basic
       trigonometry facts during its search. If turned off, Herbie will
-      not be able to use those facts. Herbie's trigonometry knowledge
-      is extremely basic. You will rarely want to turn this option off.</dd>
+      not be able to use those facts. You may want to turn this option
+      off in the rare case that you do not want trigonometric
+      functions used in Herbie's output expressions, which may be the
+      case when code runtime is more important than accuracy.</dd>
 
     <dt><code>rules:numerics</code></dt>
     <dd>This option, off by default, allows Herbie to use special
