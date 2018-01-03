@@ -176,8 +176,9 @@
 
   <dl>
     <dt><code>precision:double</code></dt>
-    <dd>This option, on by default, runs Herbie in double-precision
-      mode. If turned off, Herbie runs in single-precision mode.</dd>
+    <dd>This option, on by default, tells Herbie to treat its input as
+      double-precision calculations. If turned off, Herbie treats its
+      input as a single-precision calculation.</dd>
 
     <dt><code>setup:simplify</code></dt>
     <dd>This option, on by default, simplifies the expression before
@@ -220,7 +221,7 @@
     <dt><code>reduce:regimes</code></dt>
     <dd>This option, on by default, uses Herbie's regime inference
       algorithm to branch between several program candidates. If
-      turned off, brances will be inferred and the output program will
+      turned off, branches will be inferred and the output program will
       be straight-line code (if the input was). You will want to turn
       this option off if your programming environment makes branches
       too expensive, such as in some cases of GPU programming.</dd>
