@@ -46,7 +46,7 @@
   (define vars (program-variables (alt-program (car alts))))
 
   (if critexpr
-      (cons critexpr vars)
+      (remove-duplicates (cons critexpr vars))
       vars))
 
 (define (critical-subexpression prog)
