@@ -108,12 +108,6 @@
   [->c/mpfr (curry format "mpfr_const_pi(~a, MPFR_RNDN)")]
   [->tex "\\pi"])
 
-; Programs are just lambda expressions
-(define program-body caddr)
-(define program-variables cadr)
-
-; Functions and constants used in our language
-(define nan ((flag 'precision 'double) +nan.0 +nan.f))
 (define-constant E real
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
@@ -126,6 +120,32 @@
 (require ffi/unsafe ffi/unsafe/define)
 (define-ffi-definer define-libm #f
   #:default-make-fail make-not-available)
+
+(define-syntax (define-operator/libm stx)
+  (syntax-case stx (real libm)
+    [(_ (operator real ...) real [libm id_d id_f] [key value] ...)
+     (let ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))])
+       #`(begin
+           (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double))
+           (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float))
+           (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
+             [fl (λ args (apply ((flag 'precision 'double) id_d id_f) args))]
+             [key value] ...)))]))
+
+(define-operator/libm (atan2 real real) real
+  [libm atan2 atan2f]
+  [bf bfatan2]
+  [cost 140]
+  [->c/double (curry format "atan2(~a, ~a)")]
+  [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")])
+
+; Programs are just lambda expressions
+(define program-body caddr)
+(define program-variables cadr)
+
+; Functions and constants used in our language
+(define nan ((flag 'precision 'double) +nan.0 +nan.f))
 
 (define-syntax-rule (libm_op1 id_fl id_d id_f)
   (begin
@@ -160,7 +180,8 @@
 (libm_op1  _flasin       asin       asinf)
 (libm_op1  _flasinh      asinh      asinhf)
 (libm_op1  _flatan       atan       atanf)
-(libm_op2  _flatan2      atan2      atan2f)
+#;(libm_op2  _flatan2      atan2      atan2f)
+(define _flatan2 (operator-info 'atan2 'fl))
 (libm_op1  _flatanh      atanh      atanhf)
 (libm_op1  _flcbrt       cbrt       cbrtf)
 (libm_op1  _flceil       ceil       ceilf)
