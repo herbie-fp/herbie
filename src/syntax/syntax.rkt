@@ -10,6 +10,78 @@
          real-op->bigfloat-op
          real-op->float-op)
 
+(define (type? x) (or (equal? x 'real) (equal? x 'bool)))
+
+(define-syntax-rule (define-table* name [field type] ...)
+  (define/contract name
+    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
+    (cons (list (cons 'field type) ...) (make-hash))))
+
+(define/contract (table-get tbl key field)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [field symbol?])
+       [_ (tbl field) (dict-ref (car tbl) field)])
+  (match-let ([(cons header rows) tbl])
+    (for/first ([(field-name type) (in-dict header)]
+                [value (in-list (dict-ref rows key))]
+                #:when (equal? field-name field))
+      value)))
+
+(define-table* operations*
+  [args  (listof (or/c '* natural-number/c))]
+  [bf    (->* () #:rest (listof bigfloat?) bigfloat?)]
+  [fl    (->* () #:rest (listof flonum?) flonum?)]
+  [cost  natural-number/c]
+  [type  (hash/c (or/c '* natural-number/c)
+                 (list/c (or/c (listof type?) (list/c '* type?)) type?))]
+  [->c/double (->* () #:rest (listof string?) string?)]
+  [->c/mpfr   (->* () #:rest (cons/c string? (listof string?)) string?)]
+  [->tex      (->* () #:rest (listof string?) string?)])
+
+(define-table* constants*
+  [type type?]
+  [bf (->* () bigfloat?)]
+  [fl (->* () flonum?)]
+  [->c/double string?]
+  [->c/mpfr (->* (string?) string?)]
+  [->tex string?])
+
+(define (operator-info operator field) (table-get operations operator field))
+(define (constant-info constant field) (table-get constants* constant field))
+
+(define-syntax-rule (define-operation (operator atypes ...) rtype [key value] ...)
+  (match-let ([(cons header rows) operations*])
+    (define row-dict
+      (make-hash
+       (list (cons 'type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype)))
+             (cons 'args (list (length '(atypes ...))))
+             (cons 'key value) ...)))
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
+    (dict-set! rows 'operator row)))
+
+(define-syntax-rule (define-constant constant ctype [key value] ...)
+  (match-let ([(cons header rows) constants*])
+    (define row-dict
+      (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
+    (dict-set! rows 'constant row)))
+
+(define-operation (+ real real) real
+  [cost 40]
+  [bf bf+]
+  [fl +]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (curry format "mpfr_add(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "~a + ~a")])
+
+(define-constant PI real
+  [bf (λ () pi.bf)]
+  [fl (λ () pi)]
+  [->c/double "atan2(1.0, 0.0)"]
+  [->c/mpfr (curry format "mpfr_const_pi(~a, MPFR_RNDN)")]
+  [->tex "\\pi"])
+
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
