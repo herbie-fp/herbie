@@ -30,14 +30,14 @@
 
 (define-table* operations*
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (->* () #:rest (listof bigfloat?) bigfloat?)]
-  [fl    (->* () #:rest (listof flonum?) flonum?)]
+  [bf    procedure? #;(->* () #:rest (listof bigfloat?) bigfloat?)]
+  [fl    procedure? #;(->* () #:rest (listof flonum?) flonum?)]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c)
                  (list/c (or/c (listof type?) (list/c '* type?)) type?))]
-  [->c/double (->* () #:rest (listof string?) string?)]
-  [->c/mpfr   (->* () #:rest (cons/c string? (listof string?)) string?)]
-  [->tex      (->* () #:rest (listof string?) string?)])
+  [->c/double procedure? #;(->* () #:rest (listof string?) string?)]
+  [->c/mpfr   procedure? #;(->* () #:rest (cons/c string? (listof string?)) string?)]
+  [->tex      procedure? #;(->* () #:rest (listof string?) string?)])
 
 (define-table* constants*
   [type type?]
@@ -47,10 +47,10 @@
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
 
-(define (operator-info operator field) (table-get operations operator field))
+(define (operator-info operator field) (table-get operations* operator field))
 (define (constant-info constant field) (table-get constants* constant field))
 
-(define-syntax-rule (define-operation (operator atypes ...) rtype [key value] ...)
+(define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (match-let ([(cons header rows) operations*])
     (define row-dict
       (make-hash
@@ -67,13 +67,39 @@
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
     (dict-set! rows 'constant row)))
 
-(define-operation (+ real real) real
+(define-operator (+ real real) real
   [cost 40]
   [bf bf+]
   [fl +]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (curry format "mpfr_add(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a + ~a")])
+
+;; TODO: Support unary minus
+
+(define-operator (- real real) real
+  [cost 40]
+  [bf bf-]
+  [fl -]
+  [->c/double (curry format "~a - ~a")]
+  [->c/mpfr (curry format "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "~a - ~a")])
+
+(define-operator (* real real) real
+  [cost 40]
+  [bf bf*]
+  [fl *]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (curry format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "~a \\cdot ~a")])
+
+(define-operator (/ real real) real
+  [cost 40]
+  [bf bf/]
+  [fl /]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (curry format "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\frac{~a}{~a}")])
 
 (define-constant PI real
   [bf (λ () pi.bf)]
@@ -88,6 +114,12 @@
 
 ; Functions and constants used in our language
 (define nan ((flag 'precision 'double) +nan.0 +nan.f))
+(define-constant E real
+  [bf (λ () (bfexp 1.bf))]
+  [fl (λ () (exp 1.0))]
+  [->c/double "exp(1.0)"]
+  [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
+  [->tex "e"])
 ; TODO add infinity
 
 ; Use C ffi to get numerical ops from libm
