@@ -28,16 +28,7 @@
                 #:when (equal? field-name field))
       value)))
 
-(define-table* operations*
-  [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-domain-> bigfloat?) #;(->* () #:rest (listof bigfloat?) bigfloat?)]
-  [fl    (unconstrained-domain-> flonum?) #;(->* () #:rest (listof flonum?) flonum?)]
-  [cost  natural-number/c]
-  [type  (hash/c (or/c '* natural-number/c)
-                 (list/c (or/c (listof type?) (list/c '* type?)) type?))]
-  [->c/double (unconstrained-domain-> string?) #;(->* () #:rest (listof string?) string?)]
-  [->c/mpfr   (unconstrained-domain-> string?) #;(->* () #:rest (cons/c string? (listof string?)) string?)]
-  [->tex      (unconstrained-domain-> string?) #;(->* () #:rest (listof string?) string?)])
+;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
 (define-table* constants*
   [type type?]
@@ -47,8 +38,59 @@
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
 
-(define (operator-info operator field) (table-get operations* operator field))
 (define (constant-info constant field) (table-get constants* constant field))
+
+(define-syntax-rule (define-constant constant ctype [key value] ...)
+  (match-let ([(cons header rows) constants*])
+    (define row-dict
+      (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
+    (dict-set! rows 'constant row)))
+
+(define-constant PI real
+  [bf (λ () pi.bf)]
+  [fl (λ () pi)]
+  [->c/double "atan2(1.0, 0.0)"]
+  [->c/mpfr (curry format "mpfr_const_pi(~a, MPFR_RNDN)")]
+  [->tex "\\pi"])
+
+(define-constant E real
+  [bf (λ () (bfexp 1.bf))]
+  [fl (λ () (exp 1.0))]
+  [->c/double "exp(1.0)"]
+  [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
+  [->tex "e"])
+
+(define-constant TRUE bool
+  [bf (const true)]
+  [fl (const true)]
+  [->c/double "1"]
+  [->c/mpfr "1"]
+  [->tex "\\top"])
+
+(define-constant FALSE bool
+  [bf (const false)]
+  [fl (const false)]
+  [->c/double "0"]
+  [->c/mpfr "0"]
+  [->tex "\\perp"])
+
+;; The contracts for operations are tricky because the number of arguments is unknown
+;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
+(define (unconstrainted-argument-number-> from/c to/c)
+  (unconstrained-domain-> to/c))
+
+(define-table* operations*
+  [args  (listof (or/c '* natural-number/c))]
+  [bf    (unconstrained-argument-number-> string? bigfloat?)]
+  [fl    (unconstrained-argument-number-> string? flonum?)]
+  [cost  natural-number/c]
+  [type  (hash/c (or/c '* natural-number/c) (list/c (or/c (listof type?) (list/c '* type?)) type?))]
+  [->c/double (unconstrained-argument-number-> string? string?)]
+  [->c/mpfr   (unconstrained-argument-number-> string? string?)]
+  [->tex      (unconstrained-argument-number-> string? string?)])
+
+(define (operator-info operator field) (table-get operations* operator field))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (match-let ([(cons header rows) operations*])
@@ -59,13 +101,6 @@
              (cons 'key value) ...)))
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
     (dict-set! rows 'operator row)))
-
-(define-syntax-rule (define-constant constant ctype [key value] ...)
-  (match-let ([(cons header rows) constants*])
-    (define row-dict
-      (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
-    (dict-set! rows 'constant row)))
 
 (define-operator (+ real real) real
   [cost 40]
@@ -100,20 +135,6 @@
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (curry format "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\frac{~a}{~a}")])
-
-(define-constant PI real
-  [bf (λ () pi.bf)]
-  [fl (λ () pi)]
-  [->c/double "atan2(1.0, 0.0)"]
-  [->c/mpfr (curry format "mpfr_const_pi(~a, MPFR_RNDN)")]
-  [->tex "\\pi"])
-
-(define-constant E real
-  [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (exp 1.0))]
-  [->c/double "exp(1.0)"]
-  [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
-  [->tex "e"])
 
 ; Use C ffi to get numerical ops from libm
 (require ffi/unsafe ffi/unsafe/define)
