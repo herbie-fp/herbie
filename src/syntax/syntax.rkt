@@ -30,14 +30,14 @@
 
 (define-table* operations*
   [args  (listof (or/c '* natural-number/c))]
-  [bf    procedure? #;(->* () #:rest (listof bigfloat?) bigfloat?)]
-  [fl    procedure? #;(->* () #:rest (listof flonum?) flonum?)]
+  [bf    (unconstrained-domain-> bigfloat?) #;(->* () #:rest (listof bigfloat?) bigfloat?)]
+  [fl    (unconstrained-domain-> flonum?) #;(->* () #:rest (listof flonum?) flonum?)]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c)
                  (list/c (or/c (listof type?) (list/c '* type?)) type?))]
-  [->c/double procedure? #;(->* () #:rest (listof string?) string?)]
-  [->c/mpfr   procedure? #;(->* () #:rest (cons/c string? (listof string?)) string?)]
-  [->tex      procedure? #;(->* () #:rest (listof string?) string?)])
+  [->c/double (unconstrained-domain-> string?) #;(->* () #:rest (listof string?) string?)]
+  [->c/mpfr   (unconstrained-domain-> string?) #;(->* () #:rest (cons/c string? (listof string?)) string?)]
+  [->tex      (unconstrained-domain-> string?) #;(->* () #:rest (listof string?) string?)])
 
 (define-table* constants*
   [type type?]
