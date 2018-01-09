@@ -114,7 +114,6 @@
   [->c/double "exp(1.0)"]
   [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
   [->tex "e"])
-; TODO add infinity
 
 ; Use C ffi to get numerical ops from libm
 (require ffi/unsafe ffi/unsafe/define)
@@ -143,9 +142,6 @@
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
-
-; Functions and constants used in our language
-(define nan ((flag 'precision 'double) +nan.0 +nan.f))
 
 (define-syntax-rule (libm_op1 id_fl id_d id_f)
   (begin
