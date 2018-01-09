@@ -65,19 +65,19 @@
   [bf (const true)]
   [fl (const true)]
   [->c/double "1"]
-  [->c/mpfr "1"]
+  [->c/mpfr (curry format "~a = 1")]
   [->tex "\\top"])
 
 (define-constant FALSE bool
   [bf (const false)]
   [fl (const false)]
   [->c/double "0"]
-  [->c/mpfr "0"]
+  [->c/mpfr (curry format "~a = 0")]
   [->tex "\\perp"])
 
 ;; The contracts for operations are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
-(define (unconstrainted-argument-number-> from/c to/c)
+(define (unconstrained-argument-number-> from/c to/c)
   (unconstrained-domain-> to/c))
 
 (define-table* operations*
@@ -152,13 +152,47 @@
              [fl (λ args (apply ((flag 'precision 'double) id_d id_f) args))]
              [key value] ...)))]))
 
+(define-operator/libm (acos real) real
+  [libm acos acosf] [bf bfacos] [cost 90]
+  [->c/double (curry format "acos(~a)")]
+  [->c/mpfr (curry format "mpfr_acos(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\cos^{-1} ~a")])
+
+(define-operator/libm (acosh real) real
+  [libm acosh acoshf] [bf bfacosh] [cost 55]
+  [->c/double (curry format "acosh(~a)")]
+  [->c/mpfr (curry format "mpfr_acosh(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\cosh^{-1} ~a")])
+
+(define-operator/libm (asin real) real
+  [libm asin asinf] [bf bfasin] [cost 105]
+  [->c/double (curry format "asin(~a)")]
+  [->c/mpfr (curry format "mpfr_asin(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\sin^{-1} ~a")])
+
+(define-operator/libm (asinh real) real
+  [libm asinh asinhf] [bf bfasinh] [cost 55]
+  [->c/double (curry format "asinh(~a)")]
+  [->c/mpfr (curry format "mpfr_asinh(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\sinh^{-1} ~a")])
+
+(define-operator/libm (atan real) real
+  [libm atan atanf] [bf bfatan] [cost 105]
+  [->c/double (curry format "atan(~a)")]
+  [->c/mpfr (curry format "mpfr_atan(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\tan^{-1} ~a")])
+
 (define-operator/libm (atan2 real real) real
-  [libm atan2 atan2f]
-  [bf bfatan2]
-  [cost 140]
+  [libm atan2 atan2f] [bf bfatan2] [cost 140]
   [->c/double (curry format "atan2(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")])
+
+(define-operator/libm (atanh real) real
+  [libm atanh atanhf] [bf bfatanh] [cost 55]
+  [->c/double (curry format "atanh(~a)")]
+  [->c/mpfr (curry format "mpfr_atanh(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\tanh^{-1} ~a")])
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -192,14 +226,20 @@
         (id_f (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))))
 
 ; Supported ops from libm (https://goo.gl/auVJi5)
-(libm_op1  _flacos       acos       acosf)
-(libm_op1  _flacosh      acosh      acoshf)
-(libm_op1  _flasin       asin       asinf)
-(libm_op1  _flasinh      asinh      asinhf)
-(libm_op1  _flatan       atan       atanf)
-#;(libm_op2  _flatan2      atan2      atan2f)
+;(libm_op1  _flacos       acos       acosf)
+;(libm_op1  _flacosh      acosh      acoshf)
+;(libm_op1  _flasin       asin       asinf)
+;(libm_op1  _flasinh      asinh      asinhf)
+;(libm_op1  _flatan       atan       atanf)
+;(libm_op2  _flatan2      atan2      atan2f)
+;(libm_op1  _flatanh      atanh      atanhf)
+(define _flacos (operator-info 'acos 'fl))
+(define _flacosh (operator-info 'acosh 'fl))
+(define _flasin (operator-info 'asin 'fl))
+(define _flasinh (operator-info 'asinh 'fl))
+(define _flatan (operator-info 'atan 'fl))
 (define _flatan2 (operator-info 'atan2 'fl))
-(libm_op1  _flatanh      atanh      atanhf)
+(define _flatanh (operator-info 'atanh 'fl))
 (libm_op1  _flcbrt       cbrt       cbrtf)
 (libm_op1  _flceil       ceil       ceilf)
 (libm_op2  _flcopysign   copysign   copysignf)
@@ -300,6 +340,7 @@
   [atan      '(1)  bfatan       _flatan       105]
   [atan2     '(2)  bfatan2      _flatan2      140]
   [atanh     '(1)  bfatanh      _flatanh       55]
+
   [cbrt      '(1)  bfcbrt       _flcbrt        80]
   [ceil      '(1)  bfceiling    _flceil        80]
   [copysign  '(2)  bfcopysign   _flcopysign    80]
