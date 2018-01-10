@@ -94,9 +94,9 @@
   ;; Override the normal argument handling because - can be unary
   [args '(1 2)] [type (hash 1 '((real) real) 2 '((real real) real))]
   [fl -] [bf bf-] [cost 40]
-  [->c/double (curry format "~a - ~a")]
-  [->c/mpfr (curry format "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "~a - ~a")])
+  [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
+  [->c/mpfr (λ (out x [y #f]) (if y (format "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)" out x y) (format "mpfr_neg(~a, ~a, MPFR_RNDN)" out x)))]
+  [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))])
 
 (define-operator (* real real) real
   [fl *] [bf bf*] [cost 40]
