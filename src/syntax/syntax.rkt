@@ -419,6 +419,8 @@
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y1} ~a")])
 
+;; DEPRECATED
+
 (define-operator (sqr real real) real
   [fl sqr] [bf bfsqr] [cost 40]
   [->c/double (λ (x) (format "~a * ~a" x x))]
