@@ -20,8 +20,8 @@
 
 (define-table* constants
   [type type?]
-  [bf (->* () bigfloat?)]
-  [fl (->* () flonum?)]
+  [bf (->* () (or/c bigfloat? boolean?))]
+  [fl (->* () (or/c flonum? boolean?))]
   [->c/double string?]
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
