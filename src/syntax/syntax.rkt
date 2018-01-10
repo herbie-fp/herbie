@@ -75,11 +75,12 @@
   [->c/mpfr (curry format "~a = 0")]
   [->tex "\\perp"])
 
-;; The contracts for operations are tricky because the number of arguments is unknown
+;; TODO: The contracts for operations are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
 (define (unconstrained-argument-number-> from/c to/c)
   (unconstrained-domain-> to/c))
 
+;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table* operations*
   [args  (listof (or/c '* natural-number/c))]
   [bf    (unconstrained-argument-number-> string? bigfloat?)]
@@ -194,6 +195,259 @@
   [->c/mpfr (curry format "mpfr_atanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh^{-1} ~a")])
 
+(define-operator/libm (cbrt real) real
+ (libm cbrt cbrtf) (bf bfcbrt) (cost 80)
+ (->c/double (curry format "cbrt(~a)"))
+ (->c/mpfr (curry format "mpfr_cbrt(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\sqrt[3]{~a}")))
+
+(define-operator/libm (ceil real) real
+ (libm ceil ceilf) (bf bfceiling) (cost 80)
+ (->c/double (curry format "ceil(~a)"))
+ (->c/mpfr (curry format "mpfr_ceil(~a, ~a)"))
+ (->tex (curry format "\\left\\lceil~a\\right\\rceil")))
+
+(define (bfcopysign x y)
+  (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
+
+(define-operator/libm (copysign real real) real
+ (libm copysign copysignf) (bf bfcopysign) (cost 80)
+ (->c/double (curry format "copysign(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_copysign(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{copysign}\\left(~a, ~a\\right)")))
+
+(define-operator/libm (cos real) real
+ (libm cos cosf) (bf bfcos) (cost 60)
+ (->c/double (curry format "cos(~a)"))
+ (->c/mpfr (curry format "mpfr_cos(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\cos ~a")))
+
+(define-operator/libm (cosh real) real
+ (libm cosh coshf) (bf bfcosh) (cost 55)
+ (->c/double (curry format "cosh(~a)"))
+ (->c/mpfr (curry format "mpfr_cosh(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\cosh ~a")))
+
+(define-operator/libm (erf real) real
+ (libm erf erff) (bf bferf) (cost 70)
+ (->c/double (curry format "erf(~a)"))
+ (->c/mpfr (curry format "mpfr_erf(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{erf} ~a")))
+
+(define-operator/libm (erfc real) real
+ (libm erfc erfcf) (bf bferfc) (cost 70)
+ (->c/double (curry format "erfc(~a)"))
+ (->c/mpfr (curry format "mpfr_erfc(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{erfc} ~a")))
+
+(define-operator/libm (exp real) real
+ (libm exp expf) (bf bfexp) (cost 70)
+ (->c/double (curry format "exp(~a)"))
+ (->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "e^{~a}")))
+
+(define-operator/libm (exp2 real) real
+ (libm exp2 exp2f) (bf bfexp2) (cost 70)
+ (->c/double (curry format "exp2(~a)"))
+ (->c/mpfr (curry format "mpfr_exp2(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "2^{~a}")))
+
+(define-operator/libm (expm1 real) real
+ (libm expm1 expm1f) (bf bfexpm1) (cost 70)
+ (->c/double (curry format "expm1(~a)"))
+ (->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "(e^{~a} - 1)^*")))
+
+(define-operator/libm (fabs real) real
+ (libm fabs fabsf) (bf bfabs) (cost 40)
+ (->c/double (curry format "fabs(~a)"))
+ (->c/mpfr (curry format "mpfr_abs(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\left|~a\\right|")))
+
+
+(define (bffdim x y)
+  (if (bf> x y)
+    (bf- x y)
+    0.bf))
+
+(define-operator/libm (fdim real real) real
+ (libm fdim fdimf) (bf bffdim) (cost 55)
+ (->c/double (curry format "fdim(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_dim(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{fdim}\\left(~a, ~a\\right)")))
+
+(define-operator/libm (floor real) real
+ (libm floor floorf) (bf bffloor) (cost 55)
+ (->c/double (curry format "floor(~a)"))
+ (->c/mpfr (curry format "mpfr_floor(~a, ~a)"))
+ (->tex (curry format "\\left\\lfloor~a\\right\\rfloor")))
+
+(define (bffma x y z)
+  (bf+ (bf* x y) z))
+
+(define-operator/libm (fma real real real) real
+ (libm fma fmaf) (bf bffma) (cost 55)
+ (->c/double (curry format "fma(~a, ~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "(~a \\cdot ~a + ~a)_*")))
+
+(define-operator/libm (fmax real real) real
+ (libm fmax fmaxf) (bf bfmax) (cost 55)
+ (->c/double (curry format "fmax(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{fmax}\\left(~a, ~a\\right)")))
+
+(define-operator/libm (fmin real real) real
+ (libm fmin fminf) (bf bfmin) (cost 55)
+ (->c/double (curry format "fmin(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{fmin}\\left(~a, ~a\\right)")))
+
+(define (bffmod x mod)
+  (bf- x (bf* mod (bffloor (bf/ x mod)))))
+
+(define-operator/libm (fmod real real) real
+ (libm fmod fmodf) (bf bffmod) (cost 70)
+ (->c/double (curry format "fmod(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "~a \\bmod ~a")))
+
+(define-operator/libm (hypot real real) real
+ (libm hypot hypotf) (bf bfhypot) (cost 55)
+ (->c/double (curry format "hypot(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\sqrt{~a^2 + ~a^2}^*")))
+
+(define-operator/libm (j0 real) real
+ (libm j0 j0f) (bf bfbesj0) (cost 55)
+ (->c/double (curry format "j0(~a)"))
+ (->c/mpfr (curry format "mpfr_j0(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{j0} ~a")))
+
+(define-operator/libm (j1 real) real
+ (libm j1 j1f) (bf bfbesj1) (cost 55)
+ (->c/double (curry format "j1(~a)"))
+ (->c/mpfr (curry format "mpfr_j1(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{j1} ~a")))
+
+(define-operator/libm (lgamma real) real
+ (libm lgamma lgammaf) (bf bflog-gamma) (cost 55)
+ (->c/double (curry format "lgamma(~a)"))
+ (->c/mpfr (curry format "mpfr_lngamma(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\log_* \\left( \\mathsf{gamma} ~a \\right)")))
+
+(define-operator/libm (log real) real
+ (libm log logf) (bf bflog) (cost 70)
+ (->c/double (curry format "log(~a)"))
+ (->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\log ~a")))
+
+(define-operator/libm (log10 real) real
+ (libm log10 log10f) (bf bflog10) (cost 70)
+ (->c/double (curry format "log10(~a)"))
+ (->c/mpfr (curry format "mpfr_log10(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\log_{10} ~a")))
+
+(define-operator/libm (log1p real) real
+ (libm log1p log1pf) (bf bflog1p) (cost 90)
+ (->c/double (curry format "log1p(~a)"))
+ (->c/mpfr (curry format "mpfr_log1p(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\log_* (1 + ~a)")))
+
+(define-operator/libm (log2 real) real
+ (libm log2 log2f) (bf bflog2) (cost 70)
+ (->c/double (curry format "log2(~a)"))
+ (->c/mpfr (curry format "mpfr_log2(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\log_{2} ~a")))
+
+(define (bflogb x)
+  (bigfloat-exponent x))
+
+(define-operator/libm (logb real) real
+ (libm logb logbf) (bf bflogb) (cost 70)
+ (->c/double (curry format "logb(~a)"))
+ (->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)"))
+ (->tex (curry format "\\log^{*}_{b} ~a")))
+
+(define-operator/libm (pow real real) real
+ (libm pow powf) (bf bfexpt) (cost 210)
+ (->c/double (curry format "pow(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "{~a}^{~a}")))
+
+(define-operator/libm (remainder real real) real
+ (libm remainder remainderf) (bf bfremainder) (cost 70)
+ (->c/double (curry format "remainder(~a, ~a)"))
+ (->c/mpfr (curry format "mpfr_remainder(~a, ~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "~a \\mathsf{rem} ~a")))
+
+(define-operator/libm (rint real) real
+ (libm rint rintf) (bf bfrint) (cost 70)
+ (->c/double (curry format "rint(~a)"))
+ (->c/mpfr (curry format "mpfr_rint(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{rint} ~a")))
+
+(define-operator/libm (round real) real
+ (libm round roundf) (bf bfround) (cost 70)
+ (->c/double (curry format "round(~a)"))
+ (->c/mpfr (curry format "mpfr_round(~a, ~a)"))
+ (->tex (curry format "\\mathsf{round} ~a")))
+
+(define-operator/libm (sin real) real
+ (libm sin sinf) (bf bfsin) (cost 60)
+ (->c/double (curry format "sin(~a)"))
+ (->c/mpfr (curry format "mpfr_sin(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\sin ~a")))
+
+(define-operator/libm (sinh real) real
+ (libm sinh sinhf) (bf bfsinh) (cost 55)
+ (->c/double (curry format "sinh(~a)"))
+ (->c/mpfr (curry format "mpfr_sinh(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\sinh ~a")))
+
+(define-operator/libm (sqrt real) real
+ (libm sqrt sqrtf) (bf bfsqrt) (cost 40)
+ (->c/double (curry format "sqrt(~a)"))
+ (->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\sqrt{~a}")))
+
+(define-operator/libm (tan real) real
+ (libm tan tanf) (bf bftan) (cost 95)
+ (->c/double (curry format "tan(~a)"))
+ (->c/mpfr (curry format "mpfr_tan(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\tan ~a")))
+
+(define-operator/libm (tanh real) real
+ (libm tanh tanhf) (bf bftanh) (cost 55)
+ (->c/double (curry format "tanh(~a)"))
+ (->c/mpfr (curry format "mpfr_tanh(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\tanh ~a")))
+
+(define-operator/libm (tgamma real) real
+ (libm tgamma tgammaf) (bf bfgamma) (cost 55)
+ (->c/double (curry format "tgamma(~a)"))
+ (->c/mpfr (curry format "mpfr_gamma(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{gamma} ~a")))
+
+(define-operator/libm (trunc real) real
+ (libm trunc truncf) (bf bftruncate) (cost 55)
+ (->c/double (curry format "trunc(~a)"))
+ (->c/mpfr (curry format "mpfr_trunc(~a, ~a)"))
+ (->tex (curry format "\\mathsf{trunc} ~a")))
+
+(define-operator/libm (y0 real) real
+ (libm y0 y0f) (bf bfbesy0) (cost 55)
+ (->c/double (curry format "y0(~a)"))
+ (->c/mpfr (curry format "mpfr_y0(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{y0} ~a")))
+
+(define-operator/libm (y1 real) real
+ (libm y1 y1f) (bf bfbesy1) (cost 55)
+ (->c/double (curry format "y1(~a)"))
+ (->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)"))
+ (->tex (curry format "\\mathsf{y1} ~a")))
+
+
 ; Programs are just lambda expressions
 (define program-body caddr)
 (define program-variables cadr)
@@ -233,6 +487,46 @@
 ;(libm_op1  _flatan       atan       atanf)
 ;(libm_op2  _flatan2      atan2      atan2f)
 ;(libm_op1  _flatanh      atanh      atanhf)
+;(libm_op1  _flcbrt       cbrt       cbrtf)
+;(libm_op1  _flceil       ceil       ceilf)
+;(libm_op2  _flcopysign   copysign   copysignf)
+;(libm_op1  _flcos        cos        cosf)
+;(libm_op1  _flcosh       cosh       coshf)
+;(libm_op1  _flerf        erf        erff)
+;(libm_op1  _flerfc       erfc       erfcf)
+;(libm_op1  _flexp        exp        expf)
+;(libm_op1  _flexp2       exp2       exp2f)
+;(libm_op1  _flexpm1      expm1      expm1f)
+;(libm_op1  _flfabs       fabs       fabsf)
+;(libm_op2  _flfdim       fdim       fdimf)
+;(libm_op1  _flfloor      floor      floorf)
+;(libm_op3  _flfma        fma        fmaf)
+;(libm_op2  _flfmax       fmax       fmaxf)
+;(libm_op2  _flfmin       fmin       fminf)
+;(libm_op2  _flfmod       fmod       fmodf)
+;(libm_op2  _flhypot      hypot      hypotf)
+;(libm_op1  _flj0         j0         j0f)
+;(libm_op1  _flj1         j1         j1f)
+;(libm_op1  _fllgamma     lgamma     lgammaf)
+;(libm_op1  _fllog        log        logf)
+;(libm_op1  _fllog10      log10      log10f)
+;(libm_op1  _fllog1p      log1p      log1pf)
+;(libm_op1  _fllog2       log2       log2f)
+;(libm_op1  _fllogb       logb       logbf)
+;(libm_op2  _flpow        pow        powf)
+;(libm_op2  _flremainder  remainder  remainderf)
+;(libm_op1  _flrint       rint       rintf)
+;(libm_op1  _flround      round      roundf)
+;(libm_op1  _flsin        sin        sinf)
+;(libm_op1  _flsinh       sinh       sinhf)
+;(libm_op1  _flsqrt       sqrt       sqrtf)
+;(libm_op1  _fltan        tan        tanf)
+;(libm_op1  _fltanh       tanh       tanhf)
+;(libm_op1  _fltgamma     tgamma     tgammaf)
+;(libm_op1  _fltrunc      trunc      truncf)
+;(libm_op1  _fly0         y0         y0f)
+;(libm_op1  _fly1         y1         y1f)
+
 (define _flacos (operator-info 'acos 'fl))
 (define _flacosh (operator-info 'acosh 'fl))
 (define _flasin (operator-info 'asin 'fl))
@@ -240,45 +534,45 @@
 (define _flatan (operator-info 'atan 'fl))
 (define _flatan2 (operator-info 'atan2 'fl))
 (define _flatanh (operator-info 'atanh 'fl))
-(libm_op1  _flcbrt       cbrt       cbrtf)
-(libm_op1  _flceil       ceil       ceilf)
-(libm_op2  _flcopysign   copysign   copysignf)
-(libm_op1  _flcos        cos        cosf)
-(libm_op1  _flcosh       cosh       coshf)
-(libm_op1  _flerf        erf        erff)
-(libm_op1  _flerfc       erfc       erfcf)
-(libm_op1  _flexp        exp        expf)
-(libm_op1  _flexp2       exp2       exp2f)
-(libm_op1  _flexpm1      expm1      expm1f)
-(libm_op1  _flfabs       fabs       fabsf)
-(libm_op2  _flfdim       fdim       fdimf)
-(libm_op1  _flfloor      floor      floorf)
-(libm_op3  _flfma        fma        fmaf)
-(libm_op2  _flfmax       fmax       fmaxf)
-(libm_op2  _flfmin       fmin       fminf)
-(libm_op2  _flfmod       fmod       fmodf)
-(libm_op2  _flhypot      hypot      hypotf)
-(libm_op1  _flj0         j0         j0f)
-(libm_op1  _flj1         j1         j1f)
-(libm_op1  _fllgamma     lgamma     lgammaf)
-(libm_op1  _fllog        log        logf)
-(libm_op1  _fllog10      log10      log10f)
-(libm_op1  _fllog1p      log1p      log1pf)
-(libm_op1  _fllog2       log2       log2f)
-(libm_op1  _fllogb       logb       logbf)
-(libm_op2  _flpow        pow        powf)
-(libm_op2  _flremainder  remainder  remainderf)
-(libm_op1  _flrint       rint       rintf)
-(libm_op1  _flround      round      roundf)
-(libm_op1  _flsin        sin        sinf)
-(libm_op1  _flsinh       sinh       sinhf)
-(libm_op1  _flsqrt       sqrt       sqrtf)
-(libm_op1  _fltan        tan        tanf)
-(libm_op1  _fltanh       tanh       tanhf)
-(libm_op1  _fltgamma     tgamma     tgammaf)
-(libm_op1  _fltrunc      trunc      truncf)
-(libm_op1  _fly0         y0         y0f)
-(libm_op1  _fly1         y1         y1f)
+(define _flcbrt (operator-info 'cbrt 'fl))
+(define _flceil (operator-info 'ceil 'fl))
+(define _flcopysign (operator-info 'copysign 'fl))
+(define _flcos (operator-info 'cos 'fl))
+(define _flcosh (operator-info 'cosh 'fl))
+(define _flerf (operator-info 'erf 'fl))
+(define _flerfc (operator-info 'erfc 'fl))
+(define _flexp (operator-info 'exp 'fl))
+(define _flexp2 (operator-info 'exp2 'fl))
+(define _flexpm1 (operator-info 'expm1 'fl))
+(define _flfabs (operator-info 'fabs 'fl))
+(define _flfdim (operator-info 'fdim 'fl))
+(define _flfloor (operator-info 'floor 'fl))
+(define _flfma (operator-info 'fma 'fl))
+(define _flfmax (operator-info 'fmax 'fl))
+(define _flfmin (operator-info 'fmin 'fl))
+(define _flfmod (operator-info 'fmod 'fl))
+(define _flhypot (operator-info 'hypot 'fl))
+(define _flj0 (operator-info 'j0 'fl))
+(define _flj1 (operator-info 'j1 'fl))
+(define _fllgamma (operator-info 'lgamma 'fl))
+(define _fllog (operator-info 'log 'fl))
+(define _fllog10 (operator-info 'log10 'fl))
+(define _fllog1p (operator-info 'log1p 'fl))
+(define _fllog2 (operator-info 'log2 'fl))
+(define _fllogb (operator-info 'logb 'fl))
+(define _flpow (operator-info 'pow 'fl))
+(define _flremainder (operator-info 'remainder 'fl))
+(define _flrint (operator-info 'rint 'fl))
+(define _flround (operator-info 'round 'fl))
+(define _flsin (operator-info 'sin 'fl))
+(define _flsinh (operator-info 'sinh 'fl))
+(define _flsqrt (operator-info 'sqrt 'fl))
+(define _fltan (operator-info 'tan 'fl))
+(define _fltanh (operator-info 'tanh 'fl))
+(define _fltgamma (operator-info 'tgamma 'fl))
+(define _fltrunc (operator-info 'trunc 'fl))
+(define _fly0 (operator-info 'y0 'fl))
+(define _fly1 (operator-info 'y1 'fl))
 
 (define (_flcube x)
   (* x (* x x)))
@@ -286,26 +580,9 @@
 (define (_flsqr x)
   (* x x))
 
-(define (bfcopysign x y)
-  (bf* (bfabs x)
-       (bf (expt -1 (bigfloat-signbit y)))))
-
-(define (bffdim x y)
-  (if (bf> x y)
-    (bf- x y)
-    0.bf))
-
 (define (bfcube x)
   (bf* x (bf* x x)))
 
-(define (bffma x y z)
-  (bf+ (bf* x y) z))
-
-(define (bflogb x)
-  (bigfloat-exponent x))
-
-(define (bffmod x mod)
-  (bf- x (bf* mod (bffloor (bf/ x mod)))))
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
