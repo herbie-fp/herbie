@@ -497,7 +497,7 @@
 (define-operator (< real real) bool
   ; Override number of arguments
   [type #hash((* . ((* real) bool)))] [args '(*)]
-  [fl (comparator <)] [bf (comparator <)] [cost 65]
+  [fl (comparator <)] [bf (comparator bf<)] [cost 65]
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
   [->tex (curryr string-join " < ")])
@@ -505,7 +505,7 @@
 (define-operator (> real real) bool
   ; Override number of arguments
   [type #hash((* . ((* real) bool)))] [args '(*)]
-  [fl (comparator >)] [bf (comparator >)] [cost 65]
+  [fl (comparator >)] [bf (comparator bf>)] [cost 65]
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
   [->tex (curryr string-join " > ")])
@@ -513,7 +513,7 @@
 (define-operator (<= real real) bool
   ; Override number of arguments
   [type #hash((* . ((* real) bool)))] [args '(*)]
-  [fl (comparator <=)] [bf (comparator <=)] [cost 65]
+  [fl (comparator <=)] [bf (comparator bf<=)] [cost 65]
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
   [->tex (curryr string-join " \\le ")])
@@ -521,7 +521,7 @@
 (define-operator (>= real real) bool
   ; Override number of arguments
   [type #hash((* . ((* real) bool)))] [args '(*)]
-  [fl (comparator >=)] [bf (comparator >=)] [cost 65]
+  [fl (comparator >=)] [bf (comparator bf>=)] [cost 65]
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
   [->tex (curryr string-join " \\ge ")])
