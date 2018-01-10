@@ -7,8 +7,7 @@
 (provide predicates constants constant? variable? operation?
          ->bf ->flonum
          program-body program-variables
-         operator-info constant-info
-         real-op->bigfloat-op real-op->float-op)
+         operator-info constant-info)
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
@@ -587,6 +586,3 @@
    [(constant? x)
     (constant-info x 'bf)]
    [else x]))
-
-(define (real-op->bigfloat-op op) (operator-info op 'bf))
-(define (real-op->float-op op) (operator-info op 'fl))

@@ -78,8 +78,8 @@
               (for/list ([p (in-list pts)])
                 (let* ([exact-args (for/list ([arg (in-list (cdr subexpr))])
                                      ((eval-exact `(λ ,vars ,arg)) p))]
-                       [f-exact (real-op->bigfloat-op (car subexpr))]
-                       [f-approx (real-op->float-op (car subexpr))]
+                       [f-exact (operator-info (car subexpr) 'bf)]
+                       [f-approx (operator-info (car subexpr) 'fl)]
                        [exact (->flonum (apply f-exact exact-args))]
                        [approx (apply f-approx (map ->flonum exact-args))]
                        [local-err (add1 (abs (ulp-difference exact approx)))])

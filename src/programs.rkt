@@ -263,14 +263,14 @@
 ;; Does the same thing as the above with mode 'bf, but doesn't convert
 ;; the results back to floats.
 (define (eval-exact prog)
-  (let* ([prog* (program-induct prog #:constant ->bf #:symbol real-op->bigfloat-op)]
+  (let* ([prog* (program-induct prog #:constant ->bf #:symbol (curryr operator-info 'bf))]
          [prog-opt `(lambda ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (apply fn (map ->bf pts)))))
 
 (define (eval-const-expr expr)
-  (let* ([expr_bf (expression-induct expr '() #:constant ->bf #:symbol real-op->bigfloat-op)])
+  (let* ([expr_bf (expression-induct expr '() #:constant ->bf #:symbol (curryr operator-info 'bf))])
     (->flonum (eval expr_bf common-eval-ns))))
 
 ;; To compute the cost of a program, we could use the tree as a

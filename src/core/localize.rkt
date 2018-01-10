@@ -35,8 +35,8 @@
                   [`(,f ,args ...)
                    (let* ([argvals
                            (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args))]
-                          [f-exact  (real-op->bigfloat-op f)]
-                          [f-approx (real-op->float-op f)]
+                          [f-exact  (operator-info f 'bf)]
+                          [f-approx (operator-info f 'fl)]
                           [exact  (map (curry apply f-exact) argvals)]
                           [approx (map (compose (curry apply f-approx) (curry map ->flonum)) argvals)]
                           [error
