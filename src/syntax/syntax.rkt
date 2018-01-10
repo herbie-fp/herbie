@@ -7,8 +7,8 @@
 (provide *operations* predicates constants constant? variable?
          mode:bf mode:fl mode:args mode:cost ->bf ->flonum
          program-body program-variables
-         real-op->bigfloat-op
-         real-op->float-op)
+         operator-info constant-info
+         real-op->bigfloat-op real-op->float-op)
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
@@ -581,21 +581,19 @@
   (or (member var constants) (number? var)))
 
 (define (->flonum x)
-  (let ([convert ((flag 'precision 'double)
-                   real->double-flonum
-                   real->single-flonum)])
-    (cond
-     [(real? x) (convert x)]
-     [(bigfloat? x) (convert (bigfloat->flonum x))]
-     [(complex? x)
-      (if (= (imag-part x) 0)
+  (define convert
+    ((flag 'precision 'double) real->double-flonum real->single-flonum))
+
+  (cond
+   [(real? x) (convert x)]
+   [(bigfloat? x) (convert (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
         (->flonum (real-part x))
         +nan.0)]
-     [(eq? x 'PI) (convert pi)]
-     [(eq? x 'E) (convert (exp 1.0))]
-     [(eq? x 'TRUE) #t]
-     [(eq? x 'FALSE) #f]
-     [else x])))
+   [(constant? x)
+    (convert (constant-info x 'fl))]
+   [else x]))
 
 (define (->bf x)
   (cond
@@ -603,11 +601,9 @@
    [(bigfloat? x) x]
    [(complex? x)
     (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
-   [(eq? x 'PI) pi.bf]
-   [(eq? x 'E) (bfexp 1.bf)]
-   [(eq? x 'TRUE) #t]
-   [(eq? x 'FALSE) #f]
+   [(constant? x)
+    (constant-info x 'bf)]
    [else x]))
 
-(define (real-op->bigfloat-op op) (list-ref (hash-ref (*operations*) op) mode:bf))
-(define (real-op->float-op op) (list-ref (hash-ref (*operations*) op) mode:fl))
+(define (real-op->bigfloat-op op) (operator-info op 'bf))
+(define (real-op->float-op op) (operator-info op 'fl))
