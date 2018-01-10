@@ -88,8 +88,8 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table* operations*
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> string? bigfloat?)]
-  [fl    (unconstrained-argument-number-> string? flonum?)]
+  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
+  [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (list/c (or/c (listof type?) (list/c '* type?)) type?))]
   [->c/double (unconstrained-argument-number-> string? string?)]
@@ -574,7 +574,7 @@
         (->flonum (real-part x))
         +nan.0)]
    [(constant? x)
-    (convert (constant-info x 'fl))]
+    (convert ((constant-info x 'fl)))]
    [else x]))
 
 (define (->bf x)
@@ -583,6 +583,5 @@
    [(bigfloat? x) x]
    [(complex? x)
     (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
-   [(constant? x)
-    (constant-info x 'bf)]
+   [(constant? x) ((constant-info x 'bf))]
    [else x]))
