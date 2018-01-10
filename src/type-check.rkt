@@ -39,6 +39,12 @@
     [(or #`TRUE #`FALSE) 'bool]
     [#`,(? constant? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
+    [#`((and (or '+ '- '* '/) f) #, exprs ...)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env error!))
+       (unless (equal? actual-type 'real)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) each-type actual-type)))
+     'real]
     [#`(,(? operation? op) #,exprs ...)
      (match (get-params op (length exprs))
        [(list '* each-type)
