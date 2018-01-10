@@ -4,8 +4,8 @@
 (require math/bigfloat)
 (require "../common.rkt")
 
-(provide *operations* predicates constants constant? variable?
-         mode:bf mode:fl mode:args mode:cost ->bf ->flonum
+(provide predicates constants constant? variable? operation?
+         ->bf ->flonum
          program-body program-variables
          operator-info constant-info
          real-op->bigfloat-op real-op->float-op)
@@ -549,30 +549,13 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (curryr string-join " \\lor ")])
 
-(define (_flsqr x)
-  (* x x))
-
-(define (_flcube x)
-  (* x (* x x)))
-
-(define (bfcube x)
-  (bf* x (bf* x x)))
-
-(define operations
-  (for/hash ([key (in-dict-keys (cdr operations*))])
-    (values key (map (curry operator-info key) '(args bf fl cost)))))
-
-(define *operations* (make-parameter operations))
-
 (define constants
   (for/list ([key (in-dict-keys (cdr constants*))]) key))
 
 (define predicates '(not or and < > <= >= == !=))
 
-(define mode:args 0)
-(define mode:bf 1)
-(define mode:fl 2)
-(define mode:cost 3)
+(define (operation? op)
+  (dict-has-key? (cdr operations*) op))
 
 (define (variable? var)
   (and (symbol? var) (not (member var constants))))

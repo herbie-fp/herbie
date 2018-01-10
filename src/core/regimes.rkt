@@ -85,7 +85,7 @@
                [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
           (if (and candidate-expr
                    (for/or ([(pt ex) (in-pcontext (*pcontext*))])
-                     (nan? ((eval-prog candidate-prog mode:fl) pt))))
+                     (nan? ((eval-prog candidate-prog 'fl) pt))))
               #f
               candidate-expr)))))
 
@@ -129,9 +129,9 @@
   (define (eval-on-pt pt)
     (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
 			 ,expr)]
-	   [val-float ((eval-prog expr-prog mode:fl) pt)])
+	   [val-float ((eval-prog expr-prog 'fl) pt)])
       (if (ordinary-float? val-float) val-float
-	  ((eval-prog expr-prog mode:bf) pt))))
+	  ((eval-prog expr-prog 'bf) pt))))
 
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
@@ -184,9 +184,9 @@
 	([pt (in-list pts)]
 	 [errs (flip-lists err-lsts)])
       (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
-	     [float-val ((eval-prog expr-prog mode:fl) pt)]
+	     [float-val ((eval-prog expr-prog 'fl) pt)]
 	     [pt-val (if (ordinary-float? float-val) float-val
-			 ((eval-prog expr-prog mode:bf) pt))])
+			 ((eval-prog expr-prog 'bf) pt))])
 	(if (or (<= pt-val (sp-point (car rest-splits)))
 		(and (null? (cdr rest-splits)) (nan? pt-val)))
 	    (if (nan? pt-val) (error "wat")
@@ -296,7 +296,7 @@
       (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
 	(debug #:from 'splitpoints "intervals are: " p-intervals)
 	(λ (p)
-	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
+	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) 'fl) p)])
 	    (for/or ([point-interval p-intervals])
 	      (let ([lower-bound (if (car point-interval) (sp-point (car point-interval)) #f)]
 		    [upper-bound (sp-point (cdr point-interval))])

@@ -462,14 +462,14 @@
         (define fv (free-variables p1))
         (define valid-point?
           (if (dict-has-key? *conditions* name)
-              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) mode:bf)
+              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
               (const true)))
 
         (define (make-point) (for/list ([v fv]) (sample-double)))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) mode:bf))
-        (define prog2 (eval-prog `(λ ,fv ,p2) mode:bf))
+        (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
+        (define prog2 (eval-prog `(λ ,fv ,p2) 'bf))
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))

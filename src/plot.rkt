@@ -115,7 +115,7 @@
   (define x
     (if (number? axis)
         (curryr list-ref axis)
-        (eval-prog axis mode:fl)))
+        (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
       (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
@@ -194,7 +194,7 @@
   (define get-coord
     (if (number? axis)
         (curryr list-ref axis)
-        (eval-prog `(λ ,vars ,axis) mode:fl)))
+        (eval-prog `(λ ,vars ,axis) 'fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)

@@ -118,8 +118,8 @@
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
-     (if (hash-has-key? (*operations*) f)
-         (let ([num-args (list-ref (hash-ref (*operations*) f) mode:args)])
+     (if (operation? f)
+         (let ([num-args (operator-info f 'args)])
            (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
                      f (length args) (string-join (map ~a num-args) " or "))))
@@ -252,15 +252,15 @@
           #f]))))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
-         [op->precision (λ (op) (list-ref (hash-ref (*operations*) op) mode))]
+  (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]
+         [op->precision (λ (op) (operator-info op mode))] ; TODO change use of mode
          [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
          [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
 
-;; Does the same thing as the above with mode:bf, but doesn't convert
+;; Does the same thing as the above with mode 'bf, but doesn't convert
 ;; the results back to floats.
 (define (eval-exact prog)
   (let* ([prog* (program-induct prog #:constant ->bf #:symbol real-op->bigfloat-op)]
@@ -304,8 +304,7 @@
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])
     (if (list? (second step))
-        (let ([fn (caadr step)])
-          (list-ref (hash-ref (*operations*) fn) mode:cost))
+        (operator-info (caadr step) 'cost)
         1)))
 
 (define (replace-subexpr prog needle needle*)
