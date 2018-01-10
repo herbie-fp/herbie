@@ -12,6 +12,12 @@
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
+; Programs are just lambda expressions
+(define program-body caddr)
+(define program-variables cadr)
+
+;; Defining operators and constants
+
 (define-syntax-rule (define-table* name [field type] ...)
   (define/contract name
     (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
@@ -543,132 +549,6 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (curryr string-join " \\lor ")])
 
-; Programs are just lambda expressions
-(define program-body caddr)
-(define program-variables cadr)
-
-(define-syntax-rule (libm_op1 id_fl id_d id_f)
-  (begin
-    (define-libm id_d (_fun _double -> _double))
-    (define-libm id_f (_fun _float  -> _float ))
-    (define (id_fl x)
-      ((flag 'precision 'double)
-        (id_d (real->double-flonum x))
-        (id_f (real->single-flonum x))))))
-
-(define-syntax-rule (libm_op2 id_fl id_d id_f)
-  (begin
-    (define-libm id_d (_fun _double _double -> _double))
-    (define-libm id_f (_fun _float  _float  -> _float ))
-    (define (id_fl x y)
-      ((flag 'precision 'double)
-        (id_d (real->double-flonum x) (real->double-flonum y))
-        (id_f (real->single-flonum x) (real->single-flonum y))))))
-
-(define-syntax-rule (libm_op3 id_fl id_d id_f)
-  (begin
-    (define-libm id_d (_fun _double _double _double -> _double))
-    (define-libm id_f (_fun _float  _float  _float  -> _float ))
-    (define (id_fl x y z)
-      ((flag 'precision 'double)
-        (id_d (real->double-flonum x) (real->double-flonum y) (real->double-flonum z))
-        (id_f (real->single-flonum x) (real->single-flonum y) (real->single-flonum z))))))
-
-; Supported ops from libm (https://goo.gl/auVJi5)
-;(libm_op1  _flacos       acos       acosf)
-;(libm_op1  _flacosh      acosh      acoshf)
-;(libm_op1  _flasin       asin       asinf)
-;(libm_op1  _flasinh      asinh      asinhf)
-;(libm_op1  _flatan       atan       atanf)
-;(libm_op2  _flatan2      atan2      atan2f)
-;(libm_op1  _flatanh      atanh      atanhf)
-;(libm_op1  _flcbrt       cbrt       cbrtf)
-;(libm_op1  _flceil       ceil       ceilf)
-;(libm_op2  _flcopysign   copysign   copysignf)
-;(libm_op1  _flcos        cos        cosf)
-;(libm_op1  _flcosh       cosh       coshf)
-;(libm_op1  _flerf        erf        erff)
-;(libm_op1  _flerfc       erfc       erfcf)
-;(libm_op1  _flexp        exp        expf)
-;(libm_op1  _flexp2       exp2       exp2f)
-;(libm_op1  _flexpm1      expm1      expm1f)
-;(libm_op1  _flfabs       fabs       fabsf)
-;(libm_op2  _flfdim       fdim       fdimf)
-;(libm_op1  _flfloor      floor      floorf)
-;(libm_op3  _flfma        fma        fmaf)
-;(libm_op2  _flfmax       fmax       fmaxf)
-;(libm_op2  _flfmin       fmin       fminf)
-;(libm_op2  _flfmod       fmod       fmodf)
-;(libm_op2  _flhypot      hypot      hypotf)
-;(libm_op1  _flj0         j0         j0f)
-;(libm_op1  _flj1         j1         j1f)
-;(libm_op1  _fllgamma     lgamma     lgammaf)
-;(libm_op1  _fllog        log        logf)
-;(libm_op1  _fllog10      log10      log10f)
-;(libm_op1  _fllog1p      log1p      log1pf)
-;(libm_op1  _fllog2       log2       log2f)
-;(libm_op1  _fllogb       logb       logbf)
-;(libm_op2  _flpow        pow        powf)
-;(libm_op2  _flremainder  remainder  remainderf)
-;(libm_op1  _flrint       rint       rintf)
-;(libm_op1  _flround      round      roundf)
-;(libm_op1  _flsin        sin        sinf)
-;(libm_op1  _flsinh       sinh       sinhf)
-;(libm_op1  _flsqrt       sqrt       sqrtf)
-;(libm_op1  _fltan        tan        tanf)
-;(libm_op1  _fltanh       tanh       tanhf)
-;(libm_op1  _fltgamma     tgamma     tgammaf)
-;(libm_op1  _fltrunc      trunc      truncf)
-;(libm_op1  _fly0         y0         y0f)
-;(libm_op1  _fly1         y1         y1f)
-
-(define _flacos (operator-info 'acos 'fl))
-(define _flacosh (operator-info 'acosh 'fl))
-(define _flasin (operator-info 'asin 'fl))
-(define _flasinh (operator-info 'asinh 'fl))
-(define _flatan (operator-info 'atan 'fl))
-(define _flatan2 (operator-info 'atan2 'fl))
-(define _flatanh (operator-info 'atanh 'fl))
-(define _flcbrt (operator-info 'cbrt 'fl))
-(define _flceil (operator-info 'ceil 'fl))
-(define _flcopysign (operator-info 'copysign 'fl))
-(define _flcos (operator-info 'cos 'fl))
-(define _flcosh (operator-info 'cosh 'fl))
-(define _flerf (operator-info 'erf 'fl))
-(define _flerfc (operator-info 'erfc 'fl))
-(define _flexp (operator-info 'exp 'fl))
-(define _flexp2 (operator-info 'exp2 'fl))
-(define _flexpm1 (operator-info 'expm1 'fl))
-(define _flfabs (operator-info 'fabs 'fl))
-(define _flfdim (operator-info 'fdim 'fl))
-(define _flfloor (operator-info 'floor 'fl))
-(define _flfma (operator-info 'fma 'fl))
-(define _flfmax (operator-info 'fmax 'fl))
-(define _flfmin (operator-info 'fmin 'fl))
-(define _flfmod (operator-info 'fmod 'fl))
-(define _flhypot (operator-info 'hypot 'fl))
-(define _flj0 (operator-info 'j0 'fl))
-(define _flj1 (operator-info 'j1 'fl))
-(define _fllgamma (operator-info 'lgamma 'fl))
-(define _fllog (operator-info 'log 'fl))
-(define _fllog10 (operator-info 'log10 'fl))
-(define _fllog1p (operator-info 'log1p 'fl))
-(define _fllog2 (operator-info 'log2 'fl))
-(define _fllogb (operator-info 'logb 'fl))
-(define _flpow (operator-info 'pow 'fl))
-(define _flremainder (operator-info 'remainder 'fl))
-(define _flrint (operator-info 'rint 'fl))
-(define _flround (operator-info 'round 'fl))
-(define _flsin (operator-info 'sin 'fl))
-(define _flsinh (operator-info 'sinh 'fl))
-(define _flsqrt (operator-info 'sqrt 'fl))
-(define _fltan (operator-info 'tan 'fl))
-(define _fltanh (operator-info 'tanh 'fl))
-(define _fltgamma (operator-info 'tgamma 'fl))
-(define _fltrunc (operator-info 'trunc 'fl))
-(define _fly0 (operator-info 'y0 'fl))
-(define _fly1 (operator-info 'y1 'fl))
-
 (define (_flsqr x)
   (* x x))
 
@@ -678,81 +558,14 @@
 (define (bfcube x)
   (bf* x (bf* x x)))
 
-; Table defining costs and translations to bigfloat and regular float
-; See "costs.c" for details of how these costs were determined
-(define-table operations
-  ; arithmetic
-  [+  '(2)    bf+  +  40]
-  [-  '(1 2)  bf-  -  40]
-  [*  '(2)    bf*  *  40]
-  [/  '(2)    bf/  /  40]
-
-  [sqr    '(1)  bfsqr   _flsqr     40]
-  [cube   '(1)  bfcube  _flcube    80]
-
-  [acos      '(1)  bfacos       _flacos        90]
-  [acosh     '(1)  bfacosh      _flacosh       55]
-  [asin      '(1)  bfasin       _flasin       105]
-  [asinh     '(1)  bfasinh      _flasinh       55]
-  [atan      '(1)  bfatan       _flatan       105]
-  [atan2     '(2)  bfatan2      _flatan2      140]
-  [atanh     '(1)  bfatanh      _flatanh       55]
-
-  [cbrt      '(1)  bfcbrt       _flcbrt        80]
-  [ceil      '(1)  bfceiling    _flceil        80]
-  [copysign  '(2)  bfcopysign   _flcopysign    80]
-  [cos       '(1)  bfcos        _flcos         60]
-  [cosh      '(1)  bfcosh       _flcosh        55]
-  [erf       '(1)  bferf        _flerf         70]
-  [erfc      '(1)  bferfc       _flerfc        70]
-  [exp       '(1)  bfexp        _flexp         70]
-  [exp2      '(1)  bfexp2       _flexp2        70]
-  [expm1     '(1)  bfexpm1      _flexpm1       70]
-  [fabs      '(1)  bfabs        _flfabs        40]
-  [fdim      '(2)  bffdim       _flfdim        55]
-  [floor     '(1)  bffloor      _flfloor       55]
-  [fma       '(3)  bffma        _flfma         55]
-  [fmax      '(2)  bfmax        _flfmax        55]
-  [fmin      '(2)  bfmin        _flfmin        55]
-  [fmod      '(2)  bffmod       _flfmod        70]
-  [hypot     '(2)  bfhypot      _flhypot       55]
-  [j0        '(1)  bfbesj0      _flj0          55]
-  [j1        '(1)  bfbesj1      _flj1          55]
-  [lgamma    '(1)  bflog-gamma  _fllgamma      55]
-  [log       '(1)  bflog        _fllog         70]
-  [log10     '(1)  bflog10      _fllog10       70]
-  [log1p     '(1)  bflog1p      _fllog1p       90]
-  [log2      '(1)  bflog2       _fllog2        70]
-  [logb      '(1)  bflogb       _fllogb        70]
-  [pow       '(2)  bfexpt       _flpow        210]
-  [remainder '(2)  bfremainder  _flremainder   70]
-  [rint      '(1)  bfrint       _flrint        70]
-  [round     '(1)  bfround      _flround       70]
-  [sin       '(1)  bfsin        _flsin         60]
-  [sinh      '(1)  bfsinh       _flsinh        55]
-  [sqrt      '(1)  bfsqrt       _flsqrt        40]
-  [tan       '(1)  bftan        _fltan         95]
-  [tanh      '(1)  bftanh       _fltanh        55]
-  [tgamma    '(1)  bfgamma      _fltgamma      55]
-  [trunc     '(1)  bftruncate   _fltrunc       55]
-  [y0        '(1)  bfbesy0      _fly0          55]
-  [y1        '(1)  bfbesy1      _fly1          55]
-
-  ; TODO : These are different and should be treated differently
-  [if       '(3)      if-fn                  if-fn                   65]
-  [==       '(*)      (comparator bf=)       (comparator =)          65]
-  [!=       '(*)      bf!=-fn                !=-fn                   65]
-  [>        '(*)      (comparator bf>)       (comparator >)          65]
-  [<        '(*)      (comparator bf<)       (comparator <)          65]
-  [>=       '(*)      (comparator bf>=)      (comparator >=)         65]
-  [<=       '(*)      (comparator bf<=)      (comparator <=)         65]
-  [not      '(1)      not                    not                     65]
-  [and      '(*)      and-fn                 and-fn                  55]
-  [or       '(*)      or-fn                  or-fn                   55])
+(define operations
+  (for/hash ([key (in-dict-keys (cdr operations*))])
+    (values key (map (curry operator-info key) '(args bf fl cost)))))
 
 (define *operations* (make-parameter operations))
 
-(define constants '(PI E TRUE FALSE))
+(define constants
+  (for/list ([key (in-dict-keys (cdr constants*))]) key))
 
 (define predicates '(not or and < > <= >= == !=))
 
