@@ -109,8 +109,6 @@
   [->c/mpfr (curry format "mpfr_add(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a + ~a")])
 
-;; TODO: Support unary minus
-
 (define-operator (- real [real]) real
   ;; Override the normal argument handling because - can be unary
   [args '(1 2)] [type (hash 1 '((real) real) 2 '((real real) real))]
