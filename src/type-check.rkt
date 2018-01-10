@@ -39,7 +39,7 @@
     [(or #`TRUE #`FALSE) 'bool]
     [#`,(? constant? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
-    [#`((and (or '+ '- '* '/) op) #, exprs ...)
+    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env error!))
        (unless (equal? actual-type 'real)
