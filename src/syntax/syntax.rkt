@@ -12,26 +12,9 @@
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
 ; Programs are just lambda expressions
+
 (define program-body caddr)
 (define program-variables cadr)
-
-;; Defining operators and constants
-
-(define-syntax-rule (define-table* name [field type] ...)
-  (define/contract name
-    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
-    (cons (list (cons 'field type) ...) (make-hash))))
-
-(define/contract (table-get tbl key field)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [field symbol?])
-       [_ (tbl field) (dict-ref (car tbl) field)])
-  (match-let ([(cons header rows) tbl])
-    (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (dict-ref rows key))]
-                #:when (equal? field-name field))
-      value)))
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
@@ -43,14 +26,11 @@
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
 
-(define (constant-info constant field) (table-get constants constant field))
+(define (constant-info constant field) (table-ref constants constant field))
 
 (define-syntax-rule (define-constant constant ctype [key value] ...)
-  (match-let ([(cons header rows) constants])
-    (define row-dict
-      (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
-    (dict-set! rows 'constant row)))
+  (table-set! constants 'constant
+              (make-hash (list (cons 'type 'ctype) (cons 'key value) ...))))
 
 (define-constant PI real
   [bf (λ () pi.bf)]
@@ -80,13 +60,13 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, 0, MPFR_RNDN)")]
   [->tex "\\perp"])
 
-;; TODO: The contracts for operations are tricky because the number of arguments is unknown
+;; TODO: The contracts for operators are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
 (define (unconstrained-argument-number-> from/c to/c)
   (unconstrained-domain-> to/c))
 
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
-(define-table* operations
+(define-table* operators
   [args  (listof (or/c '* natural-number/c))]
   [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
   [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
@@ -96,17 +76,13 @@
   [->c/mpfr   (unconstrained-argument-number-> string? string?)]
   [->tex      (unconstrained-argument-number-> string? string?)])
 
-(define (operator-info operator field) (table-get operations operator field))
+(define (operator-info operator field) (table-ref operators operator field))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
-  (match-let ([(cons header rows) operations])
-    (define row-dict
-      (make-hash
-       (list (cons 'type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype)))
-             (cons 'args (list (length '(atypes ...))))
-             (cons 'key value) ...)))
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
-    (dict-set! rows 'operator row)))
+  (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
+        [args (list (length '(atypes ...)))])
+    (table-set! operators 'operator
+                (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
 (define-operator (+ real real) real
   [fl +] [bf bf+] [cost 40]
@@ -551,7 +527,7 @@
 (define predicates '(not or and < > <= >= == !=))
 
 (define (operation? op)
-  (dict-has-key? (cdr operations) op))
+  (dict-has-key? (cdr operators) op))
 
 (define (constant? var)
   (or (number? var) (dict-has-key? (cdr constants var))))

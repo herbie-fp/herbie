@@ -8,7 +8,8 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table first-value assert for/append
+         reap define-table define-table* table-ref table-set!
+         first-value assert for/append
          ordinary-float? =-or-nan? log2
          take-up-to flip-lists argmins argmaxs setfindf index-of
          write-file write-string
@@ -18,7 +19,7 @@
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
-;; utlimately one that should be located somewhere else or perhaps
+;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
@@ -34,12 +35,45 @@
     body ...
     (values (reverse (sows #f)) ...)))
 
+;; DEPRECATED; see below
+
 (define-syntax-rule (define-table name [key values ...] ...)
   (define name
     (let ([hash (make-hasheq)])
       (for ([rec (list (list 'key values ...) ...)])
         (hash-set! hash (car rec) (cdr rec)))
       hash)))
+
+;; The new, contracts-using version of the above
+
+(define-syntax-rule (define-table* name [field type] ...)
+  (define/contract name
+    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
+    (cons (list (cons 'field type) ...) (make-hash))))
+
+(define/contract (table-ref tbl key field)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [field symbol?])
+       [_ (tbl field) (dict-ref (car tbl) field)])
+  (match-let ([(cons header rows) tbl])
+    (for/first ([(field-name type) (in-dict header)]
+                [value (in-list (dict-ref rows key))]
+                #:when (equal? field-name field))
+      value)))
+
+(define/contract (table-set! tbl key fields)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [fields (tbl)
+                ;; Don't check value types because the contract gets pretty rough :(
+                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
+       any)
+  (match-let ([(cons header rows) tbl])
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
+    (dict-set! rows key row)))
+
+;; More various helpful values
 
 (define-syntax-rule (first-value expr)
   (call-with-values
