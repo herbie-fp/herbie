@@ -4,7 +4,7 @@
 (require math/bigfloat)
 (require "../common.rkt")
 
-(provide predicates constants constant? variable? operation?
+(provide predicates constant? variable? operation?
          ->bf ->flonum
          program-body program-variables
          operator-info constant-info)
@@ -35,7 +35,7 @@
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
-(define-table* constants*
+(define-table* constants
   [type type?]
   [bf (->* () bigfloat?)]
   [fl (->* () flonum?)]
@@ -43,10 +43,10 @@
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
 
-(define (constant-info constant field) (table-get constants* constant field))
+(define (constant-info constant field) (table-get constants constant field))
 
 (define-syntax-rule (define-constant constant ctype [key value] ...)
-  (match-let ([(cons header rows) constants*])
+  (match-let ([(cons header rows) constants])
     (define row-dict
       (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref row-dict hkey)))
@@ -86,7 +86,7 @@
   (unconstrained-domain-> to/c))
 
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
-(define-table* operations*
+(define-table* operations
   [args  (listof (or/c '* natural-number/c))]
   [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
   [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
@@ -96,10 +96,10 @@
   [->c/mpfr   (unconstrained-argument-number-> string? string?)]
   [->tex      (unconstrained-argument-number-> string? string?)])
 
-(define (operator-info operator field) (table-get operations* operator field))
+(define (operator-info operator field) (table-get operations operator field))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
-  (match-let ([(cons header rows) operations*])
+  (match-let ([(cons header rows) operations])
     (define row-dict
       (make-hash
        (list (cons 'type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype)))
@@ -548,19 +548,16 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (curryr string-join " \\lor ")])
 
-(define constants
-  (for/list ([key (in-dict-keys (cdr constants*))]) key))
-
 (define predicates '(not or and < > <= >= == !=))
 
 (define (operation? op)
-  (dict-has-key? (cdr operations*) op))
-
-(define (variable? var)
-  (and (symbol? var) (not (member var constants))))
+  (dict-has-key? (cdr operations) op))
 
 (define (constant? var)
-  (or (member var constants) (number? var)))
+  (or (number? var) (dict-has-key? (cdr constants var))))
+
+(define (variable? var)
+  (and (symbol? var) (not (constant? var))))
 
 (define (->flonum x)
   (define convert

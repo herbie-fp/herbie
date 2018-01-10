@@ -103,7 +103,7 @@
   (define (value->c expr)
     (cond
      [(member expr vars) (fix-name expr)]
-     [(member expr constants) (apply-converter (car (hash-ref constants->c expr)) '())]
+     [(constant? expr) (apply-converter (car (hash-ref constants->c expr)) '())]
      [(symbol? expr) expr]
      [else
       (define val (real->double-flonum (->flonum expr)))
@@ -242,7 +242,7 @@
      [(number? expr) ""]
      [(member expr vars)
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
-     [(member expr constants)
+     [(constant? expr)
       (apply-converter (car (hash-ref constants->mpfr expr)) (list out))]
      [(symbol? expr)
       (format "mpfr_set(~a, ~a, MPFR_RNDN)" out expr)]))
