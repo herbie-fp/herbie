@@ -65,14 +65,14 @@
   [bf (const true)]
   [fl (const true)]
   [->c/double "1"]
-  [->c/mpfr (curry format "~a = 1")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, 1, MPFR_RNDN)")]
   [->tex "\\top"])
 
 (define-constant FALSE bool
   [bf (const false)]
   [fl (const false)]
   [->c/double "0"]
-  [->c/mpfr (curry format "~a = 0")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, 0, MPFR_RNDN)")]
   [->tex "\\perp"])
 
 ;; TODO: The contracts for operations are tricky because the number of arguments is unknown
@@ -438,6 +438,110 @@
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y1} ~a")])
 
+(define-operator (sqr real real) real
+  [fl sqr] [bf bfsqr] [cost 40]
+  [->c/double (λ (x) (format "~a * ~a" x x))]
+  [->c/mpfr (curry format "mpfr_sqr(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "{~a}^2")])
+
+(define-operator (cube real real) real
+  [fl (λ (x) (* x (* x x)))] [bf (λ (x) (bf* x (bf* x x)))] [cost 80]
+  [->c/double (λ (x) (format "~a * (~a * ~a)" x x x))]
+  [->c/mpfr (λ (out x) (format "mpfr_sqr(~a, ~a, MPFR_RNDN); mpfr_mul(~a, ~a, ~a, MPFR_RNDN)" out x out out x))]
+  [->tex (curry format "{~a}^3")])
+
+(define (if-fn test if-true if-false) (if test if-true if-false))
+(define (and-fn . as) (andmap identity as))
+(define (or-fn  . as) (ormap identity as))
+
+(define (!=-fn . args)
+  (not (check-duplicates args =)))
+
+(define (bf!=-fn . args)
+  (not (check-duplicates args bf=)))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
+(define-operator (if bool real real) real ; types not used, special cased in type checker
+  [fl if-fn] [bf if-fn] [cost 65]
+  [->c/double (curry format "~a ? ~a : ~a")]
+  [->c/mpfr
+   (λ (out c a b)
+     (format "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }")
+     c out a out b)]
+  [->tex (curry format "~a ? ~a : ~a")])
+
+(define-operator (== real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl (comparator =)] [bf (comparator bf=)] [cost 65]
+  [->c/double (curry format "~a == ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
+  [->tex (curryr string-join " = ")])
+
+(define-operator (!= real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl !=-fn] [bf bf!=-fn] [cost 65]
+  [->c/double (curry format "~a != ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) != 0, MPFR_RNDN)")] ; TODO: cannot handle variary !=
+  [->tex (curryr string-join " \\ne ")])
+
+(define-operator (< real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl (comparator <)] [bf (comparator <)] [cost 65]
+  [->c/double (curry format "~a < ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
+  [->tex (curryr string-join " < ")])
+
+(define-operator (> real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl (comparator >)] [bf (comparator >)] [cost 65]
+  [->c/double (curry format "~a > ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
+  [->tex (curryr string-join " > ")])
+
+(define-operator (<= real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl (comparator <=)] [bf (comparator <=)] [cost 65]
+  [->c/double (curry format "~a <= ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
+  [->tex (curryr string-join " \\le ")])
+
+(define-operator (>= real real) bool
+  ; Override number of arguments
+  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [fl (comparator >=)] [bf (comparator >=)] [cost 65]
+  [->c/double (curry format "~a >= ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
+  [->tex (curryr string-join " \\ge ")])
+
+(define-operator (not bool) bool
+  [fl not] [bf not] [cost 65]
+  [->c/double (curry format "!~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, !mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
+  [->tex (curry format "\\neg ~a")])
+
+(define-operator (and bool bool) bool
+  ; Override number of arguments
+  [type #hash((* . ((* bool) bool)))] [args '(*)]
+  [fl and-fn] [bf and-fn] [cost 55]
+  [->c/double (curry format "~a && ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
+  [->tex (curryr string-join " \\land ")])
+
+(define-operator (or bool bool) bool
+  ; Override number of arguments
+  [type #hash((* . ((* bool) bool)))] [args '(*)]
+  [fl or-fn] [bf or-fn] [cost 55]
+  [->c/double (curry format "~a || ~a")]
+  [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
+  [->tex (curryr string-join " \\lor ")])
 
 ; Programs are just lambda expressions
 (define program-body caddr)
@@ -565,29 +669,14 @@
 (define _fly0 (operator-info 'y0 'fl))
 (define _fly1 (operator-info 'y1 'fl))
 
-(define (_flcube x)
-  (* x (* x x)))
-
 (define (_flsqr x)
   (* x x))
 
+(define (_flcube x)
+  (* x (* x x)))
+
 (define (bfcube x)
   (bf* x (bf* x x)))
-
-
-(define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn . as) (andmap identity as))
-(define (or-fn  . as) (ormap identity as))
-
-(define (!=-fn . args)
-  (not (check-duplicates args =)))
-
-(define (bf!=-fn . args)
-  (not (check-duplicates args bf=)))
-
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
 
 ; Table defining costs and translations to bigfloat and regular float
 ; See "costs.c" for details of how these costs were determined
