@@ -8,7 +8,7 @@
 (provide (struct-out alt-delta) (struct-out alt-event) alternative?
          make-alt alt? alt-program alt-change alt-prev alt-add-event
          make-regime-alt
-         alt-apply alt-rewrite-tree alt-rewrite-expression
+         alt-apply alt-rewrite-expression
          alt-errors alt-cost alt-rewrite-rm alt-set-prev
 	 alt-initial alt-changes alt-history-length)
 
@@ -79,10 +79,6 @@
     (if (alt-prev cur-alt)
 	(loop (alt-prev cur-alt) (cons (alt-change cur-alt) acc))
 	acc)))
-
-(define (alt-rewrite-tree alt #:root [root-loc '()])
-  (let ([subtree (location-get root-loc (alt-program alt))])
-    (map (curry alt-apply alt) (rewrite-tree subtree #:root root-loc))))
 
 (define (alt-rewrite-expression alt #:destruct [destruct? #f] #:root [root-loc '()])
   (let ([subtree (location-get root-loc (alt-program alt))])
