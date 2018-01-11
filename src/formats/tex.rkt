@@ -33,12 +33,6 @@
     [(procedure? conv)  (apply conv (if idx (cons idx args) args))]
     [else               (error "Unknown syntax entry" conv)]))
 
-(define parens-precedence '(#t + * fn #f))
-
-(define (parens-< a b)
-  (< (index-of parens-precedence a)
-     (index-of parens-precedence b)))
-
 ; "enclose" is a MathJax extension which may
 ; not work with standard TeX processors.
 (define (tag str idx)
@@ -61,6 +55,28 @@
 ;
 ; args-paren-level : #t --> do not paren args
 ;                    #f --> paren args
+(define precedence-ordering '(#t + * fn #f))
+
+(define (precedence< a b)
+  (< (index-of precedence-ordering a)
+     (index-of precedence-ordering b)))
+
+(define (precedence-levels op)
+  (match op
+    [(or '+ '- 'or) (values '+ '+)]
+    [(or '* 'and) (values '* '*)]
+    ['/ (values #f #t)]
+    [(or 'sqr 'cube 'fma 'hypot 'pow) (values #f #f)]
+    ['atan2 (values 'fn #t)]
+    ['log1p (values #f '+)]
+    ['if (values #t #t)]
+    [(or 'remainder 'fmod) (values #t #f)]
+    [(or 'cbrt 'ceil 'copysign 'expm1 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+     (values #f #t)]
+    [(or '== '< '> '<= '>= '!=)
+     (values #f #t)]
+    [_ (values 'fn #f)]))
+
 (define-table texify-operators
   [+    '(#f "+~a" "~a + ~a")
         `(#f ,(tag-inner-untag "+~a")
@@ -290,7 +306,7 @@
               (if (equal? significand "1")
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
-            (if (parens-< parens #f) num (format "\\left( ~a \\right)" num))])]
+            (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
         [(? symbol?)
          (if (hash-has-key? texify-constants expr)
            (car (hash-ref texify-constants expr))
@@ -312,21 +328,21 @@
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
         [`(,f ,args ...)
-         (match (hash-ref texify-operators f)
-           [(list template highlight-template self-paren-level arg-paren-level)
-            (let ([texed-args
-                    (for/list ([arg args] [id (in-naturals 1)])
-                      (texify arg arg-paren-level (cons id loc)))]
-                  [hl-loc
-                    (assoc (reverse loc) highlight-locs)])
-              (format
-                ; omit parens if parent contex has lower precedence
-                (if (parens-< parens self-paren-level)
-                  "~a"
-                  "\\left(~a\\right)")
-                (if hl-loc
-                  (apply-converter highlight-template texed-args (cdr hl-loc))
-                  (apply-converter template texed-args))))])]))))
+         (match-define (list _ highlight-template _ _) (hash-ref texify-operators f))
+         (define-values (self-paren-level arg-paren-level) (precedence-levels f))
+         (let ([texed-args
+                (for/list ([arg args] [id (in-naturals 1)])
+                  (texify arg arg-paren-level (cons id loc)))]
+               [hl-loc
+                (assoc (reverse loc) highlight-locs)])
+           (format
+                                        ; omit parens if parent contex has lower precedence
+            (if (precedence< parens self-paren-level)
+                "~a"
+                "\\left(~a\\right)")
+            (if hl-loc
+                (apply-converter highlight-template texed-args (cdr hl-loc))
+                (apply (operator-info f '->tex) texed-args))))]))))
 
 ; TODO probably a better way to write this wrapper using
 ;      make-keyword-procedure and keyword-apply
@@ -341,3 +357,14 @@
 
 (define (exact-rational? r)
   (and (rational? r) (exact? r)))
+
+(module+ test
+  (require rackunit)
+  (for ([f (in-dict-keys texify-operators)])
+    (match-define (list template_ highlight-template self-paren-level_ arg-paren-level_) (hash-ref texify-operators f))
+    (define-values (self-paren-level arg-paren-level) (precedence-levels f))
+    (check-equal? self-paren-level self-paren-level_)
+    (check-equal? arg-paren-level arg-paren-level_)
+    (define template (operator-info f '->tex))
+    (when (and (string? template_) (number? (procedure-arity template)))
+      (check-equal? template_ (apply template (build-list (procedure-arity template) (const "~a")))))))
