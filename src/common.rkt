@@ -8,7 +8,7 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table define-table* table-ref table-set!
+         reap define-table table-ref table-set!
          first-value assert for/append
          ordinary-float? =-or-nan? log2
          take-up-to flip-lists argmins argmaxs setfindf index-of
@@ -35,18 +35,9 @@
     body ...
     (values (reverse (sows #f)) ...)))
 
-;; DEPRECATED; see below
-
-(define-syntax-rule (define-table name [key values ...] ...)
-  (define name
-    (let ([hash (make-hasheq)])
-      (for ([rec (list (list 'key values ...) ...)])
-        (hash-set! hash (car rec) (cdr rec)))
-      hash)))
-
 ;; The new, contracts-using version of the above
 
-(define-syntax-rule (define-table* name [field type] ...)
+(define-syntax-rule (define-table name [field type] ...)
   (define/contract name
     (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
     (cons (list (cons 'field type) ...) (make-hash))))

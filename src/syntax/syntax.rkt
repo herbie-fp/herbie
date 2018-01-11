@@ -18,7 +18,7 @@
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
-(define-table* constants
+(define-table constants
   [type type?]
   [bf (->* () (or/c bigfloat? boolean?))]
   [fl (->* () (or/c flonum? boolean?))]
@@ -66,7 +66,7 @@
   (unconstrained-domain-> to/c))
 
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
-(define-table* operators
+(define-table operators
   [args  (listof (or/c '* natural-number/c))]
   [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
   [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
