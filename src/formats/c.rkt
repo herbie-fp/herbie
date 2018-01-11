@@ -21,6 +21,7 @@
   (define (value->c expr)
     (cond
      [(member expr vars) (fix-name expr)]
+     [(number? expr) (~a expr)]
      [(constant? expr) (constant-info expr '->c/double)]
      [(symbol? expr) expr]
      [else
