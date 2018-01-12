@@ -209,3 +209,21 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(module+ test
+  (require rackunit)
+  (define test-exprs
+    #hash([1 . 1]
+          [0 . 0]
+          [(+ 1 0) . 1]
+          #;[(+ 1 5) . 6] ; TODO: better exact evaluation
+          [(+ x 0) . x]
+          [(* x 1) . x]
+          #;[(- (+ x 1) x) . 1] ; TODO: better exact evaluation
+          [(- (+ x 1) 1) . x]
+          [(/ (* x 3) x) . 3]
+          #;[(- (sqr (sqrt (+ x 1))) (sqr (sqrt x))) . 1])) ; TODO: bug
+
+  (for ([(original target) test-exprs])
+    (with-check-info (['original original])
+       (check-equal? (simplify-expr original) target))))
