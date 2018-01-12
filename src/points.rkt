@@ -80,9 +80,9 @@
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   < #:key (λ (p&e)
 			     (let* ([expr-prog `(λ ,variables ,expr)]
-				    [float-val ((eval-prog expr-prog mode:fl) (car p&e))])
+				    [float-val ((eval-prog expr-prog 'fl) (car p&e))])
 			       (if (ordinary-float? float-val) float-val
-				   ((eval-prog expr-prog mode:bf) (car p&e))))))])
+				   ((eval-prog expr-prog 'bf) (car p&e))))))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (make-period-points num periods)
@@ -104,8 +104,8 @@
       (loop (cdr l) (- count 1))])))
 
 (define (make-exacts* prog pts precondition)
-  (let ([f (eval-prog prog mode:bf)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) mode:bf)])
+  (let ([f (eval-prog prog 'bf)] [n (length pts)]
+        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (- (bf-precision) (*precision-step*))]
                [prev #f])
       (bf-precision prec)
@@ -182,7 +182,7 @@
     (mk-pcontext pts* exacts*)))
 
 (define (errors prog pcontext)
-  (let ([fn (eval-prog prog mode:fl)]
+  (let ([fn (eval-prog prog 'fl)]
 	[max-ulps (expt 2 (*bit-width*))])
     (for/list ([(point exact) (in-pcontext pcontext)])
       (let ([out (fn point)])

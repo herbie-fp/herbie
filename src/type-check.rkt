@@ -1,6 +1,19 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "op-table.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 (provide assert-program-type! assert-expression-type!)
+
+(define (get-sig fun-name num-args)
+  (if (and (operation? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
+      (hash-ref (operator-info fun-name 'type) num-args)
+      (if (hash-has-key? (operator-info fun-name 'type) '*)
+          (hash-ref (operator-info fun-name 'type) '*)
+          #f)))
+
+(define (get-params fun-name num-args)
+  (and (get-sig fun-name num-args) (car (get-sig fun-name num-args))))
+
+(define (get-rt-type fun-name num-args)
+  (and (get-sig fun-name num-args) (cadr (get-sig fun-name num-args))))
 
 ;; Unit tests
 ;; Rewrite expression->type so that expr is a syntax object
@@ -26,7 +39,13 @@
     [(or #`TRUE #`FALSE) 'bool]
     [#`,(? constant? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
-    [#`(,(? operator? op) #,exprs ...)
+    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env error!))
+       (unless (equal? actual-type 'real)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) 'real actual-type)))
+     'real]
+    [#`(,(? operation? op) #,exprs ...)
      (match (get-params op (length exprs))
        [(list '* each-type)
         (for ([arg exprs] [i (in-naturals)])

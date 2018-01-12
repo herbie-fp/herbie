@@ -7,7 +7,7 @@
 (provide
  (all-from-out "../syntax/rules.rkt")
  pattern-substitute pattern-match
- rewrite-expression-head rewrite-expression rewrite-tree
+ rewrite-expression-head rewrite-expression
  (struct-out change) change-apply changes-apply rule-rewrite)
 
 ;; Our own pattern matcher.
@@ -193,14 +193,6 @@
 
   ; The #f #f mean that any output result works. It's a bit of a hack
   (rewriter expr #f #f (reverse root-loc) depth))
-
-(define (rewrite-tree expr #:root [root-loc '()])
-  (reap [sow]
-    (let ([try-rewrites
-           (λ (expr loc)
-              (map sow (rewrite-expression expr #:root (append root-loc loc)))
-              expr)])
-      (location-induct expr #:variable try-rewrites #:primitive try-rewrites))))
 
 (define (change-apply cng prog)
   (let ([loc (change-location cng)]

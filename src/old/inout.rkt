@@ -23,8 +23,8 @@
       [_ (error "did not recognize input")]))
   (printf "; Input error: ~a\n" (errors-score (alt-errors (make-alt in-expr))))
   (printf "; Output error: ~a\n" (errors-score (alt-errors out-alt)))
-  (define in-prog (eval-prog in-expr mode:fl))
-  (define out-prog (eval-prog (alt-program out-alt) mode:fl))
+  (define in-prog (eval-prog in-expr 'fl))
+  (define out-prog (eval-prog (alt-program out-alt) 'fl))
   (when print-points?
     (for ([(pt ex) (in-pcontext (*pcontext*))])
       (let ([in-ans (in-prog pt)] [out-ans (out-prog pt)])
