@@ -4,6 +4,7 @@
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
+         program-body program-variables
          program-induct expression-induct location-hash
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
@@ -16,6 +17,18 @@
 (define expr? (or/c list? symbol? number?))
 
 (define location? (listof natural-number/c))
+
+;; Programs are just lambda expressions
+
+(define/contract (program-body prog)
+  (-> expr? expr?)
+  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  body)
+
+(define/contract (program-variables prog)
+  (-> expr? (listof symbol?))
+  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  vars)
 
 (define/contract (location-hash prog)
   (-> expr? (hash/c expr? (listof location?)))

@@ -6,15 +6,9 @@
 
 (provide predicates constant? variable? operation?
          ->bf ->flonum
-         program-body program-variables
          operator-info constant-info)
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
-
-; Programs are just lambda expressions
-
-(define program-body caddr)
-(define program-variables cadr)
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
