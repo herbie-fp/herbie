@@ -61,7 +61,7 @@
   (define (app->mpfr out expr)
     (cond
      [(list? expr)
-      (apply (operator-info (car expr) '->c/mpfr) out (cdr expr))]
+      (apply (operator-info (car expr) '->c/mpfr) out (map ~a (cdr expr)))]
      [(number? expr) ""]
      [(member expr vars)
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
