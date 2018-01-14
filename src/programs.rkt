@@ -4,7 +4,7 @@
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
-         location-induct program-induct expression-induct location-hash
+         program-induct expression-induct location-hash
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
          compile expression-cost program-cost
@@ -14,34 +14,6 @@
          desugar-program expr->prog expr?)
 
 (define expr? (or/c list? symbol? number?))
-
-(define (location-induct
-	 prog
-	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
-	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
-	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
-
-  (define (inductor prog location)
-    (cond
-     [(constant? prog)
-      (constant prog (reverse location))]
-     [(variable? prog)
-      (variable prog (reverse location))]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog) (cons 2 location))])
-	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
-                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
-                         (inductor arg (cons idx location))))
-		 (reverse location))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
-                         (inductor arg (cons idx location))))
-		 (reverse location))]
-     [else (error (format "Invalid program ~a" prog))]))
-  (inductor prog '()))
 
 (define location? (listof natural-number/c))
 
@@ -66,12 +38,12 @@
 
 (define (expression-induct
 	 expr vars
-         #:toplevel [toplevel identity] #:constant [constant identity]
+         #:constant [constant identity]
          #:variable [variable identity] #:primitive [primitive identity]
          #:symbol [symbol-table identity] #:predicate [predicate identity])
   (program-body (program-induct
 		 `(λ ,vars ,expr)
-		 #:toplevel toplevel #:constant constant
+		 #:constant constant
 		 #:variable variable #:primitive primitive
 		 #:symbol symbol-table #:predicate predicate)))
 
