@@ -4,7 +4,7 @@
 
 (require "../common.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* get-rule)
+(provide (struct-out rule) *rules* *simplify-rules*)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -18,12 +18,6 @@
 (define-syntax-rule (define-ruleset name groups [rname input output] ...)
   (begin (define name (list (rule 'rname 'input 'output) ...))
 	 (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
-
-(define (get-rule name)
-  (let ([results (filter (λ (rule) (eq? (rule-name rule) name)) (*rules*))])
-    (if (null? results)
-	(error "Could not find a rule by the name" name)
-	(car results))))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify)
