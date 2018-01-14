@@ -143,14 +143,6 @@
   [sqrt-undiv        (/ (sqrt x) (sqrt y))  (sqrt (/ x y))]
   [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))])
 
-;;  should no longer introduce `sqr` (TODO remove)
-;;  [square-unprod     (* (* x x) (* y y))    (sqr (* x y))]
-;;  [square-undiv      (/ (* x x) (* y y))    (sqr (/ x y))])
-
-;;  no longer use sqr (TODO remove)
-;;  (define-ruleset squares-canonicalize (arithmetic simplify)
-;;    [square-unmult     (* x x)             (* x x)])
-
 ; Cube root
 (define-ruleset cubes-reduce (arithmetic simplify)
   [rem-cube-cbrt     (pow (cbrt x) 3) x]
