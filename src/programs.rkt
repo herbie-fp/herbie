@@ -4,7 +4,7 @@
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
-         program-body program-variables
+         program-body program-variables ->flonum ->bf
          replace-leaves location-hash
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
@@ -29,6 +29,32 @@
   (-> expr? (listof symbol?))
   (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
   vars)
+
+;; Converting constants
+
+(define (->flonum x)
+  (define convert
+    ((flag 'precision 'double) real->double-flonum real->single-flonum))
+
+  (cond
+   [(real? x) (convert x)]
+   [(bigfloat? x) (convert (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
+        (->flonum (real-part x))
+        +nan.0)]
+   [(constant? x)
+    (convert ((constant-info x 'fl)))]
+   [else x]))
+
+(define (->bf x)
+  (cond
+   [(real? x) (bf x)]
+   [(bigfloat? x) x]
+   [(complex? x)
+    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+   [(constant? x) ((constant-info x 'bf))]
+   [else x]))
 
 (define/contract (location-hash prog)
   (-> expr? (hash/c expr? (listof location?)))

@@ -4,9 +4,7 @@
 (require math/bigfloat)
 (require "../common.rkt")
 
-(provide predicates constant? variable? operator?
-         ->bf ->flonum
-         operator-info constant-info)
+(provide constant? variable? operator? operator-info constant-info)
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
@@ -522,8 +520,6 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (infix-joiner " \\lor ")])
 
-(define predicates '(not or and < > <= >= == !=))
-
 (define (operator? op)
   (dict-has-key? (cdr operators) op))
 
@@ -532,27 +528,3 @@
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))
-
-(define (->flonum x)
-  (define convert
-    ((flag 'precision 'double) real->double-flonum real->single-flonum))
-
-  (cond
-   [(real? x) (convert x)]
-   [(bigfloat? x) (convert (bigfloat->flonum x))]
-   [(complex? x)
-    (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
-   [(constant? x)
-    (convert ((constant-info x 'fl)))]
-   [else x]))
-
-(define (->bf x)
-  (cond
-   [(real? x) (bf x)]
-   [(bigfloat? x) x]
-   [(complex? x)
-    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
-   [(constant? x) ((constant-info x 'bf))]
-   [else x]))
