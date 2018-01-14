@@ -452,8 +452,7 @@
   [->c/double (curry format "~a ? ~a : ~a")]
   [->c/mpfr
    (λ (out c a b)
-     (format "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }")
-     c out a out b)]
+     (format "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }" c out a out b))]
   [->tex (curry format "~a ? ~a : ~a")])
 
 (define ((infix-joiner str) . args)
