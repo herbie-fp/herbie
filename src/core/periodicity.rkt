@@ -90,87 +90,89 @@
   (map (curry lp-loc-cons 2) (annot->plocs (program-body (periodicity prog)))))
 
 (define (periodicity prog)
-  (define vars (program-variables prog))
-  
-  (location-induct
-   prog
+  (let loop ([prog prog] [loc '()])
+    (match prog
+      [(list (or 'lambda 'λ) (list vars ...) body)
+       `(λ ,vars ,(loop body (cons 2 loc)))]
+      [(? constant? c)
+       ;; TODO : Do something more intelligent with 'PI
+       (let ([val (if (rational? c) c (->flonum c))])
+         (annotation val (reverse loc) 'constant val))]
+      [(? variable? x)
+       (annotation x (reverse loc) 'linear `((,x . 1)))]
+      [(list 'if cond ift iff)
+       (define ift* (loop ift (cons 2 loc)))
+       (define iff* (loop iff (cons 3 loc)))
+       (if (and (equal? (annotation-type ift*) (annotation-type iff*))
+                (equal? (annotation-coeffs ift*) (annotation-coeffs iff*)))
+           (annotation prog (reverse loc) (annotation-type ift*) (annotation-type ift*))
+           (annotation prog (reverse loc) 'other #f))]
+      [(list op args ...)
+       (define expr (cons op (for/list ([idx (in-naturals 1)] [arg args]) (loop arg (cons idx loc)))))
+       (define out (curry annotation expr (reverse loc)))
 
-   #:constant
-   (λ (c loc)
-      ; TODO : Do something more intelligent with 'pi
-      (let ([val (if (rational? c) c (->flonum c))])
-	(annotation val loc 'constant val)))
+       ;; Default-combine handles function-generic things
+       ;; The match below handles special cases for various functions
+       (default-combine expr (reverse loc)
+         (match expr
+           [`(+ ,a ,b)
+            (cond
+             [(and (constant? a) (linear? b))
+              (out 'linear (coeffs b))]
+             [(and (linear? a) (constant? b))
+              (out 'linear (coeffs a))]
+             [(and (linear? a) (linear? b))
+              (out 'linear (alist-merge + (coeffs a) (coeffs b)))]
+             [else #f])]
+           [`(- ,a)
+            (cond
+             [(linear? a)
+              (out 'linear (alist-map - (coeffs a)))]
+             [else #f])]
+           [`(- ,a ,b)
+            (cond
+             [(and (constant? a) (linear? b))
+              (out 'linear (coeffs b))]
+             [(and (linear? a) (constant? b))
+              (out 'linear (coeffs a))]
+             [(and (linear? a) (linear? b))
+              (out 'linear (alist-merge - (coeffs a) (coeffs b)))]
+             [else #f])]
 
-   #:variable
-   (λ (x loc)
-      (annotation x loc 'linear `((,x . 1))))
+           [`(* ,a ,b)
+            (cond
+             [(and (linear? a) (constant? b))
+              (out 'linear (alist-map (curry * (coeffs b)) (coeffs a)))]
+             [(and (constant? a) (linear? b))
+              (out 'linear (alist-map (curry * (coeffs a)) (coeffs b)))]
+             [else #f])]
+           [`(/ ,a ,b)
+            (cond
+             [(and (linear? a) (constant? b))
+              (if (= 0 (coeffs b))
+                  (out 'constant +nan.0)
+                  (out 'linear (alist-map (curryr / (coeffs b)) (coeffs a))))]
+             [else #f])]
 
-   #:primitive
-   (λ (expr loc)
-      (define out (curry annotation expr loc))
-
-      ; Default-combine handles function-generic things
-      ; The match below handles special cases for various functions
-      (default-combine expr loc
-        (match expr
-          [`(+ ,a ,b)
-           (cond
-            [(and (constant? a) (linear? b))
-             (out 'linear (coeffs b))]
-            [(and (linear? a) (constant? b))
-             (out 'linear (coeffs a))]
-            [(and (linear? a) (linear? b))
-             (out 'linear (alist-merge + (coeffs a) (coeffs b)))]
-            [else #f])]
-          [`(- ,a)
-           (cond
-            [(linear? a)
-             (out 'linear (alist-map - (coeffs a)))]
-	    [else #f])]
-          [`(- ,a ,b)
-           (cond
-            [(and (constant? a) (linear? b))
-             (out 'linear (coeffs b))]
-            [(and (linear? a) (constant? b))
-             (out 'linear (coeffs a))]
-            [(and (linear? a) (linear? b))
-             (out 'linear (alist-merge - (coeffs a) (coeffs b)))]
-            [else #f])]
-
-          [`(* ,a ,b)
-           (cond
-            [(and (linear? a) (constant? b))
-             (out 'linear (alist-map (curry * (coeffs b)) (coeffs a)))]
-            [(and (constant? a) (linear? b))
-             (out 'linear (alist-map (curry * (coeffs a)) (coeffs b)))]
-            [else #f])]
-          [`(/ ,a ,b)
-           (cond
-            [(and (linear? a) (constant? b))
-             (if (= 0 (coeffs b))
-                 (out 'constant +nan.0)
-                 (out 'linear (alist-map (curryr / (coeffs b)) (coeffs a))))]
-            [else #f])]
-
-          ; Periodic functions record their period
-          ;         AS A MULTIPLE OF 2*PI
-          ; This prevents problems from round-off
-          [`(sin ,a)
-           (cond
-            [(linear? a)
-             (out 'periodic (alist-map / (coeffs a)))]
-            [else #f])]
-          [`(cos ,a)
-           (cond
-            [(linear? a)
-             (out 'periodic (alist-map / (coeffs a)))]
-            [else #f])]
-          [`(tan ,a)
-           (cond
-            [(linear? a)
-             (out 'periodic (alist-map / (coeffs a)))]
-            [else #f])]
-          [_ #f])))))
+           ;; Periodic functions record their period
+           ;;         AS A MULTIPLE OF 2*PI
+           ;; This prevents problems from round-off
+           [`(sin ,a)
+            (cond
+             [(linear? a)
+              (out 'periodic (alist-map / (coeffs a)))]
+             [else #f])]
+           [`(cos ,a)
+            (cond
+             [(linear? a)
+              (out 'periodic (alist-map / (coeffs a)))]
+             [else #f])]
+           [`(tan ,a)
+            (cond
+             [(linear? a)
+              (out 'periodic (alist-map / (coeffs a)))]
+             [else #f])]
+           [_ #f]))])))
 
 (define (optimize-periodicity improve-func altn)
   (debug "Optimizing " altn " for periodicity..." #:from 'periodicity #:depth 2)
