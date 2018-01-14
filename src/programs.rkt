@@ -314,9 +314,14 @@
 (define (replace-expr-subexpr haystack needle needle*)
   (cond [(equal? haystack needle) needle*]
 	[(list? haystack)
-	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
+	 (cons (car haystack) (map (curryr replace-expr-subexpr needle needle*)
 				   (cdr haystack)))]
 	[#t haystack]))
+
+(module+ test
+  (require rackunit)
+  (check-equal? (replace-subexpr '(λ (x) (- x (sin x))) 'x 1)
+                '(λ (x) (- 1 (sin 1)))))
 
 (define (unfold-let expr)
 	(match expr
