@@ -124,7 +124,7 @@
       (option split-points (pick-errors split-points pts err-lsts vars)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in floath form.
+;; proper splitpoints in float form.
 (define (sindices->spoints points expr alts sindices)
   (define (eval-on-pt pt)
     (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
@@ -138,7 +138,7 @@
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
 	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
 	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
-	   [eps (* (- p1 p2) *epsilon-fraction*)]
+	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
 		   (let* ([start-prog* (replace-subexpr (*start-prog*) expr v)]
 			  [prog1* (replace-subexpr (alt-program alt1) expr v)]
@@ -149,8 +149,9 @@
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
-      (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
-
+      (define (close-enough a b)
+        (> eps (abs (ulp-difference a b))))
+      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1 close-enough))))
 
   (append
    (if ((flag 'reduce 'binary-search) #t #f)

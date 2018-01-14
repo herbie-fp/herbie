@@ -209,8 +209,7 @@
 
 ;; Given two floating point numbers, the first of which is pred,
 ;; and the second is not, find where pred becomes false (within epsilon).
-(define (binary-search-floats pred p1 p2 epsilon)
-  (define (close-enough a b) (> epsilon (abs (- a b))))
+(define (binary-search-floats pred p1 p2 close-enough)
   (binary-search (lambda (a b) (if (close-enough a b) #f
 				   (/ (+ a b) 2)))
 		 pred p1 p2))
