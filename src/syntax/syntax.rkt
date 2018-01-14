@@ -4,7 +4,7 @@
 (require math/bigfloat)
 (require "../common.rkt")
 
-(provide predicates constant? variable? operation?
+(provide predicates constant? variable? operator?
          ->bf ->flonum
          operator-info constant-info)
 
@@ -524,7 +524,7 @@
 
 (define predicates '(not or and < > <= >= == !=))
 
-(define (operation? op)
+(define (operator? op)
   (dict-has-key? (cdr operators) op))
 
 (define (constant? var)

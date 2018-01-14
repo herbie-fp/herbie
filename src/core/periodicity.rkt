@@ -212,6 +212,6 @@
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(expression-induct cond (program-variables prog) #:variable (curryr symbol-mod periods))
+       `(if ,(replace-leaves cond #:variable (curryr symbol-mod periods))
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))

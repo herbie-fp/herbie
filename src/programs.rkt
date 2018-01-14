@@ -5,7 +5,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
-         program-induct expression-induct location-hash
+         replace-leaves location-hash
          location-do location-get location-parent location-sibling
          eval-prog replace-subexpr
          compile expression-cost program-cost
@@ -49,49 +49,35 @@
 
   hash)
 
-(define (expression-induct
-	 expr vars
-         #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
-  (program-body (program-induct
-		 `(λ ,vars ,expr)
-		 #:constant constant
-		 #:variable variable #:primitive primitive
-		 #:symbol symbol-table #:predicate predicate)))
-
-(define (program-induct
-         prog
-         #:toplevel [toplevel identity] #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
+(define/contract (replace-leaves prog #:constant [constant identity]
+                                 #:variable [variable identity] #:symbol [symbol-table identity])
+  (->* (expr?)
+       (#:constant (-> constant? any/c) #:variable (-> variable? any/c) #:symbol (-> operator? any/c))
+       any/c)
 
   ; Inlined for speed
   (define (inductor prog)
-    (cond
-     [(constant? prog) (constant prog)]
-     [(variable? prog) (variable prog)]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog))])
-	(toplevel `(λ ,(program-variables prog) ,body*)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]
-     [else (error (format "Invalid program ~a" prog))]))
+    (match prog
+      [(list (or 'lambda 'λ) (list vars ...) body)
+       `(λ ,vars ,(inductor body))]
+      [(? constant?) (constant prog)]
+      [(? variable?) (variable prog)]
+      [(list 'if cond ift iff)
+       `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
+      [(list op args ...)
+       (cons (symbol-table op) (map inductor args))]
+      [_ (error (format "Invalid program ~a" prog))]))
 
   (inductor prog))
 
 (define (free-variables prog)
   (match prog
-         [(? constant?) '()]
-         [(? variable?) (list prog)]
-         [`(lambda ,vars ,body)
+    [(? constant?) '()]
+    [(? variable?) (list prog)]
+    [(list (or 'lambda 'λ) vars body)
            (remove* vars (free-variables body))]
-         [`(,op ,args ...) ; TODO what if op unbound?
-           (remove-duplicates (append-map free-variables args))]))
+    [`(,op ,args ...)
+     (remove-duplicates (append-map free-variables args))]))
 
 (define (unused-variables prog)
   (remove* (free-variables (program-body prog))
@@ -114,7 +100,7 @@
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
-     (if (operation? f)
+     (if (operator? f)
          (let ([num-args (operator-info f 'args)])
            (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
@@ -251,8 +237,8 @@
 (define (eval-prog prog mode)
   (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]
          [op->precision (λ (op) (operator-info op mode))] ; TODO change use of mode
-         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
-         [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
+         [body* (replace-leaves (program-body prog) #:constant real->precision #:symbol op->precision)]
+         [prog-opt `(λ ,(program-variables prog) ,(compile body*))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
@@ -260,14 +246,14 @@
 ;; Does the same thing as the above with mode 'bf, but doesn't convert
 ;; the results back to floats.
 (define (eval-exact prog)
-  (let* ([prog* (program-induct prog #:constant ->bf #:symbol (curryr operator-info 'bf))]
-         [prog-opt `(lambda ,(program-variables prog*) ,(compile (program-body prog*)))]
+  (let* ([body* (replace-leaves (program-body prog) #:constant ->bf #:symbol (curryr operator-info 'bf))]
+         [prog-opt `(lambda ,(program-variables prog) ,(compile body*))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (apply fn (map ->bf pts)))))
 
 (define (eval-const-expr expr)
-  (let* ([expr_bf (expression-induct expr '() #:constant ->bf #:symbol (curryr operator-info 'bf))])
+  (let* ([expr_bf (replace-leaves expr #:constant ->bf #:symbol (curryr operator-info 'bf))])
     (->flonum (eval expr_bf common-eval-ns))))
 
 ;; To compute the cost of a program, we could use the tree as a

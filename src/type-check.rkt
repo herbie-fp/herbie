@@ -3,7 +3,7 @@
 (provide assert-program-type! assert-expression-type!)
 
 (define (get-sig fun-name num-args)
-  (if (and (operation? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
+  (if (and (operator? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
       (hash-ref (operator-info fun-name 'type) num-args)
       (if (hash-has-key? (operator-info fun-name 'type) '*)
           (hash-ref (operator-info fun-name 'type) '*)
@@ -45,7 +45,7 @@
        (unless (equal? actual-type 'real)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) 'real actual-type)))
      'real]
-    [#`(,(? operation? op) #,exprs ...)
+    [#`(,(? operator? op) #,exprs ...)
      (match (get-params op (length exprs))
        [(list '* each-type)
         (for ([arg exprs] [i (in-naturals)])
