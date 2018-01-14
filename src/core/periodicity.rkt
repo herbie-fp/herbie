@@ -18,7 +18,7 @@
 
 (require racket/match)
 (require "../common.rkt")
-(require (except-in "../programs.rkt" constant?))
+(require "../programs.rkt")
 (require "../alternative.rkt")
 (require "../points.rkt")
 (require "../syntax/rules.rkt")
@@ -29,7 +29,7 @@
 
 (provide optimize-periodicity (struct-out lp))
 
-(define (constant? a) (eq? (annotation-type a) 'constant))
+(define (constant-value? a) (eq? (annotation-type a) 'constant))
 (define (linear? a)   (eq? (annotation-type a) 'linear))
 (define (periodic? a) (or (eq? (annotation-type a) 'periodic) (interesting? a)))
 (define (interesting? a) (eq? (annotation-type a) 'interesting))
@@ -59,14 +59,14 @@
 (define (default-combine expr loc special)
   (cond
    [special special]
-   [(andmap constant? (cdr expr))
+   [(andmap constant-value? (cdr expr))
     (annotation expr loc 'constant
                 (common-eval (cons (car expr) (map coeffs (cdr expr)))))]
    [(and (andmap periodic? (cdr expr)) (= 3 (length expr)))
     (annotation expr loc 'interesting
 		(apply alist-merge lcm
 		       (map coeffs (filter periodic? (cdr expr)))))]
-   [(andmap (λ (x) (or (periodic? x) (constant? x))) (cdr expr))
+   [(andmap (λ (x) (or (periodic? x) (constant-value? x))) (cdr expr))
     (annotation expr loc 'periodic
                 (apply alist-merge lcm
                        (map coeffs (filter periodic? (cdr expr)))))]
@@ -117,9 +117,9 @@
          (match expr
            [`(+ ,a ,b)
             (cond
-             [(and (constant? a) (linear? b))
+             [(and (constant-value? a) (linear? b))
               (out 'linear (coeffs b))]
-             [(and (linear? a) (constant? b))
+             [(and (linear? a) (constant-value? b))
               (out 'linear (coeffs a))]
              [(and (linear? a) (linear? b))
               (out 'linear (alist-merge + (coeffs a) (coeffs b)))]
@@ -131,9 +131,9 @@
              [else #f])]
            [`(- ,a ,b)
             (cond
-             [(and (constant? a) (linear? b))
+             [(and (constant-value? a) (linear? b))
               (out 'linear (coeffs b))]
-             [(and (linear? a) (constant? b))
+             [(and (linear? a) (constant-value? b))
               (out 'linear (coeffs a))]
              [(and (linear? a) (linear? b))
               (out 'linear (alist-merge - (coeffs a) (coeffs b)))]
@@ -141,14 +141,14 @@
 
            [`(* ,a ,b)
             (cond
-             [(and (linear? a) (constant? b))
+             [(and (linear? a) (constant-value? b))
               (out 'linear (alist-map (curry * (coeffs b)) (coeffs a)))]
-             [(and (constant? a) (linear? b))
+             [(and (constant-value? a) (linear? b))
               (out 'linear (alist-map (curry * (coeffs a)) (coeffs b)))]
              [else #f])]
            [`(/ ,a ,b)
             (cond
-             [(and (linear? a) (constant? b))
+             [(and (linear? a) (constant-value? b))
               (if (= 0 (coeffs b))
                   (out 'constant +nan.0)
                   (out 'linear (alist-map (curryr / (coeffs b)) (coeffs a))))]
