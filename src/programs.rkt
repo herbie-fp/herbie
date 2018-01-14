@@ -43,15 +43,26 @@
      [else (error (format "Invalid program ~a" prog))]))
   (inductor prog '()))
 
-(define (location-hash prog)
-  (define expr->locs (make-hash))
+(define location? (listof natural-number/c))
 
+(define/contract (location-hash prog)
+  (-> expr? (hash/c expr? (listof location?)))
+  (define hash (make-hash))
   (define (save expr loc)
-    (hash-update! expr->locs expr (curry cons loc) '())
-    expr)
+    (hash-update! hash expr (curry cons loc) '()))
 
-  (location-induct prog #:constant save #:variable save #:primitive save)
-  expr->locs)
+  (let loop ([expr prog] [loc '()])
+    (match expr
+      [(list (or 'lambda 'λ) (list vars ...) body)
+       (loop body (cons 2 loc))]
+      [(? constant?) (save expr (reverse loc))]
+      [(? variable?) (save expr (reverse loc))]
+      [(list op args ...)
+       (save expr (reverse loc))
+       (for ([idx (in-naturals 1)] [arg args])
+         (loop arg (cons idx loc)))]))
+
+  hash)
 
 (define (expression-induct
 	 expr vars
@@ -218,7 +229,8 @@
    [else
     program]))
 
-(define (location-do loc prog f)
+(define/contract (location-do loc prog f)
+  (-> location? expr? (-> expr? expr?) expr?)
   (cond
    [(null? loc)
     (f prog)]
