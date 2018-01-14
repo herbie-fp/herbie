@@ -217,48 +217,49 @@
   (match-define (test-failure test bits exn time timeline) result)
   (printf "<!doctype html>\n")
   (write-xexpr
-   '(html
+   `(html
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
       (link ((rel "stylesheet") (type "text/css") (href "../graph.css"))))
      (body
       (h1 "Error in " ,(format-time time))
-      (cond
-       [(exn:fail:user:herbie? exn)
-        `((section ([id "user-error"])
-           (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) "(more)"))
-           ,(if (exn:fail:user:herbie:syntax? exn)
-                `(table
-                  (thead
-                   (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-                  (tbody
-                   ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
-                       `(tr
-                         (td ([class "procedure"]) ,(~a msg))
-                         (td ,(~a (syntax-source stx)))
-                         (td ,(or (~a (syntax-line stx) "")))
-                         (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx)))))))))))]
-       [else
-        `(,(render-process-info time timeline profile? test #:bug? #t)
-          (section ([id "backtrace"])
-           (h1 "Backtrace")
-           (table
-            (thead
-             (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-            (tbody
-             ,@(for ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-                 (match (cdr tb)
-                   [(srcloc file line col _ _)
-                    `(tr
-                      (td ([class "procedure"]) ,(procedure-name->string (car tb)))
-                      (td ,(~a file))
-                      (td ,(~a line))
-                      (td ,(~a col)))]
-                   [#f
-                    `(tr
-                      (td ([class "procedure"]) ,(procedure-name->string (car tb)))
-                      (td ([colspan "3"]) "unknown"))]))))))])))))
+      ,@(cond
+         [(exn:fail:user:herbie? exn)
+          `((section ([id "user-error"])
+             (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) "(more)"))
+             ,(if (exn:fail:user:herbie:syntax? exn)
+                  `(table
+                    (thead
+                     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+                    (tbody
+                     ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
+                         `(tr
+                           (td ([class "procedure"]) ,(~a msg))
+                           (td ,(~a (syntax-source stx)))
+                           (td ,(or (~a (syntax-line stx) "")))
+                           (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
+                  "")))]
+         [else
+          `(,(render-process-info time timeline profile? test #:bug? #t)
+            (section ([id "backtrace"])
+             (h1 "Backtrace")
+             (table
+              (thead
+               (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+              (tbody
+               ,@(for/list ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
+                   (match (cdr tb)
+                     [(srcloc file line col _ _)
+                      `(tr
+                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ,(~a file))
+                        (td ,(~a line))
+                        (td ,(~a col)))]
+                     [#f
+                      `(tr
+                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ([colspan "3"]) "unknown"))]))))))])))))
 
 (define (make-timeout result rdir profile?)
   (match-define (test-timeout test bits time timeline) result)
