@@ -132,8 +132,7 @@
     (define series-expansions
       (apply
        append
-       (for/list ([location (^locs^)]
-                  [n (sequence-tail (in-naturals) 1)])
+       (for/list ([location (^locs^)] [n (in-naturals 1)])
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
          (taylor-alt (^next-alt^) location))))
     (^children^ (append (^children^) series-expansions)))
@@ -145,8 +144,7 @@
   (define log! (timeline-event! 'rewrite))
   (define rewritten
     (apply append
-	   (for/list ([location (^locs^)]
-		      [n (sequence-tail (in-naturals) 1)])
+	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
 	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
   (^children^
@@ -158,8 +156,7 @@
   (when ((flag 'generate 'simplify) #t #f)
     (define log! (timeline-event! 'simplify))
     (define simplified
-      (for/list ([child (^children^)]
-                 [n (sequence-tail (in-naturals) 1)])
+      (for/list ([child (^children^)] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
         (with-handlers ([exn:fail? (λ (e) (printf "Failed while simplifying candidate ~a\n" child) (raise e))])
           (apply alt-apply child (simplify child)))))
@@ -245,9 +242,8 @@
 	    init-alt))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-	(for ([iter (sequence-map add1 (in-range iters))]
-	      #:break (atab-completed? (^table^)))
-	  (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
+	(for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+	  (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
 	  (run-iter!))
 	(finalize-table!)
 	(debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
