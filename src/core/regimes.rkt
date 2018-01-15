@@ -140,9 +140,9 @@
 	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
 	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
-		   (let* ([start-prog* (replace-subexpr (*start-prog*) expr v)]
-			  [prog1* (replace-subexpr (alt-program alt1) expr v)]
-			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
+		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
+			  [prog1* (replace-expression (alt-program alt1) expr v)]
+			  [prog2* (replace-expression (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
 			     (prepare-points start-prog* 'TRUE))])

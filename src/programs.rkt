@@ -7,7 +7,7 @@
          program-body program-variables ->flonum ->bf
          replace-leaves location-hash
          location-do location-get location-parent location-sibling
-         eval-prog replace-subexpr
+         eval-prog
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
          assert-expression! assert-program!
@@ -216,16 +216,6 @@
   (unless (null? errs)
     (raise-herbie-syntax-error "Invalid program" #:locations errs)))
 
-(define (replace-expression program from to)
-  (cond
-   [(equal? program from)
-    to]
-   [(list? program)
-    (for/list ([subexpr program])
-      (replace-expression subexpr from to))]
-   [else
-    program]))
-
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
   (cond
@@ -316,20 +306,18 @@
         (operator-info (caadr step) 'cost)
         1)))
 
-(define (replace-subexpr prog needle needle*)
-  `(λ ,(program-variables prog)
-     ,(replace-expr-subexpr (program-body prog) needle needle*)))
-
-(define (replace-expr-subexpr haystack needle needle*)
-  (cond [(equal? haystack needle) needle*]
-	[(list? haystack)
-	 (cons (car haystack) (map (curryr replace-expr-subexpr needle needle*)
-				   (cdr haystack)))]
-	[#t haystack]))
+(define (replace-expression haystack needle needle*)
+  (match haystack
+   [(== needle) needle*]
+   [(list (or 'lambda 'λ) (list vars ...) body)
+    `(λ ,vars ,(replace-expression body needle needle*))]
+   [(list op args ...)
+    (cons op (map (curryr replace-expression needle needle*) args))]
+   [x x]))
 
 (module+ test
   (require rackunit)
-  (check-equal? (replace-subexpr '(λ (x) (- x (sin x))) 'x 1)
+  (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
                 '(λ (x) (- 1 (sin 1)))))
 
 (define (unfold-let expr)
