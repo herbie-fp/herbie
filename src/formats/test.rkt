@@ -4,6 +4,7 @@
 (require "../errors.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../syntax-check.rkt")
 (require "../type-check.rkt")
 
 (provide (struct-out test) test-program

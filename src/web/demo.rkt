@@ -7,6 +7,7 @@
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
 (require "../formats/tex.rkt")
+(require "../syntax-check.rkt" "../type-check.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
 
@@ -207,6 +208,7 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (assert-program! formula)
+       (assert-program-type! formula)
        (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_
