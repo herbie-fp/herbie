@@ -199,7 +199,8 @@
         (operator-info (caadr step) 'cost)
         1)))
 
-(define (replace-expression haystack needle needle*)
+(define/contract (replace-expression haystack needle needle*)
+  (-> expr? expr? expr? expr?)
   (match haystack
    [(== needle) needle*]
    [(list (or 'lambda 'λ) (list vars ...) body)
