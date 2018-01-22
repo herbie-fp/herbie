@@ -171,7 +171,10 @@
       (set! out (cons (cons i tr) out))))
   out)
 
-(define (get-test-results progs #:threads [threads #f] #:seed seed #:profile [profile? #f] #:dir dir)
+(define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:dir dir)
+  (-> (listof test?) #:threads (or/c #f natural-number/c)
+      #:seed pseudo-random-generator-vector? #:profile boolean? #:dir path-string?
+      (listof (or/c #f (cons/c expr? table-row?))))
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))
 
