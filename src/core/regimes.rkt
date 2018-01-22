@@ -126,6 +126,12 @@
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
 (define (sindices->spoints points expr alts sindices)
+  (for ([alt alts])
+    (assert
+     (set-empty? (set-intersect (free-variables expr)
+                                (free-variables (replace-expression (alt-program alt) expr 0))))
+     #:extra-info (cons expr alt)))
+
   (define (eval-on-pt pt)
     (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
 			 ,expr)]
