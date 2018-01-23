@@ -133,7 +133,7 @@
 
           (table ((id "about"))
            (tr (th "Date:") (td ,(date->string date)))
-           (tr (th "Commit:") (td ,commit "on" ,branch))
+           (tr (th "Commit:") (td ,commit " on " ,branch))
            (tr (th "Points:") (td ,(~a (*num-points*))))
            (tr (th "Fuel:") (td ,(~a (*num-iterations*))))
            (tr (th "Seed:") (td ,(~a seed)))
