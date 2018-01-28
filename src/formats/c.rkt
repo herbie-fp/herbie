@@ -18,7 +18,7 @@
   (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
-  (define (value->c expr)
+  (define/contract (value->c expr)
     (-> expr? string?)
     (cond
      [(member expr vars) (fix-name expr)]
@@ -29,7 +29,7 @@
       (define val (real->double-flonum (->flonum expr)))
       (if (equal? type "float") (format "~af" val) (~a val))]))
 
-  (define (app->c expr)
+  (define/contract (app->c expr)
     (-> expr? string?)
     (if (list? expr)
         (apply (operator-info (car expr) '->c/double) (map value->c (cdr expr)))
@@ -60,7 +60,8 @@
   (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
-  (define (app->mpfr out expr)
+  (define/contract (app->mpfr out expr)
+    (-> string? expr? string?)
     (cond
      [(list? expr)
       (apply (operator-info (car expr) '->c/mpfr) out (map ~a (cdr expr)))]
@@ -94,7 +95,7 @@
              (string-join pdecls ", ")))
 
    (for ([assignment (cadr body)])
-     (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
+     (printf "        ~a;\n" (app->mpfr (~a (car assignment)) (cadr assignment))))
 
 
   (printf "        return mpfr_get_d(~a, MPFR_RNDN);\n" (caddr body))
