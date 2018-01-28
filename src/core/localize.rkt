@@ -58,9 +58,9 @@
 
   (define locs
     (reap [sow]
-          (for ([(expr locs) (in-hash expr->loc)])
-            (define err
-              (cdr (hash-ref! cache expr (λ () (localize-on-expression expr varmap cache)))))
+          (for ([(expr locs) (in-hash expr->loc)]
+                #:when (hash-has-key? cache expr))
+            (define err (cdr (hash-ref cache expr)))
             (when (ormap (curry < 1) err)
               (for-each (compose sow (curry cons err)) locs)))))
 
