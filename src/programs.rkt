@@ -229,6 +229,8 @@
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
+    [(list '/ a)
+     (list '/ 1 (expand-associativity a))]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_
