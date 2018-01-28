@@ -69,7 +69,7 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
     padding: .5em; margin-top: -1.25em;
 }
 
-#results td:nth-child(1) {text-align: left;}
+#results td:nth-child(1) { text-align: left; word-break: break-all; }
 #results td:nth-child(7) {width: 0;}
 
 tr.imp-start  td:nth-child(3) {background-color:#87fc70;}
