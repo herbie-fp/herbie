@@ -19,16 +19,18 @@
   (define body (compile (program-body prog)))
 
   (define (value->c expr)
+    (-> expr? string?)
     (cond
      [(member expr vars) (fix-name expr)]
      [(number? expr) (~a expr)]
      [(constant? expr) (constant-info expr '->c/double)]
-     [(symbol? expr) expr]
+     [(symbol? expr) (~a expr)] ; intermediate variable
      [else
       (define val (real->double-flonum (->flonum expr)))
       (if (equal? type "float") (format "~af" val) (~a val))]))
 
   (define (app->c expr)
+    (-> expr? string?)
     (if (list? expr)
         (apply (operator-info (car expr) '->c/double) (map value->c (cdr expr)))
         (value->c expr)))
