@@ -305,7 +305,7 @@
   [3-cos       (- (* 4 (pow (cos x) 3)) (* 3 (cos x)))
                (cos (* 3 x))]
   [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
-  [2-tan       (/ (* 2 (tan x))          (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
+  [2-tan       (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
   [sqr-sin     (* (sin x) (sin x))       (- 1/2 (* 1/2 (cos (* 2 x))))]
   [sqr-cos     (* (cos x) (cos x))       (+ 1/2 (* 1/2 (cos (* 2 x))))]
   [diff-sin    (- (sin x) (sin y))       (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
