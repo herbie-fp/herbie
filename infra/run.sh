@@ -126,8 +126,8 @@ EOF
 }
 
 function runEach {
-  ##for bench in $HERBROOT/bench/*; do
-  for bench in $HERBROOT/bench/hamming; do
+  ##for bench in $HERBROOT/bench/hamming; do
+  for bench in $HERBROOT/bench/*; do
     name=$(basename "$bench" .fpcore)
     # add cases to skip large or misbehaving benchmarks
     case $name in
