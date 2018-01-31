@@ -44,7 +44,7 @@
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
-      (random-int 1000) ;; Child process uses deterministic but different seed from evaluator
+      (random) ;; Child process uses deterministic but different seed from evaluator
       (when setup! (setup!))
       (with-handlers ([exn? on-error])
         (match-define (list alt context)
