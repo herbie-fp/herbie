@@ -55,7 +55,7 @@
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (alt-program alt) (test-precondition test))))
+            (prepare-points (test-program test) (test-precondition test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,(^timeline^) ,(bf-precision)))))
 
