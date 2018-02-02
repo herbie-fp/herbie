@@ -18,7 +18,7 @@
   #hash([precision . (double)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error)]
+        [reduce . (regimes taylor simplify avg-error binary-search)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]))
 
 (define (enable-flag! category flag)
@@ -52,7 +52,7 @@
 (define *num-points* (make-parameter 256))
 
 ;; Number of iterations of the core loop for improving program accuracy
-(define *num-iterations* (make-parameter 3))
+(define *num-iterations* (make-parameter 4))
 
 ;; The step size with which arbitrary-precision precision is increased
 ;; DANGEROUS TO CHANGE
