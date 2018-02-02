@@ -1066,8 +1066,6 @@
 
 (FPCore  (x y)
  :name "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0, B"
- :herbie-target
- (- x (/ y (+ 1.0 (/ (* x y) 2.0))))
  (- x (/ y (+ 1.0 (/ (* x y) 2.0)))))
 
 (FPCore  (x y z t)
@@ -1090,8 +1088,6 @@
 
 (FPCore  (x y)
  :name "Numeric.Log:$cexpm1 from log-domain-0.10.2.1, B"
- :herbie-target
- (+ (+ (* x y) x) y)
  (+ (+ (* x y) x) y))
 
 (FPCore  (x y)
@@ -1102,8 +1098,6 @@
 
 (FPCore  (x)
  :name "Numeric.Log:$clog1p from log-domain-0.10.2.1, B"
- :herbie-target
- (/ x (+ 1.0 (sqrt (+ x 1.0))))
  (/ x (+ 1.0 (sqrt (+ x 1.0)))))
 
 (FPCore  (x)
@@ -1120,14 +1114,10 @@
 
 (FPCore  (x y z)
  :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, B"
- :herbie-target
- (- (+ x (cos y)) (* z (sin y)))
  (- (+ x (cos y)) (* z (sin y))))
 
 (FPCore  (x y z)
  :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, C"
- :herbie-target
- (+ (+ x (sin y)) (* z (cos y)))
  (+ (+ x (sin y)) (* z (cos y))))
 
 (FPCore  (x y z t)
@@ -1156,8 +1146,6 @@
 
 (FPCore  (x y z)
  :name "Diagrams.Backend.Rasterific:$crender from diagrams-rasterific-1.3.1.3"
- :herbie-target
- (+ (* x y) (* (- 1.0 x) z))
  (+ (* x y) (* (- 1.0 x) z)))
 
 (FPCore  (x y z t)
@@ -1172,8 +1160,6 @@
 
 (FPCore  (x y z)
  :name "Graphics.Rendering.Chart.Drawing:drawTextsR from Chart-1.5.3"
- :herbie-target
- (+ (* x y) (* (- x 1.0) z))
  (+ (* x y) (* (- x 1.0) z)))
 
 (FPCore  (x y)
@@ -1200,8 +1186,6 @@
 
 (FPCore  (x y)
  :name "Graphics.Rendering.Chart.Plot.AreaSpots:renderSpotLegend from Chart-1.5.3"
- :herbie-target
- (+ x (/ (fabs (- y x)) 2.0))
  (+ x (/ (fabs (- y x)) 2.0)))
 
 (FPCore  (x y z t)
@@ -1248,8 +1232,6 @@
 
 (FPCore  (x y)
  :name "AI.Clustering.Hierarchical.Internal:average from clustering-0.2.1, B"
- :herbie-target
- (/ x (+ y x))
  (/ x (+ y x)))
 
 (FPCore  (x y z t a b)
@@ -1274,18 +1256,12 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2, B"
- :herbie-target
- (*
-  0.70711
-  (- (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* x (+ 0.99229 (* x 0.04481))))) x))
  (*
   0.70711
   (- (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* x (+ 0.99229 (* x 0.04481))))) x)))
 
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, A"
- :herbie-target
- (+ (- (* x (- y 1.0)) (* y 0.5)) 0.918938533204673)
  (+ (- (* x (- y 1.0)) (* y 0.5)) 0.918938533204673))
 
 (FPCore  (x y z)
@@ -1418,20 +1394,14 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:logGammaCorrection from math-functions-0.1.5.2"
- :herbie-target
- (- (* (* x x) 2.0) 1.0)
  (- (* (* x x) 2.0) 1.0))
 
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, A"
- :herbie-target
- (* x (- 1.0 (* x y)))
  (* x (- 1.0 (* x y))))
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B"
- :herbie-target
- (* x (- 1.0 (* x 0.5)))
  (* x (- 1.0 (* x 0.5))))
 
 (FPCore  (x y z t a b)
@@ -1442,8 +1412,6 @@
 
 (FPCore  (x y z t a b c i)
  :name "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, B"
- :herbie-target
- (+ (+ (+ (+ (+ (* x (log y)) z) t) a) (* (- b 0.5) (log c))) (* y i))
  (+ (+ (+ (+ (+ (* x (log y)) z) t) a) (* (- b 0.5) (log c))) (* y i)))
 
 (FPCore  (x y z)
@@ -1460,8 +1428,6 @@
 
 (FPCore  (x y z t)
  :name "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2, A"
- :herbie-target
- (+ (- (- (* x (log y)) y) z) (log t))
  (+ (- (- (* x (log y)) y) z) (log t)))
 
 (FPCore  (x y)
@@ -1472,8 +1438,6 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, A"
- :herbie-target
- (- 1.0 (* x (+ 0.253 (* x 0.12))))
  (- 1.0 (* x (+ 0.253 (* x 0.12)))))
 
 (FPCore  (x y)
@@ -1488,8 +1452,6 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, C"
- :herbie-target
- (- (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* x (+ 0.99229 (* x 0.04481))))) x)
  (- (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* x (+ 0.99229 (* x 0.04481))))) x))
 
 (FPCore  (x y)
@@ -1506,8 +1468,6 @@
 
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2, B"
- :herbie-target
- (* x (exp (+ (* y (- (log z) t)) (* a (- (log (- 1.0 z)) b)))))
  (* x (exp (+ (* y (- (log z) t)) (* a (- (log (- 1.0 z)) b))))))
 
 (FPCore  (x y z t a b)
@@ -1542,14 +1502,10 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, D"
- :herbie-target
- (- x (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* (+ 0.99229 (* x 0.04481)) x))))
  (- x (/ (+ 2.30753 (* x 0.27061)) (+ 1.0 (* (+ 0.99229 (* x 0.04481)) x)))))
 
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, E"
- :herbie-target
- (+ (- 1.0 x) (* y (sqrt x)))
  (+ (- 1.0 x) (* y (sqrt x))))
 
 (FPCore  (x y)
@@ -1574,8 +1530,6 @@
 
 (FPCore  (x)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, H"
- :herbie-target
- (/ (- (* x x) 3.0) 6.0)
  (/ (- (* x x) 3.0) 6.0))
 
 (FPCore  (x y z t a b c)
@@ -1637,10 +1591,6 @@
 
 (FPCore  (x y z t a b c i)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2"
- :herbie-target
- (/
-  (+ (* (+ (* (+ (* (+ (* x y) z) y) 27464.7644705) y) 230661.510616) y) t)
-  (+ (* (+ (* (+ (* (+ y a) y) b) y) c) y) i))
  (/
   (+ (* (+ (* (+ (* (+ (* x y) z) y) 27464.7644705) y) 230661.510616) y) t)
   (+ (* (+ (* (+ (* (+ y a) y) b) y) c) y) i)))
@@ -1663,8 +1613,6 @@
 
 (FPCore  (x)
  :name "Statistics.Distribution.Binomial:directEntropy from math-functions-0.1.5.2"
- :herbie-target
- (* x (log x))
  (* x (log x)))
 
 (FPCore  (x)
@@ -1675,14 +1623,10 @@
 
 (FPCore  (x y z)
  :name "Statistics.Sample:robustSumVarWeighted from math-functions-0.1.5.2"
- :herbie-target
- (+ x (* (* y z) z))
  (+ x (* (* y z) z)))
 
 (FPCore  (x y z)
  :name "Statistics.Sample:$swelfordMean from math-functions-0.1.5.2"
- :herbie-target
- (+ x (/ (- y x) z))
  (+ x (/ (- y x) z)))
 
 (FPCore  (x y)
@@ -1693,8 +1637,6 @@
 
 (FPCore  (x y z t a b)
  :name "Statistics.Distribution.Beta:$centropy from math-functions-0.1.5.2"
- :herbie-target
- (+ (- (- x (* (- y 1.0) z)) (* (- t 1.0) a)) (* (- (+ y t) 2.0) b))
  (+ (- (- x (* (- y 1.0) z)) (* (- t 1.0) a)) (* (- (+ y t) 2.0) b)))
 
 (FPCore  (x y z)
@@ -1707,20 +1649,14 @@
 
 (FPCore  (x y z t)
  :name "Statistics.Distribution.Beta:$cdensity from math-functions-0.1.5.2"
- :herbie-target
- (- (+ (* (- x 1.0) (log y)) (* (- z 1.0) (log (- 1.0 y)))) t)
  (- (+ (* (- x 1.0) (log y)) (* (- z 1.0) (log (- 1.0 y)))) t))
 
 (FPCore  (x y)
  :name "Statistics.Distribution.Binomial:$cvariance from math-functions-0.1.5.2"
- :herbie-target
- (* (* x y) (- 1.0 y))
  (* (* x y) (- 1.0 y)))
 
 (FPCore  (x y z)
  :name "Statistics.Distribution.Poisson:$clogProbability from math-functions-0.1.5.2"
- :herbie-target
- (- (- (* x (log y)) z) y)
  (- (- (* x (log y)) z) y))
 
 (FPCore  (x y z)
@@ -1741,14 +1677,10 @@
 
 (FPCore  (x y)
  :name "Examples.Basics.BasicTests:f2 from sbv-4.4"
- :herbie-target
- (- (* x x) (* y y))
  (- (* x x) (* y y)))
 
 (FPCore  (x y)
  :name "Examples.Basics.BasicTests:f1 from sbv-4.4"
- :herbie-target
- (* (+ x y) (- x y))
  (* (+ x y) (- x y)))
 
 (FPCore  (x y)
@@ -1759,14 +1691,10 @@
 
 (FPCore  (x y)
  :name "Numeric.LinearAlgebra.Util:formatSparse from hmatrix-0.16.1.5"
- :herbie-target
- (/ (fabs (- x y)) (fabs y))
  (/ (fabs (- x y)) (fabs y)))
 
 (FPCore  (x y)
  :name "Data.Random.Distribution.Normal:normalF from random-fu-0.2.6.2"
- :herbie-target
- (exp (* (* x y) y))
  (exp (* (* x y) y)))
 
 (FPCore  (x y)
@@ -1777,8 +1705,6 @@
 
 (FPCore  (x)
  :name "Data.Random.Distribution.Normal:doubleStdNormalZ from random-fu-0.2.6.2"
- :herbie-target
- (- (+ x x) 1.0)
  (- (+ x x) 1.0))
 
 (FPCore  (x y)
@@ -1789,8 +1715,6 @@
 
 (FPCore  (x y z t)
  :name "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2, A"
- :herbie-target
- (- 1.0 (/ x (* (- y z) (- y t))))
  (- 1.0 (/ x (* (- y z) (- y t)))))
 
 (FPCore  (x y z t)
@@ -1803,14 +1727,10 @@
 
 (FPCore  (x)
  :name "Data.Random.Dice:roll from dice-0.1"
- :herbie-target
- (- (* x x) 1.0)
  (- (* x x) 1.0))
 
 (FPCore  (x)
  :name "Prelude:atanh from fay-base-0.20.0.1"
- :herbie-target
- (/ (+ x 1.0) (- 1.0 x))
  (/ (+ x 1.0) (- 1.0 x)))
 
 (FPCore  (x)
@@ -1821,26 +1741,18 @@
 
 (FPCore  (x y z t a)
  :name "Hakyll.Web.Tags:renderTagCloud from hakyll-4.7.2.3"
- :herbie-target
- (+ x (* (/ (- y z) (- (+ t 1.0) z)) (- a x)))
  (+ x (* (/ (- y z) (- (+ t 1.0) z)) (- a x))))
 
 (FPCore  (x y z)
  :name "Data.Histogram.Bin.BinF:$cfromIndex from histogram-fill-0.8.4.1"
- :herbie-target
- (+ (+ (/ x 2.0) (* y x)) z)
  (+ (+ (/ x 2.0) (* y x)) z))
 
 (FPCore  (x y)
  :name "Data.Histogram.Bin.LogBinD:$cbinSizeN from histogram-fill-0.8.4.1"
- :herbie-target
- (- (* x y) x)
  (- (* x y) x))
 
 (FPCore  (x y z t a)
  :name "Numeric.Signal:interpolate   from hsignal-0.2.7.1"
- :herbie-target
- (+ x (* (- y z) (/ (- t x) (- a z))))
  (+ x (* (- y z) (/ (- t x) (- a z)))))
 
 (FPCore  (x y z t)
@@ -1861,8 +1773,6 @@
 
 (FPCore  (x y)
  :name "Data.HyperLogLog.Config:hll from hyperloglog-0.3.4"
- :herbie-target
- (* (* x y) y)
  (* (* x y) y))
 
 (FPCore  (x y)
@@ -1889,8 +1799,6 @@
 
 (FPCore  (x y)
  :name "Numeric.Integration.TanhSinh:simpson  from integration-0.2.1"
- :herbie-target
- (* x (+ y y))
  (* x (+ y y)))
 
 (FPCore  (x y)
@@ -1913,14 +1821,10 @@
 
 (FPCore  (x y z t)
  :name "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, B"
- :herbie-target
- (+ (* x (+ (+ (+ (+ y z) z) y) t)) (* y 5.0))
  (+ (* x (+ (+ (+ (+ y z) z) y) t)) (* y 5.0)))
 
 (FPCore  (x y z)
  :name "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendInside from plot-0.2.3.4"
- :herbie-target
- (+ (+ (+ (+ (+ x y) y) x) z) x)
  (+ (+ (+ (+ (+ x y) y) x) z) x))
 
 (FPCore  (x y z)
@@ -1999,8 +1903,6 @@
 
 (FPCore  (x y z)
  :name "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, A"
- :herbie-target
- (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.75)) z)) y))
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.75)) z)) y)))
 
 (FPCore  (x y z)
@@ -2011,8 +1913,6 @@
 
 (FPCore  (x y z)
  :name "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, C"
- :herbie-target
- (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.25)) z)) y))
  (+ 1.0 (/ (* 4.0 (- (+ x (* y 0.25)) z)) y)))
 
 (FPCore  (x)
