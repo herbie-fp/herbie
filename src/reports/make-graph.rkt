@@ -227,7 +227,7 @@
       ,@(cond
          [(exn:fail:user:herbie? exn)
           `((section ([id "user-error"])
-             (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) "(more)"))
+             (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
              ,(if (exn:fail:user:herbie:syntax? exn)
                   `(table
                     (thead
