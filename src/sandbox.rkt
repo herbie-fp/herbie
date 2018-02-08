@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require racket/engine)
 
-(require "common.rkt")
+(require "common.rkt" "errors.rkt")
 (require "debug.rkt")
 (require "mainloop.rkt")
 (require "formats/datafile.rkt")
