@@ -8,6 +8,10 @@
   (for ([res results] [test tests])
     (match-define (table-row name status start result target inf- inf+ result-est vars input output time bits link) (cdr res))
     (match status
+      ["error"
+       (fprintf p ";; Error in ~a\n" name)
+       (write (car res) p)
+       (newline p)]
       ["crash"
        (fprintf p ";; Crash in ~a\n" name)
        (write (car res) p)

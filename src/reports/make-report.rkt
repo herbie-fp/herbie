@@ -24,6 +24,9 @@
 		      (printf "\n")
 		      (for ([t tests])
 			   (match (table-row-status t)
+				  ["error"
+				   (printf "; errored\n")
+				   (print-test t)]
 				  ["crash"
 				   (printf "; crashed\n")
 				   (print-test t)]
@@ -37,7 +40,8 @@
 
 (define (badge-label result)
   (match (table-row-status result)
-    ["crash" "ERR"]
+    ["error" "ERR"]
+    ["crash" "!!!"]
     ["timeout" "TIME"]
     [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)]))
 

@@ -93,6 +93,8 @@
 (define (print-test-result data)
   (match-define (cons fpcore tr) data)
   (match (table-row-status tr)
+    ["error"  
+     (printf "[   ERROR   ]\t~a\n" (table-row-name tr))]
     ["crash"  
      (printf "[   CRASH   ]\t~a\n" (table-row-name tr))]
     ["timeout"

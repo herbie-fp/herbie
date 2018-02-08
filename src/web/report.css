@@ -42,6 +42,7 @@ li.eq-target  {background-color: #87fc70;}
 li.lt-target  {background-color: #ffdb4c;}
 li.eq-start   {background-color: #ff9500;}
 li.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
+li.error      {background-color:#ff9d87; color:#ed2b00; border: 2px solid #ff5e3a; width: 71px; height: 36px; line-height: 36px; }
 li.crash      {background-color: #4a4a4a; color: #f7f7f7;}
 li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 
@@ -88,6 +89,7 @@ tr.eq-start   td:nth-child(4) {background-color:#ffdb4c;}
 tr.lt-start   td:nth-child(3) {background-color:#ff5e3a;color: #f7f7f7;}
 tr.lt-start   td:nth-child(4) {background-color:#ffdb4c;color: #f7f7f7;}
 
+tr.error      td:nth-child(3) {background-color:#ff9d87; color:#ed2b00; border: 2px solid #ff5e3a; }
 tr.crash      td:nth-child(3) {background-color:#4a4a4a;color:#f7f7f7;}
 tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 
