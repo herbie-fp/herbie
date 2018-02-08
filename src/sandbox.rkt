@@ -137,7 +137,7 @@
                    link)))]
    [(test-failure? result)
     (define test (test-failure-test result))
-    (table-row (test-name test) (if (exn:fail:user:herbie? (text-failure-exn test)) "error" "crash")
+    (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn test)) "error" "crash")
                #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
