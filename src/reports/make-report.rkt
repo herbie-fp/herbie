@@ -162,7 +162,7 @@
            (thead
             (tr ,@(for/list ([label table-labels])
                     (if (dict-has-key? help-text label)
-                        `(th ,label " " (span ([class help-button] [title ,(dict-ref help-text label)]) "?"))
+                        `(th ,label " " (span ([class "help-button"] [title ,(dict-ref help-text label)]) "?"))
                         `(th ,label)))))
            (tbody
             ,@(for/list ([result tests] [id (in-naturals)])
