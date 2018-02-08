@@ -203,7 +203,7 @@
                (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
               (div "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
             "")
-       
+
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])

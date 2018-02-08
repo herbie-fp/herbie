@@ -95,3 +95,11 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 #results.no-target th:nth-child(4) {display: none;}
 #results.no-inf td:nth-child(5) {display: none;}
 #results.no-inf th:nth-child(5) {display: none;}
+
+.help-button {
+ display: inline-block; background: #888;
+ font-size: .8em; color: #eee;
+ height: 1em; width: 1em; border-radius: .5em;
+}
+
+.help-button:hover { background: #444; }

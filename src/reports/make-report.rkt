@@ -48,6 +48,10 @@
      (define table-labels
        '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
 
+     (define help-text
+       #hash(("Result" . "Color key:\nGreen: improved accuracy\nLight green: no initial error\nOrange: no accuracy change\nRed: accuracy worsened")
+             ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange:improved but did not match target\nYellow: no accuracy change\n")))
+
      (define-values (dir _name _must-be-dir?) (split-path file))
 
      (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
@@ -152,7 +156,10 @@
 
           (table ((id "results") (class ,(string-join (map ~a classes) " ")))
            (thead
-            (tr ,@(for/list ([label table-labels]) `(th ,label))))
+            (tr ,@(for/list ([label table-labels])
+                    (if (dict-has-key? help-text label)
+                        `(th ,label " " (span ([class help-button] [title ,(dict-ref help-text label)]) "?"))
+                        `(th ,label)))))
            (tbody
             ,@(for/list ([result tests] [id (in-naturals)])
                 `(tr ((class ,(~a (table-row-status result))))
