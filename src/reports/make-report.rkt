@@ -54,7 +54,7 @@
 
      (define help-text
        #hash(("Result" . "Color key:\nGreen: improved accuracy\nLight green: no initial error\nOrange: no accuracy change\nRed: accuracy worsened")
-             ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange:improved but did not match target\nYellow: no accuracy change\n")))
+             ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
 
      (define-values (dir _name _must-be-dir?) (split-path file))
 

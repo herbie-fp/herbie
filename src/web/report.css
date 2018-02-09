@@ -100,8 +100,9 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 
 .help-button {
  display: inline-block; background: #888;
- font-size: .8em; color: #eee;
- height: 1em; width: 1em; border-radius: .5em;
+ font-size: .8em; color: #eee; line-height: 1.3em;
+ height: 1.25em; width: 1.25em; border-radius: .625em;
+ vertical-align: top;
 }
 
-.help-button:hover { background: #444; }
+.help-button:hover { background: #444; cursor: pointer; }
