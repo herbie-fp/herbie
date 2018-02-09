@@ -227,15 +227,6 @@
       branches very expensive, such as in some cases of GPU
       programming.</dd>
 
-    <dt><code>reduce:taylor</code></dt>
-    <dd>This option, on by default, uses a final set of series
-      expansions after all improvements have been made. This sometimes
-      improves accuracy further. If turned off, this final series
-      expansion pass will not be done. You will want to turn this
-      option off if you want to avoid series-expansion-based rewrites,
-      such as if you need to preserve the equivalence of the input and
-      output expressions as real-number formulas.</dd>
-
     <dt><code>reduce:simplify</code></dt>
     <dd>This option, on by default, uses a final simplification pass
       after all improvements have been made. This sometimes improves
@@ -251,6 +242,16 @@
       overall accuracy. You may want to turn this option off if
       worst-case accuracy is more important to you than overall
       accuracy.</dd>
+
+    <dt><code>reduce:binary-search</code></dt>
+    <dd>This option, on by default, uses binary search to refine the
+      values used in <code>if</code> statement conditionals. This
+      makes different runs of Herbie produce more similar results, and
+      improves accuracy near those values. If turned off, binary
+      search will not be used, and the branch values will be less
+      accurately chosen. You will want to turn this option off if
+      behavior near branches is not important to you, in which case
+      turning off this option will make Herbie slightly faster.</dd>
 
     <dt><code>rules:arithmetic</code></dt>
     <dd>This option, on by default, allows Herbie to use basic
@@ -291,7 +292,8 @@
       numerical functions. If turned off, Herbie will not be able to
       use these functions. You will want to turn this option on if
       these functions (currently <code>expm1</code>, <code>log1p</code>,
-      and <code>hypot</code>) are available in your language.</dd>
+      <code>fma</code>, and <code>hypot</code>) are available in your
+      language.</dd>
   </dl>
 
   <script>
