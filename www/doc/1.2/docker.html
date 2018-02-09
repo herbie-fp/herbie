@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie on Docker</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Installing with Docker</h1>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a>'s is available
+    through <a href="https://www.docker.com/">Docker</a>, which is a
+    sort of like an easily-scriptable virtual machine. This page
+    describes how to install
+    the <a href="https://hub.docker.com/uwplse/herbie">official Docker
+    image</a> for Herbie.
+  </p>
+  
+  <p>
+    Herbie can also be <a href="installing.html">installed
+    normally</a>.
+  </p>
+  
+  <h2>Installing the Herbie image</h2>
+
+  <p>
+    First, <a href="https://docs.docker.com/installation/">install
+    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
+    how you install Docker, you may need to prefix
+    all <code>docker</code> commands on this page
+    with <code>sudo</code> or run them as the root or administrative
+    user.
+  </p>
+  
+  <p>
+    With Docker installed, you should be able to download the Herbie image with:
+  </p>
+ 
+
+  <pre>docker pull uwplse/herbie</pre>
+  
+  <p>
+    You can now run Herbie:
+  </p>
+
+  <pre>docker run -it uwplse/herbie shell</pre>
+  
+  <p>
+    This will run the <a href="using-cli.html">Herbie shell</a>,
+    reading input from the standard input.
+  </p>
+
+  <h2>Generating files and reports</h2>
+
+  <p>
+    To use Herbie in <a href="using-cli.html">batch mode</a>, you will
+    need to mount the input in the Docker container. Do that with:
+  </p>
+  
+  <pre><strong>$</strong> docker run -it \
+    -v <var>in-dir</var>:/in \
+    -v <var>out-dir</var>:/out \
+    -u $USER \
+    uwplse/herbie improve /in/<var>in-file</var> /out/<var>out-file</var></pre>
+
+  <p>
+    In this command, you are asking Herbie to read input
+    from <var>in-file</var> in <var>in-dir</var>, and write output
+    to <var>out-file</var> in <var>out-dir</var>. The command looks
+    the same if you want Herbie to read input from a directory;
+    just leave <var>in-file</var> blank.
+  </p>
+
+  <p>
+    To generate reports from Herbie, you can run:
+  </p>
+
+  <pre><strong>$</strong> docker run -it \
+    -v <var>in-dir</var>:/in \
+    -v <var>out-dir</var>:/out \
+    -u $USER \
+    uwplse/herbie report /in/<var>in-file</var> /out/</pre>
+
+  <p>
+    As before, the input and output directories must be mounted inside
+    the Docker container. Note that both here and above, the user is
+    set to the current user. This is to ensure that the files Herbie creates
+    have the correct permissions set.
+  </p>
+
+  <h2>Running the web shell</h2>
+
+  <p>
+    Running the web shell in Docker requires exposing the ports inside
+    the container. Use the <code>-p</code> option to Docker to expose
+    whatever ports Herbie chooses to use, and then use
+    the <code>--port</code> option to Herbie to choose that port.
+  </p>
+
+  <pre><strong>$</strong> docker run -itp \
+    uwplse/herbie web --quiet</pre>
+
+  <p>
+    Note that the <code>--quiet</code> flag is passed,
+    to prevent Herbie from attempting to start a web server
+    inside the Docker container.
+  </p>
+
+  <p>
+    If you are using the <code>--log</code>
+    or <code>--save-session</code> flags for the web shell,
+    you will also need to mount the relevant directories into the
+    Docker container using the <code>-v</code> Docker option, as in
+    the examples above.
+  </p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>

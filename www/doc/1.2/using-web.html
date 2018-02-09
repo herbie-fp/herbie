@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Using Herbie from the Browser</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Using Herbie from the Browser</h1>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> rewrites floating point expressions to
+    make them more accurate. The expressions could come from
+    anywhere—your source code, mathematical papers, or even the output
+    of <a href="../1.0/using-herbgrind.html">Herbgrind</a>, our tool for
+    finding inaccurate expressions in binaries. This tutorial runs
+    Herbie on the benchmark programs that Herbie ships with.
+  </p>
+
+  <p>Herbie can be used from <a href="using-cli.html">the
+  command-line</a> and from the browser. This page covers
+  using Herbie from the command line.</p>
+
+
+  <h2 id="interactive">The Herbie web shell</h2>
+
+  <p>
+    The Herbie web shell lets you interact with Herbie through your
+    browser, featuring a convenient input format. Run the Herbie web
+    shell:
+  </p>
+
+  <pre>herbie web</pre>
+
+  <p>
+    After a few seconds, the web shell will rev up and direct your
+    browser to the main web shell page:
+  </p>
+  
+  <pre><strong>$</strong> herbie web
+Your Web application is running at http://localhost:8000/.
+Stop this program at any time to terminate the Web Server.</pre>
+
+  <figure>
+    <img width="100%" src="web-main.png" />
+    <figcaption>The input page for the web shell.</figcaption>
+  </figure>
+
+  <p>
+    As in the screenshot, you can type expressions, in standard
+    mathematical syntax (parsed
+    by <a href="http://mathjs.org">Math.js</a>), and
+    hit <kbd>Enter</kbd> to have Herbie attempt to improve them.
+  </p>
+
+  <figure>
+    <img width="100%" src="web-progress.png" />
+    <figcaption>Herbie improvement in progress.</figcaption>
+  </figure>
+
+  <p>
+    The web shell will print Herbie's progress, and redirect to a
+    <a href="report.html">report</a> once Herbie is done.
+  </p>
+
+  <p>
+    Interactive use of the web shell is the friendliest and easiest
+    way to use Herbie. The web shell has <a href="options.html">many
+    options</a>, including automatically saving the generated reports.
+  </p>
+
+
+  <h2 id="batch">Batch report generation</h2>
+
+  <p>A <a href="report.html">report</a> can also be generated directly
+  from a file of input expressions:</p>
+  
+  <pre><strong>$</strong> herbie report input.fpcore output/
+Starting Herbie on 3 problems...
+Seed: #(327732824 4211992217 3609811086 1098847098 2827724810 3610427321)
+  1/3	[ 7108.190ms]	(39→ 0)	Expanding a square
+  2/3	[ 1894.348ms]	( 0→ 0)	Commute and associate
+  3/3	[ 873.3889ms]	(29→ 0)	Cancel like terms</pre>
+
+  <p>
+    This command asks Herbie to generate a report from the input
+    expressions in <code>input.fpcore</code> and save the report in
+    the directory <code>output/</code>, which ought not exist yet.
+    The printed seed can be used to reproduce a run of Herbie.
+  </p>
+
+  <p>
+    Once generated, open the <code>output/report.html</code> page
+    in your favorite browser (but see <a href="faq.html"> the FAQ</a>
+    if you're using Chrome). From that page, you can click on the rows
+    in the table at the bottom to see the report for that expression.
+  </p>
+
+  <p>Batch report generation is the most informative way to run Herbie
+  on a large collection of inputs. Like the web shell, it can be
+  customized through <a href="options.html">command-line options</a>,
+  including running Herbie in multiple threads at once.</p>
+
+
+  <h2>Input expressions</h2>
+
+  <p>An example input file can be found in <code>bench/tutorial.fpcore</code>:</p>
+  
+  <pre>(FPCore (x)
+  :name "Cancel like terms"
+  (- (+ 1 x) x))
+
+(FPCore (x)
+  :name "Expanding a square"
+  (- (sqr (+ x 1)) 1))
+
+(FPCore (x y z)
+  :name "Commute and associate"
+  (- (+ (+ x y) z) (+ x (+ y z))))</pre>
+  
+  <p> This code defines three floating point expressions that we want
+    to run Herbie on:</p>
+
+  <ul>
+    <li><code>(1 + x) - x</code>, titled “Cancel like terms”</li>
+    <li><code>(x + 1)² - 1</code>, titled “Expanding a square”</li>
+    <li><code>((x + y) + z) - (x + (y + z))</code>, titled “Commute
+    and associate”</li>
+  </ul>
+
+  <p>You can check out our <a href="input.html">input format
+    documentation</a> for more about the Herbie input format. </p>
+
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>
