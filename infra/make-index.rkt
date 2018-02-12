@@ -45,72 +45,78 @@
       (cons 'fuel:2 flags)
       flags))
 
+(define (compute-row folder)
+  (define info (read-report-info folder))
+  (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
+
+  (define-values (total-start total-end)
+    (for/fold ([start 0] [end 0]) ([row (or tests '())])
+      (values
+       (+ start (or (table-row-start row) 0))
+       (+ end (or (table-row-result row) 0)))))
+
+  (define total-passed
+    (for/sum ([row (or tests '())])
+      (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
+  (define total-available
+    (for/sum ([row (or tests '())])
+      (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+
+  (hash 'date date
+        'folder folder
+        'commit commit
+        'branch branch
+        'options (get-options info)
+        'note note
+        'tests-passed total-passed
+        'tests-available total-available
+        'bits-improved (- total-start total-end)
+        'bits-available total-start))
+
+(define (round* x)
+  (cond
+   [(>= (abs x) (expt 10 6)) "?"]
+   [(>= (abs x) 10) (~a (inexact->exact (round x)))]
+   [else (~r x #:precision 2)]))
+
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
            (th "Date") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
     (tbody
-     ,@(for/list ([(folder info) (in-dict infos)])
-         (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
-
-         (define-values (total-start total-end)
-           (for/fold ([start 0] [end 0]) ([row (or tests '())])
-             (values
-              (+ start (or (table-row-start row) 0))
-              (+ end (or (table-row-result row) 0)))))
-
-         (define total-passed
-           (for/sum ([row (or tests '())])
-             (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-         (define total-available
-           (for/sum ([row (or tests '())])
-             (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
-
-         (define (round* x)
-           (cond
-            [(>= (abs x) (expt 10 6))
-             "?"]
-            [(>= (abs x) 10)
-             (~a (inexact->exact (round x)))]
-            [else
-             (~r x #:precision 2)]))
+     ,@(for/list ([info infos])
+         (define field (curry dict-ref info))
 
          `(tr
            ;; TODO: Best to output a datetime field in RFC3338 format,
            ;; but Racket doesn't make that easy.
-           (td ((title ,(format "~a:~a on ~a" (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0") (date->string date))))
-               (time ((data-unix ,(format "~a" (date->seconds date))))
-                     ,(date->string/short date)))
-           (td ((title ,commit)) ,branch)
-           (td ((title ,(string-join (map ~a (get-options info)) " "))
-                (class ,(if note "note" "")))
-               ,(if note note "⭐"))
-           (td ,(if tests (format "~a/~a" total-passed total-available) ""))
-           (td ,(if total-start (format "~a/~a" (round* (- total-start total-end))
-                                        (round* total-start))
-                    ""))
-           (td (a ((href ,(format "./~a/report.html" folder))) "»")))))))
+           (td ((title ,(format "~a:~a on ~a" (date-hour (field 'date)) (~r (date-minute (field 'date)) #:min-width 2 #:pad-string "0") (date->string (field 'date)))))
+               (time ((data-unix ,(format "~a" (date->seconds (field 'date)))))
+                     ,(date->string/short (field 'date))))
+           (td ((title ,(field 'commit))) ,(field 'branch))
+           (td ((title ,(string-join (map ~a (field 'options)) " "))
+                (class ,(if (field 'note) "note" ""))) ,(or (field 'note) "⭐"))
+           (td ,(if (> (field 'tests-available) 0) (format "~a/~a" (field 'tests-passed) (field 'tests-available)) ""))
+           (td ,(if (field 'bits-improved) (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available))) ""))
+           (td (a ((href ,(format "./~a/report.html" (field 'folder)))) "»")))))))
 
 (define (make-index-page)
   (define dirs (directory-list report-json-path))
   (let* ([folders
-          (map (λ (dir) (cons dir (read-report-info dir)))
+          (map (λ (dir) (compute-row dir))
                (remove-duplicates
                 (sort (filter name->timestamp dirs) > #:key name->timestamp)
                 #:key name->timestamp))])
 
     (define branch-infos*
       (sort
-       (group-by (compose report-info-branch cdr) folders)
-       > #:key (λ (x) (date->seconds (report-info-date (cdar x))))))
+       (group-by (curryr dict-ref 'branch) folders)
+       > #:key (λ (x) (date->seconds (dict-ref (first x) 'date)))))
 
     (define-values (master-info* other-infos)
-      (partition (λ (x) (equal? (report-info-branch (cdar x)) "master"))
+      (partition (λ (x) (equal? (dict-ref (first x) 'branch) "master"))
                  branch-infos*))
 
-    ;; This is a hack due to the use of partition to simultaneously
-    ;; find the reports with branch master, and also to remove it
-    ;; from the list.
-    (define master-info (and (not (null? master-info*)) (car master-info*)))
+    (define master-info (if (null? master-info*) '() (first master-info*)))
 
     (write-file "index.html"
       (printf "<!doctype html>\n")
@@ -134,7 +140,7 @@
                 ""))
           (ul ((id "toc"))
               ,@(for/list ([rows (if master-info (cons master-info other-infos) other-infos)])
-                  (define branch (report-info-branch (cdar rows)))
+                  (define branch (dict-ref (first rows) 'branch))
                   `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
           (figure
            (ul ((id "classes")))
@@ -149,7 +155,7 @@
            ,@(apply
               append
               (for/list ([rows other-infos])
-                (print-rows rows #:name (report-info-branch (cdar rows))))))))))))
+                (print-rows rows #:name (dict-ref (first rows) 'branch)))))))))))
 
 (module+ main
   (make-index-page))
