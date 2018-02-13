@@ -28,8 +28,9 @@ backfill () {
 }
 
 download_reports () {
-    rsync --include 'results.json' --include '/*/' --exclude '*' \
-          --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
+    rsync --recursive --checksum --inplace --ignore-existing \
+          --include 'results.json' --include '*/' --exclude '*' \
+          uwplse.org:/var/www/herbie/reports/ graphs/reports/
 }
 
 upload_reports () {
