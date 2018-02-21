@@ -12,7 +12,7 @@
 (require "core/alt-table.rkt")
 (require "core/matcher.rkt")
 
-(provide remove-pows setup-prog post-process
+(provide remove-pows setup-prog setup-alt-simplified post-process
          split-table extract-alt combine-alts
          best-alt simplify-alt completely-simplify-alt
          taylor-alt zach-alt)
@@ -44,14 +44,18 @@
 
 (define (setup-prog prog fuel)
   (let* ([alt (make-alt prog)]
-	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
-	 [processed (maybe-simplify alt)]
-	 [table (make-alt-table (*pcontext*) processed)]
+	 [table (make-alt-table (*pcontext*) alt)]
 	 [extracted (atab-all-alts table)])
-    (assert (equal? extracted (list processed))
+    (assert (equal? extracted (list alt))
 	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
-				       extracted processed)))
+				       extracted alt)))
     table))
+
+(define (setup-alt-simplified prog)
+  (let* ([alt (make-alt prog)]
+	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
+	 [processed (maybe-simplify alt)])
+    processed))
 
 (define (extract-alt table)
   (parameterize ([*pcontext* (atab-context table)])
