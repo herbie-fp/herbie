@@ -242,14 +242,18 @@
 	    init-alt))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-	(for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-	  (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-	  (run-iter!))
-	(finalize-table!)
-	(debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-	(if get-context?
-	    (list (get-final-combination) (*pcontext*))
-	    (get-final-combination)))))
+        (let* ([current-alts (atab-all-alts (^table^))]
+               [new-alt (setup-alt-simplified prog)]
+               [all-alts (append current-alts (list new-alt))])
+            (^table^ (atab-add-altns (^table^) all-alts))
+            (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+              (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+              (run-iter!))
+            (finalize-table!)
+            (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+            (if get-context?
+                (list (get-final-combination) (*pcontext*))
+                (get-final-combination))))))
 
 ;; Finishing Herbie
 (define (finalize-table!)
