@@ -271,7 +271,7 @@
       (title ,(format "Timeout for ~a" (test-name test)))
       (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"])))
      (body
-      (h1 "Timeout in " (format-time time))
+      (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-process-info time timeline profile? test)))))
 
