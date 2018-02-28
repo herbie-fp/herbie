@@ -10,6 +10,9 @@ install:
 update:
 	raco pkg update --name herbie src/
 
+nightly:
+	bash infra/nightly.sh
+
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
 	mv src.zip herbie.zip
