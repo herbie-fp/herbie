@@ -1,11 +1,13 @@
 #!/bin/bash
 
+CORES=6
+
 function run {
   bench=$1; shift
   name=$1; shift
 
   time xvfb-run --auto-servernum \
-    racket "$HERBROOT/src/herbie.rkt" report \
+    racket "src/herbie.rkt" report \
       --note "$name" \
       --profile \
       --threads $CORES \
@@ -14,8 +16,7 @@ function run {
 }
 
 function runEach {
-  ##for bench in $HERBROOT/bench/hamming; do
-  for bench in $HERBROOT/bench/*; do
+  for bench in bench/*; do
     name=$(basename "$bench" .fpcore)
     # add cases to skip large or misbehaving benchmarks
     case $name in
