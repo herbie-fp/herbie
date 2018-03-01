@@ -4,7 +4,7 @@
 
 (require "../common.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules*)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-rules*)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -20,7 +20,7 @@
 	 (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 ; Commutativity
-(define-ruleset commutativity (arithmetic simplify)
+(define-ruleset commutativity (arithmetic simplify fp-safe)
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
@@ -52,7 +52,10 @@
   [distribute-rgt-out     (+ (* b a) (* c a))   (* a (+ b c))]
   [distribute-rgt-out--   (- (* b a) (* c a))   (* a (- b c))]
   [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
-  [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)]
+  [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)])
+
+; Safe Distributiviity
+(define-ruleset distributivity-fp-safe (arithmetic simplify fp-safe)
   [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
   [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
   [distribute-lft-neg-out (* (- a) b)           (- (* a b))]
@@ -76,31 +79,37 @@
 
 ; Identity
 (define-ruleset id-reduce (arithmetic simplify)
+  [remove-double-div (/ 1 (/ 1 a))         a]
+  [rgt-mult-inverse  (* a (/ 1 a))         1]
+  [lft-mult-inverse  (* (/ 1 a) a)         1])
+
+(define-ruleset id-reduce-fp-safe-nan (arithmetic simplify fp-safe-nan)
+  [+-inverses        (- a a)               0]
+  [*-inverses        (/ a a)               1]
+  [div0              (/ 0 a)               0]
+  [mul0              (* 0 a)               0]
+  [mul0              (* a 0)               0])
+
+(define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   [+-lft-identity    (+ 0 a)               a]
   [+-rgt-identity    (+ a 0)               a]
-  [+-inverses        (- a a)               0]
   [sub0-neg          (- 0 b)               (- b)]
   [remove-double-neg (- (- a))             a]
   [*-lft-identity    (* 1 a)               a]
   [*-rgt-identity    (* a 1)               a]
-  [*-inverses        (/ a a)               1]
-  [remove-double-div (/ 1 (/ 1 a))         a]
-  [rgt-mult-inverse  (* a (/ 1 a))         1]
-  [lft-mult-inverse  (* (/ 1 a) a)         1]
-  [div0              (/ 0 a)               0]
-  [mul0              (* 0 a)               0]
-  [mul0              (* a 0)               0]
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
+  [div-inv           (/ a b)               (* a (/ 1 b))]
+  [un-div-inv        (* a (/ 1 b))         (/ a b)]
+  [clear-num         (/ a b)               (/ 1 (/ b a))])
+
+(define-ruleset id-transform-fp-safe (arithmetic fp-safe)
   [sub-neg           (- a b)               (+ a (- b))]
   [unsub-neg         (+ a (- b))           (- a b)]
   [neg-sub0          (- b)                 (- 0 b)]
   [*-un-lft-identity a                     (* 1 a)]
-  [div-inv           (/ a b)               (* a (/ 1 b))]
-  [un-div-inv        (* a (/ 1 b))         (/ a b)]
-  [neg-mul-1         (- a)                 (* -1 a)]
-  [clear-num         (/ a b)               (/ 1 (/ b a))])
+  [neg-mul-1         (- a)                 (* -1 a)])
 
 ; Difference of cubes
 (define-ruleset difference-of-cubes (polynomials)
@@ -128,7 +137,9 @@
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
   [rem-square-sqrt   (* (sqrt x) (sqrt x))     x]
-  [rem-sqrt-square   (sqrt (* x x))     (fabs x)]
+  [rem-sqrt-square   (sqrt (* x x))     (fabs x)])
+
+(define-ruleset squares-reduce-fp-sound (arithmetic simplify fp-sound)
   [sqr-neg           (* (- x) (- x))        (* x x)])
 
 (define-ruleset squares-distribute (arithmetic simplify)
@@ -172,11 +183,14 @@
 
 (define-ruleset exp-reduce (exponents simplify)
   [rem-exp-log  (exp (log x))        x]
-  [rem-log-exp  (log (exp x))        x]
+  [rem-log-exp  (log (exp x))        x])
+
+(define-ruleset exp-reduce-fp-safe (exponents simplify fp-safe)
   [exp-0        (exp 0)              1]
   [1-exp        1                    (exp 0)]
   [exp-1-e      (exp 1)              E]
   [e-exp-1      E                    (exp 1)])
+
 
 (define-ruleset exp-distribute (exponents simplify)
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
@@ -195,24 +209,29 @@
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
-  [unpow-1        (pow a -1)                 (/ 1 a)]
-  [unpow1         (pow a 1)                  a]
+  [unpow-1        (pow a -1)                 (/ 1 a)])
+
+(define-ruleset pow-reduce-fp-safe (exponents simplify fp-safe)
+  [unpow1         (pow a 1)                  a])
+
+(define-ruleset pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan)
   [unpow0         (pow a 0)                  1]
   [pow-base-1     (pow 1 a)                  1])
 
-(define-ruleset pow-expand (exponents)
+(define-ruleset pow-expand-fp-safe (exponents fp-safe)
   [pow1           a                           (pow a 1)])
 
 (define-ruleset pow-canonicalize (exponents simplify)
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
-  [unpow2          (pow a 2)                  (* a a)]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
   [unpow3          (pow a 3)                  (* (* a a) a)]
   [unpow1/3        (pow a 1/3)                (cbrt a)] )
 
+(define-ruleset pow-canonicalize-fp-safe (exponents simplify fp-safe)
+  [unpow2          (pow a 2)                  (* a a)])
+
 (define-ruleset pow-transform (exponents)
-  [pow-base-0       (pow 0 a)                   0]
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
@@ -225,18 +244,25 @@
   [pow-unpow        (pow a (* b c))             (pow (pow a b) c)]
   [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
   [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))]
-  [inv-pow          (/ 1 a)                     (pow a -1)]
   [pow1/2           (sqrt a)                    (pow a 1/2)]
   [pow2             (* a a)                     (pow a 2)]
   [pow1/3           (cbrt a)                    (pow a 1/3)]
   [pow3             (* (* a a) a)               (pow a 3)])
+
+(define-ruleset pow-transform-fp-safe-nan (exponents fp-safe-nan)
+  [pow-base-0       (pow 0 a)                   0])
+
+(define-ruleset pow-transform-fp-safe (exponents fp-safe)
+  [inv-pow          (/ 1 a)                     (pow a -1)])
 
 ; Logarithms
 (define-ruleset log-distribute (exponents simplify)
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (- (log a))]
-  [log-pow      (log (pow a b))     (* b (log a))]
+  [log-pow      (log (pow a b))     (* b (log a))])
+
+(define-ruleset log-distribute-fp-safe (exponents simplify fp-safe)
   [log-E        (log E)             1])
 
 (define-ruleset log-factor (exponents)
@@ -253,8 +279,6 @@
   [-1-add-sin  (+ (* (sin a) (sin a)) -1)  (- (* (cos a) (cos a)))]
   [sub-1-cos   (- (* (cos a) (cos a)) 1)   (- (* (sin a) (sin a)))]
   [sub-1-sin   (- (* (sin a) (sin a)) 1)   (- (* (cos a) (cos a)))]
-  [sin-neg     (sin (- x))           (- (sin x))]
-  [sin-0       (sin 0)               0]
   [sin-PI/6    (sin (/ PI 6))        1/2]
   [sin-PI/4    (sin (/ PI 4))        (/ (sqrt 2) 2)]
   [sin-PI/3    (sin (/ PI 3))        (/ (sqrt 3) 2)]
@@ -262,8 +286,6 @@
   [sin-PI      (sin PI)              0]
   [sin-+PI     (sin (+ x PI))        (- (sin x))]
   [sin-+PI/2   (sin (+ x (/ PI 2)))  (cos x)]
-  [cos-neg     (cos (- x))           (cos x)]
-  [cos-0       (cos 0)               1]
   [cos-PI/6    (cos (/ PI 6))        (/ (sqrt 3) 2)]
   [cos-PI/4    (cos (/ PI 4))        (/ (sqrt 2) 2)]
   [cos-PI/3    (cos (/ PI 3))        1/2]
@@ -271,8 +293,6 @@
   [cos-PI      (cos PI)              -1]
   [cos-+PI     (cos (+ x PI))        (- (cos x))]
   [cos-+PI/2   (cos (+ x (/ PI 2)))  (- (sin x))]
-  [tan-neg     (tan (- x))           (- (tan x))]
-  [tan-0       (tan 0)               0]
   [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
   [tan-PI/4    (tan (/ PI 4))        1]
   [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
@@ -280,9 +300,17 @@
   [tan-+PI     (tan (+ x PI))        (tan x)]
   [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
 
+(define-ruleset trig-reduce-fp-sound (trigonometry simplify fp-safe)
+  [sin-0       (sin 0)               0]
+  [cos-0       (cos 0)               1]
+  [tan-0       (tan 0)               0])
+
+(define-ruleset trig-reduce-fp-sound-nan (trigonometry simplify fp-safe-nan)
+  [sin-neg     (sin (- x))           (- (sin x))]
+  [cos-neg     (cos (- x))           (cos x)]
+  [tan-neg     (tan (- x))           (- (tan x))])
+
 (define-ruleset trig-expand (trigonometry)
-  [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
-  [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))]
   [sin-sum     (sin (+ x y))             (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))             (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [tan-sum     (tan (+ x y))             (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
@@ -320,6 +348,10 @@
   [tan-quot    (tan x)                   (/ (sin x) (cos x))]
   [quot-tan    (/ (sin x) (cos x))       (tan x)])
 
+(define-ruleset trig-expand-fp-safe (trignometry fp-safe)
+  [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
+  [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
+
 (define-ruleset atrig-expand (trigonometry)
   [sin-asin    (sin (asin x))         x]
   [cos-asin    (cos (asin x))         (sqrt (- 1 (* x x)))]
@@ -352,10 +384,6 @@
   [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
   [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
   [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
-  [sinh-neg    (sinh (- x))           (- (sinh x))]
-  [sinh-0      (sinh 0)               0]
-  [cosh-neg    (cosh (- x))           (cosh x)]
-  [cosh-0      (cosh 0)               1]
   [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
   [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
   [cosh-2      (cosh (* 2 x))         (+ (* (sinh x) (sinh x)) (* (cosh x) (cosh x)))]
@@ -372,6 +400,12 @@
   [sum-cosh    (+ (cosh x) (cosh y))  (* 2 (* (cosh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
   [diff-sinh   (- (sinh x) (sinh y))  (* 2 (* (cosh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
   [diff-cosh   (- (cosh x) (cosh y))  (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))])
+
+(define-ruleset htrig-expand-fp-safe (hyperbolic fp-safe)
+  [sinh-neg    (sinh (- x))           (- (sinh x))]
+  [sinh-0      (sinh 0)               0]
+  [cosh-neg    (cosh (- x))           (cosh x)]
+  [cosh-0      (cosh 0)               1])
 
 (define-ruleset ahtrig-expand (hyperbolic)
   [asinh-def   (asinh x)              (log (+ x (sqrt (+ (* x x) 1))))]
@@ -416,6 +450,13 @@
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
              (memq 'simplify groups))
+        rules
+        '())))
+
+(define (*fp-safe-rules*)
+  (for/append ([(rules groups) (in-dict (*rulesets*))])
+    (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
+             (memq 'fp-safe groups))
         rules
         '())))
 
