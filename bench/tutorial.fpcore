@@ -6,7 +6,7 @@
 
 (FPCore (x)
  :name "Expanding a square"
- (- (sqr (+ x 1)) 1))
+ (- (* (+ x 1) (+ x 1)) 1))
 
 (FPCore (x y z)
  :name "Commute and associate"

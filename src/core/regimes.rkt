@@ -7,7 +7,6 @@
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../syntax/syntax.rkt")
-(require "../syntax/distributions.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
 (require "../type-check.rkt")
@@ -50,7 +49,7 @@
   (if critexpr
       (if (equal? (type-of critexpr (for/hash ([var vars]) (values var 'real))) 'complex)
           (list* `(re ,critexpr) `(im ,critexpr) vars)
-          (cons critexpr vars))
+          (remove-duplicates (cons critexpr vars)))
       vars))
 
 (define (critical-subexpression prog)
@@ -85,7 +84,13 @@
   (let* ([locs (localize-error prog)])
     (if (null? locs)
         #f
-        (critical-child (location-get (car locs) prog)))))
+        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
+               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
+          (if (and candidate-expr
+                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
+                     (nan? ((eval-prog candidate-prog 'fl) pt))))
+              #f
+              candidate-expr)))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
@@ -122,35 +127,40 @@
       (option split-points (pick-errors split-points pts err-lsts vars)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in floath form.
+;; proper splitpoints in float form.
 (define (sindices->spoints points expr alts sindices)
+  (for ([alt alts])
+    (assert
+     (set-empty? (set-intersect (free-variables expr)
+                                (free-variables (replace-expression (alt-program alt) expr 0))))
+     #:extra-info (cons expr alt)))
+
   (define (eval-on-pt pt)
     (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
 			 ,expr)]
-	   [val-float ((eval-prog expr-prog mode:fl) pt)])
+	   [val-float ((eval-prog expr-prog 'fl) pt)])
       (if (ordinary-float? val-float) val-float
-	  ((eval-prog expr-prog mode:bf) pt))))
+	  ((eval-prog expr-prog 'bf) pt))))
 
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
 	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
 	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
-	   [eps (* (- p1 p2) *epsilon-fraction*)]
+	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
-		   (let* ([start-prog* (replace-subexpr (*start-prog*) expr v)]
-			  [prog1* (replace-subexpr (alt-program alt1) expr v)]
-			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
+		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
+			  [prog1* (replace-expression (alt-program alt1) expr v)]
+			  [prog2* (replace-expression (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
-							      (program-variables start-prog*))
-                                             'TRUE))])
+			     (prepare-points start-prog* 'TRUE))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
-      (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
-
+      (define (close-enough a b)
+        (> eps (abs (ulp-difference a b))))
+      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1 close-enough))))
 
   (append
    (if ((flag 'reduce 'binary-search) #t #f)
@@ -184,9 +194,9 @@
 	([pt (in-list pts)]
 	 [errs (flip-lists err-lsts)])
       (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
-	     [float-val ((eval-prog expr-prog mode:fl) pt)]
+	     [float-val ((eval-prog expr-prog 'fl) pt)]
 	     [pt-val (if (ordinary-float? float-val) float-val
-			 ((eval-prog expr-prog mode:bf) pt))])
+			 ((eval-prog expr-prog 'bf) pt))])
 	(if (or (<= pt-val (sp-point (car rest-splits)))
 		(and (null? (cdr rest-splits)) (nan? pt-val)))
 	    (if (nan? pt-val) (error "wat")
@@ -296,7 +306,7 @@
       (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
 	(debug #:from 'splitpoints "intervals are: " p-intervals)
 	(λ (p)
-	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
+	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) 'fl) p)])
 	    (for/or ([point-interval p-intervals])
 	      (let ([lower-bound (if (car point-interval) (sp-point (car point-interval)) #f)]
 		    [upper-bound (sp-point (cdr point-interval))])

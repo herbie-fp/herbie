@@ -1,0 +1,13 @@
+
+(FPCore (g h a)
+  :name "2-ancestry mixing, positive discriminant"
+  (+ (cbrt (* (/ 1 (* 2 a)) (+ (- g) (sqrt (- (* g g) (* h h))))))
+     (cbrt (* (/ 1 (* 2 a)) (- (- g) (sqrt (- (* g g) (* h h))))))))
+
+(FPCore (g a)
+  :name "2-ancestry mixing, zero discriminant"
+  (cbrt (/ g (* 2 a))))
+
+(FPCore (g h)
+  :name "2-ancestry mixing, negative discriminant"
+  (* 2 (cos (+ (/ (* 2 PI) 3) (/ (acos (/ (- g) h)) 3)))))

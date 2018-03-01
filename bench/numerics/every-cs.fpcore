@@ -2,46 +2,46 @@
 
 (FPCore (a b c)
  :name "The quadratic formula (r1)"
- :target
- (let ((d (- (sqr b) (* 4 a c))))
+ :herbie-target
+ (let ((d (- (* b b) (* 4 a c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))))
      (let ((r2 (/ (- (- b) (sqrt d)) (* 2 a))))
        (if (< b 0) r1 (/ c (* a r2))))))
- (let ((d (- (sqr b) (* 4 a c))))
+ (let ((d (- (* b b) (* 4 a c))))
    (/ (+ (- b) (sqrt d)) (* 2 a))))
 
 (FPCore (a b c)
  :name "The quadratic formula (r2)"
- :target
- (let ((d (sqrt (- (sqr b) (* 4 (* a c))))))
+ :herbie-target
+ (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
    (let ((r1 (/ (+ (- b) d) (* 2 a))))
      (let ((r2 (/ (- (- b) d) (* 2 a)))) (if (< b 0) (/ c (* a r1)) r2))))
- (let ((d (sqrt (- (sqr b) (* 4 (* a c))))))
+ (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
    (/ (- (- b) d) (* 2 a))))
 
 (FPCore (a b)
  :name "Difference of squares"
- :target
+ :herbie-target
  (* (+ a b) (- a b))
- (- (sqr a) (sqr b)))
+ (- (* a a) (* b b)))
 
 (FPCore (a b c)
  :pre (and (< 0 a) (< 0 b) (< 0 c))
  :name "Area of a triangle"
- :target
+ :herbie-target
  (/ (sqrt (* (+ a (+ b c)) (- c (- a b)) (+ c (- a b)) (+ a (- b c)))) 4)
  (let ((s (/ (+ a b c) 2)))
    (sqrt (* s (- s a) (- s b) (- s c)))))
 
 (FPCore (x)
  :name "ln(1 + x)"
- :target
+ :herbie-target
  (if (== (+ 1 x) 1) x (/ (* x (log (+ 1 x))) (- (+ 1 x) 1)))
  (log (+ 1 x)))
 
 (FPCore (i n)
  :name "Compound Interest"
- :target
+ :herbie-target
  (let ((lnbase
         (if (== (+ 1 (/ i n)) 1)
           (/ i n)
@@ -51,25 +51,25 @@
 
 (FPCore (x)
  :name "x / (x^2 + 1)"
- :target
+ :herbie-target
  (/ 1 (+ x (/ 1 x)))
- (/ x (+ (sqr x) 1)))
+ (/ x (+ (* x x) 1)))
 
 (FPCore (a b c d)
  :name "Complex division, real part"
- :target
+ :herbie-target
  (if (< (fabs d) (fabs c))
    (/ (+ a (* b (/ d c))) (+ c (* d (/ d c))))
    (/ (+ b (* a (/ c d))) (+ d (* c (/ c d)))))
- (/ (+ (* a c) (* b d)) (+ (sqr c) (sqr d))))
+ (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))))
 
 (FPCore (a b c d)
  :name "Complex division, imag part"
- :target
+ :herbie-target
  (if (< (fabs d) (fabs c))
    (/ (- b (* a (/ d c))) (+ c (* d (/ d c))))
    (/ (+ (- a) (* b (/ c d))) (+ d (* c (/ c d)))))
- (/ (- (* b c) (* a d)) (+ (sqr c) (sqr d))))
+ (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))
 
 (FPCore (x)
  :name "arccos"

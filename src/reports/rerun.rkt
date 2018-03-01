@@ -21,7 +21,7 @@
   (define tests
     (for/list ([row (report-info-tests data)])
       (test (table-row-name row) (table-row-vars row)
-            (table-row-samplers row) (table-row-input row) (table-row-output row) #f #t 'TRUE)))
+            (table-row-input row) (table-row-output row) #f #t 'TRUE)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
@@ -29,7 +29,7 @@
 
   (define results (get-test-results tests #:threads threads #:dir dir
                                     #:seed (get-seed) #:profile profile?))
-  (define info (make-report-info (filter identity results)))
+  (define info (make-report-info (map cdr results)))
 
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)

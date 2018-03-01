@@ -14,15 +14,15 @@
 
 (FPCore (x)
  :name "Hyperbolic arcsine"
- :target
+ :herbie-target
  (if (< x 0)
-   (log (/ -1 (- x (sqrt (+ (sqr x) 1)))))
-   (log (+ x (sqrt (+ (sqr x) 1)))))
- (log (+ x (sqrt (+ (sqr x) 1)))))
+   (log (/ -1 (- x (sqrt (+ (* x x) 1)))))
+   (log (+ x (sqrt (+ (* x x) 1)))))
+ (log (+ x (sqrt (+ (* x x) 1)))))
 
 (FPCore (x)
  :name "Hyperbolic arc-cosine"
- (log (+ x (sqrt (- (sqr x) 1)))))
+ (log (+ x (sqrt (- (* x x) 1)))))
 
 (FPCore (x)
  :name "Hyperbolic arc-(co)tangent"
@@ -30,4 +30,4 @@
 
 (FPCore (x)
  :name "Hyperbolic arc-(co)secant"
- (log (+ (/ 1 x) (/ (sqrt (- 1 (sqr x))) x))))
+ (log (+ (/ 1 x) (/ (sqrt (- 1 (* x x))) x))))

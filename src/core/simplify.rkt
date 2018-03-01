@@ -39,7 +39,7 @@
 (define (simplify altn)
   (define prog (alt-program altn))
   (cond
-   [(or (not (alt-change altn)) (null? (change-location (alt-change altn))))
+   [(not (alt-delta? altn))
     (define prog* (simplify-expr (program-body prog)))
     (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
         (list (make-simplify-change prog '(2) prog*))
@@ -210,3 +210,21 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(module+ test
+  (require rackunit)
+  (define test-exprs
+    #hash([1 . 1]
+          [0 . 0]
+          [(+ 1 0) . 1]
+          #;[(+ 1 5) . 6] ; TODO: better exact evaluation
+          [(+ x 0) . x]
+          [(* x 1) . x]
+          #;[(- (+ x 1) x) . 1] ; TODO: better exact evaluation
+          [(- (+ x 1) 1) . x]
+          [(/ (* x 3) x) . 3]
+          #;[(- (sqr (sqrt (+ x 1))) (sqr (sqrt x))) . 1])) ; TODO: bug
+
+  (for ([(original target) test-exprs])
+    (with-check-info (['original original])
+       (check-equal? (simplify-expr original) target))))

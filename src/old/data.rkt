@@ -12,17 +12,17 @@
 (require math/flonum)
 
 
-(define (get-report-errs start end target samplers file)
+(define (get-report-errs start end target file)
   (define newcontext
     (parameterize ([*num-points* 8000])
-      (prepare-points (alt-program start) samplers)))
+      (prepare-points (alt-program start))))
   (write-errors file newcontext start end target))
 
 (define (run-test-write-errors tst file)
   (define start (make-alt (test-program tst)))
   (define target (make-alt (test-target tst)))
-  (define end (run-improve (test-program tst) (*num-iterations*) #:samplers (test-samplers tst)))
-  (get-report-errs start end target (test-samplers tst) file))
+  (define end (run-improve (test-program tst) (*num-iterations*)))
+  (get-report-errs start end target file))
 
 (define (write-errors file pcontext start end target)
   (parameterize ([*pcontext* pcontext])

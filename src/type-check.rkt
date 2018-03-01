@@ -1,6 +1,26 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "op-table.rkt")
-(provide assert-program-type! assert-expression-type! type-of)
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
+
+(define (get-sigs fun-name num-args)
+  (if (and (operator? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
+      (hash-ref (operator-info fun-name 'type) num-args)
+      (if (hash-has-key? (operator-info fun-name 'type) '*)
+          (hash-ref (operator-info fun-name 'type) '*)
+          #f)))
+
+;; (define (get-params fun-name num-args)
+;;   (and (get-sigs fun-name num-args) (car (get-sigs fun-name num-args))))
+
+;; (define (get-rt-type fun-name num-args)
+;;   (and (get-sigs fun-name num-args) (cadr (get-sigs fun-name num-args))))
+
+(define (argtypes->rtype argtypes sig)
+  (match sig
+    [`((* ,argtype) ,rtype)
+     (and (andmap (curry equal? argtype) argtypes) rtype)]
+    [`((,expected-types ...) ,rtype)
+     (and (andmap equal? argtypes expected-types) rtype)]))
 
 ;; Unit tests
 ;; Rewrite expression->type so that expr is a syntax object
@@ -27,12 +47,22 @@
                       (error "Unexpected call to error! within type-of"
                              stx (apply format msg args)))))
 
+
 (define (expression->type stx env error!)
-  (match (or (syntax->list stx) (syntax-e stx))
-    [(or 'TRUE 'FALSE) 'bool]
-    [(? constant? x) 'real]
-    [(? variable? x) (dict-ref env x)]
-    [(list (app syntax-e (? operator? op)) exprs ...)
+  (match stx
+    [(or #`TRUE #`FALSE) 'bool]
+    [#`,(? constant? x) 'real]
+    [#`,(? variable? x) (dict-ref env x)]
+    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
+     (define compl? #f)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env error!))
+       (if (equal? actual-type 'complex) (set! compl? #t) #f)
+       (unless (or (equal? actual-type 'real) (equal? actual-type 'complex))
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) 'real actual-type)))
+     ; if we have at least one complex type in exprs we return complex otherwise real
+     (if compl? 'complex 'real)]
+    [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
      (unless sigs (error "Operator has no type signature" op (length exprs)))
 
@@ -52,12 +82,12 @@
                 " or ")
                op (string-join (map (curry format "<~a>") actual-types) " ")))
      rtype]
-    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list (app syntax-e id) expr)) ...)) body)
+    [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
          (dict-set env2 var (expression->type val env error!))))
      (expression->type body env2 error!)]
-    [(list (app syntax-e 'if) branch ifstmt elsestmt)
+    [#`(if #,branch #,ifstmt #,elsestmt)
      (define branch-type (expression->type branch env error!))
      (unless (equal? branch-type 'bool)
        (error! stx "If statement has non-boolean type for branch ~a" branch-type))
@@ -98,4 +128,5 @@
   (check-type 'complex #'(complex 2 3))
   (check-type 'complex #'(+ (complex 1 2) (complex 3 4)))
   (check-fails #'(+ 2 (complex 1 2)))
-  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4)))))
+  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4))))
+  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool))))

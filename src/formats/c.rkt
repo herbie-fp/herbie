@@ -10,110 +10,29 @@
 (define (fix-name name)
   (string-replace (uri-encode (~a name)) #rx"[^a-zA-Z0-9]" "_"))
 
-(define (apply-converter conv args)
-  (cond
-   [(string? conv) (apply format conv args)]
-   [(list? conv) (apply format (list-ref conv (length args)) args)]
-   [(procedure? conv) (apply conv args)]
-   [else (error "Unknown syntax entry" conv)]))
-
-(define-table operators->c
-  [+  "~a + ~a"]
-  [-  '(#f "-~a" "~a - ~a")]
-  [*  "~a * ~a"]
-  [/  '(#f "1.0/~a" "~a / ~a")]
-
-  [sqr    (lambda (x) (format "~a * ~a" x x))]
-  [cube   (lambda (x) (format "~a * (~a * ~a)" x x x))]
-
-  [acos       "acos(~a)"]
-  [acosh      "acosh(~a)"]
-  [asin       "asin(~a)"]
-  [asinh      "asinh(~a)"]
-  [atan       "atan(~a)"]
-  [atan2      "atan2(~a, ~a)"]
-  [atanh      "atanh(~a)"]
-  [cbrt       "cbrt(~a)"]
-  [ceil       "ceil(~a)"]
-  [copysign   "copysign(~a, ~a)"]
-  [cos        "cos(~a)"]
-  [cosh       "cosh(~a)"]
-  [erf        "erf(~a)"]
-  [erfc       "erfc(~a)"]
-  [exp        "exp(~a)"]
-  [exp2       "exp2(~a)"]
-  [expm1      "expm1(~a)"]
-  [fabs       "fabs(~a)"]
-  [fdim       "fdim(~a, ~a)"]
-  [floor      "floor(~a)"]
-  [fma        "fma(~a, ~a, ~a)"]
-  [fmax       "fmax(~a, ~a)"]
-  [fmin       "fmin(~a, ~a)"]
-  [fmod       "fmod(~a, ~a)"]
-  [hypot      "hypot(~a, ~a)"]
-  [j0         "j0(~a)"]
-  [j1         "j1(~a)"]
-  [lgamma     "lgamma(~a)"]
-  [log        "log(~a)"]
-  [log10      "log10(~a)"]
-  [log1p      "log1p(~a)"]
-  [log2       "log2(~a)"]
-  [logb       "logb(~a)"]
-  [pow        "pow(~a, ~a)"]
-  [remainder  "remainder(~a, ~a)"]
-  [rint       "rint(~a)"]
-  [round      "round(~a)"]
-  [sin        "sin(~a)"]
-  [sinh       "sinh(~a)"]
-  [sqrt       "sqrt(~a)"]
-  [tan        "tan(~a)"]
-  [tanh       "tanh(~a)"]
-  [tgamma     "tgamma(~a)"]
-  [trunc      "trunc(~a)"]
-  [y0         "y0(~a)"]
-  [y1         "y1(~a)"]
-
-  [if   "~a ? ~a : ~a"]
-  [==    "~a == ~a"]
-  [!=    "~a != ~a"]
-  [>    "~a > ~a"]
-  [<    "~a < ~a"]
-  [>=   "~a >= ~a"]
-  [<=   "~a <= ~a"]
-  ; TODO what should not be?
-  [and  "~a && ~a"]
-  [or   "~a || ~a"])
-
-
-(define-table constants->c
-  [PI    "atan2(1.0, 0.0)"]
-  [E     "exp(1.0)"])
-
 (define (comparison? l)
   (and (list? l) (member (car l) '(< > <= >= and or))))
-
-(define (if? l)
-  (and (list? l) (eq? (car l) 'if)))
 
 (define (program->c prog [type "double"] [fname "f"])
   (define vars (program-variables prog))
   (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
-  (define (value->c expr)
+  (define/contract (value->c expr)
+    (-> expr? string?)
     (cond
      [(member expr vars) (fix-name expr)]
-     [(member expr constants) (apply-converter (car (hash-ref constants->c expr)) '())]
-     [(symbol? expr) expr]
+     [(number? expr) (~a expr)]
+     [(constant? expr) (constant-info expr '->c/double)]
+     [(symbol? expr) (~a expr)] ; intermediate variable
      [else
       (define val (real->double-flonum (->flonum expr)))
       (if (equal? type "float") (format "~af" val) (~a val))]))
 
-  (define (app->c expr)
+  (define/contract (app->c expr)
+    (-> expr? string?)
     (if (list? expr)
-        (let* ([rec (list-ref (hash-ref operators->c (car expr)) 0)]
-               [args (map value->c (cdr expr))])
-          (apply-converter rec args))
+        (apply (operator-info (car expr) '->c/double) (map value->c (cdr expr)))
         (value->c expr)))
 
   (write-string
@@ -136,114 +55,21 @@
    (printf "        return ~a;\n" (value->c (caddr body)))
    (printf "}\n\n")))
 
-(define-table operators->mpfr
-  [+  "mpfr_add(~a, ~a, ~a, MPFR_RNDN)"]
-  [-  '(#f
-        #f
-        "mpfr_neg(~a, ~a, MPFR_RNDN)"
-        "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)")]
-  [*  "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"]
-  [/  '(#f
-        #f
-        "mpfr_ui_div(~a, 1, ~a, MPFR_RNDN)"
-        "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
-
-  [sqr      "mpfr_sqr(~a, ~a, MPFR_RNDN)"]
-  [cube     (λ (x y) (string-append
-              (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN); "
-                      x y y)
-              (format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)"
-                      x x y)))]
-
-  [acos       "mpfr_acos(~a, ~a, MPFR_RNDN)"]
-  [acosh      "mpfr_acosh(~a, ~a, MPFR_RNDN)"]
-  [asin       "mpfr_asin(~a, ~a, MPFR_RNDN)"]
-  [asinh      "mpfr_asinh(~a, ~a, MPFR_RNDN)"]
-  [atan       "mpfr_atan(~a, ~a, MPFR_RNDN)"]
-  [atan2      "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)"]
-  [atanh      "mpfr_atanh(~a, ~a, MPFR_RNDN)"]
-  [cbrt       "mpfr_cbrt(~a, ~a, MPFR_RNDN)"]
-  [ceil       "mpfr_ceil(~a, ~a)"]
-  [copysign   "mpfr_copysign(~a, ~a, ~a, MPFR_RNDN)"]
-  [cos        "mpfr_cos(~a, ~a, MPFR_RNDN)"]
-  [cosh       "mpfr_cosh(~a, ~a, MPFR_RNDN)"]
-  [erf        "mpfr_erf(~a, ~a, MPFR_RNDN)"]
-  [erfc       "mpfr_erfc(~a, ~a, MPFR_RNDN)"]
-  [exp        "mpfr_exp(~a, ~a, MPFR_RNDN)"]
-  [exp2       "mpfr_exp2(~a, ~a, MPFR_RNDN)"]
-  [expm1      "mpfr_expm1(~a, ~a, MPFR_RNDN)"]
-  [fabs       "mpfr_abs(~a, ~a, MPFR_RNDN)"]
-  [fdim       "mpfr_dim(~a, ~a, ~a, MPFR_RNDN)"]
-  [floor      "mpfr_floor(~a, ~a)"]
-  [fma        "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)"]
-  [fmax       "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)"]
-  [fmin       "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)"]
-  [fmod       "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)"]
-  [hypot      "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)"]
-  [j0         "mpfr_j0(~a, ~a, MPFR_RNDN)"]
-  [j1         "mpfr_j1(~a, ~a, MPFR_RNDN)"]
-  [lgamma     "mpfr_lngamma(~a, ~a, MPFR_RNDN)"]
-  [log        "mpfr_log(~a, ~a, MPFR_RNDN)"]
-  [log10      "mpfr_log10(~a, ~a, MPFR_RNDN)"]
-  [log1p      "mpfr_log1p(~a, ~a, MPFR_RNDN)"]
-  [log2       "mpfr_log2(~a, ~a, MPFR_RNDN)"]
-  [logb       "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)"]
-  [pow        "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)"]
-  [remainder  "mpfr_remainder(~a, ~a, ~a, MPFR_RNDN)"]
-  [rint       "mpfr_rint(~a, ~a, MPFR_RNDN)"]
-  [round      "mpfr_round(~a, ~a)"]
-  [sin        "mpfr_sin(~a, ~a, MPFR_RNDN)"]
-  [sinh       "mpfr_sinh(~a, ~a, MPFR_RNDN)"]
-  [sqrt       "mpfr_sqrt(~a, ~a, MPFR_RNDN)"]
-  [tan        "mpfr_tan(~a, ~a, MPFR_RNDN)"]
-  [tanh       "mpfr_tanh(~a, ~a, MPFR_RNDN)"]
-  [tgamma     "mpfr_gamma(~a, ~a, MPFR_RNDN)"]
-  [trunc      "mpfr_trunc(~a, ~a)"]
-  [y0         "mpfr_y0(~a, ~a, MPFR_RNDN)"]
-  [y1         "mpfr_y1(~a, ~a, MPFR_RNDN)"]
-
-  [if       (lambda (r c a b) (string-append
-               (format "if (mpfr_get_si(~a, MPFR_RNDN)) { " c)
-               (format "mpfr_set(~a, ~a, MPFR_RNDN); " r a)
-               "} else { "
-               (format "mpfr_set(~a, ~a, MPFR_RNDN); " r b)
-               "}"))]
-  [>        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)"]
-  [<        "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)"]
-  [>=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)"]
-  [<=       "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)"]
-  ; TODO what should not be?
-  [and      (string-append
-              "mpfr_set_si(~a, "
-                "mpfr_get_si(~a, MPFR_RNDN) && "
-                "mpfr_get_si(~a, MPFR_RNDN), "
-              "MPFR_RNDN)")]
-  [or       (string-append
-              "mpfr_set_si(~a, "
-                "mpfr_get_si(~a, MPFR_RNDN) || "
-                "mpfr_get_si(~a, MPFR_RNDN), "
-              "MPFR_RNDN)")])
-
-(define-table constants->mpfr
-  [PI    "mpfr_const_pi(~a, MPFR_RNDN)"]
-  [E     (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN); mpfr_exp(~a, ~a, MPFR_RNDN);" x x x))])
-
 (define (program->mpfr prog [bits 128] [fname "f"])
   (define vars (program-variables prog))
   (define unused-vars (unused-variables prog))
   (define body (compile (program-body prog)))
 
-  (define (app->mpfr out expr)
+  (define/contract (app->mpfr out expr)
+    (-> string? expr? string?)
     (cond
      [(list? expr)
-      (let* ([rec (list-ref (hash-ref operators->mpfr (car expr)) 0)]
-             [args (cdr expr)])
-        (apply-converter rec (cons out args)))]
+      (apply (operator-info (car expr) '->c/mpfr) out (map ~a (cdr expr)))]
      [(number? expr) ""]
      [(member expr vars)
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
-     [(member expr constants)
-      (apply-converter (car (hash-ref constants->mpfr expr)) (list out))]
+     [(constant? expr)
+      ((constant-info expr '->c/mpfr) out)]
      [(symbol? expr)
       (format "mpfr_set(~a, ~a, MPFR_RNDN)" out expr)]))
 
@@ -269,7 +95,7 @@
              (string-join pdecls ", ")))
 
    (for ([assignment (cadr body)])
-     (printf "        ~a;\n" (app->mpfr (car assignment) (cadr assignment))))
+     (printf "        ~a;\n" (app->mpfr (~a (car assignment)) (cadr assignment))))
 
 
   (printf "        return mpfr_get_d(~a, MPFR_RNDN);\n" (caddr body))
@@ -298,11 +124,11 @@
 
 (define (compile-info base-dir single-info double-info)
   (for ([single-test (report-info-tests single-info)] [double-test (report-info-tests double-info)])
-    (when (and (not (member (table-row-status single-test) '("timeout" "crash")))
-               (not (member (table-row-status double-test) '("timeout" "crash"))))
+    (when (and (not (member (table-row-status single-test) '("timeout" "error" "crash")))
+               (not (member (table-row-status double-test) '("timeout" "error" "crash"))))
       (match (cons single-test double-test)
-        [(cons (table-row name single-status _ _ _ _ _ _ vars _ input single-output _ single-bits dir)
-               (table-row name double-status _ _ _ _ _ _ vars _ input double-output _ double-bits dir))
+        [(cons (table-row name single-status _ _ _ _ _ _ vars input single-output _ single-bits dir)
+               (table-row name double-status _ _ _ _ _ _ vars input double-output _ double-bits dir))
          (define fname (build-path base-dir dir "compiled.c"))
          (debug #:from 'compile-info "Compiling" name "to" fname)
          (write-file fname

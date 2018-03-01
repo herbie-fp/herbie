@@ -10,7 +10,7 @@ upload () {
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
     find "$DIR" -name "debug.txt" -exec gzip -f {} \;
-    rsync --recursive "$1" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
+    rsync --recursive "$DIR" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
 }
 
@@ -28,8 +28,9 @@ backfill () {
 }
 
 download_reports () {
-    rsync --include 'results.json' --include '/*/' --exclude '*' \
-          --recursive uwplse.org:/var/www/herbie/reports/ graphs/reports/
+    rsync --recursive --checksum --inplace --ignore-existing \
+          --include 'results.json' --include '*/' --exclude '*' \
+          uwplse.org:/var/www/herbie/reports/ graphs/reports/
 }
 
 upload_reports () {

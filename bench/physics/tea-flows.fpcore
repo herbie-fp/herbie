@@ -2,7 +2,7 @@
 
 (FPCore (F l)
  :name "VandenBroeck and Keller, Equation (6)"
- (- (* PI l) (* (/ (sqr F)) (tan (* PI l)))))
+ (- (* PI l) (* (/ (* F F)) (tan (* PI l)))))
 
 (FPCore (f)
  :name "VandenBroeck and Keller, Equation (20)"
@@ -15,7 +15,7 @@
  :name "VandenBroeck and Keller, Equation (23)"
  (+
   (- (* x (/ 1 (tan B))))
-  (* (/ F (sin B)) (pow (+ (sqr F) 2 (* 2 x)) (- (/ 1 2))))))
+  (* (/ F (sin B)) (pow (+ (* F F) 2 (* 2 x)) (- (/ 1 2))))))
 
 (FPCore (B x)
  :name "VandenBroeck and Keller, Equation (24)"

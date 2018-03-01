@@ -116,9 +116,7 @@
   (cond
    [(equal? power 0)   1]
    [(equal? power 1)   var]
-   [(equal? power 2)  `(sqr ,var)]
    [(equal? power -1) `(/ 1 ,var)]
-   [(equal? power -2) `(/ 1 (sqr ,var))]
    [(positive? power) `(pow ,var ,power)]
    [(negative? power) `(pow ,var ,power)]))
 
@@ -182,8 +180,6 @@
      (apply taylor-add ((curry taylor var) arg) (map (compose taylor-negate (curry taylor var)) args))]
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
-    [`(/ ,arg)
-     (taylor-invert (taylor var arg))]
     [`(/ 1 ,arg)
      (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
@@ -358,7 +354,7 @@
                                  (simplify
                                   (cond
                                    [(even? n)
-                                    `(/ (- ,(coeffs* n) (sqr ,(f (/ n 2)))
+                                    `(/ (- ,(coeffs* n) (pow ,(f (/ n 2)) 2)
                                            (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
                                                   `(* 2 (* ,(f k) ,(f (- n k)))))))
                                         (* 2 ,(f 0)))]

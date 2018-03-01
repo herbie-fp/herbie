@@ -2,7 +2,7 @@
 
 (FPCore (x)
  :name "expq2 (section 3.11)"
- :target
+ :herbie-target
  (/ 1 (- 1 (exp (- x))))
 
  (/ (exp x) (- (exp x) 1)))

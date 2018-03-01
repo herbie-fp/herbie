@@ -8,7 +8,7 @@
 (provide
  (all-from-out "../syntax/rules.rkt")
  pattern-substitute pattern-match
- rewrite-expression-head rewrite-expression rewrite-tree
+ rewrite-expression-head rewrite-expression
  (struct-out change) change-apply changes-apply rule-rewrite)
 
 ;; Our own pattern matcher.
@@ -131,12 +131,12 @@
     ; expr _ _ _ _ -> (list (list change))
     (reap (sow)
           (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
-            (when (and (list? (rule-output rule))
-                       (or
-                        (not ghead) ; Any results work for me
-                        (and
-                         (= (length (rule-output rule)) glen)
-                         (eq? (car (rule-output rule)) ghead))))
+              (when (or
+                      (not ghead) ; Any results work for me
+                      (and
+                        (list? (rule-output rule))
+                        (= (length (rule-output rule)) glen)
+                        (eq? (car (rule-output rule)) ghead)))
               (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
                 (for ([option options])
                   ; Each option is a list of change lists
@@ -196,14 +196,6 @@
 
   ; The #f #f mean that any output result works. It's a bit of a hack
   (rewriter expr #f #f (reverse root-loc) depth))
-
-(define (rewrite-tree expr #:root [root-loc '()])
-  (reap [sow]
-    (let ([try-rewrites
-           (λ (expr loc)
-              (map sow (rewrite-expression expr #:root (append root-loc loc)))
-              expr)])
-      (location-induct expr #:variable try-rewrites #:primitive try-rewrites))))
 
 (define (change-apply cng prog)
   (let ([loc (change-location cng)]

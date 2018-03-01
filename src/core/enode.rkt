@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../common.rkt")
-(require "../op-table.rkt")
 (require "../syntax/syntax.rkt")
+(require "../type-check.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid

@@ -135,6 +135,10 @@ function draw_results(node) {
                     BADGES.container.classList.add("highlight-one");
                 });
                 ARROWS[i].addEventListener("mouseout", clear);
+                ARROWS[i].addEventListener("click", function() {
+                    var id = "link" + ARROWS[i].attributes["data-id"].value;
+                    document.getElementById(id).click();
+                });
             })(i);
         }
     });
