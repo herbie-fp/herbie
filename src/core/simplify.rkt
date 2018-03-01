@@ -65,6 +65,10 @@
                 (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
                   (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
+(define/contract (simplify-fp-safe altn)
+  (-> alternative? (listof change?))
+  (simplify altn #:rules *fp-safe-rules*))
+
 (define (simplify-expr expr #:rules [rls (*simplify-rules*)])
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
