@@ -6,8 +6,7 @@ function run {
   bench=$1; shift
   name=$1; shift
 
-  time xvfb-run --auto-servernum \
-    racket "src/herbie.rkt" report \
+  time racket "src/herbie.rkt" report \
       --note "$name" \
       --profile \
       --threads $CORES \
