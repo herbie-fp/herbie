@@ -356,5 +356,5 @@
 
 (define (procedure-name->string name)
   (if name
-      (html-escape-unsafe (~a name))
+      (~a name)
       "(unnamed)"))
