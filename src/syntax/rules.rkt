@@ -453,10 +453,11 @@
         rules
         '())))
 
-(define (*fp-safe-rules*)
+(define (*fp-safe-simplify-rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
-             (memq 'fp-safe groups))
+             (memq 'fp-safe groups)
+             (memq 'simplify groups))
         rules
         '())))
 
