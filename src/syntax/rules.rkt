@@ -4,7 +4,7 @@
 
 (require "../common.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-rules*)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
