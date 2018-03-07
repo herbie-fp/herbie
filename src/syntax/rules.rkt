@@ -517,3 +517,24 @@
                             ['max-input (third max-error)]
                             ['max-output (fourth max-error)])
                            (check-pred (curryr <= 1) score))))))))
+
+(module+ test
+  (require rackunit math/bigfloat)
+  (require "../programs.rkt" "../float.rkt")
+
+  (for ([test-rules (*fp-safe-simplify-rules*)])
+    (with-check-info (['rule test-rules])
+      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
+        (define num-test-points 2000)
+        (match-define (rule name p1 p2) test-rules)
+        (define fv (free-variables p1))
+        (define (make-point) (for/list ([v fv]) (sample-double)))
+        (define point-sequence (in-producer make-point))
+        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+        (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
+        (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+          (define ex1 (map prog1 points))
+          (define ex2 (map prog2 points))
+          (define errs (for/and ([v1 ex1] [v2 ex2]) (equal? v1 v2)))
+          (check-true errs))))))
