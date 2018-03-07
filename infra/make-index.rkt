@@ -8,25 +8,24 @@
 (require "../src/common.rkt")
 (require "../src/formats/datafile.rkt")
 
-(provide read-report-info name->timestamp)
+(provide directory-jsons name->timestamp)
 
-(define (parse-folder-name name)
-  (let ([name (path->string name)])
-    (if (= (length (string-split name ":")) 4)
-        (string-split name ":")
-        (string-split name "-"))))
+(define (name->timestamp path)
+  (define rpath (find-relative-path (simple-form-path report-json-path) path))
+  (define folder (path-element->string (first (explode-path rpath))))
+  (string->number
+   (if (string-contains? folder ":")
+       (first (string-split folder ":"))
+       folder)))
 
-(define name->timestamp (compose string->number first parse-folder-name))
-
-(define (read-report-info folder)
-  (eprintf "Reading ~a\n" folder)
-  (let ([info-file (build-path report-json-path folder "results.json")])
-    (if (file-exists? info-file)
-        (read-datafile info-file)
-        (match (parse-folder-name folder)
-          [`(,timestamp ,hostname ... ,branch ,commit)
-           (report-info (seconds->date (string->number timestamp)) commit branch
-                        #f #f #f #f #f #f #f)]))))
+(define (directory-jsons dir)
+  (reap [sow]
+    (let loop ([dir dir])
+      (cond
+       [(file-exists? (build-path dir "results.json"))
+        (sow (find-relative-path (simple-form-path report-json-path) (simple-form-path dir)))]
+       [(directory-exists? dir)
+        (for-each loop (directory-list dir #:build? true))]))))
 
 (define (month->string i)
   (list-ref (string-split "Jan Feb Mar Apr May Jun Jul Aug Sept Oct Nov Dec") (- i 1)))
@@ -49,7 +48,8 @@
 (define *cache* (make-parameter (make-hasheq)))
 
 (define (compute-row folder)
-  (define info (read-report-info folder))
+  (eprintf "Reading ~a\n" folder)
+  (define info (read-datafile (build-path report-json-path folder "results.json")))
   (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
 
   (define-values (total-start total-end)
@@ -111,7 +111,7 @@
   (when (file-exists? (build-path report-json-path "index.cache"))
     (*cache* (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json))))
 
-  (define dirs (directory-list report-json-path))
+  (define dirs (directory-jsons report-json-path))
   (define folders
     (map (λ (dir) (read-row dir))
          (remove-duplicates
