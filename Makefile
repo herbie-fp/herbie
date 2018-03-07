@@ -1,4 +1,4 @@
-.PHONY: report publish www compile clean loc deploy
+.PHONY: all install update nightly index clean publish start-server package loc deploy
 
 all:
 	@echo "Type 'make install' to install Herbie as a Racket package,"
@@ -12,6 +12,9 @@ update:
 
 nightly:
 	bash infra/nightly.sh
+
+index:
+	bash infra/publish.sh index
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
