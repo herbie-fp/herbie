@@ -575,7 +575,7 @@
 (define-operator (im complex) real
   ; Override number of arguments
   [type #hash((1 . (((complex) real))))]
-  [fl imag-part] [bf bf-real-part] [cost 0]
+  [fl imag-part] [bf bf-imag-part] [cost 0]
   [->c/double (const "/* ERROR: no complex support in C */")] ; TODO
   [->c/mpfr (const "/* ERROR: no complex support in C */")] ; TODO: cannot handle variary =
   [->tex (curry format "\\Im(~a)")])
