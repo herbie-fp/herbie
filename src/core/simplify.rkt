@@ -36,7 +36,7 @@
           (for/list ([var (program-variables program)])
             (cons var var))))
 
-(define (simplify altn)
+(define (simplify altn #:rules [rls (*simplify-rules*)])
   (define prog (alt-program altn))
   (cond
    [(not (alt-delta? altn))
@@ -60,17 +60,21 @@
       (reap [sow]
             (for ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)])
               (when (and (list? arg-pattern) (list? arg))
-                (define arg* (simplify-expr arg))
+                (define arg* (simplify-expr arg #:rules rls))
                 (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" arg*))
                 (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
                   (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
-(define (simplify-expr expr)
+(define/contract (simplify-fp-safe altn)
+  (-> alternative? (listof change?))
+  (simplify altn #:rules *fp-safe-simplify-rules*))
+
+(define (simplify-expr expr #:rules [rls (*simplify-rules*)])
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	     [eg (mk-egraph expr)])
-	(iterate-egraph! eg iters)
+	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest eg))
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))

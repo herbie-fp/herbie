@@ -262,15 +262,18 @@
   (void))
 
 (define (get-final-combination)
-  (begin0
-      (if ((flag 'reduce 'regimes) #t #f)
-          (let ([log! (timeline-event! 'regimes)])
-            (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-                           (if (= (length tables) 1)
-                               (extract-alt (car tables))
-                               (combine-alts splitpoints (map extract-alt tables))))))
-          (extract-alt (^table^)))
-    (timeline-event! 'end))) ; No data here
+  (define joined-alt
+    (if ((flag 'reduce 'regimes) #t #f)
+      (let ([log! (timeline-event! 'regimes)])
+        (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
+          (if (= (length tables) 1)
+              (extract-alt (car tables))
+              (combine-alts splitpoints (map extract-alt tables)))))
+      (extract-alt (^table^))))
+  (define reduced-alt (remove-pows joined-alt))
+  (define cleaned-alt (apply alt-apply reduced-alt (simplify-fp-safe reduced-alt)))
+  (timeline-event! 'end)
+  cleaned-alt)
 
 ;; Other tools
 (define (resample!)
