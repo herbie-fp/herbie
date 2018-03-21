@@ -60,6 +60,7 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #flag-list.changed-flags #all-flags { display: none; }
 
 #results { border-collapse: collapse; width:100%; }
+#results th { white-space: pre; }
 #results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
 /* Removed because it was confusing and rarely useful */
 /*#results td.bad-est {border-right: 5px solid #c86edf;}*/
