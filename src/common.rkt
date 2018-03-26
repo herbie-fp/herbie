@@ -26,14 +26,15 @@
 
 ;; Various syntactic forms of convenience used in Herbie
 
+
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
-		 (λ (elt) (if elt
-			      (begin (set! store (cons elt store))
-				     elt)
-			      store)))] ...)
-    body ...
-    (values (reverse (sows #f)) ...)))
+                 (cons
+                  (λ () store)
+                  (λ (elt) (set! store (cons elt store)))))] ...)
+    (let ([sows (cdr sows)] ...)
+      body ...)
+    (values (reverse ((car sows))) ...)))
 
 ;; The new, contracts-using version of the above
 
