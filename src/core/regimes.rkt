@@ -50,6 +50,16 @@
       (cons critexpr vars)
       vars))
 
+(define (critical-subexpression? expr loc)
+  (let* ([crit-vars (free-variables (location-get loc expr))]
+         [replaced-expr (replace-expression expr (location-get loc expr) 1)]
+         [non-crit-vars (free-variables (location-get (list 2) replaced-expr))])
+    (writeln expr)
+    (writeln replaced-expr)
+    (writeln crit-vars)
+    (writeln non-crit-vars)
+    (set-disjoint? crit-vars non-crit-vars)))
+
 (define (critical-subexpression prog)
   (define (loc-children loc subexpr)
     (map (compose (curry append loc)
@@ -82,7 +92,9 @@
   (let* ([locs (localize-error prog)])
     (if (null? locs)
         #f
-        (critical-child (location-get (car locs) prog)))))
+        (let ([out (critical-child (location-get (car locs) prog))])
+          (assert (critical-subexpression? prog (car locs)))
+          out))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
