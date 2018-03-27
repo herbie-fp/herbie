@@ -54,10 +54,6 @@
   (let* ([crit-vars (free-variables (location-get loc expr))]
          [replaced-expr (replace-expression expr (location-get loc expr) 1)]
          [non-crit-vars (free-variables (location-get (list 2) replaced-expr))])
-    (writeln expr)
-    (writeln replaced-expr)
-    (writeln crit-vars)
-    (writeln non-crit-vars)
     (set-disjoint? crit-vars non-crit-vars)))
 
 (define (critical-subexpression prog)
