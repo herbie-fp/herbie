@@ -89,7 +89,7 @@
     (if (null? locs)
         #f
         (let ([out (critical-child (location-get (car locs) prog))])
-          (assert (critical-subexpression? prog (car locs)))
+          (assert (critical-subexpression? prog (cadr locs)))
           out))))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
