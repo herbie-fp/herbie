@@ -73,9 +73,10 @@
                  (append (list new-loc) subexpr-locs))
                (begin
                  subexpr-locs))]))))
-  (let ([locs (subexprs-in-expr prog '(2) 1)])
-    (for/list ([loc locs])
-      (location-get loc prog))))
+  (for/list ([loc (if (member (car prog) '(lambda λ))
+                      (subexprs-in-expr prog '(2) 1)
+                      (subexprs-in-expr prog null 1))])
+    (location-get loc prog)))
 
 (define (critical-subexpression prog)
   (define (loc-children loc subexpr)
