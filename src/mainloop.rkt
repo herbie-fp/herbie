@@ -4,7 +4,6 @@
 (require "glue.rkt")
 (require "programs.rkt")
 (require "points.rkt")
-(require "syntax/distributions.rkt")
 (require "core/localize.rkt")
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")
@@ -27,10 +26,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified samplers precondition timeline)
+  (table next-alt locs children gened-series gened-rewrites simplified precondition timeline)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f '() #f #f #f #f 'TRUE '())))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE '())))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -44,9 +43,6 @@
 (define (^children^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
   (shellstate-children (^shell-state^)))
-(define (^samplers^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-samplers! (^shell-state^) newval))
-  (shellstate-samplers (^shell-state^)))
 (define (^precondition^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
   (shellstate-precondition (^shell-state^)))
@@ -73,15 +69,12 @@
     (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
 ;; Setting up
-(define (setup-prog! prog #:samplers [samplers #f] #:precondition [precondition 'TRUE])
+(define (setup-prog! prog #:precondition [precondition 'TRUE])
   (*start-prog* prog)
   (rollback-improve!)
   (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([samplers (or samplers (map (curryr cons (eval-sampler 'default))
-				     (program-variables prog)))]
-	 [context (prepare-points prog samplers precondition)])
-    (^samplers^ samplers)
+  (let* ([context (prepare-points prog precondition)])
     (^precondition^ precondition)
     (*pcontext* context)
     (*analyze-context* context)
@@ -139,8 +132,7 @@
     (define series-expansions
       (apply
        append
-       (for/list ([location (^locs^)]
-                  [n (sequence-tail (in-naturals) 1)])
+       (for/list ([location (^locs^)] [n (in-naturals 1)])
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
          (taylor-alt (^next-alt^) location))))
     (^children^ (append (^children^) series-expansions)))
@@ -152,8 +144,7 @@
   (define log! (timeline-event! 'rewrite))
   (define rewritten
     (apply append
-	   (for/list ([location (^locs^)]
-		      [n (sequence-tail (in-naturals) 1)])
+	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
 	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
   (^children^
@@ -165,8 +156,7 @@
   (when ((flag 'generate 'simplify) #t #f)
     (define log! (timeline-event! 'simplify))
     (define simplified
-      (for/list ([child (^children^)]
-                 [n (sequence-tail (in-naturals) 1)])
+      (for/list ([child (^children^)] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
         (with-handlers ([exn:fail? (λ (e) (printf "Failed while simplifying candidate ~a\n" child) (raise e))])
           (apply alt-apply child (simplify child)))))
@@ -231,19 +221,19 @@
 	     (choose-best-alt!)
 	     (debug #:from 'progress #:depth 3 "localizing error")
 	     (localize!)
-	     (debug #:from 'progress #:depth 3 "generating series expansions")
-	     (gen-series!)
 	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
 	     (gen-rewrites!)
+	     (debug #:from 'progress #:depth 3 "generating series expansions")
+	     (gen-series!)
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")
 	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:samplers [samplers #f] #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:samplers samplers #:precondition precondition)
+  (setup-prog! prog #:precondition precondition)
   (if ((flag 'setup 'early-exit) (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*)))) #f)
       (let ([init-alt (make-alt (*start-prog*))])
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
@@ -252,15 +242,18 @@
 	    init-alt))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-	(for ([iter (sequence-map add1 (in-range iters))]
-	      #:break (atab-completed? (^table^)))
-	  (debug #:from 'progress #:depth 2 "iteration" iter "/" iters)
-	  (run-iter!))
-	(finalize-table!)
-	(debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-	(if get-context?
-	    (list (get-final-combination) (*pcontext*))
-	    (get-final-combination)))))
+        (let* ([current-alts (atab-all-alts (^table^))]
+               [new-alt (setup-alt-simplified prog)]
+               [all-alts (append current-alts (list new-alt))])
+          (^table^ (atab-add-altns (^table^) all-alts))
+          (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+            (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+            (run-iter!))
+          (finalize-table!)
+          (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+          (if get-context?
+              (list (get-final-combination) (*pcontext*))
+              (get-final-combination))))))
 
 ;; Finishing Herbie
 (define (finalize-table!)
@@ -269,19 +262,22 @@
   (void))
 
 (define (get-final-combination)
-  (begin0
-      (if ((flag 'reduce 'regimes) #t #f)
-          (let ([log! (timeline-event! 'regimes)])
-            (remove-pows (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-                           (if (= (length tables) 1)
-                               (extract-alt (car tables))
-                               (combine-alts splitpoints (map extract-alt tables))))))
-          (extract-alt (^table^)))
-    (timeline-event! 'end))) ; No data here
+  (define joined-alt
+    (if ((flag 'reduce 'regimes) #t #f)
+      (let ([log! (timeline-event! 'regimes)])
+        (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
+          (if (= (length tables) 1)
+              (extract-alt (car tables))
+              (combine-alts splitpoints (map extract-alt tables)))))
+      (extract-alt (^table^))))
+  (define reduced-alt (remove-pows joined-alt))
+  (define cleaned-alt (apply alt-apply reduced-alt (simplify-fp-safe reduced-alt)))
+  (timeline-event! 'end)
+  cleaned-alt)
 
 ;; Other tools
 (define (resample!)
-  (let ([context (prepare-points (*start-prog*) (^samplers^) (^precondition^))])
+  (let ([context (prepare-points (*start-prog*) (^precondition^))])
     (*pcontext* context)
     (^table^ (atab-new-context (^table^) context)))
   (void))

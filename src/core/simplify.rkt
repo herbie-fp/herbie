@@ -36,10 +36,10 @@
           (for/list ([var (program-variables program)])
             (cons var var))))
 
-(define (simplify altn)
+(define (simplify altn #:rules [rls (*simplify-rules*)])
   (define prog (alt-program altn))
   (cond
-   [(or (not (alt-change altn)) (null? (change-location (alt-change altn))))
+   [(not (alt-delta? altn))
     (define prog* (simplify-expr (program-body prog)))
     (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
         (list (make-simplify-change prog '(2) prog*))
@@ -60,17 +60,21 @@
       (reap [sow]
             (for ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)])
               (when (and (list? arg-pattern) (list? arg))
-                (define arg* (simplify-expr arg))
+                (define arg* (simplify-expr arg #:rules rls))
                 (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" arg*))
                 (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
                   (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
-(define (simplify-expr expr)
+(define/contract (simplify-fp-safe altn)
+  (-> alternative? (listof change?))
+  (simplify altn #:rules *fp-safe-simplify-rules*))
+
+(define (simplify-expr expr #:rules [rls (*simplify-rules*)])
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	     [eg (mk-egraph expr)])
-	(iterate-egraph! eg iters)
+	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest eg))
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
@@ -209,3 +213,21 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(module+ test
+  (require rackunit)
+  (define test-exprs
+    #hash([1 . 1]
+          [0 . 0]
+          [(+ 1 0) . 1]
+          #;[(+ 1 5) . 6] ; TODO: better exact evaluation
+          [(+ x 0) . x]
+          [(* x 1) . x]
+          #;[(- (+ x 1) x) . 1] ; TODO: better exact evaluation
+          [(- (+ x 1) 1) . x]
+          [(/ (* x 3) x) . 3]
+          #;[(- (sqr (sqrt (+ x 1))) (sqr (sqrt x))) . 1])) ; TODO: bug
+
+  (for ([(original target) test-exprs])
+    (with-check-info (['original original])
+       (check-equal? (simplify-expr original) target))))

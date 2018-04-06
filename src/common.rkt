@@ -8,38 +8,64 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table first-value assert for/append
+         reap define-table table-ref table-set!
+         first-value assert for/append
          ordinary-float? =-or-nan? log2
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval set-disjoint?
+         common-eval-ns common-eval quasisyntax set-disjoint?
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
-;; utlimately one that should be located somewhere else or perhaps
+;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
 
+
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
-		 (λ (elt) (if elt
-			      (begin (set! store (cons elt store))
-				     elt)
-			      store)))] ...)
-    body ...
-    (values (reverse (sows #f)) ...)))
+                 (cons
+                  (λ () store)
+                  (λ (elt) (set! store (cons elt store)))))] ...)
+    (let ([sows (cdr sows)] ...)
+      body ...)
+    (values (reverse ((car sows))) ...)))
 
-(define-syntax-rule (define-table name [key values ...] ...)
-  (define name
-    (let ([hash (make-hasheq)])
-      (for ([rec (list (list 'key values ...) ...)])
-        (hash-set! hash (car rec) (cdr rec)))
-      hash)))
+;; The new, contracts-using version of the above
+
+(define-syntax-rule (define-table name [field type] ...)
+  (define/contract name
+    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
+    (cons (list (cons 'field type) ...) (make-hash))))
+
+(define/contract (table-ref tbl key field)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [field symbol?])
+       [_ (tbl field) (dict-ref (car tbl) field)])
+  (match-let ([(cons header rows) tbl])
+    (for/first ([(field-name type) (in-dict header)]
+                [value (in-list (dict-ref rows key))]
+                #:when (equal? field-name field))
+      value)))
+
+(define/contract (table-set! tbl key fields)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [fields (tbl)
+                ;; Don't check value types because the contract gets pretty rough :(
+                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
+       any)
+  (match-let ([(cons header rows) tbl])
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
+    (dict-set! rows key row)))
+
+;; More various helpful values
 
 (define-syntax-rule (first-value expr)
   (call-with-values
@@ -192,8 +218,7 @@
 
 ;; Given two floating point numbers, the first of which is pred,
 ;; and the second is not, find where pred becomes false (within epsilon).
-(define (binary-search-floats pred p1 p2 epsilon)
-  (define (close-enough a b) (> epsilon (abs (- a b))))
+(define (binary-search-floats pred p1 p2 close-enough)
   (binary-search (lambda (a b) (if (close-enough a b) #f
 				   (/ (+ a b) 2)))
 		 pred p1 p2))
@@ -242,3 +267,30 @@
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
+
+;; Matching support for syntax objects.
+
+;; Begin the match with a #`
+;; Think of the #` as just like a ` match, same behavior
+;; In fact, matching x with #`pat should do the same
+;; as matching (syntax->datum x) with `pat
+;; Inside the #`, you can use #, to bind not a value but a syntax object.
+
+(define-match-expander quasisyntax
+  (λ (stx)
+    (syntax-case stx (unsyntax unquote)
+      [(_ (unsyntax pat))
+       #'pat]
+      [(_ (unquote pat))
+       #'(app syntax-e pat)]
+      [(_ (pats ...))
+       (let ([parts
+              (for/list ([pat (syntax-e #'(pats ...))])
+                (syntax-case pat (unsyntax unquote ...)
+                  [... pat]
+                  [(unsyntax a) #'a]
+                  [(unquote a) #'(app syntax-e a)]
+                  [a #'(quasisyntax a)]))])
+         #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
+      [(_ a)
+       #'(app syntax-e 'a)])))

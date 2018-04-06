@@ -6,7 +6,7 @@
 
 (FPCore (a b c d)
  :name "Random Jason Timeout Test 002"
- (fmod (sinh c) (- c (sqr -2.9807307601812193e+165))))
+ (fmod (sinh c) (- c (pow -2.9807307601812193e+165 2))))
 
 (FPCore (a b c)
  :name "Random Jason Timeout Test 003"
@@ -38,7 +38,7 @@
 
 (FPCore (a b c d)
  :name "Random Jason Timeout Test 014"
- (fmod (sinh c) (- c (sqr -2.9807307601812193e+165))))
+ (fmod (sinh c) (- c (pow -2.9807307601812193e+165 2))))
 
 (FPCore (a b c)
  :name "Random Jason Timeout Test 015"
@@ -59,7 +59,7 @@
  (sqrt
   (*
    (* (* 2 n) U)
-   (- (- t (* 2 (/ (sqr l) Om))) (* (* n (sqr (/ l Om))) (- U U*))))))
+   (- (- t (* 2 (/ (* l l) Om))) (* (* n (pow (/ l Om) 2)) (- U U*))))))
 
 (FPCore (x y z t a)
  :name "Numeric.SpecFunctions:logGammaL from math-functions-0.1.5.2"
@@ -111,18 +111,18 @@
  :name "Bouland and Aaronson, Equation (25)"
  (-
   (+
-   (sqr (+ (sqr a) (sqr b)))
-   (* 4 (+ (* (sqr a) (+ 1 a)) (* (sqr b) (- 1 (* 3 a))))))
+   (pow (+ (* a a) (* b b)) 2)
+   (* 4 (+ (* (* a a) (+ 1 a)) (* (* b b) (- 1 (* 3 a))))))
   1))
 
 (FPCore (a b c)
  :name "The quadratic formula (r1)"
- :target
- (let ((d (- (sqr b) (* 4 a c))))
+ :herbie-target
+ (let ((d (- (* b b) (* 4 a c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))) (r2 (/ (- (- b) (sqrt d)) (* 2 a))))
      (if (< b 0) r1 (/ c (* a r2)))))
- (let ((d (- (sqr b) (* 4 a c)))) (/ (+ (- b) (sqrt d)) (* 2 a))))
+ (let ((d (- (* b b) (* 4 a c)))) (/ (+ (- b) (sqrt d)) (* 2 a))))
 
 (FPCore (a b/2 c)
  :name "NMSE problem 3.2.1"
- (let ((d (sqrt (- (sqr b/2) (* a c))))) (/ (- (- b/2) d) a)))
+ (let ((d (sqrt (- (* b/2 b/2) (* a c))))) (/ (- (- b/2) d) a)))

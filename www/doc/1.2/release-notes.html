@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 1.2 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="compare.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie 1.2 Release Notes</h1>
+  </header>
+
+  <p>
+    After a year of work, the <a href="../..">Herbie</a> developers
+    are excited to announce Herbie 1.2! This release focuses on making
+    Herbie more accurate and reliable, including more accurate
+    conditionals and new, higher-accuracy default values. This release
+    has also restructured major internal components, Making Herbie
+    easier to maintain.
+  </p>
+
+  <p>
+    Herbie automatically improves the accuracy of floating point
+    expressions. This avoids the bugs, errors, and surprises that so
+    often occur when working with floating point. Since
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
+    work making Herbie more versatile and easier to use.
+  </p>
+
+  <!-- TODO Update team photo? -->
+  <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
+
+  <h2>Breaking Changes and Deprecations</h2>
+
+  <ul>
+    <li> In line
+      with <a href="http://fpbench.org/spec/fpcore-1.0.html">FPCore
+      1.0</a>, we have deprecated the <code>sqr</code>
+      and <code>cube</code> functions.</li>
+    <li> Herbie no longer
+      supports <a href="https://racket-lang.org">Racket</a> versions
+      prior to 6.7. Future Herbie releases may continue to step up
+      supported Racket versions to make better use of recent language
+      features.</li>
+  </ul>
+
+  <h2>Improvement to core algorithm</h2>
+
+  <ul>
+    <li>Herbie has a higher default value for
+      the <code>--num-iters</code> <a href="options.html">parameter</a>.
+      Users should expect Herbie to be slower but produce more
+      accurate results.</li>
+    <li>Herbie now uses a more rigorous algorithm to evaluate its results,
+      both increasing reproducibility of its results and better measuring
+      its output.</li>
+    <li>Herbie now uses a binary search algorithm to choose more
+      accurate values for conditionals in <code>if</code> statements.
+      This should make different runs of Herbie produce more similar
+      results.</li>
+  </ul>
+
+  <!-- TODO Update plot somehow? -->
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    <style scoped>
+      line { pointer-events: all; }
+      .old, .new { stroke-width: 3px; stroke-opacity: 1.0; fill-opacity: 1.0; }
+      .old { stroke: lightgray; fill: lightgray; }
+      .new { stroke: darkgreen; fill: darkgreen; }
+      .gridline, .guide { stroke: lightgray; }
+      text { text-anchor: middle; }
+    </style>
+    <svg id="results" width="525" height="320"></svg>
+    <script>draw_results(d3.select("#results"))</script>
+    <figcaption>Improvement on the Hamming benchmarks from Herbie 1.0 to Herbie 1.1. The improved series expansions, expanded trigonometric and hyperbolic knowledge, and miscellaneous bug fixes have made Herbie smarter.</figcaption>
+  </figure>
+
+  <h2>Usability improvements</h2>
+
+  <ul>
+    <li>Herbie now outputs the input expression in cases of timeout or
+      crash, instead of outputing a confusing special value.</li>
+    <li>Herbie will now type-check inputs and report errors for
+      mismatches, helping further cut down on confusing error
+      messages..</li>
+    <li>Herbie's web output now includes additional descriptive text,
+      such as color keys, and additional intuitive interactions, such
+      as making arrows on report pages clickable.</li>
+    <li>Herbie's FPCore output now includes its error estimates,
+      making it easier for other FPBench tools to compare Herbie's
+      error estimates to those of other tools.</li>
+    <li>User errors and Herbie crashes now look different in
+      reports.</li>
+    <li>Taylor series no longer add two identical (but confusingly
+      phrased) steps to Herbie's derivations of its results.</li>
+    <li><code>let</code> statements and variary arithmetic operators
+      are now supported in preconditions.</li>
+  </ul>
+
+  <h2>Code Cleanup</h2>
+
+  <ul>
+    <li>Many bugs were fixed, including adding missing rules, several
+      infinite loops, and a few crashes in exceptional
+      circumstances.</li>
+    <li>The components of Herbie that output HTML now use the Racket
+      XML library, eliminating the possibility of generating invalid
+      HTML.</li>
+    <li>There is a new mechanism for defining the functions Herbie supports,
+      which should make it easier to add new functions in the future.</li>
+    <li>More unit tests continue to be written, including more tests
+      of utility functions that are used throughout the codebase.</li>
+    <li>The syntax and type checkers have been make more readable,
+      allowing for the discovery and correction of several bugs.</li>
+  </ul>
+  
+  <h2>Try it out!</h2>
+
+  <p>
+    We're excited to continue to improve Herbie and make it more
+    useful to scientists, engineers, and programmers around the world.
+    We've got a lot of features we're excited to work on in the coming
+    months. Please
+    <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
+    join
+    <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
+    mailing list</a>,
+    or <a href="https://github.com/uw-plse/herbie">contribute</a>.
+  </p>
+  
+  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new
+    Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
+  </script>
+</body>
+</html>

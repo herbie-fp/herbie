@@ -4,226 +4,113 @@
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
-         location-induct program-induct expression-induct location-hash
+         program-body program-variables ->flonum ->bf
+         replace-leaves location-hash
          location-do location-get location-parent location-sibling
-         eval-prog replace-subexpr
+         eval-prog
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
-         assert-expression! assert-program!
          eval-exact eval-const-expr
-         desugar-program expr->prog)
+         desugar-program expr->prog expr?)
 
-(define (location-induct
-	 prog
-	 #:toplevel [toplevel (λ (expr location) expr)] #:constant [constant (λ (c location) c)]
-	 #:variable [variable (λ (x location) x)] #:primitive [primitive (λ (list location) list)]
-	 #:symbol [symbol-table (λ (sym location) sym)] #:predicate [predicate (λ (pred loc) pred)])
+(define expr? (or/c list? symbol? number?))
 
-  (define (inductor prog location)
-    (cond
-     [(constant? prog)
-      (constant prog (reverse location))]
-     [(variable? prog)
-      (variable prog (reverse location))]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog) (cons 2 location))])
-	(toplevel `(λ ,(program-variables prog) ,body*) (reverse location)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog) (reverse (cons 0 location)))
-                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
-                         (inductor arg (cons idx location))))
-		 (reverse location))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog) (reverse (cons 0 location)))
-                       (for/list ([idx (in-naturals)] [arg prog] #:when (> idx 0))
-                         (inductor arg (cons idx location))))
-		 (reverse location))]))
-  (inductor prog '()))
+(define location? (listof natural-number/c))
 
-(define (location-hash prog)
-  (define expr->locs (make-hash))
+;; Programs are just lambda expressions
 
+(define/contract (program-body prog)
+  (-> expr? expr?)
+  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  body)
+
+(define/contract (program-variables prog)
+  (-> expr? (listof symbol?))
+  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  vars)
+
+;; Converting constants
+
+(define (->flonum x)
+  (define convert
+    ((flag 'precision 'double) real->double-flonum real->single-flonum))
+
+  (cond
+   [(real? x) (convert x)]
+   [(bigfloat? x) (convert (bigfloat->flonum x))]
+   [(complex? x)
+    (if (= (imag-part x) 0)
+        (->flonum (real-part x))
+        +nan.0)]
+   [(constant? x)
+    (convert ((constant-info x 'fl)))]
+   [else x]))
+
+(define (->bf x)
+  (cond
+   [(real? x) (bf x)]
+   [(bigfloat? x) x]
+   [(complex? x)
+    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+   [(constant? x) ((constant-info x 'bf))]
+   [else x]))
+
+(define/contract (location-hash prog)
+  (-> expr? (hash/c expr? (listof location?)))
+  (define hash (make-hash))
   (define (save expr loc)
-    (hash-update! expr->locs expr (curry cons loc) '())
-    expr)
+    (hash-update! hash expr (curry cons loc) '()))
 
-  (location-induct prog #:constant save #:variable save #:primitive save)
-  expr->locs)
+  (let loop ([expr prog] [loc '()])
+    (match expr
+      [(list (or 'lambda 'λ) (list vars ...) body)
+       (loop body (cons 2 loc))]
+      [(? constant?) (save expr (reverse loc))]
+      [(? variable?) (save expr (reverse loc))]
+      [(list op args ...)
+       (save expr (reverse loc))
+       (for ([idx (in-naturals 1)] [arg args])
+         (loop arg (cons idx loc)))]))
 
-(define (expression-induct
-	 expr vars
-         #:toplevel [toplevel identity] #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
-  (program-body (program-induct
-		 `(λ ,vars ,expr)
-		 #:toplevel toplevel #:constant constant
-		 #:variable variable #:primitive primitive
-		 #:symbol symbol-table #:predicate predicate)))
+  hash)
 
-(define (program-induct
-         prog
-         #:toplevel [toplevel identity] #:constant [constant identity]
-         #:variable [variable identity] #:primitive [primitive identity]
-         #:symbol [symbol-table identity] #:predicate [predicate identity])
+(define/contract (replace-leaves prog #:constant [constant identity]
+                                 #:variable [variable identity] #:symbol [symbol-table identity])
+  (->* (expr?)
+       (#:constant (-> constant? any/c) #:variable (-> variable? any/c) #:symbol (-> operator? any/c))
+       any/c)
 
   ; Inlined for speed
   (define (inductor prog)
-    (cond
-     [(constant? prog) (constant prog)]
-     [(variable? prog) (variable prog)]
-     [(and (list? prog) (memq (car prog) '(λ lambda)))
-      (let ([body* (inductor (program-body prog))])
-	(toplevel `(λ ,(program-variables prog) ,body*)))]
-     [(and (list? prog) (memq (car prog) predicates))
-      (predicate (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]
-     [(list? prog)
-      (primitive (cons (symbol-table (car prog))
-		       (map inductor (cdr prog))))]))
+    (match prog
+      [(list (or 'lambda 'λ) (list vars ...) body)
+       `(λ ,vars ,(inductor body))]
+      [(? constant?) (constant prog)]
+      [(? variable?) (variable prog)]
+      [(list 'if cond ift iff)
+       `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
+      [(list op args ...)
+       (cons (symbol-table op) (map inductor args))]
+      [_ (error (format "Invalid program ~a" prog))]))
 
   (inductor prog))
 
 (define (free-variables prog)
   (match prog
-         [(? constant?) '()]
-         [(? variable?) (list prog)]
-         [`(lambda ,vars ,body)
+    [(? constant?) '()]
+    [(? variable?) (list prog)]
+    [(list (or 'lambda 'λ) vars body)
            (remove* vars (free-variables body))]
-         [`(,op ,args ...) ; TODO what if op unbound?
-           (remove-duplicates (append-map free-variables args))]))
+    [`(,op ,args ...)
+     (remove-duplicates (append-map free-variables args))]))
 
 (define (unused-variables prog)
   (remove* (free-variables (program-body prog))
            (program-variables prog)))
 
-(define (check-expression* stx vars error!)
-  (match (or (syntax->list stx) (syntax-e stx))
-    [(? constant?) (void)]
-    [(? variable?)
-     (unless (set-member? vars (syntax-e stx))
-       (error! stx "Unknown variable ~a" (syntax-e stx)))]
-    [(list (app syntax-e 'let) (app syntax->list (list (app syntax->list (list vars* vals)) ...)) body)
-     ;; These are unfolded by desugaring
-     (for ([var vars*] [val vals])
-       (unless (identifier? var)
-         (error! var "Invalid variable name ~a" (syntax-e var)))
-       (check-expression* val vars error!))
-     (check-expression* body (append vars (map syntax-e vars*)) error!)]
-    [(list (app syntax-e (? (curry set-member? '(+ - * /)))) args ...)
-     ;; These expand associativity so we don't check the number of arguments
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [(list f args ...)
-     (if (hash-has-key? (*operations*) (syntax->datum f))
-         (let ([num-args (list-ref (hash-ref (*operations*) (syntax->datum f)) mode:args)])
-           (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
-             (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                                 (syntax->datum f) (length args) (string-join (map ~a num-args) " or "))))
-         (error! stx "Unknown operator ~a" (syntax->datum f)))
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
-(define (check-property* prop error!)
-  (unless (identifier? prop)
-    (error! prop "Invalid property name ~a" (syntax->datum prop)))
-  (define name (~a (syntax-e prop)))
-  (unless (equal? (substring name 0 1) ":")
-    (error! prop "Invalid property name ~a" (syntax->datum prop))))
-
-(define (check-properties* props vars error!)
-  (define prop-dict
-    (let loop ([props props] [out '()])
-      (match props
-        [(list (? identifier? prop-name) value rest ...)
-         (check-property* prop-name error!)
-         (loop rest (cons (cons (syntax-e prop-name) value) out))]
-        [(list head)
-         (check-property* head error!)
-         (error! head "Property ~a has no value" (syntax->datum head))]
-        [(list)
-         out])))
-
-  (when (dict-has-key? prop-dict ':name)
-    (define name (dict-ref prop-dict ':name))
-    (unless (string? (syntax-e name))
-      (error! name "Invalid :name ~a; must be a string" (syntax->datum name))))
-
-  (when (dict-has-key? prop-dict ':description)
-    (define desc (dict-ref prop-dict ':description))
-    (unless (string? (syntax-e desc))
-      (error! desc "Invalid :description ~a; must be a string" (syntax->datum desc))))
-
-  (when (dict-has-key? prop-dict ':cite)
-    (define cite (dict-ref prop-dict ':cite))
-    (unless (list? (syntax-e cite))
-      (error! cite "Invalid :cite ~a; must be a list" (syntax->datum cite)))
-    (when (list? (syntax-e cite))
-      (for ([citation (syntax->list cite)] #:unless (identifier? citation))
-        (error! citation "Invalid citation ~a; must be a variable name" (syntax->datum citation)))))
-
-  (when (dict-has-key? prop-dict ':pre)
-    (check-expression* (dict-ref prop-dict ':pre) vars error!))
-
-  (when (dict-has-key? prop-dict ':target)
-    (check-expression* (dict-ref prop-dict ':target) vars error!))
-
-  (when (dict-has-key? prop-dict ':herbie-samplers)
-    (let ([stx (dict-ref prop-dict ':herbie-samplers)])
-      (eprintf "Deprecated :herbie-samplers property used.\n")
-      (define file
-        (if (path? (syntax-source stx))
-            (let-values ([(base name dir?) (split-path (syntax-source stx))])
-              (path->string name))
-            (syntax-source stx)))
-      (eprintf "  ~a:~a:~a: Use the :pre property to specify bounds\n" file (or (syntax-line stx) "")
-               (or (syntax-column stx) (syntax-position stx)))
-      (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n"))))
-
-(define (check-program* stx error!)
-  (match (syntax->list stx)
-    [(list (app syntax-e 'FPCore) vars props ... body)
-     (unless (list? (syntax->list vars))
-       (error! stx "Invalid arguments list ~a; must be a list" (syntax->datum stx)))
-     (when (list? (syntax->list vars))
-       (for ([var (syntax->list vars)] #:unless (identifier? var))
-         (error! stx "Argument ~a is not a variable name" (syntax->datum stx)))
-       (when (check-duplicate-identifier (syntax->list vars))
-         (error! stx "Duplicate argument name ~a"
-                 (syntax->datum (check-duplicate-identifier (syntax->list vars))))))
-     (define vars* (if (list? (syntax->datum vars)) (syntax->datum vars) '()))
-     (check-properties* props vars* error!)
-     (check-expression* body vars* error!)]
-    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
-
-(define (assert-expression! stx vars)
-  (define errs
-    (reap [sow]
-          (define (error! stx fmt . args)
-            (sow (cons stx (apply format fmt args))))
-          (check-expression* stx vars error!)))
-  (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid expression" #:locations errs)))
-
-(define (assert-program! stx)
-  (define errs
-    (reap [sow]
-          (define (error! stx fmt . args)
-            (sow (cons stx (apply format fmt args))))
-          (check-program* stx error!)))
-  (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
-
-(define (replace-expression program from to)
-  (cond
-   [(equal? program from)
-    to]
-   [(list? program)
-    (for/list ([subexpr program])
-      (replace-expression subexpr from to))]
-   [else
-    program]))
-
-(define (location-do loc prog f)
+(define/contract (location-do loc prog f)
+  (-> location? expr? (-> expr? expr?) expr?)
   (cond
    [(null? loc)
     (f prog)]
@@ -257,25 +144,25 @@
           #f]))))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (if (equal? mode mode:bf) ->bf ->flonum)]
-         [op->precision (λ (op) (list-ref (hash-ref (*operations*) op) mode))]
-         [prog* (program-induct prog #:constant real->precision #:symbol op->precision)]
-         [prog-opt `(λ ,(program-variables prog*) ,(compile (program-body prog*)))]
+  (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]
+         [op->precision (λ (op) (operator-info op mode))] ; TODO change use of mode
+         [body* (replace-leaves (program-body prog) #:constant real->precision #:symbol op->precision)]
+         [prog-opt `(λ ,(program-variables prog) ,(compile body*))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (->flonum (apply fn (map real->precision pts))))))
 
-;; Does the same thing as the above with mode:bf, but doesn't convert
+;; Does the same thing as the above with mode 'bf, but doesn't convert
 ;; the results back to floats.
 (define (eval-exact prog)
-  (let* ([prog* (program-induct prog #:constant ->bf #:symbol real-op->bigfloat-op)]
-         [prog-opt `(lambda ,(program-variables prog*) ,(compile (program-body prog*)))]
+  (let* ([body* (replace-leaves (program-body prog) #:constant ->bf #:symbol (curryr operator-info 'bf))]
+         [prog-opt `(lambda ,(program-variables prog) ,(compile body*))]
          [fn (eval prog-opt common-eval-ns)])
     (lambda (pts)
       (apply fn (map ->bf pts)))))
 
 (define (eval-const-expr expr)
-  (let* ([expr_bf (expression-induct expr '() #:constant ->bf #:symbol real-op->bigfloat-op)])
+  (let* ([expr_bf (replace-leaves expr #:constant ->bf #:symbol (curryr operator-info 'bf))])
     (->flonum (eval expr_bf common-eval-ns))))
 
 ;; To compute the cost of a program, we could use the tree as a
@@ -309,20 +196,23 @@
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])
     (if (list? (second step))
-        (let ([fn (caadr step)])
-          (list-ref (hash-ref (*operations*) fn) mode:cost))
+        (operator-info (caadr step) 'cost)
         1)))
 
-(define (replace-subexpr prog needle needle*)
-  `(λ ,(program-variables prog)
-     ,(replace-expr-subexpr (program-body prog) needle needle*)))
+(define/contract (replace-expression haystack needle needle*)
+  (-> expr? expr? expr? expr?)
+  (match haystack
+   [(== needle) needle*]
+   [(list (or 'lambda 'λ) (list vars ...) body)
+    `(λ ,vars ,(replace-expression body needle needle*))]
+   [(list op args ...)
+    (cons op (map (curryr replace-expression needle needle*) args))]
+   [x x]))
 
-(define (replace-expr-subexpr haystack needle needle*)
-  (cond [(equal? haystack needle) needle*]
-	[(list? haystack)
-	 (cons (car haystack) (map (curryr replace-expr-subexpr needle* needle)
-				   (cdr haystack)))]
-	[#t haystack]))
+(module+ test
+  (require rackunit)
+  (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
+                '(λ (x) (- 1 (sin 1)))))
 
 (define (unfold-let expr)
 	(match expr
@@ -339,6 +229,8 @@
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
+    [(list '/ a)
+     (list '/ 1 (expand-associativity a))]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_

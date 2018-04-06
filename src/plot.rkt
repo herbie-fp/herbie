@@ -92,8 +92,8 @@
     ;; If there aren't enough possible big ticks, we fall back to the standard method
     (append
      (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
-     (if (<= min 0.0 max) (pre-tick 0.0 #t) '())
-     (if (<= min -1.0 max) (pre-tick -1.0 #t) '())
+     (if (<= min 0.0 max) (list (pre-tick 0.0 #t)) '())
+     (if (<= min -1.0 max) (list (pre-tick -1.0 #t)) '())
      ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) double-transform)) min max))]
    [else
     (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
@@ -115,7 +115,7 @@
   (define x
     (if (number? axis)
         (curryr list-ref axis)
-        (eval-prog axis mode:fl)))
+        (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
       (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
@@ -194,7 +194,7 @@
   (define get-coord
     (if (number? axis)
         (curryr list-ref axis)
-        (eval-prog `(λ ,vars ,axis) mode:fl)))
+        (eval-prog `(λ ,vars ,axis) 'fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)

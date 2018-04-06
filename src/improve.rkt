@@ -6,22 +6,29 @@
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
   (for ([res results] [test tests])
-    (match-define (table-row name status start result target inf- inf+ result-elt vars samplers input output time bits link) res)
+    (match-define (table-row name status start result target inf- inf+ result-est vars input output time bits link) (cdr res))
     (match status
-      [(? test-failure?)
+      ["error"
+       (fprintf p ";; Error in ~a\n" name)
+       (write (car res) p)
+       (newline p)]
+      ["crash"
        (fprintf p ";; Crash in ~a\n" name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
-      [(? test-timeout?)
+       (write (car res) p)
+       (newline p)]
+      ["timeout"
        (fprintf p ";; ~a times out in ~as\n"
                 (/ (*timeout*) 1000) name)
-       (fprintf p "~a\n" `(FPCore ,vars ,input))]
-      [_
-       (fprintf p "~a\n" `(FPCore ,vars ,output))])))
+       (write (car res) p)
+       (newline p)]
+      [(? string?)
+       (write (car res) p)
+       (newline p)])))
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (define tests (load-tests input))
-  (define results (get-test-results tests #:threads threads #:seed seed #:dir #f))
+  (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
 
   (if (equal? output "-")
       (print-outputs tests results (current-output-port) #:seed seed)

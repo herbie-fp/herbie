@@ -90,8 +90,11 @@
              `(done ,id ,self ,result)))])
       (loop seed profile? dir))))
 
-(define (print-test-result tr)
+(define (print-test-result data)
+  (match-define (cons fpcore tr) data)
   (match (table-row-status tr)
+    ["error"  
+     (printf "[   ERROR   ]\t~a\n" (table-row-name tr))]
     ["crash"  
      (printf "[   CRASH   ]\t~a\n" (table-row-name tr))]
     ["timeout"
@@ -170,7 +173,10 @@
       (set! out (cons (cons i tr) out))))
   out)
 
-(define (get-test-results progs #:threads [threads #f] #:seed seed #:profile [profile? #f] #:dir dir)
+(define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:dir dir)
+  (-> (listof test?) #:threads (or/c #f natural-number/c)
+      #:seed pseudo-random-generator-vector? #:profile boolean? #:dir (or/c #f path-string?)
+      (listof (or/c #f (cons/c expr? table-row?))))
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))
 
@@ -183,6 +189,4 @@
   (for ([(idx result) (in-dict outs)])
     (vector-set! out idx result))
 
-  ; The use of > instead of < is a cleverness:
-  ; the list of tests is accumulated in reverse, this reverses again.
   (vector->list out))

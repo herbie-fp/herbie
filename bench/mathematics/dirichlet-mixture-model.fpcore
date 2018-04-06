@@ -3,7 +3,7 @@
 (FPCore (c_p c_n t s)
  :pre (and (< 0 c_p) (< 0 c_n))
  :name "Harley's example"
- :target
+ :herbie-target
  (*
   (pow (/ (+ 1 (exp (- t))) (+ 1 (exp (- s)))) c_p)
   (pow (/ (+ 1 (exp t)) (+ 1 (exp s))) c_n))

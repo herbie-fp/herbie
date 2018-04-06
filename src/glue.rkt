@@ -2,7 +2,6 @@
 
 (require "common.rkt")
 (require "points.rkt")
-(require "syntax/distributions.rkt")
 (require "alternative.rkt")
 (require "programs.rkt")
 (require "core/simplify.rkt")
@@ -13,7 +12,7 @@
 (require "core/alt-table.rkt")
 (require "core/matcher.rkt")
 
-(provide remove-pows setup-prog post-process
+(provide remove-pows setup-prog setup-alt-simplified post-process
          split-table extract-alt combine-alts
          best-alt simplify-alt completely-simplify-alt
          taylor-alt zach-alt)
@@ -45,21 +44,25 @@
 
 (define (setup-prog prog fuel)
   (let* ([alt (make-alt prog)]
-	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
-	 [processed (maybe-simplify alt)]
-	 [table (make-alt-table (*pcontext*) processed)]
+	 [table (make-alt-table (*pcontext*) alt)]
 	 [extracted (atab-all-alts table)])
-    (assert (equal? extracted (list processed))
+    (assert (equal? extracted (list alt))
 	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
-				       extracted processed)))
+				       extracted alt)))
     table))
+
+(define (setup-alt-simplified prog)
+  (let* ([alt (make-alt prog)]
+	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
+	 [processed (maybe-simplify alt)])
+    processed))
 
 (define (extract-alt table)
   (parameterize ([*pcontext* (atab-context table)])
     (argmin alt-history-length
             (argmins alt-cost
                      (argmins (compose errors-score alt-errors)
-                              (map simplify-alt (atab-all-alts table)))))))
+                              (atab-all-alts table))))))
 
 (define (combine-alts splitpoints alts)
   (let ([rsplits (reverse splitpoints)])
@@ -144,19 +147,13 @@
   (for/list ([transform transforms-to-try])
     (match transform
       [(list name f finv)
-       (alt-add-event
-        (make-delta altn
-		    (location-do loc (alt-program altn)
-				 (λ (expr) (let ([fv (free-variables expr)])
-					     (if (null? fv) expr
-						 (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
-		    'taylor)
-        `(taylor ,name ,loc))])))
-
-(define (make-delta old-alt new-prog name)
-  (alt-delta new-prog (change (rule name (alt-program old-alt) new-prog) '()
-			      (for/list ([var (program-variables new-prog)]) (cons var var)))
-	     old-alt))
+       (alt-event
+        (location-do loc (alt-program altn)
+                     (λ (expr) (let ([fv (free-variables expr)])
+                                 (if (null? fv) expr
+                                     (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+        `(taylor ,name ,loc)
+        (list altn))])))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)]

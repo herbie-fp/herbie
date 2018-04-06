@@ -37,7 +37,7 @@ Installing
 ----------
 
 For full details on installing Herbie, please see the
-[tutorial](http://herbie.uwplse.org/doc/latest/installing-herbie.html).
+[tutorial](http://herbie.uwplse.org/doc/latest/installing.html).
 
 Herbie requires Racket 6.3 or later, and supports Linux and OS X.
 Install it with:

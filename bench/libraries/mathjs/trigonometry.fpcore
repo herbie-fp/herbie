@@ -6,7 +6,7 @@
 
 (FPCore (re im)
  :name "math.cos on complex, imaginary part"
- :target
+ :herbie-target
  (if (< (fabs im) 1)
    (- (* (sin re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
    (* (* 0.5 (sin re)) (- (exp (- im)) (exp im))))
@@ -18,7 +18,7 @@
 
 (FPCore (re im)
  :name "math.sin on complex, imaginary part"
- :target
+ :herbie-target
  (if (< (fabs im) 1)
    (- (* (cos re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
    (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im))))
