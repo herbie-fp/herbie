@@ -56,9 +56,6 @@
          [non-crit-vars (free-variables (location-get (list 2) replaced-expr))])
     (set-disjoint? crit-vars non-crit-vars)))
 
-;; Takes the full program (lambda variables body). We call
-;; subexprs-in-expr inside the function so we don't need to know what
-;; variables to pass in
 (define (all-critical-subexpressions prog)
   (define (subexprs-in-expr expr loc curr-num)
     (with-handlers ([exn:fail? (λ (e) null)])
@@ -76,7 +73,9 @@
                  (append (list new-loc) subexpr-locs))
                (begin
                  subexpr-locs))]))))
-  (subexprs-in-expr prog '(2) 1))
+  (let ([locs (subexprs-in-expr prog '(2) 1)])
+    (for/list ([loc locs])
+      (location-get loc prog))))
 
 (define (critical-subexpression prog)
   (define (loc-children loc subexpr)
