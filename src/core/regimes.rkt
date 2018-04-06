@@ -43,11 +43,11 @@
            (display ">" port))])
 
 (define (exprs-to-branch-on alts)
-  (define critexpr (critical-subexpression (*start-prog*)))
+  (define critexprs (all-critical-subexpressions (*start-prog*)))
   (define vars (program-variables (alt-program (car alts))))
 
-  (if critexpr
-      (cons critexpr vars)
+  (if critexprs
+      (append critexprs vars)
       vars))
 
 (define (critical-subexpression? expr loc)
