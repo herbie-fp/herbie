@@ -56,6 +56,28 @@
          [non-crit-vars (free-variables (location-get (list 2) replaced-expr))])
     (set-disjoint? crit-vars non-crit-vars)))
 
+(define (all-critical-subexpressions prog)
+  (define (subexprs-in-expr expr loc curr-num)
+    (with-handlers ([exn:fail? (λ (e) null)])
+      (let* ([new-loc (append loc (list curr-num))]
+             [curr-subexpr (location-get new-loc expr)]
+             [subexpr-locs (append (subexprs-in-expr expr loc (add1 curr-num))
+                                   (subexprs-in-expr expr new-loc 1))])
+        (cond
+          [(null? (free-variables curr-subexpr))
+           (begin
+             subexpr-locs)]
+          [#t
+           (if (critical-subexpression? expr new-loc)
+               (begin
+                 (append (list new-loc) subexpr-locs))
+               (begin
+                 subexpr-locs))]))))
+  (match prog
+    ['(λ ,vars ,body)
+      (subexprs-in-expr prog '(2) 1)]
+    [_ (subexprs-in-expr prog null 1)]))
+
 (define (critical-subexpression prog)
   (define (loc-children loc subexpr)
     (map (compose (curry append loc)
