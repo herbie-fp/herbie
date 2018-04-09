@@ -64,14 +64,11 @@
                                    (subexprs-in-expr expr new-loc 1))])
         (cond
           [(null? (free-variables curr-subexpr))
-           (begin
-             subexpr-locs)]
+             subexpr-locs]
           [#t
            (if (critical-subexpression? expr new-loc)
-               (begin
-                 (append (list new-loc) subexpr-locs))
-               (begin
-                 subexpr-locs))]))))
+               (append (list new-loc) subexpr-locs)
+               subexpr-locs)]))))
   (for/list ([loc (if (member (car prog) '(lambda λ))
                       (subexprs-in-expr prog '(2) 1)
                       (subexprs-in-expr prog null 1))])
