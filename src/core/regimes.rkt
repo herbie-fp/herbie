@@ -77,48 +77,6 @@
                       (subexprs-in-expr prog null 1))])
     (location-get loc prog)))
 
-(define (critical-subexpression prog)
-  (define (loc-children loc subexpr)
-    (map (compose (curry append loc)
-		  list)
-	 (range 1 (length subexpr))))
-  (define (all-equal? items)
-    (if (< (length items) 2) #t
-	(and (equal? (car items) (cadr items)) (all-equal? (cdr items)))))
-  (define (critical-child expr)
-    (let ([var-locs
-	   (let get-vars ([subexpr expr]
-			  [cur-loc '()])
-	     (cond [(list? subexpr)
-		    (append-map get-vars (cdr subexpr)
-				(loc-children cur-loc subexpr))]
-		   [(constant? subexpr)
-		    '()]
-		   [(variable? subexpr)
-		    (list (cons subexpr cur-loc))]))])
-      (cond [(null? var-locs) #f]
-            [(all-equal? (map car var-locs))
-             (caar var-locs)]
-            [#t
-             (let get-subexpr ([subexpr expr] [vlocs var-locs])
-               (cond [(all-equal? (map cadr vlocs))
-                      (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
-                                   (for/list ([vloc vlocs])
-                                     (cons (car vloc) (cddr vloc))))]
-                     [#t subexpr]))])))
-  (let* ([locs (localize-error prog)])
-    (if (null? locs)
-        #f
-        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
-               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
-          (if (and candidate-expr
-                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
-                     (nan? ((eval-prog candidate-prog 'fl) pt))))
-              #f
-              (begin 
-                (assert (critical-subexpression? prog (cadr locs)))
-                candidate-expr))))))
-
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
 							(> *epsilon-fraction* (abs (- val1 val2))))
