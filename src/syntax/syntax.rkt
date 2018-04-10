@@ -115,7 +115,7 @@
            (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double))
            (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
-             [fl (λ args (apply ((flag 'precision 'double) id_d id_f) args))]
+             [fl (λ args (apply (if (flag-set? 'precision 'double) id_d id_f) args))]
              [key value] ...)))]))
 
 (define-operator/libm (acos real) real

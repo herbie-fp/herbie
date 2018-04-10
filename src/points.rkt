@@ -193,8 +193,8 @@
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
-    (if ((flag 'reduce 'avg-error) #f #t)
-        (apply max (map ulps->bits reals))
+    (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
               (* (*bit-width*) (length unreals)))
-           (length e)))))
+           (length e))
+        (apply max (map ulps->bits reals)))))

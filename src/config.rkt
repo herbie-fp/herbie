@@ -29,7 +29,7 @@
   (define (update cat-flags) (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
-(define (has-flag? class flag)
+(define (flag-set? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
@@ -38,15 +38,12 @@
 (define (changed-flags)
   (filter identity
           (for*/list ([(class flags) all-flags] [flag flags])
-            (match* ((has-flag? class flag)
-                     (parameterize ([*flags* default-flags]) (has-flag? class flag)))
+            (match* ((flag-set? class flag)
+                     (parameterize ([*flags* default-flags]) (flag-set? class flag)))
               [(#t #t) #f]
               [(#f #f) #f]
               [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
-
-(define ((flag type f) a b)
-  (if (has-flag? type f) a b))
 
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))

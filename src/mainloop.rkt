@@ -127,7 +127,7 @@
   (void))
 
 (define (gen-series!)
-  (when ((flag 'generate 'taylor) #t #f)
+  (when (flag-set? 'generate 'taylor)
     (define log! (timeline-event! 'series))
     (define series-expansions
       (apply
@@ -140,7 +140,7 @@
   (void))
 
 (define (gen-rewrites!)
-  (define alt-rewrite ((flag 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
+  (define alt-rewrite (if (flag-set? 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
   (define log! (timeline-event! 'rewrite))
   (define rewritten
     (apply append
@@ -153,7 +153,7 @@
   (void))
 
 (define (simplify!)
-  (when ((flag 'generate 'simplify) #t #f)
+  (when (flag-set? 'generate 'simplify)
     (define log! (timeline-event! 'simplify))
     (define simplified
       (for/list ([child (^children^)] [n (in-naturals 1)])
@@ -234,7 +234,7 @@
 (define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
-  (if ((flag 'setup 'early-exit) (> 0.1 (errors-score (errors (*start-prog*) (*pcontext*)))) #f)
+  (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
       (let ([init-alt (make-alt (*start-prog*))])
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
 	(if get-context?
@@ -257,13 +257,13 @@
 
 ;; Finishing Herbie
 (define (finalize-table!)
-  (when ((flag 'reduce 'post-process) #t #f)
+  (when (flag-set? 'reduce 'post-process)
     (^table^ (post-process (^table^) timeline-event!)))
   (void))
 
 (define (get-final-combination)
   (define joined-alt
-    (if ((flag 'reduce 'regimes) #t #f)
+    (if (flag-set? 'reduce 'regimes)
       (let ([log! (timeline-event! 'regimes)])
         (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
           (if (= (length tables) 1)

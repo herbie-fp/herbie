@@ -53,7 +53,7 @@
 
 (define (setup-alt-simplified prog)
   (let* ([alt (make-alt prog)]
-	 [maybe-simplify ((flag 'setup 'simplify) simplify-alt identity)]
+	 [maybe-simplify (if (flag-set? 'setup 'simplify) simplify-alt identity)]
 	 [processed (maybe-simplify alt)])
     processed))
 
@@ -100,7 +100,7 @@
   (let* ([all-alts (atab-all-alts table)]
 	 [num-alts (length all-alts)]
 	 [zached-alts 0]
-	 [maybe-zach ((flag 'reduce 'zach)
+	 [maybe-zach (if (flag-set? 'reduce 'zach)
 		      (λ (alt locs)
 			(debug #:from 'progress #:depth 3 "zaching alt" (add1 zached-alts) "of" num-alts)
                         (log! 'zach)
@@ -108,7 +108,7 @@
 			(append-map (curry zach-alt alt) locs))
 		      (const '()))]
 	 [taylored-alts 0]
-	 [maybe-taylor ((flag 'reduce 'taylor)
+	 [maybe-taylor (if (flag-set? 'reduce 'taylor)
 			(λ (alt locs)
 			  (debug #:from 'progress #:depth 3 "tayloring alt" (add1 taylored-alts) "of" num-alts)
                           (log! 'series)
@@ -123,7 +123,7 @@
 		   (append (maybe-zach alt locs) (maybe-taylor alt locs))))]
 	 [num-alts* (length alts*)]
 	 [simplified-alts 0]
-	 [maybe-simplify ((flag 'reduce 'simplify)
+	 [maybe-simplify (if (flag-set? 'reduce 'simplify)
 			  (λ (alt)
 			    (debug #:from 'progress #:depth 3 "simplifying alt" (add1 simplified-alts) "of" num-alts*)
                             (log! 'simplify)
@@ -158,7 +158,7 @@
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)]
 	[rewrite
-         ((flag 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
+         (if (flag-set? 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
     (if (and sibling
              (= (length (location-get (location-parent loc)
                                       (alt-program altn))) 3))

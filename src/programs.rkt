@@ -33,7 +33,7 @@
 
 (define (->flonum x)
   (define convert
-    ((flag 'precision 'double) real->double-flonum real->single-flonum))
+    (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
 
   (cond
    [(real? x) (convert x)]

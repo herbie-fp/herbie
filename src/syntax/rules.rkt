@@ -444,20 +444,20 @@
 
 (define (*rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
-    (if (ormap (λ (x) ((flag 'rules x) #t #f)) groups) rules '())))
+    (if (ormap (curry flag-set? 'rules) groups) rules '())))
 
 (define (*simplify-rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
-    (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
-             (memq 'simplify groups))
+    (if (and (ormap (curry flag-set? 'rules) groups)
+             (set-member? groups 'simplify))
         rules
         '())))
 
 (define (*fp-safe-simplify-rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
-    (if (and (ormap (λ (x) ((flag 'rules x) #t #f)) groups)
-             (memq 'fp-safe groups)
-             (memq 'simplify groups))
+    (if (and (ormap (curry flag-set? 'rules) groups)
+             (set-member? groups 'fp-safe)
+             (set-member? groups 'simplify))
         rules
         '())))
 

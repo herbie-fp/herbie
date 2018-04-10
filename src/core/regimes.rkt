@@ -160,7 +160,7 @@
       (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1 close-enough))))
 
   (append
-   (if ((flag 'reduce 'binary-search) #t #f)
+   (if (flag-set? 'reduce 'binary-search)
        (map sidx->spoint
 	    (take sindices (sub1 (length sindices)))
 	    (drop sindices 1))
