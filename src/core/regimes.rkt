@@ -45,33 +45,34 @@
   (define critexprs (all-critical-subexpressions (*start-prog*)))
   (define vars (program-variables (alt-program (car alts))))
 
-  (if critexprs
-      (remove-duplicates (append critexprs vars))
-      vars))
+  (remove-duplicates (append critexprs vars)))
 
+;; Requires that expr is a λ expression
 (define (critical-subexpression? expr loc)
-  (let* ([crit-vars (free-variables (location-get loc expr))]
-         [replaced-expr (replace-expression expr (location-get loc expr) 1)]
-         [non-crit-vars (free-variables (location-get (list 2) replaced-expr))])
-    (set-disjoint? crit-vars non-crit-vars)))
+  (define crit-vars (free-variables (location-get loc expr)))
+  (define replaced-expr (replace-expression expr (location-get loc expr) 1))
+  (define non-crit-vars (free-variables (location-get (list 2) replaced-expr)))
+  (set-disjoint? crit-vars non-crit-vars))
 
+;; Requires that prog is a λ expression
 (define (all-critical-subexpressions prog)
   (define (subexprs-in-expr expr loc curr-num)
-    (with-handlers ([exn:fail? (λ (e) null)])
-      (let* ([new-loc (append loc (list curr-num))]
-             [curr-subexpr (location-get new-loc expr)]
-             [subexpr-locs (append (subexprs-in-expr expr loc (add1 curr-num))
-                                   (subexprs-in-expr expr new-loc 1))])
-        (cond
-          [(null? (free-variables curr-subexpr))
-             subexpr-locs]
-          [#t
-           (if (critical-subexpression? expr new-loc)
-               (append (list new-loc) subexpr-locs)
-               subexpr-locs)]))))
-  (for/list ([loc (if (member (car prog) '(lambda λ))
-                      (subexprs-in-expr prog '(2) 1)
-                      (subexprs-in-expr prog null 1))])
+    (let/ec terminate-recursion
+      (define new-loc (append loc (list curr-num)))
+      (define curr-subexpr
+        ;; Terminate recursion when we have an invalid new-loc
+        (with-handlers ([exn:fail? (lambda (e) (terminate-recursion null))])
+          (location-get new-loc expr)))
+      (define subexpr-locs (append (subexprs-in-expr expr loc (add1 curr-num))
+                                    (subexprs-in-expr expr new-loc 1)))
+      (cond
+        [(null? (free-variables curr-subexpr))
+           subexpr-locs]
+        [else
+         (if (critical-subexpression? expr new-loc)
+             (append (list new-loc) subexpr-locs)
+             subexpr-locs)])))
+  (for/list ([loc (subexprs-in-expr prog '(2) 1)])
     (location-get loc prog)))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
