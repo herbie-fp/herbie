@@ -41,53 +41,27 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
+;; TODO: Figure out alts
 (define (exprs-to-branch-on alts)
-  (define critexpr (critical-subexpression (*start-prog*)))
-  (define vars (program-variables (alt-program (car alts))))
+  (define critexprs (all-critical-subexpressions (*start-prog*)))
+  (remove-duplicates critexprs))
 
-  (if critexpr
-      (remove-duplicates (cons critexpr vars))
-      vars))
+;; Requires that expr is a λ expression
+(define (critical-subexpression? expr subexpr)
+  (define crit-vars (free-variables subexpr))
+  (define replaced-expr (replace-expression expr subexpr 1))
+  (define non-crit-vars (free-variables replaced-expr))
+  (set-disjoint? crit-vars non-crit-vars))
 
-(define (critical-subexpression prog)
-  (define (loc-children loc subexpr)
-    (map (compose (curry append loc)
-		  list)
-	 (range 1 (length subexpr))))
-  (define (all-equal? items)
-    (if (< (length items) 2) #t
-	(and (equal? (car items) (cadr items)) (all-equal? (cdr items)))))
-  (define (critical-child expr)
-    (let ([var-locs
-	   (let get-vars ([subexpr expr]
-			  [cur-loc '()])
-	     (cond [(list? subexpr)
-		    (append-map get-vars (cdr subexpr)
-				(loc-children cur-loc subexpr))]
-		   [(constant? subexpr)
-		    '()]
-		   [(variable? subexpr)
-		    (list (cons subexpr cur-loc))]))])
-      (cond [(null? var-locs) #f]
-            [(all-equal? (map car var-locs))
-             (caar var-locs)]
-            [#t
-             (let get-subexpr ([subexpr expr] [vlocs var-locs])
-               (cond [(all-equal? (map cadr vlocs))
-                      (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
-                                   (for/list ([vloc vlocs])
-                                     (cons (car vloc) (cddr vloc))))]
-                     [#t subexpr]))])))
-  (let* ([locs (localize-error prog)])
-    (if (null? locs)
-        #f
-        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
-               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
-          (if (and candidate-expr
-                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
-                     (nan? ((eval-prog candidate-prog 'fl) pt))))
-              #f
-              candidate-expr)))))
+;; Requires that prog is a λ expression
+(define (all-critical-subexpressions prog)
+  (define (subexprs-in-expr expr)
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) null)))
+  (define prog-body (location-get (list 2) prog))
+  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+             #:when (and (not (null? (free-variables expr)))
+                         (critical-subexpression? prog-body expr)))
+    expr))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])

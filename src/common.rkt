@@ -11,11 +11,11 @@
          reap define-table table-ref table-set!
          first-value assert for/append
          ordinary-float? =-or-nan? log2
-         take-up-to flip-lists argmins argmaxs setfindf index-of
+         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval quasisyntax
+         common-eval-ns common-eval quasisyntax set-disjoint?
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -181,6 +181,14 @@
 (module+ test
   (check-equal? (index-of '(a b c d e) 'd) 3)
   (check-equal? (index-of '(a b c d e) 'foo) #f))
+
+(define (set-disjoint? s1 s2) ; TODO could be faster?
+  (set=? (set-intersect s2 s1) '()))
+
+(module+ test
+  (check-true (set-disjoint? '(a b c) '(e f g)))
+  (check-true (set-disjoint? '() '()))
+  (check-false (set-disjoint? '(a b c) '(a))))
 
 ;; Utility output functions
 
