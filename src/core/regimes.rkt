@@ -41,39 +41,27 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
+;; TODO: Figure out alts
 (define (exprs-to-branch-on alts)
   (define critexprs (all-critical-subexpressions (*start-prog*)))
-  (define vars (program-variables (alt-program (car alts))))
-
-  (remove-duplicates (append critexprs vars)))
+  (remove-duplicates critexprs))
 
 ;; Requires that expr is a λ expression
-(define (critical-subexpression? expr loc)
-  (define crit-vars (free-variables (location-get loc expr)))
-  (define replaced-expr (replace-expression expr (location-get loc expr) 1))
-  (define non-crit-vars (free-variables (location-get (list 2) replaced-expr)))
+(define (critical-subexpression? expr subexpr)
+  (define crit-vars (free-variables subexpr))
+  (define replaced-expr (replace-expression expr subexpr 1))
+  (define non-crit-vars (free-variables replaced-expr))
   (set-disjoint? crit-vars non-crit-vars))
 
 ;; Requires that prog is a λ expression
 (define (all-critical-subexpressions prog)
-  (define (subexprs-in-expr expr loc curr-num)
-    (let/ec terminate-recursion
-      (define new-loc (append loc (list curr-num)))
-      (define curr-subexpr
-        ;; Terminate recursion when we have an invalid new-loc
-        (with-handlers ([exn:fail? (lambda (e) (terminate-recursion null))])
-          (location-get new-loc expr)))
-      (define subexpr-locs (append (subexprs-in-expr expr loc (add1 curr-num))
-                                    (subexprs-in-expr expr new-loc 1)))
-      (cond
-        [(null? (free-variables curr-subexpr))
-           subexpr-locs]
-        [else
-         (if (critical-subexpression? expr new-loc)
-             (append (list new-loc) subexpr-locs)
-             subexpr-locs)])))
-  (for/list ([loc (subexprs-in-expr prog '(2) 1)])
-    (location-get loc prog)))
+  (define (subexprs-in-expr expr)
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) null)))
+  (define prog-body (location-get (list 2) prog))
+  (for/list ([expr (subexprs-in-expr prog-body)]
+             #:when (and (critical-subexpression? prog-body expr)
+                         (not (null? (free-variables expr)))))
+    expr))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
