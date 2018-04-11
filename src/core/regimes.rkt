@@ -58,9 +58,9 @@
   (define (subexprs-in-expr expr)
     (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) null)))
   (define prog-body (location-get (list 2) prog))
-  (for/list ([expr (subexprs-in-expr prog-body)]
-             #:when (and (critical-subexpression? prog-body expr)
-                         (not (null? (free-variables expr)))))
+  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+             #:when (and (not (null? (free-variables expr)))
+                         (critical-subexpression? prog-body expr)))
     expr))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
