@@ -34,4 +34,4 @@ qseed=$(racket -e " \
     (current-pseudo-random-generator))")
 seed="${qseed:1}" # :1 removes leading quote
 
-runEach --seed "$seed"
+runEach --seed "$seed" "$@"
