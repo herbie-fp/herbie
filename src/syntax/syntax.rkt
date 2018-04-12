@@ -521,7 +521,7 @@
   [->tex (infix-joiner " \\lor ")])
 
 (define (operator? op)
-  (dict-has-key? (cdr operators) op))
+  (and (symbol? op) (dict-has-key? (cdr operators) op)))
 
 (define (constant? var)
   (or (number? var) (and (symbol? var) (dict-has-key? (cdr constants) var))))
