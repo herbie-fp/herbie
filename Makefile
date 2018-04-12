@@ -12,6 +12,7 @@ update:
 
 nightly:
 	bash infra/nightly.sh
+	bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
 
 index:
@@ -34,7 +35,7 @@ start-server:
 	racket src/herbie.rkt web --seed '#(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636)' --timeout 60 --num-iters 2 --demo --prefix /demo/ --port 4053 --save-session www/demo/ --log infra/server.log --quiet 2>&1
 
 package:
-	raco pkg 
+	raco pkg
 
 loc:
 	find herbie/ -type f -exec cat {} \; | wc -l
