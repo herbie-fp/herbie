@@ -12,6 +12,7 @@ update:
 
 nightly:
 	bash infra/nightly.sh
+	$(MAKE) index
 
 index:
 	bash infra/publish.sh index
