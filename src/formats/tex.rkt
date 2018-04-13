@@ -112,8 +112,8 @@
         [(? real?)
          (match (string-split (number->string expr) "e")
            [(list num) num]
-           [(list "-inf.0" "-\\inf")]
-           [(list "+inf.0" "+\\inf")]
+           [(list "-inf.0") "-\\inf"]
+           [(list "+inf.0") "+\\inf"]
            [(list significand exp)
             (define num
               (if (equal? significand "1")
