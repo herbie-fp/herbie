@@ -6,12 +6,12 @@ function run {
   bench=$1; shift
   name=$1; shift
 
-  time racket "src/herbie.rkt" report \
+  racket "src/herbie.rkt" report \
       --note "$name" \
       --profile \
       --threads $CORES \
       "$@" \
-      "$bench" "reports/"
+      "$bench" "reports/$name"
 }
 
 function runEach {
