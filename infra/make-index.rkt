@@ -50,7 +50,7 @@
 (define (compute-row folder)
   (eprintf "Reading ~a\n" folder)
   (define info (read-datafile (build-path report-json-path folder "results.json")))
-  (match-define (report-info date commit branch seed flags points iterations bit-width note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
 
   (define-values (total-start total-end)
     (for/fold ([start 0] [end 0]) ([row (or tests '())])

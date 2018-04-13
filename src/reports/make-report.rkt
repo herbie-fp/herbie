@@ -13,7 +13,7 @@
             (table-row-name t)
             (table-row-input t)))
   (match info
-	 [(report-info date commit branch seed flags points iterations bit-width note tests)
+	 [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
 	  (write-file file
 		      (printf "; seed : ~a\n\n" seed)
 		      (printf "; flags :\n")
@@ -47,7 +47,7 @@
 
 (define (make-report-page file info)
   (match info
-    [(report-info date commit branch seed flags points iterations bit-width note tests)
+    [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
 
      (define table-labels
        '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
@@ -192,9 +192,9 @@
            (delete-directory/files (build-path dir subdir)))))]))
 
 (define (make-compare-page out-file info1 info2)
-  (match-let ([(report-info date1 commit1 branch1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
+  (match-let ([(report-info date1 commit1 branch1 hostname1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
                info1]
-              [(report-info date2 commit2 branch2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
+              [(report-info date2 commit2 branch2 hostname2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
                info2])
     (define table-labels
       '("Test" "Start" "Result" "Result" "Target" "∞ ↔ ℝ" "∞ ↔ ℝ" "Time" "Time"))
