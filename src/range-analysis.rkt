@@ -152,7 +152,7 @@
   (append
    (match ivals
      [(list)
-      (interval -inf.0 +inf.0 #f #f)]
+      (list (interval -inf.0 +inf.0 #f #f))]
      [(list (interval lo hi lo? hi?) rest ...)
       (if (= lo -inf.0)
           '()
@@ -210,14 +210,16 @@
            (hash-set! new-range-table key1 (hash-ref table1 key1))))
      (for ([key2 (hash-keys table2)] #:unless (hash-has-key? new-range-table key2))
        (hash-set! new-range-table key2 (hash-ref table2 key2)))
-     new-range-table]))
+     (if (ormap (curry null?) (hash-values new-range-table))
+         #f
+         new-range-table)]))
 
 (module+ test  
   (check-equal? (list (interval 2 3 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-x2) 'x))
   (check-equal? (list (interval 1 3 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-y2) 'x))
   (check-equal? (list (interval 2 4 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-y2) 'y))
   (check-equal? #f (range-table-intersect rt-x1 #f))
-  (check-equal? '() (hash-ref (range-table-intersect rt-x3 rt-x1) 'x)))
+  (check-equal? #f (range-table-intersect rt-x3 rt-x1)))
 
 (define (range-table-union table1 table2)
   (cond
@@ -236,8 +238,8 @@
 
 (define (range-table-invert table)
   (cond
-    [(and table (= (count (compose not null?) (hash-values table)) 1))
-     (match-define (list (list var itvls ...)) (filter (compose not null? cdr) (hash->list table)))
+    [(and table (= (length (hash-values table)) 1))
+     (match-define (list (list var itvls ...)) (hash->list table))
      (apply make-range-table var (intervals-invert itvls))]
     [else
      (make-empty-range-table)]))
