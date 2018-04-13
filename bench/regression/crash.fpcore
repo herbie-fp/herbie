@@ -14,3 +14,5 @@
 (FPCore (x cos sin)
   :name "cos(2*x)/(cos^2(x)*sin^2(x))"
   (/ (cos (* 2 x)) (* (pow cos 2) (* (* x (pow sin 2)) x))))
+
+(FPCore (x) :pre (or (== x 0) (== x 10)) x)
