@@ -113,10 +113,7 @@
 
   (define dirs (directory-jsons report-json-path))
   (define folders
-    (map (λ (dir) (read-row dir))
-         (remove-duplicates
-          (sort (filter name->timestamp dirs) > #:key name->timestamp)
-          #:key name->timestamp)))
+    (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp)))
 
   (define branch-infos*
     (sort
