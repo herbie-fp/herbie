@@ -3,6 +3,8 @@
 (require math/bigfloat math/flonum)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
+(module+ test (require rackunit))
+
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          replace-leaves location-hash
@@ -210,9 +212,16 @@
    [x x]))
 
 (module+ test
-  (require rackunit)
   (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
-                '(λ (x) (- 1 (sin 1)))))
+                '(λ (x) (- 1 (sin 1))))
+
+  (check-equal?
+   (replace-expression
+    '(/ (cos (* 2 x)) (* (pow cos 2) (* (fabs (* sin x)) (fabs (* sin x)))))
+    'cos
+    '(/ 1 cos))
+   '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
+
 
 (define (unfold-let expr)
 	(match expr
