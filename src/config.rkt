@@ -69,14 +69,20 @@
 (define *binary-search-test-points* (make-parameter 16))
 
 ;;; About Herbie:
+(define (run-command cmd)
+  (parameterize ([current-error-port (open-output-nowhere)])
+    (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
-      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
+             [out (run-command cmd)])
+          (if (equal? out "") default out))
       default))
 
 (define *herbie-version* "1.1")
+
+(define *hostname* (run-command "hostname"))
 
 (define *herbie-commit*
   (git-command "rev-parse" "HEAD" #:default *herbie-version*))
