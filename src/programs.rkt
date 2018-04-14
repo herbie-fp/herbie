@@ -8,12 +8,13 @@
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          replace-leaves location-hash
+         location? expr?
          location-do location-get location-parent location-sibling
          eval-prog
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
          eval-exact eval-const-expr
-         desugar-program expr->prog expr?)
+         desugar-program expr->prog)
 
 (define expr? (or/c list? symbol? number?))
 
