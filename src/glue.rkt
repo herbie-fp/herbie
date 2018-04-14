@@ -22,25 +22,19 @@
 ;; Implementation
 
 (define (remove-pows altn)
-  (alt-event
-   `(λ ,(program-variables (alt-program altn))
-      ,(let loop ([cur-expr (program-body (alt-program altn))])
-	 (cond [(and (list? cur-expr) (eq? 'expt (car cur-expr))
-		     (let ([exponent (caddr cur-expr)])
-		       (and (not (list? exponent))
-                            (not (symbol? exponent))
-			    (positive? exponent)
-			    (integer? exponent)
-			    (exponent . < . 10))))
-		(let inner-loop ([pows-left (caddr cur-expr)])
-		  (if (pows-left . = . 1)
-		      (cadr cur-expr)
-		      (list '* (cadr cur-expr) (inner-loop (sub1 pows-left)))))]
-	       [(list? cur-expr)
-		(cons (car cur-expr) (map loop (cdr cur-expr)))]
-	       [#t cur-expr])))
-   'removed-pows
-   (list altn)))
+  (define body*
+    (let loop ([expr (program-body (alt-program altn))])
+      (match expr
+        [(list 'expt base (and (? integer?) (? positive?) (? (curryr < 10)) exponent))
+         (for/fold ([term base]) ([i (in-range 1 exponent)])
+           (list '* base term))]
+        [(list op args ...)
+         (cons op (map loop args))]
+        [_ expr])))
+  (if (equal? body* (program-body (alt-program altn)))
+      altn
+      (alt-event `(λ ,(program-variables (alt-program altn)) ,body*)
+                 'removed-pows (list altn))))
 
 (define (setup-prog prog fuel)
   (let* ([alt (make-alt prog)]
