@@ -178,7 +178,8 @@
         (h1 "Error")
         (div
          ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
-             (when (> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
+             (cond
+              [(> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
                (define split-var? (equal? var (regime-var end-alt)))
                (define title "The X axis uses an exponential scale")
                `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
@@ -192,7 +193,8 @@
                       "")
                  (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
                        [src ,(format "plot-~ab.png" idx)]))
-                 (figcaption (p "Bits error versus " (var ,(~a var)))))))))
+                 (figcaption (p "Bits error versus " (var ,(~a var)))))]
+              [else ""]))))
 
        ,(if (test-output test)
             `(section ([id "comparison"])
