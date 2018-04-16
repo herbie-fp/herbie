@@ -87,15 +87,15 @@
 	 splitpoints)))
 
 (define (option-on-expr alts expr)
-  (match-let* ([vars (program-variables (*start-prog*))]
-	       [`(,pts ,exs) (sort-context-on-expr (*pcontext*) expr vars)])
-    (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
-		       (map alt-errors alts))]
-	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
-           [merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts)]
-	   [split-indices (err-lsts->split-indices merged-err-lsts)]
-	   [split-points (sindices->spoints (remove-duplicates pts) expr alts split-indices)])
-      (option split-points (pick-errors split-points pts err-lsts vars)))))
+  (define vars (program-variables (*start-prog*)))
+  (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define err-lsts
+    (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
+  (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
+  (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
+  (define split-indices (err-lsts->split-indices merged-err-lsts))
+  (define split-points (sindices->spoints pts expr alts split-indices))
+  (option split-points (pick-errors split-points pts err-lsts vars)))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -106,18 +106,14 @@
                                 (free-variables (replace-expression (alt-program alt) expr 0))))
      #:extra-info (cons expr alt)))
 
-  (define (eval-on-pt pt)
-    (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
-			 ,expr)]
-	   [val-float ((eval-prog expr-prog 'fl) pt)])
-      (if (ordinary-float? val-float) val-float
-	  ((eval-prog expr-prog 'bf) pt))))
+  (define eval-expr
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
-	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
+	   [p1 (eval-expr (list-ref points (si-pidx sidx)))]
+	   [p2 (eval-expr (list-ref points (sub1 (si-pidx sidx))))]
 	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
 		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
@@ -139,7 +135,7 @@
 	    (take sindices (sub1 (length sindices)))
 	    (drop sindices 1))
        (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex))))))
+	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (si-pidx sindex))))))
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr

@@ -109,16 +109,12 @@
 
 (define (sorted-context-list context vidx)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   < #:key (compose (curryr list-ref vidx) car))])
+		   </total #:key (compose (curryr list-ref vidx) car))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   < #:key (λ (p&e)
-			     (let* ([expr-prog `(λ ,variables ,expr)]
-				    [float-val ((eval-prog expr-prog 'fl) (car p&e))])
-			       (if (ordinary-float? float-val) float-val
-				   ((eval-prog expr-prog 'bf) (car p&e))))))])
+		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (make-period-points num periods)
