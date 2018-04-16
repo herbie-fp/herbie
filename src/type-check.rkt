@@ -54,14 +54,14 @@
     [#`,(? constant? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define compl? #f)
+     (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env error!))
-       (if (equal? actual-type 'complex) (set! compl? #t) #f)
-       (unless (or (equal? actual-type 'real) (equal? actual-type 'complex))
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) 'real actual-type)))
+       (if (not t) (set! t actual-type) #f)
+       (unless (equal? t actual-type)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      ; if we have at least one complex type in exprs we return complex otherwise real
-     (if compl? 'complex 'real)]
+     t]
     [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
      (unless sigs (error "Operator has no type signature" op (length exprs)))
