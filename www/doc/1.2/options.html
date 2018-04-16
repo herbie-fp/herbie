@@ -253,6 +253,15 @@
       behavior near branches is not important to you, in which case
       turning off this option will make Herbie slightly faster.</dd>
 
+    <dt><code>reduce:branch-expressions</code></dt>
+    <dd>This option, on by default, allows Herbie to branch on
+      expressions, not just variables. This can improve accuracy on
+      regime branching, but can significantly increase the runtime,
+      particularly for large programs. If turned off, Herbie will only
+      try to branch on variables. You may want to turn this option off
+      if Herbie runtime is more important to you than expression
+      accuracy.</dd>
+
     <dt><code>rules:arithmetic</code></dt>
     <dd>This option, on by default, allows Herbie to use basic
       arithmetic facts during its search. If turned off, Herbie will
