@@ -42,11 +42,12 @@
            (display ">" port))])
 
 (define (exprs-to-branch-on alts)
-  (define alt-critexprs (for/list ([alt alts])
-    (all-critical-subexpressions (alt-program alt))))
-  (define critexprs (all-critical-subexpressions (*start-prog*)))
-  (define ret (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
-  ret)
+  (if (flag-set? 'reduce 'branch-expressions)
+      (let ([alt-critexprs (for/list ([alt alts])
+              (all-critical-subexpressions (alt-program alt)))]
+            [critexprs (all-critical-subexpressions (*start-prog*))])
+           (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
+      (free-variables (location-get '(1) (*start-prog*)))))
 
 ;; Requires that expr is a λ expression
 (define (critical-subexpression? expr subexpr)
