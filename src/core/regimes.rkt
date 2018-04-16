@@ -47,7 +47,7 @@
               (all-critical-subexpressions (alt-program alt)))]
             [critexprs (all-critical-subexpressions (*start-prog*))])
            (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
-      (free-variables (location-get '(1) (*start-prog*)))))
+      (program-variables (*start-prog*))))
 
 ;; Requires that expr is a λ expression
 (define (critical-subexpression? expr subexpr)
