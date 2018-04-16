@@ -29,7 +29,7 @@
   (define (update cat-flags) (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
-(define (has-flag? class flag)
+(define (flag-set? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
@@ -38,15 +38,12 @@
 (define (changed-flags)
   (filter identity
           (for*/list ([(class flags) all-flags] [flag flags])
-            (match* ((has-flag? class flag)
-                     (parameterize ([*flags* default-flags]) (has-flag? class flag)))
+            (match* ((flag-set? class flag)
+                     (parameterize ([*flags* default-flags]) (flag-set? class flag)))
               [(#t #t) #f]
               [(#f #f) #f]
               [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
-
-(define ((flag type f) a b)
-  (if (has-flag? type f) a b))
 
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
@@ -72,14 +69,20 @@
 (define *binary-search-test-points* (make-parameter 16))
 
 ;;; About Herbie:
+(define (run-command cmd)
+  (parameterize ([current-error-port (open-output-nowhere)])
+    (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
-      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
+             [out (run-command cmd)])
+          (if (equal? out "") default out))
       default))
 
 (define *herbie-version* "1.1")
+
+(define *hostname* (run-command "hostname"))
 
 (define *herbie-commit*
   (git-command "rev-parse" "HEAD" #:default *herbie-version*))

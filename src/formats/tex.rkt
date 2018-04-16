@@ -111,6 +111,8 @@
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
          (match (string-split (number->string expr) "e")
+           [(list "-inf.0") "-\\infty"]
+           [(list "+inf.0") "+\\infty"]
            [(list num) num]
            [(list significand exp)
             (define num
@@ -137,6 +139,8 @@
                           (texify bcond #t (cons 1 bloc))
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
+        [`(<= ,x -inf.0)
+         (texify `(== ,x -inf.0) parens loc)]
         [`(,f ,args ...)
          (define-values (self-paren-level arg-paren-level) (precedence-levels f))
          (let ([texed-args

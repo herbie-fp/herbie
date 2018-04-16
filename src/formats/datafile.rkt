@@ -14,12 +14,13 @@
   (name status start result target inf- inf+ result-est vars input output time bits link) #:prefab)
 
 (struct report-info
-  (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
+  (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
 
 (define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
                *herbie-commit*
                *herbie-branch*
+               *hostname*
                (or seed (get-seed))
                (*flags*)
                (*num-points*)
@@ -51,11 +52,12 @@
   
   (define data
     (match info
-      [(report-info date commit branch seed flags points iterations bit-width note tests)
+      [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
        (make-hash
         `((date . ,(date->seconds date))
           (commit . ,commit)
           (branch . ,branch)
+          (hostname . ,hostname)
           (seed . ,(~a seed))
           (flags . ,(flags->list flags))
           (points . ,points)
@@ -83,7 +85,8 @@
   
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
-    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (parse-string (get 'seed))
+    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (hash-ref json 'hostname "")
+                 (parse-string (get 'seed))
                  (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))

@@ -30,17 +30,19 @@
 (define *max-egraph-iters* (make-parameter 6))
 (define *node-limit* (make-parameter 500))
 
-(define (make-simplify-change program loc replacement)
+(define/contract (make-simplify-change program loc replacement)
+  (-> expr? location? expr? change?)
   (change (rule 'simplify (location-get loc program) replacement)
           loc
           (for/list ([var (program-variables program)])
             (cons var var))))
 
-(define (simplify altn #:rules [rls (*simplify-rules*)])
+(define/contract (simplify altn #:rules [rls (*simplify-rules*)])
+  (->* (alternative?) (#:rules (listof rule?)) (listof change?))
   (define prog (alt-program altn))
   (cond
    [(not (alt-delta? altn))
-    (define prog* (simplify-expr (program-body prog)))
+    (define prog* (simplify-expr (program-body prog) #:rules rls))
     (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
         (list (make-simplify-change prog '(2) prog*))
         '())]
@@ -67,9 +69,10 @@
 
 (define/contract (simplify-fp-safe altn)
   (-> alternative? (listof change?))
-  (simplify altn #:rules *fp-safe-simplify-rules*))
+  (simplify altn #:rules (*fp-safe-simplify-rules*)))
 
-(define (simplify-expr expr #:rules [rls (*simplify-rules*)])
+(define/contract (simplify-expr expr #:rules rls)
+  (-> expr? #:rules (listof rule?) expr?)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
@@ -231,4 +234,4 @@
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
-       (check-equal? (simplify-expr original) target))))
+       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target))))

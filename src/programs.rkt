@@ -3,15 +3,18 @@
 (require math/bigfloat math/flonum)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
 
+(module+ test (require rackunit))
+
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          replace-leaves location-hash
+         location? expr?
          location-do location-get location-parent location-sibling
          eval-prog
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
          eval-exact eval-const-expr
-         desugar-program expr->prog expr?)
+         desugar-program expr->prog)
 
 (define expr? (or/c list? symbol? number?))
 
@@ -34,7 +37,7 @@
 (define/contract (->flonum x)
   (-> any/c (or/c flonum? complex? boolean?))
   (define convert
-    ((flag 'precision 'double) real->double-flonum real->single-flonum))
+    (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
 
   (cond
    [(real? x) (convert x)]
@@ -209,9 +212,16 @@
    [x x]))
 
 (module+ test
-  (require rackunit)
   (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
-                '(λ (x) (- 1 (sin 1)))))
+                '(λ (x) (- 1 (sin 1))))
+
+  (check-equal?
+   (replace-expression
+    '(/ (cos (* 2 x)) (* (pow cos 2) (* (fabs (* sin x)) (fabs (* sin x)))))
+    'cos
+    '(/ 1 cos))
+   '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
+
 
 (define (unfold-let expr)
 	(match expr

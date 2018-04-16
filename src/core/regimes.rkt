@@ -42,55 +42,27 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
+;; TODO: Figure out alts
 (define (exprs-to-branch-on alts)
-  (define critexpr (critical-subexpression (*start-prog*)))
-  (define vars (program-variables (alt-program (car alts))))
+  (define critexprs (all-critical-subexpressions (*start-prog*)))
+  (remove-duplicates critexprs))
 
-  (if critexpr
-      (if (equal? (type-of critexpr (for/hash ([var vars]) (values var 'real))) 'complex)
-          (list* `(re ,critexpr) `(im ,critexpr) vars)
-          (remove-duplicates (cons critexpr vars)))
-      vars))
+;; Requires that expr is a λ expression
+(define (critical-subexpression? expr subexpr)
+  (define crit-vars (free-variables subexpr))
+  (define replaced-expr (replace-expression expr subexpr 1))
+  (define non-crit-vars (free-variables replaced-expr))
+  (set-disjoint? crit-vars non-crit-vars))
 
-(define (critical-subexpression prog)
-  (define (loc-children loc subexpr)
-    (map (compose (curry append loc)
-		  list)
-	 (range 1 (length subexpr))))
-  (define (all-equal? items)
-    (if (< (length items) 2) #t
-	(and (equal? (car items) (cadr items)) (all-equal? (cdr items)))))
-  (define (critical-child expr)
-    (let ([var-locs
-	   (let get-vars ([subexpr expr]
-			  [cur-loc '()])
-	     (cond [(list? subexpr)
-		    (append-map get-vars (cdr subexpr)
-				(loc-children cur-loc subexpr))]
-		   [(constant? subexpr)
-		    '()]
-		   [(variable? subexpr)
-		    (list (cons subexpr cur-loc))]))])
-      (cond [(null? var-locs) #f]
-            [(all-equal? (map car var-locs))
-             (caar var-locs)]
-            [#t
-             (let get-subexpr ([subexpr expr] [vlocs var-locs])
-               (cond [(all-equal? (map cadr vlocs))
-                      (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
-                                   (for/list ([vloc vlocs])
-                                     (cons (car vloc) (cddr vloc))))]
-                     [#t subexpr]))])))
-  (let* ([locs (localize-error prog)])
-    (if (null? locs)
-        #f
-        (let* ([candidate-expr (critical-child (location-get (car locs) prog))]
-               [candidate-prog `(lambda ,(program-variables (*start-prog*)) ,candidate-expr)])
-          (if (and candidate-expr
-                   (for/or ([(pt ex) (in-pcontext (*pcontext*))])
-                     (nan? ((eval-prog candidate-prog 'fl) pt))))
-              #f
-              candidate-expr)))))
+;; Requires that prog is a λ expression
+(define (all-critical-subexpressions prog)
+  (define (subexprs-in-expr expr)
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) null)))
+  (define prog-body (location-get (list 2) prog))
+  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+             #:when (and (not (null? (free-variables expr)))
+                         (critical-subexpression? prog-body expr)))
+    expr))
 
 (define basic-point-search (curry binary-search (λ (p1 p2)
 						  (if (for/and ([val1 p1] [val2 p2])
@@ -116,15 +88,15 @@
 	 splitpoints)))
 
 (define (option-on-expr alts expr)
-  (match-let* ([vars (program-variables (*start-prog*))]
-	       [`(,pts ,exs) (sort-context-on-expr (*pcontext*) expr vars)])
-    (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
-		       (map alt-errors alts))]
-	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
-           [merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts)]
-	   [split-indices (err-lsts->split-indices merged-err-lsts)]
-	   [split-points (sindices->spoints (remove-duplicates pts) expr alts split-indices)])
-      (option split-points (pick-errors split-points pts err-lsts vars)))))
+  (define vars (program-variables (*start-prog*)))
+  (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define err-lsts
+    (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
+  (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
+  (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
+  (define split-indices (err-lsts->split-indices merged-err-lsts))
+  (define split-points (sindices->spoints pts expr alts split-indices))
+  (option split-points (pick-errors split-points pts err-lsts vars)))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -135,18 +107,14 @@
                                 (free-variables (replace-expression (alt-program alt) expr 0))))
      #:extra-info (cons expr alt)))
 
-  (define (eval-on-pt pt)
-    (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
-			 ,expr)]
-	   [val-float ((eval-prog expr-prog 'fl) pt)])
-      (if (ordinary-float? val-float) val-float
-	  ((eval-prog expr-prog 'bf) pt))))
+  (define eval-expr
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
-	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
+	   [p1 (eval-expr (list-ref points (si-pidx sidx)))]
+	   [p2 (eval-expr (list-ref points (sub1 (si-pidx sidx))))]
 	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
 		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
@@ -163,12 +131,12 @@
       (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1 close-enough))))
 
   (append
-   (if ((flag 'reduce 'binary-search) #t #f)
+   (if (flag-set? 'reduce 'binary-search)
        (map sidx->spoint
 	    (take sindices (sub1 (length sindices)))
 	    (drop sindices 1))
        (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex))))))
+	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (si-pidx sindex))))))
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr

@@ -41,6 +41,42 @@
                "Empty interval due to both-openness")
   (check-false (sample-bounded 2.0 1.0) "Interval bounds flipped"))
 
+(define/contract (sample-multi-bounded ranges)
+  (-> (listof interval?) (or/c flonum? #f))
+  (define ordinal-ranges
+    (for/list ([range ranges])
+      (match-define (interval (app exact->inexact lo) (app exact->inexact hi) lo? hi?) range)
+      (list (flonum->ordinal lo) (flonum->ordinal hi) lo? hi?)))
+
+  (define (points-in-range lo hi lo? hi?)
+    ;; The `max` handles the case lo > hi and similar
+    (max 0 (- hi lo (if lo? 0 1) (if hi? -1 0))))
+
+  (define total-weight
+    (apply +
+           (for/list ([range ordinal-ranges])
+             (match-define (list lo hi lo? hi?) range)
+             (points-in-range lo hi lo? hi?))))
+
+  (match total-weight
+   [0 #f]
+   [_
+    (define num-bits (ceiling (/ (log total-weight) (log 2))))
+    (define sample
+      (let loop ()
+        (define sample (random-exp (inexact->exact num-bits)))
+        (if (< sample total-weight) sample (loop))))
+    (let loop ([sample sample] [ordinal-ranges ordinal-ranges])
+      ;; The `(car)` is guaranteed to succeed by the construction of `sample`
+      (match-define (list lo hi lo? hi?) (car ordinal-ranges))
+      (if (< sample (points-in-range lo hi lo? hi?))
+          (ordinal->flonum (+ lo (if lo? 0 1) sample))
+          (loop (- sample (points-in-range lo hi lo? hi?)) (cdr ordinal-ranges))))]))
+
+(module+ test
+  (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)))))
+  (check-false (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)))))
+
 (define *pcontext* (make-parameter #f))
 
 (struct pcontext (points exacts))
@@ -72,17 +108,13 @@
     (mk-pcontext points exacts)))
 
 (define (sorted-context-list context vidx)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (eprintf "pt is ~a and ex is ~a" pt ex) (cons pt ex))
-		   < #:key (compose (curryr list-ref vidx) car))])
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   </total #:key (compose (curryr list-ref vidx) car))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   < #:key (λ (p&e)
-			     (let* ([expr-prog `(λ ,variables ,expr)]
-				    [float-val ((eval-prog expr-prog 'fl) (car p&e))])
-			       (if (ordinary-float? float-val) float-val
-				   ((eval-prog expr-prog 'bf) (car p&e))))))])
+		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
     (list (map car p&e) (map cdr p&e))))
 
 (define (make-period-points num periods)
@@ -153,7 +185,9 @@
         [#f
          (raise-herbie-error "No valid values of variable ~a" var #:url "faq.html#no-valid-values")]
         [(interval lo hi lo? hi?)
-         (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))])))
+         (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))]
+        [(list (? interval? ivals) ...)
+         (λ () (sample-multi-bounded ivals))])))
 
   ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
@@ -193,8 +227,8 @@
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-float? e)])
-    (if ((flag 'reduce 'avg-error) #f #t)
-        (apply max (map ulps->bits reals))
+    (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
               (* (*bit-width*) (length unreals)))
-           (length e)))))
+           (length e))
+        (apply max (map ulps->bits reals)))))

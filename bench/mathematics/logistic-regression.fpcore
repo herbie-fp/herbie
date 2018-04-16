@@ -7,3 +7,7 @@
    (- (log (+ 1 (exp x))) (* x y))
    (- (log (+ 1 (exp (- x)))) (* (- x) (- 1 y))))
  (- (log (+ 1 (exp x))) (* x y)))
+
+(FPCore (x y)
+ :name "Logistic function from Lakshay Garg"
+ (- (/ 2 (+ 1 (exp (* -2 x)))) 1))
