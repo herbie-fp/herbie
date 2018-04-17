@@ -1,7 +1,7 @@
 #lang racket
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(define-runtime-path report-json-path "../graphs/reports/")
+(define-runtime-path report-json-path "../previous/")
 
 
 (require racket/date)

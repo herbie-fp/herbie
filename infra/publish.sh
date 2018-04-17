@@ -30,11 +30,11 @@ backfill () {
 download_reports () {
     rsync --recursive --checksum --inplace --ignore-existing \
           --include 'results.json' --include '*/' --exclude '*' \
-          uwplse.org:/var/www/herbie/reports/ graphs/reports/
+          uwplse.org:/var/www/herbie/reports/ previous/
 }
 
 upload_reports () {
-    rsync --recursive graphs/reports/ uwplse.org:/var/www/herbie/reports/
+    rsync --recursive previous/ uwplse.org:/var/www/herbie/reports/
 }
 
 help () {
