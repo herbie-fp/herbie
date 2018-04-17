@@ -42,10 +42,13 @@
            (write (option-splitpoints opt) port)
            (display ">" port))])
 
-;; TODO: Figure out alts
 (define (exprs-to-branch-on alts)
-  (define critexprs (all-critical-subexpressions (*start-prog*)))
-  (remove-duplicates critexprs))
+  (if (flag-set? 'reduce 'branch-expressions)
+      (let ([alt-critexprs (for/list ([alt alts])
+              (all-critical-subexpressions (alt-program alt)))]
+            [critexprs (all-critical-subexpressions (*start-prog*))])
+           (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
+      (program-variables (*start-prog*))))
 
 ;; Requires that expr is a λ expression
 (define (critical-subexpression? expr subexpr)
@@ -57,7 +60,7 @@
 ;; Requires that prog is a λ expression
 (define (all-critical-subexpressions prog)
   (define (subexprs-in-expr expr)
-    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) null)))
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
   (define prog-body (location-get (list 2) prog))
   (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
              #:when (and (not (null? (free-variables expr)))
@@ -157,21 +160,24 @@
 
 (define (pick-errors splitpoints pts err-lsts variables)
   (reverse
-   (first-value
-    (for/fold ([acc '()] [rest-splits splitpoints])
-	([pt (in-list pts)]
-	 [errs (flip-lists err-lsts)])
-      (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
-	     [float-val ((eval-prog expr-prog 'fl) pt)]
-	     [pt-val (if (ordinary-float? float-val) float-val
-			 ((eval-prog expr-prog 'bf) pt))])
-	(if (or (<= pt-val (sp-point (car rest-splits)))
-		(and (null? (cdr rest-splits)) (nan? pt-val)))
-	    (if (nan? pt-val) (error "wat")
-		(values (cons (list-ref errs (sp-cidx (car rest-splits)))
-			      acc)
-			rest-splits))
-	    (values acc (cdr rest-splits))))))))
+    (first-value
+      (for/fold ([acc '()] [rest-splits splitpoints])
+	              ([pt (in-list pts)]
+	               [errs (flip-lists err-lsts)])
+        (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
+	             [pt-val ((eval-prog expr-prog 'fl) pt)])
+          (if (or (<= pt-val (sp-point (car rest-splits)))
+                  (and (null? (cdr rest-splits)) (nan? pt-val)))
+              (if (nan? pt-val)
+                  ;; TODO: once complex support is added, rethink NaNs created from
+                  ;; complex expressions (e.g. (sqrt -1))
+                  (values (cons (list-ref errs (sp-cidx (last rest-splits)))
+                                acc)
+                          rest-splits)
+                  (values (cons (list-ref errs (sp-cidx (car rest-splits)))
+                                acc)
+                          rest-splits))
+              (values acc (cdr rest-splits))))))))
 
 (define (with-entry idx lst item)
   (if (= idx 0)

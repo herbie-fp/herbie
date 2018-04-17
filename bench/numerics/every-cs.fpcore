@@ -26,8 +26,8 @@
  (- (* a a) (* b b)))
 
 (FPCore (a b c)
- :pre (and (< 0 a) (< 0 b) (< 0 c))
  :name "Area of a triangle"
+ :pre (and (< 0 a (+ b c)) (< 0 b (+ a c)) (< 0 c (+ a b)))
  :herbie-target
  (/ (sqrt (* (+ a (+ b c)) (- c (- a b)) (+ c (- a b)) (+ a (- b c)))) 4)
  (let ((s (/ (+ a b c) 2)))
