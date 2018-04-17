@@ -12,6 +12,7 @@ function run {
       --threads $CORES \
       "$@" \
       "$bench" "reports/$name"
+  bash infra/publish.sh upload "$reports/$name"
 }
 
 function runEach {
@@ -34,4 +35,5 @@ qseed=$(racket -e " \
     (current-pseudo-random-generator))")
 seed="${qseed:1}" # :1 removes leading quote
 
+mkdir -p reports
 runEach --seed "$seed" "$@"
