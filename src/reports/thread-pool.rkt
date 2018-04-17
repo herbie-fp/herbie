@@ -137,7 +137,7 @@
       (with-handlers ([exn:break?
                        (λ (_)
                          (printf "Terminating after ~a problem~a!\n"
-                                 (length out) (if (= (length out) 1) "s" ""))
+                                 (length out) (if (= (length out) 1) ""  "s"))
                          out)])
         (match-define `(done ,id ,more ,tr) (apply sync workers))
 
