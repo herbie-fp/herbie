@@ -12,7 +12,7 @@ function run {
       --threads $CORES \
       "$@" \
       "$bench" "reports/$name"
-  bash infra/publish.sh upload "$reports/$name"
+  bash infra/publish.sh upload "reports/$name"
 }
 
 function runEach {
