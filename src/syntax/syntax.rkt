@@ -6,6 +6,9 @@
 
 (provide constant? variable? operator? operator-info constant-info)
 
+(define *unknown-d-ops* (make-parameter '()))
+(define *unknown-f-ops* (make-parameter '()))
+
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
@@ -104,16 +107,17 @@
 
 ; Use C ffi to get numerical ops from libm
 (require ffi/unsafe ffi/unsafe/define)
-(define-ffi-definer define-libm #f
-  #:default-make-fail make-not-available)
+(define-ffi-definer define-libm #f)
 
 (define-syntax (define-operator/libm stx)
   (syntax-case stx (real libm)
     [(_ (operator real ...) real [libm id_d id_f] [key value] ...)
      (let ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))])
        #`(begin
-           (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double))
-           (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float))
+           (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
+                        #:fail (lambda () (*unknown-d-ops* (cons 'id_d (*unknown-d-ops*)))))
+           (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
+                        #:fail (lambda () (*unknown-f-ops* (cons 'id_f (*unknown-f-ops*)))))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
              [fl (λ args (apply (if (flag-set? 'precision 'double) id_d id_f) args))]
              [key value] ...)))]))
