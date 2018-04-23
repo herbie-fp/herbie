@@ -65,6 +65,7 @@
   [args  (listof (or/c '* natural-number/c))]
   [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
   [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
+  [racketfl (unconstrained-argument-number-> (or/c bigfloat? flonum? boolean?) (or/c bigfloat? flonum? boolean?))]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (list/c (or/c (listof type?) (list/c '* type?)) type?))]
   [->c/double (unconstrained-argument-number-> string? string?)]
@@ -75,9 +76,12 @@
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
-        [args (list (length '(atypes ...)))])
+        [args (list (length '(atypes ...)))]
+        [racketfl (if (findf (λ (x) (equal? (car x) 'racketfl)) (list '(atypes ...)))
+                      '()
+                      (cons 'racketfl (λ args 0.0)))]) ;;TODO: This is a temporary default value. FIX THIS!
     (table-set! operators 'operator
-                (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
+                (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ... racketfl)))))
 
 (define-operator (+ real real) real
   [fl +] [bf bf+] [cost 40]
@@ -115,9 +119,13 @@
      (let ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))])
        #`(begin
            (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                        #:fail (lambda () (*unknown-d-ops* (cons 'id_d (*unknown-d-ops*)))))
+                        #:fail (lambda ()
+                                 (*unknown-d-ops* (cons 'id_d (*unknown-d-ops*)))
+                                 (λ args ((operator-info 'operator 'racketfl) args))))
            (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                        #:fail (lambda () (*unknown-f-ops* (cons 'id_f (*unknown-f-ops*)))))
+                        #:fail (lambda ()
+                                 (*unknown-f-ops* (cons 'id_f (*unknown-f-ops*)))
+                                 (λ args ((operator-info 'operator 'racketfl) args))))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
              [fl (λ args (apply (if (flag-set? 'precision 'double) id_d id_f) args))]
              [key value] ...)))]))
