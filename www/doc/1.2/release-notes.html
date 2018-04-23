@@ -61,6 +61,17 @@
       accurate values for conditionals in <code>if</code> statements.
       This should make different runs of Herbie produce more similar
       results.</li>
+    <li>Herbie can now efficiently sample from preconditions such
+      as <code>(or (&lt; 1 x 2) (&lt; 1001 x 1002))</code>. Previously
+      such preconditions would produce to the dreaded
+      “<a href="faq.html#sample-valid-points">could not sample</a>”
+      error message.</li>
+    <li>Herbie has become much more inventive in what expressions it
+      can branch on. This leads to more accurate results, but also
+      slower runtime, since there are many more options to
+      investigate. If the slowness is a problem, toggle the
+      <kbd><a href="options.html">reduce:branch-expressions</a></kbd>
+      option.</li>
   </ul>
 
   <!-- TODO Update plot somehow? -->

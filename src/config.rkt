@@ -11,14 +11,14 @@
   #hash([precision . (double)]
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error post-process binary-search)]
+        [reduce . (regimes taylor simplify avg-error post-process binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex)]))
 
 (define default-flags
   #hash([precision . (double)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error binary-search)]
+        [reduce . (regimes taylor simplify avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex)]))
 
 (define (enable-flag! category flag)
