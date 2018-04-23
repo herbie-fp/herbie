@@ -16,6 +16,7 @@
 
 (FPCore (x)
  :name "tanhf (example 3.4)"
+ :herbie-expected 2
  :herbie-target
  (tan (/ x 2))
 
