@@ -89,7 +89,8 @@
                  [coeffs (get-coeffs expts)])
             (if (not coeffs)
                 (loop empty res (+ 1 i))
-                (let ([coeff (get-taylor coeffs)])
+                (let ([coeff (for/fold ([coeff (get-taylor coeffs)]) ([var vars] [tform tforms])
+                               (replace-expression coeff var ((cdr tform) var)))])
                   (if (equal? coeff 0)
                       (loop (+ empty 1) res (+ 1 i))
                       (loop 0 (cons (make-term coeff
