@@ -132,12 +132,12 @@
     ; expr _ _ _ _ -> (list (list change))
     (reap (sow)
           (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
-              (when (or
-                      (not ghead) ; Any results work for me
-                      (and
-                        (list? (rule-output rule))
-                        (= (length (rule-output rule)) glen)
-                        (eq? (car (rule-output rule)) ghead)))
+            (when (or
+                    (not ghead) ; Any results work for me
+                    (and
+                      (list? (rule-output rule))
+                      (= (length (rule-output rule)) glen)
+                      (eq? (car (rule-output rule)) ghead)))
               (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
                 (for ([option options])
                   ; Each option is a list of change lists

@@ -77,9 +77,6 @@
     (table-set! operators 'operator
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
-(define (bffmod x mod)
-  (bf- x (bf* mod (bffloor (bf/ x mod)))))
-
 (define-operator (+ real real) real 
   [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
   [fl +] [bf exact+] [cost 40]
@@ -274,6 +271,9 @@
   [->c/double (curry format "fmin(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{fmin}\\left(~a, ~a\\right)")])
+
+(define (bffmod x mod)
+  (bf- x (bf* mod (bffloor (bf/ x mod)))))
 
 (define-operator/libm (fmod real real) real
   [libm fmod fmodf] [bf bffmod] [cost 70]
