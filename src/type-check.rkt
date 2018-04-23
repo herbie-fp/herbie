@@ -9,12 +9,6 @@
           (hash-ref (operator-info fun-name 'type) '*)
           #f)))
 
-;; (define (get-params fun-name num-args)
-;;   (and (get-sigs fun-name num-args) (car (get-sigs fun-name num-args))))
-
-;; (define (get-rt-type fun-name num-args)
-;;   (and (get-sigs fun-name num-args) (cadr (get-sigs fun-name num-args))))
-
 (define (argtypes->rtype argtypes sig)
   (match sig
     [`((* ,argtype) ,rtype)
@@ -54,17 +48,16 @@
     [#`,(? constant? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define t #f)
+     (define t 'real)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env error!))
-       (if (not t) (set! t actual-type) #f)
+       (if (= i 0) (set! t actual-type) #f)
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
-     ; if we have at least one complex type in exprs we return complex otherwise real
      t]
     [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
-     (unless sigs (error "Operator has no type signature" op (length exprs)))
+     (unless sigs (error "Operator ~a has no type signature of length ~a" op (length exprs)))
 
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
      (define rtype
@@ -128,5 +121,5 @@
   (check-type 'complex #'(complex 2 3))
   (check-type 'complex #'(+ (complex 1 2) (complex 3 4)))
   (check-fails #'(+ 2 (complex 1 2)))
-  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4))))
-  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool))))
+  (check-type 'real #'(+))
+  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4)))))

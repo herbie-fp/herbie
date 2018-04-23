@@ -1,5 +1,6 @@
 ; -*- mode: scheme -*-
 
+; TODO: exp function unimplemented.
 #;(FPCore (xre xim)
   :name "exp with complex power real part (p55)"
   (let ([x (complex xre xim)])

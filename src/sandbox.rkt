@@ -108,7 +108,7 @@
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
-      (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
+      (let*-values ([(reals infs) (partition ordinary-value? (map - end-errors start-errors))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score

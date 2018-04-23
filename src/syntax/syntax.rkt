@@ -3,6 +3,7 @@
 (require math/flonum)
 (require math/bigfloat)
 (require "../common.rkt")
+(require "../bigcomplex.rkt")
 
 (provide constant? variable? operator? operator-info constant-info)
 
@@ -60,7 +61,7 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table operators
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? pair?) (or/c bigfloat? boolean? pair?))]
+  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? bigcomplex?) (or/c bigfloat? boolean? bigcomplex?))]
   [fl    (unconstrained-argument-number-> (or/c flonum? boolean? complex?) (or/c flonum? boolean? complex?))]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (listof (list/c (or/c (listof type?) (list/c '* type?)) type?)))]
@@ -78,92 +79,6 @@
 
 (define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
-
-(define (bf-make-rectangular x y)
-  (cons x y))
-
-(define bf-real-part car)
-(define bf-imag-part cdr)
-
-(define (bf-complex-add x y)
-  (cons (bf+ (bf-real-part x) (bf-real-part y)) (bf+ (bf-imag-part x) (bf-imag-part y))))
-
-(define (bf-complex-sub x [y #f])
-  (if y
-      (bf-complex-add x (bf-complex-neg y))
-      (bf-complex-neg x)))
-
-(define (bf-complex-neg x)
-  (cons (bf- (bf-real-part x)) (bf- (bf-imag-part x))))
-
-(define (bf-complex-mult x y)
-  (cons (bf+ (bf* (bf-real-part x) (bf-real-part y)) (bf- (bf* (bf-imag-part x) (bf-imag-part y))))
-        (bf+ (bf* (bf-imag-part x) (bf-real-part y)) (bf* (bf-real-part x) (bf-imag-part y)))))
-
-(define (bf-complex-conjugate x)
-  (cons (bf-real-part x) (bf- (bf-imag-part x))))
-
-(define (bf-complex-sqr x)
-  (bf-complex-mult x x))
-
-(define (bf-complex-exp x)
-  (match-define (cons re im) x)
-  (define scale (bfexp re))
-  (cons (bf* scale (bfcos im)) (bf* scale (bfsin im))))
-
-(define (bf-complex-log x)
-  (match-define (cons re im) x)
-  (define mag (bfhypot re im))
-  (define arg (bfatan2 im re))
-  (cons (bflog mag) arg))
-
-(define (bf-complex-sqrt x)
-  (bf-complex-pow x (cons (bf 0.5) 0.bf)))
-
-(define (bf-complex-pow x n)
-  (bf-complex-exp (bf-complex-mult n (bf-complex-log x))))
-
-(define (bf-complex-div x y)
-  (define numer (bf-complex-mult x (bf-complex-conjugate y)))
-  (define denom (bf-complex-mult y (bf-complex-conjugate y)))
-  (cons (bf/ (bf-real-part numer) (bf-real-part denom)) (bf/ (bf-imag-part numer) (bf-real-part denom))))
-
-(define (make-exact-fun bf-fun bf-complex-fun)
-  (lambda args
-    (match args
-      [(list (? bigfloat?) ...)
-       (apply bf-fun args)]
-      [(list (? pair?) ...)
-       (apply bf-complex-fun args)])))
-
-(require (only-in racket/base [exp e]))
-#;(define exp-for-type
-  (lambda arg
-    (match arg
-      [(list (? real?))
-       (apply _flexp arg)]
-      [(list (? complex?))
-       (apply e arg)])))
-
-(define exact+ (make-exact-fun bf+ bf-complex-add))
-(define exact- (make-exact-fun bf- bf-complex-sub))
-(define exact* (make-exact-fun bf* bf-complex-mult))
-(define exact/ (make-exact-fun bf/ bf-complex-div))
-(define exact-exp (make-exact-fun bfexp bf-complex-exp))
-(define exact-log (make-exact-fun bflog bf-complex-log))
-(define exact-pow (make-exact-fun bfexpt bf-complex-pow))
-(define exact-sqr (make-exact-fun bfsqr bf-complex-sqr))
-(define exact-sqrt (make-exact-fun bfsqrt bf-complex-sqrt))
-
-(module+ test
-  (define (bf-complex-eq-approx bf1 bf2)
-    (check-equal? (bfround (car bf1)) (bfround (car bf2)))
-    (check-equal? (bfround (cdr bf1)) (bfround (cdr bf2))))
-  (require rackunit)
-  (check-equal? (bf-complex-mult (cons (bf 5) (bf 2)) (cons (bf 7) (bf 12))) (cons (bf 11) (bf 74)))
-  (check-equal? (bf-complex-div (cons (bf 5) (bf 2)) (cons (bf 7) (bf 4))) (cons (bf 43/65) (bf -6/65)))
-  (bf-complex-eq-approx (bf-complex-pow (cons (bf 2) (bf 3)) (cons (bf 3) (bf 0))) (cons (bf (- 46)) (bf 9)))
-  (bf-complex-eq-approx (bf-complex-pow (cons (bf 2) (bf 3)) (cons (bf 4) (bf 0))) (cons (bf (- 119)) (bf (- 120)))))
 
 (define-operator (+ real real) real 
   [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
@@ -299,7 +214,6 @@
 
 (define-operator/libm (exp real) real
   [libm exp expf]
-  [type (hash 1 '(((real) real) ((complex) complex)))]
   [bf exact-exp] [cost 70]
   [->c/double (curry format "exp(~a)")]
   [->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)")]
@@ -393,7 +307,6 @@
 
 (define-operator/libm (log real) real
   [libm log logf]
-  [type (hash 1 '(((real) real) ((complex) complex)))]
   [bf exact-log] [cost 70]
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
@@ -466,7 +379,6 @@
 
 (define-operator/libm (sqrt real) real
   [libm sqrt sqrtf]
-  [type (hash 1 '(((real) real) ((complex) complex)))]
   [bf exact-sqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
@@ -558,34 +470,30 @@
 
 (define-operator (complex real real) complex
   ; Override number of arguments
-  [type #hash((2 . (((real real) complex))))]
   [fl make-rectangular] [bf bf-make-rectangular] [cost 0]
-  [->c/double (const "/* ERROR: no complex support in C */")] ; TODO
-  [->c/mpfr (const "/* ERROR: no complex support in C */")] ; TODO: cannot handle variary =
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "~a + ~a i")])
 
 (define-operator (re complex) real
   ; Override number of arguments
-  [type #hash((1 . (((complex) real))))]
-  [fl real-part] [bf bf-real-part] [cost 0]
-  [->c/double (const "/* ERROR: no complex support in C */")] ; TODO
-  [->c/mpfr (const "/* ERROR: no complex support in C */")] ; TODO: cannot handle variary =
+  [fl real-part] [bf bigcomplex-re] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\Re(~a)")])
 
 (define-operator (im complex) real
   ; Override number of arguments
-  [type #hash((1 . (((complex) real))))]
-  [fl imag-part] [bf bf-imag-part] [cost 0]
-  [->c/double (const "/* ERROR: no complex support in C */")] ; TODO
-  [->c/mpfr (const "/* ERROR: no complex support in C */")] ; TODO: cannot handle variary =
+  [fl imag-part] [bf bigcomplex-im] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\Im(~a)")])
 
 (define-operator (conj complex) real
   ; Override number of arguments
-  [type #hash((1 . (((complex) real))))]
   [fl conjugate] [bf bf-complex-conjugate] [cost 0]
-  [->c/double (const "/* ERROR: no complex support in C */")] ; TODO
-  [->c/mpfr (const "/* ERROR: no complex support in C */")] ; TODO: cannot handle variary =
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\overline{~a}")])
 
 (define-operator (!= real real) bool

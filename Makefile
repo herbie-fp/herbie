@@ -18,9 +18,6 @@ nightly:
 index:
 	bash infra/publish.sh index
 
-index:
-	bash infra/publish.sh index
-
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
 	mv src.zip herbie.zip

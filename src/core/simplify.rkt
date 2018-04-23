@@ -177,7 +177,7 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (ordinary-float? res) (exact? res))
+	    (when (and (ordinary-value? res) (exact? res))
 	      (reduce-to-new! eg en res))))))))
 
 (define (hash-set*+ hash assocs)

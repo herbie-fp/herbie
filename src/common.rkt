@@ -10,7 +10,7 @@
 (provide *start-prog*
          reap define-table table-ref table-set!
          first-value assert for/append
-         ordinary-float? =-or-nan? log2 </total
+         ordinary-value? =-or-nan? log2 </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
@@ -100,17 +100,17 @@
 
 ;; Simple floating-point functions
 
-(define (ordinary-float? x)
+(define (ordinary-value? x)
   (match x
     [(? real?)
      (not (or (infinite? x) (nan? x)))]
     [(? complex?)
-     (and (ordinary-float? (real-part x)) (ordinary-float? (imag-part x)))]))
+     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]))
 
 (module+ test
-  (check-true (ordinary-float? 2.5))
-  (check-false (ordinary-float? +nan.0))
-  (check-false (ordinary-float? -inf.f)))
+  (check-true (ordinary-value? 2.5))
+  (check-false (ordinary-value? +nan.0))
+  (check-false (ordinary-value? -inf.f)))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)

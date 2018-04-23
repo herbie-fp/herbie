@@ -163,7 +163,7 @@
 	 [errs (flip-lists err-lsts)])
       (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
 	     [float-val ((eval-prog expr-prog 'fl) pt)]
-	     [pt-val (if (ordinary-float? float-val) float-val
+	     [pt-val (if (ordinary-value? float-val) float-val
 			 ((eval-prog expr-prog 'bf) pt))])
 	(if (or (<= pt-val (sp-point (car rest-splits)))
 		(and (null? (cdr rest-splits)) (nan? pt-val)))

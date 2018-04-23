@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt")
 
 (module+ test (require rackunit))
 
@@ -42,8 +42,8 @@
   (cond
    [(real? x) (convert x)]
    [(bigfloat? x) (convert (bigfloat->flonum x))]
-   [(and (pair? x) (bigfloat? (car x)) (bigfloat? (cdr x)))
-      (make-rectangular (->flonum (car x)) (->flonum (cdr x)))]
+   [(and (bigcomplex? x) (bigfloat? (bigcomplex-re x)) (bigfloat? (bigcomplex-im x)))
+      (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
    [(and (symbol? x) (constant? x))
     (convert ((constant-info x 'fl)))]
    [else x]))
@@ -53,7 +53,7 @@
    [(real? x) (bf x)]
    [(bigfloat? x) x]
    [(complex? x)
-    (cons (->bf (real-part x)) (->bf (imag-part x)))]
+    (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
    [(constant? x) ((constant-info x 'bf))]
    [else x]))
 

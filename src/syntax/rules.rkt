@@ -533,7 +533,7 @@
           (define errs
             (for/list ([v1 ex1] [v2 ex2])
               ;; Ignore points not in the input or output domain
-              (if (and (ordinary-float? v1) (ordinary-float? v2))
+              (if (and (ordinary-value? v1) (ordinary-value? v2))
                   (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
                   #f)))
           (when (< (length (filter identity errs)) 100)

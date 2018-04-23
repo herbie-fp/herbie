@@ -118,6 +118,7 @@
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
   (reap [sow]
+    ; TODO: don't recompute the type of every expression
     (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
       (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
              [result (applyer rule expr)])
