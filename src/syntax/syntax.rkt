@@ -77,11 +77,12 @@
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
         [args (list (length '(atypes ...)))]
-        [racketfl (if (findf (λ (x) (equal? (car x) 'racketfl)) (list '(atypes ...)))
+        ;;TODO: This is a temporary default value. FIX THIS!
+        [racketfl (if (findf (λ (x) (equal? (car x) 'racketfl)) '([key value] ...))
                       '()
-                      (cons 'racketfl (λ args 0.0)))]) ;;TODO: This is a temporary default value. FIX THIS!
+                      (list (cons 'racketfl (λ args 0.0))))])
     (table-set! operators 'operator
-                (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ... racketfl)))))
+                (make-hash (append (list (cons 'type type) (cons 'args args) (cons 'key value) ...) racketfl)))))
 
 (define-operator (+ real real) real
   [fl +] [bf bf+] [cost 40]
