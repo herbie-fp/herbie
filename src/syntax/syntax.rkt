@@ -147,7 +147,7 @@
   [->c/double (curry format "acos(~a)")]
   [->c/mpfr (curry format "mpfr_acos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos^{-1} ~a")]
-  [nonffi (match-lambda [(list x) (acos x)])])
+  [nonffi (match-lambda [(list x) (flacos x)])])
 
 (define-operator/libm (acosh real) real
   [libm acosh acoshf] [bf bfacosh] [cost 55]
@@ -161,7 +161,7 @@
   [->c/double (curry format "asin(~a)")]
   [->c/mpfr (curry format "mpfr_asin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin^{-1} ~a")]
-  [nonffi (match-lambda [(list x) (asin x)])])
+  [nonffi (match-lambda [(list x) (flasin x)])])
 
 (define-operator/libm (asinh real) real
   [libm asinh asinhf] [bf bfasinh] [cost 55]
@@ -175,14 +175,14 @@
   [->c/double (curry format "atan(~a)")]
   [->c/mpfr (curry format "mpfr_atan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1} ~a")]
-  [nonffi (match-lambda [(list x) (atan x)])])
+  [nonffi (match-lambda [(list x) (flatan x)])])
 
 (define-operator/libm (atan2 real real) real
   [libm atan2 atan2f] [bf bfatan2] [cost 140]
   [->c/double (curry format "atan2(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")]
-  [nonffi (match-lambda [(list x y) (atan x y)])])
+  [nonffi (match-lambda [(list x y) (flatan x y)])])
 
 (define-operator/libm (atanh real) real
   [libm atanh atanhf] [bf bfatanh] [cost 55]
@@ -196,14 +196,14 @@
   [->c/double (curry format "cbrt(~a)")]
   [->c/mpfr (curry format "mpfr_cbrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt[3]{~a}")]
-  [nonffi (match-lambda [(list x) (expt x (/ 1 3))])])
+  [nonffi (match-lambda [(list x) (flexpt x (fl (/ 1 3)))])])
 
 (define-operator/libm (ceil real) real
   [libm ceil ceilf] [bf bfceiling] [cost 80]
   [->c/double (curry format "ceil(~a)")]
   [->c/mpfr (curry format "mpfr_ceil(~a, ~a)")]
   [->tex (curry format "\\left\\lceil~a\\right\\rceil")]
-  [nonffi (match-lambda [(list x) (ceiling x)])])
+  [nonffi (match-lambda [(list x) (flceiling x)])])
 
 (define (bfcopysign x y)
   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
@@ -213,21 +213,21 @@
   [->c/double (curry format "copysign(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_copysign(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{copysign}\\left(~a, ~a\\right)")]
-  [nonffi (match-lambda [(list x y) (if (>= y 0) (abs x) (- (abs x)))])])
+  [nonffi (match-lambda [(list x y) (if (>= y 0) (flabs x) (- (flabs x)))])])
 
 (define-operator/libm (cos real) real
   [libm cos cosf] [bf bfcos] [cost 60]
   [->c/double (curry format "cos(~a)")]
   [->c/mpfr (curry format "mpfr_cos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos ~a")]
-  [nonffi (match-lambda [(list x) (cos x)])])
+  [nonffi (match-lambda [(list x) (flcos x)])])
 
 (define-operator/libm (cosh real) real
   [libm cosh coshf] [bf bfcosh] [cost 55]
   [->c/double (curry format "cosh(~a)")]
   [->c/mpfr (curry format "mpfr_cosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh ~a")]
-  [nonffi (match-lambda [(list x) (cosh x)])])
+  [nonffi (match-lambda [(list x) (flcosh x)])])
 
 (define-operator/libm (erf real) real
   [libm erf erff] [bf bferf] [cost 70]
@@ -248,14 +248,14 @@
   [->c/double (curry format "exp(~a)")]
   [->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "e^{~a}")]
-  [nonffi (match-lambda [(list x) (exp x)])])
+  [nonffi (match-lambda [(list x) (flexp x)])])
 
 (define-operator/libm (exp2 real) real
   [libm exp2 exp2f] [bf bfexp2] [cost 70]
   [->c/double (curry format "exp2(~a)")]
   [->c/mpfr (curry format "mpfr_exp2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "2^{~a}")]
-  [nonffi (match-lambda [(list x) (expt 2.0 x)])])
+  [nonffi (match-lambda [(list x) (flexpt 2.0 x)])])
 
 (define-operator/libm (expm1 real) real
   [libm expm1 expm1f] [bf bfexpm1] [cost 70]
@@ -269,7 +269,7 @@
   [->c/double (curry format "fabs(~a)")]
   [->c/mpfr (curry format "mpfr_abs(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\left|~a\\right|")]
-  [nonffi (match-lambda [(list x) (abs x)])])
+  [nonffi (match-lambda [(list x) (flabs x)])])
 
 (define (bffdim x y)
   (if (bf> x y)
@@ -281,14 +281,14 @@
   [->c/double (curry format "fdim(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_dim(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{fdim}\\left(~a, ~a\\right)")]
-  [nonffi (match-lambda [(list x y) (max (- x y) 0)])])
+  [nonffi (match-lambda [(list x y) (flmax (- x y) 0)])])
 
 (define-operator/libm (floor real) real
   [libm floor floorf] [bf bffloor] [cost 55]
   [->c/double (curry format "floor(~a)")]
   [->c/mpfr (curry format "mpfr_floor(~a, ~a)")]
   [->tex (curry format "\\left\\lfloor~a\\right\\rfloor")]
-  [nonffi (match-lambda [(list x) (floor x)])])
+  [nonffi (match-lambda [(list x) (flfloor x)])])
 
 (define (bffma x y z)
   (bf+ (bf* x y) z))
@@ -305,14 +305,14 @@
   [->c/double (curry format "fmax(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{fmax}\\left(~a, ~a\\right)")]
-  [nonffi (match-lambda [(list x y) (cond  [(nan? x) y] [(nan? y) x] [else (max x y)])])])
+  [nonffi (match-lambda [(list x y) (cond  [(nan? x) y] [(nan? y) x] [else (flmax x y)])])])
 
 (define-operator/libm (fmin real real) real
   [libm fmin fminf] [bf bfmin] [cost 55]
   [->c/double (curry format "fmin(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{fmin}\\left(~a, ~a\\right)")]
-  [nonffi (match-lambda [(list x y) (cond  [(nan? x) y] [(nan? y) x] [else (min x y)])])])
+  [nonffi (match-lambda [(list x y) (cond  [(nan? x) y] [(nan? y) x] [else (flmin x y)])])])
 
 (define (bffmod x mod)
   (bf- x (bf* mod (bffloor (bf/ x mod)))))
@@ -350,21 +350,21 @@
   [->c/double (curry format "lgamma(~a)")]
   [->c/mpfr (curry format "mpfr_lngamma(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_* \\left( \\mathsf{gamma} ~a \\right)")]
-  [nonffi (match-lambda [(list x) (log-gamma x)])])
+  [nonffi (match-lambda [(list x) (fllog-gamma x)])])
 
 (define-operator/libm (log real) real
   [libm log logf] [bf bflog] [cost 70]
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log ~a")]
-  [nonffi (match-lambda [(list x) (log x)])])
+  [nonffi (match-lambda [(list x) (fllog x)])])
 
 (define-operator/libm (log10 real) real
   [libm log10 log10f] [bf bflog10] [cost 70]
   [->c/double (curry format "log10(~a)")]
   [->c/mpfr (curry format "mpfr_log10(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{10} ~a")]
-  [nonffi (match-lambda [(list x) (log x 10)])])
+  [nonffi (match-lambda [(list x) (fllog x (fl 10))])])
 
 (define-operator/libm (log1p real) real
   [libm log1p log1pf] [bf bflog1p] [cost 90]
@@ -408,7 +408,7 @@
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^{~a}")]
-  [nonffi (match-lambda [(list x y) (expt x y)])])
+  [nonffi (match-lambda [(list x y) (flexpt x y)])])
 
 (define-operator/libm (remainder real real) real
   [libm remainder remainderf] [bf bfremainder] [cost 70]
@@ -436,49 +436,49 @@
   [->c/double (curry format "sin(~a)")]
   [->c/mpfr (curry format "mpfr_sin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin ~a")]
-  [nonffi (match-lambda [(list x) (sin x)])])
+  [nonffi (match-lambda [(list x) (flsin x)])])
 
 (define-operator/libm (sinh real) real
   [libm sinh sinhf] [bf bfsinh] [cost 55]
   [->c/double (curry format "sinh(~a)")]
   [->c/mpfr (curry format "mpfr_sinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh ~a")]
-  [nonffi (match-lambda [(list x) (sinh x)])])
+  [nonffi (match-lambda [(list x) (flsinh x)])])
 
 (define-operator/libm (sqrt real) real
   [libm sqrt sqrtf] [bf bfsqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi (match-lambda [(list x) (sqrt x)])])
+  [nonffi (match-lambda [(list x) (flsqrt x)])])
 
 (define-operator/libm (tan real) real
   [libm tan tanf] [bf bftan] [cost 95]
   [->c/double (curry format "tan(~a)")]
   [->c/mpfr (curry format "mpfr_tan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan ~a")]
-  [nonffi (match-lambda [(list x) (tan x)])])
+  [nonffi (match-lambda [(list x) (fltan x)])])
 
 (define-operator/libm (tanh real) real
   [libm tanh tanhf] [bf bftanh] [cost 55]
   [->c/double (curry format "tanh(~a)")]
   [->c/mpfr (curry format "mpfr_tanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh ~a")]
-  [nonffi (match-lambda [(list x) (tanh x)])])
+  [nonffi (match-lambda [(list x) (fltanh x)])])
 
 (define-operator/libm (tgamma real) real
   [libm tgamma tgammaf] [bf bfgamma] [cost 55]
   [->c/double (curry format "tgamma(~a)")]
   [->c/mpfr (curry format "mpfr_gamma(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{gamma} ~a")]
-  [nonffi (match-lambda [(list x) (gamma x)])])
+  [nonffi (match-lambda [(list x) (flgamma x)])])
 
 (define-operator/libm (trunc real) real
   [libm trunc truncf] [bf bftruncate] [cost 55]
   [->c/double (curry format "trunc(~a)")]
   [->c/mpfr (curry format "mpfr_trunc(~a, ~a)")]
   [->tex (curry format "\\mathsf{trunc} ~a")]
-  [nonffi (match-lambda [(list x) (truncate x)])])
+  [nonffi (match-lambda [(list x) (fltruncate x)])])
 
 (define-operator/libm (y0 real) real
   [libm y0 y0f] [bf bfbesy0] [cost 55]
@@ -492,7 +492,7 @@
   [->c/double (curry format "y1(~a)")]
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y1} ~a")]
-  [nonffi (match-lambda [(list x) (bigfloat->flonum (bfbesy1 (bf (car x))))])])
+  [nonffi (match-lambda [(list x) (bigfloat->flonum (bfbesy1 (bf x)))])])
 
 ;; DEPRECATED
 
