@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt")
+(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt" "syntax/syntax.rkt")
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
@@ -24,6 +24,12 @@
   (define report-profile? #f)
   (define report-note #f)
 
+  (unless (if (flag-set? 'precision 'double) (null? (*unknown-d-ops*)) (null? (*unknown-f-ops*)))
+    (eprintf "Warning: native ~a not supported on your system; fallbacks will be used.\n"
+             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
+                          ", "))
+    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
+             *herbie-version*))
 
   (multi-command-line
    #:program "herbie"
