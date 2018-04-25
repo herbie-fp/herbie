@@ -84,6 +84,7 @@
         'date-short (date->string/short date)
         'date-unix (date->seconds date)
         'folder (path->string folder)
+        'hostname hostname
         'commit commit
         'branch branch
         'options (map ~a (get-options info))
