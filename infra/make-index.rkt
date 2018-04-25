@@ -47,7 +47,22 @@
 
 (define *cache* (make-parameter (make-hasheq)))
 
-(define (compute-row folder)
+(define key-contracts
+  (hash string? '(date-full date-short folder commit branch hostname)
+        (or/c string? false) '(note)
+        exact-nonnegative-integer? '(date-unix tests-passed tests-available)
+        (listof string?) '(options)
+        (and/c real? (curryr >= 0)) '(bits-improved bits-available)))
+
+(define cache-row?
+  (apply and/c hash?
+         (for*/list ([(valid? keys) (in-hash key-contracts)] [key keys])
+           (make-flat-contract
+            #:name key
+            #:first-order (λ (x) (and (hash-has-key? x key) (valid? (hash-ref x key))))))))
+
+(define/contract (compute-row folder)
+  (-> path? cache-row?)
   (eprintf "Reading ~a\n" folder)
   (define info (read-datafile (build-path report-json-path folder "results.json")))
   (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
@@ -109,7 +124,10 @@
 
 (define (make-index-page)
   (when (file-exists? (build-path report-json-path "index.cache"))
-    (*cache* (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json))))
+    (define cached-info (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json)))
+    (if (for/and ([(k v) (in-hash cached-info)]) (cache-row? v))
+        (*cache* cached-info)
+        (eprintf "Ignoring cache; contains invalid values")))
 
   (define dirs (directory-jsons report-json-path))
   (define folders
