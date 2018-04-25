@@ -388,20 +388,7 @@
   [->c/double (curry format "logb(~a)")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)")]
   [->tex (curry format "\\log^{*}_{b} ~a")]
-  [nonffi (match-lambda [(list x) (cond 
-    [(or (= x +inf.0) (= x -inf.0)) +inf.0]
-    [(nan? x) x]
-    [(= x 0) -inf.0]
-    ;; Manually extract exponent from double or float
-    [else (if (flag-set? 'precision 'double)
-              (- (arithmetic-shift (bitwise-and #x7ff0000000000000
-                                                (flonum->bit-field x))
-                                   -52)
-                 (1023))
-              (- (arithmetic-shift (bitwise-and #x7f800000 ;; TODO: This doesn't work
-                                                (single-flonum->bit-field (real->single-flonum x)))
-                                   -23)
-                 (127)))])])])
+  [nonffi (match-lambda [(list x) (writeln "test") (flfloor (fllog2 (flabs (fl x))))])])
 
 (define-operator/libm (pow real real) real
   [libm pow powf] [bf bfexpt] [cost 210]
