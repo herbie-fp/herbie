@@ -298,7 +298,15 @@
   [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
   [tan-PI      (tan PI)              0]
   [tan-+PI     (tan (+ x PI))        (tan x)]
-  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
+  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))]
+  [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
+  [hang-0m-tan (/ (- (sin a)) (+ 1 (cos a))) (tan (/ (- a) 2))]
+  [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
+  [hang-m0-tan (/ (- 1 (cos a)) (- (sin a))) (tan (/ (- a) 2))]
+  [hang-p-tan  (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))
+               (tan (/ (+ a b) 2))]
+  [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
+               (tan (/ (- a b) 2))])
 
 (define-ruleset trig-reduce-fp-sound (trigonometry simplify fp-safe)
   [sin-0       (sin 0)               0]
@@ -346,7 +354,11 @@
   [diff-atan   (- (atan x) (atan y))     (atan2 (- x y) (+ 1 (* x y)))]
   [sum-atan    (+ (atan x) (atan y))     (atan2 (+ x y) (- 1 (* x y)))]
   [tan-quot    (tan x)                   (/ (sin x) (cos x))]
-  [quot-tan    (/ (sin x) (cos x))       (tan x)])
+  [quot-tan    (/ (sin x) (cos x))       (tan x)]
+  [tan-hang-p  (tan (/ (+ a b) 2))
+               (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
+  [tan-hang-m  (tan (/ (- a b) 2))
+               (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
 (define-ruleset trig-expand-fp-safe (trignometry fp-safe)
   [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
