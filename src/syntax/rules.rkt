@@ -225,11 +225,9 @@
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
+  [unpow2          (pow a 2)                  (* a a)]
   [unpow3          (pow a 3)                  (* (* a a) a)]
-  [unpow1/3        (pow a 1/3)                (cbrt a)] )
-
-(define-ruleset pow-canonicalize-fp-safe (exponents simplify fp-safe)
-  [unpow2          (pow a 2)                  (* a a)])
+  [unpow1/3        (pow a 1/3)                (cbrt a)])
 
 (define-ruleset pow-transform (exponents)
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
@@ -491,7 +489,8 @@
   (define *skip-tests*
     ;; All these tests fail due to underflow to 0 and are irrelevant
     '(exp-prod pow-unpow pow-pow pow-exp
-      asinh-2 tanh-1/2* sinh-cosh))
+      asinh-2 tanh-1/2* sinh-cosh
+      hang-p0-tan hang-m0-tan))
 
   (for ([test-rule (*rules*)] #:when (not (set-member? *skip-tests* (rule-name test-rule))))
     (parameterize ([bf-precision 2000])
