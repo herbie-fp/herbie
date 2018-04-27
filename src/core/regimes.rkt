@@ -271,21 +271,26 @@
   (reverse (cse-splitpoints (last final))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
-  (let* ([expr (sp-bexpr (car splitpoints))]
-	 [variables (program-variables (*start-prog*))]
-	 [intervals (map cons (cons #f (drop-right splitpoints 1))
-			 splitpoints)])
-    (for/list ([i (in-range num-alts)])
-      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
-	(debug #:from 'splitpoints "intervals are: " p-intervals)
-	(λ (p)
-	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) 'fl) p)])
-	    (for/or ([point-interval p-intervals])
-	      (let ([lower-bound (if (car point-interval) (sp-point (car point-interval)) #f)]
-		    [upper-bound (sp-point (cdr point-interval))])
-                (or (and (nan? expr-val) (= i (- num-alts 1)))
-                    (and (or (not lower-bound) (lower-bound . < . expr-val))
-                         (expr-val . <= . upper-bound)))))))))))
+  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (andmap (compose not nan? sp-point) (cdr splitpoints)))
+  (define expr `(λ ,(program-variables (*start-prog*)) ,(sp-bexpr (car splitpoints))))
+  (define prog (eval-prog expr 'fl))
+
+  (define (alt pt)
+    (define val (prog pt))
+    (or
+     (for/first ([left (cons #f splitpoints)] [right splitpoints]
+                 #:when (or (not left) (< (sp-point left) val) (nan? (sp-point left)))
+                 ;; Note: if (nan? val) but not (nan? (sp-point left)),
+                 ;; then not (nan? (sp-point right)), and since all comparisons with nan
+                 ;; are false, the last condition will also be false.
+                 #:when (or (and (nan? val) (nan? (sp-point right))) (<= val (sp-point right))))
+       (sp-cidx right))
+     ;; If every interval failed, then val < +inf must have failed, so (nan? val)
+     (sp-cidx (last splitpoints))))
+
+  (for/list ([i (in-range num-alts)])
+    (λ (pt) (equal? (alt pt) i))))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))])
@@ -296,5 +301,18 @@
     (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
 
     (check-true (p0? '(0 -1)))
+    (check-true (p2? '(-1 1)))
+    (check-true (p1? '(+1 1)))
+    (check-true (p1? '(0 0))))
+
+  (parameterize ([*start-prog* '(λ (x y) (/ x y))])
+    (define sps
+      (list (sp 0 '(/ y x) +nan.0)
+            (sp 2 '(/ y x) 0.0)
+            (sp 1 '(/ y x) +inf.0)))
+    (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
+
+    (check-true (p0? '(0 0)))
+    (check-true (p2? '(0 -1)))
     (check-true (p2? '(-1 1)))
     (check-true (p1? '(+1 1)))))
