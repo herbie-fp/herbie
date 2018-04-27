@@ -62,7 +62,7 @@
   (define expr
     (for/fold
         ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
-        ([splitpoint (reverse splitpoints)])
+        ([splitpoint (cdr (reverse splitpoints))])
       (define test
         (if (nan? (sp-point splitpoint))
             `(!= ,(sp-bexpr splitpoint) ,(sp-bexpr splitpoint))

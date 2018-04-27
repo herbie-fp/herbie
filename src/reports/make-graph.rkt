@@ -303,11 +303,11 @@
              (λ (ival)
                (string-join
                 (list
-                 (if (ordinary-float? (interval-start-point ival))
+                 (if (interval-start-point ival)
                      (format "~a < " (interval-start-point ival))
                      "")
                  (~a (interval-expr ival))
-                 (if (ordinary-float? (interval-end-point ival))
+                 (if (equal? (interval-end-point ival) +inf.0)
                      (format " < ~a" (interval-end-point ival))
                      ""))))])
        `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
