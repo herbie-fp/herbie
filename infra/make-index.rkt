@@ -144,7 +144,7 @@
      > #:key (λ (x) (dict-ref (first x) 'date-unix))))
 
   (define-values (master-info* other-infos)
-    (partition (λ (x) (equal? (dict-ref (first x) 'branch) "master"))
+    (partition (λ (x) (equal? (dict-ref (first x) 'branch) "develop"))
                branch-infos*))
   (define master-info (if (null? master-info*) '() (first master-info*)))
 
@@ -166,7 +166,7 @@
          (div "Reports: " (span ((class "number")) ,(~a (length folders))))
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
          ,(if master-info
-              `(div "On Master: " (span ((class "number")) ,(~a (length master-info))))
+              `(div "On Develop: " (span ((class "number")) ,(~a (length master-info))))
               ""))
         (ul ((id "toc"))
             ,@(for/list ([rows (if master-info (cons master-info other-infos) other-infos)])
@@ -180,7 +180,7 @@
         (table
          ((id "reports"))
          ,@(if master-info
-               (print-rows master-info #:name "master")
+               (print-rows master-info #:name "develop")
                '())
          ,@(apply
             append
