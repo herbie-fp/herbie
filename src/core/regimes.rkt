@@ -18,14 +18,24 @@
 (define (infer-splitpoints alts [axis #f])
   (match alts
    [(list alt)
-    (list (list (sp 0 0 +inf.0)) (list alt))]
+    (list (list (sp 0 0 +nan.0)) (list alt))]
    [_
     (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
     (define options
       (map (curry option-on-expr alts)
            (if axis (list axis) (exprs-to-branch-on alts))))
     (define options*
-      (for/list ([option options] #:unless (check-duplicates (map sp-point (option-splitpoints option))))
+      ;; This is a hack. If the bexpr evaluates to the same value for
+      ;; several points, we need to avoid placing a split point
+      ;; between them. We don't do that. Instead, we (implicitly) move
+      ;; the splitpoint to the right until all points with the same
+      ;; value are grouped. Perhaps this will ruin a promising option,
+      ;; but oh well. But this can cause the problem with having two
+      ;; split points in the same place! Right now, we just avoid
+      ;; those options totally, but really, they could be good, and we
+      ;; shouldn't just drop them.
+      (for/list ([option options]
+                 #:unless (check-duplicates (map sp-point (option-splitpoints option))))
         option))
     (define best-option (argmin (compose errors-score option-errors) options*))
     (define splitpoints (option-splitpoints best-option))
@@ -98,7 +108,7 @@
   (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
   (define split-indices (err-lsts->split-indices merged-err-lsts))
   (define split-points (sindices->spoints pts expr alts split-indices))
-  (option split-points (pick-errors split-points pts err-lsts vars)))
+  (option split-points (pick-errors split-points pts err-lsts)))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -142,7 +152,7 @@
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr
-	       +inf.0)))))
+	       +nan.0)))))
 
 (define (merge-err-lsts pts errs)
   (let loop ([pt (car pts)] [pts (cdr pts)] [err (car errs)] [errs (cdr errs)])
@@ -157,26 +167,23 @@
        point
        (range (length point))))
 
-(define (pick-errors splitpoints pts err-lsts variables)
-  (reverse
-    (first-value
-      (for/fold ([acc '()] [rest-splits splitpoints])
-	              ([pt (in-list pts)]
-	               [errs (flip-lists err-lsts)])
-        (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
-	             [pt-val ((eval-prog expr-prog 'fl) pt)])
-          (if (or (<= pt-val (sp-point (car rest-splits)))
-                  (and (null? (cdr rest-splits)) (nan? pt-val)))
-              (if (nan? pt-val)
-                  ;; TODO: once complex support is added, rethink NaNs created from
-                  ;; complex expressions (e.g. (sqrt -1))
-                  (values (cons (list-ref errs (sp-cidx (last rest-splits)))
-                                acc)
-                          rest-splits)
-                  (values (cons (list-ref errs (sp-cidx (car rest-splits)))
-                                acc)
-                          rest-splits))
-              (values acc (cdr rest-splits))))))))
+(define (point->alt splitpoints)
+  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (nan? (sp-point (last splitpoints))))
+  (define expr `(λ ,(program-variables (*start-prog*)) ,(sp-bexpr (car splitpoints))))
+  (define prog (eval-prog expr 'fl))
+
+  (λ (pt)
+    (define val (prog pt))
+    (for/first ([right splitpoints]
+                #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
+      ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
+      (sp-cidx right))))
+
+(define (pick-errors splitpoints pts err-lsts)
+  (define which-alt (point->alt splitpoints))
+  (for/list ([pt pts] [errs (flip-lists err-lsts)])
+    (list-ref errs (which-alt pt))))
 
 (define (with-entry idx lst item)
   (if (= idx 0)
@@ -271,48 +278,20 @@
   (reverse (cse-splitpoints (last final))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
-  (assert (all-equal? (map sp-bexpr splitpoints)))
-  (assert (andmap (compose not nan? sp-point) (cdr splitpoints)))
-  (define expr `(λ ,(program-variables (*start-prog*)) ,(sp-bexpr (car splitpoints))))
-  (define prog (eval-prog expr 'fl))
-
-  (define (alt pt)
-    (define val (prog pt))
-    (or
-     (for/first ([left (cons #f splitpoints)] [right splitpoints]
-                 #:when (or (not left) (< (sp-point left) val) (nan? (sp-point left)))
-                 ;; Note: if (nan? val) but not (nan? (sp-point left)),
-                 ;; then not (nan? (sp-point right)), and since all comparisons with nan
-                 ;; are false, the last condition will also be false.
-                 #:when (or (and (nan? val) (nan? (sp-point right))) (<= val (sp-point right))))
-       (sp-cidx right))
-     ;; If every interval failed, then val < +inf must have failed, so (nan? val)
-     (sp-cidx (last splitpoints))))
-
+  (define which-alt (point->alt splitpoints))
   (for/list ([i (in-range num-alts)])
-    (λ (pt) (equal? (alt pt) i))))
+    (λ (pt) (equal? (which-alt pt) i))))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)
-            (sp 1 '(/ y x) +inf.0)))
+            (sp 0 '(/ y x) +inf.0)
+            (sp 1 '(/ y x) +nan.0)))
     (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
 
     (check-true (p0? '(0 -1)))
     (check-true (p2? '(-1 1)))
-    (check-true (p1? '(+1 1)))
-    (check-true (p1? '(0 0))))
-
-  (parameterize ([*start-prog* '(λ (x y) (/ x y))])
-    (define sps
-      (list (sp 0 '(/ y x) +nan.0)
-            (sp 2 '(/ y x) 0.0)
-            (sp 1 '(/ y x) +inf.0)))
-    (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
-
-    (check-true (p0? '(0 0)))
-    (check-true (p2? '(0 -1)))
-    (check-true (p2? '(-1 1)))
-    (check-true (p1? '(+1 1)))))
+    (check-true (p0? '(+1 1)))
+    (check-true (p1? '(0 0)))))

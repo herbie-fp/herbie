@@ -63,10 +63,7 @@
     (for/fold
         ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
         ([splitpoint (cdr (reverse splitpoints))])
-      (define test
-        (if (nan? (sp-point splitpoint))
-            `(!= ,(sp-bexpr splitpoint) ,(sp-bexpr splitpoint))
-            `(<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))))
+      (define test `(<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint)))
       `(if ,test ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint)))) ,expr)))
   (make-regime-alt `(λ ,(program-variables (*start-prog*)) ,expr) alts splitpoints))
 

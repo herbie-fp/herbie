@@ -120,8 +120,8 @@
 
 (define (</total x1 x2)
   (cond
-   [(nan? x2) #f]
-   [(nan? x1) #t]
+   [(nan? x1) #f]
+   [(nan? x2) #t]
    [else (< x1 x2)]))
 
 (define (log2 x)

@@ -293,7 +293,7 @@
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt-event _ `(regimes ,splitpoints) prevs)
-     (let* ([start-sps (cons (sp -1 -1 -inf.0) (take splitpoints (sub1 (length splitpoints))))]
+     (let* ([start-sps (cons (sp -1 -1 #f) (take splitpoints (sub1 (length splitpoints))))]
             [vars (program-variables (alt-program altn))]
             [intervals
              (for/list ([start-sp start-sps] [end-sp splitpoints])
@@ -307,9 +307,9 @@
                      (format "~a < " (interval-start-point ival))
                      "")
                  (~a (interval-expr ival))
-                 (if (equal? (interval-end-point ival) +inf.0)
-                     (format " < ~a" (interval-end-point ival))
-                     ""))))])
+                 (if (equal? (interval-end-point ival) +nan.0)
+                     ""
+                     (format " < ~a" (interval-end-point ival))))))])
        `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
          (li
           ,@(apply
