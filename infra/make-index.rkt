@@ -50,7 +50,7 @@
 (define key-contracts
   (hash string? '(date-full date-short folder commit branch hostname)
         (or/c string? false) '(note)
-        exact-nonnegative-integer? '(date-unix tests-passed tests-available)
+        exact-nonnegative-integer? '(date-unix tests-passed tests-available tests-crashed)
         (listof string?) '(options)
         (and/c real? (curryr >= 0)) '(bits-improved bits-available)))
 
@@ -79,6 +79,8 @@
   (define total-available
     (for/sum ([row (or tests '())])
       (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+  (define total-crashed
+    (count (compose (curry equal? "crash") table-row-status) (or tests '())))
 
   (hash 'date-full (format "~a:~a on ~a" (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0") (date->string date))
         'date-short (date->string/short date)
@@ -91,6 +93,7 @@
         'note note
         'tests-passed total-passed
         'tests-available total-available
+        'tests-crashed total-crashed
         'bits-improved (- total-start total-end)
         'bits-available total-start))
 
@@ -110,7 +113,7 @@
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
 
-         `(tr
+         `(tr ([class ,(if (> (field 'tests-crashed) 0) "crash" "")])
            ;; TODO: Best to output a datetime field in RFC3338 format,
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])

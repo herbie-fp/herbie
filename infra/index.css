@@ -40,6 +40,7 @@ figure a { color: black; text-decoration: none; display: block; }
 #toc a:hover {text-decoration: underline; color: #295785}
 
 #reports { border-collapse: collapse; width:100%; position: relative; }
+#reports tr.crash { color: red; }
 #reports td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
 #reports tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
 #reports td:nth-child(2), #reports th:nth-child(2) { text-align: center; display: none; }
