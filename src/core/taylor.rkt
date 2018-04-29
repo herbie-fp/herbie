@@ -490,3 +490,10 @@
                                                                  `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
                                                       (pow ,(coeffs 0) ,(- k))))])))
                               ,(factorial n))))))))))
+
+(module+ test
+  (require rackunit)
+  (check-true
+   (or (approximate '(/ (* x (* (* (pow z y) (pow a t)) 1)) (* y (* (pow a 1.0) (exp b))))
+                    '(x z y a t b))
+       true)))
