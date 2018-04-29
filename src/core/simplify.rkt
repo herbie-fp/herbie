@@ -138,16 +138,19 @@
                  ;; invalidate any change in bindings, it seems like
                  ;; the right thing to do for now.
                  [en (pack-leader en)]
-                 [bindings* (match-e (rule-input rl) en)])
+                 [bindings* (match-e (rule-input rl) en)]
+                 [applied #f])
           ;; Apply the match for each binding.
           (for ([binding bindings]
                 #:when (set-member? bindings* binding))
-            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-          ;; Prune the enode if we can.
-          (try-prune-enode en)
-          ;; Mark this node as having this rule applied so that we don't try
-          ;; to apply it again.
-          (rule-applied! en rl)))
+            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))
+            (set! applied #t))
+          (when applied
+            ;; Prune the enode if we can.
+            (try-prune-enode en)
+            ;; Mark this node as having this rule applied so that we don't try
+            ;; to apply it again.
+            (rule-applied! en rl))))
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
