@@ -238,7 +238,7 @@
                         (simplify `(+ (* (- ,(car arg*)) (log ,var))
                                       ,((cdr rest) 0)))
                         ((cdr rest) n))))))]
-    [`(pow ,(? (curry equal? var)) ,(? integer? power))
+    [`(pow ,(? (curry equal? var)) ,(? exact-integer? power))
      (cons (- power) (λ (n) (if (= n 0) 1 0)))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
