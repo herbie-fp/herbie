@@ -11,11 +11,11 @@
          reap define-table table-ref table-set!
          first-value assert for/append
          ordinary-float? =-or-nan? log2 </total
-         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
+         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval quasisyntax set-disjoint?
+         common-eval-ns common-eval quasisyntax
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -120,8 +120,8 @@
 
 (define (</total x1 x2)
   (cond
-   [(nan? x2) #f]
-   [(nan? x1) #t]
+   [(nan? x1) #f]
+   [(nan? x2) #t]
    [else (< x1 x2)]))
 
 (define (log2 x)
@@ -195,6 +195,11 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
+
+(define (all-equal? l)
+  (if (null? l)
+      true
+      (andmap (curry equal? (car l)) (cdr l))))
 
 ;; Utility output functions
 
