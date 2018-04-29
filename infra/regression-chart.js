@@ -186,7 +186,7 @@ function draw_results(node) {
     var type_list = document.getElementById("suites");
     for (var type in used_tag) {
         if (!type) continue;
-        if (!best_type || used_tag[type] > used_tag[best_type]) best_type = type;
+        if ((!best_type || used_tag[type] > used_tag[best_type]) && type !== "tutorial") best_type = type;
         var li = document.createElement("li");
         var a = document.createElement("a");
         a.href = "#" + type;
