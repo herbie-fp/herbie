@@ -38,7 +38,8 @@
   ; This is the memoized expansion-taking.
   ; The argument, `coeffs`, is the "uncorrected" degrees of the terms--`offsets` is not subtracted.
 
-  (define (get-taylor coeffs)
+  (define/contract (get-taylor coeffs)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (hash-ref! taylor-cache coeffs
                (λ ()
                   (let* ([oc (get-taylor (cdr coeffs))]
@@ -51,7 +52,8 @@
   ; Given some uncorrected degrees, this gets you an offset to apply.
   ; The corrected degrees for uncorrected `coeffs` are (map - coeffs (get-offset coeffs))
 
-  (define (get-offset coeffs)
+  (define/contract (get-offset coeffs)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (if (null? coeffs)
       (car (get-taylor '()))
       (cons (car (get-taylor (cdr coeffs))) (get-offset (cdr coeffs)))))
@@ -60,6 +62,7 @@
   (define get-coeffs-hash (make-hash))
 
   (define (get-coeffs expts)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (hash-ref! get-coeffs-hash expts
                (λ ()
                  (if (null? expts)
@@ -493,7 +496,4 @@
 
 (module+ test
   (require rackunit)
-  (check-true
-   (or (approximate '(/ (* x (* (* (pow z y) (pow a t)) 1)) (* y (* (pow a 1.0) (exp b))))
-                    '(x z y a t b))
-       true)))
+  (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
