@@ -230,6 +230,7 @@
     (match expr
       [`(+ ,(? exact? a) ,(? exact? b)) (+ a b)]
       [`(- ,(? exact? a) ,(? exact? b)) (- a b)]
+      [`(- ,(? exact? a)) (- a)]
       [`(* ,(? exact? a) ,(? exact? b)) (* a b)]
       [`(/ ,(? exact? a) ,(? exact? b)) (/ a b)]
       [_ expr]))
