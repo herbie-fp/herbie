@@ -107,6 +107,9 @@ function make_graph(node, data, type) {
 
     var g = bar.append("g").attr("class", "arrow");
 
+    g.append("title")
+        .text(function(d) { return "At " + new Date(d.time * 1000) + "\nOn " + d.branch });
+
     g.append("line")
         .attr("stroke", function(d) { return key(d.branch) })
         .attr("x1", function(d, i) { return (i + .5) * spacing })
