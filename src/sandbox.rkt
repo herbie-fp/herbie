@@ -128,6 +128,7 @@
                    (and target-score target-score)
                    (length good-inf)
                    (length bad-inf)
+                   est-start-score
                    est-end-score
                    (program-variables (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-start-alt result)))
@@ -138,12 +139,12 @@
    [(test-failure? result)
     (define test (test-failure-test result))
     (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash")
-               #f #f #f #f #f #f (test-vars test) (test-input test) #f
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f (test-vars test) (test-input test) #f
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
 
 (define (unparse-result result)
