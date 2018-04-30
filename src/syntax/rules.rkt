@@ -3,6 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../common.rkt")
+(require "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 
@@ -15,9 +16,22 @@
 
 (define *rulesets* (make-parameter '()))
 
+(define (rule-ops-supported? rule)
+  (define (ops-in-expr expr)
+    (cond
+      [(list? expr) (if (member (car expr) (*loaded-ops*))
+                        (for/and ([subexpr (cdr expr)])
+                          (ops-in-expr subexpr))
+                        #f)]
+      [else #t]))
+  (and (ops-in-expr (rule-input rule)) (ops-in-expr (rule-output rule))))
+
 (define-syntax-rule (define-ruleset name groups [rname input output] ...)
-  (begin (define name (list (rule 'rname 'input 'output) ...))
-	 (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
+  (begin
+    (define name (for/list ([r (list (rule 'rname 'input 'output) ...)]
+                                 #:when (rule-ops-supported? r))
+                        r))
+	  (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify fp-safe)

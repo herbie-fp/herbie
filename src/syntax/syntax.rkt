@@ -7,10 +7,12 @@
 (require "../float.rkt")
 
 (provide constant? variable? operator? operator-info constant-info
-         *unknown-d-ops* *unknown-f-ops*)
+         *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
+
+(define *loaded-ops* (make-parameter '()))
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool)))
 
@@ -87,6 +89,9 @@
                                                     (format "couldn't find ~a and no default implementation defined" 'operator)
                                                     (current-continuation-marks)) 
                                              0.0))))])
+    ;; TODO: If we don't find the op in nonffi mode and we want to remove it,
+    ;; then don't add it to the list of loaded-ops
+    (*loaded-ops* (cons 'operator (*loaded-ops*)))
     (table-set! operators 'operator
                 (make-hash (append (list (cons 'type type) (cons 'args args) (cons 'key value) ...) nonffi)))))
 
