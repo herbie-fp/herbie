@@ -14,12 +14,11 @@
   </header>
 
   <p>
-    After a year of work, the <a href="../..">Herbie</a> developers
-    are excited to announce Herbie 1.2! This release focuses on making
-    Herbie more accurate and reliable, including more accurate
-    conditionals and new, higher-accuracy default values. This release
-    has also restructured major internal components, Making Herbie
-    easier to maintain.
+    The <a href="../..">Herbie</a> developers are excited to announce
+    Herbie 1.2! This release focuses on <em>accuracy and
+    reliability</em>, including generating more-complicated
+    conditionals, more accurate defaults, and significant bug fixes to
+    the core algorithms.
   </p>
 
   <p>
@@ -36,6 +35,10 @@
   <h2>Breaking Changes and Deprecations</h2>
 
   <ul>
+    <li> This release fixes a significant and important bug in
+      Herbie's measurement of program accuracy. Herbie's prior results
+      had a small chance of recommending an inaccurate program as
+      accurate. </li>
     <li> In line
       with <a href="http://fpbench.org/spec/fpcore-1.0.html">FPCore
       1.0</a>, we have deprecated the <code>sqr</code>
@@ -50,28 +53,38 @@
   <h2>Improvement to core algorithm</h2>
 
   <ul>
+    <li>Herbie now uses a more rigorous algorithm to evaluate its results,
+      both increasing reproducibility of its results and better measuring
+      its output.</li>
+    <li>Herbie has become much more inventive in what expressions it
+      can branch on. This leads to more accurate results in many
+      cases. The
+      <kbd><a href="options.html">reduce:branch-expressions</a></kbd>
+      option controls this feature.</li>
+    <li>Herbie now uses a binary search algorithm to choose more
+      accurate values for conditionals in <code>if</code> statements.
+      This should make different runs of Herbie produce more similar
+      results. The
+      <kbd><a href="options.html">reduce:binary-search</a></kbd>
+      option controls this feature.</li>
     <li>Herbie has a higher default value for
       the <code>--num-iters</code> <a href="options.html">parameter</a>.
       Users should expect Herbie to be slower but produce more
       accurate results.</li>
-    <li>Herbie now uses a more rigorous algorithm to evaluate its results,
-      both increasing reproducibility of its results and better measuring
-      its output.</li>
-    <li>Herbie now uses a binary search algorithm to choose more
-      accurate values for conditionals in <code>if</code> statements.
-      This should make different runs of Herbie produce more similar
-      results.</li>
-    <li>Herbie can now efficiently sample from preconditions such
-      as <code>(or (&lt; 1 x 2) (&lt; 1001 x 1002))</code>. Previously
-      such preconditions would produce to the dreaded
-      “<a href="faq.html#sample-valid-points">could not sample</a>”
-      error message.</li>
-    <li>Herbie has become much more inventive in what expressions it
-      can branch on. This leads to more accurate results, but also
-      slower runtime, since there are many more options to
-      investigate. If the slowness is a problem, toggle the
-      <kbd><a href="options.html">reduce:branch-expressions</a></kbd>
-      option.</li>
+    <li>A significant bug in the series expansion algorithm has been
+      fixed, improving Herbie's performance in the presence of
+      logarithms.</li>
+    <li>A small tweak to the simplification algorithm results in
+      simpler and more accurate output from Herbie.</li>
+  </ul>
+
+  <h2>Beta-quality features</h2>
+
+  <ul>
+    <li>Herbie now supports basic operations on complex numbers, using
+      the <code>complex</code>, <code>re</code>, and <code>im</code>
+      functions. We look forward to releasing high-quality complex
+      number support in the future.</li>
   </ul>
 
   <!-- TODO Update plot somehow? -->
@@ -92,23 +105,28 @@
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>Herbie now outputs the input expression in cases of timeout or
-      crash, instead of outputing a confusing special value.</li>
+    <li>Herbie can now efficiently sample from preconditions such
+      as <code>(or (&lt; 1 x 2) (&lt; 1001 x 1002))</code>. Previously
+      such preconditions would produce to the dreaded
+      “<a href="faq.html#sample-valid-points">could not sample</a>”
+      error message.</li>
+    <li><code>let</code> statements and variary arithmetic operators
+      are now supported in preconditions.</li>
     <li>Herbie will now type-check inputs and report errors for
       mismatches, helping further cut down on confusing error
-      messages..</li>
+      messages.</li>
+    <li>User errors and Herbie crashes now look different in
+      reports.</li>
+    <li>Herbie now outputs the input expression in cases of timeout or
+      crash, instead of outputing a confusing special value.</li>
     <li>Herbie's web output now includes additional descriptive text,
       such as color keys, and additional intuitive interactions, such
-      as making arrows on report pages clickable.</li>
+      as clicking on report page arrows.</li>
     <li>Herbie's FPCore output now includes its error estimates,
       making it easier for other FPBench tools to compare Herbie's
       error estimates to those of other tools.</li>
-    <li>User errors and Herbie crashes now look different in
-      reports.</li>
     <li>Taylor series no longer add two identical (but confusingly
       phrased) steps to Herbie's derivations of its results.</li>
-    <li><code>let</code> statements and variary arithmetic operators
-      are now supported in preconditions.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
