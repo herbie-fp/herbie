@@ -42,7 +42,6 @@
 
 (FPCore (x eps)
  :name "2tan (problem 3.3.2)"
- :herbie-expected 28
  :herbie-target
  (/ (sin eps) (* (cos x) (cos (+ x eps))))
 

@@ -12,6 +12,7 @@ function run {
       --threads $CORES \
       "$@" \
       "$bench" "reports/$name"
+  bash infra/publish.sh upload "reports/$name"
 }
 
 function runEach {
@@ -28,10 +29,8 @@ function runEach {
 
 # use common seed across every 4 day cycle
 d=$(date "+%j")
-qseed=$(racket -e " \
-  (random-seed $(expr $d / 4)) \
-  (pseudo-random-generator->vector \
-    (current-pseudo-random-generator))")
+qseed=$(racket -e "(random-seed $d) (pseudo-random-generator->vector (current-pseudo-random-generator))")
 seed="${qseed:1}" # :1 removes leading quote
 
+mkdir -p reports
 runEach --seed "$seed" "$@"

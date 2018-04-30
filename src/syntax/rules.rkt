@@ -224,11 +224,9 @@
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
+  [unpow2          (pow a 2)                  (* a a)]
   [unpow3          (pow a 3)                  (* (* a a) a)]
-  [unpow1/3        (pow a 1/3)                (cbrt a)] )
-
-(define-ruleset pow-canonicalize-fp-safe (exponents simplify fp-safe)
-  [unpow2          (pow a 2)                  (* a a)])
+  [unpow1/3        (pow a 1/3)                (cbrt a)])
 
 (define-ruleset pow-transform (exponents)
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
@@ -297,7 +295,15 @@
   [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
   [tan-PI      (tan PI)              0]
   [tan-+PI     (tan (+ x PI))        (tan x)]
-  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))])
+  [tan-+PI/2   (tan (+ x (/ PI 2)))  (- (/ 1 (tan x)))]
+  [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
+  [hang-0m-tan (/ (- (sin a)) (+ 1 (cos a))) (tan (/ (- a) 2))]
+  [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
+  [hang-m0-tan (/ (- 1 (cos a)) (- (sin a))) (tan (/ (- a) 2))]
+  [hang-p-tan  (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))
+               (tan (/ (+ a b) 2))]
+  [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
+               (tan (/ (- a b) 2))])
 
 (define-ruleset trig-reduce-fp-sound (trigonometry simplify fp-safe)
   [sin-0       (sin 0)               0]
@@ -345,7 +351,11 @@
   [diff-atan   (- (atan x) (atan y))     (atan2 (- x y) (+ 1 (* x y)))]
   [sum-atan    (+ (atan x) (atan y))     (atan2 (+ x y) (- 1 (* x y)))]
   [tan-quot    (tan x)                   (/ (sin x) (cos x))]
-  [quot-tan    (/ (sin x) (cos x))       (tan x)])
+  [quot-tan    (/ (sin x) (cos x))       (tan x)]
+  [tan-hang-p  (tan (/ (+ a b) 2))
+               (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
+  [tan-hang-m  (tan (/ (- a b) 2))
+               (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
 (define-ruleset trig-expand-fp-safe (trignometry fp-safe)
   [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
@@ -508,7 +518,8 @@
   (define *skip-tests*
     ;; All these tests fail due to underflow to 0 and are irrelevant
     '(exp-prod pow-unpow pow-pow pow-exp
-      asinh-2 tanh-1/2* sinh-cosh))
+      asinh-2 tanh-1/2* sinh-cosh
+      hang-p0-tan hang-m0-tan))
 
   (for ([test-rule (*rules*)] #:when (not (set-member? *skip-tests* (rule-name test-rule))))
     (parameterize ([bf-precision 2000])
