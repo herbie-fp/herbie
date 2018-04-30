@@ -80,7 +80,6 @@
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
         [args (list (length '(atypes ...)))]
-        ;;TODO: This is a temporary default value. FIX THIS!
         [nonffi (if (findf (λ (x) (equal? (car x) 'nonffi)) '([key value] ...))
                       '()
                       (list (cons 'nonffi (λ args 
