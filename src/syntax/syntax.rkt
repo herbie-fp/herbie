@@ -331,7 +331,7 @@
   [->tex (curry format "\\log_{2} ~a")])
 
 (define (bflogb x)
-  (bigfloat-exponent x))
+  (bffloor (bflog2 (bfabs x))))
 
 (define-operator/libm (logb real) real
   [libm logb logbf] [bf bflogb] [cost 70]
