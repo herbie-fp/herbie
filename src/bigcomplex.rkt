@@ -2,12 +2,22 @@
 
 (require math/bigfloat)
 
-(provide (all-defined-out))
-
 (struct bigcomplex (re im) #:transparent)
 
-(define (bf-make-rectangular x y)
-  (bigcomplex x y))
+(provide (contract-out
+          [struct bigcomplex ((re bigfloat?) (im bigfloat?))]
+          [bf-complex-add (-> bigcomplex? bigcomplex? bigcomplex?)]
+          [bf-complex-sub (-> bigcomplex? bigcomplex? bigcomplex?)]
+          [bf-complex-neg (-> bigcomplex? bigcomplex?)]
+          [bf-complex-mult (-> bigcomplex? bigcomplex? bigcomplex?)]
+          [bf-complex-conjugate (-> bigcomplex? bigcomplex?)]
+          [bf-complex-sqr (-> bigcomplex? bigcomplex?)]
+          [bf-complex-exp (-> bigcomplex? bigcomplex?)]
+          [bf-complex-log (-> bigcomplex? bigcomplex?)]
+          [bf-complex-sqrt (-> bigcomplex? bigcomplex?)]
+          [bf-complex-pow (-> bigcomplex? bigcomplex? bigcomplex?)]
+          [bf-complex-div (-> bigcomplex? bigcomplex? bigcomplex?)])
+         exact+ exact- exact* exact/ exact-sqr exact-log exact-pow exact-sqrt exact-exp)
 
 (define (bf-complex-add x y)
   (bigcomplex (bf+ (bigcomplex-re x) (bigcomplex-re y)) (bf+ (bigcomplex-im x) (bigcomplex-im y))))

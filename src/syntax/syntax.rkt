@@ -470,7 +470,7 @@
 
 (define-operator (complex real real) complex
   ; Override number of arguments
-  [fl make-rectangular] [bf bf-make-rectangular] [cost 0]
+  [fl make-rectangular] [bf bigcomplex] [cost 0]
   [->c/double (const "/* ERROR: no complex support in C */")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "~a + ~a i")])

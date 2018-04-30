@@ -42,8 +42,8 @@
   (cond
    [(real? x) (convert x)]
    [(bigfloat? x) (convert (bigfloat->flonum x))]
-   [(and (bigcomplex? x) (bigfloat? (bigcomplex-re x)) (bigfloat? (bigcomplex-im x)))
-      (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
+   [(bigcomplex? x)
+    (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
    [(and (symbol? x) (constant? x))
     (convert ((constant-info x 'fl)))]
    [else x]))
