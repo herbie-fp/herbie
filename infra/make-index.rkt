@@ -148,6 +148,11 @@
                branch-infos*))
   (define master-info (if (null? master-info*) '() (first master-info*)))
 
+  (define last-crash
+    (argmax (curryr dict-ref 'date-unix) (apply append mainline-infos)))
+  (define since-last-crash
+    (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24)))
+
   (write-file "index.html"
     (printf "<!doctype html>\n")
     (write-xexpr
@@ -164,10 +169,9 @@
         (div
          ((id "large"))
          (div "Reports: " (span ((class "number")) ,(~a (length folders))))
+         (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
-         ,(if master-info
-              `(div "On Develop: " (span ((class "number")) ,(~a (length master-info))))
-              ""))
+         (div "Crash-free: " (span ((class "number")) ,(~a (inexact->exact (round since-last-crash))) "d")))
         (ul ((id "toc"))
             ,@(for/list ([rows (if master-info (cons master-info other-infos) other-infos)])
                 (define branch (dict-ref (first rows) 'branch))
