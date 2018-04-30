@@ -143,10 +143,9 @@
      (group-by (curryr dict-ref 'branch) folders)
      > #:key (λ (x) (dict-ref (first x) 'date-unix))))
 
-  (define-values (master-info* other-infos)
-    (partition (λ (x) (equal? (dict-ref (first x) 'branch) "develop"))
+  (define-values (mainline-infos other-infos)
+    (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
                branch-infos*))
-  (define master-info (if (null? master-info*) '() (first master-info*)))
 
   (define last-crash
     (argmax (curryr dict-ref 'date-unix) (apply append mainline-infos)))
@@ -173,7 +172,7 @@
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
          (div "Crash-free: " (span ((class "number")) ,(~a (inexact->exact (round since-last-crash))) "d")))
         (ul ((id "toc"))
-            ,@(for/list ([rows (if master-info (cons master-info other-infos) other-infos)])
+            ,@(for/list ([rows (append mainline-infos other-infos)])
                 (define branch (dict-ref (first rows) 'branch))
                 `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
         (figure
@@ -183,12 +182,9 @@
          (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
         (table
          ((id "reports"))
-         ,@(if master-info
-               (print-rows master-info #:name "develop")
-               '())
          ,@(apply
             append
-            (for/list ([rows other-infos])
+            (for/list ([rows (append mainline-infos other-infos)])
               (print-rows rows #:name (dict-ref (first rows) 'branch)))))))))
 
   (call-with-output-file (build-path report-json-path "index.cache") #:exists 'replace (curry write-json (*cache*))))
