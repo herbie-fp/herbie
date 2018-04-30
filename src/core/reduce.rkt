@@ -1,7 +1,8 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt"
-         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt")
+         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
+         "../type-check.rkt")
 
 (provide simplify)
 
@@ -13,6 +14,16 @@
   (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
 
 (define (simplify expr)
+  (define expr* expr)
+  (let loop ([expr expr])
+    (match expr
+      [`(pow ,base ,(? real?))
+       (when (equal? (type-of base (for/hash ([var (free-variables base)]) (values var 'real))) 'complex)
+         (error "Bad pow!!!" expr*))]
+      [(list f args ...)
+       (for-each loop args)]
+      [_ 'ok]))
+
   (let ([simpl (simplify* expr)])
     (debug #:from 'backup-simplify "Simplify" expr "into" simpl)
     simpl))
@@ -262,4 +273,7 @@
     [`(-1 . ,x) `(/ 1 ,x)]
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
-    [`(,power . ,x) `(pow ,x ,power)]))
+    [`(,power . ,x)
+     (match (type-of x (for/hash ([var (free-variables x)]) (values var 'real)))
+       ['real `(pow ,x ,power)]
+       ['complex `(pow ,x (complex ,power 0))])]))

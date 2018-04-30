@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt")
 
 (module+ test (require rackunit))
 
@@ -34,18 +34,17 @@
 
 ;; Converting constants
 
-(define (->flonum x)
+(define/contract (->flonum x)
+  (-> any/c (or/c flonum? complex? boolean?))
   (define convert
     (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
 
   (cond
    [(real? x) (convert x)]
    [(bigfloat? x) (convert (bigfloat->flonum x))]
-   [(complex? x)
-    (if (= (imag-part x) 0)
-        (->flonum (real-part x))
-        +nan.0)]
-   [(constant? x)
+   [(bigcomplex? x)
+    (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
+   [(and (symbol? x) (constant? x))
     (convert ((constant-info x 'fl)))]
    [else x]))
 
@@ -54,7 +53,7 @@
    [(real? x) (bf x)]
    [(bigfloat? x) x]
    [(complex? x)
-    (if (= (imag-part x) 0) (->bf (real-part x)) +nan.bf)]
+    (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
    [(constant? x) ((constant-info x 'bf))]
    [else x]))
 

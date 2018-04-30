@@ -160,14 +160,14 @@
   "Take only the points for which the exact value is normal, and the point is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
+      (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
         (sow pt)))))
 
 (define (filter-exacts pts exacts)
   "Take only the exacts for which the exact value is normal, and the point is normal"
   (reap (sow)
     (for ([pt pts] [exact exacts])
-      (when (and (ordinary-float? exact) (andmap ordinary-float? pt))
+      (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
 	(sow exact)))))
 
 ; These definitions in place, we finally generate the points.
@@ -226,7 +226,7 @@
 	     max-ulps))))))
 
 (define (errors-score e)
-  (let-values ([(reals unreals) (partition ordinary-float? e)])
+  (let-values ([(reals unreals) (partition ordinary-value? e)])
     (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
               (* (*bit-width*) (length unreals)))

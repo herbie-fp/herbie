@@ -9,6 +9,7 @@
 (require "../syntax/syntax.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
+(require "../type-check.rkt")
 
 (module+ test
   (require rackunit))

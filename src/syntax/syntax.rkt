@@ -3,10 +3,11 @@
 (require math/flonum)
 (require math/bigfloat)
 (require "../common.rkt")
+(require "../bigcomplex.rkt")
 
 (provide constant? variable? operator? operator-info constant-info)
 
-(define (type? x) (or (equal? x 'real) (equal? x 'bool)))
+(define (type? x) (or (equal? x 'real) (equal? x 'bool) (equal? x 'complex)))
 
 ;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
 
@@ -60,10 +61,10 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table operators
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean?))]
-  [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean?))]
+  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? bigcomplex?) (or/c bigfloat? boolean? bigcomplex?))]
+  [fl    (unconstrained-argument-number-> (or/c flonum? boolean? complex?) (or/c flonum? boolean? complex?))]
   [cost  natural-number/c]
-  [type  (hash/c (or/c '* natural-number/c) (list/c (or/c (listof type?) (list/c '* type?)) type?))]
+  [type  (hash/c (or/c '* natural-number/c) (listof (list/c (or/c (listof type?) (list/c '* type?)) type?)))]
   [->c/double (unconstrained-argument-number-> string? string?)]
   [->c/mpfr   (unconstrained-argument-number-> string? string?)]
   [->tex      (unconstrained-argument-number-> string? string?)])
@@ -71,33 +72,36 @@
 (define (operator-info operator field) (table-ref operators operator field))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
-  (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
+  (let ([type (hash (length '(atypes ...)) (list (list '(atypes ...) 'rtype)))]
         [args (list (length '(atypes ...)))])
     (table-set! operators 'operator
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
-(define-operator (+ real real) real
-  [fl +] [bf bf+] [cost 40]
+(define-operator (+ real real) real 
+  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
+  [fl +] [bf exact+] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (curry format "mpfr_add(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a + ~a")])
 
 (define-operator (- real [real]) real
   ;; Override the normal argument handling because - can be unary
-  [args '(1 2)] [type (hash 1 '((real) real) 2 '((real real) real))]
-  [fl -] [bf bf-] [cost 40]
+  [args '(1 2)] [type (hash 1 '(((real) real) ((complex) complex)) 2 '(((real real) real) ((complex complex) complex)))]
+  [fl -] [bf exact-] [cost 40]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (λ (out x [y #f]) (if y (format "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)" out x y) (format "mpfr_neg(~a, ~a, MPFR_RNDN)" out x)))]
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))])
 
 (define-operator (* real real) real
-  [fl *] [bf bf*] [cost 40]
+  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
+  [fl *] [bf exact*] [cost 40]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (curry format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\cdot ~a")])
 
 (define-operator (/ real real) real
-  [fl /] [bf bf/] [cost 40]
+  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
+  [fl /] [bf exact/] [cost 40]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (curry format "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\frac{~a}{~a}")])
@@ -206,7 +210,8 @@
   [->tex (curry format "\\mathsf{erfc} ~a")])
 
 (define-operator/libm (exp real) real
-  [libm exp expf] [bf bfexp] [cost 70]
+  [libm exp expf]
+  [bf exact-exp] [cost 70]
   [->c/double (curry format "exp(~a)")]
   [->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "e^{~a}")])
@@ -301,7 +306,8 @@
   [->tex (curry format "\\log_* \\left( \\mathsf{gamma} ~a \\right)")])
 
 (define-operator/libm (log real) real
-  [libm log logf] [bf bflog] [cost 70]
+  [libm log logf]
+  [bf exact-log] [cost 70]
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log ~a")])
@@ -334,7 +340,9 @@
   [->tex (curry format "\\log^{*}_{b} ~a")])
 
 (define-operator/libm (pow real real) real
-  [libm pow powf] [bf bfexpt] [cost 210]
+  [libm pow powf]
+  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
+  [bf exact-pow] [cost 210]
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^{~a}")])
@@ -370,7 +378,8 @@
   [->tex (curry format "\\sinh ~a")])
 
 (define-operator/libm (sqrt real) real
-  [libm sqrt sqrtf] [bf bfsqrt] [cost 40]
+  [libm sqrt sqrtf]
+  [bf exact-sqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a}")])
@@ -414,7 +423,8 @@
 ;; DEPRECATED
 
 (define-operator (sqr real) real
-  [fl sqr] [bf bfsqr] [cost 40]
+  [type (hash 1 '(((real) real) ((complex) complex)))]
+  [fl sqr] [bf exact-sqr] [cost 40]
   [->c/double (λ (x) (format "~a * ~a" x x))]
   [->c/mpfr (curry format "mpfr_sqr(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^2")])
@@ -452,15 +462,43 @@
 
 (define-operator (== real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator =)] [bf (comparator bf=)] [cost 65]
   [->c/double (curry format "~a == ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
   [->tex (infix-joiner " = ")])
 
+(define-operator (complex real real) complex
+  ; Override number of arguments
+  [fl make-rectangular] [bf bigcomplex] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "~a + ~a i")])
+
+(define-operator (re complex) real
+  ; Override number of arguments
+  [fl real-part] [bf bigcomplex-re] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "\\Re(~a)")])
+
+(define-operator (im complex) real
+  ; Override number of arguments
+  [fl imag-part] [bf bigcomplex-im] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "\\Im(~a)")])
+
+(define-operator (conj complex) real
+  ; Override number of arguments
+  [fl conjugate] [bf bf-complex-conjugate] [cost 0]
+  [->c/double (const "/* ERROR: no complex support in C */")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "\\overline{~a}")])
+
 (define-operator (!= real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl !=-fn] [bf bf!=-fn] [cost 65]
   [->c/double (curry format "~a != ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) != 0, MPFR_RNDN)")] ; TODO: cannot handle variary !=
@@ -468,7 +506,7 @@
 
 (define-operator (< real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator <)] [bf (comparator bf<)] [cost 65]
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
@@ -476,7 +514,7 @@
 
 (define-operator (> real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator >)] [bf (comparator bf>)] [cost 65]
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
@@ -484,7 +522,7 @@
 
 (define-operator (<= real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator <=)] [bf (comparator bf<=)] [cost 65]
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
@@ -492,7 +530,7 @@
 
 (define-operator (>= real real) bool
   ; Override number of arguments
-  [type #hash((* . ((* real) bool)))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator >=)] [bf (comparator bf>=)] [cost 65]
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
@@ -506,7 +544,7 @@
 
 (define-operator (and bool bool) bool
   ; Override number of arguments
-  [type #hash((* . ((* bool) bool)))] [args '(*)]
+  [type #hash((* . (((* bool) bool))))] [args '(*)]
   [fl and-fn] [bf and-fn] [cost 55]
   [->c/double (curry format "~a && ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
@@ -514,7 +552,7 @@
 
 (define-operator (or bool bool) bool
   ; Override number of arguments
-  [type #hash((* . ((* bool) bool)))] [args '(*)]
+  [type #hash((* . (((* bool) bool))))] [args '(*)]
   [fl or-fn] [bf or-fn] [cost 55]
   [->c/double (curry format "~a || ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]

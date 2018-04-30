@@ -3,6 +3,7 @@
 (require "../common.rkt")
 (require "../programs.rkt")
 (require "../syntax/rules.rkt")
+(require "../type-check.rkt")
 
 (provide
  (all-from-out "../syntax/rules.rkt")
@@ -115,8 +116,10 @@
            (display ">" port))])
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
+  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
   (reap [sow]
-    (for ([rule (*rules*)])
+    ; TODO: don't recompute the type of every expression
+    (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
       (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
              [result (applyer rule expr)])
         (when result
@@ -124,10 +127,11 @@
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
 
+  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
   (define (rewriter expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
     (reap (sow)
-          (for ([rule (*rules*)])
+          (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
             (when (or
                     (not ghead) ; Any results work for me
                     (and
