@@ -153,6 +153,7 @@
                   start-alt end-alt points exacts start-est-error end-est-error
                   newpoints newexacts start-error end-error target-error timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status success
               :herbie-time ,time
               :herbie-bits-used ,bits
               :herbie-error-input
@@ -175,6 +176,7 @@
               ,(program-body (alt-program end-alt)))]
     [(test-failure test bits exn time timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status ,(if (exn:fail:user:herbie? (test-failure-exn result)) 'error 'crash)
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
@@ -187,6 +189,7 @@
               ,(test-input test))]
     [(test-timeout test bits time timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status timeout
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)

@@ -521,7 +521,7 @@
       asinh-2 tanh-1/2* sinh-cosh
       hang-p0-tan hang-m0-tan))
 
-  (for ([test-rule (*rules*)] #:when (not (set-member? *skip-tests* (rule-name test-rule))))
+  (for ([test-rule (*rules*)] #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
     (with-check-info (['rule test-rule])
       (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
