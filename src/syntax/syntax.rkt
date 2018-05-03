@@ -84,13 +84,11 @@
         [args (list (length '(atypes ...)))]
         [nonffi (if (findf (λ (x) (equal? (car x) 'nonffi)) '([key value] ...))
                       '()
-                      (list (cons 'nonffi (λ args 
-                                             (raise exn:fail:unsupported 
+                      (list (cons 'nonffi (λ args
+                                             (raise exn:fail:unsupported
                                                     (format "couldn't find ~a and no default implementation defined" 'operator)
-                                                    (current-continuation-marks)) 
+                                                    (current-continuation-marks))
                                              0.0))))])
-    ;; TODO: If we don't find the op in nonffi mode and we want to remove it,
-    ;; then don't add it to the list of loaded-ops
     (*loaded-ops* (cons 'operator (*loaded-ops*)))
     (table-set! operators 'operator
                 (make-hash (append (list (cons 'type type) (cons 'args args) (cons 'key value) ...) nonffi)))))
