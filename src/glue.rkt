@@ -11,6 +11,7 @@
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")
 (require "core/matcher.rkt")
+(require  "type-check.rkt")
 
 (provide remove-pows setup-prog setup-alt-simplified post-process
          split-table extract-alt combine-alts
@@ -59,19 +60,13 @@
                               (atab-all-alts table))))))
 
 (define (combine-alts splitpoints alts)
-  (let ([rsplits (reverse splitpoints)])
-    (make-regime-alt
-     `(λ ,(program-variables (*start-prog*))
-	,(let loop ([rest-splits (cdr rsplits)]
-		    [acc (program-body (alt-program (list-ref alts (sp-cidx (car rsplits)))))])
-	   (if (null? rest-splits) acc
-	       (loop (cdr rest-splits)
-		     (let ([splitpoint (car rest-splits)])
-		       `(if (<= ,(sp-bexpr splitpoint)
-                                ,(sp-point splitpoint))
-			    ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
-			    ,acc))))))
-     alts splitpoints)))
+  (define expr
+    (for/fold
+        ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+        ([splitpoint (cdr (reverse splitpoints))])
+      (define test `(<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint)))
+      `(if ,test ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint)))) ,expr)))
+  (make-regime-alt `(λ ,(program-variables (*start-prog*)) ,expr) alts splitpoints))
 
 (define (best-alt alts)
   (argmin alt-cost
@@ -138,16 +133,21 @@
 
 (define (taylor-alt altn loc)
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
-  (for/list ([transform transforms-to-try])
-    (match transform
-      [(list name f finv)
-       (alt-event
-        (location-do loc (alt-program altn)
-                     (λ (expr) (let ([fv (free-variables expr)])
-                                 (if (null? fv) expr
-                                     (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
-        `(taylor ,name ,loc)
-        (list altn))])))
+  (define expr (location-get loc (alt-program altn)))
+  (match (type-of expr (for/hash ([var (free-variables expr)]) (values var 'real)))
+    ['real
+      (for/list ([transform transforms-to-try])
+        (match transform
+        [(list name f finv)
+        (alt-event
+          (location-do loc (alt-program altn)
+                       (λ (expr) (let ([fv (free-variables expr)])
+                                      (if (null? fv) expr
+                                          (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+          `(taylor ,name ,loc)
+          (list altn))]))]
+    ['complex
+      (list altn)]))
 
 (define (zach-alt altn loc)
   (let ([sibling (location-sibling loc)]

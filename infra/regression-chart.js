@@ -107,6 +107,9 @@ function make_graph(node, data, type) {
 
     var g = bar.append("g").attr("class", "arrow");
 
+    g.append("title")
+        .text(function(d) { return "At " + new Date(d.time * 1000) + "\nOn " + d.branch });
+
     g.append("line")
         .attr("stroke", function(d) { return key(d.branch) })
         .attr("x1", function(d, i) { return (i + .5) * spacing })
@@ -114,28 +117,14 @@ function make_graph(node, data, type) {
         .attr("y1", function(d) { return height - height * d[type].total / max })
         .attr("y2", function(d) { return height - height * (d[type].total - d[type].got) / max - 5 });
 
-    g.append("polygon").attr("points", "-3,-5,3,-5,0,0")
+    g.append("polygon").attr("points", "-3.5,-6,3.5,-6,0,0")
         .attr("fill", function(d) { return key(d.branch) })
         .attr("transform", function(d, i) {
             return "translate(" + spacing*(i + .5) + ", " + (height - height * (d[type].total - d[type].got) / max) + ")";
         });
-
-    g.append("line")
-        .attr("stroke", function(d) { return key(d.branch) })
-        .attr("x1", function(d, i) { return (i + .5) * spacing - 3 })
-        .attr("x2", function(d, i) { return (i + .5) * spacing + 3 })
-        .attr("y1", function(d) { return height - height * d[type].total / max })
-        .attr("y2", function(d) { return height - height * d[type].total / max });
-
-    g.append("line")
-        .attr("stroke", function(d) { return key(d.branch) })
-        .attr("x1", function(d, i) { return (i + .5) * spacing - 3 })
-        .attr("x2", function(d, i) { return (i + .5) * spacing + 3 })
-        .attr("y1", function(d) { return height - height * (d[type].total - d[type].got) / max })
-        .attr("y2", function(d) { return height - height * (d[type].total - d[type].got) / max });
     
     g.on("click", function(d) {
-        d.elt.click();
+        d.elt.querySelector("a").click();
     });
 }
 
@@ -186,7 +175,7 @@ function draw_results(node) {
     var type_list = document.getElementById("suites");
     for (var type in used_tag) {
         if (!type) continue;
-        if (!best_type || used_tag[type] > used_tag[best_type]) best_type = type;
+        if ((!best_type || used_tag[type] > used_tag[best_type]) && type !== "tutorial") best_type = type;
         var li = document.createElement("li");
         var a = document.createElement("a");
         a.href = "#" + type;

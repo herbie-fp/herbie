@@ -121,7 +121,8 @@
   (define (find-matches ens)
     (filter (negate null?)
 	    (for*/list ([rl rls]
-			[en ens])
+			[en ens]
+                        #:when (rule-valid-at-type? rl (enode-type en)))
 	      (if (rule-applied? en rl) '()
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
@@ -137,16 +138,20 @@
                  ;; changed. While it may be aggressive to
                  ;; invalidate any change in bindings, it seems like
                  ;; the right thing to do for now.
-                 [en (pack-leader en)])
-	(when (equal? (match-e (rule-input rl) en) bindings)
+                 [en (pack-leader en)]
+                 [bindings* (match-e (rule-input rl) en)]
+                 [applied #f])
           ;; Apply the match for each binding.
-          (for ([binding bindings])
-            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-          ;; Prune the enode if we can.
-          (try-prune-enode en)
-          ;; Mark this node as having this rule applied so that we don't try
-          ;; to apply it again.
-          (rule-applied! en rl))))
+          (for ([binding bindings]
+                #:when (set-member? bindings* binding))
+            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))
+            (set! applied #t))
+          (when applied
+            ;; Prune the enode if we can.
+            (try-prune-enode en)
+            ;; Mark this node as having this rule applied so that we don't try
+            ;; to apply it again.
+            (rule-applied! en rl))))
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
@@ -176,7 +181,7 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (ordinary-float? res) (exact? res))
+	    (when (and (ordinary-value? res) (exact? res))
 	      (reduce-to-new! eg en res))))))))
 
 (define (hash-set*+ hash assocs)
@@ -219,18 +224,33 @@
 
 (module+ test
   (require rackunit)
+
+  (define (handle-exact-evaluation-bug expr)
+    ;; TODO: This wouldn't be necessary if exact evaluation worked
+    (match expr
+      [`(+ ,(? exact? a) ,(? exact? b)) (+ a b)]
+      [`(- ,(? exact? a) ,(? exact? b)) (- a b)]
+      [`(- ,(? exact? a)) (- a)]
+      [`(* ,(? exact? a) ,(? exact? b)) (* a b)]
+      [`(/ ,(? exact? a) ,(? exact? b)) (/ a b)]
+      [_ expr]))
+
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
           [(+ 1 0) . 1]
-          #;[(+ 1 5) . 6] ; TODO: better exact evaluation
+          [(+ 1 5) . 6]
           [(+ x 0) . x]
           [(* x 1) . x]
-          #;[(- (+ x 1) x) . 1] ; TODO: better exact evaluation
+          [(- (* 1 x) (* (+ x 1) 1)) . -1]
+          [(- (+ x 1) x) . 1]
           [(- (+ x 1) 1) . x]
           [(/ (* x 3) x) . 3]
-          #;[(- (sqr (sqrt (+ x 1))) (sqr (sqrt x))) . 1])) ; TODO: bug
+          [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
+              (* (sqrt x) (sqrt x))) . 1]))
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
-       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target))))
+       (check-equal? (handle-exact-evaluation-bug
+                      (simplify-expr original #:rules (*simplify-rules*)))
+                     target))))

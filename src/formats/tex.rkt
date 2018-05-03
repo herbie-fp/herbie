@@ -47,7 +47,7 @@
 
 (define (precedence-levels op)
   (match op
-    [(or '+ '- 'or) (values '+ '+)]
+    [(or '+ '- 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
     [(or 'sqr 'cube 'fma 'hypot 'pow) (values #f #f)]

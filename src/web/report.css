@@ -47,7 +47,7 @@ li.error      {background-color: #4a4a4a; color: #f7f7f7;}
 li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 
 #about { margin: 3em auto; }
-#about th { font-weight: bold; }
+#about th { font-weight: bold; text-align: left; padding-right: 1em; }
 
 #flag-list { position: relative; }
 #flag-list kbd:not(:last-child):after {content: ", ";}

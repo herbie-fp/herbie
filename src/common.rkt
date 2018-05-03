@@ -10,12 +10,12 @@
 (provide *start-prog*
          reap define-table table-ref table-set! table-remove!
          first-value assert for/append
-         ordinary-float? =-or-nan? log2 </total
-         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
+         ordinary-value? =-or-nan? log2 </total
+         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval quasisyntax set-disjoint?
+         common-eval-ns common-eval quasisyntax
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -107,13 +107,17 @@
 
 ;; Simple floating-point functions
 
-(define (ordinary-float? x)
-  (and (real? x) (not (or (infinite? x) (nan? x)))))
+(define (ordinary-value? x)
+  (match x
+    [(? real?)
+     (not (or (infinite? x) (nan? x)))]
+    [(? complex?)
+     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]))
 
 (module+ test
-  (check-true (ordinary-float? 2.5))
-  (check-false (ordinary-float? +nan.0))
-  (check-false (ordinary-float? -inf.f)))
+  (check-true (ordinary-value? 2.5))
+  (check-false (ordinary-value? +nan.0))
+  (check-false (ordinary-value? -inf.f)))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
@@ -127,8 +131,8 @@
 
 (define (</total x1 x2)
   (cond
-   [(nan? x2) #f]
-   [(nan? x1) #t]
+   [(nan? x1) #f]
+   [(nan? x2) #t]
    [else (< x1 x2)]))
 
 (define (log2 x)
@@ -202,6 +206,11 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
+
+(define (all-equal? l)
+  (if (null? l)
+      true
+      (andmap (curry equal? (car l)) (cdr l))))
 
 ;; Utility output functions
 

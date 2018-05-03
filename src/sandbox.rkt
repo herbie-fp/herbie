@@ -108,7 +108,7 @@
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
-      (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
+      (let*-values ([(reals infs) (partition ordinary-value? (map - end-errors start-errors))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
@@ -128,6 +128,7 @@
                    (and target-score target-score)
                    (length good-inf)
                    (length bad-inf)
+                   est-start-score
                    est-end-score
                    (program-variables (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-start-alt result)))
@@ -138,12 +139,12 @@
    [(test-failure? result)
     (define test (test-failure-test result))
     (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash")
-               #f #f #f #f #f #f (test-vars test) (test-input test) #f
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f (test-vars test) (test-input test) #f
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
 
 (define (unparse-result result)
@@ -152,6 +153,7 @@
                   start-alt end-alt points exacts start-est-error end-est-error
                   newpoints newexacts start-error end-error target-error timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status success
               :herbie-time ,time
               :herbie-bits-used ,bits
               :herbie-error-input
@@ -174,6 +176,7 @@
               ,(program-body (alt-program end-alt)))]
     [(test-failure test bits exn time timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status ,(if (exn:fail:user:herbie? (test-failure-exn result)) 'error 'crash)
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
@@ -186,6 +189,7 @@
               ,(test-input test))]
     [(test-timeout test bits time timeline)
      `(FPCore ,(test-vars test)
+              :herbie-status timeout
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
