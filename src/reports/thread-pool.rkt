@@ -94,16 +94,16 @@
   (match-define (cons fpcore tr) data)
   (match (table-row-status tr)
     ["error"  
-     (printf "[   ERROR   ]\t~a\n" (table-row-name tr))]
+     (eprintf "[   ERROR   ]\t~a\n" (table-row-name tr))]
     ["crash"  
-     (printf "[   CRASH   ]\t~a\n" (table-row-name tr))]
+     (eprintf "[   CRASH   ]\t~a\n" (table-row-name tr))]
     ["timeout"
-     (printf "[  timeout  ]\t~a\n" (table-row-name tr))]
+     (eprintf "[  timeout  ]\t~a\n" (table-row-name tr))]
     [_
-     (printf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time tr) #:width 8)
-             (~r (table-row-start tr) #:min-width 2 #:precision 0)
-             (~r (table-row-result tr) #:min-width 2 #:precision 0)
-             (table-row-name tr))]))
+     (eprintf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time tr) #:width 8)
+              (~r (table-row-start tr) #:min-width 2 #:precision 0)
+              (~r (table-row-result tr) #:min-width 2 #:precision 0)
+              (table-row-name tr))]))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
   (define config
@@ -126,8 +126,8 @@
     (for/list ([id (in-naturals)] [prog progs])
       (list id prog)))
 
-  (printf "Starting ~a Herbie workers on ~a problems...\n" threads (length progs))
-  (printf "Seed: ~a\n" seed)
+  (eprintf "Starting ~a Herbie workers on ~a problems...\n" threads (length progs))
+  (eprintf "Seed: ~a\n" seed)
   (for ([worker workers])
     (place-channel-put worker `(apply ,worker ,@(car work)))
     (set! work (cdr work)))
@@ -136,8 +136,8 @@
     (let loop ([out '()])
       (with-handlers ([exn:break?
                        (λ (_)
-                         (printf "Terminating after ~a problem~a!\n"
-                                 (length out) (if (= (length out) 1) ""  "s"))
+                         (eprintf "Terminating after ~a problem~a!\n"
+                                  (length out) (if (= (length out) 1) ""  "s"))
                          out)])
         (match-define `(done ,id ,more ,tr) (apply sync workers))
 
@@ -147,7 +147,7 @@
 
         (define out* (cons (cons id tr) out))
 
-        (printf "~a/~a\t" (~a (length out*) #:width 3 #:align 'right) (length progs))
+        (eprintf "~a/~a\t" (~a (length out*) #:width 3 #:align 'right) (length progs))
         (print-test-result tr)
 
         (if (= (length out*) (length progs))
@@ -159,16 +159,16 @@
   outs)
 
 (define (run-nothreads progs #:seed seed #:profile profile? #:dir dir)
-  (printf "Starting Herbie on ~a problems...\n" (length progs))
-  (printf "Seed: ~a\n" seed)
+  (eprintf "Starting Herbie on ~a problems...\n" (length progs))
+  (eprintf "Seed: ~a\n" seed)
   (define out '())
   (with-handlers ([exn:break?
                    (λ (_)
-                     (printf "Terminating after ~a problem~a!\n"
+                     (eprintf "Terminating after ~a problem~a!\n"
                              (length out) (if (= (length out) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile? #:dir dir))
-      (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
+      (eprintf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
       (print-test-result tr)
       (set! out (cons (cons i tr) out))))
   out)
