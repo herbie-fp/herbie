@@ -392,7 +392,7 @@
   [->c/double (curry format "logb(~a)")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)")]
   [->tex (curry format "\\log^{*}_{b} ~a")]
-  [nonffi (match-lambda [(list x) (writeln "test") (flfloor (fllog2 (flabs (fl x))))])])
+  [nonffi (match-lambda [(list x) (flfloor (fllog2 (flabs (fl x))))])])
 
 (define-operator/libm (pow real real) real
   [libm pow powf] [bf bfexpt] [cost 210]
