@@ -5,7 +5,7 @@
 (require "../common.rkt")
 (require "syntax.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules* prune-rules!)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -26,11 +26,16 @@
       [else #t]))
   (and (ops-in-expr (rule-input rule)) (ops-in-expr (rule-output rule))))
 
+(define (prune-rules!)
+  (*rulesets* (for/list ([ruleset (*rulesets*)])
+                (cons (for/list ([rule (car ruleset)]
+                                 #:when (rule-ops-supported? rule))
+                        rule)
+                      (cdr ruleset)))))
+
 (define-syntax-rule (define-ruleset name groups [rname input output] ...)
   (begin
-    (define name (for/list ([r (list (rule 'rname 'input 'output) ...)]
-                                 #:when (rule-ops-supported? r))
-                        r))
+    (define name (for/list ([r (list (rule 'rname 'input 'output) ...)]) r))
 	  (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 ; Commutativity
