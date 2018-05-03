@@ -441,15 +441,15 @@
   [hypot-def   (sqrt (+ (* x x) (* y y))) (hypot x y)]
   [hypot-1-def (sqrt (+ 1 (* y y)))       (hypot 1 y)]
   [fma-def     (+ (* x y) z)              (fma x y z)]
-  [fma-neg     (- (* x y) z)              (fma x y (- z))])
+  [fma-neg     (- (* x y) z)              (fma x y (- z))]
+  [fma-udef    (fma x y z)                (+ (* x y) z)])
 
 (define-ruleset special-numerical-expand (numerics)
   [expm1-udef    (expm1 x)      (- (exp x) 1)]
   [log1p-udef    (log1p x)      (log (+ 1 x))]
   [log1p-expm1-u x              (log1p (expm1 x))]
   [expm1-log1p-u x              (expm1 (log1p x))]
-  [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))]
-  [fma-udef      (fma x y z)    (+ (* x y) z)])
+  [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
 
 (define-ruleset complex-number-basics (complex simplify)
   [real-part     (re (complex x y))     x]
