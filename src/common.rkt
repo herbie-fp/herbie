@@ -8,7 +8,7 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table table-ref table-set!
+         reap define-table table-ref table-set! table-remove!
          first-value assert for/append
          ordinary-float? =-or-nan? log2 </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint?
@@ -64,6 +64,13 @@
   (match-let ([(cons header rows) tbl])
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
     (dict-set! rows key row)))
+
+(define/contract (table-remove! tbl key)
+  (-> (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))
+      symbol?
+      any)
+  (match-let ([(cons header rows) tbl])
+    (dict-remove! rows key)))
 
 ;; More various helpful values
 
