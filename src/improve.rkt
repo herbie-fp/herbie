@@ -5,7 +5,7 @@
 (define (print-outputs tests results p #:seed [seed #f])
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
-  (for ([res results] [test tests])
+  (for ([res results] [test tests] #:when res)
     (match-define (table-row name status start result target inf- inf+ start-est result-est vars input output time bits link) (cdr res))
     (match status
       ["error"
