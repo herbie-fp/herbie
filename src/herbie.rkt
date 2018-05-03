@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt" "syntax/syntax.rkt")
+(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt"
+         "syntax/syntax.rkt" "syntax/rules.rkt")
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
@@ -11,6 +12,18 @@
 
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
+
+(define (operator-pruning)
+  (prune-operators!)
+  (prune-rules!)
+  (unless (if (flag-set? 'precision 'double) (null? (*unknown-d-ops*)) (null? (*unknown-f-ops*)))
+    (eprintf "Warning: native ~a not supported on your system; "
+             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
+                          ", "))
+    (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
+    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
+             *herbie-version*))
+  (unless (flag-set? 'fn 'cbrt) (eprintf "cbrt is diabled.\n")))
 
 (module+ main
   (define quiet? #f)
@@ -23,13 +36,6 @@
   (define threads #f)
   (define report-profile? #f)
   (define report-note #f)
-
-  (unless (if (flag-set? 'precision 'double) (null? (*unknown-d-ops*)) (null? (*unknown-f-ops*)))
-    (eprintf "Warning: native ~a not supported on your system; fallbacks will be used.\n"
-             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-                          ", "))
-    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*))
 
   (multi-command-line
    #:program "herbie"
@@ -58,6 +64,7 @@
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
+    (operator-pruning)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
@@ -74,12 +81,14 @@
     [("--quiet") "Print a smaller banner and don't start a browser."
      (set! quiet? true)]
     #:args ()
+    (operator-pruning)
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count th))]
     #:args (input output)
+    (operator-pruning)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
@@ -90,6 +99,7 @@
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
+    (operator-pruning)
     (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
