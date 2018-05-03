@@ -134,11 +134,11 @@
        #`(begin
            (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
                         #:fail (lambda ()
-                                 (*unknown-d-ops* (cons 'id_d (*unknown-d-ops*)))
+                                 (*unknown-d-ops* (cons 'operator (*unknown-d-ops*)))
                                  (λ args ((operator-info 'operator 'nonffi) args))))
            (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
                         #:fail (lambda ()
-                                 (*unknown-f-ops* (cons 'id_f (*unknown-f-ops*)))
+                                 (*unknown-f-ops* (cons 'operator (*unknown-f-ops*)))
                                  (λ args ((operator-info 'operator 'nonffi) args))))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
              [fl (λ args (apply (if (flag-set? 'precision 'double) id_d id_f) args))]
