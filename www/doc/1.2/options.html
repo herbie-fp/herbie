@@ -180,6 +180,14 @@
       double-precision calculations. If turned off, Herbie treats its
       input as a single-precision calculation.</dd>
 
+    <dt><code>precision:fallback</code></dt>
+    <dd>This option, on by default, tells Herbie to use fallback
+      functions if a native implementation is not found for any
+      operations. If turned off, operations with no native
+      implementation will be disabled from use in the input or output.
+      You will want to turn this option off if you are concerned with
+      the specific behavior of libm functions.</dd>
+
     <dt><code>setup:simplify</code></dt>
     <dd>This option, on by default, simplifies the expression before
       passing it to Herbie. If turned off, Herbie will not simplify

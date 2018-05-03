@@ -75,6 +75,16 @@
     with <code>--allow-file-access-from-files</code> to fix this error.
   </p>
 
+  <h3 id="native-ops">"Warning: native <i>operation</i> not supported on your system"</h3>
+
+  <p>
+    Some systems may not support a native implementation for all
+    operations that Herbie uses. Herbie provides a default fallback
+    implementation which is used by default for functions whose
+    native implementation is not found. You can disable this fallback
+    functionality with <code>--disable precision:fallback</code>.
+  </p>
+
   <h2>Reported but unreproduced errors</h2>
 
   <p>
