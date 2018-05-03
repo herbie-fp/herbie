@@ -69,9 +69,10 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table operators
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean?) (or/c bigfloat? boolean? bigcomplex?))]
-  [fl    (unconstrained-argument-number-> (or/c flonum? boolean?) (or/c flonum? boolean? complex?))]
-  [nonffi (unconstrained-argument-number-> (or/c bigfloat? flonum? boolean?) (or/c bigfloat? flonum? boolean? complex? bigcomplex?))]
+  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? bigcomplex?) (or/c bigfloat? boolean? bigcomplex?))]
+  [fl    (unconstrained-argument-number-> (or/c flonum? boolean? complex?) (or/c flonum? boolean? complex?))]
+  [nonffi (unconstrained-argument-number-> (or/c bigfloat? flonum? boolean? complex? bigcomplex?)
+                                           (or/c bigfloat? flonum? boolean? complex? bigcomplex?))]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (listof (list/c (or/c (listof type?) (list/c '* type?)) type?)))]
   [->c/double (unconstrained-argument-number-> string? string?)]
@@ -92,7 +93,7 @@
   (unless (flag-set? 'fn 'cbrt) (operator-remove! 'cbrt)))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
-  (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
+  (let ([type (hash (length '(atypes ...)) (list (list '(atypes ...) 'rtype)))]
         [args (list (length '(atypes ...)))]
         [nonffi (if (findf (λ (x) (equal? (car x) 'nonffi)) '([key value] ...))
                       '()
