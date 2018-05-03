@@ -6,7 +6,7 @@
 (require "../common.rkt")
 (require "../float.rkt")
 
-(provide constant? variable? operator? operator-info constant-info
+(provide constant? variable? operator? operator-info constant-info prune-operators!
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (define *unknown-d-ops* (make-parameter '()))
@@ -78,6 +78,17 @@
   [->tex      (unconstrained-argument-number-> string? string?)])
 
 (define (operator-info operator field) (table-ref operators operator field))
+
+(define (operator-remove! operator)
+  (table-remove! operators operator)
+  (*loaded-ops* (remove operator (*loaded-ops*))))
+
+(define (prune-operators!)
+  (unless (flag-set? 'precision 'fallback)
+    (for ([op (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*))])
+      (operator-remove! op)))
+
+  (unless (flag-set? 'fn 'cbrt) (operator-remove! 'cbrt)))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list '(atypes ...) 'rtype))]
