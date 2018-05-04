@@ -66,9 +66,7 @@
     (dict-set! rows key row)))
 
 (define/contract (table-remove! tbl key)
-  (-> (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))
-      symbol?
-      any)
+  ((cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c))) symbol? . -> . void?)
   (match-let ([(cons header rows) tbl])
     (dict-remove! rows key)))
 
