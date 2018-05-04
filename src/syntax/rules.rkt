@@ -20,7 +20,7 @@
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
     (cond
-      [(list? expr) (if (member (car expr) (*loaded-ops*))
+      [(list? expr) (if (set-member? (*loaded-ops*) (car expr))
                         (for/and ([subexpr (cdr expr)])
                           (ops-in-expr subexpr))
                         #f)]

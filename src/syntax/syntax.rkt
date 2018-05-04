@@ -82,7 +82,7 @@
 
 (define (operator-remove! operator)
   (table-remove! operators operator)
-  (*loaded-ops* (remove operator (*loaded-ops*))))
+  (*loaded-ops* (set-remove (*loaded-ops*) operator)))
 
 (define (prune-operators!)
   (unless (flag-set? 'precision 'fallback)
