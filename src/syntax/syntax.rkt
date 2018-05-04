@@ -100,8 +100,7 @@
 (define (default-nonffi . args)
   (raise exn:fail:unsupported
    (format "couldn't find ~a and no default implementation defined" 'operator)
-   (current-continuation-marks))
-  0.0)
+   (current-continuation-marks)))
 
 (define-operator (+ real real) real 
   [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
