@@ -25,7 +25,7 @@
                           (ops-in-expr subexpr))
                         #f)]
       [else #t]))
-  (and (ops-in-expr (rule-input rule)) (ops-in-expr (rule-output rule))))
+  (ops-in-expr (rule-output rule)))
 
 (define (prune-rules!)
   (*rulesets* (for/list ([ruleset (*rulesets*)])
