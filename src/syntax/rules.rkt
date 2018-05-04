@@ -481,6 +481,15 @@
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (set-member? groups 'complex) rules '())))
 
+(define-ruleset numerics-papers (numerics)
+  ;  "Further Analysis of Kahan's Algorithm for the Accurate Computation of 2x2 Determinants"
+  ;  Jeannerod et al., Mathematics of Computation, 2013
+  ;
+  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+  [prod-diff    (- (* a b) (* c d))
+                (+ (fma a b (- (* d c)))
+                   (fma (- d) c (* d c)))])
+
 (define (*rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (ormap (curry flag-set? 'rules) groups) rules '())))
