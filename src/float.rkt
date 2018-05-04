@@ -4,8 +4,7 @@
 (require "config.rkt")
 (require "common.rkt")
 
-(provide ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double
-         single-flonum->bit-field)
+(provide ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
