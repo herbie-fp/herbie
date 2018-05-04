@@ -13,10 +13,10 @@
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
 
-(define (operator-pruning)
+(define (check-operator-fallbacks!)
   (prune-operators!)
   (prune-rules!)
-  (unless (if (flag-set? 'precision 'double) (null? (*unknown-d-ops*)) (null? (*unknown-f-ops*)))
+  (unless (null? (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
     (eprintf "Warning: native ~a not supported on your system; "
              (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
                           ", "))
@@ -64,7 +64,7 @@
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
-    (operator-pruning)
+    (check-operator-fallbacks!)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
@@ -81,14 +81,14 @@
     [("--quiet") "Print a smaller banner and don't start a browser."
      (set! quiet? true)]
     #:args ()
-    (operator-pruning)
+    (check-operator-fallbacks!)
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count th))]
     #:args (input output)
-    (operator-pruning)
+    (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
@@ -99,7 +99,7 @@
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
-    (operator-pruning)
+    (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
