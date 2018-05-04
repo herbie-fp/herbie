@@ -35,9 +35,8 @@
                       (cdr ruleset)))))
 
 (define-syntax-rule (define-ruleset name groups [rname input output] ...)
-  (begin
-    (define name (for/list ([r (list (rule 'rname 'input 'output) ...)]) r))
-	  (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
+  (begin (define name (list (rule 'rname 'input 'output) ...))
+         (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify complex fp-safe)
