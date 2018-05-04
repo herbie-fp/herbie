@@ -135,25 +135,22 @@
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
 
-; Use C ffi to get numerical ops from libm
-(require ffi/unsafe ffi/unsafe/define)
-(define-ffi-definer define-libm #f)
-
+(require ffi/unsafe)
 (define-syntax (define-operator/libm stx)
   (syntax-case stx (real libm)
     [(_ (operator real ...) real [libm id_d id_f] [key value] ...)
      (let ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))])
        #`(begin
-           (define-libm id_d (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                        #:fail (lambda ()
-                                 (*unknown-d-ops* (cons 'operator (*unknown-d-ops*)))
-                                 (λ args (apply (operator-info 'operator 'nonffi) args))))
-           (define-libm id_f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                        #:fail (lambda ()
-                                 (*unknown-f-ops* (cons 'operator (*unknown-f-ops*)))
-                                 (λ args (apply (operator-info 'operator 'nonffi) args))))
+           (define double-proc (get-ffi-obj 'id_d #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
+                                            (lambda ()
+                                              (*unknown-d-ops* (cons 'operator (*unknown-d-ops*)))
+                                              (λ args (apply (operator-info 'operator 'nonffi) args)))))
+           (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
+                                           (lambda ()
+                                             (*unknown-f-ops* (cons 'operator (*unknown-f-ops*)))
+                                             (λ args (apply (operator-info 'operator 'nonffi) args)))))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
-             [fl (λ args (apply (if (flag-set? 'precision 'double) id_d id_f) args))]
+             [fl (λ args (apply (if (flag-set? 'precision 'double) double-proc float-proc) args))]
              [key value] ...)))]))
 
 (define-operator/libm (acos real) real
@@ -161,63 +158,63 @@
   [->c/double (curry format "acos(~a)")]
   [->c/mpfr (curry format "mpfr_acos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos^{-1} ~a")]
-  [nonffi (λ (x) (acos x))])
+  [nonffi flacos])
 
 (define-operator/libm (acosh real) real
   [libm acosh acoshf] [bf bfacosh] [cost 55]
   [->c/double (curry format "acosh(~a)")]
   [->c/mpfr (curry format "mpfr_acosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh^{-1} ~a")]
-  [nonffi (λ (x) (acosh x))])
+  [nonffi flacosh])
 
 (define-operator/libm (asin real) real
   [libm asin asinf] [bf bfasin] [cost 105]
   [->c/double (curry format "asin(~a)")]
   [->c/mpfr (curry format "mpfr_asin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin^{-1} ~a")]
-  [nonffi (λ (x) (asin x))])
+  [nonffi flasin])
 
 (define-operator/libm (asinh real) real
   [libm asinh asinhf] [bf bfasinh] [cost 55]
   [->c/double (curry format "asinh(~a)")]
   [->c/mpfr (curry format "mpfr_asinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh^{-1} ~a")]
-  [nonffi (λ (x) (asinh x))])
+  [nonffi flasinh])
 
 (define-operator/libm (atan real) real
   [libm atan atanf] [bf bfatan] [cost 105]
   [->c/double (curry format "atan(~a)")]
   [->c/mpfr (curry format "mpfr_atan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1} ~a")]
-  [nonffi (λ (x) (atan x))])
+  [nonffi flatan])
 
 (define-operator/libm (atan2 real real) real
   [libm atan2 atan2f] [bf bfatan2] [cost 140]
   [->c/double (curry format "atan2(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")]
-  [nonffi (λ (x y) (atan x y))])
+  [nonffi flatan])
 
 (define-operator/libm (atanh real) real
   [libm atanh atanhf] [bf bfatanh] [cost 55]
   [->c/double (curry format "atanh(~a)")]
   [->c/mpfr (curry format "mpfr_atanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh^{-1} ~a")]
-  [nonffi (λ (x) (atanh x))])
+  [nonffi flatanh])
 
 (define-operator/libm (cbrt real) real
   [libm cbrt cbrtf] [bf bfcbrt] [cost 80]
   [->c/double (curry format "cbrt(~a)")]
   [->c/mpfr (curry format "mpfr_cbrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt[3]{~a}")]
-  [nonffi (λ (x) (expt x (fl (/ 1 3))))])
+  [nonffi (λ (x) (flexpt x (fl (/ 1 3))))])
 
 (define-operator/libm (ceil real) real
   [libm ceil ceilf] [bf bfceiling] [cost 80]
   [->c/double (curry format "ceil(~a)")]
   [->c/mpfr (curry format "mpfr_ceil(~a, ~a)")]
   [->tex (curry format "\\left\\lceil~a\\right\\rceil")]
-  [nonffi (λ (x) (ceiling x))])
+  [nonffi ceiling])
 
 (define (bfcopysign x y)
   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
@@ -234,28 +231,28 @@
   [->c/double (curry format "cos(~a)")]
   [->c/mpfr (curry format "mpfr_cos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos ~a")]
-  [nonffi (λ (x) (cos x))])
+  [nonffi flcos])
 
 (define-operator/libm (cosh real) real
   [libm cosh coshf] [bf bfcosh] [cost 55]
   [->c/double (curry format "cosh(~a)")]
   [->c/mpfr (curry format "mpfr_cosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh ~a")]
-  [nonffi (λ (x) (cosh x))])
+  [nonffi flcosh])
 
 (define-operator/libm (erf real) real
   [libm erf erff] [bf bferf] [cost 70]
   [->c/double (curry format "erf(~a)")]
   [->c/mpfr (curry format "mpfr_erf(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{erf} ~a")]
-  [nonffi (λ (x) (erf x))])
+  [nonffi flerf])
 
 (define-operator/libm (erfc real) real
   [libm erfc erfcf] [bf bferfc] [cost 70]
   [->c/double (curry format "erfc(~a)")]
   [->c/mpfr (curry format "mpfr_erfc(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{erfc} ~a")]
-  [nonffi (λ (x) (erfc x))])
+  [nonffi flerfc])
 
 (define-operator/libm (exp real) real
   [libm exp expf]
@@ -263,14 +260,14 @@
   [->c/double (curry format "exp(~a)")]
   [->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "e^{~a}")]
-  [nonffi (λ (x) (exp x))])
+  [nonffi flexp])
 
 (define-operator/libm (exp2 real) real
   [libm exp2 exp2f] [bf bfexp2] [cost 70]
   [->c/double (curry format "exp2(~a)")]
   [->c/mpfr (curry format "mpfr_exp2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "2^{~a}")]
-  [nonffi (λ (x) (expt 2.0 x))])
+  [nonffi (λ (x) (flexpt 2.0 x))])
 
 (define-operator/libm (expm1 real) real
   [libm expm1 expm1f] [bf bfexpm1] [cost 70]
@@ -284,7 +281,7 @@
   [->c/double (curry format "fabs(~a)")]
   [->c/mpfr (curry format "mpfr_abs(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\left|~a\\right|")]
-  [nonffi (λ (x) (abs x))])
+  [nonffi abs])
 
 (define (bffdim x y)
   (if (bf> x y)
@@ -365,7 +362,7 @@
   [->c/double (curry format "lgamma(~a)")]
   [->c/mpfr (curry format "mpfr_lngamma(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_* \\left( \\mathsf{gamma} ~a \\right)")]
-  [nonffi (λ (x) (log-gamma x))])
+  [nonffi fllog-gamma])
 
 (define-operator/libm (log real) real
   [libm log logf]
@@ -373,14 +370,14 @@
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log ~a")]
-  [nonffi (λ (x) (log x))])
+  [nonffi fllog])
 
 (define-operator/libm (log10 real) real
   [libm log10 log10f] [bf bflog10] [cost 70]
   [->c/double (curry format "log10(~a)")]
   [->c/mpfr (curry format "mpfr_log10(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{10} ~a")]
-  [nonffi (λ (x) (log x 10))])
+  [nonffi (λ (x) (fllog x 10))])
 
 (define-operator/libm (log1p real) real
   [libm log1p log1pf] [bf bflog1p] [cost 90]
@@ -413,42 +410,42 @@
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^{~a}")]
-  [nonffi (λ (x y) (expt x y))])
+  [nonffi flexpt])
 
 (define-operator/libm (remainder real real) real
   [libm remainder remainderf] [bf bfremainder] [cost 70]
   [->c/double (curry format "remainder(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_remainder(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\mathsf{rem} ~a")]
-  [nonffi (λ (x y) (remainder x y))])
+  [nonffi remainder])
 
 (define-operator/libm (rint real) real
   [libm rint rintf] [bf bfrint] [cost 70]
   [->c/double (curry format "rint(~a)")]
   [->c/mpfr (curry format "mpfr_rint(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{rint} ~a")]
-  [nonffi (λ (x) (round x))])
+  [nonffi round])
 
 (define-operator/libm (round real) real
   [libm round roundf] [bf bfround] [cost 70]
   [->c/double (curry format "round(~a)")]
   [->c/mpfr (curry format "mpfr_round(~a, ~a)")]
   [->tex (curry format "\\mathsf{round} ~a")]
-  [nonffi (λ (x) (round x))])
+  [nonffi round])
 
 (define-operator/libm (sin real) real
   [libm sin sinf] [bf bfsin] [cost 60]
   [->c/double (curry format "sin(~a)")]
   [->c/mpfr (curry format "mpfr_sin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin ~a")]
-  [nonffi (λ (x) (flsin x))])
+  [nonffi flsin])
 
 (define-operator/libm (sinh real) real
   [libm sinh sinhf] [bf bfsinh] [cost 55]
   [->c/double (curry format "sinh(~a)")]
   [->c/mpfr (curry format "mpfr_sinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh ~a")]
-  [nonffi (λ (x) (sinh x))])
+  [nonffi flsinh])
 
 (define-operator/libm (sqrt real) real
   [libm sqrt sqrtf]
@@ -456,35 +453,35 @@
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi (λ (x) (sqrt x))])
+  [nonffi flsqrt])
 
 (define-operator/libm (tan real) real
   [libm tan tanf] [bf bftan] [cost 95]
   [->c/double (curry format "tan(~a)")]
   [->c/mpfr (curry format "mpfr_tan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan ~a")]
-  [nonffi (λ (x) (tan x))])
+  [nonffi fltan])
 
 (define-operator/libm (tanh real) real
   [libm tanh tanhf] [bf bftanh] [cost 55]
   [->c/double (curry format "tanh(~a)")]
   [->c/mpfr (curry format "mpfr_tanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh ~a")]
-  [nonffi (λ (x) (tanh x))])
+  [nonffi fltanh])
 
 (define-operator/libm (tgamma real) real
   [libm tgamma tgammaf] [bf bfgamma] [cost 55]
   [->c/double (curry format "tgamma(~a)")]
   [->c/mpfr (curry format "mpfr_gamma(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{gamma} ~a")]
-  [nonffi (λ (x) (gamma x))])
+  [nonffi flgamma])
 
 (define-operator/libm (trunc real) real
   [libm trunc truncf] [bf bftruncate] [cost 55]
   [->c/double (curry format "trunc(~a)")]
   [->c/mpfr (curry format "mpfr_trunc(~a, ~a)")]
   [->tex (curry format "\\mathsf{trunc} ~a")]
-  [nonffi (λ (x) (truncate x))])
+  [nonffi truncate])
 
 (define-operator/libm (y0 real) real
   [libm y0 y0f] [bf bfbesy0] [cost 55]
