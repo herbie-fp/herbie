@@ -3,8 +3,10 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../common.rkt")
+(require "syntax.rkt")
 
-(provide (struct-out rule) *complex-rules* rule-valid-at-type? *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(provide (struct-out rule) *complex-rules* rule-valid-at-type? *rules* *simplify-rules* 
+         *fp-safe-simplify-rules* prune-rules!)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -15,9 +17,26 @@
 
 (define *rulesets* (make-parameter '()))
 
+(define (rule-ops-supported? rule)
+  (define (ops-in-expr expr)
+    (cond
+      [(list? expr) (if (set-member? (*loaded-ops*) (car expr))
+                        (for/and ([subexpr (cdr expr)])
+                          (ops-in-expr subexpr))
+                        #f)]
+      [else #t]))
+  (ops-in-expr (rule-output rule)))
+
+(define (prune-rules!)
+  (*rulesets* (for/list ([ruleset (*rulesets*)])
+                (cons (for/list ([rule (car ruleset)]
+                                 #:when (rule-ops-supported? rule))
+                        rule)
+                      (cdr ruleset)))))
+
 (define-syntax-rule (define-ruleset name groups [rname input output] ...)
   (begin (define name (list (rule 'rname 'input 'output) ...))
-	 (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
+         (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify complex fp-safe)

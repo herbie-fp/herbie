@@ -8,14 +8,16 @@
 ;; Flag Stuff
 
 (define all-flags
-  #hash([precision . (double)]
+  #hash([precision . (double fallback)]
+        [fn . (cbrt)] ;; TODO: This is a bad way to disable functions: figure out a better one
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error post-process binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex)]))
 
 (define default-flags
-  #hash([precision . (double)]
+  #hash([precision . (double fallback)]
+        [fn . (cbrt)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error binary-search branch-expressions)]
