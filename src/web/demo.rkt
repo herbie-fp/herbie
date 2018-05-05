@@ -92,11 +92,23 @@
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
      '((sqrt sqr) "Squares and square roots")
+     '((cbrt cube) "Cubes and cube roots")
      '((exp log) "Natural exponent and natural log")
      '((expt) "Raising a value to an exponent (also called " (code "pow") ")")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
      '((sinh cosh tanh) "The hyperbolic trigonometric functions")
+     '((asinh acosh atanh) "The inverse hyperbolic trigonometric functions")
+     '((ceil floor rint round trunc) "Rounding functions")
+     '((erf erfc) "Error function and complementary error function")
+     '((exp2 log2 log10) "Exponential base 2, log base 2, and log base 10")
+     '((fmod remainder) "Mod and remainder functions")
+     '((j0 j1 y0 y1) "Bessel functions of the first and second kind")
+     '((tgamma lgamma) "The gamma function and log gamma function")
+     '((fmin fmax) "The min and max functions")
+     '((fdim copysign) "The positive difference and copysign functions")
+     '((expm1 log1p) "The exponent of " (code "x - 1") " and the log of " (code "1 + x"))
+     '((fma hypot logb) "The fma, hypotenuse (distance from origin), and logb functions")
      '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "
