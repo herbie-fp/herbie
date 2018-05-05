@@ -4,7 +4,16 @@ FUNCTIONS = {
     "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "pow": [2],
     "sin": [1], "cos": [1], "tan": [1], "cot": [1],
     "asin": [1], "acos": [1], "atan": [1],
-    "sinh": [1], "cosh": [1], "tanh": [1]
+    "sinh": [1], "cosh": [1], "tanh": [1],
+    "asinh": [1], "acosh": [1], "atanh": [1],
+    "cbrt": [1], "cube": [1], "ceil": [1], "copysign": [2],
+    "erf": [1], "erfc": [1], "exp2": [1], "expm1": [1],
+    "fdim": [2], "floor": [1], "fma": [3], "fmax": [2],
+    "fmin": [2], "fmod": [2], "hypot": [2],
+    "j0": [1], "j1": [1], "lgamma": [1], "log10": [1],
+    "log1p": [1], "log2": [1], "logb": [1],
+    "remainder": [2], "rint": [1], "round": [1],
+    "tgamma": [1], "trunc": [1], "y0": [1], "y1": [1]
 }
 
 SECRETFUNCTIONS = {"^": "pow", "**": "pow", "abs": "fabs"}
