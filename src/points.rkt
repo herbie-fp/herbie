@@ -198,22 +198,22 @@
            (let* ([n-pts (length pts)]
                   [num (- (*num-points*) n-pts)]
                   ; generate input points
-                  [_ (debug #:from 'progress #:depth 4
-                            "Have " n-pts " points. "
-                            "Sampling " num " additional inputs.")]
+                  [_ (debug #:from 'points #:depth 4
+                            "Sampling" num "additional inputs"
+                            "(have " n-pts "/" (*num-points*) ")")]
                   [pts1 (for/list ([n (in-range num)])
                           (for/list ([var (program-variables prog)]
                                      [sampler samplers])
                             (sampler)))]
                   ; compute exact program outputs
-                  [_ (debug #:from 'progress #:depth 4
-                            "Computing " num " additional correct outputs. "
-                            "Current precision is " (bf-precision))]
+                  [_ (debug #:from 'points #:depth 4
+                            "Computing" num "additional correct outputs"
+                            "(current precision " (bf-precision) ")")]
                   [exs1 (make-exacts prog pts1 precondition)]
                   ; remove points whose outputs are not representable
-                  [_ (debug #:from 'progress #:depth 4
-                            "Filtering points with unrepresentable outputs. "
-                            "Current precision is " (bf-precision))]
+                  [_ (debug #:from 'points #:depth 4
+                            "Filtering points with unrepresentable outputs"
+                            "(current precision " (bf-precision) ")")]
                   [pts* (filter-points pts1 exs1)]
                   [exs* (filter-exacts pts1 exs1)])
             ; keep iterating till we get at least *num-points*
