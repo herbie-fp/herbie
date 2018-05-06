@@ -189,23 +189,34 @@
         [(list (? interval? ivals) ...)
          (λ () (sample-multi-bounded ivals))])))
 
-  ; First, we generate points;
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (cond [(> num-loops 200)
            (raise-herbie-error "Cannot sample enough valid points." #:url "faq.html#sample-valid-points")]
           [(>= (length pts) (*num-points*))
            (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
           [#t
-           (let* ([num (- (*num-points*) (length pts))]
+           (let* ([n-pts (length pts)]
+                  [num (- (*num-points*) n-pts)]
+                  ; generate input points
+                  [_ (debug #:from 'progress #:depth 4
+                            "Have " n-pts " points. "
+                            "Sampling " num " additional inputs.")]
                   [pts1 (for/list ([n (in-range num)])
                           (for/list ([var (program-variables prog)]
                                      [sampler samplers])
                             (sampler)))]
+                  ; compute exact program outputs
+                  [_ (debug #:from 'progress #:depth 4
+                            "Computing " num " additional correct outputs. "
+                            "Current precision is " (bf-precision))]
                   [exs1 (make-exacts prog pts1 precondition)]
-                                        ;; Then, we remove the points for which the answers
-                                        ;; are not representable
-                 [pts* (filter-points pts1 exs1)]
-                 [exs* (filter-exacts pts1 exs1)])
+                  ; remove points whose outputs are not representable
+                  [_ (debug #:from 'progress #:depth 4
+                            "Filtering points with unrepresentable outputs. "
+                            "Current precision is " (bf-precision))]
+                  [pts* (filter-points pts1 exs1)]
+                  [exs* (filter-exacts pts1 exs1)])
+            ; keep iterating till we get at least *num-points*
             (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))])))
 
 (define (prepare-points-period prog periods)
