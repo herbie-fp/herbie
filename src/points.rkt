@@ -141,10 +141,11 @@
     (let loop ([prec (- (bf-precision) (*precision-step*))]
                [prev #f])
       (bf-precision prec)
-      (debug #:from 'points #:depth 4 "Precision set to" (bf-precision))
+      (debug #:from 'points #:depth 4 "Setting precision to" (bf-precision))
       (let ([curr (map f pts)] [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
+            ;; TODO: bump precision by factor of 1.5 instead of *precision-step* ?
             (loop (+ prec (*precision-step*)) curr))))))
 
 (define (make-exacts prog pts precondition)
@@ -192,13 +193,15 @@
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (cond [(> num-loops 200)
-           (raise-herbie-error "Cannot sample enough valid points." #:url "faq.html#sample-valid-points")]
+           (raise-herbie-error "Cannot sample enough valid points."
+                               #:url "faq.html#sample-valid-points")]
           [(>= (length pts) (*num-points*))
-           (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
+           (mk-pcontext (take pts (*num-points*))
+                        (take exs (*num-points*)))]
           [#t
            (let* ([n-pts (length pts)]
-                  [num (- (*num-points*) n-pts)]
-                  ; generate input points
+                  ; add 10 here to avoid repeatedly trying to get last point
+                  [num (+ 10 (- (*num-points*) n-pts))]
                   [_ (debug #:from 'points #:depth 4
                             "Sampling" num "additional inputs,"
                             "have" n-pts "/" (*num-points*))]
@@ -206,11 +209,9 @@
                           (for/list ([var (program-variables prog)]
                                      [sampler samplers])
                             (sampler)))]
-                  ; compute exact program outputs
                   [_ (debug #:from 'points #:depth 4
                             "Computing" num "additional correct outputs")]
                   [exs1 (make-exacts prog pts1 precondition)]
-                  ; remove points whose outputs are not representable
                   [_ (debug #:from 'points #:depth 4
                             "Filtering points with unrepresentable outputs")]
                   [pts* (filter-points pts1 exs1)]
