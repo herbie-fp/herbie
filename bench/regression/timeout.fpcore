@@ -123,6 +123,6 @@
      (if (< b 0) r1 (/ c (* a r2)))))
  (let ((d (- (* b b) (* 4 a c)))) (/ (+ (- b) (sqrt d)) (* 2 a))))
 
-(FPCore (a b/2 c)
+(FPCore (a b_2 c)
  :name "NMSE problem 3.2.1"
  (let ((d (sqrt (- (* b/2 b/2) (* a c))))) (/ (- (- b/2) d) a)))
