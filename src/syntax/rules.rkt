@@ -111,10 +111,12 @@
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   [+-lft-identity    (+ 0 a)               a]
   [+-rgt-identity    (+ a 0)               a]
+  [--rgt-identity    (- a 0)               a]
   [sub0-neg          (- 0 b)               (- b)]
   [remove-double-neg (- (- a))             a]
   [*-lft-identity    (* 1 a)               a]
   [*-rgt-identity    (* a 1)               a]
+  [/-rgt-identity    (/ a 1)               a]
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
