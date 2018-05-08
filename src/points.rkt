@@ -141,6 +141,7 @@
     (let loop ([prec (- (bf-precision) (*precision-step*))]
                [prev #f])
       (bf-precision prec)
+      (debug #:from 'points #:depth 4 "Precision set to" (bf-precision))
       (let ([curr (map f pts)] [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
@@ -199,21 +200,19 @@
                   [num (- (*num-points*) n-pts)]
                   ; generate input points
                   [_ (debug #:from 'points #:depth 4
-                            "Sampling" num "additional inputs"
-                            "(have " n-pts "/" (*num-points*) ")")]
+                            "Sampling" num "additional inputs,"
+                            "have" n-pts "/" (*num-points*))]
                   [pts1 (for/list ([n (in-range num)])
                           (for/list ([var (program-variables prog)]
                                      [sampler samplers])
                             (sampler)))]
                   ; compute exact program outputs
                   [_ (debug #:from 'points #:depth 4
-                            "Computing" num "additional correct outputs"
-                            "(current precision " (bf-precision) ")")]
+                            "Computing" num "additional correct outputs")]
                   [exs1 (make-exacts prog pts1 precondition)]
                   ; remove points whose outputs are not representable
                   [_ (debug #:from 'points #:depth 4
-                            "Filtering points with unrepresentable outputs"
-                            "(current precision " (bf-precision) ")")]
+                            "Filtering points with unrepresentable outputs")]
                   [pts* (filter-points pts1 exs1)]
                   [exs* (filter-exacts pts1 exs1)])
             ; keep iterating till we get at least *num-points*
