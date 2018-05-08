@@ -225,14 +225,17 @@
 (module+ test
   (require rackunit)
 
+  (define (exactn? a)
+    (and (number? a) (exact? a)))
+
   (define (handle-exact-evaluation-bug expr)
     ;; TODO: This wouldn't be necessary if exact evaluation worked
     (match expr
-      [`(+ ,(? exact? a) ,(? exact? b)) (+ a b)]
-      [`(- ,(? exact? a) ,(? exact? b)) (- a b)]
-      [`(- ,(? exact? a)) (- a)]
-      [`(* ,(? exact? a) ,(? exact? b)) (* a b)]
-      [`(/ ,(? exact? a) ,(? exact? b)) (/ a b)]
+      [`(+ ,(? exactn? a) ,(? exactn? b)) (+ a b)]
+      [`(- ,(? exactn? a) ,(? exactn? b)) (- a b)]
+      [`(- ,(? exactn? a)) (- a)]
+      [`(* ,(? exactn? a) ,(? exactn? b)) (* a b)]
+      [`(/ ,(? exactn? a) ,(? exactn? b)) (/ a b)]
       [_ expr]))
 
   (define test-exprs
