@@ -23,10 +23,10 @@
 
 (FPCore (a b_2 c)
  :name "quad2m (problem 3.2.1, negative)"
- (let ([d (sqrt (- (* b/2 b/2) (* a c)))])
-   (/ (- (- b/2) d) a)))
+ (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
+   (/ (- (- b_2) d) a)))
 
 (FPCore (a b_2 c)
  :name "quad2p (problem 3.2.1, positive)"
- (let ([d (sqrt (- (* b/2 b/2) (* a c)))])
-   (/ (+ (- b/2) d) a)))
+ (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
+   (/ (+ (- b_2) d) a)))

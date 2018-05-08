@@ -125,4 +125,4 @@
 
 (FPCore (a b_2 c)
  :name "NMSE problem 3.2.1"
- (let ((d (sqrt (- (* b/2 b/2) (* a c))))) (/ (- (- b/2) d) a)))
+ (let ((d (sqrt (- (* b_2 b_2) (* a c))))) (/ (- (- b_2) d) a)))
