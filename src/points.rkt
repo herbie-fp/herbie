@@ -136,10 +136,12 @@
       (loop (cdr l) (- count 1))])))
 
 (define exacts-precs
-  (vector-immutable 64 128 256 512 1024 2048 4096 8192 16384))
+  (vector-immutable 64 128 256 512 768 1024 1536 2048 3072 4096 6144 8192 12288 16384))
 
-; start at 1, first iter of make-exacts will drop briefly to 0
+; start at 1, first iter of first call to make-exacts will drop briefly to 0
 (define exacts-prec-idx 1)
+(define (reset-exacts-prec-idx)
+  (set! exacts-prec-idx 1))
 
 (define (bump-exacts-prec)
   (assert (< -1 exacts-prec-idx))
@@ -171,6 +173,7 @@
             (begin (bump-exacts-prec)
                    (loop curr)))))))
 
+; warning: this will start at whatever precision exacts happens to be at
 (define (make-exacts prog pts precondition)
   (define n (length pts))
   (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
@@ -203,6 +206,7 @@
    and a list of exact values for those points (each a flonum)"
 
   (define range-table (condition->range-table precondition))
+  (reset-exacts-prec-idx)
 
   (define samplers
     (for/list ([var (program-variables prog)])
