@@ -8,34 +8,31 @@ cache:
 env:
   global:
     - RACKET_DIR=~/racket
+      JOB_UTEST="raco test src"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB_TTEST_SEED="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' bench/tutorial.fpcore bench/hamming/"
+      JOB_TTEST_RAND="racket $TRAVIS_BUILD_DIR/infra/travis.rkt bench/tutorial.fpcore bench/hamming/"
   matrix:
     # separate builds for unit tests and hamming tests
     - RACKET_VERSION="6.7"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="raco test src"
+      JOB="${JOB_UTEST}"
     - RACKET_VERSION="6.7"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
+      JOB="${JOB_TTEST_SEED}"
     - RACKET_VERSION="6.9"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="raco test src"
+      JOB="${JOB_UTEST}"
     - RACKET_VERSION="6.9"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
+      JOB="${JOB_TTEST_SEED}"
     - RACKET_VERSION="6.11"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="raco test src"
+      JOB="${JOB_UTEST}"
     - RACKET_VERSION="6.11"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
-    # Remember to change the `allow_failures` key below
+      JOB="${JOB_TTEST_SEED}"
+    # remember to change the `allow_failures` key below!
     - RACKET_VERSION="6.11"
-      HERBIE_SEED="#f"
-      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
+      JOB="${JOB_TTEST_RAND}"
 matrix:
   allow_failures:
     - env: RACKET_VERSION="6.11"
-           HERBIE_SEED="#f"
+           JOB="${JOB_TTEST_RAND}"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
