@@ -42,6 +42,7 @@ install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/src
 # - docker build -t herbie .
 script:
+  - echo ${JOB}
   - ${JOB}
 #before_cache:
 # - docker save -o docker-images/herbie.image herbie
