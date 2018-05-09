@@ -142,36 +142,34 @@
 (define exacts-prec-idx 1)
 
 (define (bump-exacts-prec)
-  (if (< -1 exacts-prec-idx (- (vector-length exacts-precs) 1))
-      (begin
-        (set! exacts-prec-idx (+ exacts-prec-idx 1))
-        (let ([p (vector-ref exacts-precs exacts-prec-idx)])
-          (debug #:from 'points #:depth 4 "Setting precision to" p)
-          (bf-precision p)))
-      (raise-herbie-error "Exceeded MPFR precision limit." #:url "faq.html#mpfr-prec-limit")))
+  (assert (< -1 exacts-prec-idx))
+  (set! exacts-prec-idx (+ exacts-prec-idx 1))
+  (when (>= exacts-prec-idx (vector-length exacts-precs))
+      (raise-herbie-error "Exceeded MPFR precision limit."
+                          #:url "faq.html#mpfr-prec-limit"))
+  (let ([p (vector-ref exacts-precs exacts-prec-idx)])
+    (debug #:from 'points #:depth 4 "Bumping precision to" p)
+    (bf-precision p)))
 
 (define (dump-exacts-prec)
-  (if (< 0 exacts-prec-idx (vector-length exacts-precs))
-      (begin
-        (set! exacts-prec-idx (- exacts-prec-idx 1))
-        (let ([p (vector-ref exacts-precs exacts-prec-idx)])
-          (debug #:from 'points #:depth 4 "Setting precision to" p)
-          (bf-precision p)))
-      (raise-herbie-error "Error indexing into MPFR precisions." #:url "faq.html")))
+  (assert (< 0 exacts-prec-idx (vector-length exacts-precs)))
+  (set! exacts-prec-idx (- exacts-prec-idx 1))
+  (let ([p (vector-ref exacts-precs exacts-prec-idx)])
+    (debug #:from 'points #:depth 4 "Dumping precision to" p)
+    (bf-precision p)))
 
 (define (make-exacts* prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)]
-        ; drop a level of prec; iters bump till 64-bit prefixes converge
-        [_ (dump-exacts-prec)])
+        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
+    ; drop a level of prec; iters bump till 64-bit prefixes converge
+    (dump-exacts-prec)
     (let loop ([prev #f])
       (let ([curr (map f pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
-            (begin
-              (bump-exacts-prec)
-              (loop curr)))))))
+            (begin (bump-exacts-prec)
+                   (loop curr)))))))
 
 (define (make-exacts prog pts precondition)
   (define n (length pts))
