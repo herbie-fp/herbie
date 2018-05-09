@@ -9,15 +9,29 @@ env:
   global:
     - RACKET_DIR=~/racket
   matrix:
+    # separate builds for unit tests and hamming tests
     - RACKET_VERSION="6.7"
       HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="raco test src"
+    - RACKET_VERSION="6.7"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
     - RACKET_VERSION="6.9"
       HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="raco test src"
+    - RACKET_VERSION="6.9"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
     - RACKET_VERSION="6.11"
       HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      # Remember to change the `allow_failures` key below
+      JOB="raco test src"
+    - RACKET_VERSION="6.11"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
+    # Remember to change the `allow_failures` key below
     - RACKET_VERSION="6.11"
       HERBIE_SEED="#f"
+      JOB="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/"
 matrix:
   allow_failures:
     - env: RACKET_VERSION="6.11"
@@ -31,8 +45,7 @@ install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/src
 # - docker build -t herbie .
 script:
-  - raco test src
-  - racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/
+  - ${JOB}
 #before_cache:
 # - docker save -o docker-images/herbie.image herbie
 notifications:
