@@ -135,43 +135,18 @@
      [else
       (loop (cdr l) (- count 1))])))
 
-(define exacts-precs
-  (vector-immutable 64 128 256 512 768 1024 1536 2048 3072 4096 6144 8192 12288 16384))
-
-; start at 1, first iter of first call to make-exacts will drop briefly to 0
-(define exacts-prec-idx 1)
-(define (reset-exacts-prec-idx)
-  (set! exacts-prec-idx 1))
-
-(define (bump-exacts-prec)
-  (assert (< -1 exacts-prec-idx))
-  (set! exacts-prec-idx (+ exacts-prec-idx 1))
-  (when (>= exacts-prec-idx (vector-length exacts-precs))
-      (raise-herbie-error "Exceeded MPFR precision limit."
-                          #:url "faq.html#mpfr-prec-limit"))
-  (let ([p (vector-ref exacts-precs exacts-prec-idx)])
-    (debug #:from 'points #:depth 4 "Bumping precision to" p)
-    (bf-precision p)))
-
-(define (dump-exacts-prec)
-  (assert (< 0 exacts-prec-idx (vector-length exacts-precs)))
-  (set! exacts-prec-idx (- exacts-prec-idx 1))
-  (let ([p (vector-ref exacts-precs exacts-prec-idx)])
-    (debug #:from 'points #:depth 4 "Dumping precision to" p)
-    (bf-precision p)))
-
 (define (make-exacts* prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
-    ; drop a level of prec; iters bump till 64-bit prefixes converge
-    (dump-exacts-prec)
-    (let loop ([prev #f])
+    (let loop ([prec (- (bf-precision) (*precision-step*))]
+               [prev #f])
+      (bf-precision prec)
       (let ([curr (map f pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
-            (begin (bump-exacts-prec)
-                   (loop curr)))))))
+            (loop (+ prec (*precision-step*)) curr))))))
+
 
 ; warning: this will start at whatever precision exacts happens to be at
 (define (make-exacts prog pts precondition)
@@ -206,7 +181,6 @@
    and a list of exact values for those points (each a flonum)"
 
   (define range-table (condition->range-table precondition))
-  (reset-exacts-prec-idx)
 
   (define samplers
     (for/list ([var (program-variables prog)])
