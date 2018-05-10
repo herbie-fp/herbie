@@ -99,9 +99,10 @@
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
 (define (default-nonffi . args)
-  (raise exn:fail:unsupported
-   (format "couldn't find ~a and no default implementation defined" 'operator)
-   (current-continuation-marks)))
+  (raise
+   (make-exn:fail:unsupported
+    (format "couldn't find ~a and no default implementation defined" 'operator)
+    (current-continuation-marks))))
 
 (define-operator (+ real real) real 
   [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
@@ -536,7 +537,7 @@
    (λ (out c a b)
      (format "if (mpfr_get_si(~a, MPFR_RNDN)) { mpfr_set(~a, ~a, MPFR_RNDN); } else { mpfr_set(~a, ~a, MPFR_RNDN); }" c out a out b))]
   [->tex (curry format "~a ? ~a : ~a")]
-  [nonffi default-nonffi])
+  [nonffi if-fn])
 
 (define ((infix-joiner str) . args)
   (string-join args str))
@@ -548,7 +549,7 @@
   [->c/double (curry format "~a == ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
   [->tex (infix-joiner " = ")]
-  [nonffi default-nonffi])
+  [nonffi (comparator =)])
 
 (define-operator (complex real real) complex
   ; Override number of arguments
@@ -556,7 +557,7 @@
   [->c/double (const "/* ERROR: no complex support in C */")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "~a + ~a i")]
-  [nonffi default-nonffi])
+  [nonffi make-rectangular])
 
 (define-operator (re complex) real
   ; Override number of arguments
@@ -564,7 +565,7 @@
   [->c/double (const "/* ERROR: no complex support in C */")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\Re(~a)")]
-  [nonffi default-nonffi])
+  [nonffi real-part])
 
 (define-operator (im complex) real
   ; Override number of arguments
@@ -572,7 +573,7 @@
   [->c/double (const "/* ERROR: no complex support in C */")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\Im(~a)")]
-  [nonffi default-nonffi])
+  [nonffi imag-part])
 
 (define-operator (conj complex) real
   ; Override number of arguments
@@ -580,7 +581,7 @@
   [->c/double (const "/* ERROR: no complex support in C */")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\overline{~a}")]
-  [nonffi default-nonffi])
+  [nonffi conjugate])
 
 (define-operator (!= real real) bool
   ; Override number of arguments
@@ -589,7 +590,7 @@
   [->c/double (curry format "~a != ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) != 0, MPFR_RNDN)")] ; TODO: cannot handle variary !=
   [->tex (infix-joiner " \\ne ")]
-  [nonffi default-nonffi])
+  [nonffi !=-fn])
 
 (define-operator (< real real) bool
   ; Override number of arguments
@@ -598,7 +599,7 @@
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
-  [nonffi default-nonffi])
+  [nonffi (comparator <)])
 
 (define-operator (> real real) bool
   ; Override number of arguments
@@ -607,7 +608,7 @@
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
-  [nonffi default-nonffi])
+  [nonffi (comparator >)])
 
 (define-operator (<= real real) bool
   ; Override number of arguments
@@ -616,7 +617,7 @@
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
-  [nonffi default-nonffi])
+  [nonffi (comparator <=)])
 
 (define-operator (>= real real) bool
   ; Override number of arguments
@@ -625,14 +626,14 @@
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
-  [nonffi default-nonffi])
+  [nonffi (comparator >=)])
 
 (define-operator (not bool) bool
   [fl not] [bf not] [cost 65]
   [->c/double (curry format "!~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, !mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (curry format "\\neg ~a")]
-  [nonffi default-nonffi])
+  [nonffi not])
 
 (define-operator (and bool bool) bool
   ; Override number of arguments
@@ -641,7 +642,7 @@
   [->c/double (curry format "~a && ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (infix-joiner " \\land ")]
-  [nonffi default-nonffi])
+  [nonffi and-fn])
 
 (define-operator (or bool bool) bool
   ; Override number of arguments
@@ -650,7 +651,7 @@
   [->c/double (curry format "~a || ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (infix-joiner " \\lor ")]
-  [nonffi default-nonffi])
+  [nonffi or-fn])
 
 (define (operator? op)
   (and (symbol? op) (dict-has-key? (cdr operators) op)))
