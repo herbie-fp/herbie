@@ -167,6 +167,11 @@
   (let* ([expr_bf (replace-leaves expr #:constant ->bf #:symbol (curryr operator-info 'bf))])
     (->flonum (eval expr_bf common-eval-ns))))
 
+(module+ test
+  (check-equal? (eval-const-expr '(+ 1 1)) 2)
+  (check-equal? (eval-const-expr 'PI) pi)
+  (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
+
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common
 ;; subexpressions.  So, we compile the program to a register machine
