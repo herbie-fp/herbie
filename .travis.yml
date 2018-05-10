@@ -4,23 +4,23 @@ env:
   global:
     - RACKET_DIR=~/racket
       HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      UTEST="raco test src"
       TTEST="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' bench/tutorial.fpcore bench/hamming/"
       TTEST_RAND="racket $TRAVIS_BUILD_DIR/infra/travis.rkt bench/tutorial.fpcore bench/hamming/"
+      UTEST="raco test src"
   matrix:
     # separate builds for unit tests and hamming tests
     - RACKET_VERSION="6.7"
-      JOB="${UTEST}"
+      JOB="${TTEST}"
+    - RACKET_VERSION="6.9"
+      JOB="${TTEST}"
+    - RACKET_VERSION="6.11"
+      JOB="${TTEST}"
     - RACKET_VERSION="6.7"
-      JOB="${TTEST}"
-    - RACKET_VERSION="6.9"
       JOB="${UTEST}"
     - RACKET_VERSION="6.9"
-      JOB="${TTEST}"
-    - RACKET_VERSION="6.11"
       JOB="${UTEST}"
     - RACKET_VERSION="6.11"
-      JOB="${TTEST}"
+      JOB="${UTEST}"
     # remember to change the `allow_failures` key below!
     - RACKET_VERSION="6.11"
       JOB="${TTEST_RAND}"
