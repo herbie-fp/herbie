@@ -164,8 +164,12 @@
       (apply fn (map ->bf pts)))))
 
 (define (eval-const-expr expr)
-  (let* ([expr_bf (replace-leaves expr #:constant ->bf #:symbol (curryr operator-info 'bf))])
-    (->flonum (eval expr_bf common-eval-ns))))
+  (eval
+   (replace-leaves
+    expr
+    #:constant (λ (x) (if (symbol? x) (->flonum x) x))
+    #:symbol (curryr operator-info 'nonffi))
+   common-eval-ns))
 
 (module+ test
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
