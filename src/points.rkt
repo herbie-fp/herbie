@@ -141,7 +141,7 @@
     (let loop ([prec (- (bf-precision) (*precision-step*))]
                [prev #f])
       (debug #:from 'points #:depth 4
-             "Setting MPFR precision to" prec)]
+             "Setting MPFR precision to" prec)
       (bf-precision prec)
       (let ([curr (map f pts)]
             [good? (map pre pts)])
