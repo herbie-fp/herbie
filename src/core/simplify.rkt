@@ -252,10 +252,18 @@
           [(- (+ x 1) 1) . x]
           [(/ (* x 3) x) . 3]
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
-              (* (sqrt x) (sqrt x))) . 1]))
+              (* (sqrt x) (sqrt x))) . 1]
+          [(re (complex a b)) . a]))
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
        (check-equal? (handle-exact-evaluation-bug
                       (simplify-expr original #:rules (*simplify-rules*)))
-                     target))))
+                     target)))
+
+  (define no-crash-exprs
+    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+
+  (for ([expr no-crash-exprs])
+    (with-check-info (['original expr])
+       (check-not-exn (λ () (simplify-expr expr #:rules (*simplify-rules*)))))))
