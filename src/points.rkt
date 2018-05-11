@@ -138,17 +138,19 @@
 (define (make-exacts* prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
-    (let loop ([prec (- (bf-precision) (*precision-step*))]
+    (let loop ([prec (max 128 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
+      (when (> prec (*max-mpfr-prec*))
+        (raise-herbie-error "Exceeded MPFR precision limit."
+                            #:url "faq.html#mpfr-prec-limit"))
       (bf-precision prec)
       (let ([curr (map f pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
-
 
 ; warning: this will start at whatever precision exacts happens to be at
 (define (make-exacts prog pts precondition)

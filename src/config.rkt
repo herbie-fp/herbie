@@ -57,6 +57,9 @@
 ;; DANGEROUS TO CHANGE
 (define *precision-step* (make-parameter 256))
 
+;; Maximum MPFR precision allowed during exact evaluation
+(define *max-mpfr-prec* (make-parameter 10000))
+
 ;; When doing a binary search in regime inference,
 ;; this is the fraction of the gap between two points that the search must reach
 (define *epsilon-fraction* (/ 1 200))
