@@ -156,16 +156,14 @@
 (define (make-exacts prog pts precondition)
   (define n (length pts))
   (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
-    (cond
-     [(>= n* n)
-      (make-exacts* prog pts precondition)]
-     [else
-       (let ([nth (round (/ n n*))])
-         (debug #:from 'points #:depth 4
-                "Computing exacts on every" nth "of" n
-                "points to ramp up precision")
-         (make-exacts* prog (select-every nth pts) precondition)
-         (loop (* n* 2))]))))
+    (if (>= n* n)
+        (make-exacts* prog pts precondition)
+        (let ([nth (round (/ n n*))])
+          (debug #:from 'points #:depth 4
+                 "Computing exacts on every" nth "of" n
+                 "points to ramp up precision")
+          (make-exacts* prog (select-every nth pts) precondition)
+          (loop (* n* 2))))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal, and the point is normal"
