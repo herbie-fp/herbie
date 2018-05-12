@@ -160,8 +160,12 @@
      [(>= n* n)
       (make-exacts* prog pts precondition)]
      [else
-      (make-exacts* prog (select-every (round (/ n n*)) pts) precondition)
-      (loop (* n* 2))])))
+       (let ([nth (round (/ n n*))])
+         (debug #:from 'points #:depth 4
+                "Computing exacts on every" nth "of" n
+                "points to ramp up precision")
+         (make-exacts* prog (select-every nth pts) precondition)
+         (loop (* n* 2))]))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal, and the point is normal"
@@ -190,7 +194,8 @@
     (for/list ([var (program-variables prog)])
       (match (range-table-ref range-table var)
         [#f
-         (raise-herbie-error "No valid values of variable ~a" var #:url "faq.html#no-valid-values")]
+         (raise-herbie-error "No valid values of variable ~a" var
+                             #:url "faq.html#no-valid-values")]
         [(interval lo hi lo? hi?)
          (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))]
         [(list (? interval? ivals) ...)
