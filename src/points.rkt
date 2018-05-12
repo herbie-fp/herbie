@@ -138,7 +138,7 @@
 (define (make-exacts* prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
-    (let loop ([prec (max 128 (- (bf-precision) (*precision-step*)))]
+    (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
@@ -209,7 +209,7 @@
                   [num (+ 10 (- (*num-points*) n-pts))]
                   [_ (debug #:from 'points #:depth 4
                             "Sampling" num "additional inputs,"
-                            "have" n-pts "/" (*num-points*))]
+                            "on iter" num-loops "have" n-pts "/" (*num-points*))]
                   [pts1 (for/list ([n (in-range num)])
                           (for/list ([var (program-variables prog)]
                                      [sampler samplers])
