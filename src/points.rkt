@@ -214,8 +214,8 @@
                (mk-pcontext (take pts (*num-points*))
                             (take exs (*num-points*))))]
             [#t
-             (let* (; add 10 to avoid repeatedly trying to get last point
-                    [num (+ 10 (- (*num-points*) npts))]
+             (let* (; pad to avoid repeatedly trying to get last point
+                    [num (max 4 (- (*num-points*) npts))]
                     [_ (debug #:from 'points #:depth 4
                               "Sampling" num "additional inputs,"
                               "on iter" num-loops "have" npts "/" (*num-points*))]
