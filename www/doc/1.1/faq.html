@@ -16,29 +16,29 @@
     expressions into more accurate forms. This page catalogs questions
     frequently asked questions about Herbie.
   </p>
-  
+
   <h2>Troubleshooting common errors</h2>
-  
+
   <p>
     Several Herbie error messages refer to this page for additional
     information and debugging tips.
   </p>
-  
+
   <h3 id="invalid-syntax">“Invalid syntax” error</h3>
 
   <p>
     This error means you mis-formatted Herbie's input. Common errors
     include misspelling function names and parenthesizing expressions
-    that must not be parenthesized. For example, in 
+    that must not be parenthesized. For example, in
     <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
     <code>x</code> is a variable so isn't parenthesized. <code>(- (exp
     x) 1)</code> would be the correct way of writing that expression.
     Please review the <a href="input.html">input format</a>
     documentation for more.
   </p>
-  
+
   <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
-  
+
   <p>
     Herbie uses random sampling to select the points which it will use
     to evaluate the error of an expression. This error occurs when it
@@ -47,7 +47,7 @@
     a valid result only when <code>x</code> is between -1001 and -999,
     a rather narrow range.
   </p>
-  
+
   <p>
     The solution is to help out Herbie by specifying a precondition.
     Specify <code>:pre (&lt; -1001 x -999)</code> for the example
