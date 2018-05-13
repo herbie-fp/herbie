@@ -140,11 +140,11 @@
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
-      (debug #:from 'points #:depth 4
-             "Setting MPFR precision to" prec)
       (when (> prec (*max-mpfr-prec*))
         (raise-herbie-error "Exceeded MPFR precision limit."
                             #:url "faq.html#mpfr-prec-limit"))
+      (debug #:from 'points #:depth 4
+             "Setting MPFR precision to" prec)
       (bf-precision prec)
       (let ([curr (map f pts)]
             [good? (map pre pts)])
@@ -155,9 +155,12 @@
 ; warning: this will start at whatever precision exacts happens to be at
 (define (make-exacts prog pts precondition)
   (define n (length pts))
-  (let loop ([n* 16]) ; 16 is arbitrary; *num-points* should be n* times a power of 2
+  (let loop ([n* 16])
     (if (>= n* n)
-        (make-exacts* prog pts precondition)
+        (begin
+          (debug #:from 'points #:depth 4
+                 "Computing exacts for" n "points")
+          (make-exacts* prog pts precondition))
         (let ([nth (round (/ n n*))])
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
@@ -177,7 +180,7 @@
   (reap (sow)
     (for ([pt pts] [exact exacts])
       (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
-	(sow exact)))))
+        (sow exact)))))
 
 ; These definitions in place, we finally generate the points.
 
@@ -200,32 +203,33 @@
          (λ () (sample-multi-bounded ivals))])))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
-    (cond [(> num-loops 200)
-           (raise-herbie-error "Cannot sample enough valid points."
-                               #:url "faq.html#sample-valid-points")]
-          [(>= (length pts) (*num-points*))
-           (mk-pcontext (take pts (*num-points*))
-                        (take exs (*num-points*)))]
-          [#t
-           (let* ([n-pts (length pts)]
-                  ; add 10 here to avoid repeatedly trying to get last point
-                  [num (+ 10 (- (*num-points*) n-pts))]
-                  [_ (debug #:from 'points #:depth 4
-                            "Sampling" num "additional inputs,"
-                            "on iter" num-loops "have" n-pts "/" (*num-points*))]
-                  [pts1 (for/list ([n (in-range num)])
-                          (for/list ([var (program-variables prog)]
-                                     [sampler samplers])
-                            (sampler)))]
-                  [_ (debug #:from 'points #:depth 4
-                            "Computing" num "additional correct outputs")]
-                  [exs1 (make-exacts prog pts1 precondition)]
-                  [_ (debug #:from 'points #:depth 4
-                            "Filtering points with unrepresentable outputs")]
-                  [pts* (filter-points pts1 exs1)]
-                  [exs* (filter-exacts pts1 exs1)])
-            ; keep iterating till we get at least *num-points*
-            (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))])))
+    (let ([npts (length pts)])
+      (cond [(> num-loops 200)
+             (raise-herbie-error "Cannot sample enough valid points."
+                                 #:url "faq.html#sample-valid-points")]
+            [(>= npts (*num-points*))
+             (begin
+               (debug #:from 'points #:tag 'exit #:depth 4
+                      "Sampled" npts "points with exact outputs")
+               (mk-pcontext (take pts (*num-points*))
+                            (take exs (*num-points*))))]
+            [#t
+             (let* (; add 10 to avoid repeatedly trying to get last point
+                    [num (+ 10 (- (*num-points*) npts))]
+                    [_ (debug #:from 'points #:depth 4
+                              "Sampling" num "additional inputs,"
+                              "on iter" num-loops "have" npts "/" (*num-points*))]
+                    [pts1 (for/list ([n (in-range num)])
+                            (for/list ([var (program-variables prog)]
+                                       [sampler samplers])
+                              (sampler)))]
+                    [exs1 (make-exacts prog pts1 precondition)]
+                    [_ (debug #:from 'points #:depth 4
+                              "Filtering points with unrepresentable outputs")]
+                    [pts* (filter-points pts1 exs1)]
+                    [exs* (filter-exacts pts1 exs1)])
+              ; keep iterating till we get at least *num-points*
+              (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))]))))
 
 (define (prepare-points-period prog periods)
   (let* ([pts (make-period-points (*num-points*) periods)]
