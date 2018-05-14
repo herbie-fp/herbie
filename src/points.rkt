@@ -155,18 +155,18 @@
 ; warning: this will start at whatever precision exacts happens to be at
 (define (make-exacts prog pts precondition)
   (define n (length pts))
-  (let loop ([n* 16])
-    (if (>= n* n)
+  (let loop ([nth (floor (/ n 16))])
+    (if (< nth 2)
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts for" n "points")
           (make-exacts* prog pts precondition))
-        (let ([nth (round (/ n n*))])
+        (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
                  "points to ramp up precision")
           (make-exacts* prog (select-every nth pts) precondition)
-          (loop (* n* 2))))))
+          (loop (floor (/ nth 2)))))))
 
 (define (filter-points pts exacts)
   "Take only the points for which the exact value is normal, and the point is normal"
@@ -214,8 +214,8 @@
                (mk-pcontext (take pts (*num-points*))
                             (take exs (*num-points*))))]
             [#t
-             (let* (; add 10 to avoid repeatedly trying to get last point
-                    [num (+ 10 (- (*num-points*) npts))]
+             (let* (; pad to avoid repeatedly trying to get last point
+                    [num (max 4 (- (*num-points*) npts))]
                     [_ (debug #:from 'points #:depth 4
                               "Sampling" num "additional inputs,"
                               "on iter" num-loops "have" npts "/" (*num-points*))]
