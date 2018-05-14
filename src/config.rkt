@@ -13,7 +13,7 @@
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error post-process binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex branches)]))
 
 (define default-flags
   #hash([precision . (double fallback)]
@@ -21,7 +21,7 @@
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes taylor simplify avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex branches)]))
 
 (define (enable-flag! category flag)
   (define (update cat-flags) (set-add cat-flags flag))

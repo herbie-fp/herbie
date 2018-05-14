@@ -472,6 +472,30 @@
   [expm1-log1p-u x              (expm1 (log1p x))]
   [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
 
+(define-ruleset numerics-papers (numerics)
+  ;  "Further Analysis of Kahan's Algorithm for
+  ;   the Accurate Computation of 2x2 Determinants"
+  ;  Jeannerod et al., Mathematics of Computation, 2013
+  ;
+  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+  [prod-diff    (- (* a b) (* c d))
+                (+ (fma a b (- (* d c)))
+                   (fma (- d) c (* d c)))])
+
+;; TODO
+;; (define-ruleset bool-reduce (bools simplify)
+;;   ...)
+
+(define-ruleset branch-reduce (branches simplify)
+  [if-true        (if TRUE x y)       x]
+  [if-false       (if FALSE x y)      y]
+  [if-same        (if a x x)          x]
+  [if-not         (if (not a) x y)    (if a y x)]
+  [if-if-or       (if a x (if b x y)) (if (or a b) x y)]
+  [if-if-or-not   (if a x (if b y x)) (if (or a (not b)) x y)]
+  [if-if-and      (if a (if b x y) y) (if (and a b) x y)]
+  [if-if-and-not  (if a (if b y x) y) (if (and a (not b)) x y)])
+
 (define-ruleset complex-number-basics (complex simplify)
   [real-part     (re (complex x y))     x]
   [imag-part     (im (complex x y))     y]
@@ -485,20 +509,6 @@
   [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
-
-;; TODO
-;; (define-ruleset bool-reduce (bools simplify)
-;;   ...)
-
-(define-ruleset branch-reduce (branches simplify)
-  [if-true        (if #t x y)         x]
-  [if-false       (if #f x y)         y]
-  [if-same        (if a x x)          x]
-  [if-not         (if (not a) x y)    (if a y x)]
-  [if-if-or       (if a x (if b x y)) (if (or a b) x y)]
-  [if-if-or-not   (if a x (if b y x)) (if (or a (not b)) x y)]
-  [if-if-and      (if a (if b x y) y) (if (and a b) x y)]
-  [if-if-and-not  (if a (if b y x) y) (if (and a (not b)) x y)])
 
 (define (rule-valid-at-type? rule type)
   (match type
@@ -515,15 +525,6 @@
 (define (*complex-rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
     (if (set-member? groups 'complex) rules '())))
-
-(define-ruleset numerics-papers (numerics)
-  ;  "Further Analysis of Kahan's Algorithm for the Accurate Computation of 2x2 Determinants"
-  ;  Jeannerod et al., Mathematics of Computation, 2013
-  ;
-  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-  [prod-diff    (- (* a b) (* c d))
-                (+ (fma a b (- (* d c)))
-                   (fma (- d) c (* d c)))])
 
 (define (*rules*)
   (for/append ([(rules groups) (in-dict (*rulesets*))])
