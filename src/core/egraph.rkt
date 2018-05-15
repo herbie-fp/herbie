@@ -335,18 +335,19 @@
         (update-leader! eg old-vars leader leader*)))))
 
 (define (reduce-to-new! eg en expr)
-  (let* ([new-en (mk-enode-rec! eg expr)]
-         [vars (enode-vars en)]
-         [leader (merge-egraph-nodes! eg en new-en)])
-    (hash-update! (egraph-leader->iexprs eg)
-                  leader
-                  (λ (st)
-                    (for/mutable-set ([expr st])
-                      (update-en-expr expr))))
-    (let ([leader* (pack-filter! (λ (inner-en)
-                                   (equal? (enode-expr inner-en) (enode-expr new-en)))
-                                 leader)])
-      (update-leader! eg vars leader leader*))))
+  (unless (list? expr)
+    (let* ([new-en (mk-enode-rec! eg expr)]
+           [vars (enode-vars en)]
+           [leader (merge-egraph-nodes! eg en new-en)])
+      (hash-update! (egraph-leader->iexprs eg)
+                    leader
+                    (λ (st)
+                      (for/mutable-set ([expr st])
+                                       (update-en-expr expr))))
+      (let ([leader* (pack-filter! (λ (inner-en)
+                                     (equal? (enode-expr inner-en) (enode-expr new-en)))
+                                   leader)])
+        (update-leader! eg vars leader leader*)))))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
