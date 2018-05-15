@@ -14,6 +14,8 @@
 (provide simplify-expr simplify *max-egraph-iters*)
 (provide (all-defined-out) (all-from-out "egraph.rkt" "../syntax/rules.rkt" "ematch.rkt"))
 
+(module+ test (require rackunit))
+
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
 ;;# modules in this directory to simplify an expression as much as possible without
@@ -189,7 +191,7 @@
     ['boolean (if val 'TRUE 'FALSE)]))
 
 (define (set-precompute! eg en)
-  (define type en)
+  (define type (enode-type en))
   (for ([var (enode-vars en)])
     (when (list? var)
       (let ([constexpr
@@ -243,21 +245,6 @@
             [#t (loop todo-ens* ens->exprs*)]))))
 
 (module+ test
-  (require rackunit)
-
-  (define (exactn? a)
-    (and (number? a) (exact? a)))
-
-  (define (handle-exact-evaluation-bug expr)
-    ;; TODO: This wouldn't be necessary if exact evaluation worked
-    (match expr
-      [`(+ ,(? exactn? a) ,(? exactn? b)) (+ a b)]
-      [`(- ,(? exactn? a) ,(? exactn? b)) (- a b)]
-      [`(- ,(? exactn? a)) (- a)]
-      [`(* ,(? exactn? a) ,(? exactn? b)) (* a b)]
-      [`(/ ,(? exactn? a) ,(? exactn? b)) (/ a b)]
-      [_ expr]))
-
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
@@ -277,9 +264,7 @@
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
-       (check-equal? (handle-exact-evaluation-bug
-                      (simplify-expr original #:rules (*simplify-rules*)))
-                     target)))
+       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target)))
 
   (define no-crash-exprs
     '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
