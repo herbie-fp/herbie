@@ -486,7 +486,7 @@
 ;; (define-ruleset bool-reduce (bools simplify)
 ;;   ...)
 
-(define-ruleset branch-reduce (branches simplify)
+(define-ruleset branch-reduce (branches simplify fp-safe)
   [if-true        (if TRUE x y)       x]
   [if-false       (if FALSE x y)      y]
   [if-same        (if a x x)          x]

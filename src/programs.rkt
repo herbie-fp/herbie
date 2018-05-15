@@ -37,15 +37,17 @@
 (define/contract (->flonum x)
   (-> any/c (or/c flonum? complex? boolean?))
   (define convert
-    (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
-
+    (if (flag-set? 'precision 'double)
+        real->double-flonum
+        real->single-flonum))
   (cond
    [(real? x) (convert x)]
    [(bigfloat? x) (convert (bigfloat->flonum x))]
    [(bigcomplex? x)
-    (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
+    (make-rectangular (->flonum (bigcomplex-re x))
+                      (->flonum (bigcomplex-im x)))]
    [(and (symbol? x) (constant? x))
-    (convert ((constant-info x 'fl)))]
+    (->flonum ((constant-info x 'fl)))]
    [else x]))
 
 (define (->bf x)
