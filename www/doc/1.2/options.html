@@ -297,12 +297,34 @@
       code runtime is more important than accuracy.</dd>
 
     <dt><code>rules:trigonometry</code></dt>
-    <dd>This option, on by default, allows Herbie to use basic
-      trigonometry facts during its search. If turned off, Herbie will
-      not be able to use those facts. You may want to turn this option
+    <dd>This option, on by default, allows Herbie to use trigonometric
+      identities during its search. If turned off, Herbie will not be
+      able to use these identities. You may want to turn this option
       off in the rare case that you do not want trigonometric
       functions used in Herbie's output expressions, which may be the
       case when code runtime is more important than accuracy.</dd>
+
+    <dt><code>rules:hyperbolic</code></dt>
+    <dd>This option, on by default, allows Herbie to use hyperbolic
+      identities during its search. If turned off, Herbie will not be
+      able to use these identities. You may want to turn this option
+      off in the rare case that you do not want trigonometric
+      functions used in Herbie's output expressions, which may be the
+      case when code runtime is more important than accuracy.</dd>
+
+    <dt><code>rules:special</code></dt>
+    <dd>This option, on by default, allows Herbie to use identities
+      for special functions such as <code>erf</code>. If turned off,
+      Herbie will not be able to use these identities. You will want
+      to turn this option off if these functions
+      (currently <code>erf</code> and <code>erfc</code>) are not
+      available or are poorly implemented in your language.</dd>
+
+    <dt><code>rules:complex</code></dt>
+    <dd>This option, on by default, allows Herbie to rewrite complex
+      arithmetic expressions. If turned off, Herbie will not be able
+      to use complex arithmetic. You will want to turn this option off
+      if complex arithmetic is not available in your language.</dd>
 
     <dt><code>rules:numerics</code></dt>
     <dd>This option, off by default, allows Herbie to use special
