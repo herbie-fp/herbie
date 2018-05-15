@@ -335,7 +335,7 @@
         (update-leader! eg old-vars leader leader*)))))
 
 (define (reduce-to-new! eg en expr)
-  (unless (list? expr)
+  (unless true
     (let* ([new-en (mk-enode-rec! eg expr)]
            [vars (enode-vars en)]
            [leader (merge-egraph-nodes! eg en new-en)])
