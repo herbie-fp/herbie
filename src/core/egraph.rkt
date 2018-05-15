@@ -55,6 +55,7 @@
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
   (let ([leader->iexprs (egraph-leader->iexprs eg)]
 	[count (egraph-cnt eg)])
+    (assert (not (hash-has-key? leader->iexprs #f)))
     ;; The egraphs count must be a positive integer
     (assert (and (integer? count) (positive? count)) #:loc location)
     ;; The top is a valid enode. (enode validity is verified upon creation).
@@ -118,18 +119,18 @@
 		   en)
 	en)))
 
+(define (mk-enode-rec! eg expr)
+  (match expr
+    [(list op args ...)
+     (mk-enode! eg (cons op (map (curry mk-enode-rec! eg) args)))]
+    [_
+     (mk-enode! eg expr)]))
+
 ;; Takes a plain mathematical expression, quoted, and returns the egraph
 ;; representing that expression with no expansion or saturation.
 (define (mk-egraph expr)
-  (define (expr->enode eg expr)
-    (if (list? expr)
-	(mk-enode! eg
-		   (cons (car expr)
-			 (map (curry expr->enode eg)
-			      (cdr expr))))
-	(mk-enode! eg expr)))
   (let ([eg (egraph 0 #f (make-hash) (make-hash))])
-    (set-egraph-top! eg (expr->enode eg expr))
+    (set-egraph-top! eg (mk-enode-rec! eg expr))
     ;; This is an expensive check, but useful for debuggging.
     #;(check-egraph-valid eg #:loc 'constructing-egraph)
     eg))
@@ -334,7 +335,7 @@
         (update-leader! eg old-vars leader leader*)))))
 
 (define (reduce-to-new! eg en expr)
-  (let* ([new-en (mk-enode! eg expr)]
+  (let* ([new-en (mk-enode-rec! eg expr)]
          [vars (enode-vars en)]
          [leader (merge-egraph-nodes! eg en new-en)])
     (hash-update! (egraph-leader->iexprs eg)
@@ -343,7 +344,7 @@
                     (for/mutable-set ([expr st])
                       (update-en-expr expr))))
     (let ([leader* (pack-filter! (λ (inner-en)
-                                   (equal? (enode-expr inner-en) expr))
+                                   (equal? (enode-expr inner-en) (enode-expr new-en)))
                                  leader)])
       (update-leader! eg vars leader leader*))))
 

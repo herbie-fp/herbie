@@ -163,8 +163,8 @@
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
     #;(elim-enode-loops! eg en))
-  (let ([matches (find-matches (egraph-leaders eg))])
-    (for-each apply-match matches))
+  (for ([m (find-matches (egraph-leaders eg))])
+    (apply-match m))
   (map-enodes (curry set-precompute! eg) eg))
 
 (define-syntax-rule (matches? expr pattern)
