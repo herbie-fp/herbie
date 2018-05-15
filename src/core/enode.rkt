@@ -67,10 +67,10 @@
 ; Get the type for an enode or an enode expr
 (define (type-of-enode-expr expr)
   (match expr
-    [(? real? _) 'real]
-    [(or 'PI 'E) 'real]
-    [(? complex? _) 'complex]
-    [(? variable? x) 'real]
+    [(? real?) 'real]
+    [(? complex?) 'complex]
+    [(? constant?) (constant-info expr 'type)]
+    [(? variable?) 'real]
     [(list op ens ...)
      (define sigs (get-sigs op (length ens)))
      (define argtypes
