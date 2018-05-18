@@ -111,6 +111,23 @@
   (define split-points (sindices->spoints pts expr alts split-indices))
   (option split-points (pick-errors split-points pts err-lsts)))
 
+(module+ test
+  (parameterize ([*start-prog* '(λ (x) 1)]
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
+
+    ;; This is a basic sanity test
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts 'x)
+           '(1 0))
+
+    ;; This test ensures we handle equal points correctly. All points
+    ;; are equal along the `1` axis, so we should only get one
+    ;; splitpoint (the second, since it is better at the further point).
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts '1)
+           '(1))))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
 (define (sindices->spoints points expr alts sindices)
