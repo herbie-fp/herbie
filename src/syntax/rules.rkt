@@ -482,9 +482,30 @@
                 (+ (fma a b (- (* d c)))
                    (fma (- d) c (* d c)))])
 
-;; TODO
-;; (define-ruleset bool-reduce (bools simplify)
-;;   ...)
+(define-ruleset bool-reduce (bools simplify fp-safe)
+  [not-true     (not TRUE)       FALSE]
+  [not-false    (not FALSE)      TRUE]
+  [not-not      (not (not a))    a]
+  [not-and      (not (and a b))  (or  (not a) (not b))]
+  [not-or       (not (or  a b))  (and (not a) (not b))]
+  [and-true-l   (and TRUE a)     a]
+  [and-true-r   (and a TRUE)     a]
+  [and-false-l  (and FALSE a)    FALSE]
+  [and-false-r  (and a FALSE)    FALSE]
+  [and-same     (and a a)        a]
+  [or-true-l    (or TRUE a)      TRUE]
+  [or-true-r    (or a TRUE)      TRUE]
+  [or-false-l   (or FALSE a)     a]
+  [or-false-r   (or a FALSE)     a]
+  [or-same      (or a a)         a])
+
+(define-ruleset compare-reduce (bools simplify fp-safe)
+  [lt-same      (<  x x)         FALSE]
+  [lte-same     (<= x x)         TRUE]
+  [gt-lte       (>  x y)         (<= y x)]
+  [gte-lt       (>= x y)         (<  y x)]
+  [not-lt       (not (<  x y))   (<= y x)]
+  [not-lte      (not (<= x y))   (<  y x)])
 
 (define-ruleset branch-reduce (branches simplify fp-safe)
   [if-true        (if TRUE x y)       x]
@@ -561,10 +582,17 @@
       [tanh-acosh . (> (fabs x) 1)]))
 
   (define *skip-tests*
-    ;; All these tests fail due to underflow to 0 and are irrelevant
-    '(exp-prod pow-unpow pow-pow pow-exp
-      asinh-2 tanh-1/2* sinh-cosh
-      hang-p0-tan hang-m0-tan))
+    (append
+      ;; All these tests fail due to underflow to 0 and are irrelevant
+      '(exp-prod pow-unpow pow-pow pow-exp
+        asinh-2 tanh-1/2* sinh-cosh
+        hang-p0-tan hang-m0-tan)
+      ;; TODO these tests need to sample and compare bools (inputs and outputs are not flonums)
+      '(not-true not-false not-not not-and not-or
+        and-true-l and-true-r and-false-l and-false-r and-same
+        or-true-l or-true-r or-false-l or-false-r or-same)
+      ;; TODO these tests need to sample flonums (inputs) and compare bools (outputs)
+      '(lt-same lte-same gt-lte gte-lt not-lt not-lte)))
 
   (for ([test-rule (*rules*)] #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
@@ -621,5 +649,7 @@
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))
+          ;; switch to this check instead to see failing inputs
+          ;; (for/and ([v1 ex1] [v2 ex2]) (check-equal? v1 v2)))))))
           (define errs (for/and ([v1 ex1] [v2 ex2]) (equal? v1 v2)))
           (check-true errs))))))
