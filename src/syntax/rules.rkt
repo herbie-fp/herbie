@@ -501,11 +501,13 @@
 
 (define-ruleset compare-reduce (bools simplify fp-safe)
   [lt-same      (<  x x)         FALSE]
+  [gt-same      (>  x x)         FALSE]
   [lte-same     (<= x x)         TRUE]
-  [gt-lte       (>  x y)         (<= y x)]
-  [gte-lt       (>= x y)         (<  y x)]
-  [not-lt       (not (<  x y))   (<= y x)]
-  [not-lte      (not (<= x y))   (<  y x)])
+  [gte-same     (>= x x)         TRUE]
+  [not-lt       (not (<  x y))   (>= x y)]
+  [not-gt       (not (>  x y))   (<= x y)]
+  [not-lte      (not (<= x y))   (>  x y)]
+  [not-gte      (not (>= x y))   (<  x y)])
 
 (define-ruleset branch-reduce (branches simplify fp-safe)
   [if-true        (if TRUE x y)       x]
