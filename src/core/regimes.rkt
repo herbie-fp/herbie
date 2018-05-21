@@ -103,11 +103,16 @@
 (define (option-on-expr alts expr)
   (define vars (program-variables (*start-prog*)))
   (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
+  (define can-split? (cons #f (for/list ([val (cdr splitvals)] [prev splitvals]) (> val prev))))
   (define err-lsts
     (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
-  (define split-indices (err-lsts->split-indices merged-err-lsts))
+  (define split-indices (err-lsts->split-indices merged-err-lsts can-split?))
+  (for ([pidx (map si-pidx (drop-right split-indices 1))])
+    (assert (> pidx 0))
+    (assert (list-ref can-split? pidx)))
   (define split-points (sindices->spoints pts expr alts split-indices))
   (option split-points (pick-errors split-points pts err-lsts)))
 
@@ -126,7 +131,11 @@
     ;; splitpoint (the second, since it is better at the further point).
     (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
            (option-on-expr alts '1)
-           '(1))))
+           '(0))
+
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts '(if (== x 0.5) 1 +nan.0))
+           '(0))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form.
@@ -236,7 +245,7 @@
 (struct cse (cost splitpoints) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(define (err-lsts->split-indices err-lsts)
+(define (err-lsts->split-indices err-lsts can-split-lst)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (length err-lsts))
@@ -244,6 +253,10 @@
   (define min-weight num-points)
 
   (define psums (map (compose partial-sum list->vector) err-lsts))
+  (define can-split (list->vector can-split-lst))
+
+  (define (can-split? pidx)
+    (or (= pidx num-points) (vector-ref can-split pidx)))
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -255,7 +268,8 @@
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))])
+        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))]
+              #:when (can-split? (+ point-idx 1)))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-list psums)])
@@ -264,7 +278,7 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (when (< (+ (cse-cost prev-entry) bcost) acost)
+            (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
               (set! aest (cse acost (cons (si best (+ point-idx 1))
                                           (cse-splitpoints prev-entry)))))))
@@ -279,10 +293,10 @@
               ;; Consider all the candidates we could put in this region
               (map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse cost
-                             (list (si cand-idx (add1 point-idx))))))
-                         (range num-candidates)
-                         psums))))
+                        (cse (if (can-split? (+ point-idx 1)) cost +inf.0)
+                             (list (si cand-idx (+ point-idx 1))))))
+                   (range num-candidates)
+                   psums))))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
