@@ -34,9 +34,14 @@
                         rule)
                       (cdr ruleset)))))
 
-(define-syntax-rule (define-ruleset name groups [rname input output] ...)
-  (begin (define name (list (rule 'rname 'input 'output) ...))
-         (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
+(define-syntax define-ruleset
+  (syntax-rules ()
+    [(define-ruleset name groups [rname input output] ...)
+     (define-ruleset name groups #:type () [rname input output] ...)]
+    [(define-ruleset name groups #:type ([var type] ...)
+       [rname input output] ...)
+     (begin (define name (list (rule 'rname 'input 'output) ...))
+            (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify complex fp-safe)
@@ -483,6 +488,7 @@
                    (fma (- d) c (* d c)))])
 
 (define-ruleset bool-reduce (bools simplify fp-safe)
+  #:type ([a bool] [b bool])
   [not-true     (not TRUE)       FALSE]
   [not-false    (not FALSE)      TRUE]
   [not-not      (not (not a))    a]
@@ -510,6 +516,7 @@
   [not-gte      (not (>= x y))   (<  x y)])
 
 (define-ruleset branch-reduce (branches simplify fp-safe)
+  #:type ([a bool] [b bool])
   [if-true        (if TRUE x y)       x]
   [if-false       (if FALSE x y)      y]
   [if-same        (if a x x)          x]
@@ -546,22 +553,26 @@
     (check-equal? #t (rule-valid-at-type? r 'real))))
 
 (define (*complex-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (set-member? groups 'complex) rules '())))
 
 (define (*rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (ormap (curry flag-set? 'rules) groups) rules '())))
 
 (define (*simplify-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'simplify))
         rules
         '())))
 
 (define (*fp-safe-simplify-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'fp-safe)
              (set-member? groups 'simplify))
@@ -588,13 +599,11 @@
       ;; All these tests fail due to underflow to 0 and are irrelevant
       '(exp-prod pow-unpow pow-pow pow-exp
         asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan)
-      ;; TODO these tests need to sample and compare bools (inputs and outputs are not flonums)
-      '(not-true not-false not-not not-and not-or
-        and-true-l and-true-r and-false-l and-false-r and-same
-        or-true-l or-true-r or-false-l or-false-r or-same)))
+        hang-p0-tan hang-m0-tan)))
 
-  (for ([test-rule (*rules*)] #:unless (set-member? *skip-tests* (rule-name test-rule)))
+  (for* ([test-ruleset (*rulesets*)]
+         [test-rule (first test-ruleset)]
+         #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
     (with-check-info (['rule test-rule])
       (with-handlers ([exn:fail? (λ (e)
@@ -609,7 +618,12 @@
               (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
               (const true)))
 
-        (define (make-point) (for/list ([v fv]) (sample-double)))
+        (define (make-point)
+          (for/list ([v fv])
+            (match (dict-ref (third test-ruleset) v 'real)
+              ['real (sample-double)]
+              ['bool (if (< (random) .5) false true)]
+              ['complex (make-rectangular (sample-double) (sample-double))])))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
@@ -638,13 +652,20 @@
   (require rackunit math/bigfloat)
   (require "../programs.rkt" "../float.rkt")
 
-  (for ([test-rules (*fp-safe-simplify-rules*)])
-    (with-check-info (['rule test-rules])
+  (for* ([test-ruleset (*rulesets*)]
+         [test-rule (first test-ruleset)]
+         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
+    (with-check-info (['rule test-rule])
       (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
         (define num-test-points 2000)
-        (match-define (rule name p1 p2) test-rules)
+        (match-define (rule name p1 p2) test-rule)
         (define fv (free-variables p1))
-        (define (make-point) (for/list ([v fv]) (sample-double)))
+        (define (make-point)
+          (for/list ([v fv])
+            (match (dict-ref (third test-ruleset) v 'real)
+              ['real (sample-double)]
+              ['bool (if (< (random) .5) false true)]
+              ['complex (make-rectangular (sample-double) (sample-double))])))
         (define point-sequence (in-producer make-point))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
