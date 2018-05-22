@@ -25,20 +25,7 @@
     (define options
       (map (curry option-on-expr alts)
            (if axis (list axis) (exprs-to-branch-on alts))))
-    (define options*
-      ;; This is a hack. If the bexpr evaluates to the same value for
-      ;; several points, we need to avoid placing a split point
-      ;; between them. We don't do that. Instead, we (implicitly) move
-      ;; the splitpoint to the right until all points with the same
-      ;; value are grouped. Perhaps this will ruin a promising option,
-      ;; but oh well. But this can cause the problem with having two
-      ;; split points in the same place! Right now, we just avoid
-      ;; those options totally, but really, they could be good, and we
-      ;; shouldn't just drop them.
-      (for/list ([option options]
-                 #:unless (check-duplicates (map sp-point (option-splitpoints option))))
-        option))
-    (define best-option (argmin (compose errors-score option-errors) options*))
+    (define best-option (argmin (compose errors-score option-errors) options))
     (define splitpoints (option-splitpoints best-option))
     (define altns (used-alts splitpoints alts))
     (define splitpoints* (coerce-indices splitpoints))
