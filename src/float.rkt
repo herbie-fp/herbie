@@ -22,7 +22,9 @@
      (if (flag-set? 'precision 'double) (flonums-between x y) (single-flonums-between x y))]
     [((? complex?) (? complex?))
      (+ (ulp-difference (real-part x) (real-part y))
-        (ulp-difference (imag-part x) (imag-part y)))]))
+        (ulp-difference (imag-part x) (imag-part y)))]
+    [((? boolean?) (? boolean?))
+     (if (equal? x y) 0 64)]))
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 

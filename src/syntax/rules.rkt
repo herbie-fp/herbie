@@ -592,14 +592,15 @@
       ;; TODO these tests need to sample and compare bools (inputs and outputs are not flonums)
       '(not-true not-false not-not not-and not-or
         and-true-l and-true-r and-false-l and-false-r and-same
-        or-true-l or-true-r or-false-l or-false-r or-same)
-      ;; TODO these tests need to sample flonums (inputs) and compare bools (outputs)
-      '(lt-same lte-same gt-lte gte-lt not-lt not-lte)))
+        or-true-l or-true-r or-false-l or-false-r or-same)))
 
   (for ([test-rule (*rules*)] #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
     (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
+      (with-handlers ([exn:fail? (λ (e)
+                                   ((error-display-handler)
+                                    (exn-message e) e)
+                                   (fail (exn-message e)))])
         (match-define (rule name p1 p2) test-rule)
         ;; Not using the normal prepare-points machinery for speed.
         (define fv (free-variables p1))
