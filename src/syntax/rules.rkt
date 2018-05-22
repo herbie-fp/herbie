@@ -505,7 +505,7 @@
   [or-false-r   (or a FALSE)     a]
   [or-same      (or a a)         a])
 
-(define-ruleset compare-reduce (bools simplify fp-safe)
+(define-ruleset compare-reduce (bools simplify fp-safe-nan)
   [lt-same      (<  x x)         FALSE]
   [gt-same      (>  x x)         FALSE]
   [lte-same     (<= x x)         TRUE]
