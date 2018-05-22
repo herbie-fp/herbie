@@ -651,7 +651,12 @@
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))
-          ;; switch to this check instead to see failing inputs
-          ;; (for/and ([v1 ex1] [v2 ex2]) (check-equal? v1 v2)))))))
-          (define errs (for/and ([v1 ex1] [v2 ex2]) (equal? v1 v2)))
-          (check-true errs))))))
+          (define err
+            (for/first ([pt points] [v1 ex1] [v2 ex2]
+                        #:unless (equal? v1 v2))
+              (list pt v1 v2)))
+          (when err
+            (match-define (list pt v1 v2) err)
+            (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
+                             (check-false err))))))))
+;
