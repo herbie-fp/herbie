@@ -18,7 +18,8 @@
 
 (define (type? x) (or (equal? x 'real) (equal? x 'bool) (equal? x 'complex)))
 
-;; Constants's values are defined as functions to allow them to depend on (bf-precision) and (flag 'precision 'double).
+;; Constants's values are defined as functions to allow them to
+;; depend on (bf-precision) and (flag 'precision 'double).
 
 (define-table constants
   [type type?]
@@ -657,7 +658,9 @@
   (and (symbol? op) (dict-has-key? (cdr operators) op)))
 
 (define (constant? var)
-  (or (number? var) (and (symbol? var) (dict-has-key? (cdr constants) var))))
+  (or (number? var)
+      (and (symbol? var)
+           (dict-has-key? (cdr constants) var))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

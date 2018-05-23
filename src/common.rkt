@@ -110,7 +110,9 @@
     [(? real?)
      (not (or (infinite? x) (nan? x)))]
     [(? complex?)
-     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]))
+     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
+    [(? boolean?)
+     true]))
 
 (module+ test
   (check-true (ordinary-value? 2.5))

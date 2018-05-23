@@ -34,9 +34,14 @@
                         rule)
                       (cdr ruleset)))))
 
-(define-syntax-rule (define-ruleset name groups [rname input output] ...)
-  (begin (define name (list (rule 'rname 'input 'output) ...))
-         (*rulesets* (cons (cons name 'groups) (*rulesets*)))))
+(define-syntax define-ruleset
+  (syntax-rules ()
+    [(define-ruleset name groups [rname input output] ...)
+     (define-ruleset name groups #:type () [rname input output] ...)]
+    [(define-ruleset name groups #:type ([var type] ...)
+       [rname input output] ...)
+     (begin (define name (list (rule 'rname 'input 'output) ...))
+            (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify complex fp-safe)
@@ -472,6 +477,55 @@
   [expm1-log1p-u x              (expm1 (log1p x))]
   [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
 
+(define-ruleset numerics-papers (numerics)
+  ;  "Further Analysis of Kahan's Algorithm for
+  ;   the Accurate Computation of 2x2 Determinants"
+  ;  Jeannerod et al., Mathematics of Computation, 2013
+  ;
+  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+  [prod-diff    (- (* a b) (* c d))
+                (+ (fma a b (- (* d c)))
+                   (fma (- d) c (* d c)))])
+
+(define-ruleset bool-reduce (bools simplify fp-safe)
+  #:type ([a bool] [b bool])
+  [not-true     (not TRUE)       FALSE]
+  [not-false    (not FALSE)      TRUE]
+  [not-not      (not (not a))    a]
+  [not-and      (not (and a b))  (or  (not a) (not b))]
+  [not-or       (not (or  a b))  (and (not a) (not b))]
+  [and-true-l   (and TRUE a)     a]
+  [and-true-r   (and a TRUE)     a]
+  [and-false-l  (and FALSE a)    FALSE]
+  [and-false-r  (and a FALSE)    FALSE]
+  [and-same     (and a a)        a]
+  [or-true-l    (or TRUE a)      TRUE]
+  [or-true-r    (or a TRUE)      TRUE]
+  [or-false-l   (or FALSE a)     a]
+  [or-false-r   (or a FALSE)     a]
+  [or-same      (or a a)         a])
+
+(define-ruleset compare-reduce (bools simplify fp-safe-nan)
+  [lt-same      (<  x x)         FALSE]
+  [gt-same      (>  x x)         FALSE]
+  [lte-same     (<= x x)         TRUE]
+  [gte-same     (>= x x)         TRUE]
+  [not-lt       (not (<  x y))   (>= x y)]
+  [not-gt       (not (>  x y))   (<= x y)]
+  [not-lte      (not (<= x y))   (>  x y)]
+  [not-gte      (not (>= x y))   (<  x y)])
+
+(define-ruleset branch-reduce (branches simplify fp-safe)
+  #:type ([a bool] [b bool])
+  [if-true        (if TRUE x y)       x]
+  [if-false       (if FALSE x y)      y]
+  [if-same        (if a x x)          x]
+  [if-not         (if (not a) x y)    (if a y x)]
+  [if-if-or       (if a x (if b x y)) (if (or a b) x y)]
+  [if-if-or-not   (if a x (if b y x)) (if (or a (not b)) x y)]
+  [if-if-and      (if a (if b x y) y) (if (and a b) x y)]
+  [if-if-and-not  (if a (if b y x) y) (if (and a (not b)) x y)])
+
 (define-ruleset complex-number-basics (complex simplify)
   [real-part     (re (complex x y))     x]
   [imag-part     (im (complex x y))     y]
@@ -504,31 +558,26 @@
     (check-equal? #t (rule-valid-at-type? r 'real))))
 
 (define (*complex-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (set-member? groups 'complex) rules '())))
 
-(define-ruleset numerics-papers (numerics)
-  ;  "Further Analysis of Kahan's Algorithm for the Accurate Computation of 2x2 Determinants"
-  ;  Jeannerod et al., Mathematics of Computation, 2013
-  ;
-  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-  [prod-diff    (- (* a b) (* c d))
-                (+ (fma a b (- (* d c)))
-                   (fma (- d) c (* d c)))])
-
 (define (*rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (ormap (curry flag-set? 'rules) groups) rules '())))
 
 (define (*simplify-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'simplify))
         rules
         '())))
 
 (define (*fp-safe-simplify-rules*)
-  (for/append ([(rules groups) (in-dict (*rulesets*))])
+  (for/append ([rec (*rulesets*)])
+    (match-define (list rules groups _) rec)
     (if (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'fp-safe)
              (set-member? groups 'simplify))
@@ -551,15 +600,21 @@
       [tanh-acosh . (> (fabs x) 1)]))
 
   (define *skip-tests*
-    ;; All these tests fail due to underflow to 0 and are irrelevant
-    '(exp-prod pow-unpow pow-pow pow-exp
-      asinh-2 tanh-1/2* sinh-cosh
-      hang-p0-tan hang-m0-tan))
+    (append
+      ;; All these tests fail due to underflow to 0 and are irrelevant
+      '(exp-prod pow-unpow pow-pow pow-exp
+        asinh-2 tanh-1/2* sinh-cosh
+        hang-p0-tan hang-m0-tan)))
 
-  (for ([test-rule (*rules*)] #:unless (set-member? *skip-tests* (rule-name test-rule)))
+  (for* ([test-ruleset (*rulesets*)]
+         [test-rule (first test-ruleset)]
+         #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
     (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
+      (with-handlers ([exn:fail? (λ (e)
+                                   ((error-display-handler)
+                                    (exn-message e) e)
+                                   (fail (exn-message e)))])
         (match-define (rule name p1 p2) test-rule)
         ;; Not using the normal prepare-points machinery for speed.
         (define fv (free-variables p1))
@@ -568,7 +623,12 @@
               (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
               (const true)))
 
-        (define (make-point) (for/list ([v fv]) (sample-double)))
+        (define (make-point)
+          (for/list ([v fv])
+            (match (dict-ref (third test-ruleset) v 'real)
+              ['real (sample-double)]
+              ['bool (if (< (random) .5) false true)]
+              ['complex (make-rectangular (sample-double) (sample-double))])))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
@@ -597,13 +657,20 @@
   (require rackunit math/bigfloat)
   (require "../programs.rkt" "../float.rkt")
 
-  (for ([test-rules (*fp-safe-simplify-rules*)])
-    (with-check-info (['rule test-rules])
+  (for* ([test-ruleset (*rulesets*)]
+         [test-rule (first test-ruleset)]
+         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
+    (with-check-info (['rule test-rule])
       (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
         (define num-test-points 2000)
-        (match-define (rule name p1 p2) test-rules)
+        (match-define (rule name p1 p2) test-rule)
         (define fv (free-variables p1))
-        (define (make-point) (for/list ([v fv]) (sample-double)))
+        (define (make-point)
+          (for/list ([v fv])
+            (match (dict-ref (third test-ruleset) v 'real)
+              ['real (sample-double)]
+              ['bool (if (< (random) .5) false true)]
+              ['complex (make-rectangular (sample-double) (sample-double))])))
         (define point-sequence (in-producer make-point))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
@@ -611,5 +678,12 @@
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))
-          (define errs (for/and ([v1 ex1] [v2 ex2]) (equal? v1 v2)))
-          (check-true errs))))))
+          (define err
+            (for/first ([pt points] [v1 ex1] [v2 ex2]
+                        #:unless (equal? v1 v2))
+              (list pt v1 v2)))
+          (when err
+            (match-define (list pt v1 v2) err)
+            (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
+                             (check-false err))))))))
+;
