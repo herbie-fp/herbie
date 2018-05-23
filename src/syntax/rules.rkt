@@ -540,6 +540,11 @@
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
 
+(define-ruleset erf-rules (special simplify)
+  [erf-odd          (erf (- x))          (- (erf x))]
+  [erf-erfc         (erfc x)             (- 1 (erf x))]
+  [erfc-erf         (- 1 (erf x))        (erfc x)])
+
 (define (rule-valid-at-type? rule type)
   (match type
     ['complex (set-member? (for/set ([r (*complex-rules*)]) (values (rule-name r))) (rule-name rule))]

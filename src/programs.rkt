@@ -166,8 +166,17 @@
       (apply fn (map ->bf pts)))))
 
 (define (eval-const-expr expr)
-  (let* ([expr_bf (replace-leaves expr #:constant ->bf #:symbol (curryr operator-info 'bf))])
-    (->flonum (eval expr_bf common-eval-ns))))
+  (eval
+   (replace-leaves
+    expr
+    #:constant (λ (x) (if (symbol? x) (->flonum x) x))
+    #:symbol (curryr operator-info 'nonffi))
+   common-eval-ns))
+
+(module+ test
+  (check-equal? (eval-const-expr '(+ 1 1)) 2)
+  (check-equal? (eval-const-expr 'PI) pi)
+  (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common

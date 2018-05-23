@@ -120,6 +120,11 @@
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
             (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
+        [(? complex?)
+         (format "~a ~a ~a i"
+                 (texify (real-part expr) '+ loc)
+                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
+                 (texify (abs (imag-part expr)) '+ loc))]
         [(? constant?)
          (constant-info expr '->tex)]
         [(? symbol?) (texify-variable expr)]

@@ -14,7 +14,7 @@
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
-         html-escape-unsafe random-exp parse-flag get-seed set-seed!
+         random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -256,15 +256,6 @@
       (random (expt 2 k))
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
-
-(define (html-escape-unsafe err)
-  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
-
-(module+ test
-  (check-equal? (html-escape-unsafe "foo&bar") "foo&amp;bar")
-  (check-equal? (html-escape-unsafe "foo<bar") "foo&lt;bar")
-  (check-equal? (html-escape-unsafe "foo>bar") "foo&gt;bar")
-  (check-equal? (html-escape-unsafe "&foo<bar>") "&amp;foo&lt;bar&gt;"))
 
 (define (parse-flag s)
   (match (string-split s ":")

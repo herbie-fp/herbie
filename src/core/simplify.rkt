@@ -3,6 +3,7 @@
 (require "../common.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../syntax/syntax.rkt")
 (require "../syntax/rules.rkt")
 (require "egraph.rkt")
 (require "ematch.rkt")
@@ -12,6 +13,8 @@
 
 (provide simplify-expr simplify *max-egraph-iters*)
 (provide (all-defined-out) (all-from-out "egraph.rkt" "../syntax/rules.rkt" "ematch.rkt"))
+
+(module+ test (require rackunit))
 
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
@@ -160,8 +163,8 @@
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
     #;(elim-enode-loops! eg en))
-  (let ([matches (find-matches (egraph-leaders eg))])
-    (for-each apply-match matches))
+  (for ([m (find-matches (egraph-leaders eg))])
+    (apply-match m))
   (map-enodes (curry set-precompute! eg) eg))
 
 (define-syntax-rule (matches? expr pattern)
@@ -169,7 +172,26 @@
     [pattern #t]
     [_ #f]))
 
+(define (exact-value? type val)
+  (match type
+    ['real (exact? val)]
+    ['complex (exact? val)]
+    ['boolean true]))
+
+(define/match (val-of-type type val)
+  [('real    (? real?))    true]
+  [('complex (? complex?)) true]
+  [('boolean (? boolean?)) true]
+  [(_ _) false])
+
+(define (val-to-type type val)
+  (match type
+    ['real val]
+    ['complex `(complex ,(real-part val) ,(imag-part val))]
+    ['boolean (if val 'TRUE 'FALSE)]))
+
 (define (set-precompute! eg en)
+  (define type (enode-type en))
   (for ([var (enode-vars en)])
     (when (list? var)
       (let ([constexpr
@@ -181,8 +203,8 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (ordinary-value? res) (exact? res))
-	      (reduce-to-new! eg en res))))))))
+	    (when (and (val-of-type type res) (exact-value? type res))
+	      (reduce-to-new! eg en (val-to-type type res)))))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])
@@ -223,39 +245,30 @@
             [#t (loop todo-ens* ens->exprs*)]))))
 
 (module+ test
-  (require rackunit)
-
-  (define (exactn? a)
-    (and (number? a) (exact? a)))
-
-  (define (handle-exact-evaluation-bug expr)
-    ;; TODO: This wouldn't be necessary if exact evaluation worked
-    (match expr
-      [`(+ ,(? exactn? a) ,(? exactn? b)) (+ a b)]
-      [`(- ,(? exactn? a) ,(? exactn? b)) (- a b)]
-      [`(- ,(? exactn? a)) (- a)]
-      [`(* ,(? exactn? a) ,(? exactn? b)) (* a b)]
-      [`(/ ,(? exactn? a) ,(? exactn? b)) (/ a b)]
-      [_ expr]))
-
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
           [(+ 1 0) . 1]
-          [(+ 1 5) . 6]
+          #;[(+ 1 5) . 6]
           [(+ x 0) . x]
           [(- x 0) . x]
           [(* x 1) . x]
           [(/ x 1) . x]
-          [(- (* 1 x) (* (+ x 1) 1)) . -1]
+          #;[(- (* 1 x) (* (+ x 1) 1)) . -1]
           [(- (+ x 1) x) . 1]
           [(- (+ x 1) 1) . x]
           [(/ (* x 3) x) . 3]
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
-              (* (sqrt x) (sqrt x))) . 1]))
+              (* (sqrt x) (sqrt x))) . 1]
+          [(re (complex a b)) . a]))
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
-       (check-equal? (handle-exact-evaluation-bug
-                      (simplify-expr original #:rules (*simplify-rules*)))
-                     target))))
+       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target)))
+
+  (define no-crash-exprs
+    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+
+  (for ([expr no-crash-exprs])
+    (with-check-info (['original expr])
+       (check-not-exn (λ () (simplify-expr expr #:rules (*simplify-rules*)))))))
