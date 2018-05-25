@@ -1,0 +1,12 @@
+; -*- mode: scheme -*-
+
+; Herbie cannot sample enough input points for these tests.
+
+(FPCore (x)
+ :name "Random Jason Timeout Test 001"
+ (+ x (asin (cosh x))))
+
+(FPCore (x y)
+ :name "Random Jason Timeout Test 009"
+ (fabs (fmod y (asin (- 2.821952756469356e+184 x)))))
+
