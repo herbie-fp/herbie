@@ -10,3 +10,15 @@
  :name "Random Jason Timeout Test 009"
  (fabs (fmod y (asin (- 2.821952756469356e+184 x)))))
 
+(FPCore (a b c)
+ :pre (and (< 0 a) (< 0 b) (< 0 c))
+ :name "Area of a triangle"
+ (sqrt (* (* (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a))
+             (- (/ (+ (+ a b) c) 2) b))
+          (- (/ (+ (+ a b) c) 2) c))))
+
+(FPCore (n U t l Om U*)
+ :name "Toniolo and Linder, Equation (13)"
+ (sqrt (* (* (* 2 n) U)
+          (- (- t (* 2 (/ (* l l) Om)))
+             (* (* n (pow (/ l Om) 2)) (- U U*))))))

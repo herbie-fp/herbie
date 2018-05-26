@@ -8,23 +8,6 @@
  :name "Fuzzer 002"
  (pow (atan (fmod a (asin a))) (* a a)))
 
-(FPCore (a b c)
- :pre (and (< 0 a) (< 0 b) (< 0 c))
- :name "Area of a triangle"
- (sqrt
-  (*
-   (*
-    (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a))
-    (- (/ (+ (+ a b) c) 2) b))
-   (- (/ (+ (+ a b) c) 2) c))))
-
-(FPCore (n U t l Om U*)
- :name "Toniolo and Linder, Equation (13)"
- (sqrt
-  (*
-   (* (* 2 n) U)
-   (- (- t (* 2 (/ (* l l) Om))) (* (* n (pow (/ l Om) 2)) (- U U*))))))
-
 (FPCore (x y z t a)
  :name "Numeric.SpecFunctions:logGammaL from math-functions-0.1.5.2"
  (+ (- (+ (log (+ x y)) (log z)) t) (* (- a 0.5) (log t))))
