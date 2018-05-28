@@ -1,6 +1,6 @@
 #lang racket
 
-(require "common.rkt" "fpcore.rkt")
+(require "fpcore-common.rkt" "fpcore.rkt")
 (provide compile-program)
 
 (define (fix-name name)
