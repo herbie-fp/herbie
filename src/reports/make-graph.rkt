@@ -198,14 +198,20 @@
 
        (section ([id "try-results"])
         (h1 "Try it out")
-         (form
-          (p "Original Program:")
-          (input ([type "text"] [name "original-prog"]))
-          (output ([name "original-output"] [for "original-prog"]))
-          (br)
-          (p "Herbie Program:")
-          (input ([type "text"] [name "herbie-prog"]))
-          (output ([name "herbie-output"] [for "herbie-prog"]))))
+        (form
+         (ol ([class "history"])
+          (li
+           (p "Inputs")
+           (div
+            (input ([type "text"] [name "original-prog"]))) ;; TODO Make this dependent on num variables
+           (div (input ([type "submit"] [value "Submit Inputs"]))))
+          (li
+           (div
+            (p "Original Output: ")
+            (output ([name "original-output"] [for "original-prog"] [value "1.23"])))
+           (div
+            (p "Herbie Output: ")
+            (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"])))))))
 
        ,(if (test-output test)
             `(section ([id "comparison"])
