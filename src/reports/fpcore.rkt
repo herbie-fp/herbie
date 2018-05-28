@@ -1,6 +1,6 @@
 #lang racket
 
-(require "common.rkt" math/flonum math/bigfloat math/special-functions math/base)
+(require "fpcore-common.rkt" math/flonum math/bigfloat math/special-functions math/base)
 (provide
  (struct-out evaluator) racket-double-evaluator racket-single-evaluator
  fpcore? expr? context/c eval-expr* eval-expr racket-run-fpcore
