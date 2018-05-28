@@ -196,6 +196,17 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
+       (section ([id "try-results"])
+        (h1 "Try it out")
+         (form
+          (p "Original Program:")
+          (input ([type "text"] [name "original-prog"]))
+          (output ([name "original-output"] [for "original-prog"]))
+          (br)
+          (p "Herbie Program:")
+          (input ([type "text"] [name "herbie-prog"]))
+          (output ([name "herbie-output"] [for "herbie-prog"]))))
+
        ,(if (test-output test)
             `(section ([id "comparison"])
               (h1 "Target")
