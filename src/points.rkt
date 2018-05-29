@@ -182,6 +182,33 @@
       (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
         (sow exact)))))
 
+(define (extract-sampled-points allvars precondition)
+  (match precondition
+    [`(== ,(? variable? var) ,(? constant? val))
+     (if (set=? (list var) allvars)
+         (list (list val))
+         #f)]
+    [`(and (== ,(? variable? vars) ,(? constant? vals)) ...)
+     (if (set=? vars allvars)
+         (list (map (curry dict-ref (map cons vars vals)) allvars))
+         #f)]
+    [`(or (== ,(? variable? varss) ,(? constant? valss)) ...)
+     (define pts
+       (for/list ([var varss] [val valss])
+         (if (set=? (list var) allvars)
+             (list val)
+             #f)))
+     (and (andmap identity pts) pts)]
+    [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
+     (define pts
+       (for/list ([vars varss] [vals valss])
+         (if (set=? vars allvars)
+             (map (curry dict-ref (map cons vars vals)) allvars)
+             #f)))
+     (and (andmap identity pts) pts)]
+    [`FALSE '()]
+    [_ #f]))
+
 ; These definitions in place, we finally generate the points.
 
 (define (prepare-points prog precondition)
@@ -191,16 +218,22 @@
 
   (define range-table (condition->range-table precondition))
 
-  (define samplers
-    (for/list ([var (program-variables prog)])
-      (match (range-table-ref range-table var)
-        [#f
+  (define sampler
+    (match (extract-sampled-points (program-variables prog) precondition)
+      [(list pts ...)
+       (let ([l (length pts)]) (λ () (list-ref pts (random l))))]
+      [#f
+       (for ([var (program-variables prog)]
+             #:unless (range-table-ref range-table var))
          (raise-herbie-error "No valid values of variable ~a" var
-                             #:url "faq.html#no-valid-values")]
-        [(interval lo hi lo? hi?)
-         (λ () (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?))]
-        [(list (? interval? ivals) ...)
-         (λ () (sample-multi-bounded ivals))])))
+                             #:url "faq.html#no-valid-values"))
+       (λ ()
+         (for/list ([var (program-variables prog)])
+           (match (range-table-ref range-table var)
+             [(interval lo hi lo? hi?)
+              (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
+             [(list (? interval? ivals) ...)
+              (sample-multi-bounded ivals)])))]))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (let ([npts (length pts)])
@@ -219,10 +252,7 @@
                     [_ (debug #:from 'points #:depth 4
                               "Sampling" num "additional inputs,"
                               "on iter" num-loops "have" npts "/" (*num-points*))]
-                    [pts1 (for/list ([n (in-range num)])
-                            (for/list ([var (program-variables prog)]
-                                       [sampler samplers])
-                              (sampler)))]
+                    [pts1 (for/list ([n (in-range num)]) (sampler))]
                     [exs1 (make-exacts prog pts1 precondition)]
                     [_ (debug #:from 'points #:depth 4
                               "Filtering points with unrepresentable outputs")]
