@@ -72,7 +72,8 @@
   </p>
 
   <pre><strong>$</strong> herbie shell
-Seed: #(3123212801 2137904229 2993294009 3035080405 3708006222 26032508)
+Herbie 1.2 with seed #(891614428 1933754021 544017565 2852994348 404070416 672462396)
+Find help on <https://herbie.uwplse.org/>, exit with Ctrl-D
 herbie> </pre>
 
   <p>
@@ -82,19 +83,22 @@ herbie> </pre>
   </p>
 
   <pre>(FPCore (x) :name "Cancel like terms" (- (+ 1 x) x))
-(FPCore (x) 1)</pre>
+(FPCore (x) <var>...</var> 1)</pre>
 
   <p>
     Interactive use is helpful if you want to play with different
     expressions and try multiple variants, informed by Herbie's
-    advice.
+    advice. Note that Herbie will print a variety of additional
+    information (like its error estimates and how long it took to
+    process your input) in the <var>...</var> portion of the output.
   </p>
 
   <h2 id="batch">Batch processing FPCore</h2>
 
   <p>
     Alternatively, you can run Herbie on a file with multiple
-    expressions in it, producing the output expressions to a file:
+    expressions in it, producing the output expressions to a file.
+    This mode is intended for use by scripts.
   </p>
 
   <pre><strong>$</strong> herbie improve bench/tutorial.fpcore out.fpcore

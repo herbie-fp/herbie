@@ -56,24 +56,24 @@
   </p>
 
   <p>
-    Take a look at the three test cases in the file.
-    If you're not familiar with Lisp syntax,
-    it might take a bit to get used to the way expressions are written.
-    As you can see, Herbie has common mathematical operators built in:
-    arithmetic and <code>sqr</code> (for squaring values) in the expression you're looking at,
-    and also more complicated functions, such as <code>expt</code> (exponentiation) and <code>sin</code>.
+    Take a look at the three test cases in the file. If you're not
+    familiar with Lisp syntax, it might take a bit to get used to the
+    way expressions are written. As you can see, Herbie has common
+    mathematical operators built in, from arithmetic to more
+    complicated functions like as <code>pow</code>
+    and <code>sin</code>.
   </p>
 
   <h2>The Herbie main report page</h2>
 
   <p> Now run the tutorial file through Herbie by running </p>
 
-  <pre>racket herbie/reports/run.rkt bench/tutorial.rkt</pre>
+  <pre>racket src/herbie.rkt report bench/tutorial.rkt graphs/</pre>
 
   <p>
     from the base Herbie directory.
     A <code>graphs</code> directory should appear
-    (if it already existed, its contents will be replaced)
+    (if it already existed, its contents will be replaced),
     which contains a detailed description of Herbie's results and how it got them.
     Open up <code>graphs/report.html</code> with your web browser to view these results.
   </p>
@@ -166,7 +166,7 @@
   <p>
     Finally, on the left, you have Herbie's derivation of its result.
     Usually you skip to the bottom of this and look at the result:
-    <code>(λ (x) (+ (sqr x) (* x 2)))</code>, or <i>x<sup>2</sup> + 2 x</i>.
+    <code>(λ (x) (+ (* x x) (* x 2)))</code>, or <i>x<sup>2</sup> + 2 x</i>.
     But sometimes it is useful to look at the derivation.
     In my case, the derivation uses simplification
     to expand the expression into <i>(2 + x) x</i>,

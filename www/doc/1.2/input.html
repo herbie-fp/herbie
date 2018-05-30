@@ -38,7 +38,7 @@
     hypotenuse of a triangle with legs <i>a</i> and <i>b</i> is
   </p>
 
-  <pre>(FPCore (a b) (sqrt (+ (sqr a) (sqr b))))</pre>
+  <pre>(FPCore (a b) (sqrt (+ (* a a) (* b b))))</pre>
 
   <p>
     We recommend the <code>.fpcore</code> file extension for Herbie input files.
@@ -56,10 +56,8 @@
   <dl class="function-list">
     <dt><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>fabs</code></dt>
     <dd>The usual arithmetic functions<br/><code>-</code> is both negation and subtraction</dd>
-    <dt><code>sqr</code>, <code>sqrt</code></dt>
-    <dd>Squares and square roots</dd>
-    <dt><code>cube</code>, <code>cbrt</code></dt>
-    <dd>Cubes and cube roots</dd>
+    <dt><code>sqrt</code>, <code>cbrt</code></dt>
+    <dd>Square and cube roots</dd>
     <dt><code>pow</code>, <code>exp</code>, <code>log</code></dt>
     <dd>Various exponentiations and logarithms</dd>
     <dt><code>sin</code>, <code>cos</code>, <code>tan</code></dt>
@@ -93,9 +91,11 @@
     <dd>The usual comparison operators</dd>
     <dt><code>and</code>, <code>or</code>, <code>not</code></dt>
     <dd>The usual logical operators</dd>
+    <dt><code>TRUE</code>, <code>FALSE</code></dt>
+    <dd>The two boolean values</dd>
   </dl>
 
-  <p>Note that unlike the arithmetic operators, these functions can take any number of arguments.</p>
+  <p>Note that unlike the arithmetic operators, the comparison functions can take any number of arguments.</p>
 
   <h2>Intermediate variables</h2>
   
@@ -108,11 +108,14 @@
     first, and then are bound to their variables in the body. This
     means that the value of one variable can't refer to another
     variable in the same <code>let</code> block; nest <code>let</code>
-    constructs if you want to do that. Note that Herbie treats
-    intermediate values only as a notational convenience, and inlines
-    their values before improving the formula's accuracy. Using
-    intermediate variables will not help Herbie improve a formula's
-    accuracy or speed up its run-time.
+    constructs if you want to do that.
+  </p>
+
+  <p>
+    Note that Herbie treats intermediate values only as a notational
+    convenience, and inlines their values before improving the
+    formula's accuracy. Using intermediate variables will not help
+    Herbie improve a formula's accuracy or speed up its run-time.
   </p>
   
   <h2 id="properties">Properties</h2>

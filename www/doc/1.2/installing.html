@@ -22,12 +22,11 @@
   <h2>Installing Racket</h2>
 
   <p>
-    Herbie currently supports Linux and OS X. (Windows has known bugs
-    we are working to resolve, due to the lack of a
-    full <code>math.h</code> library.) Use
-    the <a href="http://download.racket-lang.org/racket-v6.8.html">official
+    Herbie currently supports Linux and OS X. (Windows is supported
+    but in beta.) Use
+    the <a href="http://download.racket-lang.org/racket-v6.12.html">official
     installer</a> to install Racket, or use distro-provided packages
-    provided they are version 6.4 or later of Racket (earlier versions
+    provided they are version 6.7 or later of Racket (earlier versions
     are not supported).
   </p>
 
@@ -36,7 +35,7 @@
   </p>
 
   <pre><strong>$</strong> racket
-Welcome to Racket v6.8.
+Welcome to Racket v6.12.
 > (exit)</pre>
   
   <h2>Installing Herbie from a package</h2>
@@ -48,7 +47,7 @@ Welcome to Racket v6.8.
   <p>
     This will install Herbie, compile it for faster startup, and place
     an executable in your Racket user path, likely
-    into <code>~/.racket/6.8/</code>. If you add this directory to
+    into <code>~/.racket/6.12/</code>. If you add this directory to
     your <code>PATH</code> you will be able to run herbie with
     the <code>herbie</code> command.
   </p>
@@ -78,7 +77,7 @@ Welcome to Racket v6.8.
     Open the <code>report.html</code> file inside with your browser;
       you will see a listing of the expressions Herbie was run on,
       all of which should be green.
-    If not, please check that your Racket installation is at least version 6.4,
+    If not, please check that your Racket installation is at least version 6.7,
       and if the error still persists,
       please <a href="https://github.com/uwplse/herbie/issues">submit a bug</a>.
   </p>

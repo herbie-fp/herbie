@@ -16,9 +16,8 @@
   <p>
     The <a href="../..">Herbie</a> developers are excited to announce
     Herbie 1.2! This release focuses on <em>accuracy and
-    reliability</em>, including generating more-complicated
-    conditionals, more accurate defaults, and significant bug fixes to
-    the core algorithms.
+    reliability</em>, including better conditionals, more accurate
+    defaults, and significant bug fixes to the core algorithms.
   </p>
 
   <p>
@@ -29,7 +28,6 @@
     work making Herbie more versatile and easier to use.
   </p>
 
-  <!-- TODO Update team photo? -->
   <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
 
   <h2>Breaking Changes and Deprecations</h2>
@@ -58,18 +56,16 @@
       its output.</li>
     <li>Herbie has become much more inventive in what expressions it
       can branch on. This leads to more accurate results in many
-      cases. The
-      <kbd><a href="options.html">reduce:branch-expressions</a></kbd>
-      option controls this feature.</li>
+      cases. The <kbd>reduce:branch-expressions</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
     <li>Herbie now uses a binary search algorithm to choose more
       accurate values for conditionals in <code>if</code> statements.
       This should make different runs of Herbie produce more similar
-      results. The
-      <kbd><a href="options.html">reduce:binary-search</a></kbd>
-      option controls this feature.</li>
+      results. The <kbd>reduce:binary-search</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
     <li>Herbie has a higher default value for
       the <code>--num-iters</code> <a href="options.html">parameter</a>.
-      Users should expect Herbie to be slower but produce more
+      Users should expect Herbie to be slower but to produce more
       accurate results.</li>
     <li>A significant bug in the series expansion algorithm has been
       fixed, improving Herbie's performance in the presence of
@@ -85,6 +81,10 @@
       the <code>complex</code>, <code>re</code>, and <code>im</code>
       functions. We look forward to releasing high-quality complex
       number support in the future.</li>
+    <li>Herbie now supports Windows. Note that the Bessel functions
+      are not available in the Windows <code>math.h</code> library and
+      use a fallback. The <kbd>precision:fallback</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
   </ul>
 
   <!-- TODO Update plot somehow? -->
@@ -110,6 +110,11 @@
       such preconditions would produce to the dreaded
       “<a href="faq.html#sample-valid-points">could not sample</a>”
       error message.</li>
+    <li>Herbie's web output now includes additional descriptive text,
+      such as color keys, and additional intuitive interactions, such
+      as clicking on report page arrows.</li>
+    <li>Herbie's FPCore output now includes its error estimates,
+      making this information easier for other tools to access.</li>
     <li><code>let</code> statements and variary arithmetic operators
       are now supported in preconditions.</li>
     <li>Herbie will now type-check inputs and report errors for
@@ -117,33 +122,17 @@
       messages.</li>
     <li>User errors and Herbie crashes now look different in
       reports.</li>
-    <li>Herbie now outputs the input expression in cases of timeout or
-      crash, instead of outputing a confusing special value.</li>
-    <li>Herbie's web output now includes additional descriptive text,
-      such as color keys, and additional intuitive interactions, such
-      as clicking on report page arrows.</li>
-    <li>Herbie's FPCore output now includes its error estimates,
-      making it easier for other FPBench tools to compare Herbie's
-      error estimates to those of other tools.</li>
-    <li>Taylor series no longer add two identical (but confusingly
-      phrased) steps to Herbie's derivations of its results.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
 
   <ul>
-    <li>Many bugs were fixed, including adding missing rules, several
-      infinite loops, and a few crashes in exceptional
-      circumstances.</li>
-    <li>The components of Herbie that output HTML now use the Racket
-      XML library, eliminating the possibility of generating invalid
-      HTML.</li>
-    <li>There is a new mechanism for defining the functions Herbie supports,
-      which should make it easier to add new functions in the future.</li>
-    <li>More unit tests continue to be written, including more tests
-      of utility functions that are used throughout the codebase.</li>
-    <li>The syntax and type checkers have been make more readable,
-      allowing for the discovery and correction of several bugs.</li>
+    <li>Many bugs fixed, including adding missing rules, infinite
+      loops, and a few crashes in exceptional circumstances.</li>
+    <li>Herbie’s HTML output now uses the Racket XML library,
+      eliminating the possibility of generating invalid HTML.</li>
+    <li>Herbie uses a new mechanism for defining supported functions,
+      which should adding functions in the future easier.</li>
   </ul>
   
   <h2>Try it out!</h2>
