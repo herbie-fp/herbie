@@ -38,6 +38,7 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method "post" improve]
    [("check-status" (string-arg)) check-status]
+   [((hash-arg) "interactive.js") generate-interactive]
    [((hash-arg) "graph.html") generate-report]
    [((hash-arg) "debug.txt") generate-debug]
    [((hash-arg) (string-arg)) generate-plot]))
@@ -261,6 +262,15 @@
 
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
+
+(define (generate-interactive req results)
+  (match-define (cons result debug) results)
+
+  (response 200 #"OK" (current-seconds) #"text"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out)
+              (parameterize ([current-output-port out])
+                (output-interactive-js result (format "~a.~a" hash *herbie-commit*) #f)))))
 
 (define (generate-report req results)
   (match-define (cons result debug) results)

@@ -14,7 +14,8 @@
 (require "core2js.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
-(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
+(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
+         make-plots output-interactive-js make-interactive-js)
 
 (define/contract (regime-var alt)
   (-> alternative? (or/c expr? #f))
@@ -105,7 +106,9 @@
   (match (alt-program alt)
     [(list _ args expr) (list 'FPCore args ':name 'alt expr)]))
 
-(define (make-js-file start-fpcore end-fpcore)
+(define (get-interactive-js result rdir profile?)
+  (define start-fpcore (alt2fpcore (test-result-start-alt result)))
+  (define end-fpcore (alt2fpcore (test-result-end-alt result)))
   (define start-js (compile-program start-fpcore #:name "start"))
   (define end-js (compile-program end-fpcore #:name "end"))
   (define submit-inputs
@@ -135,15 +138,19 @@
       "    originalOutputElem.innerHTML = start.apply(null, originalInputVals);\n"
       "    herbieOutputElem.innerHTML = end.apply(null, herbieInputVals);\n"
       "}\n"))
-  (display-to-file (string-append start-js end-js submit-inputs)
-                 (build-path web-resource-path "interactive.js")
-                 #:exists 'replace))
+  (string-append start-js end-js submit-inputs))
 
-(define/contract (render-interactive start-prog end-prog)
-  (-> timeline? timeline? xexpr?) ;; TODO This isn't the best type
+(define (make-interactive-js result rdir profile?)
+  (display-to-file (get-interactive-js result rdir profile?)
+                   (build-path rdir "interactive.js")
+                   #:exists 'replace))
+
+(define (output-interactive-js result rdir profile?)
+  (display (get-interactive-js result rdir profile?)))
+
+(define/contract (render-interactive start-prog)
+  (-> timeline? xexpr?) ;; TODO This isn't the best type
   (define start-fpcore (alt2fpcore start-prog))
-  (define end-fpcore (alt2fpcore end-prog))
-  (make-js-file start-fpcore end-fpcore)
   `(section ([id "try-results"])
     (h1 "Try it out")
     (form
@@ -223,7 +230,7 @@
        (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
        (script ([src ,mathjax-url]))
        (script ([src "../report.js"]))
-       (script ([src "../interactive.js"]))
+       (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
       (body ([onload "graph()"])
 
@@ -267,7 +274,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(render-interactive start-alt end-alt)
+       ,(render-interactive start-alt)
 
        ,(if (test-output test)
             `(section ([id "comparison"])

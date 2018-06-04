@@ -20,7 +20,9 @@
     (set-seed! seed)
     (write-file (build-path rdir "graph.html")
                 ((cond [(test-result? result)
-                        (λ args (apply make-graph args) (apply make-plots args))]
+                        (λ args (apply make-graph args)
+                                (apply make-plots args)
+                                (apply make-interactive-js args))]
                        [(test-timeout? result) make-timeout]
                        [(test-failure? result) make-traceback])
                  result rdir profile?))))
