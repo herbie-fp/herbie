@@ -114,14 +114,17 @@
   (display-to-file (string-append headers start-js end-js)
                  (build-path web-resource-path "interactive.js")
                  #:exists 'replace)
-  '(section ([id "try-results"])
+  `(section ([id "try-results"])
     (h1 "Try it out")
     (form
-     (ol ([class "history"]) ;; Change the class name, this is just here for formatting
+     (ol ([class "history"]) ;; TODO Change the class name, this is just here for formatting
       (li
        (p "Inputs")
-       (div
-        (input ([type "text"] [name "original-prog"]))) ;; TODO Make this dependent on num variables
+       (p)
+       ,@(for/list ([var-name (second start-fpcore)])
+           `(div
+             (p ,(~a var-name))
+             (input ([type "text"] [name ,(string-append "var-" (~a var-name))]))))
        (div (input ([type "submit"] [value "Submit Inputs"]))))
       (li
        (div
@@ -129,7 +132,8 @@
         (output ([name "original-output"] [for "original-prog"] [value "1.23"])))
        (div
         (p "Herbie Output: ")
-        (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"]))))))))
+        (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"]))))
+      (li)))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
