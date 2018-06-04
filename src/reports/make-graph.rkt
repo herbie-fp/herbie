@@ -112,7 +112,8 @@
   (define start-js (compile-program start-fpcore #:name "start"))
   (define end-js (compile-program end-fpcore #:name "end"))
   (display-to-file (string-append headers start-js end-js)
-                 (build-path web-resource-path "interactive.js"))
+                 (build-path web-resource-path "interactive.js")
+                 #:exists 'replace)
   '(section ([id "try-results"])
     (h1 "Try it out")
     (form
