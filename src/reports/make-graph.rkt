@@ -11,6 +11,7 @@
 (require "../plot.rkt")
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
+(require "core2js.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
@@ -99,6 +100,35 @@
       (code
        ,(render-command-line) "\n"
        ,(render-fpcore test) "\n")))))
+
+(define (alt2fpcore alt)
+  (match (alt-program alt)
+    [(list _ args expr) (list 'FPCore args ':name 'alt expr)]))
+
+(define/contract (render-interactive start-prog end-prog)
+  (-> timeline? timeline? xexpr?) ;; TODO This isn't the best type
+  (define start-fpcore (alt2fpcore start-prog))
+  (define end-fpcore (alt2fpcore end-prog))
+  (define start-js (compile-program start-fpcore #:name "start"))
+  (define end-js (compile-program end-fpcore #:name "end"))
+  (display-to-file (string-append headers start-js end-js)
+                 (build-path web-resource-path "interactive.js"))
+  '(section ([id "try-results"])
+    (h1 "Try it out")
+    (form
+     (ol ([class "history"]) ;; Change the class name, this is just here for formatting
+      (li
+       (p "Inputs")
+       (div
+        (input ([type "text"] [name "original-prog"]))) ;; TODO Make this dependent on num variables
+       (div (input ([type "submit"] [value "Submit Inputs"]))))
+      (li
+       (div
+        (p "Original Output: ")
+        (output ([name "original-output"] [for "original-prog"] [value "1.23"])))
+       (div
+        (p "Herbie Output: ")
+        (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"]))))))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
@@ -196,22 +226,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       (section ([id "try-results"])
-        (h1 "Try it out")
-        (form
-         (ol ([class "history"])
-          (li
-           (p "Inputs")
-           (div
-            (input ([type "text"] [name "original-prog"]))) ;; TODO Make this dependent on num variables
-           (div (input ([type "submit"] [value "Submit Inputs"]))))
-          (li
-           (div
-            (p "Original Output: ")
-            (output ([name "original-output"] [for "original-prog"] [value "1.23"])))
-           (div
-            (p "Herbie Output: ")
-            (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"])))))))
+       ,(render-interactive start-alt end-alt) ;; TODO Pass in the actual program
 
        ,(if (test-output test)
             `(section ([id "comparison"])
@@ -317,6 +332,7 @@
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [preds (splitpoints->point-preds splitpoints (length prevs))]
             [interval->string
+
              (λ (ival)
                (string-join
                 (list
