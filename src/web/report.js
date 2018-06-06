@@ -70,12 +70,11 @@ function select_tab(id) {
     pane.style.display = "block";
 }
 
-function submit_inputs(vars) {
+function submit_inputs() {
     var originalOutputElem = document.querySelector('#try-original-output');
     var herbieOutputElem = document.querySelector('#try-herbie-output');
     var inputs = document.querySelectorAll('#try-inputs input');
-    var originalInputVals = [];
-    var herbieInputVals = [];
+    var inputVals = [];
     for (var i = 0; i < inputs.length; i++) { // TODO don't rely on ordering
         var val = parseFloat(inputs[i].value);
         if (isNaN(val)) {
@@ -85,17 +84,11 @@ function submit_inputs(vars) {
             return;
         } else {
             document.querySelector('#try-result').className = 'no-error'
-            originalInputVals.push(val);
-            if (vars.indexOf(inputs[i].getAttribute('name')) > -1) {
-                herbieInputVals.push(val);
-            } else { // TODO improve this bit / remove
-                alert(inputs[i].getAttribute('name'));
-                alert(vars);
-            }
+            inputVals.push(val);
         }
     }
-    originalOutputElem.innerHTML = start.apply(null, originalInputVals);
-    herbieOutputElem.innerHTML = end.apply(null, herbieInputVals);
+    originalOutputElem.innerHTML = start.apply(null, inputVals);
+    herbieOutputElem.innerHTML = end.apply(null, inputVals);
 }
 
 function setup_figure_tabs(figure_container) {
