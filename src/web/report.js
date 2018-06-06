@@ -75,12 +75,13 @@ function submit_inputs() {
     var herbieOutputElem = document.querySelector('#try-herbie-output');
     var inputs = document.querySelectorAll('#try-inputs input');
     var inputVals = [];
-    for (var i = 0; i < inputs.length; i++) { // TODO don't rely on ordering
+    for (var i = 0; i < inputs.length; i++) {
         var val = parseFloat(inputs[i].value);
         if (isNaN(val)) {
-            // TODO error should only be updated on "wrong" inputs (i.e. empty inputs shouldn't
-            // trigger an error message
-            document.querySelector('#try-result').className = 'error'
+            if (inputs[i].value.length != 0) {
+                // Don't update error message if there is no input
+                document.querySelector('#try-result').className = 'error'
+            }
             return;
         } else {
             document.querySelector('#try-result').className = 'no-error'
