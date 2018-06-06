@@ -111,34 +111,7 @@
   (define end-fpcore (alt2fpcore (test-result-end-alt result)))
   (define start-js (compile-program start-fpcore #:name "start"))
   (define end-js (compile-program end-fpcore #:name "end"))
-  (define submit-inputs
-    (string-append
-      "function submit_inputs(vars) {\n"
-      "    var originalOutputElem = document.getElementsByName('original-output')[0];\n"
-      "    var herbieOutputElem = document.getElementsByName('herbie-output')[0];\n"
-      "    var inputs = document.getElementsByClassName('input-submit');\n"
-      "    var originalInputVals = [];\n"
-      "    var herbieInputVals = [];\n"
-      "    for (var i = 0; i < inputs.length; i++) {\n"
-      "        var val = parseFloat(inputs[i].value);\n"
-      "        if (isNaN(val)) {\n"
-      "            originalOutputElem.innerHTML = 'Please enter valid numbers for all inputs';\n"
-      "            herbieOutputElem.innerHTML = 'Please enter valid numbers for all inputs';\n"
-      "            return;\n"
-      "        } else {\n"
-      "            originalInputVals.push(val);\n"
-      "            if (vars.indexOf(inputs[i].getAttribute('name')) > -1) {\n"
-      "                herbieInputVals.push(val);\n"
-      "            } else {\n"
-      "                alert(inputs[i].getAttribute('name'));\n"
-      "                alert(vars);\n"
-      "            }\n"
-      "        }\n"
-      "    }\n"
-      "    originalOutputElem.innerHTML = start.apply(null, originalInputVals);\n"
-      "    herbieOutputElem.innerHTML = end.apply(null, herbieInputVals);\n"
-      "}\n"))
-  (string-append start-js end-js submit-inputs))
+  (string-append start-js end-js))
 
 (define (make-interactive-js result rdir profile?)
   (display-to-file (get-interactive-js result rdir profile?)
@@ -151,30 +124,23 @@
 (define/contract (render-interactive start-prog)
   (-> timeline? xexpr?) ;; TODO This isn't the best type
   (define start-fpcore (alt2fpcore start-prog))
-  `(section ([id "try-results"])
+  `(section ([id "try-it"])
     (h1 "Try it out")
-    (form
-     (ol ([class "history"]) ;; TODO Change the class name, this is just here for formatting
-      (li
-       (p "Inputs")
-       (p)
-       ,@(for/list ([var-name (second start-fpcore)])
-           `(div
-             (p ,(~a var-name))
-             (input ([type "text"] [name ,(~a var-name)] [class "input-submit"]))))
-       (div (button ([type "button"]
-                     [onClick ,(string-append "submit_inputs(["
-                                              (string-join (map (curry format "'~a'") (second start-fpcore)) ", ")
-                                              "]);")])
-                    "Submit Inputs")))
-      (li
-       (div
-        (p "Original Output: ")
-        (output ([name "original-output"] [for "original-prog"] [value "1.23"])))
-       (div
-        (p "Herbie Output: ")
-        (output ([name "herbie-output"] [for "herbie-prog"] [value "1.23"]))))
-      (li)))))
+    (form ([id "try-inputs"])
+      (ol
+        ,@(for/list ([var-name (second start-fpcore)])
+            (define name (~a var-name)) ; TODO change to input-var-0
+            `(li (label ([for ,name]) ,(~a var-name))
+                 (input ([type "text"] [name ,name] [class "input-submit"])))))
+      (button ([type "button"]
+               [onClick ,(string-append "submit_inputs(["
+                                        (string-join (map (curry format "'~a'") (second start-fpcore)) ", ")
+                                        "]);")])
+                      "Submit Inputs")
+      (div ([id "try-result"])
+          (output ([id "try-original-output"]) "") ; TODO Should have some default
+          "→"
+          (output ([id "try-herbie-output"]) "")))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))

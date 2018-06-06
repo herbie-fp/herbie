@@ -70,6 +70,32 @@ function select_tab(id) {
     pane.style.display = "block";
 }
 
+function submit_inputs(vars) {
+    var originalOutputElem = document.querySelector('#try-original-output');
+    var herbieOutputElem = document.querySelector('#try-herbie-output');
+    var inputs = document.querySelectorAll('#try-inputs input');
+    var originalInputVals = [];
+    var herbieInputVals = [];
+    for (var i = 0; i < inputs.length; i++) { // TODO don't rely on ordering
+        var val = parseFloat(inputs[i].value);
+        if (isNaN(val)) { // TODO change error reporting
+            originalOutputElem.innerHTML = 'Please enter valid numbers for all inputs';
+            herbieOutputElem.innerHTML = 'Please enter valid numbers for all inputs';
+            return;
+        } else {
+            originalInputVals.push(val);
+            if (vars.indexOf(inputs[i].getAttribute('name')) > -1) {
+                herbieInputVals.push(val);
+            } else { // TODO improve this bit / remove
+                alert(inputs[i].getAttribute('name'));
+                alert(vars);
+            }
+        }
+    }
+    originalOutputElem.innerHTML = start.apply(null, originalInputVals);
+    herbieOutputElem.innerHTML = end.apply(null, herbieInputVals);
+}
+
 function setup_figure_tabs(figure_container) {
     var figures = figure_container.getElementsByTagName("figure");
     var figure_array = {};
