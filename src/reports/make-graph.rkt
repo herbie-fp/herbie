@@ -128,19 +128,31 @@
     (h1 "Try it out")
     (form ([id "try-inputs"])
       (ol
+       (p ([class "header"]) "Your Program's Arguments")
         ,@(for/list ([var-name (second start-fpcore)])
             (define name (~a var-name)) ; TODO change to input-var-0
             `(li (label ([for ,name]) ,(~a var-name))
                  (input ([type "text"] [name ,name] [class "input-submit"])))))
+      (div ([id "try-result"] [class "error"])
+       (p ([class "header"]) "Results")
+        (table
+         (tbody
+           (tr
+            (td
+             (label ([for "try-original-output"]) "In"))
+            (td
+             (output ([id "try-original-output"]))))
+           (tr
+            (td
+             (label ([for "try-herbie-output"]) "Out"))
+            (td
+             (output ([id "try-herbie-output"]))))))
+        (div ([id "try-error"]) "Enter valid inputs"))
       (button ([type "button"]
                [onClick ,(string-append "submit_inputs(["
                                         (string-join (map (curry format "'~a'") (second start-fpcore)) ", ")
                                         "]);")])
-                      "Submit Inputs")
-      (div ([id "try-result"])
-          (output ([id "try-original-output"]) "") ; TODO Should have some default
-          "→"
-          (output ([id "try-herbie-output"]) "")))))
+                      "Submit Inputs"))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
