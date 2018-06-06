@@ -78,11 +78,13 @@ function submit_inputs(vars) {
     var herbieInputVals = [];
     for (var i = 0; i < inputs.length; i++) { // TODO don't rely on ordering
         var val = parseFloat(inputs[i].value);
-        if (isNaN(val)) { // TODO change error reporting
-            originalOutputElem.innerHTML = 'Please enter valid numbers for all inputs';
-            herbieOutputElem.innerHTML = 'Please enter valid numbers for all inputs';
+        if (isNaN(val)) {
+            // TODO error should only be updated on "wrong" inputs (i.e. empty inputs shouldn't
+            // trigger an error message
+            document.querySelector('#try-result').className = 'error'
             return;
         } else {
+            document.querySelector('#try-result').className = 'no-error'
             originalInputVals.push(val);
             if (vars.indexOf(inputs[i].getAttribute('name')) > -1) {
                 herbieInputVals.push(val);

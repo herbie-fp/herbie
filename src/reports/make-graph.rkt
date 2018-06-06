@@ -133,7 +133,7 @@
             (define name (~a var-name)) ; TODO change to input-var-0
             `(li (label ([for ,name]) ,(~a var-name))
                  (input ([type "text"] [name ,name] [class "input-submit"])))))
-      (div ([id "try-result"] [class "error"])
+      (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
         (table
          (tbody
@@ -147,7 +147,7 @@
              (label ([for "try-herbie-output"]) "Out"))
             (td
              (output ([id "try-herbie-output"]))))))
-        (div ([id "try-error"]) "Enter valid inputs"))
+        (div ([id "try-error"]) "Enter valid numbers for all inputs"))
       (button ([type "button"]
                [onClick ,(string-append "submit_inputs(["
                                         (string-join (map (curry format "'~a'") (second start-fpcore)) ", ")
