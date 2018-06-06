@@ -44,14 +44,16 @@ section h1 {
 #try-result output { font-size: 110%; margin: 0 .5em; float: right; }
 #try-result div { overflow: auto; } 
 #try-result table { line-height: 1.5; margin-top: .25em; }
-#try-result { width: 41%; float: right; }
+#try-result { width: 39%; float: right; }
+#try-result p.header { margin: 0 0 .5em; font-size: 120%; color: #444; border-bottom: 1px solid #ccc; line-height: 1.5; }
 
-#try-inputs ol { list-style: none; padding: 0; width: 57%; display: inline-block; margin: 0; }
+#try-inputs-wrapper { width: 59%; display: inline-block; }
+
+#try-inputs ol { list-style: none; padding: 0; display: inline-block; margin: 0 0 0 -1em; }
 #try-inputs ol label { min-width: 4ex; text-align: right; margin-right: .5em; display: inline-block; }
-#try-inputs li { margin-right: 2em; display: inline-block; }
+#try-inputs li { margin-left: 1em; display: inline-block; font-size: 110%; font-family: monospace; line-height: 2; }
 #try-inputs label:after { content: ":"; } 
-#try-inputs input { padding: 1px 4px; width: 20ex; }
-#try-inputs li { font-size: 110%; font-family: monospace; line-height: 2; }
+#try-inputs input { padding: 1px 4px; width: 25ex; }
 #try-inputs p.header { margin: 0 0 .5em; font-size: 120%; color: #444; border-bottom: 1px solid #ccc; line-height: 1.5; }
 
 #try-error { color:  red; font-size: 120%; display: none; }

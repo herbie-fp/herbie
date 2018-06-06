@@ -126,16 +126,17 @@
   (define start-fpcore (alt2fpcore start-prog))
   `(section ([id "try-it"])
     (h1 "Try it out")
-    (form ([id "try-inputs"])
-      (ol
-       (p ([class "header"]) "Your Program's Arguments")
+    (div ([id "try-inputs-wrapper"])
+     (form ([id "try-inputs"])
+      (p ([class "header"]) "Your Program's Arguments")
+       (ol
         ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"]
                          [name ,(string-append "var-name-" (~a i))]
                          [class "input-submit"]
                          [oninput "submit_inputs();"]
-                         [value ,(~a val)])))))
+                         [value ,(~a val)])))))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
         (table
@@ -150,7 +151,7 @@
              (label ([for "try-herbie-output"]) "Out"))
             (td
              (output ([id "try-herbie-output"]))))))
-        (div ([id "try-error"]) "Enter valid numbers for all inputs")))))
+        (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
