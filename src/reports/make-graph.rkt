@@ -122,7 +122,7 @@
   (display (get-interactive-js result rdir profile?)))
 
 (define/contract (render-interactive start-prog point)
-  (-> timeline? timeline? xexpr?) ;; TODO This isn't the best type
+  (-> alternative? (listof number?) xexpr?)
   (define start-fpcore (alt2fpcore start-prog))
   `(section ([id "try-it"])
     (h1 "Try it out")
