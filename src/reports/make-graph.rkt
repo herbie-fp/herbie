@@ -103,8 +103,8 @@
        ,(render-fpcore test) "\n")))))
 
 (define (alt2fpcore alt)
-  (match (alt-program alt)
-    [(list _ args expr) (list 'FPCore args ':name 'alt expr)]))
+  (match-define (_ args expr) (alt-program alt))
+  (list 'FPCore args ':name 'alt expr))
 
 (define (get-interactive-js result rdir profile?)
   (define start-fpcore (alt2fpcore (test-result-start-alt result)))

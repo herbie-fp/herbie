@@ -41,7 +41,7 @@
   [((or '< '> '<= '>= '== '!=) (list 'real ...)) 'boolean]
   [((or 'isfinite 'isinf 'isnan 'isnormal 'signbit) 'real) 'boolean]
   [((or 'and 'or) (list 'boolean ...)) 'boolean]
-  [('not (list 'boolean)) 'boolean] 
+  [('not (list 'boolean)) 'boolean]
   [(_ _) #f])
 
 (define/contract (check-expr stx ctx)
@@ -135,7 +135,7 @@
      (define body* (check-expr body ctx))
      (unless (equal? (cdr body*) 'real)
        (raise-syntax-error #f "FPCore benchmark must return a real number" body))
-     
+
      `(FPCore (,@(dict-keys ctx))
               ,@(apply append
                        (for/list ([(prop val) (in-dict properties*)])
