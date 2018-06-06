@@ -128,21 +128,40 @@
   
   <h2 id="properties">Properties</h2>
 
-  <p>Herbie also uses several FPCore properties for additional meta-data:</p>
+  <p>Herbie also allows several FPCore properties specified on inputs for additional meta-data:</p>
 
   <dl class="function-list">
     <dt><code>:name <var>string</var></code></dt>
     <dd>Herbie uses this name in its output</dd>
     <dt><code>:pre <var>test</var></code></dt>
-    <dd>Herbie samples only points that pass the test</dd>
+    <dd>Herbie samples only points that pass the test in the reals</dd>
     <dt>
   </dl>
 
   <p>
     Several additional properties can be found in the benchmark suite
-    and are used for testing, but they are not supported and can
-    change without warning.
+    and are used for testing, but are not supported and can change
+    without warning.
   </p>
+
+  <p>Herbie's output uses custom FPCore properties in its output to
+  provide meta-data about the Herbie improvement process:</p>
+
+  <dl class="function-list">
+    <dt><code>:herbie-status <var>status</var></code></dt>
+    <dd>Describes whether Herbie successfully improved the accuracy of the input; <var>status</var> is one of <code>success</code>, <code>timeout</code>, <code>error</code>, or <code>crash</code>.</dd>
+    <dt><code>:herbie-time <var>ms</var></code></dt>
+    <dd>The time, in milliseconds, used by Herbie to find a more accurate formula.</dd>
+    <dt><code>:herbie-bits-used <var>bits</var></code></dt>
+    <dd>The precision used to find accurate outputs from the formula.</dd>
+    <dt><code>:herbie-error-input ([<var>pts</var> <var>err</var>] ...)</code></dt>
+    <dd>The computed average error of the input program, evaluated on <var>pts</var> points. Multiple entries correspond to multiple training or test sets.</dd>
+    <dt><code>:herbie-error-output ([<var>pts2</var> <var>err1</var>] [<var>pts2</var> <var>err2</var>])</code></dt>
+    <dd>The computed average error of the output program, like above.</dd>
+  </dl>
+
+  <p>Herbie's output also passes through any <code>:name</code>
+  and <code>:pre</code> properties on its inputs.</p>
 
   <h2>Converting from Herbie 0.9</h2>
 
