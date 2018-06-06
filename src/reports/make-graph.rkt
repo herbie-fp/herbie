@@ -121,20 +121,21 @@
 (define (output-interactive-js result rdir profile?)
   (display (get-interactive-js result rdir profile?)))
 
-(define/contract (render-interactive start-prog)
-  (-> timeline? xexpr?) ;; TODO This isn't the best type
+(define/contract (render-interactive start-prog point)
+  (-> timeline? timeline? xexpr?) ;; TODO This isn't the best type
   (define start-fpcore (alt2fpcore start-prog))
   `(section ([id "try-it"])
     (h1 "Try it out")
     (form ([id "try-inputs"])
       (ol
        (p ([class "header"]) "Your Program's Arguments")
-        ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)])
+        ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"]
                          [name ,(string-append "var-name-" (~a i))]
                          [class "input-submit"]
-                         [oninput "submit_inputs();"])))))
+                         [oninput "submit_inputs();"]
+                         [value ,(~a val)])))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
         (table
@@ -249,7 +250,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(render-interactive start-alt)
+       ,(render-interactive start-alt (car points))
 
        ,(if (test-output test)
             `(section ([id "comparison"])

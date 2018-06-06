@@ -159,6 +159,8 @@ function load_graph() {
     setup_timeline();
     // Run the program_arrow after rendering happens
     MathJax.Hub.Queue(setup_program_arrow);
+    // Submit the default vals in the "Try it out" section
+    submit_inputs()
 }
 
 function load_report() {
