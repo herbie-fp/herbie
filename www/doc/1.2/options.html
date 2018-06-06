@@ -61,25 +61,6 @@
     to see a listing of all available command-line options. This listing
     will include unsupported options not listed on this page.</p>
 
-  <h2>Upgrading from Herbie 1.0</h2>
-
-  <p>Herbie 1.0 used
-  a <a href="../1.0/using-herbie.html">different</a> command line
-  syntax, without multiple tools. Translate like so:</p>
-
-  <ul>
-    <li><code>herbie-1.0</code> → <code>herbie-1.1 shell</code></li>
-    <li><code>herbie-1.0 file</code> → <code>herbie-1.1 improve file -</code></li>
-    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.1 improve - -</code><br/>
-      Alternatively, collect the files into a directory and run <code>herbie-1.1 improve dir/ -</code></li>
-  </ul>
-
-  <p>The new syntax somewhat changes Herbie's behavior, such as by
-    using the input expression as the output if Herbie times out. It
-    also makes it easier to write Herbie's output to a file without
-    using command-line redirection. The old syntax still works but is
-    deprecated and will be removed in the next release.</p>
-
   <h2>General options</h2>
 
   <p>
@@ -153,6 +134,41 @@
     <dd>When set, a browser is not started to point to the server main
     page, and a smaller banner is printed to the command line.</dd>
   </dl>
+
+  <h2>Rulesets</h2>
+
+  <p>
+    Herbie uses a set of rewrite rules to define the changes it is
+    allowed to make to formulas to improve their accuracy. These rules
+    can be turned on and off in groups using <code>--disable
+    rules:<var>group</var></code> and <code>--enable
+    rules:<var>group</var></code>. In general, enabling more rules
+    should only improve the accuracy of Herbie's output. However, if
+    certain functions are not available on your platform, disabling
+    the rules associated with those functions will prevent Herbie from
+    using them.
+  </p>
+
+  <p>The full list of rule groups is:</p>
+
+  <table class="function-list">
+    <thead><tr><th>Rule Group</th><th>Topic of rewrite rules</th></tr></thead>
+    <tr><td>arithmetic</td><td>Basic arithmetic facts</td></tr>
+    <tr><td>polynomials</td><td>Factoring and powers</td></tr>
+    <tr><td>fractions</td><td>Fraction arithmetic</td></tr>
+    <tr><td>exponents</td><td>Exponentiation identities</td></tr>
+    <tr><td>trigonometry</td><td>Trigonometric identities</td></tr>
+    <tr><td>hyperbolic</td><td>Hyperbolic trigonometric identities</td></tr>
+    <tr><td>special</td><td>Special mathematical functions</td></tr>
+    <tr><td>complex</td><td>Complex number arithmetic</td></tr>
+    <tr><td>numerics</td><td>Special numerical functions <code>expm1</code>, <code>log1p</code>, <code>fma</code>, and <code>hypot</code></td></tr>
+  </table>
+
+  <p>All groups except <code>numerics</code> are enabled by default,
+  and we recommend turning it on if these functions are available in
+  your language. If complex arithmetic or special mathematical
+  functions are poorly implemented in your language, you may wish to
+  disable those rule groups as well.</p>
 
   <h2>Search options</h2>
 
@@ -269,71 +285,27 @@
       try to branch on variables. You may want to turn this option off
       if Herbie runtime is more important to you than expression
       accuracy.</dd>
-
-    <dt><code>rules:arithmetic</code></dt>
-    <dd>This option, on by default, allows Herbie to use basic
-      arithmetic facts during its search. If turned off, Herbie will
-      not be able to use those facts. You will rarely want to turn
-      this option off.</dd>
-
-    <dt><code>rules:polynomials</code></dt>
-    <dd>This option, on by default, allows Herbie to use facts
-      about polynomials during its search. If turned off, Herbie will
-      not be able to use those facts. You will rarely want to turn
-      this option off.</dd>
-
-    <dt><code>rules:fractions</code></dt>
-    <dd>This option, on by default, allows Herbie to use facts about
-      fractions during its search. If turned off, Herbie will not be
-      able to use those facts. You will rarely want to turn this
-      option off.</dd>
-
-    <dt><code>rules:exponents</code></dt>
-    <dd>This option, on by default, allows Herbie to use facts about
-      exponents during its search. If turned off, Herbie will not be
-      able to use those facts. You may want to turn this option off in
-      the rare case that you do not want exponents or logarithms
-      used in Herbie's output expressions, which may be the case when
-      code runtime is more important than accuracy.</dd>
-
-    <dt><code>rules:trigonometry</code></dt>
-    <dd>This option, on by default, allows Herbie to use trigonometric
-      identities during its search. If turned off, Herbie will not be
-      able to use these identities. You may want to turn this option
-      off in the rare case that you do not want trigonometric
-      functions used in Herbie's output expressions, which may be the
-      case when code runtime is more important than accuracy.</dd>
-
-    <dt><code>rules:hyperbolic</code></dt>
-    <dd>This option, on by default, allows Herbie to use hyperbolic
-      identities during its search. If turned off, Herbie will not be
-      able to use these identities. You may want to turn this option
-      off in the rare case that you do not want trigonometric
-      functions used in Herbie's output expressions, which may be the
-      case when code runtime is more important than accuracy.</dd>
-
-    <dt><code>rules:special</code></dt>
-    <dd>This option, on by default, allows Herbie to use identities
-      for special functions such as <code>erf</code>. If turned off,
-      Herbie will not be able to use these identities. You will want
-      to turn this option off if these functions
-      (currently <code>erf</code> and <code>erfc</code>) are not
-      available or are poorly implemented in your language.</dd>
-
-    <dt><code>rules:complex</code></dt>
-    <dd>This option, on by default, allows Herbie to rewrite complex
-      arithmetic expressions. If turned off, Herbie will not be able
-      to use complex arithmetic. You will want to turn this option off
-      if complex arithmetic is not available in your language.</dd>
-
-    <dt><code>rules:numerics</code></dt>
-    <dd>This option, off by default, allows Herbie to use special
-      numerical functions. If turned off, Herbie will not be able to
-      use these functions. You will want to turn this option on if
-      these functions (currently <code>expm1</code>, <code>log1p</code>,
-      <code>fma</code>, and <code>hypot</code>) are available in your
-      language.</dd>
   </dl>
+
+  <h2>Upgrading from Herbie 1.0</h2>
+
+  <p>Herbie 1.0 used
+  a <a href="../1.0/using-herbie.html">different</a> command line
+  syntax, without multiple tools. Translate like so:</p>
+
+  <ul>
+    <li><code>herbie-1.0</code> → <code>herbie-1.1 shell</code></li>
+    <li><code>herbie-1.0 file</code> → <code>herbie-1.1 improve file -</code></li>
+    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.1 improve - -</code><br/>
+      Alternatively, collect the files into a directory and run <code>herbie-1.1 improve dir/ -</code></li>
+  </ul>
+
+  <p>The new syntax somewhat changes Herbie's behavior, such as by
+    using the input expression as the output if Herbie times out. It
+    also makes it easier to write Herbie's output to a file without
+    using command-line redirection. The old syntax still works but is
+    deprecated and will be removed in the next release.</p>
+
 
 </body>
 </html>
