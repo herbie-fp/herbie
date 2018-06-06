@@ -74,6 +74,14 @@
 
   <p>Herbie also supports the constants <code>PI</code> and <code>E</code>.</p>
 
+  <p>Herbie links against <code>libm</code> to ensure that every
+  function has the same behavior in Herbie as in your code. However,
+  on Windows platforms some functions are not available in the
+  system <code>libm</code>. In these cases Herbie will use a fallback
+  implementation and print a warning; turning off the
+  the <kbd>precision:fallback</kbd> <a href="options.html">option</a>
+  disables those functions instead.</p>
+
   <h2>Conditionals</h2>
   
   <p>FPCore uses <code>if</code> for conditional expressions:</p>
