@@ -91,7 +91,7 @@
   (define vars (program-variables (*start-prog*)))
   (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
-  (define can-split? (cons #f (for/list ([val (cdr splitvals)] [prev splitvals]) (> val prev))))
+  (define can-split? (append (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val)) (list #f)))
   (define err-lsts
     (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
@@ -101,6 +101,10 @@
     (assert (> pidx 0))
     (assert (list-ref can-split? pidx)))
   (define split-points (sindices->spoints pts expr alts split-indices))
+
+  (assert (set=? (remove-duplicates (map (point->alt split-points) pts))
+                 (map sp-cidx split-points)))
+
   (option split-points (pick-errors split-points pts err-lsts)))
 
 (module+ test
