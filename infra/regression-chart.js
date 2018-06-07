@@ -152,8 +152,7 @@ function render(node, data, options, tag) {
 
 function draw_results(node) {
     DATA = get_data(document.getElementById("reports"));
-    OPTIONS = {"fuel:2": false, "reduce:regimes": true, "precision:double": true,
-               "rules:numerics": false};
+    OPTIONS = {"rules:numerics": false};
     TAG = null;
     NODE = node;
 
