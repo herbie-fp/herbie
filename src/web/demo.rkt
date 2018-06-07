@@ -166,10 +166,9 @@
               (make-directory (build-path (*demo-output*) path))
               (define make-page
                 (cond [(test-result? result) (λ args
-                                                (define valid-js (valid-interactive-js result))
                                                 (apply make-graph
                                                        (append args
-                                                               (list (valid-interactive-js result))))
+                                                               (list (string? (get-interactive-js result)))))
                                                 (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
@@ -287,7 +286,7 @@
                 (make-graph result
                             (format "~a.~a" hash *herbie-commit*)
                             #f
-                            (valid-interactive-js result))))))
+                            (string? (get-interactive-js result)))))))
 
 (define (generate-plot req results plotname)
   (match-define (cons result debug) results)

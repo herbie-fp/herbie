@@ -15,7 +15,7 @@
 (require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
-         make-plots output-interactive-js make-interactive-js valid-interactive-js)
+         make-plots output-interactive-js make-interactive-js get-interactive-js)
 
 (define/contract (regime-var alt)
   (-> alternative? (or/c expr? #f))
@@ -106,12 +106,9 @@
   (match-define (list _ args expr) (alt-program alt))
   (list 'FPCore args ':name 'alt expr))
 
-(define (valid-interactive-js result)
-  (non-empty-string? (get-interactive-js result)))
-
 (define (get-interactive-js result)
   (with-handlers ([exn:fail?
-                   (λ (e) "")])
+                   (λ (e) #f)])
     (define start-fpcore (alt2fpcore (test-result-start-alt result)))
     (define end-fpcore (alt2fpcore (test-result-end-alt result)))
     (define start-js (compile-program start-fpcore #:name "start"))
@@ -120,15 +117,15 @@
 
 (define (make-interactive-js result rdir profile?)
   (define js-text (get-interactive-js result))
-  (if (non-empty-string? js-text)
-      (display-to-file (get-interactive-js result)
+  (if (string? js-text)
+      (display-to-file js-text
                        (build-path rdir "interactive.js")
                        #:exists 'replace)
       #f))
 
 (define (output-interactive-js result rdir profile?)
   (define js-text (get-interactive-js result))
-  (if (non-empty-string? js-text)
+  (if (string? js-text)
       (display js-text)
       #f))
 
