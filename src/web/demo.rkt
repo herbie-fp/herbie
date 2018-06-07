@@ -165,7 +165,12 @@
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
               (define make-page
-                (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
+                (cond [(test-result? result) (λ args
+                                                (define valid-js (valid-interactive-js result))
+                                                (apply make-graph
+                                                       (append args
+                                                               (list (valid-interactive-js result))))
+                                                (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
               (with-output-to-file (build-path (*demo-output*) path "graph.html")
@@ -279,7 +284,10 @@
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
             (λ (out)
               (parameterize ([current-output-port out])
-                (make-graph result (format "~a.~a" hash *herbie-commit*) #f)))))
+                (make-graph result
+                            (format "~a.~a" hash *herbie-commit*)
+                            #f
+                            (valid-interactive-js result))))))
 
 (define (generate-plot req results plotname)
   (match-define (cons result debug) results)

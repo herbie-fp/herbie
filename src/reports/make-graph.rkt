@@ -15,7 +15,7 @@
 (require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
-         make-plots output-interactive-js make-interactive-js)
+         make-plots output-interactive-js make-interactive-js valid-interactive-js)
 
 (define/contract (regime-var alt)
   (-> alternative? (or/c expr? #f))
@@ -106,20 +106,31 @@
   (match-define (list _ args expr) (alt-program alt))
   (list 'FPCore args ':name 'alt expr))
 
-(define (get-interactive-js result rdir profile?)
-  (define start-fpcore (alt2fpcore (test-result-start-alt result)))
-  (define end-fpcore (alt2fpcore (test-result-end-alt result)))
-  (define start-js (compile-program start-fpcore #:name "start"))
-  (define end-js (compile-program end-fpcore #:name "end"))
-  (string-append start-js end-js))
+(define (valid-interactive-js result)
+  (non-empty-string? (get-interactive-js result)))
+
+(define (get-interactive-js result)
+  (with-handlers ([exn:fail?
+                   (λ (e) "")])
+    (define start-fpcore (alt2fpcore (test-result-start-alt result)))
+    (define end-fpcore (alt2fpcore (test-result-end-alt result)))
+    (define start-js (compile-program start-fpcore #:name "start"))
+    (define end-js (compile-program end-fpcore #:name "end"))
+    (string-append start-js end-js)))
 
 (define (make-interactive-js result rdir profile?)
-  (display-to-file (get-interactive-js result rdir profile?)
-                   (build-path rdir "interactive.js")
-                   #:exists 'replace))
+  (define js-text (get-interactive-js result))
+  (if (non-empty-string? js-text)
+      (display-to-file (get-interactive-js result)
+                       (build-path rdir "interactive.js")
+                       #:exists 'replace)
+      #f))
 
 (define (output-interactive-js result rdir profile?)
-  (display (get-interactive-js result rdir profile?)))
+  (define js-text (get-interactive-js result))
+  (if (non-empty-string? js-text)
+      (display js-text)
+      #f))
 
 (define/contract (render-interactive start-prog point)
   (-> alternative? (listof number?) xexpr?)
@@ -191,7 +202,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result rdir profile?)
+(define (make-graph result rdir profile? valid-js-prog)
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
@@ -251,7 +262,9 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(render-interactive start-alt (car points))
+       ,(if valid-js-prog
+            (render-interactive start-alt (car points))
+            `(p ([display "none"])))
 
        ,(if (test-output test)
             `(section ([id "comparison"])
