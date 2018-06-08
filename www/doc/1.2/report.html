@@ -17,6 +17,8 @@
   <p>The Herbie report, which is output by
   the <a href="using-web.html">Herbie web commands</a>, lists five items.</p>
 
+  <h2 id="summary">Summary numbers</h2>
+
   <p>First, a brief summary of the results.
     For most uses, the “Average Error”
       number, which summarizes how accurate the input and output
@@ -32,6 +34,8 @@
     <figcaption>A summary of results from a Herbie report.</figcaption>
   </figure>
 
+  <h2 id="programs">Input and output programs</h2>
+
   <p>Second, the input and output programs themselves.
     These are printed in standard mathematical syntax.
     Library functions not often used by mathematicians,
@@ -46,6 +50,8 @@
     <img width="100%" src="report-prog.png" />
     <figcaption>Input and output program from a Herbie report.</figcaption>
   </figure>
+
+  <h2 id="graph">Error graph</h2>
 
   <p>
     Third, under <em>Error</em>, a graph of floating-point error
@@ -76,7 +82,25 @@
     input and output program (both are toggled on).</figcaption>
   </figure>
 
-  <p>Fourth, a derivation of the output from the input.
+  <h2 id="try-it">Try it</h2>
+
+  <p>
+    Fourth, a form where you can try out specific inputs on the input
+    program and Herbie's output program. Enter the argument values on
+    the left, and the input and output programs will be evaulated on
+    those arguments and the results printed on the right.
+  </p>
+
+  <figure>
+    <img width="100%" src="report-try-it.png" />
+    <figcaption>
+      Try it out section on a simple program.
+    </figcaption>
+  </figure>
+
+  <h2 id="derivation">Derivation</h2>
+
+  <p>Fifth, a derivation of the output from the input.
     For complex or unexpected programs, these can be helpful.
     Each substantive step in the derivation also lists the error,
     in bits, of that step's output.</p>
@@ -94,8 +118,10 @@
     <figcaption>A short derivation from a Herbie report. Note the
     error at each step, in bits, in gray.</figcaption>
   </figure>
+
+  <h2 id="time">Runtime information</h2>
   
-  <p>Fifth and finally, a breakdown of Herbie's runtime.
+  <p>Sixth and finally, a breakdown of Herbie's runtime.
     This can usually be ignored.
     The colored bar is a timeline of Herbie's run,
     with each section of the bar sized proportionally to its runtime,
