@@ -70,6 +70,28 @@ function select_tab(id) {
     pane.style.display = "block";
 }
 
+function submit_inputs() {
+    var originalOutputElem = document.querySelector('#try-original-output');
+    var herbieOutputElem = document.querySelector('#try-herbie-output');
+    var inputs = document.querySelectorAll('#try-inputs input');
+    var inputVals = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var val = parseFloat(inputs[i].value);
+        if (isNaN(val)) {
+            if (inputs[i].value.length != 0) {
+                // Don't update error message if there is no input
+                document.querySelector('#try-result').className = 'error'
+            }
+            return;
+        } else {
+            document.querySelector('#try-result').className = 'no-error'
+            inputVals.push(val);
+        }
+    }
+    originalOutputElem.innerHTML = start.apply(null, inputVals);
+    herbieOutputElem.innerHTML = end.apply(null, inputVals);
+}
+
 function setup_figure_tabs(figure_container) {
     var figures = figure_container.getElementsByTagName("figure");
     var figure_array = {};
@@ -138,6 +160,8 @@ function load_graph() {
     setup_timeline();
     // Run the program_arrow after rendering happens
     MathJax.Hub.Queue(setup_program_arrow);
+    // Submit the default vals in the "Try it out" section
+    submit_inputs()
 }
 
 function load_report() {

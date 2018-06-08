@@ -11,9 +11,11 @@
 (require "../plot.rkt")
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
+(require "core2js.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
-(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot make-plots)
+(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
+         make-plots output-interactive-js make-interactive-js get-interactive-js)
 
 (define/contract (regime-var alt)
   (-> alternative? (or/c expr? #f))
@@ -100,6 +102,65 @@
        ,(render-command-line) "\n"
        ,(render-fpcore test) "\n")))))
 
+(define (alt2fpcore alt)
+  (match-define (list _ args expr) (alt-program alt))
+  (list 'FPCore args ':name 'alt expr))
+
+(define (get-interactive-js result)
+  (with-handlers ([exn:fail?
+                   (λ (e) #f)])
+    (define start-fpcore (alt2fpcore (test-result-start-alt result)))
+    (define end-fpcore (alt2fpcore (test-result-end-alt result)))
+    (define start-js (compile-program start-fpcore #:name "start"))
+    (define end-js (compile-program end-fpcore #:name "end"))
+    (string-append start-js end-js)))
+
+(define (make-interactive-js result rdir profile?)
+  (define js-text (get-interactive-js result))
+  (if (string? js-text)
+      (display-to-file js-text
+                       (build-path rdir "interactive.js")
+                       #:exists 'replace)
+      #f))
+
+(define (output-interactive-js result rdir profile?)
+  (define js-text (get-interactive-js result))
+  (if (string? js-text)
+      (display js-text)
+      #f))
+
+(define/contract (render-interactive start-prog point)
+  (-> alternative? (listof number?) xexpr?)
+  (define start-fpcore (alt2fpcore start-prog))
+  `(section ([id "try-it"])
+    (h1 "Try it out")
+    (div ([id "try-inputs-wrapper"])
+     (form ([id "try-inputs"])
+      (p ([class "header"]) "Your Program's Arguments")
+       (ol
+        ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)] [val point])
+            `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
+                 (input ([type "text"]
+                         [name ,(string-append "var-name-" (~a i))]
+                         [class "input-submit"]
+                         [oninput "submit_inputs();"]
+                         [value ,(~a val)])))))))
+      (div ([id "try-result"] [class "no-error"])
+       (p ([class "header"]) "Results")
+        (table
+         (tbody
+           (tr
+            (td
+             (label ([for "try-original-output"]) "In"))
+            (td
+             (output ([id "try-original-output"]))))
+           (tr
+            (td
+             (label ([for "try-herbie-output"]) "Out"))
+            (td
+             (output ([id "try-herbie-output"]))))))
+        (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
+
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-result-end-alt result))))
@@ -138,7 +199,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result rdir profile?)
+(define (make-graph result rdir profile? valid-js-prog)
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
@@ -153,7 +214,9 @@
        (title "Result for " ,(~a (test-name test)))
        (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
        (script ([src ,mathjax-url]))
-       (script ([src "../report.js"])))
+       (script ([src "../report.js"]))
+       (script ([src "interactive.js"]))
+       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
       (body ([onload "graph()"])
 
        (section ([id "large"])
@@ -195,6 +258,10 @@
                        [src ,(format "plot-~ab.png" idx)]))
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
+
+       ,(if valid-js-prog
+            (render-interactive start-alt (car points))
+            `(p ([display "none"])))
 
        ,(if (test-output test)
             `(section ([id "comparison"])
@@ -300,6 +367,7 @@
                (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
             [preds (splitpoints->point-preds splitpoints (length prevs))]
             [interval->string
+
              (λ (ival)
                (string-join
                 (list

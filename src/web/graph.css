@@ -41,6 +41,27 @@ section h1 {
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
 
+#try-result output { font-size: 108%; margin: 0 .5em; float: right; }
+#try-result div { overflow: auto; }
+#try-result table { line-height: 1.5; margin-top: .25em; }
+#try-result { width: 39%; float: right; }
+#try-result p.header { margin: 0 0 .5em; font-size: 120%; color: #444; border-bottom: 1px solid #ccc; line-height: 1.5; }
+#try-result label:after { content: ":"; }
+
+#try-inputs-wrapper { width: 59%; display: inline-block; }
+
+#try-inputs ol { list-style: none; padding: 0; display: inline-block; margin: 0 0 0 -1em; }
+#try-inputs ol label { min-width: 4ex; text-align: right; margin-right: .5em; display: inline-block; }
+#try-inputs li { margin-left: 1em; display: inline-block; font-size: 110%; font-family: monospace; line-height: 2; }
+#try-inputs label:after { content: ":"; }
+#try-inputs input { padding: 1px 4px; width: 25ex; }
+#try-inputs p.header { margin: 0 0 .5em; font-size: 120%; color: #444; border-bottom: 1px solid #ccc; line-height: 1.5; }
+
+#try-error { color:  red; font-size: 120%; display: none; }
+
+.error #try-error { display: block; }
+#try-result.error table { display: none; }
+
 .tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
 .tabbar p { display: inline-block; margin: 0 .5em 0 0}
 .tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
