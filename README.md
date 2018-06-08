@@ -1,37 +1,13 @@
 ![Herbie](logo.png)
 
-Herbie synthesizes floating-point programs from real-number programs,
-automatically handling simple numerical instabilities.
-Visit [our website](https://herbie.uwplse.org) for tutorials,
-documentation, and an online demo.
-
-Current Status
---------------
 
 [![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
 
-Herbie can improve the accuracy of many real-world programs, and is
-used by scientists in many disciplines. It has lead to two patches
-(for
-complex [square roots](https://github.com/josdejong/mathjs/pull/208)
-and
-[trigonometric functions](https://github.com/josdejong/mathjs/pull/247)),
-in [math.js](http://mathjs.org/) an open-source mathematics library.
-Herbie has semi-regular releases twice a year, maintains backwards
-compatibility, and uses standardized formats.
-
-Helping Out
------------
-
-Herbie development is organized on our
-[mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie)
-where we discuss work in progress and announce major improvements.
-[Email us](mailto:herbie@cs.washington.edu) to get involved!
-
-We use [Github](https://github.com/uwplse/herbie)
-and [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize some
-development goals Our test results
-are [archived](http://herbie.uwplse.org/reports/).
+Herbie synthesizes floating-point programs from real-number programs,
+automatically handling simple numerical instabilities. Visit [our
+website](https://herbie.uwplse.org) for tutorials, documentation, and
+an online demo. Herbie has semi-regular releases twice a year,
+maintains backwards compatibility, and uses standardized formats.
 
 Installing
 ----------
@@ -39,8 +15,8 @@ Installing
 For full details on installing Herbie, please see the
 [tutorial](http://herbie.uwplse.org/doc/latest/installing.html).
 
-Herbie requires Racket 6.3 or later, and supports Linux and OS X.
-Install it with:
+Herbie requires Racket 6.7 or later, and supports Windows, OS X, and
+Linux. Install it with:
 
     raco pkg install herbie
 
@@ -66,9 +42,10 @@ Run Herbie from the top-level directory of the repo, and enter the
 cancellation test:
 
     $ herbie shell
-    Seed: #(1046809171 2544984934 1871826185 4237421819 4093186437 162666889)
+    Herbie 1.2 with seed #(349461420 3681359142 2680361770 2900531005 1939065059 1779362427)
+    Find help on <https://herbie.uwplse.org/>, exit with Ctrl-D
     herbie> (FPCore (x) (- (+ 1 x) x))
-    (FPCore (x) 1)
+    (FPCore (x) ... 1)
 
 The output is Herbie's improved, more-accurate expression, in this case
 the constant `1`.
@@ -78,6 +55,18 @@ files of FPCore expressions with the `improve` and `report` commands.
 Consult the
 [documentation](http://herbie.uwplse.org/doc/latest/options.html).
 for more.
+
+Helping Out
+-----------
+
+Herbie development is organized on our
+[mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie)
+where we discuss work in progress and announce major improvements.
+[Email us](mailto:herbie@cs.washington.edu) to get involved!
+
+We use [Github](https://github.com/uwplse/herbie)
+and [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize some
+development goals.
 
 Running Tests
 -------------
@@ -92,17 +81,15 @@ projects, examples emailed to the developers, and from numerical
 analysis textbooks. This suite is found in `bench/`. The full test can
 be run with
 
-    herbie report bench/
+    herbie report bench/ graphs/
 
-This full test can take several hours to run. We often test Herbie on
-basic but representative examples with:
+The output is an HTML report in `graphs/`. This full test can take
+several hours to run. We often test Herbie on basic but representative
+examples with:
 
-    herbie report bench/hamming/
+    herbie report bench/hamming/ graphs/
 
 This takes approximately 15 minutes.
 
-Test results are collected on
-[uwplse.org](http://herbie.uwplse.org/reports/). If you have an
-account on this server, you can publish your test results with
-
-    make publish
+Historic and nightly test results are collected on
+[uwplse.org](http://herbie.uwplse.org/reports/).
