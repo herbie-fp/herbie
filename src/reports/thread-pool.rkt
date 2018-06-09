@@ -129,8 +129,7 @@
     (for/list ([id (in-naturals)] [prog progs])
       (list id prog)))
 
-  (eprintf "Starting ~a Herbie workers on ~a problems...\n" threads (length progs))
-  (eprintf "Seed: ~a\n" seed)
+  (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
   (for ([worker workers])
     (place-channel-put worker `(apply ,worker ,@(car work)))
     (set! work (cdr work)))
@@ -162,8 +161,7 @@
   outs)
 
 (define (run-nothreads progs #:seed seed #:profile profile? #:dir dir)
-  (eprintf "Starting Herbie on ~a problems...\n" (length progs))
-  (eprintf "Seed: ~a\n" seed)
+  (eprintf "Starting Herbie on ~a problems (seed: ~a)...\n" (length progs) seed)
   (define out '())
   (with-handlers ([exn:break?
                    (λ (_)
@@ -178,7 +176,8 @@
 
 (define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)
-      #:seed pseudo-random-generator-vector? #:profile boolean? #:dir (or/c #f path-string?)
+      #:seed (or/c pseudo-random-generator-vector? (integer-in 1 (sub1 (expt 2 31))))
+      #:profile boolean? #:dir (or/c #f path-string?)
       (listof (or/c #f (cons/c expr? table-row?))))
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))

@@ -37,12 +37,15 @@
   (define report-profile? #f)
   (define report-note #f)
 
+  (define seed (random 1 (expt 2 31)))
+  (set-seed! seed)
+
   (multi-command-line
    #:program "herbie"
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used"
+   [("--seed") rs "The random seed to use in point generation"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    [("--num-iters") fu "The number of iterations of the main loop to use"

@@ -40,8 +40,8 @@
 (define/contract (render-command-line)
   (-> string?)
   (format
-   "herbie shell --seed '~a' ~a"
-   (get-seed)
+   "herbie shell --seed ~a ~a"
+   (if (vector? (get-seed)) (format "'~a'" (get-seed)) (get-seed))
    (string-join
     (for/list ([rec (changed-flags)])
       (match rec

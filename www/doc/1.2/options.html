@@ -75,12 +75,11 @@
   <dl>
     <dt><code>--seed S</code></dt>
     <dd>The random seed, which changes the randomly-selected points
-      that Herbie evaluates candidate expressions on. The format of
-      the seed is that used by the
-      Racket <code>vector->pseudo-random-generator!</code> function;
-      in practice, just use a seed produced by an earlier run. This
+      that Herbie evaluates candidate expressions on. The seed is a
+      number between 0 and 2<sup>31</sup> (exclusive both ends). This
       option can be used to make Herbie's results reproducible or to
-      compare two different runs.</dd>
+      compare two different runs. Prior versions of Herbie used a
+      different format for seeds, which is also still supported.</dd>
 
     <dt><code>--num-iters N</code></dt>
     <dd>The number of improvements Herbie attempts to make to the

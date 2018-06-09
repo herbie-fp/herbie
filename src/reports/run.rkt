@@ -55,7 +55,7 @@
  #:once-each
  [("--timeout") s "Timeout for each test (in seconds)"
   (*timeout* (* 1000 (string->number s)))]
- [("-r" "--seed") rs "The random seed vector to use in point generation"
+ [("-r" "--seed") rs "The random seed to use in point generation"
   (set-seed! (read (open-input-string rs)))]
  [("-p" "--profile") "Whether to profile each test"
   (set! profile? #t)]

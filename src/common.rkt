@@ -266,14 +266,18 @@
       (list category flag))]
     [_ #f]))
 
+(define the-seed #f)
+
 (define (get-seed)
-  (pseudo-random-generator->vector
-   (current-pseudo-random-generator)))
+  (or the-seed (error "Seed is not set yet!")))
 
 (define (set-seed! seed)
   "Reset the random number generator to a new seed"
-  (current-pseudo-random-generator
-   (vector->pseudo-random-generator seed)))
+  (set! the-seed seed)
+  (if (vector? seed)
+      (current-pseudo-random-generator
+       (vector->pseudo-random-generator seed))
+      (random-seed seed)))
 
 ;; Common namespace for evaluation
 

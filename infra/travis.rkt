@@ -12,7 +12,7 @@
 (define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
   (define seed (get-seed))
-  (printf "Running Herbie on ~a tests...\nSeed: ~a\n" (length tests) seed)
+  (printf "Running Herbie on ~a tests (seed: ~a)...\n" (length tests) seed)
   (for/and ([test tests])
     (match (get-test-result test #:seed seed)
       [(test-result test time prec input output pts exs
@@ -48,7 +48,7 @@
   (command-line
    #:program "travis.rkt"
    #:once-each
-   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used'"
+   [("--seed") rs "The random seed to use in point generation. If false (#f), a random seed is used'"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    #:args bench-dir
