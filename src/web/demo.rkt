@@ -323,7 +323,7 @@
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (thread-send *worker-thread* config)
 
-  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* seed)
+  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
   (eprintf "Find help on <https://herbie.uwplse.org/>, exit with Ctrl-C\n")
 
   (serve/servlet
