@@ -91,7 +91,7 @@
   (define vars (program-variables (*start-prog*)))
   (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
-  (define can-split? (append (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val)) (list #f)))
+  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
   (define err-lsts
     (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
@@ -128,8 +128,20 @@
            (option-on-expr alts '(if (== x 0.5) 1 +nan.0))
            '(0))))
 
+;; (pred p1) and (not (pred p2))
+(define (binary-search-floats pred p1 p2)
+  (let ([midpoint (midpoint-float p1 p2)])
+    (cond [(= p1 p2) p1]
+          [(= p1 midpoint) p1]
+          [(= midpoint p2) p1]
+	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
+	  [#t (binary-search-floats pred p1 midpoint)])))
+
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in float form.
+;; proper splitpoints in float form. A crucial constraint is that the
+;; float form always come from the range [f(idx1), f(idx2)). If the
+;; float form of a split is f(idx2), or entirely outside that range,
+;; problems may arise.
 (define (sindices->spoints points expr alts sindices)
   (for ([alt alts])
     (assert
@@ -156,9 +168,7 @@
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
-      (define (close-enough a b)
-        (> eps (abs (ulp-difference a b))))
-      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1 close-enough))))
+      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1))))
 
   (append
    (if (flag-set? 'reduce 'binary-search)
@@ -166,7 +176,7 @@
 	    (take sindices (sub1 (length sindices)))
 	    (drop sindices 1))
        (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (si-pidx sindex))))))
+	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1))))))
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr
@@ -232,8 +242,8 @@
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
-;; splitpoints = The splitpoints we are considering in this candidate.
-(struct cse (cost splitpoints) #:transparent)
+;; indices = The si's we are considering in this candidate.
+(struct cse (cost indices) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (err-lsts->split-indices err-lsts can-split-lst)
@@ -244,10 +254,7 @@
   (define min-weight num-points)
 
   (define psums (map (compose partial-sum list->vector) err-lsts))
-  (define can-split (list->vector can-split-lst))
-
-  (define (can-split? pidx)
-    (or (= pidx num-points) (vector-ref can-split pidx)))
+  (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -260,7 +267,7 @@
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))]
-              #:when (can-split? (+ point-idx 1)))
+              #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-list psums)])
@@ -272,7 +279,7 @@
             (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
               (set! aest (cse acost (cons (si best (+ point-idx 1))
-                                          (cse-splitpoints prev-entry)))))))
+                                          (cse-indices prev-entry)))))))
         aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -284,8 +291,7 @@
               ;; Consider all the candidates we could put in this region
               (map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse (if (can-split? (+ point-idx 1)) cost +inf.0)
-                             (list (si cand-idx (+ point-idx 1))))))
+                        (cse cost (list (si cand-idx (+ point-idx 1))))))
                    (range num-candidates)
                    psums))))
 
@@ -298,7 +304,7 @@
             (loop next)))))
 
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (cse-splitpoints (last final))))
+  (reverse (cse-indices (last final))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
   (define which-alt (point->alt splitpoints))

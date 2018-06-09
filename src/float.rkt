@@ -4,7 +4,7 @@
 (require "config.rkt")
 (require "common.rkt")
 
-(provide ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
+(provide midpoint-float ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -25,6 +25,20 @@
         (ulp-difference (imag-part x) (imag-part y)))]
     [((? boolean?) (? boolean?))
      (if (equal? x y) 0 64)]))
+
+(define (midpoint-float p1 p2)
+  (cond 
+   [(and (double-flonum? p1) (double-flonum? p2))
+    (flstep p1 (quotient (flonums-between p1 p2) 2))]
+   [(and (single-flonum? p1) (single-flonum? p2))
+    (floating-point-bytes->real
+     (integer->integer-bytes
+      (quotient
+       (+ (single-flonum->ordinal p1) (single-flonum->ordinal p2))
+       2)
+      4) #f)]
+   [else
+    (error "Mixed precisions in binary search")]))
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
