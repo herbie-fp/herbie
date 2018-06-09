@@ -45,6 +45,8 @@
        #f])))
 
 (module+ main
+  (define seed (random 1 (expt 2 31)))
+  (set-seed! seed)
   (command-line
    #:program "travis.rkt"
    #:once-each
