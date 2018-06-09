@@ -125,8 +125,6 @@
 (define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
 
-(define *fixed-seed* #(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636))
-
 (define *worker-thread*
   (thread
    (λ ()
@@ -324,6 +322,9 @@
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (thread-send *worker-thread* config)
+
+  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* seed)
+  (eprintf "Find help on <https://herbie.uwplse.org/>, exit with Ctrl-C\n")
 
   (serve/servlet
    dispatch
