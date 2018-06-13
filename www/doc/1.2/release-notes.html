@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <title>Herbie 1.2 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
-  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
   <script type="text/javascript" src="compare.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 </head>
 <body>
   <header>
@@ -88,19 +88,27 @@
       <a href="options.html">option</a> controls this feature.</li>
   </ul>
 
-  <!-- TODO Update plot somehow? -->
   <figure class="showcase" style="background: white; border: 1px solid gray;">
-    <style scoped>
-      line { pointer-events: all; }
-      .old, .new { stroke-width: 3px; stroke-opacity: 1.0; fill-opacity: 1.0; }
-      .old { stroke: lightgray; fill: lightgray; }
-      .new { stroke: darkgreen; fill: darkgreen; }
-      .gridline, .guide { stroke: lightgray; }
-      text { text-anchor: middle; }
-    </style>
-    <svg id="results" width="525" height="320"></svg>
-    <script>draw_results(d3.select("#results"))</script>
-    <figcaption>Improvement on the Hamming benchmarks from Herbie 1.0 to Herbie 1.1. The improved series expansions, expanded trigonometric and hyperbolic knowledge, and miscellaneous bug fixes have made Herbie smarter.</figcaption>
+    <style scoped>.arrow { text-align: center; font-size: 200%; }</style>
+    <div class="program">\[c0 \cdot \sqrt{\frac{A}{V \cdot \ell}}\]</div>
+    <div class="arrow">↓</div>
+    <div class="program">\[\begin{array}{l}
+\mathbf{if}\;\frac{1}{V \cdot \ell} \le -3.767671897931721 \cdot 10^{+27}:\\
+\;\;\;\;\frac{c0 \cdot \sqrt{1}}{\sqrt{\frac{V \cdot \ell}{A}}}\\
+
+\mathbf{elif}\;\frac{1}{V \cdot \ell} \le -2.9824307461679933 \cdot 10^{-248}:\\
+\;\;\;\;\left(c0 \cdot \sqrt{\sqrt{\frac{A}{V \cdot \ell}}}\right) \cdot \sqrt{\sqrt{\frac{A}{V \cdot \ell}}}\\
+
+\mathbf{elif}\;\frac{1}{V \cdot \ell} \le 7.59312080698644 \cdot 10^{-301}:\\
+\;\;\;\;c0 \cdot \sqrt{\frac{\frac{A}{V}}{\ell}}\\
+
+\mathbf{else}:\\
+\;\;\;\;c0 \cdot \frac{\sqrt{A}}{\sqrt{V \cdot \ell}}\\
+
+\end{array}\]</div>
+    <figcaption>A program produced by the new, more create branch
+    inference system in Herbie 1.2. Herbie 1.2 is more creative and
+    produces more accurate output than prior versions.</figcaption>
   </figure>
 
   <h2>Usability improvements</h2>
