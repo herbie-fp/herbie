@@ -60,10 +60,6 @@
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
 
-;; When doing a binary search in regime inference,
-;; this is the fraction of the gap between two points that the search must reach
-(define *epsilon-fraction* (/ 1 200))
-
 ;; In periodicity analysis,
 ;; this is how small the period of a function must be to count as periodic
 (define *max-period-coeff* 20)
@@ -72,6 +68,9 @@
 (define *localize-expressions-limit* (make-parameter 4))
 
 (define *binary-search-test-points* (make-parameter 16))
+
+;; How accurate to make the binary search
+(define *binary-search-accuracy* (make-parameter 48))
 
 ;;; About Herbie:
 (define (run-command cmd)

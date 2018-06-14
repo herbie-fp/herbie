@@ -64,13 +64,6 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define basic-point-search (curry binary-search (λ (p1 p2)
-						  (if (for/and ([val1 p1] [val2 p2])
-							(> *epsilon-fraction* (abs (- val1 val2))))
-						      p1
-						      (for/list ([val1 p1] [val2 p2])
-							(/ (+ val1 val2) 2))))))
-
 (define (used-alts splitpoints all-alts)
   (let ([used-indices (remove-duplicates (map sp-cidx splitpoints))])
     (map (curry list-ref all-alts) used-indices)))
@@ -131,11 +124,9 @@
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2)
   (let ([midpoint (midpoint-float p1 p2)])
-    (cond [(= p1 p2) p1]
-          [(= p1 midpoint) p1]
-          [(= midpoint p2) p1]
+    (cond [(< (bit-difference p1 p2) 48) midpoint]
 	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
-	  [#t (binary-search-floats pred p1 midpoint)])))
+	  [else (binary-search-floats pred p1 midpoint)])))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -157,7 +148,6 @@
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
 	   [p1 (eval-expr (list-ref points (si-pidx sidx)))]
 	   [p2 (eval-expr (list-ref points (sub1 (si-pidx sidx))))]
-	   [eps (* (abs (ulp-difference p2 p1)) *epsilon-fraction*)]
 	   [pred (λ (v)
 		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
 			  [prog1* (replace-expression (alt-program alt1) expr v)]
