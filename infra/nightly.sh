@@ -27,10 +27,5 @@ function runEach {
   done
 }
 
-# use common seed across every 4 day cycle
-d=$(date "+%Y%j")
-qseed=$(racket -e "(random-seed $d)")
-seed="${qseed:1}" # :1 removes leading quote
-
 mkdir -p reports
-runEach --seed "$seed" "$@"
+runEach --seed $(date "+%Y%j") "$@"
