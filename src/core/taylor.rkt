@@ -38,7 +38,8 @@
   ; This is the memoized expansion-taking.
   ; The argument, `coeffs`, is the "uncorrected" degrees of the terms--`offsets` is not subtracted.
 
-  (define (get-taylor coeffs)
+  (define/contract (get-taylor coeffs)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (hash-ref! taylor-cache coeffs
                (λ ()
                   (let* ([oc (get-taylor (cdr coeffs))]
@@ -51,7 +52,8 @@
   ; Given some uncorrected degrees, this gets you an offset to apply.
   ; The corrected degrees for uncorrected `coeffs` are (map - coeffs (get-offset coeffs))
 
-  (define (get-offset coeffs)
+  (define/contract (get-offset coeffs)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (if (null? coeffs)
       (car (get-taylor '()))
       (cons (car (get-taylor (cdr coeffs))) (get-offset (cdr coeffs)))))
@@ -60,6 +62,7 @@
   (define get-coeffs-hash (make-hash))
 
   (define (get-coeffs expts)
+    (-> (listof exact-nonnegative-integer?) any/c)
     (hash-ref! get-coeffs-hash expts
                (λ ()
                  (if (null? expts)
@@ -89,7 +92,8 @@
                  [coeffs (get-coeffs expts)])
             (if (not coeffs)
                 (loop empty res (+ 1 i))
-                (let ([coeff (get-taylor coeffs)])
+                (let ([coeff (for/fold ([coeff (get-taylor coeffs)]) ([var vars] [tform tforms])
+                               (replace-expression coeff var ((cdr tform) var)))])
                   (if (equal? coeff 0)
                       (loop (+ empty 1) res (+ 1 i))
                       (loop 0 (cons (make-term coeff
@@ -116,9 +120,7 @@
   (cond
    [(equal? power 0)   1]
    [(equal? power 1)   var]
-   [(equal? power 2)  `(sqr ,var)]
    [(equal? power -1) `(/ 1 ,var)]
-   [(equal? power -2) `(/ 1 (sqr ,var))]
    [(positive? power) `(pow ,var ,power)]
    [(negative? power) `(pow ,var ,power)]))
 
@@ -182,8 +184,6 @@
      (apply taylor-add ((curry taylor var) arg) (map (compose taylor-negate (curry taylor var)) args))]
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
-    [`(/ ,arg)
-     (taylor-invert (taylor var arg))]
     [`(/ 1 ,arg)
      (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
@@ -238,7 +238,7 @@
                         (simplify `(+ (* (- ,(car arg*)) (log ,var))
                                       ,((cdr rest) 0)))
                         ((cdr rest) n))))))]
-    [`(pow ,(? (curry equal? var)) ,(? integer? power))
+    [`(pow ,(? (curry equal? var)) ,(? exact-integer? power))
      (cons (- power) (λ (n) (if (= n 0) 1 0)))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
@@ -358,7 +358,7 @@
                                  (simplify
                                   (cond
                                    [(even? n)
-                                    `(/ (- ,(coeffs* n) (sqr ,(f (/ n 2)))
+                                    `(/ (- ,(coeffs* n) (pow ,(f (/ n 2)) 2)
                                            (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
                                                   `(* 2 (* ,(f k) ,(f (- n k)))))))
                                         (* 2 ,(f 0)))]
@@ -493,3 +493,7 @@
                                                                  `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
                                                       (pow ,(coeffs 0) ,(- k))))])))
                               ,(factorial n))))))))))
+
+(module+ test
+  (require rackunit)
+  (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))

@@ -3,3 +3,16 @@
 (FPCore (x y z t)
  :name "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1"
  (* x (/ (* (/ y z) t) t)))
+
+(FPCore (x y z a)
+ :pre (and (or (== x 0) (<= 0.5884142 x 505.5909))
+           (or (<= -1.796658e+308 y -9.425585e-310) (<= 1.284938e-309 y 1.751224e+308))
+           (or (<= -1.776707e+308 z -8.599796e-310) (<= 3.293145e-311 z 1.725154e+308))
+           (or (<= -1.796658e+308 a -9.425585e-310) (<= 1.284938e-309 a 1.751224e+308)))
+ (+ x (- (tan (+ y z)) (tan a))))
+
+(FPCore (x cos sin)
+  :name "cos(2*x)/(cos^2(x)*sin^2(x))"
+  (/ (cos (* 2 x)) (* (pow cos 2) (* (* x (pow sin 2)) x))))
+
+(FPCore (x) :pre (or (== x 0) (== x 10)) x)

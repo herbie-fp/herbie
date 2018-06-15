@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/date)
+(require racket/date (only-in xml write-xexpr))
 (require "../common.rkt" "common.rkt")
 (require "../formats/datafile.rkt")
 
@@ -8,14 +8,12 @@
 
 (define (log-exceptions file info)
   (define (print-test t)
-    (printf "(lambda ~a\n  #:name ~s\n  ~a)\n\n"
-            (for/list ([v (table-row-vars t)]
-                       [s (table-row-samplers t)])
-                      (list v s))
+    (printf "(FPCore ~a\n  :name ~s\n  ~a)\n\n"
+            (table-row-vars t)
             (table-row-name t)
             (table-row-input t)))
   (match info
-	 [(report-info date commit branch seed flags points iterations bit-width note tests)
+	 [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
 	  (write-file file
 		      (printf "; seed : ~a\n\n" seed)
 		      (printf "; flags :\n")
@@ -26,6 +24,9 @@
 		      (printf "\n")
 		      (for ([t tests])
 			   (match (table-row-status t)
+				  ["error"
+				   (printf "; errored\n")
+				   (print-test t)]
 				  ["crash"
 				   (printf "; crashed\n")
 				   (print-test t)]
@@ -37,12 +38,23 @@
 (define (web-resource name)
   (build-path web-resource-path name))
 
+(define (badge-label result)
+  (match (table-row-status result)
+    ["error" "ERR"]
+    ["crash" "!!!"]
+    ["timeout" "TIME"]
+    [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)]))
+
 (define (make-report-page file info)
   (match info
-    [(report-info date commit branch seed flags points iterations bit-width note tests)
+    [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
 
      (define table-labels
        '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
+
+     (define help-text
+       #hash(("Result" . "Color key:\nGreen: improved accuracy\nLight green: no initial error\nOrange: no accuracy change\nRed: accuracy worsened")
+             ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
 
      (define-values (dir _name _must-be-dir?) (split-path file))
 
@@ -77,115 +89,100 @@
        (for*/or ([test tests] [field (list table-row-inf- table-row-inf+)])
          (and (field test) (> (field test) 0))))
 
+     (define sorted-tests
+       (sort (map cons tests (range (length tests))) >
+             #:key (λ (x) (or (table-row-start (car x)) 0))))
+
+     (define classes
+       (filter identity
+               (list (if any-has-target? #f 'no-target)
+                     (if any-has-inf+/-? #f 'no-inf))))
+
      (write-file file
        ; HTML cruft
        (printf "<!doctype html>\n")
-       (printf "<head>\n")
-       (printf "<title>Herbie test results</title>\n")
-       (printf "<meta charset='utf-8' />")
-       (printf "<link rel='stylesheet' type='text/css' href='report.css' />")
+       (write-xexpr
+        `(html
+          (head
+           (title "Herbie results")
+           (meta ((charset "utf-8")))
+           (link ((rel "stylesheet") (type "text/css") (href "report.css")))
+           (script ((src "report.js")))
+           (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+           (script ((type "text/javascript") (src "arrow-chart.js"))))
 
-       ; Scripts: the report script, MathJax, D3, and graph-drawing code
-       (printf "<script src='report.js'></script>\n")
-       (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
-       (printf "<script type='text/javascript' src='arrow-chart.js'></script>\n")
-       (printf "</head>\n")
-       (printf "<body onload='report()'>\n")
+          (body ((onload "report()"))
+           (div ((id "large"))
+            (div "Time: " (span ((class "number")) ,(format-time total-time)))
+            (div "Passed: " (span ((class "number")) ,(~a total-passed) "/" ,(~a total-available)))
+            ,(if (> total-crashes 0)
+                 `(div "Crashes: " (span ((class "number")) ,(~a total-crashes)))
+                 "")
+            (div "Tests: " (span ((class "number")) ,(~a (length tests))))
+            (div "Bits: " (span ((class "number"))
+                                ,(~a (round* (- total-start total-gained)))
+                                "/"
+                                ,(~a (round* total-start)))))
 
-       ; Big bold numbers
-       (printf "<div id='large'>\n")
-       (printf "<div>Time: <span class='number'>~a</span></div>\n"
-               (format-time total-time))
-       (printf "<div>Passed: <span class='number'>~a/~a</span></div>\n"
-               total-passed total-available)
-       (when (not (= total-crashes 0))
-         (printf "<div>Crashes: <span class='number'>~a</span></div>\n"
-                 total-crashes))
-       (printf "<div>Tests: <span class='number'>~a</span></div>\n"
-               (length tests))
-       (printf "<div>Bits: <span class='number'>~a/~a</span></div>\n"
-               (round* (- total-start total-gained)) (round* total-start))
-       (printf "</div>\n")
+           (figure
+            (svg ((id "graph") (width "400")))
+            (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})")))
 
-       ; The graph
-       (printf "<figure><svg id='graph' width='400'></svg>\n")
-       (printf "<script>window.addEventListener('load', function(){draw_results(d3.select('#graph'))})</script>\n")
-       (printf "</figure>\n")
+          (ul ((id "test-badges"))
+           ,@(for/list ([(result id) (in-dict sorted-tests)])
+               `(li ((class ,(format "badge ~a" (table-row-status result)))
+                     (title ,(format "~a (~a to ~a)"
+                                     (table-row-name result)
+                                     (format-bits (table-row-start result))
+                                     (format-bits (table-row-result result))))
+                     (data-id ,(~a id)))
+                    ,(badge-label result))))
+          (hr ((style "clear:both;visibility:hidden")))
 
-       ; Test badges
-       (printf "<ul id='test-badges'>\n")
-       (define sorted-tests
-         (sort (map cons tests (range (length tests))) >
-               #:key (λ (x) (or (table-row-start (car x)) 0))))
-       (for ([(result id) (in-dict sorted-tests)])
-         (printf "<li class='badge ~a' title='~a (~a to ~a)' data-id='~a'>~a</li>\n"
-                 (table-row-status result)
-                 (html-escape-unsafe (table-row-name result))
-                 (format-bits (table-row-start result))
-                 (format-bits (table-row-result result))
-                 id
-                 (match (table-row-status result)
-                   ["crash" "ERR"]
-                   ["timeout" "TIME"]
-                   [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)])))
-       (printf "</ul>\n")
-       (printf "<hr style='clear:both;visibility:hidden'>\n")
+          (table ((id "about"))
+           (tr (th "Date:") (td ,(date->string date)))
+           (tr (th "Commit:") (td ,commit " on " ,branch))
+           (tr (th "Hostname:") (td ,hostname))
+           (tr (th "Points:") (td ,(~a (*num-points*))))
+           (tr (th "Fuel:") (td ,(~a (*num-iterations*))))
+           (tr (th "Seed:") (td ,(~a seed)))
+           (tr (th "Flags:")
+               (td ((id "flag-list"))
+                   (div ((id "all-flags"))
+                        ,@(for*/list ([(class flags) (*flags*)] [flag flags])
+                            `(kbd ,(~a class) ":" ,(~a flag))))
+                   (div ((id "changed-flags"))
+                        ,@(if (null? (changed-flags))
+                              '("default")
+                              (for/list ([rec (changed-flags)])
+                                (match-define (list delta class flag) rec)
+                                `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
+                                      " " ,(~a class) ":" ,(~a flag))))))))
 
-       ; Run stats
-       (printf "<table id='about'>\n")
-       (printf "<tr><th>Date:</th><td>~a</td></tr>\n" (date->string (current-date)))
-       (printf "<tr><th>Commit:</th><td>~a on ~a</td></tr>\n" commit branch)
-       (printf "<tr><th>Points:</th><td>~a</td></tr>\n" (*num-points*))
-       (printf "<tr><th>Fuel:</th><td>~a</td></tr>\n" (*num-iterations*))
-       (printf "<tr><th>Seed:</th><td>~a</td></tr>\n" seed)
-       (printf "<tr><th>Flags:</th><td id='flag-list'>\n")
-       (printf "<div id='all-flags'>")
-       (for* ([(class flags) (*flags*)] [flag flags])
-         (printf "<kbd>~a:~a</kbd>" class flag))
-       (printf "</div>\n")
-       (printf "<div id='changed-flags'>")
-       (when (null? (changed-flags))
-         (printf "default"))
-       (for ([rec (changed-flags)])
-         (match rec
-           [(list 'enabled class flag) (printf "<kbd>+o ~a:~a</kbd>" class flag)]
-           [(list 'disabled class flag) (printf "<kbd>-o ~a:~a</kbd>" class flag)]))
-       (printf "</div>\n")
-       (printf "</td></tr>")
-       (printf "</table>\n")
-
-       (define classes
-         (filter identity (list (if any-has-target? #f 'no-target) (if any-has-inf+/-? #f 'no-inf))))
-
-       ; Results table
-       (printf "<table id='results' class='~a'>\n" (string-join (map ~a classes) " "))
-       (printf "<thead><tr>")
-       (for ([label table-labels])
-         (printf "<th>~a</th>" label))
-       (printf "</tr></thead>\n")
-       (printf "</div>\n")
-
-       (printf "<tbody>")
-       (for ([result tests] [id (in-naturals)])
-         (printf "<tr class='~a'>" (table-row-status result))
-         (printf "<td>~a</td>" (html-escape-unsafe (or (table-row-name result) "")))
-         (printf "<td>~a</td>" (format-bits (table-row-start result)))
-         (printf "<td>~a</td>" (format-bits (table-row-result result)))
-         (printf "<td>~a</td>" (format-bits (table-row-target result)))
-         (printf "<td>~a~a</td>"
-                 (let ([inf- (table-row-inf- result)])
-                   (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
-                 (let ([inf+ (table-row-inf+ result)])
-                   (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
-         (printf "<td>~a</td>" (format-time (table-row-time result)))
-         (if (table-row-link result)
-           (printf "<td><a id='link~a' href='~a/graph.html'>»</a></td>" id (table-row-link result))
-           (printf "<td></td>"))
-         (printf "</tr>\n"))
-       (printf "</tbody>\n")
-       (printf "</table>\n")
-       (printf "</body>\n")
-       (printf "</html>\n"))
+          (table ((id "results") (class ,(string-join (map ~a classes) " ")))
+           (thead
+            (tr ,@(for/list ([label table-labels])
+                    (if (dict-has-key? help-text label)
+                        `(th ,label " " (span ([class "help-button"] [title ,(dict-ref help-text label)]) "?"))
+                        `(th ,label)))))
+           (tbody
+            ,@(for/list ([result tests] [id (in-naturals)])
+                `(tr ((class ,(~a (table-row-status result))))
+                     (td ,(or (table-row-name result) ""))
+                     (td ,(format-bits (table-row-start result)))
+                     (td ,(format-bits (table-row-result result)))
+                     (td ,(format-bits (table-row-target result)))
+                     (td ,(let ([inf- (table-row-inf- result)])
+                            (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
+                         ,(let ([inf+ (table-row-inf+ result)])
+                            (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
+                     (td ,(format-time (table-row-time result)))
+                     ,(if (table-row-link result)
+                          `(td
+                            (a ((id ,(format "link~a" id))
+                                (href ,(format "~a/graph.html" (table-row-link result))))
+                               "»"))
+                          ""))))))))
 
      ; Delete old files
      (let* ([expected-dirs (map string->path (filter identity (map table-row-link tests)))]
@@ -196,9 +193,9 @@
            (delete-directory/files (build-path dir subdir)))))]))
 
 (define (make-compare-page out-file info1 info2)
-  (match-let ([(report-info date1 commit1 branch1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
+  (match-let ([(report-info date1 commit1 branch1 hostname1 seed1 flags1 points1 iterations1 bit-width1 note1 tests1)
                info1]
-              [(report-info date2 commit2 branch2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
+              [(report-info date2 commit2 branch2 hostname2 seed2 flags2 points2 iterations2 bit-width2 note2 tests2)
                info2])
     (define table-labels
       '("Test" "Start" "Result" "Result" "Target" "∞ ↔ ℝ" "∞ ↔ ℝ" "Time" "Time"))
@@ -209,19 +206,19 @@
 
     (define total-time1 (apply + (map table-row-time tests1)))
     (define total-time2 (apply + (map table-row-time tests2)))
-    
+
     (define (total-passed tests)
       (for/sum ([row tests])
         (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
     (define total-passed1 (total-passed tests1))
     (define total-passed2 (total-passed tests2))
-    
+
     (define (total-available tests)
       (for/sum ([row tests])
         (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
     (define total-available1 (total-passed tests1))
     (define total-available2 (total-passed tests2))
-    
+
     (define (total-crashes tests)
       (for/sum ([row tests])
         (if (equal? (table-row-status row) "crash") 1 0)))
@@ -233,7 +230,7 @@
         (or (table-row-result row) 0)))
     (define total-gained1 (total-gained tests1))
     (define total-gained2 (total-gained tests2))
-    
+
     (define (total-start tests)
       (for/sum ([row tests])
         (or (table-row-start row) 0)))
@@ -250,164 +247,128 @@
     (define (round* x)
       (inexact->exact (round x)))
 
+    (define (double-large-number title val1 val2)
+      `(div ,title ": " (span ([class "number"]) ,(~a val1))
+            " vs " (span ([class "number"]) ,(~a val2))))
+
+
     (write-file out-file
-                ; HTML cruft
-                (printf "<!doctype html>\n")
-                (printf "<head>\n")
-                (printf "<title>Herbie test results</title>\n")
-                (printf "<meta charset='utf-8' />")
-                (printf "<link rel='stylesheet' type='text/css' href='compare.css' />")
+     ; HTML cruft
+     (printf "<!doctype html>\n")
+     (write-xexpr
+      `(html
+        (head
+         (title "Herbie test results")
+         (meta ([charset "utf-8"]))
+         (link ([rel "stylesheet"] [type "text/css"] [href "compare.css"]))
+         (script ([src "http://d3js.org/d3.v3.min.js"] [charset "utf-8"])))
+        (body
+         (div ([id "large"])
+          ,(double-large-number "Time" (format-time total-time1) (format-time total-time2))
+          ,(double-large-number "Passed"
+                                (format "~a/~a" total-time1 total-available1)
+                                (format "~a/~a" total-time2 total-available2))
+          ,(if (and (= total-crashes1 0) (= total-crashes2 0))
+               ""
+               (double-large-number "Crashes" total-crashes1 total-crashes2))
+          ,(double-large-number "Tests" (length tests1) (length tests2))
+          ,(double-large-number
+            "Bits"
+            (format "~a/~a" (round* (- total-start1 total-gained1)) (round* total-start1))
+            (format "~a/~a" (round* (- total-start1 total-gained2)) (round* total-start2))))
 
-                ; Scripts: D3.
-                (printf "<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
-                (printf "</head>\n")
-                (printf "<body>\n")
+         (ul ([id "test-badges"])
+          ,@(for/list ([name (remove-duplicates (map table-row-name (append tests1 tests2)))])
+              (define result1 (findf (compose (curry equal? name) table-row-name) tests1))
+              (define result2 (findf (compose (curry equal? name) table-row-name) tests2))
+              `(li ([class "badge"]
+                    [title ,(format "~a (~a to ~a) vs. (~a to ~a)"
+                                    (table-row-name result1)
+                                    (format-bits (table-row-start result1))
+                                    (format-bits (table-row-result result1))
+                                    (format-bits (table-row-start result2))
+                                    (format-bits (table-row-result result2)))])
+                (table
+                 (tbody
+                  (tr
+                   (td ([class ,(~a (table-row-status result1))]) ,(badge-label result1))
+                   (td ([class ,(~a (table-row-status result2))]) ,(badge-label result1))))))))
+         (hr ([style "clear:both;visibility:hidden"]))
 
-                ; Big bold numbers
-                (printf "<div id='large'>\n")
-                (printf "<div>Time: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
-                        (format-time total-time1) (format-time total-time2))
-                (printf "<div>Passed: <span class='number'>~a/~a</span> vs <span class='number'>~a/~a</span></div>\n"
-                        total-passed1 total-available1
-                        total-passed2 total-available2)
-                (when (not (and (= total-crashes1 0) (= total-crashes2 0)))
-                  (printf "<div>Crashes: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
-                          total-crashes1 total-crashes2))
-                (printf "<div>Tests: <span class='number'>~a</span> vs <span class='number'>~a</span></div>\n"
-                        (length tests1) (length tests2))
-                (printf "<div>Bits: <span class='number'>~a/~a</span> vs <span class='number'>~a/~a</span></div>\n"
-                        (round* (- total-start1 total-gained1)) (round* total-start1)
-                        (round* (- total-start2 total-gained2)) (round* total-start2))
-                (printf "</div>\n")
+         (table ([id "about"])
+          (tr (th "Date:")
+              (td ([class "hinfo-cell"]) ,(date->string date1) (br) ,(date->string date2)))
+          (tr (th "Commit:")
+              (td ([class "hinfo-cell"]) ,(~a commit1) " on " ,(~a branch1)
+                  (br) ,(~a commit2) " on " ,(~a branch2)))
+          (tr (th "Hostname:")
+              (td ([class "hinfo-cell"]) ,(~a hostname1) (br) ,(~a hostname2)))
+          (tr (th "Points:")
+              (td ([class "hinfo-cell"]) ,(~a points1) (br) ,(~a points2)))
+          (tr (th "Fuel:")
+              (td ([class "hinfo-cell"]) ,(~a iterations1) (br) ,(~a iterations2)))
+          (tr (th "Seed:")
+              (td ([class "hinfo-cell"]) ,(~a seed1) (br) ,(~a seed2)))
+          (tr (th "Flags:")
+              (td ([id "flag-list"] [class "hinfo-cell"])
+                  ,@(for*/list ([rec (hash->list flags1)] [fl (cdr rec)])
+                      `(kbd ,(format "~a:~a" (car rec) fl)))
+                  (br)
+                  ,@(for*/list ([rec (hash->list flags2)] [fl (cdr rec)])
+                      `(kbd ,(format "~a:~a" (car rec) fl))))))
 
-                (define (badge-label result)
-                  (match (table-row-status result)
-                    ["crash" "ERR"]
-                    ["timeout" "TIME"]
-                    [_ (format-bits (- (table-row-start result)
-                                        (table-row-result result))
-                                     #:sign #t)]))
-
-                ; Test badges
-                (printf "<ul id='test-badges'>\n")
-                (for ([name (remove-duplicates (map table-row-name (append tests1 tests2)))])
-                  (define result1 (findf (compose (curry equal? name) table-row-name)
+         (table ([id "results"])
+          (thead ,@(for/list ([label table-labels]) `(th ,(~a label))))
+          (tbody
+           ,@(for/list ([name (remove-duplicates (map table-row-name (append tests1 tests2)))]
+                        [id (in-naturals)])
+               (define result1 (findf (compose (curry equal? name) table-row-name)
                                          tests1))
-                  (define result2 (findf (compose (curry equal? name) table-row-name)
+               (define result2 (findf (compose (curry equal? name) table-row-name)
                                          tests2))
-                  (printf "<li class='badge' title='~a (~a to ~a) vs. (~a to ~a)'>"
-                          (html-escape-unsafe (table-row-name result1))
-                          (format-bits (table-row-start result1))
-                          (format-bits (table-row-result result1))
-                          (format-bits (table-row-start result2))
-                          (format-bits (table-row-result result2)))
-                  (printf "<table><tbody><tr><td class='~a'>~a</td><td class='~a'>~a</td></tr></tbody></table>"
-                          (table-row-status result1)
-                          (badge-label result1)
-                          (table-row-status result2)
-                          (badge-label result2))
-                  (printf "</li>"))
-                (printf "</ul>\n")
-                (printf "<hr style='clear:both;visibility:hidden'>\n")
+               ;; Some helper functions for displaying the different boxes for results
+               (define (format-bits-vs-other bits other)
+                 (cond [(and (not bits) other)
+                        `(td ,(format-bits other))]
+                       [(and bits (not other))
+                        `(td ,(format-bits bits))]
+                       [(and (not bits) (not other))
+                        `(td)]
+                       [((abs (- bits other)) . > . 1)
+                        `(td ,(format-bits bits) "/" ,(format-bits other))]
+                       [#t
+                        `(td ,(format-bits bits))]))
 
-                ; Run stats
-                (printf "<table id='about'>\n")
-                (printf "<tr><th>Date:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
-                        (date->string date1) (date->string date2))
-                (printf "<tr><th>Commit:</th><td class=hinfo-cell>~a on ~a<br>~a on ~a</td></tr>\n"
-                        commit1 branch1 commit2 branch2)
-                (printf "<tr><th>Points:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
-                        points1 points2)
-                (printf "<tr><th>Fuel:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
-                        iterations1 iterations2)
-                (printf "<tr><th>Seed:</th><td class=hinfo-cell>~a<br>~a</td></tr>\n"
-                        seed1 seed2)
-                (printf "<tr><th>Flags:</th><td id='flag-list' class=hinfo-cell>")
-                (for ([rec (hash->list flags1)])
-                  (for ([fl (cdr rec)])
-                    (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
-                ;; (printf "<p style=\"text-align:center; margin-top:5px; margin-bottom:5px\">vs.</p>")
-                (printf "<br><br>")
-                (for ([rec (hash->list flags2)])
-                  (for ([fl (cdr rec)])
-                    (printf "<kbd>~a:~a</kbd>" (car rec) fl)))
-                (printf "</td></tr>")
-                (printf "</table>\n")
+               (define (format-bits-vs-est result est-result status)
+                 (if (and result est-result
+                          (> (abs (- result est-result)) 1))
+                     `(td ([class ,(format "bad-est" status)])
+                          "[" ,(format-bits est-result) " ≠] " ,(format-bits result))
+                     `(td ([class ,(~a status)]) ,(format-bits result))))
 
-                ; Results table
-                (printf "<table id='results'>\n")
-                (printf "<thead><tr>")
-                (for ([label table-labels])
-                  (printf "<th>~a</th>" label))
-                (printf "</tr></thead>\n")
-                (printf "</div>\n")
+               (define (display-num-infs inf- inf+)
+                 `(td ([class "infs"])
+                      ,(if (and inf- (> inf- 0)) (format "+~a" inf-) "")
+                      ,(if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
 
-                (printf "<tbody>")
-                (for ([name (remove-duplicates (map table-row-name (append tests1 tests2)))]
-                      [id (in-naturals)])
-                  (define result1 (findf (compose (curry equal? name) table-row-name)
-                                         tests1))
-                  (define result2 (findf (compose (curry equal? name) table-row-name)
-                                         tests2))
-                  (printf "<tr>")
+               `(tr
+                 (td ,(~a name))
+                 ;; The starting bits
+                 ,(format-bits-vs-other (table-row-start result1) (table-row-start result2))
+                 ;; The first result bits box
+                 ,(format-bits-vs-est (table-row-result result1) (table-row-result-est result1)
+                                      (table-row-status result1))
+                 ;; The second result bits box
+                 ,(format-bits-vs-est (table-row-result result2) (table-row-result-est result2)
+                                      (table-row-status result2))
+                 ;; The target bits
+                 ,(format-bits-vs-other (table-row-target result1) (table-row-target result2))
+                 ;; The number of points that went to infinity and back
 
-                  (printf "<td>~a</td>" (html-escape-unsafe name))
-
-                  ;; Some helper functions for displaying the different boxes for results
-                  (define (format-bits-vs-other bits other)
-                    (cond [(and (not bits) other)
-                           (printf "<td>~a</td>" (format-bits other))]
-                          [(and bits (not other))
-                           (printf "<td>~a</td>" (format-bits bits))]
-                          [(and (not bits) (not other))
-                           (printf "<td></td>")]
-                          [((abs (- bits other)) . > . 1)
-                           (printf "<td>~a/~a</td>"
-                                   (format-bits bits)
-                                   (format-bits other))]
-                          [#t
-                           (printf "<td>~a</td>"
-                                   (format-bits bits))]))
-
-                  (define (format-bits-vs-est result est-result status)
-                    (if (and result est-result
-                             (> (abs (- result est-result)) 1))
-                        (printf "<td class='bad-est ~a'>[~a ≉] ~a </td>"
-                                status (format-bits est-result) (format-bits result))
-                        (printf "<td class='~a'>~a</td>"
-                                status (format-bits result))))
-
-                  (define (display-num-infs inf- inf+)
-                    (printf "<td class='infs'>~a~a</td>"
-                            (if (and inf- (> inf- 0)) (format "+~a" inf-) "")
-                            (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
-                  
-                  ;; The starting bits
-                  (format-bits-vs-other (table-row-start result1) (table-row-start result2))
-
-                  ;; The first result bits box
-                  (format-bits-vs-est (table-row-result result1) (table-row-result-est result1)
-                                       (table-row-status result1))
-                  ;; The second result bits box
-                  (format-bits-vs-est (table-row-result result2) (table-row-result-est result2)
-                                       (table-row-status result2))
-
-                  ;; The target bits
-                  (format-bits-vs-other (table-row-target result1) (table-row-target result2))
-
-                  ;; The number of points that went to infinity and back
-                  (display-num-infs (table-row-inf- result1) (table-row-inf+ result1))
-                  (display-num-infs (table-row-inf- result2) (table-row-inf+ result2))
-
-                  ;; The time each run of the test took.
-                  (printf "<td>~a</td>" (format-time (table-row-time result1)))
-                  (printf "<td>~a</td>" (format-time (table-row-time result2)))
-                  
-                  (printf "</tr>\n"))
-                (printf "</tbody>\n")
-                (printf "</table>\n")
-                (printf "</body>\n")
-                (printf "</html>\n"))
+                 ,(display-num-infs (table-row-inf- result1) (table-row-inf+ result1))
+                 ,(display-num-infs (table-row-inf- result2) (table-row-inf+ result2))
+                 (td ,(format-time (table-row-time result1)))
+                 (td ,(format-time (table-row-time result2)))))))))))
 
     ; Delete old files
     (let* ([expected-dirs (map string->path (filter identity (map table-row-link tests1)))]

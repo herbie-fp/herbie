@@ -1,4 +1,4 @@
-.PHONY: report publish www compile clean loc deploy
+.PHONY: all install update nightly index clean publish start-server package loc deploy
 
 all:
 	@echo "Type 'make install' to install Herbie as a Racket package,"
@@ -9,6 +9,14 @@ install:
 
 update:
 	raco pkg update --name herbie src/
+
+nightly:
+	bash infra/nightly.sh
+	bash infra/nightly.sh --enable rules:numerics
+	$(MAKE) index
+
+index:
+	bash infra/publish.sh index
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
@@ -24,10 +32,10 @@ publish:
 	bash infra/publish.sh index
 
 start-server:
-	racket src/herbie.rkt web --seed '#(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636)' --timeout 60 --demo --prefix /demo/ --port 4053 --save-session www/demo/ --log infra/server.log --quiet 2>&1
+	racket src/herbie.rkt web --seed '#(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636)' --timeout 60 --num-iters 2 --demo --prefix /demo/ --port 4053 --save-session www/demo/ --log infra/server.log --quiet 2>&1
 
 package:
-	raco pkg 
+	raco pkg
 
 loc:
 	find herbie/ -type f -exec cat {} \; | wc -l

@@ -28,10 +28,8 @@ header img {width: 250px; margin: 0 auto; display: block;}
 .tool-list dt {float: left; clear:left; margin-right: 1ex; font-weight: bold; }
 .tool-list dd {clear: right; margin-bottom: 1em;}
 
-.author-list {padding: 0; margin: .5em 1em 3em; }
-.author-list li {display: inline; margin: 0; white-space: nowrap;}
-.author-list li:after {content: ","}
-.author-list li:last-child:after {content: ""}
+.author-list {padding: 0; margin: .5em 1em 3em; column-count: 3; -moz-column-count: 3; }
+.author-list li {margin: 0; white-space: nowrap; list-style-type: none; }
 svg {margin: 0 auto; display: block;}
 
 pre {padding-left: 2em; font-size: 16px; font-family: monospace;}
@@ -54,9 +52,13 @@ a:hover {text-decoration: underline; color: #295785}
 }
 #num-jobs { font-weight: bold; }
 
-.function-list dt { font-weight: bold; float: left; width: 200px; clear: left; margin: 0 1em .5em 1em; }
-.function-list dd { clear: right; margin: 0; }
-.function-list dd:after { clear: both; height: 1px; display: block; content: "."; visibility: hidden; margin: 0;}
+dl.function-list dt { font-weight: bold; float: left; width: 200px; clear: left; margin: 0 1em .5em 1em; }
+dl.function-list dd { clear: right; margin: 0; }
+dl.function-list dd:after { clear: both; height: 1px; display: block; content: "."; visibility: hidden; margin: 0;}
+
+table.function-list { width: 100%; margin: 1em; }
+table.function-list th { text-align: left; }
+table.function-list td:nth-child(1) { font-family: monospace; min-width: 170px; margin: 0 1em .5em 1em; }
 
 .video { display: block; margin: auto; }
 .abstract { padding: 1em 3em; position: relative; }

@@ -8,38 +8,69 @@
   (require rackunit))
 
 (provide *start-prog*
-         reap define-table first-value assert for/append
-         ordinary-float? =-or-nan? log2
-         take-up-to flip-lists argmins argmaxs setfindf index-of
+         reap define-table table-ref table-set! table-remove!
+         first-value assert for/append
+         ordinary-value? =-or-nan? log2 </total
+         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
-         html-escape-unsafe random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval
+         random-exp parse-flag get-seed set-seed!
+         common-eval-ns common-eval quasisyntax
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
-;; utlimately one that should be located somewhere else or perhaps
+;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
 
+
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
-		 (λ (elt) (if elt
-			      (begin (set! store (cons elt store))
-				     elt)
-			      store)))] ...)
-    body ...
-    (values (reverse (sows #f)) ...)))
+                 (cons
+                  (λ () store)
+                  (λ (elt) (set! store (cons elt store)))))] ...)
+    (let ([sows (cdr sows)] ...)
+      body ...)
+    (values (reverse ((car sows))) ...)))
 
-(define-syntax-rule (define-table name [key values ...] ...)
-  (define name
-    (let ([hash (make-hasheq)])
-      (for ([rec (list (list 'key values ...) ...)])
-        (hash-set! hash (car rec) (cdr rec)))
-      hash)))
+;; The new, contracts-using version of the above
+
+(define-syntax-rule (define-table name [field type] ...)
+  (define/contract name
+    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
+    (cons (list (cons 'field type) ...) (make-hash))))
+
+(define/contract (table-ref tbl key field)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [field symbol?])
+       [_ (tbl field) (dict-ref (car tbl) field)])
+  (match-let ([(cons header rows) tbl])
+    (for/first ([(field-name type) (in-dict header)]
+                [value (in-list (dict-ref rows key))]
+                #:when (equal? field-name field))
+      value)))
+
+(define/contract (table-set! tbl key fields)
+  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
+        [key symbol?]
+        [fields (tbl)
+                ;; Don't check value types because the contract gets pretty rough :(
+                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
+       any)
+  (match-let ([(cons header rows) tbl])
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
+    (dict-set! rows key row)))
+
+(define/contract (table-remove! tbl key)
+  ((cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c))) symbol? . -> . void?)
+  (match-let ([(cons header rows) tbl])
+    (dict-remove! rows key)))
+
+;; More various helpful values
 
 (define-syntax-rule (first-value expr)
   (call-with-values
@@ -74,13 +105,19 @@
 
 ;; Simple floating-point functions
 
-(define (ordinary-float? x)
-  (and (real? x) (not (or (infinite? x) (nan? x)))))
+(define (ordinary-value? x)
+  (match x
+    [(? real?)
+     (not (or (infinite? x) (nan? x)))]
+    [(? complex?)
+     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
+    [(? boolean?)
+     true]))
 
 (module+ test
-  (check-true (ordinary-float? 2.5))
-  (check-false (ordinary-float? +nan.0))
-  (check-false (ordinary-float? -inf.f)))
+  (check-true (ordinary-value? 2.5))
+  (check-false (ordinary-value? +nan.0))
+  (check-false (ordinary-value? -inf.f)))
 
 (define (=-or-nan? x1 x2)
   (or (= x1 x2)
@@ -91,6 +128,12 @@
   (check-false (=-or-nan? 2.3 7.8))
   (check-true (=-or-nan? +nan.0 -nan.f))
   (check-false (=-or-nan? 2.3 +nan.f)))
+
+(define (</total x1 x2)
+  (cond
+   [(nan? x1) #f]
+   [(nan? x2) #t]
+   [else (< x1 x2)]))
 
 (define (log2 x)
   (/ (log x) (log 2)))
@@ -156,6 +199,19 @@
   (check-equal? (index-of '(a b c d e) 'd) 3)
   (check-equal? (index-of '(a b c d e) 'foo) #f))
 
+(define (set-disjoint? s1 s2) ; TODO could be faster?
+  (set=? (set-intersect s2 s1) '()))
+
+(module+ test
+  (check-true (set-disjoint? '(a b c) '(e f g)))
+  (check-true (set-disjoint? '() '()))
+  (check-false (set-disjoint? '(a b c) '(a))))
+
+(define (all-equal? l)
+  (if (null? l)
+      true
+      (andmap (curry equal? (car l)) (cdr l))))
+
 ;; Utility output functions
 
 (define-syntax-rule (write-file filename . rest)
@@ -184,8 +240,7 @@
 
 ;; Given two floating point numbers, the first of which is pred,
 ;; and the second is not, find where pred becomes false (within epsilon).
-(define (binary-search-floats pred p1 p2 epsilon)
-  (define (close-enough a b) (> epsilon (abs (- a b))))
+(define (binary-search-floats pred p1 p2 close-enough)
   (binary-search (lambda (a b) (if (close-enough a b) #f
 				   (/ (+ a b) 2)))
 		 pred p1 p2))
@@ -202,15 +257,6 @@
       (let ([head (* (expt 2 31) (random-exp (- k 31)))])
         (+ head (random (expt 2 31))))))
 
-(define (html-escape-unsafe err)
-  (string-replace (string-replace (string-replace err "&" "&amp;") "<" "&lt;") ">" "&gt;"))
-
-(module+ test
-  (check-equal? (html-escape-unsafe "foo&bar") "foo&amp;bar")
-  (check-equal? (html-escape-unsafe "foo<bar") "foo&lt;bar")
-  (check-equal? (html-escape-unsafe "foo>bar") "foo&gt;bar")
-  (check-equal? (html-escape-unsafe "&foo<bar>") "&amp;foo&lt;bar&gt;"))
-
 (define (parse-flag s)
   (match (string-split s ":")
     [(list (app string->symbol category) (app string->symbol flag))
@@ -220,17 +266,48 @@
       (list category flag))]
     [_ #f]))
 
+(define the-seed #f)
+
 (define (get-seed)
-  (pseudo-random-generator->vector
-   (current-pseudo-random-generator)))
+  (or the-seed (error "Seed is not set yet!")))
 
 (define (set-seed! seed)
   "Reset the random number generator to a new seed"
-  (current-pseudo-random-generator
-   (vector->pseudo-random-generator seed)))
+  (set! the-seed seed)
+  (if (vector? seed)
+      (current-pseudo-random-generator
+       (vector->pseudo-random-generator seed))
+      (random-seed seed)))
 
 ;; Common namespace for evaluation
 
 (define-namespace-anchor common-eval-ns-anchor)
 (define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
 (define (common-eval expr) (eval expr common-eval-ns))
+
+;; Matching support for syntax objects.
+
+;; Begin the match with a #`
+;; Think of the #` as just like a ` match, same behavior
+;; In fact, matching x with #`pat should do the same
+;; as matching (syntax->datum x) with `pat
+;; Inside the #`, you can use #, to bind not a value but a syntax object.
+
+(define-match-expander quasisyntax
+  (λ (stx)
+    (syntax-case stx (unsyntax unquote)
+      [(_ (unsyntax pat))
+       #'pat]
+      [(_ (unquote pat))
+       #'(app syntax-e pat)]
+      [(_ (pats ...))
+       (let ([parts
+              (for/list ([pat (syntax-e #'(pats ...))])
+                (syntax-case pat (unsyntax unquote ...)
+                  [... pat]
+                  [(unsyntax a) #'a]
+                  [(unquote a) #'(app syntax-e a)]
+                  [a #'(quasisyntax a)]))])
+         #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
+      [(_ a)
+       #'(app syntax-e 'a)])))

@@ -3,6 +3,7 @@
 (require "../common.rkt")
 (require "../alternative.rkt")
 (require "../programs.rkt")
+(require "../syntax/syntax.rkt")
 (require "../syntax/rules.rkt")
 (require "egraph.rkt")
 (require "ematch.rkt")
@@ -12,6 +13,8 @@
 
 (provide simplify-expr simplify *max-egraph-iters*)
 (provide (all-defined-out) (all-from-out "egraph.rkt" "../syntax/rules.rkt" "ematch.rkt"))
+
+(module+ test (require rackunit))
 
 ;;################################################################################;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
@@ -30,17 +33,19 @@
 (define *max-egraph-iters* (make-parameter 6))
 (define *node-limit* (make-parameter 500))
 
-(define (make-simplify-change program loc replacement)
+(define/contract (make-simplify-change program loc replacement)
+  (-> expr? location? expr? change?)
   (change (rule 'simplify (location-get loc program) replacement)
           loc
           (for/list ([var (program-variables program)])
             (cons var var))))
 
-(define (simplify altn)
+(define/contract (simplify altn #:rules [rls (*simplify-rules*)])
+  (->* (alternative?) (#:rules (listof rule?)) (listof change?))
   (define prog (alt-program altn))
   (cond
-   [(or (not (alt-change altn)) (null? (change-location (alt-change altn))))
-    (define prog* (simplify-expr (program-body prog)))
+   [(not (alt-delta? altn))
+    (define prog* (simplify-expr (program-body prog) #:rules rls))
     (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
         (list (make-simplify-change prog '(2) prog*))
         '())]
@@ -60,17 +65,22 @@
       (reap [sow]
             (for ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)])
               (when (and (list? arg-pattern) (list? arg))
-                (define arg* (simplify-expr arg))
+                (define arg* (simplify-expr arg #:rules rls))
                 (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" arg*))
                 (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
                   (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
-(define (simplify-expr expr)
+(define/contract (simplify-fp-safe altn)
+  (-> alternative? (listof change?))
+  (simplify altn #:rules (*fp-safe-simplify-rules*)))
+
+(define/contract (simplify-expr expr #:rules rls)
+  (-> expr? #:rules (listof rule?) expr?)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	     [eg (mk-egraph expr)])
-	(iterate-egraph! eg iters)
+	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest eg))
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
@@ -114,7 +124,8 @@
   (define (find-matches ens)
     (filter (negate null?)
 	    (for*/list ([rl rls]
-			[en ens])
+			[en ens]
+                        #:when (rule-valid-at-type? rl (enode-type en)))
 	      (if (rule-applied? en rl) '()
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
@@ -130,16 +141,20 @@
                  ;; changed. While it may be aggressive to
                  ;; invalidate any change in bindings, it seems like
                  ;; the right thing to do for now.
-                 [en (pack-leader en)])
-	(when (equal? (match-e (rule-input rl) en) bindings)
+                 [en (pack-leader en)]
+                 [bindings* (match-e (rule-input rl) en)]
+                 [applied #f])
           ;; Apply the match for each binding.
-          (for ([binding bindings])
-            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-          ;; Prune the enode if we can.
-          (try-prune-enode en)
-          ;; Mark this node as having this rule applied so that we don't try
-          ;; to apply it again.
-          (rule-applied! en rl))))
+          (for ([binding bindings]
+                #:when (set-member? bindings* binding))
+            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))
+            (set! applied #t))
+          (when applied
+            ;; Prune the enode if we can.
+            (try-prune-enode en)
+            ;; Mark this node as having this rule applied so that we don't try
+            ;; to apply it again.
+            (rule-applied! en rl))))
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
@@ -148,8 +163,8 @@
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
     #;(elim-enode-loops! eg en))
-  (let ([matches (find-matches (egraph-leaders eg))])
-    (for-each apply-match matches))
+  (for ([m (find-matches (egraph-leaders eg))])
+    (apply-match m))
   (map-enodes (curry set-precompute! eg) eg))
 
 (define-syntax-rule (matches? expr pattern)
@@ -157,7 +172,26 @@
     [pattern #t]
     [_ #f]))
 
+(define (exact-value? type val)
+  (match type
+    ['real (exact? val)]
+    ['complex (exact? val)]
+    ['boolean true]))
+
+(define/match (val-of-type type val)
+  [('real    (? real?))    true]
+  [('complex (? complex?)) true]
+  [('boolean (? boolean?)) true]
+  [(_ _) false])
+
+(define (val-to-type type val)
+  (match type
+    ['real val]
+    ['complex `(complex ,(real-part val) ,(imag-part val))]
+    ['boolean (if val 'TRUE 'FALSE)]))
+
 (define (set-precompute! eg en)
+  (define type (enode-type en))
   (for ([var (enode-vars en)])
     (when (list? var)
       (let ([constexpr
@@ -169,8 +203,8 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (ordinary-float? res) (exact? res))
-	      (reduce-to-new! eg en res))))))))
+	    (when (and (val-of-type type res) (exact-value? type res))
+	      (reduce-to-new! eg en (val-to-type type res)))))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])
@@ -209,3 +243,32 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(module+ test
+  (define test-exprs
+    #hash([1 . 1]
+          [0 . 0]
+          [(+ 1 0) . 1]
+          #;[(+ 1 5) . 6]
+          [(+ x 0) . x]
+          [(- x 0) . x]
+          [(* x 1) . x]
+          [(/ x 1) . x]
+          #;[(- (* 1 x) (* (+ x 1) 1)) . -1]
+          [(- (+ x 1) x) . 1]
+          [(- (+ x 1) 1) . x]
+          [(/ (* x 3) x) . 3]
+          [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
+              (* (sqrt x) (sqrt x))) . 1]
+          [(re (complex a b)) . a]))
+
+  (for ([(original target) test-exprs])
+    (with-check-info (['original original])
+       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target)))
+
+  (define no-crash-exprs
+    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+
+  (for ([expr no-crash-exprs])
+    (with-check-info (['original expr])
+       (check-not-exn (λ () (simplify-expr expr #:rules (*simplify-rules*)))))))

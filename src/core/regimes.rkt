@@ -7,9 +7,9 @@
 (require "../points.rkt")
 (require "../float.rkt")
 (require "../syntax/syntax.rkt")
-(require "../syntax/distributions.rkt")
 (require "matcher.rkt")
 (require "localize.rkt")
+(require "../type-check.rkt")
 
 (module+ test
   (require rackunit))
@@ -19,16 +19,13 @@
 (define (infer-splitpoints alts [axis #f])
   (match alts
    [(list alt)
-    (list (list (sp 0 0 +inf.0)) (list alt))]
+    (list (list (sp 0 0 +nan.0)) (list alt))]
    [_
     (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
     (define options
       (map (curry option-on-expr alts)
            (if axis (list axis) (exprs-to-branch-on alts))))
-    (define options*
-      (for/list ([option options] #:unless (check-duplicates (map sp-point (option-splitpoints option))))
-        option))
-    (define best-option (argmin (compose errors-score option-errors) options*))
+    (define best-option (argmin (compose errors-score option-errors) options))
     (define splitpoints (option-splitpoints best-option))
     (define altns (used-alts splitpoints alts))
     (define splitpoints* (coerce-indices splitpoints))
@@ -43,53 +40,29 @@
            (display ">" port))])
 
 (define (exprs-to-branch-on alts)
-  (define critexpr (critical-subexpression (*start-prog*)))
-  (define vars (program-variables (alt-program (car alts))))
+  (if (flag-set? 'reduce 'branch-expressions)
+      (let ([alt-critexprs (for/list ([alt alts])
+              (all-critical-subexpressions (alt-program alt)))]
+            [critexprs (all-critical-subexpressions (*start-prog*))])
+           (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
+      (program-variables (*start-prog*))))
 
-  (if critexpr
-      (cons critexpr vars)
-      vars))
+;; Requires that expr is a λ expression
+(define (critical-subexpression? expr subexpr)
+  (define crit-vars (free-variables subexpr))
+  (define replaced-expr (replace-expression expr subexpr 1))
+  (define non-crit-vars (free-variables replaced-expr))
+  (set-disjoint? crit-vars non-crit-vars))
 
-(define (critical-subexpression prog)
-  (define (loc-children loc subexpr)
-    (map (compose (curry append loc)
-		  list)
-	 (range 1 (length subexpr))))
-  (define (all-equal? items)
-    (if (< (length items) 2) #t
-	(and (equal? (car items) (cadr items)) (all-equal? (cdr items)))))
-  (define (critical-child expr)
-    (let ([var-locs
-	   (let get-vars ([subexpr expr]
-			  [cur-loc '()])
-	     (cond [(list? subexpr)
-		    (append-map get-vars (cdr subexpr)
-				(loc-children cur-loc subexpr))]
-		   [(constant? subexpr)
-		    '()]
-		   [(variable? subexpr)
-		    (list (cons subexpr cur-loc))]))])
-      (cond [(null? var-locs) #f]
-            [(all-equal? (map car var-locs))
-             (caar var-locs)]
-            [#t
-             (let get-subexpr ([subexpr expr] [vlocs var-locs])
-               (cond [(all-equal? (map cadr vlocs))
-                      (get-subexpr (if (= 1 (cadar vlocs)) (cadr subexpr) (caddr subexpr))
-                                   (for/list ([vloc vlocs])
-                                     (cons (car vloc) (cddr vloc))))]
-                     [#t subexpr]))])))
-  (let* ([locs (localize-error prog)])
-    (if (null? locs)
-        #f
-        (critical-child (location-get (car locs) prog)))))
-
-(define basic-point-search (curry binary-search (λ (p1 p2)
-						  (if (for/and ([val1 p1] [val2 p2])
-							(> *epsilon-fraction* (abs (- val1 val2))))
-						      p1
-						      (for/list ([val1 p1] [val2 p2])
-							(/ (+ val1 val2) 2))))))
+;; Requires that prog is a λ expression
+(define (all-critical-subexpressions prog)
+  (define (subexprs-in-expr expr)
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
+  (define prog-body (location-get (list 2) prog))
+  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+             #:when (and (not (null? (free-variables expr)))
+                         (critical-subexpression? prog-body expr)))
+    expr))
 
 (define (used-alts splitpoints all-alts)
   (let ([used-indices (remove-duplicates (map sp-cidx splitpoints))])
@@ -108,58 +81,96 @@
 	 splitpoints)))
 
 (define (option-on-expr alts expr)
-  (match-let* ([vars (program-variables (*start-prog*))]
-	       [`(,pts ,exs) (sort-context-on-expr (*pcontext*) expr vars)])
-    (let* ([err-lsts (parameterize ([*pcontext* (mk-pcontext pts exs)])
-		       (map alt-errors alts))]
-	   [bit-err-lsts (map (curry map ulps->bits) err-lsts)]
-           [merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts)]
-	   [split-indices (err-lsts->split-indices merged-err-lsts)]
-	   [split-points (sindices->spoints (remove-duplicates pts) expr alts split-indices)])
-      (option split-points (pick-errors split-points pts err-lsts vars)))))
+  (define vars (program-variables (*start-prog*)))
+  (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
+  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
+  (define err-lsts
+    (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
+  (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
+  (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
+  (define split-indices (err-lsts->split-indices merged-err-lsts can-split?))
+  (for ([pidx (map si-pidx (drop-right split-indices 1))])
+    (assert (> pidx 0))
+    (assert (list-ref can-split? pidx)))
+  (define split-points (sindices->spoints pts expr alts split-indices))
+
+  (assert (set=? (remove-duplicates (map (point->alt split-points) pts))
+                 (map sp-cidx split-points)))
+
+  (option split-points (pick-errors split-points pts err-lsts)))
+
+(module+ test
+  (parameterize ([*start-prog* '(λ (x) 1)]
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
+
+    ;; This is a basic sanity test
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts 'x)
+           '(1 0))
+
+    ;; This test ensures we handle equal points correctly. All points
+    ;; are equal along the `1` axis, so we should only get one
+    ;; splitpoint (the second, since it is better at the further point).
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts '1)
+           '(0))
+
+    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+           (option-on-expr alts '(if (== x 0.5) 1 +nan.0))
+           '(0))))
+
+;; (pred p1) and (not (pred p2))
+(define (binary-search-floats pred p1 p2)
+  (let ([midpoint (midpoint-float p1 p2)])
+    (cond [(< (bit-difference p1 p2) 48) midpoint]
+	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
+	  [else (binary-search-floats pred p1 midpoint)])))
 
 ;; Accepts a list of sindices in one indexed form and returns the
-;; proper splitpoints in floath form.
+;; proper splitpoints in float form. A crucial constraint is that the
+;; float form always come from the range [f(idx1), f(idx2)). If the
+;; float form of a split is f(idx2), or entirely outside that range,
+;; problems may arise.
 (define (sindices->spoints points expr alts sindices)
-  (define (eval-on-pt pt)
-    (let* ([expr-prog `(λ ,(program-variables (alt-program (car alts)))
-			 ,expr)]
-	   [val-float ((eval-prog expr-prog mode:fl) pt)])
-      (if (ordinary-float? val-float) val-float
-	  ((eval-prog expr-prog mode:bf) pt))))
+  (for ([alt alts])
+    (assert
+     (set-empty? (set-intersect (free-variables expr)
+                                (free-variables (replace-expression (alt-program alt) expr 0))))
+     #:extra-info (cons expr alt)))
+
+  (define eval-expr
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
   (define (sidx->spoint sidx next-sidx)
     (let* ([alt1 (list-ref alts (si-cidx sidx))]
 	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (eval-on-pt (list-ref points (si-pidx sidx)))]
-	   [p2 (eval-on-pt (list-ref points (sub1 (si-pidx sidx))))]
-	   [eps (* (- p1 p2) *epsilon-fraction*)]
+	   [p1 (eval-expr (list-ref points (si-pidx sidx)))]
+	   [p2 (eval-expr (list-ref points (sub1 (si-pidx sidx))))]
 	   [pred (λ (v)
-		   (let* ([start-prog* (replace-subexpr (*start-prog*) expr v)]
-			  [prog1* (replace-subexpr (alt-program alt1) expr v)]
-			  [prog2* (replace-subexpr (alt-program alt2) expr v)]
+		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
+			  [prog1* (replace-expression (alt-program alt1) expr v)]
+			  [prog2* (replace-expression (alt-program alt2) expr v)]
 			  [context
 			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* (map (curryr cons (eval-sampler 'default))
-							      (program-variables start-prog*))
-                                             'TRUE))])
+			     (prepare-points start-prog* 'TRUE))])
 		     (< (errors-score (errors prog1* context))
 			(errors-score (errors prog2* context)))))])
       (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
-      (sp (si-cidx sidx) expr (binary-search-floats pred p1 p2 eps))))
-
+      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1))))
 
   (append
-   (if ((flag 'reduce 'binary-search) #t #f)
+   (if (flag-set? 'reduce 'binary-search)
        (map sidx->spoint
 	    (take sindices (sub1 (length sindices)))
 	    (drop sindices 1))
        (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-on-pt (list-ref points (si-pidx sindex))))))
+	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1))))))
    (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
 	   (sp (si-cidx last-sidx)
 	       expr
-	       +inf.0)))))
+	       +nan.0)))))
 
 (define (merge-err-lsts pts errs)
   (let loop ([pt (car pts)] [pts (cdr pts)] [err (car errs)] [errs (cdr errs)])
@@ -174,23 +185,23 @@
        point
        (range (length point))))
 
-(define (pick-errors splitpoints pts err-lsts variables)
-  (reverse
-   (first-value
-    (for/fold ([acc '()] [rest-splits splitpoints])
-	([pt (in-list pts)]
-	 [errs (flip-lists err-lsts)])
-      (let* ([expr-prog `(λ ,variables ,(sp-bexpr (car rest-splits)))]
-	     [float-val ((eval-prog expr-prog mode:fl) pt)]
-	     [pt-val (if (ordinary-float? float-val) float-val
-			 ((eval-prog expr-prog mode:bf) pt))])
-	(if (or (<= pt-val (sp-point (car rest-splits)))
-		(and (null? (cdr rest-splits)) (nan? pt-val)))
-	    (if (nan? pt-val) (error "wat")
-		(values (cons (list-ref errs (sp-cidx (car rest-splits)))
-			      acc)
-			rest-splits))
-	    (values acc (cdr rest-splits))))))))
+(define (point->alt splitpoints)
+  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (nan? (sp-point (last splitpoints))))
+  (define expr `(λ ,(program-variables (*start-prog*)) ,(sp-bexpr (car splitpoints))))
+  (define prog (eval-prog expr 'fl))
+
+  (λ (pt)
+    (define val (prog pt))
+    (for/first ([right splitpoints]
+                #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
+      ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
+      (sp-cidx right))))
+
+(define (pick-errors splitpoints pts err-lsts)
+  (define which-alt (point->alt splitpoints))
+  (for/list ([pt pts] [errs (flip-lists err-lsts)])
+    (list-ref errs (which-alt pt))))
 
 (define (with-entry idx lst item)
   (if (= idx 0)
@@ -221,11 +232,11 @@
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
-;; splitpoints = The splitpoints we are considering in this candidate.
-(struct cse (cost splitpoints) #:transparent)
+;; indices = The si's we are considering in this candidate.
+(struct cse (cost indices) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(define (err-lsts->split-indices err-lsts)
+(define (err-lsts->split-indices err-lsts can-split-lst)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (length err-lsts))
@@ -233,6 +244,7 @@
   (define min-weight num-points)
 
   (define psums (map (compose partial-sum list->vector) err-lsts))
+  (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -244,7 +256,8 @@
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))])
+        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))]
+              #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-list psums)])
@@ -253,10 +266,10 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (when (< (+ (cse-cost prev-entry) bcost) acost)
+            (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
               (set! aest (cse acost (cons (si best (+ point-idx 1))
-                                          (cse-splitpoints prev-entry)))))))
+                                          (cse-indices prev-entry)))))))
         aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -268,10 +281,9 @@
               ;; Consider all the candidates we could put in this region
               (map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse cost
-                             (list (si cand-idx (add1 point-idx))))))
-                         (range num-candidates)
-                         psums))))
+                        (cse cost (list (si cand-idx (+ point-idx 1))))))
+                   (range num-candidates)
+                   psums))))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
@@ -282,33 +294,23 @@
             (loop next)))))
 
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (cse-splitpoints (last final))))
+  (reverse (cse-indices (last final))))
 
 (define (splitpoints->point-preds splitpoints num-alts)
-  (let* ([expr (sp-bexpr (car splitpoints))]
-	 [variables (program-variables (*start-prog*))]
-	 [intervals (map cons (cons #f (drop-right splitpoints 1))
-			 splitpoints)])
-    (for/list ([i (in-range num-alts)])
-      (let ([p-intervals (filter (λ (interval) (= i (sp-cidx (cdr interval)))) intervals)])
-	(debug #:from 'splitpoints "intervals are: " p-intervals)
-	(λ (p)
-	  (let ([expr-val ((eval-prog `(λ ,variables ,expr) mode:fl) p)])
-	    (for/or ([point-interval p-intervals])
-	      (let ([lower-bound (if (car point-interval) (sp-point (car point-interval)) #f)]
-		    [upper-bound (sp-point (cdr point-interval))])
-                (or (and (nan? expr-val) (= i (- num-alts 1)))
-                    (and (or (not lower-bound) (lower-bound . < . expr-val))
-                         (expr-val . <= . upper-bound)))))))))))
+  (define which-alt (point->alt splitpoints))
+  (for/list ([i (in-range num-alts)])
+    (λ (pt) (equal? (which-alt pt) i))))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)
-            (sp 1 '(/ y x) +inf.0)))
+            (sp 0 '(/ y x) +inf.0)
+            (sp 1 '(/ y x) +nan.0)))
     (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
 
     (check-true (p0? '(0 -1)))
     (check-true (p2? '(-1 1)))
-    (check-true (p1? '(+1 1)))))
+    (check-true (p0? '(+1 1)))
+    (check-true (p1? '(0 0)))))

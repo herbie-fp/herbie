@@ -8,18 +8,20 @@
 ;; Flag Stuff
 
 (define all-flags
-  #hash([precision . (double)]
+  #hash([precision . (double fallback)]
+        [fn . (cbrt)] ;; TODO: This is a bad way to disable functions: figure out a better one
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error post-process)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics)]))
+        [reduce . (regimes taylor simplify avg-error post-process binary-search branch-expressions)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex special bools branches)]))
 
 (define default-flags
-  #hash([precision . (double)]
+  #hash([precision . (double fallback)]
+        [fn . (cbrt)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]))
+        [reduce . (regimes taylor simplify avg-error binary-search branch-expressions)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex special bools branches)]))
 
 (define (enable-flag! category flag)
   (define (update cat-flags) (set-add cat-flags flag))
@@ -29,7 +31,7 @@
   (define (update cat-flags) (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
-(define (has-flag? class flag)
+(define (flag-set? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
@@ -38,29 +40,25 @@
 (define (changed-flags)
   (filter identity
           (for*/list ([(class flags) all-flags] [flag flags])
-            (match* ((has-flag? class flag)
-                     (parameterize ([*flags* default-flags]) (has-flag? class flag)))
+            (match* ((flag-set? class flag)
+                     (parameterize ([*flags* default-flags]) (flag-set? class flag)))
               [(#t #t) #f]
               [(#f #f) #f]
               [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
 
-(define ((flag type f) a b)
-  (if (has-flag? type f) a b))
-
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
 
 ;; Number of iterations of the core loop for improving program accuracy
-(define *num-iterations* (make-parameter 3))
+(define *num-iterations* (make-parameter 4))
 
 ;; The step size with which arbitrary-precision precision is increased
 ;; DANGEROUS TO CHANGE
 (define *precision-step* (make-parameter 256))
 
-;; When doing a binary search in regime inference,
-;; this is the fraction of the gap between two points that the search must reach
-(define *epsilon-fraction* (/ 1 200))
+;; Maximum MPFR precision allowed during exact evaluation
+(define *max-mpfr-prec* (make-parameter 10000))
 
 ;; In periodicity analysis,
 ;; this is how small the period of a function must be to count as periodic
@@ -71,15 +69,24 @@
 
 (define *binary-search-test-points* (make-parameter 16))
 
+;; How accurate to make the binary search
+(define *binary-search-accuracy* (make-parameter 48))
+
 ;;; About Herbie:
+(define (run-command cmd)
+  (parameterize ([current-error-port (open-output-nowhere)])
+    (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
-      (let ([cmd (format "git ~a ~a" gitcmd (string-join args " "))])
-        (or (string-trim (with-output-to-string (λ () (system cmd)))) default))
+      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
+             [out (run-command cmd)])
+          (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.1")
+(define *herbie-version* "1.2")
+
+(define *hostname* (run-command "hostname"))
 
 (define *herbie-commit*
   (git-command "rev-parse" "HEAD" #:default *herbie-version*))

@@ -1,17 +1,29 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt")
+(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt"
+         "syntax/syntax.rkt" "syntax/rules.rkt")
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
  ["reports/run.rkt" (make-report)]
  ["shell.rkt" (run-shell)]
- ["improve.rkt" (run-improve)]
- ["old/herbie.rkt" (run-herbie)])
+ ["improve.rkt" (run-improve)])
 
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
+
+(define (check-operator-fallbacks!)
+  (prune-operators!)
+  (prune-rules!)
+  (unless (null? (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
+    (eprintf "Warning: native ~a not supported on your system; "
+             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
+                          ", "))
+    (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
+    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
+             *herbie-version*))
+  (unless (flag-set? 'fn 'cbrt) (eprintf "cbrt is diabled.\n")))
 
 (module+ main
   (define quiet? #f)
@@ -25,13 +37,15 @@
   (define report-profile? #f)
   (define report-note #f)
 
+  (define seed (random 1 (expt 2 31)))
+  (set-seed! seed)
 
   (multi-command-line
    #:program "herbie"
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed vector to use in point generation. If false (#f), a random seed is used"
+   [("--seed") rs "The random seed to use in point generation"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    [("--num-iters") fu "The number of iterations of the main loop to use"
@@ -53,6 +67,7 @@
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
+    (check-operator-fallbacks!)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
@@ -69,12 +84,14 @@
     [("--quiet") "Print a smaller banner and don't start a browser."
      (set! quiet? true)]
     #:args ()
+    (check-operator-fallbacks!)
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count th))]
     #:args (input output)
+    (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
@@ -85,13 +102,15 @@
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
+    (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
    (begin
-     (eprintf "Deprecated command-line syntax used.\n")
-     (if (null? files)
-         (eprintf "  cmdline::: Use `herbie shell` to use Herbie on the command line\n")
-         (eprintf "  cmdline::: Use `herbie improve` to run Herbie on FPCore files\n"))
-     (eprintf "See <https://herbie.uwplse.org/doc/1.1/release-notes.html> for more.\n")
-     (run-herbie files))))
+     (match files
+       ['()
+        (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
+        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+       [(cons tool _)
+        (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
+        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]))))

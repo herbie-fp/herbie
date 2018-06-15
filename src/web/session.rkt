@@ -3,10 +3,10 @@
 ;;======== Dependencies ===========
 (require "../common.rkt")
 (require "../glue.rkt")
+(require "../float.rkt")
 (require "../points.rkt")
 (require "../programs.rkt")
 (require "../alternative.rkt")
-(require "../syntax/distributions.rkt")
 (require "../core/localize.rkt")
 
 (require "tools.rkt")
@@ -26,8 +26,7 @@
 ;; and a session-data object representing the state of their session.
 (define (start-session prog)
   (parameterize ([*start-prog* prog])
-    (define samplers (map (curryr cons (eval-sampler 'default)) (program-variables prog)))
-    (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog samplers 'TRUE)))
+    (define pcontext-extended (parameterize ([*num-points* 1024]) (prepare-points prog 'TRUE)))
     (define pcontext (random-subsample pcontext-extended 64))
     (parameterize ([*pcontext* pcontext] [*analyze-context* pcontext])
       (define alt (simplify-alt (make-alt prog)))

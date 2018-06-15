@@ -1,7 +1,7 @@
 #lang racket
 (require "config.rkt")
 (provide raise-herbie-error raise-herbie-syntax-error
-         herbie-error->string 
+         herbie-error->string herbie-error-url
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax))
 
@@ -18,6 +18,10 @@
 (define (raise-herbie-syntax-error message #:url [url "faq.html#invalid-syntax"] #:locations [locations '()] . args)
   (raise (make-exn:fail:user:herbie:syntax
           (apply format message args) (current-continuation-marks) url locations)))
+
+(define (herbie-error-url exn)
+  (format "https://herbie.uwplse.org/doc/~a/~a"
+          *herbie-version* (exn:fail:user:herbie-url exn)))
 
 (define (herbie-error->string err)
   (with-output-to-string

@@ -17,13 +17,15 @@
 
 (define (run-shell)
   (define seed (get-seed))
-  (eprintf "Seed: ~a\n" seed)
+  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* seed)
+  (eprintf "Find help on <https://herbie.uwplse.org/>, exit with ~a\n"
+           (match (system-type 'os) ['windows "Ctrl-Z Enter"] [_ "Ctrl-D"]))
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
       (define output (get-test-result test #:seed seed))
       (match output
         [(? test-result?)
-         (printf "~a\n" (unparse-test (alt-program (test-result-end-alt output))))]
+         (printf "~a\n" (unparse-result output))]
         [(test-failure test bits exn time timeline)
          ((error-display-handler) (exn-message exn) exn)]
         [(test-timeout test bits time timeline)

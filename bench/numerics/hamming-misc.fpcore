@@ -10,7 +10,7 @@
 
 (FPCore (a b)
  :name "NMSE Section 6.1 mentioned, B"
- (* (/ PI 2) (/ 1 (- (sqr b) (sqr a))) (- (/ 1 a) (/ 1 b))))
+ (* (/ PI 2) (/ 1 (- (* b b) (* a a))) (- (/ 1 a) (/ 1 b))))
 
 (FPCore (x y)
  :name "Radioactive exchange between two surfaces"
