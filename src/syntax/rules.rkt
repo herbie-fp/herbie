@@ -286,7 +286,8 @@
   [log-pow      (log (pow a b))     (* b (log a))])
 
 (define-ruleset log-distribute-fp-safe (exponents simplify fp-safe)
-  [log-E        (log E)             1])
+  [log-E        (log E)             1]
+  [log-1        (log 1)             0])
 
 (define-ruleset log-factor (exponents)
   [sum-log      (+ (log a) (log b))  (log (* a b))]
