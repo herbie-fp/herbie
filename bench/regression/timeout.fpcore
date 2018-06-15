@@ -1,65 +1,12 @@
 ; -*- mode: scheme -*-
 
-(FPCore (a b c)
- :name "Random Jason Timeout Test 001"
- (+ c (asin (cosh c))))
-
-(FPCore (a b c d)
- :name "Random Jason Timeout Test 002"
- (fmod (sinh c) (- c (sqr -2.9807307601812193e+165))))
-
-(FPCore (a b c)
- :name "Random Jason Timeout Test 003"
- (sin (pow (sqrt (atan2 b b)) (- b a))))
-
-(FPCore (a b c d)
- :name "Random Jason Timeout Test 004"
- (fmod (cosh c) (log1p a)))
-
 (FPCore (a)
- :name "Random Jason Timeout Test 006"
- (fabs (fmod (atan2 (expm1 (sin (expm1 a))) (atan a)) a)))
-
-(FPCore (a b c)
- :name "Random Jason Timeout Test 009"
- (fabs (fmod c (asin (- 2.821952756469356e+184 b)))))
-
-(FPCore (a)
- :name "Random Jason Timeout Test 010"
+ :name "Fuzzer 001"
  (/ a (- (acos a))))
 
 (FPCore (a)
- :name "Random Jason Timeout Test 011"
+ :name "Fuzzer 002"
  (pow (atan (fmod a (asin a))) (* a a)))
-
-(FPCore (a b c)
- :name "Random Jason Timeout Test 012"
- (acos (pow (fmod (cosh a) (* a a)) (log1p a))))
-
-(FPCore (a b c d)
- :name "Random Jason Timeout Test 014"
- (fmod (sinh c) (- c (sqr -2.9807307601812193e+165))))
-
-(FPCore (a b c)
- :name "Random Jason Timeout Test 015"
- (sin (pow (sqrt (atan2 b b)) (- b a))))
-
-(FPCore (a b c)
- :pre (and (< 0 a) (< 0 b) (< 0 c))
- :name "Area of a triangle"
- (sqrt
-  (*
-   (*
-    (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a))
-    (- (/ (+ (+ a b) c) 2) b))
-   (- (/ (+ (+ a b) c) 2) c))))
-
-(FPCore (n U t l Om U*)
- :name "Toniolo and Linder, Equation (13)"
- (sqrt
-  (*
-   (* (* 2 n) U)
-   (- (- t (* 2 (/ (sqr l) Om))) (* (* n (sqr (/ l Om))) (- U U*))))))
 
 (FPCore (x y z t a)
  :name "Numeric.SpecFunctions:logGammaL from math-functions-0.1.5.2"
@@ -111,18 +58,18 @@
  :name "Bouland and Aaronson, Equation (25)"
  (-
   (+
-   (sqr (+ (sqr a) (sqr b)))
-   (* 4 (+ (* (sqr a) (+ 1 a)) (* (sqr b) (- 1 (* 3 a))))))
+   (pow (+ (* a a) (* b b)) 2)
+   (* 4 (+ (* (* a a) (+ 1 a)) (* (* b b) (- 1 (* 3 a))))))
   1))
 
 (FPCore (a b c)
  :name "The quadratic formula (r1)"
- :target
- (let ((d (- (sqr b) (* 4 a c))))
+ :herbie-target
+ (let ((d (- (* b b) (* 4 a c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))) (r2 (/ (- (- b) (sqrt d)) (* 2 a))))
      (if (< b 0) r1 (/ c (* a r2)))))
- (let ((d (- (sqr b) (* 4 a c)))) (/ (+ (- b) (sqrt d)) (* 2 a))))
+ (let ((d (- (* b b) (* 4 a c)))) (/ (+ (- b) (sqrt d)) (* 2 a))))
 
-(FPCore (a b/2 c)
+(FPCore (a b_2 c)
  :name "NMSE problem 3.2.1"
- (let ((d (sqrt (- (sqr b/2) (* a c))))) (/ (- (- b/2) d) a)))
+ (let ((d (sqrt (- (* b_2 b_2) (* a c))))) (/ (- (- b_2) d) a)))

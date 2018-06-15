@@ -2,31 +2,31 @@
 
 (FPCore (a b c)
  :name "quadp (p42, positive)"
- :target
- (let ([d (sqrt (- (sqr b) (* 4 (* a c))))])
+ :herbie-target
+ (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (let ([r1 (/ (+ (- b) d) (* 2 a))]
          [r2 (/ (- (- b) d) (* 2 a))])
      (if (< b 0) r1 (/ c (* a r2)))))
 
- (let ([d (sqrt (- (sqr b) (* 4 (* a c))))])
+ (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (+ (- b) d) (* 2 a))))
 
 (FPCore (a b c)
  :name "quadm (p42, negative)"
- :target
- (let ((d (sqrt (- (sqr b) (* 4 (* a c))))))
+ :herbie-target
+ (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
    (let ([r1 (/ (+ (- b) d) (* 2 a))] [r2 (/ (- (- b) d) (* 2 a))])
      (if (< b 0) (/ c (* a r1)) r2)))
 
- (let ([d (sqrt (- (sqr b) (* 4 (* a c))))])
+ (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (- (- b) d) (* 2 a))))
 
-(FPCore (a b/2 c)
+(FPCore (a b_2 c)
  :name "quad2m (problem 3.2.1, negative)"
- (let ([d (sqrt (- (sqr b/2) (* a c)))])
-   (/ (- (- b/2) d) a)))
+ (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
+   (/ (- (- b_2) d) a)))
 
-(FPCore (a b/2 c)
+(FPCore (a b_2 c)
  :name "quad2p (problem 3.2.1, positive)"
- (let ([d (sqrt (- (sqr b/2) (* a c)))])
-   (/ (+ (- b/2) d) a)))
+ (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
+   (/ (+ (- b_2) d) a)))

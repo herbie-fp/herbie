@@ -1,0 +1,72 @@
+;; From Jeffrey Sarnoff <jeffrey.sarnoff@gmail.com>
+
+(FPCore (a b c)
+  :name "Quadratic roots, full range"
+  (/ (+ (- b) (sqrt (- (* b b) (* 4 a c)))) (* 2 a)))
+
+(FPCore (a b c)
+  :name "Quadratic roots, narrow range"
+  :pre (and (< 1.0536712127723509e-8 a 9.490626562425156e7)
+            (< 1.0536712127723509e-8 b 9.490626562425156e7)
+            (< 1.0536712127723509e-8 c 9.490626562425156e7))
+  (/ (+ (- b) (sqrt (- (* b b) (* 4 a c)))) (* 2 a)))
+
+(FPCore (a b c)
+  :name "Quadratic roots, medium range"
+  :pre (and (< 1.1102230246251565e-16 a 9.007199254740992e15)
+            (< 1.1102230246251565e-16 b 9.007199254740992e15)
+            (< 1.1102230246251565e-16 c 9.007199254740992e15))
+  (/ (+ (- b) (sqrt (- (* b b) (* 4 a c)))) (* 2 a)))
+
+(FPCore (a b c)
+  :name "Quadratic roots, wide range"
+  :pre (and (< 4.930380657631324e-32 a 2.028240960365167e31)
+            (< 4.930380657631324e-32 b 2.028240960365167e31)
+            (< 4.930380657631324e-32 c 2.028240960365167e31))
+  (/ (+ (- b) (sqrt (- (* b b) (* 4 a c)))) (* 2 a)))
+
+(FPCore (a b c d)
+  :name "Cubic critical"
+  (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
+
+(FPCore (a b c d)
+  :name "Cubic critical, narrow range"
+  :pre (and (< 1.0536712127723509e-8 a 9.490626562425156e7)
+            (< 1.0536712127723509e-8 b 9.490626562425156e7)
+            (< 1.0536712127723509e-8 c 9.490626562425156e7))
+  (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
+
+(FPCore (a b c d)
+  :name "Cubic critical, medium range"
+  :pre (and (< 1.1102230246251565e-16 a 9.007199254740992e15)
+            (< 1.1102230246251565e-16 b 9.007199254740992e15)
+            (< 1.1102230246251565e-16 c 9.007199254740992e15))
+  (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
+
+(FPCore (a b c d)
+  :name "Cubic critical, wide range"
+  :pre (and (< 4.930380657631324e-32 a 2.028240960365167e31)
+            (< 4.930380657631324e-32 b 2.028240960365167e31)
+            (< 4.930380657631324e-32 c 2.028240960365167e31))
+  (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
+
+(FPCore (x)
+  :name "Asymptote A" (- (/ 1 (+ x 1)) (/ 1 (- x 1))))
+(FPCore (x)
+  :name "Asymptote B" (+ (/ 1 (- x 1)) (/ x (+ x 1))))
+(FPCore (x)
+  :name "Asymptote C" (- (/ x (+ x 1)) (/ (+ x 1) (- x 1))))
+
+(FPCore (a b)
+  :name "Eccentricity of an ellipse"
+  :pre (<= 0 b a 1)
+  (sqrt (fabs (/ (- (* a a) (* b b)) (* a a)))))
+
+(FPCore (e v)
+  :name "Trigonometry A"
+  :pre (<= 0 e 1)
+  (/ (* e (sin v)) (+ 1 (* e (cos v)))))
+
+(FPCore (x)
+  :name "Trigonometry B"
+  (/ (- 1 (* (tan x) (tan x))) (+ 1 (* (tan x) (tan x)))))

@@ -23,7 +23,7 @@
   (define tests (allowed-tests bench-dirs))
   (define results
     (get-test-results tests #:threads threads #:seed seed #:profile profile? #:dir dir))
-  (define info (make-report-info (filter identity results) #:note note #:seed seed))
+  (define info (make-report-info (map cdr (filter values results)) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
   (make-report-page (build-path dir "report.html") info)
@@ -55,7 +55,7 @@
  #:once-each
  [("--timeout") s "Timeout for each test (in seconds)"
   (*timeout* (* 1000 (string->number s)))]
- [("-r" "--seed") rs "The random seed vector to use in point generation"
+ [("-r" "--seed") rs "The random seed to use in point generation"
   (set-seed! (read (open-input-string rs)))]
  [("-p" "--profile") "Whether to profile each test"
   (set! profile? #t)]

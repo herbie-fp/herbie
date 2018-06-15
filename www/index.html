@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Herbie: Automatically Improving Floating Point Accuracy</title>
-  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
   <script type='text/javascript' src='graph.js'></script>
   <link rel='stylesheet' type='text/css' href='main.css'>
 </head>
@@ -18,8 +18,7 @@
       <h3>Use</h3>
       <ul>
         <li><a href="/demo/">Web demo</a></li>
-        <li><a href="#tools">Herbie tools</a></li>
-        <li><a href="doc/latest/release-notes.html">Release Notes</a></li>
+        <li><a href="doc/latest/installing.html">Install</a></li>
         <li><a href="#news">News</a></li>
         <li><a href="#blog">Blog</a></li>
       </ul>
@@ -27,12 +26,11 @@
     <div>
       <h3>Learn</h3>
       <ul>
-        <li><a href="doc/latest/using-web.html">Using Herbie</a></li>
-        <li><a href="doc/1.0/using-herbgrind.html">Using Herbgrind</a></li>
-        <li><a href="doc/latest/installing.html">Install Herbie</a></li>
-        <li><a href="doc/1.0/installing-herbgrind.html">Install Herbgrind</a></li>
+        <li><a href="doc/latest/using-web.html">How to Use</a></li>
+        <li><a href="doc/latest/release-notes.html">Release Notes</a></li>
         <li><a href="#docs">Documentation</a></li>
         <li><a href="pldi15.html">PLDI'15 Paper</a></li>
+        <li><a href="http://herbgrind.ucsd.edu">Herbgrind</a></li>
       </ul>
     </div>
     <div>
@@ -61,32 +59,20 @@
     </figcaption>
   </figure>
 
-  <h2 id="tools">Tools</h2>
-
-  <p>
-    The Herbie project provides Herbie and Herbgrind, complementary tools for finding and fixing floating point problems:
-  </p>
+  <h2 id="docs">Documentation</h2>
   
-  <dl class="tool-list">
-    <dt>Herbie</dt>
-    <dd>rewrites floating point expressions to make them more accurate.
-      Herbie supports all commonly-used <a href="doc/input.html">floating point functions</a>,
-      and uses a <a href="./pldi15.html">cutting-edge search</a>
-      to identify more-accurate rearrangements of a floating point computation.
-    </dd>
-    <dt>Herbgrind</dt>
-    <dd>analyzes binaries to catch floating point inaccuracies as they occur and extract them for analysis.
-      Herbgrind <a href="http://valgrind.org">analyzes binaries directly</a>,
-      detecting problems on realistic workloads
-      and extracting them in a <a href="http://fpbench.org">standard format</a>.
-    </dd>
-  </dl>
-  
-  <p>
-    The Herbie tools have been used on large numerical computations,
-    mathematical libraries, graphics programs, and embedded systems.
-    It regularly finds subtle floating point issues and produces fixes.
-  </p>
+  <ul>
+    <li><a href="doc/latest/release-notes.html">Release Notes</a>: the biggest and latest changes to Herbie.</li>
+    <li><a href="doc/latest/faq.html">FAQ</a>: troubleshooting and using Herbie.</li>
+    <li><a href="doc/latest/installing.html">Installing Herbie</a>: getting Herbie up and running.</li>
+    <li><a href="doc/1.0/installing-herbgrind.html">Installing Herbgrind</a>: installing Herbgrind.</li>
+    <li><a href="doc/latest/docker.html">Installing with Docker</a>: an alternate installation method for Docker users.</li>
+    <li><a href="doc/latest/using-web.html">Using Herbie from the browser</a>: a guide to running Herbie from your browser.</li>
+    <li><a href="doc/latest/using-cli.html">Using Herbie from the CLI</a>: a guide to running Herbie from the command line.</li>
+    <li><a href="doc/latest/input.html">Input format</a>: how to write expressions for Herbie to improve.</li>
+    <li><a href="doc/latest/options.html">Command-line flags</a>: modifying Herbie's behavior.</li>
+    <li><a href="doc/1.0/using-herbgrind.html">Using Herbgrind</a>: a guide to running Herbgrind.</li>
+  </ul>
 
   <figure class="showcase">
     <style scoped>
@@ -105,6 +91,18 @@
 
   <h2>Herbie Project News</h2>
   <ol id="news">
+    <li><time>9 Apr</time>We teamed up with <a href="https://www.mpi-sws.org/people/hbecker/">Heiko</a> and <a href="https://people.mpi-sws.org/~eva/">Eva</a> on the <a href="https://github.com/malyzajko/daisy">Daisy</a> team to combine our tools and evaluate how best to use them together—it'll be published at <a href="https://fm2018.org">FM’18</a>. If you're using Herbie with other floating point tools, let us know!</li>
+    <li><time>1 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> and <a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> went to see <a href="https://www.mccawhall.com/events/detail/herbie-hancock">Herbie Hancock play at the Seattle Center</a>. Watching Herbie play Chameleon on the keytar is sure to inspire the next generation of floating point accuracy improvement!</li>
+    <li><time>17 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> gave <a href="https://www.youtube.com/watch?v=oYtnXEZC0jk">a talk</a> at <a href="https://www.microsoft.com/en-us/research/">Microsoft Research Redmond</a> on Herbie and <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, plus the <a href="http://fpbench.org">FPBench</a> project. Thank you everyone who came!</li>
+    <li><time>3 Jan</time> <a href="https://pavpanchekha.com">Pavel</a> wrote a <a href="http://pavpanchekha.com/blog/how-herbie.html">retrospective</a> on the early history of Herbie, and some lessons learned.</li>
+    <hr class="yearmark" />
+    <li><time>24 Aug</time><a href="https://pavpanchekha.com/">Pavel</a> gave a talk at <a href="https://www.mpi-sws.org/">MPI-SWS</a> Saarbrücken on Herbie, <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, lessons learned, and what comes next. Thank you <a href="https://people.mpi-sws.org/~eva/">Eva Darulova</a> and her students for the invitation and the warm welcome. The video was recorded and can be watched on <a href="https://www.youtube.com/watch?v=WvDZ4m4fAF0">YouTube</a>.</li>
+    <li><time>3 May</time> After incubating on this website, <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has moved to a <a href="http://herbgrind.ucsd.edu">new website</a> hosted at UCSD, where <a href="http://alex.uwplse.org">Alex</a>, Herbie star and the main Herbgrind developer, is now doing his PhD. We'll continue our close collaboration, including in the FPBench project, and are hoping the new, more-focused websites help users.</li>
+    <li><time>1 May</time>Just one month after the beta, <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
+    <li><time>20 Apr</time>Our sister project <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has released version 0.42. This pre-release is a reworked, faster, and more stable Herbgrind, which can find root causes for floating-point errors in the largest and gnarliest of codebases!</li>
+    <li><time>2 Apr</time>After months of work, a beta of <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
+    <li><time>3 Feb</time> <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Zach</a> is giving <a href="http://www.cs.utah.edu/calendar/colloquium-zach-tatlock/">a talk</a> at the University of Utah about Herbie, FPBench, and Herbgrind. Please come to learn about automated tools for floating point!</li>
+    <hr class="yearmark" />
     <li><time>13 Jun</time>After months of work, the Herbie developers are proud to announce the release of <a href="doc/1.0/release-notes.html">Herbie 1.0</a>. This release transitions to the <a href="doc/latest/input.html">FPCore</a> format from the <a href="http://fpbench.org">FPBench</a> initiative, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.0/release-notes.html">release notes</a>.</li>
     <li><time>9 May</time>In preparation for the Version 1.0 release, we've renamed the <code>pi</code> and <code>e</code> constants to upper case. This matches <code>libm</code> and should make it a little harder to cause bugs. Herbie will now optimize expressions like <code>(exp 1)</code> to <code>E</code>.</li>
     <li><time>6 May</time>We're proud to announce that we've been collaborating with <a href="http://perso.univ-perp.fr/mmartel/">Prof. Martel</a> and his students to build a <a href="http://fpbench.org">common benchmark suite and format</a> for floating point tools. Version 1.0 of Herbie will support only the FPBench format.</li>
@@ -123,24 +121,10 @@
     <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
   </ol>
   
-  <h2 id="docs">Documentation</h2>
-  
-  <ul>
-    <li><a href="doc/latest/release-notes.html">Release Notes</a>: the biggest and latest changes to Herbie.</li>
-    <li><a href="doc/latest/faq.html">FAQ</a>: troubleshooting and using Herbie.</li>
-    <li><a href="doc/latest/installing.html">Installing Herbie</a>: getting Herbie up and running.</li>
-    <li><a href="doc/1.0/installing-herbgrind.html">Installing Herbgrind</a>: installing Herbgrind.</li>
-    <li><a href="doc/latest/docker.html">Installing with Docker</a>: an alternate installation method for Docker users.</li>
-    <li><a href="doc/latest/using-web.html">Using Herbie from the browser</a>: a guide to running Herbie from your browser.</li>
-    <li><a href="doc/latest/using-cli.html">Using Herbie from the CLI</a>: a guide to running Herbie from the command line.</li>
-    <li><a href="doc/latest/input.html">Input format</a>: how to write expressions for Herbie to improve.</li>
-    <li><a href="doc/latest/options.html">Command-line flags</a>: modifying Herbie's behavior.</li>
-    <li><a href="doc/1.0/using-herbgrind.html">Using Herbgrind</a>: a guide to running Herbgrind.</li>
-  </ul>
-
   <h2>Blog posts about Herbie</h2>
 
-  <ul>
+  <ul id="blog">
+    <li><a href="http://cseweb.ucsd.edu/~alexss/2017/04/22/introducing-herbgrind.html">Introducing Herbgrind</a>: what is our sister project Herbgrind all about?</li>
     <li><a href="http://www.i-programmer.info/news/202-number-crunching/9378-let-herbie-make-your-floating-point-better.html">Let Herbie Make Your Floating Point Better</a>: why programmers who deal with floating point should use Herbie.</li>
     <li><a href="http://alex.uwplse.org/2015/10/16/improving-accuracy-summation.html">Improving Accuracy: a Look at Sums</a>: why floating point summation is hard, and how compensated summation works.</li>
     <li><a href="http://alex.uwplse.org/2015/08/03/measuring-error.html">Measuring the Error of Floating Point Programs</a>: how Herbie measures the error of a floating point program, and how we're working to extend that to programs with loops.</li>
@@ -154,23 +138,18 @@
 
   <h2>The Herbie Developers</h2>
 
-  <p>Herbie is chiefly developed by the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions from a supportive community. The main contributors are:</p>
+  <p>Herbie is chiefly developed at the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions from a supportive community.</p>
+
+  <img width="100%" src="doc/latest/team.png" style="display: block; margin: 2em 0;" />
   
   <ol class="author-list">
     <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
     <li><a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a></li>
-    <li><a>Chen Qiu</a></li>
+    <li><a>Jason Qiu</a></li>
     <li><a href="https://github.com/jackfirth">Jack Firth</a></li>
     <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
     <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
   </ol>
 
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-65215143-1', 'auto'); ga('send', 'pageview');
-  </script>
 </body>
 </html>

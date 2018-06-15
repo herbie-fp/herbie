@@ -1,43 +1,42 @@
 language: c
 sudo: required
-services:
-  - docker
-cache:
-  directories:
-    - docker-images
 env:
   global:
     - RACKET_DIR=~/racket
+      TBENCHES="bench/tutorial.fpcore bench/hamming/"
+      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      TSEED="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
+      TRAND="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
+      UTEST="raco test src"
   matrix:
-    - RACKET_VERSION="6.3"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-    - RACKET_VERSION="6.4"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-    - RACKET_VERSION="6.5"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-    - RACKET_VERSION="6.6"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+    # separate builds for travis benches and unit tests
     - RACKET_VERSION="6.7"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
+      JOB="${TSEED}"
+    - RACKET_VERSION="6.9"
+      JOB="${TSEED}"
+    - RACKET_VERSION="6.11"
+      JOB="${TSEED}"
     - RACKET_VERSION="6.7"
-      HERBIE_SEED="#f"
+      JOB="${UTEST}"
+    - RACKET_VERSION="6.9"
+      JOB="${UTEST}"
+    - RACKET_VERSION="6.11"
+      JOB="${UTEST}"
+    # remember to change the `allow_failures` key below!
+    - RACKET_VERSION="6.11"
+      JOB="${TRAND}"
 matrix:
   allow_failures:
-    - env: RACKET_VERSION="6.7"
-           HERBIE_SEED="#f"
+    - env: RACKET_VERSION="6.11"
+           JOB="${TRAND}"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
-# - docker load -i docker-images/herbie.image || true
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/src
-# - docker build -t herbie .
 script:
-  - raco test src
-  - racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed "${HERBIE_SEED}" bench/tutorial.fpcore bench/hamming/
-#before_cache:
-# - docker save -o docker-images/herbie.image herbie
+  - echo ${JOB} && eval ${JOB}
 notifications:
   slack:
     secure: QB8ib/gxZWZ8rY9H54BktIgx8LfjdqabSAkmWip0VHlUhrh2ULG566XgmB5h75eNzCil2cw76ma5wfSC0MNIQ1iDHKCxAgTE0+gcPcZAYGfucQ28sKGBG2wcuJfvBLG6lVDxj+luGUh3XohouTLYI9cg509JBgTgpcrXVexYAaE=

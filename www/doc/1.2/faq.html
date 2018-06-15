@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie FAQ</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Frequently Asked Questions</h1>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> automatically transforms floating point
+    expressions into more accurate forms. This page catalogs questions
+    frequently asked questions about Herbie.
+  </p>
+
+  <h2>Troubleshooting common errors</h2>
+
+  <p>
+    Several Herbie error messages refer to this page for additional
+    information and debugging tips.
+  </p>
+
+  <h3 id="invalid-syntax">“Invalid syntax” error</h3>
+
+  <p>
+    This error means you mis-formatted Herbie's input. Common errors
+    include misspelling function names and parenthesizing expressions
+    that must not be parenthesized. For example, in
+    <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
+    <code>x</code> is a variable so isn't parenthesized. <code>(- (exp
+    x) 1)</code> would be the correct way of writing that expression.
+    Please review the <a href="input.html">input format</a>
+    documentation for more.
+  </p>
+
+  <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
+
+  <p>
+    Herbie uses random sampling to select the points which it will use
+    to evaluate the error of an expression. This error occurs when it
+    is not able to find enough valid points. For example, consider the
+    expression <code>(acos (+ 1000 x))</code>. This expression yields
+    a valid result only when <code>x</code> is between -1001 and -999,
+    a rather narrow range.
+  </p>
+
+  <p>
+    The solution is to help out Herbie by specifying a precondition.
+    Specify <code>:pre (&lt; -1001 x -999)</code> for the example
+    above. Herbie will use the precondition to improve its sampling
+    strategy.
+  </p>
+
+  <h3 id="no-valid-values">“No valid values” error</h3>
+
+  <p>
+    This error indicates that your precondition excludes all possible
+    inputs. For example, the precondition <code>(&lt 3 x 2)</code>
+    excludes all inputs. Herbie raises this exception only when it can
+    determine that no inputs work. The solution is to fix the
+    precondition to allow some inputs. Note that sufficiently complex
+    unsatisfiable preconditions instead raise the error above.
+  </p>
+
+  <h3 id="mpfr-prec-limit">“Exceeded MPFR precision limit” error</h3>
+
+  <p>
+    Herbie computes "ground truth" results using
+    <a href="http://www.mpfr.org/">MPFR</a>. For some expressions,
+    like <code>(sin (exp x))</code>, using MPFR in this way requires
+    exponentially many bits to compute a correct result. Instead of
+    simply timing out in such cases, Herbie limits the MPFR precision
+    to 10,000 bits and raises this error when it hits that limit.
+  </p>
+
+  <h3>Missing reports chart on Chrome</h3>
+
+  <p>
+    When using Chrome to view web pages on your local machine, Chrome
+    disables certain APIs for security reasons; this prevents the
+    Herbie reports from drawing the chart. Run Chrome
+    with <code>--allow-file-access-from-files</code> to fix this error.
+  </p>
+
+  <h3 id="native-ops">"Warning: native <i>operation</i> not supported on your system"</h3>
+
+  <p>
+    Some systems may not support a native implementation for all
+    operations that Herbie uses. Herbie provides a default fallback
+    implementation which is used by default for functions whose
+    native implementation is not found. You can disable this fallback
+    functionality with <code>--disable precision:fallback</code>.
+  </p>
+
+</body>
+</html>

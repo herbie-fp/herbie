@@ -1,7 +1,7 @@
 #lang racket
 
 (require openssl/md5)
-(require xml)
+(require (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch web-server/page)
 (require web-server/configuration/responders)
 (require json)

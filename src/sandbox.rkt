@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require racket/engine)
 
-(require "common.rkt")
+(require "common.rkt" "errors.rkt")
 (require "debug.rkt")
 (require "mainloop.rkt")
 (require "formats/datafile.rkt")
@@ -15,7 +15,7 @@
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)
-         get-table-data)
+         get-table-data unparse-result)
 
 
 ; For things that don't leave a thread
@@ -44,17 +44,18 @@
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
+      (random) ;; Child process uses deterministic but different seed from evaluator
       (when setup! (setup!))
       (with-handlers ([exn? on-error])
         (match-define (list alt context)
                       (run-improve (test-program test)
                                    (*num-iterations*)
                                    #:get-context #t
-                                   #:samplers (test-samplers test)
                                    #:precondition (test-precondition test)))
+        (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (alt-program alt) (test-samplers test) (test-precondition test))))
+            (prepare-points (test-program test) (test-precondition test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,(^timeline^) ,(bf-precision)))))
 
@@ -90,6 +91,9 @@
        (test-timeout test (bf-precision) (*timeout*) (^timeline^))])))
 
 (define (get-table-data result link)
+  (cons (unparse-result result) (get-table-data* result link)))
+
+(define (get-table-data* result link)
   (cond
    [(test-result? result)
     (let* ([name (test-name (test-result-test result))]
@@ -104,7 +108,7 @@
            [est-start-score (errors-score (test-result-start-est-error result))]
            [est-end-score (errors-score (test-result-end-est-error result))])
 
-      (let*-values ([(reals infs) (partition ordinary-float? (map - end-errors start-errors))]
+      (let*-values ([(reals infs) (partition ordinary-value? (map - end-errors start-errors))]
                     [(good-inf bad-inf) (partition positive? infs)])
         (table-row name
                    (if target-score
@@ -124,9 +128,9 @@
                    (and target-score target-score)
                    (length good-inf)
                    (length bad-inf)
+                   est-start-score
                    est-end-score
                    (program-variables (alt-program (test-result-start-alt result)))
-                   (test-sampling-expr (test-result-test result))
                    (program-body (alt-program (test-result-start-alt result)))
                    (program-body (alt-program (test-result-end-alt result)))
                    (test-result-time result)
@@ -134,11 +138,65 @@
                    link)))]
    [(test-failure? result)
     (define test (test-failure-test result))
-    (table-row (test-name test) "crash"
-               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
+    (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash")
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define test (test-timeout-test result))
     (table-row (test-name (test-timeout-test result)) "timeout"
-               #f #f #f #f #f #f (test-vars test) (test-sampling-expr test) (test-input test) #f
+               #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
+
+(define (unparse-result result)
+  (match result
+    [(test-result test time bits
+                  start-alt end-alt points exacts start-est-error end-est-error
+                  newpoints newexacts start-error end-error target-error timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-status success
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :herbie-error-input
+              ([,(*num-points*) ,(errors-score start-est-error)]
+               [,(*reeval-pts*) ,(errors-score start-error)])
+              :herbie-error-output
+              ([,(*num-points*) ,(errors-score end-est-error)]
+               [,(*reeval-pts*) ,(errors-score end-error)])
+              ,@(if target-error
+                    `(:herbie-error-target
+                      ([,(*reeval-pts*) ,(errors-score target-error)]))
+                    '())
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(program-body (alt-program end-alt)))]
+    [(test-failure test bits exn time timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-status ,(if (exn:fail:user:herbie? (test-failure-exn result)) 'error 'crash)
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(test-input test))]
+    [(test-timeout test bits time timeline)
+     `(FPCore ,(test-vars test)
+              :herbie-status timeout
+              :herbie-time ,time
+              :herbie-bits-used ,bits
+              :name ,(test-name test)
+              ,@(if (eq? (test-precondition test) 'TRUE)
+                    '()
+                    `(:pre ,(test-precondition test)))
+              ,@(if (test-output test)
+                    `(:herbie-target ,(test-output test))
+                    '())
+              ,(test-input test))]))

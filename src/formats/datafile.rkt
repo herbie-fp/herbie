@@ -11,15 +11,16 @@
 
 
 (struct table-row
-  (name status start result target inf- inf+ result-est vars samplers input output time bits link) #:prefab)
+  (name status start result target inf- inf+ start-est result-est vars input output time bits link) #:prefab)
 
 (struct report-info
-  (date commit branch seed flags points iterations bit-width note tests) #:prefab #:mutable)
+  (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
 
 (define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
                *herbie-commit*
                *herbie-branch*
+               *hostname*
                (or seed (get-seed))
                (*flags*)
                (*num-points*)
@@ -32,7 +33,7 @@
   (define (simplify-test test)
     (match test
       [(table-row name status start-bits end-bits target-bits
-                  inf- inf+ end-est vars samplers input output time bits link)
+                  inf- inf+ start-est end-est vars input output time bits link)
        (make-hash
         `((name . ,name)
           (status . ,status)
@@ -43,7 +44,6 @@
           (pinf . ,inf+)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
-          (samplers . ,(if samplers (map ~a samplers) #f))
           (input . ,(~a input))
           (output . ,(~a output))
           (time . ,time)
@@ -52,11 +52,12 @@
   
   (define data
     (match info
-      [(report-info date commit branch seed flags points iterations bit-width note tests)
+      [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
        (make-hash
         `((date . ,(date->seconds date))
           (commit . ,commit)
           (branch . ,branch)
+          (hostname . ,hostname)
           (seed . ,(~a seed))
           (flags . ,(flags->list flags))
           (points . ,points)
@@ -84,7 +85,8 @@
   
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
-    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (parse-string (get 'seed))
+    (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (hash-ref json 'hostname "")
+                 (parse-string (get 'seed))
                  (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
@@ -94,12 +96,7 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (define samplers
-                       (match (hash-ref test 'samplers #f)
-                         ['#f (if vars (map (const 'default) vars) #f)]
-                         [(list sampler ...) (map parse-string sampler)]))
                      (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
-                                (get 'ninf) (get 'pinf) (hash-ref test 'end-est 0)
-                                vars samplers
-                                (parse-string (get 'input)) (parse-string (get 'output))
+                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                                vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))

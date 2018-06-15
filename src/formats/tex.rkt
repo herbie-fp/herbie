@@ -8,36 +8,20 @@
 (define mathjax-url
   "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
 
-(define-table texify-constants
-  [l       "\\ell"]
-  [PI      "\\pi"]
-  [E       "e"]
-  [eps     "\\varepsilon"]
-  [epsilon "\\varepsilon"]
-  [alpha   "\\alpha"]
-  [beta    "\\beta"]
-  [gamma   "\\gamma"]
-  [phi     "\\phi"]
-  [phi1    "\\phi_1"]
-  [phi2    "\\phi_2"]
-  [lambda  "\\lambda"]
-  [lambda1 "\\lambda_1"]
-  [lambda2 "\\lambda_2"])
-
-; Note that normal string converters ignore idx and
-; procedure converters take idx as first arg.
-(define (apply-converter conv args [idx #f])
-  (cond
-    [(string? conv)     (apply format conv args)]
-    [(list? conv)       (apply-converter (list-ref conv (length args)) args idx)]
-    [(procedure? conv)  (apply conv (if idx (cons idx args) args))]
-    [else               (error "Unknown syntax entry" conv)]))
-
-(define parens-precedence '(#t + * fn #f))
-
-(define (parens-< a b)
-  (< (index-of parens-precedence a)
-     (index-of parens-precedence b)))
+(define/match (texify-variable var)
+  [('l)       "\\ell"]
+  [('eps)     "\\varepsilon"]
+  [('epsilon) "\\varepsilon"]
+  [('alpha)   "\\alpha"]
+  [('beta)    "\\beta"]
+  [('gamma)   "\\gamma"]
+  [('phi)     "\\phi"]
+  [('phi1)    "\\phi_1"]
+  [('phi2)    "\\phi_2"]
+  [('lambda)  "\\lambda"]
+  [('lambda1) "\\lambda_1"]
+  [('lambda2) "\\lambda_2"]
+  [(_) (symbol->string var)])
 
 ; "enclose" is a MathJax extension which may
 ; not work with standard TeX processors.
@@ -50,210 +34,53 @@
 (define (untag str)
   (format "\\color{black}{~a}" str))
 
-(define ((tag-inner-untag str) idx . args)
-  (tag (apply format str (map untag args)) idx))
-
-(define ((tag-infix op) idx arg1 arg2)
-  (format "~a ~a ~a" arg1 (tag op idx) arg2))
-
 ; self-paren-level : #t --> paren me
 ;                    #f --> do not paren me
 ;
 ; args-paren-level : #t --> do not paren args
 ;                    #f --> paren args
-(define-table texify-operators
-  [+    '(#f "+~a" "~a + ~a")
-        `(#f ,(tag-inner-untag "+~a")
-             ,(tag-infix "+"))
-        '+ '+]
-  [-    '(#f "-~a" "~a - ~a")
-        `(#f ,(tag-inner-untag "-~a")
-             ,(tag-infix "-"))
-        '+ '+]
-  [*    "~a \\cdot ~a"
-        (tag-infix "\\cdot")
-        '* '*]
-  [/    '(#f "\\frac1{~a}" "\\frac{~a}{~a}")
-        `(#f ,(tag-inner-untag "\\frac1{~a}")
-             ,(tag-inner-untag "\\frac{~a}{~a}"))
-        #f #t]
+(define precedence-ordering '(#t + * fn #f))
 
-  [sqr      "{~a}^2"
-            (lambda (idx a) (format "{~a}^{~a}" a (tag "2" idx)))
-            #f #f]
-  [cube     "{~a}^3"
-            (lambda (idx a) (format "{~a}^{~a}" a (tag "3" idx)))
-            #f #f]
-  [acos      "\\cos^{-1} ~a"
-             (tag-inner-untag "\\cos^{-1} ~a")
-             'fn #f]
-  [acosh     "\\cosh^{-1} ~a"
-             (tag-inner-untag "\\cosh^{-1} ~a")
-             'fn #f]
-  [asin      "\\sin^{-1} ~a"
-             (tag-inner-untag "\\sin^{-1} ~a")
-             'fn #f]
-  [asinh     "\\sinh^{-1} ~a"
-             (tag-inner-untag "\\sinh^{-1} ~a")
-             'fn #f]
-  [atan      "\\tan^{-1} ~a"
-             (tag-inner-untag "\\tan^{-1} ~a")
-             'fn #f]
-  [atan2     "\\tan^{-1}_* \\frac{~a}{~a}"
-             (tag-inner-untag "\\tan^{-1}_* \\frac{~a}{~a}")
-             'fn #t]
-  [atanh     "\\tanh^{-1} ~a"
-             (tag-inner-untag "\\tanh^{-1} ~a")
-             'fn #f]
-  [cbrt      "\\sqrt[3]{~a}"
-             (tag-inner-untag "\\sqrt[3]{~a}")
-             #f #t]
-  [ceil      "\\left\\lceil~a\\right\\rceil"
-             (tag-inner-untag "\\left\\lceil~a\\right\\rceil")
-             #f #t]
-  [copysign  "\\mathsf{copysign}\\left(~a, ~a\\right)"
-             (tag-inner-untag "\\mathsf{copysign}\\left(~a, ~a\\right)")
-             #f #t]
-  [cos       "\\cos ~a"
-             (tag-inner-untag "\\cos ~a")
-             'fn #f]
-  [cosh      "\\cosh ~a"
-             (tag-inner-untag "\\cosh ~a")
-             'fn #f]
-  [erf       "\\mathsf{erf} ~a"
-             (tag-inner-untag "\\mathsf{erf} ~a")
-             'fn #f]
-  [erfc      "\\mathsf{erfc} ~a"
-             (tag-inner-untag "\\mathsf{erfc} ~a")
-             'fn #f]
-  [exp       "e^{~a}"
-             (tag-inner-untag "e^{~a}")
-             #f #t]
-  [exp2      "2^{~a}"
-             (tag-inner-untag "2^{~a}")
-             #f #t]
-  [expm1     "(e^{~a} - 1)^*"
-             (tag-inner-untag "(e^{~a} - 1)^*")
-             #f #t]
-  [fabs      "\\left|~a\\right|"
-             (tag-inner-untag "\\left|~a\\right|")
-             #f #t]
-  [fdim      "\\mathsf{fdim}\\left(~a, ~a\\right)"
-             (tag-inner-untag "\\mathsf{fdim}\\left(~a, ~a\\right)")
-             #f #t]
-  [floor     "\\left\\lfloor~a\\right\\rfloor"
-             (tag-inner-untag "\\left\\lfloor~a\\right\\rfloor")
-             #f #t]
-  [fma       "(~a \\cdot ~a + ~a)_*"
-             (tag-inner-untag "(~a \\cdot ~a + ~a)_*")
-             #f #f]
-  [fmax      "\\mathsf{fmax}\\left(~a, ~a\\right)"
-             (tag-inner-untag "\\mathsf{fmax}\\left(~a, ~a\\right)")
-             #f #t]
-  [fmin      "\\mathsf{fmin}\\left(~a, ~a\\right)"
-             (tag-inner-untag "\\mathsf{fmin}\\left(~a, ~a\\right)")
-             #f #t]
-  [fmod      "~a \\bmod ~a"
-             (tag-infix "\\bmod")
-             #t #f]
-  [hypot     "\\sqrt{~a^2 + ~a^2}^*"
-             (tag-inner-untag "\\sqrt{~a^2 + ~a^2}^*")
-             #f #f]
-  [j0        "\\mathsf{j0} ~a"
-             (tag-inner-untag "\\mathsf{j0} ~a")
-             'fn #f]
-  [j1        "\\mathsf{j1} ~a"
-             (tag-inner-untag "\\mathsf{j1} ~a")
-             'fn #f]
-  [lgamma    "\\log_* \\left( \\mathsf{gamma} ~a \\right)"
-             (tag-inner-untag "\\log_* \\left( \\mathsf{gamma} ~a \\right)")
-             'fn #f]
-  [log       "\\log ~a"
-             (tag-inner-untag "\\log ~a")
-             'fn #f]
-  [log10     "\\log_{10} ~a"
-             (tag-inner-untag "\\log_{10} ~a")
-             'fn #f]
-  [log1p     "\\log_* (1 + ~a)"
-             (tag-inner-untag "\\log_* (1 + ~a)")
-             #f '+]
-  [log2      "\\log_{2} ~a"
-             (tag-inner-untag "\\log_{2} ~a")
-             'fn #f]
-  [logb      "\\log^{*}_{b} ~a"
-             (tag-inner-untag "\\log^{*}_{b} ~a")
-             'fn #f]
-  [pow       "{~a}^{~a}"
-             (tag-inner-untag "{~a}^{~a}")
-             #f #f]
-  [remainder "~a \\mathsf{rem} ~a"
-             (tag-infix "\\mathsf{rem}")
-             #t #f]
-  [rint      "\\mathsf{rint} ~a"
-             (tag-inner-untag "\\mathsf{rint} ~a")
-             'fn #f]
-  [round     "\\mathsf{round} ~a"
-             (tag-inner-untag "\\mathsf{round} ~a")
-             'fn #f]
-  [sin       "\\sin ~a"
-             (tag-inner-untag "\\sin ~a")
-             'fn #f]
-  [sinh      "\\sinh ~a"
-             (tag-inner-untag "\\sinh ~a")
-             'fn #f]
-  [sqrt      "\\sqrt{~a}"
-             (tag-inner-untag "\\sqrt{~a}")
-             #f #t]
-  [tan       "\\tan ~a"
-             (tag-inner-untag "\\tan ~a")
-             'fn #f]
-  [tanh      "\\tanh ~a"
-             (tag-inner-untag "\\tanh ~a")
-             'fn #f]
-  [tgamma    "\\mathsf{gamma} ~a"
-             (tag-inner-untag "\\mathsf{gamma} ~a")
-             'fn #f]
-  [trunc     "\\mathsf{trunc} ~a"
-             (tag-inner-untag "\\mathsf{trunc} ~a")
-             'fn #f]
-  [y0        "\\mathsf{y0} ~a"
-             (tag-inner-untag "\\mathsf{y0} ~a")
-             'fn #f]
-  [y1        "\\mathsf{y1} ~a"
-             (tag-inner-untag "\\mathsf{y1} ~a")
-             'fn #f]
+(define (precedence< a b)
+  (< (index-of precedence-ordering a)
+     (index-of precedence-ordering b)))
 
-  [if     "~a ? ~a : ~a"
-          (lambda (idx a b c)
-            (format "~a ~a ~a : ~a" a (tag "?" idx) b c))
-          #t #t]
-  [!=      "~a \\ne ~a"
-          (tag-infix "\\ne")
-          #f #t]
-  [==      "~a = ~a"
-          (tag-infix "=")
-          #f #t]
-  [>      "~a \\gt ~a"
-          (tag-infix "\\gt")
-          #f #t]
-  [<      "~a \\lt ~a"
-          (tag-infix "\\lt")
-          #f #t]
-  [>=     "~a \\ge ~a"
-          (tag-infix "\\ge")
-          #f #t]
-  [<=     "~a \\le ~a"
-          (tag-infix "\\le")
-          #f #t]
-  [not    "\\neg ~a"
-          (tag-inner-untag "\\neg ~a")
-          'fn #f]
-  [and    "~a \\land ~a"
-          (tag-infix "\\land")
-          '* '*]
-  [or     "~a \\lor ~a"
-          (tag-infix "\\lor")
-          '+ '+])
+(define (precedence-levels op)
+  (match op
+    [(or '+ '- 'or 'complex) (values '+ '+)]
+    [(or '* 'and) (values '* '*)]
+    ['/ (values #f #t)]
+    [(or 'sqr 'cube 'fma 'hypot 'pow) (values #f #f)]
+    ['atan2 (values 'fn #t)]
+    ['log1p (values #f '+)]
+    ['if (values #t #t)]
+    [(or 'remainder 'fmod) (values #t #f)]
+    [(or 'cbrt 'ceil 'copysign 'expm1 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+     (values #f #t)]
+    [(or '== '< '> '<= '>= '!=)
+     (values #f #t)]
+    [_ (values 'fn #f)]))
+
+(define ((highlight-template op) idx args)
+  (define to-tag-infix
+    #hash((+ . "+") (- . "-") (* . "\\cdot") (fmod . "\\bmod") (remainder . "\\mathsf{rem}")
+          (< . "\\lt") (> . "\\gt") (== . "=") (!= . "\\ne") (<= . "\\le") (>= . "\\ge")
+          (and . "\\land") (or . "\\lor")))
+  (cond
+   [(and (equal? (length args) 2) (hash-has-key? to-tag-infix op))
+    (match-define (list a b) args)
+    (format "~a ~a ~a" a (tag (hash-ref to-tag-infix op) idx) b)]
+   [(equal? op 'if)
+    (match-define (list a b c) args)
+    (format "~a ~a ~a : ~a" a (tag "?" idx) b c)]
+   [(equal? op 'sqr)
+    (match-define (list a) args)
+    (format "{~a}^{~a}" a (tag "2" idx))]
+   [(equal? op 'cube)
+    (match-define (list a) args)
+    (format "{~a}^{~a}" a (tag "3" idx))]
+   [else
+    (tag (apply (operator-info op '->tex) (map untag args)) idx)]))
 
 (define (collect-branches expr loc)
   (match expr
@@ -284,17 +111,23 @@
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
          (match (string-split (number->string expr) "e")
+           [(list "-inf.0") "-\\infty"]
+           [(list "+inf.0") "+\\infty"]
            [(list num) num]
            [(list significand exp)
             (define num
               (if (equal? significand "1")
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
-            (if (parens-< parens #f) num (format "\\left( ~a \\right)" num))])]
-        [(? symbol?)
-         (if (hash-has-key? texify-constants expr)
-           (car (hash-ref texify-constants expr))
-           (symbol->string expr))]
+            (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
+        [(? complex?)
+         (format "~a ~a ~a i"
+                 (texify (real-part expr) '+ loc)
+                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
+                 (texify (abs (imag-part expr)) '+ loc))]
+        [(? constant?)
+         (constant-info expr '->tex)]
+        [(? symbol?) (texify-variable expr)]
         [`(if ,cond ,ift ,iff)
          (define NL "\\\\\n")
          (define IND "\\;\\;\\;\\;")
@@ -311,22 +144,23 @@
                           (texify bcond #t (cons 1 bloc))
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
+        [`(<= ,x -inf.0)
+         (texify `(== ,x -inf.0) parens loc)]
         [`(,f ,args ...)
-         (match (hash-ref texify-operators f)
-           [(list template highlight-template self-paren-level arg-paren-level)
-            (let ([texed-args
-                    (for/list ([arg args] [id (in-naturals 1)])
-                      (texify arg arg-paren-level (cons id loc)))]
-                  [hl-loc
-                    (assoc (reverse loc) highlight-locs)])
-              (format
-                ; omit parens if parent contex has lower precedence
-                (if (parens-< parens self-paren-level)
-                  "~a"
-                  "\\left(~a\\right)")
-                (if hl-loc
-                  (apply-converter highlight-template texed-args (cdr hl-loc))
-                  (apply-converter template texed-args))))])]))))
+         (define-values (self-paren-level arg-paren-level) (precedence-levels f))
+         (let ([texed-args
+                (for/list ([arg args] [id (in-naturals 1)])
+                  (texify arg arg-paren-level (cons id loc)))]
+               [hl-loc
+                (assoc (reverse loc) highlight-locs)])
+           (format
+                                        ; omit parens if parent contex has lower precedence
+            (if (precedence< parens self-paren-level)
+                "~a"
+                "\\left(~a\\right)")
+            (if hl-loc
+                ((highlight-template f) (cdr hl-loc) texed-args)
+                (apply (operator-info f '->tex) texed-args))))]))))
 
 ; TODO probably a better way to write this wrapper using
 ;      make-keyword-procedure and keyword-apply
@@ -341,3 +175,4 @@
 
 (define (exact-rational? r)
   (and (rational? r) (exact? r)))
+

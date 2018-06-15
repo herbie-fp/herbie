@@ -1,0 +1,14 @@
+; -*- mode: scheme -*-
+
+; Herbie cannot evaluate these tests fast enough with MPFR.
+; In contrast to challenge/timeout.fpcore, these tests do
+; not finish sampling input points (sometimes varying with seed).
+
+(FPCore (a b)
+ :name "Random Jason Timeout Test 003"
+ (sin (pow (sqrt (atan2 b b)) (- b a))))
+
+(FPCore (a b)
+ :name "Random Jason Timeout Test 015"
+ (sin (pow (sqrt (atan2 b b)) (- b a))))
+

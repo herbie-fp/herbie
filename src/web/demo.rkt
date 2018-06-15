@@ -1,5 +1,5 @@
 #lang racket
-(require openssl/sha1 xml)
+(require openssl/sha1 (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
@@ -7,6 +7,7 @@
 (require "../sandbox.rkt")
 (require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
 (require "../formats/tex.rkt")
+(require "../syntax-check.rkt" "../type-check.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
 (require "../web/common.rkt")
 
@@ -37,6 +38,7 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method "post" improve]
    [("check-status" (string-arg)) check-status]
+   [((hash-arg) "interactive.js") generate-interactive]
    [((hash-arg) "graph.html") generate-report]
    [((hash-arg) "debug.txt") generate-debug]
    [((hash-arg) (string-arg)) generate-plot]))
@@ -91,11 +93,23 @@
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
      '((sqrt sqr) "Squares and square roots")
+     '((cbrt cube) "Cubes and cube roots")
      '((exp log) "Natural exponent and natural log")
      '((expt) "Raising a value to an exponent (also called " (code "pow") ")")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
      '((sinh cosh tanh) "The hyperbolic trigonometric functions")
+     '((asinh acosh atanh) "The inverse hyperbolic trigonometric functions")
+     '((ceil floor rint round trunc) "Rounding functions")
+     '((erf erfc) "Error function and complementary error function")
+     '((exp2 log2 log10) "Exponential base 2, log base 2, and log base 10")
+     '((fmod remainder) "Mod and remainder functions")
+     '((j0 j1 y0 y1) "Bessel functions of the first and second kind")
+     '((tgamma lgamma) "The gamma function and log gamma function")
+     '((fmin fmax) "The min and max functions")
+     '((fdim copysign) "The positive difference and copysign functions")
+     '((expm1 log1p) "The exponent of " (code "x - 1") " and the log of " (code "1 + x"))
+     '((fma hypot logb) "The fma, hypotenuse (distance from origin), and logb functions")
      '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "
@@ -110,8 +124,6 @@
 
 (define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
-
-(define *fixed-seed* #(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636))
 
 (define *worker-thread*
   (thread
@@ -151,7 +163,11 @@
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
               (define make-page
-                (cond [(test-result? result) (λ args (apply make-graph args) (apply make-plots args))]
+                (cond [(test-result? result) (λ args
+                                                (apply make-graph
+                                                       (append args
+                                                               (list (string? (get-interactive-js result)))))
+                                                (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
               (with-output-to-file (build-path (*demo-output*) path "graph.html")
@@ -171,7 +187,7 @@
 
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data result link))
+  (match-define (cons _ data) (get-table-data result link))
   (define info
     (if (file-exists? data-file)
         (let ([info (read-datafile data-file)])
@@ -207,6 +223,7 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (assert-program! formula)
+       (assert-program-type! formula)
        (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_
@@ -248,6 +265,15 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
+(define (generate-interactive req results)
+  (match-define (cons result debug) results)
+
+  (response 200 #"OK" (current-seconds) #"text"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out)
+              (parameterize ([current-output-port out])
+                (output-interactive-js result (format "~a.~a" hash *herbie-commit*) #f)))))
+
 (define (generate-report req results)
   (match-define (cons result debug) results)
 
@@ -255,7 +281,10 @@
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
             (λ (out)
               (parameterize ([current-output-port out])
-                (make-graph result (format "~a.~a" hash *herbie-commit*) #f)))))
+                (make-graph result
+                            (format "~a.~a" hash *herbie-commit*)
+                            #f
+                            (string? (get-interactive-js result)))))))
 
 (define (generate-plot req results plotname)
   (match-define (cons result debug) results)
@@ -293,6 +322,9 @@
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (thread-send *worker-thread* config)
+
+  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
+  (eprintf "Find help on <https://herbie.uwplse.org/>, exit with Ctrl-C\n")
 
   (serve/servlet
    dispatch

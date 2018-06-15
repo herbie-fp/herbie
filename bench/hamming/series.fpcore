@@ -3,25 +3,25 @@
 (FPCore (x)
  :name "expm1 (example 3.7)"
  :pre (< -0.00017 x)
- :target
- (* x (+ 1 (/ x 2) (/ (sqr x) 6)))
+ :herbie-target
+ (* x (+ 1 (/ x 2) (/ (* x x) 6)))
 
  (- (exp x) 1))
 
 (FPCore (n)
  :name "logs (example 3.8)"
  :pre (> n 6.8e+15)
- :target
- (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (sqr n))) (/ 4 (pow n 3)))))
+ :herbie-target
+ (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (* n n))) (/ 4 (pow n 3)))))
 
  (- (* (+ n 1) (log (+ n 1))) (* n (log n)) 1))
 
 (FPCore (x)
  :name "invcot (example 3.9)"
  :pre (and (< -0.026 x) (< x 0.026))
- :target
+ :herbie-target
  (if (< (fabs x) 0.026)
-     (* (/ x 3) (+ 1 (/ (sqr x) 15)))
+     (* (/ x 3) (+ 1 (/ (* x x) 15)))
      (- (/ 1 x) (/ 1 (tan x))))
 
  (- (/ 1 x) (/ 1 (tan x))))
@@ -29,19 +29,19 @@
 (FPCore (x)
  :name "qlog (example 3.10)"
  :pre (and (< -1 x) (< x 1))
- :target
- (- (+ 1 x (/ (sqr x) 2) (* 5/12 (pow x 3))))
+ :herbie-target
+ (- (+ 1 x (/ (* x x) 2) (* 5/12 (pow x 3))))
 
  (/ (log (- 1 x)) (log (+ 1 x))))
 
 (FPCore (x)
  :name "cos2 (problem 3.4.1)"
- (/ (- 1 (cos x)) (sqr x)))
+ (/ (- 1 (cos x)) (* x x)))
 
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
  :pre (and (< -1 eps) (< eps 1))
- :target
+ :herbie-target
  (/ (+ a b) (* a b))
 
  (/
@@ -50,7 +50,7 @@
 
 (FPCore (eps)
  :name "logq (problem 3.4.3)"
- :target
+ :herbie-target
  (* -2 (+ eps (/ (pow eps 3) 3) (/ (pow eps 5) 5)))
 
  (log (/ (- 1 eps) (+ 1 eps))))
