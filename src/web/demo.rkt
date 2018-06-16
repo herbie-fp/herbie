@@ -164,10 +164,9 @@
               (make-directory (build-path (*demo-output*) path))
               (define make-page
                 (cond [(test-result? result) (λ args
-                                                (apply make-graph
-                                                       (append args
-                                                               (list (string? (get-interactive-js result)))))
-                                                (apply make-plots args))]
+                                               (define valid-js (apply make-interactive-js args))
+                                               (apply make-graph (append args (list valid-js)))
+                                               (apply make-plots args))]
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
               (with-output-to-file (build-path (*demo-output*) path "graph.html")
