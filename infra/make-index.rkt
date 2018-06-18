@@ -147,10 +147,14 @@
     (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
                branch-infos*))
 
+  (define crashes
+    (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
   (define last-crash
-    (argmax (curryr dict-ref 'date-unix) (apply append mainline-infos)))
+    (if (null? crashes)
+        #f
+        (argmax (curryr dict-ref 'date-unix) crashes)))
   (define since-last-crash
-    (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24)))
+    (and last-crash (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24))))
 
   (write-file "index.html"
     (printf "<!doctype html>\n")
@@ -170,7 +174,9 @@
          (div "Reports: " (span ((class "number")) ,(~a (length folders))))
          (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
-         (div "Crash-free: " (span ((class "number")) ,(~a (inexact->exact (round since-last-crash))) "d")))
+         (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
+                                                           (format "~ad" (inexact->exact (round since-last-crash)))
+                                                           "∞"))))
         (ul ((id "toc"))
             ,@(for/list ([rows (append mainline-infos other-infos)])
                 (define branch (dict-ref (first rows) 'branch))
