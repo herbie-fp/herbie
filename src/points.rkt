@@ -223,13 +223,7 @@
 (define (oracle-errors alt-bodies pcontext)
   (define unique-alts (remove-duplicates alt-bodies))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error ((eval-prog alt 'fl) point) exact)) unique-alts))))
-
-#;(define (oracle-errors alt-bodies pcontext)
-  (define unique-alts (remove-duplicates alt-bodies))
-  (writeln unique-alts)
-  (eval-errors (λ (point)
-                  (argmin identity (map (λ (alt) ((eval-prog alt 'fl) point)) unique-alts))) pcontext))
+    (argmin identity (map (λ (alt) (point-error (alt point) exact)) unique-alts))))
 
 (define (errors prog pcontext)
   (eval-errors (eval-prog prog 'fl) pcontext))

@@ -83,7 +83,9 @@
                     newpoints newexacts
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
-                    (oracle-errors (map alt-program all-alts) newcontext)
+                    (oracle-errors (map (λ (alt) (eval-prog (alt-program alt) 'fl)) 
+                                        all-alts) 
+                                   newcontext)
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
