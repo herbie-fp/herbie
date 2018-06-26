@@ -6,7 +6,8 @@
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points
-         errors errors-score sort-context-on-expr)
+         errors errors-score sort-context-on-expr
+         oracle-errors)
 
 (module+ test
   (require rackunit))
@@ -204,15 +205,34 @@
                           #:url "faq.html#no-valid-values"))
     (prepare-points-ranges prog precondition range-table)]))
 
+(define (eval-errors eval-fn pcontext)
+  (define max-ulps (expt 2 (*bit-width*)))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (define out (eval-fn point))
+    (add1
+      (if (real? out)
+        (abs (ulp-difference out exact))
+        max-ulps))))
+
+(define (point-error inexact exact)
+  (add1
+    (if (real? inexact)
+      (abs (ulp-difference inexact exact))
+      (expt 2 (*bit-width*)))))
+
+(define (oracle-errors alt-bodies pcontext)
+  (define unique-alts (remove-duplicates alt-bodies))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (argmin identity (map (λ (alt) (point-error ((eval-prog alt 'fl) point) exact)) unique-alts))))
+
+#;(define (oracle-errors alt-bodies pcontext)
+  (define unique-alts (remove-duplicates alt-bodies))
+  (writeln unique-alts)
+  (eval-errors (λ (point)
+                  (argmin identity (map (λ (alt) ((eval-prog alt 'fl) point)) unique-alts))) pcontext))
+
 (define (errors prog pcontext)
-  (let ([fn (eval-prog prog 'fl)]
-	[max-ulps (expt 2 (*bit-width*))])
-    (for/list ([(point exact) (in-pcontext pcontext)])
-      (let ([out (fn point)])
-	(add1
-	 (if (real? out)
-	     (abs (ulp-difference out exact))
-	     max-ulps))))))
+  (eval-errors (eval-prog prog 'fl) pcontext))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-value? e)])

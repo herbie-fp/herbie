@@ -21,7 +21,7 @@
 (struct test-result
   (test time bits
    start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error timeline))
+   newpoints newexacts start-error end-error target-error oracle-error timeline))
 (struct test-failure (test bits exn time timeline))
 (struct test-timeout (test bits time timeline))
 
@@ -53,12 +53,13 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
+        (define all-alts (*all-alts*)))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision)))))
+               ,(^timeline^) ,(bf-precision) ,(*all-alts*)))))
 
   (define (in-engine _)
     (if profile?
@@ -70,7 +71,7 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext ,timeline ,bits)
+      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
        (test-result test 
@@ -82,6 +83,7 @@
                     newpoints newexacts
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
+                    (oracle-errors (map alt-program all-alts) newcontext)
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
@@ -154,7 +156,7 @@
   (match result
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
-                  newpoints newexacts start-error end-error target-error timeline)
+                  newpoints newexacts start-error end-error oracle-error target-error timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
               :herbie-time ,time
@@ -165,6 +167,8 @@
               :herbie-error-output
               ([,(*num-points*) ,(errors-score end-est-error)]
                [,(*reeval-pts*) ,(errors-score end-error)])
+              :herbie-error-oracle
+              ([,(*num-points*) ,(errors-score oracle-error)])
               ,@(if target-error
                     `(:herbie-error-target
                       ([,(*reeval-pts*) ,(errors-score target-error)]))
