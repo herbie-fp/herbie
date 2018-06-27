@@ -63,7 +63,6 @@
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
         (define oracle-errs (oracle-error
           (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) newcontext))
-        (set-debug-level! 'regime-testing 1)
         (debug #:from 'regime-testing #:depth 1
                "Baseline error score:" baseline-err)
         (debug #:from 'regime-testing #:depth 1
