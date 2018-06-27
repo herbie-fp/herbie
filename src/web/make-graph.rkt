@@ -200,7 +200,8 @@
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
-                newpoints newexacts start-error end-error target-error timeline)
+                newpoints newexacts start-error end-error oracle-error
+                target-error timeline)
    result)
 
    (printf "<!doctype html>\n")

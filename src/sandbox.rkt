@@ -58,23 +58,33 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
+        (define end-errs (errors (alt-program alt) newcontext))
+        (define oracle-errs (oracle-errors (map (λ (alt)
+                                                   (eval-prog (alt-program alt) 'fl))
+                                                (*all-alts*))
+                                           newcontext))
+        (set-debug-level! 'regime-testing 1)
+        (debug #:from 'regime-testing #:depth 1
+               "End program error score:" (errors-score end-errs))
+        (debug #:from 'regime-testing #:depth 1
+               "Oracle error score:" (errors-score oracle-errs))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,(*all-alts*)))))
+               ,(^timeline^) ,(bf-precision) ,oracle-errs))))
 
   (define (in-engine _)
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
           (profile (compute-result test)))
         (compute-result test)))
-  
+
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,all-alts)
+      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,oracle-errs)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (test-result test 
+       (test-result test
                     (- (current-inexact-milliseconds) start-time)
                     bits
                     start end points exacts
@@ -83,9 +93,7 @@
                     newpoints newexacts
                     (errors (alt-program start) newcontext)
                     (errors (alt-program end) newcontext)
-                    (oracle-errors (map (λ (alt) (eval-prog (alt-program alt) 'fl)) 
-                                        all-alts) 
-                                   newcontext)
+                    oracle-errs
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
