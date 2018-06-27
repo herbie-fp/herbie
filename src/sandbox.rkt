@@ -58,14 +58,16 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
-        (define end-errs (errors (alt-program alt) newcontext))
-        (define oracle-errs (oracle-errors (map (λ (alt)
-                                                   (eval-prog (alt-program alt) 'fl))
-                                                (*all-alts*))
-                                           newcontext))
+        (define baseline-err (baseline-error 
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) newcontext))
+        (define end-err (errors-score (errors (alt-program alt) newcontext)))
+        (define oracle-errs (oracle-error
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) newcontext))
         (set-debug-level! 'regime-testing 1)
         (debug #:from 'regime-testing #:depth 1
-               "End program error score:" (errors-score end-errs))
+               "Baseline error score:" baseline-err)
+        (debug #:from 'regime-testing #:depth 1
+               "End program error score:" end-err)
         (debug #:from 'regime-testing #:depth 1
                "Oracle error score:" (errors-score oracle-errs))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
