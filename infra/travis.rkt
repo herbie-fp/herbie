@@ -17,8 +17,8 @@
     (match (get-test-result test #:seed seed)
       [(test-result test time prec input output pts exs
                     start-errors end-error newpts newexs
-                    start-newerrors end-newerrors oracle-error
-                    target-newerrors timeline)
+                    start-newerrors end-newerrors target-newerrors
+                    oracle-error all-alts point-alt-idxs timeline)
        (printf "[ ~ams]\t(~a→~a)\t~a\n"
                (~a time #:width 8)
                (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
