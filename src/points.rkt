@@ -220,8 +220,8 @@
       (abs (ulp-difference inexact exact))
       (expt 2 (*bit-width*)))))
 
-(define (oracle-error-idx alt-bodies pcontext)
-  (for/list ([(point exact) (in-pcontext pcontext)])
+(define (oracle-error-idx alt-bodies points exacts)
+  (for/list ([point points] [exact exacts])
     (cons point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)

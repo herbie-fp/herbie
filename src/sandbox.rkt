@@ -22,7 +22,7 @@
   (test time bits
    start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error oracle-error
-   all-alts point-alt-idxs timeline))
+   all-alts timeline))
 (struct test-failure (test bits exn time timeline))
 (struct test-timeout (test bits time timeline))
 
@@ -64,7 +64,6 @@
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
         (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)))
         (define oracle-errs (oracle-error all-alt-bodies newcontext))
-        (define point-alt-idxs (oracle-error-idx all-alt-bodies  newcontext))
         (debug #:from 'regime-testing #:depth 1
                "Baseline error score:" baseline-err)
         (debug #:from 'regime-testing #:depth 1
@@ -72,7 +71,7 @@
         (debug #:from 'regime-testing #:depth 1
                "Oracle error score:" (errors-score oracle-errs))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,oracle-errs ,(*all-alts*) ,point-alt-idxs))))
+               ,(^timeline^) ,(bf-precision) ,oracle-errs ,(*all-alts*)))))
 
   (define (in-engine _)
     (if profile?
@@ -85,7 +84,7 @@
 
     (match (engine-result eng)
       [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,oracle-errs
-              ,all-alts ,point-alt-idxs)
+              ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
        (test-result test
@@ -102,7 +101,6 @@
                         #f)
                     oracle-errs
                     all-alts
-                    point-alt-idxs
                     timeline)]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) (^timeline^))]
@@ -173,7 +171,7 @@
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
                   newpoints newexacts start-error end-error target-error oracle-error
-                  all-alts point-alt-idxs timeline)
+                  all-alts timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
               :herbie-time ,time

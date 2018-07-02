@@ -184,7 +184,10 @@
 
 (define (make-alts-plot result out)
   (define all-alts (test-result-all-alts result))
-  (define point-alt-idxs (test-result-point-alt-idxs result))
+  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
+  (define newpoints (test-result-newpoints result))
+  (define newexacts (test-result-newexacts result))
+  (define point-alt-idxs (oracle-error-idx all-alt-bodies newpoints newexacts))
   (define point-renderers (best-alt-points all-alts point-alt-idxs))
   (define vars (program-variables (alt-program (test-result-start-alt result))))
   (define title (format "~a vs ~a" (car vars) (cadr vars)))
@@ -210,7 +213,7 @@
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
                 newpoints newexacts start-error end-error target-error
-                oracle-error all-alts point-alt-idxs timeline)
+                oracle-error all-alts timeline)
    result)
 
    (printf "<!doctype html>\n")
