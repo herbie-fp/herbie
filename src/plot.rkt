@@ -8,8 +8,8 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide error-points herbie-plot error-mark error-avg error-axes
-	 *red-theme* *blue-theme* *green-theme* *yellow-theme*)
+(provide error-points best-alt-points herbie-plot best-alt-plot error-mark error-avg
+         error-axes *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -121,6 +121,14 @@
       (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
+(define (best-alt-points all-alts point-alt-idxs)
+  (define points-list (for/list ([i (range (length all-alts))])
+    (filter (λ (x) (= (cdr x) i)) point-alt-idxs)))
+  (define non-empty-points-list (for/list ([point-list points-list] #:when (not (empty? point-list)))
+                                  point-list))
+  (for/list ([point-list non-empty-points-list] [color (range 2 121)])
+    (points (map car point-list) #:color color #:sym 'fullcircle #:size 5)))
+
 (define (error-axes pts #:axis [axis 0])
   (list
    (y-tick-lines)
@@ -148,6 +156,30 @@
         (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max (*bit-width*)))
         (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
   (with-herbie-plot #:title title thunk))
+
+(define (with-best-alt-plot #:title [title #f] thunk)
+  (parameterize ([plot-width 800] [plot-height 800]
+                 [plot-background-alpha 1]
+                 [plot-x-transform double-axis]
+                 [plot-x-ticks double-ticks]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label #f]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-transform double-axis]
+                 [plot-y-ticks double-ticks]
+                 [plot-y-tick-label-anchor 'left]
+                 [plot-y-label #f]
+                 [plot-y-far-axis? #t]
+                 [plot-y-far-ticks no-ticks]
+                 [plot-font-size 10]
+                 [plot-y-label title])
+    (thunk)))
+
+(define (best-alt-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+  (define thunk
+    (lambda () (plot-file renderers port kind)))
+  (with-best-alt-plot #:title title thunk))
 
 (define (errors-by x errs pts)
   (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))

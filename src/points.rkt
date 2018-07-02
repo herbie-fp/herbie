@@ -7,7 +7,7 @@
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points
          errors errors-score sort-context-on-expr
-         oracle-errors baseline-error)
+         oracle-errors baseline-error oracle-error-idx)
 
 (module+ test
   (require rackunit))
@@ -219,6 +219,10 @@
     (if (real? inexact)
       (abs (ulp-difference inexact exact))
       (expt 2 (*bit-width*)))))
+
+(define (oracle-error-idx alt-bodies pcontext)
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (cons point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)
   (define unique-alts (remove-duplicates alt-bodies))

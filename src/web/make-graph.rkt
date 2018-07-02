@@ -182,11 +182,20 @@
    (error-points err pts #:axis idx #:color theme)
    (error-avg err pts #:axis idx #:color theme)))
 
+(define (make-alts-plot result out)
+  (define all-alts (test-result-all-alts result))
+  (define point-alt-idxs (test-result-point-alt-idxs result))
+  (define point-renderers (best-alt-points all-alts point-alt-idxs))
+  (define vars (program-variables (alt-program (test-result-start-alt result))))
+  (define title (format "~a vs ~a" (car vars) (cadr vars)))
+  (best-alt-plot #:port out #:kind 'png point-renderers #:title title))
+
 (define (make-plots result rdir profile?)
   (define (open-file #:type [type #f] idx fun . args)
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
+  (open-file 0 #:type 'alts make-alts-plot result)
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
       ;; This is bad code
@@ -200,8 +209,8 @@
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
-                newpoints newexacts start-error end-error oracle-error
-                target-error timeline)
+                newpoints newexacts start-error end-error target-error
+                oracle-error all-alts point-alt-idxs timeline)
    result)
 
    (printf "<!doctype html>\n")
