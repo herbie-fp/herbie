@@ -60,7 +60,7 @@
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
         (define baseline-err (baseline-error
-          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) newcontext))
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) context newcontext))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
         (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)))
         (define oracle-errs (oracle-error all-alt-bodies newcontext))

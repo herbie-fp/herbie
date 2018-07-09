@@ -229,9 +229,14 @@
   (for/list ([(point exact) (in-pcontext pcontext)])
     (apply min (map (λ (alt) (point-error (alt point) exact)) unique-alts))))
 
-(define (baseline-error alt-bodies pcontext)
+(define (baseline-error alt-bodies pcontext newpcontext)
   (define unique-alts (remove-duplicates alt-bodies))
+<<<<<<< HEAD
   (apply min (map (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies)))
+=======
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
+  (errors-score (eval-errors baseline newpcontext)))
+>>>>>>> Updated baseline regime calculation to use the intial context
 
 (define (errors prog pcontext)
   (eval-errors (eval-prog prog 'fl) pcontext))
