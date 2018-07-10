@@ -71,6 +71,9 @@
                "End program error score:" end-err)
         (debug #:from 'regime-testing #:depth 1
                "Oracle error score:" (errors-score oracle-errs))
+        (when (test-output test)
+          (debug #:from 'regime-testing #:depth 1
+                 "Target error score:" (errors-score (errors (test-target test) newcontext))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,(*all-alts*)))))
 
