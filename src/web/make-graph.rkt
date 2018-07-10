@@ -194,10 +194,7 @@
   (best-alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-contour-plot result out)
-  #;(define end-alt (test-result-end-alt result))
-  #;(define regimes (alt-regimes end-alt))
   (define vars (program-variables (alt-program (test-result-start-alt result))))
-  #;(define contour-renderers (regime-contour-renderers regimes vars))
 
   (define newpoints (test-result-newpoints result))
   (define baseline-errs (test-result-baseline-error result))
@@ -207,7 +204,6 @@
                                                   oracle-errs))
 
   (define contour-title (format "~a vs ~a" (car vars) (cadr vars)))
-  #;(define renderers (append contour-renderers point-renderers))
   (best-alt-plot (cadr point-renderers) #:port out #:kind 'png #:title (~a (car point-renderers))))
 
 (define (make-plots result rdir profile?)
