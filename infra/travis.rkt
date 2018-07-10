@@ -18,7 +18,7 @@
       [(test-result test time prec input output pts exs
                     start-errors end-error newpts newexs
                     start-newerrors end-newerrors target-newerrors
-                    oracle-error all-alts timeline)
+                    baseline-error oracle-error all-alts timeline)
        (printf "[ ~ams]\t(~a→~a)\t~a\n"
                (~a time #:width 8)
                (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
