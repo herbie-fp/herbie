@@ -231,7 +231,8 @@
 
 (define (baseline-error alt-bodies pcontext newpcontext)
   (define unique-alts (remove-duplicates alt-bodies))
-  (apply min (map (λ (alt) (errors-score (eval-errors alt pcontext))) unique-alts)))
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) unique-alts))
+  (eval-errors baseline newpcontext))
 
 (define (errors prog pcontext)
   (eval-errors (eval-prog prog 'fl) pcontext))

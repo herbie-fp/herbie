@@ -188,10 +188,27 @@
   (define newpoints (test-result-newpoints result))
   (define newexacts (test-result-newexacts result))
   (define point-alt-idxs (oracle-error-idx all-alt-bodies newpoints newexacts))
-  (define point-renderers (best-alt-points all-alts point-alt-idxs))
+  (define best-alt-point-renderers (best-alt-points all-alts point-alt-idxs))
   (define vars (program-variables (alt-program (test-result-start-alt result))))
   (define title (format "~a vs ~a" (car vars) (cadr vars)))
-  (best-alt-plot #:port out #:kind 'png point-renderers #:title title))
+  (best-alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+
+(define (make-contour-plot result out)
+  #;(define end-alt (test-result-end-alt result))
+  #;(define regimes (alt-regimes end-alt))
+  (define vars (program-variables (alt-program (test-result-start-alt result))))
+  #;(define contour-renderers (regime-contour-renderers regimes vars))
+
+  (define newpoints (test-result-newpoints result))
+  (define baseline-errs (test-result-baseline-error result))
+  (define herbie-errs (test-result-end-error result))
+  (define oracle-errs (test-result-oracle-error result))
+  (define point-renderers (regime-point-renderers newpoints baseline-errs herbie-errs
+                                                  oracle-errs))
+
+  (define contour-title (format "~a vs ~a" (car vars) (cadr vars)))
+  #;(define renderers (append contour-renderers point-renderers))
+  (best-alt-plot (cadr point-renderers) #:port out #:kind 'png #:title (~a (car point-renderers))))
 
 (define (make-plots result rdir profile?)
   (define (open-file #:type [type #f] idx fun . args)
@@ -199,6 +216,7 @@
       (apply curry fun args)))
 
   (open-file 0 #:type 'alts make-alts-plot result)
+  (open-file 0 #:type 'contour make-contour-plot result)
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
       ;; This is bad code
@@ -213,7 +231,7 @@
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
                 newpoints newexacts start-error end-error target-error
-                oracle-error all-alts timeline)
+                baseline-error oracle-error all-alts timeline)
    result)
 
    (printf "<!doctype html>\n")

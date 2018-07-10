@@ -2,6 +2,7 @@
 
 (require math/flonum)
 (require plot/no-gui)
+(require plot)
 (require "common.rkt")
 (require "float.rkt")
 (require "points.rkt")
@@ -9,7 +10,8 @@
 (require "alternative.rkt")
 
 (provide error-points best-alt-points herbie-plot best-alt-plot error-mark error-avg
-         error-axes *red-theme* *blue-theme* *green-theme* *yellow-theme*)
+         regime-contour-renderers regime-point-renderers error-axes
+         *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -128,6 +130,32 @@
                                   point-list))
   (for/list ([point-list non-empty-points-list] [color (range 2 121)])
     (points (map car point-list) #:color color #:sym 'fullcircle #:size 5)))
+
+(define-namespace-anchor anc)
+(define (regime-contour-renderers regimes vars)
+  (for/list ([regime regimes])
+    (define ns (namespace-anchor->namespace anc))
+    (define body (cadr regime))
+    (define prog (eval (list 'λ vars body) ns))
+    ;; TODO: list of 1 and the number from regime because a list of one number doesn't
+    ;; seem to work for some reason (contours bug?)
+    (contours prog -1.79e308 1.79e308 -1.79e308 1.79e308 #:samples 200 #:levels (list (caddr regime)))))
+
+(define (regime-point-renderers test-points baseline-errors herbie-errors oracle-errors)
+  (define points-with-colors (for/list ([point test-points] [base-err baseline-errors]
+                                        [herbie-err herbie-errors]
+                                        [oracle-err oracle-errors])
+    (define span (- base-err oracle-err))
+    (define herbie-percent (if (= span 0) 1 (/ (- base-err herbie-err) span)))
+    (define color-num (max (round (* 240 herbie-percent)) 0))
+    (list point color-num)))
+  (define colors (remove-duplicates (map cadr points-with-colors)))
+  (define point-lists (for/list ([c colors])
+    (filter (λ (p) (eq? (cadr p) c)) points-with-colors)))
+  (list colors (for/list ([l point-lists])
+    (define color-num (cadar l))
+    (define point-color (list color-num color-num color-num))
+    (points (map car l) #:color point-color #:sym 'fullcircle #:size 5))))
 
 (define (error-axes pts #:axis [axis 0])
   (list

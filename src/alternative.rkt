@@ -8,7 +8,8 @@
 (provide alt-delta alt-delta? (struct-out alt)
          make-alt alt? alt-program alt-change
          alt-cost alt-add-event
-         alt-apply alt-rewrite-expression alt-rewrite-rm)
+         alt-apply alt-rewrite-expression alt-rewrite-rm
+         alt-regimes)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -38,12 +39,6 @@
     [(alt _ (list 'change cng) _) cng]
     [(alt _ _ prevs) (ormap alt-change prevs)]))
 
-(define (alt-prev altn)
-  (match altn
-    [(alt _ (list 'change cng) (list prev)) prev]
-    [(alt _ _ '()) #f]
-    [(alt _ _ `(,prev ,_ ...)) (alt-prev prev)]))
-
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
 
@@ -65,3 +60,11 @@
 
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
+
+(define (alt-regimes alt)
+  (define (find-regimes prog)
+    (match prog
+      [(list 'if regime _ else-branch)
+       (cons regime (find-regimes else-branch))]
+      [else null]))
+  (find-regimes (caddr (alt-program alt))))

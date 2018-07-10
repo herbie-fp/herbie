@@ -21,8 +21,8 @@
 (struct test-result
   (test time bits
    start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error oracle-error
-   all-alts timeline))
+   newpoints newexacts start-error end-error target-error baseline-error
+   oracle-error all-alts timeline))
 (struct test-failure (test bits exn time timeline))
 (struct test-timeout (test bits time timeline))
 
@@ -59,8 +59,9 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
-        (define baseline-err (baseline-error
+        (define baseline-errs (baseline-error
           (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) context newcontext))
+        (define baseline-err (errors-score baseline-errs))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
         (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)))
         (define oracle-errs (oracle-error all-alt-bodies newcontext))
@@ -71,7 +72,7 @@
         (debug #:from 'regime-testing #:depth 1
                "Oracle error score:" (errors-score oracle-errs))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,oracle-errs ,(*all-alts*)))))
+               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,(*all-alts*)))))
 
   (define (in-engine _)
     (if profile?
@@ -83,10 +84,11 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,oracle-errs
-              ,all-alts)
+      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,baseline-errs
+              ,oracle-errs ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
+       (define regimes (alt-regimes end))
        (test-result test
                     (- (current-inexact-milliseconds) start-time)
                     bits
@@ -99,6 +101,7 @@
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
+                    baseline-errs
                     oracle-errs
                     all-alts
                     timeline)]
@@ -170,8 +173,8 @@
   (match result
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
-                  newpoints newexacts start-error end-error target-error oracle-error
-                  all-alts timeline)
+                  newpoints newexacts start-error end-error target-error baselin-error
+                  oracle-error all-alts timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
               :herbie-time ,time
