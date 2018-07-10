@@ -9,7 +9,7 @@
 (require "alternative.rkt")
 
 (provide error-points best-alt-points herbie-plot best-alt-plot error-mark error-avg
-         regime-contour-renderers regime-point-renderers error-axes
+         regime-contour-renderers regime-point-renderers regime-point-colors error-axes
          *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
@@ -143,7 +143,7 @@
     ;; seem to work for some reason (contours bug?)
     (contours prog -1.79e308 1.79e308 -1.79e308 1.79e308 #:samples 200 #:levels (list (caddr regime)))))
 
-(define (regime-point-renderers test-points baseline-errors herbie-errors oracle-errors)
+(define (regime-point-colors test-points baseline-errors herbie-errors oracle-errors)
   (define points-with-colors (for/list ([point test-points] [base-err baseline-errors]
                                         [herbie-err herbie-errors]
                                         [oracle-err oracle-errors])
@@ -152,12 +152,16 @@
     (define color-num (max (round (* 240 herbie-percent)) 0))
     (list point color-num)))
   (define colors (remove-duplicates (map cadr points-with-colors)))
-  (define point-lists (for/list ([c colors])
+  (for/list ([c colors])
     (filter (λ (p) (eq? (cadr p) c)) points-with-colors)))
-  (list colors (for/list ([l point-lists])
+
+(define (regime-point-renderers points-colors var-idxs)
+  (for/list ([l points-colors])
     (define color-num (cadar l))
     (define point-color (list color-num color-num color-num))
-    (points (map car l) #:color point-color #:sym 'fullcircle #:size 5))))
+    (define color-points (map (λ (l) (list (list-ref (car l) (car var-idxs))
+                                           (list-ref (car l) (cadr var-idxs)))) l))
+    (points color-points #:color point-color #:sym 'fullcircle #:size 5)))
 
 (define (error-axes pts #:axis [axis 0])
   (list

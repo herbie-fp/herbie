@@ -193,18 +193,9 @@
   (define newexacts (test-result-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts))
 
-(define (make-contour-plot result out)
-  (define vars (program-variables (alt-program (test-result-start-alt result))))
-
-  (define newpoints (test-result-newpoints result))
-  (define baseline-errs (test-result-baseline-error result))
-  (define herbie-errs (test-result-end-error result))
-  (define oracle-errs (test-result-oracle-error result))
-  (define point-renderers (regime-point-renderers newpoints baseline-errs herbie-errs
-                                                  oracle-errs))
-
-  (define contour-title (format "~a vs ~a" (car vars) (cadr vars)))
-  (best-alt-plot (cadr point-renderers) #:port out #:kind 'png #:title (~a (car point-renderers))))
+(define (make-contour-plot points-colors var-idxs title out)
+  (define point-renderers (regime-point-renderers points-colors var-idxs))
+  (best-alt-plot point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-plots result rdir profile?)
   (define (open-file #:type [type #f] idx fun . args)
@@ -214,12 +205,20 @@
   (define vars (program-variables (alt-program (test-result-start-alt result))))
   (when (>= (length vars) 2)
     (define point-alt-idxs (make-point-alt-idxs result))
+    (define newpoints (test-result-newpoints result))
+    (define baseline-errs (test-result-baseline-error result))
+    (define herbie-errs (test-result-end-error result))
+    (define oracle-errs (test-result-oracle-error result))
+    (define points-colors (regime-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for ([i (range (- (length vars) 1))])
       (for ([j (range 1 (length vars))])
         (define alt-idxs (list i j))
         (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
         (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
-                   make-alt-plots point-alt-idxs alt-idxs title))))
+                   make-alt-plots point-alt-idxs alt-idxs title)
+        (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
+                   make-contour-plot points-colors alt-idxs title))))
+
   (open-file 0 #:type 'contour make-contour-plot result)
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
