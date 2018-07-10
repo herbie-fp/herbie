@@ -2,7 +2,6 @@
 
 (require math/flonum)
 (require plot/no-gui)
-(require plot)
 (require "common.rkt")
 (require "float.rkt")
 (require "points.rkt")
