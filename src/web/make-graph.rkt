@@ -219,7 +219,6 @@
         (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
                    make-contour-plot points-colors alt-idxs title))))
 
-  (open-file 0 #:type 'contour make-contour-plot result)
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
       ;; This is bad code
