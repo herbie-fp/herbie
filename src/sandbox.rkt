@@ -173,7 +173,7 @@
   (match result
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
-                  newpoints newexacts start-error end-error target-error baselin-error
+                  newpoints newexacts start-error end-error target-error baseline-error
                   oracle-error all-alts timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
