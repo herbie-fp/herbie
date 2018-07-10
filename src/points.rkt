@@ -222,7 +222,7 @@
 
 (define (oracle-error-idx alt-bodies points exacts)
   (for/list ([point points] [exact exacts])
-    (cons point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
+    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)
   (define unique-alts (remove-duplicates alt-bodies))

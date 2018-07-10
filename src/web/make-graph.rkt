@@ -182,16 +182,16 @@
    (error-points err pts #:axis idx #:color theme)
    (error-avg err pts #:axis idx #:color theme)))
 
-(define (make-alts-plot result out)
+(define (make-alt-plots point-alt-idxs alt-idxs title out)
+  (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
+  (best-alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+
+(define (make-point-alt-idxs result)
   (define all-alts (test-result-all-alts result))
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
   (define newpoints (test-result-newpoints result))
   (define newexacts (test-result-newexacts result))
-  (define point-alt-idxs (oracle-error-idx all-alt-bodies newpoints newexacts))
-  (define best-alt-point-renderers (best-alt-points all-alts point-alt-idxs))
-  (define vars (program-variables (alt-program (test-result-start-alt result))))
-  (define title (format "~a vs ~a" (car vars) (cadr vars)))
-  (best-alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+  (oracle-error-idx all-alt-bodies newpoints newexacts))
 
 (define (make-contour-plot result out)
   (define vars (program-variables (alt-program (test-result-start-alt result))))
@@ -211,7 +211,15 @@
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
-  (open-file 0 #:type 'alts make-alts-plot result)
+  (define vars (program-variables (alt-program (test-result-start-alt result))))
+  (when (>= (length vars) 2)
+    (define point-alt-idxs (make-point-alt-idxs result))
+    (for ([i (range (- (length vars) 1))])
+      (for ([j (range 1 (length vars))])
+        (define alt-idxs (list i j))
+        (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
+        (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
+                   make-alt-plots point-alt-idxs alt-idxs title))))
   (open-file 0 #:type 'contour make-contour-plot result)
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
