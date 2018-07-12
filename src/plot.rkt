@@ -9,7 +9,7 @@
 (require "alternative.rkt")
 
 (provide error-points best-alt-points herbie-plot best-alt-plot error-mark error-avg
-         regime-contour-renderers regime-point-renderers regime-point-colors error-axes
+         regime-point-renderers regime-point-colors error-axes
          *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
@@ -132,16 +132,6 @@
     (points (map (λ (p) (list (list-ref (car p) (car var-idxs))
                               (list-ref (car p) (cadr var-idxs))))
                  point-list) #:color color #:sym 'fullcircle #:size 5)))
-
-(define-namespace-anchor anc)
-(define (regime-contour-renderers regimes vars)
-  (for/list ([regime regimes])
-    (define ns (namespace-anchor->namespace anc))
-    (define body (cadr regime))
-    (define prog (eval (list 'λ vars body) ns))
-    ;; TODO: list of 1 and the number from regime because a list of one number doesn't
-    ;; seem to work for some reason (contours bug?)
-    (contours prog -1.79e308 1.79e308 -1.79e308 1.79e308 #:samples 200 #:levels (list (caddr regime)))))
 
 (define (regime-point-colors test-points baseline-errors herbie-errors oracle-errors)
   (define points-with-colors (for/list ([point test-points] [base-err baseline-errors]

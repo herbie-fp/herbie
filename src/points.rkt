@@ -225,13 +225,11 @@
     (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)
-  (define unique-alts (remove-duplicates alt-bodies))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (apply min (map (λ (alt) (point-error (alt point) exact)) unique-alts))))
+    (argmin identity (map (λ (alt) (point-error (alt point) exact)) alt-bodies))))
 
 (define (baseline-error alt-bodies pcontext newpcontext)
-  (define unique-alts (remove-duplicates alt-bodies))
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) unique-alts))
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
   (eval-errors baseline newpcontext))
 
 (define (errors prog pcontext)

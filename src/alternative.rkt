@@ -59,12 +59,4 @@
               (rewrite-expression-head subtree #:root root-loc)))))
 
 (define (alt-add-event altn event)
-  (alt (alt-program altn) event (list altn)))
-
-(define (alt-regimes alt)
-  (define (find-regimes prog)
-    (match prog
-      [(list 'if regime _ else-branch)
-       (cons regime (find-regimes else-branch))]
-      [else null]))
-  (find-regimes (caddr (alt-program alt))))
+  (alt-event (alt-program altn) event (list altn)))

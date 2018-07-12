@@ -59,6 +59,7 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
+        (*all-alts* (remove-duplicates (*all-alts*)))
         (define baseline-errs (baseline-error
           (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) context newcontext))
         (define baseline-err (errors-score baseline-errs))
@@ -91,7 +92,6 @@
               ,oracle-errs ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (define regimes (alt-regimes end))
        (test-result test
                     (- (current-inexact-milliseconds) start-time)
                     bits
