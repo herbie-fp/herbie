@@ -184,7 +184,7 @@
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
-  (best-alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+  (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
   (define all-alts (test-result-all-alts result))
@@ -193,9 +193,9 @@
   (define newexacts (test-result-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts))
 
-(define (make-contour-plot points-colors var-idxs title out)
-  (define point-renderers (regime-point-renderers points-colors var-idxs))
-  (best-alt-plot point-renderers #:port out #:kind 'png #:title title))
+(define (make-contour-plot point-colors var-idxs title out)
+  (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
+  (alt-plot point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-plots result rdir profile?)
   (define (open-file #:type [type #f] idx fun . args)
@@ -209,7 +209,7 @@
     (define baseline-errs (test-result-baseline-error result))
     (define herbie-errs (test-result-end-error result))
     (define oracle-errs (test-result-oracle-error result))
-    (define points-colors (regime-point-colors newpoints baseline-errs herbie-errs oracle-errs))
+    (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for ([i (range (- (length vars) 1))])
       (for ([j (range 1 (length vars))])
         (define alt-idxs (list i j))
@@ -217,7 +217,7 @@
         (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
                    make-alt-plots point-alt-idxs alt-idxs title)
         (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
-                   make-contour-plot points-colors alt-idxs title))))
+                   make-contour-plot point-colors alt-idxs title))))
 
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)

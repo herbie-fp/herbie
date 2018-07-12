@@ -8,8 +8,8 @@
 (require "programs.rkt")
 (require "alternative.rkt")
 
-(provide error-points best-alt-points herbie-plot best-alt-plot error-mark error-avg
-         regime-point-renderers regime-point-colors error-axes
+(provide error-points best-alt-points herbie-plot alt-plot error-mark error-avg
+         herbie-ratio-point-renderers herbie-ratio-point-colors error-axes
          *red-theme* *blue-theme* *green-theme* *yellow-theme*)
 
 (struct color-theme (scatter line fit))
@@ -133,7 +133,7 @@
                               (list-ref (car p) (cadr var-idxs))))
                  point-list) #:color color #:sym 'fullcircle #:size 5)))
 
-(define (regime-point-colors test-points baseline-errors herbie-errors oracle-errors)
+(define (herbie-ratio-point-colors test-points baseline-errors herbie-errors oracle-errors)
   (define points-with-colors (for/list ([point test-points] [base-err baseline-errors]
                                         [herbie-err herbie-errors]
                                         [oracle-err oracle-errors])
@@ -145,7 +145,7 @@
   (for/list ([c colors])
     (filter (λ (p) (eq? (cadr p) c)) points-with-colors)))
 
-(define (regime-point-renderers points-colors var-idxs)
+(define (herbie-ratio-point-renderers points-colors var-idxs)
   (for/list ([l points-colors])
     (define color-num (cadar l))
     (define point-color (list color-num color-num color-num))
@@ -181,7 +181,7 @@
         (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
   (with-herbie-plot #:title title thunk))
 
-(define (with-best-alt-plot #:title [title #f] thunk)
+(define (with-alt-plot #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 800]
                  [plot-background-alpha 1]
                  [plot-x-transform double-axis]
@@ -200,10 +200,10 @@
                  [plot-y-label title])
     (thunk)))
 
-(define (best-alt-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+(define (alt-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
   (define thunk
     (lambda () (plot-file renderers port kind)))
-  (with-best-alt-plot #:title title thunk))
+  (with-alt-plot #:title title thunk))
 
 (define (errors-by x errs pts)
   (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))
