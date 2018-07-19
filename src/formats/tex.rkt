@@ -23,17 +23,6 @@
   [('lambda2) "\\lambda_2"]
   [(_) (symbol->string var)])
 
-; "enclose" is a MathJax extension which may
-; not work with standard TeX processors.
-(define (tag str idx)
-  (let* ([enc (format "\\enclose{circle}{~a}" str)]
-         [col (format "\\color{red}{~a}" enc)]
-         [css (format "\\class{location}{\\cssId{~a}{~a}}" idx col)])
-    css))
-
-(define (untag str)
-  (format "\\color{black}{~a}" str))
-
 ; self-paren-level : #t --> paren me
 ;                    #f --> do not paren me
 ;
@@ -61,27 +50,6 @@
      (values #f #t)]
     [_ (values 'fn #f)]))
 
-(define ((highlight-template op) idx args)
-  (define to-tag-infix
-    #hash((+ . "+") (- . "-") (* . "\\cdot") (fmod . "\\bmod") (remainder . "\\mathsf{rem}")
-          (< . "\\lt") (> . "\\gt") (== . "=") (!= . "\\ne") (<= . "\\le") (>= . "\\ge")
-          (and . "\\land") (or . "\\lor")))
-  (cond
-   [(and (equal? (length args) 2) (hash-has-key? to-tag-infix op))
-    (match-define (list a b) args)
-    (format "~a ~a ~a" a (tag (hash-ref to-tag-infix op) idx) b)]
-   [(equal? op 'if)
-    (match-define (list a b c) args)
-    (format "~a ~a ~a : ~a" a (tag "?" idx) b c)]
-   [(equal? op 'sqr)
-    (match-define (list a) args)
-    (format "{~a}^{~a}" a (tag "2" idx))]
-   [(equal? op 'cube)
-    (match-define (list a) args)
-    (format "{~a}^{~a}" a (tag "3" idx))]
-   [else
-    (tag (apply (operator-info op '->tex) (map untag args)) idx)]))
-
 (define (collect-branches expr loc)
   (match expr
     [`(if ,cond ,ift ,iff)
@@ -90,16 +58,12 @@
     [else
      (list (list #t expr loc))]))
 
-;; The highlight ops are an alist of locations to indexes that marks
-;; those locations as highlighted with the given location
-;; index. highlight-ops and loc/colors are not meant to be used
-;; simultaniously.
-(define (texify-prog prog
-                     #:loc [color-loc #f]
-                     #:color [color "red"]
-                     #:highlight-ops [highlight-locs '()])
-  "Compile the body of a program to math mode TeX."
-  (let texify ([expr (program-body prog)] [parens #t] [loc '(2)])
+(define (texify-prog expr #:loc [color-loc #f] #:color [color "red"])
+  (texify-expr (program-body expr) #:loc color-loc #:color color))
+
+(define (texify-expr expr #:loc [color-loc #f] #:color [color "red"])
+  "Compile an expression to math mode TeX."
+  (let texify ([expr expr] [parens #t] [loc '(2)])
     (format
       (if (and color-loc (equal? (reverse color-loc) loc))
         (format "\\color{~a}{~~a}" color)
@@ -107,7 +71,7 @@
       (match expr
         [(? exact-integer?)
          (number->string expr)]
-        [(? exact-rational?)
+        [(and (? exact?) (? rational?))
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
          (match (string-split (number->string expr) "e")
@@ -152,27 +116,11 @@
                 (for/list ([arg args] [id (in-naturals 1)])
                   (texify arg arg-paren-level (cons id loc)))]
                [hl-loc
-                (assoc (reverse loc) highlight-locs)])
+                #f])
            (format
                                         ; omit parens if parent contex has lower precedence
             (if (precedence< parens self-paren-level)
                 "~a"
                 "\\left(~a\\right)")
-            (if hl-loc
-                ((highlight-template f) (cdr hl-loc) texed-args)
-                (apply (operator-info f '->tex) texed-args))))]))))
-
-; TODO probably a better way to write this wrapper using
-;      make-keyword-procedure and keyword-apply
-(define (texify-expr expr
-                     #:loc [color-loc #f]
-                     #:color [color "red"]
-                     #:highlight-ops [highlight-locs '()])
-  (texify-prog (expr->prog expr)
-               #:loc color-loc
-               #:color color
-               #:highlight-ops highlight-locs))
-
-(define (exact-rational? r)
-  (and (rational? r) (exact? r)))
+            (apply (operator-info f '->tex) texed-args)))]))))
 

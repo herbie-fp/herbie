@@ -14,7 +14,7 @@
          compile expression-cost program-cost
          free-variables unused-variables replace-expression
          eval-exact eval-const-expr
-         desugar-program expr->prog)
+         desugar-program)
 
 (define expr? (or/c list? symbol? number?))
 
@@ -274,5 +274,3 @@
 (define (desugar-program prog)
   (expand-associativity (unfold-let prog)))
 
-(define (expr->prog expr)
-  `(lambda ,(free-variables expr) ,expr))
