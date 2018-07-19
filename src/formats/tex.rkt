@@ -71,7 +71,7 @@
       (match expr
         [(? exact-integer?)
          (number->string expr)]
-        [(and (? exact?) (? rational?))
+        [(and (? rational?) (? exact?))
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? real?)
          (match (string-split (number->string expr) "e")
