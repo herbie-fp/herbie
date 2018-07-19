@@ -7,8 +7,7 @@
 
 (provide alt-delta alt-delta? (struct-out alt)
          make-alt alt? alt-program alt-change
-         alt-errors alt-cost alt-add-event alt-history-length
-         make-regime-alt
+         alt-errors alt-cost alt-add-event
          alt-apply alt-rewrite-expression alt-rewrite-rm)
 
 ;; Alts are a lightweight audit trail.
@@ -67,13 +66,5 @@
          (map reverse
               (rewrite-expression-head subtree #:root root-loc)))))
 
-(define (alt-history-length alt)
-  (if (alt-prev alt)
-      (+ 1 (alt-history-length (alt-prev alt)))
-      0))
-
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
-
-(define (make-regime-alt new-prog altns splitpoints)
-  (alt new-prog (list 'regimes splitpoints) altns))

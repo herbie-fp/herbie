@@ -13,10 +13,10 @@
 (require "core/matcher.rkt")
 (require  "type-check.rkt")
 
-(provide remove-pows setup-prog setup-alt-simplified post-process
+(provide remove-pows setup-prog setup-alt-simplified
          split-table extract-alt combine-alts
          best-alt simplify-alt completely-simplify-alt
-         taylor-alt zach-alt)
+         taylor-alt)
 
 (define initial-fuel '())
 
@@ -54,10 +54,9 @@
 
 (define (extract-alt table)
   (parameterize ([*pcontext* (atab-context table)])
-    (argmin alt-history-length
-            (argmins alt-cost
-                     (argmins (compose errors-score alt-errors)
-                              (atab-all-alts table))))))
+    (argmin alt-cost
+            (argmins (compose errors-score alt-errors)
+                     (atab-all-alts table)))))
 
 (define (combine-alts splitpoints alts)
   (define expr
@@ -66,7 +65,8 @@
         ([splitpoint (cdr (reverse splitpoints))])
       (define test `(<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint)))
       `(if ,test ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint)))) ,expr)))
-  (make-regime-alt `(λ ,(program-variables (*start-prog*)) ,expr) alts splitpoints))
+  (alt `(λ ,(program-variables (*start-prog*)) ,expr)
+       (list 'regimes splitpoints) alts))
 
 (define (best-alt alts)
   (argmin alt-cost
@@ -83,44 +83,6 @@
 	 [chng (change (rule 'simplify prog prog*) '() (map cons (program-variables prog) (program-variables prog)))])
     (debug "prog is" prog*)
     (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
-
-(define (post-process table log!)
-  (debug #:from 'progress #:depth 2 "Final touches.")
-  (let* ([all-alts (atab-all-alts table)]
-	 [num-alts (length all-alts)]
-	 [zached-alts 0]
-	 [maybe-zach (if (flag-set? 'reduce 'zach)
-		      (λ (alt locs)
-			(debug #:from 'progress #:depth 3 "zaching alt" (add1 zached-alts) "of" num-alts)
-                        (log! 'zach)
-			(set! zached-alts (add1 zached-alts))
-			(append-map (curry zach-alt alt) locs))
-		      (const '()))]
-	 [taylored-alts 0]
-	 [maybe-taylor (if (flag-set? 'reduce 'taylor)
-			(λ (alt locs)
-			  (debug #:from 'progress #:depth 3 "tayloring alt" (add1 taylored-alts) "of" num-alts)
-                          (log! 'series)
-			  (set! taylored-alts (add1 taylored-alts))
-			  (append-map (curry taylor-alt alt) locs))
-			(λ (x y) (list x)))]
-         [_ (log! 'localize)]
-	 [locss (map (compose localize-error alt-program) all-alts)]
-	 [alts*
-	  (apply append
-		 (for/list ([alt all-alts] [locs locss])
-		   (append (maybe-zach alt locs) (maybe-taylor alt locs))))]
-	 [num-alts* (length alts*)]
-	 [simplified-alts 0]
-	 [maybe-simplify (if (flag-set? 'reduce 'simplify)
-			  (λ (alt)
-			    (debug #:from 'progress #:depth 3 "simplifying alt" (add1 simplified-alts) "of" num-alts*)
-                            (log! 'simplify)
-			    (set! simplified-alts (add1 simplified-alts))
-			    (completely-simplify-alt alt))
-			  identity)]
-	 [table* (atab-add-altns table (map maybe-simplify alts*))])
-    table*))
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
@@ -148,16 +110,6 @@
           (list altn))]))]
     ['complex
       (list altn)]))
-
-(define (zach-alt altn loc)
-  (let ([sibling (location-sibling loc)]
-	[rewrite
-         (if (flag-set? 'generate 'rm) alt-rewrite-rm alt-rewrite-expression)])
-    (if (and sibling
-             (= (length (location-get (location-parent loc)
-                                      (alt-program altn))) 3))
-	(rewrite (alt-add-event altn '(start zaching)) #:root sibling)
-        '())))
 
 (define (split-table orig-table)
   (match-let* ([(list splitpoints altns) (infer-splitpoints (atab-all-alts orig-table))])
