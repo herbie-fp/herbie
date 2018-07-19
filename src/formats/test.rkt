@@ -1,14 +1,10 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../errors.rkt")
-(require "../alternative.rkt")
-(require "../programs.rkt")
-(require "../syntax-check.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../errors.rkt")
+(require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
 
-(provide (struct-out test) test-program
-         load-tests load-file test-target parse-test test-successful? test<?)
+(provide (struct-out test) test-program test-target test-successful? test<?
+         load-tests load-file parse-test)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
