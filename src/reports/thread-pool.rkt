@@ -13,20 +13,18 @@
 (provide get-test-results)
 
 (define (make-graph-if-valid result tname index rdir #:profile profile? #:seed seed)
-  (with-handlers ([(const #f) (λ _ #f)])
-    (when (not (directory-exists? rdir))
-      (make-directory rdir))
+  (when (not (directory-exists? rdir)) (make-directory rdir))
 
-    (set-seed! seed)
-    (write-file (build-path rdir "graph.html")
-                ((cond [(test-result? result)
-                        (λ args
-                           (define valid-js (apply make-interactive-js args))
-                           (apply make-graph (append args (list valid-js)))
-                           (apply make-plots args))]
-                       [(test-timeout? result) make-timeout]
-                       [(test-failure? result) make-traceback])
-                 result rdir profile?))))
+  (set-seed! seed)
+  (write-file (build-path rdir "graph.html")
+              ((cond [(test-result? result)
+                      (λ args
+                        (define valid-js (apply make-interactive-js args))
+                        (apply make-graph (append args (list valid-js)))
+                        (apply make-plots args))]
+                     [(test-timeout? result) make-timeout]
+                     [(test-failure? result) make-traceback])
+               result rdir profile?)))
 
 (define (graph-folder-path tname index)
   (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
