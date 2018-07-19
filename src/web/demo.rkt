@@ -9,7 +9,6 @@
 (require "../formats/tex.rkt")
 (require "../syntax-check.rkt" "../type-check.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
-(require "../web/common.rkt")
 
 (provide run-demo)
 
