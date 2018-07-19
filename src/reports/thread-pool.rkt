@@ -57,7 +57,7 @@
       (define result
         (call-with-output-files
          (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
-         (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp #:setup! (λ () (set-debug-level! #t #t))))))
+         (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug dp #:debug-level (cons #t #t)))))
 
       (make-graph-if-valid result (test-name test) index rdir* #:profile profile? #:seed seed)
       (get-table-data result rdir))]

@@ -36,16 +36,18 @@
           (values pt ex)))
     list))
 
-(define (get-test-result test #:seed [seed #f] #:setup! [setup! #f]
-                         #:profile [profile? #f] #:debug [debug? #f])
-  (define (on-error e) `(error ,e ,(bf-precision)))
+(define (get-test-result test #:seed [seed #f]
+                         #:profile [profile? #f] #:debug [debug? #f]
+                         #:debug-level [debug-level #f])
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
-      (when setup! (setup!))
-      (with-handlers ([exn? on-error])
+      (match debug-level
+        [(cons x y) (set-debug-level! x y)]
+        [_ (void)])
+      (with-handlers ([exn? (λ (e) `(error ,e ,(bf-precision)))])
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)

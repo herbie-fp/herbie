@@ -153,7 +153,7 @@
             (define result
               (get-test-result
                #:seed seed
-               #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+               #:debug-level (cons 'progress '(3 4))
                #:debug (hash-ref *jobs* hash)
                (parse-test formula)))
 
