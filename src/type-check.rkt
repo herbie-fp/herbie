@@ -55,9 +55,36 @@
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
+    [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
+     (define sigs (hash-ref parametric-operators op))
+     (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
+
+     (match-define (cons true-name rtype)
+       (for/or ([sig sigs])
+         (match-define (list* true-name rtype atypes) sig)
+         (and
+          (if (symbol? atypes)
+              (andmap (curry equal? atypes) actual-types)
+              (equal? atypes actual-types))
+          (cons true-name rtype))))
+
+     (unless rtype
+       (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+               (string-join
+                (for/list ([sig sigs])
+                  (match sig
+                    [(list _ rtype atypes ...)
+                     (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                    [(list* _ rtype atype)
+                     (format "(~a <~a> ...)" op atype)]))
+                " or ")
+               op (string-join (map (curry format "<~a>") actual-types) " ")))
+
+     rtype]
     [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
-     (unless sigs (error "Operator ~a has no type signature of length ~a" op (length exprs)))
+     (unless sigs (error! stx "Operator ~a has no type signature of length ~a" op (length exprs)))
+
 
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
      (define rtype

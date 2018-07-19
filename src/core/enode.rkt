@@ -7,7 +7,7 @@
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
 	 enode?
-	 enode-expr enode-type
+	 enode-expr
 	 pack-leader pack-members
 	 rule-applied? rule-applied!
 	 enode-subexpr?
@@ -51,7 +51,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars applied-rules type)
+(struct enode (expr id-code children parent depth cvars applied-rules)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -64,38 +64,21 @@
 	 (define (hash2-proc en recurse-hash)
 	   (enode-id-code en))])
 
-; Get the type for an enode or an enode expr
-(define (type-of-enode-expr expr)
-  (match expr
-    [(? real?) 'real]
-    [(? complex?) 'complex]
-    [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real]
-    [(list op ens ...)
-     (define sigs (get-sigs op (length ens)))
-     (define argtypes
-       (for/list ([en ens])
-         (enode-type en)))
-     (for/or ([sig sigs])
-       (argtypes->rtype argtypes sig))]))
-
 (module+ test
   (require rackunit)
   (define x (new-enode '1 1))
   (define y (new-enode '2 2))
   (define xplusy (new-enode (list '+ x y) 3))
-  (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real)
   (define xc (new-enode '1+2i 1))
   (define yc (new-enode '2+3i 2))
-  (define xcplusyc (new-enode (list '+ xc yc) 3))
-  (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex))
+  (define xcplusyc (new-enode (list '+ xc yc) 3)))
   
        
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr) (mutable-set) (type-of-enode-expr expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (mutable-set))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 

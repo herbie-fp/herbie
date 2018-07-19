@@ -32,13 +32,14 @@
          (if (null? props)
              (reverse out)
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+     (define type-ctx (map (λ (x) (cons x 'real)) args))
 
      (test (~a (dict-ref prop-dict ':name body))
            args
-           (desugar-program body)
-           (desugar-program (dict-ref prop-dict ':herbie-target #f))
+           (desugar-program body type-ctx)
+           (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
            (dict-ref prop-dict ':herbie-expected #t)
-           (desugar-program (dict-ref prop-dict ':pre 'TRUE)))]
+           (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
      (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
                          #:url "input.html")]

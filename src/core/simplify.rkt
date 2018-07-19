@@ -123,9 +123,7 @@
   ;; and the enode.
   (define (find-matches ens)
     (filter (negate null?)
-	    (for*/list ([rl rls]
-			[en ens]
-                        #:when (rule-valid-at-type? rl (enode-type en)))
+	    (for*/list ([rl rls] [en ens])
 	      (if (rule-applied? en rl) '()
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
@@ -172,26 +170,19 @@
     [pattern #t]
     [_ #f]))
 
-(define (exact-value? type val)
-  (match type
-    ['real (exact? val)]
-    ['complex (exact? val)]
-    ['boolean true]))
+(define (exact-value? val)
+  (match val
+    [(? real?) (exact? val)]
+    [(? complex?) (exact? val)]
+    [(? boolean?) true]))
 
-(define/match (val-of-type type val)
-  [('real    (? real?))    true]
-  [('complex (? complex?)) true]
-  [('boolean (? boolean?)) true]
-  [(_ _) false])
-
-(define (val-to-type type val)
-  (match type
-    ['real val]
-    ['complex `(complex ,(real-part val) ,(imag-part val))]
-    ['boolean (if val 'TRUE 'FALSE)]))
+(define (val-to-type val)
+  (match val
+    [(? real?) val]
+    [(? complex?) `(complex ,(real-part val) ,(imag-part val))]
+    [(? boolean?) (if val 'TRUE 'FALSE)]))
 
 (define (set-precompute! eg en)
-  (define type (enode-type en))
   (for ([var (enode-vars en)])
     (when (list? var)
       (let ([constexpr
@@ -203,8 +194,8 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (val-of-type type res) (exact-value? type res))
-	      (reduce-to-new! eg en (val-to-type type res)))))))))
+	    (when (and (exact-value? res))
+	      (reduce-to-new! eg en (val-to-type res)))))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])

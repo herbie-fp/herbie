@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt")
 
 (module+ test (require rackunit))
 
@@ -235,13 +235,13 @@
 
 
 (define (unfold-let expr)
-	(match expr
+  (match expr
     [`(let ([,vars ,vals] ...) ,body)
      (define bindings (map cons vars vals))
-		 (unfold-let (replace-vars bindings body))]
-		[`(,head ,args ...)
-			(cons head (map unfold-let args))]
-		[x x]))
+     (unfold-let (replace-vars bindings body))]
+    [`(,head ,args ...)
+     (cons head (map unfold-let args))]
+    [x x]))
 
 (define (expand-associativity expr)
   (match expr
@@ -255,6 +255,31 @@
      (cons op (map expand-associativity a))]
     [_
      expr]))
+
+(define (expand-parametric expr ctx)
+  ;; Run after unfold-let, so no need to track lets
+  (match expr
+    [(list (? (curry hash-has-key? parametric-operators) op) args ...)
+     (define sigs (hash-ref parametric-operators op))
+     (define args* (map (curryr expand-parametric ctx) args))
+     (define actual-types (map (curryr type-of ctx) args*))
+
+     (define op*
+       (for/or ([sig sigs])
+         (match-define (list* true-name rtype atypes) sig)
+         (and
+          (if (symbol? atypes)
+              (andmap (curry equal? atypes) actual-types)
+              (equal? atypes actual-types))
+          true-name)))
+     (cons op* args*)]
+    [(list op args ...)
+     (cons op (map (curryr expand-parametric ctx) args))]
+    [_
+     expr]))
+
+(define (desugar-program prog ctx)
+  (expand-parametric (expand-associativity (unfold-let prog)) ctx))
 
 (define (replace-vars dict expr)
   (cond
@@ -270,7 +295,4 @@
     (cons (car expr) (map (replace-var var val) (cdr expr)))]
    [#t
     expr]))
-
-(define (desugar-program prog)
-  (expand-associativity (unfold-let prog)))
 

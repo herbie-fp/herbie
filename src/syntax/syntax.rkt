@@ -9,7 +9,7 @@
 (require "../bigcomplex.rkt")
 
 (provide constant? variable? operator? operator-info constant-info prune-operators!
-         *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
+         parametric-operators *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
@@ -106,35 +106,62 @@
     (current-continuation-marks))))
 
 (define-operator (+ real real) real 
-  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
-  [fl +] [bf exact+] [cost 40]
+  [fl +] [bf bf+] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (curry format "mpfr_add(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
+(define-operator (+.c complex complex) complex
+  [fl +] [bf bf-complex-add] [cost 80]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "~a + ~a")]
+  [nonffi +])
+
 (define-operator (- real [real]) real
   ;; Override the normal argument handling because - can be unary
-  [args '(1 2)] [type (hash 1 '(((real) real) ((complex) complex)) 2 '(((real real) real) ((complex complex) complex)))]
-  [fl -] [bf exact-] [cost 40]
+  [args '(1 2)] [type (hash 1 '(((real) real)) 2 '(((real real) real)))]
+  [fl -] [bf bf-] [cost 40]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (λ (out x [y #f]) (if y (format "mpfr_sub(~a, ~a, ~a, MPFR_RNDN)" out x y) (format "mpfr_neg(~a, ~a, MPFR_RNDN)" out x)))]
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
+(define-operator (-.c complex [complex]) complex
+  ;; Override the normal argument handling because - can be unary
+  [args '(1 2)] [type (hash 1 '(((complex) complex)) 2 '(((complex complex) complex)))]
+  [fl -] [bf bf-complex-sub] [cost 80]
+  [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
+  [nonffi -])
+
 (define-operator (* real real) real
-  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
-  [fl *] [bf exact*] [cost 40]
+  [fl *] [bf bf*] [cost 40]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (curry format "mpfr_mul(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi *])
 
+(define-operator (*.c complex complex) complex
+  [fl *] [bf bf-complex-mult] [cost 320]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "~a \\cdot ~a")]
+  [nonffi *])
+
 (define-operator (/ real real) real
-  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
-  [fl /] [bf exact/] [cost 40]
+  [fl /] [bf bf/] [cost 40]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (curry format "mpfr_div(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi /])
+
+(define-operator (/.c complex complex) complex
+  [fl /] [bf bf-complex-div] [cost 440]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
 
@@ -258,10 +285,16 @@
   [nonffi erfc])
 
 (define-operator/libm (exp real) real
-  [libm exp expf]
-  [bf exact-exp] [cost 70]
+  [libm exp expf] [bf bfexp] [cost 70]
   [->c/double (curry format "exp(~a)")]
   [->c/mpfr (curry format "mpfr_exp(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "e^{~a}")]
+  [nonffi exp])
+
+(define-operator (exp.c complex) complex
+  [fl exp] [bf bf-complex-exp] [cost 70]
+  [->c/double (curry format "exp(~a)")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "e^{~a}")]
   [nonffi exp])
 
@@ -368,10 +401,16 @@
   [nonffi log-gamma])
 
 (define-operator/libm (log real) real
-  [libm log logf]
-  [bf exact-log] [cost 70]
+  [libm log logf] [bf bflog] [cost 70]
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\log ~a")]
+  [nonffi log])
+
+(define-operator (log.c complex) complex
+  [fl log] [bf bf-complex-log] [cost 265]
+  [->c/double (curry format "log(~a)")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\log ~a")]
   [nonffi log])
 
@@ -407,11 +446,16 @@
   [nonffi (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))])
 
 (define-operator/libm (pow real real) real
-  [libm pow powf]
-  [args '(2)] [type (hash 2 '(((real real) real) ((complex complex) complex)))]
-  [bf exact-pow] [cost 210]
+  [libm pow powf] [bf bfexpt] [cost 210]
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "{~a}^{~a}")]
+  [nonffi expt])
+
+(define-operator (pow.c complex complex) complex
+  [fl expt] [bf bf-complex-pow] [cost 210]
+  [->c/double (curry format "pow(~a, ~a)")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "{~a}^{~a}")]
   [nonffi expt])
 
@@ -451,10 +495,16 @@
   [nonffi sinh])
 
 (define-operator/libm (sqrt real) real
-  [libm sqrt sqrtf]
-  [bf exact-sqrt] [cost 40]
+  [libm sqrt sqrtf] [bf bfsqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
+  [->tex (curry format "\\sqrt{~a}")]
+  [nonffi sqrt])
+
+(define-operator (sqrt.c complex) complex
+  [fl sqrt] [bf bf-complex-sqrt] [cost 40]
+  [->c/double (curry format "sqrt(~a)")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi sqrt])
 
@@ -499,23 +549,6 @@
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y1} ~a")]
   [nonffi (λ (x) (bigfloat->flonum (bfbesy1 (bf x))))])
-
-;; DEPRECATED
-
-(define-operator (sqr real) real
-  [type (hash 1 '(((real) real) ((complex) complex)))]
-  [fl sqr] [bf exact-sqr] [cost 40]
-  [->c/double (λ (x) (format "~a * ~a" x x))]
-  [->c/mpfr (curry format "mpfr_sqr(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "{~a}^2")]
-  [nonffi (λ (x) (* x x))])
-
-(define-operator (cube real) real
-  [fl (λ (x) (* x (* x x)))] [bf (λ (x) (bf* x (bf* x x)))] [cost 80]
-  [->c/double (λ (x) (format "~a * (~a * ~a)" x x x))]
-  [->c/mpfr (λ (out x) (format "mpfr_sqr(~a, ~a, MPFR_RNDN); mpfr_mul(~a, ~a, ~a, MPFR_RNDN)" out x out out x))]
-  [->tex (curry format "{~a}^3")]
-  [nonffi (λ (x) (* x x x))])
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))
@@ -664,3 +697,14 @@
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))
+
+(define parametric-operators
+  #hash([+ . ((+ real real real) (+.c complex complex complex))]
+        [- . ((- real real real) (- real real)
+              (-.c complex complex complex) (-.c complex complex))]
+        [* . ((* real real real) (*.c complex complex complex))]
+        [/ . ((/ real real real) (/.c complex complex complex))]
+        [pow . ((pow real real real) (pow.c complex complex complex))]
+        [exp . ((exp real real) (exp.c complex complex))]
+        [log . ((log real real) (log.c complex complex))]
+        [sqrt . ((sqrt real real) (sqrt.c complex complex))]))
