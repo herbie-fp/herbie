@@ -15,7 +15,7 @@
 
 (provide setup-prog setup-alt-simplified
          split-table extract-alt combine-alts
-         best-alt simplify-alt completely-simplify-alt
+         best-alt simplify-alt
          taylor-alt)
 
 ;; Implementation
@@ -58,14 +58,6 @@
 
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
-
-(define (completely-simplify-alt altn)
-  (let* ([prog (alt-program altn)]
-	 [prog* `(λ ,(program-variables prog) ,(parameterize ([*max-egraph-iters* (/ (*max-egraph-iters*) 2)])
-						 (simplify-expr (program-body prog))))]
-	 [chng (change (rule 'simplify prog prog*) '() (map cons (program-variables prog) (program-variables prog)))])
-    (debug "prog is" prog*)
-    (alt-add-event (alt-delta prog* chng altn) 'final-simplify)))
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
