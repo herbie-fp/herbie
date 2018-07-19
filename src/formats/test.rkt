@@ -62,7 +62,7 @@
 (define (load-directory dir)
   (for/append ([fname (in-directory dir)]
                #:when (file-exists? fname)
-               #:when (equal? (filename-extension fname) "fpcore"))
+               #:when (equal? (filename-extension fname) #"fpcore"))
     (load-file fname)))
 
 (define (load-tests path)
