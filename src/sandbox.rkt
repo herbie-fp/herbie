@@ -46,11 +46,11 @@
       (random) ;; Child process uses deterministic but different seed from evaluator
       (when setup! (setup!))
       (with-handlers ([exn? on-error])
-        (match-define (list alt context)
-                      (run-improve (test-program test)
-                                   (*num-iterations*)
-                                   #:get-context #t
-                                   #:precondition (test-precondition test)))
+        (define alt
+          (run-improve (test-program test)
+                       (*num-iterations*)
+                       #:precondition (test-precondition test)))
+        (define context (*pcontext*))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])

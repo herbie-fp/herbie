@@ -261,15 +261,13 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
   (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
-      (let ([init-alt (make-alt (*start-prog*))])
+      (begin
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-	(if get-context?
-	    (list init-alt (*pcontext*))
-	    init-alt))
+	(make-alt (*start-prog*)))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
         (^table^
@@ -282,9 +280,7 @@
           (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
           (run-iter!))
         (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-        (if get-context?
-            (list (get-final-combination) (*pcontext*))
-            (get-final-combination)))))
+        (get-final-combination))))
 
 (define (combine-alts splitpoints alts)
   (define expr
