@@ -49,6 +49,7 @@
   [*-commutative     (* a b)               (* b a)])
 
 (define-ruleset commutativity.c (arithmetic simplify fp-safe complex)
+  #:type ([a complex] [b complex])
   [+.c-commutative     (+.c a b)               (+.c b a)]
   [*.c-commutative     (*.c a b)               (*.c b a)])
 
@@ -74,6 +75,7 @@
   [unsub-neg         (+ a (- b))           (- a b)])
 
 (define-ruleset associativity.c (arithmetic simplify complex)
+  #:type ([a complex] [b complex] [c complex])
   [associate-+r+.c     (+.c a (+.c b c))         (+.c (+.c a b) c)]
   [associate-+l+.c     (+.c (+.c a b) c)         (+.c a (+.c b c))]
   [associate-+r-.c     (+.c a (-.c b c))         (-.c (+.c a b) c)]
@@ -105,6 +107,7 @@
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)])
 
 (define-ruleset distributivity.c (arithmetic simplify complex)
+  #:type ([a complex] [b complex] [c complex])
   [distribute-lft-in      (*.c a (+.c b c))           (+.c (*.c a b) (*.c a c))]
   [distribute-rgt-in      (*.c a (+.c b c))           (+.c (*.c b a) (*.c c a))]
   [distribute-lft-out     (+.c (*.c a b) (*.c a c))   (*.c a (+.c b c))]
@@ -188,6 +191,7 @@
   [times-frac  (/ (* a b) (* c d))  (* (/ a c) (/ b d))])
 
 (define-ruleset fractions-distribute.c (fractions simplify complex)
+  #:type ([a complex] [b complex] [c complex] [d complex])
   [div-sub     (/.c (-.c a b) c)          (-.c (/.c a c) (/.c b c))]
   [times-frac  (/.c (*.c a b) (*.c c d))  (*.c (/.c a c) (/.c b d))])
 
@@ -199,6 +203,7 @@
   [frac-2neg   (/ a b)              (/ (- a) (- b))])
 
 (define-ruleset fractions-transform.c (fractions complex)
+  #:type ([a complex] [b complex] [c complex] [d complex])
   [sub-div     (-.c (/.c a c) (/.c b c))  (/.c (-.c a b) c)]
   [frac-add    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
   [frac-sub    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
