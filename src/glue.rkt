@@ -1,53 +1,27 @@
 #lang racket
 
 (require "common.rkt")
-(require "points.rkt")
 (require "alternative.rkt")
+(require "points.rkt")
 (require "programs.rkt")
 (require "core/simplify.rkt")
-(require "core/localize.rkt")
 (require "core/regimes.rkt")
-(require "core/periodicity.rkt")
 (require "core/taylor.rkt")
 (require "core/alt-table.rkt")
-(require "core/matcher.rkt")
-(require  "type-check.rkt")
+(require "type-check.rkt")
 
-(provide setup-prog setup-alt-simplified
-         split-table extract-alt combine-alts
-         best-alt simplify-alt
-         taylor-alt)
+(provide combine-alts best-alt simplify-alt taylor-alt)
 
 ;; Implementation
-
-(define (setup-prog prog)
-  (let* ([alt (make-alt prog)]
-	 [table (make-alt-table (*pcontext*) alt)]
-	 [extracted (atab-all-alts table)])
-    (assert (equal? extracted (list alt))
-	    #:extra-info (λ () (format "Extracted is ~a, but we gave it ~a"
-				       extracted alt)))
-    table))
-
-(define (setup-alt-simplified prog)
-  (let* ([alt (make-alt prog)]
-	 [maybe-simplify (if (flag-set? 'setup 'simplify) simplify-alt identity)]
-	 [processed (maybe-simplify alt)])
-    processed))
-
-(define (extract-alt table)
-  (parameterize ([*pcontext* (atab-context table)])
-    (argmin alt-cost
-            (argmins (compose errors-score alt-errors)
-                     (atab-all-alts table)))))
 
 (define (combine-alts splitpoints alts)
   (define expr
     (for/fold
         ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
         ([splitpoint (cdr (reverse splitpoints))])
-      (define test `(<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint)))
-      `(if ,test ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint)))) ,expr)))
+      `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+           ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+           ,expr)))
   (alt `(λ ,(program-variables (*start-prog*)) ,expr)
        (list 'regimes splitpoints) alts))
 
@@ -69,27 +43,16 @@
       #;(log ,log-x ,exp-x))))
 
 (define (taylor-alt altn loc)
-  ; BEWARE WHEN EDITING: the free variables of an expression can be null
   (define expr (location-get loc (alt-program altn)))
-  (match (type-of expr (for/hash ([var (free-variables expr)]) (values var 'real)))
-    ['real
-      (for/list ([transform transforms-to-try])
-        (match transform
-        [(list name f finv)
+  (define vars (free-variables expr))
+  (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
+          (not (equal? (type-of expr (for/hash ([var vars]) (values var 'real))) 'real)))
+      (list altn)
+      (for/list ([transform-type transforms-to-try])
+        (match-define (list name f finv) transform-type)
+        (define transformer (map (const (cons f finv)) vars))
         (alt
-          (location-do loc (alt-program altn)
-                       (λ (expr) (let ([fv (free-variables expr)])
-                                      (if (null? fv) expr
-                                          (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
-          `(taylor ,name ,loc)
-          (list altn))]))]
-    ['complex
-      (list altn)]))
-
-(define (split-table orig-table)
-  (match-let* ([(list splitpoints altns) (infer-splitpoints (atab-all-alts orig-table))])
-    (if (= 1 (length splitpoints)) (list (list orig-table) splitpoints)
-	(let* ([preds (splitpoints->point-preds splitpoints (length altns))]
-	       [tables* (split-atab orig-table preds)])
-	  (list tables* splitpoints)))))
+         (location-do loc (alt-program altn) (λ (expr) (approximate expr vars #:transform transformer)))
+         `(taylor ,name ,loc)
+         (list altn)))))
 

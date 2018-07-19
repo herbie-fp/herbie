@@ -11,6 +11,7 @@
 (require "core/simplify.rkt")
 (require "formats/test.rkt")
 (require "core/matcher.rkt")
+(require "core/regimes.rkt")
 
 (provide (all-defined-out))
 
@@ -72,13 +73,15 @@
   (rollback-improve!)
   (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([context (prepare-points prog precondition)])
+  (let* ([context (prepare-points prog precondition)]
+         [altn (make-alt prog)])
     (^precondition^ precondition)
     (*pcontext* context)
     (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (define log! (timeline-event! 'setup))
-    (^table^ (setup-prog prog))
+    (^table^ (make-alt-table context altn))
+    (assert (equal? (atab-all-alts (^table^)) (list altn)))
     (void)))
 
 ;; Information
@@ -240,27 +243,30 @@
 	    init-alt))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (let* ([current-alts (atab-all-alts (^table^))]
-               [new-alt (setup-alt-simplified prog)]
-               [all-alts (append current-alts (list new-alt))])
-          (^table^ (atab-add-altns (^table^) all-alts))
-          (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-            (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-            (run-iter!))
-          (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-          (if get-context?
-              (list (get-final-combination) (*pcontext*))
-              (get-final-combination))))))
+        (^table^
+         (atab-add-altns (^table^)
+                         (if (flag-set? 'setup 'simplify)
+                             (for/list ([altn (atab-all-alts (^table^))])
+                               (apply alt-apply altn (simplify altn)))
+                             (list))))
+        (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+          (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+          (run-iter!))
+        (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+        (if get-context?
+            (list (get-final-combination) (*pcontext*))
+            (get-final-combination)))))
 
 (define (get-final-combination)
   (define joined-alt
     (if (flag-set? 'reduce 'regimes)
       (let ([log! (timeline-event! 'regimes)])
-        (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
-          (if (= (length tables) 1)
-              (extract-alt (car tables))
-              (combine-alts splitpoints (map extract-alt tables)))))
-      (extract-alt (^table^))))
+        (match (infer-splitpoints (atab-all-alts (^table^)))
+          [(list (list splitpoint) (list altn))
+           altn]
+          [(list (list splitpoints ...) (list altns ...))
+           (combine-alts splitpoints altns)]))
+      (best-alt (atab-all-alts (^table^)))))
   (define cleaned-alt (apply alt-apply joined-alt (simplify-fp-safe joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
