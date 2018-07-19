@@ -4,13 +4,11 @@
 (require "alternative.rkt")
 (require "points.rkt")
 (require "programs.rkt")
-(require "core/simplify.rkt")
 (require "core/regimes.rkt")
 (require "core/taylor.rkt")
-(require "core/alt-table.rkt")
 (require "type-check.rkt")
 
-(provide combine-alts best-alt simplify-alt taylor-alt)
+(provide combine-alts best-alt taylor-alt)
 
 ;; Implementation
 
@@ -29,9 +27,6 @@
   (argmin alt-cost
 	  (argmins (compose errors-score alt-errors)
 		   alts)))
-
-(define (simplify-alt altn)
-  (apply alt-apply altn (simplify altn)))
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
