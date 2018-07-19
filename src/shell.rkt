@@ -25,7 +25,7 @@
       (define output (get-test-result test #:seed seed))
       (match output
         [(? test-result?)
-         (printf "~a\n" (unparse-result output))]
+         (pretty-print (unparse-result output) (current-output-port) 1)]
         [(test-failure test bits exn time timeline)
          ((error-display-handler) (exn-message exn) exn)]
         [(test-timeout test bits time timeline)
