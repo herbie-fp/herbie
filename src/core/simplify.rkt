@@ -41,7 +41,7 @@
             (cons var var))))
 
 (define/contract (simplify altn #:rules [rls (*simplify-rules*)])
-  (->* (alternative?) (#:rules (listof rule?)) (listof change?))
+  (->* (alt?) (#:rules (listof rule?)) (listof change?))
   (define prog (alt-program altn))
   (cond
    [(not (alt-delta? altn))
@@ -71,7 +71,7 @@
                   (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
 
 (define/contract (simplify-fp-safe altn)
-  (-> alternative? (listof change?))
+  (-> alt? (listof change?))
   (simplify altn #:rules (*fp-safe-simplify-rules*)))
 
 (define/contract (simplify-expr expr #:rules rls)

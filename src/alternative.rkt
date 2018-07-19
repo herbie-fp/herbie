@@ -5,7 +5,7 @@
 (require "core/matcher.rkt")
 (require "common.rkt")
 
-(provide (struct-out alt-delta) (struct-out alt-event) alternative?
+(provide alt-delta alt-delta? (struct-out alt)
          make-alt alt? alt-program alt-change
          alt-errors alt-cost alt-add-event alt-history-length
          make-regime-alt
@@ -16,44 +16,34 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt-delta (program change prev)
+(struct alt (program event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (display "#<alt-delta " port)
+           (display "#<alt " port)
            (write (alt-program alt) port)
            (display ">" port))])
 
-(struct alt-event (program event prevs)
-        #:methods gen:custom-write
-        [(define (write-proc alt port mode)
-           (display "#<alt-event " port)
-           (write (alt-program alt) port)
-           (display ">" port))])
-
-(define alternative? (or/c alt-delta? alt-event?))
+(define (alt-delta program change prev)
+  (alt program (list 'change change) (list prev)))
 
 (define (make-alt prog)
-  (alt-event prog 'start '()))
+  (alt prog 'start '()))
 
-(define (alt? altn)
-  (or (alt-delta? altn) (alt-event? altn)))
-
-(define (alt-program altn)
-  (match altn
-    [(alt-delta prog _ _) prog]
-    [(alt-event prog _ _) prog]))
+(define (alt-delta? altn)
+  (match (alt-event altn)
+    [(list 'change _) true]
+    [_ false]))
 
 (define (alt-change altn)
   (match altn
-    [(alt-delta _ cng _) cng]
-    [(alt-event _ _ '()) #f]
-    [(alt-event _ _ `(,prev ,_ ...)) (alt-change prev)]))
+    [(alt _ (list 'change cng) _) cng]
+    [(alt _ _ prevs) (ormap alt-change prevs)]))
 
 (define (alt-prev altn)
   (match altn
-    [(alt-delta _ _ prev) prev]
-    [(alt-event _ _ '()) #f]
-    [(alt-event _ _ `(,prev ,_ ...)) (alt-prev prev)]))
+    [(alt _ (list 'change cng) (list prev)) prev]
+    [(alt _ _ '()) #f]
+    [(alt _ _ `(,prev ,_ ...)) (alt-prev prev)]))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*pcontext*)))
@@ -83,7 +73,7 @@
       0))
 
 (define (alt-add-event altn event)
-  (alt-event (alt-program altn) event (list altn)))
+  (alt (alt-program altn) event (list altn)))
 
 (define (make-regime-alt new-prog altns splitpoints)
-  (alt-event new-prog (list 'regimes splitpoints) altns))
+  (alt new-prog (list 'regimes splitpoints) altns))

@@ -199,7 +199,7 @@
             (location-do (lp-loc ploc) prog (const oexpr)))])
     (debug #:from 'periodicity "Periodicity result: " final-prog)
     (if (not (null? oalts))
-        (alt-event final-prog 'periodicity (cons altn oalts))
+        (alt final-prog 'periodicity (cons altn oalts))
         altn)))
 
 (define (symbol-mod v periods)

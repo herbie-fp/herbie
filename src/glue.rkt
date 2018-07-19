@@ -34,7 +34,7 @@
         [_ expr])))
   (if (equal? body* (program-body (alt-program altn)))
       altn
-      (alt-event `(λ ,(program-variables (alt-program altn)) ,body*)
+      (alt `(λ ,(program-variables (alt-program altn)) ,body*)
                  'removed-pows (list altn))))
 
 (define (setup-prog prog fuel)
@@ -139,7 +139,7 @@
       (for/list ([transform transforms-to-try])
         (match transform
         [(list name f finv)
-        (alt-event
+        (alt
           (location-do loc (alt-program altn)
                        (λ (expr) (let ([fv (free-variables expr)])
                                       (if (null? fv) expr
