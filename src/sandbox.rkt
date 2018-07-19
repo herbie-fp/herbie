@@ -11,7 +11,6 @@
 (require "points.rkt")
 (require "formats/test.rkt")
 (require "alternative.rkt")
-(require "glue.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)

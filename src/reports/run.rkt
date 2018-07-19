@@ -8,7 +8,6 @@
 (require "../points.rkt")
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
-(require "../glue.rkt")
 (require "../formats/c.rkt")
 (require "../sandbox.rkt")
 (require "thread-pool.rkt")

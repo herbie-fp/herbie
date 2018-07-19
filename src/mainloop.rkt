@@ -1,7 +1,6 @@
 #lang racket
 
 (require "common.rkt")
-(require "glue.rkt")
 (require "programs.rkt")
 (require "points.rkt")
 (require "core/localize.rkt")
@@ -12,6 +11,7 @@
 (require "formats/test.rkt")
 (require "core/matcher.rkt")
 (require "core/regimes.rkt")
+(require "type-check.rkt") ;; For taylor not running on complex exprs
 
 (provide (all-defined-out))
 
@@ -113,6 +113,11 @@
 	(^table^ table*)
 	(void))))
 
+(define (best-alt alts)
+  (argmin alt-cost
+	  (argmins (compose errors-score alt-errors)
+		   alts)))
+
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
 					       #:only-fresh #t)])
@@ -126,6 +131,30 @@
   (define log! (timeline-event! 'localize))
   (^locs^ (localize-error (alt-program (^next-alt^))))
   (void))
+
+(define transforms-to-try
+  (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
+	[ninvert-x (λ (x) `(/ 1 (- ,x)))])
+    `((0 ,identity ,identity)
+      (inf ,invert-x ,invert-x)
+      (-inf ,ninvert-x ,ninvert-x)
+      #;(exp ,exp-x ,log-x)
+      #;(log ,log-x ,exp-x))))
+
+(define (taylor-alt altn loc)
+  (define expr (location-get loc (alt-program altn)))
+  (define vars (free-variables expr))
+  (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
+          (not (equal? (type-of expr (for/hash ([var vars]) (values var 'real))) 'real)))
+      (list altn)
+      (for/list ([transform-type transforms-to-try])
+        (match-define (list name f finv) transform-type)
+        (define transformer (map (const (cons f finv)) vars))
+        (alt
+         (location-do loc (alt-program altn) (λ (expr) (approximate expr vars #:transform transformer)))
+         `(taylor ,name ,loc)
+         (list altn)))))
+
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
@@ -256,6 +285,17 @@
         (if get-context?
             (list (get-final-combination) (*pcontext*))
             (get-final-combination)))))
+
+(define (combine-alts splitpoints alts)
+  (define expr
+    (for/fold
+        ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+        ([splitpoint (cdr (reverse splitpoints))])
+      `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+           ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+           ,expr)))
+  (alt `(λ ,(program-variables (*start-prog*)) ,expr)
+       (list 'regimes splitpoints) alts))
 
 (define (get-final-combination)
   (define joined-alt
