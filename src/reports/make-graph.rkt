@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "common.rkt")
+(require "../common.rkt")
 (require "../points.rkt" "../float.rkt")
 (require "../alternative.rkt" "../errors.rkt")
 (require "../formats/test.rkt")

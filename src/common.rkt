@@ -16,6 +16,7 @@
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
+         format-time format-bits
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -311,3 +312,19 @@
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a)
        #'(app syntax-e 'a)])))
+
+;; String formatting operations
+
+(define (format-time ms)
+  (cond
+   [(< ms 1000) (format "~ams" (round ms))]
+   [(< ms 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
+   [(< ms 3600000) (format "~am" (/ (round (/ ms 6000.0)) 10))]
+   [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (format-bits r #:sign [sign #f] #:unit [unit? #f])
+  (define unit (if unit? "b" ""))
+  (cond
+   [(not r) ""]
+   [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+   [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
