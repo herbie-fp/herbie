@@ -408,10 +408,6 @@
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"]) ,err))
            (div "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
-    [(alt prog 'removed-pows `(,prev))
-     `(,@(render-history prev)
-       (li ([class "event"]) "Removed slow " (code "pow") " expressions."))]
-
     [(alt prog 'final-simplify `(,prev))
      `(,@(render-history prev)
        (li ([class "event"]) "Applied final simplification."))]

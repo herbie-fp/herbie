@@ -61,8 +61,6 @@
   (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
   (shellstate-simplified (^shell-state^)))
 
-(define *setup-fuel* (make-parameter 3))
-
 (define (timeline-event! type)
   (let ([b (box (list (cons 'type type) (cons 'time (current-inexact-milliseconds))))])
     (set-shellstate-timeline! (^shell-state^) (cons b (shellstate-timeline (^shell-state^))))
@@ -80,7 +78,7 @@
     (*analyze-context* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (define log! (timeline-event! 'setup))
-    (^table^ (setup-prog prog (*setup-fuel*)))
+    (^table^ (setup-prog prog))
     (void)))
 
 ;; Information
@@ -263,8 +261,7 @@
               (extract-alt (car tables))
               (combine-alts splitpoints (map extract-alt tables)))))
       (extract-alt (^table^))))
-  (define reduced-alt (remove-pows joined-alt))
-  (define cleaned-alt (apply alt-apply reduced-alt (simplify-fp-safe reduced-alt)))
+  (define cleaned-alt (apply alt-apply joined-alt (simplify-fp-safe joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
 

@@ -13,31 +13,14 @@
 (require "core/matcher.rkt")
 (require  "type-check.rkt")
 
-(provide remove-pows setup-prog setup-alt-simplified
+(provide setup-prog setup-alt-simplified
          split-table extract-alt combine-alts
          best-alt simplify-alt completely-simplify-alt
          taylor-alt)
 
-(define initial-fuel '())
-
 ;; Implementation
 
-(define (remove-pows altn)
-  (define body*
-    (let loop ([expr (program-body (alt-program altn))])
-      (match expr
-        [(list 'expt base (and (? integer?) (? positive?) (? (curryr < 10)) exponent))
-         (for/fold ([term base]) ([i (in-range 1 exponent)])
-           (list '* base term))]
-        [(list op args ...)
-         (cons op (map loop args))]
-        [_ expr])))
-  (if (equal? body* (program-body (alt-program altn)))
-      altn
-      (alt `(λ ,(program-variables (alt-program altn)) ,body*)
-                 'removed-pows (list altn))))
-
-(define (setup-prog prog fuel)
+(define (setup-prog prog)
   (let* ([alt (make-alt prog)]
 	 [table (make-alt-table (*pcontext*) alt)]
 	 [extracted (atab-all-alts table)])

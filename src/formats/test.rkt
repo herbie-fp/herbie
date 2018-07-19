@@ -49,21 +49,20 @@
     [_
      (raise-herbie-error "Invalid input expression." #:url "input.html")]))
 
+(define (load-stdin)
+  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
+    (parse-test test)))
+
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
       (for/list ([test (in-port (curry read-syntax file) port)])
         (parse-test test)))))
 
-(define (is-racket-file? f)
-  (and (equal? (filename-extension f) #"fpcore") (file-exists? f)))
-
-(define (load-stdin)
-  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (parse-test test)))
-
 (define (load-directory dir)
-  (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
+  (for/append ([fname (in-directory dir)]
+               #:when (file-exists? fname)
+               #:when (equal? (filename-extension fname) "fpcore"))
     (load-file fname)))
 
 (define (load-tests path)
