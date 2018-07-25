@@ -11,12 +11,21 @@
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, real part"
+ :herbie-target
+ (+ (* (* x.re x.re) (- x.re x.im))
+    (* (* x.re x.im) (- x.re (* 3 x.im))))
+
  (-
   (* (- (* x.re x.re) (* x.im x.im)) x.re)
   (* (+ (* x.re x.im) (* x.im x.re)) x.im)))
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, imaginary part"
+ :herbie-target
+ (+
+  (* (* x.re x.im) (* 2 x.re))
+  (* (* x.im (- x.re x.im)) (+ x.re x.im)))
+
  (+
   (* (- (* x.re x.re) (* x.im x.im)) x.im)
   (* (+ (* x.re x.im) (* x.im x.re)) x.re)))
@@ -107,7 +116,7 @@
 
 (FPCore (re im)
  :name "math.sqrt on complex, imaginary part, im greater than 0 branch"
- (* 0.5 (sqrt (* 2.0 (+ (sqrt (- (* re re) (* im im))) re)))))
+ (* 0.5 (sqrt (* 2.0 (- (sqrt (+ (* re re) (* im im))) re)))))
 
 (FPCore (re im)
  :name "math.square on complex, real part"
