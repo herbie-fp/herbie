@@ -274,7 +274,8 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
+         ,@(parameterize ([*start-prog* (alt-program start-alt)]) ; Because splitpoint->point-preds
+             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts)))))
 
        ,(render-process-info time timeline profile? test)))))
 
@@ -346,9 +347,9 @@
   (-> alt? (listof xexpr?))
 
   (define err
-    (format-bits (errors-score (error (alt-program altn) pcontext))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext))))
   (define err2
-    (format "Internal: ~a" (format-bits (errors-score (error (alt-program altn) pcontext2)))))
+    (format "Internal: ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
 
   (match altn
     [(alt prog 'start (list))

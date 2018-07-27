@@ -90,7 +90,7 @@
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
-    (list (map car p&e) (map cdr p&e))))
+    (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (select-every skip l)
   (let loop ([l l] [count skip])

@@ -32,7 +32,7 @@
 (define (make-alt-table context initial-alt)
    (alt-table (make-immutable-hash
 	       (for/list ([(pt ex) (in-pcontext context)]
-			  [err (alt-errors initial-alt)])
+			  [err (errors (alt-program initial-alt) context)])
 		 (cons pt (point-rec err (list initial-alt)))))
 	      (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
 				  pt))
@@ -123,7 +123,7 @@
   (let-values ([(best tied)
 		(for/lists (best tied)
 		    ([(pnt ex) (in-pcontext (*pcontext*))]
-		     [err (alt-errors altn)])
+		     [err (errors (alt-program altn) (*pcontext*))])
 		  (let* ([pnt-rec (hash-ref point->alt pnt)]
 			 [table-err (point-rec-berr pnt-rec)])
 		    (cond [(< err table-err)
@@ -144,7 +144,7 @@
 
 (define (override-at-pnts points->alts pnts altn)
   (let ([pnt->alt-err (make-immutable-hash (for/list ([(pnt ex) (in-pcontext (*pcontext*))]
-						      [err (alt-errors altn)])
+						      [err (errors (alt-program altn) (*pcontext*))])
 					     (cons pnt err)))])
     (hash-set-lsts
      points->alts pnts

@@ -82,11 +82,12 @@
 
 (define (option-on-expr alts expr)
   (define vars (program-variables (*start-prog*)))
-  (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
+  (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
   (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
   (define err-lsts
-    (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
+    (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
   (define split-indices (err-lsts->split-indices merged-err-lsts can-split?))

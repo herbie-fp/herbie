@@ -107,7 +107,7 @@
 
 (define (best-alt alts)
   (argmin alt-cost
-	  (argmins (compose errors-score alt-errors)
+	  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
 		   alts)))
 
 (define (choose-best-alt!)
