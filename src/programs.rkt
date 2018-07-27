@@ -113,7 +113,7 @@
       ['fl ->flonum]
       ['nonffi (λ (x) (if (symbol? x) (->flonum x) x))])) ; Keep exact numbers exact
   (define precision->real
-    (match mode ['bf ->bf] ['fl ->flonum] ['nonffi identity]))
+    (match mode ['bf ->flonum] ['fl ->flonum] ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
