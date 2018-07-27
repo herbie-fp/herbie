@@ -288,7 +288,7 @@
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "(e^{~a} - 1)^*")]
-  [nonffi (from-bigfloat expm1)])
+  [nonffi (from-bigfloat bfexpm1)])
 
 (define-operator/libm (fabs real) real
   [libm fabs fabsf] [bf bfabs] [cost 40]
