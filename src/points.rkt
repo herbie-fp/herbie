@@ -5,9 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points prepare-points-period make-exacts
-         errors errors-score sorted-context-list sort-context-on-expr
-         random-subsample)
+         prepare-points
+         errors errors-score sort-context-on-expr)
 
 (module+ test
   (require rackunit))
@@ -96,35 +95,10 @@
 		(begin (assert (not (= 0 (vector-length exacts))))
 		       exacts))))
 
-(define (random-subsample pcontext n)
-  (let*-values ([(old-points) (pcontext-points pcontext)]
-                [(old-exacts) (pcontext-exacts pcontext)]
-                [(points exacts)
-                 (for/lists (points exacts)
-		     ([i (in-range n)])
-		   (let ([idx (random (vector-length old-points))])
-		     (values (vector-ref old-points idx)
-			     (vector-ref old-exacts idx))))])
-    (mk-pcontext points exacts)))
-
-(define (sorted-context-list context vidx)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   </total #:key (compose (curryr list-ref vidx) car))])
-    (list (map car p&e) (map cdr p&e))))
-
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
     (list (map car p&e) (map cdr p&e))))
-
-(define (make-period-points num periods)
-  (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
-    (apply cartesian-product
-	   (map (λ (prd)
-		  (let ([bucket-width (/ prd points-per-dim)])
-		    (for/list ([i (range points-per-dim)])
-		      (+ (* i bucket-width) (* bucket-width (random))))))
-		periods))))
 
 (define (select-every skip l)
   (let loop ([l l] [count skip])
@@ -260,13 +234,6 @@
                     [exs* (filter-exacts pts1 exs1)])
               ; keep iterating till we get at least *num-points*
               (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))]))))
-
-(define (prepare-points-period prog periods)
-  (let* ([pts (make-period-points (*num-points*) periods)]
-	 [exacts (make-exacts prog pts)]
-	 [pts* (filter-points pts exacts)]
-	 [exacts* (filter-exacts pts exacts)])
-    (mk-pcontext pts* exacts*)))
 
 (define (errors prog pcontext)
   (let ([fn (eval-prog prog 'fl)]
