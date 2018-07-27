@@ -10,7 +10,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog
+         eval-prog eval-const-expr
          compile expression-cost program-cost
          free-variables replace-expression
          desugar-program)
