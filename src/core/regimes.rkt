@@ -211,13 +211,12 @@
 ;; Takes a vector of numbers, and returns the partial sum of those numbers.
 ;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
 (define (partial-sum vec)
-  (first-value
-   (for/fold ([res (make-vector (vector-length vec))]
-	      [cur-psum 0])
-       ([(el idx) (in-indexed (in-vector vec))])
-     (let ([new-psum (+ cur-psum el)])
-       (vector-set! res idx new-psum)
-       (values res new-psum)))))
+  (define res (make-vector (vector-length vec)))
+  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
+    (let ([new-psum (+ cur-psum el)])
+      (vector-set! res idx new-psum)
+      new-psum))
+  res)
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
