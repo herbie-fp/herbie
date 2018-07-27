@@ -204,15 +204,19 @@
         altn)))
 
 (define (symbol-mod v periods)
-  (if (assoc v periods)
-      (let ([coeff (cdr (assoc v periods))])
+  (if (dict-has-key? periods v)
+      (let ([coeff (dict-ref periods v)])
         `(mod ,v ,(if (= 1/2 coeff) 'PI `(* ,(* 2 coeff) PI))))
       v))
+
+(define (replace-vars vars expr periods)
+  (for/fold ([expr expr]) ([var vars])
+    (replace-expression expr var (symbol-mod var periods))))
 
 (define (coerce-conditions prog periods)
   (let loop ([cur-body (program-body prog)])
     (match cur-body
       [`(if ,cond ,a ,b)
-       `(if ,(replace-leaves cond #:variable (curryr symbol-mod periods))
+       `(if ,(replace-vars (program-variables prog) cond periods)
 	    ,(loop a) ,(loop b))]
       [_ cur-body])))

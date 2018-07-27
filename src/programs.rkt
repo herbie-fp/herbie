@@ -7,13 +7,12 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
-         replace-leaves location-hash
+         location-hash
          location? expr?
          location-do location-get location-parent location-sibling
          eval-prog
          compile expression-cost program-cost
          free-variables replace-expression
-         eval-exact eval-const-expr
          desugar-program)
 
 (define expr? (or/c list? symbol? number?))
@@ -78,27 +77,6 @@
 
   hash)
 
-(define/contract (replace-leaves prog #:constant [constant identity]
-                                 #:variable [variable identity] #:symbol [symbol-table identity])
-  (->* (expr?)
-       (#:constant (-> constant? any/c) #:variable (-> variable? any/c) #:symbol (-> operator? any/c))
-       any/c)
-
-  ; Inlined for speed
-  (define (inductor prog)
-    (match prog
-      [(list (or 'lambda 'λ) (list vars ...) body)
-       `(λ ,vars ,(inductor body))]
-      [(? constant?) (constant prog)]
-      [(? variable?) (variable prog)]
-      [(list 'if cond ift iff)
-       `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
-      [(list op args ...)
-       (cons (symbol-table op) (map inductor args))]
-      [_ (error (format "Invalid program ~a" prog))]))
-
-  (inductor prog))
-
 (define (free-variables prog)
   (match prog
     [(? constant?) '()]
@@ -144,30 +122,30 @@
           #f]))))
 
 (define (eval-prog prog mode)
-  (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]
-         [op->precision (λ (op) (operator-info op mode))] ; TODO change use of mode
-         [body* (replace-leaves (program-body prog) #:constant real->precision #:symbol op->precision)]
-         [prog-opt `(λ ,(program-variables prog) ,(compile body*))]
-         [fn (eval prog-opt common-eval-ns)])
-    (lambda (pts)
-      (->flonum (apply fn (map real->precision pts))))))
+  (define real->precision
+    (match mode
+      ['bf ->bf]
+      ['fl ->flonum]
+      ['nonffi (λ (x) (if (symbol? x) (->flonum x) x))])) ; Keep exact numbers exact
+  (define precision->real
+    (match mode ['bf ->bf] ['fl ->flonum] ['nonffi identity]))
 
-;; Does the same thing as the above with mode 'bf, but doesn't convert
-;; the results back to floats.
-(define (eval-exact prog)
-  (let* ([body* (replace-leaves (program-body prog) #:constant ->bf #:symbol (curryr operator-info 'bf))]
-         [prog-opt `(lambda ,(program-variables prog) ,(compile body*))]
-         [fn (eval prog-opt common-eval-ns)])
-    (lambda (pts)
-      (apply fn (map ->bf pts)))))
+  (define body*
+    (let inductor ([prog (program-body prog)])
+      (match prog
+        [(? constant?) (real->precision prog)]
+        [(? variable?) prog]
+        [(list 'if cond ift iff)
+         `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
+        [(list op args ...)
+         (cons (operator-info op mode) (map inductor args))]
+        [_ (error (format "Invalid program ~a" prog))])))
+  (define fn (eval `(λ ,(program-variables prog) ,(compile body*)) common-eval-ns))
+  (lambda (pts)
+    (precision->real (apply fn (map real->precision pts)))))
 
 (define (eval-const-expr expr)
-  (eval
-   (replace-leaves
-    expr
-    #:constant (λ (x) (if (symbol? x) (->flonum x) x))
-    #:symbol (curryr operator-info 'nonffi))
-   common-eval-ns))
+  ((eval-prog `(λ () ,expr) 'nonffi) '()))
 
 (module+ test
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
