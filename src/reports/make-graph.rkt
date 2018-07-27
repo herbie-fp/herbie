@@ -274,9 +274,7 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
-                        [*start-prog* (alt-program start-alt)])
-             (render-history end-alt))))
+         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
        ,(render-process-info time timeline profile? test)))))
 
@@ -344,17 +342,21 @@
 
 (struct interval (alt-idx start-point end-point expr))
 
-(define (render-history altn)
+(define (render-history altn pcontext pcontext2)
   (-> alt? (listof xexpr?))
 
-  (define err (format-bits (errors-score (alt-errors altn))))
+  (define err
+    (format-bits (errors-score (error (alt-program altn) pcontext))))
+  (define err2
+    (format "Internal: ~a" (format-bits (errors-score (error (alt-program altn) pcontext2)))))
+
   (match altn
     [(alt prog 'start (list))
      (list
-      `(li (p "Initial program " (span ([class "error"]) ,err))
+      `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div "\\[" ,(texify-prog prog) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
-     `(,@(render-history prev)
+     `(,@(render-history prev pcontext pcontext2)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt _ `(regimes ,splitpoints) prevs)
@@ -386,7 +388,8 @@
                       [condition
                        (string-join (map interval->string entry-ivals) " or ")])
                  (define-values (ivalpoints ivalexacts)
-                   (for/lists (pts exs) ([(pt ex) (in-pcontext (*pcontext*))] #:when (pred pt))
+                   (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext)]
+                                         #:when (pred pt))
                      (values pt ex)))
 
                  ;; TODO: The (if) here just corrects for the possibility
@@ -397,25 +400,33 @@
                  ;; abstraction boundaries right now so we haven't done it
                  ;; yet.
                  (define new-pcontext
-                   (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
+                   (if (null? ivalpoints) pcontext (mk-pcontext ivalpoints ivalexacts)))
+
+                 (define new-pcontext2
+                   (call-with-values
+                       (λ ()
+                         (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext2)]
+                                               #:when (pred pt))
+                           (values pt ex)))
+                     mk-pcontext))
 
                  `((h2 (code "if " (span ([class "condition"]) ,condition)))
-                   (ol ,@(parameterize ([*pcontext* new-pcontext]) (render-history entry))))))))
+                   (ol ,@(render-history entry new-pcontext new-pcontext2)))))))
          (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program.")))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
-     `(,@(render-history prev)
-       (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"]) ,err))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog 'final-simplify `(,prev))
-     `(,@(render-history prev)
+     `(,@(render-history prev pcontext pcontext2)
        (li ([class "event"]) "Applied final simplification."))]
 
     [(alt prog (list 'change cng) `(,prev))
-     `(,@(render-history prev)
+     `(,@(render-history prev pcontext pcontext2)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
-              (span ([class "error"]) ,err))
+              (span ([class "error"] [title ,err2]) ,err))
            (div "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
 
 (define (procedure-name->string name)
