@@ -98,13 +98,14 @@
          (with-output-to-string
            (λ ()
              (printf "\\begin{array}{l}\n")
-             (for ([branch (collect-branches expr loc)])
+             (for ([branch (collect-branches expr loc)] [n (in-naturals)])
                (match branch
                  [(list #t bexpr bloc)
                   (printf "\\mathbf{else}:~a~a~a~a\n"
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]
                  [(list bcond bexpr bloc)
-                  (printf "\\mathbf{if}\\;~a:~a~a~a~a\n"
+                  (printf "\\mathbf{~a}\\;~a:~a~a~a~a\n"
+                          (if (= n 0) "if" "elif")
                           (texify bcond #t (cons 1 bloc))
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
