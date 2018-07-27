@@ -16,15 +16,22 @@
 
 (define *loaded-ops* (make-parameter '()))
 
-(define (type? x) (or (equal? x 'real) (equal? x 'bool) (equal? x 'complex)))
+(define types '(bool real complex))
+(define (type? x) (set-member? types x))
+
+(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?])
+(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?])
+
+(define value? (apply or/c (map value-of types)))
+(define bigvalue? (apply or/c (map bigvalue-of types)))
 
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
 
 (define-table constants
   [type type?]
-  [bf (->* () (or/c bigfloat? boolean?))]
-  [fl (->* () (or/c flonum? boolean?))]
+  [bf (->* () bigvalue?)]
+  [fl (->* () value?)]
   [->c/double string?]
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
@@ -71,9 +78,9 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table operators
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? bigcomplex?) (or/c bigfloat? boolean? bigcomplex?))]
-  [fl    (unconstrained-argument-number-> (or/c flonum? boolean? complex?) (or/c flonum? boolean? complex?))]
-  [nonffi (unconstrained-argument-number-> (or/c real? boolean? complex?) (or/c real? boolean? complex?))]
+  [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
+  [fl    (unconstrained-argument-number-> value? value?)]
+  [nonffi (unconstrained-argument-number-> value? value?)]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (listof (list/c (or/c (listof type?) (list/c '* type?)) type?)))]
   [->c/double (unconstrained-argument-number-> string? string?)]
