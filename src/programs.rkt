@@ -9,7 +9,7 @@
          program-body program-variables ->flonum ->bf
          location-hash
          location? expr?
-         location-do location-get location-parent location-sibling
+         location-do location-get
          eval-prog
          compile expression-cost program-cost
          free-variables replace-expression
@@ -105,21 +105,6 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
-
-(define (location-parent loc)
-  (reverse (cdr (reverse loc))))
-
-(define (location-sibling loc)
-  (if (<= (length loc) 1)
-      #f
-      (let ([loc* (reverse loc)])
-        (cond
-         [(= (car loc*) 1)
-          (reverse (cons 2 (cdr loc*)))]
-         [(= (car loc*) 2)
-          (reverse (cons 1 (cdr loc*)))]
-         [else
-          #f]))))
 
 (define (eval-prog prog mode)
   (define real->precision
