@@ -12,7 +12,7 @@
          location-do location-get location-parent location-sibling
          eval-prog
          compile expression-cost program-cost
-         free-variables unused-variables replace-expression
+         free-variables replace-expression
          eval-exact eval-const-expr
          desugar-program)
 
@@ -107,10 +107,6 @@
            (remove* vars (free-variables body))]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
-
-(define (unused-variables prog)
-  (remove* (free-variables (program-body prog))
-           (program-variables prog)))
 
 
 (define/contract (location-do loc prog f)
