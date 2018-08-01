@@ -85,7 +85,7 @@
   (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real)
   (define xc (new-enode '1+2i 1))
   (define yc (new-enode '2+3i 2))
-  (define xcplusyc (new-enode (list '+ xc yc) 3))
+  (define xcplusyc (new-enode (list '+.c xc yc) 3))
   (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex))
   
        

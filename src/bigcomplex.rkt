@@ -25,14 +25,12 @@
   (bigcomplex (bf+ (bigcomplex-re x) (bigcomplex-re y))
               (bf+ (bigcomplex-im x) (bigcomplex-im y))))
 
-(define (bf-complex-sub x [y #f])
-  (if y
-      (bf-complex-add x (bf-complex-neg y))
-      (bf-complex-neg x)))
+(define (bf-complex-sub x y)
+  (bf-complex-add x (bf-complex-neg y)))
 
 (define (bf-complex-mult x y)
   (bigcomplex (bf+ (bf* (bigcomplex-re x) (bigcomplex-re y)) (bf- (bf* (bigcomplex-im x) (bigcomplex-im y))))
-        (bf+ (bf* (bigcomplex-im x) (bigcomplex-re y)) (bf* (bigcomplex-re x) (bigcomplex-im y)))))
+              (bf+ (bf* (bigcomplex-im x) (bigcomplex-re y)) (bf* (bigcomplex-re x) (bigcomplex-im y)))))
 
 (define (bf-complex-conjugate x)
   (bigcomplex (bigcomplex-re x) (bf- (bigcomplex-im x))))

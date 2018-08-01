@@ -218,11 +218,11 @@
 
 (define-ruleset fractions-transform.c (fractions complex)
   #:type ([a complex] [b complex] [c complex] [d complex])
-  [sub-div     (-.c (/.c a c) (/.c b c))  (/.c (-.c a b) c)]
-  [frac-add    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
-  [frac-sub    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
-  [frac-times  (*.c (/.c a b) (/.c c d))  (/.c (*.c a c) (*.c b d))]
-  [frac-2neg   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
+  [sub-div.c     (-.c (/.c a c) (/.c b c))  (/.c (-.c a b) c)]
+  [frac-add.c    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
+  [frac-sub.c    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
+  [frac-times.c  (*.c (/.c a b) (/.c c d))  (/.c (*.c a c) (*.c b d))]
+  [frac-2neg-c   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
 
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
@@ -703,7 +703,7 @@
 
         (define (make-point)
           (for/list ([v fv])
-            (match (dict-ref (third test-ruleset) v 'real)
+            (match (dict-ref (rule-itypes test-rule) v)
               ['real (sample-double)]
               ['bool (if (< (random) .5) false true)]
               ['complex (make-rectangular (sample-double) (sample-double))])))
@@ -745,7 +745,7 @@
         (define fv (free-variables p1))
         (define (make-point)
           (for/list ([v fv])
-            (match (dict-ref (third test-ruleset) v 'real)
+            (match (dict-ref (rule-itypes test-rule) v)
               ['real (sample-double)]
               ['bool (if (< (random) .5) false true)]
               ['complex (make-rectangular (sample-double) (sample-double))])))
