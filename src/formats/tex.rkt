@@ -3,10 +3,18 @@
 (require "../syntax/syntax.rkt")
 (require "../programs.rkt")
 
-(provide mathjax-url texify-expr texify-prog)
+(provide js-tex-include texify-expr texify-prog)
 
-(define mathjax-url
-  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+(define js-tex-include
+  '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
+           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
+             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
+             [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+             [crossorigin "anonymous"]))))
 
 (define/match (texify-variable var)
   [('l)       "\\ell"]

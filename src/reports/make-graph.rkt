@@ -211,7 +211,7 @@
        (meta ([charset "utf-8"]))
        (title "Result for " ,(~a (test-name test)))
        (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
-       (script ([src ,mathjax-url]))
+       ,@js-tex-include
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
@@ -231,9 +231,9 @@
         (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
 
        (section ([id "program"])
-        (div ([class "program"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
+        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
         (div ([class "arrow"]) "↓")
-        (div ([class "program"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
+        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
 
        (section ([id "graphs"])
         (h1 "Error")
@@ -268,7 +268,7 @@
                (tr (th "Original") (td ,(format-bits (errors-score start-error))))
                (tr (th "Target") (td ,(format-bits (errors-score target-error))))
                (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-              (div "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
+              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
             "")
 
        (section ([id "history"])
@@ -355,7 +355,7 @@
     [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div "\\[" ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[" ,(texify-prog prog) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -418,7 +418,7 @@
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog 'final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2)
@@ -428,7 +428,7 @@
      `(,@(render-history prev pcontext pcontext2)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
 
 (define (procedure-name->string name)
   (if name
