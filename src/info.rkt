@@ -32,6 +32,3 @@
 
 (define build-deps
   '("rackunit-lib"))
-
-(define compile-omit-paths '("test" "old"))
-(define test-omit-paths '("test" "old"))
