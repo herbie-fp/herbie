@@ -580,14 +580,14 @@
 (define-ruleset complex-number-basics (complex simplify)
   [real-part     (re (complex x y))     x]
   [imag-part     (im (complex x y))     y]
-  [complex-add-def  (+ (complex a b) (complex c d)) (complex (+ a c) (+ b d))]
-  [complex-def-add  (complex (+ a c) (+ b d)) (+ (complex a b) (complex c d))]
-  [complex-sub-def  (- (complex a b) (complex c d)) (complex (- a c) (- b d))]
-  [complex-def-sub  (complex (- a c) (- b d)) (- (complex a b) (complex c d))]
-  [complex-neg-def  (- (complex a b)) (complex (- a) (- b))]
-  [complex-def-neg  (complex (- a) (- b)) (- (complex a b))]
-  [complex-mul-def  (* (complex a b) (complex c d)) (complex (- (* a c) (* b d)) (+ (* a d) (* b c)))]
-  [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
+  [complex-add-def  (+.c (complex a b) (complex c d)) (complex (+ a c) (+ b d))]
+  [complex-def-add  (complex (+ a c) (+ b d)) (+.c (complex a b) (complex c d))]
+  [complex-sub-def  (-.c (complex a b) (complex c d)) (complex (- a c) (- b d))]
+  [complex-def-sub  (complex (- a c) (- b d)) (-.c (complex a b) (complex c d))]
+  [complex-neg-def  (neg.c (complex a b)) (complex (- a) (- b))]
+  [complex-def-neg  (complex (- a) (- b)) (neg.c (complex a b))]
+  [complex-mul-def  (*.c (complex a b) (complex c d)) (complex (- (* a c) (* b d)) (+ (* a d) (* b c)))]
+  [complex-div-def  (/.c (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
 

@@ -128,9 +128,14 @@
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
-(define-operator (-.c complex [complex]) complex
-  ;; Override the normal argument handling because - can be unary
-  [args '(1 2)] [type (hash 1 '(((complex) complex)) 2 '(((complex complex) complex)))]
+(define-operator (neg.c complex) complex
+  [fl -] [bf bf-complex-neg] [cost 80]
+  [->c/double (curry format "-~a")]
+  [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi -])
+
+(define-operator (-.c complex complex) complex
   [fl -] [bf bf-complex-sub] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
@@ -701,7 +706,7 @@
 (define parametric-operators
   #hash([+ . ((+ real real real) (+.c complex complex complex))]
         [- . ((- real real real) (- real real)
-              (-.c complex complex complex) (-.c complex complex))]
+              (-.c complex complex complex) (neg.c complex complex))]
         [* . ((* real real real) (*.c complex complex complex))]
         [/ . ((/ real real real) (/.c complex complex complex))]
         [pow . ((pow real real real) (pow.c complex complex complex))]
