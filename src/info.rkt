@@ -9,6 +9,7 @@
 (define pkg-authors
   '("Pavel Panchekha"
     "Alex Sanchez-Stern"
+    "David Thien"
     "Jason Qiu"
     "James Wilcox"
     "Zachary Tatlock"
