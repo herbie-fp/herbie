@@ -256,7 +256,7 @@
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))]
+        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-list sp-prev)]
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
