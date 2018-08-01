@@ -94,8 +94,8 @@
   [associate-/l*.c     (/.c (*.c b c) a)         (/.c b (/.c a c))]
   [associate-/r/.c     (/.c a (/.c b c))         (*.c (/.c a b) c)]
   [associate-/l/.c     (/.c (/.c b c) a)         (/.c b (*.c a c))]
-  [sub-neg.c           (-.c a b)                 (+.c a (-.c b))]
-  [unsub-neg.c         (+.c a (-.c b))           (-.c a b)])
+  [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
+  [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
 
 ; Distributivity
 (define-ruleset distributivity (arithmetic simplify)
@@ -222,7 +222,7 @@
   [frac-add    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
   [frac-sub    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
   [frac-times  (*.c (/.c a b) (/.c c d))  (/.c (*.c a c) (*.c b d))]
-  [frac-2neg   (/.c a b)                  (/.c (-.c a) (-.c b))])
+  [frac-2neg   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
 
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
