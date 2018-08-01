@@ -172,7 +172,7 @@
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
-  #:type ([a real])
+  #:type ([a real] [b real])
   [div-inv           (/ a b)               (* a (/ 1 b))]
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
@@ -199,7 +199,7 @@
 
 ; Dealing with fractions
 (define-ruleset fractions-distribute (fractions simplify)
-  #:type ([a real] [b real] [c real])
+  #:type ([a real] [b real] [c real] [d real])
   [div-sub     (/ (- a b) c)        (- (/ a c) (/ b c))]
   [times-frac  (/ (* a b) (* c d))  (* (/ a c) (/ b d))])
 
@@ -376,7 +376,7 @@
 
 ; Trigonometry
 (define-ruleset trig-reduce (trigonometry simplify)
-  #:type ([a real] [b real])
+  #:type ([a real] [b real] [x real])
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
   [1-sub-cos   (- 1 (* (cos a) (cos a)))   (* (sin a) (sin a))]
   [1-sub-sin   (- 1 (* (sin a) (sin a)))   (* (cos a) (cos a))]
@@ -609,7 +609,7 @@
   [not-gte      (not (>= x y))   (<  x y)])
 
 (define-ruleset branch-reduce (branches simplify fp-safe)
-  #:type ([a bool] [b bool])
+  #:type ([a bool] [b bool] [x real] [y real])
   [if-true        (if TRUE x y)       x]
   [if-false       (if FALSE x y)      y]
   [if-same        (if a x x)          x]
