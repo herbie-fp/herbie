@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.1")
+(define version "1.2")
 
 ;; Packaging information
 
@@ -22,7 +22,7 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "6.3")
+  '(("base" #:version "6.7")
     "math-lib"
     "plot-lib"
     "profile-lib"
