@@ -36,11 +36,17 @@
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
 
 (define (type-of expr env)
-  (expression->type (datum->syntax #f expr) env
-                    (lambda (stx msg . args)
-                      (error "Unexpected call to error! within type-of"
-                             stx (apply format msg args)))))
-
+  ;; Fast version does not recurse into functions applications
+  (match expr
+    [(? real?) 'real]
+    [(? complex?) 'complex]
+    [(? constant?) (constant-info expr 'type)]
+    [(? variable?) (dict-ref env expr)]
+    [(list 'if cond ift iff)
+     (type-of expr ift)]
+    [(list op args ...)
+     ;; Assumes single return type for any function
+     (second (first (first (hash-values (operator-info op 'type)))))]))
 
 (define (expression->type stx env error!)
   (match stx
