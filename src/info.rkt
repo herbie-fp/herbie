@@ -23,7 +23,7 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "6.7")
+  '(("base" #:version "6.6")
     "math-lib"
     "plot-lib"
     "profile-lib"
