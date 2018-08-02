@@ -318,13 +318,13 @@
                    (match (cdr tb)
                      [(srcloc file line col _ _)
                       `(tr
-                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
                         (td ,(~a file))
                         (td ,(~a line))
                         (td ,(~a col)))]
                      [#f
                       `(tr
-                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
                         (td ([colspan "3"]) "unknown"))]))))))])))))
 
 (define (make-timeout result rdir profile?)
@@ -420,13 +420,23 @@
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
+    [(alt prog `(simplify ,loc) `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+
+    [(alt prog `initial-simplify `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+
+    [(alt prog `final-simplify `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
-
-(define (procedure-name->string name)
-  (if name
-      (~a name)
-      "(unnamed)"))
