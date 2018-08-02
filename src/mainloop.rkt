@@ -208,8 +208,8 @@
 
         (for/fold ([child child]) ([loc locs])
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*rules*)))))
-          (debug #:from 'simplify "Simplified to" child*)
-          (if (> (num-nodes (alt-program child)) (num-nodes child*))
+          (debug #:from 'simplify "Simplified" loc "to" child*)
+          (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
               (alt child* (list 'simplify loc) (list child))
               child))))
     (^children^ simplified))
