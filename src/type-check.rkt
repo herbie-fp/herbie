@@ -16,10 +16,6 @@
     [`((,expected-types ...) ,rtype)
      (and (andmap equal? argtypes expected-types) rtype)]))
 
-;; Unit tests
-;; Rewrite expression->type so that expr is a syntax object
-;; Collect errors somewhere
-;; error! is a function that takes (stx format . args) and puts it somewhere
 (define (assert-program-type! stx)
   (match-define (list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body) (syntax-e stx))
   (assert-expression-type! body 'real #:env (for/hash ([var vars]) (values (syntax-e var) 'real))))

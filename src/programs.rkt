@@ -216,26 +216,38 @@
      expr]))
 
 (define (expand-parametric expr ctx)
-  ;; Run after unfold-let, so no need to track lets
-  (match expr
-    [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-     (define sigs (hash-ref parametric-operators op))
-     (define args* (map (curryr expand-parametric ctx) args))
-     (define actual-types (map (curryr type-of ctx) args*))
-
-     (define op*
-       (for/or ([sig sigs])
-         (match-define (list* true-name rtype atypes) sig)
-         (and
-          (if (symbol? atypes)
-              (andmap (curry equal? atypes) actual-types)
-              (equal? atypes actual-types))
-          true-name)))
-     (cons op* args*)]
-    [(list op args ...)
-     (cons op (map (curryr expand-parametric ctx) args))]
-    [_
-     expr]))
+  (define-values (expr* type)
+    (let loop ([expr expr])
+      ;; Run after unfold-let, so no need to track lets
+      (match expr
+        [(list (? (curry hash-has-key? parametric-operators) op) args ...)
+         (define sigs (hash-ref parametric-operators op))
+         (define-values (args* actual-types)
+           (for/lists (args* actual-types) ([arg args])
+             (loop arg)))
+         (match-define (cons op* rtype)
+           (for/or ([sig sigs])
+             (match-define (list* true-name rtype atypes) sig)
+             (and
+              (if (symbol? atypes)
+                  (andmap (curry equal? atypes) actual-types)
+                  (equal? atypes actual-types))
+              (cons true-name rtype))))
+         (values (cons op* args*) rtype)]
+        [(list 'if cond ift iff)
+         (define-values (cond* _a) (loop cond))
+         (define-values (ift* rtype) (loop ift))
+         (define-values (iff* _b) (loop iff))
+         (values (list 'if cond* ift* iff*) rtype)]
+        [(list op args ...)
+         (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
+         (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
+        [(? real?) (values expr 'real)]
+        [(? boolean?) (values expr 'bool)]
+        [(? complex?) (values expr 'complex)]
+        [(? constant?) (values expr (constant-info expr 'type))]
+        [(? variable?) (values expr (dict-ref ctx expr))])))
+  expr*)
 
 (define (desugar-program prog ctx)
   (expand-parametric (expand-associativity (unfold-let prog)) ctx))
