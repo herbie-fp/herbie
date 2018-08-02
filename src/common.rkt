@@ -9,8 +9,8 @@
 
 (provide *start-prog*
          reap define-table table-ref table-set! table-remove!
-         first-value assert for/append
-         ordinary-value? =-or-nan? log2 </total
+         assert for/append
+         ordinary-value? =-or-nan? </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
@@ -73,14 +73,6 @@
 
 ;; More various helpful values
 
-(define-syntax-rule (first-value expr)
-  (call-with-values
-      (λ () expr)
-    (compose car list)))
-
-(module+ test
-  (check-equal? (first-value (values 1 2 3)) 1))
-
 (define-syntax assert
   (syntax-rules ()
     [(assert pred #:loc location)
@@ -135,9 +127,6 @@
    [(nan? x1) #f]
    [(nan? x2) #t]
    [else (< x1 x2)]))
-
-(define (log2 x)
-  (/ (log x) (log 2)))
 
 ;; Utility list functions
 

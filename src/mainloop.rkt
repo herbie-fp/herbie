@@ -107,7 +107,7 @@
 
 (define (best-alt alts)
   (argmin alt-cost
-	  (argmins (compose errors-score alt-errors)
+	  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
 		   alts)))
 
 (define (choose-best-alt!)
@@ -174,14 +174,44 @@
   (^gened-rewrites^ #t)
   (void))
 
+(define (num-nodes expr)
+  (if (not (list? expr)) 1
+      (add1 (apply + (map num-nodes (cdr expr))))))
+
 (define (simplify!)
   (when (flag-set? 'generate 'simplify)
     (define log! (timeline-event! 'simplify))
     (define simplified
       (for/list ([child (^children^)] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
-        (with-handlers ([exn:fail? (λ (e) (printf "Failed while simplifying candidate ~a\n" child) (raise e))])
-          (apply alt-apply child (simplify child)))))
+        ;; We want to avoid simplifying if possible, so we only
+        ;; simplify things produced by function calls in the rule
+        ;; pattern. This means no simplification if the rule output as
+        ;; a whole is not a function call pattern, and no simplifying
+        ;; subexpressions that don't correspond to function call
+        ;; patterns.
+        (define locs
+          (match (alt-event child)
+            [(list 'taylor _ loc) (list loc)]
+            [(list 'change cng)
+             (match-define (change rule loc _) cng)
+             (define pattern (rule-input rule))
+             (define expr (location-get loc (alt-program child)))
+             (cond
+              [(not (list? pattern)) '()]
+              [(not (list? expr)) '()]
+              [else
+               (for/list ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)]
+                          #:when (list? arg-pattern) #:when (list? arg))
+                 (append (change-location cng) (list pos)))])]
+            [_ (list '(2))]))
+
+        (for/fold ([child child]) ([loc locs])
+          (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
+          (debug #:from 'simplify "Simplified" loc "to" child*)
+          (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
+              (alt child* (list 'simplify loc) (list child))
+              child))))
     (^children^ simplified))
   (^simplified^ #t)
   (void))
@@ -266,7 +296,9 @@
          (atab-add-altns (^table^)
                          (if (flag-set? 'setup 'simplify)
                              (for/list ([altn (atab-all-alts (^table^))])
-                               (apply alt-apply altn (simplify altn)))
+                               (alt `(λ ,(program-variables (alt-program altn))
+                                       ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
+                                    'initial-simplify (list altn)))
                              (list))))
         (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
           (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
@@ -295,7 +327,10 @@
           [(list (list splitpoints ...) (list altns ...))
            (combine-alts splitpoints altns)]))
       (best-alt (atab-all-alts (^table^)))))
-  (define cleaned-alt (apply alt-apply joined-alt (simplify-fp-safe joined-alt)))
+  (define cleaned-alt
+    (alt `(λ ,(program-variables (alt-program joined-alt))
+            ,(simplify-expr (program-body (alt-program joined-alt)) #:rules (*fp-safe-simplify-rules*)))
+         'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
 

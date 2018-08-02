@@ -5,9 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points prepare-points-period make-exacts
-         errors errors-score sorted-context-list sort-context-on-expr
-         random-subsample)
+         prepare-points
+         errors errors-score sort-context-on-expr)
 
 (module+ test
   (require rackunit))
@@ -84,47 +83,14 @@
 (define (in-pcontext context)
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
-(define (mk-pcontext points exacts)
-  (pcontext (if (list? points)
-		(begin (assert (not (null? points)))
-		       (list->vector points))
-		(begin (assert (not (= 0 (vector-length points))))
-		       points))
-	    (if (list? exacts)
-		(begin (assert (not (null? exacts)))
-		       (list->vector exacts))
-		(begin (assert (not (= 0 (vector-length exacts))))
-		       exacts))))
-
-(define (random-subsample pcontext n)
-  (let*-values ([(old-points) (pcontext-points pcontext)]
-                [(old-exacts) (pcontext-exacts pcontext)]
-                [(points exacts)
-                 (for/lists (points exacts)
-		     ([i (in-range n)])
-		   (let ([idx (random (vector-length old-points))])
-		     (values (vector-ref old-points idx)
-			     (vector-ref old-exacts idx))))])
-    (mk-pcontext points exacts)))
-
-(define (sorted-context-list context vidx)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   </total #:key (compose (curryr list-ref vidx) car))])
-    (list (map car p&e) (map cdr p&e))))
+(define/contract (mk-pcontext points exacts)
+  (-> (non-empty-listof (listof any/c)) (non-empty-listof real?) pcontext?)
+  (pcontext (list->vector points) (list->vector exacts)))
 
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
-    (list (map car p&e) (map cdr p&e))))
-
-(define (make-period-points num periods)
-  (let ([points-per-dim (floor (exp (/ (log num) (length periods))))])
-    (apply cartesian-product
-	   (map (λ (prd)
-		  (let ([bucket-width (/ prd points-per-dim)])
-		    (for/list ([i (range points-per-dim)])
-		      (+ (* i bucket-width) (* bucket-width (random))))))
-		periods))))
+    (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (select-every skip l)
   (let loop ([l l] [count skip])
@@ -168,37 +134,14 @@
           (make-exacts* prog (select-every nth pts) precondition)
           (loop (floor (/ nth 2)))))))
 
-(define (filter-points pts exacts)
-  "Take only the points for which the exact value is normal, and the point is normal"
-  (reap (sow)
-    (for ([pt pts] [exact exacts])
-      (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
-        (sow pt)))))
-
-(define (filter-exacts pts exacts)
-  "Take only the exacts for which the exact value is normal, and the point is normal"
-  (reap (sow)
-    (for ([pt pts] [exact exacts])
-      (when (and (ordinary-value? exact) (andmap ordinary-value? pt))
-        (sow exact)))))
+(define (filter-p&e pts exacts)
+  "Take only the points and exacts for which the exact value and the point coords are ordinary"
+  (for/lists (ps es)
+      ([pt pts] [ex exacts] #:when (ordinary-value? ex) #:when (andmap ordinary-value? pt))
+    (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)
   (match precondition
-    [`(== ,(? variable? var) ,(? constant? val))
-     (if (set=? (list var) allvars)
-         (list (list val))
-         #f)]
-    [`(and (== ,(? variable? vars) ,(? constant? vals)) ...)
-     (if (set=? vars allvars)
-         (list (map (curry dict-ref (map cons vars vals)) allvars))
-         #f)]
-    [`(or (== ,(? variable? varss) ,(? constant? valss)) ...)
-     (define pts
-       (for/list ([var varss] [val valss])
-         (if (set=? (list var) allvars)
-             (list val)
-             #f)))
-     (and (andmap identity pts) pts)]
     [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
      (define pts
        (for/list ([vars varss] [vals valss])
@@ -206,7 +149,6 @@
              (map (curry dict-ref (map cons vars vals)) allvars)
              #f)))
      (and (andmap identity pts) pts)]
-    [`FALSE '()]
     [_ #f]))
 
 ; These definitions in place, we finally generate the points.
@@ -236,37 +178,27 @@
               (sample-multi-bounded ivals)])))]))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
-    (let ([npts (length pts)])
-      (cond [(> num-loops 200)
-             (raise-herbie-error "Cannot sample enough valid points."
-                                 #:url "faq.html#sample-valid-points")]
-            [(>= npts (*num-points*))
-             (begin
-               (debug #:from 'points #:tag 'exit #:depth 4
-                      "Sampled" npts "points with exact outputs")
-               (mk-pcontext (take pts (*num-points*))
-                            (take exs (*num-points*))))]
-            [#t
-             (let* (; pad to avoid repeatedly trying to get last point
-                    [num (max 4 (- (*num-points*) npts))]
-                    [_ (debug #:from 'points #:depth 4
-                              "Sampling" num "additional inputs,"
-                              "on iter" num-loops "have" npts "/" (*num-points*))]
-                    [pts1 (for/list ([n (in-range num)]) (sampler))]
-                    [exs1 (make-exacts prog pts1 precondition)]
-                    [_ (debug #:from 'points #:depth 4
-                              "Filtering points with unrepresentable outputs")]
-                    [pts* (filter-points pts1 exs1)]
-                    [exs* (filter-exacts pts1 exs1)])
-              ; keep iterating till we get at least *num-points*
-              (loop (append pts* pts) (append exs* exs) (+ 1 num-loops)))]))))
-
-(define (prepare-points-period prog periods)
-  (let* ([pts (make-period-points (*num-points*) periods)]
-	 [exacts (make-exacts prog pts)]
-	 [pts* (filter-points pts exacts)]
-	 [exacts* (filter-exacts pts exacts)])
-    (mk-pcontext pts* exacts*)))
+    (define npts (length pts))
+    (cond
+     [(> num-loops 200)
+      (raise-herbie-error "Cannot sample enough valid points."
+                          #:url "faq.html#sample-valid-points")]
+     [(>= npts (*num-points*))
+      (debug #:from 'points #:tag 'exit #:depth 4
+             "Sampled" npts "points with exact outputs")
+      (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
+     [else
+      (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
+      (debug #:from 'points #:depth 4
+             "Sampling" num "additional inputs,"
+             "on iter" num-loops "have" npts "/" (*num-points*))
+      (define pts1 (for/list ([n (in-range num)]) (sampler)))
+      (define exs1 (make-exacts prog pts1 precondition))
+      (debug #:from 'points #:depth 4
+             "Filtering points with unrepresentable outputs")
+      (define-values (pts* exs*) (filter-p&e pts1 exs1))
+      ;; keep iterating till we get at least *num-points*
+      (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
 
 (define (errors prog pcontext)
   (let ([fn (eval-prog prog 'fl)]

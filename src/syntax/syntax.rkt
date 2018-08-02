@@ -8,23 +8,31 @@
 (require "../float.rkt")
 (require "../bigcomplex.rkt")
 
-(provide constant? variable? operator? operator-info constant-info prune-operators!
-         parametric-operators *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
+(provide types type? value-of bigvalue-of value? bigvalue?
+         constant? variable? operator? operator-info constant-info parametric-operators
+         prune-operators! *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
 
 (define *loaded-ops* (make-parameter '()))
 
-(define (type? x) (or (equal? x 'real) (equal? x 'bool) (equal? x 'complex)))
+(define types '(bool real complex))
+(define (type? x) (set-member? types x))
+
+(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?])
+(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?])
+
+(define value? (apply or/c (map value-of types)))
+(define bigvalue? (apply or/c (map bigvalue-of types)))
 
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
 
 (define-table constants
   [type type?]
-  [bf (->* () (or/c bigfloat? boolean?))]
-  [fl (->* () (or/c flonum? boolean?))]
+  [bf (->* () bigvalue?)]
+  [fl (->* () value?)]
   [->c/double string?]
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
@@ -71,9 +79,9 @@
 ;; TODO: the costs below seem likely to be incorrect, and also do we still need them?
 (define-table operators
   [args  (listof (or/c '* natural-number/c))]
-  [bf    (unconstrained-argument-number-> (or/c bigfloat? boolean? bigcomplex?) (or/c bigfloat? boolean? bigcomplex?))]
-  [fl    (unconstrained-argument-number-> (or/c flonum? boolean? complex?) (or/c flonum? boolean? complex?))]
-  [nonffi (unconstrained-argument-number-> (or/c real? boolean? complex?) (or/c real? boolean? complex?))]
+  [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
+  [fl    (unconstrained-argument-number-> value? value?)]
+  [nonffi (unconstrained-argument-number-> value? value?)]
   [cost  natural-number/c]
   [type  (hash/c (or/c '* natural-number/c) (listof (list/c (or/c (listof type?) (list/c '* type?)) type?)))]
   [->c/double (unconstrained-argument-number-> string? string?)]
@@ -310,12 +318,15 @@
   [->tex (curry format "2^{~a}")]
   [nonffi (λ (x) (expt 2 x))])
 
+(define (from-bigfloat bff)
+  (λ args (bigfloat->flonum (apply bff (map bf args)))))
+
 (define-operator/libm (expm1 real) real
   [libm expm1 expm1f] [bf bfexpm1] [cost 70]
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "(e^{~a} - 1)^*")]
-  [nonffi (λ (x) (bigfloat->flonum (bfexpm1 (bf x))))])
+  [nonffi (from-bigfloat bfexpm1)])
 
 (define-operator/libm (fabs real) real
   [libm fabs fabsf] [bf bfabs] [cost 40]
@@ -375,28 +386,28 @@
   [->c/double (curry format "fmod(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\bmod ~a")]
-  [nonffi (λ (x y) (bigfloat->flonum (bffmod (bf x) (bf y))))])
+  [nonffi (from-bigfloat bffmod)])
 
 (define-operator/libm (hypot real real) real
   [libm hypot hypotf] [bf bfhypot] [cost 55]
   [->c/double (curry format "hypot(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a^2 + ~a^2}^*")]
-  [nonffi (λ (x y) (bigfloat->flonum (bfhypot (bf x) (bf y))))])
+  [nonffi (from-bigfloat bfhypot)])
 
 (define-operator/libm (j0 real) real
   [libm j0 j0f] [bf bfbesj0] [cost 55]
   [->c/double (curry format "j0(~a)")]
   [->c/mpfr (curry format "mpfr_j0(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{j0} ~a")]
-  [nonffi (λ (x) (bigfloat->flonum (bfbesj0 (bf x))))])
+  [nonffi (from-bigfloat bfbesj0)])
 
 (define-operator/libm (j1 real) real
   [libm j1 j1f] [bf bfbesj1] [cost 55]
   [->c/double (curry format "j1(~a)")]
   [->c/mpfr (curry format "mpfr_j1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{j1} ~a")]
-  [nonffi (λ (x) (bigfloat->flonum (bfbesj1 (bf x))))])
+  [nonffi (from-bigfloat bfbesj1)])
 
 (define-operator/libm (lgamma real) real
   [libm lgamma lgammaf] [bf bflog-gamma] [cost 55]
@@ -431,14 +442,14 @@
   [->c/double (curry format "log1p(~a)")]
   [->c/mpfr (curry format "mpfr_log1p(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_* (1 + ~a)")]
-  [nonffi (λ (x) (bigfloat->flonum (bflog1p (bf x))))])
+  [nonffi (from-bigfloat bflog1p)])
 
 (define-operator/libm (log2 real) real
   [libm log2 log2f] [bf bflog2] [cost 70]
   [->c/double (curry format "log2(~a)")]
   [->c/mpfr (curry format "mpfr_log2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{2} ~a")]
-  [nonffi (λ (x) (bigfloat->flonum (bflog2 (bf x))))])
+  [nonffi (from-bigfloat bflog2)])
 
 (define (bflogb x)
   (bffloor (bflog2 (bfabs x))))
@@ -546,14 +557,14 @@
   [->c/double (curry format "y0(~a)")]
   [->c/mpfr (curry format "mpfr_y0(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y0} ~a")]
-  [nonffi (λ (x) (bigfloat->flonum (bfbesy0 (bf x))))])
+  [nonffi (from-bigfloat bfbesy0)])
 
 (define-operator/libm (y1 real) real
   [libm y1 y1f] [bf bfbesy1] [cost 55]
   [->c/double (curry format "y1(~a)")]
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{y1} ~a")]
-  [nonffi (λ (x) (bigfloat->flonum (bfbesy1 (bf x))))])
+  [nonffi (from-bigfloat bfbesy1)])
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 (define (and-fn . as) (andmap identity as))

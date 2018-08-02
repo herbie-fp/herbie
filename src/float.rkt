@@ -46,7 +46,7 @@
   (cond
    [(nan? x) +nan.0]
    [(infinite? x) (*bit-width*)]
-   [else (log2 x)]))
+   [else (/ (log x) (log 2))]))
 
 (define (bit-difference x y)
   (ulps->bits (+ 1 (abs (ulp-difference x y)))))

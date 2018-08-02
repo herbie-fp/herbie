@@ -7,6 +7,10 @@
 
 (provide compile-info program->c)
 
+(define (unused-variables prog)
+  (remove* (free-variables (program-body prog))
+           (program-variables prog)))
+
 (define (fix-name name)
   (string-replace (uri-encode (~a name)) #rx"[^a-zA-Z0-9]" "_"))
 
@@ -20,14 +24,12 @@
 
   (define/contract (value->c expr)
     (-> expr? string?)
-    (cond
-     [(member expr vars) (fix-name expr)]
-     [(number? expr) (~a expr)]
-     [(constant? expr) (constant-info expr '->c/double)]
-     [(symbol? expr) (~a expr)] ; intermediate variable
-     [else
-      (define val (real->double-flonum (->flonum expr)))
-      (if (equal? type "float") (format "~af" val) (~a val))]))
+    (match expr
+     [(? (curry set-member? vars)) (fix-name expr)]
+     [(? number?)
+      (format (if (equal? type "float") "~af" "~a") (real->double-flonum expr))]
+     [(? constant?) (constant-info expr '->c/double)]
+     [(? symbol?) (~a expr)])) ; intermediate variable
 
   (define/contract (app->c expr)
     (-> expr? string?)

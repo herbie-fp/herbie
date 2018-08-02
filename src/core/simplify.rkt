@@ -1,18 +1,13 @@
 #lang racket
 
 (require "../common.rkt")
-(require "../alternative.rkt")
 (require "../programs.rkt")
-(require "../syntax/syntax.rkt")
 (require "../syntax/rules.rkt")
 (require "egraph.rkt")
 (require "ematch.rkt")
 (require "enode.rkt")
-(require "matcher.rkt")
-(require (rename-in "reduce.rkt" [simplify backup-simplify]))
 
-(provide simplify-expr simplify *max-egraph-iters*)
-(provide (all-defined-out) (all-from-out "egraph.rkt" "../syntax/rules.rkt" "ematch.rkt"))
+(provide simplify-expr *max-egraph-iters*)
 
 (module+ test (require rackunit))
 
@@ -33,47 +28,6 @@
 (define *max-egraph-iters* (make-parameter 6))
 (define *node-limit* (make-parameter 500))
 
-(define/contract (make-simplify-change program loc replacement)
-  (-> expr? location? expr? change?)
-  (change (rule 'simplify (location-get loc program) replacement '())
-          loc
-          (for/list ([var (program-variables program)])
-            (cons var var))))
-
-(define/contract (simplify altn #:rules [rls (*simplify-rules*)])
-  (->* (alt?) (#:rules (listof rule?)) (listof change?))
-  (define prog (alt-program altn))
-  (cond
-   [(not (alt-delta? altn))
-    (define prog* (simplify-expr (program-body prog) #:rules rls))
-    (if ((num-nodes (program-body prog)) . > . (num-nodes prog*))
-        (list (make-simplify-change prog '(2) prog*))
-        '())]
-   [else
-    (match-define (change rule loc _) (alt-change altn))
-    (define expr (location-get loc prog))
-    ;; We want to avoid simplifying if possible, so we only simplify
-    ;; things produced by function calls in the rule pattern. This means
-    ;; no simplification if the rule output as a whole is not a function
-    ;; call pattern, and no simplifying subexpressions that don't
-    ;; correspond to function call patterns.
-    (define pattern (rule-output rule))
-    (cond
-     [(not (list? pattern)) '()]
-     [(not (list? expr)) '()]
-     [else
-      (reap [sow]
-            (for ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)])
-              (when (and (list? arg-pattern) (list? arg))
-                (define arg* (simplify-expr arg #:rules rls))
-                (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" arg*))
-                (when ((num-nodes arg) . > . (num-nodes arg*)) ; Simpler
-                  (sow (make-simplify-change prog (append loc (list pos)) arg*))))))])]))
-
-(define/contract (simplify-fp-safe altn)
-  (-> alt? (listof change?))
-  (simplify altn #:rules (*fp-safe-simplify-rules*)))
-
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
@@ -84,10 +38,6 @@
 	(define out (extract-smallest eg))
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
-
-(define (num-nodes expr)
-  (if (not (list? expr)) 1
-      (add1 (apply + (map num-nodes (cdr expr))))))
 
 (define (has-nan? expr)
   (or (and (number? expr) (nan? expr))

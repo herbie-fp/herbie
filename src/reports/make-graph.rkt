@@ -211,7 +211,7 @@
        (meta ([charset "utf-8"]))
        (title "Result for " ,(~a (test-name test)))
        (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
-       (script ([src ,mathjax-url]))
+       ,@js-tex-include
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
@@ -231,9 +231,9 @@
         (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
 
        (section ([id "program"])
-        (div ([class "program"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
+        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
         (div ([class "arrow"]) "↓")
-        (div ([class "program"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
+        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
 
        (section ([id "graphs"])
         (h1 "Error")
@@ -268,15 +268,14 @@
                (tr (th "Original") (td ,(format-bits (errors-score start-error))))
                (tr (th "Target") (td ,(format-bits (errors-score target-error))))
                (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-              (div "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
+              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
             "")
 
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(parameterize ([*pcontext* (mk-pcontext newpoints newexacts)]
-                        [*start-prog* (alt-program start-alt)])
-             (render-history end-alt))))
+         ,@(parameterize ([*start-prog* (alt-program start-alt)]) ; Because splitpoint->point-preds
+             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts)))))
 
        ,(render-process-info time timeline profile? test)))))
 
@@ -319,13 +318,13 @@
                    (match (cdr tb)
                      [(srcloc file line col _ _)
                       `(tr
-                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
                         (td ,(~a file))
                         (td ,(~a line))
                         (td ,(~a col)))]
                      [#f
                       `(tr
-                        (td ([class "procedure"]) ,(procedure-name->string (car tb)))
+                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
                         (td ([colspan "3"]) "unknown"))]))))))])))))
 
 (define (make-timeout result rdir profile?)
@@ -344,17 +343,21 @@
 
 (struct interval (alt-idx start-point end-point expr))
 
-(define (render-history altn)
+(define (render-history altn pcontext pcontext2)
   (-> alt? (listof xexpr?))
 
-  (define err (format-bits (errors-score (alt-errors altn))))
+  (define err
+    (format-bits (errors-score (errors (alt-program altn) pcontext))))
+  (define err2
+    (format "Internal: ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
+
   (match altn
     [(alt prog 'start (list))
      (list
-      `(li (p "Initial program " (span ([class "error"]) ,err))
-           (div "\\[" ,(texify-prog prog) "\\]")))]
+      `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[" ,(texify-prog prog) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
-     `(,@(render-history prev)
+     `(,@(render-history prev pcontext pcontext2)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt _ `(regimes ,splitpoints) prevs)
@@ -386,7 +389,8 @@
                       [condition
                        (string-join (map interval->string entry-ivals) " or ")])
                  (define-values (ivalpoints ivalexacts)
-                   (for/lists (pts exs) ([(pt ex) (in-pcontext (*pcontext*))] #:when (pred pt))
+                   (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext)]
+                                         #:when (pred pt))
                      (values pt ex)))
 
                  ;; TODO: The (if) here just corrects for the possibility
@@ -397,28 +401,42 @@
                  ;; abstraction boundaries right now so we haven't done it
                  ;; yet.
                  (define new-pcontext
-                   (if (null? ivalpoints) (*pcontext*) (mk-pcontext ivalpoints ivalexacts)))
+                   (if (null? ivalpoints) pcontext (mk-pcontext ivalpoints ivalexacts)))
+
+                 (define new-pcontext2
+                   (call-with-values
+                       (λ ()
+                         (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext2)]
+                                               #:when (pred pt))
+                           (values pt ex)))
+                     mk-pcontext))
 
                  `((h2 (code "if " (span ([class "condition"]) ,condition)))
-                   (ol ,@(parameterize ([*pcontext* new-pcontext]) (render-history entry))))))))
+                   (ol ,@(render-history entry new-pcontext new-pcontext2)))))))
          (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program.")))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
-     `(,@(render-history prev)
-       (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"]) ,err))
-           (div "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
-    [(alt prog 'final-simplify `(,prev))
-     `(,@(render-history prev)
-       (li ([class "event"]) "Applied final simplification."))]
+    [(alt prog `(simplify ,loc) `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+
+    [(alt prog `initial-simplify `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+
+    [(alt prog `final-simplify `(,prev))
+     `(,@(render-history prev pcontext pcontext2)
+       (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
-     `(,@(render-history prev)
+     `(,@(render-history prev pcontext pcontext2)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
-              (span ([class "error"]) ,err))
-           (div "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
-
-(define (procedure-name->string name)
-  (if name
-      (~a name)
-      "(unnamed)"))
+              (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))

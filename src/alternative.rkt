@@ -7,7 +7,7 @@
 
 (provide alt-delta alt-delta? (struct-out alt)
          make-alt alt? alt-program alt-change
-         alt-errors alt-cost alt-add-event
+         alt-cost alt-add-event
          alt-apply alt-rewrite-expression alt-rewrite-rm)
 
 ;; Alts are a lightweight audit trail.
@@ -43,9 +43,6 @@
     [(alt _ (list 'change cng) (list prev)) prev]
     [(alt _ _ '()) #f]
     [(alt _ _ `(,prev ,_ ...)) (alt-prev prev)]))
-
-(define (alt-errors altn)
-  (errors (alt-program altn) (*pcontext*)))
 
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
