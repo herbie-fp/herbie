@@ -207,7 +207,7 @@
             [_ (list '(2))]))
 
         (for/fold ([child child]) ([loc locs])
-          (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*rules*)))))
+          (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
           (debug #:from 'simplify "Simplified" loc "to" child*)
           (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
               (alt child* (list 'simplify loc) (list child))
@@ -297,7 +297,7 @@
                          (if (flag-set? 'setup 'simplify)
                              (for/list ([altn (atab-all-alts (^table^))])
                                (alt `(λ ,(program-variables (alt-program altn))
-                                       ,(simplify-expr (program-body (alt-program altn)) #:rules (*rules*)))
+                                       ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
                                     'initial-simplify (list altn)))
                              (list))))
         (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
