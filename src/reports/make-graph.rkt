@@ -420,10 +420,6 @@
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
-    [(alt prog 'final-simplify `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
-       (li ([class "event"]) "Applied final simplification."))]
-
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
