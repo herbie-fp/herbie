@@ -70,14 +70,12 @@
     [(? real?) 'real]
     [(? complex?) 'complex]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real]
+    [(? variable?) 'real] ;; TODO: assumes variable types are real
+    [(list 'if cond ift iff)
+     (enode-type ift)]
     [(list op ens ...)
-     (define sigs (get-sigs op (length ens)))
-     (define argtypes
-       (for/list ([en ens])
-         (enode-type en)))
-     (for/or ([sig sigs])
-       (argtypes->rtype argtypes sig))]))
+     ;; Assumes single return type for any function
+     (second (first (first (hash-values (operator-info op 'type)))))]))
 
 (module+ test
   (require rackunit)
@@ -87,7 +85,7 @@
   (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real)
   (define xc (new-enode '1+2i 1))
   (define yc (new-enode '2+3i 2))
-  (define xcplusyc (new-enode (list '+ xc yc) 3))
+  (define xcplusyc (new-enode (list '+.c xc yc) 3))
   (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex))
   
        

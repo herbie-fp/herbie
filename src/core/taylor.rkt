@@ -180,8 +180,8 @@
      (apply taylor-add (map (curry taylor var) args))]
     [`(- ,arg)
      (taylor-negate ((curry taylor var) arg))]
-    [`(- ,arg ,args ...)
-     (apply taylor-add ((curry taylor var) arg) (map (compose taylor-negate (curry taylor var)) args))]
+    [`(- ,arg1 ,arg2)
+     (taylor-add (taylor var arg1) (taylor-negate (taylor var arg2)))]
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
     [`(/ 1 ,arg)
