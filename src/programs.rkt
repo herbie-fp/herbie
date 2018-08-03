@@ -1,20 +1,19 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt")
 
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
-         replace-leaves location-hash
+         location-hash
          location? expr?
-         location-do location-get location-parent location-sibling
-         eval-prog
+         location-do location-get
+         eval-prog eval-const-expr
          compile expression-cost program-cost
-         free-variables unused-variables replace-expression
-         eval-exact eval-const-expr
-         desugar-program expr->prog)
+         free-variables replace-expression
+         desugar-program)
 
 (define expr? (or/c list? symbol? number?))
 
@@ -78,27 +77,6 @@
 
   hash)
 
-(define/contract (replace-leaves prog #:constant [constant identity]
-                                 #:variable [variable identity] #:symbol [symbol-table identity])
-  (->* (expr?)
-       (#:constant (-> constant? any/c) #:variable (-> variable? any/c) #:symbol (-> operator? any/c))
-       any/c)
-
-  ; Inlined for speed
-  (define (inductor prog)
-    (match prog
-      [(list (or 'lambda 'λ) (list vars ...) body)
-       `(λ ,vars ,(inductor body))]
-      [(? constant?) (constant prog)]
-      [(? variable?) (variable prog)]
-      [(list 'if cond ift iff)
-       `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
-      [(list op args ...)
-       (cons (symbol-table op) (map inductor args))]
-      [_ (error (format "Invalid program ~a" prog))]))
-
-  (inductor prog))
-
 (define (free-variables prog)
   (match prog
     [(? constant?) '()]
@@ -107,10 +85,6 @@
            (remove* vars (free-variables body))]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
-
-(define (unused-variables prog)
-  (remove* (free-variables (program-body prog))
-           (program-variables prog)))
 
 
 (define/contract (location-do loc prog f)
@@ -132,46 +106,31 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (location-parent loc)
-  (reverse (cdr (reverse loc))))
-
-(define (location-sibling loc)
-  (if (<= (length loc) 1)
-      #f
-      (let ([loc* (reverse loc)])
-        (cond
-         [(= (car loc*) 1)
-          (reverse (cons 2 (cdr loc*)))]
-         [(= (car loc*) 2)
-          (reverse (cons 1 (cdr loc*)))]
-         [else
-          #f]))))
-
 (define (eval-prog prog mode)
-  (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]
-         [op->precision (λ (op) (operator-info op mode))] ; TODO change use of mode
-         [body* (replace-leaves (program-body prog) #:constant real->precision #:symbol op->precision)]
-         [prog-opt `(λ ,(program-variables prog) ,(compile body*))]
-         [fn (eval prog-opt common-eval-ns)])
-    (lambda (pts)
-      (->flonum (apply fn (map real->precision pts))))))
+  (define real->precision
+    (match mode
+      ['bf ->bf]
+      ['fl ->flonum]
+      ['nonffi (λ (x) (if (symbol? x) (->flonum x) x))])) ; Keep exact numbers exact
+  (define precision->real
+    (match mode ['bf ->flonum] ['fl ->flonum] ['nonffi identity]))
 
-;; Does the same thing as the above with mode 'bf, but doesn't convert
-;; the results back to floats.
-(define (eval-exact prog)
-  (let* ([body* (replace-leaves (program-body prog) #:constant ->bf #:symbol (curryr operator-info 'bf))]
-         [prog-opt `(lambda ,(program-variables prog) ,(compile body*))]
-         [fn (eval prog-opt common-eval-ns)])
-    (lambda (pts)
-      (apply fn (map ->bf pts)))))
+  (define body*
+    (let inductor ([prog (program-body prog)])
+      (match prog
+        [(? constant?) (real->precision prog)]
+        [(? variable?) prog]
+        [(list 'if cond ift iff)
+         `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
+        [(list op args ...)
+         (cons (operator-info op mode) (map inductor args))]
+        [_ (error (format "Invalid program ~a" prog))])))
+  (define fn (eval `(λ ,(program-variables prog) ,(compile body*)) common-eval-ns))
+  (lambda (pts)
+    (precision->real (apply fn (map real->precision pts)))))
 
 (define (eval-const-expr expr)
-  (eval
-   (replace-leaves
-    expr
-    #:constant (λ (x) (if (symbol? x) (->flonum x) x))
-    #:symbol (curryr operator-info 'nonffi))
-   common-eval-ns))
+  ((eval-prog `(λ () ,expr) 'nonffi) '()))
 
 (module+ test
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
@@ -235,13 +194,13 @@
 
 
 (define (unfold-let expr)
-	(match expr
+  (match expr
     [`(let ([,vars ,vals] ...) ,body)
      (define bindings (map cons vars vals))
-		 (unfold-let (replace-vars bindings body))]
-		[`(,head ,args ...)
-			(cons head (map unfold-let args))]
-		[x x]))
+     (unfold-let (replace-vars bindings body))]
+    [`(,head ,args ...)
+     (cons head (map unfold-let args))]
+    [x x]))
 
 (define (expand-associativity expr)
   (match expr
@@ -255,6 +214,43 @@
      (cons op (map expand-associativity a))]
     [_
      expr]))
+
+(define (expand-parametric expr ctx)
+  (define-values (expr* type)
+    (let loop ([expr expr])
+      ;; Run after unfold-let, so no need to track lets
+      (match expr
+        [(list (? (curry hash-has-key? parametric-operators) op) args ...)
+         (define sigs (hash-ref parametric-operators op))
+         (define-values (args* actual-types)
+           (for/lists (args* actual-types) ([arg args])
+             (loop arg)))
+         (match-define (cons op* rtype)
+           (for/or ([sig sigs])
+             (match-define (list* true-name rtype atypes) sig)
+             (and
+              (if (symbol? atypes)
+                  (andmap (curry equal? atypes) actual-types)
+                  (equal? atypes actual-types))
+              (cons true-name rtype))))
+         (values (cons op* args*) rtype)]
+        [(list 'if cond ift iff)
+         (define-values (cond* _a) (loop cond))
+         (define-values (ift* rtype) (loop ift))
+         (define-values (iff* _b) (loop iff))
+         (values (list 'if cond* ift* iff*) rtype)]
+        [(list op args ...)
+         (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
+         (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
+        [(? real?) (values expr 'real)]
+        [(? boolean?) (values expr 'bool)]
+        [(? complex?) (values expr 'complex)]
+        [(? constant?) (values expr (constant-info expr 'type))]
+        [(? variable?) (values expr (dict-ref ctx expr))])))
+  expr*)
+
+(define (desugar-program prog ctx)
+  (expand-parametric (expand-associativity (unfold-let prog)) ctx))
 
 (define (replace-vars dict expr)
   (cond
@@ -271,8 +267,3 @@
    [#t
     expr]))
 
-(define (desugar-program prog)
-  (expand-associativity (unfold-let prog)))
-
-(define (expr->prog expr)
-  `(lambda ,(free-variables expr) ,expr))

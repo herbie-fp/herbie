@@ -9,7 +9,6 @@
 (require "../formats/tex.rkt")
 (require "../syntax-check.rkt" "../type-check.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
-(require "../web/common.rkt")
 
 (provide run-demo)
 
@@ -56,6 +55,24 @@
 
   `(dl ([class "function-list"])
      ,@(append-map fn-class fn-classes)))
+
+(define (herbie-page #:title title #:show-title [title? true]
+                     #:scripts [scripts '()] #:styles [styles '()] #:head-include [other-include-head '()] . body)
+  `(html
+    (head
+     (meta ([charset "utf-8"]))
+     (title ,title)
+     ,@other-include-head
+     ,@(for/list ([script scripts])
+         `(script ([src ,script] [type "text/javascript"])))
+     (link ([rel "stylesheet"] [type "text/css"] [href "/main.css"]))
+     ,@(for/list ([style styles])
+         `(link ([rel "stylesheet"] [type "text/css"] [href ,style]))))
+    (body
+     (header
+      (img ([class "logo"] [src "/logo.png"]))
+      ,@(if title? `((h1 ,title)) `()))
+     ,@body)))
 
 (define (main req)
   (when (and (*demo-output*) (not (directory-exists? (*demo-output*))))
@@ -153,7 +170,7 @@
             (define result
               (get-test-result
                #:seed seed
-               #:setup! (λ () (set-debug-level! 'progress '(3 4)))
+               #:debug-level (cons 'progress '(3 4))
                #:debug (hash-ref *jobs* hash)
                (parse-test formula)))
 

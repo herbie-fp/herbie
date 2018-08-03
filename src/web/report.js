@@ -159,7 +159,8 @@ function load_graph() {
     setup_figure_tabs(document.querySelector("#graphs div"));
     setup_timeline();
     // Run the program_arrow after rendering happens
-    MathJax.Hub.Queue(setup_program_arrow);
+    var es = document.querySelectorAll('.math');
+    for (var i = 0; i < es.length; i++) renderMathInElement(es[i]);
     // Submit the default vals in the "Try it out" section
     submit_inputs()
 }

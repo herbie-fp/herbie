@@ -11,7 +11,6 @@
 (require "points.rkt")
 (require "formats/test.rkt")
 (require "alternative.rkt")
-(require "glue.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-failure) (struct-out test-timeout)
@@ -37,21 +36,23 @@
           (values pt ex)))
     list))
 
-(define (get-test-result test #:seed [seed #f] #:setup! [setup! #f]
-                         #:profile [profile? #f] #:debug [debug? #f])
-  (define (on-error e) `(error ,e ,(bf-precision)))
+(define (get-test-result test #:seed [seed #f]
+                         #:profile [profile? #f] #:debug [debug? #f]
+                         #:debug-level [debug-level #f])
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug? (*debug-port*))])
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
-      (when setup! (setup!))
-      (with-handlers ([exn? on-error])
-        (match-define (list alt context)
-                      (run-improve (test-program test)
-                                   (*num-iterations*)
-                                   #:get-context #t
-                                   #:precondition (test-precondition test)))
+      (match debug-level
+        [(cons x y) (set-debug-level! x y)]
+        [_ (void)])
+      (with-handlers ([exn? (λ (e) `(error ,e ,(bf-precision)))])
+        (define alt
+          (run-improve (test-program test)
+                       (*num-iterations*)
+                       #:precondition (test-precondition test)))
+        (define context (*pcontext*))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])

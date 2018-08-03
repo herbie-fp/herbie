@@ -9,7 +9,6 @@
 (require "../alternative.rkt")
 (require "../formats/test.rkt")
 (require "../formats/datafile.rkt")
-(require "../glue.rkt")
 (require "../formats/c.rkt")
 (require "thread-pool.rkt")
 (provide (all-defined-out))

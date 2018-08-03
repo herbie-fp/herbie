@@ -82,11 +82,12 @@
 
 (define (option-on-expr alts expr)
   (define vars (program-variables (*start-prog*)))
-  (match-define (list pts exs) (sort-context-on-expr (*pcontext*) expr vars))
+  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
+  (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
   (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
   (define err-lsts
-    (parameterize ([*pcontext* (mk-pcontext pts exs)]) (map alt-errors alts)))
+    (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
   (define split-indices (err-lsts->split-indices merged-err-lsts can-split?))
@@ -211,13 +212,12 @@
 ;; Takes a vector of numbers, and returns the partial sum of those numbers.
 ;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
 (define (partial-sum vec)
-  (first-value
-   (for/fold ([res (make-vector (vector-length vec))]
-	      [cur-psum 0])
-       ([(el idx) (in-indexed (in-vector vec))])
-     (let ([new-psum (+ cur-psum el)])
-       (vector-set! res idx new-psum)
-       (values res new-psum)))))
+  (define res (make-vector (vector-length vec)))
+  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
+    (let ([new-psum (+ cur-psum el)])
+      (vector-set! res idx new-psum)
+      new-psum))
+  res)
 
 ;; Struct represeting a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
@@ -256,7 +256,7 @@
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-naturals)] [prev-entry (in-list (take sp-prev point-idx))]
+        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-list sp-prev)]
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])

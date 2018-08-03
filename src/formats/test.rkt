@@ -1,14 +1,10 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../errors.rkt")
-(require "../alternative.rkt")
-(require "../programs.rkt")
-(require "../syntax-check.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../errors.rkt")
+(require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
 
-(provide (struct-out test) test-program
-         load-tests load-file test-target parse-test test-successful? test<?)
+(provide (struct-out test) test-program test-target test-successful? test<?
+         load-tests load-file parse-test)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -36,18 +32,23 @@
          (if (null? props)
              (reverse out)
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+     (define type-ctx (map (λ (x) (cons x 'real)) args))
 
      (test (~a (dict-ref prop-dict ':name body))
            args
-           (desugar-program body)
-           (desugar-program (dict-ref prop-dict ':herbie-target #f))
+           (desugar-program body type-ctx)
+           (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
            (dict-ref prop-dict ':herbie-expected #t)
-           (desugar-program (dict-ref prop-dict ':pre 'TRUE)))]
+           (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
      (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
                          #:url "input.html")]
     [_
      (raise-herbie-error "Invalid input expression." #:url "input.html")]))
+
+(define (load-stdin)
+  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
+    (parse-test test)))
 
 (define (load-file file)
   (call-with-input-file file
@@ -55,15 +56,10 @@
       (for/list ([test (in-port (curry read-syntax file) port)])
         (parse-test test)))))
 
-(define (is-racket-file? f)
-  (and (equal? (filename-extension f) #"fpcore") (file-exists? f)))
-
-(define (load-stdin)
-  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (parse-test test)))
-
 (define (load-directory dir)
-  (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
+  (for/append ([fname (in-directory dir)]
+               #:when (file-exists? fname)
+               #:when (equal? (filename-extension fname) #"fpcore"))
     (load-file fname)))
 
 (define (load-tests path)

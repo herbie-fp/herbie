@@ -1,8 +1,7 @@
 #lang racket
 
 (require racket/date (only-in xml write-xexpr))
-(require "../common.rkt" "common.rkt")
-(require "../formats/datafile.rkt")
+(require "../common.rkt" "../formats/datafile.rkt")
 
 (provide (all-defined-out))
 

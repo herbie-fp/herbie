@@ -9,13 +9,14 @@
 
 (provide *start-prog*
          reap define-table table-ref table-set! table-remove!
-         first-value assert for/append
-         ordinary-value? =-or-nan? log2 </total
+         assert for/append
+         ordinary-value? =-or-nan? </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
+         format-time format-bits
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -72,14 +73,6 @@
 
 ;; More various helpful values
 
-(define-syntax-rule (first-value expr)
-  (call-with-values
-      (λ () expr)
-    (compose car list)))
-
-(module+ test
-  (check-equal? (first-value (values 1 2 3)) 1))
-
 (define-syntax assert
   (syntax-rules ()
     [(assert pred #:loc location)
@@ -134,9 +127,6 @@
    [(nan? x1) #f]
    [(nan? x2) #t]
    [else (< x1 x2)]))
-
-(define (log2 x)
-  (/ (log x) (log 2)))
 
 ;; Utility list functions
 
@@ -311,3 +301,19 @@
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a)
        #'(app syntax-e 'a)])))
+
+;; String formatting operations
+
+(define (format-time ms)
+  (cond
+   [(< ms 1000) (format "~ams" (round ms))]
+   [(< ms 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
+   [(< ms 3600000) (format "~am" (/ (round (/ ms 6000.0)) 10))]
+   [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (format-bits r #:sign [sign #f] #:unit [unit? #f])
+  (define unit (if unit? "b" ""))
+  (cond
+   [(not r) ""]
+   [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+   [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
