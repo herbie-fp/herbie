@@ -22,8 +22,7 @@
                           ", "))
     (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
     (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*))
-  (unless (flag-set? 'fn 'cbrt) (eprintf "cbrt is diabled.\n")))
+             *herbie-version*)))
 
 (module+ main
   (define quiet? #f)

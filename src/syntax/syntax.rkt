@@ -97,8 +97,7 @@
 (define (prune-operators!)
   (unless (flag-set? 'precision 'fallback)
     (for ([op (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*))])
-      (operator-remove! op)))
-  (unless (flag-set? 'fn 'cbrt) (operator-remove! 'cbrt)))
+      (operator-remove! op))))
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list (list '(atypes ...) 'rtype)))]

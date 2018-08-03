@@ -8,7 +8,6 @@
 
 (define all-flags
   #hash([precision . (double fallback)]
-        [fn . (cbrt)] ;; TODO: This is a bad way to disable functions: figure out a better one
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
@@ -16,7 +15,6 @@
 
 (define default-flags
   #hash([precision . (double fallback)]
-        [fn . (cbrt)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
