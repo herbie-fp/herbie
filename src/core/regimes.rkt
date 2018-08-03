@@ -14,20 +14,7 @@
 (module+ test
   (require rackunit))
 
-(provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
-
-(define (infer-splitpoints alts [axis #f])
-  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
-  (define options
-    (map (curry option-on-expr alts)
-         (if axis (list axis) (exprs-to-branch-on alts))))
-  (define best-option (argmin (compose errors-score option-errors) options))
-  (match-define (option splitindices pts expr _) best-option)
-  (define splitpoints (sindices->spoints pts expr alts splitindices))
-  (define altns (used-alts splitpoints alts))
-  (define splitpoints* (coerce-indices splitpoints))
-  (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
-  (list splitpoints* altns))
+(provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts)
 
 (struct option (split-indices pts expr errors) #:transparent
 	#:methods gen:custom-write
@@ -35,6 +22,36 @@
            (display "#<option " port)
            (write (option-split-indices opt) port)
            (display ">" port))])
+
+(define (infer-splitpoints alts [axis #f])
+  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
+  (define options
+    (map (curry option-on-expr alts)
+         (if axis (list axis) (exprs-to-branch-on alts))))
+  (argmin (compose errors-score option-errors) options))
+
+;; The point of splitting these two steps is to separate regime
+;; inference and binary search, with a timeline break between them.
+
+(define (combine-alts best-option altns)
+  (match-define (option splitindices pts expr _) best-option)
+  (define splitpoints* (sindices->spoints pts expr altns splitindices))
+  (define alts (used-alts splitpoints* altns))
+  (define splitpoints (coerce-indices splitpoints*))
+  (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
+  (cond
+   [(= (length alts) 1)
+    (first alts)]
+   [else
+    (define expr*
+      (for/fold
+          ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+          ([splitpoint (cdr (reverse splitpoints))])
+        `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+             ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+             ,expr)))
+    (alt `(λ ,(program-variables (*start-prog*)) ,expr*)
+         (list 'regimes splitpoints) alts)]))
 
 (define (exprs-to-branch-on alts)
   (if (flag-set? 'reduce 'branch-expressions)

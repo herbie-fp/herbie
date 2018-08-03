@@ -306,28 +306,17 @@
         (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
         (get-final-combination))))
 
-(define (combine-alts splitpoints alts)
-  (define expr
-    (for/fold
-        ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
-        ([splitpoint (cdr (reverse splitpoints))])
-      `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
-           ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
-           ,expr)))
-  (alt `(λ ,(program-variables (*start-prog*)) ,expr)
-       (list 'regimes splitpoints) alts))
-
 (define (get-final-combination)
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alt
-    (if (and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
-      (let ([log! (timeline-event! 'regimes)])
-        (match (infer-splitpoints all-alts)
-          [(list (list splitpoint) (list altn))
-           altn]
-          [(list (list splitpoints ...) (list altns ...))
-           (combine-alts splitpoints altns)]))
-      (best-alt all-alts)))
+    (cond
+     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
+      (timeline-event! 'regimes)
+      (define option (infer-splitpoints all-alts))
+      (timeline-event! 'binary-search)
+      (combine-alts option all-alts)]
+     [else
+      (best-alt all-alts)]))
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
             ,(simplify-expr (program-body (alt-program joined-alt)) #:rules (*fp-safe-simplify-rules*)))
