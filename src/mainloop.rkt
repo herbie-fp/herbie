@@ -318,15 +318,16 @@
        (list 'regimes splitpoints) alts))
 
 (define (get-final-combination)
+  (define all-alts (atab-all-alts (^table^)))
   (define joined-alt
-    (if (flag-set? 'reduce 'regimes)
+    (if (and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (let ([log! (timeline-event! 'regimes)])
-        (match (infer-splitpoints (atab-all-alts (^table^)))
+        (match (infer-splitpoints all-alts)
           [(list (list splitpoint) (list altn))
            altn]
           [(list (list splitpoints ...) (list altns ...))
            (combine-alts splitpoints altns)]))
-      (best-alt (atab-all-alts (^table^)))))
+      (best-alt all-alts)))
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
             ,(simplify-expr (program-body (alt-program joined-alt)) #:rules (*fp-safe-simplify-rules*)))

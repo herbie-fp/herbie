@@ -17,26 +17,23 @@
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds)
 
 (define (infer-splitpoints alts [axis #f])
-  (match alts
-   [(list alt)
-    (list (list (sp 0 0 +nan.0)) (list alt))]
-   [_
-    (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
-    (define options
-      (map (curry option-on-expr alts)
-           (if axis (list axis) (exprs-to-branch-on alts))))
-    (define best-option (argmin (compose errors-score option-errors) options))
-    (define splitpoints (option-splitpoints best-option))
-    (define altns (used-alts splitpoints alts))
-    (define splitpoints* (coerce-indices splitpoints))
-    (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
-    (list splitpoints* altns)]))
+  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
+  (define options
+    (map (curry option-on-expr alts)
+         (if axis (list axis) (exprs-to-branch-on alts))))
+  (define best-option (argmin (compose errors-score option-errors) options))
+  (match-define (option splitindices pts expr _) best-option)
+  (define splitpoints (sindices->spoints pts expr alts splitindices))
+  (define altns (used-alts splitpoints alts))
+  (define splitpoints* (coerce-indices splitpoints))
+  (debug #:from 'regimes "Found splitpoints:" splitpoints* ", with alts" altns)
+  (list splitpoints* altns))
 
-(struct option (splitpoints errors) #:transparent
+(struct option (split-indices pts expr errors) #:transparent
 	#:methods gen:custom-write
         [(define (write-proc opt port mode)
            (display "#<option " port)
-           (write (option-splitpoints opt) port)
+           (write (option-split-indices opt) port)
            (display ">" port))])
 
 (define (exprs-to-branch-on alts)
@@ -94,12 +91,12 @@
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
     (assert (> pidx 0))
     (assert (list-ref can-split? pidx)))
-  (define split-points (sindices->spoints pts expr alts split-indices))
+  (option split-indices pts expr (pick-errors split-indices pts err-lsts)))
 
-  (assert (set=? (remove-duplicates (map (point->alt split-points) pts))
-                 (map sp-cidx split-points)))
-
-  (option split-points (pick-errors split-points pts err-lsts)))
+(define (pick-errors split-indices pts err-lsts)
+  (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
+    (for/first ([si split-indices] #:when (< i (si-pidx si)))
+      (list-ref errs (si-cidx si)))))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
@@ -107,18 +104,18 @@
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
 
     ;; This is a basic sanity test
-    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (option-on-expr alts 'x)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (option-on-expr alts '1)
            '(0))
 
-    (check (λ (x y) (equal? (map sp-cidx (option-splitpoints x)) y))
+    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (option-on-expr alts '(if (== x 0.5) 1 +nan.0))
            '(0))))
 
@@ -198,11 +195,6 @@
                 #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
       ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
       (sp-cidx right))))
-
-(define (pick-errors splitpoints pts err-lsts)
-  (define which-alt (point->alt splitpoints))
-  (for/list ([pt pts] [errs (flip-lists err-lsts)])
-    (list-ref errs (which-alt pt))))
 
 (define (with-entry idx lst item)
   (if (= idx 0)
