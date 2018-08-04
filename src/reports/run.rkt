@@ -9,7 +9,7 @@
   (define seed (get-seed))
   (when (not (directory-exists? dir)) (make-directory dir))
 
-  (define tests (reverse (sort (append-map load-tests bench-dir) test<?)))
+  (define tests (reverse (sort (append-map load-tests bench-dir*) test<?)))
   (define results
     (get-test-results tests #:threads threads #:seed seed #:profile profile? #:dir dir))
   (define info (make-report-info (map cdr (filter values results)) #:note note #:seed seed))
