@@ -6,10 +6,6 @@
 (require "../programs.rkt")
 (require "../points.rkt")
 (require "../float.rkt")
-(require "../syntax/syntax.rkt")
-(require "matcher.rkt")
-(require "localize.rkt")
-(require "../type-check.rkt")
 
 (module+ test
   (require rackunit))
@@ -23,26 +19,27 @@
            (write (option-split-indices opt) port)
            (display ">" port))])
 
-(define (infer-splitpoints alts [axis #f])
-  (debug "Finding splitpoints for:" alts #:from 'regime-changes #:depth 2)
-  (define options
-    (map (curry option-on-expr alts)
-         (if axis (list axis) (exprs-to-branch-on alts))))
-  (argmin (compose errors-score option-errors) options))
+;; `infer-splitpoints` and `combine-alts` are split so the mainloop
+;; can insert a timeline break between them.
 
-;; The point of splitting these two steps is to separate regime
-;; inference and binary search, with a timeline break between them.
+(define (infer-splitpoints alts)
+  (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
+  (define branch-exprs (exprs-to-branch-on alts))
+  (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
+         #:from 'regime-changes #:depth 3)
+  (define options (map (curry option-on-expr alts) branch-exprs))
+  (define best (argmin (compose errors-score option-errors) options))
+  (debug "Found split indices:" best #:from 'regime #:depth 3)
+  best)
 
-(define (combine-alts best-option altns)
+(define (combine-alts best-option alts)
   (match-define (option splitindices pts expr _) best-option)
-  (define splitpoints* (sindices->spoints pts expr altns splitindices))
-  (define alts (used-alts splitpoints* altns))
-  (define splitpoints (coerce-indices splitpoints*))
-  (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
-  (cond
-   [(= (length alts) 1)
-    (first alts)]
-   [else
+  (match splitindices
+   [(list (si _ cidx)) (list-ref alts cidx)]
+   [_
+    (define splitpoints (sindices->spoints pts expr alts splitindices))
+    (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
+
     (define expr*
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
@@ -50,8 +47,20 @@
         `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
+
+    ;; We don't want unused alts in our history!
+    (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
     (alt `(λ ,(program-variables (*start-prog*)) ,expr*)
-         (list 'regimes splitpoints) alts)]))
+         (list 'regimes splitpoints*) alts*)]))
+
+(define (remove-unused-alts alts splitpoints)
+  (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
+    (define alt (list-ref alts (sp-cidx splitpoint)))
+    ;; It's important to snoc the alt in order for the indices not to change
+    (define alts** (remove-duplicates (append alts* (list alt))))
+    (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
+    (define splitpoints** (append splitpoints* (list splitpoint*)))
+    (values alts** splitpoints**)))
 
 (define (exprs-to-branch-on alts)
   (if (flag-set? 'reduce 'branch-expressions)
@@ -77,22 +86,6 @@
              #:when (and (not (null? (free-variables expr)))
                          (critical-subexpression? prog-body expr)))
     expr))
-
-(define (used-alts splitpoints all-alts)
-  (let ([used-indices (remove-duplicates (map sp-cidx splitpoints))])
-    (map (curry list-ref all-alts) used-indices)))
-
-;; Takes a list of splitpoints, `splitpoints`, whose indices originally referred to some list of alts `alts`,
-;; and changes their indices so that they are consecutive starting from zero, but all indicies that
-;; previously matched still match.
-(define (coerce-indices splitpoints)
-  (let* ([used-indices (remove-duplicates (map sp-cidx splitpoints))]
-	 [mappings (map cons used-indices (range (length used-indices)))])
-    (map (λ (splitpoint)
-	   (sp (cdr (assoc (sp-cidx splitpoint) mappings))
-	       (sp-bexpr splitpoint)
-	       (sp-point splitpoint)))
-	 splitpoints)))
 
 (define (option-on-expr alts expr)
   (define vars (program-variables (*start-prog*)))
@@ -143,37 +136,43 @@
 	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
 	  [else (binary-search-floats pred p1 midpoint)])))
 
+(define (extract-subexpression program expr)
+  (define var (gensym 'branch))
+  (define body* (replace-expression (program-body program) expr var))
+  (define vars* (set-subtract (program-variables program) (free-variables expr)))
+  (assert (subset? (free-variables body*) (cons var vars*))
+          #:extra-info (λ () (format "Can't cleanly extract ~a from ~a" expr program)))
+  `(λ (,var ,@vars*) ,body*))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
 (define (sindices->spoints points expr alts sindices)
-  (for ([alt alts])
-    (assert
-     (set-empty? (set-intersect (free-variables expr)
-                                (free-variables (replace-expression (alt-program alt) expr 0))))
-     #:extra-info (cons expr alt)))
-
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
+  (define progs (map (compose (curryr extract-subexpression expr) alt-program) alts))
+  (define start-prog (extract-subexpression (*start-prog*) expr))
+
+  (define (find-split prog1 prog2 v1 v2)
+    (define (pred v)
+      (define ctx
+        (parameterize ([*num-points* (*binary-search-test-points*)])
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v))))
+      (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
+    (debug #:from 'regimes "Searching between" v1 "and" v2 "on" expr)
+    (binary-search-floats pred v1 v2))
+
   (define (sidx->spoint sidx next-sidx)
-    (let* ([alt1 (list-ref alts (si-cidx sidx))]
-	   [alt2 (list-ref alts (si-cidx next-sidx))]
-	   [p1 (eval-expr (list-ref points (si-pidx sidx)))]
-	   [p2 (eval-expr (list-ref points (sub1 (si-pidx sidx))))]
-	   [pred (λ (v)
-		   (let* ([start-prog* (replace-expression (*start-prog*) expr v)]
-			  [prog1* (replace-expression (alt-program alt1) expr v)]
-			  [prog2* (replace-expression (alt-program alt2) expr v)]
-			  [context
-			   (parameterize ([*num-points* (*binary-search-test-points*)])
-			     (prepare-points start-prog* 'TRUE))])
-		     (< (errors-score (errors prog1* context))
-			(errors-score (errors prog2* context)))))])
-      (debug #:from 'regimes "searching between" p1 "and" p2 "on" expr)
-      (sp (si-cidx sidx) expr (binary-search-floats pred p2 p1))))
+    (define prog1 (list-ref progs (si-cidx sidx)))
+    (define prog2 (list-ref progs (si-cidx next-sidx)))
+
+    (define p1 (eval-expr (list-ref points (sub1 (si-pidx sidx)))))
+    (define p2 (eval-expr (list-ref points (si-pidx sidx))))
+
+    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
   (append
    (if (flag-set? 'reduce 'binary-search)
@@ -212,11 +211,6 @@
                 #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
       ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
       (sp-cidx right))))
-
-(define (with-entry idx lst item)
-  (if (= idx 0)
-      (cons item (cdr lst))
-      (cons (car lst) (with-entry (sub1 idx) (cdr lst) item))))
 
 ;; Takes a vector of numbers, and returns the partial sum of those numbers.
 ;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
