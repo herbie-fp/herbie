@@ -1,11 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../config.rkt")
-(require "../alternative.rkt")
-(require "../programs.rkt")
-(require "../points.rkt")
-(require "../float.rkt")
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt")
+(require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
   (require rackunit))
