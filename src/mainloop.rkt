@@ -314,7 +314,7 @@
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts))
       (timeline-event! 'binary-search)
-      (combine-alts option all-alts)]
+      (combine-alts option)]
      [else
       (best-alt all-alts)]))
   (define cleaned-alt

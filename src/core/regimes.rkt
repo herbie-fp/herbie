@@ -8,7 +8,7 @@
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts)
 
-(struct option (split-indices pts expr errors) #:transparent
+(struct option (split-indices alts pts expr errors) #:transparent
 	#:methods gen:custom-write
         [(define (write-proc opt port mode)
            (display "#<option " port)
@@ -30,7 +30,7 @@
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
     (for/list ([bexpr branch-exprs])
-      (define alts* (filter (λ (alt) (critical-subexpression? (alt-program alt) bexpr)) alts))
+      (define alts* (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
       (option-on-expr alts* bexpr)))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
@@ -43,7 +43,7 @@
   ;; for all of the alts and also for the start prgoram.
   (set-intersect start-critexprs (apply set-union alt-critexprs)))
   
-;; Requires that expr is a λ expression
+;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
   (define crit-vars (free-variables subexpr))
   (define replaced-expr (replace-expression expr subexpr 1))
@@ -54,14 +54,14 @@
 (define (all-critical-subexpressions prog)
   (define (subexprs-in-expr expr)
     (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
-  (define prog-body (location-get (list 2) prog))
+  (define prog-body (program-body prog))
   (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
              #:when (and (not (null? (free-variables expr)))
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option alts)
-  (match-define (option splitindices pts expr _) best-option)
+(define (combine-alts best-option)
+  (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
@@ -104,7 +104,7 @@
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
     (assert (> pidx 0))
     (assert (list-ref can-split? pidx)))
-  (option split-indices pts expr (pick-errors split-indices pts err-lsts)))
+  (option split-indices alts pts expr (pick-errors split-indices pts err-lsts)))
 
 (define (pick-errors split-indices pts err-lsts)
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
