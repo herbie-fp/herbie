@@ -20,13 +20,45 @@
 
 (define (infer-splitpoints alts)
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
-  (define branch-exprs (exprs-to-branch-on alts))
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on alts)
+        (program-variables (*start-prog*))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
-  (define options (map (curry option-on-expr alts) branch-exprs))
+  (define options
+    ;; We can only combine alts for which the branch expression is
+    ;; critical, to enable binary search.
+    (for/list ([bexpr branch-exprs])
+      (define alts* (filter (λ (alt) (critical-subexpression? (alt-program alt) bexpr)) alts))
+      (option-on-expr alts* bexpr)))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
+
+(define (exprs-to-branch-on alts)
+  (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
+  (define start-critexprs (all-critical-subexpressions (*start-prog*)))
+  ;; We can only binary search if the branch expression is critical
+  ;; for all of the alts and also for the start prgoram.
+  (set-intersect start-critexprs (apply set-union alt-critexprs)))
+  
+;; Requires that expr is a λ expression
+(define (critical-subexpression? expr subexpr)
+  (define crit-vars (free-variables subexpr))
+  (define replaced-expr (replace-expression expr subexpr 1))
+  (define non-crit-vars (free-variables replaced-expr))
+  (set-disjoint? crit-vars non-crit-vars))
+
+;; Requires that prog is a λ expression
+(define (all-critical-subexpressions prog)
+  (define (subexprs-in-expr expr)
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
+  (define prog-body (location-get (list 2) prog))
+  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+             #:when (and (not (null? (free-variables expr)))
+                         (critical-subexpression? prog-body expr)))
+    expr))
 
 (define (combine-alts best-option alts)
   (match-define (option splitindices pts expr _) best-option)
@@ -57,31 +89,6 @@
     (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
-
-(define (exprs-to-branch-on alts)
-  (if (flag-set? 'reduce 'branch-expressions)
-      (let ([alt-critexprs (for/list ([alt alts])
-              (all-critical-subexpressions (alt-program alt)))]
-            [critexprs (all-critical-subexpressions (*start-prog*))])
-           (remove-duplicates (foldr append '() (cons critexprs alt-critexprs))))
-      (program-variables (*start-prog*))))
-
-;; Requires that expr is a λ expression
-(define (critical-subexpression? expr subexpr)
-  (define crit-vars (free-variables subexpr))
-  (define replaced-expr (replace-expression expr subexpr 1))
-  (define non-crit-vars (free-variables replaced-expr))
-  (set-disjoint? crit-vars non-crit-vars))
-
-;; Requires that prog is a λ expression
-(define (all-critical-subexpressions prog)
-  (define (subexprs-in-expr expr)
-    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
-  (define prog-body (location-get (list 2) prog))
-  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
-             #:when (and (not (null? (free-variables expr)))
-                         (critical-subexpression? prog-body expr)))
-    expr))
 
 (define (option-on-expr alts expr)
   (define vars (program-variables (*start-prog*)))
