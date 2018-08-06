@@ -31,7 +31,7 @@
 (define (combine-alts best-option alts)
   (match-define (option splitindices pts expr _) best-option)
   (match splitindices
-   [(list (si _ cidx)) (list-ref alts cidx)]
+   [(list (si cidx _)) (list-ref alts cidx)]
    [_
     (define splitpoints (sindices->spoints pts expr alts splitindices))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
