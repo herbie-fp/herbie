@@ -6,7 +6,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["reports/run.rkt" (make-report)]
+ ["reports/run.rkt" (make-report rerun-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
@@ -103,6 +103,17 @@
     #:args (input output)
     (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+   [reproduce "Rerun an HTML report"
+    #:once-each
+    [("--note") note "Add a note for this run"
+     (set! report-note note)]
+    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count th))]
+    [("--profile") "Whether to profile each run"
+     (set! report-profile? true)]
+    #:args (input output)
+    (check-operator-fallbacks!)
+    (rerun-report input #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
    (begin
