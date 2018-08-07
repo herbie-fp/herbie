@@ -5,9 +5,9 @@ env:
     - RACKET_DIR=~/racket
       TBENCHES="bench/tutorial.fpcore bench/hamming/"
       HERBIE_SEED="0"
-      UNIT="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
+      UNIT="raco test src"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
-      RANDOM="raco test src"
+      RANDOM="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
   matrix:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="6.9"
