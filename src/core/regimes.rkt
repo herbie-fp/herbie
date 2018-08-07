@@ -29,12 +29,15 @@
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
-    (filter identity
-            (for/list ([bexpr branch-exprs])
-              (define alts* (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
-              (if (> (length alts*) 1)
-                  (option-on-expr alts* bexpr)
-                  #f))))
+    (reap [sow]
+      (for ([bexpr branch-exprs])
+        (define unsound-option (option-on-expr alts bexpr))
+        (sow unsound-option)
+        (define sound-alts (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
+        (when (and (> (length sound-alts) 1)
+                   (for/or ([si (option-split-indices unsound-option)])
+                     (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
+          (sow (option-on-expr sound-alts bexpr))))))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
@@ -147,9 +150,9 @@
   (define var (gensym 'branch))
   (define body* (replace-expression (program-body program) expr var))
   (define vars* (set-subtract (program-variables program) (free-variables expr)))
-  (assert (subset? (free-variables body*) (cons var vars*))
-          #:extra-info (λ () (format "Can't cleanly extract ~a from ~a" expr program)))
-  `(λ (,var ,@vars*) ,body*))
+  (if (subset? (free-variables body*) (cons var vars*))
+      `(λ (,var ,@vars*) ,body*)
+      #f))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -169,7 +172,6 @@
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepare-points start-prog `(== ,(caadr start-prog) ,v))))
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
-    (debug #:from 'regimes "Searching between" v1 "and" v2 "on" expr)
     (binary-search-floats pred v1 v2))
 
   (define (sidx->spoint sidx next-sidx)
@@ -181,17 +183,21 @@
 
     (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
+  (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
+
   (append
-   (if (flag-set? 'reduce 'binary-search)
-       (map sidx->spoint
-	    (take sindices (sub1 (length sindices)))
-	    (drop sindices 1))
-       (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	 (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1))))))
-   (list (let ([last-sidx (list-ref sindices (sub1 (length sindices)))])
-	   (sp (si-cidx last-sidx)
-	       expr
-	       +nan.0)))))
+   (if (and (flag-set? 'reduce 'binary-search)
+            ;; Binary search is only valid if we correctly extracted the branch expression
+            (andmap identity (cons start-prog progs)))
+       (begin
+         (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
+         (for/list ([si1 sindices] [si2 (cdr sindices)])
+           (sidx->spoint si1 si2)))
+       (begin
+         (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts)
+         (for/list ([sindex (take sindices (sub1 (length sindices)))])
+	   (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
+   (list final-sp)))
 
 (define (merge-err-lsts pts errs)
   (let loop ([pt (car pts)] [pts (cdr pts)] [err (car errs)] [errs (cdr errs)])
