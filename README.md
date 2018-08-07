@@ -66,7 +66,8 @@ where we discuss work in progress and announce major improvements.
 
 We use [Github](https://github.com/uwplse/herbie)
 and [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize some
-development goals.
+development goals. Some old reports and test cases are archived on
+[Google Drive](https://drive.google.com/drive/folders/1oaxPusk9IPOa0KxJra0WzWc_z8SzEt8x).
 
 Running Tests
 -------------
