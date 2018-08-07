@@ -212,19 +212,6 @@
        point
        (range (length point))))
 
-(define (point->alt splitpoints)
-  (assert (all-equal? (map sp-bexpr splitpoints)))
-  (assert (nan? (sp-point (last splitpoints))))
-  (define expr `(λ ,(program-variables (*start-prog*)) ,(sp-bexpr (car splitpoints))))
-  (define prog (eval-prog expr 'fl))
-
-  (λ (pt)
-    (define val (prog pt))
-    (for/first ([right splitpoints]
-                #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
-      ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
-      (sp-cidx right))))
-
 ;; Takes a vector of numbers, and returns the partial sum of those numbers.
 ;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
 (define (partial-sum vec)
@@ -312,10 +299,21 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-indices (last final))))
 
-(define (splitpoints->point-preds splitpoints num-alts)
-  (define which-alt (point->alt splitpoints))
-  (for/list ([i (in-range num-alts)])
-    (λ (pt) (equal? (which-alt pt) i))))
+(define (splitpoints->point-preds splitpoints alts)
+  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (nan? (sp-point (last splitpoints))))
+
+  (define vars (program-variables (alt-program (first alts))))
+  (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
+  (define prog (eval-prog expr 'fl))
+
+  (for/list ([i (in-naturals)] [alt alts])
+    (λ (pt)
+      (define val (prog pt))
+      (for/first ([right splitpoints]
+                  #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
+        ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
+        (equal? (sp-cidx right) i)))))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))])

@@ -17,23 +17,22 @@
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
          make-plots output-interactive-js make-interactive-js get-interactive-js)
 
-(define/contract (regime-var altn)
-  (-> alt? (or/c expr? #f))
+(define/contract (regime-info altn)
+  (-> alt? (or (listof sp?) #f))
   (let loop ([altn altn])
     (match altn
-      [(alt _ `(regimes ,splitpoints) prevs)
-       (sp-bexpr (car splitpoints))]
+      [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
 (define/contract (regime-splitpoints altn)
   (-> alt? (listof number?))
-  (let loop ([altn altn])
-    (match altn
-      [(alt _ `(regimes ,splitpoints) prevs)
-       (map sp-point (take splitpoints (sub1 (length splitpoints))))]
-      [(alt _ _ (list)) #f]
-      [(alt _ _ (list prev _ ...)) (loop prev)])))
+  (map sp-point (drop-right (regime-info altn) 1)))
+
+(define/contract (regime-var altn)
+  (-> alt? (or/c expr? #f))
+  (define info (regime-info altn))
+  (and info (sp-bexpr (car info))))
 
 (define/contract (render-command-line)
   (-> string?)
@@ -274,8 +273,7 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(parameterize ([*start-prog* (alt-program start-alt)]) ; Because splitpoint->point-preds
-             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts)))))
+         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
        ,(render-process-info time timeline profile? test)))))
 
@@ -343,6 +341,34 @@
 
 (struct interval (alt-idx start-point end-point expr))
 
+(define (interval->string ival)
+  (string-join
+   (list
+    (if (interval-start-point ival)
+        (format "~a < " (interval-start-point ival))
+        "")
+    (~a (interval-expr ival))
+    (if (equal? (interval-end-point ival) +nan.0)
+        ""
+        (format " < ~a" (interval-end-point ival))))))
+
+(define (split-pcontext pcontext splitpoints alts)
+  (define preds (splitpoints->point-preds splitpoints alts))
+
+  (for/list ([pred preds])
+    (define-values (pts* exs*)
+      (for/lists (pts exs)
+          ([(pt ex) (in-pcontext pcontext)] #:when (pred pt))
+        (values pt ex)))
+
+    ;; TODO: The (if) here just corrects for the possibility that we
+    ;; might have sampled new points that include no points in a given
+    ;; regime. Instead it would be best to continue sampling until we
+    ;; actually have many points in each regime. That would require
+    ;; breaking some abstraction boundaries right now so we haven't
+    ;; done it yet.
+    (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
+
 (define (render-history altn pcontext pcontext2)
   (-> alt? (listof xexpr?))
 
@@ -361,59 +387,22 @@
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt _ `(regimes ,splitpoints) prevs)
-     (let* ([start-sps (cons (sp -1 -1 #f) (take splitpoints (sub1 (length splitpoints))))]
-            [vars (program-variables (alt-program altn))]
-            [intervals
-             (for/list ([start-sp start-sps] [end-sp splitpoints])
-               (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp)))]
-            [preds (splitpoints->point-preds splitpoints (length prevs))]
-            [interval->string
+     (define intervals
+       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+         (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
 
-             (λ (ival)
-               (string-join
-                (list
-                 (if (interval-start-point ival)
-                     (format "~a < " (interval-start-point ival))
-                     "")
-                 (~a (interval-expr ival))
-                 (if (equal? (interval-end-point ival) +nan.0)
-                     ""
-                     (format " < ~a" (interval-end-point ival))))))])
-       `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
-         (li
-          ,@(apply
-             append
-             (for/list ([entry prevs] [entry-idx (range (length prevs))] [pred preds])
-               (let* ([entry-ivals
-                       (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals)]
-                      [condition
-                       (string-join (map interval->string entry-ivals) " or ")])
-                 (define-values (ivalpoints ivalexacts)
-                   (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext)]
-                                         #:when (pred pt))
-                     (values pt ex)))
-
-                 ;; TODO: The (if) here just corrects for the possibility
-                 ;; that we might have sampled new points that include no
-                 ;; points in a given regime. Instead it would be best to
-                 ;; continue sampling until we actually have many points in
-                 ;; each regime. That would require breaking some
-                 ;; abstraction boundaries right now so we haven't done it
-                 ;; yet.
-                 (define new-pcontext
-                   (if (null? ivalpoints) pcontext (mk-pcontext ivalpoints ivalexacts)))
-
-                 (define new-pcontext2
-                   (call-with-values
-                       (λ ()
-                         (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext2)]
-                                               #:when (pred pt))
-                           (values pt ex)))
-                     mk-pcontext))
-
-                 `((h2 (code "if " (span ([class "condition"]) ,condition)))
-                   (ol ,@(render-history entry new-pcontext new-pcontext2)))))))
-         (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program.")))]
+     `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
+       (li
+        ,@(apply
+           append
+           (for/list ([entry prevs] [entry-idx (range (length prevs))]
+                      [new-pcontext (split-pcontext pcontext splitpoints prevs)]
+                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
+             (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals))
+             (define condition (string-join (map interval->string entry-ivals) " or "))
+             `((h2 (code "if " (span ([class "condition"]) ,condition)))
+               (ol ,@(render-history entry new-pcontext new-pcontext2))))))
+       (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2)
