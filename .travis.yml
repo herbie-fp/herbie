@@ -4,31 +4,31 @@ env:
   global:
     - RACKET_DIR=~/racket
       TBENCHES="bench/tutorial.fpcore bench/hamming/"
-      HERBIE_SEED="#(2749829514 1059579101 312104142 915324965 966790849 1349306526)"
-      TSEED="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
-      TRAND="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
-      UTEST="raco test src"
+      HERBIE_SEED="0"
+      UNIT="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
+      INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
+      RANDOM="raco test src"
   matrix:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="6.9"
-      JOB="${TSEED}"
+      JOB="${UNIT}"
     - RACKET_VERSION="6.11"
-      JOB="${TSEED}"
+      JOB="${UNIT}"
     - RACKET_VERSION="7.0"
-      JOB="${TSEED}"
+      JOB="${UNIT}"
     - RACKET_VERSION="6.9"
-      JOB="${UTEST}"
+      JOB="${INTEGRATION}"
     - RACKET_VERSION="6.11"
-      JOB="${UTEST}"
+      JOB="${INTEGRATION}"
     - RACKET_VERSION="7.0"
-      JOB="${UTEST}"
+      JOB="${INTEGRATION}"
     # remember to change the `allow_failures` key below!
     - RACKET_VERSION="7.0"
-      JOB="${TRAND}"
+      JOB="${RANDOM}"
 matrix:
   allow_failures:
     - env: RACKET_VERSION="7.0"
-           JOB="${TRAND}"
+           JOB="${RANDOM}"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
