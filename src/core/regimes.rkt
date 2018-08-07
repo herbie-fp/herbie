@@ -307,7 +307,7 @@
   (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
   (define prog (eval-prog expr 'fl))
 
-  (for/list ([i (in-naturals)] [alt alts])
+  (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
       (define val (prog pt))
       (for/first ([right splitpoints]
@@ -322,7 +322,8 @@
             (sp 2 '(/ y x) 0.0)
             (sp 0 '(/ y x) +inf.0)
             (sp 1 '(/ y x) +nan.0)))
-    (match-define (list p0? p1? p2?) (splitpoints->point-preds sps 3))
+    (match-define (list p0? p1? p2?)
+                  (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))))
 
     (check-true (p0? '(0 -1)))
     (check-true (p2? '(-1 1)))
