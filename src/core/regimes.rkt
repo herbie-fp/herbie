@@ -29,9 +29,12 @@
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
-    (for/list ([bexpr branch-exprs])
-      (define alts* (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
-      (option-on-expr alts* bexpr)))
+    (filter identity
+            (for/list ([bexpr branch-exprs])
+              (define alts* (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
+              (if (> (length alts*) 1)
+                  (option-on-expr alts* bexpr)
+                  #f))))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
@@ -91,6 +94,7 @@
     (values alts** splitpoints**)))
 
 (define (option-on-expr alts expr)
+  (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define vars (program-variables (*start-prog*)))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
