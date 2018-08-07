@@ -7,7 +7,7 @@ env:
       HERBIE_SEED="0"
       UNIT="raco test src"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
-      RANDOM="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
+      STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
   matrix:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="6.9"
@@ -24,11 +24,11 @@ env:
       JOB="${INTEGRATION}"
     # remember to change the `allow_failures` key below!
     - RACKET_VERSION="7.0"
-      JOB="${RANDOM}"
+      JOB="${STABILITY}"
 matrix:
   allow_failures:
     - env: RACKET_VERSION="7.0"
-           JOB="${RANDOM}"
+           JOB="${STABILITY}"
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
