@@ -18,7 +18,7 @@
          make-plots output-interactive-js make-interactive-js get-interactive-js)
 
 (define/contract (regime-info altn)
-  (-> alt? (or (listof sp?) #f))
+  (-> alt? (or/c (listof sp?) #f))
   (let loop ([altn altn])
     (match altn
       [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
@@ -308,22 +308,25 @@
           `(,(render-process-info time timeline profile? test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
-             (table
-              (thead
-               (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-              (tbody
-               ,@(for/list ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-                   (match (cdr tb)
-                     [(srcloc file line col _ _)
-                      `(tr
-                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
-                        (td ,(~a file))
-                        (td ,(~a line))
-                        (td ,(~a col)))]
-                     [#f
-                      `(tr
-                        (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
-                        (td ([colspan "3"]) "unknown"))]))))))])))))
+             ,(render-traceback exn)))])))))
+
+(define (render-traceback exn)
+  `(table
+    (thead
+     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+    (tbody
+     ,@(for/list ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
+         (match (cdr tb)
+           [(srcloc file line col _ _)
+            `(tr
+              (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
+              (td ,(~a file))
+              (td ,(~a line))
+              (td ,(~a col)))]
+           [#f
+            `(tr
+              (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
+              (td ([colspan "3"]) "unknown"))])))))
 
 (define (make-timeout result rdir profile?)
   (match-define (test-timeout test bits time timeline) result)
@@ -395,10 +398,10 @@
        (li
         ,@(apply
            append
-           (for/list ([entry prevs] [entry-idx (range (length prevs))]
+           (for/list ([entry prevs] [idx (in-naturals)]
                       [new-pcontext (split-pcontext pcontext splitpoints prevs)]
                       [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
-             (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) entry-idx)) intervals))
+             (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map interval->string entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
                (ol ,@(render-history entry new-pcontext new-pcontext2))))))
