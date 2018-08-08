@@ -6,7 +6,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["reports/run.rkt" (make-report rerun-report)]
+ ["web/run.rkt" (make-report rerun-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 

@@ -11,7 +11,7 @@
 (require "../plot.rkt")
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
-(require "core2js.rkt")
+(require "../fpcore/core2js.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
