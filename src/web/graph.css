@@ -104,6 +104,7 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 .timeline-phase.simplify { background: #8ae234; }
 .timeline-phase.prune    { background: #ad7fa8; }
 .timeline-phase.regimes  { background: #a40000; }
+.timeline-phase.binary-search  { background: #8c0000; }
 @media print {
     .timeline { border: none; }
     .timeline-phase { outline: 1px solid black; }

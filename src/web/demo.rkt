@@ -5,7 +5,7 @@
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
 (require "../sandbox.rkt")
-(require "../formats/datafile.rkt" "../reports/make-graph.rkt" "../reports/make-report.rkt" "../reports/thread-pool.rkt")
+(require "../formats/datafile.rkt" "make-graph.rkt" "make-report.rkt" "thread-pool.rkt")
 (require "../formats/tex.rkt")
 (require "../syntax-check.rkt" "../type-check.rkt")
 (require "../common.rkt" "../config.rkt" "../programs.rkt" "../formats/test.rkt" "../errors.rkt")
