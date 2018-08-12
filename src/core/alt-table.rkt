@@ -177,7 +177,9 @@
       ; There must always be a not-done tied alt,
       ; since before adding any alts there weren't any tied alts
       (let ([undone-altns (filter (compose not alts->done?) altns)])
-        (argmin (compose length alts->pnts) (if (null? undone-altns) altns undone-altns)))))
+        (argmax
+         alt-cost
+         (argmins (compose length alts->pnts) (if (null? undone-altns) altns undone-altns))))))
 
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alt->points cur-atab)]
@@ -206,19 +208,18 @@
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
 (define (atab-add-altn atab altn)
-  (match-let* ([pnts->alts (alt-table-point->alts atab)]
-	       [alts->pnts (alt-table-alt->points atab)]
-	       [`(,best-pnts ,tied-pnts) (best-and-tied-at-points pnts->alts altn)])
-    (if (null? best-pnts)
-	atab
-	(let* ([alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
-	       [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
-	       [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
-	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
-	       [alts->done?* (hash-set (alt-table-alt->done? atab) altn #f)]
-	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab))]
-	       [atab*2 (minimize-alts atab*1)])
-	  atab*2))))
+  (match-define (alt-table point->alts alt->points _ _) atab)
+  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn))
+  (if (and (null? best-pnts) (null? tied-pnts))
+      atab
+      (let* ([alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts)]
+	     [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
+	     [pnts->alts*1 (override-at-pnts point->alts best-pnts altn)]
+	     [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
+	     [alts->done?* (hash-set (alt-table-alt->done? atab) altn #f)]
+	     [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab))]
+	     [atab*2 (minimize-alts atab*1)])
+	atab*2)))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
