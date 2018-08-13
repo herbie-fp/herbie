@@ -7,6 +7,7 @@
 (require "../common.rkt")
 (require "../float.rkt")
 (require "../bigcomplex.rkt")
+(require "softfloat.rkt")
 
 (provide types type? value-of bigvalue-of value? bigvalue?
          constant? variable? operator? operator-info constant-info parametric-operators
@@ -126,6 +127,13 @@
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
+(define-operator (+.p _posit8 _posit8) _posit8
+  [fl posit16-add] [bf bf-posit16-add] [cost 40]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi +])
+
 (define-operator (- real [real]) real
   ;; Override the normal argument handling because - can be unary
   [args '(1 2)] [type (hash 1 '(((real) real)) 2 '(((real real) real)))]
@@ -149,6 +157,13 @@
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
+(define-operator (-.p _posit16 _posit16) _posit16
+  [fl posit16_sub] [bf bf-posit16-sub] [cost 80]
+  [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a - ~a")]
+  [nonffi -])
+
 (define-operator (* real real) real
   [fl *] [bf bf*] [cost 40]
   [->c/double (curry format "~a * ~a")]
@@ -163,6 +178,13 @@
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi *])
 
+(define-operator (*.p _posit16 _posit16) _posit16
+  [fl posit16-mul] [bf bf-posit16-mul] [cost 320]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a \\cdot ~a")]
+  [nonffi *])
+
 (define-operator (/ real real) real
   [fl /] [bf bf/] [cost 40]
   [->c/double (curry format "~a / ~a")]
@@ -174,6 +196,13 @@
   [fl /] [bf bf-complex-div] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi /])
+
+(define-operator (/.p _posit16 _posit16) _posit16
+  [fl posit16-div] [bf bf-posit16-div] [cost 440]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
 
@@ -520,6 +549,13 @@
   [fl sqrt] [bf bf-complex-sqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no complex support in C */")]
+  [->tex (curry format "\\sqrt{~a}")]
+  [nonffi sqrt])
+
+(define-operator (sqrt.p _posit16) _posit16
+  [fl posit16-sqrt] [bf bf-posit16-sqrt] [cost 40]
+  [->c/double (curry format "sqrt(~a)")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi sqrt])
 

@@ -127,3 +127,5 @@
 (define posit32->double (get-ffi-obj "convertP32ToDouble" "softposit" (_fun _posit32 -> _double)))
 (define float->posit32 (get-ffi-obj "convertFloatToP32" "softposit" (_fun _float -> _posit32)))
 (define double->posit32 (get-ffi-obj "convertDoubleToP32" "softposit" (_fun _double -> _posit32)))
+
+;; TODO: Add bf-posit16-add etc. which will just cast to double then do mpfr stuff, then cast back?
