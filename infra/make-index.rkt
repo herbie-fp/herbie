@@ -136,7 +136,9 @@
 
   (define dirs (directory-jsons report-json-path))
   (define folders
-    (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp)))
+    (filter
+     (λ (x) (< (- (current-seconds) (dict-ref x 'date-unix)) (* 60 60 24 30)))
+     (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp))))
 
   (define branch-infos*
     (sort

@@ -6,7 +6,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["reports/run.rkt" (make-report)]
+ ["web/run.rkt" (make-report rerun-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
@@ -22,8 +22,7 @@
                           ", "))
     (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
     (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*))
-  (unless (flag-set? 'fn 'cbrt) (eprintf "cbrt is diabled.\n")))
+             *herbie-version*)))
 
 (module+ main
   (define quiet? #f)
@@ -104,6 +103,17 @@
     #:args (input output)
     (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+   [reproduce "Rerun an HTML report"
+    #:once-each
+    [("--note") note "Add a note for this run"
+     (set! report-note note)]
+    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count th))]
+    [("--profile") "Whether to profile each run"
+     (set! report-profile? true)]
+    #:args (input output)
+    (check-operator-fallbacks!)
+    (rerun-report input #:dir output #:profile report-profile? #:note report-note #:threads threads)]
 
    #:args files
    (begin

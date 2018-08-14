@@ -174,7 +174,7 @@
 
 (define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)
-      #:seed (or/c pseudo-random-generator-vector? (integer-in 1 (sub1 (expt 2 31))))
+      #:seed (or/c pseudo-random-generator-vector? (integer-in 0 (sub1 (expt 2 31))))
       #:profile boolean? #:dir (or/c #f path-string?)
       (listof (or/c #f (cons/c expr? table-row?))))
   (when (and threads (> threads (length progs)))

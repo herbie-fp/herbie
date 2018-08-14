@@ -1,4 +1,4 @@
-.PHONY: all install update nightly index clean publish start-server package loc deploy
+.PHONY: all install update nightly index publish start-server package deploy
 
 all:
 	@echo "Type 'make install' to install Herbie as a Racket package,"
@@ -23,10 +23,6 @@ herbie.zip herbie.zip.CHECKSUM:
 	mv src.zip herbie.zip
 	mv src.zip.CHECKSUM herbie.zip.CHECKSUM
 
-clean:
-	rm -f cost
-	rm -rf graphs/
-
 publish:
 	bash infra/publish.sh upload graphs/
 	bash infra/publish.sh index
@@ -36,9 +32,6 @@ start-server:
 
 package:
 	raco pkg
-
-loc:
-	find herbie/ -type f -exec cat {} \; | wc -l
 
 # This rule is run by herbie.uwplse.org on every commit to Github.
 # It does not restart the demo server, but it does pull new static content

@@ -133,7 +133,7 @@ function setup_timeline() {
     }
     for (var i = 0; i < ts.length; i++) {
         ts[i].style.width = (+ts[i].getAttribute("data-timespan")) / total_time * 100 + "%";
-        ts[i].title = ts[i].getAttribute("data-type");
+        ts[i].title = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
     }
 }
 

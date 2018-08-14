@@ -82,30 +82,26 @@
 		    (if (null? bindings) '()
 			(list* rl en bindings)))))))
   (define (apply-match match)
-    (match-let* ([`(,rl ,en . ,bindings) match]
-                 ;; These next two lines are here because an earlier
-                 ;; match application may have pruned the tree,
-                 ;; invalidating the this one. Luckily, a pruned
-                 ;; enode will still point to it's old leader, so we
-                 ;; just get the leader, and then double check the
-                 ;; bindings to make sure our match hasn't
-                 ;; changed. While it may be aggressive to
-                 ;; invalidate any change in bindings, it seems like
-                 ;; the right thing to do for now.
-                 [en (pack-leader en)]
-                 [bindings* (match-e (rule-input rl) en)]
-                 [applied #f])
-          ;; Apply the match for each binding.
-          (for ([binding bindings]
-                #:when (set-member? bindings* binding))
-            (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))
-            (set! applied #t))
-          (when applied
-            ;; Prune the enode if we can.
-            (try-prune-enode en)
-            ;; Mark this node as having this rule applied so that we don't try
-            ;; to apply it again.
-            (rule-applied! en rl))))
+    (match-define (list rl en bindings ...) match)
+
+    ;; These next two lines are here because an earlier match
+    ;; application may have pruned the tree, invalidating the this
+    ;; one. Luckily, a pruned enode will still point to it's old
+    ;; leader, so we just get the leader, and then double check the
+    ;; bindings to make sure our match hasn't changed.
+    
+    (define en* (pack-leader en))
+    (define bindings-set (apply set bindings))
+    (define bindings* (apply set (match-e (rule-input rl) en*)))
+    (define valid-bindings (set-intersect bindings-set bindings*))
+
+    (for ([binding valid-bindings])
+      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
+    ;; Prune the enode if we can
+    (unless (null? valid-bindings) (try-prune-enode en))
+    ;; Mark this node as having this rule applied so that we don't try
+    ;; to apply it again.
+    (when (subset? valid-bindings bindings-set) (rule-applied! en rl)))
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
