@@ -78,11 +78,11 @@
 (define posit16->posit32 (get-ffi-obj "p16_to_p32" "softposit" (_fun _posit16 -> _posit32)))
 
 (define posit16-round-to-int (get-ffi-obj "p16_roundToInt" "softposit" (_fun _posit16 -> _posit16)))
-(define posit16-add (get-ffi-obj "p16_add" "softposit" (_fun _posit16 _posit8 -> _posit16)))
-(define posit16-sub (get-ffi-obj "p16_sub" "softposit" (_fun _posit16 _posit8 -> _posit16)))
-(define posit16-mul (get-ffi-obj "p16_mul" "softposit" (_fun _posit16 _posit8 -> _posit16)))
-(define posit16-mulAdd (get-ffi-obj "p16_mulAdd" "softposit" (_fun _posit16 _posit8 _posit8 -> _posit16)))
-(define posit16-div (get-ffi-obj "p16_div" "softposit" (_fun _posit16 _posit8 -> _posit16)))
+(define posit16-add (get-ffi-obj "p16_add" "softposit" (_fun _posit16 _posit16 -> _posit16)))
+(define posit16-sub (get-ffi-obj "p16_sub" "softposit" (_fun _posit16 _posit16 -> _posit16)))
+(define posit16-mul (get-ffi-obj "p16_mul" "softposit" (_fun _posit16 _posit16 -> _posit16)))
+(define posit16-mulAdd (get-ffi-obj "p16_mulAdd" "softposit" (_fun _posit16 _posit16 _posit16 -> _posit16)))
+(define posit16-div (get-ffi-obj "p16_div" "softposit" (_fun _posit16 _posit16 -> _posit16)))
 (define posit16-sqrt (get-ffi-obj "p16_sqrt" "softposit" (_fun _posit16 -> _posit16)))
 
 (define posit16-eq? (get-ffi-obj "p16_eq" "softposit" (_fun _posit16 _posit16 -> _bool)))
@@ -108,11 +108,11 @@
 (define posit32->posit16 (get-ffi-obj "p32_to_p16" "softposit" (_fun _posit32 -> _posit16)))
 
 (define posit32-round-to-int (get-ffi-obj "p32_roundToInt" "softposit" (_fun _posit32 -> _posit32)))
-(define posit32-add (get-ffi-obj "p32_add" "softposit" (_fun _posit32 _posit8 -> _posit32)))
-(define posit32-sub (get-ffi-obj "p32_sub" "softposit" (_fun _posit32 _posit8 -> _posit32)))
-(define posit32-mul (get-ffi-obj "p32_mul" "softposit" (_fun _posit32 _posit8 -> _posit32)))
-(define posit32-mulAdd (get-ffi-obj "p32_mulAdd" "softposit" (_fun _posit32 _posit8 _posit8 -> _posit32)))
-(define posit32-div (get-ffi-obj "p32_div" "softposit" (_fun _posit32 _posit8 -> _posit32)))
+(define posit32-add (get-ffi-obj "p32_add" "softposit" (_fun _posit32 _posit32 -> _posit32)))
+(define posit32-sub (get-ffi-obj "p32_sub" "softposit" (_fun _posit32 _posit32 -> _posit32)))
+(define posit32-mul (get-ffi-obj "p32_mul" "softposit" (_fun _posit32 _posit32 -> _posit32)))
+(define posit32-mulAdd (get-ffi-obj "p32_mulAdd" "softposit" (_fun _posit32 _posit32 _posit32 -> _posit32)))
+(define posit32-div (get-ffi-obj "p32_div" "softposit" (_fun _posit32 _posit32 -> _posit32)))
 (define posit32-sqrt (get-ffi-obj "p32_sqrt" "softposit" (_fun _posit32 -> _posit32)))
 
 (define posit32-eq? (get-ffi-obj "p32_eq" "softposit" (_fun _posit32 _posit32 -> _bool)))
