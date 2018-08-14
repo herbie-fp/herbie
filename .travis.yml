@@ -30,7 +30,8 @@ matrix:
     - env: RACKET_VERSION="7.0"
            JOB="${STABILITY}"
 before_install:
-  - wget https://homes.cs.washington.edu/~dthien/assets/files/softposit.so
+  - wget https://homes.cs.washington.edu/~dthien/assets/files/softposit.so -O ./lib/softposit.so
+  - export LD_LIBRARY_PATH=$(pwd)/lib/:$LD_LIBRARY_PATH
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
