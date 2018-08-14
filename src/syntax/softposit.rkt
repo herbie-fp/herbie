@@ -1,6 +1,7 @@
 #lang racket
 
 (require ffi/unsafe)
+(require math/bigfloat)
 ;; This file makes racket bindings for all the posit functions
 
 ;; Define all types. Note that this file assumes that the softposit code was compiled
@@ -128,4 +129,14 @@
 (define float->posit32 (get-ffi-obj "convertFloatToP32" "softposit" (_fun _float -> _posit32)))
 (define double->posit32 (get-ffi-obj "convertDoubleToP32" "softposit" (_fun _double -> _posit32)))
 
-;; TODO: Add bf-posit16-add etc. which will just cast to double then do mpfr stuff, then cast back?
+;; TODO: This shouldn't always return true
+(struct big-posit16 (v))
+
+;; TODO: This might not be the best way to handle bigfloats
+(define (bf-double->posit16 x) (big-posit16 x))
+(define (bf-posit16->double x) (big-posit16-v x))
+(define (bf-posit16-add x y) (big-posit16 (bf+ (big-posit16-v x) (big-posit16-v y))))
+(define (bf-posit16-sub x y) (big-posit16 (bf- (big-posit16-v x) (big-posit16-v y))))
+(define (bf-posit16-mul x y) (big-posit16 (bf* (big-posit16-v x) (big-posit16-v y))))
+(define (bf-posit16-div x y) (big-posit16 (bf/ (big-posit16-v x) (big-posit16-v y))))
+(define (bf-posit16-sqrt x) (big-posit16 (bfsqrt (big-posit16-v x))))

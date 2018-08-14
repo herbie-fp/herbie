@@ -7,7 +7,7 @@
 (require "../common.rkt")
 (require "../float.rkt")
 (require "../bigcomplex.rkt")
-(require "softfloat.rkt")
+(require "softposit.rkt")
 
 (provide types type? value-of bigvalue-of value? bigvalue?
          constant? variable? operator? operator-info constant-info parametric-operators
@@ -18,11 +18,11 @@
 
 (define *loaded-ops* (make-parameter '()))
 
-(define types '(bool real complex))
+(define types '(bool real complex _posit16))
 (define (type? x) (set-member? types x))
 
-(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?])
-(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?])
+(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?] [('_posit16) posit16?])
+(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?] [('_posit16) big-posit16?])
 
 (define value? (apply or/c (map value-of types)))
 (define bigvalue? (apply or/c (map bigvalue-of types)))
@@ -127,7 +127,7 @@
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
-(define-operator (+.p _posit8 _posit8) _posit8
+(define-operator (+.p _posit16 _posit16) _posit16
   [fl posit16-add] [bf bf-posit16-add] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
@@ -158,7 +158,7 @@
   [nonffi -])
 
 (define-operator (-.p _posit16 _posit16) _posit16
-  [fl posit16_sub] [bf bf-posit16-sub] [cost 80]
+  [fl posit16-sub] [bf bf-posit16-sub] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
@@ -635,6 +635,22 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
   [->tex (infix-joiner " = ")]
   [nonffi (comparator =)])
+
+(define-operator (real->posit16 real) _posit16
+  ; Override number of arguments
+  [fl double->posit16] [bf bf-double->posit16] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "real->posit(~a)")]
+  [nonffi double->posit16])
+
+(define-operator (posit16->real _posit16) real
+  ; Override number of arguments
+  [fl posit16->double] [bf bf-posit16->double] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "posit16->real(~a)")]
+  [nonffi double->posit16])
 
 (define-operator (complex real real) complex
   ; Override number of arguments

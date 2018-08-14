@@ -1,7 +1,8 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt"
+         "syntax/softposit.rkt")
 
 (module+ test (require rackunit))
 
@@ -34,7 +35,7 @@
 ;; Converting constants
 
 (define/contract (->flonum x)
-  (-> any/c (or/c flonum? complex? boolean?))
+  (-> any/c (or/c flonum? complex? boolean? posit16?))
   (define convert
     (if (flag-set? 'precision 'double)
         real->double-flonum
@@ -45,6 +46,8 @@
    [(bigcomplex? x)
     (make-rectangular (->flonum (bigcomplex-re x))
                       (->flonum (bigcomplex-im x)))]
+   [(posit16? x) x]
+   [(big-posit16? x) (double->posit16 (bigfloat->flonum (big-posit16-v x)))]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)))]
    [else x]))
@@ -55,6 +58,8 @@
    [(bigfloat? x) x]
    [(complex? x)
     (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
+   [(posit16? x)
+    (big-posit16 (bf (posit16->double x)))]
    [(constant? x) ((constant-info x 'bf))]
    [else x]))
 
@@ -245,6 +250,7 @@
         [(? real?) (values expr 'real)]
         [(? boolean?) (values expr 'bool)]
         [(? complex?) (values expr 'complex)]
+        [(? posit16?) (values expr 'posit16)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref ctx expr))])))
   expr*)

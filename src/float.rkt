@@ -3,6 +3,7 @@
 (require math/flonum math/bigfloat)
 (require "config.rkt")
 (require "common.rkt")
+(require "syntax/softposit.rkt")
 
 (provide midpoint-float ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
 
@@ -24,7 +25,10 @@
      (+ (ulp-difference (real-part x) (real-part y))
         (ulp-difference (imag-part x) (imag-part y)))]
     [((? boolean?) (? boolean?))
-     (if (equal? x y) 0 64)]))
+     (if (equal? x y) 0 64)]
+    ;; TODO: We should have a better metric for calculating posit error
+    [((? posit16?) (? posit16?))
+     (ulp-difference (posit16->double x) (posit16->double y))]))
 
 (define (midpoint-float p1 p2)
   (cond 

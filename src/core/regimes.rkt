@@ -76,6 +76,7 @@
   (define prog-body (program-body prog))
   (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
              #:when (and (not (null? (free-variables expr)))
+                         (equal? (type-of expr (for/list ([var (program-variables prog)]) (cons var 'real))) 'real)
                          (critical-subexpression? prog-body expr)))
     expr))
 
