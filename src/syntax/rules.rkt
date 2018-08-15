@@ -4,6 +4,7 @@
 
 (require "../common.rkt")
 (require "syntax.rkt")
+(require "softposit.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules*
          *fp-safe-simplify-rules* prune-rules!)
@@ -49,10 +50,17 @@
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
+
 (define-ruleset commutativity.c (arithmetic simplify fp-safe complex)
   #:type ([a complex] [b complex])
   [+.c-commutative     (+.c a b)               (+.c b a)]
   [*.c-commutative     (*.c a b)               (*.c b a)])
+
+; Posit conversions
+(define-ruleset insert/remove-posit (arithmetic simplify posit)
+  #:type ([a posit16])
+  [insert-posit16 a (posit16->real (real->posit16 a))]
+  [remove-posit16 (posit16->real (real->posit16 a)) a])
 
 ; Associativity
 (define-ruleset associativity (arithmetic simplify)
