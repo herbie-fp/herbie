@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt")
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../type-check.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -47,7 +47,9 @@
   (define start-critexprs (all-critical-subexpressions (*start-prog*)))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
-  (set-intersect start-critexprs (apply set-union alt-critexprs)))
+  (filter
+   (λ (e) (equal? (type-of e (for/list ([v (program-variables (*start-prog*))]) (cons v 'real))) 'real))
+   (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
