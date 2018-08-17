@@ -41,6 +41,7 @@
           (target . ,target-bits)
           (ninf . ,inf-)
           (pinf . ,inf+)
+          (start-est . ,start-est)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
           (input . ,(write-string (write input)))
@@ -90,7 +91,6 @@
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
                    (let ([get (λ (field) (hash-ref test field))])
-                     ;; TODO: ignoring the result-est
                      (define vars
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
