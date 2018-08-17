@@ -189,8 +189,8 @@
   (check-equal? (index-of '(a b c d e) 'd) 3)
   (check-equal? (index-of '(a b c d e) 'foo) #f))
 
-(define (set-disjoint? s1 s2) ; TODO could be faster?
-  (set=? (set-intersect s2 s1) '()))
+(define (set-disjoint? s1 s2)
+  (set-empty? (set-intersect s2 s1)))
 
 (module+ test
   (check-true (set-disjoint? '(a b c) '(e f g)))
