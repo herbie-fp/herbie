@@ -11,11 +11,10 @@
 
 (define (rerun-report json-file #:dir dir #:profile profile? #:note note #:threads threads)
   (define data (read-datafile json-file))
-  ;; TODO: rerunning does not support preconditions. This should be fixed.
   (define tests
     (for/list ([row (report-info-tests data)])
       (test (table-row-name row) (table-row-vars row)
-            (table-row-input row) (table-row-output row) #f #t 'TRUE)))
+            (table-row-input row) (table-row-output row) #f (table-row-pre row))))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))

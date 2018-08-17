@@ -9,7 +9,7 @@
 
 
 (struct table-row
-  (name status start result target inf- inf+ start-est result-est vars input output time bits link) #:prefab)
+  (name status pre start result target inf- inf+ start-est result-est vars input output time bits link) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
@@ -30,10 +30,11 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status start-bits end-bits target-bits
+      [(table-row name status pre start-bits end-bits target-bits
                   inf- inf+ start-est end-est vars input output time bits link)
        (make-hash
         `((name . ,name)
+          (pre . ,(write-string (write pre)))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)
@@ -42,8 +43,8 @@
           (pinf . ,inf+)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
-          (input . ,(~a input))
-          (output . ,(~a output))
+          (input . ,(write-string (write input)))
+          (output . ,(write-string (write output)))
           (time . ,time)
           (bits . ,bits)
           (link . ,(~a link))))]))
@@ -94,7 +95,7 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
+                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre 'TRUE)) (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))

@@ -97,7 +97,8 @@
 (define (get-table-data* result link)
   (cond
    [(test-result? result)
-    (let* ([name (test-name (test-result-test result))]
+    (define test (test-result-test result))
+    (let* ([name (test-name test)]
            [start-errors  (test-result-start-error  result)]
            [end-errors    (test-result-end-error    result)]
            [target-errors (test-result-target-error result)]
@@ -124,6 +125,7 @@
                         [(< end-score (- start-score 1)) "imp-start"]
                         [(< end-score (+ start-score 1)) "apx-start"]
                         [else "uni-start"]))
+                   (test-precondition test)
                    start-score
                    end-score
                    (and target-score target-score)
@@ -139,12 +141,12 @@
                    link)))]
    [(test-failure? result)
     (define test (test-failure-test result))
-    (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash")
+    (table-row (test-name test) (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash") (test-precondition test)
                #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-failure-time result) (test-failure-bits result) link)]
    [(test-timeout? result)
     (define test (test-timeout-test result))
-    (table-row (test-name (test-timeout-test result)) "timeout"
+    (table-row (test-name test) "timeout" (test-precondition test)
                #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
                (test-timeout-time result) (test-timeout-bits result) link)]))
 
