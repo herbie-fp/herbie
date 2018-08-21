@@ -95,7 +95,7 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre 'TRUE)) (get 'start) (get 'end) (get 'target)
+                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (get 'time) (get 'bits) (get 'link)))))))

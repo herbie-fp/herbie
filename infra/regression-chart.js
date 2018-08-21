@@ -105,7 +105,10 @@ function make_graph(node, data, type) {
 
     var bar = svg.selectAll("g").data(data).enter();
 
-    var g = bar.append("g").attr("class", "arrow");
+    var g = bar.append("a")
+        .attr("xlink:href", function(d) {
+            return d.elt.querySelector("a").href;
+        }).append("g").attr("class", "arrow");
 
     g.append("title")
         .text(function(d) { return "At " + new Date(d.time * 1000) + "\nOn " + d.branch });
@@ -122,10 +125,6 @@ function make_graph(node, data, type) {
         .attr("transform", function(d, i) {
             return "translate(" + spacing*(i + .5) + ", " + (height - height * (d[type].total - d[type].got) / max) + ")";
         });
-    
-    g.on("click", function(d) {
-        d.elt.querySelector("a").click();
-    });
 }
 
 function select_data(data, options, tag) {
