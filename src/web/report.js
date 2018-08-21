@@ -104,7 +104,7 @@ function setup_figure_tabs(figure_container) {
         figures[i].style.display = "none";
         figures[i].querySelector("figcaption > p").style.display = "none";
     }
-    if (default_figure === null) default_figure = figures[0].id;
+    if (default_figure === null && figures.length > 0) default_figure = figures[0].id;
 
     var tab_bar = document.createElement("ul");
     tab_bar.classList.add("tabbar");
@@ -122,7 +122,7 @@ function setup_figure_tabs(figure_container) {
         tab_bar.appendChild(tab_button);
     }
 
-    select_tab(default_figure);
+    if (default_figure) select_tab(default_figure);
 }
 
 function setup_timeline() {
