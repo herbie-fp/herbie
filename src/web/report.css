@@ -28,6 +28,8 @@ figure { float: left; margin: 0; }
 
 #test-badges {  cursor: pointer; list-style: none inside none; padding: 0; width: 300px; float: right; margin: 10px 0; font-size: 12pt; }
 #test-badges li { height: 40px; line-height: 40px; width: 75px; float: left; text-align: center; }
+#test-badges a { color: black; }
+#test-badges a:hover { color: black; text-decoration: none; }
 #test-badges li:hover { font-size: 15pt; }
 #test-badges.highlight-one li { opacity: .333; }
 #test-badges.highlight-one li.highlight { opacity: 1; }

@@ -53,7 +53,9 @@ function make_graph(node, data, start, end) {
         .attr("class", function(d) {
             return d[start] > d[end] + 1 ? "arrow good" : d[start] < d[end] - 1 ? "arrow bad" : "arrow nodiff" });
 
-    g.append("line")
+    g.append("a")
+        .attr("xlink:href", function(d) { return "./" + d.link + "/graph.html" })
+        .append("line")
         .attr("x1", function(d) {return (precision - Math.max(d[start], d[end])) / precision * width})
         .attr("x2", function(d) { return (precision - Math.min(d[start], d[end])) / precision * width })
         .attr("y1", line_y)
@@ -105,7 +107,14 @@ function draw_results(node) {
         var badges = document.querySelectorAll(".badge");
         for (var i = 0; i < badges.length; i++) {
             var idx = +badges[i].attributes["data-id"].value;
-            BADGES[idx] = badges[i]
+            var url = document.getElementById("link" + idx).href;
+            var a = document.createElement("a");
+            // Only a text thing
+            var t = badges[i].childNodes[0];
+            a.href = url;
+            a.appendChild(t);
+            badges[i].appendChild(a);
+            BADGES[idx] = badges[i];
         }
 
         function clear() {
@@ -124,21 +133,12 @@ function draw_results(node) {
                 });
                 BADGES[i].addEventListener("mouseout", clear);
 
-                BADGES[i].addEventListener("click", function() {
-                    var id = "link" + BADGES[i].attributes["data-id"].value;
-                    document.getElementById(id).click();
-                });
-
                 ARROWS[i].addEventListener("mouseover", function() {
                     clear();
                     BADGES[i].classList.add("highlight");
                     BADGES.container.classList.add("highlight-one");
                 });
                 ARROWS[i].addEventListener("mouseout", clear);
-                ARROWS[i].addEventListener("click", function() {
-                    var id = "link" + ARROWS[i].attributes["data-id"].value;
-                    document.getElementById(id).click();
-                });
             })(i);
         }
     });
