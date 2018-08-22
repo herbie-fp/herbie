@@ -344,8 +344,19 @@
                 (λ (st)
                   (for/mutable-set ([expr st])
                                    (update-en-expr expr))))
+
+  ;; TODO: We want a single-member pack, which points to the
+  ;; expressions `expr`. If `expr` is a constant, that's easy. If
+  ;; `expr` is a function call, however, we have trouble knowing if
+  ;; it's the "right" expression. I've implemented a bad hack here of
+  ;; just checking the head op.
   (define leader* (pack-filter! (λ (inner-en)
-                                  (equal? (enode-expr inner-en) (enode-expr new-en)))
+                                  (match expr
+                                    [(list op _ ...)
+                                     (and (list? (enode-expr inner-en))
+                                          (equal? (car (enode-expr inner-en)) op))]
+                                    [_
+                                     (equal? (enode-expr inner-en) expr)]))
                                 leader))
   (update-leader! eg vars leader leader*))
 
