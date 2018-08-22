@@ -415,6 +415,7 @@
 
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
+    [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
     [0 (taylor-exact 1)]
     [1 coeffs]
     [(? even?)
