@@ -238,8 +238,8 @@
                         (simplify `(+ (* (- ,(car arg*)) (log ,var))
                                       ,((cdr rest) 0)))
                         ((cdr rest) n))))))]
-    [`(pow ,(? (curry equal? var)) ,(? exact-integer? power))
-     (cons (- power) (λ (n) (if (= n 0) 1 0)))]
+    [`(pow ,base ,(? exact-integer? power))
+     (taylor-pow (taylor var base) power)]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
     [_
@@ -415,6 +415,17 @@
                                             `(/ (pow ,(coeffs (cdr factor)) ,(car factor))
                                                 ,(factorial (car factor)))))
                                     0))))))))))
+
+(define (taylor-pow coeffs n)
+  (match n
+    [0 (taylor-exact 1)]
+    [1 coeffs]
+    [(? even?)
+     (define half (taylor-pow coeffs (/ n 2)))
+     (taylor-mult half half)]
+    [(? odd?)
+     (define half (taylor-pow coeffs (/ (- n 1) 2)))
+     (taylor-mult coeffs (taylor-mult half half))]))
 
 (define (taylor-cos coeffs)
   (let ([hash (make-hash)])
