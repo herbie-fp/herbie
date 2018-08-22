@@ -171,7 +171,7 @@
   (let loop ([iter 0])
     (define changed? #f)
     (debug #:from 'simplify #:depth 2
-           (format "Extracting #~a: cost ~a inf + ~a\n"
+           (format "Extracting #~a: cost ~a inf + ~a"
                    iter (count (compose not car) (hash-values work-list))
                    (apply + (filter identity (map car (hash-values work-list))))))
     (for ([leader (in-list (hash-keys work-list))])

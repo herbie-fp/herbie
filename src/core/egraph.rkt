@@ -378,4 +378,4 @@
 			  id vid (enode-pid (third var)))])))))
 	(displayln "}")))
   (system (format "dot -Tpng -o ~a.png ~a" fp fp))
-  (system (format "feh ~a.png" fp)))
+  #;(system (format "feh ~a.png" fp)))
