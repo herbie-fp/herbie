@@ -188,9 +188,6 @@
      (taylor-invert (taylor var arg))]
     [`(/ ,num ,den)
      (taylor-quotient (taylor var num) (taylor var den))]
-    [`(sqr ,a)
-     (let ([ta (taylor var a)])
-       (taylor-mult ta ta))]
     [`(sqrt ,arg)
      (taylor-sqrt (taylor var arg))]
     [`(exp ,arg)
@@ -239,7 +236,7 @@
                                       ,((cdr rest) 0)))
                         ((cdr rest) n))))))]
     [`(pow ,base ,(? exact-integer? power))
-     (taylor-pow (taylor var base) power)]
+     (taylor-pow (normalize-series (taylor var base)) power)]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
     [_
@@ -417,7 +414,7 @@
                                     0))))))))))
 
 (define (taylor-pow coeffs n)
-  (match n
+  (match n ;; Russian peasant multiplication
     [0 (taylor-exact 1)]
     [1 coeffs]
     [(? even?)
