@@ -136,6 +136,15 @@
 (define float->posit32 (get-ffi-obj "convertFloatToP32" "softposit" (_fun _float -> _posit32)))
 (define double->posit32 (get-ffi-obj "convertDoubleToP32" "softposit" (_fun _double -> _posit32)))
 
+;; Additional defined operations
+(define (double->quire8 d) (posit8->quire8 (double->posit8 d)))
+(define (double->quire16 d) (posit16->quire16 (double->posit16 d)))
+(define (double->quire32 d) (posit32->quire32 (double->posit32 d)))
+
+(define (quire8->double q) (posit8->double (quire8->posit8 q)))
+(define (quire16->double q) (posit16->double (quire16->posit16 q)))
+(define (quire32->double q) (posit32->double (quire32->posit32 q)))
+
 (struct big-posit8 (v))
 (struct big-posit16 (v))
 (struct big-posit32 (v))
