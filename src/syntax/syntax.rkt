@@ -21,8 +21,10 @@
 (define types '(bool real complex _posit16))
 (define (type? x) (set-member? types x))
 
-(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?] [('_posit16) posit16?])
-(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?] [('_posit16) big-posit16?])
+(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?]
+  [('_posit16) posit16?] [('_quire16) quire16?])
+(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?]
+  [('_posit16) big-posit16?] [('_quire16) big-quire16?])
 
 (define value? (apply or/c (map value-of types)))
 (define bigvalue? (apply or/c (map bigvalue-of types)))
@@ -127,7 +129,7 @@
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
-(define-operator (+.p _posit16 _posit16) _posit16
+(define-operator (+.p16 _posit16 _posit16) _posit16
   [fl posit16-add] [bf bf-posit16-add] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
@@ -157,7 +159,7 @@
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
-(define-operator (-.p _posit16 _posit16) _posit16
+(define-operator (-.p16 _posit16 _posit16) _posit16
   [fl posit16-sub] [bf bf-posit16-sub] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
@@ -178,7 +180,7 @@
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi *])
 
-(define-operator (*.p _posit16 _posit16) _posit16
+(define-operator (*.p16 _posit16 _posit16) _posit16
   [fl posit16-mul] [bf bf-posit16-mul] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
@@ -199,7 +201,7 @@
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
 
-(define-operator (/.p _posit16 _posit16) _posit16
+(define-operator (/.p16 _posit16 _posit16) _posit16
   [fl posit16-div] [bf bf-posit16-div] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
@@ -552,7 +554,7 @@
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi sqrt])
 
-(define-operator (sqrt.p _posit16) _posit16
+(define-operator (sqrt.p16 _posit16) _posit16
   [fl posit16-sqrt] [bf bf-posit16-sqrt] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
