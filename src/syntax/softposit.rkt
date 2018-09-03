@@ -73,8 +73,8 @@
 
 ;; TODO: isNaRQ8, isQ8Zero, (consider q8Clr), castQ8, castP8, negP8
 
-(define p8->double (get-ffi-obj "convertP8ToDouble" "softposit" (_fun _posit8 -> _double)))
-(define double->p8 (get-ffi-obj "convertDoubleToP8" "softposit" (_fun _double -> _posit8)))
+(define posit8->double (get-ffi-obj "convertP8ToDouble" "softposit" (_fun _posit8 -> _double)))
+(define double->posit8 (get-ffi-obj "convertDoubleToP8" "softposit" (_fun _double -> _posit8)))
 
 (define posit16->uint32 (get-ffi-obj "p16_to_ui32" "softposit" (_fun _posit16 -> _uint32)))
 (define posit16->uint64 (get-ffi-obj "p16_to_ui64" "softposit" (_fun _posit16 -> _uint64)))
@@ -137,9 +137,9 @@
 (define double->posit32 (get-ffi-obj "convertDoubleToP32" "softposit" (_fun _double -> _posit32)))
 
 ;; Additional defined operations
-(define (double->quire8 d) (posit8->quire8 (double->posit8 d)))
-(define (double->quire16 d) (posit16->quire16 (double->posit16 d)))
-(define (double->quire32 d) (posit32->quire32 (double->posit32 d)))
+(define (double->quire8 d) (create-quire8 (double->posit8 d)))
+(define (double->quire16 d) (create-quire16 (double->posit16 d)))
+(define (double->quire32 d) (create-quire32 (double->posit32 d)))
 
 (define (quire8->double q) (posit8->double (quire8->posit8 q)))
 (define (quire16->double q) (posit16->double (quire16->posit16 q)))
