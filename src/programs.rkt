@@ -35,7 +35,7 @@
 ;; Converting constants
 
 (define/contract (->flonum x)
-  (-> any/c (or/c flonum? complex? boolean? posit16?))
+  (-> any/c (or/c flonum? complex? boolean? posit16? quire16?))
   (define convert
     (if (flag-set? 'precision 'double)
         real->double-flonum
@@ -47,7 +47,12 @@
     (make-rectangular (->flonum (bigcomplex-re x))
                       (->flonum (bigcomplex-im x)))]
    [(posit16? x) x]
+   [(quire16? x) x]
    [(big-posit16? x) (double->posit16 (bigfloat->flonum (big-posit16-v x)))]
+   [(big-quire16? x) (quire16-fdp-add ((create-quire16)
+                                   (double->posit16
+                                     (bigfloat->flonum (big-quire16-v x)))
+                                   (double->posit16 1.0)))]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)))]
    [else x]))
@@ -60,6 +65,8 @@
     (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
    [(posit16? x)
     (big-posit16 (bf (posit16->double x)))]
+   [(quire16? x)
+    (big-quire16 (bf (posit16->double (quire16->posit16 x))))]
    [(constant? x) ((constant-info x 'bf))]
    [else x]))
 
