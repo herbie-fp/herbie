@@ -93,8 +93,16 @@
   [insert-quire-fdp-sub (posit16-sub (quire16->posit16 q) (posit16-mul a b))
                         (quire16->posit16 (quire16-fdp-sub q a b))]
   [insert-quire-mulAdd  (posit16-mullAdd a b c)
-                        (quire16->posit16 (quire16-fdp add (create-quire16 c) a b))]
-  )
+                        (quire16->posit16 (quire16-fdp add (create-quire16 c) a b))])
+
+(define-ruleset p16-test-rules (arithmetic simplify posit)
+  #:type ([a posit16] [b posit16])
+  [p16-flip--     (-.p16 a b)  (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
+  [p16-*-un-lft-identity a                     (*.p16 (double->posit16 1) a)]
+  [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
+  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))  (*.p16 (/.p16 a c) (/.p16 b d))]
+                )
+
 
 ; Associativity
 (define-ruleset associativity (arithmetic simplify)
