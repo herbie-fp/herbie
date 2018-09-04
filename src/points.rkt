@@ -2,7 +2,8 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt"
+         "range-analysis.rkt" "syntax/softposit.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points
@@ -84,7 +85,9 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  (-> (non-empty-listof (listof any/c)) (non-empty-listof real?) pcontext?)
+  ;; TODO: The second argumnet type should be any of the possible input types,
+  ;; not just any type in general (maybe the first argument too?)
+  (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
 (define (sort-context-on-expr context expr variables)

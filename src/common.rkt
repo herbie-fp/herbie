@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "config.rkt" "errors.rkt" "debug.rkt")
+(require "config.rkt" "errors.rkt" "debug.rkt" "syntax/softposit.rkt")
 
 (module+ test
   (require rackunit))
@@ -105,7 +105,9 @@
     [(? complex?)
      (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
     [(? boolean?)
-     true]))
+     true]
+    ;; TODO: Posits should really have a special case for infinity
+    [_ true]))
 
 (module+ test
   (check-true (ordinary-value? 2.5))
@@ -113,8 +115,22 @@
   (check-false (ordinary-value? -inf.f)))
 
 (define (=-or-nan? x1 x2)
-  (or (= x1 x2)
-      (and (nan? x1) (nan? x2))))
+  (cond
+    [(and (number? x1) (number? x2))
+     (or (eq? x1 x2)
+         (and (nan? x1) (nan? x2)))]
+    [(and (posit8? x1) (posit8? x2))
+     (posit8-eq? x1 x2)]
+    [(and (posit16? x1) (posit16? x2))
+     (posit16-eq? x1 x2)]
+    [(and (posit32? x1) (posit32? x2))
+     (posit32-eq? x1 x2)]
+    [(and (quire8? x1) (quire8? x2))
+     (posit8-eq? (quire8->posit8 x1) (quire8->posit8 x2))]
+    [(and (quire16? x1) (quire16? x2))
+     (posit16-eq? (quire16->posit16 x1) (quire16->posit16 x2))]
+    [(and (quire32? x1) (quire32? x2))
+     (posit32-eq? (quire32->posit32 x1) (quire32->posit32 x2))]))
 
 (module+ test
   (check-true (=-or-nan? 2.3 2.3))
