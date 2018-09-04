@@ -35,7 +35,9 @@
 ;; Converting constants
 
 (define/contract (->flonum x)
-  (-> any/c (or/c flonum? complex? boolean? posit16? quire16?))
+  (-> any/c (or/c flonum? complex? boolean?
+                  posit8? posit16? posit32?
+                  quire8? quire16? quire32?))
   (define convert
     (if (flag-set? 'precision 'double)
         real->double-flonum
@@ -46,13 +48,23 @@
    [(bigcomplex? x)
     (make-rectangular (->flonum (bigcomplex-re x))
                       (->flonum (bigcomplex-im x)))]
-   [(posit16? x) x]
-   [(quire16? x) x]
+   [(or (posit8? x) (posit16? x) (posit32? x)) x]
+   [(or (quire8? x) (quire16? x) (quire32? x)) x]
+   [(big-posit8? x) (double->posit8 (bigfloat->flonum (big-posit8-v x)))]
    [(big-posit16? x) (double->posit16 (bigfloat->flonum (big-posit16-v x)))]
+   [(big-posit32? x) (double->posit32 (bigfloat->flonum (big-posit32-v x)))]
+   [(big-quire8? x) (quire8-fdp-add ((create-quire8)
+                                   (double->posit8
+                                     (bigfloat->flonum (big-quire8-v x)))
+                                   (double->posit8 1.0)))]
    [(big-quire16? x) (quire16-fdp-add ((create-quire16)
                                    (double->posit16
                                      (bigfloat->flonum (big-quire16-v x)))
                                    (double->posit16 1.0)))]
+   [(big-quire32? x) (quire32-fdp-add ((create-quire32)
+                                   (double->posit32
+                                     (bigfloat->flonum (big-quire32-v x)))
+                                   (double->posit32 1.0)))]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)))]
    [else x]))
@@ -63,10 +75,18 @@
    [(bigfloat? x) x]
    [(complex? x)
     (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
+   [(posit8? x)
+    (big-posit8 (bf (posit8->double x)))]
    [(posit16? x)
     (big-posit16 (bf (posit16->double x)))]
+   [(posit32? x)
+    (big-posit32 (bf (posit32->double x)))]
+   [(quire8? x)
+    (big-quire8 (bf (posit8->double (quire8->posit8 x))))]
    [(quire16? x)
     (big-quire16 (bf (posit16->double (quire16->posit16 x))))]
+   [(quire32? x)
+    (big-quire32 (bf (posit32->double (quire32->posit32 x))))]
    [(constant? x) ((constant-info x 'bf))]
    [else x]))
 
@@ -257,7 +277,9 @@
         [(? real?) (values expr 'real)]
         [(? boolean?) (values expr 'bool)]
         [(? complex?) (values expr 'complex)]
+        [(? posit8?) (values expr 'posit8)]
         [(? posit16?) (values expr 'posit16)]
+        [(? posit32?) (values expr 'posit32)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref ctx expr))])))
   expr*)
