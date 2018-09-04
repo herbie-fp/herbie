@@ -57,10 +57,44 @@
   [*.c-commutative     (*.c a b)               (*.c b a)])
 
 ; Posit conversions
-(define-ruleset insert/remove-posit (arithmetic simplify posit)
+(define-ruleset insert/remove-p16 (arithmetic simplify posit)
   #:type ([a posit16])
   [insert-posit16 a (posit16->real (real->posit16 a))]
   [remove-posit16 (posit16->real (real->posit16 a)) a])
+
+(define-ruleset id-p16 (arithmetic simplify posit)
+  #:type ([a posit16])
+  [+p16-lft-identity-reduce    (posit16-add (double->posit16 0.0) a)               a]
+  [+p16-rgt-identity-reduce    (posit16-add a (double->posit16 0.0))               a]
+  [-p16-rgt-identity-reduce    (posit16-sub a (double->posit16 0.0))               a]
+  [*p16-lft-identity-reduce    (posit16-mul (double->posit16 1.0) a)               a]
+  [*p16-rgt-identity-reduce    (posit16-mul a (double->posit16 1.0))               a]
+  [/p16-rgt-identity-reduce    (posit16-div a (double->posit16 1.0))               a]
+  [+p16-lft-identity-expand    a               (posit16-add (double->posit16 0.0) a)]
+  [+p16-rgt-identity-expand    a               (posit16-add a (double->posit16 0.0))]
+  [-p16-rgt-identity-expand    a               (posit16-sub a (double->posit16 0.0))]
+  [*p16-lft-identity-expand    a               (posit16-mul (double->posit16 1.0) a)]
+  [*p16-rgt-identity-expand    a               (posit16-mul a (double->posit16 1.0))]
+  [/p16-rgt-identity-expand    a               (posit16-div a (double->posit16 1.0))])
+
+;; TODO: Multiply add to mulAdd
+
+;; TODO: We only cast back to posit after quire operations because herbie can't handle
+;; non-double output right now (similar situtation for posits)
+(define-ruleset insert-q16 (arithmetic simplify posit)
+  #:type ([a posit16] [b posit16] [c posit16] [q quire16])
+  [introduce-quire      a               (quire16->posit16 (create-quire16 a))]
+  [insert-quire-add     (posit16-add (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-fdp-add q a (double->posit16 1.0)))]
+  [insert-quire-sub     (posit16-add (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-fdp-sub q a (double->posit16 1.0)))]
+  [insert-quire-fdp-add (posit16-add (quire16->posit16 q) (posit16-mul a b))
+                        (quire16->posit16 (quire16-fdp-add q a b))]
+  [insert-quire-fdp-sub (posit16-sub (quire16->posit16 q) (posit16-mul a b))
+                        (quire16->posit16 (quire16-fdp-sub q a b))]
+  [insert-quire-mulAdd  (posit16-mullAdd a b c)
+                        (quire16->posit16 (quire16-fdp add (create-quire16 c) a b))]
+  )
 
 ; Associativity
 (define-ruleset associativity (arithmetic simplify)
@@ -104,6 +138,28 @@
   [associate-/l/.c     (/.c (/.c b c) a)         (/.c b (*.c a c))]
   [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
   [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
+
+(define-ruleset associativity.p16 (arithmetic simplify complex)
+  #:type ([a posit16] [b posit16] [c posit16])
+  [associate-+r+.p16  (+.c a (+.c b c))         (+.c (+.c a b) c)]
+  [associate-+l+.p16  (+.c (+.c a b) c)         (+.c a (+.c b c))]
+  [associate-+r-.p16  (+.c a (-.c b c))         (-.c (+.c a b) c)]
+  [associate-+l-.p16  (+.c (-.c a b) c)         (-.c a (-.c b c))]
+  [associate--r+.p16  (-.c a (+.c b c))         (-.c (-.c a b) c)]
+  [associate--l+.p16  (-.c (+.c a b) c)         (+.c a (-.c b c))]
+  [associate--l-.p16  (-.c (-.c a b) c)         (-.c a (+.c b c))]
+  [associate--r-.p16  (-.c a (-.c b c))         (+.c (-.c a b) c)]
+  [associate-*r*.p16  (*.c a (*.c b c))         (*.c (*.c a b) c)]
+  [associate-*l*.p16  (*.c (*.c a b) c)         (*.c a (*.c b c))]
+  [associate-*r/.p16  (*.c a (/.c b c))         (/.c (*.c a b) c)]
+  [associate-*l/.p16  (*.c (/.c a b) c)         (/.c (*.c a c) b)]
+  [associate-/r*.p16  (/.c a (*.c b c))         (/.c (/.c a b) c)]
+  [associate-/l*.p16  (/.c (*.c b c) a)         (/.c b (/.c a c))]
+  [associate-/r/.p16  (/.c a (/.c b c))         (*.c (/.c a b) c)]
+  [associate-/l/.p16  (/.c (/.c b c) a)         (/.c b (*.c a c))]
+  [sub-neg.p16        (-.c a b)                 (+.c a (neg.c b))]
+  [unsub-neg.p16      (+.c a (neg.c b))         (-.c a b)])
+
 
 ; Distributivity
 (define-ruleset distributivity (arithmetic simplify)
