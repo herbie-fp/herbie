@@ -213,9 +213,11 @@
     (for/list ([(point exact) (in-pcontext pcontext)])
       (let ([out (fn point)])
 	(add1
-	 (if (real? out)
-	     (abs (ulp-difference out exact))
-	     max-ulps))))))
+	 (if (or (real? out)
+                 (posit8? out) (posit16? out) (posit32? out)
+                 (quire8? out) (quire16? out) (quire32? out))
+           (abs (ulp-difference out exact))
+           max-ulps))))))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-value? e)])
