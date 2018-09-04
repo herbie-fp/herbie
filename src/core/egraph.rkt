@@ -336,6 +336,11 @@
 
 (define (reduce-to-new! eg en expr)
   (define new-en (mk-enode-rec! eg expr))
+  (define child-ens 
+    (match expr
+      [(list op children ...)
+       (map (compose pack-leader (curry mk-enode-rec! eg)) children)]
+      [_ '()]))
   (define vars (enode-vars en))
   (define leader (merge-egraph-nodes! eg en new-en))
 
@@ -345,16 +350,12 @@
                   (for/mutable-set ([expr st])
                                    (update-en-expr expr))))
 
-  ;; TODO: We want a single-member pack, which points to the
-  ;; expressions `expr`. If `expr` is a constant, that's easy. If
-  ;; `expr` is a function call, however, we have trouble knowing if
-  ;; it's the "right" expression. I've implemented a bad hack here of
-  ;; just checking the head op.
   (define leader* (pack-filter! (λ (inner-en)
                                   (match expr
                                     [(list op _ ...)
                                      (and (list? (enode-expr inner-en))
-                                          (equal? (car (enode-expr inner-en)) op))]
+                                          (equal? (car (enode-expr inner-en)) op)
+                                          (equal? (map pack-leader (cdr (enode-expr inner-en))) child-ens))]
                                     [_
                                      (equal? (enode-expr inner-en) expr)]))
                                 leader))
