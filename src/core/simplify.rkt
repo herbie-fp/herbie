@@ -35,7 +35,7 @@
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters #:rules rls)
-	(define out (extract-smallest eg))
+	(define out (extract-smallest-best-effort eg))
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
 
@@ -157,7 +157,7 @@
   (for/fold ([h hash]) ([assoc assocs])
     (hash-set h (car assoc) (cdr assoc))))
 
-(define (extract-smallest eg)
+(define (extract-smallest-best-effort eg)
   (define (resolve en ens->exprs)
     (let ([possible-resolutions
 	   (filter identity
@@ -190,6 +190,58 @@
             [((length todo-ens*) . = . (length todo-ens))
              (error "failed to extract: infinite loop.")]
             [#t (loop todo-ens* ens->exprs*)]))))
+
+(define (extract-smallest eg)
+  ;; The work list maps enodes to a pair (cost . expr) of that node's
+  ;; cheapest representation and its cost. If the cost is #f, the expr
+  ;; is also #f, and in this case no expression is yet known for that
+  ;; enode.
+  (define work-list (make-hash))
+  (hash-set! work-list (pack-leader (egraph-top eg)) (cons #f #f))
+
+  ;; Extracting the smallest expression means iterating, until
+  ;; fixedpoint, either discovering new relevant expressions or
+  ;; cheaper expressions for some expression.
+  (let loop ([iter 0])
+    (define changed? #f)
+    (debug #:from 'simplify #:depth 2
+           (format "Extracting #~a: cost ~a inf + ~a"
+                   iter (count (compose not car) (hash-values work-list))
+                   (apply + (filter identity (map car (hash-values work-list))))))
+    (for ([leader (in-list (hash-keys work-list))])
+      (define vars (enode-vars leader))
+      (define vars*
+        (filter identity
+                (for/list ([var vars])
+                  (match var
+                    [(list op args ...)
+                     (define args*
+                       (for/list ([en args])
+                         (define subleader (pack-leader en))
+                         (match (hash-ref work-list subleader (cons #f #t))
+                           [(cons (? number? cost) best-arg)
+                            best-arg]
+                           [(cons #f not-in-hash?)
+                            (hash-set! work-list subleader (cons #f #f))
+                            (set! changed? (or changed? not-in-hash?))
+                            #f])))
+                     (if (andmap identity args*)
+                         (cons op args*)
+                         #f)]
+                    [_
+                     var]))))
+      (match vars*
+        ['() #f]
+        [_
+         (define best-resolution (argmin expression-cost vars*))
+         (define cost (expression-cost best-resolution))
+         (define old-cost (car (hash-ref work-list leader)))
+         (when (or (not old-cost) (< cost old-cost))
+           (hash-set! work-list leader (cons cost best-resolution))
+           (set! changed? #t))]))
+    (if changed?
+        (loop (+ iter 1))
+        (cdr (hash-ref work-list (pack-leader (egraph-top eg)))))))
 
 (module+ test
   (define test-exprs
