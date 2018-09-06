@@ -160,22 +160,24 @@
 
   (define range-table (condition->range-table precondition))
 
+  (define resample? #t)
   (define sampler
     (match (extract-sampled-points (program-variables prog) precondition)
       [(list pts ...)
-       (let ([l (length pts)]) (λ () (list-ref pts (random l))))]
+       (λ (n) (set! resample? #f) pts)]
       [#f
        (for ([var (program-variables prog)]
              #:unless (range-table-ref range-table var))
          (raise-herbie-error "No valid values of variable ~a" var
                              #:url "faq.html#no-valid-values"))
-       (λ ()
-         (for/list ([var (program-variables prog)])
-           (match (range-table-ref range-table var)
-             [(interval lo hi lo? hi?)
-              (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
-             [(list (? interval? ivals) ...)
-              (sample-multi-bounded ivals)])))]))
+       (λ (n)
+         (for/list ([i (in-range n)])
+           (for/list ([var (program-variables prog)])
+             (match (range-table-ref range-table var)
+               [(interval lo hi lo? hi?)
+                (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
+               [(list (? interval? ivals) ...)
+                (sample-multi-bounded ivals)]))))]))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -183,16 +185,16 @@
      [(> num-loops 200)
       (raise-herbie-error "Cannot sample enough valid points."
                           #:url "faq.html#sample-valid-points")]
-     [(>= npts (*num-points*))
+     [(or (>= npts (*num-points*)) (not resample?))
       (debug #:from 'points #:tag 'exit #:depth 4
              "Sampled" npts "points with exact outputs")
-      (mk-pcontext (take pts (*num-points*)) (take exs (*num-points*)))]
+      (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
      [else
       (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([n (in-range num)]) (sampler)))
+      (define pts1 (sampler num))
       (define exs1 (make-exacts prog pts1 precondition))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
