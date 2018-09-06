@@ -15,6 +15,17 @@
            (write (option-split-indices opt) port)
            (display ">" port))])
 
+;; Struct represeting a splitpoint
+;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
+;; bexpr = Branch Expression: The expression that this splitpoint should split on
+;; point = Split Point: The point at which we should split.
+(struct sp (cidx bexpr point) #:prefab)
+
+;; Struct representing a splitindex
+;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
+;; pidx = Point index: The index of the point to the left of which we should split.
+(struct si (cidx pidx) #:prefab)
+
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
@@ -108,17 +119,23 @@
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
-  (define merged-err-lsts (map (curry merge-err-lsts pts) bit-err-lsts))
-  (define split-indices (err-lsts->split-indices merged-err-lsts can-split?))
+  (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
     (assert (> pidx 0))
     (assert (list-ref can-split? pidx)))
+  (assert (= (si-pidx (last split-indices)) (length pts)))
   (option split-indices alts pts expr (pick-errors split-indices pts err-lsts)))
 
-(define (pick-errors split-indices pts err-lsts)
+(define/contract (pick-errors split-indices pts err-lsts)
+  (-> (listof si?) (listof (listof value?)) (listof (listof value?))
+      (listof nonnegative-integer?))
+  (define out
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
     (for/first ([si split-indices] #:when (< i (si-pidx si)))
       (list-ref errs (si-cidx si)))))
+  (for ([i (in-naturals)] [pt pts] [x out])
+    (eprintf "~a: ~a (~a) in ~a\n" x pt i split-indices))
+  out)
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
@@ -201,14 +218,6 @@
 	   (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
    (list final-sp)))
 
-(define (merge-err-lsts pts errs)
-  (let loop ([pt (car pts)] [pts (cdr pts)] [err (car errs)] [errs (cdr errs)])
-    (if (null? pts)
-        (list err)
-        (if (equal? pt (car pts))
-            (loop pt (cdr pts) (+ err (car errs)) (cdr errs))
-            (cons err (loop (car pts) (cdr pts) (car errs) (cdr errs)))))))
-
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))
        point
@@ -223,17 +232,6 @@
       (vector-set! res idx new-psum)
       new-psum))
   res)
-
-;; Struct represeting a splitpoint
-;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
-;; bexpr = Branch Expression: The expression that this splitpoint should split on
-;; point = Split Point: The point at which we should split.
-(struct sp (cidx bexpr point) #:prefab)
-
-;; Struct representing a splitindex
-;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
-;; pidx = Point index: The index of the point to the left of which we should split.
-(struct si (cidx pidx) #:prefab)
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
