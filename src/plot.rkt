@@ -30,7 +30,7 @@
       '()
       (reverse
        (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (expt 10 power))
+         (define value (expt 10.0 power))
          (if (= value 0) '() (cons value (loop (- power 1))))))))
 
 (define (possible-ticks min max)
