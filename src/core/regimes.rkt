@@ -129,13 +129,9 @@
 (define/contract (pick-errors split-indices pts err-lsts)
   (-> (listof si?) (listof (listof value?)) (listof (listof value?))
       (listof nonnegative-integer?))
-  (define out
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
     (for/first ([si split-indices] #:when (< i (si-pidx si)))
       (list-ref errs (si-cidx si)))))
-  (for ([i (in-naturals)] [pt pts] [x out])
-    (eprintf "~a: ~a (~a) in ~a\n" x pt i split-indices))
-  out)
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
