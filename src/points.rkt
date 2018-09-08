@@ -153,31 +153,15 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points prog precondition)
-  "Given a program, return two lists:
-   a list of input points (each a list of flonums)
-   and a list of exact values for those points (each a flonum)"
-
-  (define range-table (condition->range-table precondition))
-
-  (define resample? #t)
-  (define sampler
-    (match (extract-sampled-points (program-variables prog) precondition)
-      [(list pts ...)
-       (λ (n) (set! resample? #f) pts)]
-      [#f
-       (for ([var (program-variables prog)]
-             #:unless (range-table-ref range-table var))
-         (raise-herbie-error "No valid values of variable ~a" var
-                             #:url "faq.html#no-valid-values"))
-       (λ (n)
-         (for/list ([i (in-range n)])
-           (for/list ([var (program-variables prog)])
-             (match (range-table-ref range-table var)
-               [(interval lo hi lo? hi?)
-                (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
-               [(list (? interval? ivals) ...)
-                (sample-multi-bounded ivals)]))))]))
+(define (prepare-points-ranges prog precondition range-table)
+  (define (sample)
+    (for/list ([var (program-variables prog)])
+      (match (range-table-ref range-table var)
+        ;; TODO does the single-interval case ever happen?
+        [(interval lo hi lo? hi?)
+         (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
+        [(list (? interval? ivals) ...)
+         (sample-multi-bounded ivals)])))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -185,7 +169,7 @@
      [(> num-loops 200)
       (raise-herbie-error "Cannot sample enough valid points."
                           #:url "faq.html#sample-valid-points")]
-     [(or (>= npts (*num-points*)) (not resample?))
+     [(>= npts (*num-points*))
       (debug #:from 'points #:tag 'exit #:depth 4
              "Sampled" npts "points with exact outputs")
       (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
@@ -194,13 +178,31 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (sampler num))
+      (define pts1 (for/list ([i (in-range num)]) (sample)))
       (define exs1 (make-exacts prog pts1 precondition))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
       (define-values (pts* exs*) (filter-p&e pts1 exs1))
       ;; keep iterating till we get at least *num-points*
       (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
+
+(define (prepare-points prog precondition)
+  "Given a program, return two lists:
+   a list of input points (each a list of flonums)
+   and a list of exact values for those points (each a flonum)"
+
+  (define sampled-pts (extract-sampled-points (program-variables prog) precondition))
+  (define range-table (condition->range-table precondition))
+
+  (cond
+   [sampled-pts
+    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE))]
+   [else
+    (for ([var (program-variables prog)]
+          #:unless (range-table-ref range-table var))
+      (raise-herbie-error "No valid values of variable ~a" var
+                          #:url "faq.html#no-valid-values"))
+    (prepare-points-ranges prog precondition range-table)]))
 
 (define (errors prog pcontext)
   (let ([fn (eval-prog prog 'fl)]
