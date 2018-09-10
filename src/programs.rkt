@@ -248,6 +248,7 @@
      expr]))
 
 (define (expand-parametric expr ctx)
+  (define precision (cdr (first ctx)))
   (define-values (expr* type)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -274,7 +275,13 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
-        [(? real?) (values expr 'real)]
+        [(? real?)
+         ;; cast to the correct type
+         (match precision
+           ['posit8 (values (list 'real->posit8 expr) 'posit8)]
+           ['posit16 (values (list 'real->posit16 expr) 'posit16)]
+           ['posit32 (values (list 'real->posit32 expr) 'posit32)]
+           [_ (values expr 'real)])]
         [(? boolean?) (values expr 'bool)]
         [(? complex?) (values expr 'complex)]
         [(? posit8?) (values expr 'posit8)]

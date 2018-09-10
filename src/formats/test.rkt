@@ -32,7 +32,9 @@
          (if (null? props)
              (reverse out)
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
-     (define type-ctx (map (λ (x) (cons x 'real)) args))
+     ;; Default to 'real because types and precisions are mixed up right now
+     (define ctx-prec (dict-ref prop-dict ':precision 'real))
+     (define type-ctx (map (λ (x) (cons x (if (eq? ctx-prec 'binary64) 'real ctx-prec))) args))
 
      (test (~a (dict-ref prop-dict ':name body))
            args

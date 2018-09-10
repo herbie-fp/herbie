@@ -1037,12 +1037,31 @@
   (and (symbol? var) (not (constant? var))))
 
 (define parametric-operators
-  #hash([+ . ((+ real real real) (+.c complex complex complex))]
+  #hash([+ . ((+ real real real)
+              (+.c complex complex complex)
+              (+.p8 posit8 posit8 posit8)
+              (+.p16 posit16 posit16 posit16)
+              (+.p32 posit32 posit32 posit32))]
         [- . ((- real real real) (- real real)
-              (-.c complex complex complex) (neg.c complex complex))]
-        [* . ((* real real real) (*.c complex complex complex))]
-        [/ . ((/ real real real) (/.c complex complex complex))]
+              (-.c complex complex complex) (neg.c complex complex)
+              (-.p8 posit8 posit8 posit8) (neg.p8 posit8 posit8)
+              (-.p16 posit16 posit16 posit16) (neg.p16 posit16 posit16)
+              (-.p32 posit32 posit32 posit32) (neg.p32 posit32 posit32)) ]
+        [* . ((* real real real)
+              (*.c complex complex complex)
+              (*.p8 posit8 posit8 posit8)
+              (*.p16 posit16 posit16 posit16)
+              (*.p32 posit32 posit32 posit32))]
+        [/ . ((/ real real real)
+              (/.c complex complex complex)
+              (/.p8 posit8 posit8 posit8)
+              (/.p16 posit16 posit16 posit16)
+              (/.p32 posit32 posit32 posit32))]
         [pow . ((pow real real real) (pow.c complex complex complex))]
         [exp . ((exp real real) (exp.c complex complex))]
         [log . ((log real real) (log.c complex complex))]
-        [sqrt . ((sqrt real real) (sqrt.c complex complex))]))
+        [sqrt . ((sqrt real real)
+                 (sqrt.c complex complex)
+                 (sqrt.p8 posit8 posit8)
+                 (sqrt.p16 posit16 posit16)
+                 (sqrt.p32 posit32 posit32))]))
