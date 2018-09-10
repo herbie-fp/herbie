@@ -90,6 +90,7 @@
 (define (bf-posit8-mul x y) (big-posit8 (bf* (big-posit8-v x) (big-posit8-v y))))
 (define (bf-posit8-div x y) (big-posit8 (bf/ (big-posit8-v x) (big-posit8-v y))))
 (define (bf-posit8-sqrt x) (big-posit8 (bfsqrt (big-posit8-v x))))
+(define (bf-posit8-neg x) (big-posit8 (bf- (bf 0) (big-posit8-v x))))
 
 (define (bf-double->posit16 x) (big-posit16 x))
 (define (bf-posit16->double x) (big-posit16-v x))
@@ -98,6 +99,7 @@
 (define (bf-posit16-mul x y) (big-posit16 (bf* (big-posit16-v x) (big-posit16-v y))))
 (define (bf-posit16-div x y) (big-posit16 (bf/ (big-posit16-v x) (big-posit16-v y))))
 (define (bf-posit16-sqrt x) (big-posit16 (bfsqrt (big-posit16-v x))))
+(define (bf-posit16-neg x) (big-posit16 (bf- (bf 0) (big-posit16-v x))))
 
 (define (bf-double->posit32 x) (big-posit32 x))
 (define (bf-posit32->double x) (big-posit32-v x))
@@ -106,6 +108,7 @@
 (define (bf-posit32-mul x y) (big-posit32 (bf* (big-posit32-v x) (big-posit32-v y))))
 (define (bf-posit32-div x y) (big-posit32 (bf/ (big-posit32-v x) (big-posit32-v y))))
 (define (bf-posit32-sqrt x) (big-posit32 (bfsqrt (big-posit32-v x))))
+(define (bf-posit32-neg x) (big-posit32 (bf- (bf 0) (big-posit32-v x))))
 
 (struct big-quire8 (v))
 (struct big-quire16 (v))
