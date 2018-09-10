@@ -34,6 +34,7 @@
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
          posit32->double float->posit32 double->posit32
+         posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double)])
 
@@ -70,6 +71,7 @@
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
          posit32->double float->posit32 double->posit32
+         posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double)
 
