@@ -51,12 +51,13 @@
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
-                       #:precondition (test-precondition test)))
+                       #:precondition (test-precondition test)
+                       #:precision (test-precision test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-program test) (test-precondition test))))
+            (prepare-points (test-program test) (test-precondition test) (test-precision test))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,(^timeline^) ,(bf-precision)))))
 

@@ -80,12 +80,12 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option)
+(define (combine-alts best-option precision)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
-    (define splitpoints (sindices->spoints pts expr alts splitindices))
+    (define splitpoints (sindices->spoints pts expr alts splitindices precision))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
@@ -175,7 +175,7 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices)
+(define (sindices->spoints points expr alts sindices precision)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
@@ -186,7 +186,7 @@
     (define (pred v)
       (define ctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v))))
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
     (binary-search-floats pred v1 v2))
 

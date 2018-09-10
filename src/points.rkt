@@ -156,7 +156,18 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points-ranges prog precondition range-table)
+(define (prepare-points prog precondition precision range-table)
+  (when (and (eq? precondition 'TRUE)
+           (or (eq? precision 'posit8)
+               (eq? precision 'posit16)
+               (eq? precision 'posit32)
+               (eq? precision 'posit64)
+               (eq? precision 'posit128)
+               (eq? precision 'quire8)
+               (eq? precision 'quire16)
+               (eq? precision 'quire32)))
+    (println "Warning, posits don't currently support preconditions.")
+    (println "Ignoring for now."))
   (define (sample)
     (for/list ([var (program-variables prog)])
       (match (range-table-ref range-table var)
@@ -177,17 +188,44 @@
              "Sampled" npts "points with exact outputs")
       (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
      [else
-      (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
-      (debug #:from 'points #:depth 4
-             "Sampling" num "additional inputs,"
-             "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([i (in-range num)]) (sample)))
-      (define exs1 (make-exacts prog pts1 precondition))
-      (debug #:from 'points #:depth 4
-             "Filtering points with unrepresentable outputs")
-      (define-values (pts* exs*) (filter-p&e pts1 exs1))
-      ;; keep iterating till we get at least *num-points*
-      (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
+      (match precision
+        ['binary64
+         (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
+         (debug #:from 'points #:depth 4
+                "Sampling" num "additional inputs,"
+                "on iter" num-loops "have" npts "/" (*num-points*))
+         (define pts1 (for/list ([n (in-range num)]) (sample)))
+         (define exs1 (make-exacts prog pts1 precondition))
+         (debug #:from 'points #:depth 4
+                "Filtering points with unrepresentable outputs")
+         (define-values (pts* exs*) (filter-p&e pts1 exs1))
+         ;; keep iterating till we get at least *num-points*
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
+        ['posit8
+         (for/list ([_ (range (*num-points*))])
+           (random-posit8))]
+        ['posit16
+         (for/list ([_ (range (*num-points*))])
+           (random-posit16))]
+        ['posit32
+         (for/list ([_ (range (*num-points*))])
+           (random-posit32))]
+        ['posit64
+         (for/list ([_ (range (*num-points*))])
+           (random-posit64))]
+        ['posit128
+         (for/list ([_ (range (*num-points*))])
+           (random-posit128))]
+        ['quire8
+         (for/list ([_ (range (*num-points*))])
+           (random-quire8))]
+        ['quire16
+         (for/list ([_ (range (*num-points*))])
+           (random-quire16))]
+        ['quire32
+         (for/list ([_ (range (*num-points*))])
+           (random-quire32))]
+      )])))
 
 (define (prepare-points prog precondition)
   "Given a program, return two lists:

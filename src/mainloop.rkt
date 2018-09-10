@@ -60,12 +60,13 @@
     (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
 ;; Setting up
-(define (setup-prog! prog #:precondition [precondition 'TRUE])
+(define (setup-prog! prog #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64])
   (*start-prog* prog)
   (rollback-improve!)
   (timeline-event! 'start) ; This has no associated data, so we don't name it
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([context (prepare-points prog precondition)]
+  (let* ([context (prepare-points prog precondition precision)]
          [altn (make-alt prog)])
     (^precondition^ precondition)
     (*pcontext* context)
@@ -284,7 +285,8 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
   (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
@@ -305,9 +307,9 @@
           (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
           (run-iter!))
         (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-        (get-final-combination))))
+        (get-final-combination precision))))
 
-(define (get-final-combination)
+(define (get-final-combination precision)
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alt
     (cond
@@ -315,7 +317,7 @@
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts))
       (timeline-event! 'binary-search)
-      (combine-alts option)]
+      (combine-alts option precision)]
      [else
       (best-alt all-alts)]))
   (define cleaned-alt
@@ -326,7 +328,7 @@
   cleaned-alt)
 
 ;; Other tools
-(define (resample!)
+(define (resample! precision)
   (let ([context (prepare-points (*start-prog*) (^precondition^))])
     (*pcontext* context)
     (^table^ (atab-new-context (^table^) context)))
