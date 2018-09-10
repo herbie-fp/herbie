@@ -288,7 +288,7 @@
 (define (run-improve prog iters #:precondition [precondition 'TRUE]
                      #:precision [precision 'binary64])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:precondition precondition)
+  (setup-prog! prog #:precondition precondition #:precision precision)
   (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
       (begin
 	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
@@ -329,7 +329,7 @@
 
 ;; Other tools
 (define (resample! precision)
-  (let ([context (prepare-points (*start-prog*) (^precondition^))])
+  (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
     (*pcontext* context)
     (^table^ (atab-new-context (^table^) context)))
   (void))

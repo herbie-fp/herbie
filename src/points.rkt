@@ -206,37 +206,37 @@
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit8))))
-         (define exacts (map (compose double->posit8 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))]
         ['posit16
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit16))))
-         (define exacts (map (compose double->posit16 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))]
         ['posit32
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit32))))
-         (define exacts (map (compose double->posit32 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))]
         ['quire8
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire8))))
-         (define exacts (map (compose double->quire8 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))]
         ['quire16
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire16))))
-         (define exacts (map (compose double->quire16 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))]
         ['quire32
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire32))))
-         (define exacts (map (compose double->quire32 f) points))
+         (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))])])))
 
 (define (prepare-points prog precondition)
