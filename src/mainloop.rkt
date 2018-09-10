@@ -69,7 +69,7 @@
          [altn (make-alt prog)])
     (^precondition^ precondition)
     (*pcontext* context)
-    (*analyze-context* context)
+    (reset-analyze-cache!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (define log! (timeline-event! 'setup))
     (^table^ (make-alt-table context altn))

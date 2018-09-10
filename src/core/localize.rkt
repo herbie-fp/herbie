@@ -8,7 +8,7 @@
 (require "../programs.rkt")
 (require "../alternative.rkt")
 
-(provide localize-error *analyze-context*)
+(provide localize-error reset-analyze-cache!)
 
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
@@ -24,7 +24,7 @@
                   [(? constant?)
                    (cons (repeat (->bf expr)) (repeat 1))]
                   [(? variable?)
-                   (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
+                   (cons (map ->bf (cdr (assoc expr vars))) (repeat 1))]
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]
                          [exact-iff (car (localize-on-expression iff vars cache))]
@@ -43,6 +43,10 @@
                            (map (λ (ex ap) (+ 1 (abs (ulp-difference (->flonum ex)
 								     (->flonum ap))))) exact approx)])
                      (cons exact error))]))))
+
+(define (reset-analyze-cache!)
+  (*analyze-context* (*pcontext*))
+  (hash-clear! *analyze-cache*))
 
 (define (localize-error prog)
   (define varmap (map cons (program-variables prog)
