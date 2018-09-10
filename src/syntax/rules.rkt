@@ -96,7 +96,7 @@
 (define-ruleset p16-test-rules (arithmetic simplify posit)
   #:type ([a posit16] [b posit16] [c posit16] [d posit16])
   [p16-flip--     (-.p16 a b)  (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
-  [p16-*-un-lft-identity a                     (*.p16 (real->posit16 1) a)]
+  [p16-*-un-lft-identity a                     (*.p16 (real->posit16 1.0) a)]
   [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
   [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))  (*.p16 (/.p16 a c) (/.p16 b d))])
 
@@ -144,7 +144,7 @@
   [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
   [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
 
-(define-ruleset associativity.p16 (arithmetic simplify complex)
+(define-ruleset associativity.p16 (arithmetic simplify posit)
   #:type ([a posit16] [b posit16] [c posit16])
   [associate-+r+.p16  (+.p16 a (+.p16 b c))         (+.p16 (+.p16 a b) c)]
   [associate-+l+.p16  (+.p16 (+.p16 a b) c)         (+.p16 a (+.p16 b c))]
@@ -162,8 +162,8 @@
   [associate-/l*.p16  (/.p16 (*.p16 b c) a)         (/.p16 b (/.p16 a c))]
   [associate-/r/.p16  (/.p16 a (/.p16 b c))         (*.p16 (/.p16 a b) c)]
   [associate-/l/.p16  (/.p16 (/.p16 b c) a)         (/.p16 b (*.p16 a c))]
-  [sub-neg.p16        (-.p16 a b)                 (+.p16 a (-.p16 (real->posit16 0) b))]
-  [unsub-neg.p16      (+.p16 a (-.p16 (real->posit16 0) b))         (-.p16 a b)])
+  [sub-neg.p16        (-.p16 a b)               (+.p16 a (-.p16 (real->posit16 0.0) b))]
+  [unsub-neg.p16      (+.p16 a (-.p16 (real->posit16 0.0) b))         (-.p16 a b)])
 
 
 ; Distributivity
