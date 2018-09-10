@@ -209,7 +209,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-posit8)))
            (define real-v (map posit8->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->posit8 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['posit16
@@ -219,7 +218,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-posit16)))
            (define real-v (map posit16->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->posit16 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['posit32
@@ -229,7 +227,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-posit32)))
            (define real-v (map posit32->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->posit32 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire8
@@ -239,7 +236,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-quire8)))
            (define real-v (map quire8->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->quire8 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire16
@@ -249,7 +245,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-quire16)))
            (define real-v (map quire16->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->quire16 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire32
@@ -259,7 +254,6 @@
            (define v (for/list ([_ (range num-vars)]) (random-quire32)))
            (define real-v (map quire32->double v))
            (values v real-v)))
-         (println "tests")
          (define exacts (map (compose double->quire32 f) reals))
          (loop points exacts (+ 1 num-loops))]
       )])))
