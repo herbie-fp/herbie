@@ -175,6 +175,27 @@
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
+(define-operator (neg.p8 _posit8) _posit8
+  [fl posit8-neg] [bf bf-posit8-neg] [cost 80]
+  [->c/double (format "-~a" x)]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi -])
+
+(define-operator (neg.p16 _posit16) _posit16
+  [fl posit16-neg] [bf bf-posit16-neg] [cost 80]
+  [->c/double (format "-~a" x)]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi -])
+
+(define-operator (neg.p32 _posit32) _posit32
+  [fl posit32-neg] [bf bf-posit32-neg] [cost 80]
+  [->c/double (format "-~a" x)]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi -])
+
 (define-operator (-.p8 _posit8 _posit8) _posit8
   [fl posit8-sub] [bf bf-posit8-sub] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
