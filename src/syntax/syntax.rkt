@@ -854,6 +854,54 @@
   [->tex (curry format "quire32->real(~a)")]
   [nonffi double->quire32])
 
+(define-operator (quire8->posit8 _quire8) _posit8
+  ; Override number of arguments
+  [fl quire8->posit8] [bf bf-quire8->posit8] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "quire8->posit8(~a)")]
+  [nonffi quire8->posit8])
+
+(define-operator (quire16->posit16 _quire16) _posit16
+  ; Override number of arguments
+  [fl quire16->posit16] [bf bf-quire16->posit16] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "quire16->posit16(~a)")]
+  [nonffi quire16->posit16])
+
+(define-operator (quire32->posit32 _quire32) _posit32
+  ; Override number of arguments
+  [fl quire32->posit32] [bf bf-quire32->posit32] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "quire32->posit32(~a)")]
+  [nonffi quire32->posit32])
+
+(define-operator (posit8->quire8 _posit8) _quire8
+  ; Override number of arguments
+  [fl posit8->quire8] [bf bf-posit8->quire8] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "posit8->quire8(~a)")]
+  [nonffi posit8->quire8])
+
+(define-operator (posit16->quire16 _posit16) _quire16
+  ; Override number of arguments
+  [fl posit16->quire16] [bf bf-posit16->quire16] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "posit16->quire16(~a)")]
+  [nonffi posit16->quire16])
+
+(define-operator (posit32->quire32 _posit32) _quire32
+  ; Override number of arguments
+  [fl posit32->quire32] [bf bf-posit32->quire32] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "posit32->quire32(~a)")]
+  [nonffi posit32->quire32])
+
 (define-operator (complex real real) complex
   ; Override number of arguments
   [fl make-rectangular] [bf bigcomplex] [cost 0]
