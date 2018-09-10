@@ -105,13 +105,21 @@
 (struct big-quire16 (v))
 (struct big-quire32 (v))
 
-(define (bf-quire8->double x) (quire8->double (big-quire8-v x)))
-(define (bf-quire16->double x) (quire16->double (big-quire16-v x)))
-(define (bf-quire32->double x) (quire32->double (big-quire32-v x)))
+(define (bf-quire8->double x) (big-quire8-v x))
+(define (bf-quire16->double x) (big-quire16-v x))
+(define (bf-quire32->double x) (big-quire32-v x))
 
 (define (bf-double->quire8 x) (big-quire8 x))
 (define (bf-double->quire16 x) (big-quire16 x))
 (define (bf-double->quire32 x) (big-quire32 x))
+
+(define (bf-quire8->posit8 x) (big-posit8 (big-quire8-v x)))
+(define (bf-quire16->posit16 x) (big-posit16 (big-quire16-v x)))
+(define (bf-quire32->posit32 x) (big-posit32 (big-quire32-v x)))
+
+(define (bf-posit8->quire8 x) (big-quire8 (big-posit8-v x)))
+(define (bf-posit16->quire16 x) (big-quire16 (big-posit16-v x)))
+(define (bf-posit32->quire32 x) (big-quire32 (big-posit32-v x)))
 
 (define (bf-quire8-fdp-add x y z) (big-quire8
                                      (bf+ (big-quire8-v x)
