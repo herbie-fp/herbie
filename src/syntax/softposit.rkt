@@ -15,7 +15,7 @@
          posit8->uint32 posit8->uint64 posit8->int32 posit8->int64
          posit8->posit16 posit8->posit32
          posit8-round-to-int posit8-add posit8-sub posit8-mul
-         posit8-mulAdd posit8-div posit8-sqrt
+         posit8-mulAdd posit8-div posit8-sqrt posit8-neg
          posit8-eq? posit8-le? posit8-lt?
          create-quire8 create-quire16 create-quire32
          quire8-fdp-add quire8-fdp-sub quire8->posit8
@@ -23,7 +23,7 @@
          posit16->uint32 posit16->uint64 posit16->int32 posit16->int64
          posit16->posit8 posit16->posit32
          posit16-round-to-int posit16-add posit16-sub posit16-mul
-         posit16-mulAdd posit16-div posit16-sqrt
+         posit16-mulAdd posit16-div posit16-sqrt posit16-neg
          posit16-eq? posit16-le? posit16-lt?
          quire16-fdp-add quire16-fdp-sub quire16->posit16
          quire16-twos-complement
@@ -31,7 +31,7 @@
          posit32->uint32 posit32->uint64 posit32->int32 posit32->int64
          posit32->posit8 posit32->posit16
          posit32-round-to-int posit32-add posit32-sub posit32-mul
-         posit32-mulAdd posit32-div posit32-sqrt
+         posit32-mulAdd posit32-div posit32-sqrt posit32-neg
          posit32-eq? posit32-le? posit32-lt?
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
@@ -54,7 +54,7 @@
          posit8->uint32 posit8->uint64 posit8->int32 posit8->int64
          posit8->posit16 posit8->posit32
          posit8-round-to-int posit8-add posit8-sub posit8-mul
-         posit8-mulAdd posit8-div posit8-sqrt
+         posit8-mulAdd posit8-div posit8-sqrt posit8-neg
          posit8-eq? posit8-le? posit8-lt?
          create-quire8 create-quire16 create-quire32
          quire8-fdp-add quire8-fdp-sub quire8->posit8
@@ -62,7 +62,7 @@
          posit16->uint32 posit16->uint64 posit16->int32 posit16->int64
          posit16->posit8 posit16->posit32
          posit16-round-to-int posit16-add posit16-sub posit16-mul
-         posit16-mulAdd posit16-div posit16-sqrt
+         posit16-mulAdd posit16-div posit16-sqrt posit16-neg
          posit16-eq? posit16-le? posit16-lt?
          quire16-fdp-add quire16-fdp-sub quire16->posit16
          quire16-twos-complement
@@ -70,7 +70,7 @@
          posit32->uint32 posit32->uint64 posit32->int32 posit32->int64
          posit32->posit8 posit32->posit16
          posit32-round-to-int posit32-add posit32-sub posit32-mul
-         posit32-mulAdd posit32-div posit32-sqrt
+         posit32-mulAdd posit32-div posit32-sqrt posit32-neg
          posit32-eq? posit32-le? posit32-lt?
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
