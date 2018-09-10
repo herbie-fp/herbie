@@ -24,7 +24,7 @@
                   [(? constant?)
                    (cons (repeat (->bf expr)) (repeat 1))]
                   [(? variable?)
-                   (cons (map ->bf (cdr (assoc expr vars))) (repeat 1))]
+                   (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]
                          [exact-iff (car (localize-on-expression iff vars cache))]
