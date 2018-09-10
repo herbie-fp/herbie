@@ -203,40 +203,64 @@
          ;; keep iterating till we get at least *num-points*
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit8
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-posit8)))
-           (values v (map (λ (x) (bf (posit8->double x))) v))))
+           (define real-v (map posit8->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->posit8 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['posit16
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-posit16)))
-           (values v (map (λ (x) (bf (posit16->double x))) v))))
+           (define real-v (map posit16->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->posit16 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['posit32
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-posit32)))
-           (values v (map (λ (x) (bf (posit32->double x))) v))))
+           (define real-v (map posit32->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->posit32 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire8
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-quire8)))
-           (values v (map (λ (x) (bf (quire8->double x))) v))))
+           (define real-v (map quire8->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->quire8 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire16
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-quire16)))
-           (values v (map (λ (x) (bf (quire16->double x))) v))))
+           (define real-v (map quire16->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->quire16 f) reals))
          (loop points exacts (+ 1 num-loops))]
         ['quire32
-         (define-values (points exacts) (for/lists (points exacts)
+         (define f (eval-prog prog 'bf))
+         (define-values (points reals) (for/lists (points reals)
                                                    ([_ (range (*num-points*))])
            (define v (for/list ([_ (range num-vars)]) (random-quire32)))
-           (values v (map (λ (x) (bf (quire32->double x))) v))))
+           (define real-v (map quire32->double v))
+           (values v real-v)))
+         (println "tests")
+         (define exacts (map (compose double->quire32 f) reals))
          (loop points exacts (+ 1 num-loops))]
       )])))
 
