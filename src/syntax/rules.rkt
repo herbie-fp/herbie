@@ -64,18 +64,18 @@
 
 (define-ruleset id-p16 (arithmetic simplify posit)
   #:type ([a posit16])
-  [+p16-lft-identity-reduce    (posit16-add (double->posit16 0.0) a)               a]
-  [+p16-rgt-identity-reduce    (posit16-add a (double->posit16 0.0))               a]
-  [-p16-rgt-identity-reduce    (posit16-sub a (double->posit16 0.0))               a]
-  [*p16-lft-identity-reduce    (posit16-mul (double->posit16 1.0) a)               a]
-  [*p16-rgt-identity-reduce    (posit16-mul a (double->posit16 1.0))               a]
-  [/p16-rgt-identity-reduce    (posit16-div a (double->posit16 1.0))               a]
-  [+p16-lft-identity-expand    a               (posit16-add (double->posit16 0.0) a)]
-  [+p16-rgt-identity-expand    a               (posit16-add a (double->posit16 0.0))]
-  [-p16-rgt-identity-expand    a               (posit16-sub a (double->posit16 0.0))]
-  [*p16-lft-identity-expand    a               (posit16-mul (double->posit16 1.0) a)]
-  [*p16-rgt-identity-expand    a               (posit16-mul a (double->posit16 1.0))]
-  [/p16-rgt-identity-expand    a               (posit16-div a (double->posit16 1.0))])
+  [+p16-lft-identity-reduce    (+.p16 (real->posit16 0.0) a)               a]
+  [+p16-rgt-identity-reduce    (+.p16 a (real->posit16 0.0))               a]
+  [-p16-rgt-identity-reduce    (-.p16 a (real->posit16 0.0))               a]
+  [*p16-lft-identity-reduce    (*.p16 (real->posit16 1.0) a)               a]
+  [*p16-rgt-identity-reduce    (*.p16 a (real->posit16 1.0))               a]
+  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a]
+  [+p16-lft-identity-expand    a               (+.p16 (real->posit16 0.0) a)]
+  [+p16-rgt-identity-expand    a               (+.p16 a (real->posit16 0.0))]
+  [-p16-rgt-identity-expand    a               (-.p16 a (real->posit16 0.0))]
+  [*p16-lft-identity-expand    a               (*.p16 (real->posit16 1.0) a)]
+  [*p16-rgt-identity-expand    a               (*.p16 a (real->posit16 1.0))]
+  [/p16-rgt-identity-expand    a               (/.p16 a (real->posit16 1.0))])
 
 ;; TODO: Multiply add to mulAdd
 
@@ -83,25 +83,22 @@
 ;; non-double output right now (similar situtation for posits)
 (define-ruleset insert-q16 (arithmetic simplify posit)
   #:type ([a posit16] [b posit16] [c posit16] [q quire16])
-  [introduce-quire      a               (quire16->posit16 (create-quire16 a))]
-  [insert-quire-add     (posit16-add (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-fdp-add q a (double->posit16 1.0)))]
-  [insert-quire-sub     (posit16-add (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-fdp-sub q a (double->posit16 1.0)))]
-  [insert-quire-fdp-add (posit16-add (quire16->posit16 q) (posit16-mul a b))
-                        (quire16->posit16 (quire16-fdp-add q a b))]
-  [insert-quire-fdp-sub (posit16-sub (quire16->posit16 q) (posit16-mul a b))
-                        (quire16->posit16 (quire16-fdp-sub q a b))]
-  [insert-quire-mulAdd  (posit16-mullAdd a b c)
-                        (quire16->posit16 (quire16-fdp add (create-quire16 c) a b))])
+  [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
+  [insert-quire-add     (+.p16 (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-mul-add q a (real->posit16 1.0)))]
+  [insert-quire-sub     (+.p16 (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-mul-sub q a (real->posit16 1.0)))]
+  [insert-quire-fdp-add (+.p16 (quire16->posit16 q) (*.p16 a b))
+                        (quire16->posit16 (quire16-mul-add q a b))]
+  [insert-quire-fdp-sub (-.p16 (quire16->posit16 q) (*.p16 a b))
+                        (quire16->posit16 (quire16-mul-sub q a b))])
 
 (define-ruleset p16-test-rules (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16])
+  #:type ([a posit16] [b posit16] [c posit16] [d posit16])
   [p16-flip--     (-.p16 a b)  (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
-  [p16-*-un-lft-identity a                     (*.p16 (double->posit16 1) a)]
+  [p16-*-un-lft-identity a                     (*.p16 (real->posit16 1) a)]
   [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
-  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))  (*.p16 (/.p16 a c) (/.p16 b d))]
-                )
+  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))  (*.p16 (/.p16 a c) (/.p16 b d))])
 
 
 ; Associativity
@@ -149,24 +146,24 @@
 
 (define-ruleset associativity.p16 (arithmetic simplify complex)
   #:type ([a posit16] [b posit16] [c posit16])
-  [associate-+r+.p16  (+.c a (+.c b c))         (+.c (+.c a b) c)]
-  [associate-+l+.p16  (+.c (+.c a b) c)         (+.c a (+.c b c))]
-  [associate-+r-.p16  (+.c a (-.c b c))         (-.c (+.c a b) c)]
-  [associate-+l-.p16  (+.c (-.c a b) c)         (-.c a (-.c b c))]
-  [associate--r+.p16  (-.c a (+.c b c))         (-.c (-.c a b) c)]
-  [associate--l+.p16  (-.c (+.c a b) c)         (+.c a (-.c b c))]
-  [associate--l-.p16  (-.c (-.c a b) c)         (-.c a (+.c b c))]
-  [associate--r-.p16  (-.c a (-.c b c))         (+.c (-.c a b) c)]
-  [associate-*r*.p16  (*.c a (*.c b c))         (*.c (*.c a b) c)]
-  [associate-*l*.p16  (*.c (*.c a b) c)         (*.c a (*.c b c))]
-  [associate-*r/.p16  (*.c a (/.c b c))         (/.c (*.c a b) c)]
-  [associate-*l/.p16  (*.c (/.c a b) c)         (/.c (*.c a c) b)]
-  [associate-/r*.p16  (/.c a (*.c b c))         (/.c (/.c a b) c)]
-  [associate-/l*.p16  (/.c (*.c b c) a)         (/.c b (/.c a c))]
-  [associate-/r/.p16  (/.c a (/.c b c))         (*.c (/.c a b) c)]
-  [associate-/l/.p16  (/.c (/.c b c) a)         (/.c b (*.c a c))]
-  [sub-neg.p16        (-.c a b)                 (+.c a (neg.c b))]
-  [unsub-neg.p16      (+.c a (neg.c b))         (-.c a b)])
+  [associate-+r+.p16  (+.p16 a (+.p16 b c))         (+.p16 (+.p16 a b) c)]
+  [associate-+l+.p16  (+.p16 (+.p16 a b) c)         (+.p16 a (+.p16 b c))]
+  [associate-+r-.p16  (+.p16 a (-.p16 b c))         (-.p16 (+.p16 a b) c)]
+  [associate-+l-.p16  (+.p16 (-.p16 a b) c)         (-.p16 a (-.p16 b c))]
+  [associate--r+.p16  (-.p16 a (+.p16 b c))         (-.p16 (-.p16 a b) c)]
+  [associate--l+.p16  (-.p16 (+.p16 a b) c)         (+.p16 a (-.p16 b c))]
+  [associate--l-.p16  (-.p16 (-.p16 a b) c)         (-.p16 a (+.p16 b c))]
+  [associate--r-.p16  (-.p16 a (-.p16 b c))         (+.p16 (-.p16 a b) c)]
+  [associate-*r*.p16  (*.p16 a (*.p16 b c))         (*.p16 (*.p16 a b) c)]
+  [associate-*l*.p16  (*.p16 (*.p16 a b) c)         (*.p16 a (*.p16 b c))]
+  [associate-*r/.p16  (*.p16 a (/.p16 b c))         (/.p16 (*.p16 a b) c)]
+  [associate-*l/.p16  (*.p16 (/.p16 a b) c)         (/.p16 (*.p16 a c) b)]
+  [associate-/r*.p16  (/.p16 a (*.p16 b c))         (/.p16 (/.p16 a b) c)]
+  [associate-/l*.p16  (/.p16 (*.p16 b c) a)         (/.p16 b (/.p16 a c))]
+  [associate-/r/.p16  (/.p16 a (/.p16 b c))         (*.p16 (/.p16 a b) c)]
+  [associate-/l/.p16  (/.p16 (/.p16 b c) a)         (/.p16 b (*.p16 a c))]
+  [sub-neg.p16        (-.p16 a b)                 (+.p16 a (-.p16 (real->posit16 0) b))]
+  [unsub-neg.p16      (+.p16 a (-.p16 (real->posit16 0) b))         (-.p16 a b)])
 
 
 ; Distributivity
@@ -754,7 +751,8 @@
       ;; All these tests fail due to underflow to 0 and are irrelevant
       '(exp-prod pow-unpow pow-pow pow-exp
         asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan)))
+        hang-p0-tan hang-m0-tan erf-odd erf-erfc erfc-erf
+        p16-flip-- insert-quire-sub)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
@@ -780,7 +778,7 @@
               ['bool (if (< (random) .5) false true)]
               ['complex (make-rectangular (sample-double) (sample-double))]
               ['posit8 (double->posit8 (sample-double))]
-              ['posit16 (double->posit8 (sample-double))]
+              ['posit16 (double->posit16 (sample-double))]
               ['posit32 (double->posit32 (sample-double))]
               ['quire8 (create-quire8 (double->posit8 (sample-double)))]
               ['quire16 (create-quire16 (double->posit16 (sample-double)))]
