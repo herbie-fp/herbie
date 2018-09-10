@@ -188,6 +188,7 @@
              "Sampled" npts "points with exact outputs")
       (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
      [else
+      (define num-vars (length (program-variables prog)))
       (match precision
         ['binary64
          (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
@@ -202,29 +203,41 @@
          ;; keep iterating till we get at least *num-points*
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit8
-         (for/list ([_ (range (*num-points*))])
-           (random-posit8))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-posit8)))
+           (values v (map (λ (x) (bf (posit8->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
         ['posit16
-         (for/list ([_ (range (*num-points*))])
-           (random-posit16))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-posit16)))
+           (values v (map (λ (x) (bf (posit16->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
         ['posit32
-         (for/list ([_ (range (*num-points*))])
-           (random-posit32))]
-        ['posit64
-         (for/list ([_ (range (*num-points*))])
-           (random-posit64))]
-        ['posit128
-         (for/list ([_ (range (*num-points*))])
-           (random-posit128))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-posit32)))
+           (values v (map (λ (x) (bf (posit32->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
         ['quire8
-         (for/list ([_ (range (*num-points*))])
-           (random-quire8))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-quire8)))
+           (values v (map (λ (x) (bf (quire8->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
         ['quire16
-         (for/list ([_ (range (*num-points*))])
-           (random-quire16))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-quire16)))
+           (values v (map (λ (x) (bf (quire16->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
         ['quire32
-         (for/list ([_ (range (*num-points*))])
-           (random-quire32))]
+         (define-values (points exacts) (for/lists (points exacts)
+                                                   ([_ (range (*num-points*))])
+           (define v (for/list ([_ (range num-vars)]) (random-quire32)))
+           (values v (map (λ (x) (bf (quire32->double x))) v))))
+         (loop points exacts (+ 1 num-loops))]
       )])))
 
 (define (prepare-points prog precondition)
