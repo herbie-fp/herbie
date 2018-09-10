@@ -777,12 +777,12 @@
               ['real (sample-double)]
               ['bool (if (< (random) .5) false true)]
               ['complex (make-rectangular (sample-double) (sample-double))]
-              ['posit8 (double->posit8 (sample-double))]
-              ['posit16 (double->posit16 (sample-double))]
-              ['posit32 (double->posit32 (sample-double))]
-              ['quire8 (create-quire8 (double->posit8 (sample-double)))]
-              ['quire16 (create-quire16 (double->posit16 (sample-double)))]
-              ['quire32 (create-quire32 (double->posit32 (sample-double)))])))
+              ['posit8 (random-posit8)]
+              ['posit16 (random-posit16)]
+              ['posit32 (random-posit32)]
+              ['quire8 (random-quire8)]
+              ['quire16 (random-quire16)]
+              ['quire32 (random-quire32)])))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
         (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
