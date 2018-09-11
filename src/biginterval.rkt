@@ -27,6 +27,12 @@
   (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
   (ival x* x* err? err?))
 
+(define (ival-pi)
+  (ival (rnd 'down (λ () pi.bf)) (rnd 'up (λ () pi.bf)) #f #f))
+
+(define (ival-e)
+  (ival (rnd 'down bfexp 1.bf) (rnd 'up bfexp 1.bf) #f #f))
+
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
@@ -106,6 +112,9 @@
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
         err? err))
 
+(define const-mapping
+  (hash 'PI ival-pi 'E ival-e))
+
 (define fn-mapping
   (hash '- ival-sub '+ ival-add '* ival-mult '/ ival-div 'exp ival-exp 'log ival-log 'sqrt ival-sqrt))
 
@@ -118,6 +127,7 @@
          (let loop ([expr (program-body prog)])
            (match expr
              [(? real?) (list mk-ival expr)]
+             [(? constant?) (list (dict-ref const-mapping expr))]
              [(? variable?)
               (list mk-ival expr)]
              [(list '- arg)

@@ -11,7 +11,6 @@
           [bf-complex-neg (-> bigcomplex? bigcomplex?)]
           [bf-complex-mult (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-conjugate (-> bigcomplex? bigcomplex?)]
-          [bf-complex-sqr (-> bigcomplex? bigcomplex?)]
           [bf-complex-exp (-> bigcomplex? bigcomplex?)]
           [bf-complex-log (-> bigcomplex? bigcomplex?)]
           [bf-complex-sqrt (-> bigcomplex? bigcomplex?)]
@@ -34,9 +33,6 @@
 
 (define (bf-complex-conjugate x)
   (bigcomplex (bigcomplex-re x) (bf- (bigcomplex-im x))))
-
-(define (bf-complex-sqr x)
-  (bf-complex-mult x x))
 
 (define (bf-complex-exp x)
   (match-define (bigcomplex re im) x)
