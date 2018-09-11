@@ -113,7 +113,7 @@
 
 (define (ival-compile prog)
   (eval
-   (list 'λ
+   (list 'lambda
          (program-variables prog)
          (let loop ([expr (program-body prog)])
            (match expr
@@ -151,4 +151,4 @@
     [(list op args ...)
      (and (hash-has-key? fn-mapping op)
           (andmap supported-expr? args))]
-    [_ true]))
+    [(or (? variable?) (? constant?)) true]))
