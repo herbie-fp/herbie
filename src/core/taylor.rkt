@@ -16,8 +16,9 @@
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
-        (for/fold ([expr expr]) ([var vars] [tform tforms])
-          (replace-expression expr var ((car tform) var))))
+        (simplify
+         (for/fold ([expr expr]) ([var vars] [tform tforms])
+           (replace-expression expr var ((car tform) var)))))
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   ; This is a very complex routine, with multiple parts.
@@ -163,7 +164,7 @@
 (define (reset-taylor-caches!)
   (hash-clear! taylor-cache)
   (hash-clear! n-sum-to-cache)
-  (hash-clear! log-cache))
+  (hash-clear! logcache))
 
 (define taylor-cache (make-hash))
 
