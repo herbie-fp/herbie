@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt" "biginterval.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points
@@ -101,11 +101,12 @@
      [else
       (loop (cdr l) (- count 1))])))
 
-(define (make-exacts* prog pts precondition)
+(define (make-exacts-walkup prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
+      (eprintf "~a ~a\n" (length pts) (bf-precision))
       (when (> prec (*max-mpfr-prec*))
         (raise-herbie-error "Exceeded MPFR precision limit."
                             #:url "faq.html#mpfr-prec-limit"))
@@ -119,20 +120,25 @@
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at
-(define (make-exacts prog pts precondition)
+(define (make-exacts-halfpoints prog pts precondition)
   (define n (length pts))
   (let loop ([nth (floor (/ n 16))])
     (if (< nth 2)
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts for" n "points")
-          (make-exacts* prog pts precondition))
+          (make-exacts-walkup prog pts precondition))
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
                  "points to ramp up precision")
-          (make-exacts* prog (select-every nth pts) precondition)
+          (make-exacts-walkup prog (select-every nth pts) precondition)
           (loop (floor (/ nth 2)))))))
+
+(define (make-exacts prog pts precondition)
+  (if (and (equal? precondition 'TRUE) (supported-expr? (program-body prog)))
+      (map (curry evaluate-compiled (ival-compile prog)) pts)
+      (make-exacts-halfpoints prog pts precondition)))
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
