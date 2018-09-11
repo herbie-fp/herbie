@@ -106,7 +106,6 @@
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
-      (eprintf "~a ~a\n" (length pts) (bf-precision))
       (when (> prec (*max-mpfr-prec*))
         (raise-herbie-error "Exceeded MPFR precision limit."
                             #:url "faq.html#mpfr-prec-limit"))
