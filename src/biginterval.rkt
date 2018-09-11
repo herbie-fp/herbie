@@ -117,17 +117,15 @@
          (program-variables prog)
          (let loop ([expr (program-body prog)])
            (match expr
-             [(? real?) `(mk-ival ,expr)]
-             [(? constant?)
-              (define c (operator-info expr 'bf))
-              `(ival (rnd 'down ,c) (rnd 'up ,c))]
+             [(? real?) (list mk-ival expr)]
              [(? variable?)
-              `(mk-ival ,expr)]
+              (list mk-ival expr)]
              [(list '- arg)
-              `(ival-neg ,(loop arg))]
+              (list ival-neg (loop arg))]
              [(list op args ...)
               (define argvals (map loop args))
-              (cons (dict-ref fn-mapping op) argvals)])))))
+              (cons (dict-ref fn-mapping op) argvals)])))
+   common-eval-ns))
 
 (define (evaluate-compiled fn vals #:precision [precision 80])
   (let loop ([precision precision])
