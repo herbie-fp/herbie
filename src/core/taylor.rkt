@@ -159,7 +159,7 @@
           (list-ref seg i)))))
 
 (define taylor-expansion-known
-  '(+ - * / sqr sqrt exp sin cos log pow))
+  '(+ - * / sqrt cbrt exp sin cos log pow))
 
 (define (reset-taylor-caches!)
   (hash-clear! taylor-cache)
@@ -201,6 +201,8 @@
      (taylor-quotient (taylor var num) (taylor var den))]
     [`(sqrt ,arg)
      (taylor-sqrt (taylor var arg))]
+    [`(cbrt ,arg)
+     (taylor-cbrt (taylor var arg))]
     [`(exp ,arg)
      (let ([arg* (normalize-series (taylor var arg))])
        (if (positive? (car arg*))
@@ -376,6 +378,25 @@
                                                   `(* 2 (* ,(f k) ,(f (- n k)))))))
                                         (* 2 ,(f 0)))])))))])
       (cons (/ offset* 2) f))))
+
+(define (taylor-cbrt num)
+  (let* ([num* (normalize-series num)]
+         [offset (car num*)]
+         [offset* (- offset (modulo offset 3))]
+         [coeffs (cdr num*)]
+         [coeffs* (if (= (modulo offset 3) 0) coeffs (λ (n) (if (= n 0) 0 (coeffs (+ n (modulo offset 3))))))]
+         [hash (make-hash)])
+    (hash-set! hash 0 (simplify `(cbrt ,(coeffs* 0))))
+    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt ,(coeffs* 0))))))
+    (letrec ([f (λ (n)
+                   (hash-ref! hash n
+                              (λ ()
+                                 (simplify
+                                  `(/ (- ,(coeffs* n)
+                                         (+ ,@(for/list ([j (in-range 1 n)] [k (in-range 1 n)] #:when (<= (+ j k) n))
+                                                `(* 2 (* ,(f j) ,(f k) ,(f (- n j k)))))))
+                                      (* 3 ,(f 0)))))))])
+      (cons (/ offset* 3) f))))
 
 (define (rle l)
   (for/list ([run (group-by identity l)])
