@@ -7,7 +7,7 @@
 (require "reduce.rkt")
 (require "matcher.rkt")
 
-(provide approximate)
+(provide approximate reset-taylor-caches!)
 
 (define (approximate expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
@@ -160,7 +160,17 @@
 (define taylor-expansion-known
   '(+ - * / sqr sqrt exp sin cos log pow))
 
-(define (taylor var expr*)
+(define (reset-taylor-caches!)
+  (hash-clear! taylor-cache)
+  (hash-clear! n-sum-to-cache)
+  (hash-clear! log-cache))
+
+(define taylor-cache (make-hash))
+
+(define (taylor var expr)
+  (hash-ref! taylor-cache (cons var expr) (λ () (taylor* var expr))))
+
+(define (taylor* var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
   (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
   (define expr
