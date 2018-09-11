@@ -33,6 +33,7 @@
   [type type?]
   [bf (->* () bigvalue?)]
   [fl (->* () value?)]
+  [nonffi (->* () value?)]
   [->c/double string?]
   [->c/mpfr (->* (string?) string?)]
   [->tex string?])
@@ -46,6 +47,7 @@
 (define-constant PI real
   [bf (λ () pi.bf)]
   [fl (λ () pi)]
+  [nonffi (λ () pi)]
   [->c/double "atan2(1.0, 0.0)"]
   [->c/mpfr (curry format "mpfr_const_pi(~a, MPFR_RNDN)")]
   [->tex "\\pi"])
@@ -53,6 +55,7 @@
 (define-constant E real
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
+  [nonffi (λ () (exp 1.0))]
   [->c/double "exp(1.0)"]
   [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
   [->tex "e"])
@@ -60,6 +63,7 @@
 (define-constant TRUE bool
   [bf (const true)]
   [fl (const true)]
+  [nonffi (const true)]
   [->c/double "1"]
   [->c/mpfr (curry format "mpfr_set_si(~a, 1, MPFR_RNDN)")]
   [->tex "\\top"])
@@ -67,6 +71,7 @@
 (define-constant FALSE bool
   [bf (const false)]
   [fl (const false)]
+  [nonffi (const false)]
   [->c/double "0"]
   [->c/mpfr (curry format "mpfr_set_si(~a, 0, MPFR_RNDN)")]
   [->tex "\\perp"])

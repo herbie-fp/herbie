@@ -107,14 +107,13 @@
 
 (define (eval-prog prog mode)
   (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['nonffi identity])) ; Keep exact numbers exact
-  (define constant->precision (match mode ['bf ->bf] ['fl ->flonum] ['nonffi ->flonum]))
   (define precision->real (match mode ['bf ->flonum] ['fl ->flonum] ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
       (match prog
         [(? real?) (list real->precision prog)]
-        [(? constant?) (list constant->precision (list 'quote prog))]
+        [(? constant?) ((constant-info prog mode))]
         [(? variable?) prog]
         [(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
