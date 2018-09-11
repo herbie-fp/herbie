@@ -86,7 +86,6 @@
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
 
-
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
   (cond
@@ -115,7 +114,7 @@
     (let inductor ([prog (program-body prog)])
       (match prog
         [(? real?) (list real->precision prog)]
-        [(? constant?) (list constant->precision prog)]
+        [(? constant?) (list constant->precision (list 'quote prog))]
         [(? variable?) prog]
         [(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
