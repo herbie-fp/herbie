@@ -163,7 +163,8 @@
 
 (define (reset-taylor-caches!)
   (hash-clear! n-sum-to-cache)
-  (hash-clear! logcache))
+  (hash-clear! logcache)
+  (hash-set! logcache 1 '((1 -1 1))))
 
 (define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
