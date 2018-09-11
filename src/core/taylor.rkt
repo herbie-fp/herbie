@@ -162,16 +162,10 @@
   '(+ - * / sqrt cbrt exp sin cos log pow))
 
 (define (reset-taylor-caches!)
-  (hash-clear! taylor-cache)
   (hash-clear! n-sum-to-cache)
   (hash-clear! logcache))
 
-(define taylor-cache (make-hash))
-
-(define (taylor var expr)
-  (hash-ref! taylor-cache (cons var expr) (λ () (taylor* var expr))))
-
-(define (taylor* var expr*)
+(define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
   (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
   (define expr
