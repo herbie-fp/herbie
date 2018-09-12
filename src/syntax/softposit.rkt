@@ -8,6 +8,7 @@
          quire8? quire16? quire32?
          random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
          random-quire8 random-quire16 random-quire32
+         posit8-inf posit16-inf posit32-inf posit64-inf posit128-inf
          uint32->posit8 uint32->posit16 uint32->posit32
          uint64->posit8 uint64->posit16 uint64->posit32
          int32->posit8 int32->posit16 int32->posit32
@@ -47,6 +48,7 @@
          quire8? quire16? quire32?
          random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
          random-quire8 random-quire16 random-quire32
+         posit8-inf posit16-inf posit32-inf posit64-inf posit128-inf
          uint32->posit8 uint32->posit16 uint32->posit32
          uint64->posit8 uint64->posit16 uint64->posit32
          int32->posit8 int32->posit16 int32->posit32

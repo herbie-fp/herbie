@@ -144,9 +144,41 @@
 
 (define (</total x1 x2)
   (cond
-   [(nan? x1) #f]
-   [(nan? x2) #t]
-   [else (< x1 x2)]))
+    [(or (real? x1) (complex? x1))
+     (cond
+       [(nan? x1) #f]
+       [(nan? x2) #t]
+       [else (< x1 x2)])]
+    [(posit8? x1)
+     (cond
+       [(posit8-eq? (posit8-inf) x1) #f]
+       [(posit8-eq? (posit8-inf) x2) #t]
+       [else (posit8-lt? x1 x2)])]
+    [(posit16? x1)
+     (cond
+       [(posit16-eq? (posit16-inf) x1) #f]
+       [(posit16-eq? (posit16-inf) x2) #t]
+       [else (posit16-lt? x1 x2)])]
+    [(posit32? x1)
+     (cond
+       [(posit32-eq? (posit32-inf) x1) #f]
+       [(posit32-eq? (posit32-inf) x2) #t]
+       [else (posit32-lt? x1 x2)])]
+    [(quire8? x1)
+     (cond
+       [(posit8-eq? (posit8-inf) (quire8->posit8 x1)) #f]
+       [(posit8-eq? (posit8-inf) (quire8->posit8 x2)) #t]
+       [else (posit8-lt? (quire8->posit8 x1) (quire8->posit8 x2))])]
+    [(quire16? x1)
+     (cond
+       [(posit16-eq? (posit16-inf) (quire16->posit16 x1)) #f]
+       [(posit16-eq? (posit16-inf) (quire16->posit16 x2)) #t]
+       [else (posit16-lt? (quire16->posit16 x1) (quire16->posit16 x2))])]
+    [(quire32? x1)
+     (cond
+       [(posit32-eq? (posit32-inf) (quire32->posit32 x1)) #f]
+       [(posit32-eq? (posit32-inf) (quire32->posit32 x2)) #t]
+       [else (posit32-lt? (quire32->posit32 x1) (quire32->posit32 x2))])]))
 
 ;; Utility list functions
 
