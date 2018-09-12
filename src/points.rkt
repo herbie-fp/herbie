@@ -169,9 +169,9 @@
         (map (λ (x) (sample-double)) (program-variables expr))))
     (define exacts1 (make-exacts-halfpoints expr pts 'TRUE))
     (define exacts2 (map (curry make-exacts-intervals (eval-prog expr 'ival)) pts))
-    (test-begin
-     (for ([pt pts] [e1 exacts1] [e2 exacts2])
-       (with-check-info (['expr expr] ['pt pt]) (check-float= e1 e2))))))
+    (test-case (~a expr)
+               (for ([pt pts] [e1 exacts1] [e2 exacts2])
+                 (with-check-info (['pt pt]) (check-float= e1 e2))))))
 
 (define (make-exacts prog pts precondition)
   (if (and (equal? precondition 'TRUE) (supported-ival-expr? (program-body prog)))
