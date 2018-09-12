@@ -55,49 +55,33 @@
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
+(define (bfmin* a . as)
+  (if (null? as) a (apply bfmin* (bfmin a (car as)) (cdr as))))
+
+(define (bfmax* a . as)
+  (if (null? as) a (apply bfmax* (bfmax a (car as)) (cdr as))))
+
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (cond
-   [(bf>= (ival-lo x) 0.bf)
-    (ival (rnd 'down bf* (ival-lo x) (ival-lo y))
-          (rnd 'up bf* (ival-hi x) (ival-hi y))
-          err? err)]
-   [(bf<= (ival-hi x) 0.bf)
-    (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
-          (rnd 'up bf* (ival-hi x) (ival-lo y))
-          err? err)]
-   [(or (bf>= (ival-lo y) 0.bf) (bf<= (ival-hi y) 0.bf)) ; x stradles 0
-    (ival-mult y x)]
-   [else ; y also stradles 0
-    (ival (bfmin (rnd 'down bf* (ival-lo x) (ival-hi y))
-                 (rnd 'down bf* (ival-hi x) (ival-lo y)))
-          (bfmin (rnd 'up bf* (ival-lo x) (ival-lo y))
-                 (rnd 'up bf* (ival-hi x) (ival-hi y)))
-          err? err)]))
+  (ival (rnd 'down bfmin*
+             (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
+             (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
+        (rnd 'up bfmax*
+             (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
+             (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
+        err? err))
 
 (define (ival-div x y)
-  (define err (or (ival-err x) (ival-err y)
-                  (and (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))
-  (define err? (or err (ival-err? x) (ival-err? y)
-                   (and (bf<= (ival-lo y) 0.bf) (bf>= (ival-hi y) 0.bf))))
-  (cond
-   [(bf>= (ival-lo x) 0.bf)
-    (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
-          (rnd 'up bf* (ival-hi x) (ival-lo y))
-          err? err)]
-   [(bf<= (ival-hi x) 0.bf)
-    (ival (rnd 'down bf* (ival-lo x) (ival-lo y))
-          (rnd 'up bf* (ival-hi x) (ival-hi y))
-          err? err)]
-   [(or (bf>= (ival-lo y) 0.bf) (bf<= (ival-hi y) 0.bf)) ; x stradles 0
-    (ival-mult y x)]
-   [else ; y also stradles 0
-    (ival (bfmin (rnd 'down bf* (ival-lo x) (ival-lo y))
-                 (rnd 'down bf* (ival-hi x) (ival-hi y)))
-          (bfmin (rnd 'up bf* (ival-lo x) (ival-hi y))
-                 (rnd 'up bf* (ival-hi x) (ival-lo y)))
-          err? err)]))
+  (define err? (or (ival-err? x) (ival-err? y) (and (bf<= (ival-lo y) 0.bf) (bf>= (ival-hi y) 0.bf))))
+  (define err (or (ival-err x) (ival-err y) (and (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))
+  (ival (rnd 'down bfmin*
+             (bf/ (ival-lo x) (ival-lo y)) (bf/ (ival-hi x) (ival-lo y))
+             (bf/ (ival-lo x) (ival-hi y)) (bf/ (ival-hi x) (ival-hi y)))
+        (rnd 'up bfmax*
+             (bf/ (ival-lo x) (ival-lo y)) (bf/ (ival-hi x) (ival-lo y))
+             (bf/ (ival-lo x) (ival-hi y)) (bf/ (ival-hi x) (ival-hi y)))
+        err? err))
 
 (define (ival-exp x)
   (ival (rnd 'down bfexp (ival-lo x)) (rnd 'up bfexp (ival-hi x)) (ival-err? x) (ival-err x)))

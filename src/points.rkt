@@ -112,7 +112,7 @@
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
       (bf-precision prec)
-      (let ([curr (map f pts)]
+      (let ([curr (map (compose ->flonum f) pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
@@ -154,6 +154,24 @@
         (bigfloat->flonum lo)]
        [else
         (loop (inexact->exact (round (* precision 2))))]))))
+
+(module+ test
+  (define test-exprs
+    '((λ (x) (- (sqrt (+ x 1)) (sqrt x)))
+      (λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
+
+  (define-binary-check (check-float= a b)
+    (= (ulp-difference a b) 0))
+
+  (for ([expr test-exprs])
+    (define pts
+      (for/list ([i (in-range 64)])
+        (map (λ (x) (sample-double)) (program-variables expr))))
+    (define exacts1 (make-exacts-halfpoints expr pts 'TRUE))
+    (define exacts2 (map (curry make-exacts-intervals (eval-prog expr 'ival)) pts))
+    (test-begin
+     (for ([pt pts] [e1 exacts1] [e2 exacts2])
+       (with-check-info (['expr expr] ['pt pt]) (check-float= e1 e2))))))
 
 (define (make-exacts prog pts precondition)
   (if (and (equal? precondition 'TRUE) (supported-ival-expr? (program-body prog)))
