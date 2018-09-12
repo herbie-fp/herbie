@@ -116,7 +116,7 @@
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
-  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
+  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (</total prev val))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
