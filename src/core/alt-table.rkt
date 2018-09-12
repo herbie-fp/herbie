@@ -3,6 +3,7 @@
 (require "../common.rkt")
 (require "../alternative.rkt")
 (require "../points.rkt")
+(require "../syntax/softposit.rkt")
 
 (provide
  (contract-out
@@ -30,14 +31,14 @@
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
 (define (make-alt-table context initial-alt)
-   (alt-table (make-immutable-hash
-	       (for/list ([(pt ex) (in-pcontext context)]
-			  [err (errors (alt-program initial-alt) context)])
-		 (cons pt (point-rec err (list initial-alt)))))
-	      (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
-				  pt))
-	      (hash initial-alt #f)
-	      context))
+   (alt-table (make-hash
+     (for/list ([(pt ex) (in-pcontext context)]
+                [err (errors (alt-program initial-alt) context)])
+       (cons pt (point-rec err (list initial-alt)))))
+     (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
+       pt))
+     (hash initial-alt #f)
+     context))
 
 (define (atab-new-context atab ctx)
   (let* ([old-done (alt-table-alt->done? atab)]
@@ -119,11 +120,36 @@
 
 (struct point-rec (berr altns) #:prefab)
 
+(define (test-hash-ref lst key)
+  (if (eq? null lst)
+    (error "No Key!")
+    (if (equal? (caar lst) key)
+      (cdar lst)
+      (test-hash-ref (cdr lst) key))))
+
 (define (best-and-tied-at-points point->alt altn)
+  (define a (for/list ([(p _) (in-pcontext (*pcontext*))])
+              p))
+  #;(println (sort (map car (map (λ (x) (map posit16->double x)) a)) <))
+  #;(println (sort (map car (map (λ (x) (map posit16->double x)) (map car (hash->list point->alt)))) <))
+  (define keys (hash-keys point->alt))
+  (for ([point a])
+    (if (set-member? keys point)
+      '()
+      (printf "missing key ~a\n" (list (posit16->double (car point))))))
   (let-values ([(best tied)
-		(for/lists (best tied)
-		    ([(pnt ex) (in-pcontext (*pcontext*))]
-		     [err (errors (alt-program altn) (*pcontext*))])
+		(for/lists (best tied) ([(pnt ex) (in-pcontext (*pcontext*))]
+                            [err (errors (alt-program altn) (*pcontext*))])
+      (assert (equal? (hash-keys point->alt) keys))
+      (assert (set-member? (hash-keys point->alt) pnt))
+      (assert (hash-equal? point->alt))
+      (for ([(k2 v) (in-hash point->alt)] #:when (hash-has-key? point->alt k2))
+        (eprintf "~a -> ~a\n" k2 v))
+      (eprintf "OK!\n")
+      (for ([k1 (in-list (hash-keys point->alt))])
+        (assert (hash-has-key? point->alt k1)))
+      (eprintf "OK 2!\n")
+      (assert (hash-has-key? point->alt pnt))
 		  (let* ([pnt-rec (hash-ref point->alt pnt)]
 			 [table-err (point-rec-berr pnt-rec)])
 		    (cond [(< err table-err)
@@ -208,18 +234,21 @@
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
 (define (atab-add-altn atab altn)
-  (match-define (alt-table point->alts alt->points _ _) atab)
-  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn))
-  (if (or (and (null? best-pnts) (null? tied-pnts)) (dict-has-key? alt->points altn))
-      atab
-      (let* ([alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts)]
-	     [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
-	     [pnts->alts*1 (override-at-pnts point->alts best-pnts altn)]
-	     [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
-	     [alts->done?* (hash-set (alt-table-alt->done? atab) altn #f)]
-	     [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab))]
-	     [atab*2 (minimize-alts atab*1)])
-	atab*2)))
+  (match-let* ([pnts->alts (alt-table-point->alts atab)]
+	       [alts->pnts (alt-table-alt->points atab)]
+	       [`(,best-pnts ,tied-pnts) (best-and-tied-at-points pnts->alts altn)])
+    (if (null? best-pnts)
+	atab
+	(let ()
+    (define alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts))
+    (println "test")
+    (define alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts)))
+    (define pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn))
+    (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn))
+    (define alts->done?* (hash-set (alt-table-alt->done? atab) altn #f))
+    (define atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab)))
+    (define atab*2 (minimize-alts atab*1))
+	  atab*2))))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
