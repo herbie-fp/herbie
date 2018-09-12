@@ -54,6 +54,13 @@
        (+ (single-flonum->ordinal p1) (single-flonum->ordinal p2))
        2)
       4) #f)]
+   [(and (posit8? p1) (posit8? p2))
+    ;; NOTE: This isn't a binary search (just splits the difference)
+    (posit8-div (posit8-add p1 p2) (double->posit8 2.0))]
+   [(and (posit16? p1) (posit16? p2))
+    (posit16-div (posit16-add p1 p2) (double->posit16 2.0))]
+   [(and (posit32? p1) (posit32? p2))
+    (posit32-div (posit32-add p1 p2) (double->posit32 2.0))]
    [else
     (error "Mixed precisions in binary search")]))
 
