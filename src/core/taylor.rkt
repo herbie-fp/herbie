@@ -7,7 +7,7 @@
 (require "reduce.rkt")
 (require "matcher.rkt")
 
-(provide approximate)
+(provide approximate reset-taylor-caches!)
 
 (define (approximate expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
@@ -16,8 +16,9 @@
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
-        (for/fold ([expr expr]) ([var vars] [tform tforms])
-          (replace-expression expr var ((car tform) var))))
+        (simplify
+         (for/fold ([expr expr]) ([var vars] [tform tforms])
+           (replace-expression expr var ((car tform) var)))))
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   ; This is a very complex routine, with multiple parts.
@@ -158,7 +159,12 @@
           (list-ref seg i)))))
 
 (define taylor-expansion-known
-  '(+ - * / sqr sqrt exp sin cos log pow))
+  '(+ - * / sqrt cbrt exp sin cos log pow))
+
+(define (reset-taylor-caches!)
+  (hash-clear! n-sum-to-cache)
+  (hash-clear! logcache)
+  (hash-set! logcache 1 '((1 -1 1))))
 
 (define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -190,6 +196,8 @@
      (taylor-quotient (taylor var num) (taylor var den))]
     [`(sqrt ,arg)
      (taylor-sqrt (taylor var arg))]
+    [`(cbrt ,arg)
+     (taylor-cbrt (taylor var arg))]
     [`(exp ,arg)
      (let ([arg* (normalize-series (taylor var arg))])
        (if (positive? (car arg*))
@@ -365,6 +373,25 @@
                                                   `(* 2 (* ,(f k) ,(f (- n k)))))))
                                         (* 2 ,(f 0)))])))))])
       (cons (/ offset* 2) f))))
+
+(define (taylor-cbrt num)
+  (let* ([num* (normalize-series num)]
+         [offset (car num*)]
+         [offset* (- offset (modulo offset 3))]
+         [coeffs (cdr num*)]
+         [coeffs* (if (= (modulo offset 3) 0) coeffs (λ (n) (if (= n 0) 0 (coeffs (+ n (modulo offset 3))))))]
+         [hash (make-hash)])
+    (hash-set! hash 0 (simplify `(cbrt ,(coeffs* 0))))
+    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt ,(coeffs* 0))))))
+    (letrec ([f (λ (n)
+                   (hash-ref! hash n
+                              (λ ()
+                                 (simplify
+                                  `(/ (- ,(coeffs* n)
+                                         (+ ,@(for/list ([j (in-range 1 n)] [k (in-range 1 n)] #:when (<= (+ j k) n))
+                                                `(* 2 (* ,(f j) ,(f k) ,(f (- n j k)))))))
+                                      (* 3 ,(f 0)))))))])
+      (cons (/ offset* 3) f))))
 
 (define (rle l)
   (for/list ([run (group-by identity l)])

@@ -70,6 +70,7 @@
     (^precondition^ precondition)
     (*pcontext* context)
     (reset-analyze-cache!)
+    (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (define log! (timeline-event! 'setup))
     (^table^ (make-alt-table context altn))

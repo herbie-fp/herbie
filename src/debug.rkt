@@ -105,6 +105,8 @@
     (debug-print from depth tag args (*debug-port*))))
 
 (define (debug-print from depth tag args port)
+  (display (~r (/ (current-inexact-milliseconds) 1000) #:precision '(= 3)) port)
+  (display " " port)
   (for ([i (range depth)])
     (display "* " port))
   (display (hash-ref *tags* tag "; ") port)
