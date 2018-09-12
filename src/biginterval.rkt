@@ -1,26 +1,25 @@
 #lang racket
 
 (require math/bigfloat)
-(require "common.rkt" "programs.rkt" "errors.rkt")
+(require "common.rkt")
 
 (struct ival (lo hi err? err) #:transparent)
 
 (provide (contract-out
           [struct ival ([lo bigfloat?] [hi bigfloat?] [err? boolean?] [err boolean?])]
           [mk-ival (-> real? ival?)]
+          [ival-pi (-> ival?)]
+          [ival-e  (-> ival?)]
+          [ival-bool (-> boolean? ival?)]
           [ival-add (-> ival? ival? ival?)]
           [ival-sub (-> ival? ival? ival?)]
           [ival-neg (-> ival? ival?)]
           [ival-mult (-> ival? ival? ival?)]
+          [ival-div (-> ival? ival? ival?)]
+          [ival-sqrt (-> ival? ival?)]
           [ival-exp (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
-          [ival-sqrt (-> ival? ival?)]
-          #;[ival-pow (-> ival? ival? ival?)]
-          [ival-div (-> ival? ival? ival?)])
-         ival-compile
-         evaluate-compiled
-         supported-expr?
-         histogram)
+          #;[ival-pow (-> ival? ival? ival?)]))
 
 (define (mk-ival x)
   (define err? (or (nan? x) (infinite? x)))
@@ -32,6 +31,9 @@
 
 (define (ival-e)
   (ival (rnd 'down bfexp 1.bf) (rnd 'up bfexp 1.bf) #f #f))
+
+(define (ival-bool b)
+  (ival b b #f #f))
 
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -111,52 +113,3 @@
   (define err? (or err (ival-err? x) (bf<= (ival-lo x) 0.bf)))
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
         err? err))
-
-(define const-mapping
-  (hash 'PI ival-pi 'E ival-e))
-
-(define fn-mapping
-  (hash '- ival-sub '+ ival-add '* ival-mult '/ ival-div 'exp ival-exp 'log ival-log 'sqrt ival-sqrt))
-
-(define histogram (make-hash))
-
-(define (ival-compile prog)
-  (eval
-   (list 'lambda
-         (program-variables prog)
-         (let loop ([expr (program-body prog)])
-           (match expr
-             [(? real?) (list mk-ival expr)]
-             [(? constant?) (list (dict-ref const-mapping expr))]
-             [(? variable?)
-              (list mk-ival expr)]
-             [(list '- arg)
-              (list ival-neg (loop arg))]
-             [(list op args ...)
-              (define argvals (map loop args))
-              (cons (dict-ref fn-mapping op) argvals)])))
-   common-eval-ns))
-
-(define (evaluate-compiled fn vals #:precision [precision 80])
-  (let loop ([precision precision])
-    (parameterize ([bf-precision precision])
-      (when (> precision (*max-mpfr-prec*))
-        (raise-herbie-error "Exceeded MPFR precision limit."
-                            #:url "faq.html#mpfr-prec-limit"))
-      (match-define (ival lo hi err? err) (apply fn vals))
-      (cond
-       [err
-        (hash-update! histogram precision add1 0)
-        +nan.0]
-       [(and (= (bigfloat->flonum lo) (bigfloat->flonum hi)) (not err?))
-        (hash-update! histogram precision add1 0)
-        (bigfloat->flonum lo)]
-       [else
-        (loop (inexact->exact (round (* precision 2))))]))))
-
-(define (supported-expr? expr)
-  (match expr
-    [(list op args ...)
-     (and (hash-has-key? fn-mapping op)
-          (andmap supported-expr? args))]
-    [(or (? variable?) (? constant?)) true]))

@@ -134,9 +134,30 @@
           (make-exacts-walkup prog (select-every nth pts) precondition)
           (loop (floor (/ nth 2)))))))
 
+(define (supported-ival-expr? expr)
+  (match expr
+    [(list op args ...)
+     (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
+    [(or (? variable?) (? constant?)) true]))
+
+(define (make-exacts-intervals fn pt #:precision [precision 80])
+  (let loop ([precision precision])
+    (parameterize ([bf-precision precision])
+      (when (> precision (*max-mpfr-prec*))
+        (raise-herbie-error "Exceeded MPFR precision limit."
+                            #:url "faq.html#mpfr-prec-limit"))
+      (match-define (ival lo hi err? err) (fn pt))
+      (cond
+       [err
+        +nan.0]
+       [(and (= (bigfloat->flonum lo) (bigfloat->flonum hi)) (not err?))
+        (bigfloat->flonum lo)]
+       [else
+        (loop (inexact->exact (round (* precision 2))))]))))
+
 (define (make-exacts prog pts precondition)
-  (if (and (equal? precondition 'TRUE) (supported-expr? (program-body prog)))
-      (map (curry evaluate-compiled (ival-compile prog)) pts)
+  (if (and (equal? precondition 'TRUE) (supported-ival-expr? (program-body prog)))
+      (map (curry make-exacts-intervals (eval-prog prog 'ival)) pts)
       (make-exacts-halfpoints prog pts precondition)))
 
 (define (filter-p&e pts exacts)

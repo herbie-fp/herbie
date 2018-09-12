@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt" "biginterval.rkt")
 
 (module+ test (require rackunit))
 
@@ -106,8 +106,8 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['nonffi identity])) ; Keep exact numbers exact
-  (define precision->real (match mode ['bf ->flonum] ['fl ->flonum] ['nonffi identity]))
+  (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['ival mk-ival] ['nonffi identity])) ; Keep exact numbers exact
+  (define precision->real (match mode ['bf ->flonum] ['fl ->flonum] ['ival identity] ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
