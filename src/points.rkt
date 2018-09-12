@@ -158,7 +158,7 @@
 (module+ test
   (define test-exprs
     '((λ (x) (- (sqrt (+ x 1)) (sqrt x)))
-      (λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
+      #;(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
 
   (define-binary-check (check-float= a b)
     (= (ulp-difference a b) 0))
