@@ -31,7 +31,7 @@
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
 (define (make-alt-table context initial-alt)
-   (alt-table (make-hash
+   (alt-table (make-immutable-hash
      (for/list ([(pt ex) (in-pcontext context)]
                 [err (errors (alt-program initial-alt) context)])
        (cons pt (point-rec err (list initial-alt)))))
@@ -128,28 +128,9 @@
       (test-hash-ref (cdr lst) key))))
 
 (define (best-and-tied-at-points point->alt altn)
-  (define a (for/list ([(p _) (in-pcontext (*pcontext*))])
-              p))
-  #;(println (sort (map car (map (λ (x) (map posit16->double x)) a)) <))
-  #;(println (sort (map car (map (λ (x) (map posit16->double x)) (map car (hash->list point->alt)))) <))
-  (define keys (hash-keys point->alt))
-  (for ([point a])
-    (if (set-member? keys point)
-      '()
-      (printf "missing key ~a\n" (list (posit16->double (car point))))))
   (let-values ([(best tied)
 		(for/lists (best tied) ([(pnt ex) (in-pcontext (*pcontext*))]
                             [err (errors (alt-program altn) (*pcontext*))])
-      (assert (equal? (hash-keys point->alt) keys))
-      (assert (set-member? (hash-keys point->alt) pnt))
-      (assert (hash-equal? point->alt))
-      (for ([(k2 v) (in-hash point->alt)] #:when (hash-has-key? point->alt k2))
-        (eprintf "~a -> ~a\n" k2 v))
-      (eprintf "OK!\n")
-      (for ([k1 (in-list (hash-keys point->alt))])
-        (assert (hash-has-key? point->alt k1)))
-      (eprintf "OK 2!\n")
-      (assert (hash-has-key? point->alt pnt))
 		  (let* ([pnt-rec (hash-ref point->alt pnt)]
 			 [table-err (point-rec-berr pnt-rec)])
 		    (cond [(< err table-err)
@@ -241,7 +222,6 @@
 	atab
 	(let ()
     (define alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts))
-    (println "test")
     (define alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts)))
     (define pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn))
     (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn))
