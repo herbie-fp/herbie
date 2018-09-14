@@ -248,7 +248,7 @@
      expr]))
 
 (define (expand-parametric expr ctx)
-  (define precision (cdr (first ctx)))
+  (define precision (if (and (list? ctx) (not (empty? ctx))) (cdr (first ctx)) 'real))
   (define-values (expr* type)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
