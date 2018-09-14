@@ -115,7 +115,7 @@
         [(? real?) (list real->precision prog)]
         [(? constant?) ((constant-info prog mode))]
         [(? variable?) prog]
-        [(list 'if cond ift iff)
+        #;[(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]

@@ -1,12 +1,12 @@
 #lang racket
 
 (require math/bigfloat)
-(require "common.rkt")
+(require "common.rkt" "syntax/types.rkt")
 
 (struct ival (lo hi err? err) #:transparent)
 
 (provide (contract-out
-          [struct ival ([lo bigfloat?] [hi bigfloat?] [err? boolean?] [err boolean?])]
+          [struct ival ([lo bigvalue?] [hi bigvalue?] [err? boolean?] [err boolean?])]
           [mk-ival (-> real? ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
@@ -19,7 +19,16 @@
           [ival-sqrt (-> ival? ival?)]
           [ival-exp (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
-          #;[ival-pow (-> ival? ival? ival?)]))
+          [ival-and (-> ival? ival? ival?)]
+          [ival-or (-> ival? ival? ival?)]
+          [ival-not (-> ival? ival?)]
+          [ival-< (-> ival? ival? ival?)]
+          [ival-<= (-> ival? ival? ival?)]
+          [ival-> (-> ival? ival? ival?)]
+          [ival->= (-> ival? ival? ival?)]
+          [ival-== (-> ival? ival? ival?)]
+          [ival-!= (-> ival? ival? ival?)]
+          [ival-if (-> ival? ival? ival? ival?)]))
 
 (define (mk-ival x)
   (define err? (or (nan? x) (infinite? x)))
@@ -97,3 +106,65 @@
   (define err? (or err (ival-err? x) (bf<= (ival-lo x) 0.bf)))
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
         err? err))
+
+(define (ival-and x y)
+  (ival (and (ival-lo x) (ival-lo y)) (and (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-or x y)
+  (ival (or (ival-lo x) (ival-lo y)) (or (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-not x)
+  (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x)))
+
+(define (ival-cmp x y)
+  (define can-< (bf< (ival-lo x) (ival-hi y)))
+  (define must-< (bf< (ival-hi x) (ival-lo y)))
+  (define can-> (bf> (ival-hi x) (ival-lo y)))
+  (define must-> (bf> (ival-lo x) (ival-hi y)))
+  (values can-< must-< can-> must->))
+
+(define (ival-< x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival m< c< (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-<= x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival (not c>) (not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-> x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival m> c> (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival->= x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival (not c<) (not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-== x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival (and (not c<) (not c>)) (or (not m<) (not m>)) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-!= x y)
+  (define-values (c< m< c> m>) (ival-cmp x y))
+  (ival (or c< c>) (or m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-union x y)
+  (match (ival-lo x)
+   [(? bigfloat?)
+    (ival (bfmin (ival-lo x) (ival-lo y)) (bfmax (ival-hi x) (ival-hi y))
+          (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]
+   [(? boolean?)
+    (ival (and (ival-lo x) (ival-lo y)) (or (ival-hi x) (ival-hi y))
+          (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]))
+
+(define (propagate-err c x)
+  (ival (ival-lo x) (ival-hi x)
+        (or (ival-err? c) (ival-err? x))
+        (or (ival-err c) (ival-err x))))
+
+(define (ival-if c x y)
+  (cond
+   [(ival-lo c) (propagate-err c x)]
+   [(not (ival-hi c)) (propagate-err c y)]
+   [else (propagate-err c (ival-union x y))]))

@@ -4,10 +4,10 @@
 (require math/base)
 (require math/bigfloat)
 (require math/special-functions)
-(require "../common.rkt")
+(require "../common.rkt" "types.rkt")
 (require "../float.rkt" "../bigcomplex.rkt" "../biginterval.rkt")
 
-(provide types type? value-of bigvalue-of value? bigvalue?
+(provide types type? value? bigvalue?
          constant? variable? operator? operator-info constant-info parametric-operators
          prune-operators! *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
@@ -15,15 +15,6 @@
 (define *unknown-f-ops* (make-parameter '()))
 
 (define *loaded-ops* (make-parameter '()))
-
-(define types '(bool real complex))
-(define (type? x) (set-member? types x))
-
-(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?])
-(define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?])
-
-(define value? (apply or/c (map value-of types)))
-(define bigvalue? (apply or/c (map bigvalue-of types)))
 
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
@@ -590,7 +581,7 @@
     (test left right)))
 
 (define-operator (if bool real real) real ; types not used, special cased in type checker
-  [fl if-fn] [bf if-fn] [cost 65] [ival #f]
+  [fl if-fn] [bf if-fn] [cost 65] [ival ival-if]
   [->c/double (curry format "~a ? ~a : ~a")]
   [->c/mpfr
    (λ (out c a b)
@@ -654,7 +645,7 @@
 (define-operator (< real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator <)] [bf (comparator bf<)] [cost 65] [ival #f]
+  [fl (comparator <)] [bf (comparator bf<)] [cost 65] [ival (comparator ival-<)]
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
@@ -663,7 +654,7 @@
 (define-operator (> real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator >)] [bf (comparator bf>)] [cost 65] [ival #f]
+  [fl (comparator >)] [bf (comparator bf>)] [cost 65] [ival (comparator ival->)]
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
@@ -672,7 +663,7 @@
 (define-operator (<= real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator <=)] [bf (comparator bf<=)] [cost 65] [ival #f]
+  [fl (comparator <=)] [bf (comparator bf<=)] [cost 65] [ival (comparator ival-<=)]
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
@@ -681,14 +672,14 @@
 (define-operator (>= real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator >=)] [bf (comparator bf>=)] [cost 65] [ival #f]
+  [fl (comparator >=)] [bf (comparator bf>=)] [cost 65] [ival (comparator ival->=)]
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator >=)])
 
 (define-operator (not bool) bool
-  [fl not] [bf not] [cost 65] [ival #f]
+  [fl not] [bf not] [cost 65] [ival ival-not]
   [->c/double (curry format "!~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, !mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (curry format "\\neg ~a")]
@@ -697,7 +688,7 @@
 (define-operator (and bool bool) bool
   ; Override number of arguments
   [type #hash((* . (((* bool) bool))))] [args '(*)]
-  [fl and-fn] [bf and-fn] [cost 55] [ival #f]
+  [fl and-fn] [bf and-fn] [cost 55] [ival ival-and]
   [->c/double (curry format "~a && ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (infix-joiner " \\land ")]
@@ -706,7 +697,7 @@
 (define-operator (or bool bool) bool
   ; Override number of arguments
   [type #hash((* . (((* bool) bool))))] [args '(*)]
-  [fl or-fn] [bf or-fn] [cost 55] [ival #f]
+  [fl or-fn] [bf or-fn] [cost 55] [ival ival-or]
   [->c/double (curry format "~a || ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
   [->tex (infix-joiner " \\lor ")]

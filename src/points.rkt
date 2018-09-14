@@ -140,20 +140,27 @@
      (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
     [(or (? variable?) (? constant?)) true]))
 
-(define (make-exacts-intervals fn pt #:precision [precision 80])
+(define (ival-eval fn pt #:precision [precision 80])
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
       (when (> precision (*max-mpfr-prec*))
-        (raise-herbie-error "Exceeded MPFR precision limit."
+        (raise-herbie-error (format "Exceeded MPFR precision limit for ~a"
+                                    (string-join (map ~a pt) ", "))
                             #:url "faq.html#mpfr-prec-limit"))
       (match-define (ival lo hi err? err) (fn pt))
       (cond
        [err
         +nan.0]
-       [(and (= (bigfloat->flonum lo) (bigfloat->flonum hi)) (not err?))
-        (bigfloat->flonum lo)]
+       [(and (equal? (->flonum lo) (->flonum hi)) (not err?))
+        (->flonum lo)]
        [else
         (loop (inexact->exact (round (* precision 2))))]))))
+
+(define (make-exacts-intervals prog pts precondition)
+  (define pre-fn (eval-prog `(λ ,(program-variables prog) ,precondition) 'ival))
+  (define body-fn (eval-prog prog 'ival))
+  (for/list ([pt pts])
+    (if (ival-eval pre-fn pt) (ival-eval body-fn pt) +nan.0)))
 
 (module+ test
   (define test-exprs
@@ -174,8 +181,8 @@
                  (with-check-info (['pt pt]) (check-float= e1 e2))))))
 
 (define (make-exacts prog pts precondition)
-  (if (and (equal? precondition 'TRUE) (supported-ival-expr? (program-body prog)))
-      (map (curry make-exacts-intervals (eval-prog prog 'ival)) pts)
+  (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+      (make-exacts-intervals prog pts precondition)
       (make-exacts-halfpoints prog pts precondition)))
 
 (define (filter-p&e pts exacts)
