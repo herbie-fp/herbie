@@ -44,6 +44,8 @@
 (define (ival-bool b)
   (ival b b #f #f))
 
+(define ival-true (ival-bool #t))
+
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
