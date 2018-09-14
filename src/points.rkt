@@ -151,8 +151,10 @@
       (cond
        [err
         +nan.0]
-       [(and (equal? (->flonum lo) (->flonum hi)) (not err?))
-        (->flonum lo)]
+       [(and (or (equal? (->flonum lo) (->flonum hi))
+                 (and (equal? (->flonum lo) -0.0) (equal? (->flonum hi) +0.0)))
+             (not err?))
+        (->flonum hi)]
        [else
         (loop (inexact->exact (round (* precision 2))))]))))
 
@@ -165,6 +167,7 @@
 (module+ test
   (define test-exprs
     '((λ (x) (- (sqrt (+ x 1)) (sqrt x)))
+      (λ (x y z) (- (+ (+ x y) z) (+ x (+ y z))))
       #;(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
 
   (define-binary-check (check-float= a b)
