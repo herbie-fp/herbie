@@ -17,8 +17,8 @@
 (define *analyze-cache* (make-hash))
 (define *analyze-context* (make-parameter #f))
 
-(define (localize-on-expression expr vars cache)
-  (hash-ref! cache expr
+(define (localize-on-expression expr vars cache precision)
+  (hash-ref! cache (cons expr precision)
              (λ ()
                 (match expr
                   [(? constant?)
@@ -26,15 +26,15 @@
                   [(? variable?)
                    (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
                   [`(if ,c ,ift ,iff)
-                   (let ([exact-ift (car (localize-on-expression ift vars cache))]
-                         [exact-iff (car (localize-on-expression iff vars cache))]
+                   (let ([exact-ift (car (localize-on-expression ift vars cache precision))]
+                         [exact-iff (car (localize-on-expression iff vars cache precision))]
                          [exact-cond (for/list ([(p _) (in-pcontext (*pcontext*))])
 				       ((eval-prog `(λ ,(map car vars) ,c) 'bf) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
                    (let* ([argvals
-                           (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args))]
+                           (flip-lists (map (compose car (curryr localize-on-expression vars cache precision)) args))]
                           [f-exact  (operator-info f 'bf)]
                           [f-approx (operator-info f 'fl)]
                           [exact  (map (curry apply f-exact) argvals)]
@@ -48,7 +48,7 @@
   (*analyze-context* (*pcontext*))
   (hash-clear! *analyze-cache*))
 
-(define (localize-error prog)
+(define (localize-error prog precision)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
@@ -58,13 +58,13 @@
         (make-hash)))
   (define expr->loc (location-hash prog))
 
-  (localize-on-expression (program-body prog) varmap cache)
+  (localize-on-expression (program-body prog) varmap cache precision)
 
   (define locs
     (reap [sow]
           (for ([(expr locs) (in-hash expr->loc)]
-                #:when (hash-has-key? cache expr))
-            (define err (cdr (hash-ref cache expr)))
+                #:when (hash-has-key? cache (cons expr precision)))
+            (define err (cdr (hash-ref cache (cons expr precision))))
             (when (ormap (curry < 1) err)
               (for-each (compose sow (curry cons err)) locs)))))
 
