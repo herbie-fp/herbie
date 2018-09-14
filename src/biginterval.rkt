@@ -19,15 +19,15 @@
           [ival-sqrt (-> ival? ival?)]
           [ival-exp (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
-          [ival-and (->* () #:rest ival? ival?)]
-          [ival-or (->* () #:rest ival? ival?)]
+          [ival-and (->* () #:rest (listof ival?) ival?)]
+          [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]
-          [ival-< (->* () #:rest ival? ival?)]
-          [ival-<= (->* () #:rest ival? ival?)]
-          [ival-> (->* () #:rest ival? ival?)]
-          [ival->= (->* () #:rest ival? ival?)]
-          [ival-== (->* () #:rest ival? ival?)]
-          [ival-!= (->* () #:rest ival? ival?)]
+          [ival-<  (->* () #:rest (listof ival?) ival?)]
+          [ival-<= (->* () #:rest (listof ival?) ival?)]
+          [ival->  (->* () #:rest (listof ival?) ival?)]
+          [ival->= (->* () #:rest (listof ival?) ival?)]
+          [ival-== (->* () #:rest (listof ival?) ival?)]
+          [ival-!= (->* () #:rest (listof ival?) ival?)]
           [ival-if (-> ival? ival? ival? ival?)]))
 
 (define (mk-ival x)
