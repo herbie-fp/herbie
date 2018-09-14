@@ -175,7 +175,7 @@
       (for/list ([i (in-range 64)])
         (map (λ (x) (sample-double)) (program-variables expr))))
     (define exacts1 (make-exacts-halfpoints expr pts 'TRUE))
-    (define exacts2 (map (curry make-exacts-intervals (eval-prog expr 'ival)) pts))
+    (define exacts2 (make-exacts-intervals expr pts 'TRUE))
     (test-case (~a expr)
                (for ([pt pts] [e1 exacts1] [e2 exacts2])
                  (with-check-info (['pt pt]) (check-float= e1 e2))))))
