@@ -19,15 +19,15 @@
           [ival-sqrt (-> ival? ival?)]
           [ival-exp (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
-          [ival-and (-> ival? ival? ival?)]
-          [ival-or (-> ival? ival? ival?)]
+          [ival-and (->* () #:rest ival? ival?)]
+          [ival-or (->* () #:rest ival? ival?)]
           [ival-not (-> ival? ival?)]
-          [ival-< (-> ival? ival? ival?)]
-          [ival-<= (-> ival? ival? ival?)]
-          [ival-> (-> ival? ival? ival?)]
-          [ival->= (-> ival? ival? ival?)]
-          [ival-== (-> ival? ival? ival?)]
-          [ival-!= (-> ival? ival? ival?)]
+          [ival-< (->* () #:rest ival? ival?)]
+          [ival-<= (->* () #:rest ival? ival?)]
+          [ival-> (->* () #:rest ival? ival?)]
+          [ival->= (->* () #:rest ival? ival?)]
+          [ival-== (->* () #:rest ival? ival?)]
+          [ival-!= (->* () #:rest ival? ival?)]
           [ival-if (-> ival? ival? ival? ival?)]))
 
 (define (mk-ival x)
@@ -107,13 +107,13 @@
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
         err? err))
 
-(define (ival-and x y)
-  (ival (and (ival-lo x) (ival-lo y)) (and (ival-hi x) (ival-hi y))
-        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+(define (ival-and . as)
+  (ival (andmap ival-lo as) (andmap ival-hi as)
+        (ormap ival-err? as) (ormap ival-err as)))
 
-(define (ival-or x y)
-  (ival (or (ival-lo x) (ival-lo y)) (or (ival-hi x) (ival-hi y))
-        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+(define (ival-or . as)
+  (ival (ormap ival-lo as) (ormap ival-hi as)
+        (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
   (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x)))
@@ -125,29 +125,55 @@
   (define must-> (bf> (ival-lo x) (ival-hi y)))
   (values can-< must-< can-> must->))
 
-(define (ival-< x y)
+(define (ival-<2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival m< c< (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival-<= x y)
+(define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (not c>) (not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival-> x y)
+(define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival m> c> (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival->= x y)
+(define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (not c<) (not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival-== x y)
+(define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (and (not c<) (not c>)) (or (not m<) (not m>)) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival-!= x y)
+(define (ival-comparator f)
+  (λ as
+    (if (null? as)
+        ival-true
+        (let loop ([head (car as)] [tail (cdr as)] [acc ival-true])
+          (match tail
+            ['() acc]
+            [(cons next rest)
+             (loop next rest (ival-and (f head next) ival-true))])))))
+
+(define ival-<  (ival-comparator ival-<2))
+(define ival-<= (ival-comparator ival-<=2))
+(define ival->  (ival-comparator ival->2))
+(define ival->= (ival-comparator ival->=2))
+(define ival-== (ival-comparator ival-==2))
+
+(define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (or c< c>) (or m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-!= . as)
+  (if (null? as)
+      ival-true
+      (let loop ([head (car as)] [tail (cdr as)])
+        (if (null? tail)
+            ival-true
+            (ival-and
+             (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
+             (loop (car tail) (cdr tail)))))))
 
 (define (ival-union x y)
   (match (ival-lo x)

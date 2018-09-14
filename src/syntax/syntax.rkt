@@ -595,7 +595,7 @@
 (define-operator (== real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator =)] [bf (comparator bf=)] [cost 65] [ival #f]
+  [fl (comparator =)] [bf (comparator bf=)] [cost 65] [ival ival-==]
   [->c/double (curry format "~a == ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
   [->tex (infix-joiner " = ")]
@@ -636,7 +636,7 @@
 (define-operator (!= real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl !=-fn] [bf bf!=-fn] [cost 65] [ival #f]
+  [fl !=-fn] [bf bf!=-fn] [cost 65] [ival ival-!=]
   [->c/double (curry format "~a != ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) != 0, MPFR_RNDN)")] ; TODO: cannot handle variary !=
   [->tex (infix-joiner " \\ne ")]
@@ -645,7 +645,7 @@
 (define-operator (< real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator <)] [bf (comparator bf<)] [cost 65] [ival (comparator ival-<)]
+  [fl (comparator <)] [bf (comparator bf<)] [cost 65] [ival ival-<]
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
@@ -654,7 +654,7 @@
 (define-operator (> real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator >)] [bf (comparator bf>)] [cost 65] [ival (comparator ival->)]
+  [fl (comparator >)] [bf (comparator bf>)] [cost 65] [ival ival->]
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
@@ -663,7 +663,7 @@
 (define-operator (<= real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator <=)] [bf (comparator bf<=)] [cost 65] [ival (comparator ival-<=)]
+  [fl (comparator <=)] [bf (comparator bf<=)] [cost 65] [ival ival-<=]
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
@@ -672,7 +672,7 @@
 (define-operator (>= real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
-  [fl (comparator >=)] [bf (comparator bf>=)] [cost 65] [ival (comparator ival->=)]
+  [fl (comparator >=)] [bf (comparator bf>=)] [cost 65] [ival ival->=]
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
