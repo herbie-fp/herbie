@@ -157,7 +157,7 @@
 ; These definitions in place, we finally generate the points.
 
 (define (prepare-points prog precondition precision range-table)
-  (when (and (eq? precondition 'TRUE)
+  (when (and (not (eq? precondition 'TRUE))
            (or (eq? precision 'posit8)
                (eq? precision 'posit16)
                (eq? precision 'posit32)
