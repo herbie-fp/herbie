@@ -80,7 +80,7 @@
 
 
 (define/contract (render-process-info time timeline profile? test metrics #:bug? [bug? #f])
-  (->* (number? timeline? boolean? test? (listof (list/c string? real? real? real?))) (#:bug? boolean?) xexpr?)
+  (->* (number? timeline? boolean? test? (or/c (listof (list/c string? real? real? real?)) #f)) (#:bug? boolean?) xexpr?)
   `(section ((id "process-info"))
     (h1 "Runtime")
     (p ((class "header"))
@@ -90,17 +90,19 @@
           `(a ((class "attachment") (href "profile.txt")) "Profile")
           ""))
     ,(render-timeline timeline)
-    (table ([class "metrics"])
-           (thead
-            (tr (th) (th "Baseline") (th "Herbie") (th "Oracle") (th "Span") (th "%")))
-           (tbody
-            ,@(for/list ([row metrics])
-                (match-define (list component baseline herbie oracle) row)
-                `(tr (td ,component) (td ,(format-bits baseline)) (td ,(format-bits herbie)) (td ,(format-bits oracle))
-                     (td ,(format-bits (- baseline oracle)))
-                     (td ,(if (= baseline oracle)
-                              (if (= baseline herbie) "100" "-∞")
-                              (~r (* (/ (- baseline herbie) (- baseline oracle)) 100) #:precision 1)) "%")))))
+    ,(if metrics
+         `(table ([class "metrics"])
+                 (thead
+                  (tr (th) (th "Baseline") (th "Herbie") (th "Oracle") (th "Span") (th "%")))
+                 (tbody
+                  ,@(for/list ([row metrics])
+                      (match-define (list component baseline herbie oracle) row)
+                      `(tr (td ,component) (td ,(format-bits baseline)) (td ,(format-bits herbie)) (td ,(format-bits oracle))
+                           (td ,(format-bits (- baseline oracle)))
+                           (td ,(if (= baseline oracle)
+                                    (if (= baseline herbie) "100" "-∞")
+                                    (~r (* (/ (- baseline herbie) (- baseline oracle)) 100) #:precision 1)) "%")))))
+         "")
     ,(if bug?
          `(p "Please include this information when filing a "
              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
@@ -123,7 +125,7 @@
     (define end-js (compile-program end-fpcore #:name "end"))
     (string-append start-js end-js)))
 
-(define (make-interactive-js result rdir profile?)
+(define (make-interactive-js result rdir profile? debug?)
   (define js-text (get-interactive-js result))
   (if (string? js-text)
       (display-to-file js-text
@@ -207,27 +209,26 @@
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
   (alt-plot point-renderers #:port out #:kind 'png #:title title))
 
-(define (make-plots result rdir profile?)
+(define (make-plots result rdir profile? debug?)
   (define (open-file #:type [type #f] idx fun . args)
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
   (define vars (program-variables (alt-program (test-result-start-alt result))))
-  (when (>= (length vars) 2)
+  (when (and debug? (>= (length vars) 2))
     (define point-alt-idxs (make-point-alt-idxs result))
     (define newpoints (test-result-newpoints result))
     (define baseline-errs (test-result-baseline-error result))
     (define herbie-errs (test-result-end-error result))
     (define oracle-errs (test-result-oracle-error result))
     (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
-    (for ([i (range (- (length vars) 1))])
-      (for ([j (range 1 (length vars))])
-        (define alt-idxs (list i j))
-        (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
-        (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
-                   make-alt-plots point-alt-idxs alt-idxs title)
-        (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
-                   make-contour-plot point-colors alt-idxs title))))
+    (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])
+      (define alt-idxs (list i j))
+      (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
+                 make-alt-plots point-alt-idxs alt-idxs title)
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
+                 make-contour-plot point-colors alt-idxs title)))
 
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
@@ -238,7 +239,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result rdir profile? valid-js-prog)
+(define (make-graph result rdir profile? debug? valid-js-prog)
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
@@ -318,9 +319,10 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test `(("Regimes" ,(errors-score baseline-error) ,(errors-score end-error) ,(errors-score oracle-error))))))))
+       ,(render-process-info time timeline profile? test
+                             (and debug? `(("Regimes" ,(errors-score baseline-error) ,(errors-score end-error) ,(errors-score oracle-error)))))))))
 
-(define (make-traceback result rdir profile?)
+(define (make-traceback result rdir profile? debug?)
   (match-define (test-failure test bits exn time timeline) result)
   (printf "<!doctype html>\n")
   (write-xexpr
@@ -348,7 +350,7 @@
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
                   "")))]
          [else
-          `(,(render-process-info time timeline profile? test '() #:bug? #t)
+          `(,(render-process-info time timeline profile? test #f #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
              ,(render-traceback exn)))])))))
@@ -371,7 +373,7 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result rdir profile?)
+(define (make-timeout result rdir profile? debug?)
   (match-define (test-timeout test bits time timeline) result)
   (printf "<!doctype html>\n")
   (write-xexpr
@@ -383,7 +385,7 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test '())))))
+      ,(render-process-info time timeline profile? test #f)))))
 
 (struct interval (alt-idx start-point end-point expr))
 

@@ -16,6 +16,7 @@
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
+(define *demo-debug?* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
@@ -171,7 +172,8 @@
               (get-test-result
                #:seed seed
                #:debug-level (cons 'progress '(3 4))
-               #:debug (hash-ref *jobs* hash)
+               #:debug-port (hash-ref *jobs* hash)
+               #:debug (*demo-debug?*)
                (parse-test formula)))
 
             (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
@@ -328,11 +330,12 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port)
+(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:debug debug? #:log log #:port port)
   (*demo?* demo?)
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
+  (*demo-debug?* debug?)
 
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)

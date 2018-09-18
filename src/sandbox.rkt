@@ -37,12 +37,11 @@
           (values pt ex)))
     list))
 
-(define (get-test-result test #:seed [seed #f]
-                         #:profile [profile? #f] #:debug [debug? #f]
-                         #:debug-level [debug-level #f])
+(define (get-test-result test #:seed [seed #f] #:debug [debug? #f]
+                         #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug? (*debug-port*))])
+    (parameterize ([*debug-port* (or debug-port (*debug-port*))])
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
       (match debug-level
@@ -59,18 +58,23 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
-        (define baseline-errs (baseline-error
-          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
-        (define baseline-err (errors-score baseline-errs))
+        (define baseline-errs
+          (if debug?
+              (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext)
+              '()))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
-        (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
-        (define oracle-errs (oracle-error all-alt-bodies newcontext))
-        (debug #:from 'regime-testing #:depth 1
-               "Baseline error score:" baseline-err)
+        (define oracle-errs
+          (if debug?
+              (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext)
+              '()))
+        (when debug?
+          (debug #:from 'regime-testing #:depth 1
+                 "Baseline error score:" (errors-score baseline-errs)))
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" end-err)
-        (debug #:from 'regime-testing #:depth 1
-               "Oracle error score:" (errors-score oracle-errs))
+        (when debug?
+          (debug #:from 'regime-testing #:depth 1
+                 "Oracle error score:" (errors-score oracle-errs)))
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score (errors (test-target test) newcontext))))
@@ -187,8 +191,10 @@
               :herbie-error-output
               ([,(*num-points*) ,(errors-score end-est-error)]
                [,(*reeval-pts*) ,(errors-score end-error)])
-              :herbie-error-oracle
-              ([,(*num-points*) ,(errors-score oracle-error)])
+              ,@(if (null? oracle-error)
+                    '()
+                    `(:herbie-metrics
+                      ([regimes ,(errors-score baseline-error) ,(errors-score oracle-error)])))
               ,@(if target-error
                     `(:herbie-error-target
                       ([,(*reeval-pts*) ,(errors-score target-error)]))

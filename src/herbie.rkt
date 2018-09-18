@@ -35,6 +35,7 @@
   (define threads #f)
   (define report-profile? #f)
   (define report-note #f)
+  (define report-debug? #f)
 
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
@@ -82,9 +83,11 @@
      (set! demo? true)]
     [("--quiet") "Print a smaller banner and don't start a browser."
      (set! quiet? true)]
+    [("--debug") "Whether to compute metrics and debug info"
+     (set! report-debug? true)]
     #:args ()
     (check-operator-fallbacks!)
-    (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
+    (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:debug report-debug? #:demo? demo? #:port demo-port)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
@@ -100,9 +103,11 @@
      (set! threads (string->thread-count th))]
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
+    [("--debug") "Whether to compute metrics and debug info"
+     (set! report-debug? true)]
     #:args (input output)
     (check-operator-fallbacks!)
-    (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (make-report (list input) #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
    [reproduce "Rerun an HTML report"
     #:once-each
     [("--note") note "Add a note for this run"
@@ -113,7 +118,7 @@
      (set! report-profile? true)]
     #:args (input output)
     (check-operator-fallbacks!)
-    (rerun-report input #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
 
    #:args files
    (begin
