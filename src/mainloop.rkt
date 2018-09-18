@@ -281,8 +281,7 @@
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")
 	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
-	     (finalize-iter!)
-       (*all-alts* (append (*all-alts*) (atab-all-alts (^table^))))))
+	     (finalize-iter!)))
   (void))
 
 (define (run-improve prog iters #:precondition [precondition 'TRUE])
@@ -300,10 +299,8 @@
                      (alt `(λ ,(program-variables (alt-program altn))
                              ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
                           'initial-simplify (list altn)))
-                   (list))]
-               [all-alts (append (atab-all-alts (^table^)) new-alts)])
-          (*all-alts* all-alts)
-          (^table^ (atab-add-altns (^table^) all-alts))
+                   (list))])
+          (^table^ (atab-add-altns (^table^) new-alts))
           (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
             (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
             (run-iter!))
@@ -312,6 +309,7 @@
 
 (define (get-final-combination)
   (define all-alts (atab-all-alts (^table^)))
+  (*all-alts* all-alts)
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
