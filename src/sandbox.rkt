@@ -54,17 +54,16 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
-        (define all-alts (*all-alts*))
+        (define all-alts (remove-duplicates (*all-alts*)))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
-        (*all-alts* (remove-duplicates (*all-alts*)))
         (define baseline-errs (baseline-error
-          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)) context newcontext))
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
         (define baseline-err (errors-score baseline-errs))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
-        (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) (*all-alts*)))
+        (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
         (define oracle-errs (oracle-error all-alt-bodies newcontext))
         (debug #:from 'regime-testing #:depth 1
                "Baseline error score:" baseline-err)
@@ -76,7 +75,7 @@
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score (errors (test-target test) newcontext))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,(*all-alts*)))))
+               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,all-alts))))
 
   (define (in-engine _)
     (if profile?
