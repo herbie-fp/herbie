@@ -79,8 +79,8 @@
                    `(,(string->symbol (format "data-~a" type)) ,(~a value))))))))
 
 
-(define/contract (render-process-info time timeline profile? test #:bug? [bug? #f])
-  (->* (number? timeline? boolean? test?) (#:bug? boolean?) xexpr?)
+(define/contract (render-process-info time timeline profile? test metrics #:bug? [bug? #f])
+  (->* (number? timeline? boolean? test? (listof (list/c string? real? real? real?))) (#:bug? boolean?) xexpr?)
   `(section ((id "process-info"))
     (h1 "Runtime")
     (p ((class "header"))
@@ -88,16 +88,27 @@
      (a ((class "attachment") (href "debug.txt")) "Debug log")
      ,(if profile?
           `(a ((class "attachment") (href "profile.txt")) "Profile")
-          "")
-     ,(render-timeline timeline)
-     ,(if bug?
-          `(p "Please include this information when filing a "
-              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
-          "")
-     (pre ((class "shell"))
-      (code
-       ,(render-command-line) "\n"
-       ,(render-fpcore test) "\n")))))
+          ""))
+    ,(render-timeline timeline)
+    (table ([class "metrics"])
+           (thead
+            (tr (th) (th "Baseline") (th "Herbie") (th "Oracle") (th "Span") (th "%")))
+           (tbody
+            ,@(for/list ([row metrics])
+                (match-define (list component baseline herbie oracle) row)
+                `(tr (td ,component) (td ,(format-bits baseline)) (td ,(format-bits herbie)) (td ,(format-bits oracle))
+                     (td ,(format-bits (- baseline oracle)))
+                     (td ,(if (= baseline oracle)
+                              (if (= baseline herbie) "100" "-∞")
+                              (~r (* (/ (- baseline herbie) (- baseline oracle)) 100) #:precision 1)) "%")))))
+    ,(if bug?
+         `(p "Please include this information when filing a "
+             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+         "")
+    (pre ((class "shell"))
+         (code
+          ,(render-command-line) "\n"
+          ,(render-fpcore test) "\n"))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -308,7 +319,7 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test)))))
+       ,(render-process-info time timeline profile? test `(("Regimes" ,(errors-score baseline-error) ,(errors-score end-error) ,(errors-score oracle-error))))))))
 
 (define (make-traceback result rdir profile?)
   (match-define (test-failure test bits exn time timeline) result)
@@ -338,7 +349,7 @@
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
                   "")))]
          [else
-          `(,(render-process-info time timeline profile? test #:bug? #t)
+          `(,(render-process-info time timeline profile? test '() #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
              ,(render-traceback exn)))])))))
@@ -373,7 +384,7 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test)))))
+      ,(render-process-info time timeline profile? test '())))))
 
 (struct interval (alt-idx start-point end-point expr))
 
