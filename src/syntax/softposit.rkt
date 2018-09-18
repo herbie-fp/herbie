@@ -112,6 +112,10 @@
 (define (bf-posit32-sqrt x) (big-posit32 (bfsqrt (big-posit32-v x))))
 (define (bf-posit32-neg x) (big-posit32 (bf- (bf 0) (big-posit32-v x))))
 
+(define (big-posit8-le? x y) (posit8-le? (big-posit8-v x) (big-posit8-v y)))
+(define (big-posit16-le? x y) (posit16-le? (big-posit16-v x) (big-posit16-v y)))
+(define (big-posit32-le? x y) (posit32-le? (big-posit32-v x) (big-posit32-v y)))
+
 (struct big-quire8 (v))
 (struct big-quire16 (v))
 (struct big-quire32 (v))

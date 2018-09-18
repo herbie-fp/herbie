@@ -93,7 +93,12 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+        (define prec-point (match precision
+                             [(or 'binary64 'binary32) (sp-point splitpoint)]
+                             ['posit8 `(real->posit8 ,(posit8->double (sp-point splitpoint)))]
+                             ['posit16 `(real->posit16 ,(posit16->double (sp-point splitpoint)))]
+                             ['posit32 `(real->posit32 ,(posit32->double (sp-point splitpoint)))]))
+        `(if (<=.p16 ,(sp-bexpr splitpoint) ,prec-point)
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
