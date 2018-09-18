@@ -139,14 +139,13 @@
 
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
-  (define start-fpcore (alt2fpcore start-prog))
   `(section ([id "try-it"])
     (h1 "Try it out")
     (div ([id "try-inputs-wrapper"])
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
        (ol
-        ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)] [val point])
+        ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"]
                          [name ,(string-append "var-name-" (~a i))]
