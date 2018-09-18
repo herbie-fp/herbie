@@ -156,7 +156,7 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points prog precondition precision range-table)
+(define (prepare-points-ranges prog precondition precision range-table)
   (when (and (not (eq? precondition 'TRUE))
            (or (eq? precision 'posit8)
                (eq? precision 'posit16)
@@ -239,7 +239,7 @@
          (define exacts (map f points))
          (loop points exacts (+ 1 num-loops))])])))
 
-(define (prepare-points prog precondition)
+(define (prepare-points prog precondition precision)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
@@ -255,7 +255,7 @@
           #:unless (range-table-ref range-table var))
       (raise-herbie-error "No valid values of variable ~a" var
                           #:url "faq.html#no-valid-values"))
-    (prepare-points-ranges prog precondition range-table)]))
+    (prepare-points-ranges prog precondition precision range-table)]))
 
 (define (errors prog pcontext)
   (let ([fn (eval-prog prog 'fl)]
