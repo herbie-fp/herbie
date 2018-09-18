@@ -8,8 +8,7 @@
 (provide alt-delta alt-delta? (struct-out alt)
          make-alt alt? alt-program alt-change
          alt-cost alt-add-event
-         alt-apply alt-rewrite-expression alt-rewrite-rm
-         alt-regimes)
+         alt-apply alt-rewrite-expression alt-rewrite-rm)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -59,4 +58,4 @@
               (rewrite-expression-head subtree #:root root-loc)))))
 
 (define (alt-add-event altn event)
-  (alt-event (alt-program altn) event (list altn)))
+  (alt (alt-program altn) event (list altn)))

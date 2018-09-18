@@ -7,7 +7,7 @@
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points
          errors errors-score sort-context-on-expr
-         oracle-errors baseline-error oracle-error-idx)
+         oracle-error baseline-error oracle-error-idx)
 
 (module+ test
   (require rackunit))

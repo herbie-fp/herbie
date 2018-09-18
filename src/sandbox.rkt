@@ -54,7 +54,7 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
-        (define all-alts (*all-alts*)))
+        (define all-alts (*all-alts*))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
