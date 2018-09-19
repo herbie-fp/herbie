@@ -7,7 +7,7 @@
 (module+ test
   (require rackunit))
 
-(provide *start-prog*
+(provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
          assert for/append
          ordinary-value? =-or-nan? </total
@@ -24,6 +24,7 @@
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
+(define *all-alts* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
 

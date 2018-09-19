@@ -21,7 +21,8 @@
 (struct test-result
   (test time bits
    start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error timeline))
+   newpoints newexacts start-error end-error target-error baseline-error
+   oracle-error all-alts timeline))
 (struct test-failure (test bits exn time timeline))
 (struct test-timeout (test bits time timeline))
 
@@ -36,12 +37,11 @@
           (values pt ex)))
     list))
 
-(define (get-test-result test #:seed [seed #f]
-                         #:profile [profile? #f] #:debug [debug? #f]
-                         #:debug-level [debug-level #f])
+(define (get-test-result test #:seed [seed #f] #:debug [debug? #f]
+                         #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug? (*debug-port*))])
+    (parameterize ([*debug-port* (or debug-port (*debug-port*))])
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
       (match debug-level
@@ -53,27 +53,49 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
+        (define all-alts (remove-duplicates (*all-alts*)))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
+        (define baseline-errs
+          (if debug?
+              (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext)
+              '()))
+        (define end-err (errors-score (errors (alt-program alt) newcontext)))
+        (define oracle-errs
+          (if debug?
+              (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext)
+              '()))
+        (when debug?
+          (debug #:from 'regime-testing #:depth 1
+                 "Baseline error score:" (errors-score baseline-errs)))
+        (debug #:from 'regime-testing #:depth 1
+               "End program error score:" end-err)
+        (when debug?
+          (debug #:from 'regime-testing #:depth 1
+                 "Oracle error score:" (errors-score oracle-errs)))
+        (when (test-output test)
+          (debug #:from 'regime-testing #:depth 1
+                 "Target error score:" (errors-score (errors (test-target test) newcontext))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision)))))
+               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,all-alts))))
 
   (define (in-engine _)
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
           (profile (compute-result test)))
         (compute-result test)))
-  
+
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext ,timeline ,bits)
+      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,baseline-errs
+              ,oracle-errs ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (test-result test 
+       (test-result test
                     (- (current-inexact-milliseconds) start-time)
                     bits
                     start end points exacts
@@ -85,6 +107,9 @@
                     (if (test-output test)
                         (errors (test-target test) newcontext)
                         #f)
+                    baseline-errs
+                    oracle-errs
+                    all-alts
                     timeline)]
       [`(error ,e ,bits)
        (test-failure test bits e (- (current-inexact-milliseconds) start-time) (^timeline^))]
@@ -154,7 +179,8 @@
   (match result
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
-                  newpoints newexacts start-error end-error target-error timeline)
+                  newpoints newexacts start-error end-error target-error baseline-error
+                  oracle-error all-alts timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
               :herbie-time ,time
@@ -165,6 +191,10 @@
               :herbie-error-output
               ([,(*num-points*) ,(errors-score end-est-error)]
                [,(*reeval-pts*) ,(errors-score end-error)])
+              ,@(if (null? oracle-error)
+                    '()
+                    `(:herbie-metrics
+                      ([regimes ,(errors-score baseline-error) ,(errors-score oracle-error)])))
               ,@(if target-error
                     `(:herbie-error-target
                       ([,(*reeval-pts*) ,(errors-score target-error)]))
