@@ -91,7 +91,7 @@
          (let ([result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir)])
            (place-channel-put ch
              `(done ,id ,self ,result)))])
-      (loop seed profile? dir))))
+      (loop seed profile? debug? dir))))
 
 (define (print-test-result data)
   (match-define (cons fpcore tr) data)
