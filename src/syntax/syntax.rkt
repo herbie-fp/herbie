@@ -994,29 +994,29 @@
 (define-operator (<=.p8 _posit8 _posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit8) bool))))] [args '(*)]
-  [fl (comparator posit8-le?)] [bf (comparator big-posit8-le?)] [cost 65]
+  [fl (comparator posit8<=)] [bf (comparator big-posit8<=)] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
-  [nonffi (comparator posit8-le?)])
+  [nonffi (comparator posit8<=)])
 
 (define-operator (<=.p16 _posit16 _posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit16) bool))))] [args '(*)]
-  [fl (comparator posit16-le?)] [bf (comparator big-posit16-le?)] [cost 65]
+  [fl (comparator posit16<=)] [bf (comparator big-posit16<=)] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
-  [nonffi (comparator posit16-le?)])
+  [nonffi (comparator posit16<=)])
 
 (define-operator (<=.p32 _posit32 _posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit32) bool))))] [args '(*)]
-  [fl (comparator posit32-le?)] [bf (comparator big-posit32-le?)] [cost 65]
+  [fl (comparator posit32<=)] [bf (comparator big-posit32<=)] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
-  [nonffi (comparator posit32-le?)])
+  [nonffi (comparator posit32<=)])
 
 (define-operator (>= real real) bool
   ; Override number of arguments

@@ -124,17 +124,17 @@
      (or (= x1 x2)
          (and (nan? x1) (nan? x2)))]
     [(and (posit8? x1) (posit8? x2))
-     (posit8-eq? x1 x2)]
+     (posit8= x1 x2)]
     [(and (posit16? x1) (posit16? x2))
-     (posit16-eq? x1 x2)]
+     (posit16= x1 x2)]
     [(and (posit32? x1) (posit32? x2))
-     (posit32-eq? x1 x2)]
+     (posit32= x1 x2)]
     [(and (quire8? x1) (quire8? x2))
-     (posit8-eq? (quire8->posit8 x1) (quire8->posit8 x2))]
+     (posit8= (quire8->posit8 x1) (quire8->posit8 x2))]
     [(and (quire16? x1) (quire16? x2))
-     (posit16-eq? (quire16->posit16 x1) (quire16->posit16 x2))]
+     (posit16= (quire16->posit16 x1) (quire16->posit16 x2))]
     [(and (quire32? x1) (quire32? x2))
-     (posit32-eq? (quire32->posit32 x1) (quire32->posit32 x2))]))
+     (posit32= (quire32->posit32 x1) (quire32->posit32 x2))]))
 
 (module+ test
   (check-true (=-or-nan? 2.3 2.3))
@@ -151,34 +151,34 @@
        [else (< x1 x2)])]
     [(posit8? x1)
      (cond
-       [(posit8-eq? (posit8-inf) x1) #f]
-       [(posit8-eq? (posit8-inf) x2) #t]
-       [else (posit8-lt? x1 x2)])]
+       [(posit8= (posit8-inf) x1) #f]
+       [(posit8= (posit8-inf) x2) #t]
+       [else (posit8< x1 x2)])]
     [(posit16? x1)
      (cond
-       [(posit16-eq? (posit16-inf) x1) #f]
-       [(posit16-eq? (posit16-inf) x2) #t]
-       [else (posit16-lt? x1 x2)])]
+       [(posit16= (posit16-inf) x1) #f]
+       [(posit16= (posit16-inf) x2) #t]
+       [else (posit16< x1 x2)])]
     [(posit32? x1)
      (cond
-       [(posit32-eq? (posit32-inf) x1) #f]
-       [(posit32-eq? (posit32-inf) x2) #t]
-       [else (posit32-lt? x1 x2)])]
+       [(posit32= (posit32-inf) x1) #f]
+       [(posit32= (posit32-inf) x2) #t]
+       [else (posit32< x1 x2)])]
     [(quire8? x1)
      (cond
-       [(posit8-eq? (posit8-inf) (quire8->posit8 x1)) #f]
-       [(posit8-eq? (posit8-inf) (quire8->posit8 x2)) #t]
-       [else (posit8-lt? (quire8->posit8 x1) (quire8->posit8 x2))])]
+       [(posit8= (posit8-inf) (quire8->posit8 x1)) #f]
+       [(posit8= (posit8-inf) (quire8->posit8 x2)) #t]
+       [else (posit8< (quire8->posit8 x1) (quire8->posit8 x2))])]
     [(quire16? x1)
      (cond
-       [(posit16-eq? (posit16-inf) (quire16->posit16 x1)) #f]
-       [(posit16-eq? (posit16-inf) (quire16->posit16 x2)) #t]
-       [else (posit16-lt? (quire16->posit16 x1) (quire16->posit16 x2))])]
+       [(posit16= (posit16-inf) (quire16->posit16 x1)) #f]
+       [(posit16= (posit16-inf) (quire16->posit16 x2)) #t]
+       [else (posit16< (quire16->posit16 x1) (quire16->posit16 x2))])]
     [(quire32? x1)
      (cond
-       [(posit32-eq? (posit32-inf) (quire32->posit32 x1)) #f]
-       [(posit32-eq? (posit32-inf) (quire32->posit32 x2)) #t]
-       [else (posit32-lt? (quire32->posit32 x1) (quire32->posit32 x2))])]))
+       [(posit32= (posit32-inf) (quire32->posit32 x1)) #f]
+       [(posit32= (posit32-inf) (quire32->posit32 x2)) #t]
+       [else (posit32< (quire32->posit32 x1) (quire32->posit32 x2))])]))
 
 ;; Utility list functions
 

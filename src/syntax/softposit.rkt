@@ -17,7 +17,7 @@
          posit8->posit16 posit8->posit32
          posit8-round-to-int posit8-add posit8-sub posit8-mul
          posit8-mulAdd posit8-div posit8-sqrt posit8-neg
-         posit8-eq? posit8-le? posit8-lt?
+         posit8= posit8<= posit8< posit8>= posit8>
          create-quire8 create-quire16 create-quire32
          quire8-fdp-add quire8-fdp-sub quire8->posit8
          posit8->double double->posit8
@@ -25,7 +25,7 @@
          posit16->posit8 posit16->posit32
          posit16-round-to-int posit16-add posit16-sub posit16-mul
          posit16-mulAdd posit16-div posit16-sqrt posit16-neg
-         posit16-eq? posit16-le? posit16-lt?
+         posit16= posit16<= posit16< posit16>= posit16>
          quire16-fdp-add quire16-fdp-sub quire16->posit16
          quire16-twos-complement
          posit16->double float->posit16 double->posit16
@@ -33,7 +33,7 @@
          posit32->posit8 posit32->posit16
          posit32-round-to-int posit32-add posit32-sub posit32-mul
          posit32-mulAdd posit32-div posit32-sqrt posit32-neg
-         posit32-eq? posit32-le? posit32-lt?
+         posit32= posit32<= posit32< posit32>= posit32>
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
          posit32->double float->posit32 double->posit32
@@ -57,7 +57,7 @@
          posit8->posit16 posit8->posit32
          posit8-round-to-int posit8-add posit8-sub posit8-mul
          posit8-mulAdd posit8-div posit8-sqrt posit8-neg
-         posit8-eq? posit8-le? posit8-lt?
+         posit8= posit8<= posit8< posit8>= posit8>
          create-quire8 create-quire16 create-quire32
          quire8-fdp-add quire8-fdp-sub quire8->posit8
          posit8->double double->posit8
@@ -65,7 +65,7 @@
          posit16->posit8 posit16->posit32
          posit16-round-to-int posit16-add posit16-sub posit16-mul
          posit16-mulAdd posit16-div posit16-sqrt posit16-neg
-         posit16-eq? posit16-le? posit16-lt?
+         posit16= posit16<= posit16< posit16>= posit16>
          quire16-fdp-add quire16-fdp-sub quire16->posit16
          quire16-twos-complement
          posit16->double float->posit16 double->posit16
@@ -73,7 +73,7 @@
          posit32->posit8 posit32->posit16
          posit32-round-to-int posit32-add posit32-sub posit32-mul
          posit32-mulAdd posit32-div posit32-sqrt posit32-neg
-         posit32-eq? posit32-le? posit32-lt?
+         posit32= posit32<= posit32< posit32>= posit32>
          quire32-fdp-add quire32-fdp-sub quire32->posit32
          quire32-twos-complement
          posit32->double float->posit32 double->posit32
@@ -112,9 +112,9 @@
 (define (bf-posit32-sqrt x) (big-posit32 (bfsqrt (big-posit32-v x))))
 (define (bf-posit32-neg x) (big-posit32 (bf- (bf 0) (big-posit32-v x))))
 
-(define (big-posit8-le? x y) (posit8-le? (big-posit8-v x) (big-posit8-v y)))
-(define (big-posit16-le? x y) (posit16-le? (big-posit16-v x) (big-posit16-v y)))
-(define (big-posit32-le? x y) (posit32-le? (big-posit32-v x) (big-posit32-v y)))
+(define (big-posit8<= x y) (posit8<= (big-posit8-v x) (big-posit8-v y)))
+(define (big-posit16<= x y) (posit16<= (big-posit16-v x) (big-posit16-v y)))
+(define (big-posit32<= x y) (posit32<= (big-posit32-v x) (big-posit32-v y)))
 
 (struct big-quire8 (v))
 (struct big-quire16 (v))

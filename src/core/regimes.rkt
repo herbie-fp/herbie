@@ -121,17 +121,17 @@
   [(or (real? x1) (complex? x1))
    (< x1 x2)]
   [(posit8? x1)
-   (posit8-lt? x1 x2)]
+   (posit8< x1 x2)]
   [(posit16? x1)
-   (posit16-lt? x1 x2)]
+   (posit16< x1 x2)]
   [(posit32? x1)
-   (posit32-lt? x1 x2)]
+   (posit32< x1 x2)]
   [(quire8? x1)
-   (posit8-lt? (quire8->posit8 x1) (quire8->posit8 x2))]
+   (posit8< (quire8->posit8 x1) (quire8->posit8 x2))]
   [(quire16? x1)
-   (posit16-lt? (quire16->posit16 x1) (quire16->posit16 x2))]
+   (posit16< (quire16->posit16 x1) (quire16->posit16 x2))]
   [(quire32? x1)
-   (posit32-lt? (quire32->posit32 x1) (quire32->posit32 x2))]))
+   (posit32< (quire32->posit32 x1) (quire32->posit32 x2))]))
 
 (define (option-on-expr alts expr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
