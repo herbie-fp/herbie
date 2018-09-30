@@ -140,29 +140,39 @@
      (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
     [(or (? variable?) (? constant?)) true]))
 
-(define (ival-eval fn pt #:precision [precision 80])
+(define ival-warnings (make-parameter '()))
+
+(define (handle-ival-eval-error! who pt)
+  (unless (set-member? (ival-warnings) who)
+    (ival-warnings (cons who (ival-warnings)))
+    (eprintf "Warning: could not determine a ground truth for ~a\n"
+             (string-join (map ~a pt) ", "))
+    (eprintf "  ~a\n" who)
+    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n"
+             *herbie-version*))
+  +nan.0)
+
+(define (ival-eval fn pt #:precision [precision 80] #:who who)
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
-      (when (> precision (*max-mpfr-prec*))
-        (raise-herbie-error (format "Exceeded MPFR precision limit for ~a"
-                                    (string-join (map ~a pt) ", "))
-                            #:url "faq.html#mpfr-prec-limit"))
-      (match-define (ival lo hi err? err) (fn pt))
-      (cond
-       [err
-        +nan.0]
-       [(and (or (equal? (->flonum lo) (->flonum hi))
-                 (and (equal? (->flonum lo) -0.0) (equal? (->flonum hi) +0.0)))
-             (not err?))
-        (->flonum hi)]
-       [else
-        (loop (inexact->exact (round (* precision 2))))]))))
+      (if (> precision (*max-mpfr-prec*))
+        (handle-ival-eval-error! who pt)
+        (match-let ([(ival lo hi err? err) (fn pt)])
+          (cond
+           [err
+            +nan.0]
+           [(and (or (equal? (->flonum lo) (->flonum hi))
+                     (and (equal? (->flonum lo) -0.0) (equal? (->flonum hi) +0.0)))
+                 (not err?))
+            (->flonum hi)]
+           [else
+            (loop (inexact->exact (round (* precision 2))))]))))))
 
 (define (make-exacts-intervals prog pts precondition)
   (define pre-fn (eval-prog `(λ ,(program-variables prog) ,precondition) 'ival))
   (define body-fn (eval-prog prog 'ival))
   (for/list ([pt pts])
-    (if (ival-eval pre-fn pt) (ival-eval body-fn pt) +nan.0)))
+    (if (ival-eval pre-fn pt #:who precondition) (ival-eval body-fn pt #:who (program-body prog)) +nan.0)))
 
 (module+ test
   (define test-exprs
