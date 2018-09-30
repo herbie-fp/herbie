@@ -41,36 +41,22 @@
 ;; The new, contracts-using version of the above
 
 (define-syntax-rule (define-table name [field type] ...)
-  (define/contract name
-    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
-    (cons (list (cons 'field type) ...) (make-hash))))
+  (define name (cons (list (cons 'field type) ...) (make-hash))))
 
-(define/contract (table-ref tbl key field)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [field symbol?])
-       [_ (tbl field) (dict-ref (car tbl) field)])
+(define (table-ref tbl key field)
   (match-let ([(cons header rows) tbl])
     (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (dict-ref rows key))]
+                [value (in-list (hash-ref rows key))]
                 #:when (equal? field-name field))
       value)))
 
-(define/contract (table-set! tbl key fields)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [fields (tbl)
-                ;; Don't check value types because the contract gets pretty rough :(
-                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
-       any)
+(define (table-set! tbl key fields)
   (match-let ([(cons header rows) tbl])
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (dict-set! rows key row)))
+    (hash-set! rows key row)))
 
-(define/contract (table-remove! tbl key)
-  ((cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c))) symbol? . -> . void?)
-  (match-let ([(cons header rows) tbl])
-    (dict-remove! rows key)))
+(define (table-remove! tbl key)
+  (hash-remove! (cdr tbl) key))
 
 ;; More various helpful values
 
