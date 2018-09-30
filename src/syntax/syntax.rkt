@@ -246,7 +246,7 @@
   [nonffi atanh])
 
 (define-operator/libm (cbrt real) real
-  [libm cbrt cbrtf] [bf bfcbrt] [ival #f] [cost 80]
+  [libm cbrt cbrtf] [bf bfcbrt] [ival ival-cbrt] [cost 80]
   [->c/double (curry format "cbrt(~a)")]
   [->c/mpfr (curry format "mpfr_cbrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt[3]{~a}")]
@@ -322,7 +322,7 @@
   (λ args (bigfloat->flonum (apply bff (map bf args)))))
 
 (define-operator/libm (expm1 real) real
-  [libm expm1 expm1f] [bf bfexpm1] [ival #f] [cost 70]
+  [libm expm1 expm1f] [bf bfexpm1] [ival ival-expm1] [cost 70]
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "(e^{~a} - 1)^*")]
@@ -358,7 +358,7 @@
   (bf+ (bf* x y) z))
 
 (define-operator/libm (fma real real real) real
-  [libm fma fmaf] [bf bffma] [ival #f] [cost 55]
+  [libm fma fmaf] [bf bffma] [ival ival-fma] [cost 55]
   [->c/double (curry format "fma(~a, ~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "(~a \\cdot ~a + ~a)_*")]
@@ -438,7 +438,7 @@
   [nonffi (λ (x) (log x 10))])
 
 (define-operator/libm (log1p real) real
-  [libm log1p log1pf] [bf bflog1p] [ival #f] [cost 90]
+  [libm log1p log1pf] [bf bflog1p] [ival ival-log1p] [cost 90]
   [->c/double (curry format "log1p(~a)")]
   [->c/mpfr (curry format "mpfr_log1p(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_* (1 + ~a)")]
