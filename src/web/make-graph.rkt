@@ -347,9 +347,9 @@
 (define (interval->string ival)
   (string-join
    (list
-    (if (interval-start-point ival)
-        (format "~a < " (interval-start-point ival))
-        "")
+    (if (equal? (interval-start-point ival) -inf.0)
+        ""
+        (format "~a < " (interval-start-point ival)))
     (~a (interval-expr ival))
     (if (equal? (interval-end-point ival) +nan.0)
         ""
@@ -391,7 +391,7 @@
 
     [(alt _ `(regimes ,splitpoints) prevs)
      (define intervals
-       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+       (for/list ([start-sp (cons (sp -1 -1 -inf.0) splitpoints)] [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
 
      `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")

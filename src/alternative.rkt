@@ -16,6 +16,7 @@
 ;; They are a labeled linked list of changes.
 
 (struct alt (program event prevs)
+        #:transparent
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (display "#<alt " port)
