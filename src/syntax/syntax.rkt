@@ -270,7 +270,7 @@
   [nonffi (λ (x y) (if (>= y 0) (abs x) (- (abs x))))])
 
 (define-operator/libm (cos real) real
-  [libm cos cosf] [bf bfcos] [ival #f] [cost 60]
+  [libm cos cosf] [bf bfcos] [ival ival-cos] [cost 60]
   [->c/double (curry format "cos(~a)")]
   [->c/mpfr (curry format "mpfr_cos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos ~a")]
@@ -497,7 +497,7 @@
   [nonffi round])
 
 (define-operator/libm (sin real) real
-  [libm sin sinf] [bf bfsin] [ival #f] [cost 60]
+  [libm sin sinf] [bf bfsin] [ival ival-sin] [cost 60]
   [->c/double (curry format "sin(~a)")]
   [->c/mpfr (curry format "mpfr_sin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin ~a")]
@@ -525,7 +525,7 @@
   [nonffi sqrt])
 
 (define-operator/libm (tan real) real
-  [libm tan tanf] [bf bftan] [ival #f] [cost 95]
+  [libm tan tanf] [bf bftan] [ival ival-tan] [cost 95]
   [->c/double (curry format "tan(~a)")]
   [->c/mpfr (curry format "mpfr_tan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan ~a")]

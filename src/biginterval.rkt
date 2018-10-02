@@ -23,6 +23,9 @@
           [ival-expm1 (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
           [ival-log1p (-> ival? ival?)]
+          [ival-sin (-> ival? ival?)]
+          [ival-cos (-> ival? ival?)]
+          [ival-tan (-> ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]
@@ -141,6 +144,41 @@
 
 (define (ival-not x)
   (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x)))
+
+(define (ival-cos x)
+  (define a (rnd 'down bffloor (bf/ (ival-lo x) pi.bf)))
+  (define b (rnd 'up bffloor (bf/ (ival-hi x) pi.bf)))
+  (cond
+   [(and (bf= a b) (bfeven? a))
+    (ival (rnd 'down bfcos (ival-hi x)) (rnd 'down bfcos (ival-lo x)) (ival-err? x) (ival-err x))]
+   [(and (bf= a b) (bfodd? a))
+    (ival (rnd 'down bfcos (ival-lo x)) (rnd 'down bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
+   [(and (bf= (bf- b a) 1.bf) (bfeven? a))
+    (ival -1.bf (rnd 'up bfmax (bfcos (ival-lo x)) (bfcos (ival-hi x))) (ival-err? x) (ival-err x))]
+   [(and (bf= (bf- b a) 1.bf) (bfodd? a))
+    (ival (rnd 'down bfmin (bfcos (ival-lo x)) (bfcos (ival-hi x))) 1.bf (ival-err? x) (ival-err x))]
+   [else
+    (ival -1.bf 1.bf (ival-err? x) (ival-err x))]))
+
+(define half.bf (bf/ 1.bf 2.bf))
+
+(define (ival-sin x)
+  (define a (rnd 'down bffloor (bf- (bf/ (ival-lo x) pi.bf) half.bf)))
+  (define b (rnd 'up bffloor (bf- (bf/ (ival-hi x) pi.bf) half.bf)))
+  (cond
+   [(and (bf= a b) (bfeven? a))
+    (ival (rnd 'down bfsin (ival-hi x)) (rnd 'down bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
+   [(and (bf= a b) (bfodd? a))
+    (ival (rnd 'down bfsin (ival-lo x)) (rnd 'down bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
+   [(and (bf= (bf- b a) 1.bf) (bfeven? a))
+    (ival -1.bf (rnd 'up bfmax (bfsin (ival-lo x)) (bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+   [(and (bf= (bf- b a) 1.bf) (bfodd? a))
+    (ival (rnd 'down bfmin (bfsin (ival-lo x)) (bfsin (ival-hi x))) 1.bf (ival-err? x) (ival-err x))]
+   [else
+    (ival -1.bf 1.bf (ival-err? x) (ival-err x))]))
+
+(define (ival-tan x)
+  (ival-div (ival-sin x) (ival-cos x)))
 
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))
