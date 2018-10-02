@@ -23,6 +23,7 @@
           [ival-expm1 (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
           [ival-log1p (-> ival? ival?)]
+          [ival-pow (-> ival? ival? ival?)]
           [ival-sin (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
@@ -130,6 +131,50 @@
   (define err? (or err (ival-err? x) (bf<= (ival-lo x) 0.bf)))
   (ival (rnd 'down bfcbrt (ival-lo x)) (rnd 'up bfcbrt (ival-hi x))
         err? err))
+
+(define (ival-pow x y)
+  (define err? (or (ival-err? x) (ival-err? y)))
+  (define err (or (ival-err x) (ival-err y)))
+  (cond
+   [(bf>= (ival-lo x) 0.bf)
+    (let ([lo
+           (if (bf< (ival-lo x) 1.bf)
+               (rnd 'down bfexpt (ival-lo x) (ival-hi y))
+               (rnd 'down bfexpt (ival-lo x) (ival-lo y)))]
+          [hi
+           (if (bf> (ival-hi x) 1.bf)
+               (rnd 'up bfexpt (ival-hi x) (ival-hi y))
+               (rnd 'up bfexpt (ival-hi x) (ival-lo y)))])
+      (ival lo hi err? err))]
+   [(and (bf= (ival-lo y) (ival-hi y)) (bfinteger? (ival-lo y)))
+    (ival (rnd 'down bfexpt (ival-lo x) (ival-lo y))
+          (rnd 'up bfexpt (ival-lo x) (ival-lo y))
+          err? err)]
+   [else
+    ;; In this case, the base range includes negatives and the exp range includes reals
+    ;; Focus first on just the negatives in the base range
+    ;; All the reals in the exp range just make NaN a possible output
+    ;; If there are no integers in the exp range, those NaNs are the only output
+    ;; If there are, the min of the negative base values is from the biggest odd integer in the range
+    ;;  and the max is from the biggest even integer in the range
+    (define a (bfceiling (ival-lo y)))
+    (define b (bffloor (ival-hi y)))
+    (define lo (ival-lo x))
+    (define neg-range
+      (cond
+       [(bf< b a)
+        (ival +nan.0 +nan.0 #t #t)]
+       [(bf= a b)
+        (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err)]
+       [(bfodd? b)
+        (ival (rnd 'down bfexpt (ival-lo x) b)
+              (rnd 'up bfmax (bfexpt (ival-hi x) (bf- b 1.bf)) (bfexpt (ival-lo x) (bf- b 1.bf))) err? err)]
+       [(bfeven? b)
+        (ival (rnd 'down bfexpt (ival-lo x) (bf- b 1.bf))
+              (rnd 'up bfmax (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err)]))
+    (if (bf> (ival-hi x) 0.bf)
+        (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err) y))
+        neg-range)]))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))

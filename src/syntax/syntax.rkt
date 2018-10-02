@@ -462,7 +462,7 @@
   [nonffi (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))])
 
 (define-operator/libm (pow real real) real
-  [libm pow powf] [bf bfexpt] [ival #f] [cost 210]
+  [libm pow powf] [bf bfexpt] [ival ival-pow] [cost 210]
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^{~a}")]
