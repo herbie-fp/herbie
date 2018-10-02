@@ -28,6 +28,9 @@
           [ival-sin (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
+          [ival-asin (-> ival? ival?)]
+          [ival-atan (-> ival? ival?)]
+          [ival-atan2 (-> ival? ival? ival?)]
           [ival-sinh (-> ival? ival?)]
           [ival-cosh (-> ival? ival?)]
           [ival-tanh (-> ival? ival?)]
@@ -48,7 +51,7 @@
   (ival x* x* err? err?))
 
 (define (ival-pi)
-  (ival (rnd 'down (λ () pi.bf)) (rnd 'up (λ () pi.bf)) #f #f))
+  (ival (rnd 'down identity pi.bf) (rnd 'up identity pi.bf) #f #f))
 
 (define (ival-e)
   (ival (rnd 'down bfexp 1.bf) (rnd 'up bfexp 1.bf) #f #f))
@@ -228,6 +231,30 @@
 
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
+
+(define (ival-atan x)
+  (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-atan2 y x)
+  (define err? (or (ival-err? x) (ival-err? y)))
+  (define err (or (ival-err x) (ival-err y)))
+  (cond
+   [(bf> (ival-lo y) 0.bf)
+    (ival (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) (rnd 'up bfatan2 (ival-lo y) (ival-lo x)) err? err)]
+   [(bf< (ival-hi y) 0.bf)
+    (ival (rnd 'down bfatan2 (ival-hi y) (ival-lo x)) (rnd 'down bfatan2 (ival-hi y) (ival-hi x)) err? err)]
+   [(bf> (ival-lo x) 0.bf)
+    (ival (rnd 'down bfatan2 (ival-lo y) (ival-lo x)) (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) err? err)]
+   ;; TODO: Not sufficiently accurate in the equality cases of the above
+   [else
+    (ival (rnd 'down bf- pi.bf) (rnd 'up identity pi.bf)
+          (or err? (bf>= (ival-hi x) 0.bf))
+          (or err (and (bf= (ival-lo x) 0.bf) (bf= (ival-hi x) 0.bf) (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))]))
+
+(define (ival-asin x)
+  (ival (rnd 'down bfasin (ival-lo x)) (rnd 'up bfasin (ival-hi x))
+        (or (ival-err? x) (bf< (ival-lo x) -1.bf) (bf> (ival-hi x) 1.bf))
+        (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 
 (define (ival-fabs x)
   (cond

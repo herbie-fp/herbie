@@ -211,7 +211,7 @@
   [nonffi acosh])
 
 (define-operator/libm (asin real) real
-  [libm asin asinf] [bf bfasin] [ival #f] [cost 105]
+  [libm asin asinf] [bf bfasin] [ival ival-asin] [cost 105]
   [->c/double (curry format "asin(~a)")]
   [->c/mpfr (curry format "mpfr_asin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin^{-1} ~a")]
@@ -225,14 +225,14 @@
   [nonffi asinh])
 
 (define-operator/libm (atan real) real
-  [libm atan atanf] [bf bfatan] [ival #f] [cost 105]
+  [libm atan atanf] [bf bfatan] [ival ival-atan] [cost 105]
   [->c/double (curry format "atan(~a)")]
   [->c/mpfr (curry format "mpfr_atan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1} ~a")]
   [nonffi atan])
 
 (define-operator/libm (atan2 real real) real
-  [libm atan2 atan2f] [bf bfatan2] [ival #f] [cost 140]
+  [libm atan2 atan2f] [bf bfatan2] [ival ival-atan2] [cost 140]
   [->c/double (curry format "atan2(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")]
