@@ -277,7 +277,7 @@
   [nonffi cos])
 
 (define-operator/libm (cosh real) real
-  [libm cosh coshf] [bf bfcosh] [ival #f] [cost 55]
+  [libm cosh coshf] [bf bfcosh] [ival ival-cosh] [cost 55]
   [->c/double (curry format "cosh(~a)")]
   [->c/mpfr (curry format "mpfr_cosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh ~a")]
@@ -504,7 +504,7 @@
   [nonffi sin])
 
 (define-operator/libm (sinh real) real
-  [libm sinh sinhf] [bf bfsinh] [ival #f] [cost 55]
+  [libm sinh sinhf] [bf bfsinh] [ival ival-sinh] [cost 55]
   [->c/double (curry format "sinh(~a)")]
   [->c/mpfr (curry format "mpfr_sinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh ~a")]
@@ -532,7 +532,7 @@
   [nonffi tan])
 
 (define-operator/libm (tanh real) real
-  [libm tanh tanhf] [bf bftanh] [ival #f] [cost 55]
+  [libm tanh tanhf] [bf bftanh] [ival ival-tanh] [cost 55]
   [->c/double (curry format "tanh(~a)")]
   [->c/mpfr (curry format "mpfr_tanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh ~a")]

@@ -28,6 +28,9 @@
           [ival-sin (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
+          [ival-sinh (-> ival? ival?)]
+          [ival-cosh (-> ival? ival?)]
+          [ival-tanh (-> ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]
@@ -233,6 +236,16 @@
     (ival (bf- (ival-hi x)) (bf- (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
     (ival 0.bf (bfmax (bf- (ival-lo x)) (ival-hi x) (ival-err? x) (ival-err x)))]))
+
+(define (ival-sinh x)
+  (ival (rnd 'down bfsinh (ival-lo x)) (rnd 'up bfsinh (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-cosh x)
+  (define y (ival-fabs x))
+  (ival (rnd 'down bfcosh (ival-lo y)) (rnd 'up bfcosh (ival-hi y)) (ival-err? y) (ival-err y)))
+
+(define (ival-tanh x)
+  (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))
