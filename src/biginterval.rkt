@@ -17,6 +17,7 @@
           [ival-mult (-> ival? ival? ival?)]
           [ival-div (-> ival? ival? ival?)]
           [ival-fma (-> ival? ival? ival? ival?)]
+          [ival-fabs (-> ival? ival?)]
           [ival-sqrt (-> ival? ival?)]
           [ival-cbrt (-> ival? ival?)]
           [ival-exp (-> ival? ival?)]
@@ -224,6 +225,14 @@
 
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
+
+(define (ival-fabs x)
+  (cond
+   [(bf> (ival-lo x) 0.bf) x]
+   [(bf< (ival-hi x) 0.bf)
+    (ival (bf- (ival-hi x)) (bf- (ival-lo x)) (ival-err? x) (ival-err x))]
+   [else ; interval stradles 0
+    (ival 0.bf (bfmax (bf- (ival-lo x)) (ival-hi x) (ival-err? x) (ival-err x)))]))
 
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))

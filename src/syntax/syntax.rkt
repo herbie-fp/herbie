@@ -329,7 +329,7 @@
   [nonffi (from-bigfloat bfexpm1)])
 
 (define-operator/libm (fabs real) real
-  [libm fabs fabsf] [bf bfabs] [ival #f] [cost 40]
+  [libm fabs fabsf] [bf bfabs] [ival ival-fabs] [cost 40]
   [->c/double (curry format "fabs(~a)")]
   [->c/mpfr (curry format "mpfr_abs(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\left|~a\\right|")]
