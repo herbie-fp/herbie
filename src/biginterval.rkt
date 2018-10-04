@@ -170,7 +170,7 @@
     (define neg-range
       (cond
        [(bf< b a)
-        (ival +nan.0 +nan.0 #t #t)]
+        (ival +nan.bf +nan.bf #t #t)]
        [(bf= a b)
         (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err)]
        [(bfodd? b)
