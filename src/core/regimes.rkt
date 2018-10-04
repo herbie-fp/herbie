@@ -3,7 +3,7 @@
 (require (except-in "../common.rkt" assert) "../programs.rkt" "../type-check.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
-(define-type Type (U 'real 'complex' boolean))
+(define-type Type (U 'real 'complex 'bool))
 
 (require/typed
  "../alternative.rkt"
