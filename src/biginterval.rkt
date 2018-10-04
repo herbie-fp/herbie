@@ -202,9 +202,9 @@
   (define b (rnd 'up bffloor (bf/ (ival-hi x) pi.bf)))
   (cond
    [(and (bf= a b) (bfeven? a))
-    (ival (rnd 'down bfcos (ival-hi x)) (rnd 'down bfcos (ival-lo x)) (ival-err? x) (ival-err x))]
+    (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfcos (ival-lo x)) (ival-err? x) (ival-err x))]
    [(and (bf= a b) (bfodd? a))
-    (ival (rnd 'down bfcos (ival-lo x)) (rnd 'down bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
+    (ival (rnd 'down bfcos (ival-lo x)) (rnd 'up bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf= (bf- b a) 1.bf) (bfeven? a))
     (ival -1.bf (rnd 'up bfmax (bfcos (ival-lo x)) (bfcos (ival-hi x))) (ival-err? x) (ival-err x))]
    [(and (bf= (bf- b a) 1.bf) (bfodd? a))
@@ -219,9 +219,9 @@
   (define b (rnd 'up bffloor (bf- (bf/ (ival-hi x) pi.bf) half.bf)))
   (cond
    [(and (bf= a b) (bfeven? a))
-    (ival (rnd 'down bfsin (ival-hi x)) (rnd 'down bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
+    (ival (rnd 'down bfsin (ival-hi x)) (rnd 'up bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
    [(and (bf= a b) (bfodd? a))
-    (ival (rnd 'down bfsin (ival-lo x)) (rnd 'down bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
+    (ival (rnd 'down bfsin (ival-lo x)) (rnd 'up bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf= (bf- b a) 1.bf) (bfeven? a))
     (ival -1.bf (rnd 'up bfmax (bfsin (ival-lo x)) (bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
    [(and (bf= (bf- b a) 1.bf) (bfodd? a))
