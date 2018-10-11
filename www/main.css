@@ -26,7 +26,7 @@ header p { margin: 0; text-align: center;}
 header img {width: 250px; margin: 0 auto; display: block;}
 header ul { text-align: center; font-weight: bold; }
 header li { display: inline-block; margin: 0 .5em; }
-header li::before { content: "⚫"; margin-right: 1em; }
+header li::before { content: "•"; margin-right: 1em; }
 header li:first-child::before { content: none; }
 
 svg {margin: 0 auto; display: block;}
