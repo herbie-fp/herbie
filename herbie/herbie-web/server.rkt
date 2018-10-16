@@ -10,8 +10,8 @@
 (require "../config.rkt")
 (require "../web-common.rkt")
 
-(define *frontend-path* (make-parameter #f))
-(define *style-path* (make-parameter #f))
+(define *frontend-path* (make-parameter "herbie/herbie-web/herbie-web.js"))
+(define *style-path* (make-parameter "herbie/herbie-web/style.css"))
 (define *input-path* (make-parameter "herbie/herbie-web/input.js"))
 
 (define/page (start-page)
@@ -127,23 +127,23 @@
 (define/page (serve-json json images)
   (json-response json images))
 
-(define (start-server frontend-path style-path)
-  (parameterize ([*frontend-path* frontend-path] [*style-path* style-path])
-    (printf "Starting server\n")
-    (serve/servlet
-     start-page
-     #:file-not-found-responder
-     (gen-file-not-found-responder
-      (build-path viz-output-path "../404.html"))
-     #:port 3234
-     #:listen-ip #f
-     #:command-line? #t
-     #:servlets-root (build-path viz-output-path "../..")
-     #:server-root-path (build-path viz-output-path "..")
-     #:servlet-path "/viz/"
-     #:extra-files-paths (list (build-path viz-output-path "..")))))
+(define (start-server)
+  (printf "Starting server at http://localhost:3234/viz/\n")
+  (serve/servlet
+   start-page
+   #:file-not-found-responder
+   (gen-file-not-found-responder
+    (build-path viz-output-path "../404.html"))
+   #:launch-browser? true
+   #:port 3234
+   #:listen-ip #f
+   #:command-line? #t
+   #:servlets-root (build-path viz-output-path "../..")
+   #:server-root-path (build-path viz-output-path "..")
+   #:servlet-path "/viz/"
+   #:extra-files-paths (list (build-path viz-output-path ".."))))
 
 (command-line
  #:program "herbie-viz"
- #:args arguments
- (apply start-server arguments))
+ #:args ()
+ (start-server))

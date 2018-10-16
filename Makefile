@@ -6,6 +6,9 @@ BENCHDIR=bench/hamming/
 all:
 	$(MAKE) report
 
+viz:
+	racket herbie/herbie-web/server.rkt
+
 report:
 	racket herbie/reports/run.rkt $(FLAGS) $(BENCHDIR)
 

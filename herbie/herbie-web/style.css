@@ -1,0 +1,112 @@
+body {
+    margin-left: 50px;
+    margin-right: 50px;
+    margin-top: 100px;
+    max-width: none;
+}
+svg {
+    display: inline; /* So that circles from mathjax aren't messed up.*/
+}
+
+.logo {
+    width: 125px;
+}
+
+.formula {
+    text-align: center;
+}
+.selectedFormulaBox {
+    float: left;
+    text-align: center;
+}
+.instr {
+    text-align: center;
+    clear: none;
+}
+.graph {
+    width:100%;
+    max-height:100%;
+    height: auto;
+}
+.caltdiv{
+    display: inline-block;
+    *display: inline;
+    margin-top: 0;
+    margin-bottom: auto;
+    vertical-align: top;
+    border-width: 15px 10px 15px 10px;
+    border-style: solid;
+    border-color: green;
+    position: relative;
+    width: 250px;
+}
+.stepdiv{
+    vertical-align: top;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-top: 0;
+    margin-bottom: auto;
+    width: 210px;
+}
+.calt_graph{
+    position: absolute;
+    bottom: 15px;
+    vertical-align: bottom;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    width: 230px;
+    height: 100px;
+}
+.calt_step{
+    text-align: center;
+}
+.selectCalt{
+    bottom: 0;
+    margin: 0 auto;
+    margin-bottom: 5px;
+    width: 100%;
+    position: absolute;
+    vertical-align: bottom;
+}
+.finalize_box{
+    text-align: center;
+    margin: 0 auto;
+}
+.combo_box{
+    width: 400px;
+    height: auto;
+    border: 5px solid green;
+    margin: 0 auto;
+    text-align: center;
+}
+.combo_graph{
+    margin: 10px;
+    width: 380px;
+}
+.candidates_div{
+    width: 100%;
+    text-align: center;
+}
+.candidate_box{
+    width: 230px;
+    height: 250px;
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    margin: 10px;
+}
+.candidate_graph{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+.combo_label{
+    font-weight: bold;
+    text-align: center;
+}
+.select_alt_box{
+    text-align: center;
+    margin: 0 auto;
+}
