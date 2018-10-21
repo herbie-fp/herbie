@@ -10,7 +10,7 @@
 (provide *start-prog*
          reap define-table table-ref table-set! table-remove!
          assert for/append
-         ordinary-value? =-or-nan? </total
+         ordinary-value? =-or-nan? </total <=/total nan?-all-types
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
@@ -179,6 +179,16 @@
        [(posit32= (posit32-inf) (quire32->posit32 x1)) #f]
        [(posit32= (posit32-inf) (quire32->posit32 x2)) #t]
        [else (posit32< (quire32->posit32 x1) (quire32->posit32 x2))])]))
+
+(define (<=/total x1 x2)
+  (or (</total x1 x2) (=-or-nan? x1 x2)))
+
+(define (nan?-all-types x)
+  (cond
+    [(or (real? x) (complex? x)) nan? x]
+    [(posit8? x) (posit8= x (posit8-inf))]
+    [(posit16? x) (posit16= x (posit16-inf))]
+    [(posit32? x) (posit32= x (posit32-inf))]))
 
 ;; Utility list functions
 

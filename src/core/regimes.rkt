@@ -331,7 +331,7 @@
     (λ (pt)
       (define val (prog pt))
       (for/first ([right splitpoints]
-                  #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
+                  #:when (or (nan?-all-types (sp-point right)) (<=/total val (sp-point right))))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 

@@ -12,6 +12,7 @@
 (require "../sandbox.rkt")
 (require "../formats/tex.rkt")
 (require "../fpcore/core2js.rkt")
+(require "../syntax/softposit.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
 (provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
@@ -158,10 +159,17 @@
              (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
+(define (points->doubles pts)
+  (cond
+    [(or (real? (caar pts)) (complex? (caar pts))) pts]
+    [(posit8? (caar pts)) (map (curry map posit8->double) pts)]
+    [(posit16? (caar pts)) (map (curry map posit16->double) pts)]
+    [(posit32? (caar pts)) (map (curry map posit32->double) pts)]))
+
 (define (make-axis-plot result idx out)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-result-end-alt result))))
-  (define pts (test-result-newpoints result))
+  (define pts (points->doubles (test-result-newpoints result)))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
@@ -174,7 +182,7 @@
       ['g (values *green-theme* test-result-target-error)]
       ['b (values *blue-theme*  test-result-end-error)]))
 
-  (define pts (test-result-newpoints result))
+  (define pts (points->doubles (test-result-newpoints result)))
   (define err (accessor result))
 
   (herbie-plot
@@ -256,7 +264,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(if valid-js-prog
+       ,(if (and valid-js-prog (for/and ([p points]) (number? p)))
             (render-interactive start-alt (car points))
             `(p ([display "none"])))
 
