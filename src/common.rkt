@@ -185,7 +185,7 @@
 
 (define (nan?-all-types x)
   (cond
-    [(or (real? x) (complex? x)) nan? x]
+    [(or (real? x) (complex? x)) (nan? x)]
     [(posit8? x) (posit8= x (posit8-inf))]
     [(posit16? x) (posit16= x (posit16-inf))]
     [(posit32? x) (posit32= x (posit32-inf))]))
