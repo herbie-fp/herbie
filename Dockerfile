@@ -6,3 +6,4 @@ RUN apt-get update \
 ADD src /src/herbie
 RUN raco pkg install --auto /src/herbie
 ENTRYPOINT ["racket", "/src/herbie/herbie.rkt"]
+CMD ["web", "--port", "80", "--quiet", "--demo"]
