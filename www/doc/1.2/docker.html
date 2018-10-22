@@ -61,7 +61,7 @@
     need to mount the input in the Docker container. Do that with:
   </p>
   
-  <pre><strong>$</strong> docker run -it \
+  <pre><strong>$</strong> docker run -it --rm \
     -v <var>in-dir</var>:/in \
     -v <var>out-dir</var>:/out \
     -u $USER \
@@ -79,7 +79,7 @@
     To generate reports from Herbie, you can run:
   </p>
 
-  <pre><strong>$</strong> docker run -it \
+  <pre><strong>$</strong> docker run -it --rm \
     -v <var>in-dir</var>:/in \
     -v <var>out-dir</var>:/out \
     -u $USER \
@@ -96,19 +96,12 @@
 
   <p>
     Running the web shell in Docker requires exposing the ports inside
-    the container. Use the <code>-p</code> option to Docker to expose
-    whatever ports Herbie chooses to use, and then use
-    the <code>--port</code> option to Herbie to choose that port.
+    the container. The Herbie Docker image binds to port 80 by default;
+    use the <code>-p &lt;hostport&gt;:80</code> option to Docker to expose
+    Herbie on whatever port you choose.
   </p>
 
-  <pre><strong>$</strong> docker run -itp \
-    uwplse/herbie web --quiet</pre>
-
-  <p>
-    Note that the <code>--quiet</code> flag is passed,
-    to prevent Herbie from attempting to start a web server
-    inside the Docker container.
-  </p>
+  <pre><strong>$</strong> docker run -it --rm -p 8000:80 uwplse/herbie</pre>
 
   <p>
     If you are using the <code>--log</code>
