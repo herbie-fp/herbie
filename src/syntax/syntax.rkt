@@ -197,7 +197,7 @@
              [key value] ...)))]))
 
 (define-operator/libm (acos real) real
-  [libm acos acosf] [bf bfacos] [ival #f] [cost 90]
+  [libm acos acosf] [bf bfacos] [ival ival-acos] [cost 90]
   [->c/double (curry format "acos(~a)")]
   [->c/mpfr (curry format "mpfr_acos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos^{-1} ~a")]

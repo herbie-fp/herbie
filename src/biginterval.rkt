@@ -29,6 +29,7 @@
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
           [ival-asin (-> ival? ival?)]
+          [ival-acos (-> ival? ival?)]
           [ival-atan (-> ival? ival?)]
           [ival-atan2 (-> ival? ival? ival?)]
           [ival-sinh (-> ival? ival?)]
@@ -253,6 +254,11 @@
 
 (define (ival-asin x)
   (ival (rnd 'down bfasin (ival-lo x)) (rnd 'up bfasin (ival-hi x))
+        (or (ival-err? x) (bf< (ival-lo x) -1.bf) (bf> (ival-hi x) 1.bf))
+        (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
+
+(define (ival-acos x)
+  (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfasin (ival-lo x))
         (or (ival-err? x) (bf< (ival-lo x) -1.bf) (bf> (ival-hi x) 1.bf))
         (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 

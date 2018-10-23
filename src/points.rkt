@@ -149,7 +149,7 @@
       (append (map test-input tests) (map test-precondition tests))))
   (define unsup-count (count (compose not supported-ival-expr?) exprs))
   (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
-  (check <= unsup-count 20))
+  (check <= unsup-count 15))
 
 (define ival-warnings (make-parameter '()))
 
