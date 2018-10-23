@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 1.2 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script type="text/javascript" src="compare.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie 1.2 Release Notes</h1>
+  </header>
+
+  <p>
+    The <a href="../..">Herbie</a> developers are excited to announce
+    Herbie 1.2! This release focuses on <em>accuracy and
+    reliability</em>, including better conditionals, more accurate
+    defaults, and significant bug fixes to the core algorithms.
+  </p>
+
+  <p>
+    Herbie automatically improves the accuracy of floating point
+    expressions. This avoids the bugs, errors, and surprises that so
+    often occur when working with floating point. Since
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
+    work making Herbie more versatile and easier to use.
+  </p>
+
+  <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
+
+  <h2>Breaking Changes and Deprecations</h2>
+
+  <ul>
+    <li> This release fixes a significant and important bug in
+      Herbie's measurement of program accuracy. Herbie's prior results
+      had a small chance of recommending an inaccurate program as
+      accurate. </li>
+    <li> In line
+      with <a href="http://fpbench.org/spec/fpcore-1.0.html">FPCore
+      1.0</a>, we have deprecated the <code>sqr</code>
+      and <code>cube</code> functions.</li>
+    <li> Herbie no longer
+      supports <a href="https://racket-lang.org">Racket</a> versions
+      prior to 6.7. Future Herbie releases may continue to step up
+      supported Racket versions to make better use of recent language
+      features.</li>
+  </ul>
+
+  <h2>Improvement to core algorithm</h2>
+
+  <ul>
+    <li>Herbie now uses a more rigorous algorithm to evaluate its results,
+      both increasing reproducibility of its results and better measuring
+      its output.</li>
+    <li>Herbie has become much more inventive in what expressions it
+      can branch on. This leads to more accurate results in many
+      cases. The <kbd>reduce:branch-expressions</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
+    <li>Herbie now uses a binary search algorithm to choose more
+      accurate values for conditionals in <code>if</code> statements.
+      This should make different runs of Herbie produce more similar
+      results. The <kbd>reduce:binary-search</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
+    <li>Herbie has a higher default value for
+      the <code>--num-iters</code> <a href="options.html">parameter</a>.
+      Users should expect Herbie to be slower but to produce more
+      accurate results.</li>
+    <li>A significant bug in the series expansion algorithm has been
+      fixed, improving Herbie's performance in the presence of
+      logarithms.</li>
+    <li>A small tweak to the simplification algorithm results in
+      simpler and more accurate output from Herbie.</li>
+  </ul>
+
+  <h2>Beta-quality features</h2>
+
+  <ul>
+    <li>Herbie now supports basic operations
+      on <a href="input.html#complex">complex numbers</a>, using
+      the <code>complex</code>, <code>re</code>, and <code>im</code>
+      functions. We look forward to releasing high-quality complex
+      number support in the future.</li>
+    <li>Herbie now supports Windows. Note that the Bessel functions
+      are not available in the Windows <code>math.h</code> library and
+      use a fallback. The <kbd>precision:fallback</kbd>
+      <a href="options.html">option</a> controls this feature.</li>
+  </ul>
+
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    <style scoped>.arrow { text-align: center; font-size: 200%; }</style>
+    <div class="program">\[c0 \cdot \sqrt{\frac{A}{V \cdot \ell}}\]</div>
+    <div class="arrow">↓</div>
+    <div class="program">\[\begin{array}{l}
+\mathbf{if}\;\frac{1}{V \cdot \ell} \le -3.767671897931721 \cdot 10^{+27}:\\
+\;\;\;\;\frac{c0 \cdot \sqrt{1}}{\sqrt{\frac{V \cdot \ell}{A}}}\\
+
+\mathbf{elif}\;\frac{1}{V \cdot \ell} \le -2.9824307461679933 \cdot 10^{-248}:\\
+\;\;\;\;\left(c0 \cdot \sqrt{\sqrt{\frac{A}{V \cdot \ell}}}\right) \cdot \sqrt{\sqrt{\frac{A}{V \cdot \ell}}}\\
+
+\mathbf{elif}\;\frac{1}{V \cdot \ell} \le 7.59312080698644 \cdot 10^{-301}:\\
+\;\;\;\;c0 \cdot \sqrt{\frac{\frac{A}{V}}{\ell}}\\
+
+\mathbf{else}:\\
+\;\;\;\;c0 \cdot \frac{\sqrt{A}}{\sqrt{V \cdot \ell}}\\
+
+\end{array}\]</div>
+    <figcaption>A program produced by the new branch inference system
+    in Herbie 1.2. Herbie 1.2 is more creative and produces more
+    accurate output than prior versions.</figcaption>
+  </figure>
+
+  <h2>Usability improvements</h2>
+
+  <ul>
+    <li>A new <a href="report.html#try-it">Try It</a> feature in
+      reports lets you run the input program and Herbie's suggested
+      version on argument values of your choice.</li>
+    <li>Herbie can now efficiently sample from preconditions such
+      as <code>(or (&lt; 1 x 2) (&lt; 1001 x 1002))</code>. Previously
+      such preconditions would produce the dreaded
+      “<a href="faq.html#sample-valid-points">could not sample</a>”
+      error message.</li>
+    <li>Herbie's web output now includes additional descriptive text,
+      such as color keys, and additional intuitive interactions, such
+      as clicking on report page arrows.</li>
+    <li>Herbie's FPCore output now includes
+      its <a href="input.html#properties">error estimates</a>, making
+      this information easier for other tools to access.</li>
+    <li><code>let</code> statements and variary arithmetic operators
+      are now supported in preconditions.</li>
+    <li>Herbie will now type-check inputs and report errors for
+      mismatches, helping further cut down on confusing error
+      messages.</li>
+    <li>User errors and Herbie crashes now look different in
+      reports.</li>
+  </ul>
+
+  <h2>Code Cleanup</h2>
+
+  <ul>
+    <li>Many bugs fixed, including missing rules, infinite loops, and
+      a few crashes in exceptional circumstances.</li>
+    <li>Herbie’s HTML output now uses the Racket XML library,
+      eliminating the possibility of generating invalid HTML.</li>
+    <li>Herbie uses a new mechanism for defining supported functions,
+      which should make it easier to add functions in the future.</li>
+  </ul>
+  
+  <h2>Try it out!</h2>
+
+  <p>
+    We're excited to continue to improve Herbie and make it more
+    useful to scientists, engineers, and programmers around the world.
+    We've got a lot of features we're excited to work on in the coming
+    months. Please
+    <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
+    join
+    <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
+    mailing list</a>,
+    or <a href="https://github.com/uw-plse/herbie">contribute</a>.
+  </p>
+  
+  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+</body>
+</html>

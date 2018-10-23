@@ -330,7 +330,7 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:debug debug? #:log log #:port port)
+(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:debug debug? #:log log #:port port #:public? public)
   (*demo?* demo?)
   (*demo-output* output)
   (*demo-prefix* prefix)
@@ -347,7 +347,7 @@
 
   (serve/servlet
    dispatch
-   #:listen-ip (if (*demo?*) #f "127.0.0.1")
+   #:listen-ip (if public #f "127.0.0.1")
    #:port port
    #:servlet-current-directory (current-directory)
    #:manager (create-none-manager #f)
