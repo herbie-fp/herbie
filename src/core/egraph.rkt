@@ -367,27 +367,27 @@
   (with-output-to-file
       fp #:exists 'replace
       (λ ()
-	(displayln "digraph {")
+	(printf "digraph {\n")
 	(for ([en (egraph-leaders eg)])
-	  (let ([id (enode-pid en)])
-	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
-	    (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
-		  [vid (in-naturals)])
-	      (let ([var (enode-expr varen)])
-		(printf "node~avar~a[label=\"~a\",shape=box,color=blue]~n"
-			id vid (if (list? var) (car var) var))
-		(printf "node~a -> node~avar~a[style=dashed]~n"
-			id id vid)
-		(cond
-		 [(not (list? var)) (void)]
-		 [(= (length var) 2)
-		  (printf "node~avar~a -> node~a~n"
-			  id vid (enode-pid (second var)))]
-		 [(= (length var) 3)
-		  (printf "node~avar~a -> node~a[tailport=sw]~n"
-			  id vid (enode-pid (second var)))
-		  (printf "node~avar~a -> node~a[tailport=se]~n"
-			  id vid (enode-pid (third var)))])))))
-	(displayln "}")))
-  (system (format "dot -Tpng -o ~a.png ~a" fp fp))
-  #;(system (format "feh ~a.png" fp)))
+          (define id (enode-pid en))
+
+	  (printf "node~a[label=\"NODE ~a\"]\n" id id)
+	  (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
+		[vid (in-naturals)])
+            (define var (enode-expr varen))
+	    (printf "node~avar~a[label=\"~a\",shape=box,color=blue]\n"
+		    id vid (if (list? var) (car var) var))
+	    (printf "node~a -> node~avar~a[style=dashed]\n"
+		    id id vid)
+            (when (list? var)
+              (define n (length (cdr var)))
+              (for ([arg (cdr var)] [i (in-naturals)])
+	        (printf "node~avar~a -> node~a[tailport=~a]\n"
+                        id vid
+                        (cond
+                          [(= i 0) "sw"]
+                          [(= i (- n 1)) "se"]
+                          [else "s"])
+                        (enode-pid arg))))))
+	(printf "}\n")))
+  (system (format "dot -Tpng -o ~a.png ~a" fp fp)))
