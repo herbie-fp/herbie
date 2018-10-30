@@ -81,7 +81,8 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         p8-order-index p16-order-idex p32-order-index)
+         p8-order-index p16-order-index p32-order-index
+         p8s-between p16s-between p32s-between)
 
 (struct big-posit8 (v))
 (struct big-posit16 (v))
@@ -158,3 +159,21 @@
 (define (bf-quire32-fdp-sub x y z) (big-quire32
                                      (bf- (big-quire32-v x)
                                           (bf* (big-posit32-v y) (big-posit32-v z)))))
+
+(define (p8s-between p1 p2)
+  (if (or (posit8= p1 (posit8-inf))
+          (posit8= p2 (posit8-inf)))
+    (expt 2 8)
+  (abs (- (p8-order-index p1) (p8-order-index p2)))))
+
+(define (p16s-between p1 p2)
+  (if (or (posit16= p1 (posit16-inf))
+          (posit16= p2 (posit16-inf)))
+    (expt 2 16)
+  (abs (- (p16-order-index p1) (p16-order-index p2)))))
+
+(define (p32s-between p1 p2)
+  (if (or (posit32= p1 (posit32-inf))
+          (posit32= p2 (posit32-inf)))
+    (expt 2 32)
+  (abs (- (p32-order-index p1) (p32-order-index p2)))))

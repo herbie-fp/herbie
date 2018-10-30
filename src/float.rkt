@@ -28,11 +28,11 @@
      (if (equal? x y) 0 64)]
     ;; TODO: We should have a better metric for calculating posit and quire error
     [((? posit8?) (? posit8?))
-     (ulp-difference (posit8->double x) (posit8->double y))]
+     (p8s-between x y)]
     [((? posit16?) (? posit16?))
-     (ulp-difference (posit16->double x) (posit16->double y))]
+     (p16s-between x y)]
     [((? posit32?) (? posit32?))
-     (ulp-difference (posit32->double x) (posit32->double y))]
+     (p32s-between x y)]
     [((? quire8?) (? quire8?))
      (ulp-difference (posit8->double (quire8->posit8 x))
                      (posit8->double (quire8->posit8 y)))]
