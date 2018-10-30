@@ -39,7 +39,8 @@
          posit32->double float->posit32 double->posit32
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
-         quire8->double quire16->double quire32->double)])
+         quire8->double quire16->double quire32->double
+         p8-order-index p16-order-idex p32-order-index)])
 
 (provide (all-defined-out)
          _posit8 _posit16 _posit32 _posit64 _posit128
@@ -79,7 +80,8 @@
          posit32->double float->posit32 double->posit32
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
-         quire8->double quire16->double quire32->double)
+         quire8->double quire16->double quire32->double
+         p8-order-index p16-order-idex p32-order-index)
 
 (struct big-posit8 (v))
 (struct big-posit16 (v))
