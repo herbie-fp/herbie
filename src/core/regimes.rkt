@@ -98,7 +98,12 @@
                              ['posit8 `(real->posit8 ,(posit8->double (sp-point splitpoint)))]
                              ['posit16 `(real->posit16 ,(posit16->double (sp-point splitpoint)))]
                              ['posit32 `(real->posit32 ,(posit32->double (sp-point splitpoint)))]))
-        `(if (<=.p16 ,(sp-bexpr splitpoint) ,prec-point)
+        (define <=-operator (match precision
+                             [(or 'binary64 'binary32) '<=]
+                             ['posit8 `<=.p8]
+                             ['posit16 `<=.p16]
+                             ['posit32 `<=.p32]))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,prec-point)
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
