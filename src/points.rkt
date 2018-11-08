@@ -190,7 +190,7 @@
      [else
       (define num-vars (length (program-variables prog)))
       (match precision
-        ['binary64
+        [(or 'binary64 'binary32)
          (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
          (debug #:from 'points #:depth 4
                 "Sampling" num "additional inputs,"
