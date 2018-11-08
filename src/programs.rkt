@@ -14,7 +14,7 @@
          eval-prog eval-const-expr
          compile expression-cost program-cost
          free-variables replace-expression
-         desugar-program)
+         desugar-program resugar-program)
 
 (define expr? (or/c list? symbol? number?))
 
@@ -291,8 +291,43 @@
         [(? variable?) (values expr (dict-ref ctx expr))])))
   expr*)
 
+(define (expand-parametric-reverse expr)
+  (define expr*
+    (let loop ([expr expr])
+      ;; Run after unfold-let, so no need to track lets
+      (match expr
+        [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
+         (define args*
+           (for/list ([arg args])
+             (loop arg)))
+         (define op* (hash-ref parametric-operators-reverse op))
+         (cons op* args*)]
+        [(list 'if cond ift iff)
+         (define cond* (loop cond))
+         (define ift* (loop ift))
+         (define iff* (loop iff))
+         (list 'if cond* ift* iff*)]
+        [(list 'real->posit8 num) num]
+        [(list 'real->posit16 num) num]
+        [(list 'real->posit32 num) num]
+        [(list op args ...)
+         (define args* (for/list ([arg args]) (loop arg)))
+         (cons op args*)]
+        [(? real?) expr]
+        [(? boolean?) expr]
+        [(? complex?) expr]
+        [(? posit8?) expr]
+        [(? posit16?) expr]
+        [(? posit32?) expr]
+        [(? constant?) expr]
+        [(? variable?) expr])))
+  expr*)
+
 (define (desugar-program prog ctx)
   (expand-parametric (expand-associativity (unfold-let prog)) ctx))
+
+(define (resugar-program prog)
+  (expand-parametric-reverse (expand-associativity (unfold-let prog))))
 
 (define (replace-vars dict expr)
   (cond
