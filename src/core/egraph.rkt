@@ -60,29 +60,29 @@
     (assert (and (integer? count) (positive? count)) #:loc location)
     ;; The top is a valid enode. (enode validity is verified upon creation).
     (assert (enode? (egraph-top eg)) #:loc location)
+
     ;; Verify properties 4-6
-    (hash-for-each leader->iexprs
-		   (λ (leader iexprs)
-		     (assert (eq? leader (pack-leader leader)) #:loc location)
-		     (assert (set-mutable? iexprs) #:loc location)
-		     (for ([iexpr iexprs])
-		       (assert (list? iexpr) #:loc location)
-		       (assert (for/or ([sub (cdr iexpr)])
-                                 (eq? (pack-leader sub) leader))
-                               #:loc location)
-                       (assert (for/and ([sub (cdr iexpr)])
-                                 (eq? (pack-leader sub) sub)))
-		       (assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location))))
+    (for ([(leader iexprs) (in-hash leader->iexprs)])
+      (assert (eq? leader (pack-leader leader)) #:loc location)
+      (assert (set-mutable? iexprs) #:loc location)
+      (for ([iexpr iexprs])
+	(assert (list? iexpr) #:loc location)
+	(assert (for/or ([sub (cdr iexpr)])
+                  (eq? (pack-leader sub) leader))
+                #:loc location)
+        (assert (for/and ([sub (cdr iexpr)])
+                  (eq? (pack-leader sub) sub)))
+	(assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location)))
+
     ;; Verify property 7
-    (hash-for-each (egraph-expr->parent eg)
-		   (λ (k v)
-		     ;; This line verifies that we didn't change the definition of hashing
-		     ;; for some part of this expression without also refreshing the binding.
-		     (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
-		     
-		     (when (list? k)
-		       (for ([en (cdr k)])
-			 (assert (eq? en (pack-leader en)) #:loc location)))))
+    (for ([(k v) (in-hash (egraph-expr->parent eg))])
+      ;; This line verifies that we didn't change the definition of hashing
+      ;; for some part of this expression without also refreshing the binding.
+      (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
+      (when (list? k)
+	(for ([en (cdr k)])
+	  (assert (eq? en (pack-leader en)) #:loc location)))))
+
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
@@ -384,10 +384,11 @@
               (for ([arg (cdr var)] [i (in-naturals)])
 	        (printf "node~avar~a -> node~a[tailport=~a]\n"
                         id vid
+                        (enode-pid arg)
                         (cond
                           [(= i 0) "sw"]
                           [(= i (- n 1)) "se"]
                           [else "s"])
-                        (enode-pid arg))))))
+                        )))))
 	(printf "}\n")))
   (system (format "dot -Tpng -o ~a.png ~a" fp fp)))

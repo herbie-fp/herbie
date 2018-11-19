@@ -64,6 +64,7 @@
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
+
   ;; Tries to match the rules against the given enodes, and returns a
   ;; list of matches found. Matches are of the form:
   ;; 
@@ -81,6 +82,7 @@
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
 			(list* rl en bindings)))))))
+
   (define (apply-match match)
     (match-define (list rl en bindings ...) match)
 
@@ -102,6 +104,7 @@
     ;; Mark this node as having this rule applied so that we don't try
     ;; to apply it again.
     (when (subset? valid-bindings bindings-set) (rule-applied! en rl)))
+
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
@@ -110,9 +113,11 @@
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
     #;(elim-enode-loops! eg en))
+
   (for ([m (find-matches (egraph-leaders eg))])
     (apply-match m))
-  (map-enodes (curry set-precompute! eg) eg))
+  (map-enodes (curry set-precompute! eg) eg)
+  (void))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr
