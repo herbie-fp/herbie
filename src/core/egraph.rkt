@@ -81,7 +81,7 @@
       (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
       (when (list? k)
 	(for ([en (cdr k)])
-	  (assert (eq? en (pack-leader en)) #:loc location)))))
+	  (assert (eq? en (pack-leader en)) #:loc location))))
 
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
@@ -205,9 +205,6 @@
           ;; egraph), so we turn this into a leader before finally
           ;; returning it.
           (pack-leader merged-en)))))
-
-(define (mutable-set-remove-duplicates st)
-  (list->mutable-set (set->list st)))
 
 (define (update-en-expr expr)
   (if (list? expr)
