@@ -18,7 +18,7 @@
 ;;# partially, then extracting the simplest expression from it.
 ;;#
 ;;# Simplify attempts to make only one strong guarantee:
-;;# that the input is mathematically equivilent to the output; that is, for any
+;;# that the input is mathematically equivalent to the output; that is, for any
 ;;# exact x, evalutating the input on x will yield the same expression as evaluating
 ;;# the output on x.
 ;;#
@@ -33,9 +33,15 @@
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
+             
+
+
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest-best-effort eg))
+        
+
+
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
 
