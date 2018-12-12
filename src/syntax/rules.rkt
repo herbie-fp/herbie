@@ -85,7 +85,7 @@
 
 ;; TODO: We only cast back to posit after quire operations because herbie can't handle
 ;; non-double output right now (similar situtation for posits)
-(define-ruleset insert-q16 (arithmetic simplify posit)
+(define-ruleset q16-arithmetic (arithmetic simplify posit)
   #:type ([a posit16] [b posit16] [c posit16] [q quire16])
   [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
   [insert-quire-add     (+.p16 (quire16->posit16 q) a)

@@ -53,18 +53,9 @@
    [(big-posit8? x) (double->posit8 (bigfloat->flonum (big-posit8-v x)))]
    [(big-posit16? x) (double->posit16 (bigfloat->flonum (big-posit16-v x)))]
    [(big-posit32? x) (double->posit32 (bigfloat->flonum (big-posit32-v x)))]
-   [(big-quire8? x) (quire8-fdp-add ((create-quire8)
-                                   (double->posit8
-                                     (bigfloat->flonum (big-quire8-v x)))
-                                   (double->posit8 1.0)))]
-   [(big-quire16? x) (quire16-fdp-add ((create-quire16)
-                                   (double->posit16
-                                     (bigfloat->flonum (big-quire16-v x)))
-                                   (double->posit16 1.0)))]
-   [(big-quire32? x) (quire32-fdp-add ((create-quire32)
-                                   (double->posit32
-                                     (bigfloat->flonum (big-quire32-v x)))
-                                   (double->posit32 1.0)))]
+   [(big-quire8? x) (double->quire8 (bigfloat->flonum (big-quire8-v x)))]
+   [(big-quire16? x) (double->quire16 (bigfloat->flonum (big-quire16-v x)))]
+   [(big-quire32? x) (double->quire32 (bigfloat->flonum (big-quire32-v x)))]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)))]
    [else x]))
