@@ -62,7 +62,7 @@
 
 ; Posit conversions
 (define-ruleset insert/remove-p16 (arithmetic simplify posit)
-  #:type ([a posit16])
+  #:type ([a real])
   [insert-posit16 a (posit16->real (real->posit16 a))]
   [remove-posit16 (posit16->real (real->posit16 a)) a])
 
