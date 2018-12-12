@@ -245,7 +245,7 @@
    [(bf> (ival-lo y) 0.bf)
     (ival (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) (rnd 'up bfatan2 (ival-lo y) (ival-lo x)) err? err)]
    [(bf< (ival-hi y) 0.bf)
-    (ival (rnd 'down bfatan2 (ival-hi y) (ival-lo x)) (rnd 'down bfatan2 (ival-hi y) (ival-hi x)) err? err)]
+    (ival (rnd 'down bfatan2 (ival-hi y) (ival-lo x)) (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) err? err)]
    [(bf> (ival-lo x) 0.bf)
     (ival (rnd 'down bfatan2 (ival-lo y) (ival-lo x)) (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) err? err)]
    ;; TODO: Not sufficiently accurate in the equality cases of the above
@@ -309,21 +309,23 @@
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (and (not c<) (not c>)) (or (not m<) (not m>)) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
-(define (ival-comparator f)
-  (λ as
-    (if (null? as)
-        ival-true
-        (let loop ([head (car as)] [tail (cdr as)] [acc ival-true])
-          (match tail
-            ['() acc]
-            [(cons next rest)
-             (loop next rest (ival-and (f head next) ival-true))])))))
+(define (ival-comparator f name)
+  (procedure-rename
+   (λ as
+     (if (null? as)
+         ival-true
+         (let loop ([head (car as)] [tail (cdr as)] [acc ival-true])
+           (match tail
+             ['() acc]
+             [(cons next rest)
+              (loop next rest (ival-and (f head next) ival-true))]))))
+   name))
 
-(define ival-<  (ival-comparator ival-<2))
-(define ival-<= (ival-comparator ival-<=2))
-(define ival->  (ival-comparator ival->2))
-(define ival->= (ival-comparator ival->=2))
-(define ival-== (ival-comparator ival-==2))
+(define ival-<  (ival-comparator ival-<2  'ival-<))
+(define ival-<= (ival-comparator ival-<=2 'ival-<=))
+(define ival->  (ival-comparator ival->2  'ival->))
+(define ival->= (ival-comparator ival->=2 'ival->=))
+(define ival-== (ival-comparator ival-==2 'ival-==))
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -363,9 +365,14 @@
   (define num-tests 100)
 
   (define (sample-interval)
-    (define v1 (sample-double))
-    (define v2 (sample-double))
-    (ival (bf (min v1 v2)) (bf (max v1 v2)) (and (nan? v1) (nan? v2)) (or (nan? v1) (nan? v2))))
+    (if (= (random 0 2) 0)
+        (let ([v1 (sample-double)] [v2 (sample-double)])
+          (ival (bf (min v1 v2)) (bf (max v1 v2)) (or (nan? v1) (nan? v2)) (and (nan? v1) (nan? v2))))
+        (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
+          (define v2 (bfstep v1 (* sign (+ exp mantissa))))
+          (if (= sign -1)
+              (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))
+              (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))))))
 
   (define (sample-bf)
     (bf (sample-double)))
@@ -384,21 +391,23 @@
         (bf<= (ival-lo ival) (ival-hi ival))))
 
   (define (ival-contains? ival pt)
-    (if (bigfloat? pt)
-        (if (or (bfnan? pt) (ival-err? ival))
-            (ival-err? ival)
-            (and (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival))))
-        (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival)))))
+    (or (ival-err? ival)
+        (if (bigfloat? pt)
+            (if (bfnan? pt)
+                (ival-err? ival)
+                (and (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival))))
+            (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
 
   (check ival-contains? (ival-bool #f) #f)
   (check ival-contains? (ival-bool #t) #t)
   (check ival-contains? (ival-pi) pi.bf)
   (check ival-contains? (ival-e) (bfexp 1.bf))
-  (for ([i (in-range num-tests)])
-    (define pt (sample-double))
-    (with-check-info (['point pt] ['fn mk-ival])
-      (check-pred ival-valid? (mk-ival pt))
-      (check ival-contains? (mk-ival pt) (bf pt))))
+  (test-case "mk-ival"
+    (for ([i (in-range num-tests)])
+      (define pt (sample-double))
+      (with-check-info (['point pt])
+        (check-pred ival-valid? (mk-ival pt))
+        (check ival-contains? (mk-ival pt) (bf pt)))))
 
   (define arg1
     (list (cons ival-neg   bf-)
@@ -419,9 +428,36 @@
           (cons ival-cosh  bfcosh)
           (cons ival-tanh  bftanh)))
 
-  (for* ([(ival-fn fn) (in-dict arg1)] [i (in-range num-tests)])
-    (define i (sample-interval))
-    (define x (sample-from i))
-    (with-check-info (['fn ival-fn] ['interval i] ['point x])
-      (check-pred ival-valid? (ival-fn i))
-      (check ival-contains? (ival-fn i) (fn x)))))
+  (for ([(ival-fn fn) (in-dict arg1)])
+    (test-case (~a (object-name ival-fn))
+       (for ([i (in-range num-tests)])
+         (define i (sample-interval))
+         (define x (sample-from i))
+         (with-check-info (['fn ival-fn] ['interval i] ['point x])
+           (check-pred ival-valid? (ival-fn i))
+           (check ival-contains? (ival-fn i) (fn x))))))
+
+  (define arg2
+    (list (cons ival-add bf+)
+          (cons ival-sub bf-)
+          (cons ival-mult bf*)
+          (cons ival-div bf/)
+          #;(cons ival-atan2 bfatan2) ; Currently buggy :(
+          (cons ival-< bf<)
+          (cons ival-> bf>)
+          (cons ival-<= bf<=)
+          (cons ival->= bf>=)
+          (cons ival-== bf=)
+          (cons ival-!= (compose not bf=))))
+
+  (for ([(ival-fn fn) (in-dict arg2)])
+    (test-case (~a (object-name ival-fn))
+       (for ([i (in-range num-tests)])
+         (define i1 (sample-interval))
+         (define i2 (sample-interval))
+         (define x1 (sample-from i1))
+         (define x2 (sample-from i2))
+         (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2])
+           (check-pred ival-valid? (ival-fn i1 i2))
+           (check ival-contains? (ival-fn i1 i2) (fn x1 x2))))))
+  )
