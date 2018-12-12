@@ -3,6 +3,8 @@
 (require math/bigfloat)
 (require "common.rkt" "syntax/types.rkt")
 
+(module+ test (require rackunit "float.rkt" math/flonum))
+
 (struct ival (lo hi err? err) #:transparent)
 
 (provide (contract-out
@@ -258,7 +260,7 @@
         (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 
 (define (ival-acos x)
-  (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfasin (ival-lo x))
+  (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfacos (ival-lo x))
         (or (ival-err? x) (bf< (ival-lo x) -1.bf) (bf> (ival-hi x) 1.bf))
         (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 
@@ -268,7 +270,7 @@
    [(bf< (ival-hi x) 0.bf)
     (ival (bf- (ival-hi x)) (bf- (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
-    (ival 0.bf (bfmax (bf- (ival-lo x)) (ival-hi x) (ival-err? x) (ival-err x)))]))
+    (ival 0.bf (bfmax (bf- (ival-lo x)) (ival-hi x)) (ival-err? x) (ival-err x))]))
 
 (define (ival-sinh x)
   (ival (rnd 'down bfsinh (ival-lo x)) (rnd 'up bfsinh (ival-hi x)) (ival-err? x) (ival-err x)))
@@ -356,3 +358,70 @@
    [(ival-lo c) (propagate-err c x)]
    [(not (ival-hi c)) (propagate-err c y)]
    [else (propagate-err c (ival-union x y))]))
+
+(module+ test
+  (define num-tests 100)
+
+  (define (sample-interval)
+    (define v1 (sample-double))
+    (define v2 (sample-double))
+    (ival (bf (min v1 v2)) (bf (max v1 v2)) (and (nan? v1) (nan? v2)) (or (nan? v1) (nan? v2))))
+
+  (define (sample-bf)
+    (bf (sample-double)))
+
+  (define (sample-from ival)
+    (if (bigfloat? (ival-lo ival))
+        (let ([p (random)])
+          (bf+ (bf* (bf p) (ival-lo ival)) (bf* (bf- 1.bf (bf p)) (ival-hi ival))))
+        (let ([p (random 0 2)])
+          (if (= p 0) (ival-lo ival) (ival-hi ival)))))
+
+  (define (ival-valid? ival)
+    (or (boolean? (ival-lo ival))
+        (bfnan? (ival-lo ival))
+        (bfnan? (ival-hi ival))
+        (bf<= (ival-lo ival) (ival-hi ival))))
+
+  (define (ival-contains? ival pt)
+    (if (bigfloat? pt)
+        (if (or (bfnan? pt) (ival-err? ival))
+            (ival-err? ival)
+            (and (bf<= (ival-lo ival) pt) (bf<= pt (ival-hi ival))))
+        (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival)))))
+
+  (check ival-contains? (ival-bool #f) #f)
+  (check ival-contains? (ival-bool #t) #t)
+  (check ival-contains? (ival-pi) pi.bf)
+  (check ival-contains? (ival-e) (bfexp 1.bf))
+  (for ([i (in-range num-tests)])
+    (define pt (sample-double))
+    (with-check-info (['point pt] ['fn mk-ival])
+      (check-pred ival-valid? (mk-ival pt))
+      (check ival-contains? (mk-ival pt) (bf pt))))
+
+  (define arg1
+    (list (cons ival-neg   bf-)
+          (cons ival-fabs  bfabs)
+          (cons ival-sqrt  bfsqrt)
+          (cons ival-cbrt  bfcbrt)
+          (cons ival-exp   bfexp)
+          (cons ival-expm1 bfexpm1)
+          (cons ival-log   bflog)
+          (cons ival-log1p bflog1p)
+          (cons ival-sin   bfsin)
+          (cons ival-cos   bfcos)
+          (cons ival-tan   bftan)
+          (cons ival-asin  bfasin)
+          (cons ival-acos  bfacos)
+          (cons ival-atan  bfatan)
+          (cons ival-sinh  bfsinh)
+          (cons ival-cosh  bfcosh)
+          (cons ival-tanh  bftanh)))
+
+  (for* ([(ival-fn fn) (in-dict arg1)] [i (in-range num-tests)])
+    (define i (sample-interval))
+    (define x (sample-from i))
+    (with-check-info (['fn ival-fn] ['interval i] ['point x])
+      (check-pred ival-valid? (ival-fn i))
+      (check ival-contains? (ival-fn i) (fn x)))))
