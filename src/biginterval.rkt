@@ -201,8 +201,8 @@
   (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cos x)
-  (define a (rnd 'down bffloor (bf/ (ival-lo x) pi.bf)))
-  (define b (rnd 'up bffloor (bf/ (ival-hi x) pi.bf)))
+  (define a (rnd 'down bffloor (bf/ (ival-lo x) (rnd 'up identity pi.bf))))
+  (define b (rnd 'up   bffloor (bf/ (ival-hi x) (rnd 'down identity pi.bf))))
   (cond
    [(and (bf= a b) (bfeven? a))
     (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfcos (ival-lo x)) (ival-err? x) (ival-err x))]
@@ -218,8 +218,8 @@
 (define half.bf (bf/ 1.bf 2.bf))
 
 (define (ival-sin x)
-  (define a (rnd 'down bffloor (bf- (bf/ (ival-lo x) pi.bf) half.bf)))
-  (define b (rnd 'up bffloor (bf- (bf/ (ival-hi x) pi.bf) half.bf)))
+  (define a (rnd 'down bffloor (bf- (bf/ (ival-lo x) (rnd 'up identity pi.bf)) half.bf))) ; half.bf is exact
+  (define b (rnd 'up bffloor (bf- (bf/ (ival-hi x) (rnd 'down identity pi.bf)) half.bf)))
   (cond
    [(and (bf= a b) (bfeven? a))
     (ival (rnd 'down bfsin (ival-hi x)) (rnd 'up bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
