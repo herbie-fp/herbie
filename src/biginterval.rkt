@@ -273,7 +273,7 @@
         (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 
 (define (ival-acos x)
-  (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfacos (ival-lo x))
+  (ival (rnd 'down bfacos (ival-hi x)) (rnd 'up bfacos (ival-lo x))
         (or (ival-err? x) (bf< (ival-lo x) -1.bf) (bf> (ival-hi x) 1.bf))
         (or (ival-err x) (bf< (ival-hi x) -1.bf) (bf> (ival-lo x) 1.bf))))
 
