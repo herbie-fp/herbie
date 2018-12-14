@@ -238,21 +238,34 @@
 (define (ival-atan x)
   (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
 
+(define (classify-ival x)
+  (cond [(bf> (ival-lo x) 0.bf) -] [(bf< (ival-hi x) 0.bf) -1] [else 0]))
+
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (cond
-   [(bf> (ival-lo y) 0.bf)
-    (ival (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) (rnd 'up bfatan2 (ival-lo y) (ival-lo x)) err? err)]
-   [(bf< (ival-hi y) 0.bf)
-    (ival (rnd 'down bfatan2 (ival-hi y) (ival-lo x)) (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) err? err)]
-   [(bf> (ival-lo x) 0.bf)
-    (ival (rnd 'down bfatan2 (ival-lo y) (ival-lo x)) (rnd 'down bfatan2 (ival-lo y) (ival-hi x)) err? err)]
-   ;; TODO: Not sufficiently accurate in the equality cases of the above
-   [else
-    (ival (rnd 'down bf- pi.bf) (rnd 'up identity pi.bf)
-          (or err? (bf>= (ival-hi x) 0.bf))
-          (or err (and (bf= (ival-lo x) 0.bf) (bf= (ival-hi x) 0.bf) (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))]))
+
+  (define tl (list (ival-hi y) (ival-lo x)))
+  (define tr (list (ival-hi y) (ival-hi x)))
+  (define bl (list (ival-lo y) (ival-lo x)))
+  (define br (list (ival-lo y) (ival-hi x)))
+
+  (define-values (a-lo a-hi)
+    (match (cons (classify-ival x) (classify-ival y))
+      ['(-1 -1) (values tl br)]
+      ['( 0 -1) (values tl tr)]
+      ['( 1 -1) (values bl tr)]
+      ['( 1  0) (values bl tl)]
+      ['( 1  1) (values br tl)]
+      ['( 0  1) (values br bl)]
+      ['(-1  1) (values tr bl)]
+      [_        (values #f #f)]))
+
+  (if a-lo
+      (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err)
+      (ival (rnd 'down bf- pi.bf) (rnd 'up identity pi.bf)
+            (or err? (bf>= (ival-hi x) 0.bf))
+            (or err (and (bf= (ival-lo x) 0.bf) (bf= (ival-hi x) 0.bf) (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))))
 
 (define (ival-asin x)
   (ival (rnd 'down bfasin (ival-lo x)) (rnd 'up bfasin (ival-hi x))
@@ -362,7 +375,7 @@
    [else (propagate-err c (ival-union x y))]))
 
 (module+ test
-  (define num-tests 100)
+  (define num-tests 1000)
 
   (define (sample-interval)
     (if (= (random 0 2) 0)
@@ -442,7 +455,7 @@
           (cons ival-sub bf-)
           (cons ival-mult bf*)
           (cons ival-div bf/)
-          #;(cons ival-atan2 bfatan2) ; Currently buggy :(
+          (cons ival-atan2 bfatan2)
           (cons ival-< bf<)
           (cons ival-> bf>)
           (cons ival-<= bf<=)
