@@ -295,6 +295,21 @@
 (define (ival-tanh x)
   (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x)))
 
+(define (ival-fmod x y)
+  (define y* (ival-fabs y))
+  (define quot (ival-div x y*))
+  (define a (rnd 'down bftruncate (ival-lo quot)))
+  (define b (rnd 'up bftruncate (ival-hi quot)))
+  (define err? (or (ival-err? x) (ival-err? y) (bf= (ival-lo y*) 0.bf)))
+  (define err (or (ival-err x) (ival-err y) (bf= (ival-hi y*) 0.bf)))
+  (define tquot (ival a b err? err))
+
+  (cond
+   [(bf= a b) (ival-sub x (ival-mult tquot y*))]
+   [(bf<= b 0.bf) (ival (bf- (ival-hi y*)) 0.bf err? err)]
+   [(bf>= a 0.bf) (ival 0.bf (ival-hi y*) err? err)]
+   [else (ival (bf- (ival-hi y*)) (ival-hi y*) err? err)]))
+
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))
   (define must-< (bf< (ival-hi x) (ival-lo y)))
@@ -443,12 +458,15 @@
 
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
-       (for ([i (in-range num-tests)])
+       (for ([n (in-range num-tests)])
          (define i (sample-interval))
          (define x (sample-from i))
-         (with-check-info (['fn ival-fn] ['interval i] ['point x])
+         (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
            (check-pred ival-valid? (ival-fn i))
            (check ival-contains? (ival-fn i) (fn x))))))
+
+  (define (bffmod x y)
+    (bf- x (bf* (bftruncate (bf/ x y)) y)))
 
   (define arg2
     (list (cons ival-add bf+)
@@ -465,12 +483,29 @@
 
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-case (~a (object-name ival-fn))
-       (for ([i (in-range num-tests)])
+       (for ([n (in-range num-tests)])
          (define i1 (sample-interval))
          (define i2 (sample-interval))
          (define x1 (sample-from i1))
          (define x2 (sample-from i2))
-         (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2])
-           (check-pred ival-valid? (ival-fn i1 i2))
-           (check ival-contains? (ival-fn i1 i2) (fn x1 x2))))))
+
+         (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
+           (define iy (ival-fn i1 i2))
+           (check-pred ival-valid? iy)
+           (check ival-contains? iy (fn x1 x2))))))
+
+  (test-case "ival-fmod"
+    (for ([n (in-range num-tests)])
+      (define i1 (sample-interval))
+      (define i2 (sample-interval))
+      (define x1 (sample-from i1))
+      (define x2 (sample-from i2))
+
+      (define y (bffmod x1 x2))
+
+      (unless (bf> (bfabs y) (bfabs x2)) ; Known bug in bffmod where rounding error causes invalid output
+        (with-check-info (['fn ival-fmod] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
+          (define iy (ival-fmod i1 i2))
+          (check-pred ival-valid? iy)
+          (check ival-contains? iy y)))))
   )

@@ -379,7 +379,7 @@
   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (min x y)]))])
 
 (define (bffmod x mod)
-  (bf- x (bf* mod (bffloor (bf/ x mod)))))
+  (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
 
 (define-operator/libm (fmod real real) real
   [libm fmod fmodf] [bf bffmod] [ival #f] [cost 70]
