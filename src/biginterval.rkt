@@ -37,6 +37,7 @@
           [ival-sinh (-> ival? ival?)]
           [ival-cosh (-> ival? ival?)]
           [ival-tanh (-> ival? ival?)]
+          [ival-fmod (-> ival? ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]

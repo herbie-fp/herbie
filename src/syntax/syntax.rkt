@@ -382,7 +382,7 @@
   (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
 
 (define-operator/libm (fmod real real) real
-  [libm fmod fmodf] [bf bffmod] [ival #f] [cost 70]
+  [libm fmod fmodf] [bf bffmod] [ival ival-fmod] [cost 70]
   [->c/double (curry format "fmod(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmod(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\bmod ~a")]
