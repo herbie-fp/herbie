@@ -11,6 +11,8 @@
          constant? variable? operator? operator-info constant-info parametric-operators
          prune-operators! *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
+(module+ test (require rackunit))
+
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
 
@@ -724,3 +726,8 @@
         [exp . ((exp real real) (exp.c complex complex))]
         [log . ((log real real) (log.c complex complex))]
         [sqrt . ((sqrt real real) (sqrt.c complex complex))]))
+
+(module+ test
+  (for ([(k r) (in-hash (cdr constants))] #:when true
+        [(f c) (in-dict (car constants))] [v (in-list r)] #:when (flat-contract? c))
+    (check-pred (flat-contract-predicate c) v)))

@@ -110,6 +110,11 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
     .timeline-phase { outline: 1px solid black; }
 }
 
+.metrics { margin: 1em; width: calc(100% - 2em); }
+.metrics td, .metrics th { text-align: right; }
+.metrics td:nth-child(1) { text-align: left; font-weight: bold; }
+.metrics td:nth-child(4), .metrics th:nth-child(4) { padding-right: 3em; }
+
 #backtrace table { width: 100%; }
 #backtrace th[colspan] { text-align: left; }
 #backtrace th { text-align: right; }

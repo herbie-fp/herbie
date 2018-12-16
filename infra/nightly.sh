@@ -9,6 +9,7 @@ function run {
   racket "src/herbie.rkt" report \
       --note "$name" \
       --profile \
+      --debug \
       --threads $CORES \
       "$@" \
       "$bench" "reports/$name"

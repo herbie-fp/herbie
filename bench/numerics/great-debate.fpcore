@@ -1,0 +1,38 @@
+(FPCore (y)
+  :name "Kahan's Monster"
+  :pre (<= 1 x 9999) ; Integers only in Kahan's example but this is not essential
+  (let ([Qx (- (fabs (- y (sqrt (+ (* y y) 1)))) (/ 1 (+ y (sqrt (+ (* y y) 1)))))])
+    (let ([z (* Qx Qx)])
+      (if (= z 0) 1 (/ (- (exp z) 1) z)))))
+
+(FPCore (y)
+  :name "Kahan's Unum-Targeted Monster"
+  :pre (<= 1 x 9999) ; Integers only in Kahan's example but this is not essential
+  (let ([Qx (- (fabs (- y (sqrt (+ (* y y) 1)))) (/ 1 (+ y (sqrt (+ (* y y) 1)))))]
+    (let ([z (+ (* Qx Qx) (pow (pow 10 -300) (* 10000 (+ y 1))))])
+      (if (= z 0) 1 (/ (- (exp z) 1) z))))))
+
+(FPCore (x y)
+  :name "Kahan p9 Example"
+  :pre (and (< 0 x 1) (< y 1))
+  :herbie-target
+  (if (< 0.5 (fabs (/ x y)) 2)
+      (/ (* (- x y) (+ x y)) (+ (* x x) (* y y)))
+      (- 1 (/ 2 (+ 1 (* (/ x y) (/ x y))))))
+
+  (/ (* (- x y) (+ x y)) (+ (* x x) (* y y))))
+
+(FPCore (t)
+  :name "Kahan p13 Example 1"
+  (let ([u (/ (* 2 t) (+ 1 t))])
+    (/ (+ 1 (* u u)) (+ 2 (* u u)))))
+
+(FPCore (t)
+  :name "Kahan p13 Example 2"
+  (let ([v (- 2 (/ (/ 2 t) (+ 1 (/ 1 t))))])
+    (/ (+ 1 (* v v)) (+ 2 (* v v)))))
+
+(FPCore (t)
+  :name "Kahan p13 Example 3"
+  (let ([v (- 2 (/ (/ 2 t) (+ 1 (/ 1 t))))])
+    (- 1 (/ 1 (+ 2 (* v v))))))

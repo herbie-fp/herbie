@@ -38,12 +38,6 @@
     [(alt _ (list 'change cng) _) cng]
     [(alt _ _ prevs) (ormap alt-change prevs)]))
 
-(define (alt-prev altn)
-  (match altn
-    [(alt _ (list 'change cng) (list prev)) prev]
-    [(alt _ _ '()) #f]
-    [(alt _ _ `(,prev ,_ ...)) (alt-prev prev)]))
-
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
 

@@ -293,22 +293,23 @@
 	(make-alt (*start-prog*)))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (^table^
-         (atab-add-altns (^table^)
-                         (if (flag-set? 'setup 'simplify)
-                             (for/list ([altn (atab-all-alts (^table^))])
-                               (alt `(λ ,(program-variables (alt-program altn))
-                                       ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
-                                    'initial-simplify (list altn)))
-                             (list))))
-        (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-          (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-          (run-iter!))
-        (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-        (get-final-combination))))
+        (let* ([new-alts
+               (if (flag-set? 'setup 'simplify)
+                   (for/list ([altn (atab-all-alts (^table^))])
+                     (alt `(λ ,(program-variables (alt-program altn))
+                             ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
+                          'initial-simplify (list altn)))
+                   (list))])
+          (^table^ (atab-add-altns (^table^) new-alts))
+          (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+            (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+            (run-iter!))
+          (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+          (get-final-combination)))))
 
 (define (get-final-combination)
   (define all-alts (atab-all-alts (^table^)))
+  (*all-alts* all-alts)
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
