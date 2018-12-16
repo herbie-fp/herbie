@@ -688,7 +688,7 @@
          [test-rule (first test-ruleset)]
          #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
-    (with-check-info (['rule test-rule])
+    (test-case (~a (rule-name test-rule))
       (with-handlers ([exn:fail? (λ (e)
                                    ((error-display-handler)
                                     (exn-message e) e)
@@ -738,7 +738,7 @@
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (with-check-info (['rule test-rule])
+    (test-case (~a (rule-name test-rule))
       (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
         (define num-test-points 2000)
         (match-define (rule name p1 p2 _) test-rule)
