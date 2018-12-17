@@ -189,7 +189,7 @@
                       [(test-timeout? result) make-timeout]
                       [(test-failure? result) make-traceback]))
               (with-output-to-file (build-path (*demo-output*) path "graph.html")
-                (λ () (make-page result (build-path (*demo-output*) path) #f)))
+                (λ () (make-page result (build-path (*demo-output*) path) #f #f)))
 
               (with-output-to-file (build-path (*demo-output*) path "debug.txt")
                 (λ () (display (get-output-string (hash-ref *jobs* hash)))))
