@@ -73,6 +73,7 @@
     (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (define log! (timeline-event! 'setup))
+    (log! 'method (sampling-method prog precondition))
     (^table^ (make-alt-table context altn))
     (assert (equal? (atab-all-alts (^table^)) (list altn)))
     (void)))

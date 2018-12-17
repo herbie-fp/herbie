@@ -5,7 +5,7 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt" "biginterval.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points
+         prepare-points sampling-method
          errors errors-score sort-context-on-expr
          oracle-error baseline-error oracle-error-idx)
 
@@ -279,6 +279,15 @@
       (raise-herbie-error "No valid values of variable ~a" var
                           #:url "faq.html#no-valid-values"))
     (prepare-points-ranges prog precondition range-table)]))
+
+(define (sampling-method prog precondition)
+  (cond
+   [(extract-sampled-points (program-variables prog) precondition)
+    'sampled]
+   [(and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+    'intervals]
+   [else
+    'halfpoints]))
 
 (define (eval-errors eval-fn pcontext)
   (define max-ulps (expt 2 (*bit-width*)))
