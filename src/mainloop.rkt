@@ -149,16 +149,27 @@
          `(taylor ,name ,loc)
          (list altn)))))
 
-
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (define log! (timeline-event! 'series))
+    (define exprs '())
+
     (define series-expansions
       (apply
        append
        (for/list ([location (^locs^)] [n (in-naturals 1)])
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-         (taylor-alt (^next-alt^) location))))
+         (define tnow (current-inexact-milliseconds))
+         (begin0
+             (taylor-alt (^next-alt^) location)
+           (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
+                                   (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+    
+    (log! 'inputs (length exprs))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+    (log! 'times (map cdr exprs))
+    (log! 'outputs (length series-expansions))
+
     (^children^ (append (^children^) series-expansions)))
   (^gened-series^ #t)
   (void))
@@ -166,11 +177,23 @@
 (define (gen-rewrites!)
   (define alt-rewrite (if (flag-set? 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
   (define log! (timeline-event! 'rewrite))
+  (define exprs '())
+
   (define rewritten
     (apply append
 	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
+             (define tnow (current-inexact-milliseconds))
+             (begin0
+	         (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location)
+               (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
+                                       (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+
+  (log! 'inputs (length exprs))
+  (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+  (log! 'times (map cdr exprs))
+  (log! 'outputs (length rewritten))
+
   (^children^
    (append (^children^) rewritten))
   (^gened-rewrites^ #t)
@@ -183,6 +206,9 @@
 (define (simplify!)
   (when (flag-set? 'generate 'simplify)
     (define log! (timeline-event! 'simplify))
+
+    (define exprs '())
+
     (define simplified
       (for/list ([child (^children^)] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
@@ -209,11 +235,19 @@
             [_ (list '(2))]))
 
         (for/fold ([child child]) ([loc locs])
+          (define tnow (current-inexact-milliseconds))
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
+          (set! exprs (cons (cons (location-get loc (alt-program child)) (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))
           (debug #:from 'simplify "Simplified" loc "to" child*)
           (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
               (alt child* (list 'simplify loc) (list child))
               child))))
+
+    (log! 'inputs (length exprs))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+    (log! 'times (map cdr exprs))
+    (log! 'outputs (length simplified))
+
     (^children^ simplified))
   (^simplified^ #t)
   (void))
