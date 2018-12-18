@@ -2,10 +2,10 @@
 
 (require math/flonum)
 (require math/bigfloat)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt" "biginterval.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points
+         prepare-points sampling-method
          errors errors-score sort-context-on-expr
          oracle-error baseline-error oracle-error-idx)
 
@@ -102,7 +102,7 @@
      [else
       (loop (cdr l) (- count 1))])))
 
-(define (make-exacts* prog pts precondition)
+(define (make-exacts-walkup prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
@@ -113,27 +113,102 @@
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
       (bf-precision prec)
-      (let ([curr (map f pts)]
+      (let ([curr (map (compose ->flonum f) pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at
-(define (make-exacts prog pts precondition)
+(define (make-exacts-halfpoints prog pts precondition)
   (define n (length pts))
   (let loop ([nth (floor (/ n 16))])
     (if (< nth 2)
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts for" n "points")
-          (make-exacts* prog pts precondition))
+          (make-exacts-walkup prog pts precondition))
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
                  "points to ramp up precision")
-          (make-exacts* prog (select-every nth pts) precondition)
+          (make-exacts-walkup prog (select-every nth pts) precondition)
           (loop (floor (/ nth 2)))))))
+
+(define (supported-ival-expr? expr)
+  (match expr
+    [(list op args ...)
+     (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
+    [(or (? variable?) (? constant?)) true]))
+
+(module+ test
+  (require "formats/test.rkt")
+  (require racket/runtime-path)
+  (define-runtime-path benchmarks "../bench/")
+  (define exprs
+    (let ([tests (load-tests benchmarks)])
+      (append (map test-input tests) (map test-precondition tests))))
+  (define unsup-count (count (compose not supported-ival-expr?) exprs))
+  (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
+  (check <= unsup-count 8))
+
+(define ival-warnings (make-parameter '()))
+
+(define (handle-ival-eval-error! who pt)
+  (unless (set-member? (ival-warnings) who)
+    (ival-warnings (cons who (ival-warnings)))
+    (eprintf "Warning: could not determine a ground truth for ~a\n"
+             (string-join (map ~a pt) ", "))
+    (eprintf "  ~a\n" who)
+    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n"
+             *herbie-version*))
+  +nan.0)
+
+(define (ival-eval fn pt #:precision [precision 80] #:who who)
+  (let loop ([precision precision])
+    (parameterize ([bf-precision precision])
+      (if (> precision (*max-mpfr-prec*))
+        (handle-ival-eval-error! who pt)
+        (match-let ([(ival lo hi err? err) (fn pt)])
+          (cond
+           [err
+            +nan.0]
+           [(and (or (equal? (->flonum lo) (->flonum hi))
+                     (and (equal? (->flonum lo) -0.0) (equal? (->flonum hi) +0.0)))
+                 (not err?))
+            (->flonum hi)]
+           [else
+            (loop (inexact->exact (round (* precision 2))))]))))))
+
+(define (make-exacts-intervals prog pts precondition)
+  (define pre-fn (eval-prog `(λ ,(program-variables prog) ,precondition) 'ival))
+  (define body-fn (eval-prog prog 'ival))
+  (for/list ([pt pts])
+    (if (ival-eval pre-fn pt #:who precondition) (ival-eval body-fn pt #:who (program-body prog)) +nan.0)))
+
+(module+ test
+  (define test-exprs
+    '((λ (x) (- (sqrt (+ x 1)) (sqrt x)))
+      (λ (x y z) (- (+ (+ x y) z) (+ x (+ y z))))
+      #;(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
+
+  (define-binary-check (check-float= a b)
+    (= (ulp-difference a b) 0))
+
+  (for ([expr test-exprs])
+    (define pts
+      (for/list ([i (in-range 64)])
+        (map (λ (x) (sample-double)) (program-variables expr))))
+    (define exacts1 (make-exacts-halfpoints expr pts 'TRUE))
+    (define exacts2 (make-exacts-intervals expr pts 'TRUE))
+    (test-case (~a expr)
+               (for ([pt pts] [e1 exacts1] [e2 exacts2])
+                 (with-check-info (['pt pt]) (check-float= e1 e2))))))
+
+(define (make-exacts prog pts precondition)
+  (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+      (make-exacts-intervals prog pts precondition)
+      (make-exacts-halfpoints prog pts precondition)))
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
@@ -204,6 +279,15 @@
       (raise-herbie-error "No valid values of variable ~a" var
                           #:url "faq.html#no-valid-values"))
     (prepare-points-ranges prog precondition range-table)]))
+
+(define (sampling-method prog precondition)
+  (cond
+   [(extract-sampled-points (program-variables prog) precondition)
+    'sampled]
+   [(and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+    'intervals]
+   [else
+    'halfpoints]))
 
 (define (eval-errors eval-fn pcontext)
   (define max-ulps (expt 2 (*bit-width*)))

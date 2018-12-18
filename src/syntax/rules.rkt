@@ -688,7 +688,7 @@
          [test-rule (first test-ruleset)]
          #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
-    (with-check-info (['rule test-rule])
+    (test-case (~a (rule-name test-rule))
       (with-handlers ([exn:fail? (λ (e)
                                    ((error-display-handler)
                                     (exn-message e) e)
@@ -709,8 +709,8 @@
               ['complex (make-rectangular (sample-double) (sample-double))])))
         (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
         (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
-        (define prog2 (eval-prog `(λ ,fv ,p2) 'bf))
+        (define prog1 (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf)))
+        (define prog2 (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf)))
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))
@@ -738,7 +738,7 @@
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (with-check-info (['rule test-rule])
+    (test-case (~a (rule-name test-rule))
       (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
         (define num-test-points 2000)
         (match-define (rule name p1 p2 _) test-rule)

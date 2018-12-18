@@ -133,7 +133,12 @@ function setup_timeline() {
     }
     for (var i = 0; i < ts.length; i++) {
         ts[i].style.width = (+ts[i].getAttribute("data-timespan")) / total_time * 100 + "%";
-        ts[i].title = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+        var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+        for (var j in ts[i].dataset) {
+            if (j == "type" || j == "timespan") continue;
+            s += "\n" + j + ": " + ts[i].dataset[j];
+        }
+        ts[i].title = s;
     }
 }
 
