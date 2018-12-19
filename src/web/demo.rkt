@@ -149,7 +149,8 @@
      (let loop ([seed #f])
        (match (thread-receive)
          [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?
+                 debug? ,debug?)
           (set! seed vec)
           (*flags* flag-table)
           (*num-iterations* iterations)
@@ -157,7 +158,8 @@
           (*timeout* timeout)
           (*demo-output* output)
           (*reeval-pts* reeval)
-          (*demo?* demo?)]
+          (*demo?* demo?)
+          (*demo-debug?* debug?)]
          [(list 'improve hash formula sema)
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
@@ -181,18 +183,14 @@
             (when (*demo-output*)
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
-              (define make-page
-                (cond [(test-result? result) (λ args
-                                               (define valid-js (apply make-interactive-js args))
-                                               (apply make-graph (append args (list valid-js)))
-                                               (apply make-plots args))]
-                      [(test-timeout? result) make-timeout]
-                      [(test-failure? result) make-traceback]))
-              (with-output-to-file (build-path (*demo-output*) path "graph.html")
-                (λ () (make-page result (build-path (*demo-output*) path) #f #f)))
+              (write-file (build-path (*demo-output*) path "graph.html")
+                (when (test-result? result)
+                  (make-interactive-js result (build-path (*demo-output*) path) #f (*demo-debug?*))
+                  (make-plots result (build-path (*demo-output*) path) #f (*demo-debug?*)))
+                (make-page result (build-path (*demo-output*) path) #f (*demo-debug?*)))
 
-              (with-output-to-file (build-path (*demo-output*) path "debug.txt")
-                (λ () (display (get-output-string (hash-ref *jobs* hash)))))
+              (write-file (build-path (*demo-output*) path "debug.txt")
+                (display (get-output-string (hash-ref *jobs* hash))))
 
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
@@ -299,10 +297,7 @@
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
             (λ (out)
               (parameterize ([current-output-port out])
-                (make-graph result
-                            (format "~a.~a" hash *herbie-commit*)
-                            #f
-                            (string? (get-interactive-js result)))))))
+                (make-page result (format "~a.~a" hash *herbie-commit*) #f #f)))))
 
 (define (generate-plot req results plotname)
   (match-define (cons result debug) results)
@@ -339,7 +334,8 @@
 
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
-           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
+           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)
+           debug? ,(*demo-debug?*)))
   (thread-send *worker-thread* config)
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))

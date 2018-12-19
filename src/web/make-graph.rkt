@@ -14,8 +14,18 @@
 (require "../fpcore/core2js.rkt")
 (require (only-in xml write-xexpr xexpr?))
 
-(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
-         make-plots output-interactive-js make-interactive-js get-interactive-js)
+(provide make-page
+         make-axis-plot make-points-plot make-plots
+         output-interactive-js make-interactive-js get-interactive-js)
+
+(define (make-page result rdir profile? debug?)
+  (define args (list result rdir profile? debug?))
+  (cond
+   [(test-result? result)
+    (apply make-graph (append args (list (string? (get-interactive-js result)))))]
+   [(test-timeout? result) (apply make-timeout args)]
+   [(test-failure? result) (apply make-traceback args)]
+   [else (error "Unknown result type" result)]))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -302,7 +312,7 @@
 
        ,(if valid-js-prog
             (render-interactive start-alt (car points))
-            `(p ([display "none"])))
+            "")
 
        ,(if (test-output test)
             `(section ([id "comparison"])
@@ -401,6 +411,7 @@
         (format " < ~a" (interval-end-point ival))))))
 
 (define (split-pcontext pcontext splitpoints alts)
+  (eprintf "Splitting!\n")
   (define preds (splitpoints->point-preds splitpoints alts))
 
   (for/list ([pred preds])

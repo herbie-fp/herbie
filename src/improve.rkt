@@ -28,7 +28,7 @@
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (define tests (load-tests input))
-  (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
+  (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:debug #f #:dir #f))
 
   (if (equal? output "-")
       (print-outputs tests results (current-output-port) #:seed seed)
