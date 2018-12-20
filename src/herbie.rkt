@@ -46,24 +46,24 @@
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed to use in point generation"
-    (define given-seed (read (open-input-string rs)))
+   [("--seed") int "The random seed to use in point generation"
+    (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
-   [("--num-iters") fu "The number of iterations of the main loop to use"
-    (*num-iterations* (string->number fu))]
-   [("--num-points") points "The number of points to use"
-    (*num-points* (string->number points))]
+   [("--num-iters") num "The number of iterations of the main loop to use"
+    (*num-iterations* (string->number num))]
+   [("--num-points") num "The number of points to use"
+    (*num-points* (string->number num))]
    #:multi
-   [("-o" "--disable") tf "Disable a flag (formatted category:name)"
-    (define flag (parse-flag tf))
-    (when (not flag)
-      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
-    (apply disable-flag! flag)]
-   [("+o" "--enable") tf "Enable a flag (formatted category:name)"
-    (define flag (parse-flag tf))
-    (when (not flag)
-      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
-    (apply enable-flag! flag)]
+   [("-o" "--disable") flag "Disable a flag (formatted category:name)"
+    (define tf (parse-flag flag))
+    (when (not tf)
+      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
+    (apply disable-flag! tf)]
+   [("+o" "--enable") flag "Enable a flag (formatted category:name)"
+    (define tf (parse-flag flag))
+    (when (not tf)
+      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
+    (apply enable-flag! tf)]
 
    #:subcommands
    [shell "Interact with Herbie from the shell"
@@ -93,8 +93,8 @@
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:debug report-debug? #:demo? demo? #:port demo-port #:public? demo-public)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
-    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count th))]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
     #:args (input output)
     (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
@@ -102,8 +102,8 @@
     #:once-each
     [("--note") note "Add a note for this run"
      (set! report-note note)]
-    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count th))]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     [("--debug") "Whether to compute metrics and debug info"
@@ -115,8 +115,8 @@
     #:once-each
     [("--note") note "Add a note for this run"
      (set! report-note note)]
-    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count th))]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
