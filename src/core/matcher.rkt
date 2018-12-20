@@ -123,7 +123,7 @@
       (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
              [result (applyer rule expr)])
         (when result
-            (sow (change rule root-loc (cdr result))))))))
+            (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
 
@@ -197,7 +197,7 @@
         (error "Unknown pattern" pattern)]))
 
   ; The #f #f mean that any output result works. It's a bit of a hack
-  (rewriter expr #f #f (reverse root-loc) depth))
+  (map reverse (rewriter expr #f #f (reverse root-loc) depth)))
 
 (define (change-apply cng prog)
   (let ([loc (change-location cng)]

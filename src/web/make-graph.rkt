@@ -411,7 +411,6 @@
         (format " < ~a" (interval-end-point ival))))))
 
 (define (split-pcontext pcontext splitpoints alts)
-  (eprintf "Splitting!\n")
   (define preds (splitpoints->point-preds splitpoints alts))
 
   (for/list ([pred preds])

@@ -175,27 +175,39 @@
   (void))
 
 (define (gen-rewrites!)
-  (define alt-rewrite (if (flag-set? 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
+  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (define log! (timeline-event! 'rewrite))
+  (log! 'rewriter (object-name rewrite))
   (define exprs '())
+  (define altn (alt-add-event (^next-alt^) '(start rm)))
 
-  (define rewritten
+  (define changelists
     (apply append
 	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
-             (begin0
-	         (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location)
-               (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
-                                       (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+             (define expr (location-get location (alt-program altn)))
+             (begin0 (rewrite expr #:root location)
+               (set! exprs (cons (cons expr (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+
+  (define rules-used
+    (append-map (curry map change-rule) changelists))
+  (define rule-counts
+    (for/hash ([rgroup (group-by identity rules-used)])
+      (values (rule-name (first rgroup)) (length rgroup))))
+
+  (define rewritten
+    (for/list ([cl changelists])
+      (for/fold ([altn altn]) ([cng cl])
+        (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
 
   (log! 'inputs (length exprs))
   (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+  (log! 'rules rule-counts)
   (log! 'times (map cdr exprs))
   (log! 'outputs (length rewritten))
 
-  (^children^
-   (append (^children^) rewritten))
+  (^children^ (append (^children^) rewritten))
   (^gened-rewrites^ #t)
   (void))
 
