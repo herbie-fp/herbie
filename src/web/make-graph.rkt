@@ -76,21 +76,67 @@
      (format "  ~a)" (test-input test))))
    "\n"))
 
-(define timeline? any/c)
+(define timeline-phase? (listof (cons/c symbol? any/c)))
+(define timeline? (listof timeline-phase?))
 
 (define/contract (render-timeline timeline)
   (-> timeline? xexpr?)
   `(div ((class "timeline"))
-        ,@(for/list ([curr timeline] [next (cdr timeline)])
+        ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
             `(div
-              ((class ,(format "timeline-phase ~a" (dict-ref curr 'type)))
-               (data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time))))
-               ,@(for/list ([(type value) (in-dict curr)] #:when (not (member type '(time))))
-                   `(,(string->symbol (format "data-~a" type)) ,(~a value))))))))
+              ([class ,(format "timeline-phase ~a" (dict-ref curr 'type))]
+               [data-id ,(format "timeline~a" n)]
+               [data-type ,(~a (dict-ref curr 'type))]
+               [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
 
+(define-syntax-rule (when-dict d (arg ...) body ...)
+  (if (and (dict-has-key? d 'arg) ...)
+      (let ([arg (dict-ref d 'arg)] ...)
+        body ...)
+      '()))
 
-(define/contract (render-process-info time timeline profile? test metrics #:bug? [bug? #f])
-  (->* (number? timeline? boolean? test? (or/c (listof (list/c string? real? real? real?)) #f)) (#:bug? boolean?) xexpr?)
+(define/contract (render-phase curr n next)
+  (-> timeline-phase? integer? timeline-phase? xexpr?)
+  `(div ([class ,(format "timeline-block ~a" (dict-ref curr 'type))]
+         [id ,(format "timeline~a" n)])
+    (h3 ,(~a (dict-ref curr 'type))
+        (span ([class "time"])
+         ,(format-time (- (dict-ref next 'time) (dict-ref curr 'time)))))
+    (dl
+     ,@(when-dict curr (method)
+         `((dt "Algorithm") (dd ,(~a method))))
+     ,@(when-dict curr (inputs outputs)
+         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+     ,@(when-dict curr (slowest times)
+         `((dt "Calls")
+           (dd (p ,(~a (length times)) " calls. Slowest were:")
+               (table ([class "times"])
+                ,@(for/list ([(expr time) (in-dict slowest)])
+                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+     ,@(when-dict curr (locations)
+         `((dt "Local error")
+           (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
+               (table ([class "times"])
+                ,@(for/list ([(expr err) (in-dict locations)])
+                    `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
+     ,@(when-dict curr (accuracy oracle baseline)
+         (define percentage
+           (if (= baseline oracle)
+               (if (= baseline accuracy) "100" "-∞")
+               (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
+
+         `((dt "Accuracy")
+           (dd (p ,percentage "%" "(" (format-bits (- accuracy oracle)) "b" " remaining)")
+               (p "Error of " (format-bits accuracy) "b"
+                  " against oracle of " (format-bits oracle) "b"
+                  " and baseline of " (format-bits baseline) "b"))))
+     ,@(when-dict curr (kept-alts done-alts min-error)
+         `((dt "Pruning")
+           (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
+               (p "Merged error: " ,(format-bits min-error) "b")))))))
+
+(define/contract (render-process-info time timeline profile? test #:bug? [bug? #f])
+  (->* (number? timeline? boolean? test?) (#:bug? boolean?) xexpr?)
   `(section ((id "process-info"))
     (h1 "Runtime")
     (p ((class "header"))
@@ -100,19 +146,8 @@
           `(a ((class "attachment") (href "profile.txt")) "Profile")
           ""))
     ,(render-timeline timeline)
-    ,(if metrics
-         `(table ([class "metrics"])
-                 (thead
-                  (tr (th) (th "Baseline") (th "Herbie") (th "Oracle") (th "Span") (th "%")))
-                 (tbody
-                  ,@(for/list ([row metrics])
-                      (match-define (list component baseline herbie oracle) row)
-                      `(tr (td ,component) (td ,(format-bits baseline)) (td ,(format-bits herbie)) (td ,(format-bits oracle))
-                           (td ,(format-bits (- baseline oracle)))
-                           (td ,(if (= baseline oracle)
-                                    (if (= baseline herbie) "100" "-∞")
-                                    (~r (* (/ (- baseline herbie) (- baseline oracle)) 100) #:precision 1)) "%")))))
-         "")
+    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
+        (render-phase curr n next))
     ,(if bug?
          `(p "Please include this information when filing a "
              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
@@ -329,8 +364,7 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test
-                             (and debug? `(("Regimes" ,(errors-score baseline-error) ,(errors-score end-error) ,(errors-score oracle-error)))))))))
+       ,(render-process-info time timeline profile? test)))))
 
 (define (make-traceback result rdir profile? debug?)
   (match-define (test-failure test bits exn time timeline) result)
@@ -360,7 +394,7 @@
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
                   "")))]
          [else
-          `(,(render-process-info time timeline profile? test #f #:bug? #t)
+          `(,(render-process-info time timeline profile? test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
              ,(render-traceback exn)))])))))
@@ -395,7 +429,7 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test #f)))))
+      ,(render-process-info time timeline profile? test)))))
 
 (struct interval (alt-idx start-point end-point expr))
 

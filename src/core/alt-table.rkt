@@ -18,6 +18,7 @@
 			     . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
+  (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))
   (atab-new-context (alt-table? pcontext? . -> . alt-table?))))
 
@@ -224,6 +225,10 @@
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
 	  (hash-keys (alt-table-alt->points atab))))
+
+(define (atab-min-errors atab)
+  (for/list ([(pt ex) (in-pcontext (*pcontext*))])
+    (point-rec-berr (dict-ref (alt-table-point->alts atab) pt))))
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.

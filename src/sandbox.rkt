@@ -53,33 +53,43 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
-        (define all-alts (remove-duplicates (*all-alts*)))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
-        (define baseline-errs
-          (if debug?
-              (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext)
-              '()))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
-        (define oracle-errs
-          (if debug?
-              (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext)
-              '()))
-        (when debug?
-          (debug #:from 'regime-testing #:depth 1
-                 "Baseline error score:" (errors-score baseline-errs)))
+
+        (define-values (all-alts baseline-errs oracle-errs)
+          (cond
+           [debug?
+            (define all-alts (remove-duplicates (*all-alts*)))
+            (define baseline-errs
+              (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
+            (define oracle-errs
+              (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext))
+            (debug #:from 'regime-testing #:depth 1
+                   "Baseline error score:" (errors-score baseline-errs))
+            (debug #:from 'regime-testing #:depth 1
+                   "Oracle error score:" (errors-score oracle-errs))
+            
+            (for/first ([cell (shellstate-timeline (^shell-state^))]
+                        #:when (equal? (dict-ref (unbox cell) 'type) 'regimes))
+              ;; Since the cells are stored in reverse order this is the last regimes invocation
+              (set-box! cell (list* (cons 'oracle (errors-score oracle-errs))
+                                    (cons 'accuracy (errors-score end-err))
+                                    (cons 'baseline (errors-score baseline-errs))
+                                    (unbox cell))))
+            (values all-alts baseline-errs oracle-errs)]
+           [else
+            (values '() #f #f)]))
+        
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" end-err)
-        (when debug?
-          (debug #:from 'regime-testing #:depth 1
-                 "Oracle error score:" (errors-score oracle-errs)))
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score (errors (test-target test) newcontext))))
         `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,all-alts))))
+               ,(^timeline^) ,(bf-precision) baseline-errs oracle-errs all-alts))))
 
   (define (in-engine _)
     (if profile?
@@ -179,8 +189,8 @@
   (match result
     [(test-result test time bits
                   start-alt end-alt points exacts start-est-error end-est-error
-                  newpoints newexacts start-error end-error target-error baseline-error
-                  oracle-error all-alts timeline)
+                  newpoints newexacts start-error end-error target-error
+                  baseline-error oracle-error all-alts timeline)
      `(FPCore ,(test-vars test)
               :herbie-status success
               :herbie-time ,time
@@ -191,10 +201,6 @@
               :herbie-error-output
               ([,(*num-points*) ,(errors-score end-est-error)]
                [,(*reeval-pts*) ,(errors-score end-error)])
-              ,@(if (null? oracle-error)
-                    '()
-                    `(:herbie-metrics
-                      ([regimes ,(errors-score baseline-error) ,(errors-score oracle-error)])))
               ,@(if target-error
                     `(:herbie-error-target
                       ([,(*reeval-pts*) ,(errors-score target-error)]))

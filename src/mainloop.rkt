@@ -63,17 +63,16 @@
 (define (setup-prog! prog #:precondition [precondition 'TRUE])
   (*start-prog* prog)
   (rollback-improve!)
-  (timeline-event! 'start) ; This has no associated data, so we don't name it
+  (define log! (timeline-event! 'start))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (let* ([context (prepare-points prog precondition)]
          [altn (make-alt prog)])
+    (log! 'method (sampling-method prog precondition))
     (^precondition^ precondition)
     (*pcontext* context)
     (reset-analyze-cache!)
     (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (define log! (timeline-event! 'setup))
-    (log! 'method (sampling-method prog precondition))
     (^table^ (make-alt-table context altn))
     (assert (equal? (atab-all-alts (^table^)) (list altn)))
     (void)))
@@ -123,7 +122,11 @@
 ;; Invoke the subsystems individually
 (define (localize!)
   (define log! (timeline-event! 'localize))
-  (^locs^ (localize-error (alt-program (^next-alt^))))
+  (define locs (localize-error (alt-program (^next-alt^))))
+  (log! 'locations
+        (for/list ([(err loc) (in-dict locs)])
+          (cons (location-get loc (alt-program (^next-alt^))) (errors-score err))))
+  (^locs^ (map cdr locs))
   (void))
 
 (define transforms-to-try
@@ -163,7 +166,7 @@
          (begin0
              (taylor-alt (^next-alt^) location)
            (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
-                                   (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+                                   (- (current-inexact-milliseconds) tnow)) exprs))))))
     
     (log! 'inputs (length exprs))
     (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
@@ -177,7 +180,7 @@
 (define (gen-rewrites!)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (define log! (timeline-event! 'rewrite))
-  (log! 'rewriter (object-name rewrite))
+  (log! 'method (object-name rewrite))
   (define exprs '())
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
@@ -188,7 +191,7 @@
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
              (begin0 (rewrite expr #:root location)
-               (set! exprs (cons (cons expr (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))))))
+               (set! exprs (cons (cons expr (- (current-inexact-milliseconds) tnow)) exprs))))))
 
   (define rules-used
     (append-map (curry map change-rule) changelists))
@@ -249,7 +252,7 @@
         (for/fold ([child child]) ([loc locs])
           (define tnow (current-inexact-milliseconds))
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
-          (set! exprs (cons (cons (location-get loc (alt-program child)) (/ (- (current-inexact-milliseconds) tnow) 1000)) exprs))
+          (set! exprs (cons (cons (location-get loc (alt-program child)) (- (current-inexact-milliseconds) tnow)) exprs))
           (debug #:from 'simplify "Simplified" loc "to" child*)
           (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
               (alt child* (list 'simplify loc) (list child))
@@ -269,6 +272,9 @@
 (define (finalize-iter!)
   (define log! (timeline-event! 'prune))
   (^table^ (atab-add-altns (^table^) (^children^)))
+  (log! 'kept-alts (length (atab-not-done-alts (^table^))))
+  (log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
+  (log! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))
 
@@ -340,7 +346,8 @@
 	(make-alt (*start-prog*)))
       (begin
 	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (let* ([new-alts
+        (let* ([log! (timeline-event! 'setup)]
+               [new-alts
                (if (flag-set? 'setup 'simplify)
                    (for/list ([altn (atab-all-alts (^table^))])
                      (alt `(λ ,(program-variables (alt-program altn))
@@ -348,6 +355,9 @@
                           'initial-simplify (list altn)))
                    (list))])
           (^table^ (atab-add-altns (^table^) new-alts))
+          (log! 'kept-alts (length (atab-not-done-alts (^table^))))
+          (log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
+          (log! 'min-error (errors-score (atab-min-errors (^table^))))
           (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
             (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
             (run-iter!))
