@@ -169,7 +169,7 @@
                                    (- (current-inexact-milliseconds) tnow)) exprs))))))
     
     (log! 'inputs (length exprs))
-    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
     (log! 'times (map cdr exprs))
     (log! 'outputs (length series-expansions))
 

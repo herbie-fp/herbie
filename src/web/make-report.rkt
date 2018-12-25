@@ -1,12 +1,9 @@
 #lang racket
 
-(require racket/date (only-in xml write-xexpr))
+(require racket/date (only-in xml write-xexpr) json math/statistics)
 (require "../common.rkt" "../formats/datafile.rkt")
 
 (provide make-report-page)
-
-(define (web-resource name)
-  (build-path web-resource-path name))
 
 (define (badge-label result)
   (match (table-row-status result)
@@ -96,7 +93,7 @@
 
            (figure
             (svg ((id "graph") (width "400")))
-            (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})")))
+            (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
 
           (ul ((id "test-badges"))
            ,@(for/list ([(result id) (in-dict sorted-tests)])
@@ -152,7 +149,9 @@
                             (a ((id ,(format "link~a" id))
                                 (href ,(format "~a/graph.html" (table-row-link result))))
                                "»"))
-                          ""))))))))
+                          "")))))
+
+          ,(render-timeline-summary info dir)))))
 
      ; Delete old files
      (let* ([expected-dirs (map string->path (filter identity (map table-row-link tests)))]
@@ -162,3 +161,68 @@
          (with-handlers ([exn:fail:filesystem? (const true)])
            (delete-directory/files (build-path dir subdir)))))]))
 
+(define (render-timeline-summary info dir)
+  (define blocks
+    (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
+      `(div ([class ,(format "timeline-block ~a" type)])
+            (h3 ,(~a type)
+                (span ([class "time"])
+                      ,(format-time (apply + (dict-ref phase 'time)))))
+            (dl
+             ,@(when-dict phase (slowest times)
+                          (render-phase-slowest info slowest times))
+             ,@(when-dict phase (accuracy oracle baseline)
+                          (render-phase-accuracy info accuracy oracle baseline))))))
+
+  `(section ([class "process-info"])
+            (h1 "Details")
+            ,@blocks))
+
+(define (render-phase-slowest info slowest times)
+  (define slowest*
+    (append-map (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) slowest))
+  (define top-slowest
+    (take-up-to (sort slowest* > #:key cdr) 5))
+  `((dt "Calls")
+    (dd (p ,(~a (length (apply append times))) " calls. Slowest were:")
+        (table ([class "times"])
+               ,@(for/list ([(expr time) (in-dict top-slowest)])
+                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-accuracy info accuracy oracle baseline)
+  (define percentages
+    (for/list ([acc accuracy] [ora oracle] [bas baseline])
+      (if (= bas ora)
+          (if (= bas acc) 1 -inf.0)
+          (/ (- bas acc) (- bas ora)))))
+
+  (define bits-remaining
+    (for/list ([acc accuracy] [ora oracle] [res (report-info-tests info)])
+        (cons (- accuracy oracle) res)))
+
+  (define top-bits-remaining
+    (take-up-to (sort bits-remaining > #:key car) 5))
+
+  `((dt "Accuracy")
+    (dd (p "Median " ,(median percentages) "%"
+           " (" (format-bits (- accuracy oracle)) "b" " remaining)")
+        (table ([class "times"])
+               ,@(for/list ([(bits res) (in-dict top-bits-remaining)])
+                   `(tr (td ,(format-bits bits))
+                        (td (a ([href ,(format "~a/graph.html" (table-row-link res))])
+                               (or (table-row-name res) "")))))))))
+
+(define (summarize-timelines info dir)
+  (define tls
+    (for/list ([res (report-info-tests info)])
+      (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json)))
+
+  (define types (make-hash))
+  (for ([tl tls] #:when true [event tl] [next (cdr tl)])
+    (define data (dict-ref! types (dict-ref event 'type) make-hash))
+    (define time (- (dict-ref next 'time) (dict-ref event 'time)))
+    (dict-set! data 'time (cons time (dict-ref data 'time '())))
+    (for ([(k v) (in-dict event)] #:unless (equal? k 'time))
+      (dict-set! data k (cons v (dict-ref data k '())))))
+  (sort (hash->list types) >
+        #:key (λ (x) (apply + (dict-ref (cdr x) 'time)))))

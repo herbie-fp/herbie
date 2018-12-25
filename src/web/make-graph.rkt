@@ -105,12 +105,6 @@
                [data-type ,(~a (dict-ref curr 'type))]
                [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
 
-(define-syntax-rule (when-dict d (arg ...) body ...)
-  (if (and (dict-has-key? d 'arg) ...)
-      (let ([arg (dict-ref d 'arg)] ...)
-        body ...)
-      '()))
-
 (define/contract (render-phase curr n next)
   (-> timeline-phase? integer? timeline-phase? xexpr?)
   `(div ([class ,(format "timeline-block ~a" (dict-ref curr 'type))]
@@ -201,25 +195,18 @@
        (ol
         ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
-                 (input ([type "text"]
+                 (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
-                         [class "input-submit"]
                          [oninput "submit_inputs();"]
                          [value ,(~a val)])))))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
         (table
          (tbody
-           (tr
-            (td
-             (label ([for "try-original-output"]) "In"))
-            (td
-             (output ([id "try-original-output"]))))
-           (tr
-            (td
-             (label ([for "try-herbie-output"]) "Out"))
-            (td
-             (output ([id "try-herbie-output"]))))))
+           (tr (td (label ([for "try-original-output"]) "In"))
+               (td (output ([id "try-original-output"]))))
+           (tr (td (label ([for "try-herbie-output"]) "Out"))
+               (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
 (define (make-axis-plot result out idx)

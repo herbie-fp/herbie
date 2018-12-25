@@ -1,8 +1,5 @@
 #lang racket
-(require racket/runtime-path)
 (provide (all-defined-out))
-
-(define-runtime-path web-resource-path "web/")
 
 ;; Flag Stuff
 

@@ -1,11 +1,8 @@
 #lang racket
 
-(require math/flonum)
-(require math/bigfloat)
+(require math/flonum math/bigfloat racket/runtime-path)
 (require "config.rkt" "errors.rkt" "debug.rkt")
-
-(module+ test
-  (require rackunit))
+(module+ test (require rackunit))
 
 (provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
@@ -16,7 +13,8 @@
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
-         format-time format-bits
+         format-time format-bits when-dict
+         web-resource-path web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -319,3 +317,14 @@
                 (car names) #:exists 'replace
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
+
+(define-syntax-rule (when-dict d (arg ...) body ...)
+  (if (and (dict-has-key? d 'arg) ...)
+      (let ([arg (dict-ref d 'arg)] ...)
+        body ...)
+      '()))
+
+(define-runtime-path web-resource-path "web/")
+
+(define (web-resource name)
+  (build-path web-resource-path name))
