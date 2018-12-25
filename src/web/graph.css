@@ -85,8 +85,9 @@ h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3e
 #process-info { background: #ddd; }
 #process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
 #process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
-#process-info > pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
 #process-info > p { margin: 1em .75em 0; }
+
+#reproduce pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
 pre.shell code:before { content: "$ "; font-weight: bold; }
 
 #comparison table { width: 300px; display: inline-table; vertical-align: top; }
