@@ -1,6 +1,6 @@
 /* Standard Herbie header */
 
-body { width: 800px; margin: 1em auto; font-family: sans; }
+body { width: 800px; margin: 1em auto; font-family: sans; line-height: 1.25; }
 
 a {color: #2A6496; text-decoration: none; cursor: pointer}
 a:hover {text-decoration: underline; color: #295785}
@@ -10,7 +10,7 @@ a:hover {text-decoration: underline; color: #295785}
 #large .number { font-size: 3em; display: block; }
 @media print { #large { margin-top: 0; }}
 
-/* Detail page layout */
+/* Arrow chart */
 
 figure { float: left; margin: 0; }
 #graph { cursor: pointer; }
@@ -25,6 +25,8 @@ figure { float: left; margin: 0; }
 #graph .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
 #graph.highlight-one .arrow {opacity: .5;}
 #graph.highlight-one .arrow.highlight {opacity: 1;}
+
+/* Per-input badges */
 
 #test-badges {  cursor: pointer; list-style: none inside none; padding: 0; width: 300px; float: right; margin: 10px 0; font-size: 12pt; }
 #test-badges li { height: 40px; line-height: 40px; width: 75px; float: left; text-align: center; }
@@ -48,6 +50,8 @@ li.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
 li.error      {background-color: #4a4a4a; color: #f7f7f7;}
 li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 
+/* Flag list / configuration */
+
 #about { margin: 3em 0; }
 #about th { font-weight: bold; text-align: left; padding-right: 1em; }
 
@@ -61,11 +65,11 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #flag-list.changed-flags #changed-flags { display: block; }
 #flag-list.changed-flags #all-flags { display: none; }
 
+/* Table of results */
+
 #results { border-collapse: collapse; width:100%; }
 #results th { white-space: pre; }
 #results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
-/* Removed because it was confusing and rarely useful */
-/*#results td.bad-est {border-right: 5px solid #c86edf;}*/
 #results tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
 
 #results a {
@@ -101,14 +105,17 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 #results.no-inf td:nth-child(5) {display: none;}
 #results.no-inf th:nth-child(5) {display: none;}
 
+/* Help button */
+
 .help-button {
  display: inline-block; background: #888;
  font-size: .8em; color: #eee; line-height: 1.3em;
  height: 1.25em; width: 1.25em; border-radius: .625em;
  vertical-align: top;
 }
-
 .help-button:hover { background: #444; cursor: pointer; }
+
+/* Detail page layout */
 
 section { margin: 5em 0; position: relative; }
 @media print { section { margin: 3em 0; } }
@@ -116,7 +123,29 @@ section h1 {
     position: absolute; width: 300px; text-align: left; right: -340px; top: -15px;
     font-size: 24px; color: #aaa; transform: rotate(90deg); transform-origin: top left;
 }
-section.process-info { background: #ddd; }
+
+/* Process / debug info */
+
+#process-info { background: #ddd; }
+#process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
+#process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
+#process-info > p { margin: 1em .75em 0; }
+
+.timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; margin-bottom: 1em; }
+.timeline-phase { height: 2em; display: inline-block; }
+.timeline-phase.start    { background: #d3d7cf; }
+.timeline-phase.setup    { background: #edd400; }
+.timeline-phase.localize { background: #729fcf; }
+.timeline-phase.series   { background: #fcaf3e; }
+.timeline-phase.rewrite  { background: #e9b96e; }
+.timeline-phase.simplify { background: #8ae234; }
+.timeline-phase.prune    { background: #ad7fa8; }
+.timeline-phase.regimes  { background: #a40000; }
+.timeline-phase.binary-search  { background: #8c0000; }
+@media print {
+    .timeline { border: none; }
+    .timeline-phase { outline: 1px solid black; }
+}
 
 .timeline-block { border-left: 1ex solid transparent; padding: 1px 1ex;}
 .timeline-block.start    { border-left-color: #d3d7cf; }

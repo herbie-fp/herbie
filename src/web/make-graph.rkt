@@ -96,14 +96,14 @@
   `(div ((class "timeline"))
         ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
             `(div
-              ([class ,(format "timeline-phase ~a" (dict-ref curr 'type))]
+              ([class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type))]
                [data-id ,(format "timeline~a" n)]
                [data-type ,(~a (dict-ref curr 'type))]
                [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
 
 (define/contract (render-phase curr n next)
   (-> timeline-phase? integer? timeline-phase? xexpr?)
-  `(div ([class ,(format "timeline-block ~a" (dict-ref curr 'type))]
+  `(div ([class ,(format "timeline-block timeline-~a" (dict-ref curr 'type))]
          [id ,(format "timeline~a" n)])
     (h3 ,(~a (dict-ref curr 'type))
         (span ([class "time"])

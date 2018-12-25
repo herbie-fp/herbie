@@ -372,7 +372,7 @@
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts))
-      (timeline-event! 'binary-search)
+      (timeline-event! 'bsearch)
       (combine-alts option)]
      [else
       (best-alt all-alts)]))

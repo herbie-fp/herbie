@@ -131,8 +131,9 @@ function setup_timeline() {
     for (var i = 0; i < ts.length; i++) {
         total_time += +ts[i].getAttribute("data-timespan");
     }
+    var total_width = ts[0].parentNode.offsetWidth;
     for (var i = 0; i < ts.length; i++) {
-        ts[i].style.width = (+ts[i].getAttribute("data-timespan")) / total_time * 100 + "%";
+        ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
         var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
         ts[i].title = s;
     }

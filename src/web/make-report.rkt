@@ -164,7 +164,7 @@
 (define (render-timeline-summary info dir)
   (define blocks
     (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
-      `(div ([class ,(format "timeline-block ~a" type)])
+      `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"])
                       ,(format-time (apply + (dict-ref phase 'time)))))
@@ -174,7 +174,7 @@
              ,@(when-dict phase (accuracy oracle baseline)
                           (render-phase-accuracy info accuracy oracle baseline))))))
 
-  `(section ([class "process-info"])
+  `(section ([id "process-info"])
             (h1 "Details")
             ,@blocks))
 

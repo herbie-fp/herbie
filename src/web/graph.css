@@ -15,9 +15,12 @@ a:hover {text-decoration: underline; color: #295785}
 section { margin: 5em 0; position: relative; }
 @media print { section { margin: 3em 0; } }
 section h1 {
-    position: absolute; width: 300px; text-align: left; right: -340px; top: -15px;
-    font-size: 24px; color: #aaa; transform: rotate(90deg); transform-origin: top left;
+    position: absolute; width: 300px; right: -340px; top: -15px;
+    transform: rotate(90deg); transform-origin: top left;
+    font-size: 24px; font-weight: bold; color: #aaa;
 }
+
+/* Big block for program input output */
 
 #program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
 @media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
@@ -26,6 +29,8 @@ section h1 {
 #program .arrow:after { content: "↓"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
 #program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
+
+/* Error graphs */
 
 #graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
@@ -40,6 +45,14 @@ section h1 {
 #graphs figcaption button.Target { border-color: green; background: lightgreen; }
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
+
+.tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
+.tabbar p { display: inline-block; margin: 0 .5em 0 0}
+.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
+.tabbar li:hover { background: #e4e4e4; }
+.tabbar li.selected { background: #d3d3d3; }
+
+/* Try it out section */
 
 #try-result output { font-size: 108%; margin: 0 .5em; float: right; }
 #try-result div { overflow: auto; }
@@ -58,16 +71,10 @@ section h1 {
 #try-inputs p.header { margin: 0 0 .5em; font-size: 120%; color: #444; border-bottom: 1px solid #ccc; line-height: 1.5; }
 
 #try-error { color:  red; font-size: 120%; display: none; }
-
 .error #try-error { display: block; }
 #try-result.error table { display: none; }
 
-.tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
-.tabbar p { display: inline-block; margin: 0 .5em 0 0}
-.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
-.tabbar li:hover { background: #e4e4e4; }
-.tabbar li.selected { background: #d3d3d3; }
-h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3em; font-weight: normal; }
+/* Derivation */
 
 .history, .history ol { list-style: none inside; width: 800px; margin: 0 0 2em; padding: 0; }
 
@@ -82,45 +89,22 @@ h1 { margin: .67em .33em; text-align: center; vertical-align: top; font-size: 3e
 .history .rule { text-decoration: underline; }
 .history .event { display: block; margin: .5em 0; }
 
+/* Process / debug info */
+
 #process-info { background: #ddd; }
 #process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
 #process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
 #process-info > p { margin: 1em .75em 0; }
 
-#reproduce pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
-pre.shell code:before { content: "$ "; font-weight: bold; }
-
-#comparison table { width: 300px; display: inline-table; vertical-align: top; }
-#comparison table th { text-align: left; }
-#comparison table td { text-align: right; }
-#comparison div { display: inline-block; width: 500px; }
-
-.timeline { height: 2em; border-top: 1px solid #888; border-bottom: 1px solid #888; margin-bottom: 1em; }
-.timeline-phase { height: 2em; display: inline-block; }
-.timeline-phase.start    { background: #d3d7cf; }
-.timeline-phase.setup    { background: #edd400; }
-.timeline-phase.localize { background: #729fcf; }
-.timeline-phase.series   { background: #fcaf3e; }
-.timeline-phase.rewrite  { background: #e9b96e; }
-.timeline-phase.simplify { background: #8ae234; }
-.timeline-phase.prune    { background: #ad7fa8; }
-.timeline-phase.regimes  { background: #a40000; }
-.timeline-phase.binary-search  { background: #8c0000; }
+.timeline { height: 2em; border: 1px solid #888; border-width: 1px 0px; margin-bottom: 1em; }
+.timeline-phase { height: 2em; border-left-style: solid; display: inline-block;}
 @media print {
     .timeline { border: none; }
     .timeline-phase { outline: 1px solid black; }
 }
+/* Blocks of information */
 
 .timeline-block { border-left: 1ex solid transparent; padding: 1px 1ex;}
-.timeline-block.start    { border-left-color: #d3d7cf; }
-.timeline-block.setup    { border-left-color: #edd400; }
-.timeline-block.localize { border-left-color: #729fcf; }
-.timeline-block.series   { border-left-color: #fcaf3e; }
-.timeline-block.rewrite  { border-left-color: #e9b96e; }
-.timeline-block.simplify { border-left-color: #8ae234; }
-.timeline-block.prune    { border-left-color: #ad7fa8; }
-.timeline-block.regimes  { border-left-color: #a40000; }
-.timeline-block.binary-search  { border-left-color: #8c0000; }
 .timeline-block h3 { margin: 0; font-size: 110%; font-weight: normal; }
 .timeline-block p { margin: 0; }
 .timeline-block h3 .time { float: right; }
@@ -130,6 +114,32 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 .timeline-block dd { margin: 0 0 1ex 6em; max-width: 100%; overflow: auto; }
 .timeline-block table.times td:first-child { text-align: right; min-width: 8ex; }
 .timeline-block table pre { padding: 0; margin: 0; }
+
+/* Timeline colors */
+
+.timeline-start    { border-left-color: #d3d7cf; }
+.timeline-setup    { border-left-color: #edd400; }
+.timeline-localize { border-left-color: #729fcf; }
+.timeline-series   { border-left-color: #fcaf3e; }
+.timeline-rewrite  { border-left-color: #e9b96e; }
+.timeline-simplify { border-left-color: #8ae234; }
+.timeline-prune    { border-left-color: #ad7fa8; }
+.timeline-regimes  { border-left-color: #a40000; }
+.timeline-bsearch  { border-left-color: #8c0000; }
+
+/* Code sample to reproduce */
+
+#reproduce pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }
+pre.shell code:before { content: "$ "; font-weight: bold; }
+
+/* Target / expected code block */
+
+#comparison table { width: 300px; display: inline-table; vertical-align: top; }
+#comparison table th { text-align: left; }
+#comparison table td { text-align: right; }
+#comparison div { display: inline-block; width: 500px; }
+
+/* Formatting backtraces */
 
 #backtrace table { width: 100%; }
 #backtrace th[colspan] { text-align: left; }
