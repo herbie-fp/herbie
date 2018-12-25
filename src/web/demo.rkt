@@ -38,10 +38,21 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method "post" improve]
    [("check-status" (string-arg)) check-status]
-   [((hash-arg) "interactive.js") generate-interactive]
-   [((hash-arg) "graph.html") generate-report]
-   [((hash-arg) "debug.txt") generate-debug]
-   [((hash-arg) (string-arg)) generate-plot]))
+   [((hash-arg) (string-arg)) generate-page]))
+
+(define (generate-page req results page)
+  (match-define (cons result debug) results)
+  (cond
+   [(set-member? page (all-pages result))
+    (response 200 #"OK" (current-seconds) #"text"
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+              (λ (out) (make-page page out result #f #t)))]
+   [(equal? page "debug.log")
+    (response 200 #"OK" (current-seconds) #"text/plain"
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+              (λ (out) (display debug out)))]
+   [else
+    (next-dispatcher)]))
 
 (define url (compose add-prefix url*))
 
@@ -183,15 +194,11 @@
             (when (*demo-output*)
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
-              (write-file (build-path (*demo-output*) path "graph.html")
-                (when (test-result? result)
-                  (make-interactive-js result (build-path (*demo-output*) path) #f (*demo-debug?*))
-                  (make-plots result (build-path (*demo-output*) path) #f (*demo-debug?*)))
-                (make-page result (build-path (*demo-output*) path) #f (*demo-debug?*)))
-
+              (for ([page (all-pages result)])
+                (call-with-output-file (build-path (*demo-output*) path page)
+                  (λ (out) (make-page page out result #f #t))))
               (write-file (build-path (*demo-output*) path "debug.txt")
                 (display (get-output-string (hash-ref *jobs* hash))))
-
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
@@ -280,46 +287,6 @@
 
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
-
-(define (generate-interactive req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out)
-              (parameterize ([current-output-port out])
-                (output-interactive-js result (format "~a.~a" hash *herbie-commit*) #f)))))
-
-(define (generate-report req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text/html"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out)
-              (parameterize ([current-output-port out])
-                (make-page result (format "~a.~a" hash *herbie-commit*) #f #f)))))
-
-(define (generate-plot req results plotname)
-  (match-define (cons result debug) results)
-
-  (define responder
-    (match (regexp-match #rx"^plot-([0-9]+)([rbg]?).png$" plotname)
-      [#f (next-dispatcher)]
-      [(list _ (app string->number idx) "")
-       ;; TODO: rdir?
-       (curry make-axis-plot result idx)]
-      [(list _ (app string->number idx) (and (or "r" "g" "b") (app string->symbol letter)))
-       (curry make-points-plot result idx letter)]))
-  (response 200 #"OK" (current-seconds) #"text/html"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            responder))
-
-(define (generate-debug req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text/plain"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out) (display debug out))))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()

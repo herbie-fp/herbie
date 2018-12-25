@@ -9,7 +9,7 @@
 
 (provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
-         assert for/append
+         assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
@@ -121,6 +121,11 @@
   ; This is unnecessarily slow. It is O(l), not O(k).
   ; To be honest, it just isn't that big a deal for now.
   (take l (min k (length l))))
+
+(define (string-prefix s length)
+  (if (<= (string-length s) length)
+      s
+      (substring s 0 length)))
 
 (module+ test
   (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
@@ -304,3 +309,13 @@
    [(not r) ""]
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+
+(define (call-with-output-files names k)
+  (let loop ([names names] [ps '()])
+    (if (null? names)
+        (apply k (reverse ps))
+        (if (car names)
+            (call-with-output-file
+                (car names) #:exists 'replace
+                (λ (p) (loop (cdr names) (cons p ps))))
+            (loop (cdr names) (cons #f ps))))))

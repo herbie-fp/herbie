@@ -15,29 +15,12 @@
 (define (make-graph-if-valid result tname index rdir #:profile profile? #:debug debug? #:seed seed)
   (when (not (directory-exists? rdir)) (make-directory rdir))
   (set-seed! seed)
-  (write-file (build-path rdir "graph.html")
-    (when (test-result? result)
-      (make-interactive-js result rdir profile? debug?)
-      (make-plots result rdir profile? debug?))
-    (make-page result rdir profile? debug?)))
+  (for ([page (all-pages result)])
+    (call-with-output-file (build-path rdir page) #:exists 'replace
+      (λ (out) (make-page page out result #f #t)))))
 
 (define (graph-folder-path tname index)
-  (let* ([stripped-tname (string-replace tname #px"\\W+" "")]
-         [index-label (number->string index)])
-    (string-append index-label "-"
-                   (if (> (string-length stripped-tname) 50)
-                       (substring stripped-tname 0 50)
-                       stripped-tname))))
-
-(define (call-with-output-files names k)
-  (let loop ([names names] [ps '()])
-    (if (null? names)
-        (apply k (reverse ps))
-        (if (car names)
-            (call-with-output-file
-                (car names) #:exists 'replace
-                (λ (p) (loop (cdr names) (cons p ps))))
-            (loop (cdr names) (cons #f ps))))))
+  (format "~a-~a" index (string-prefix (string-replace tname #px"\\W+" "") 50)))
 
 (define (run-test index test #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (cond

@@ -1,31 +1,47 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../points.rkt" "../float.rkt")
-(require "../alternative.rkt" "../errors.rkt")
-(require "../formats/test.rkt")
-(require "../formats/datafile.rkt")
-(require "../core/matcher.rkt")
-(require "../core/regimes.rkt")
-(require "../programs.rkt")
-(require "../plot.rkt")
-(require "../sandbox.rkt")
-(require "../formats/tex.rkt")
+(require json (only-in xml write-xexpr xexpr?))
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
+(require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
+(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
+(require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 (require "../fpcore/core2js.rkt")
-(require (only-in xml write-xexpr xexpr?))
 
-(provide make-page
-         make-axis-plot make-points-plot make-plots
-         output-interactive-js make-interactive-js get-interactive-js)
+(provide all-pages make-page)
 
-(define (make-page result rdir profile? debug?)
-  (define args (list result rdir profile? debug?))
-  (cond
-   [(test-result? result)
-    (apply make-graph (append args (list (string? (get-interactive-js result)))))]
-   [(test-timeout? result) (apply make-timeout args)]
-   [(test-failure? result) (apply make-traceback args)]
-   [else (error "Unknown result type" result)]))
+(define (all-pages result)
+  (define test
+    (match result
+      [(? test-result?) (test-result-test result)]
+      [(? test-failure?) (test-failure-test result)]
+      [(? test-timeout?) (test-timeout-test result)]))
+  (define good? (test-result? result))
+
+  (define pages
+    `("graph.html"
+      ,(and good? "interactive.js")
+      "timeline.json"
+      ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
+                   #:when good? [type '("" "r" "g" "b")]
+                   #:unless (and (equal? type "g") (not (test-output test))))
+          (format "plot-~a~a.png" idx type))))
+  (filter identity pages))
+
+(define (make-page page out result profile? debug?)
+  (match page
+    ["graph.html"
+     (match result
+       [(? test-result?) (make-graph result out profile? debug? (get-interactive-js result))]
+       [(? test-timeout?) (make-timeout result out profile? debug?)]
+       [(? test-failure?) (make-traceback result out profile? debug?)])]
+    ["interactive.js"
+     (make-interactive-js result out)]
+    ["timeline.json"
+     (make-timeline-json result out)]
+    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx ""))
+     (make-axis-plot result out (string->number idx))]
+    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -170,19 +186,10 @@
     (define end-js (compile-program end-fpcore #:name "end"))
     (string-append start-js end-js)))
 
-(define (make-interactive-js result rdir profile? debug?)
+(define (make-interactive-js result out)
   (define js-text (get-interactive-js result))
-  (if (string? js-text)
-      (display-to-file js-text
-                       (build-path rdir "interactive.js")
-                       #:exists 'replace)
-      #f))
-
-(define (output-interactive-js result rdir profile?)
-  (define js-text (get-interactive-js result))
-  (if (string? js-text)
-      (display js-text)
-      #f))
+  (when (string? js-text)
+    (display js-text out)))
 
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
@@ -215,7 +222,7 @@
              (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (make-axis-plot result idx out)
+(define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-result-end-alt result))))
   (define pts (test-result-newpoints result))
@@ -224,7 +231,7 @@
    (error-axes pts #:axis idx)
    (map error-mark (if split-var? (regime-splitpoints (test-result-end-alt result)) '()))))
 
-(define (make-points-plot result idx letter out)
+(define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
       ['r (values *red-theme*   test-result-start-error)]
@@ -254,6 +261,7 @@
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
   (alt-plot point-renderers #:port out #:kind 'png #:title title))
 
+#;
 (define (make-plots result rdir profile? debug?)
   (define (open-file #:type [type #f] idx fun . args)
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
@@ -284,7 +292,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result rdir profile? debug? valid-js-prog)
+(define (make-graph result out profile? debug? valid-js-prog)
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
@@ -292,7 +300,7 @@
                 baseline-error oracle-error all-alts timeline)
    result)
 
-   (printf "<!doctype html>\n")
+   (fprintf out "<!doctype html>\n")
    (write-xexpr
     `(html
       (head
@@ -364,11 +372,12 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test)))))
+       ,(render-process-info time timeline profile? test)))
+    out))
 
-(define (make-traceback result rdir profile? debug?)
+(define (make-traceback result out profile? debug?)
   (match-define (test-failure test bits exn time timeline) result)
-  (printf "<!doctype html>\n")
+  (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
@@ -397,7 +406,8 @@
           `(,(render-process-info time timeline profile? test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
-             ,(render-traceback exn)))])))))
+             ,(render-traceback exn)))])))
+   out))
 
 (define (render-traceback exn)
   `(table
@@ -417,9 +427,9 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result rdir profile? debug?)
+(define (make-timeout result out profile? debug?)
   (match-define (test-timeout test bits time timeline) result)
-  (printf "<!doctype html>\n")
+  (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
@@ -429,7 +439,8 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test)))))
+      ,(render-process-info time timeline profile? test)))
+   out))
 
 (struct interval (alt-idx start-point end-point expr))
 
@@ -521,3 +532,26 @@
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
+
+(define (make-timeline-json result out)
+  (define timeline
+    (match result
+      [(? test-result?) (test-result-timeline result)]
+      [(? test-failure?) (test-failure-timeline result)]
+      [(? test-timeout?) (test-timeout-timeline result)]))
+
+  (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
+
+  (define/match (value-map k v)
+    [('method v) (~a v)]
+    [('type v) (~a v)]
+    [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
+    [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
+    [(_ v) v])
+
+  (define data
+    (for/list ([event timeline])
+     (for/hash ([(k v) (in-dict event)])
+       (values k (value-map k v)))))
+
+  (write-json data out))
