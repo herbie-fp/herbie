@@ -190,27 +190,27 @@
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-accuracy info accuracy oracle baseline)
-  (define percentages
-    (for/list ([acc accuracy] [ora oracle] [bas baseline])
-      (if (= bas ora)
-          (if (= bas acc) 1 -inf.0)
-          (/ (- bas acc) (- bas ora)))))
-
-  (define bits-remaining
-    (for/list ([acc accuracy] [ora oracle] [res (report-info-tests info)])
-        (cons (- accuracy oracle) res)))
+  (define rows
+    (for/list ([res (report-info-tests info)]
+               [acc accuracy] [ora oracle] [bas baseline])
+        (list (- acc ora)
+              (if (= bas ora)
+                  (if (= bas acc) 1 -inf.0)
+                  (/ (- bas acc) (- bas ora)))
+              res)))
 
   (define top-bits-remaining
-    (take-up-to (sort bits-remaining > #:key car) 5))
+    (take-up-to (sort rows > #:key first) 5))
 
   `((dt "Accuracy")
-    (dd (p "Median " ,(median percentages) "%"
-           " (" (format-bits (- accuracy oracle)) "b" " remaining)")
+    (dd (p "Median " ,(~r (* (median < (map second rows)) 100) #:precision 1) "%"
+           " (" ,(format-bits (apply + (map first rows))) "b" " remaining)")
         (table ([class "times"])
-               ,@(for/list ([(bits res) (in-dict top-bits-remaining)])
-                   `(tr (td ,(format-bits bits))
-                        (td (a ([href ,(format "~a/graph.html" (table-row-link res))])
-                               (or (table-row-name res) "")))))))))
+               ,@(for/list ([row (in-list top-bits-remaining)])
+                   `(tr (td ,(format-bits (first row)) "b")
+                        (td ,(~r (* (second row) 100) #:precision 1) "%")
+                        (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
+                               ,(or (table-row-name (third row)) "")))))))))
 
 (define (summarize-timelines info dir)
   (define tls

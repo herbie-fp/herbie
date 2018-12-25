@@ -17,7 +17,7 @@ section { margin: 5em 0; position: relative; }
 section h1 {
     position: absolute; width: 300px; right: -340px; top: -15px;
     transform: rotate(90deg); transform-origin: top left;
-    font-size: 24px; font-weight: bold; color: #aaa;
+    font-size: 24px; font-weight: normal; color: #aaa;
 }
 
 /* Big block for program input output */
@@ -102,6 +102,7 @@ section h1 {
     .timeline { border: none; }
     .timeline-phase { outline: 1px solid black; }
 }
+
 /* Blocks of information */
 
 .timeline-block { border-left: 1ex solid transparent; padding: 1px 1ex;}
@@ -112,8 +113,8 @@ section h1 {
 .timeline-block dl { font-size: 90%; }
 .timeline-block dt { min-width: 6em; float: left; font-size: 100%; }
 .timeline-block dd { margin: 0 0 1ex 6em; max-width: 100%; overflow: auto; }
-.timeline-block table.times td:first-child { text-align: right; min-width: 8ex; }
-.timeline-block table pre { padding: 0; margin: 0; }
+table.times td { text-align: right; min-width: 8ex; }
+table pre { padding: 0; margin: 0; text-align: left; }
 
 /* Timeline colors */
 

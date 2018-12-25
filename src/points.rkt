@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/flonum)
-(require math/bigfloat)
+(require math/flonum math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt" "biginterval.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?

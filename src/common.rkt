@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide *start-prog* *all-alts*
-         reap define-table table-ref table-set! table-remove!
+         reap define-table table-ref table-set! table-remove! timeit
          assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
@@ -116,9 +116,8 @@
 ;; Utility list functions
 
 (define (take-up-to l k)
-  ; This is unnecessarily slow. It is O(l), not O(k).
-  ; To be honest, it just isn't that big a deal for now.
-  (take l (min k (length l))))
+  (for/list ([x l] [i (in-range k)])
+    x))
 
 (define (string-prefix s length)
   (if (<= (string-length s) length)

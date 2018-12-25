@@ -132,10 +132,10 @@
                (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
 
          `((dt "Accuracy")
-           (dd (p ,percentage "%" "(" (format-bits (- accuracy oracle)) "b" " remaining)")
-               (p "Error of " (format-bits accuracy) "b"
-                  " against oracle of " (format-bits oracle) "b"
-                  " and baseline of " (format-bits baseline) "b"))))
+           (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
+               (p "Error of " ,(format-bits accuracy) "b"
+                  " against oracle of " ,(format-bits oracle) "b"
+                  " and baseline of " ,(format-bits baseline) "b"))))
      ,@(when-dict curr (kept-alts done-alts min-error)
          `((dt "Pruning")
            (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
@@ -370,7 +370,7 @@
     out))
 
 (define (make-traceback result out profile?)
-  (match-define (test-failure test bits exn time timeline) result)
+  (match-define (test-failure test bits time timeline exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html

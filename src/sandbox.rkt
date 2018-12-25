@@ -60,29 +60,24 @@
             (prepare-points (test-program test) (test-precondition test))))
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 
-        (define-values (all-alts baseline-errs oracle-errs)
-          (cond
-           [debug?
-            (define all-alts (remove-duplicates (*all-alts*)))
-            (define baseline-errs
-              (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
-            (define oracle-errs
-              (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext))
-            (debug #:from 'regime-testing #:depth 1
-                   "Baseline error score:" (errors-score baseline-errs))
-            (debug #:from 'regime-testing #:depth 1
-                   "Oracle error score:" (errors-score oracle-errs))
+        (define all-alts (remove-duplicates (*all-alts*)))
+        (define baseline-errs
+          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
+        (define oracle-errs
+          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext))
+
+        (debug #:from 'regime-testing #:depth 1
+               "Baseline error score:" (errors-score baseline-errs))
+        (debug #:from 'regime-testing #:depth 1
+               "Oracle error score:" (errors-score oracle-errs))
             
-            (for/first ([cell (shellstate-timeline (^shell-state^))]
-                        #:when (equal? (dict-ref (unbox cell) 'type) 'regimes))
-              ;; Since the cells are stored in reverse order this is the last regimes invocation
-              (set-box! cell (list* (cons 'oracle (errors-score oracle-errs))
-                                    (cons 'accuracy (errors-score end-err))
-                                    (cons 'baseline (errors-score baseline-errs))
-                                    (unbox cell))))
-            (values all-alts baseline-errs oracle-errs)]
-           [else
-            (values '() #f #f)]))
+        (for/first ([cell (shellstate-timeline (^shell-state^))]
+                    #:when (equal? (dict-ref (unbox cell) 'type) 'regimes))
+          ;; Since the cells are stored in reverse order this is the last regimes invocation
+          (set-box! cell (list* (cons 'oracle (errors-score oracle-errs))
+                                (cons 'accuracy end-err)
+                                (cons 'baseline (errors-score baseline-errs))
+                                (unbox cell))))
         
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" end-err)
