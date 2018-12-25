@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide *start-prog* *all-alts*
-         reap define-table table-ref table-set! table-remove! timeit
+         reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
