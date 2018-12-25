@@ -1,23 +1,10 @@
 #lang racket
 
-(require racket/place)
-(require "../common.rkt")
-(require "../formats/test.rkt")
-(require "../points.rkt")
-(require "../programs.rkt")
-(require "../alternative.rkt")
-(require "../sandbox.rkt")
-(require "make-graph.rkt")
-(require "../formats/datafile.rkt")
+(require racket/place profile)
+(require "../common.rkt" "../points.rkt" "../programs.rkt")
+(require "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
 
 (provide get-test-results)
-
-(define (make-graph-if-valid result tname index rdir #:profile profile? #:debug debug? #:seed seed)
-  (when (not (directory-exists? rdir)) (make-directory rdir))
-  (set-seed! seed)
-  (for ([page (all-pages result)])
-    (call-with-output-file (build-path rdir page) #:exists 'replace
-      (λ (out) (make-page page out result #f)))))
 
 (define (graph-folder-path tname index)
   (format "~a-~a" index (string-prefix (string-replace tname #px"\\W+" "") 50)))
@@ -25,18 +12,24 @@
 (define (run-test index test #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (cond
    [dir
-    (let* ([rdir (graph-folder-path (test-name test) index)]
-           [rdir* (build-path dir rdir)])
-      (when (not (directory-exists? rdir*))
-        (make-directory rdir*))
+    (define dirname
+      (format "~a-~a" index (string-prefix (string-replace (test-name test) #px"\\W+" "") 50)))
 
-      (define result
-        (call-with-output-files
-         (list (build-path rdir* "debug.txt") (and profile? (build-path rdir* "profile.txt")))
-         (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
+    (define rdir  (build-path dir dirname))
+    (when (not (directory-exists? rdir)) (make-directory rdir))
 
-      (make-graph-if-valid result (test-name test) index rdir* #:profile profile? #:debug debug? #:seed seed)
-      (get-table-data result rdir))]
+    (define result
+      (call-with-output-files
+       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.txt")))
+       (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
+
+    (set-seed! seed)
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path rdir page)
+        #:exists 'replace
+        (λ (out) (make-page page out result #f))))
+
+    (get-table-data result dirname)]
    [else
     (define result (get-test-result test #:seed seed))
     (get-table-data result "")]))
