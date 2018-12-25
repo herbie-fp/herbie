@@ -44,9 +44,8 @@
   (let* ([old-done (alt-table-alt->done? atab)]
          [alts (atab-all-alts atab)]
          [table-init (make-alt-table ctx (car alts))])
-    (alt-table-with
-     (atab-add-altns table-init (cdr alts))
-     #:alt->done? old-done)))
+    (struct-copy alt-table (atab-add-altns table-init (cdr alts))
+                 [alt->done? old-done])))
 
 (define (atab-add-altns atab altns)
   (for/fold ([atab atab]) ([altn altns])
@@ -55,7 +54,7 @@
 (define (atab-pick-alt atab #:picking-func [pick car]
 		       #:only-fresh [only-fresh? #t])
   (let* ([picked (atab-peek-alt atab #:picking-func pick #:only-fresh only-fresh?)]
-	 [atab* (alt-table-with atab #:alt->done? (hash-set (alt-table-alt->done? atab) picked #t))])
+	 [atab* (struct-copy alt-table atab [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])])
     (values picked atab*)))
 
 (define (atab-peek-alt atab #:picking-func [pick car]
@@ -92,16 +91,6 @@
       (minimize-alts (alt-table point->alts alt->points alt->done? context)))))
 
 ;; Helper Functions
-
-(define (alt-table-with atab
-			#:point->alts [pnt->alts #f]
-			#:alt->points [alt->pnts #f]
-			#:alt->done? [alt->done? #f]
-			#:context [pcontext #f])
-  (alt-table (or pnt->alts (alt-table-point->alts atab))
-	     (or alt->pnts (alt-table-alt->points atab))
-	     (or alt->done? (alt-table-alt->done? atab))
-	     (or pcontext (alt-table-context atab))))
 
 (define (alternate . lsts)
   (let loop ([rest-lsts lsts] [acc '()])
