@@ -94,13 +94,27 @@
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (ival (rnd 'down bfmin*
-             (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
-             (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
-        (rnd 'up bfmax*
-             (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
-             (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
-        err? err))
+  (cond ;; The "else" case is always correct, but is slow
+   [(and (bf>= (ival-lo x) 0.bf) (bf>= (ival-lo y) 0.bf))
+    (ival (rnd 'down bf* (ival-lo x) (ival-lo y))
+          (rnd 'up bf* (ival-hi x) (ival-hi y)) err? err)]
+   [(and (bf>= (ival-lo x) 0.bf) (bf<= (ival-hi y) 0.bf))
+    (ival (rnd 'down bf* (ival-hi x) (ival-lo y))
+          (rnd 'up bf* (ival-lo x) (ival-hi y)) err? err)]
+   [(and (bf<= (ival-hi x) 0.bf) (bf>= (ival-lo y) 0.bf))
+    (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
+          (rnd 'up bf* (ival-hi x) (ival-lo y)) err? err)]
+   [(and (bf<= (ival-hi x) 0.bf) (bf<= (ival-hi y) 0.bf))
+    (ival (rnd 'down bf* (ival-hi x) (ival-hi y))
+          (rnd 'up bf* (ival-lo x) (ival-lo y)) err? err)]
+   [else
+    (ival (rnd 'down bfmin*
+               (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
+               (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
+          (rnd 'up bfmax*
+               (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
+               (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
+          err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bf<= (ival-lo y) 0.bf) (bf>= (ival-hi y) 0.bf))))
