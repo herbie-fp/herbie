@@ -22,8 +22,8 @@
 (struct test-result (test bits time timeline))
 (struct test-success test-result
   (start-alt end-alt points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error baseline-error
-   oracle-error all-alts))
+   newpoints newexacts start-error end-error target-error
+   baseline-error oracle-error all-alts))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
