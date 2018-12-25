@@ -15,10 +15,11 @@
   (printf "Running Herbie on ~a tests (seed: ~a)...\n" (length tests) seed)
   (for/and ([test tests])
     (match (get-test-result test #:seed seed)
-      [(test-result test time prec input output pts exs
+      [(test-sucess test prec time timeline
+                    input output pts exs
                     start-errors end-error newpts newexs
                     start-newerrors end-newerrors target-newerrors
-                    baseline-error oracle-error all-alts timeline)
+                    baseline-error oracle-error all-alts)
        (printf "[ ~ams]\t(~a→~a)\t~a\n"
                (~a time #:width 8)
                (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
@@ -37,7 +38,7 @@
          (when (test-output test) (printf "Target: ~a\n" (test-output test))))
 
        success?]
-      [(test-failure test prec exn time timeline)
+      [(test-failure test prec time timeline exn)
        (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
