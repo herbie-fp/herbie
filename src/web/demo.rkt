@@ -46,7 +46,7 @@
    [(set-member? page (all-pages result))
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-              (λ (out) (make-page page out result #f #t)))]
+              (λ (out) (make-page page out result #f)))]
    [(equal? page "debug.log")
     (response 200 #"OK" (current-seconds) #"text/plain"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -196,7 +196,7 @@
               (make-directory (build-path (*demo-output*) path))
               (for ([page (all-pages result)])
                 (call-with-output-file (build-path (*demo-output*) path page)
-                  (λ (out) (make-page page out result #f #t))))
+                  (λ (out) (make-page page out result #f))))
               (write-file (build-path (*demo-output*) path "debug.txt")
                 (display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed

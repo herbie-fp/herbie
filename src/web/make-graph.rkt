@@ -27,13 +27,13 @@
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
-(define (make-page page out result profile? debug?)
+(define (make-page page out result profile?)
   (match page
     ["graph.html"
      (match result
-       [(? test-result?) (make-graph result out profile? debug? (get-interactive-js result))]
-       [(? test-timeout?) (make-timeout result out profile? debug?)]
-       [(? test-failure?) (make-traceback result out profile? debug?)])]
+       [(? test-result?) (make-graph result out profile? (get-interactive-js result))]
+       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
      (make-interactive-js result out)]
     ["timeline.json"
@@ -145,19 +145,11 @@
            (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
                (p "Merged error: " ,(format-bits min-error) "b")))))))
 
-(define/contract (render-process-info time timeline profile? test #:bug? [bug? #f])
-  (->* (number? timeline? boolean? test?) (#:bug? boolean?) xexpr?)
-  `(section ((id "process-info"))
-    (h1 "Runtime")
-    (p ((class "header"))
-     "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
-     (a ((class "attachment") (href "debug.txt")) "Debug log")
-     ,(if profile?
-          `(a ((class "attachment") (href "profile.txt")) "Profile")
-          ""))
-    ,(render-timeline timeline)
-    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-        (render-phase curr n next))
+(define/contract (render-reproduction test #:bug? [bug? #f])
+  (->* (test?) (#:bug? boolean?) xexpr?)
+
+  `(section ((id "reproduce"))
+    (h1 "Reproduce")
     ,(if bug?
          `(p "Please include this information when filing a "
              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
@@ -166,6 +158,25 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
+
+(define/contract (render-process-info timeline profile?)
+  (-> timeline? boolean? xexpr?)
+
+  (define time
+    (apply + (for/list ([phase timeline] [next (cdr timeline)])
+               (- (dict-ref next 'time) (dict-ref phase 'time)))))
+
+  `(section ((id "process-info"))
+    (h1 "Details")
+    (p ((class "header"))
+     "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
+     (a ((class "attachment") (href "debug.txt")) "Debug log")
+     ,(if profile?
+          `(a ((class "attachment") (href "profile.txt")) "Profile")
+          ""))
+    ,(render-timeline timeline)
+    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
+        (render-phase curr n next))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -279,7 +290,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result out profile? debug? valid-js-prog)
+(define (make-graph result out profile? valid-js-prog)
   (match-define
    (test-result test time bits start-alt end-alt
                 points exacts start-est-error end-est-error
@@ -359,10 +370,11 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test)))
+       ,(render-reproduction test)
+       ,(render-process-info timeline profile?)))
     out))
 
-(define (make-traceback result out profile? debug?)
+(define (make-traceback result out profile?)
   (match-define (test-failure test bits exn time timeline) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -390,10 +402,11 @@
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
                   "")))]
          [else
-          `(,(render-process-info time timeline profile? test #:bug? #t)
+          `(,(render-reproduction test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
-             ,(render-traceback exn)))])))
+             ,(render-traceback exn))
+            ,(render-process-info timeline profile?))])))
    out))
 
 (define (render-traceback exn)
@@ -414,7 +427,7 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result out profile? debug?)
+(define (make-timeout result out profile?)
   (match-define (test-timeout test bits time timeline) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -426,7 +439,8 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test)))
+      ,(render-process-info timeline profile?)
+      ,(render-reproduction test)))
    out))
 
 (struct interval (alt-idx start-point end-point expr))

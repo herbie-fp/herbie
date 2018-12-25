@@ -17,7 +17,7 @@
   (set-seed! seed)
   (for ([page (all-pages result)])
     (call-with-output-file (build-path rdir page) #:exists 'replace
-      (λ (out) (make-page page out result #f #t)))))
+      (λ (out) (make-page page out result #f)))))
 
 (define (graph-folder-path tname index)
   (format "~a-~a" index (string-prefix (string-replace tname #px"\\W+" "") 50)))
