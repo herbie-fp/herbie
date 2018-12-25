@@ -24,9 +24,9 @@
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
       (define output (get-test-result test #:seed seed))
       (match output
-        [(? test-result?)
+        [(? test-success?)
          (pretty-print (unparse-result output) (current-output-port) 1)]
-        [(test-failure test bits exn time timeline)
+        [(test-failure test bits time timeline exn)
          ((error-display-handler) (exn-message exn) exn)]
         [(test-timeout test bits time timeline)
          (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]))))

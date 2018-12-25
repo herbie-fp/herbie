@@ -10,12 +10,8 @@
 (provide all-pages make-page)
 
 (define (all-pages result)
-  (define test
-    (match result
-      [(? test-result?) (test-result-test result)]
-      [(? test-failure?) (test-failure-test result)]
-      [(? test-timeout?) (test-timeout-test result)]))
-  (define good? (test-result? result))
+  (define test (test-result-test result))
+  (define good? (test-success? result))
 
   (define pages
     `("graph.html"
@@ -31,7 +27,7 @@
   (match page
     ["graph.html"
      (match result
-       [(? test-result?) (make-graph result out profile? (get-interactive-js result))]
+       [(? test-success?) (make-graph result out profile? (get-interactive-js result))]
        [(? test-timeout?) (make-timeout result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
@@ -183,10 +179,9 @@
   (list 'FPCore args ':name 'alt expr))
 
 (define (get-interactive-js result)
-  (with-handlers ([exn:fail?
-                   (λ (e) #f)])
-    (define start-fpcore (alt2fpcore (test-result-start-alt result)))
-    (define end-fpcore (alt2fpcore (test-result-end-alt result)))
+  (with-handlers ([exn:fail? (λ (e) #f)])
+    (define start-fpcore (alt2fpcore (test-success-start-alt result)))
+    (define end-fpcore (alt2fpcore (test-success-end-alt result)))
     (define start-js (compile-program start-fpcore #:name "start"))
     (define end-js (compile-program end-fpcore #:name "end"))
     (string-append start-js end-js)))
@@ -222,21 +217,21 @@
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-result-end-alt result))))
-  (define pts (test-result-newpoints result))
+  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-result-end-alt result)) '()))))
+   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
 (define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
-      ['r (values *red-theme*   test-result-start-error)]
-      ['g (values *green-theme* test-result-target-error)]
-      ['b (values *blue-theme*  test-result-end-error)]))
+      ['r (values *red-theme*   test-success-start-error)]
+      ['g (values *green-theme* test-success-target-error)]
+      ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define pts (test-result-newpoints result))
+  (define pts (test-success-newpoints result))
   (define err (accessor result))
 
   (herbie-plot
@@ -249,10 +244,10 @@
   (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
-  (define all-alts (test-result-all-alts result))
+  (define all-alts (test-success-all-alts result))
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
-  (define newpoints (test-result-newpoints result))
-  (define newexacts (test-result-newexacts result))
+  (define newpoints (test-success-newpoints result))
+  (define newexacts (test-success-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts))
 
 (define (make-contour-plot point-colors var-idxs title out)
@@ -265,13 +260,13 @@
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
-  (define vars (program-variables (alt-program (test-result-start-alt result))))
+  (define vars (program-variables (alt-program (test-success-start-alt result))))
   (when (and debug? (>= (length vars) 2))
     (define point-alt-idxs (make-point-alt-idxs result))
-    (define newpoints (test-result-newpoints result))
-    (define baseline-errs (test-result-baseline-error result))
-    (define herbie-errs (test-result-end-error result))
-    (define oracle-errs (test-result-oracle-error result))
+    (define newpoints (test-success-newpoints result))
+    (define baseline-errs (test-success-baseline-error result))
+    (define herbie-errs (test-success-end-error result))
+    (define oracle-errs (test-success-oracle-error result))
     (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])
       (define alt-idxs (list i j))
@@ -282,20 +277,20 @@
                  make-contour-plot point-colors alt-idxs title)))
 
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
-    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
+    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-success-newpoints result)))) 1)
       ;; This is bad code
       (open-file idx make-axis-plot result idx)
       (open-file idx #:type 'r make-points-plot result idx 'r)
-      (when (test-result-target-error result)
+      (when (test-success-target-error result)
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
 (define (make-graph result out profile? valid-js-prog)
   (match-define
-   (test-result test time bits start-alt end-alt
-                points exacts start-est-error end-est-error
-                newpoints newexacts start-error end-error target-error
-                baseline-error oracle-error all-alts timeline)
+   (test-success test bits time timeline
+                 start-alt end-alt points exacts start-est-error end-est-error
+                 newpoints newexacts start-error end-error target-error
+                 baseline-error oracle-error all-alts)
    result)
 
    (fprintf out "<!doctype html>\n")
@@ -535,12 +530,7 @@
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
 
 (define (make-timeline-json result out)
-  (define timeline
-    (match result
-      [(? test-result?) (test-result-timeline result)]
-      [(? test-failure?) (test-failure-timeline result)]
-      [(? test-timeout?) (test-timeout-timeline result)]))
-
+  (define timeline (test-result-timeline result))
   (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
 
   (define/match (value-map k v)
