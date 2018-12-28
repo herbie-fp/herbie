@@ -299,7 +299,7 @@
       (head
        (meta ([charset "utf-8"]))
        (title "Result for " ,(~a (test-name test)))
-       (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
+       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        ,@js-tex-include
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
@@ -377,7 +377,7 @@
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../graph.css"))))
+      (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
      (body
       (h1 "Error in " ,(format-time time))
       ,@(cond
@@ -430,7 +430,7 @@
      (head
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"])))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
