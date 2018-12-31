@@ -213,8 +213,10 @@
 
 (define (summarize-timelines info dir)
   (define tls
-    (for/list ([res (report-info-tests info)])
-      (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json)))
+    (filter identity
+            (for/list ([res (report-info-tests info)])
+              (with-handlers ([(const #t) (const #f)])
+                (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json)))))
 
   (define types (make-hash))
   (for ([tl tls] #:when true [event tl] [next (cdr tl)])
