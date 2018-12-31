@@ -161,8 +161,7 @@
            (delete-directory/files (build-path dir subdir)))))]))
 
 (define (render-timeline-summary info dir)
-  (define blocks
-    (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
+  (define blocks (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"])
@@ -179,7 +178,7 @@
 
 (define (render-phase-slowest info slowest times)
   (define slowest*
-    (append-map (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) slowest))
+    (append-map (curry map (λ (x) (cons (cdr (dict-ref x 'expr)) (cdr (dict-ref x 'time))))) slowest))
   (define top-slowest
     (take-up-to (sort slowest* > #:key cdr) 5))
   `((dt "Calls")
@@ -190,8 +189,9 @@
 
 (define (render-phase-accuracy info accuracy oracle baseline)
   (define rows
-    (for/list ([res (report-info-tests info)]
-               [acc accuracy] [ora oracle] [bas baseline])
+    (for/list ([(res acc) (in-dict accuracy)]
+               [(_ ora) (in-dict oracle)]
+               [(_ bas) (in-dict baseline)])
         (list (- acc ora)
               (if (= bas ora)
                   (if (= bas acc) 1 -inf.0)
@@ -216,14 +216,14 @@
     (filter identity
             (for/list ([res (report-info-tests info)])
               (with-handlers ([(const #t) (const #f)])
-                (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json)))))
+                (cons res (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json))))))
 
   (define types (make-hash))
-  (for ([tl tls] #:when true [event tl] [next (cdr tl)])
+  (for ([(res tl) (in-dict tls)] #:when true [event tl] [next (cdr tl)])
     (define data (dict-ref! types (dict-ref event 'type) make-hash))
     (define time (- (dict-ref next 'time) (dict-ref event 'time)))
-    (dict-set! data 'time (cons time (dict-ref data 'time '())))
+    (dict-set! data 'time (cons (cons res time) (dict-ref data 'time '())))
     (for ([(k v) (in-dict event)] #:unless (equal? k 'time))
-      (dict-set! data k (cons v (dict-ref data k '())))))
+      (dict-set! data k (cons (cons res v) (dict-ref data k '())))))
   (sort (hash->list types) >
         #:key (λ (x) (apply + (dict-ref (cdr x) 'time)))))
