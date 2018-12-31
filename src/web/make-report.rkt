@@ -190,8 +190,8 @@
 (define (render-phase-accuracy info accuracy oracle baseline)
   (define rows
     (for/list ([(res acc) (in-dict accuracy)]
-               [(_ ora) (in-dict oracle)]
-               [(_ bas) (in-dict baseline)])
+               [(_1 ora) (in-dict oracle)]
+               [(_2 bas) (in-dict baseline)])
         (list (- acc ora)
               (if (= bas ora)
                   (if (= bas acc) 1 -inf.0)
