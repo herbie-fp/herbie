@@ -94,38 +94,70 @@
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (cond ;; The "else" case is always correct, but is slow
-   [(and (bf>= (ival-lo x) 0.bf) (bf>= (ival-lo y) 0.bf))
+  (match* ((classify-ival x) (classify-ival y))
+   [(1 1)
     (ival (rnd 'down bf* (ival-lo x) (ival-lo y))
           (rnd 'up bf* (ival-hi x) (ival-hi y)) err? err)]
-   [(and (bf>= (ival-lo x) 0.bf) (bf<= (ival-hi y) 0.bf))
+   [(1 -1)
     (ival (rnd 'down bf* (ival-hi x) (ival-lo y))
           (rnd 'up bf* (ival-lo x) (ival-hi y)) err? err)]
-   [(and (bf<= (ival-hi x) 0.bf) (bf>= (ival-lo y) 0.bf))
+   [(1 0)
+    (ival (rnd 'down bf* (ival-hi x) (ival-lo y))
+          (rnd 'up bf* (ival-hi x) (ival-hi y)) err? err)]
+   [(-1 0)
+    (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
+          (rnd 'up bf* (ival-lo x) (ival-lo y)) err? err)]
+   [(-1 1)
     (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
           (rnd 'up bf* (ival-hi x) (ival-lo y)) err? err)]
-   [(and (bf<= (ival-hi x) 0.bf) (bf<= (ival-hi y) 0.bf))
+   [(-1 -1)
     (ival (rnd 'down bf* (ival-hi x) (ival-hi y))
           (rnd 'up bf* (ival-lo x) (ival-lo y)) err? err)]
-   [else
-    (ival (rnd 'down bfmin*
-               (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
-               (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
-          (rnd 'up bfmax*
-               (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
-               (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y)))
-          err? err)]))
+   [(0 1)
+    (ival (rnd 'down bf* (ival-lo x) (ival-hi y))
+          (rnd 'up bf* (ival-hi x) (ival-hi y)) err? err)]
+   [(0 -1)
+    (ival (rnd 'down bf* (ival-hi x) (ival-lo y))
+          (rnd 'up bf* (ival-lo x) (ival-lo y)) err? err)]
+   [(0 0) ; The "else" case is always correct, but is slow
+    ;; We round only down, and approximate rounding up with bfnext below
+    (define opts
+      (rnd 'down list
+           (bf* (ival-lo x) (ival-lo y)) (bf* (ival-hi x) (ival-lo y))
+           (bf* (ival-lo x) (ival-hi y)) (bf* (ival-hi x) (ival-hi y))))
+    (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bf<= (ival-lo y) 0.bf) (bf>= (ival-hi y) 0.bf))))
   (define err (or (ival-err x) (ival-err y) (and (bf= (ival-lo y) 0.bf) (bf= (ival-hi y) 0.bf))))
-  (ival (rnd 'down bfmin*
-             (bf/ (ival-lo x) (ival-lo y)) (bf/ (ival-hi x) (ival-lo y))
-             (bf/ (ival-lo x) (ival-hi y)) (bf/ (ival-hi x) (ival-hi y)))
-        (rnd 'up bfmax*
-             (bf/ (ival-lo x) (ival-lo y)) (bf/ (ival-hi x) (ival-lo y))
-             (bf/ (ival-lo x) (ival-hi y)) (bf/ (ival-hi x) (ival-hi y)))
-        err? err))
+    ;; We round only down, and approximate rounding up with bfnext below
+  (match* ((classify-ival x) (classify-ival y))
+    [(_ 0)
+     (ival -inf.bf +inf.bf err? err)]
+    [(1 1)
+     (ival (rnd 'down bf/ (ival-lo x) (ival-hi y))
+           (rnd 'up bf/ (ival-hi x) (ival-lo y)) err? err)]
+    [(1 -1)
+     (ival (rnd 'down bf/ (ival-hi x) (ival-lo y))
+           (rnd 'up bf/ (ival-lo x) (ival-hi y)) err? err)]
+    [(-1 1)
+     (ival (rnd 'down bf/ (ival-lo x) (ival-lo y))
+           (rnd 'up bf/ (ival-hi x) (ival-hi y)) err? err)]
+    [(-1 -1)
+     (ival (rnd 'down bf/ (ival-hi x) (ival-hi y))
+           (rnd 'up bf/ (ival-lo x) (ival-lo y)) err? err)]
+    [(0 1)
+     (ival (rnd 'down bf/ (ival-lo x) (ival-lo y))
+           (rnd 'up bf/ (ival-hi x) (ival-lo y)) err? err)]
+    [(0 -1)
+     (ival (rnd 'down bf/ (ival-hi x) (ival-hi y))
+           (rnd 'up bf/ (ival-lo x) (ival-hi y)) err? err)]
+    [(_ _)
+     (define opts
+       (rnd 'down list
+            (bf/ (ival-lo x) (ival-lo y)) (bf/ (ival-hi x) (ival-lo y))
+            (bf/ (ival-lo x) (ival-hi y)) (bf/ (ival-hi x) (ival-hi y))))
+     (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err)]))
 
 (define (ival-exp x)
   (ival (rnd 'down bfexp (ival-lo x)) (rnd 'up bfexp (ival-hi x)) (ival-err? x) (ival-err x)))
@@ -259,7 +291,7 @@
   (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
 
 (define (classify-ival x)
-  (cond [(bf> (ival-lo x) 0.bf) -] [(bf< (ival-hi x) 0.bf) -1] [else 0]))
+  (cond [(bf>= (ival-lo x) 0.bf) 1] [(bf<= (ival-hi x) 0.bf) -1] [else 0]))
 
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
