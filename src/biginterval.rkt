@@ -196,7 +196,8 @@
               (rnd 'up bfmax (bfexpt (ival-hi x) (bf- b 1.bf)) (bfexpt (ival-lo x) (bf- b 1.bf))) err? err)]
        [(bfeven? b)
         (ival (rnd 'down bfexpt (ival-lo x) (bf- b 1.bf))
-              (rnd 'up bfmax (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err)]))
+              (rnd 'up bfmax (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err)]
+       [else (ival +nan.bf +nan.bf #f #t)]))
     (if (bf> (ival-hi x) 0.bf)
         (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err) y))
         neg-range)]))
