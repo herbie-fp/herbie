@@ -165,7 +165,7 @@
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"])
-                      ,(format-time (apply + (dict-ref phase 'time)))))
+                      ,(format-time (apply + (map cdr (dict-ref phase 'time))))))
             (dl
              ,@(when-dict phase (slowest times)
                           (render-phase-slowest info slowest times))
