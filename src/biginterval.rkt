@@ -138,14 +138,14 @@
      (ival (rnd 'down bf/ (ival-lo x) (ival-hi y))
            (rnd 'up bf/ (ival-hi x) (ival-lo y)) err? err)]
     [(1 -1)
-     (ival (rnd 'down bf/ (ival-hi x) (ival-lo y))
-           (rnd 'up bf/ (ival-lo x) (ival-hi y)) err? err)]
+     (ival (rnd 'down bf/ (ival-hi x) (ival-hi y))
+           (rnd 'up bf/ (ival-lo x) (ival-lo y)) err? err)]
     [(-1 1)
      (ival (rnd 'down bf/ (ival-lo x) (ival-lo y))
            (rnd 'up bf/ (ival-hi x) (ival-hi y)) err? err)]
     [(-1 -1)
-     (ival (rnd 'down bf/ (ival-hi x) (ival-hi y))
-           (rnd 'up bf/ (ival-lo x) (ival-lo y)) err? err)]
+     (ival (rnd 'down bf/ (ival-hi x) (ival-lo y))
+           (rnd 'up bf/ (ival-lo x) (ival-hi y)) err? err)]
     [(0 1)
      (ival (rnd 'down bf/ (ival-lo x) (ival-lo y))
            (rnd 'up bf/ (ival-hi x) (ival-lo y)) err? err)]
