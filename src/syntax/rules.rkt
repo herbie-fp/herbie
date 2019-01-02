@@ -688,8 +688,11 @@
       [sinh-atanh . (< (fabs x) 1)]
       [cosh-atanh . (< (fabs x) 1)]
       [tanh-acosh . (> (fabs x) 1)]
+      [asin-sin   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
+      [acos-cos   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
+      [atan-tan   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
       [asin-sin-s . (<= (fabs x) (/ PI 2))]
-      [acos-cos-s . (<= 0 x PI)]
+      [acos-cos-s . (<= 1e-10 x PI)] ; Lower bound avoids false positive
       [atan-tan-s . (<= (fabs x) (/ PI 2))]))
 
   (define *skip-tests*

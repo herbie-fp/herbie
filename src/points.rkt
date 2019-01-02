@@ -185,25 +185,6 @@
   (for/list ([pt pts])
     (if (ival-eval pre-fn pt #:who precondition) (ival-eval body-fn pt #:who (program-body prog)) +nan.0)))
 
-(module+ test
-  (define test-exprs
-    '((λ (x) (- (sqrt (+ x 1)) (sqrt x)))
-      (λ (x y z) (- (+ (+ x y) z) (+ x (+ y z))))
-      #;(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))))
-
-  (define-binary-check (check-float= a b)
-    (= (ulp-difference a b) 0))
-
-  (for ([expr test-exprs])
-    (define pts
-      (for/list ([i (in-range 64)])
-        (map (λ (x) (sample-double)) (program-variables expr))))
-    (define exacts1 (make-exacts-halfpoints expr pts 'TRUE))
-    (define exacts2 (make-exacts-intervals expr pts 'TRUE))
-    (test-case (~a expr)
-               (for ([pt pts] [e1 exacts1] [e2 exacts2])
-                 (with-check-info (['pt pt]) (check-float= e1 e2))))))
-
 (define (make-exacts prog pts precondition)
   (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
       (make-exacts-intervals prog pts precondition)
