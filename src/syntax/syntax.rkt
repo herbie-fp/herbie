@@ -477,6 +477,9 @@
   [->tex (curry format "{~a}^{~a}")]
   [nonffi expt])
 
+(define (bfremainder x mod)
+  (bf- x (bf* (bfround (bf/ x mod)) mod)))
+
 (define-operator/libm (remainder real real) real
   [libm remainder remainderf] [bf bfremainder] [ival #f] [cost 70]
   [->c/double (curry format "remainder(~a, ~a)")]
