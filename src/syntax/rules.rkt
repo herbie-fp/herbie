@@ -488,6 +488,7 @@
   [acos-cos-s  (acos (cos x))         x])
 
 (define-ruleset atrig-expand (trigonometry)
+  #:type ([x real])
   [cos-asin    (cos (asin x))         (sqrt (- 1 (* x x)))]
   [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (* x x))))]
   [sin-acos    (sin (acos x))         (sqrt (- 1 (* x x)))]
@@ -686,62 +687,59 @@
       [sinh-acosh . (> (fabs x) 1)]
       [sinh-atanh . (< (fabs x) 1)]
       [cosh-atanh . (< (fabs x) 1)]
-      [tanh-acosh . (> (fabs x) 1)]))
+      [tanh-acosh . (> (fabs x) 1)]
+      [asin-sin-s . (<= (fabs x) (/ PI 2))]
+      [acos-cos-s . (<= 0 x PI)]
+      [atan-tan-s . (<= (fabs x) (/ PI 2))]))
 
   (define *skip-tests*
-    (append
-      ;; All these tests fail due to underflow to 0 and are irrelevant
-      '(exp-prod pow-unpow pow-pow pow-exp
-        asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan
-        asin-sin-s acos-cos-s atan-tan-s)))
+    ;; All these tests fail due to underflow to 0 and are irrelevant
+    '(exp-prod pow-unpow pow-pow pow-exp
+               asinh-2 tanh-1/2* sinh-cosh
+               hang-p0-tan hang-m0-tan))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
     (test-case (~a (rule-name test-rule))
-      (with-handlers ([exn:fail? (λ (e)
-                                   ((error-display-handler)
-                                    (exn-message e) e)
-                                   (fail (exn-message e)))])
-        (match-define (rule name p1 p2 _) test-rule)
-        ;; Not using the normal prepare-points machinery for speed.
-        (define fv (free-variables p1))
-        (define valid-point?
-          (if (dict-has-key? *conditions* name)
-              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
-              (const true)))
+      (match-define (rule name p1 p2 _) test-rule)
+      ;; Not using the normal prepare-points machinery for speed.
+      (define fv (free-variables p1))
+      (define valid-point?
+        (if (dict-has-key? *conditions* name)
+            (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
+            (const true)))
 
-        (define (make-point)
-          (for/list ([v fv])
-            (match (dict-ref (rule-itypes test-rule) v)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))])))
-        (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf)))
-        (define prog2 (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf)))
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define errs
-            (for/list ([v1 ex1] [v2 ex2])
-              ;; Ignore points not in the input or output domain
-              (if (and (ordinary-value? v1) (ordinary-value? v2))
-                  (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
-                  #f)))
-          (when (< (length (filter identity errs)) 100)
-            (eprintf "Could not sample enough points to test ~a\n" name))
-          (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
-          (define max-error
-            (argmax car (filter car (map list errs points ex1 ex2 errs))))
-          (with-check-info (['max-error (first max-error)]
-                            ['max-point (map cons fv (second max-error))]
-                            ['max-input (third max-error)]
-                            ['max-output (fourth max-error)])
-                           (check-pred (curryr <= 1) score))))))))
+      (define (make-point)
+        (for/list ([v fv])
+          (match (dict-ref (rule-itypes test-rule) v)
+            ['real (sample-double)]
+            ['bool (if (< (random) .5) false true)]
+            ['complex (make-rectangular (sample-double) (sample-double))])))
+      (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
+      (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+      (define prog1 (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf)))
+      (define prog2 (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf)))
+      (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+        (define ex1 (map prog1 points))
+        (define ex2 (map prog2 points))
+        (define errs
+          (for/list ([v1 ex1] [v2 ex2])
+            ;; Ignore points not in the input or output domain
+            (if (and (ordinary-value? v1) (ordinary-value? v2))
+                (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
+                #f)))
+        (when (< (length (filter identity errs)) 100)
+          (eprintf "Could not sample enough points to test ~a\n" name))
+        (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
+        (define max-error
+          (argmax car (filter car (map list errs points ex1 ex2 errs))))
+        (with-check-info (['max-error (first max-error)]
+                          ['max-point (map cons fv (second max-error))]
+                          ['max-input (third max-error)]
+                          ['max-output (fourth max-error)])
+                         (check-pred (curryr <= 1) score)))))))
 
 (module+ test
   (require rackunit math/bigfloat)
@@ -751,29 +749,27 @@
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
     (test-case (~a (rule-name test-rule))
-      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
-        (define num-test-points 2000)
-        (match-define (rule name p1 p2 _) test-rule)
-        (define fv (free-variables p1))
-        (define (make-point)
-          (for/list ([v fv])
-            (match (dict-ref (rule-itypes test-rule) v)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))])))
-        (define point-sequence (in-producer make-point))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-        (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define err
-            (for/first ([pt points] [v1 ex1] [v2 ex2]
-                        #:unless (equal? v1 v2))
-              (list pt v1 v2)))
-          (when err
-            (match-define (list pt v1 v2) err)
-            (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
-                             (check-false err))))))))
-;
+      (define num-test-points 2000)
+      (match-define (rule name p1 p2 _) test-rule)
+      (define fv (free-variables p1))
+      (define (make-point)
+        (for/list ([v fv])
+          (match (dict-ref (rule-itypes test-rule) v)
+            ['real (sample-double)]
+            ['bool (if (< (random) .5) false true)]
+            ['complex (make-rectangular (sample-double) (sample-double))])))
+      (define point-sequence (in-producer make-point))
+      (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+      (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
+      (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+      (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+        (define ex1 (map prog1 points))
+        (define ex2 (map prog2 points))
+        (define err
+          (for/first ([pt points] [v1 ex1] [v2 ex2]
+                      #:unless (equal? v1 v2))
+            (list pt v1 v2)))
+        (when err
+          (match-define (list pt v1 v2) err)
+          (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
+                           (check-false err)))))))
