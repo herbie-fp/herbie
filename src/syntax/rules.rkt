@@ -478,10 +478,13 @@
   [cos-acos    (cos (acos x))         x]
   [tan-atan    (tan (atan x))         x]
   [atan-tan    (atan (tan x))         (remainder x PI)]
-  [atan-tan-s  (atan (tan x))         x]
   [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ PI 2)) (* 2 PI))) (/ PI 2))]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))])
+
+(define-ruleset trig-inverses-simplified (trigonometry)
+  #:type ([x real])
+  [atan-tan-s  (atan (tan x))         x]
   [asin-sin-s  (asin (sin x))         x]
-  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))]
   [acos-cos-s  (acos (cos x))         x])
 
 (define-ruleset atrig-expand (trigonometry)
@@ -690,7 +693,8 @@
       ;; All these tests fail due to underflow to 0 and are irrelevant
       '(exp-prod pow-unpow pow-pow pow-exp
         asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan)))
+        hang-p0-tan hang-m0-tan
+        asin-sin-s acos-cos-s atan-tan-s)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
