@@ -472,17 +472,25 @@
   [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
   [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
 
-(define-ruleset atrig-expand (trigonometry)
+(define-ruleset trig-inverses (trigonometry)
   #:type ([x real])
   [sin-asin    (sin (asin x))         x]
+  [cos-acos    (cos (acos x))         x]
+  [tan-atan    (tan (atan x))         x]
+  [atan-tan    (atan (tan x))         (remainder x PI)]
+  [atan-tan-s  (atan (tan x))         x]
+  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ PI 2)) (* 2 PI))) (/ PI 2))]
+  [asin-sin-s  (asin (sin x))         x]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))]
+  [acos-cos-s  (acos (cos x))         x])
+
+(define-ruleset atrig-expand (trigonometry)
   [cos-asin    (cos (asin x))         (sqrt (- 1 (* x x)))]
   [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (* x x))))]
   [sin-acos    (sin (acos x))         (sqrt (- 1 (* x x)))]
-  [cos-acos    (cos (acos x))         x]
   [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (* x x))) x)]
   [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (* x x))))]
   [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (* x x))))]
-  [tan-atan    (tan (atan x))         x]
   [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
   [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
   [asin-neg    (asin (- x))           (- (asin x))]
