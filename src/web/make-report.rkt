@@ -180,10 +180,10 @@
             ,@blocks))
 
 (define (render-phase-algorithm info algorithm)
-  `((dt "Algorithms")
+  `((dt "Algorithm")
     (dd (table ([class "times"])
                ,@(for/list ([alg (group-by identity (map cdr algorithm))])
-                   `(tr (td ,(~a (length alg))) (td ,(~a (car alg)))))))))
+                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
 
 (define (render-phase-slowest info slowest times)
   (define slowest*
