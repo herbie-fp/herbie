@@ -161,12 +161,15 @@
            (delete-directory/files (build-path dir subdir)))))]))
 
 (define (render-timeline-summary info dir)
-  (define blocks (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
+  (define blocks
+    (for/list ([(type phase) (in-dict (summarize-timelines info dir))])
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"])
                       ,(format-time (apply + (map cdr (dict-ref phase 'time))))))
             (dl
+             ,@(when-dict phase (method)
+                          (render-phase-algorithm info method))
              ,@(when-dict phase (slowest times)
                           (render-phase-slowest info slowest times))
              ,@(when-dict phase (accuracy oracle baseline)
@@ -176,9 +179,17 @@
             (h1 "Details")
             ,@blocks))
 
+(define (render-phase-algorithm info algorithm)
+  `((dt "Algorithms")
+    (dd (table ([class "times"])
+               ,@(for/list ([alg (group-by identity (map cdr algorithm))])
+                   `(tr (td ,(~a (length alg))) (td ,(~a (car alg)))))))))
+
 (define (render-phase-slowest info slowest times)
   (define slowest*
-    (append-map (curry map (λ (x) (cons (cdr (dict-ref x 'expr)) (cdr (dict-ref x 'time))))) slowest))
+    (append-map
+     (compose (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) cdr)
+     slowest))
   (define top-slowest
     (take-up-to (sort slowest* > #:key cdr) 5))
   `((dt "Calls")
@@ -226,4 +237,4 @@
     (for ([(k v) (in-dict event)] #:unless (equal? k 'time))
       (dict-set! data k (cons (cons res v) (dict-ref data k '())))))
   (sort (hash->list types) >
-        #:key (λ (x) (apply + (dict-ref (cdr x) 'time)))))
+        #:key (λ (x) (apply + (map cdr (dict-ref (cdr x) 'time))))))

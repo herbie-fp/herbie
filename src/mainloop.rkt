@@ -63,7 +63,7 @@
 (define (setup-prog! prog #:precondition [precondition 'TRUE])
   (*start-prog* prog)
   (rollback-improve!)
-  (define log! (timeline-event! 'start))
+  (define log! (timeline-event! 'sample))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (let* ([context (prepare-points prog precondition)]
          [altn (make-alt prog)])
@@ -340,29 +340,22 @@
 (define (run-improve prog iters #:precondition [precondition 'TRUE])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
-  (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
-      (begin
-	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-	(make-alt (*start-prog*)))
-      (begin
-	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (let* ([log! (timeline-event! 'setup)]
-               [new-alts
-               (if (flag-set? 'setup 'simplify)
-                   (for/list ([altn (atab-all-alts (^table^))])
-                     (alt `(λ ,(program-variables (alt-program altn))
-                             ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
-                          'initial-simplify (list altn)))
-                   (list))])
-          (^table^ (atab-add-altns (^table^) new-alts))
-          (log! 'kept-alts (length (atab-not-done-alts (^table^))))
-          (log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
-          (log! 'min-error (errors-score (atab-min-errors (^table^))))
-          (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-            (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-            (run-iter!))
-          (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-          (get-final-combination)))))
+  (cond
+   [(and (flag-set? 'setup 'early-exit)
+         (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
+    (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
+    (make-alt (*start-prog*))]
+   [else
+    (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+    (when (flag-set? 'setup 'simplify)
+      (^children^ (atab-all-alts (^table^)))
+      (simplify!)
+      (finalize-iter!))
+    (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+      (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+      (run-iter!))
+    (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+    (get-final-combination)]))
 
 (define (get-final-combination)
   (define all-alts (atab-all-alts (^table^)))
