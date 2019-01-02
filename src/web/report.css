@@ -224,10 +224,10 @@ table pre { padding: 0; margin: 0; text-align: left; }
 
 /* Timeline colors */
 
-.timeline-sample   { border-left-color: #d3d7cf; }
+.timeline-sample   { border-left-color: #edd400; }
 .timeline-localize { border-left-color: #729fcf; }
 .timeline-series   { border-left-color: #fcaf3e; }
-.timeline-rewrite  { border-left-color: #e9b96e; }
+.timeline-rewrite  { border-left-color: #8f5902; }
 .timeline-simplify { border-left-color: #8ae234; }
 .timeline-prune    { border-left-color: #ad7fa8; }
 .timeline-regimes  { border-left-color: #a40000; }

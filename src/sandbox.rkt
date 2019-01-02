@@ -55,9 +55,12 @@
                        #:precondition (test-precondition test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
+        (define log! (timeline-event! 'sample))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test))))
+        (log! 'method (sampling-method (test-program test) (test-precondition test)))
+        (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 
         (define all-alts (remove-duplicates (*all-alts*)))
