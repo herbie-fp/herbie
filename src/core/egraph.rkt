@@ -111,7 +111,7 @@
  	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
 	(hash-set! leader->iexprs en (mutable-set))
 	(when (list? expr*)
-	  (for ([suben (cdr expr*)])
+	  (for ([suben (in-list (cdr expr*))])
 	    (set-add! (hash-ref leader->iexprs (pack-leader suben))
 		      expr*)))
 	(hash-set! (egraph-expr->parent eg)
@@ -185,7 +185,7 @@
           ;; merged x and y, then we know that these two
           ;; enodes are equivalent, and should be merged.
           (define to-merge
-            (for/append ([iexpr iexprs])
+            (for/append ([iexpr (in-mutable-set iexprs)])
               (let* ([replaced-iexpr (update-en-expr iexpr)]
                      [other-parent (hash-ref expr->parent replaced-iexpr #f)])
                 (if other-parent (list (cons other-parent (hash-ref expr->parent iexpr)))
@@ -198,7 +198,7 @@
           (update-leader! eg follower-old-vars follower leader)
           ;; Now the state is consistent for this merge, so we can
           ;; tackle the other merges.
-          (for ([node-pair to-merge])
+          (for ([node-pair (in-list to-merge)])
             (merge-egraph-nodes! eg (car node-pair) (cdr node-pair)))
           ;; The other merges can have caused new things to merge
           ;; with our merged-en from before (due to loops in the
@@ -208,7 +208,7 @@
 
 (define (update-en-expr expr)
   (if (list? expr)
-      (for/list ([sub expr])
+      (for/list ([sub (in-list expr)])
         (if (enode? sub) (pack-leader sub) sub))
       expr))
 
@@ -217,17 +217,17 @@
     (let* ([changed-exprs (hash-ref (egraph-leader->iexprs eg) old-leader)])
       (set-union! (hash-ref! (egraph-leader->iexprs eg) new-leader (mutable-set))
                   changed-exprs)
-      (for ([ch-expr changed-exprs])
-        (for ([suben (cdr ch-expr)])
+      (for ([ch-expr (in-mutable-set changed-exprs)])
+        (for ([suben (in-list (cdr ch-expr))])
           (hash-update! (egraph-leader->iexprs eg) (pack-leader suben)
                         (λ (st)
-                          (for/mutable-set ([expr st])
+                          (for/mutable-set ([expr (in-mutable-set st)])
                             (update-en-expr expr)))))
         (let ([old-binding (hash-ref (egraph-expr->parent eg) ch-expr)])
           (hash-remove! (egraph-expr->parent eg) ch-expr)
           (hash-set! (egraph-expr->parent eg) (update-en-expr ch-expr) (update-en-expr old-binding))))
       (hash-remove! (egraph-leader->iexprs eg) old-leader)
-      (for ([variation old-vars])
+      (for ([variation (in-set old-vars)])
         (hash-set! (egraph-expr->parent eg)
                    (update-en-expr variation)
                    new-leader)))))
@@ -320,10 +320,10 @@
 ;; If there are any variations of this enode that are a single
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
-  (when (for/or ([var (enode-vars en)])
+  (when (for/or ([var (in-set (enode-vars en))])
 	  (or (constant? var) (variable? var)))
     (let* ([leader (pack-leader en)]
-           [old-vars (for/mutable-set ([var (enode-vars leader)])
+           [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
                        (update-en-expr var))]
            [leader* (pack-filter! (λ (inner-en)
                                     (not (list? (enode-expr inner-en))))
@@ -344,7 +344,7 @@
   (hash-update! (egraph-leader->iexprs eg)
                 leader
                 (λ (st)
-                  (for/mutable-set ([expr st])
+                  (for/mutable-set ([expr (in-mutable-set st)])
                                    (update-en-expr expr))))
 
   (define leader* (pack-filter! (λ (inner-en)

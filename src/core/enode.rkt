@@ -142,7 +142,7 @@
     (let ([filtered-children
            (filter
             identity
-            (for/list ([child (enode-children en)])
+            (for/list ([child (in-list (enode-children en))])
               (let ([child* (filter-loop! child)])
                 (or child*
                     (begin (set-enode-parent! child en) #f)))))])
