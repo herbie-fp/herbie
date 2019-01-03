@@ -553,10 +553,12 @@
       (define x1 (sample-from i1))
       (define x2 (sample-from i2))
 
-      (define y (bffmod x1 x2))
+      (define y (parameterize ([bf-precision 8000]) (bffmod x1 x2)))
 
-      (unless (bf> (bfabs y) (bfabs x2)) ; Known bug in bffmod where rounding error causes invalid output
-        (with-check-info (['fn ival-fmod] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
+      ;; Known bug in bffmod where rounding error causes invalid output
+      (unless (or (bf<= (bf* y x1) 0.bf) (bf> (bfabs y) (bfabs x2)))
+        (with-check-info (['fn ival-fmod] ['interval1 i1] ['interval2 i2]
+                          ['point1 x1] ['point2 x2] ['number n])
           (define iy (ival-fmod i1 i2))
           (check-pred ival-valid? iy)
           (check ival-contains? iy y)))))
