@@ -9,6 +9,7 @@
 	 egraph? egraph-cnt egraph-top
 	 map-enodes draw-egraph egraph-leaders
          elim-enode-loops! reduce-to-single! reduce-to-new!
+         dedup-vars!
          )
 
 (provide (all-defined-out)
@@ -144,6 +145,9 @@
 (define (egraph-leaders eg)
   (hash-keys (egraph-leader->iexprs eg)))
 
+(define (dedup-vars! en)
+  (update-vars! (pack-leader en) update-en-expr))
+
 ;; Given an egraph and two enodes present in that egraph, merge the
 ;; packs of those two nodes, so that those nodes return the same
 ;; pack-leader and enode-vars. The keys of leader->iexprs and
@@ -160,7 +164,7 @@
     ;; of the same pack. However, this call usually means that two
     ;; vars of this leader were found equivalent through another
     ;; merge, so we want to update the vars to remove the redundancy.
-    (if (eq? l1 l2) (update-vars! l1 update-en-expr)
+    (if (eq? l1 l2) (void) #;(dedup-vars! l1) ; Changed to happen once per phase
         (let*-values (;; Hold on to these vars as they won't be the
                       ;; same after the merge, but we don't yet know
                       ;; which one we need.
