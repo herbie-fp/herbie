@@ -123,7 +123,6 @@
   (for ([m (find-matches (egraph-leaders eg))])
     (apply-match m))
   (map-enodes (curry set-precompute! eg) eg)
-  (map-enodes dedup-vars! eg)
   (void))
 
 (define-syntax-rule (matches? expr pattern)
