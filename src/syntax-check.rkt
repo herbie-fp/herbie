@@ -25,13 +25,6 @@
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
-    [#`(,(and (or 'sqr 'cube) f) #,arg)
-     (eprintf "Warning: the `sqr` and `cube` operators are deprecated and will be removed in later versions.\n")
-     (check-expression* arg vars error!)]
-    [#`(,(and (or 'sqr 'cube) f) #,args ...)
-     (unless (= (length args) 1)
-       (error! stx "Operator ~a given ~a arguments (expects 1)" f (length args)))
-     (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
      (if (operator? f)
          (let ([num-args (operator-info f 'args)])

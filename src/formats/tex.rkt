@@ -47,7 +47,7 @@
     [(or '+ '- 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
-    [(or 'sqr 'cube 'fma 'hypot 'pow) (values #f #f)]
+    [(or 'fma 'hypot 'pow) (values #f #f)]
     ['atan2 (values 'fn #t)]
     ['log1p (values #f '+)]
     ['if (values #t #t)]
