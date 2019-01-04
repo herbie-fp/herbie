@@ -164,7 +164,7 @@
     ;; of the same pack. However, this call usually means that two
     ;; vars of this leader were found equivalent through another
     ;; merge, so we want to update the vars to remove the redundancy.
-    (if (eq? l1 l2) (void) #;(dedup-vars! l1) ; Changed to happen once per phase
+    (if (eq? l1 l2) l1 #;(dedup-vars! l1) ; Changed to happen once per phase
         (let*-values (;; Hold on to these vars as they won't be the
                       ;; same after the merge, but we don't yet know
                       ;; which one we need.
