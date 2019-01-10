@@ -113,10 +113,15 @@
          `((dt "Algorithm") (dd ,(~a method))))
      ,@(when-dict curr (inputs outputs)
          `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
-     ,@(when-dict curr (slowest times)
+     ,@(when-dict curr (times)
          `((dt "Calls")
-           (dd (p ,(~a (length times)) " calls. Slowest were:")
-               (table ([class "times"])
+           (dd ,(~a (length times)) " calls:"
+               (canvas ([id ,(format "calls-~a" n)]
+                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
+     ,@(when-dict curr (slowest)
+         `((dt "Slowest")
+           (dd (table ([class "times"])
                 ,@(for/list ([(expr time) (in-dict slowest)])
                     `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
      ,@(when-dict curr (locations)

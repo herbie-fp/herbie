@@ -169,8 +169,10 @@
             (dl
              ,@(when-dict phase (method)
                           (render-phase-algorithm info method))
-             ,@(when-dict phase (slowest times)
-                          (render-phase-slowest info slowest times))
+             ,@(when-dict phase (times)
+                          (render-phase-times info type times))
+             ,@(when-dict phase (slowest)
+                          (render-phase-slowest info slowest))
              ,@(when-dict phase (accuracy oracle baseline)
                           (render-phase-accuracy info accuracy oracle baseline))))))
 
@@ -184,16 +186,22 @@
                ,@(for/list ([alg (group-by identity (map cdr algorithm))])
                    `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
 
-(define (render-phase-slowest info slowest times)
+(define (render-phase-times info type times)
+  `((dt "Calls")
+    (dd (p ,(~a (length (append-map cdr times))) " calls:")
+        (canvas ([id ,(format "calls-~a" type)]
+                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (append-map cdr times)) ")"))))
+
+(define (render-phase-slowest info slowest)
   (define slowest*
     (append-map
      (compose (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) cdr)
      slowest))
   (define top-slowest
     (take-up-to (sort slowest* > #:key cdr) 5))
-  `((dt "Calls")
-    (dd (p ,(~a (length (apply append times))) " calls. Slowest were:")
-        (table ([class "times"])
+  `((dt "Slowest")
+    (dd (table ([class "times"])
                ,@(for/list ([(expr time) (in-dict top-slowest)])
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
