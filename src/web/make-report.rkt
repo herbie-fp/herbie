@@ -174,7 +174,9 @@
              ,@(when-dict phase (slowest)
                           (render-phase-slowest info slowest))
              ,@(when-dict phase (accuracy oracle baseline)
-                          (render-phase-accuracy info accuracy oracle baseline))))))
+                          (render-phase-accuracy info accuracy oracle baseline))
+             ,@(when-dict phase (rules)
+                          (render-phase-rules info rules))))))
 
   `(section ([id "process-info"])
             (h1 "Details")
@@ -204,6 +206,16 @@
     (dd (table ([class "times"])
                ,@(for/list ([(expr time) (in-dict top-slowest)])
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-rules info rules)
+  (define counts (make-hash))
+  (for ([rc (append-map cdr rules)])
+    (hash-update! counts (dict-ref rc 'rule) (curry + (dict-ref rc 'count)) 0))
+
+  `((dt "Rules")
+    (dd (table ([class "times"])
+          ,@(for/list ([(rule count) (in-dict (sort (hash->list counts) > #:key cdr))])
+              `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
 
 (define (render-phase-accuracy info accuracy oracle baseline)
   (define rows

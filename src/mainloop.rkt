@@ -196,8 +196,11 @@
   (define rules-used
     (append-map (curry map change-rule) changelists))
   (define rule-counts
-    (for/hash ([rgroup (group-by identity rules-used)])
-      (values (rule-name (first rgroup)) (length rgroup))))
+    (sort
+     (hash->list
+      (for/hash ([rgroup (group-by identity rules-used)])
+        (values (rule-name (first rgroup)) (length rgroup))))
+     > #:key cdr))
 
   (define rewritten
     (for/list ([cl changelists])

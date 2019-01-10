@@ -76,7 +76,6 @@ function make_graph(node, data, start, end) {
 }
 
 function draw_results(node) {
-    window.width = node.attr("width") - 2 * margin;
     d3.json("results.json", function(err, data) {
         if (err) return console.error(err);
         precision = data.bit_width;

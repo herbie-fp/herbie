@@ -111,19 +111,6 @@
     (dl
      ,@(when-dict curr (method)
          `((dt "Algorithm") (dd ,(~a method))))
-     ,@(when-dict curr (inputs outputs)
-         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
-     ,@(when-dict curr (times)
-         `((dt "Calls")
-           (dd ,(~a (length times)) " calls:"
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
-     ,@(when-dict curr (slowest)
-         `((dt "Slowest")
-           (dd (table ([class "times"])
-                ,@(for/list ([(expr time) (in-dict slowest)])
-                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
      ,@(when-dict curr (locations)
          `((dt "Local error")
            (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
@@ -144,7 +131,25 @@
      ,@(when-dict curr (kept-alts done-alts min-error)
          `((dt "Pruning")
            (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
-               (p "Merged error: " ,(format-bits min-error) "b")))))))
+               (p "Merged error: " ,(format-bits min-error) "b"))))
+     ,@(when-dict curr (rules)
+         `((dt "Rules")
+           (dd (table ([class "times"])
+                ,@(for/list ([(rule count) (in-dict rules)])
+                    `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
+     ,@(when-dict curr (inputs outputs)
+         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+     ,@(when-dict curr (times)
+         `((dt "Calls")
+           (dd ,(~a (length times)) " calls:"
+               (canvas ([id ,(format "calls-~a" n)]
+                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
+     ,@(when-dict curr (slowest)
+         `((dt "Slowest")
+           (dd (table ([class "times"])
+                ,@(for/list ([(expr time) (in-dict slowest)])
+                    `(tr (td ,(format-time time)) (td (pre ,(~a expr))))))))))))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
@@ -543,6 +548,7 @@
     [('type v) (~a v)]
     [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
     [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
+    [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
     [(_ v) v])
 
   (define data
