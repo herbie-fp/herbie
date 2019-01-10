@@ -205,7 +205,7 @@
         (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
 
   (log! 'inputs (length exprs))
-  (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+  (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
   (log! 'rules rule-counts)
   (log! 'times (map cdr exprs))
   (log! 'outputs (length rewritten))
@@ -259,7 +259,7 @@
               child))))
 
     (log! 'inputs (length exprs))
-    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 3))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
     (log! 'times (map cdr exprs))
     (log! 'outputs (length simplified))
 
