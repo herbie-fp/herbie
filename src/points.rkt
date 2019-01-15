@@ -153,41 +153,63 @@
 
 (define ival-warnings (make-parameter '()))
 
-(define (handle-ival-eval-error! who pt)
-  (unless (set-member? (ival-warnings) who)
-    (ival-warnings (cons who (ival-warnings)))
-    (eprintf "Warning: could not determine a ground truth for ~a\n"
-             (string-join (map ~a pt) ", "))
-    (eprintf "  ~a\n" who)
-    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n"
-             *herbie-version*))
-  +nan.0)
+(define (pre-logger dict prog)
+  (match-lambda*
+   [`(exit ,prec ,pt)
+    (hash-update! dict (list 'pre 'exit prec) (curry + 1) 0)
+    (when (= (hash-ref dict (list 'pre exit prec)) 1)
+      (eprintf "Warning: could not determine a ground truth for precondition\n")
+      (for ([var (program-variables prog)] [val pt])
+        (eprintf "  ~a = ~a\n" var val))
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))]
+   [`(sampled ,prec ,in #f)
+    (hash-update! dict (list 'pre 'false prec) (curry + 1) 0)]
+   [`(sampled ,prec ,in #t)
+    (hash-update! dict (list 'pre 'true prec) (curry + 1) 0)]
+   [`(nan ,prec ,in)
+    (hash-update! dict (list 'pre 'nan prec) (curry + 1) 0)]))
 
-(define (ival-eval fn pt #:precision [precision 80] #:who who)
+(define (body-logger dict prog)
+  (match-lambda*
+   [`(exit ,prec ,pt)
+    (hash-update! dict (list 'body 'exit prec) (curry + 1) 0)
+    (when (= (hash-ref dict (list 'body exit prec)) 1)
+      (eprintf "Warning: could not determine a ground truth for program body\n")
+      (for ([var (program-variables prog)] [val pt])
+        (eprintf "  ~a = ~a\n" var val))
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))]
+   [`(sampled ,prec ,in ,out)
+    (hash-update! dict (list 'body 'real prec) (curry + 1) 0)]
+   [`(nan ,prec ,in)
+    (hash-update! dict (list 'body 'nan prec) (curry + 1) 0)]))
+
+(define (ival-eval fn pt #:precision [precision 80] #:log [log! void])
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
-        (handle-ival-eval-error! who pt)
-        (match-let ([(ival lo hi err? err) (fn pt)])
-          (cond
-           [err
-            +nan.0]
-           [(and (or (equal? (->flonum lo) (->flonum hi))
-                     (and (equal? (->flonum lo) -0.0) (equal? (->flonum hi) +0.0)))
-                 (not err?))
-            (->flonum hi)]
-           [else
-            (loop (inexact->exact (round (* precision 2))))]))))))
+          (log! 'exit precision pt)
+          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (->flonum lo)] [hi* (->flonum hi)])
+            (cond
+             [err
+              (log! 'nan precision pt)
+              +nan.0]
+             [(and (not err?) (or (equal? lo* hi*) (and (equal? lo* -0.0) (equal? hi* +0.0))))
+              (log! 'sampled precision pt hi*)
+              hi*]
+             [else
+              (loop (inexact->exact (round (* precision 2))))]))))))
 
-(define (make-exacts-intervals prog pts precondition)
+(define (make-exacts-intervals prog pts precondition #:log [log #f])
   (define pre-fn (eval-prog `(λ ,(program-variables prog) ,precondition) 'ival))
   (define body-fn (eval-prog prog 'ival))
   (for/list ([pt pts])
-    (if (ival-eval pre-fn pt #:who precondition) (ival-eval body-fn pt #:who (program-body prog)) +nan.0)))
+    (if (ival-eval pre-fn pt #:log (if log (pre-logger log `(λ ,(program-variables prog) ,precondition)) void))
+        (ival-eval body-fn pt #:log (if log (body-logger log prog) void))
+        +nan.0)))
 
-(define (make-exacts prog pts precondition)
+(define (make-exacts prog pts precondition #:log [log #f])
   (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
-      (make-exacts-intervals prog pts precondition)
+      (make-exacts-intervals prog pts precondition #:log log)
       (make-exacts-halfpoints prog pts precondition)))
 
 (define (filter-p&e pts exacts)
@@ -209,7 +231,7 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points-ranges prog precondition range-table)
+(define (prepare-points-ranges prog precondition range-table #:log [log #f])
   (define (sample)
     (for/list ([var (program-variables prog)])
       (match (range-table-ref range-table var)
@@ -235,30 +257,29 @@
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
       (define pts1 (for/list ([i (in-range num)]) (sample)))
-      (define exs1 (make-exacts prog pts1 precondition))
+      (define exs1 (make-exacts prog pts1 precondition #:log log))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
       (define-values (pts* exs*) (filter-p&e pts1 exs1))
       ;; keep iterating till we get at least *num-points*
       (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
 
-(define (prepare-points prog precondition)
+(define (prepare-points prog precondition #:log [log #f])
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
 
-  (define sampled-pts (extract-sampled-points (program-variables prog) precondition))
-  (define range-table (condition->range-table precondition))
-
-  (cond
-   [sampled-pts
-    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE))]
-   [else
+  (match (extract-sampled-points (program-variables prog) precondition)
+   [(? list? sampled-pts)
+    (when log (hash-set! log 'presampled (length sampled-pts)))
+    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE #:log log))]
+   [#f
+    (define range-table (condition->range-table precondition))
     (for ([var (program-variables prog)]
           #:unless (range-table-ref range-table var))
       (raise-herbie-error "No valid values of variable ~a" var
                           #:url "faq.html#no-valid-values"))
-    (prepare-points-ranges prog precondition range-table)]))
+    (prepare-points-ranges prog precondition range-table #:log log)]))
 
 (define (sampling-method prog precondition)
   (cond

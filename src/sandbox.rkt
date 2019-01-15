@@ -56,10 +56,12 @@
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (define log! (timeline-event! 'sample))
+        (define prepare-log (make-hash))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-program test) (test-precondition test))))
+            (prepare-points (test-program test) (test-precondition test) #:log prepare-log)))
         (log! 'method (sampling-method (test-program test) (test-precondition test)))
+        (log! 'outcomes prepare-log)
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 

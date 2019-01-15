@@ -13,7 +13,7 @@
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
-         format-time format-bits when-dict
+         format-time format-bits when-dict in-sorted-dict
          web-resource-path web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -322,6 +322,9 @@
       (let ([arg (dict-ref d 'arg)] ...)
         body ...)
       '()))
+
+(define (in-sorted-dict d)
+  (in-dict (sort (dict->list d) > #:key cdr)))
 
 (define-runtime-path web-resource-path "web/")
 

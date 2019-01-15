@@ -65,9 +65,11 @@
   (rollback-improve!)
   (define log! (timeline-event! 'sample))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([context (prepare-points prog precondition)]
+  (define prepare-log (make-hash))
+  (let* ([context (prepare-points prog precondition #:log prepare-log)]
          [altn (make-alt prog)])
     (log! 'method (sampling-method prog precondition))
+    (log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
     (reset-analyze-cache!)

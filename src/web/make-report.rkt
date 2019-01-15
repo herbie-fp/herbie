@@ -169,6 +169,8 @@
             (dl
              ,@(when-dict phase (method)
                           (render-phase-algorithm info method))
+             ,@(when-dict phase (outcomes)
+                          (render-phase-outcomes info outcomes))
              ,@(when-dict phase (times)
                           (render-phase-times info type times))
              ,@(when-dict phase (slowest)
@@ -244,6 +246,19 @@
                         (td ,(~r (* (second row) 100) #:precision 1) "%")
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
+
+(define (render-phase-outcomes info outcomes)
+  (define tables (map cdr outcomes))
+  (define keys (apply set-union (map hash-keys tables)))
+
+  (define merged
+    (for/hash ([outcome keys])
+      (values outcome (apply + (map (curryr hash-ref outcome 0) tables)))))
+
+  `((dt "Results")
+    (dd (table ([class "times"])
+         ,@(for/list ([(outcome number) (in-sorted-dict merged)])
+             `(tr (td ,(~a number) "×") (td ,(~a outcome))))))))
 
 (define (summarize-timelines info dir)
   (define tls

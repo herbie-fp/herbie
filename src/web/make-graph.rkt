@@ -149,7 +149,12 @@
          `((dt "Slowest")
            (dd (table ([class "times"])
                 ,@(for/list ([(expr time) (in-dict slowest)])
-                    `(tr (td ,(format-time time)) (td (pre ,(~a expr))))))))))))
+                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+     ,@(when-dict curr (outcomes)
+         `((dt "Results")
+           (dd (table ([class "times"])
+                ,@(for/list ([(outcome number) (in-sorted-dict outcomes)])
+                    `(tr (td ,(~a number) "×") (td ,(~a outcome)))))))))))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
@@ -549,6 +554,9 @@
     [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
     [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
     [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
+    [('outcomes v)
+     (for/hash ([(name num) (in-dict v)])
+       (values (string->symbol (~a name)) num))]
     [(_ v) v])
 
   (define data
