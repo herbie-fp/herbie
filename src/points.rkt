@@ -157,7 +157,7 @@
   (match-lambda*
    [`(exit ,prec ,pt)
     (hash-update! dict (list 'pre 'exit prec) (curry + 1) 0)
-    (when (= (hash-ref dict (list 'pre exit prec)) 1)
+    (when (= (hash-ref dict (list 'pre 'exit prec)) 1)
       (eprintf "Warning: could not determine a ground truth for precondition\n")
       (for ([var (program-variables prog)] [val pt])
         (eprintf "  ~a = ~a\n" var val))
@@ -173,7 +173,7 @@
   (match-lambda*
    [`(exit ,prec ,pt)
     (hash-update! dict (list 'body 'exit prec) (curry + 1) 0)
-    (when (= (hash-ref dict (list 'body exit prec)) 1)
+    (when (= (hash-ref dict (list 'body 'exit prec)) 1)
       (eprintf "Warning: could not determine a ground truth for program body\n")
       (for ([var (program-variables prog)] [val pt])
         (eprintf "  ~a = ~a\n" var val))
