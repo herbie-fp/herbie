@@ -153,8 +153,8 @@
      ,@(when-dict curr (outcomes)
          `((dt "Results")
            (dd (table ([class "times"])
-                ,@(for/list ([(outcome number) (in-sorted-dict outcomes)])
-                    `(tr (td ,(~a number) "×") (td ,(~a outcome)))))))))))
+                ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
+                    `(tr (td ,(~a (car number)) "×") (td ,(format-time (cdr number))) (td (code ,(~a outcome))))))))))))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
@@ -556,7 +556,7 @@
     [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
     [('outcomes v)
      (for/hash ([(name num) (in-dict v)])
-       (values (string->symbol (~a name)) num))]
+       (values (string->symbol (~a name)) (cons->hash 'count identity 'time identity num)))]
     [(_ v) v])
 
   (define data

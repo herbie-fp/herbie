@@ -323,8 +323,8 @@
         body ...)
       '()))
 
-(define (in-sorted-dict d)
-  (in-dict (sort (dict->list d) > #:key cdr)))
+(define (in-sorted-dict d #:key [key identity])
+  (in-dict (sort (dict->list d) > #:key (compose key cdr))))
 
 (define-runtime-path web-resource-path "web/")
 

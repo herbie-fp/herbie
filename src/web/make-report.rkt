@@ -247,18 +247,28 @@
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
 
+(define (hash->cons key1 key2 val)
+  (cons (dict-ref val key1) (dict-ref val key2)))
+
 (define (render-phase-outcomes info outcomes)
   (define tables (map cdr outcomes))
   (define keys (apply set-union (map hash-keys tables)))
+  
+  (define (cell+ . args)
+    (foldl
+     (λ (a b) (cons (+ (car a) (car b)) (+ (cdr a) (cdr b))))
+     (cons 0 0)
+     args))
 
   (define merged
     (for/hash ([outcome keys])
-      (values outcome (apply + (map (curryr hash-ref outcome 0) tables)))))
+      (values outcome (apply cell+ (map (compose (curry hash->cons 'count 'time)
+                                                 (curryr hash-ref outcome #hash((count . 0) (time . 0)))) tables)))))
 
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([(outcome number) (in-sorted-dict merged)])
-             `(tr (td ,(~a number) "×") (td ,(~a outcome))))))))
+         ,@(for/list ([(outcome number) (in-sorted-dict merged #:key cdr)])
+             `(tr (td ,(~a (car number)) "×") (td ,(format-time (cdr number))) (td ,(~a outcome))))))))
 
 (define (summarize-timelines info dir)
   (define tls
