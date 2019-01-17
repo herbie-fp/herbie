@@ -251,24 +251,22 @@
   (cons (dict-ref val key1) (dict-ref val key2)))
 
 (define (render-phase-outcomes info outcomes)
-  (define tables (map cdr outcomes))
-  (define keys (apply set-union (map hash-keys tables)))
-  
-  (define (cell+ . args)
-    (foldl
-     (λ (a b) (cons (+ (car a) (car b)) (+ (cdr a) (cdr b))))
-     (cons 0 0)
-     args))
+  (define entries (append-map cdr outcomes))
+  (define (key x) (map (curry hash-ref x) '(program category precision)))
 
   (define merged
-    (for/hash ([outcome keys])
-      (values outcome (apply cell+ (map (compose (curry hash->cons 'count 'time)
-                                                 (curryr hash-ref outcome #hash((count . 0) (time . 0)))) tables)))))
+    (for/hash ([rows (group-by key entries)])
+      (values (key (first rows))
+              (cons (apply + (map (curryr hash-ref 'count) rows))
+                    (apply + (map (curryr hash-ref 'time) rows))))))
 
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([(outcome number) (in-sorted-dict merged #:key cdr)])
-             `(tr (td ,(~a (car number)) "×") (td ,(format-time (cdr number))) (td ,(~a outcome))))))))
+             (match-define (cons count time) number)
+             (match-define (list prog category prec) outcome)
+             `(tr (td ,(format-time time)) (td ,(~a count) "×")
+                  (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category))))))))
 
 (define (summarize-timelines info dir)
   (define tls

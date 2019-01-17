@@ -154,7 +154,10 @@
          `((dt "Results")
            (dd (table ([class "times"])
                 ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
-                    `(tr (td ,(~a (car number)) "×") (td ,(format-time (cdr number))) (td (code ,(~a outcome))))))))))))
+                    (match-define (cons count time) number)
+                    (match-define (list prog category prec) outcome)
+                    `(tr (td ,(format-time time)) (td ,(~a count) "×")
+                         (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category)))))))))))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
@@ -555,8 +558,11 @@
     [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
     [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
     [('outcomes v)
-     (for/hash ([(name num) (in-dict v)])
-       (values (string->symbol (~a name)) (cons->hash 'count identity 'time identity num)))]
+     (for/list ([(outcome number) (in-dict v)])
+       (match-define (cons count time) number)
+       (match-define (list prog category prec) outcome)
+       (hash 'count count 'time time
+             'program (~a prog) 'category (~a category) 'precision prec))]
     [(_ v) v])
 
   (define data

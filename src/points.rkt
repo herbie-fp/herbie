@@ -153,32 +153,26 @@
 
 (define ival-warnings (make-parameter '()))
 
-(define (update-time dt)
-  (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))))
-
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
-  (match-lambda*
-   [`(exit ,prec ,pt)
+  (define (log! . args)
+    (define key
+      (match args
+        [`(exit ,prec ,pt)
+         (define key (list name 'exit prec))
+         (unless (hash-has-key? dict key)
+           (eprintf "Warning: could not determine a ground truth for program ~a\n" name)
+           (for ([var (program-variables prog)] [val pt])
+             (eprintf "  ~a = ~a\n" var val))
+           (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))
+         key]
+        [`(sampled ,prec ,pt #f) (list name 'false prec)]
+        [`(sampled ,prec ,pt #t) (list name 'true prec)]
+        [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
+        [`(nan ,prec ,pt) (list name 'nan prec)]))
     (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict (list name 'exit prec) (update-time dt) (cons 0 0))
-    (when (= (car (hash-ref dict (list name 'exit prec))) 1)
-      (eprintf "Warning: could not determine a ground truth for program ~a\n" name)
-      (for ([var (program-variables prog)] [val pt])
-        (eprintf "  ~a = ~a\n" var val))
-      (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))]
-   [`(sampled ,prec ,in #f)
-    (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict (list name 'false prec) (update-time dt) (cons 0 0))]
-   [`(sampled ,prec ,in #t)
-    (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict (list name 'true prec) (update-time dt) (cons 0 0))]
-   [`(sampled ,prec ,in ,out)
-    (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict (list name 'valid prec) (update-time dt) (cons 0 0))]
-   [`(nan ,prec ,in)
-    (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict (list name 'nan prec) (update-time dt) (cons 0 0))]))
+    (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
+  (if dict log! void))
 
 (define (ival-eval fn pt #:precision [precision 80] #:log [log! void])
   (let loop ([precision precision])
@@ -201,8 +195,9 @@
   (define pre-fn (eval-prog pre-prog 'ival))
   (define body-fn (eval-prog prog 'ival))
   (for/list ([pt pts])
-    (if (ival-eval pre-fn pt #:log (if log (point-logger 'pre log pre-prog) void))
-        (ival-eval body-fn pt #:log (if log (point-logger 'body log prog) void))
+    (if (or (equal? precondition 'TRUE)
+            (ival-eval pre-fn pt #:log (point-logger 'pre log pre-prog)))
+        (ival-eval body-fn pt #:log (point-logger 'body log prog))
         +nan.0)))
 
 (define (make-exacts prog pts precondition #:log [log #f])
