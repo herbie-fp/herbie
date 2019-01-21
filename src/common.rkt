@@ -106,7 +106,16 @@
      (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
     [(? boolean?)
      true]
-    ;; TODO: Posits should really have a special case for infinity
+    [(? posit8?)
+     (not (posit8= x posit8-inf))]
+    [(? posit16?)
+     (not (posit16= x posit16-inf))]
+    [(? posit32?)
+     (not (posit32= x posit32-inf))]
+    [(? posit64?)
+     (not (posit64= x posit64-inf))]
+    [(? posit128?)
+     (not (posit128= x posit128-inf))]
     [_ true]))
 
 (module+ test
