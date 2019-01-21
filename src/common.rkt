@@ -112,10 +112,6 @@
      (not (posit16= x posit16-inf))]
     [(? posit32?)
      (not (posit32= x posit32-inf))]
-    [(? posit64?)
-     (not (posit64= x posit64-inf))]
-    [(? posit128?)
-     (not (posit128= x posit128-inf))]
     [_ true]))
 
 (module+ test
