@@ -181,7 +181,7 @@
               :name ,(test-name test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
-                    `(:pre ,(test-precondition test)))
+                    `(:pre ,(resugar-program (test-precondition test))))
               ,@(if (test-output test)
                     `(:herbie-target ,(test-output test))
                     '())
