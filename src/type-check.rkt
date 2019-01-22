@@ -21,9 +21,7 @@
   (assert-expression-type! body 'real #:env (for/hash ([var vars]) (values (syntax-e var) 'real))))
 
 (define (assert-expression-type! stx expected-rtype #:env [env #hash()])
-  ;; TODO: We still want to do type checking, we just shouldn't always infer the same type
-  (define errs null)
-  #;(define errs
+  (define errs
     (reap [sow]
           (define (error! stx fmt . args)
             (sow (cons stx (apply format fmt args))))
