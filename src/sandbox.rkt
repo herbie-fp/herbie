@@ -179,6 +179,7 @@
                       ([,(*reeval-pts*) ,(errors-score target-error)]))
                     '())
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
                     `(:pre ,(resugar-program (test-precondition test))))
@@ -192,6 +193,7 @@
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
                     `(:pre ,(test-precondition test)))
@@ -205,6 +207,7 @@
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
                     `(:pre ,(test-precondition test)))
