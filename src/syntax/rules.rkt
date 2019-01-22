@@ -104,7 +104,7 @@
   [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
   [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))              (*.p16 (/.p16 a c) (/.p16 b d))]
   [sqrt-sqrd.p16   (*.p16 (sqrt.p16 a) (sqrt.p16 a))             a]
-  [remove-negate.p16 (+.p16 a (-.p16 (real->posit16 1.0) x))    (real->posit16 1.0)])
+  [remove-negate.p16 (+.p16 a (-.p16 (real->posit16 1.0) a))    (real->posit16 1.0)])
 
 
 ; Associativity
@@ -254,14 +254,14 @@
 
 (define-ruleset id-reduce-posit16 (arithmetic simplify fp-safe-nan)
   #:type ([a posit16])
-  [+-inverses        (- a a)                                 (real->posit16 0.0)]
-  [*-inverses        (/ a a)                                 (real->posit16 1.0)]
-  [div0              (/ (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0              (* (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0              (* a (real->posit16 0.0))               (real->posit16 0.0)]
-  [remove-double-div (/ (real->posit16 1.0) (/ (real->posit16 1.0) a))         a]
-  [rgt-mult-inverse  (* a (/ (real->posit16 1.0) a))         (real->posit16 1.0)]
-  [lft-mult-inverse  (* (/ (real->posit16 1.0) a) a)         (real->posit16 1.0)])
+  [+-inverses        (-.p16 a a)                                 (real->posit16 0.0)]
+  [*-inverses        (/.p16 a a)                                 (real->posit16 1.0)]
+  [div0              (/.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
+  [mul0              (*.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
+  [mul0              (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)]
+  [remove-double-div (/.p16 (real->posit16 1.0) (/.p16 (real->posit16 1.0) a))         a]
+  [rgt-mult-inverse  (*.p16 a (/.p16 (real->posit16 1.0) a))         (real->posit16 1.0)]
+  [lft-mult-inverse  (*.p16 (/.p16 (real->posit16 1.0) a) a)         (real->posit16 1.0)])
 
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   #:type ([a real])
@@ -784,10 +784,12 @@
   (define *skip-tests*
     (append
       ;; All these tests fail due to underflow to 0 and are irrelevant
+      ;; Posit tests may have unnaceptable error due to lack of
+      ;; representable numbers
       '(exp-prod pow-unpow pow-pow pow-exp
         asinh-2 tanh-1/2* sinh-cosh
         hang-p0-tan hang-m0-tan erf-odd erf-erfc erfc-erf
-        p16-flip-- insert-quire-sub)))
+        p16-flip-- insert-quire-sub sqrt-sqrd.p16)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
