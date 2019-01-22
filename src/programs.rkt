@@ -234,9 +234,9 @@
     [(cons (? (curryr member '(< <= > >= =)) op) a)
      (define expanded (map expand-associativity a))
      (if (> (length a) 2)
-                      `(and ,@(for/list ([x expanded] [y (cdr expanded)])
-                         (list op x y)))
-                      (cons op expanded))]
+         `(and ,@(for/list ([x expanded] [y (cdr expanded)])
+            (list op x y)))
+         (cons op expanded))]
     [(list '/ a)
      (list '/ 1 (expand-associativity a))]
     [(list op a ...)
