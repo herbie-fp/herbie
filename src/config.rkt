@@ -47,6 +47,9 @@
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
 
+;; The maximum number of consecutive skipped points for sampling valid points
+(define *max-skipped-points* (make-parameter 100))
+
 ;; The step size with which arbitrary-precision precision is increased
 ;; DANGEROUS TO CHANGE
 (define *precision-step* (make-parameter 256))
