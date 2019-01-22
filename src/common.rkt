@@ -107,11 +107,11 @@
     [(? boolean?)
      true]
     [(? posit8?)
-     (not (posit8= x posit8-inf))]
+     (not (posit8= x (posit8-inf)))]
     [(? posit16?)
-     (not (posit16= x posit16-inf))]
+     (not (posit16= x (posit16-inf)))]
     [(? posit32?)
-     (not (posit32= x posit32-inf))]
+     (not (posit32= x (posit32-inf)))]
     [_ true]))
 
 (module+ test
