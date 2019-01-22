@@ -275,9 +275,9 @@
         [(? real?)
          ;; cast to the correct type
          (match precision
-           ['posit8 (values (list 'real->posit8 (exact->inexact expr)) 'posit8)]
-           ['posit16 (values (list 'real->posit16 (exact->inexact expr)) 'posit16)]
-           ['posit32 (values (list 'real->posit32 (exact->inexact expr)) 'posit32)]
+           ['posit8 (values (list 'real->posit8 expr) 'posit8)]
+           ['posit16 (values (list 'real->posit16 expr) 'posit16)]
+           ['posit32 (values (list 'real->posit32 expr) 'posit32)]
            [_ (values expr 'real)])]
         [(? boolean?) (values expr 'bool)]
         [(? complex?) (values expr 'complex)]
