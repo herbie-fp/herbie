@@ -119,10 +119,6 @@
   (check-false (ordinary-value? +nan.0))
   (check-false (ordinary-value? -inf.f)))
 
-#;(define (=-or-nan? x1 x2)
-  (or (= x1 x2)
-      (and (nan? x1) (nan? x2))))
-
 (define (=-or-nan? x1 x2)
   (cond
     [(and (number? x1) (number? x2))

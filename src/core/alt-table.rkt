@@ -31,14 +31,14 @@
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
 (define (make-alt-table context initial-alt)
-   (alt-table (make-immutable-hash
-     (for/list ([(pt ex) (in-pcontext context)]
-                [err (errors (alt-program initial-alt) context)])
-       (cons pt (point-rec err (list initial-alt)))))
-     (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
-       pt))
-     (hash initial-alt #f)
-     context))
+  (alt-table (make-immutable-hash
+    (for/list ([(pt ex) (in-pcontext context)]
+               [err (errors (alt-program initial-alt) context)])
+      (cons pt (point-rec err (list initial-alt)))))
+    (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
+      pt))
+    (hash initial-alt #f)
+    context))
 
 (define (atab-new-context atab ctx)
   (let* ([old-done (alt-table-alt->done? atab)]

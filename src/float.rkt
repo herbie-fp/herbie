@@ -26,7 +26,6 @@
         (ulp-difference (imag-part x) (imag-part y)))]
     [((? boolean?) (? boolean?))
      (if (equal? x y) 0 64)]
-    ;; TODO: We should have a better metric for calculating posit and quire error
     [((? posit8?) (? posit8?))
      (p8s-between x y)]
     [((? posit16?) (? posit16?))
