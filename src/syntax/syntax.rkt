@@ -974,6 +974,33 @@
   [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator <)])
 
+(define-operator (<.p8 _posit8 _posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit8) bool))))] [args '(*)]
+  [fl (comparator posit8<)] [bf (comparator bf-posit8<)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit8<)])
+
+(define-operator (<.p16 _posit16 _posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit16) bool))))] [args '(*)]
+  [fl (comparator posit16<)] [bf (comparator bf-posit16<)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit16<)])
+
+(define-operator (<.p32 _posit32 _posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit32) bool))))] [args '(*)]
+  [fl (comparator posit32<)] [bf (comparator bf-posit32<)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit32<)])
+
 (define-operator (> real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
@@ -982,6 +1009,33 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator >)])
+
+(define-operator (>.p8 _posit8 _posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit8) bool))))] [args '(*)]
+  [fl (comparator posit8>)] [bf (comparator bf-posit8>)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit8>)])
+
+(define-operator (>.p16 _posit16 _posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit16) bool))))] [args '(*)]
+  [fl (comparator posit16>)] [bf (comparator bf-posit16>)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit16>)])
+
+(define-operator (>.p32 _posit32 _posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit32) bool))))] [args '(*)]
+  [fl (comparator posit32>)] [bf (comparator bf-posit32>)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit32>)])
 
 (define-operator (<= real real) bool
   ; Override number of arguments
@@ -995,27 +1049,27 @@
 (define-operator (<=.p8 _posit8 _posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit8) bool))))] [args '(*)]
-  [fl (comparator posit8<=)] [bf (comparator big-posit8<=)] [cost 65]
-  [->c/double (curry format "/* Error: no posit support in C */")]
-  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [fl (comparator posit8<=)] [bf (comparator bf-posit8<=)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit8<=)])
 
 (define-operator (<=.p16 _posit16 _posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit16) bool))))] [args '(*)]
-  [fl (comparator posit16<=)] [bf (comparator big-posit16<=)] [cost 65]
-  [->c/double (curry format "/* Error: no posit support in C */")]
-  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [fl (comparator posit16<=)] [bf (comparator bf-posit16<=)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit16<=)])
 
 (define-operator (<=.p32 _posit32 _posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* _posit32) bool))))] [args '(*)]
-  [fl (comparator posit32<=)] [bf (comparator big-posit32<=)] [cost 65]
-  [->c/double (curry format "/* Error: no posit support in C */")]
-  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [fl (comparator posit32<=)] [bf (comparator bf-posit32<=)] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit32<=)])
 
@@ -1027,6 +1081,33 @@
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator >=)])
+
+(define-operator (>=.p8 _posit8 _posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit8) bool))))] [args '(*)]
+  [fl (comparator posit8>=)] [bf (comparator bf-posit8>=)] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit8>=)])
+
+(define-operator (>=.p16 _posit16 _posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit16) bool))))] [args '(*)]
+  [fl (comparator posit16>=)] [bf (comparator bf-posit16>=)] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit16>=)])
+
+(define-operator (>=.p32 _posit32 _posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* _posit32) bool))))] [args '(*)]
+  [fl (comparator posit32>=)] [bf (comparator bf-posit32>=)] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit32>=)])
 
 (define-operator (not bool) bool
   [fl not] [bf not] [cost 65]
