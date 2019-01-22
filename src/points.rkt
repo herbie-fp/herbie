@@ -212,44 +212,52 @@
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit8))))
-         (define exacts (map f points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))]
+         (define filtered-points (filter
+           (λ (p) (valid-posit-point? prog precondition precision p))
+           points))
+         (define exacts (map f filtered-points))
+         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit16
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit16))))
-         (define exacts (map f points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))]
+         (define filtered-points (filter
+           (λ (x) (valid-posit-point? prog precondition precision x))
+           points))
+         (define exacts (map f filtered-points))
+         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit32
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit32))))
-         (define exacts (map f points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))]
+         (define filtered-points (filter (curry valid-posit-point? prog precondition precision) points))
+         (define exacts (map f filtered-points))
+         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire8
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire8))))
-         (define exacts (map f points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))]
+         (define filtered-points (filter (curry valid-posit-point? prog precondition precision) points))
+         (define exacts (map f filtered-points))
+         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire16
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire16))))
          (define exacts (map f points))
          (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))]
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire32
          (define f (eval-prog prog 'bf))
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire32))))
          (define exacts (map f points))
          (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop pts* exs* (+ 1 num-loops))])])))
+         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])])))
 
 (define (prepare-points prog precondition precision)
   "Given a program, return two lists:
