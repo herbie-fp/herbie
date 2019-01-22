@@ -154,8 +154,25 @@
      (and (andmap identity pts) pts)]
     [_ #f]))
 
-; These definitions in place, we finally generate the points.
+(define-namespace-anchor anchor)
+(define ns (namespace-anchor->namespace anchor))
+(define (valid-posit-point? prog precondition precision point)
+  (define vars (program-variables prog))
+  (define (fix-precondition [precondition precondition])
+    (cond
+      [(list? precondition) (for/list ([x precondition])
+                              (fix-precondition x))]
+      [(set-member? vars precondition) (list-ref point (index-of vars precondition))]
+      [(eq? 'real->posit8 precondition) 'double->posit8]
+      [(eq? 'real->posit16 precondition) 'double->posit16]
+      [(eq? 'real->posit32 precondition) 'double->posit32]
+      [#t precondition]))
+  (define precondition* (fix-precondition))
+  (if (eq? precondition* 'TRUE)
+    #t
+    (eval precondition* ns)))
 
+; These definitions in place, we finally generate the points.
 (define (prepare-points-ranges prog precondition precision range-table)
   (define (sample)
     (for/list ([var (program-variables prog)])
