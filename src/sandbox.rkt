@@ -66,7 +66,7 @@
         (parameterize ([current-output-port (or profile? (current-output-port))])
           (profile (compute-result test)))
         (compute-result test)))
-  
+
   (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
     (engine-run (*timeout*) eng)
 
@@ -74,10 +74,18 @@
       [`(good ,start ,end ,context ,newcontext ,timeline ,bits)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (test-result test 
+       (define start-prog (alt-program start))
+       (define end-prog (alt-program end))
+       (define start-resugared (make-alt
+         (list 'λ (program-variables start-prog)
+               (resugar-program (program-body start-prog)))))
+       (define end-resugared (struct-copy alt end
+         [program (list 'λ (program-variables start-prog)
+                        (resugar-program (program-body end-prog)))]))
+       (test-result test
                     (- (current-inexact-milliseconds) start-time)
                     bits
-                    start end points exacts
+                    start-resugared end-resugared points exacts
                     (errors (alt-program start) context)
                     (errors (alt-program end) context)
                     newpoints newexacts
