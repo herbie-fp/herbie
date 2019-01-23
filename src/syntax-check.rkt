@@ -17,13 +17,13 @@
          (error! var "Invalid variable name ~a" var))
        (check-expression* val vars error!))
      (check-expression* body (bound-id-set-union vars (immutable-bound-id-set vars*)) error!)]
+    [#`(let ,varlist #,body)
+     (error! stx "Invalid `let` expression variable list ~a" (syntax->datum varlist))
+     (check-expression* body vars error!)]
+    [#`(let ,args ...)
+     (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))]
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [#`(,(and (or 'sqr 'cube) f) #,args ...)
-     (unless (= (length args) 1)
-       (error! stx "Operator ~a given ~a arguments (expects 1)" f (length args)))
-     (eprintf "Warning: the `sqr` and `cube` operators are deprecated and will be removed in later versions.\n")
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
      (if (operator? f)
@@ -33,7 +33,7 @@
                      f (length args) (string-join (map ~a num-args) " or "))))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
-    [_ (error! stx "Unknown syntax ~a" stx)]))
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
 (define (check-property* prop error!)
   (unless (identifier? prop)

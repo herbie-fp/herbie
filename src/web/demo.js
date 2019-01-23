@@ -209,7 +209,7 @@ function ajax_submit(url, text, lisp) {
             if (req.status == 201) {
                 var jobcount = req.getResponseHeader("X-Job-Count");
                 var jobelt = document.getElementById("num-jobs")
-                if (jobelt) jobelt.innerHTML = jobcount - 1;
+                if (jobelt) jobelt.innerHTML = Math.max(jobcount - 1, 0);
                 var loc = req.getResponseHeader("Location");
                 get_progress(loc);
             } else {

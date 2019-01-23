@@ -1,22 +1,44 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../points.rkt" "../float.rkt")
-(require "../alternative.rkt" "../errors.rkt")
-(require "../formats/test.rkt")
-(require "../formats/datafile.rkt")
-(require "../core/matcher.rkt")
-(require "../core/regimes.rkt")
-(require "../programs.rkt")
-(require "../plot.rkt")
-(require "../sandbox.rkt")
-(require "../formats/tex.rkt")
+(require json (only-in xml write-xexpr xexpr?))
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
+(require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
+(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
+(require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 (require "../fpcore/core2js.rkt")
 (require "../syntax/softposit.rkt")
-(require (only-in xml write-xexpr xexpr?))
 
-(provide make-graph make-traceback make-timeout make-axis-plot make-points-plot
-         make-plots output-interactive-js make-interactive-js get-interactive-js)
+(provide all-pages make-page)
+
+(define (all-pages result)
+  (define test (test-result-test result))
+  (define good? (test-success? result))
+
+  (define pages
+    `("graph.html"
+      ,(and good? "interactive.js")
+      "timeline.json"
+      ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
+                   #:when good? [type '("" "r" "g" "b")]
+                   #:unless (and (equal? type "g") (not (test-output test))))
+          (format "plot-~a~a.png" idx type))))
+  (filter identity pages))
+
+(define (make-page page out result profile?)
+  (match page
+    ["graph.html"
+     (match result
+       [(? test-success?) (make-graph result out profile? (get-interactive-js result))]
+       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-failure?) (make-traceback result out profile?)])]
+    ["interactive.js"
+     (make-interactive-js result out)]
+    ["timeline.json"
+     (make-timeline-json result out)]
+    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx ""))
+     (make-axis-plot result out (string->number idx))]
+    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -67,96 +89,149 @@
      (format "  ~a)" (test-input test))))
    "\n"))
 
-(define timeline? any/c)
+(define timeline-phase? (listof (cons/c symbol? any/c)))
+(define timeline? (listof timeline-phase?))
 
 (define/contract (render-timeline timeline)
   (-> timeline? xexpr?)
   `(div ((class "timeline"))
-        ,@(for/list ([curr timeline] [next (cdr timeline)])
+        ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
             `(div
-              ((class ,(format "timeline-phase ~a" (dict-ref curr 'type)))
-               (data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time))))
-               ,@(for/list ([(type value) (in-dict curr)] #:when (not (member type '(time))))
-                   `(,(string->symbol (format "data-~a" type)) ,(~a value))))))))
+              ([class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type))]
+               [data-id ,(format "timeline~a" n)]
+               [data-type ,(~a (dict-ref curr 'type))]
+               [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
 
+(define/contract (render-phase curr n next)
+  (-> timeline-phase? integer? timeline-phase? xexpr?)
+  `(div ([class ,(format "timeline-block timeline-~a" (dict-ref curr 'type))]
+         [id ,(format "timeline~a" n)])
+    (h3 ,(~a (dict-ref curr 'type))
+        (span ([class "time"])
+         ,(format-time (- (dict-ref next 'time) (dict-ref curr 'time)))))
+    (dl
+     ,@(when-dict curr (method)
+         `((dt "Algorithm") (dd ,(~a method))))
+     ,@(when-dict curr (locations)
+         `((dt "Local error")
+           (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
+               (table ([class "times"])
+                ,@(for/list ([(expr err) (in-dict locations)])
+                    `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
+     ,@(when-dict curr (accuracy oracle baseline)
+         (define percentage
+           (if (= baseline oracle)
+               (if (= baseline accuracy) "100" "-∞")
+               (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
 
-(define/contract (render-process-info time timeline profile? test #:bug? [bug? #f])
-  (->* (number? timeline? boolean? test?) (#:bug? boolean?) xexpr?)
+         `((dt "Accuracy")
+           (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
+               (p "Error of " ,(format-bits accuracy) "b"
+                  " against oracle of " ,(format-bits oracle) "b"
+                  " and baseline of " ,(format-bits baseline) "b"))))
+     ,@(when-dict curr (kept-alts done-alts min-error)
+         `((dt "Pruning")
+           (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
+               (p "Merged error: " ,(format-bits min-error) "b"))))
+     ,@(when-dict curr (rules)
+         `((dt "Rules")
+           (dd (table ([class "times"])
+                ,@(for/list ([(rule count) (in-dict rules)])
+                    `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
+     ,@(when-dict curr (inputs outputs)
+         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+     ,@(when-dict curr (times)
+         `((dt "Calls")
+           (dd ,(~a (length times)) " calls:"
+               (canvas ([id ,(format "calls-~a" n)]
+                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
+     ,@(when-dict curr (slowest)
+         `((dt "Slowest")
+           (dd (table ([class "times"])
+                ,@(for/list ([(expr time) (in-dict slowest)])
+                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+     ,@(when-dict curr (outcomes)
+         `((dt "Results")
+           (dd (table ([class "times"])
+                ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
+                    (match-define (cons count time) number)
+                    (match-define (list prog category prec) outcome)
+                    `(tr (td ,(format-time time)) (td ,(~a count) "×")
+                         (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category)))))))))))
+
+(define/contract (render-reproduction test #:bug? [bug? #f])
+  (->* (test?) (#:bug? boolean?) xexpr?)
+
+  `(section ((id "reproduce"))
+    (h1 "Reproduce")
+    ,(if bug?
+         `(p "Please include this information when filing a "
+             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+         "")
+    (pre ((class "shell"))
+         (code
+          ,(render-command-line) "\n"
+          ,(render-fpcore test) "\n"))))
+
+(define/contract (render-process-info timeline profile?)
+  (-> timeline? boolean? xexpr?)
+
+  (define time
+    (apply + (for/list ([phase timeline] [next (cdr timeline)])
+               (- (dict-ref next 'time) (dict-ref phase 'time)))))
+
   `(section ((id "process-info"))
-    (h1 "Runtime")
+    (h1 "Details")
     (p ((class "header"))
      "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
      (a ((class "attachment") (href "debug.txt")) "Debug log")
      ,(if profile?
           `(a ((class "attachment") (href "profile.txt")) "Profile")
-          "")
-     ,(render-timeline timeline)
-     ,(if bug?
-          `(p "Please include this information when filing a "
-              (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
-          "")
-     (pre ((class "shell"))
-      (code
-       ,(render-command-line) "\n"
-       ,(render-fpcore test) "\n")))))
+          ""))
+    ,(render-timeline timeline)
+    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
+        (render-phase curr n next))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
   (list 'FPCore args ':name 'alt expr))
 
 (define (get-interactive-js result)
-  (with-handlers ([exn:fail?
-                   (λ (e) #f)])
-    (define start-fpcore (alt2fpcore (test-result-start-alt result)))
-    (define end-fpcore (alt2fpcore (test-result-end-alt result)))
+  (with-handlers ([exn:fail? (λ (e) #f)])
+    (define start-fpcore (alt2fpcore (test-success-start-alt result)))
+    (define end-fpcore (alt2fpcore (test-success-end-alt result)))
     (define start-js (compile-program start-fpcore #:name "start"))
     (define end-js (compile-program end-fpcore #:name "end"))
     (string-append start-js end-js)))
 
-(define (make-interactive-js result rdir profile?)
+(define (make-interactive-js result out)
   (define js-text (get-interactive-js result))
-  (if (string? js-text)
-      (display-to-file js-text
-                       (build-path rdir "interactive.js")
-                       #:exists 'replace)
-      #f))
-
-(define (output-interactive-js result rdir profile?)
-  (define js-text (get-interactive-js result))
-  (if (string? js-text)
-      (display js-text)
-      #f))
+  (when (string? js-text)
+    (display js-text out)))
 
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
-  (define start-fpcore (alt2fpcore start-prog))
   `(section ([id "try-it"])
     (h1 "Try it out")
     (div ([id "try-inputs-wrapper"])
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
        (ol
-        ,@(for/list ([var-name (second start-fpcore)] [i (in-naturals)] [val point])
+        ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
-                 (input ([type "text"]
+                 (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
-                         [class "input-submit"]
                          [oninput "submit_inputs();"]
                          [value ,(~a val)])))))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
         (table
          (tbody
-           (tr
-            (td
-             (label ([for "try-original-output"]) "In"))
-            (td
-             (output ([id "try-original-output"]))))
-           (tr
-            (td
-             (label ([for "try-herbie-output"]) "Out"))
-            (td
-             (output ([id "try-herbie-output"]))))))
+           (tr (td (label ([for "try-original-output"]) "In"))
+               (td (output ([id "try-original-output"]))))
+           (tr (td (label ([for "try-herbie-output"]) "Out"))
+               (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
 (define (points->doubles pts)
@@ -173,14 +248,14 @@
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-result-end-alt result)) '()))))
+   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
-(define (make-points-plot result idx letter out)
+(define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
-      ['r (values *red-theme*   test-result-start-error)]
-      ['g (values *green-theme* test-result-target-error)]
-      ['b (values *blue-theme*  test-result-end-error)]))
+      ['r (values *red-theme*   test-success-start-error)]
+      ['g (values *green-theme* test-success-target-error)]
+      ['b (values *blue-theme*  test-success-end-error)]))
 
   (define pts (points->doubles (test-result-newpoints result)))
   (define err (accessor result))
@@ -190,34 +265,67 @@
    (error-points err pts #:axis idx #:color theme)
    (error-avg err pts #:axis idx #:color theme)))
 
-(define (make-plots result rdir profile?)
+(define (make-alt-plots point-alt-idxs alt-idxs title out)
+  (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
+  (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+
+(define (make-point-alt-idxs result)
+  (define all-alts (test-success-all-alts result))
+  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
+  (define newpoints (test-success-newpoints result))
+  (define newexacts (test-success-newexacts result))
+  (oracle-error-idx all-alt-bodies newpoints newexacts))
+
+(define (make-contour-plot point-colors var-idxs title out)
+  (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
+  (alt-plot point-renderers #:port out #:kind 'png #:title title))
+
+#;
+(define (make-plots result rdir profile? debug?)
   (define (open-file #:type [type #f] idx fun . args)
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
+  (define vars (program-variables (alt-program (test-success-start-alt result))))
+  (when (and debug? (>= (length vars) 2))
+    (define point-alt-idxs (make-point-alt-idxs result))
+    (define newpoints (test-success-newpoints result))
+    (define baseline-errs (test-success-baseline-error result))
+    (define herbie-errs (test-success-end-error result))
+    (define oracle-errs (test-success-oracle-error result))
+    (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
+    (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])
+      (define alt-idxs (list i j))
+      (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
+                 make-alt-plots point-alt-idxs alt-idxs title)
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
+                 make-contour-plot point-colors alt-idxs title)))
+
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
-    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-result-newpoints result)))) 1)
+    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-success-newpoints result)))) 1)
       ;; This is bad code
       (open-file idx make-axis-plot result idx)
       (open-file idx #:type 'r make-points-plot result idx 'r)
-      (when (test-result-target-error result)
+      (when (test-success-target-error result)
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result rdir profile? valid-js-prog)
+(define (make-graph result out profile? valid-js-prog)
   (match-define
-   (test-result test time bits start-alt end-alt
-                points exacts start-est-error end-est-error
-                newpoints newexacts start-error end-error target-error timeline)
+   (test-success test bits time timeline
+                 start-alt end-alt points exacts start-est-error end-est-error
+                 newpoints newexacts start-error end-error target-error
+                 baseline-error oracle-error all-alts)
    result)
 
-   (printf "<!doctype html>\n")
+   (fprintf out "<!doctype html>\n")
    (write-xexpr
     `(html
       (head
        (meta ([charset "utf-8"]))
        (title "Result for " ,(~a (test-name test)))
-       (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"]))
+       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        ,@js-tex-include
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
@@ -266,7 +374,7 @@
 
        ,(if (and valid-js-prog (for/and ([p points]) (number? p)))
             (render-interactive start-alt (car points))
-            `(p ([display "none"])))
+            "")
 
        ,(if (test-output test)
             `(section ([id "comparison"])
@@ -283,17 +391,19 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-process-info time timeline profile? test)))))
+       ,(render-reproduction test)
+       ,(render-process-info timeline profile?)))
+    out))
 
-(define (make-traceback result rdir profile?)
-  (match-define (test-failure test bits exn time timeline) result)
-  (printf "<!doctype html>\n")
+(define (make-traceback result out profile?)
+  (match-define (test-failure test bits time timeline exn) result)
+  (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../graph.css"))))
+      (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
      (body
       (h1 "Error in " ,(format-time time))
       ,@(cond
@@ -313,10 +423,12 @@
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
                   "")))]
          [else
-          `(,(render-process-info time timeline profile? test #:bug? #t)
+          `(,(render-reproduction test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
-             ,(render-traceback exn)))])))))
+             ,(render-traceback exn))
+            ,(render-process-info timeline profile?))])))
+   out))
 
 (define (render-traceback exn)
   `(table
@@ -336,19 +448,21 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result rdir profile?)
+(define (make-timeout result out profile?)
   (match-define (test-timeout test bits time timeline) result)
-  (printf "<!doctype html>\n")
+  (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../graph.css"])))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info time timeline profile? test)))))
+      ,(render-process-info timeline profile?)
+      ,(render-reproduction test)))
+   out))
 
 (struct interval (alt-idx start-point end-point expr))
 
@@ -440,3 +554,28 @@
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
+
+(define (make-timeline-json result out)
+  (define timeline (test-result-timeline result))
+  (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
+
+  (define/match (value-map k v)
+    [('method v) (~a v)]
+    [('type v) (~a v)]
+    [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
+    [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
+    [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
+    [('outcomes v)
+     (for/list ([(outcome number) (in-dict v)])
+       (match-define (cons count time) number)
+       (match-define (list prog category prec) outcome)
+       (hash 'count count 'time time
+             'program (~a prog) 'category (~a category) 'precision prec))]
+    [(_ v) v])
+
+  (define data
+    (for/list ([event timeline])
+     (for/hash ([(k v) (in-dict event)])
+       (values k (value-map k v)))))
+
+  (write-json data out))

@@ -64,16 +64,18 @@
                      #:precision [precision 'binary64])
   (*start-prog* prog)
   (rollback-improve!)
-  (timeline-event! 'start) ; This has no associated data, so we don't name it
+  (define log! (timeline-event! 'sample))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (let* ([context (prepare-points prog precondition precision)]
+  (define prepare-log (make-hash))
+  (let* ([context (prepare-points prog precondition precision #:log prepare-log)]
          [altn (make-alt prog)])
+    (log! 'method (sampling-method prog precondition))
+    (log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
     (reset-analyze-cache!)
     (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (define log! (timeline-event! 'setup))
     (^table^ (make-alt-table context altn))
     (assert (equal? (atab-all-alts (^table^)) (list altn)))
     (void)))
@@ -123,7 +125,11 @@
 ;; Invoke the subsystems individually
 (define (localize! precision)
   (define log! (timeline-event! 'localize))
-  (^locs^ (localize-error (alt-program (^next-alt^)) precision))
+  (define locs (localize-error (alt-program (^next-alt^)) precision))
+  (log! 'locations
+        (for/list ([(err loc) (in-dict locs)])
+          (cons (location-get loc (alt-program (^next-alt^))) (errors-score err))))
+  (^locs^ (map cdr locs))
   (void))
 
 (define transforms-to-try
@@ -149,30 +155,68 @@
          `(taylor ,name ,loc)
          (list altn)))))
 
-
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (define log! (timeline-event! 'series))
+    (define exprs '())
+
     (define series-expansions
       (apply
        append
        (for/list ([location (^locs^)] [n (in-naturals 1)])
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-         (taylor-alt (^next-alt^) location))))
+         (define tnow (current-inexact-milliseconds))
+         (begin0
+             (taylor-alt (^next-alt^) location)
+           (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
+                                   (- (current-inexact-milliseconds) tnow)) exprs))))))
+    
+    (log! 'inputs (length exprs))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+    (log! 'times (map cdr exprs))
+    (log! 'outputs (length series-expansions))
+
     (^children^ (append (^children^) series-expansions)))
   (^gened-series^ #t)
   (void))
 
 (define (gen-rewrites!)
-  (define alt-rewrite (if (flag-set? 'generate 'rr) alt-rewrite-rm alt-rewrite-expression))
+  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (define log! (timeline-event! 'rewrite))
-  (define rewritten
+  (log! 'method (object-name rewrite))
+  (define exprs '())
+  (define altn (alt-add-event (^next-alt^) '(start rm)))
+
+  (define changelists
     (apply append
 	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
-  (^children^
-   (append (^children^) rewritten))
+             (define tnow (current-inexact-milliseconds))
+             (define expr (location-get location (alt-program altn)))
+             (begin0 (rewrite expr #:root location)
+               (set! exprs (cons (cons expr (- (current-inexact-milliseconds) tnow)) exprs))))))
+
+  (define rules-used
+    (append-map (curry map change-rule) changelists))
+  (define rule-counts
+    (sort
+     (hash->list
+      (for/hash ([rgroup (group-by identity rules-used)])
+        (values (rule-name (first rgroup)) (length rgroup))))
+     > #:key cdr))
+
+  (define rewritten
+    (for/list ([cl changelists])
+      (for/fold ([altn altn]) ([cng cl])
+        (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
+
+  (log! 'inputs (length exprs))
+  (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+  (log! 'rules rule-counts)
+  (log! 'times (map cdr exprs))
+  (log! 'outputs (length rewritten))
+
+  (^children^ (append (^children^) rewritten))
   (^gened-rewrites^ #t)
   (void))
 
@@ -183,6 +227,9 @@
 (define (simplify!)
   (when (flag-set? 'generate 'simplify)
     (define log! (timeline-event! 'simplify))
+
+    (define exprs '())
+
     (define simplified
       (for/list ([child (^children^)] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
@@ -209,11 +256,19 @@
             [_ (list '(2))]))
 
         (for/fold ([child child]) ([loc locs])
+          (define tnow (current-inexact-milliseconds))
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
+          (set! exprs (cons (cons (location-get loc (alt-program child)) (- (current-inexact-milliseconds) tnow)) exprs))
           (debug #:from 'simplify "Simplified" loc "to" child*)
           (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
               (alt child* (list 'simplify loc) (list child))
               child))))
+
+    (log! 'inputs (length exprs))
+    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+    (log! 'times (map cdr exprs))
+    (log! 'outputs (length simplified))
+
     (^children^ simplified))
   (^simplified^ #t)
   (void))
@@ -223,6 +278,9 @@
 (define (finalize-iter!)
   (define log! (timeline-event! 'prune))
   (^table^ (atab-add-altns (^table^) (^children^)))
+  (log! 'kept-alts (length (atab-not-done-alts (^table^))))
+  (log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
+  (log! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))
 
@@ -289,34 +347,32 @@
                      #:precision [precision 'binary64])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition #:precision precision)
-  (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
-      (begin
-	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-	(make-alt (*start-prog*)))
-      (begin
-	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (^table^
-         (atab-add-altns (^table^)
-                         (if (flag-set? 'setup 'simplify)
-                             (for/list ([altn (atab-all-alts (^table^))])
-                               (alt `(λ ,(program-variables (alt-program altn))
-                                       ,(simplify-expr (program-body (alt-program altn)) #:rules (*simplify-rules*)))
-                                    'initial-simplify (list altn)))
-                             (list))))
-        (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-          (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-          (run-iter! precision))
-        (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-        (get-final-combination precision))))
+  (cond
+   [(and (flag-set? 'setup 'early-exit)
+         (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
+    (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
+    (make-alt (*start-prog*))]
+   [else
+    (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+    (when (flag-set? 'setup 'simplify)
+      (^children^ (atab-all-alts (^table^)))
+      (simplify!)
+      (finalize-iter!))
+    (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+      (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+      (run-iter! precision))
+    (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+    (get-final-combination precision)]))
 
 (define (get-final-combination precision)
   (define all-alts (atab-all-alts (^table^)))
+  (*all-alts* all-alts)
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts))
-      (timeline-event! 'binary-search)
+      (timeline-event! 'bsearch)
       (combine-alts option precision)]
      [else
       (best-alt all-alts)]))

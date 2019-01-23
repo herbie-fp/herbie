@@ -142,7 +142,7 @@
     (let ([filtered-children
            (filter
             identity
-            (for/list ([child (enode-children en)])
+            (for/list ([child (in-list (enode-children en))])
               (let ([child* (filter-loop! child)])
                 (or child*
                     (begin (set-enode-parent! child en) #f)))))])
@@ -195,7 +195,7 @@
                                   (map enode-cvars (enode-children en))))
       en)))
 
-;; Updates the expressions in the pack, using s specified updater.
+;; Updates the expressions in the pack, using a specified updater.
 (define (update-vars! en updater)
   (for-pack! (λ (inner-en)
                (set-enode-expr! inner-en (updater (enode-expr inner-en))))

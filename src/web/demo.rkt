@@ -16,6 +16,7 @@
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
+(define *demo-debug?* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
@@ -37,10 +38,21 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method "post" improve]
    [("check-status" (string-arg)) check-status]
-   [((hash-arg) "interactive.js") generate-interactive]
-   [((hash-arg) "graph.html") generate-report]
-   [((hash-arg) "debug.txt") generate-debug]
-   [((hash-arg) (string-arg)) generate-plot]))
+   [((hash-arg) (string-arg)) generate-page]))
+
+(define (generate-page req results page)
+  (match-define (cons result debug) results)
+  (cond
+   [(set-member? page (all-pages result))
+    (response 200 #"OK" (current-seconds) #"text"
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+              (λ (out) (make-page page out result #f)))]
+   [(equal? page "debug.log")
+    (response 200 #"OK" (current-seconds) #"text/plain"
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+              (λ (out) (display debug out)))]
+   [else
+    (next-dispatcher)]))
 
 (define url (compose add-prefix url*))
 
@@ -148,7 +160,8 @@
      (let loop ([seed #f])
        (match (thread-receive)
          [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?
+                 debug? ,debug?)
           (set! seed vec)
           (*flags* flag-table)
           (*num-iterations* iterations)
@@ -156,7 +169,8 @@
           (*timeout* timeout)
           (*demo-output* output)
           (*reeval-pts* reeval)
-          (*demo?* demo?)]
+          (*demo?* demo?)
+          (*demo-debug?* debug?)]
          [(list 'improve hash formula sema)
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
@@ -171,7 +185,8 @@
               (get-test-result
                #:seed seed
                #:debug-level (cons 'progress '(3 4))
-               #:debug (hash-ref *jobs* hash)
+               #:debug-port (hash-ref *jobs* hash)
+               #:debug (*demo-debug?*)
                (parse-test formula)))
 
             (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
@@ -179,19 +194,11 @@
             (when (*demo-output*)
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
-              (define make-page
-                (cond [(test-result? result) (λ args
-                                               (define valid-js (apply make-interactive-js args))
-                                               (apply make-graph (append args (list valid-js)))
-                                               (apply make-plots args))]
-                      [(test-timeout? result) make-timeout]
-                      [(test-failure? result) make-traceback]))
-              (with-output-to-file (build-path (*demo-output*) path "graph.html")
-                (λ () (make-page result (build-path (*demo-output*) path) #f)))
-
-              (with-output-to-file (build-path (*demo-output*) path "debug.txt")
-                (λ () (display (get-output-string (hash-ref *jobs* hash)))))
-
+              (for ([page (all-pages result)])
+                (call-with-output-file (build-path (*demo-output*) path page)
+                  (λ (out) (make-page page out result #f))))
+              (write-file (build-path (*demo-output*) path "debug.txt")
+                (display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
@@ -281,62 +288,21 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (generate-interactive req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out)
-              (parameterize ([current-output-port out])
-                (output-interactive-js result (format "~a.~a" hash *herbie-commit*) #f)))))
-
-(define (generate-report req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text/html"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out)
-              (parameterize ([current-output-port out])
-                (make-graph result
-                            (format "~a.~a" hash *herbie-commit*)
-                            #f
-                            (string? (get-interactive-js result)))))))
-
-(define (generate-plot req results plotname)
-  (match-define (cons result debug) results)
-
-  (define responder
-    (match (regexp-match #rx"^plot-([0-9]+)([rbg]?).png$" plotname)
-      [#f (next-dispatcher)]
-      [(list _ (app string->number idx) "")
-       ;; TODO: rdir?
-       (curry make-axis-plot result idx)]
-      [(list _ (app string->number idx) (and (or "r" "g" "b") (app string->symbol letter)))
-       (curry make-points-plot result idx letter)]))
-  (response 200 #"OK" (current-seconds) #"text/html"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            responder))
-
-(define (generate-debug req results)
-  (match-define (cons result debug) results)
-
-  (response 200 #"OK" (current-seconds) #"text/plain"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-            (λ (out) (display debug out))))
-
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port)
+(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:debug debug? #:log log #:port port #:public? public)
   (*demo?* demo?)
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
+  (*demo-debug?* debug?)
 
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
-           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
+           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)
+           debug? ,(*demo-debug?*)))
   (thread-send *worker-thread* config)
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
@@ -344,7 +310,7 @@
 
   (serve/servlet
    dispatch
-   #:listen-ip (if (*demo?*) #f "127.0.0.1")
+   #:listen-ip (if public #f "127.0.0.1")
    #:port port
    #:servlet-current-directory (current-directory)
    #:manager (create-none-manager #f)

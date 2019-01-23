@@ -1,22 +1,20 @@
 #lang racket
 
-(require math/flonum)
-(require math/bigfloat)
+(require math/flonum math/bigfloat racket/runtime-path)
 (require "config.rkt" "errors.rkt" "debug.rkt" "syntax/softposit.rkt")
+(module+ test (require rackunit))
 
-(module+ test
-  (require rackunit))
-
-(provide *start-prog*
+(provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
-         assert for/append
+         assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total <=/total nan?-all-types
          take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
          common-eval-ns common-eval quasisyntax
-         format-time format-bits
+         format-time format-bits when-dict in-sorted-dict
+         web-resource-path web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -24,6 +22,7 @@
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
+(define *all-alts* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
 
@@ -40,36 +39,22 @@
 ;; The new, contracts-using version of the above
 
 (define-syntax-rule (define-table name [field type] ...)
-  (define/contract name
-    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
-    (cons (list (cons 'field type) ...) (make-hash))))
+  (define name (cons (list (cons 'field type) ...) (make-hash))))
 
-(define/contract (table-ref tbl key field)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [field symbol?])
-       [_ (tbl field) (dict-ref (car tbl) field)])
+(define (table-ref tbl key field)
   (match-let ([(cons header rows) tbl])
     (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (dict-ref rows key))]
+                [value (in-list (hash-ref rows key))]
                 #:when (equal? field-name field))
       value)))
 
-(define/contract (table-set! tbl key fields)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [fields (tbl)
-                ;; Don't check value types because the contract gets pretty rough :(
-                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
-       any)
+(define (table-set! tbl key fields)
   (match-let ([(cons header rows) tbl])
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (dict-set! rows key row)))
+    (hash-set! rows key row)))
 
-(define/contract (table-remove! tbl key)
-  ((cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c))) symbol? . -> . void?)
-  (match-let ([(cons header rows) tbl])
-    (dict-remove! rows key)))
+(define (table-remove! tbl key)
+  (hash-remove! (cdr tbl) key))
 
 ;; More various helpful values
 
@@ -194,9 +179,13 @@
 ;; Utility list functions
 
 (define (take-up-to l k)
-  ; This is unnecessarily slow. It is O(l), not O(k).
-  ; To be honest, it just isn't that big a deal for now.
-  (take l (min k (length l))))
+  (for/list ([x l] [i (in-range k)])
+    x))
+
+(define (string-prefix s length)
+  (if (<= (string-length s) length)
+      s
+      (substring s 0 length)))
 
 (module+ test
   (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
@@ -380,3 +369,27 @@
    [(not r) ""]
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+
+(define (call-with-output-files names k)
+  (let loop ([names names] [ps '()])
+    (if (null? names)
+        (apply k (reverse ps))
+        (if (car names)
+            (call-with-output-file
+                (car names) #:exists 'replace
+                (λ (p) (loop (cdr names) (cons p ps))))
+            (loop (cdr names) (cons #f ps))))))
+
+(define-syntax-rule (when-dict d (arg ...) body ...)
+  (if (and (dict-has-key? d 'arg) ...)
+      (let ([arg (dict-ref d 'arg)] ...)
+        body ...)
+      '()))
+
+(define (in-sorted-dict d #:key [key identity])
+  (in-dict (sort (dict->list d) > #:key (compose key cdr))))
+
+(define-runtime-path web-resource-path "web/")
+
+(define (web-resource name)
+  (build-path web-resource-path name))

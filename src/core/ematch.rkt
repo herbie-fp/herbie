@@ -17,13 +17,6 @@
 ;;#
 ;;################################################################################;;
 
-(define (list-cartesian-product . lsts)
-  (if (null? lsts)
-      '(())
-      (let ([tails (apply list-cartesian-product (cdr lsts))])
-	(for*/list ([elt (car lsts)] [tail tails])
-	  (cons elt tail)))))
-
 (define (merge . bindings)
   ;; (list bindings) -> binding
   (foldl merge2 '() bindings))
@@ -61,7 +54,7 @@
 		      (= (length var) (length pat)))
 		 (filter identity
 			 (map (curry apply merge)
-			      (apply list-cartesian-product
+			      (apply cartesian-product
 				     (for/list ([subpat (in-list (cdr pat))] [sube (in-list (cdr var))])
 				       (match-e subpat sube)))))
 		 '())))]

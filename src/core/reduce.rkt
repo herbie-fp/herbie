@@ -100,8 +100,6 @@
                (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term)))))
            `((1 ,expr)))]
 
-      [`(sqr ,arg)
-       (recurse `(* ,arg ,arg) #:label expr)]
       [`(pow ,arg ,(? integer? n))
        (cond
         [(positive? n)

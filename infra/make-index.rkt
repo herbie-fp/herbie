@@ -52,7 +52,8 @@
         (or/c string? false) '(note)
         exact-nonnegative-integer? '(date-unix tests-passed tests-available tests-crashed)
         (listof string?) '(options)
-        (and/c real? (curryr >= 0)) '(bits-improved bits-available)))
+        (and/c real? (curryr >= 0)) '(bits-available)
+        real? '(bits-improved)))
 
 (define cache-row?
   (apply and/c hash?

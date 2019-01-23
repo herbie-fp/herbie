@@ -21,8 +21,6 @@ function make_graph(node, data, start, end) {
     var script = a[0][a[0].length - 1];
 
     var svg = node
-        .attr("width", width + 2 * margin)
-        .attr("height", len * barheight + 2 * margin + textbar)
         .append("g").attr("transform", "translate(" + margin + "," + margin + ")");
 
     for (var i = 0; i <= precision; i += 4) {

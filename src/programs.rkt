@@ -2,7 +2,7 @@
 
 (require math/bigfloat math/flonum)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt"
-         "syntax/softposit.rkt")
+         "biginterval.rkt" "syntax/softposit.rkt")
 
 (module+ test (require rackunit))
 
@@ -109,7 +109,6 @@
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
 
-
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
   (cond
@@ -130,20 +129,16 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (define real->precision
-    (match mode
-      ['bf ->bf]
-      ['fl ->flonum]
-      ['nonffi (λ (x) (if (symbol? x) (->flonum x) x))])) ; Keep exact numbers exact
-  (define precision->real
-    (match mode ['bf ->flonum] ['fl ->flonum] ['nonffi identity]))
+  (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['ival mk-ival] ['nonffi identity])) ; Keep exact numbers exact
+  (define precision->real (match mode ['bf identity] ['fl ->flonum] ['ival identity] ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
       (match prog
-        [(? constant?) (real->precision prog)]
+        [(? real?) (real->precision prog)]
+        [(? constant?) ((constant-info prog mode))]
         [(? variable?) prog]
-        [(list 'if cond ift iff)
+        #;[(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]
@@ -159,6 +154,25 @@
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
   (check-equal? (eval-const-expr 'PI) pi)
   (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
+
+(module+ test
+  (define tests
+    #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
+           . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
+           ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
+
+  (define (in-interval? iv pt)
+    (match-define (ival lo hi err? err) iv)
+    (and (bf<= lo pt) (bf<= pt hi)))
+
+  (define-binary-check (check-in-interval? in-interval? interval point))
+
+  (for ([(e p) (in-hash tests)])
+    (parameterize ([bf-precision 4000])
+      (define iv ((eval-prog e 'ival) p))
+      (define val ((eval-prog e 'bf) p))
+      (check bf<= (ival-lo iv) (ival-hi iv))
+      (check-in-interval? iv val))))
 
 ;; To compute the cost of a program, we could use the tree as a
 ;; whole, but this is inaccurate if the program has many common

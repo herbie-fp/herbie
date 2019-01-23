@@ -3,43 +3,15 @@
 (require math/flonum)
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt"
-         "range-analysis.rkt" "syntax/softposit.rkt")
+         "range-analysis.rkt" "biginterval.rkt" "syntax/softposit.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points
-         errors errors-score sort-context-on-expr)
+         prepare-points sampling-method
+         errors errors-score sort-context-on-expr
+         oracle-error baseline-error oracle-error-idx)
 
 (module+ test
   (require rackunit))
-
-(define (sample-bounded lo hi #:left-closed? [left-closed? #t] #:right-closed? [right-closed? #t])
-  (define lo* (exact->inexact lo))
-  (define hi* (exact->inexact hi))
-  (cond
-   [(> lo* hi*) #f]
-   [(= lo* hi*)
-    (if (and left-closed? right-closed?) lo* #f)]
-   [(< lo* hi*)
-    (define ordinal (- (flonum->ordinal hi*) (flonum->ordinal lo*)))
-    (define num-bits (ceiling (/ (log ordinal) (log 2))))
-    (define random-num (random-exp (inexact->exact num-bits)))
-    (if (or (and (not left-closed?) (equal? 0 random-num))
-            (and (not right-closed?) (equal? ordinal random-num))
-            (> random-num ordinal))
-      ;; Happens with p < .5 so will not loop forever
-      (sample-bounded lo hi #:left-closed? left-closed? #:right-closed? right-closed?)
-      (ordinal->flonum (+ (flonum->ordinal lo*) random-num)))]))
-
-(module+ test
-  (check-true (<= 1.0 (sample-bounded 1 2) 2.0))
-  (let ([a (sample-bounded 1 2 #:left-closed? #f)])
-    (check-true (< 1 a))
-    (check-true (<= a 2)))
-  (check-false (sample-bounded 1 1.0 #:left-closed? #f) "Empty interval due to left openness")
-  (check-false (sample-bounded 1 1.0 #:right-closed? #f) "Empty interval due to right openness")
-  (check-false (sample-bounded 1 1.0 #:left-closed? #f #:right-closed? #f)
-               "Empty interval due to both-openness")
-  (check-false (sample-bounded 2.0 1.0) "Interval bounds flipped"))
 
 (define/contract (sample-multi-bounded ranges)
   (-> (listof interval?) (or/c flonum? #f))
@@ -95,6 +67,180 @@
 		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
 
+(define (supported-ival-expr? expr)
+  (match expr
+    [(list op args ...)
+     (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
+    [(or (? variable?) (? constant?)) true]))
+
+(module+ test
+  (require "formats/test.rkt")
+  (require racket/runtime-path)
+  (define-runtime-path benchmarks "../bench/")
+  (define exprs
+    (let ([tests (load-tests benchmarks)])
+      (append (map test-input tests) (map test-precondition tests))))
+  (define unsup-count (count (compose not supported-ival-expr?) exprs))
+  (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
+  (check <= unsup-count 8))
+
+(define ival-warnings (make-parameter '()))
+
+(define (point-logger name dict prog)
+  (define start (current-inexact-milliseconds))
+  (define (log! . args)
+    (define key
+      (match args
+        [`(exit ,prec ,pt)
+         (define key (list name 'exit prec))
+         (unless (hash-has-key? dict key)
+           (eprintf "Warning: could not determine a ground truth for program ~a\n" name)
+           (for ([var (program-variables prog)] [val pt])
+             (eprintf "  ~a = ~a\n" var val))
+           (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))
+         key]
+        [`(sampled ,prec ,pt #f) (list name 'false prec)]
+        [`(sampled ,prec ,pt #t) (list name 'true prec)]
+        [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
+        [`(nan ,prec ,pt) (list name 'nan prec)]))
+    (define dt (- (current-inexact-milliseconds) start))
+    (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
+  (if dict log! void))
+
+(define (ival-eval fn pt #:precision [precision 80] #:log [log! void])
+  (let loop ([precision precision])
+    (parameterize ([bf-precision precision])
+      (if (> precision (*max-mpfr-prec*))
+          (begin (log! 'exit precision pt) +nan.0)
+          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (->flonum lo)] [hi* (->flonum hi)])
+            (cond
+             [err
+              (log! 'nan precision pt)
+              +nan.0]
+             [(and (not err?) (or (equal? lo* hi*) (and (equal? lo* -0.0) (equal? hi* +0.0))))
+              (log! 'sampled precision pt hi*)
+              hi*]
+             [else
+              (loop (inexact->exact (round (* precision 2))))]))))))
+
+; These definitions in place, we finally generate the points.
+
+(define (prepare-points-intervals prog precondition #:log [log #f])
+  (define range-table (condition->range-table precondition))
+  (for ([var (program-variables prog)]
+        #:unless (range-table-ref range-table var))
+    (raise-herbie-error "No valid values of variable ~a" var
+                        #:url "faq.html#no-valid-values"))
+
+  (define pre-prog `(λ ,(program-variables prog) ,precondition))
+  (define pre-fn (eval-prog pre-prog 'ival))
+  (define body-fn (eval-prog prog 'ival))
+
+  (define-values (points exacts)
+    (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
+      (define pt
+        (map (compose sample-multi-bounded (curry range-table-ref range-table))
+             (program-variables prog)))
+
+      (define pre
+        (or (equal? precondition 'TRUE)
+            (ival-eval pre-fn pt #:log (point-logger 'pre log pre-prog))))
+
+      (define ex
+        (and pre (ival-eval body-fn pt #:log (point-logger 'body log prog))))
+
+      (cond
+       [(and (andmap ordinary-value? pt) pre (ordinary-value? ex))
+        (if (>= sampled (- (*num-points*) 1))
+            (values points exacts)
+            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
+       [else
+        (unless (< skipped (- (*max-skipped-points*) 1))
+          (raise-herbie-error "Cannot sample enough valid points."
+                              #:url "faq.html#sample-valid-points"))
+        (loop sampled (+ 1 skipped) points exacts)])))
+
+  (mk-pcontext points exacts))
+
+(define (prepare-points prog precondition precision #:log [log #f])
+  "Given a program, return two lists:
+   a list of input points (each a list of flonums)
+   and a list of exact values for those points (each a flonum)"
+  (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+    (prepare-points-intervals prog precondition #:log log)
+    (prepare-points-halfpoints prog precondition #:log log)))
+
+#;(define (prepare-points prog precondition precision)
+  "Given a program, return two lists:
+   a list of input points (each a list of flonums)
+   and a list of exact values for those points (each a flonum)"
+
+  (define sampled-pts (extract-sampled-points (program-variables prog) precondition))
+  (define range-table (condition->range-table precondition))
+
+  (cond
+   [sampled-pts
+    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE))]
+   [else
+    (for ([var (program-variables prog)]
+          #:unless (range-table-ref range-table var))
+      (raise-herbie-error "No valid values of variable ~a" var
+                          #:url "faq.html#no-valid-values"))
+    (prepare-points-halfpoints prog precondition precision range-table)]))
+
+
+(define (sampling-method prog precondition)
+  (cond
+   [(and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+    'intervals]
+   [else
+    'halfpoints]))
+
+(define (point-error inexact exact)
+  (add1
+    (if (real? inexact)
+      (abs (ulp-difference inexact exact))
+      (expt 2 (*bit-width*)))))
+
+(define (eval-errors eval-fn pcontext)
+  (define max-ulps (expt 2 (*bit-width*)))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (point-error (eval-fn point) exact)))
+
+(define (oracle-error-idx alt-bodies points exacts)
+  (for/list ([point points] [exact exacts])
+    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
+
+(define (oracle-error alt-bodies pcontext)
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (argmin identity (map (λ (alt) (point-error (alt point) exact)) alt-bodies))))
+
+(define (baseline-error alt-bodies pcontext newpcontext)
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
+  (eval-errors baseline newpcontext))
+
+(define (errors-score e)
+  (let-values ([(reals unreals) (partition ordinary-value? e)])
+    (if (flag-set? 'reduce 'avg-error)
+        (/ (+ (apply + (map ulps->bits reals))
+              (* (*bit-width*) (length unreals)))
+           (length e))
+        (apply max (map ulps->bits reals)))))
+
+(define (errors prog pcontext)
+  (let ([fn (eval-prog prog 'fl)]
+	[max-ulps (expt 2 (*bit-width*))])
+    (for/list ([(point exact) (in-pcontext pcontext)])
+      (let ([out (fn point)])
+	(add1
+	 (if (or (real? out)
+                 (posit8? out) (posit16? out) (posit32? out)
+                 (quire8? out) (quire16? out) (quire32? out))
+           (abs (ulp-difference out exact))
+           max-ulps))))))
+
+;; Old, halfpoints method of sampling points
+
 (define (select-every skip l)
   (let loop ([l l] [count skip])
     (cond
@@ -104,7 +250,7 @@
      [else
       (loop (cdr l) (- count 1))])))
 
-(define (make-exacts* prog pts precondition)
+(define (make-exacts-walkup prog pts precondition)
   (let ([f (eval-prog prog 'bf)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
@@ -115,26 +261,26 @@
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
       (bf-precision prec)
-      (let ([curr (map f pts)]
+      (let ([curr (map (compose ->flonum f) pts)]
             [good? (map pre pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at
-(define (make-exacts prog pts precondition)
+(define (make-exacts-halfpoints prog pts precondition #:log [log #f])
   (define n (length pts))
   (let loop ([nth (floor (/ n 16))])
     (if (< nth 2)
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts for" n "points")
-          (make-exacts* prog pts precondition))
+          (make-exacts-walkup prog pts precondition))
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
                  "points to ramp up precision")
-          (make-exacts* prog (select-every nth pts) precondition)
+          (make-exacts-walkup prog (select-every nth pts) precondition)
           (loop (floor (/ nth 2)))))))
 
 (define (filter-p&e pts exacts)
@@ -158,16 +304,16 @@
   (define f (eval-prog (list 'λ (program-variables prog) precondition) 'fl))
   (filter f points))
 
-; These definitions in place, we finally generate the points.
-(define (prepare-points-ranges prog precondition precision range-table)
+;; This is the obsolete version for the "halfpoint" method
+(define (prepare-points-halfpoints prog precondition precision #:log [log #f])
+  (define range-table (condition->range-table precondition))
+  (for ([var (program-variables prog)]
+        #:unless (range-table-ref range-table var))
+    (raise-herbie-error "No valid values of variable ~a" var
+                        #:url "faq.html#no-valid-values"))
+
   (define (sample)
-    (for/list ([var (program-variables prog)])
-      (match (range-table-ref range-table var)
-        ;; TODO does the single-interval case ever happen?
-        [(interval lo hi lo? hi?)
-         (sample-bounded lo hi #:left-closed? lo? #:right-closed? hi?)]
-        [(list (? interval? ivals) ...)
-         (sample-multi-bounded ivals)])))
+    (map (compose sample-multi-bounded (curry range-table-ref range-table)) (program-variables prog)))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -188,7 +334,7 @@
                 "Sampling" num "additional inputs,"
                 "on iter" num-loops "have" npts "/" (*num-points*))
          (define pts1 (for/list ([n (in-range num)]) (sample)))
-         (define exs1 (make-exacts prog pts1 precondition))
+         (define exs1 (make-exacts-halfpoints prog pts1 precondition))
          (debug #:from 'points #:depth 4
                 "Filtering points with unrepresentable outputs")
          (define-values (pts* exs*) (filter-p&e pts1 exs1))
@@ -242,41 +388,3 @@
          (define exacts (map f filtered-points))
          (define-values (pts* exs*) (filter-p&e points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])])))
-
-(define (prepare-points prog precondition precision)
-  "Given a program, return two lists:
-   a list of input points (each a list of flonums)
-   and a list of exact values for those points (each a flonum)"
-
-  (define sampled-pts (extract-sampled-points (program-variables prog) precondition))
-  (define range-table (condition->range-table precondition))
-
-  (cond
-   [sampled-pts
-    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE))]
-   [else
-    (for ([var (program-variables prog)]
-          #:unless (range-table-ref range-table var))
-      (raise-herbie-error "No valid values of variable ~a" var
-                          #:url "faq.html#no-valid-values"))
-    (prepare-points-ranges prog precondition precision range-table)]))
-
-(define (errors prog pcontext)
-  (let ([fn (eval-prog prog 'fl)]
-	[max-ulps (expt 2 (*bit-width*))])
-    (for/list ([(point exact) (in-pcontext pcontext)])
-      (let ([out (fn point)])
-	(add1
-	 (if (or (real? out)
-                 (posit8? out) (posit16? out) (posit32? out)
-                 (quire8? out) (quire16? out) (quire32? out))
-           (abs (ulp-difference out exact))
-           max-ulps))))))
-
-(define (errors-score e)
-  (let-values ([(reals unreals) (partition ordinary-value? e)])
-    (if (flag-set? 'reduce 'avg-error)
-        (/ (+ (apply + (map ulps->bits reals))
-              (* (*bit-width*) (length unreals)))
-           (length e))
-        (apply max (map ulps->bits reals)))))

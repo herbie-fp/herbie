@@ -131,9 +131,11 @@ function setup_timeline() {
     for (var i = 0; i < ts.length; i++) {
         total_time += +ts[i].getAttribute("data-timespan");
     }
+    var total_width = ts[0].parentNode.offsetWidth;
     for (var i = 0; i < ts.length; i++) {
-        ts[i].style.width = (+ts[i].getAttribute("data-timespan")) / total_time * 100 + "%";
-        ts[i].title = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+        ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
+        var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+        ts[i].title = s;
     }
 }
 
@@ -148,6 +150,64 @@ function setup_program_arrow() {
         if (progs[i].offsetTop >= progBot) {
             return progelt.classList.remove("horizontal");
         }
+    }
+}
+  
+function histogram(id, data) {
+    var width = 676;
+    var height = 60
+    var margin = 5;
+    var labels = 10;
+    var ticks = 5;
+    var bucketwidth = 25;
+
+    var canvas = document.getElementById(id);
+    canvas.setAttribute("width", margin + width + margin + "px");
+    canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
+    var ctx = canvas.getContext("2d");
+      
+    ctx.beginPath();
+    ctx.strokeStyle = "black";
+    ctx.moveTo(margin, labels + margin + height);
+    ctx.lineTo(margin + width, labels + margin + height);
+    ctx.stroke();
+    
+    var xma = Math.max.apply(null, data);
+      
+    var buckets = Array(Math.round(width / bucketwidth));
+    var sum = 0;
+    buckets.fill(0);
+    for (var i = 0; i < data.length; i++) {
+        var j = Math.floor(data[i] / xma * buckets.length);
+        buckets[Math.min(j, buckets.length-1)] += data[i];
+        sum += data[i];
+    }
+    var yma = Math.max.apply(null, buckets);
+    
+    ctx.fillStyle = "rgba(0, 0, 0, .2)";
+    for (var i = 0; i < buckets.length; i++) {
+        ctx.fillRect(margin + i/buckets.length*width, labels + margin + height, width/buckets.length, -height*buckets[i]/yma);
+    }
+
+    ctx.fillStyle = "black";
+    ctx.textBaseline = "bottom";
+    ctx.textAlign = "center";
+    for (var i = 0; i < buckets.length; i++) {
+        ctx.fillText(Math.round(buckets[i] / sum * 100) + "%", margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
+    }
+    
+    ctx.textBaseline = "top";
+    var step = Math.pow(10, Math.round(Math.log10(xma)) - 1);
+    if (xma / step > 20) step *= 2;
+    if (xma / step < 10) step /= 2;
+    for (var i = 0; i < 10 * Math.sqrt(10); i++) {
+        var pos = i * step;
+        if (pos > yma) break;
+        ctx.beginPath();
+        ctx.moveTo(pos / xma * width + margin, labels + margin + height);
+        ctx.lineTo(pos / xma * width + margin, labels + margin + height + ticks);
+        ctx.fillText(pos, pos / xma * width + margin, labels + margin + height + ticks + margin);
+        ctx.stroke();
     }
 }
 

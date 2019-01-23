@@ -18,7 +18,7 @@
 ;;# partially, then extracting the simplest expression from it.
 ;;#
 ;;# Simplify attempts to make only one strong guarantee:
-;;# that the input is mathematically equivilent to the output; that is, for any
+;;# that the input is mathematically equivalent to the output; that is, for any
 ;;# exact x, evalutating the input on x will yield the same expression as evaluating
 ;;# the output on x.
 ;;#
@@ -33,9 +33,15 @@
   (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
+             
+
+
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest-best-effort eg))
+        
+
+
         (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
         out)))
 
@@ -64,6 +70,7 @@
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
+
   ;; Tries to match the rules against the given enodes, and returns a
   ;; list of matches found. Matches are of the form:
   ;; 
@@ -81,6 +88,7 @@
 		  (let ([bindings (match-e (rule-input rl) en)])
 		    (if (null? bindings) '()
 			(list* rl en bindings)))))))
+
   (define (apply-match match)
     (match-define (list rl en bindings ...) match)
 
@@ -102,6 +110,7 @@
     ;; Mark this node as having this rule applied so that we don't try
     ;; to apply it again.
     (when (subset? valid-bindings bindings-set) (rule-applied! en rl)))
+
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
     ;; constant, reduce to that.
@@ -110,9 +119,11 @@
     ;; prune it away. Loops in the egraph coorespond to identity
     ;; functions.
     #;(elim-enode-loops! eg en))
+
   (for ([m (find-matches (egraph-leaders eg))])
     (apply-match m))
-  (map-enodes (curry set-precompute! eg) eg))
+  (map-enodes (curry set-precompute! eg) eg)
+  (void))
 
 (define-syntax-rule (matches? expr pattern)
   (match expr

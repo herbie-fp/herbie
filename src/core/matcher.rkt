@@ -123,7 +123,7 @@
       (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
              [result (applyer rule expr)])
         (when result
-            (sow (change rule root-loc (cdr result))))))))
+            (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
 
@@ -179,12 +179,15 @@
         (if (and (eq? (car pattern) (car expr))
                  (= (length pattern) (length expr)))
             ; Everything is terrible
-            (reduce-children
-              (apply cartesian-product ; (list (list ((list cng) * bnd)))
-                     (for/list ([i (in-naturals)] [sube expr] [subp pattern]
-                                #:when (> i 0)) ; (list (list ((list cng) * bnd)))
-                       ;; Note: we reset the fuel to "depth", not "cdepth"
-                       (matcher sube subp (cons i loc) depth)))) ; list (expr * pattern)
+            (let/ec k
+              (reduce-children
+               (apply cartesian-product ; (list (list ((list cng) * bnd)))
+                      (for/list ([i (in-naturals)] [sube expr] [subp pattern]
+                                 #:when (> i 0)) ; (list (list ((list cng) * bnd)))
+                        ;; Note: we reset the fuel to "depth", not "cdepth"
+                        (match (matcher sube subp (cons i loc) depth)
+                          ['() (k '())]
+                          [out out]))))) ; list (expr * pattern)
             (if (> cdepth 0)
                 ; Sort of a brute force approach to getting the bindings
                 (fix-up-variables
@@ -197,7 +200,7 @@
         (error "Unknown pattern" pattern)]))
 
   ; The #f #f mean that any output result works. It's a bit of a hack
-  (rewriter expr #f #f (reverse root-loc) depth))
+  (map reverse (rewriter expr #f #f (reverse root-loc) depth)))
 
 (define (change-apply cng prog)
   (let ([loc (change-location cng)]

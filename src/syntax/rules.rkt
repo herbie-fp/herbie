@@ -576,17 +576,29 @@
   [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
   [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
 
-(define-ruleset atrig-expand (trigonometry)
+(define-ruleset trig-inverses (trigonometry)
   #:type ([x real])
   [sin-asin    (sin (asin x))         x]
+  [cos-acos    (cos (acos x))         x]
+  [tan-atan    (tan (atan x))         x]
+  [atan-tan    (atan (tan x))         (remainder x PI)]
+  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ PI 2)) (* 2 PI))) (/ PI 2))]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))])
+
+(define-ruleset trig-inverses-simplified (trigonometry)
+  #:type ([x real])
+  [atan-tan-s  (atan (tan x))         x]
+  [asin-sin-s  (asin (sin x))         x]
+  [acos-cos-s  (acos (cos x))         x])
+
+(define-ruleset atrig-expand (trigonometry)
+  #:type ([x real])
   [cos-asin    (cos (asin x))         (sqrt (- 1 (* x x)))]
   [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (* x x))))]
   [sin-acos    (sin (acos x))         (sqrt (- 1 (* x x)))]
-  [cos-acos    (cos (acos x))         x]
   [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (* x x))) x)]
   [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (* x x))))]
   [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (* x x))))]
-  [tan-atan    (tan (atan x))         x]
   [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
   [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
   [asin-neg    (asin (- x))           (- (asin x))]
@@ -779,7 +791,13 @@
       [sinh-acosh . (> (fabs x) 1)]
       [sinh-atanh . (< (fabs x) 1)]
       [cosh-atanh . (< (fabs x) 1)]
-      [tanh-acosh . (> (fabs x) 1)]))
+      [tanh-acosh . (> (fabs x) 1)]
+      [asin-sin   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
+      [acos-cos   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
+      [atan-tan   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
+      [asin-sin-s . (<= (fabs x) (/ PI 2))]
+      [acos-cos-s . (<= 1e-10 x PI)] ; Lower bound avoids false positive
+      [atan-tan-s . (<= (fabs x) (/ PI 2))]))
 
   (define *skip-tests*
     (append
@@ -851,30 +869,28 @@
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
-        (define num-test-points 2000)
-        (match-define (rule name p1 p2 _) test-rule)
-        (define fv (free-variables p1))
-        (define (make-point)
-          (for/list ([v fv])
-            (match (dict-ref (rule-itypes test-rule) v)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))])))
-        (define point-sequence (in-producer make-point))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-        (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define err
-            (for/first ([pt points] [v1 ex1] [v2 ex2]
-                        #:unless (equal? v1 v2))
-              (list pt v1 v2)))
-          (when err
-            (match-define (list pt v1 v2) err)
-            (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
-                             (check-false err))))))))
-;
+    (test-case (~a (rule-name test-rule))
+      (define num-test-points 2000)
+      (match-define (rule name p1 p2 _) test-rule)
+      (define fv (free-variables p1))
+      (define (make-point)
+        (for/list ([v fv])
+          (match (dict-ref (rule-itypes test-rule) v)
+            ['real (sample-double)]
+            ['bool (if (< (random) .5) false true)]
+            ['complex (make-rectangular (sample-double) (sample-double))])))
+      (define point-sequence (in-producer make-point))
+      (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+      (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
+      (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+      (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
+        (define ex1 (map prog1 points))
+        (define ex2 (map prog2 points))
+        (define err
+          (for/first ([pt points] [v1 ex1] [v2 ex2]
+                      #:unless (equal? v1 v2))
+            (list pt v1 v2)))
+        (when err
+          (match-define (list pt v1 v2) err)
+          (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
+                           (check-false err)))))))

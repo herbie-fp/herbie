@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 1.2 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script type="text/javascript" src="compare.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie 1.3 Release Notes</h1>
+  </header>
+
+  <p>
+    The <a href="../..">Herbie</a> developers are excited to announce
+    Herbie 1.3! This release focuses on <em>speed and
+    extensibility</em>, including support for posits. Herbie 1.3 is
+    also nearly three times as fast as Herbie 1.2, and is more
+    accurate at evaluating rounding error.
+  </p>
+
+  <p>
+    Herbie automatically improves the accuracy of floating point
+    expressions. This avoids the bugs, errors, and surprises that so
+    often occur when working with floating point. Since
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
+    work making Herbie more versatile and easier to use.
+  </p>
+
+  <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
+
+  <h2>Improvement to core algorithm</h2>
+
+  <ul>
+    <li>Careful performance work has sped Herbie up nearly three times
+      compared to the 1.2 release.</li>
+    <li>Herbie now uses a sound interval-based approach to computing
+      the "ground truth" accurate answer for computations. In rare
+      cases, this could change Herbie's accuracy estimate for a
+      program.</li>
+    <li>Series expansion of <code>pow</code>s with constant exponents
+      is now much faster.</li>
+    <li>Refactor the implementation of complex numbers so that type checking
+      is now done exactly once, significantly speeding up the code.</li>
+    <li>Various fixes to simplification and series expansion have eliminated
+      some rare but large slowdowns.</li>
+  </ul>
+
+  <h2>Beta-quality features</h2>
+
+  <ul>
+    <li>Herbie now supports John Gustafson's
+      <a href="https://posithub.org/">posit</a> format for systems
+      supported by
+      the <a href="https://gitlab.com/cerlane/SoftPosit">SoftPosit</a>
+      library.</li>
+  </ul>
+
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    ?
+    <figcaption>?</figcaption>
+  </figure>
+
+  <h2>Usability improvements</h2>
+
+  <ul>
+    <li>We have a <a href="../../index.html">new website</a>!
+      Hopefully it's a little easier to learn about what Herbie is and
+      how to use it.</li>
+    <li>Herbie will now prefer simpler to more complex programs in
+      several places. This should result in simpler output. For example,
+      Simplification can now simplify exact constant expressions
+      like <code>(+ 2 2)</code>.</li>
+    <li>The Herbie shell now indents and breaks lines when it prints
+      FPCores.</li>
+    <li>Herbie reports now use <a href="https://katex.org/">KaTeX</a>
+      to render math in the browser. KaTeX is significantly faster than
+      <a href="https://www.mathjax.org/">MathJax</a>, which we used to use.</li>
+    <li>You can now middle-click on the arrows on report pages to open
+      in new tab.</li>
+  </ul>
+
+  <h2>Code Cleanup</h2>
+
+  <ul>
+    <li>Reports now display a quality metric for regime inference.
+      This should help improve regime inference over time.</li>
+    <li>The <kbd>reproduce<kbd> command now allows rerunning a report.</li>
+    <li>The timebar in the debug block now separates regime inference
+      from binary search.</li>
+    <li>Lots of old, unused code has been deleted, including a lot of
+      support code for the
+      obsolete <a href="https://pavpanchekha.com/blog/herbie-viz.html">Herbie
+      Visualizer</a>.</li>
+    <li>Move a lot of glue code into a single glue file, clarifying
+      responsibilities for a lot of modules.</li>
+  </ul>
+  
+  <h2>Try it out!</h2>
+
+  <p>
+    We're excited to continue to improve Herbie and make it more
+    useful to scientists, engineers, and programmers around the world.
+    We've got a lot of features we're excited to work on in the coming
+    months. Please
+    <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
+    join
+    <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
+    mailing list</a>,
+    or <a href="https://github.com/uw-plse/herbie">contribute</a>.
+  </p>
+  
+  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+</body>
+</html>
