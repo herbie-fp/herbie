@@ -217,7 +217,6 @@ function load_graph() {
         setup_figure(figs[i]);
     }
     setup_figure_tabs(document.querySelector("#graphs div"));
-    setup_timeline();
     // Run the program_arrow after rendering happens
     var es = document.querySelectorAll('.math');
     for (var i = 0; i < es.length; i++) renderMathInElement(es[i]);
@@ -236,3 +235,4 @@ function load_index() {
 function report() {load_report();}
 function graph() {load_graph();}
 function index() {load_index();}
+function timeline() {setup_timeline();}
