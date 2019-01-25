@@ -241,10 +241,10 @@
     [(posit16? (caar pts)) (map (curry map posit16->double) pts)]
     [(posit32? (caar pts)) (map (curry map posit32->double) pts)]))
 
-(define (make-axis-plot result idx out)
+(define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-result-end-alt result))))
-  (define pts (points->doubles (test-result-newpoints result)))
+  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define pts (points->doubles (test-success-newpoints result)))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
@@ -257,7 +257,7 @@
       ['g (values *green-theme* test-success-target-error)]
       ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define pts (points->doubles (test-result-newpoints result)))
+  (define pts (points->doubles (test-success-newpoints result)))
   (define err (accessor result))
 
   (herbie-plot
