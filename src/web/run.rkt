@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
-(require "make-report.rkt" "thread-pool.rkt")
+(require "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
 (provide make-report rerun-report)
 
@@ -30,6 +30,7 @@
   (define info (make-report-info (map cdr (filter values results)) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
+  (make-summary-html (build-path dir "timeline.html") info dir)
   (make-report-page (build-path dir "report.html") info))
 
 (define (test<? t1 t2)

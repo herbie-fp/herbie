@@ -224,15 +224,7 @@ function load_graph() {
     submit_inputs()
 }
 
-function load_report() {
-    togglable_flags();
-}
-
-function load_index() {
-    // Nothing
-}
-
-function report() {load_report();}
-function graph() {load_graph();}
-function index() {load_index();}
-function timeline() {setup_timeline();}
+function report() { togglable_flags();}
+function graph() { load_graph(); }
+function index() { }
+function timeline() { setup_timeline(); }

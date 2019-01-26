@@ -1,10 +1,12 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
-(provide make-timeline make-timeline-json)
+(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt")
+(provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (listof (cons/c symbol? any/c)))
 (define timeline? (listof timeline-phase?))
+
+;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline result out profile?)
   (match-define (test-result test bits fulltime timeline) result)
@@ -66,7 +68,7 @@
 
 (define (dict-call d f #:default [default #f] #:extra [extra '()] . args)
   (if (andmap (curry dict-has-key? d) args)
-      (apply f (append (map (curry dict-ref d) args) extra))
+      (apply f (append extra (map (curry dict-ref d) args)))
       default))
 
 (define (render-phase-method method)
@@ -105,7 +107,7 @@
 (define (render-phase-counts inputs outputs)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
 
-(define (render-phase-times times n)
+(define (render-phase-times n times)
   `((dt "Calls")
     (dd ,(~a (length times)) " calls:"
         (canvas ([id ,(format "calls-~a" n)]
@@ -151,3 +153,138 @@
        (values k (value-map k v)))))
 
   (write-json data out))
+
+;; This next part handles summarizing several timelines into one details section for the report page.
+
+(define (make-summary-html file info dir)
+  (write-file file
+    (printf "<!doctype html>\n")
+    (write-xexpr
+     `(html
+       (head
+        (title "Herbie results")
+        (meta ((charset "utf-8")))
+        (link ((rel "stylesheet") (type "text/css") (href "report.css")))
+        (script ((src "report.js"))))
+       (body
+        ,(render-timeline-summary info (summarize-timelines info dir)))))))
+
+(define (render-timeline-summary info summary)
+  (define blocks
+    (for/list ([(type phase) (in-dict summary)])
+      `(div ([class ,(format "timeline-block timeline-~a" type)])
+            (h3 ,(~a type)
+                (span ([class "time"])
+                      ,(format-time (apply + (map cdr (dict-ref phase 'time))))))
+            (dl
+             ,@(dict-call phase #:default '() render-summary-algorithm 'method)
+             ,@(dict-call phase #:default '() render-summary-outcomes 'outcomes)
+             ,@(dict-call phase #:default '() #:extra (list type) render-summary-times 'times)
+             ,@(dict-call phase #:default '() render-summary-slowest 'slowest)
+             ,@(dict-call phase #:default '() #:extra (list info) render-summary-accuracy 'accuracy 'oracle 'baseline)
+             ,@(dict-call phase #:default '() render-summary-rules 'rules)))))
+
+  `(section ([id "process-info"])
+            (h1 "Details")
+            ,@blocks))
+
+(define (render-summary-algorithm algorithm)
+  `((dt "Algorithm")
+    (dd (table ([class "times"])
+               ,@(for/list ([alg (group-by identity (map cdr algorithm))])
+                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
+
+(define (render-summary-times type times)
+  `((dt "Calls")
+    (dd (p ,(~a (length (append-map cdr times))) " calls:")
+        (canvas ([id ,(format "calls-~a" type)]
+                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (append-map cdr times)) ")"))))
+
+(define (render-summary-slowest slowest)
+  (define slowest*
+    (append-map
+     (compose (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) cdr)
+     slowest))
+  (define top-slowest
+    (take-up-to (sort slowest* > #:key cdr) 5))
+  `((dt "Slowest")
+    (dd (table ([class "times"])
+               ,@(for/list ([(expr time) (in-dict top-slowest)])
+                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-summary-rules rules)
+  (define counts (make-hash))
+  (for ([rc (append-map cdr rules)])
+    (hash-update! counts (dict-ref rc 'rule) (curry + (dict-ref rc 'count)) 0))
+
+  `((dt "Rules")
+    (dd (table ([class "times"])
+          ,@(for/list ([(rule count) (in-dict (sort (hash->list counts) > #:key cdr))])
+              `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
+
+(define (render-summary-accuracy info accuracy oracle baseline)
+  (define rows
+    (for/list ([(res acc) (in-dict accuracy)]
+               [(_1 ora) (in-dict oracle)]
+               [(_2 bas) (in-dict baseline)])
+        (list (- acc ora)
+              (if (= bas ora)
+                  (if (= bas acc) 1 -inf.0)
+                  (/ (- bas acc) (- bas ora)))
+              res)))
+
+  (define top-bits-remaining
+    (take-up-to (sort rows > #:key first) 5))
+
+  (define total-gained
+    (for/sum ([row (report-info-tests info)])
+      (or (table-row-result row) 0)))
+
+  `((dt "Accuracy")
+    (dd (p "Total " ,(format-bits (apply + (map first rows))) "b" " remaining"
+            " (",(~r (* (/ (apply + (map first rows)) total-gained) 100) #:precision 1) "%)")
+        (table ([class "times"])
+               ,@(for/list ([row (in-list top-bits-remaining)])
+                   `(tr (td ,(format-bits (first row)) "b")
+                        (td ,(~r (* (second row) 100) #:precision 1) "%")
+                        (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
+                               ,(or (table-row-name (third row)) "")))))))))
+
+(define (hash->cons key1 key2 val)
+  (cons (dict-ref val key1) (dict-ref val key2)))
+
+(define (render-summary-outcomes outcomes)
+  (define entries (append-map cdr outcomes))
+  (define (key x) (map (curry hash-ref x) '(program category precision)))
+
+  (define merged
+    (for/hash ([rows (group-by key entries)])
+      (values (key (first rows))
+              (cons (apply + (map (curryr hash-ref 'count) rows))
+                    (apply + (map (curryr hash-ref 'time) rows))))))
+
+  `((dt "Results")
+    (dd (table ([class "times"])
+         ,@(for/list ([(outcome number) (in-sorted-dict merged #:key cdr)])
+             (match-define (cons count time) number)
+             (match-define (list prog category prec) outcome)
+             `(tr (td ,(format-time time)) (td ,(~a count) "×")
+                  (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category))))))))
+
+(define (summarize-timelines info dir)
+  (define tls
+    (filter identity
+            (for/list ([res (report-info-tests info)])
+              (with-handlers ([(const #t) (const #f)])
+                (cons res (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json))))))
+
+  (define types (make-hash))
+  (for ([(res tl) (in-dict tls)] #:when true [event tl] [next (cdr tl)])
+    (define data (dict-ref! types (dict-ref event 'type) make-hash))
+    (define time (- (dict-ref next 'time) (dict-ref event 'time)))
+    (dict-set! data 'time (cons (cons res time) (dict-ref data 'time '())))
+    (for ([(k v) (in-dict event)] #:unless (equal? k 'time))
+      (dict-set! data k (cons (cons res v) (dict-ref data k '())))))
+  (sort (hash->list types) >
+        #:key (λ (x) (apply + (map cdr (dict-ref (cdr x) 'time))))))
