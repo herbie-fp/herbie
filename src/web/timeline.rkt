@@ -156,18 +156,18 @@
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
-(define (make-summary-html file info dir)
-  (write-file file
-    (printf "<!doctype html>\n")
-    (write-xexpr
-     `(html
-       (head
-        (title "Herbie results")
-        (meta ((charset "utf-8")))
-        (link ((rel "stylesheet") (type "text/css") (href "report.css")))
-        (script ((src "report.js"))))
-       (body
-        ,(render-timeline-summary info (summarize-timelines info dir)))))))
+(define (make-summary-html out info dir)
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (title "Herbie results")
+      (meta ((charset "utf-8")))
+      (link ((rel "stylesheet") (type "text/css") (href "report.css")))
+      (script ((src "report.js"))))
+     (body
+      ,(render-timeline-summary info (summarize-timelines info dir))))
+   out))
 
 (define (render-timeline-summary info summary)
   (define blocks
