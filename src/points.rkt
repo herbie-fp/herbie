@@ -168,7 +168,7 @@
    and a list of exact values for those points (each a flonum)"
   (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
     (prepare-points-intervals prog precondition #:log log)
-    (prepare-points-halfpoints prog precondition #:log log)))
+    (prepare-points-halfpoints prog precondition precision #:log log)))
 
 #;(define (prepare-points prog precondition precision)
   "Given a program, return two lists:
