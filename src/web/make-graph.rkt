@@ -1,11 +1,12 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?))
+(require fpbench)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
 (require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "common.rkt")
+(require "timeline.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -122,7 +123,7 @@
   (with-handlers ([exn:fail? (λ (e) #f)])
     (define start-fpcore (alt2fpcore (test-success-start-alt result)))
     (define end-fpcore (alt2fpcore (test-success-end-alt result)))
-    (define start-js (compile-program start-fpcore #:name "start"))
+    (define start-js (core->js start-fpcore #:name "start"))
     (define end-js (compile-program end-fpcore #:name "end"))
     (string-append start-js end-js)))
 
