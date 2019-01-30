@@ -1,12 +1,11 @@
 #lang racket
 
-(require json (only-in xml write-xexpr xexpr?))
+(require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
 (require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt")
-(require "../syntax/softposit.rkt")
+(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt")
 
 (provide all-pages make-page)
 
@@ -17,7 +16,7 @@
   (define pages
     `("graph.html"
       ,(and good? "interactive.js")
-      "timeline.json"
+      "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
                    #:when good? [type '("" "r" "g" "b")]
                    #:unless (and (equal? type "g") (not (test-output test))))
@@ -28,11 +27,13 @@
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out profile? (get-interactive-js result))]
-       [(? test-timeout?) (make-timeout result out profile?)]
-       [(? test-failure?) (make-traceback result out profile?)])]
+       [(? test-success?) (make-graph result out (get-interactive-js result))]
+       [(? test-timeout?) (make-timeout result out)]
+       [(? test-failure?) (make-traceback result out)])]
     ["interactive.js"
      (make-interactive-js result out)]
+    ["timeline.html"
+     (make-timeline result out profile?)]
     ["timeline.json"
      (make-timeline-json result out)]
     [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx ""))
@@ -89,77 +90,6 @@
      (format "  ~a)" (test-input test))))
    "\n"))
 
-(define timeline-phase? (listof (cons/c symbol? any/c)))
-(define timeline? (listof timeline-phase?))
-
-(define/contract (render-timeline timeline)
-  (-> timeline? xexpr?)
-  `(div ((class "timeline"))
-        ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-            `(div
-              ([class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type))]
-               [data-id ,(format "timeline~a" n)]
-               [data-type ,(~a (dict-ref curr 'type))]
-               [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
-
-(define/contract (render-phase curr n next)
-  (-> timeline-phase? integer? timeline-phase? xexpr?)
-  `(div ([class ,(format "timeline-block timeline-~a" (dict-ref curr 'type))]
-         [id ,(format "timeline~a" n)])
-    (h3 ,(~a (dict-ref curr 'type))
-        (span ([class "time"])
-         ,(format-time (- (dict-ref next 'time) (dict-ref curr 'time)))))
-    (dl
-     ,@(when-dict curr (method)
-         `((dt "Algorithm") (dd ,(~a method))))
-     ,@(when-dict curr (locations)
-         `((dt "Local error")
-           (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
-               (table ([class "times"])
-                ,@(for/list ([(expr err) (in-dict locations)])
-                    `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
-     ,@(when-dict curr (accuracy oracle baseline)
-         (define percentage
-           (if (= baseline oracle)
-               (if (= baseline accuracy) "100" "-∞")
-               (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
-
-         `((dt "Accuracy")
-           (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
-               (p "Error of " ,(format-bits accuracy) "b"
-                  " against oracle of " ,(format-bits oracle) "b"
-                  " and baseline of " ,(format-bits baseline) "b"))))
-     ,@(when-dict curr (kept-alts done-alts min-error)
-         `((dt "Pruning")
-           (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
-               (p "Merged error: " ,(format-bits min-error) "b"))))
-     ,@(when-dict curr (rules)
-         `((dt "Rules")
-           (dd (table ([class "times"])
-                ,@(for/list ([(rule count) (in-dict rules)])
-                    `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
-     ,@(when-dict curr (inputs outputs)
-         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
-     ,@(when-dict curr (times)
-         `((dt "Calls")
-           (dd ,(~a (length times)) " calls:"
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
-     ,@(when-dict curr (slowest)
-         `((dt "Slowest")
-           (dd (table ([class "times"])
-                ,@(for/list ([(expr time) (in-dict slowest)])
-                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
-     ,@(when-dict curr (outcomes)
-         `((dt "Results")
-           (dd (table ([class "times"])
-                ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
-                    (match-define (cons count time) number)
-                    (match-define (list prog category prec) outcome)
-                    `(tr (td ,(format-time time)) (td ,(~a count) "×")
-                         (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category)))))))))))
-
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
 
@@ -173,25 +103,6 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
-
-(define/contract (render-process-info timeline profile?)
-  (-> timeline? boolean? xexpr?)
-
-  (define time
-    (apply + (for/list ([phase timeline] [next (cdr timeline)])
-               (- (dict-ref next 'time) (dict-ref phase 'time)))))
-
-  `(section ((id "process-info"))
-    (h1 "Details")
-    (p ((class "header"))
-     "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
-     (a ((class "attachment") (href "debug.txt")) "Debug log")
-     ,(if profile?
-          `(a ((class "attachment") (href "profile.txt")) "Profile")
-          ""))
-    ,(render-timeline timeline)
-    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-        (render-phase curr n next))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -311,7 +222,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result out profile? valid-js-prog)
+(define (make-graph result out valid-js-prog)
   (match-define
    (test-success test bits time timeline
                  start-alt end-alt points exacts start-est-error end-est-error
@@ -391,11 +302,10 @@
         (ol ([class "history"])
          ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
 
-       ,(render-reproduction test)
-       ,(render-process-info timeline profile?)))
+       ,(render-reproduction test)))
     out))
 
-(define (make-traceback result out profile?)
+(define (make-traceback result out)
   (match-define (test-failure test bits time timeline exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -426,8 +336,7 @@
           `(,(render-reproduction test #:bug? #t)
             (section ([id "backtrace"])
              (h1 "Backtrace")
-             ,(render-traceback exn))
-            ,(render-process-info timeline profile?))])))
+             ,(render-traceback exn)))])))
    out))
 
 (define (render-traceback exn)
@@ -448,7 +357,7 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result out profile?)
+(define (make-timeout result out)
   (match-define (test-timeout test bits time timeline) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -460,7 +369,6 @@
      (body
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info timeline profile?)
       ,(render-reproduction test)))
    out))
 
@@ -555,27 +463,3 @@
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
 
-(define (make-timeline-json result out)
-  (define timeline (test-result-timeline result))
-  (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
-
-  (define/match (value-map k v)
-    [('method v) (~a v)]
-    [('type v) (~a v)]
-    [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
-    [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
-    [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
-    [('outcomes v)
-     (for/list ([(outcome number) (in-dict v)])
-       (match-define (cons count time) number)
-       (match-define (list prog category prec) outcome)
-       (hash 'count count 'time time
-             'program (~a prog) 'category (~a category) 'precision prec))]
-    [(_ v) v])
-
-  (define data
-    (for/list ([event timeline])
-     (for/hash ([(k v) (in-dict event)])
-       (values k (value-map k v)))))
-
-  (write-json data out))
