@@ -38,7 +38,7 @@
 
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters #:rules rls)
-	(define out (extract-smallest-best-effort eg))
+	(define out (extract-smallest eg))
         
 
 

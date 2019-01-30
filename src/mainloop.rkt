@@ -260,7 +260,7 @@
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
           (set! exprs (cons (cons (location-get loc (alt-program child)) (- (current-inexact-milliseconds) tnow)) exprs))
           (debug #:from 'simplify "Simplified" loc "to" child*)
-          (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
+          (if (> (program-cost (alt-program child)) (program-cost child*))
               (alt child* (list 'simplify loc) (list child))
               child))))
 
