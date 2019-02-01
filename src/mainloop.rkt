@@ -123,9 +123,9 @@
     (void)))
 
 ;; Invoke the subsystems individually
-(define (localize! precision)
+(define (localize!)
   (define log! (timeline-event! 'localize))
-  (define locs (localize-error (alt-program (^next-alt^)) precision))
+  (define locs (localize-error (alt-program (^next-alt^))))
   (log! 'locations
         (for/list ([(err loc) (in-dict locs)])
           (cons (location-get loc (alt-program (^next-alt^))) (errors-score err))))
@@ -288,13 +288,13 @@
   (^table^ (atab-add-altns (^table^) (list (make-alt prog))))
   (void))
 
-(define (finish-iter! precision)
+(define (finish-iter!)
   (when (not (^next-alt^))
     (debug #:from 'progress #:depth 3 "picking best candidate")
     (choose-best-alt!))
   (when (not (^locs^))
     (debug #:from 'progress #:depth 3 "localizing error")
-    (localize! precision))
+    (localize!))
   (when (not (^gened-series^))
     (debug #:from 'progress #:depth 3 "generating series expansions")
     (gen-series!))
@@ -324,7 +324,7 @@
   (void))
 
 ;; Run a complete iteration
-(define (run-iter! precision)
+(define (run-iter!)
   (if (^next-alt^)
       (begin (printf "An iteration is already in progress!\n")
 	     (printf "Finish it up manually, or by running (finish-iter!)\n")
@@ -332,7 +332,7 @@
       (begin (debug #:from 'progress #:depth 3 "picking best candidate")
 	     (choose-best-alt!)
 	     (debug #:from 'progress #:depth 3 "localizing error")
-	     (localize! precision)
+	     (localize!)
 	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
 	     (gen-rewrites!)
 	     (debug #:from 'progress #:depth 3 "generating series expansions")
@@ -360,7 +360,7 @@
       (finalize-iter!))
     (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
       (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-      (run-iter! precision))
+      (run-iter!))
     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
     (get-final-combination precision)]))
 
