@@ -18,8 +18,6 @@
 (define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache)
-  (println expr)
-  (println (hash-has-key? cache expr))
   (hash-ref! cache expr
              (λ ()
                 (match expr
