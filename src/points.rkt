@@ -345,7 +345,7 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit8))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e filtered-points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit16
@@ -353,7 +353,7 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit16))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e filtered-points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['posit32
@@ -361,7 +361,7 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-posit32))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e filtered-points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire8
@@ -369,7 +369,7 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire8))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e filtered-points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire16
@@ -377,7 +377,7 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire16))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
         ['quire32
@@ -385,6 +385,6 @@
          (define points (for/list ([_ (range (*num-points*))])
            (for/list ([_ (range num-vars)]) (random-quire32))))
          (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map f filtered-points))
+         (define exacts (map (compose ->flonum f) filtered-points))
          (define-values (pts* exs*) (filter-p&e points exacts))
          (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])])))
