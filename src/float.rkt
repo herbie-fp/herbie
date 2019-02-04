@@ -33,14 +33,11 @@
     [((? posit32?) (? posit32?))
      (p32s-between x y)]
     [((? quire8?) (? quire8?))
-     (ulp-difference (posit8->double (quire8->posit8 x))
-                     (posit8->double (quire8->posit8 y)))]
+     (p8s-between (quire8->posit8 x) (quire8->posit8 y)) ]
     [((? quire16?) (? quire16?))
-     (ulp-difference (posit16->double (quire16->posit16 x))
-                     (posit16->double (quire16->posit16 y)))]
+     (p16s-between (quire16->posit16 x) (quire16->posit16 y))]
     [((? quire32?) (? quire32?))
-     (ulp-difference (posit32->double (quire32->posit32 x))
-                     (posit32->double (quire32->posit32 y)))]))
+     (p32s-between (quire32->posit32 x) (quire32->posit32 y))]))
 
 (define (midpoint-float p1 p2)
   (cond 
