@@ -247,7 +247,10 @@
         (table ([class "times"])
                ,@(for/list ([row (in-list top-bits-remaining)])
                    `(tr (td ,(format-bits (first row)) "b")
-                        (td ,(~r (* (second row) 100) #:precision 1) "%")
+                        (td ,(if (rational? (second row))
+                               (~r (* (second row) 100) #:precision 1)
+                               "-∞")
+                            "%")
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
 
