@@ -406,7 +406,7 @@
 (define (render-history altn pcontext pcontext2 precision)
   (-> alt? (listof xexpr?))
 
-  (define prog* (if (eq? (alt-event altn) 'final-simplify)
+  (define prog* (if (set-member? '(final-simplify resugar) (alt-event altn))
     (let* ([prog (alt-program altn)]
            [vars (program-variables prog)]
            [expr (third prog)]
@@ -471,5 +471,9 @@
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
-
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
+    [(alt prog 'resugar `(,prev))
+     `(,@(render-history prev pcontext pcontext2 precision)
+       (li (p "Resugaring" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+    ))

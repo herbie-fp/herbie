@@ -109,9 +109,11 @@
        (match-define (list points exacts) (get-p&es context))
        (define start-prog (alt-program start))
        (define end-prog (alt-program end))
-       (define start-resugared (make-alt
+       (define start-resugared (alt
          (list 'λ (program-variables start-prog)
-               (resugar-program (program-body start-prog)))))
+               (resugar-program (program-body start-prog)))
+         'resugar
+         (list end)))
        (define end-resugared (struct-copy alt end
          [program (list 'λ (program-variables start-prog)
                         (resugar-program (program-body end-prog)))]))
