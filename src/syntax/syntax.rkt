@@ -1208,12 +1208,12 @@
               (>=.p8 bool posit8 posit8)
               (>=.p16 bool posit16 posit16)
               (>=.p32 bool posit32 posit32))]
-        [= . ((= bool real real)
+        [== . ((== bool real real)
               (=.p8 bool posit8 posit8)
               (=.p16 bool posit16 posit16)
               (=.p32 bool posit32 posit32))]))
 
-(define variary-operators '(< <= > >= =))
+(define variary-operators '(< <= > >= == !=))
 
 (define parametric-operators-reverse
   (make-hash (append* (for/list ([(key-val) (hash->list parametric-operators)])
