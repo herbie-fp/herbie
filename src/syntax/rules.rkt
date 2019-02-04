@@ -856,7 +856,7 @@
                             ['max-point (map cons fv (second max-error))]
                             ['max-input (third max-error)]
                             ['max-output (fourth max-error)])
-                           (check-pred (curryr <= 1) score))))))))
+                           (check-pred (curryr <= 1) score)))))))
 
 (module+ test
   (require rackunit math/bigfloat)
