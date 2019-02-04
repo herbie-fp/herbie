@@ -813,11 +813,7 @@
          [test-rule (first test-ruleset)]
          #:unless (set-member? *skip-tests* (rule-name test-rule)))
     (parameterize ([bf-precision 2000])
-    (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e)
-                                   ((error-display-handler)
-                                    (exn-message e) e)
-                                   (fail (exn-message e)))])
+      (test-case (~a (rule-name test-rule))
         (match-define (rule name p1 p2 _) test-rule)
         ;; Not using the normal prepare-points machinery for speed.
         (define fv (free-variables p1))
