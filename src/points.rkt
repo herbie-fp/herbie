@@ -327,64 +327,26 @@
       (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
      [else
       (define num-vars (length (program-variables prog)))
-      (match precision
-        [(or 'binary64 'binary32)
-         (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
-         (debug #:from 'points #:depth 4
-                "Sampling" num "additional inputs,"
-                "on iter" num-loops "have" npts "/" (*num-points*))
-         (define pts1 (for/list ([n (in-range num)]) (sample)))
-         (define exs1 (make-exacts-halfpoints prog pts1 precondition))
-         (debug #:from 'points #:depth 4
-                "Filtering points with unrepresentable outputs")
-         (define-values (pts* exs*) (filter-p&e pts1 exs1))
-         ;; keep iterating till we get at least *num-points*
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['posit8
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-posit8))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['posit16
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-posit16))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['posit32
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-posit32))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['quire8
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-quire8))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e filtered-points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['quire16
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-quire16))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))]
-        ['quire32
-         (define f (eval-prog prog 'bf))
-         (define points (for/list ([_ (range (*num-points*))])
-           (for/list ([_ (range num-vars)]) (random-quire32))))
-         (define filtered-points (filter-valid-points prog precondition points))
-         (define exacts (map (compose ->flonum f) filtered-points))
-         (define-values (pts* exs*) (filter-p&e points exacts))
-         (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])])))
+      (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
+      (debug #:from 'points #:depth 4
+             "Sampling" num "additional inputs,"
+             "on iter" num-loops "have" npts "/" (*num-points*))
+      (define pts1 (match precision
+                     [(or 'binary64 'binary32) (for/list ([n (in-range num)]) (sample))]
+                     ['posit8 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-posit8)))]
+                     ['posit16 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-posit16)))]
+                     ['posit32 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-posit32)))]
+                     ['quire8 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-quire8)))]
+                     ['quire16 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-quire16)))]
+                     ['quire32 (for/list ([n (in-range num)])
+                                (for/list ([_ (range num-vars)]) (random-quire32)))]))
+      (define exs1 (make-exacts-halfpoints prog pts1 precondition))
+      (debug #:from 'points #:depth 4
+             "Filtering points with unrepresentable outputs")
+      (define-values (pts* exs*) (filter-p&e pts1 exs1))
+      (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
