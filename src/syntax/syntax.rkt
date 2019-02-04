@@ -13,8 +13,8 @@
 
 (provide types type? value? bigvalue?
          constant? variable? operator? operator-info constant-info parametric-operators
-         parametric-operators-reverse prune-operators! *unknown-d-ops* *unknown-f-ops*
-         *loaded-ops*)
+         variary-operators parametric-operators-reverse prune-operators!
+         *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (module+ test (require rackunit))
 
@@ -1212,6 +1212,8 @@
               (=.p8 bool posit8 posit8)
               (=.p16 bool posit16 posit16)
               (=.p32 bool posit32 posit32))]))
+
+(define variary-operators '(< <= > >= =))
 
 (define parametric-operators-reverse
   (make-hash (append* (for/list ([(key-val) (hash->list parametric-operators)])

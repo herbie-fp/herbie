@@ -245,12 +245,6 @@
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
-    [(cons (? (curryr member '(< <= > >= =)) op) a)
-     (define expanded (map expand-associativity a))
-     (if (> (length a) 2)
-         `(and ,@(for/list ([x expanded] [y (cdr expanded)])
-            (list op x y)))
-         (cons op expanded))]
     [(list '/ a)
      (list '/ 1 (expand-associativity a))]
     [(list op a ...)
@@ -275,7 +269,10 @@
              (and
               (if (symbol? atypes)
                   (andmap (curry equal? atypes) actual-types)
-                  (equal? atypes actual-types))
+                  (if (set-member? variary-operators op)
+                      (and (andmap (λ (x) (eq? (car actual-types) x)) actual-types)
+                           (eq? (car actual-types) (car atypes)))
+                      (equal? atypes actual-types)))
               (cons true-name rtype))))
          (values (cons op* args*) rtype)]
         [(list 'if cond ift iff)
