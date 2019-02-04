@@ -376,15 +376,27 @@
 (struct interval (alt-idx start-point end-point expr))
 
 (define (interval->string ival)
+  (define start (interval-start-point ival))
+  (define end (interval-end-point ival))
   (string-join
    (list
-    (if (interval-start-point ival)
-        (format "~a < " (interval-start-point ival))
+    (if start
+        (let ([start* (cond
+                        [(posit8? start) (posit8->double start)]
+                        [(posit16? start) (posit16->double start)]
+                        [(posit32? start) (posit32->double start)]
+                        [else start])])
+          (format "~a < " start*))
         "")
     (~a (interval-expr ival))
-    (if (equal? (interval-end-point ival) +nan.0)
+    (if (equal? end +nan.0)
         ""
-        (format " < ~a" (interval-end-point ival))))))
+        (let ([end* (cond
+                      [(posit8? end) (posit8->double end)]
+                      [(posit16? end) (posit16->double end)]
+                      [(posit32? end) (posit32->double end)]
+                      [else end])])
+          (format " < ~a" end*))))))
 
 (define (split-pcontext pcontext splitpoints alts)
   (define preds (splitpoints->point-preds splitpoints alts))
@@ -442,6 +454,7 @@
                       [new-pcontext (split-pcontext pcontext splitpoints prevs)]
                       [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
+             (println entry-ivals)
              (define condition (string-join (map interval->string entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
                (ol ,@(render-history entry new-pcontext new-pcontext2 precision))))))
