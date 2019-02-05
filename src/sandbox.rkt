@@ -52,14 +52,15 @@
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
-                       #:precondition (test-precondition test)))
+                       #:precondition (test-precondition test)
+                       #:precision (test-precision test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (define log! (timeline-event! 'sample))
         (define prepare-log (make-hash))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-program test) (test-precondition test) #:log prepare-log)))
+            (prepare-points (test-program test) (test-precondition test) (test-precision test) #:log prepare-log)))
         (log! 'method (sampling-method (test-program test) (test-precondition test)))
         (log! 'outcomes prepare-log)
         (timeline-event! 'end)
@@ -106,8 +107,21 @@
               ,oracle-errs ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
-       (test-success test bits (- (current-inexact-milliseconds) start-time) timeline
-                     start end points exacts
+       (define start-prog (alt-program start))
+       (define end-prog (alt-program end))
+       (define start-resugared (alt
+         (list 'λ (program-variables start-prog)
+               (resugar-program (program-body start-prog)))
+         'resugar
+         (list end)))
+       (define end-resugared (struct-copy alt end
+         [program (list 'λ (program-variables start-prog)
+                        (resugar-program (program-body end-prog)))]))
+       (test-success test
+                     bits
+                     (- (current-inexact-milliseconds) start-time)
+                     timeline
+                     start-resugared end-resugared points exacts
                      (errors (alt-program start) context)
                      (errors (alt-program end) context)
                      newpoints newexacts
@@ -206,9 +220,10 @@
                       ([,(*reeval-pts*) ,(errors-score target-error)]))
                     '())
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
-                    `(:pre ,(test-precondition test)))
+                    `(:pre ,(resugar-program (test-precondition test))))
               ,@(if (test-output test)
                     `(:herbie-target ,(test-output test))
                     '())
@@ -219,6 +234,7 @@
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
                     `(:pre ,(test-precondition test)))
@@ -232,6 +248,7 @@
               :herbie-time ,time
               :herbie-bits-used ,bits
               :name ,(test-name test)
+              :precision ,(test-precision test)
               ,@(if (eq? (test-precondition test) 'TRUE)
                     '()
                     `(:pre ,(test-precondition test)))

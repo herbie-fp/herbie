@@ -19,7 +19,7 @@
     [(#f #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
-(struct test (name vars input output expected precondition) #:prefab)
+(struct test (name vars input output expected precondition precision) #:prefab)
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -32,14 +32,20 @@
          (if (null? props)
              (reverse out)
              (loop (cddr props) (cons (cons (first props) (second props)) out)))))
-     (define type-ctx (map (λ (x) (cons x 'real)) args))
+     ;; Default to 'real because types and precisions are mixed up right now
+     (define ctx-prec (dict-ref prop-dict ':precision 'real))
+     (define type-ctx (map (λ (x) (cons x (if (or (eq? ctx-prec 'binary32) (eq? ctx-prec 'binary64))
+                                              'real
+                                              ctx-prec)))
+                           args))
 
      (test (~a (dict-ref prop-dict ':name body))
            args
            (desugar-program body type-ctx)
            (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
            (dict-ref prop-dict ':herbie-expected #t)
-           (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx))]
+           (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
+           (dict-ref prop-dict ':precision 'binary64))]
     [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
      (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
                          #:url "input.html")]
