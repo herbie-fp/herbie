@@ -190,8 +190,10 @@
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (ival (rnd 'down bfhypot (ival-lo x) (ival-lo y))
-        (rnd 'up bfhypot (ival-hi x) (ival-hi y))
+  (define x* (ival-fabs x))
+  (define y* (ival-fabs y))
+  (ival (rnd 'down bfhypot (ival-lo x*) (ival-lo y*))
+        (rnd 'up bfhypot (ival-hi x*) (ival-hi y*))
         err? err))
 
 (define (ival-pow x y)
