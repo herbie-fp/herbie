@@ -514,7 +514,7 @@
   [nonffi (from-bigfloat bffmod)])
 
 (define-operator/libm (hypot real real) real
-  [libm hypot hypotf] [bf bfhypot] [ival #f] [cost 55]
+  [libm hypot hypotf] [bf bfhypot] [ival ival-hypot] [cost 55]
   [->c/double (curry format "hypot(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a^2 + ~a^2}^*")]

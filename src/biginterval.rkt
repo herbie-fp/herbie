@@ -22,6 +22,7 @@
           [ival-fabs (-> ival? ival?)]
           [ival-sqrt (-> ival? ival?)]
           [ival-cbrt (-> ival? ival?)]
+          [ival-hypot (-> ival? ival? ival?)]
           [ival-exp (-> ival? ival?)]
           [ival-expm1 (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
@@ -184,9 +185,13 @@
         err? err))
 
 (define (ival-cbrt x)
-  (define err (or (ival-err x) (bf<= (ival-hi x) 0.bf)))
-  (define err? (or err (ival-err? x) (bf<= (ival-lo x) 0.bf)))
-  (ival (rnd 'down bfcbrt (ival-lo x)) (rnd 'up bfcbrt (ival-hi x))
+  (ival (rnd 'down bfcbrt (ival-lo x)) (rnd 'up bfcbrt (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-hypot x y)
+  (define err? (or (ival-err? x) (ival-err? y)))
+  (define err (or (ival-err x) (ival-err y)))
+  (ival (rnd 'down bfhypot (ival-lo x) (ival-lo y))
+        (rnd 'up bfhypot (ival-hi x) (ival-hi y))
         err? err))
 
 (define (ival-pow x y)
@@ -525,6 +530,7 @@
           (cons ival-sub bf-)
           (cons ival-mult bf*)
           (cons ival-div bf/)
+          (cons ival-hypot bfhypot)
           (cons ival-atan2 bfatan2)
           (cons ival-< bf<)
           (cons ival-> bf>)
