@@ -230,6 +230,11 @@
                  baseline-error oracle-error all-alts)
    result)
    (define precision (test-precision test))
+   ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
+   ;; remove this when the number system interface is added
+   (define precision* (if (set-member? '(binary64 binary32) precision)
+                          'real
+                          precision))
 
    (fprintf out "<!doctype html>\n")
    (write-xexpr
@@ -301,7 +306,7 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision)))
+         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision*)))
 
        ,(render-reproduction test)))
     out))
