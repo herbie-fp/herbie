@@ -459,7 +459,6 @@
                       [new-pcontext (split-pcontext pcontext splitpoints prevs)]
                       [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-             (println entry-ivals)
              (define condition (string-join (map interval->string entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
                (ol ,@(render-history entry new-pcontext new-pcontext2 precision))))))
