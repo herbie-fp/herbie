@@ -95,10 +95,15 @@
         (p "Merged error: " ,(format-bits min-error) "b"))))
 
 (define (render-phase-rules rules)
+  (define counts (make-hash))
+  (for ([(rule count) (in-dict rules)])
+    (dict-update! counts count (curry cons rule) '()))
+
   `((dt "Rules")
     (dd (table ([class "times"])
-               ,@(for/list ([(rule count) (in-dict rules)])
-                   `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
+               ,@(for/list ([(count rules) (in-dict (sort (hash->list counts) > #:key car))])
+                   `(tr (td ,(~a count) "×")
+                        (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
 (define (render-phase-counts inputs outputs)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
@@ -213,11 +218,15 @@
   (define counts (make-hash))
   (for ([rc (append-map cdr rules)])
     (hash-update! counts (dict-ref rc 'rule) (curry + (dict-ref rc 'count)) 0))
+  (define counts-grouped (make-hash))
+  (for ([(rule count) (in-dict counts)])
+    (dict-update! counts-grouped count (curry cons rule) '()))
 
   `((dt "Rules")
     (dd (table ([class "times"])
-          ,@(for/list ([(rule count) (in-dict (sort (hash->list counts) > #:key cdr))])
-              `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
+          ,@(for/list ([(count rules) (in-dict (sort (hash->list counts-grouped) > #:key car))])
+              `(tr (td ,(~a count) "×")
+                   (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
 (define (render-summary-accuracy info accuracy oracle baseline)
   (define rows
