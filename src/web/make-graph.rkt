@@ -271,7 +271,7 @@
           '("Report" . "../report.html")
           '("Log" . "debug.txt")
           (and profile? '("Profile" . "profile.txt"))
-          '("Timeline" . "timeline.html")))
+          '("Metrics" . "timeline.html")))
 
        (section ([id "large"])
         (div "Average Error: "
@@ -351,7 +351,7 @@
           '("Report" . "../report.html")
           '("Log" . "debug.txt")
           (and profile? '("Profile" . "profile.txt"))
-          '("Timeline" . "timeline.html")))
+          '("Metrics" . "timeline.html")))
 
       (h1 "Error in " ,(format-time time))
       ,@(cond
@@ -411,7 +411,7 @@
          '("Report" . "../report.html")
          '("Log" . "debug.txt")
          (and profile? '("Profile" . "profile.txt"))
-         '("Timeline" . "timeline.html")))
+         '("Metrics" . "timeline.html")))
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-reproduction test)))
