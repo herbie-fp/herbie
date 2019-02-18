@@ -1,6 +1,6 @@
 /* Standard Herbie header */
 
-body { width: 800px; margin: 1em auto; font-family: sans; line-height: 1.25; }
+body { width: 800px; margin: 0 auto; font-family: sans; line-height: 1.25; }
 
 a {color: #2A6496; text-decoration: none; cursor: pointer}
 a:hover {text-decoration: underline; color: #295785}
@@ -117,6 +117,12 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
  vertical-align: top;
 }
 .help-button:hover { background: #444; cursor: pointer; }
+
+/* Links at the top */
+
+#links { border-bottom: 1px solid #ddd; line-height: 2; overflow: auto; }
+#links div:first-child { float: right; }
+#links a + a { margin-left: 1em; }
 
 /* Detail page layout */
 

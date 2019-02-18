@@ -27,18 +27,18 @@
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result))]
-       [(? test-timeout?) (make-timeout result out)]
-       [(? test-failure?) (make-traceback result out)])]
+       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
+       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
      (make-interactive-js result out)]
     ["timeline.html"
-     (make-timeline result out profile?)]
+     (make-timeline result out)]
     ["timeline.json"
      (make-timeline-json result out)]
-    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx ""))
+    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx letter))
+    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
@@ -103,6 +103,16 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
+
+(define/contract (render-menu sections links)
+  (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
+  `(nav ([id "links"])
+    (div
+     ,@(for/list ([(text url) (in-dict links)])
+         `(a ([href ,url]) ,text)))
+    (div
+     ,@(for/list ([(text url) (in-dict sections)])
+         `(a ([href ,url]) ,text)))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -222,7 +232,7 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result out valid-js-prog)
+(define (make-graph result out valid-js-prog profile?)
   (match-define
    (test-success test bits time timeline
                  start-alt end-alt points exacts start-est-error end-est-error
@@ -248,6 +258,20 @@
        (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
       (body ([onload "graph()"])
+       ,(render-menu
+         (list/true
+          '("Error" . "#graphs")
+          (and valid-js-prog (for/and ([p points]) (number? p))
+               '("Try it out!" . "#try-it"))
+          (and (test-output test)
+               '("Target" . "#comparison"))
+          '("Derivation" . "#history")
+          '("Reproduce" . "#reproduce"))
+         (list/true
+          '("Report" . "../report.html")
+          '("Log" . "debug.txt")
+          (and profile? '("Profile" . "profile.txt"))
+          '("Timeline" . "timeline.html")))
 
        (section ([id "large"])
         (div "Average Error: "
@@ -311,7 +335,7 @@
        ,(render-reproduction test)))
     out))
 
-(define (make-traceback result out)
+(define (make-traceback result out profile?)
   (match-define (test-failure test bits time timeline exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -321,6 +345,14 @@
       (title "Exception for " ,(~a (test-name test)))
       (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
      (body
+       ,(render-menu
+         (list/true)
+         (list/true
+          '("Report" . "../report.html")
+          '("Log" . "debug.txt")
+          (and profile? '("Profile" . "profile.txt"))
+          '("Timeline" . "timeline.html")))
+
       (h1 "Error in " ,(format-time time))
       ,@(cond
          [(exn:fail:user:herbie? exn)
@@ -363,7 +395,7 @@
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
 
-(define (make-timeout result out)
+(define (make-timeout result out profile?)
   (match-define (test-timeout test bits time timeline) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -373,6 +405,13 @@
       (title ,(format "Timeout for ~a" (test-name test)))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
      (body
+      ,(render-menu
+        (list/true)
+        (list/true
+         '("Report" . "../report.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Timeline" . "timeline.html")))
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-reproduction test)))

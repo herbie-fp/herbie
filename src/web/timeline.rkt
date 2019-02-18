@@ -8,7 +8,7 @@
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline result out profile?)
+(define (make-timeline result out)
   (match-define (test-result test bits fulltime timeline) result)
 
   (define time
@@ -27,11 +27,7 @@
        (section ((id "process-info"))
          (h1 "Details")
          (p ((class "header"))
-            "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
-            (a ((class "attachment") (href "debug.txt")) "Debug log")
-            ,(if profile?
-                 `(a ((class "attachment") (href "profile.txt")) "Profile")
-                 ""))
+            "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
          ,(render-timeline timeline)
          ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
              (render-phase curr n next)))))

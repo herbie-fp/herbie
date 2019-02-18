@@ -8,7 +8,8 @@
          reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total <=/total nan?-all-types
-         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
+         take-up-to flip-lists list/true
+         argmins argmaxs setfindf index-of set-disjoint? all-equal?
          write-file write-string
          binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
@@ -220,6 +221,9 @@
 (define (flip-lists list-list)
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
+
+(define (list/true . args)
+  (filter identity args))
 
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))

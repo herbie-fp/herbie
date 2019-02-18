@@ -70,6 +70,13 @@
       (script ((type "text/javascript") (src "arrow-chart.js"))))
  
      (body ((onload "report()"))
+      (nav ([id "links"])
+       (div
+        (a ([href "timeline.html"]) "Metrics"))
+       (div
+        (a ([href "#about"]) "Flags")
+        (a ([href "#results"]) "Results")))
+
       (div ((id "large"))
        (div "Time: " (span ((class "number")) ,(format-time total-time)))
        (div "Passed: " (span ((class "number")) ,(~a total-passed) "/" ,(~a total-available)))
