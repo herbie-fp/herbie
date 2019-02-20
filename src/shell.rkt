@@ -18,7 +18,7 @@
 (define (run-shell)
   (define seed (get-seed))
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* seed)
-  (eprintf "Find help on <https://herbie.uwplse.org/>, exit with ~a\n"
+  (eprintf "Find help on https://herbie.uwplse.org/, exit with ~a\n"
            (match (system-type 'os) ['windows "Ctrl-Z Enter"] [_ "Ctrl-D"]))
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
