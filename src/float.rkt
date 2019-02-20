@@ -49,7 +49,7 @@
       (quotient
        (+ (single-flonum->ordinal p1) (single-flonum->ordinal p2))
        2)
-      4) #f)]
+      4 #f) #f)]
    [(and (posit8? p1) (posit8? p2))
     ;; NOTE: This isn't a binary search (just splits the difference)
     (posit8-div (posit8-add p1 p2) (double->posit8 2.0))]
