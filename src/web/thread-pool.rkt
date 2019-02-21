@@ -25,9 +25,10 @@
 
     (set-seed! seed)
     (for ([page (all-pages result)])
-      (call-with-output-file (build-path rdir page)
-        #:exists 'replace
-        (λ (out) (make-page page out result #f))))
+      (with-handlers ([exn:fail? (λ (e) ((error-display-handler) (format "Error when making ~a: ~a" page (exn-message e)) e))])
+        (call-with-output-file (build-path rdir page)
+          #:exists 'replace
+          (λ (out) (make-page page out result #f)))))
 
     (get-table-data result dirname)]
    [else
