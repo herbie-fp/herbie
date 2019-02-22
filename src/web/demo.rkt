@@ -36,14 +36,14 @@
   (dispatch-rules
    [("") main]
    [("improve-start") #:method "post" improve-start]
-   [("improve") #:method "post" improve]
+   [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
   (match-define (cons result debug) results)
   (cond
-   [(set-member? page (all-pages result))
+   [(set-member? (all-pages result) page)
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out) (make-page page out result #f)))]

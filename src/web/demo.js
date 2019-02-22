@@ -217,7 +217,7 @@ function ajax_submit(url, text, lisp) {
             }
         }
     }
-    var content = "formula=" + encodeURIComponent(lisp) + "&formula-math=" + encodeURIComponent(text);
+    var content = "formula=" + encodeURIComponent(lisp);
     req.send(content);
 }
 
