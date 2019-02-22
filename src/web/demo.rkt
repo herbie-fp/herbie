@@ -36,7 +36,7 @@
   (dispatch-rules
    [("") main]
    [("improve-start") #:method "post" improve-start]
-   [("improve") #:method "post" improve]
+   [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [((hash-arg) "interactive.js") generate-interactive]
    [((hash-arg) "graph.html") generate-report]
