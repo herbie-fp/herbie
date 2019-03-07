@@ -318,19 +318,16 @@
    #:command-line? true
    #:launch-browser? (not quiet?)
    #:banner? true
-   #:servlets-root web-resource-path
-   #:server-root-path web-resource-path
+   #:servlets-root (web-resource)
+   #:server-root-path (web-resource)
    #:servlet-path "/"
    #:servlet-regexp #rx""
    #:extra-files-paths
-   (if (*demo-output*)
-       (list web-resource-path (*demo-output*))
-       (list web-resource-path))
+   (list/true (web-resource) (*demo-output*))
 
    #:log-file (*demo-log*)
    #:file-not-found-responder
-   (gen-file-not-found-responder
-    (build-path web-resource-path "404.html"))))
+   (gen-file-not-found-responder (web-resource "404.html"))))
 
 (module+ main
   (run-demo #t))

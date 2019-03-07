@@ -324,7 +324,7 @@
   (reverse (cse-indices (last final))))
 
 (define (splitpoints->point-preds splitpoints alts)
-  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
   (assert (nan? (sp-point (last splitpoints))))
 
   (define vars (program-variables (alt-program (first alts))))

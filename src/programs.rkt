@@ -143,7 +143,7 @@
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]
         [_ (error (format "Invalid program ~a" prog))])))
-  (define fn (eval `(λ ,(program-variables prog) ,(compile body*)) common-eval-ns))
+  (define fn (common-eval `(λ ,(program-variables prog) ,(compile body*))))
   (lambda (pts)
     (precision->real (apply fn (map real->precision pts)))))
 
