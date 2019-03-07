@@ -7,7 +7,7 @@
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points sampling-method
-         errors errors-score sort-context-on-expr
+         errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test
@@ -61,11 +61,6 @@
   ;; not just any type in general (maybe the first argument too?)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
-
-(define (sort-context-on-expr context expr variables)
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
-    (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (supported-ival-expr? expr)
   (match expr

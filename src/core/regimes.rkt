@@ -137,6 +137,11 @@
   [(quire32? x1)
    (posit32< (quire32->posit32 x1) (quire32->posit32 x2))]))
 
+(define (sort-context-on-expr context expr variables)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
+    (mk-pcontext (map car p&e) (map cdr p&e))))
+
 (define (option-on-expr alts expr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define vars (program-variables (*start-prog*)))
