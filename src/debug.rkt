@@ -107,7 +107,7 @@
 (define (debug-print from depth args port)
   (fprintf port "~a ~a [~a]:"
            (~r (/ (current-inexact-milliseconds) 1000) #:precision '(= 3))
-           (string-join (build-list (range depth) (const "*")) " ")
+           (string-join (build-list depth (const "*")) " ")
            from)
   (for ([arg args]) (fprintf port " ~a" arg))
   (newline port)
