@@ -30,19 +30,13 @@
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
-  (debug #:from 'simplify #:tag 'enter (format "Simplifying ~a" expr))
+  (debug #:from 'simplify (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
-             
-
-
 	     [eg (mk-egraph expr)])
 	(iterate-egraph! eg iters #:rules rls)
 	(define out (extract-smallest eg))
-        
-
-
-        (debug #:from 'simplify #:tag 'exit (format "Simplified to ~a" out))
+        (debug #:from 'simplify (format "Simplified to ~a" out))
         out)))
 
 (define (has-nan? expr)

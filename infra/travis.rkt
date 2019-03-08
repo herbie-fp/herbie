@@ -5,6 +5,13 @@
 (require "../src/alternative.rkt" "../src/sandbox.rkt")
 (require "../src/formats/test.rkt" "../src/formats/datafile.rkt")
 
+(define (test-successful? test input-bits target-bits output-bits)
+  (match* ((test-output test) (test-expected test))
+    [(_ #f) #t]
+    [(_ (? number? n)) (>= n output-bits)]
+    [(#f #t) (>= input-bits output-bits)]
+    [(_ #t) (>= target-bits (- output-bits 1))]))
+
 (define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
   (define seed (get-seed))

@@ -317,8 +317,7 @@
       (raise-herbie-error "Cannot sample enough valid points."
                           #:url "faq.html#sample-valid-points")]
      [(>= npts (*num-points*))
-      (debug #:from 'points #:tag 'exit #:depth 4
-             "Sampled" npts "points with exact outputs")
+      (debug #:from 'points #:depth 4 "Sampled" npts "points with exact outputs")
       (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
      [else
       (define num-vars (length (program-variables prog)))
