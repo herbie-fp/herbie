@@ -145,59 +145,52 @@
                   (sow (cons (change rule (reverse loc) (cdr option))
                              (car option)))))))))
 
-  (define (reduce-children options)
+  (define (reduce-children sow options)
     ; (list (list ((list change) * bindings)))
     ; -> (list ((list change) * bindings))
-    (reap (sow)
-      (for ([children options])
-        (let ([bindings* (apply merge-bindings (map cdr children))])
-          (when bindings*
-            (sow (cons (apply append (map car children)) bindings*)))))))
+    (for ([children options])
+      (let ([bindings* (apply merge-bindings (map cdr children))])
+        (when bindings*
+          (sow (cons (apply append (map car children)) bindings*))))))
 
-  (define (fix-up-variables pattern options)
+  (define (fix-up-variables sow pattern options)
     ; pattern (list (list change)) -> (list (list change) * pattern)
-    (reap (sow)
-      (for ([cngs options])
-        (let* ([out-pattern (rule-output (change-rule (car cngs)))]
-               [result (pattern-substitute out-pattern
-                                           (change-bindings (car cngs)))]
-               [bindings* (pattern-match pattern result)])
-          (when bindings*
-            (sow (cons cngs bindings*)))))))
+    (for ([cngs options])
+      (let* ([out-pattern (rule-output (change-rule (car cngs)))]
+             [result (pattern-substitute out-pattern
+                                         (change-bindings (car cngs)))]
+             [bindings* (pattern-match pattern result)])
+        (when bindings*
+          (sow (cons cngs bindings*))))))
 
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
-      (cond
-       [(variable? pattern)
-        ; Do nothing, bind variable
-        (list (cons '() (list (cons pattern expr))))]
-       [(constant? pattern)
-        (if (and (constant? expr) (equal? expr pattern))
-            '((()) . ()) ; Do nothing, bind nothing
-            '())] ; No options
-       [(and (list? expr) (list? pattern))
-        (if (and (eq? (car pattern) (car expr))
-                 (= (length pattern) (length expr)))
-            ; Everything is terrible
-            (let/ec k
-              (reduce-children
-               (apply cartesian-product ; (list (list ((list cng) * bnd)))
-                      (for/list ([i (in-naturals)] [sube expr] [subp pattern]
-                                 #:when (> i 0)) ; (list (list ((list cng) * bnd)))
-                        ;; Note: we reset the fuel to "depth", not "cdepth"
-                        (match (matcher sube subp (cons i loc) depth)
-                          ['() (k '())]
-                          [out out]))))) ; list (expr * pattern)
-            (if (> cdepth 0)
-                ; Sort of a brute force approach to getting the bindings
-                (fix-up-variables
-                 pattern
-                 (rewriter expr (car pattern) (length pattern) loc (- cdepth 1)))
-                '()))]
-       [(and (list? pattern) (not (list? expr)))
-        '()]
-       [else
-        (error "Unknown pattern" pattern)]))
+    (reap [sow]
+      (match pattern
+        [(? variable?)
+         (sow (cons '() (list (cons pattern expr))))]
+        [(? constant?)
+         (when (and (constant? expr) (equal? expr pattern))
+           (sow (cons '() '())))]
+        [(list phead _ ...)
+         (when (and (list? expr) (equal? phead (car expr))
+                    (= (length pattern) (length expr)))
+           (let/ec k
+             (reduce-children
+              sow
+              (apply cartesian-product ; (list (list ((list cng) * bnd)))
+                     (for/list ([i (in-naturals)] [sube expr] [subp pattern]
+                                #:when (> i 0)) ; (list (list ((list cng) * bnd)))
+                       ;; Note: we reset the fuel to "depth", not "cdepth"
+                       (match (matcher sube subp (cons i loc) depth)
+                         ['() (k '())]
+                         [out out]))))))
+
+         (when (> cdepth 0)
+           ;; Sort of a brute force approach to getting the bindings
+           (fix-up-variables
+            sow pattern
+            (rewriter expr (car pattern) (length pattern) loc (- cdepth 1))))])))
 
   ; The #f #f mean that any output result works. It's a bit of a hack
   (map reverse (rewriter expr #f #f (reverse root-loc) depth)))
