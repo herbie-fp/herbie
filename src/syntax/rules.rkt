@@ -220,9 +220,14 @@
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
   #:type ([a real] [b real])
+  [swap-sqr              (* (* a b) (* a b))   (* (* a a) (* b b))]
+  [unswap-sqr            (* (* a a) (* b b))   (* (* a b) (* a b))]
   [difference-of-squares (- (* a a) (* b b))   (* (+ a b) (- a b))]
   [difference-of-sqr-1   (- (* a a) 1)         (* (+ a 1) (- a 1))]
-  [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))])
+  [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))]
+  [sqr-pow               (pow x y)             (* (pow x (/ y 2)) (pow x (/ y 2)))]
+  [pow-sqr               (* (pow x y) (pow x y)) (pow x (* 2 y))]
+  )
 
 (define-ruleset difference-of-squares-canonicalize.p16 (polynomials simplify posit)
   #:type ([a posit16] [b posit16])
@@ -342,6 +347,8 @@
   #:type ([x real] [y real])
   [sqrt-prod         (sqrt (* x y))         (* (sqrt x) (sqrt y))]
   [sqrt-div          (sqrt (/ x y))         (/ (sqrt x) (sqrt y))]
+  [sqrt-pow1         (sqrt (pow x y))       (pow x (/ y 2))]
+  [sqrt-pow2         (pow (sqrt x) y)       (pow x (/ y 2))]
   [sqrt-unprod       (* (sqrt x) (sqrt y))  (sqrt (* x y))]
   [sqrt-undiv        (/ (sqrt x) (sqrt y))  (sqrt (/ x y))]
   [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))])
