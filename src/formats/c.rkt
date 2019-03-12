@@ -70,7 +70,7 @@
      [(number? expr) ""]
      [(member expr vars)
       (format "mpfr_set_d(~a, ~a, MPFR_RNDN)" out (fix-name expr))]
-     [(constant? expr)
+     [(constant-or-num? expr)
       ((constant-info expr '->c/mpfr) out)]
      [(symbol? expr)
       (format "mpfr_set(~a, ~a, MPFR_RNDN)" out expr)]))
