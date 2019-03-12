@@ -27,7 +27,7 @@
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
-     (if (operator? f)
+     (if (herbie-operator? f)
          (let ([num-args (operator-info f 'args)])
            (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"

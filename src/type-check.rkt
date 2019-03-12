@@ -3,7 +3,7 @@
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
-  (if (and (operator? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
+  (if (and (herbie-operator? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
       (hash-ref (operator-info fun-name 'type) num-args)
       (if (hash-has-key? (operator-info fun-name 'type) '*)
           (hash-ref (operator-info fun-name 'type) '*)
@@ -86,7 +86,7 @@
                    op (string-join (map (curry format "<~a>") actual-types) " ")))
          rtype)
        #f)]
-    [#`(,(? operator? op) #,exprs ...)
+    [#`(,(? herbie-operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
      (unless sigs (error! stx "Operator ~a has no type signature of length ~a" op (length exprs)))
 
