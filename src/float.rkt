@@ -7,13 +7,6 @@
 
 (provide midpoint-float ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
 
-(define (single-flonum->bit-field x)
-  (integer-bytes->integer (real->floating-point-bytes x 4) #f))
-
-(define (single-flonum->ordinal x)
-  (cond [(x . < . 0.0f0) (- (single-flonum->bit-field (- 0.0f0 x)))]
-	[else            (single-flonum->bit-field (abs x))]))
-
 (define (single-flonums-between x y)
   (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
 
