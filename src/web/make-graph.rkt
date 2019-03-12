@@ -124,7 +124,7 @@
     (define start-fpcore (alt2fpcore (test-success-start-alt result)))
     (define end-fpcore (alt2fpcore (test-success-end-alt result)))
     (define start-js (core->js start-fpcore #:name "start"))
-    (define end-js (compile-program end-fpcore #:name "end"))
+    (define end-js (core->js end-fpcore #:name "end"))
     (string-append start-js end-js)))
 
 (define (make-interactive-js result out)

@@ -1,5 +1,6 @@
 #lang racket
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "float.rkt" "interface.rkt")
+(require fpbench)
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
