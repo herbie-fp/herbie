@@ -48,7 +48,7 @@
 (define (expression->type stx env error!)
   (match stx
     [(or #`TRUE #`FALSE) 'bool]
-    [#`,(? constant? x) 'real]
+    [#`,(? constant-or-num? x) 'real]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t 'real)

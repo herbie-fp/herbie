@@ -4,6 +4,7 @@
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "range-analysis.rkt" "biginterval.rkt" "interface.rkt")
+(require fpbench)
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points errors errors-score

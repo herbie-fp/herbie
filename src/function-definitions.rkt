@@ -13,7 +13,7 @@
 
 (define (all-ops expr good?)
   (match expr
-    [(? constant?) #t]
+    [(? constant-or-num?) #t]
     [(? variable?) #t]
     [(list f args ...)
      (and (good? f) (andmap (curryr all-ops good?) args))]))

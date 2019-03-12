@@ -179,7 +179,7 @@
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
-    [(? constant?)
+    [(? constant-or-num?)
      (taylor-exact expr)]
     [(? variable?)
      (taylor-exact expr)]

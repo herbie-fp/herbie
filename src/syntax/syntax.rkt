@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/flonum math/base math/bigfloat math/special-functions)
+(require math/flonum math/base math/bigfloat math/special-functions fpbench)
 (require "../common.rkt" "../errors.rkt" "types.rkt")
 (require "../bigcomplex.rkt" "../biginterval.rkt")
 

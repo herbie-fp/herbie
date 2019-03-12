@@ -22,7 +22,7 @@
   (hash-ref! cache expr
              (λ ()
                 (match expr
-                  [(? constant?)
+                  [(? constant-or-num?)
                    (cons (repeat (->bf expr)) (repeat 1))]
                   [(? variable?)
                    (cons (map ->bf (dict-ref vars expr)) (repeat 1))]

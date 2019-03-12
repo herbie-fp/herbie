@@ -38,11 +38,11 @@
 
 (define (match-e pat e)
   (cond
-   [(constant? pat)
+   [(constant-or-num? pat)
     (call/ec
      (λ (k)
        (for ([var (in-set (enode-vars e))])
-	 (when (and (constant? var) (equal? pat var))
+	 (when (and (constant-or-num? var) (equal? pat var))
 	   (k '(()))))
        '()))]
    [(variable? pat)
@@ -63,7 +63,7 @@
 
 (define (substitute-e eg pat bindings)
   (cond
-   [(constant? pat)
+   [(constant-or-num? pat)
     (mk-enode! eg pat)]
    [(variable? pat)
     (let ([binden (cdr (assoc pat bindings))])

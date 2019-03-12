@@ -45,7 +45,7 @@
     (match expr
       [(list (or 'lambda 'λ) (list vars ...) body)
        (loop body (cons 2 loc))]
-      [(? constant?) (save expr (reverse loc))]
+      [(? constant-or-num?) (save expr (reverse loc))]
       [(? variable?) (save expr (reverse loc))]
       [(list op args ...)
        (save expr (reverse loc))
@@ -56,7 +56,7 @@
 
 (define (free-variables prog)
   (match prog
-    [(? constant?) '()]
+    [(? constant-or-num?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))

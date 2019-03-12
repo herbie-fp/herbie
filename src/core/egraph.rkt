@@ -317,7 +317,7 @@
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
   (when (for/or ([var (in-set (enode-vars en))])
-	  (or (constant? var) (variable? var)))
+	  (or (constant-or-num? var) (variable? var)))
     (let* ([leader (pack-leader en)]
            [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
                        (update-en-expr var))]
