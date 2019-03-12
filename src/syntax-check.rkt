@@ -7,7 +7,7 @@
 
 (define (check-expression* stx vars error!)
   (match stx
-    [#`,(? constant?) (void)]
+    [#`,(? constant-or-num?) (void)]
     [#`,(? variable? var)
      (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]

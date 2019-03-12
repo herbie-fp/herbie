@@ -280,7 +280,7 @@
 
 (define (extract-sampled-points allvars precondition)
   (match precondition
-    [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
+    [`(or (and (== ,(? variable? varss) ,(? constant-or-num? valss)) ...) ...)
      (define pts
        (for/list ([vars varss] [vals valss])
          (if (set=? vars allvars)

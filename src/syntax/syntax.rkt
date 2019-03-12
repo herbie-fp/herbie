@@ -722,7 +722,7 @@
   (or (value? var) (and (symbol? var) (dict-has-key? (cdr constants) var))))
 
 (define (variable? var)
-  (and (symbol? var) (not (constant? var))))
+  (and (symbol? var) (not (constant-or-num? var))))
 
 (define parametric-operators (make-hash))
 (define (declare-parametric-operator! name op inputs output)

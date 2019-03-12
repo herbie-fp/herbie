@@ -1,8 +1,5 @@
 #lang racket
 (require math/bigfloat)
-(require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
-(require fpbench)
-
 (provide js-tex-include texify-expr texify-prog)
 
 (define js-tex-include
@@ -97,7 +94,16 @@
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
             (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
+<<<<<<< HEAD
         [(? constant?)
+=======
+        [(? complex?)
+         (format "~a ~a ~a i"
+                 (texify (real-part expr) '+ loc)
+                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
+                 (texify (abs (imag-part expr)) '+ loc))]
+        [(? constant-or-num?)
+>>>>>>> Changed constant? to the updated constant-or-num
          (constant-info expr '->tex)]
         [(? symbol?) (texify-variable expr)]
         [`(if ,cond ,ift ,iff)
