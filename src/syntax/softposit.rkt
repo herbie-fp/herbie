@@ -40,7 +40,8 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         posit8->ordinal posit16->ordinal posit32->ordinal)])
+         posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32)])
 
 (provide (all-defined-out)
          _posit8 _posit16 _posit32 _posit64 _posit128
@@ -82,6 +83,7 @@
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
          posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32
          p8s-between p16s-between p32s-between)
 
 (struct big-posit8 (v))
