@@ -48,3 +48,12 @@
   single-flonum->ordinal
   32
   '(+nan.f +inf.f -inf.f)))
+
+(define posit16 (representation
+  'posit16
+  (compose double->posit16 bifloat->flonum)
+  (compose bf posit16->double)
+  ordinal->posit16
+  posit16->ordinal
+  16
+  (list posit16-nar))
