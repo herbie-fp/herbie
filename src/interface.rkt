@@ -5,8 +5,7 @@
 (require softposit-rkt)
 
 (provide (struct-out representation) binary64 binary32 bool
-         posit8 posit16 posit32 quire8 quire16 quire32
-         single-flonum->ordinal)
+         posit8 posit16 posit32 quire8 quire16 quire32)
 
 (define-struct representation
   (name
