@@ -40,7 +40,8 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         p8-order-index p16-order-index p32-order-index)])
+         posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32)])
 
 (provide (all-defined-out)
          _posit8 _posit16 _posit32 _posit64 _posit128
@@ -81,7 +82,8 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         p8-order-index p16-order-index p32-order-index
+         posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32
          p8s-between p16s-between p32s-between)
 
 (struct big-posit8 (v))
@@ -175,16 +177,16 @@
   (if (or (posit8= p1 (posit8-nar))
           (posit8= p2 (posit8-nar)))
     (expt 2 8)
-  (abs (- (p8-order-index p1) (p8-order-index p2)))))
+  (abs (- (posit8->ordinal p1) (posit8->ordinal p2)))))
 
 (define (p16s-between p1 p2)
   (if (or (posit16= p1 (posit16-nar))
           (posit16= p2 (posit16-nar)))
     (expt 2 16)
-  (abs (- (p16-order-index p1) (p16-order-index p2)))))
+  (abs (- (posit16->ordinal p1) (posit16->ordinal p2)))))
 
 (define (p32s-between p1 p2)
   (if (or (posit32= p1 (posit32-nar))
           (posit32= p2 (posit32-nar)))
     (expt 2 32)
-  (abs (- (p32-order-index p1) (p32-order-index p2)))))
+  (abs (- (posit32->ordinal p1) (posit32->ordinal p2)))))
