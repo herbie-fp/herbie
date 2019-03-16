@@ -93,11 +93,11 @@
     [(? boolean?)
      true]
     [(? posit8?)
-     (not (posit8= x (posit8-inf)))]
+     (not (posit8= x (posit8-nar)))]
     [(? posit16?)
-     (not (posit16= x (posit16-inf)))]
+     (not (posit16= x (posit16-nar)))]
     [(? posit32?)
-     (not (posit32= x (posit32-inf)))]
+     (not (posit32= x (posit32-nar)))]
     [_ true]))
 
 (module+ test
@@ -138,33 +138,33 @@
        [else (< x1 x2)])]
     [(posit8? x1)
      (cond
-       [(posit8= (posit8-inf) x1) #f]
-       [(posit8= (posit8-inf) x2) #t]
+       [(posit8= (posit8-nar) x1) #f]
+       [(posit8= (posit8-nar) x2) #t]
        [else (posit8< x1 x2)])]
     [(posit16? x1)
      (cond
-       [(posit16= (posit16-inf) x1) #f]
-       [(posit16= (posit16-inf) x2) #t]
+       [(posit16= (posit16-nar) x1) #f]
+       [(posit16= (posit16-nar) x2) #t]
        [else (posit16< x1 x2)])]
     [(posit32? x1)
      (cond
-       [(posit32= (posit32-inf) x1) #f]
-       [(posit32= (posit32-inf) x2) #t]
+       [(posit32= (posit32-nar) x1) #f]
+       [(posit32= (posit32-nar) x2) #t]
        [else (posit32< x1 x2)])]
     [(quire8? x1)
      (cond
-       [(posit8= (posit8-inf) (quire8->posit8 x1)) #f]
-       [(posit8= (posit8-inf) (quire8->posit8 x2)) #t]
+       [(posit8= (posit8-nar) (quire8->posit8 x1)) #f]
+       [(posit8= (posit8-nar) (quire8->posit8 x2)) #t]
        [else (posit8< (quire8->posit8 x1) (quire8->posit8 x2))])]
     [(quire16? x1)
      (cond
-       [(posit16= (posit16-inf) (quire16->posit16 x1)) #f]
-       [(posit16= (posit16-inf) (quire16->posit16 x2)) #t]
+       [(posit16= (posit16-nar) (quire16->posit16 x1)) #f]
+       [(posit16= (posit16-nar) (quire16->posit16 x2)) #t]
        [else (posit16< (quire16->posit16 x1) (quire16->posit16 x2))])]
     [(quire32? x1)
      (cond
-       [(posit32= (posit32-inf) (quire32->posit32 x1)) #f]
-       [(posit32= (posit32-inf) (quire32->posit32 x2)) #t]
+       [(posit32= (posit32-nar) (quire32->posit32 x1)) #f]
+       [(posit32= (posit32-nar) (quire32->posit32 x2)) #t]
        [else (posit32< (quire32->posit32 x1) (quire32->posit32 x2))])]))
 
 (define (<=/total x1 x2)
@@ -173,9 +173,9 @@
 (define (nan?-all-types x)
   (cond
     [(or (real? x) (complex? x)) (nan? x)]
-    [(posit8? x) (posit8= x (posit8-inf))]
-    [(posit16? x) (posit16= x (posit16-inf))]
-    [(posit32? x) (posit32= x (posit32-inf))]))
+    [(posit8? x) (posit8= x (posit8-nar))]
+    [(posit16? x) (posit16= x (posit16-nar))]
+    [(posit32? x) (posit32= x (posit32-nar))]))
 
 ;; Utility list functions
 
