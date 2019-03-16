@@ -3,7 +3,8 @@
 (require math/bigfloat)
 (require math/flonum)
 
-(provide (struct-out representation) binary64 binary32)
+(provide (struct-out representation) binary64 binary32
+         single-flonum->ordinal)
 
 (define-struct representation
   (name
