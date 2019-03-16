@@ -49,6 +49,15 @@
   32
   '(+nan.f +inf.f -inf.f)))
 
+(define posit8 (representation
+  'posit8
+  (compose double->posit8 bifloat->flonum)
+  (compose bf posit8->double)
+  ordinal->posit8
+  posit8->ordinal
+  8
+  (list posit8-nar))
+
 (define posit16 (representation
   'posit16
   (compose double->posit16 bifloat->flonum)
@@ -57,3 +66,12 @@
   posit16->ordinal
   16
   (list posit16-nar))
+
+(define posit32 (representation
+  'posit32
+  (compose double->posit32 bifloat->flonum)
+  (compose bf posit32->double)
+  ordinal->posit32
+  posit32->ordinal
+  32
+  (list posit32-nar))
