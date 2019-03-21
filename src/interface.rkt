@@ -56,7 +56,7 @@
   ordinal->posit8
   posit8->ordinal
   8
-  (list posit8-nar))
+  (list posit8-nar)))
 
 (define posit16 (representation
   'posit16
@@ -65,7 +65,7 @@
   ordinal->posit16
   posit16->ordinal
   16
-  (list posit16-nar))
+  (list posit16-nar)))
 
 (define posit32 (representation
   'posit32
@@ -74,4 +74,6 @@
   ordinal->posit32
   posit32->ordinal
   32
-  (list posit32-nar))
+  (list posit32-nar)))
+
+
