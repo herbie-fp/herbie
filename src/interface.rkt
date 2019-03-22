@@ -76,4 +76,30 @@
   32
   (list posit32-nar)))
 
+;;TODO correct functions for quire (incorrect now for testing)
+(define quire8 (representation
+  'quire8
+  (compose double->quire8 bigfloat->flonum)
+  (compose bf quire8->double)
+  (compose double->quire8 ordinal->flonum)
+  (compose flonum->ordinal quire8->double)
+  64
+  null))
 
+(define quire16 (representation
+  'quire16
+  (compose double->quire16 bigfloat->flonum)
+  (compose bf quire16->double)
+  (compose double->quire16 ordinal->flonum)
+  (compose flonum->ordinal quire16->double)
+  64
+  null))
+
+(define quire32 (representation
+  'quire32
+  (compose double->quire32 bigfloat->flonum)
+  (compose bf quire32->double)
+  (compose double->quire32 ordinal->flonum)
+  (compose flonum->ordinal quire32->double)
+  64
+  null))
