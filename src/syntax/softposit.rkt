@@ -1,6 +1,5 @@
 #lang racket
 
-
 (require math/bigfloat racket/lazy-require)
 (lazy-require [softposit-rkt (_posit8 _posit16 _posit32 _posit64 _posit128
          posit8? posit16? posit32? posit64? posit128?
