@@ -4,6 +4,7 @@
 (require math/flonum)
 
 (provide (struct-out representation) binary64 binary32
+         posit8 posit16 posit32 quire8 quire16 quire32
          single-flonum->ordinal)
 
 (define-struct representation
