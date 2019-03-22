@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require math/flonum)
 
-(provide (struct-out representation) binary64 binary32
+(provide (struct-out representation) binary64 binary32 bool
          posit8 posit16 posit32 quire8 quire16 quire32
          single-flonum->ordinal)
 
@@ -15,6 +15,15 @@
    repr->ordinal
    total-bits
    special-values))
+
+(define bool (representation
+  'bool
+  identity
+  identity
+  (λ (x) (if x #t #f))
+  (λ (x) (= x 0))
+  1
+  null))
 
 (define binary64 (representation
   'binary64
