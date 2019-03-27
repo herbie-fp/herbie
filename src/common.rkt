@@ -13,6 +13,7 @@
          write-file write-string
          random-exp parse-flag get-seed set-seed!
          common-eval quasisyntax
+         reset register-reset
          format-time format-bits when-dict in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -360,3 +361,12 @@
   (if name
       (build-path web-resource-path name)
       web-resource-path))
+
+(define resetters '())
+
+(define (register-reset fn)
+  (set! resetters (cons fn resetters)))
+
+(define (reset!)
+  (for ([fn resetters]) (fn)))
+

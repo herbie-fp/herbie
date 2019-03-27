@@ -73,8 +73,6 @@
     (log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
-    (reset-analyze-cache!)
-    (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (make-alt-table context altn))
     (assert (equal? (atab-all-alts (^table^)) (list altn)))

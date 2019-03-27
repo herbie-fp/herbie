@@ -49,6 +49,7 @@
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
       (with-handlers ([exn? (λ (e) `(error ,e ,(bf-precision)))])
+        (reset!)
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
