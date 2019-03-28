@@ -225,8 +225,8 @@
   [difference-of-squares (- (* a a) (* b b))   (* (+ a b) (- a b))]
   [difference-of-sqr-1   (- (* a a) 1)         (* (+ a 1) (- a 1))]
   [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))]
-  [sqr-pow               (pow x y)             (* (pow x (/ y 2)) (pow x (/ y 2)))]
-  [pow-sqr               (* (pow x y) (pow x y)) (pow x (* 2 y))]
+  [sqr-pow               (pow a b)             (* (pow a (/ b 2)) (pow a (/ b 2)))]
+  [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))]
   )
 
 (define-ruleset difference-of-squares-canonicalize.p16 (polynomials simplify posit)
