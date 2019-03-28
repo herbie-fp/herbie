@@ -79,8 +79,6 @@
   (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
   (check <= unsup-count 50))
 
-(define ival-warnings (make-parameter '()))
-
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
   (define (log! . args)
@@ -88,11 +86,10 @@
       (match args
         [`(exit ,prec ,pt)
          (define key (list name 'exit prec))
-         (unless (hash-has-key? dict key)
-           (eprintf "Warning: could not determine a ground truth for program ~a\n" name)
-           (for ([var (program-variables prog)] [val pt])
-             (eprintf "  ~a = ~a\n" var val))
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#mpfr-prec-limit> for more info.\n" *herbie-version*))
+         (warn 'ground-truth #:url "faq.html#mpfr-prec-limit"
+               "could not determine a ground truth for program ~a" name
+               #:extra (for/list ([var (program-variables prog)] [val pt])
+                         (format "~a = ~a" var val)))
          key]
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]

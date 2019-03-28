@@ -16,13 +16,14 @@
 (define (check-operator-fallbacks!)
   (prune-operators!)
   (prune-rules!)
-  (unless (null? (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-    (eprintf "Warning: native ~a not supported on your system; "
-             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-                          ", "))
-    (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
-    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*)))
+  (define unknown-ops (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
+  (unless (null? unknown-ops)
+    (warn 'fallback #:url "faq.html#native-ops"
+          "native ~a not supported on your system; ~a"
+          (string-join (map ~a unknown-ops) ", ")
+          (if (flag-set? 'precision 'fallback)
+              "fallbacks will be used"
+              "functions are disabled"))))
 
 (module+ main
   (define quiet? #f)
