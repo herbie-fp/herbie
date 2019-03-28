@@ -137,7 +137,7 @@
                      baseline-errs
                      oracle-errs
                      all-alts)]
-      [`(error ,e ,bits ,timeline ,warnings)
+      [`(error ,bits ,timeline ,warnings ,e)
        (test-failure test bits (- (current-inexact-milliseconds) start-time) timeline warnings e)]
       [#f
        ;; TODO: These fields are meaningless because parameters don't work across engines

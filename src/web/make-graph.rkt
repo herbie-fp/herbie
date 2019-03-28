@@ -114,6 +114,21 @@
      ,@(for/list ([(text url) (in-dict sections)])
          `(a ([href ,url]) ,text)))))
 
+(define/contract (render-warnings warnings)
+  (-> (listof (list/c symbol? string? (listof any/c) string? (listof string?))) xexpr?)
+  (if (null? warnings)
+      ""
+      `(ul ([class "warnings"])
+           ,@(for/list ([warning warnings])
+               (match-define (list type message args url extra) warning)
+               `(li (h2 ,(apply format message args)
+                        (a ([href ,url]) " (more)"))
+                    ,(if (null? extra)
+                         ""
+                         `(ol ([class "extra"])
+                              ,@(for/list ([line extra])
+                                  `(li ,line)))))))))
+
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
   (list 'FPCore args ':name 'alt expr))
@@ -286,6 +301,8 @@
         (div "Precision: " (span ([class "number"]) ,(format-bits (*bit-width*) #:unit #f)))
         (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
 
+       ,(render-warnings warnings)
+
        (section ([id "program"])
         (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
         (div ([class "arrow"]) "↓")
@@ -345,13 +362,15 @@
       (title "Exception for " ,(~a (test-name test)))
       (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
      (body
-       ,(render-menu
-         (list/true)
-         (list/true
-          '("Report" . "../report.html")
-          '("Log" . "debug.txt")
-          (and profile? '("Profile" . "profile.txt"))
-          '("Metrics" . "timeline.html")))
+      ,(render-menu
+        (list/true)
+        (list/true
+         '("Report" . "../report.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Metrics" . "timeline.html")))
+
+      ,(render-warnings warnings)
 
       (h1 "Error in " ,(format-time time))
       ,@(cond
@@ -412,6 +431,7 @@
          '("Log" . "debug.txt")
          (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))
+      ,(render-warnings warnings)
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-reproduction test)))
