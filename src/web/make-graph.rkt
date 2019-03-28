@@ -5,7 +5,7 @@
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
 (require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt")
+(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -103,31 +103,6 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
-
-(define/contract (render-menu sections links)
-  (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
-  `(nav ([id "links"])
-    (div
-     ,@(for/list ([(text url) (in-dict links)])
-         `(a ([href ,url]) ,text)))
-    (div
-     ,@(for/list ([(text url) (in-dict sections)])
-         `(a ([href ,url]) ,text)))))
-
-(define/contract (render-warnings warnings)
-  (-> (listof (list/c symbol? string? (listof any/c) string? (listof string?))) xexpr?)
-  (if (null? warnings)
-      ""
-      `(ul ([class "warnings"])
-           ,@(for/list ([warning warnings])
-               (match-define (list type message args url extra) warning)
-               `(li (h2 ,(apply format message args)
-                        (a ([href ,url]) " (more)"))
-                    ,(if (null? extra)
-                         ""
-                         `(ol ([class "extra"])
-                              ,@(for/list ([line extra])
-                                  `(li ,line)))))))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))

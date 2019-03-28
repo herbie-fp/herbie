@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt")
+(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt" "common.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (listof (cons/c symbol? any/c)))
@@ -24,6 +24,7 @@
        (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        (script ([src "../report.js"])))
       (body ([onload "timeline()"])
+       ,(render-menu '() '(("Report" . "graph.html")))
        (section ((id "process-info"))
          (h1 "Details")
          (p ((class "header"))
