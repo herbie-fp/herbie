@@ -9,7 +9,7 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline result out)
-  (match-define (test-result test bits fulltime timeline) result)
+  (match-define (test-result test bits fulltime timeline warnings) result)
 
   (define time
     (apply + (for/list ([phase timeline] [next (cdr timeline)])

@@ -234,7 +234,7 @@
 
 (define (make-graph result out valid-js-prog profile?)
   (match-define
-   (test-success test bits time timeline
+   (test-success test bits time timeline warnings
                  start-alt end-alt points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
@@ -336,7 +336,7 @@
     out))
 
 (define (make-traceback result out profile?)
-  (match-define (test-failure test bits time timeline exn) result)
+  (match-define (test-failure test bits time timeline warnings exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
@@ -396,7 +396,7 @@
               (td ([colspan "3"]) "unknown"))])))))
 
 (define (make-timeout result out profile?)
-  (match-define (test-timeout test bits time timeline) result)
+  (match-define (test-timeout test bits time timeline warnings) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
