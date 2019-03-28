@@ -347,7 +347,9 @@
 
       ,(render-warnings warnings)
 
-      (h1 "Error in " ,(format-time time))
+      (section ([id "program"])
+        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
+
       ,@(cond
          [(exn:fail:user:herbie? exn)
           `((section ([id "user-error"])
@@ -407,6 +409,10 @@
          (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))
       ,(render-warnings warnings)
+
+      (section ([id "program"])
+        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
+
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-reproduction test)))
