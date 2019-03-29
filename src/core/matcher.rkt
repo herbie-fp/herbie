@@ -186,7 +186,9 @@
                          ['() (k '())]
                          [out out]))))))
 
-         (when (> cdepth 0)
+         (when (and (> cdepth 0)
+                    (or (flag-set? 'generate 'better-rr)
+                        (not (and (list? expr) (equal? phead (car expr)) (= (length pattern) (length expr))))))
            ;; Sort of a brute force approach to getting the bindings
            (fix-up-variables
             sow pattern

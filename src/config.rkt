@@ -6,7 +6,7 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify early-exit)]
-        [generate . (rr taylor simplify)]
+        [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex special bools branches)]))
 
