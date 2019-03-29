@@ -335,7 +335,8 @@
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
+      (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
+      ,@js-tex-include)
      (body
       ,(render-menu
         (list/true)
@@ -399,7 +400,8 @@
      (head
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+      ,@js-tex-include)
      (body
       ,(render-menu
         (list/true)
