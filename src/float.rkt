@@ -11,19 +11,20 @@
          sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
 
 (define (ulp-difference x y)
-  (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
-    (+ (ulp-difference (real-part x) (real-part y))
-       (ulp-difference (imag-part x) (imag-part y)))
-    (let ([->ordinal (representation-repr->ordinal (match* (x y)
-        [((? real?) (? real?)) (if (flag-set? 'precision 'double) binary64 binary32)]
-        [((? boolean?) (? boolean?)) bool]
-        [((? posit8?) (? posit8?)) posit8]
-        [((? posit16?) (? posit16?)) posit16]
-        [((? posit32?) (? posit32?)) posit32]
-        [((? quire8?) (? quire8?)) quire8]
-        [((? quire16?) (? quire16?)) quire16]
-        [((? quire32?) (? quire32?)) quire32]))])
-      (- (->ordinal y) (->ordinal x)))))
+  (define ->ordinal (representation-repr->ordinal (match* (x y)
+    [((? real?) (? real?))
+     (if (flag-set? 'precision 'double) binary64 binary32)]
+    [((? complex?) (? complex?))
+     (+ (ulp-difference (real-part x) (real-part y))
+        (ulp-difference (imag-part x) (imag-part y)))]
+    [((? boolean?) (? boolean?)) bool ]
+    [((? posit8?) (? posit8?)) posit8]
+    [((? posit16?) (? posit16?)) posit16]
+    [((? posit32?) (? posit32?)) posit32]
+    [((? quire8?) (? posit8?)) posit8]
+    [((? quire16?) (? posit16?)) posit16]
+    [((? quire32?) (? posit32?)) posit32])))
+  (- (->ordinal y) (->ordinal x)))
 
 ;; Returns the midpoint of ordinals, not the real-valued midpoint
 (define (midpoint p1 p2)
