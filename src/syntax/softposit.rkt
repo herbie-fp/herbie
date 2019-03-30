@@ -8,7 +8,7 @@
          quire8? quire16? quire32?
          random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
          random-quire8 random-quire16 random-quire32
-         posit8-inf posit16-inf posit32-inf posit64-inf posit128-inf
+         posit8-nar posit16-nar posit32-nar posit64-inf posit128-inf
          uint32->posit8 uint32->posit16 uint32->posit32
          uint64->posit8 uint64->posit16 uint64->posit32
          int32->posit8 int32->posit16 int32->posit32
@@ -40,7 +40,7 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         p8-order-index p16-order-index p32-order-index)])
+         posit8->ordinal posit16->ordinal posit32->ordinal)])
 
 (provide (all-defined-out)
          _posit8 _posit16 _posit32 _posit64 _posit128
@@ -49,7 +49,7 @@
          quire8? quire16? quire32?
          random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
          random-quire8 random-quire16 random-quire32
-         posit8-inf posit16-inf posit32-inf posit64-inf posit128-inf
+         posit8-nar posit16-nar posit32-nar posit64-inf posit128-inf
          uint32->posit8 uint32->posit16 uint32->posit32
          uint64->posit8 uint64->posit16 uint64->posit32
          int32->posit8 int32->posit16 int32->posit32
@@ -81,7 +81,7 @@
          posit8->quire8 posit16->quire16 posit32->quire32
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
-         p8-order-index p16-order-index p32-order-index
+         posit8->ordinal posit16->ordinal posit32->ordinal
          p8s-between p16s-between p32s-between)
 
 (struct big-posit8 (v))
@@ -172,19 +172,19 @@
                                           (bf* (big-posit32-v y) (big-posit32-v z)))))
 
 (define (p8s-between p1 p2)
-  (if (or (posit8= p1 (posit8-inf))
-          (posit8= p2 (posit8-inf)))
+  (if (or (posit8= p1 (posit8-nar))
+          (posit8= p2 (posit8-nar)))
     (expt 2 8)
-  (abs (- (p8-order-index p1) (p8-order-index p2)))))
+  (abs (- (posit8->ordinal p1) (posit8->ordinal p2)))))
 
 (define (p16s-between p1 p2)
-  (if (or (posit16= p1 (posit16-inf))
-          (posit16= p2 (posit16-inf)))
+  (if (or (posit16= p1 (posit16-nar))
+          (posit16= p2 (posit16-nar)))
     (expt 2 16)
-  (abs (- (p16-order-index p1) (p16-order-index p2)))))
+  (abs (- (posit16->ordinal p1) (posit16->ordinal p2)))))
 
 (define (p32s-between p1 p2)
-  (if (or (posit32= p1 (posit32-inf))
-          (posit32= p2 (posit32-inf)))
+  (if (or (posit32= p1 (posit32-nar))
+          (posit32= p2 (posit32-nar)))
     (expt 2 32)
-  (abs (- (p32-order-index p1) (p32-order-index p2)))))
+  (abs (- (posit32->ordinal p1) (posit32->ordinal p2)))))
