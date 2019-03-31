@@ -58,7 +58,7 @@
      ,@(dict-call curr #:default '() render-phase-accuracy 'accuracy 'oracle 'baseline)
      ,@(dict-call curr #:default '() render-phase-pruning 'kept-alts 'done-alts 'min-error)
      ,@(dict-call curr #:default '() render-phase-rules 'rules)
-     ,@(dict-call curr #:default '() render-phase-counts 'input 'output)
+     ,@(dict-call curr #:default '() render-phase-counts 'inputs 'outputs)
      ,@(dict-call curr #:default '() render-phase-times 'times #:extra (list n))
      ,@(dict-call curr #:default '() render-phase-slowest 'slowest)
      ,@(dict-call curr #:default '() render-phase-outcomes 'outcomes))))
