@@ -6,8 +6,7 @@
 (require "syntax.rkt")
 (require "softposit.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules*
-         *fp-safe-simplify-rules* prune-rules!)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 
 (struct rule (name input output itypes) ; Input and output are patterns
         #:methods gen:custom-write
@@ -28,12 +27,13 @@
       [else #t]))
   (ops-in-expr (rule-output rule)))
 
-(define (prune-rules!)
-  (*rulesets* (for/list ([ruleset (*rulesets*)])
-                (cons (for/list ([rule (car ruleset)]
-                                 #:when (rule-ops-supported? rule))
-                        rule)
-                      (cdr ruleset)))))
+(register-reset
+ #:priority 10 ; Must be higher than priority for pruning operators
+ (λ ()
+   (*rulesets* 
+    (for/list ([ruleset (*rulesets*)])
+      (match-define (list rules groups types) ruleset)
+      (list (filter rule-ops-supported? rules) groups types)))))
 
 (define-syntax define-ruleset
   (syntax-rules ()

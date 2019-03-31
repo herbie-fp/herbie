@@ -13,18 +13,6 @@
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
 
-(define (check-operator-fallbacks!)
-  (prune-operators!)
-  (prune-rules!)
-  (define unknown-ops (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-  (unless (null? unknown-ops)
-    (warn 'fallback #:url "faq.html#native-ops"
-          "native ~a not supported on your system; ~a"
-          (string-join (map ~a unknown-ops) ", ")
-          (if (flag-set? 'precision 'fallback)
-              "fallbacks will be used"
-              "functions are disabled"))))
-
 (module+ main
   (define quiet? #f)
   (define demo-output #f)
@@ -69,7 +57,6 @@
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
-    (check-operator-fallbacks!)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
@@ -90,14 +77,12 @@
     [("--debug") "Whether to compute metrics and debug info"
      (set! report-debug? true)]
     #:args ()
-    (check-operator-fallbacks!)
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:debug report-debug? #:demo? demo? #:port demo-port #:public? demo-public)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
     #:args (input output)
-    (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
@@ -110,7 +95,6 @@
     [("--debug") "Whether to compute metrics and debug info"
      (set! report-debug? true)]
     #:args (input output)
-    (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
    [reproduce "Rerun an HTML report"
     #:once-each
@@ -121,7 +105,6 @@
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
-    (check-operator-fallbacks!)
     (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
 
    #:args files

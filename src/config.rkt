@@ -93,8 +93,8 @@
 
 (define resetters '())
 
-(define (register-reset fn)
-  (set! resetters (cons fn resetters)))
+(define (register-reset fn #:priority [priority 0])
+  (set! resetters (cons (cons priority fn) resetters)))
 
 (define (reset!)
-  (for ([fn resetters]) (fn)))
+  (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn))))
