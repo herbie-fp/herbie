@@ -1,19 +1,12 @@
 #lang racket
 
-(require math/flonum)
-(require math/base)
-(require math/bigfloat)
-(require math/special-functions)
-(require "types.rkt")
-(require "../common.rkt")
-(require "../float.rkt")
-(require "../bigcomplex.rkt")
-(require "../biginterval.rkt")
-(require "softposit.rkt")
+(require math/flonum math/base math/bigfloat math/special-functions)
+(require "../common.rkt" "../float.rkt" "../errors.rkt" "types.rkt")
+(require "../bigcomplex.rkt" "../biginterval.rkt" "softposit.rkt")
 
 (provide types type? value? bigvalue?
          constant? variable? operator? operator-info constant-info parametric-operators
-         variary-operators parametric-operators-reverse prune-operators!
+         variary-operators parametric-operators-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
 (module+ test (require rackunit))
