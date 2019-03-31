@@ -17,7 +17,6 @@
   (assert-program! stx)
   (assert-program-type! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
-  (check-unused-variables args body)
 
   (define prop-dict
     (let loop ([props props])

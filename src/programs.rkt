@@ -14,8 +14,7 @@
          eval-prog eval-const-expr
          compile expression-cost program-cost
          free-variables replace-expression
-         desugar-program resugar-program
-         check-unused-variables)
+         desugar-program resugar-program)
 
 (define expr? (or/c list? symbol? number?))
 
@@ -352,11 +351,3 @@
     (cons (car expr) (map (replace-var var val) (cdr expr)))]
    [#t
     expr]))
-
-(define (check-unused-variables vars expr)
-  (define used (free-variables expr))
-  (unless (set=? vars used)
-    (define unused (set-subtract vars used))
-    (warn 'unused-variable
-          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
-          (string-join (map ~a unused) ", "))))

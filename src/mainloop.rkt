@@ -59,6 +59,19 @@
     (set-shellstate-timeline! (^shell-state^) (cons b (shellstate-timeline (^shell-state^))))
     (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
+(define (check-unused-variables vars precondition expr)
+  ;; Fun story: you might want variables in the precondition that
+  ;; don't appear in the `expr`, because that can allow you to do
+  ;; non-uniform sampling. For example, if you have the precondition
+  ;; `(< x y)`, where `y` is otherwise unused, then `x` is sampled
+  ;; non-uniformly (biased toward small values).
+  (define used (set-union (free-variables expr) (free-variables precondition)))
+  (unless (set=? vars used)
+    (define unused (set-subtract vars used))
+    (warn 'unused-variable
+          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
+          (string-join (map ~a unused) ", "))))
+
 ;; Setting up
 (define (setup-prog! prog #:precondition [precondition 'TRUE]
                      #:precision [precision 'binary64])
@@ -66,6 +79,7 @@
   (rollback-improve!)
   (define log! (timeline-event! 'sample))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
+  (check-unused-variables (program-variables prog) precondition (program-body prog))
   (define prepare-log (make-hash))
   (let* ([context (prepare-points prog precondition precision #:log prepare-log)]
          [altn (make-alt prog)])
