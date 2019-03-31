@@ -310,14 +310,16 @@
     [(_ (operator real ...) real [libm id_d id_f] [key value] ...)
      (let ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))])
        #`(begin
+           (define (fallback . args)
+             (warn 'fallback #:url "faq.html#native-ops"
+                   "native `~a` not supported on your system, using fallback; ~a"
+                   'operator
+                   "use --disable precision:fallback to disable fallbacks")
+             (apply (operator-info 'operator 'nonffi) args))
            (define double-proc (get-ffi-obj 'id_d #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                                            (lambda ()
-                                              (*unknown-d-ops* (cons 'operator (*unknown-d-ops*)))
-                                              (λ args (apply (operator-info 'operator 'nonffi) args)))))
+                                            (lambda () (*unknown-d-ops* (cons 'operator (*unknown-d-ops*))) fallback)))
            (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                                           (lambda ()
-                                             (*unknown-f-ops* (cons 'operator (*unknown-f-ops*)))
-                                             (λ args (apply (operator-info 'operator 'nonffi) args)))))
+                                           (lambda () (*unknown-f-ops* (cons 'operator (*unknown-f-ops*))) fallback)))
            (define-operator (operator #,@(build-list num-args (λ (_) #'real))) real
              [fl (λ args (apply (if (flag-set? 'precision 'double) double-proc float-proc) args))]
              [key value] ...)))]))
