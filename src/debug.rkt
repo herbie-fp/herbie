@@ -1,5 +1,5 @@
 #lang racket
-
+(require "config.rkt")
 (provide *debug* *debug-port* *debug-pref-range* debug set-debug-level!)
 
 ;; Sets how powerful, and therefore how computationally expensive, the
@@ -104,9 +104,13 @@
     (set! *last-time-printed* (/ (current-inexact-milliseconds) 1000))
     (debug-print from depth args (*debug-port*))))
 
+(define debug-start-time (current-inexact-milliseconds))
+(register-reset (λ () (set! debug-start-time (current-inexact-milliseconds))))
+
 (define (debug-print from depth args port)
   (fprintf port "~a ~a [~a]:"
-           (~r (/ (current-inexact-milliseconds) 1000) #:precision '(= 3))
+           (~r (/ (- (current-inexact-milliseconds) debug-start-time) 1000)
+               #:precision '(= 3))
            (string-join (build-list depth (const "*")) " ")
            from)
   (for ([arg args]) (fprintf port " ~a" arg))
