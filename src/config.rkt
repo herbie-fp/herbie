@@ -97,4 +97,4 @@
   (set! resetters (cons (cons priority fn) resetters)))
 
 (define (reset!)
-  (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn))))
+  (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
