@@ -1,6 +1,6 @@
 #lang racket
 
-(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt")
+(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt")
 (require "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "core/simplify.rkt"
          "core/matcher.rkt" "core/regimes.rkt")
 (require "type-check.rkt") ;; For taylor not running on complex exprs
