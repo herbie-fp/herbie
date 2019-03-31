@@ -73,10 +73,25 @@
     Herbie computes "ground truth" results using
     <a href="http://www.mpfr.org/">MPFR</a>. For some expressions,
     like <code>(sin (exp x))</code>, using MPFR in this way requires
-    exponentially many bits to compute a correct result. Instead of
-    simply timing out in such cases, Herbie limits the MPFR precision
-    to 10,000 bits and raises this error when it hits that limit.
+    exponentially many bits to compute a correct result. In some cases,
+    Herbie raises this error when more than 10,000 bits are required.
   </p>
+
+  <h3 id="ground-truth">“Could not determine a ground truth” warning</h3>
+
+  <p>
+    Similar to the above. Herbie will raise this warning when some
+    inputs require more than 10,000 bits to compute an exact ground
+    truth value. This happens most often for expressions that divide
+    two exponents, like <code>(/ (exp x) (exp x))</code> with very
+    large inputs, where absurdly large exponents would be required to
+    compute the accurate output. Herbie assumes that those points are
+    invalid inputs and raises this warning to let you know about the
+    issue. If you see this warning, you should add a restrictive
+    precondition, such as <code>:pre (&lt; -100 x 100)</code>, to
+    prevent large inputs.
+  </p>
+
 
   <h3>Missing reports chart on Chrome</h3>
 

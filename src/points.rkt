@@ -86,7 +86,7 @@
       (match args
         [`(exit ,prec ,pt)
          (define key (list name 'exit prec))
-         (warn 'ground-truth
+         (warn 'ground-truth #:url "faq.html#ground-truth"
                "could not determine a ground truth for program ~a" name
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
