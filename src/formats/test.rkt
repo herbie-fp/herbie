@@ -17,6 +17,7 @@
   (assert-program! stx)
   (assert-program-type! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  (check-unused-variables args body)
 
   (define prop-dict
     (let loop ([props props])
@@ -58,10 +59,18 @@
 
 (define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
-  (cond
-   [(equal? path "-")
-    (load-stdin)]
-   [(directory-exists? path*)
-    (load-directory path*)]
-   [else
-    (load-file path*)]))
+  (define out
+    (cond
+     [(equal? path "-")
+      (load-stdin)]
+     [(directory-exists? path*)
+      (load-directory path*)]
+     [else
+      (load-file path*)]))
+  (define duplicates (find-duplicates (map test-name out)))
+  (unless (null? duplicates)
+    (warn 'duplicate-names
+          "Duplicate ~a ~a used for multiple cores"
+          (if (equal? (length duplicates) 1) "name" "names")
+          (string-join (map (curry format "\"~a\"") duplicates) ", ")))
+  out)

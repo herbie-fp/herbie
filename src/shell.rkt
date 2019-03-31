@@ -26,7 +26,7 @@
       (match output
         [(? test-success?)
          (pretty-print (unparse-result output) (current-output-port) 1)]
-        [(test-failure test bits time timeline exn)
+        [(test-failure test bits time timeline warnings exn)
          ((error-display-handler) (exn-message exn) exn)]
-        [(test-timeout test bits time timeline)
+        [(test-timeout test bits time timeline warnings)
          (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]))))

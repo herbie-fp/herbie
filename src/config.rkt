@@ -6,7 +6,7 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify early-exit)]
-        [generate . (rr taylor simplify)]
+        [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex special bools branches)]))
 
@@ -90,3 +90,11 @@
 
 (define *herbie-branch*
   (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
+
+(define resetters '())
+
+(define (register-reset fn)
+  (set! resetters (cons fn resetters)))
+
+(define (reset!)
+  (for ([fn resetters]) (fn)))

@@ -16,7 +16,7 @@
            (write (option-split-indices opt) port)
            (display ">" port))])
 
-;; Struct represeting a splitpoint
+;; Struct representing a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
 ;; bexpr = Branch Expression: The expression that this splitpoint should split on
 ;; point = Split Point: The point at which we should split.

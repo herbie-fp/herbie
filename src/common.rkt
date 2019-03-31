@@ -8,7 +8,7 @@
          reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
          ordinary-value? =-or-nan? </total <=/total nan?-all-types
-         take-up-to flip-lists list/true
+         take-up-to flip-lists list/true find-duplicates
          argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
          random-exp parse-flag get-seed set-seed!
@@ -222,6 +222,15 @@
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
                 '((1 4 7) (2 5 8) (3 6 9))))
+
+(define (find-duplicates l)
+  (define found (mutable-set))
+  (define duplicates '())
+  (for ([x l])
+    (when (set-member? found x)
+      (set! duplicates (cons x duplicates)))
+    (set-add! found x))
+  (reverse duplicates))
 
 (define (setfindf f s)
   (for/first ([elt (in-set s)] #:when (f elt))

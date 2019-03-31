@@ -5,7 +5,7 @@
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
 (require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt")
+(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -103,16 +103,6 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
-
-(define/contract (render-menu sections links)
-  (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
-  `(nav ([id "links"])
-    (div
-     ,@(for/list ([(text url) (in-dict links)])
-         `(a ([href ,url]) ,text)))
-    (div
-     ,@(for/list ([(text url) (in-dict sections)])
-         `(a ([href ,url]) ,text)))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -234,7 +224,7 @@
 
 (define (make-graph result out valid-js-prog profile?)
   (match-define
-   (test-success test bits time timeline
+   (test-success test bits time timeline warnings
                  start-alt end-alt points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
@@ -286,6 +276,8 @@
         (div "Precision: " (span ([class "number"]) ,(format-bits (*bit-width*) #:unit #f)))
         (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
 
+       ,(render-warnings warnings)
+
        (section ([id "program"])
         (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
         (div ([class "arrow"]) "↓")
@@ -336,24 +328,29 @@
     out))
 
 (define (make-traceback result out profile?)
-  (match-define (test-failure test bits time timeline exn) result)
+  (match-define (test-failure test bits time timeline warnings exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
+      (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
+      ,@js-tex-include)
      (body
-       ,(render-menu
-         (list/true)
-         (list/true
-          '("Report" . "../report.html")
-          '("Log" . "debug.txt")
-          (and profile? '("Profile" . "profile.txt"))
-          '("Metrics" . "timeline.html")))
+      ,(render-menu
+        (list/true)
+        (list/true
+         '("Report" . "../report.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Metrics" . "timeline.html")))
 
-      (h1 "Error in " ,(format-time time))
+      ,(render-warnings warnings)
+
+      (section ([id "program"])
+        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
+
       ,@(cond
          [(exn:fail:user:herbie? exn)
           `((section ([id "user-error"])
@@ -396,14 +393,15 @@
               (td ([colspan "3"]) "unknown"))])))))
 
 (define (make-timeout result out profile?)
-  (match-define (test-timeout test bits time timeline) result)
+  (match-define (test-timeout test bits time timeline warnings) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+      ,@js-tex-include)
      (body
       ,(render-menu
         (list/true)
@@ -412,6 +410,11 @@
          '("Log" . "debug.txt")
          (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))
+      ,(render-warnings warnings)
+
+      (section ([id "program"])
+        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
+
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
       ,(render-reproduction test)))

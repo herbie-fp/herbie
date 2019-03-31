@@ -19,7 +19,7 @@
 
 
 ; For things that don't leave a thread
-(struct test-result (test bits time timeline))
+(struct test-result (test bits time timeline warnings))
 (struct test-success test-result
   (start-alt end-alt points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error
@@ -48,7 +48,8 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
-      (with-handlers ([exn? (λ (e) `(error ,e ,(bf-precision)))])
+      (with-handlers ([exn? (λ (e) `(error ,(bf-precision) ,(^timeline^) ,warning-log ,e))])
+        (reset!)
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
@@ -90,8 +91,9 @@
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score (errors (test-target test) newcontext))))
-        `(good ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,(^timeline^) ,(bf-precision) ,baseline-errs ,oracle-errs ,all-alts))))
+        `(good ,(bf-precision) ,(^timeline^) ,warning-log
+               ,(make-alt (test-program test)) ,alt ,context ,newcontext
+               ,baseline-errs ,oracle-errs ,all-alts))))
 
   (define (in-engine _)
     (if profile?
@@ -103,8 +105,9 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,start ,end ,context ,newcontext ,timeline ,bits ,baseline-errs
-              ,oracle-errs ,all-alts)
+      [`(good ,bits ,timeline ,warnings
+              ,start ,end ,context ,newcontext
+              ,baseline-errs ,oracle-errs ,all-alts)
        (match-define (list newpoints newexacts) (get-p&es newcontext))
        (match-define (list points exacts) (get-p&es context))
        (define start-prog (alt-program start))
@@ -121,6 +124,7 @@
                      bits
                      (- (current-inexact-milliseconds) start-time)
                      timeline
+                     warnings
                      start-resugared end-resugared points exacts
                      (errors (alt-program start) context)
                      (errors (alt-program end) context)
@@ -133,10 +137,11 @@
                      baseline-errs
                      oracle-errs
                      all-alts)]
-      [`(error ,e ,bits)
-       (test-failure test bits (- (current-inexact-milliseconds) start-time) (^timeline^) e)]
+      [`(error ,bits ,timeline ,warnings ,e)
+       (test-failure test bits (- (current-inexact-milliseconds) start-time) timeline warnings e)]
       [#f
-       (test-timeout test (bf-precision) (*timeout*) (^timeline^))])))
+       ;; TODO: These fields are meaningless because parameters don't work across engines
+       (test-timeout test (bf-precision) (*timeout*) (^timeline^) '())])))
 
 (define (get-table-data result link)
   (cons (unparse-result result) (get-table-data* result link)))
@@ -201,7 +206,7 @@
 
 (define (unparse-result result)
   (match result
-    [(test-success test bits time timeline
+    [(test-success test bits time timeline warnings
                    start-alt end-alt points exacts start-est-error end-est-error
                    newpoints newexacts start-error end-error target-error
                    baseline-error oracle-error all-alts)
@@ -228,7 +233,7 @@
                     `(:herbie-target ,(test-output test))
                     '())
               ,(program-body (alt-program end-alt)))]
-    [(test-failure test bits time timeline exn)
+    [(test-failure test bits time timeline warnings exn)
      `(FPCore ,(test-vars test)
               :herbie-status ,(if (exn:fail:user:herbie? (test-failure-exn result)) 'error 'crash)
               :herbie-time ,time
@@ -242,7 +247,7 @@
                     `(:herbie-target ,(test-output test))
                     '())
               ,(test-input test))]
-    [(test-timeout test bits time timeline)
+    [(test-timeout test bits time timeline warnings)
      `(FPCore ,(test-vars test)
               :herbie-status timeout
               :herbie-time ,time
