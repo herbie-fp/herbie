@@ -9,6 +9,7 @@
 (require "formats/datafile.rkt")
 (require "programs.rkt")
 (require "points.rkt")
+(require "float.rkt")
 (require "formats/test.rkt")
 (require "alternative.rkt")
 
