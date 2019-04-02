@@ -6,13 +6,9 @@
 (require "syntax/softposit.rkt")
 (require "interface.rkt")
 (module+ test (require rackunit))
-;; TODO remove references to interface.rkt for single-flonum->ordinal
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference sample-float
          sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
-
-(define (single-flonums-between x y)
-  (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
 
 (define (ulp-difference x y)
   (define ->ordinal (representation-repr->ordinal (match* (x y)
