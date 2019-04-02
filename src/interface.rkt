@@ -61,7 +61,7 @@
 
 (define posit8 (representation
   'posit8
-  (compose double->posit8 bifloat->flonum)
+  (compose double->posit8 bigfloat->flonum)
   (compose bf posit8->double)
   ordinal->posit8
   posit8->ordinal
