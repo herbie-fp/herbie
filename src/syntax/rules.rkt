@@ -5,7 +5,7 @@
 (require "../common.rkt")
 (require "syntax.rkt")
 (require "softposit.rkt")
-(require "float.rkt")
+(require "../float.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 
@@ -788,7 +788,7 @@
 
 (module+ test
   (require rackunit math/bigfloat)
-  (require "../programs.rkt" "../float.rkt")
+  (require "../programs.rkt")
   (define num-test-points 2000)
 
   (define *conditions*
