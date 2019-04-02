@@ -111,41 +111,47 @@
        [else (< x1 x2)])]
     [(posit8? x1)
      (cond
-       [(posit8= (posit8-nar) x1) #f]
-       [(posit8= (posit8-nar) x2) #t]
-       [else (posit8< x1 x2)])]
+       [(set-member? (representation-special-values posit8) x1) #f]
+       [(set-member? (representation-special-values posit8) x2) #t]
+       [else (< ((representation-repr->ordinal posit8) x1)
+                ((representation-repr->ordinal posit8) x2))])]
     [(posit16? x1)
      (cond
-       [(posit16= (posit16-nar) x1) #f]
-       [(posit16= (posit16-nar) x2) #t]
-       [else (posit16< x1 x2)])]
+       [(set-member? (representation-special-values posit16) x1) #f]
+       [(set-member? (representation-special-values posit16) x2) #t]
+       [else (< ((representation-repr->ordinal posit16) x1)
+                ((representation-repr->ordinal posit16) x2))])]
     [(posit32? x1)
      (cond
-       [(posit32= (posit32-nar) x1) #f]
-       [(posit32= (posit32-nar) x2) #t]
-       [else (posit32< x1 x2)])]
+       [(set-member? (representation-special-values posit32) x1) #f]
+       [(set-member? (representation-special-values posit32) x2) #t]
+       [else (< ((representation-repr->ordinal posit32) x1)
+                ((representation-repr->ordinal posit32) x2))])]
     [(quire8? x1)
      (cond
-       [(posit8= (posit8-nar) (quire8->posit8 x1)) #f]
-       [(posit8= (posit8-nar) (quire8->posit8 x2)) #t]
-       [else (posit8< (quire8->posit8 x1) (quire8->posit8 x2))])]
+       [(set-member? (representation-special-values quire8) x1) #f]
+       [(set-member? (representation-special-values quire8) x2) #t]
+       [else (< ((representation-repr->ordinal quire8) x1)
+                ((representation-repr->ordinal quire8) x2))])]
     [(quire16? x1)
      (cond
-       [(posit16= (posit16-nar) (quire16->posit16 x1)) #f]
-       [(posit16= (posit16-nar) (quire16->posit16 x2)) #t]
-       [else (posit16< (quire16->posit16 x1) (quire16->posit16 x2))])]
+       [(set-member? (representation-special-values quire16) x1) #f]
+       [(set-member? (representation-special-values quire16) x2) #t]
+       [else (< ((representation-repr->ordinal quire16) x1)
+                ((representation-repr->ordinal quire16) x2))])]
     [(quire32? x1)
      (cond
-       [(posit32= (posit32-nar) (quire32->posit32 x1)) #f]
-       [(posit32= (posit32-nar) (quire32->posit32 x2)) #t]
-       [else (posit32< (quire32->posit32 x1) (quire32->posit32 x2))])]))
+       [(set-member? (representation-special-values quire32) x1) #f]
+       [(set-member? (representation-special-values quire32) x2) #t]
+       [else (< ((representation-repr->ordinal quire32) x1)
+                ((representation-repr->ordinal quire32) x2))])]))
 
 (define (nan?-all-types x)
   (cond
     [(or (real? x) (complex? x)) (nan? x)]
-    [(posit8? x) (posit8= x (posit8-nar))]
-    [(posit16? x) (posit16= x (posit16-nar))]
-    [(posit32? x) (posit32= x (posit32-nar))]))
+    [(posit8? x) (set-member? (representation-special-values posit8) x)]
+    [(posit16? x) (set-member? (representation-special-values posit16) x)]
+    [(posit32? x) (set-member? (representation-special-values posit32) x)]))
 
 (define (<=/total x1 x2)
   (or (</total x1 x2) (=-or-nan? x1 x2)))
