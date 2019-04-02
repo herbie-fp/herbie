@@ -5,6 +5,7 @@
 (require "../common.rkt")
 (require "syntax.rkt")
 (require "softposit.rkt")
+(require "float.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules*
          *fp-safe-simplify-rules* prune-rules!)

@@ -9,7 +9,7 @@
 ;; TODO remove references to interface.rkt for single-flonum->ordinal
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference sample-float
-         sample-double </total <=/total =-or-nan? nan?-all-types)
+         sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
 
 (define (single-flonums-between x y)
   (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
