@@ -7,7 +7,7 @@
 (require "interface.rkt")
 ;; TODO remove references to interface.rkt for single-flonum->ordinal
 
-(provide midpoint-float ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
+(provide midpoint ulp-difference *bit-width* ulps->bits bit-difference sample-float sample-double)
 
 (define (single-flonums-between x y)
   (- (single-flonum->ordinal y) (single-flonum->ordinal x)))
@@ -28,26 +28,18 @@
     [((? quire32?) (? posit32?)) posit32])))
   (- (->ordinal y) (->ordinal x)))
 
-(define (midpoint-float p1 p2)
-  (cond 
-   [(and (double-flonum? p1) (double-flonum? p2))
-    (flstep p1 (quotient (flonums-between p1 p2) 2))]
-   [(and (single-flonum? p1) (single-flonum? p2))
-    (floating-point-bytes->real
-     (integer->integer-bytes
-      (quotient
-       (+ (single-flonum->ordinal p1) (single-flonum->ordinal p2))
-       2)
-      4 #f) #f)]
-   [(and (posit8? p1) (posit8? p2))
-    ;; NOTE: This isn't a binary search (just splits the difference)
-    (posit8-div (posit8-add p1 p2) (double->posit8 2.0))]
-   [(and (posit16? p1) (posit16? p2))
-    (posit16-div (posit16-add p1 p2) (double->posit16 2.0))]
-   [(and (posit32? p1) (posit32? p2))
-    (posit32-div (posit32-add p1 p2) (double->posit32 2.0))]
-   [else
-    (error "Mixed precisions in binary search")]))
+;; Returns the midpoint of ordinals, not the real-valued midpoint
+(define (midpoint p1 p2)
+  (define rep (cond
+    [(and (double-flonum? p1) (double-flonum? p2)) binary64]
+    [(and (single-flonum? p1) (single-flonum? p2)) binary32]
+    [(and (posit8? p1) (posit8? p2)) posit8]
+    [(and (posit16? p1) (posit16? p2)) posit16]
+    [(and (posit32? p1) (posit32? p2)) posit32]
+    [else (error "Mixed precisions in binary search")]))
+  ((representation-ordinal->repr repr) (floor (/ (+
+    ((representation-repr->ordinal repr) x)
+    ((representation-repr->ordinal repr) y)) 2))))
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
