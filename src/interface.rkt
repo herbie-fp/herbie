@@ -2,6 +2,7 @@
 
 (require math/bigfloat)
 (require math/flonum)
+(require softposit-rkt)
 
 (provide (struct-out representation) binary64 binary32 bool
          posit8 posit16 posit32 quire8 quire16 quire32
@@ -61,7 +62,7 @@
 
 (define posit8 (representation
   'posit8
-  (compose double->posit8 bifloat->flonum)
+  (compose double->posit8 bigfloat->flonum)
   (compose bf posit8->double)
   ordinal->posit8
   posit8->ordinal
@@ -70,7 +71,7 @@
 
 (define posit16 (representation
   'posit16
-  (compose double->posit16 bifloat->flonum)
+  (compose double->posit16 bigfloat->flonum)
   (compose bf posit16->double)
   ordinal->posit16
   posit16->ordinal
@@ -79,7 +80,7 @@
 
 (define posit32 (representation
   'posit32
-  (compose double->posit32 bifloat->flonum)
+  (compose double->posit32 bigfloat->flonum)
   (compose bf posit32->double)
   ordinal->posit32
   posit32->ordinal
