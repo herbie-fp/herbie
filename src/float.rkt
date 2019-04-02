@@ -24,7 +24,7 @@
           [((? quire8?) (? posit8?)) posit8]
           [((? quire16?) (? posit16?)) posit16]
           [((? quire32?) (? posit32?)) posit32]))])
-      (- (->ordinal y) (->ordinal x)))
+      (- (->ordinal y) (->ordinal x)))))
 
 ;; Returns the midpoint of ordinals, not the real-valued midpoint
 (define (midpoint p1 p2)
