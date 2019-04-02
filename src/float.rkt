@@ -36,8 +36,8 @@
     [(and (posit32? p1) (posit32? p2)) posit32]
     [else (error "Mixed precisions in binary search")]))
   ((representation-ordinal->repr repr) (floor (/ (+
-    ((representation-repr->ordinal repr) p1)
-    ((representation-repr->ordinal repr) p2)) 2))))
+    ((representation-repr->ordinal repr) x)
+    ((representation-repr->ordinal repr) y)) 2))))
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
