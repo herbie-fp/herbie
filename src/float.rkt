@@ -7,7 +7,7 @@
 (require "interface.rkt")
 (module+ test (require rackunit))
 
-(provide midpoint ulp-difference *bit-width* ulps->bits bit-difference sample-float
+(provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
          sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
 
 (define (ulp-difference x y)
@@ -155,9 +155,6 @@
 
 (define (<=/total x1 x2)
   (or (</total x1 x2) (=-or-nan? x1 x2)))
-
-(define (sample-float)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 32) 4 #f)))
 
 (define (sample-double)
   (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
