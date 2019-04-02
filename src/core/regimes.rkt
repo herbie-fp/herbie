@@ -184,7 +184,7 @@
 
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2)
-  (let ([midpoint (midpoint-float p1 p2)])
+  (let ([midpoint (midpoint p1 p2)])
     (cond [(< (bit-difference p1 p2) 48) midpoint]
 	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
 	  [else (binary-search-floats pred p1 midpoint)])))
