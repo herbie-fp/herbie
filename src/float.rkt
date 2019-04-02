@@ -11,8 +11,7 @@
          sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
 
 (define (ulp-difference x y)
-  (if (and (complex? x) (complex? y)
-           (or (not (= (imag-part x) 0)) (not (= (imag-part y) 0))))
+  (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
     (+ (ulp-difference (real-part x) (real-part y))
        (ulp-difference (imag-part x) (imag-part y)))
     (let ([->ordinal (representation-repr->ordinal (match* (x y)
