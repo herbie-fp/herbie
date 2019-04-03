@@ -1,6 +1,5 @@
 #lang racket
 
-
 (require math/bigfloat racket/lazy-require)
 (lazy-require [softposit-rkt (_posit8 _posit16 _posit32 _posit64 _posit128
          posit8? posit16? posit32? posit64? posit128?
@@ -8,48 +7,7 @@
          quire8? quire16? quire32?
          random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
          random-quire8 random-quire16 random-quire32
-         posit8-nar posit16-nar posit32-nar posit64-inf posit128-inf
-         uint32->posit8 uint32->posit16 uint32->posit32
-         uint64->posit8 uint64->posit16 uint64->posit32
-         int32->posit8 int32->posit16 int32->posit32
-         int64->posit8 int64->posit16 int64->posit32
-         posit8->uint32 posit8->uint64 posit8->int32 posit8->int64
-         posit8->posit16 posit8->posit32
-         posit8-round-to-int posit8-add posit8-sub posit8-mul
-         posit8-mulAdd posit8-div posit8-sqrt posit8-neg
-         posit8= posit8<= posit8< posit8>= posit8>
-         create-quire8 create-quire16 create-quire32
-         quire8-fdp-add quire8-fdp-sub quire8->posit8
-         posit8->double double->posit8
-         posit16->uint32 posit16->uint64 posit16->int32 posit16->int64
-         posit16->posit8 posit16->posit32
-         posit16-round-to-int posit16-add posit16-sub posit16-mul
-         posit16-mulAdd posit16-div posit16-sqrt posit16-neg
-         posit16= posit16<= posit16< posit16>= posit16>
-         quire16-fdp-add quire16-fdp-sub quire16->posit16
-         quire16-twos-complement
-         posit16->double float->posit16 double->posit16
-         posit32->uint32 posit32->uint64 posit32->int32 posit32->int64
-         posit32->posit8 posit32->posit16
-         posit32-round-to-int posit32-add posit32-sub posit32-mul
-         posit32-mulAdd posit32-div posit32-sqrt posit32-neg
-         posit32= posit32<= posit32< posit32>= posit32>
-         quire32-fdp-add quire32-fdp-sub quire32->posit32
-         quire32-twos-complement
-         posit32->double float->posit32 double->posit32
-         posit8->quire8 posit16->quire16 posit32->quire32
-         double->quire8 double->quire16 double->quire32
-         quire8->double quire16->double quire32->double
-         posit8->ordinal posit16->ordinal posit32->ordinal)])
-
-(provide (all-defined-out)
-         _posit8 _posit16 _posit32 _posit64 _posit128
-         posit8? posit16? posit32? posit64? posit128?
-         _quire8 _quire16 _quire32
-         quire8? quire16? quire32?
-         random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
-         random-quire8 random-quire16 random-quire32
-         posit8-nar posit16-nar posit32-nar posit64-inf posit128-inf
+         posit8-nar posit16-nar posit32-nar posit64-nar posit128-nar
          uint32->posit8 uint32->posit16 uint32->posit32
          uint64->posit8 uint64->posit16 uint64->posit32
          int32->posit8 int32->posit16 int32->posit32
@@ -82,6 +40,49 @@
          double->quire8 double->quire16 double->quire32
          quire8->double quire16->double quire32->double
          posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32)])
+
+(provide (all-defined-out)
+         _posit8 _posit16 _posit32 _posit64 _posit128
+         posit8? posit16? posit32? posit64? posit128?
+         _quire8 _quire16 _quire32
+         quire8? quire16? quire32?
+         random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
+         random-quire8 random-quire16 random-quire32
+         posit8-nar posit16-nar posit32-nar posit64-nar posit128-nar
+         uint32->posit8 uint32->posit16 uint32->posit32
+         uint64->posit8 uint64->posit16 uint64->posit32
+         int32->posit8 int32->posit16 int32->posit32
+         int64->posit8 int64->posit16 int64->posit32
+         posit8->uint32 posit8->uint64 posit8->int32 posit8->int64
+         posit8->posit16 posit8->posit32
+         posit8-round-to-int posit8-add posit8-sub posit8-mul
+         posit8-mulAdd posit8-div posit8-sqrt posit8-neg
+         posit8= posit8<= posit8< posit8>= posit8>
+         create-quire8 create-quire16 create-quire32
+         quire8-fdp-add quire8-fdp-sub quire8->posit8
+         posit8->double double->posit8
+         posit16->uint32 posit16->uint64 posit16->int32 posit16->int64
+         posit16->posit8 posit16->posit32
+         posit16-round-to-int posit16-add posit16-sub posit16-mul
+         posit16-mulAdd posit16-div posit16-sqrt posit16-neg
+         posit16= posit16<= posit16< posit16>= posit16>
+         quire16-fdp-add quire16-fdp-sub quire16->posit16
+         quire16-twos-complement
+         posit16->double float->posit16 double->posit16
+         posit32->uint32 posit32->uint64 posit32->int32 posit32->int64
+         posit32->posit8 posit32->posit16
+         posit32-round-to-int posit32-add posit32-sub posit32-mul
+         posit32-mulAdd posit32-div posit32-sqrt posit32-neg
+         posit32= posit32<= posit32< posit32>= posit32>
+         quire32-fdp-add quire32-fdp-sub quire32->posit32
+         quire32-twos-complement
+         posit32->double float->posit32 double->posit32
+         posit8->quire8 posit16->quire16 posit32->quire32
+         double->quire8 double->quire16 double->quire32
+         quire8->double quire16->double quire32->double
+         posit8->ordinal posit16->ordinal posit32->ordinal
+         ordinal->posit8 ordinal->posit16 ordinal->posit32
          p8s-between p16s-between p32s-between)
 
 (struct big-posit8 (v))
