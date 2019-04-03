@@ -53,11 +53,12 @@
 (define (ordinary-value? x)
   (match x
     [(? real?)
-     (not (or (infinite? x) (nan? x)))]
+     (not (or (set-member? (representation-special-values binary64) x)
+              (set-member? (representation-special-values binary32) x)))]
     [(? complex?)
      (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
     [(? boolean?)
-     true]
+     (not (set-member? (representation-special-values bool) x))]
     [(? posit8?)
      (not (set-member? (representation-special-values posit8) x))]
     [(? posit16?)
