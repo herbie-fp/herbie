@@ -25,7 +25,8 @@
         [((? quire32?) (? quire32?)) quire32]))])
       (- (->ordinal y) (->ordinal x)))))
 
-;; Returns the midpoint of ordinals, not the real-valued midpoint
+;; Returns the midpoint of the representation's ordinal values,
+;; not the real-valued midpoint
 (define (midpoint p1 p2)
   (define repr (cond
     [(and (double-flonum? p1) (double-flonum? p2)) binary64]
