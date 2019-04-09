@@ -126,10 +126,7 @@
                   (texify arg arg-paren-level (cons id loc)))]
                [hl-loc
                 #f])
-           (format
-                                        ; omit parens if parent contex has lower precedence
-            (if (precedence< parens self-paren-level)
-                "~a"
-                "\\left(~a\\right)")
+           (format ; omit parens if parent contex has lower precedence
+            (if (precedence< parens self-paren-level) "~a" "\\left(~a\\right)")
             (apply (operator-info f '->tex) texed-args)))]))))
 
