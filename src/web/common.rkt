@@ -1,7 +1,7 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
-(provide render-menu render-warnings)
+(provide render-menu render-warnings render-large)
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -27,3 +27,8 @@
                          `(ol ([class "extra"])
                               ,@(for/list ([line extra])
                                   `(li ,line)))))))))
+
+(define (render-large #:title [title #f] name . values)
+  `(div ,name ": " (span ([class "number"]
+                          ,@(if title `([title ,title]) '()))
+                         ,@values)))

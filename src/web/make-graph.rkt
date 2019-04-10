@@ -264,17 +264,16 @@
           '("Metrics" . "timeline.html")))
 
        (section ([id "large"])
-        (div "Average Error: "
-             (span ([class "number"]
-                    [title ,(format "Maximum error: ~a → ~a"
-                                    (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
-                                    (format-bits (apply max (map ulps->bits end-error)) #:unit #f))])
-                   ,(format-bits (errors-score start-error) #:unit #f)
-                   " → "
-                   ,(format-bits (errors-score end-error) #:unit #f)))
-        (div "Time: " (span ([class "number"]) ,(format-time time)))
-        (div "Precision: " (span ([class "number"]) ,(format-bits (*bit-width*) #:unit #f)))
-        (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
+        ,(render-large "Average Error"
+                       (format-bits (errors-score start-error) #:unit #f)
+                       " → "
+                       (format-bits (errors-score end-error) #:unit #f)
+                       #:title
+                       (format "Maximum error: ~a → ~a"
+                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
+                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
+        ,(render-large "Time" (format-time time))
+        ,(render-large "Precision" (format-bits (*bit-width*) #:unit #f)))
 
        ,(render-warnings warnings)
 
@@ -477,7 +476,7 @@
   (define err
     (format-bits (errors-score (errors prog* pcontext))))
   (define err2
-    (format "Internal: ~a" (format-bits (errors-score (errors prog* pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors prog* pcontext2)))))
 
   (match altn
     [(alt prog 'start (list))

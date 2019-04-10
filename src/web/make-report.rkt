@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date (only-in xml write-xexpr) json)
-(require "../common.rkt" "../formats/datafile.rkt")
+(require "../common.rkt" "../formats/datafile.rkt" "common.rkt")
 
 (provide make-report-page)
 
@@ -78,16 +78,11 @@
         (a ([href "#results"]) "Results")))
 
       (div ((id "large"))
-       (div "Time: " (span ((class "number")) ,(format-time total-time)))
-       (div "Passed: " (span ((class "number")) ,(~a total-passed) "/" ,(~a total-available)))
-       ,(if (> total-crashes 0)
-            `(div "Crashes: " (span ((class "number")) ,(~a total-crashes)))
-            "")
-       (div "Tests: " (span ((class "number")) ,(~a (length tests))))
-       (div "Bits: " (span ((class "number"))
-                           ,(~a (round* (- total-start total-gained)))
-                           "/"
-                           ,(~a (round* total-start)))))
+       ,(render-large "Time" (format-time total-time))
+       ,(render-large "Passed" (~a total-passed) "/" (~a total-available))
+       ,(if (> total-crashes 0) (render-large "Crashes" (~a total-crashes)) "")
+       ,(render-large "Tests" (~a (length tests)))
+       ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
  
       (figure
        (svg ((id "graph") (width "400")))
