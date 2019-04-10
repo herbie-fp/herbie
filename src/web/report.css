@@ -153,7 +153,7 @@ section h1 {
     position: relative; padding: 1em;
 }
 @media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
-#program .program { display: inline-block; }
+#program .program { display: inline-block; text-align: left; }
 #program .arrow { color: transparent; font-size: 0; }
 #program .arrow:after { content: "↓"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
