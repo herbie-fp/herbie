@@ -71,6 +71,7 @@ function select_tab(id) {
 }
 
 function submit_inputs() {
+    if (!document.getElementById("#try-it")) return;
     var originalOutputElem = document.querySelector('#try-original-output');
     var herbieOutputElem = document.querySelector('#try-herbie-output');
     var inputs = document.querySelectorAll('#try-inputs input');
@@ -139,8 +140,23 @@ function setup_timeline() {
     }
 }
 
-function setup_program_arrow() {
-    var progelt = document.getElementById("program");
+function setup_program() {
+    var $lang = document.getElementById("language");
+    var lang = $lang.options[$lang.selectedIndex].text;
+    var progs = document.querySelectorAll("#program > div");
+    for (var i = 0; i < progs.length; i++) {
+        var $prog = progs[i];
+        if ($prog.dataset["language"] == lang) {
+            $prog.style.display = "block";
+            setup_program_arrow($prog);
+        } else {
+            $prog.style.display =  "none";
+        }
+    }
+}
+
+
+function setup_program_arrow(progelt) {
     var progs = progelt.getElementsByClassName("program");
     var arrs = progelt.getElementsByClassName("arrow");
 
@@ -216,6 +232,8 @@ function load_graph() {
     for (var i = 0; i < figs.length; i++) {
         setup_figure(figs[i]);
     }
+    document.getElementById("language").addEventListener("change", setup_program);
+    setup_program();
     setup_figure_tabs(document.querySelector("#graphs div"));
     // Run the program_arrow after rendering happens
     var es = document.querySelectorAll('.math');

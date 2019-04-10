@@ -278,9 +278,15 @@
        ,(render-warnings warnings)
 
        (section ([id "program"])
-        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
-        (div ([class "arrow"]) "↓")
-        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
+        (select ([id "language"]) (option "Math") (option "TeX"))
+        (div ([data-language "Math"])
+          (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
+          (div ([class "arrow"]) "↓")
+          (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
+        (div ([data-language "TeX"])
+          (pre ([class "program"]) ,(texify-prog (alt-program start-alt)))
+          (div ([class "arrow"]) "↓")
+          (pre ([class "program"]) ,(texify-prog (alt-program end-alt)))))
 
        (section ([id "graphs"])
         (h1 "Error")

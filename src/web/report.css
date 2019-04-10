@@ -148,13 +148,17 @@ section h1 {
 
 /* Big block for program input output */
 
-#program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
+#program {
+    background: #ddd; text-align: center; font-size: 24px;
+    position: relative; padding: 1em;
+}
 @media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
 #program .program { display: inline-block; }
 #program .arrow { color: transparent; font-size: 0; }
 #program .arrow:after { content: "↓"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
 #program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
+#language { position: absolute; top: 1em; right: 1em; }
 
 /* Error graphs */
 
