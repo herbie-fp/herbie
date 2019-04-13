@@ -77,8 +77,11 @@ function setup_figure(figure) {
 }
 
 var TryIt = new Component("#try-it", {
+    depends: function() {
+        if (typeof window.start === "undefined") throw "start() function not defined";
+        if (typeof window.end === "undefined") throw "end() function not defined";
+    },
     setup: function() {
-        if (!start || !end) throw "start() or end() function not compiled";
         this.origOut = this.elt.querySelector("#try-original-output");
         this.herbieOut = this.elt.querySelector("#try-herbie-output");
         this.result = this.elt.querySelector("#try-result");
@@ -163,8 +166,10 @@ function setup_figure_tabs(figure_container) {
 }
 
 var RenderMath = new Component(".math", {
-    setup: function() {
+    depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
+    },
+    setup: function() {
         renderMathInElement(this.elt);
     },
 });
@@ -278,6 +283,14 @@ function run_components() {
     for (var i = 0; i < window.COMPONENTS.length; i++) {
         var component = window.COMPONENTS[i];
         var elts = document.querySelectorAll(component.selector);
+
+        try {
+            if (elts.length > 0 && component.fns.depends) component.fns.depends();
+        } catch (e) {
+            console.error(e);
+            continue;
+        }
+
         for (var j = 0; j < elts.length; j++) {
             var instance = new ComponentInstance(elts[j], component);
             console.log("Initiating", component.selector, "component at", elts[j]);
