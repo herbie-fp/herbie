@@ -69,7 +69,7 @@
       (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
       (script ((type "text/javascript") (src "arrow-chart.js"))))
  
-     (body ((onload "report()"))
+     (body
       (nav ([id "links"])
        (div
         (a ([href "timeline.html"]) "Metrics"))

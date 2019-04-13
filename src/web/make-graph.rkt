@@ -133,7 +133,6 @@
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
-                         [oninput "submit_inputs();"]
                          [value ,(~a val)])))))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
@@ -247,7 +246,7 @@
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
-      (body ([onload "graph()"])
+      (body
        ,(render-menu
          (list/true
           '("Error" . "#graphs")
@@ -334,7 +333,7 @@
       (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
       ,@js-tex-include
       (script ([src "../report.js"])))
-     (body ([onload "graph()"])
+     (body
       ,(render-menu
         (list/true)
         (list/true
@@ -401,7 +400,7 @@
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       ,@js-tex-include
       (script ([src "../report.js"])))
-     (body ([onload "graph()"])
+     (body
       ,(render-menu
         (list/true)
         (list/true

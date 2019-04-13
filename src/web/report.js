@@ -31,6 +31,12 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
+var Figure = new Component("#graphs figure", {
+    setup: function() {
+        setup_figure(this.elt);
+    },
+});
+
 function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
     var names = {};
@@ -70,6 +76,44 @@ function setup_figure(figure) {
     }
 }
 
+var TryIt = new Component("#try-it", {
+    setup: function() {
+        if (!start || !end) throw "start() or end() function not compiled";
+        this.origOut = this.elt.querySelector("#try-original-output");
+        this.herbieOut = this.elt.querySelector("#try-herbie-output");
+        this.result = this.elt.querySelector("#try-result");
+        this.inputs = this.elt.querySelectorAll("#try-inputs input");
+        this.submit();
+        for (var i = 0; i < this.inputs.length; i++) {
+            this.inputs[i].addEventListener("input", this.submit);
+        }
+    },
+    submit: function() {
+        var values = [];
+        for (var i = 0; i < this.inputs.length; i++) {
+            var val = parseFloat(this.inputs[i].value);
+            if (isNaN(val)) {
+                if (this.inputs[i].value.length != 0) {
+                    // Don't update error message if there is no input
+                    this.result.className = 'error'
+                }
+                return;
+            } else {
+                this.result.className = 'no-error'
+                values.push(val);
+            }
+        }
+        this.origOut.innerHTML = start.apply(null, values);
+        this.herbieOut.innerHTML = end.apply(null, values);
+    },
+});
+
+var FigureTabs = new Component("#graphs > div", {
+    setup: function() {
+        setup_figure_tabs(this.elt);
+    },
+});
+
 function select_tab(id) {
     var tab = document.getElementById("tab-" + id);
     var pane = document.getElementById(id);
@@ -83,29 +127,6 @@ function select_tab(id) {
 
     tab.classList.add("selected");
     pane.style.display = "block";
-}
-
-function submit_inputs() {
-    if (!document.getElementById("#try-it")) return;
-    var originalOutputElem = document.querySelector('#try-original-output');
-    var herbieOutputElem = document.querySelector('#try-herbie-output');
-    var inputs = document.querySelectorAll('#try-inputs input');
-    var inputVals = [];
-    for (var i = 0; i < inputs.length; i++) {
-        var val = parseFloat(inputs[i].value);
-        if (isNaN(val)) {
-            if (inputs[i].value.length != 0) {
-                // Don't update error message if there is no input
-                document.querySelector('#try-result').className = 'error'
-            }
-            return;
-        } else {
-            document.querySelector('#try-result').className = 'no-error'
-            inputVals.push(val);
-        }
-    }
-    originalOutputElem.innerHTML = start.apply(null, inputVals);
-    herbieOutputElem.innerHTML = end.apply(null, inputVals);
 }
 
 function setup_figure_tabs(figure_container) {
@@ -141,19 +162,28 @@ function setup_figure_tabs(figure_container) {
     if (default_figure) select_tab(default_figure);
 }
 
-function setup_timeline() {
-    var ts = document.getElementsByClassName("timeline-phase");
-    var total_time = 0;
-    for (var i = 0; i < ts.length; i++) {
-        total_time += +ts[i].getAttribute("data-timespan");
+var RenderMath = new Component(".math", {
+    setup: function() {
+        if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
+        renderMathInElement(this.elt);
+    },
+});
+
+var Timeline = new Component(".timeline", {
+    setup: function() {
+        var ts = this.elt.querySelectorAll(".timeline-phase");
+        var total_time = 0;
+        for (var i = 0; i < ts.length; i++) {
+            total_time += +ts[i].getAttribute("data-timespan");
+        }
+        var total_width = ts[0].parentNode.offsetWidth;
+        for (var i = 0; i < ts.length; i++) {
+            ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
+            var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+            ts[i].title = s;
+        }
     }
-    var total_width = ts[0].parentNode.offsetWidth;
-    for (var i = 0; i < ts.length; i++) {
-        ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
-        var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
-        ts[i].title = s;
-    }
-}
+});
 
 var ProgramText = new Component("#program", {
     setup: function() {
@@ -177,11 +207,10 @@ var ProgramText = new Component("#program", {
     arrow: function($prog) {
         var progs = $prog.querySelectorAll(".program");
         $prog.classList.add("horizontal");
-
-        var progBot = progs[0].offsetTop + progs[0].offsetHeight;
         for (var i = 0; i < progs.length; i++) {
+            var progBot = progs[i].offsetTop + progs[i].offsetHeight;
             if (progs[i].offsetTop >= progBot) {
-                return progelt.classList.remove("horizontal");
+                return $prog.classList.remove("horizontal");
             }
         }
     },
@@ -245,32 +274,20 @@ function histogram(id, data) {
     }
 }
 
-function load_graph() {
-    run_components();
-    var figs = document.querySelectorAll("#graphs figure");
-    for (var i = 0; i < figs.length; i++) {
-        setup_figure(figs[i]);
-    }
-    setup_figure_tabs(document.querySelector("#graphs div"));
-    // Run the program_arrow after rendering happens
-    var es = document.querySelectorAll('.math');
-    for (var i = 0; i < es.length; i++) renderMathInElement(es[i]);
-    // Submit the default vals in the "Try it out" section
-    submit_inputs()
-}
-
 function run_components() {
     for (var i = 0; i < window.COMPONENTS.length; i++) {
         var component = window.COMPONENTS[i];
         var elts = document.querySelectorAll(component.selector);
         for (var j = 0; j < elts.length; j++) {
             var instance = new ComponentInstance(elts[j], component);
-            instance.setup();
+            console.log("Initiating", component.selector, "component at", elts[j]);
+            try {
+                instance.setup();
+            } catch (e) {
+                console.error(e);
+            }
         }
     }
 }
 
-function report() { run_components();}
-function graph() { load_graph(); }
-function index() { }
-function timeline() { setup_timeline(); }
+window.addEventListener("load", run_components);

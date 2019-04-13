@@ -23,7 +23,7 @@
        (title "Metrics for " ,(~a (test-name test)))
        (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        (script ([src "../report.js"])))
-      (body ([onload "timeline()"])
+      (body
        ,(render-menu '() '(("Report" . "graph.html")))
        (section ((id "process-info"))
          (h1 "Details")
