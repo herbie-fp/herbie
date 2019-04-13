@@ -155,35 +155,38 @@ function setup_timeline() {
     }
 }
 
-function setup_program() {
-    var $lang = document.getElementById("language");
-    var lang = $lang.options[$lang.selectedIndex].text;
-    var progs = document.querySelectorAll("#program > div");
-    for (var i = 0; i < progs.length; i++) {
-        var $prog = progs[i];
-        if ($prog.dataset["language"] == lang) {
-            $prog.style.display = "block";
-            setup_program_arrow($prog);
-        } else {
-            $prog.style.display =  "none";
+var ProgramText = new Component("#program", {
+    setup: function() {
+        this.dropdown = this.elt.querySelector("#language");
+        this.programs = this.elt.querySelectorAll("#program > div");
+        this.elt.addEventListener("change", this.change);
+        this.change();
+    },
+    change: function() {
+        var lang = this.dropdown.options[this.dropdown.selectedIndex].text;
+        for (var i = 0; i < this.programs.length; i++) {
+            var $prog = this.programs[i];
+            if ($prog.dataset["language"] == lang) {
+                $prog.style.display = "block";
+                this.arrow($prog);
+            } else {
+                $prog.style.display =  "none";
+            }
         }
-    }
-}
+    },
+    arrow: function($prog) {
+        var progs = $prog.querySelectorAll(".program");
+        $prog.classList.add("horizontal");
 
-
-function setup_program_arrow(progelt) {
-    var progs = progelt.getElementsByClassName("program");
-    var arrs = progelt.getElementsByClassName("arrow");
-
-    progelt.classList.add("horizontal");
-    var progBot = progs[0].offsetTop + progs[0].offsetHeight;
-    for (var i in progs) {
-        if (progs[i].offsetTop >= progBot) {
-            return progelt.classList.remove("horizontal");
+        var progBot = progs[0].offsetTop + progs[0].offsetHeight;
+        for (var i = 0; i < progs.length; i++) {
+            if (progs[i].offsetTop >= progBot) {
+                return progelt.classList.remove("horizontal");
+            }
         }
-    }
-}
-  
+    },
+});
+
 function histogram(id, data) {
     var width = 676;
     var height = 60
@@ -243,12 +246,11 @@ function histogram(id, data) {
 }
 
 function load_graph() {
+    run_components();
     var figs = document.querySelectorAll("#graphs figure");
     for (var i = 0; i < figs.length; i++) {
         setup_figure(figs[i]);
     }
-    document.getElementById("language").addEventListener("change", setup_program);
-    setup_program();
     setup_figure_tabs(document.querySelector("#graphs div"));
     // Run the program_arrow after rendering happens
     var es = document.querySelectorAll('.math');
