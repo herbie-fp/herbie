@@ -251,7 +251,7 @@
        ,(render-menu
          (list/true
           '("Error" . "#graphs")
-          (and valid-js-prog (for/and ([p points]) (number? p))
+          (and valid-js-prog (for/and ([p points]) (andmap number? p))
                '("Try it out!" . "#try-it"))
           (and (test-output test)
                '("Target" . "#comparison"))
@@ -301,7 +301,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(if (and valid-js-prog (for/and ([p points]) (number? p)))
+       ,(if (and valid-js-prog (for/and ([p points]) (andmap number? p)))
             (render-interactive start-alt (car points))
             "")
 
