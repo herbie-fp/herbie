@@ -158,7 +158,9 @@ section h1 {
 #program .arrow:after { content: "↓"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
 #program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
-#language { position: absolute; top: 1em; right: 1em; }
+#language { position: absolute; right: 1em; }
+#precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
+#precondition:before { content: "Precondition"; float: left; color: #444; }
 
 /* Error graphs */
 

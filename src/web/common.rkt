@@ -40,18 +40,23 @@
 
 (define (render-program #:to [result #f] test)
   `(section ([id "program"])
+     ,(if (equal? (test-precondition test) 'TRUE)
+          ""
+          `(div ([id "precondition"])
+             (div ([class "program math"])
+                  "\\[" ,(texify-expr (test-precondition test)) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([(lang fn) (in-dict languages)])
            `(option ,lang)))
-     (div ([data-language "Math"])
+     (div ([class "implementation"] [data-language "Math"])
        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
                (div ([class "program math"]) "\\[" ,(texify-prog result) "\\]"))
              `()))
      ,@(for/list ([(lang fn) (in-dict languages)])
-         `(div ([data-language ,lang])
+         `(div ([class "implementation"] [data-language ,lang])
             (pre ([class "program"]) ,(fn (test-program test)))
             ,@(if result
                   `((div ([class "arrow"]) "↓")

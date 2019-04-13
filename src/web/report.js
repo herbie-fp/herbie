@@ -190,10 +190,10 @@ var Timeline = new Component(".timeline", {
     }
 });
 
-var ProgramText = new Component("#program", {
+var Implementations = new Component("#program", {
     setup: function() {
-        this.dropdown = this.elt.querySelector("#language");
-        this.programs = this.elt.querySelectorAll("#program > div");
+        this.dropdown = this.elt.querySelector("select");
+        this.programs = this.elt.querySelectorAll(".implementation");
         this.elt.addEventListener("change", this.change);
         this.change();
     },
