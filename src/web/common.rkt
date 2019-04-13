@@ -1,7 +1,8 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
-(provide render-menu render-warnings render-large)
+(require "../formats/c.rkt" "../formats/tex.rkt")
+(provide render-menu render-warnings render-large render-program)
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -32,3 +33,27 @@
   `(div ,name ": " (span ([class "number"]
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
+
+(define languages
+  `(("TeX" . ,texify-prog)
+    ("C" . ,program->c)))
+
+(define (render-program #:to [result #f] test)
+  `(section ([id "program"])
+     (select ([id "language"])
+       (option "Math")
+       ,@(for/list ([(lang fn) (in-dict languages)])
+           `(option ,lang)))
+     (div ([data-language "Math"])
+       (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]")
+       ,@(if result
+             `((div ([class "arrow"]) "↓")
+               (div ([class "program math"]) "\\[" ,(texify-prog result) "\\]"))
+             `()))
+     ,@(for/list ([(lang fn) (in-dict languages)])
+         `(div ([data-language ,lang])
+            (pre ([class "program"]) ,(fn (test-program test)))
+            ,@(if result
+                  `((div ([class "arrow"]) "↓")
+                    (pre ([class "program"]) ,(fn result)))
+                  `())))))

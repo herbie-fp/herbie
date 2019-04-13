@@ -277,20 +277,7 @@
 
        ,(render-warnings warnings)
 
-       (section ([id "program"])
-        (select ([id "language"]) (option "Math") (option "C") (option "TeX"))
-        (div ([data-language "Math"])
-          (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
-          (div ([class "arrow"]) "↓")
-          (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
-        (div ([data-language "C"])
-          (pre ([class "program"]) ,(program->c (alt-program start-alt)))
-          (div ([class "arrow"]) "↓")
-          (pre ([class "program"]) ,(program->c (alt-program end-alt))))
-        (div ([data-language "TeX"])
-          (pre ([class "program"]) ,(texify-prog (alt-program start-alt)))
-          (div ([class "arrow"]) "↓")
-          (pre ([class "program"]) ,(texify-prog (alt-program end-alt)))))
+       ,(render-program test #:to (alt-program end-alt))
 
        (section ([id "graphs"])
         (h1 "Error")
@@ -345,8 +332,9 @@
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
       (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
-      ,@js-tex-include)
-     (body
+      ,@js-tex-include
+      (script ([src "../report.js"])))
+     (body ([onload "graph()"])
       ,(render-menu
         (list/true)
         (list/true
@@ -357,12 +345,8 @@
 
       ,(render-warnings warnings)
 
-      (section ([id "program"])
-        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
-
-      ,@(cond
-         [(exn:fail:user:herbie? exn)
-          `((section ([id "user-error"])
+      ,(if (exn:fail:user:herbie? exn)
+           `(section ([id "user-error"])
              (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
              ,(if (exn:fail:user:herbie:syntax? exn)
                   `(table
@@ -375,12 +359,17 @@
                            (td ,(~a (syntax-source stx)))
                            (td ,(or (~a (syntax-line stx) "")))
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
-                  "")))]
-         [else
-          `(,(render-reproduction test #:bug? #t)
-            (section ([id "backtrace"])
-             (h1 "Backtrace")
-             ,(render-traceback exn)))])))
+                  ""))
+           "")
+
+      ,(render-program test)
+
+      ,@(if (not (exn:fail:user:herbie? exn))
+            `(,(render-reproduction test #:bug? #t)
+              (section ([id "backtrace"])
+               (h1 "Backtrace")
+               ,(render-traceback exn)))
+            "")))
    out))
 
 (define (render-traceback exn)
@@ -410,8 +399,9 @@
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-      ,@js-tex-include)
-     (body
+      ,@js-tex-include
+      (script ([src "../report.js"])))
+     (body ([onload "graph()"])
       ,(render-menu
         (list/true)
         (list/true
@@ -421,11 +411,11 @@
          '("Metrics" . "timeline.html")))
       ,(render-warnings warnings)
 
-      (section ([id "program"])
-        (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]"))
-
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
+
+      ,(render-program test)
+
       ,(render-reproduction test)))
    out))
 
