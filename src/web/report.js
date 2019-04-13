@@ -1,20 +1,35 @@
-function toggle_flag_list() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.toggle("changed-flags");
-    var changed_only = flags.classList.contains("changed-flags");
-    var button = document.getElementById("flag-list-toggle");
-    button.innerText = changed_only ? "see all" : "see diff";
+window.COMPONENTS = []
+
+function Component(selector, fns) {
+    this.selector = selector;
+    this.fns = fns;
+    window.COMPONENTS.push(this);
 }
 
-function togglable_flags() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.add("changed-flags");
-    var button = document.createElement("a");
-    button.setAttribute("id", "flag-list-toggle");
-    button.innerText = "see all";
-    button.addEventListener("click", toggle_flag_list);
-    flags.insertBefore(button, flags.children[0]);
+function ComponentInstance(elt, component) {
+    for (var i in component.fns) {
+        if (component.fns.hasOwnProperty(i)) {
+            this[i] = component.fns[i].bind(this);
+        }
+    }
+    this.elt = elt;
 }
+
+var TogglableFlags = new Component("#flag-list", {
+    setup: function() {
+        this.elt.classList.add("changed-flags");
+        this.button = document.createElement("a");
+        this.button.setAttribute("id", "flag-list-toggle");
+        this.button.innerText = "see all";
+        this.button.addEventListener("click", this.toggle);
+        this.elt.insertBefore(this.button, this.elt.children[0]);
+    },
+    toggle: function() {
+        this.elt.classList.toggle("changed-flags");
+        var changed_only = this.elt.classList.contains("changed-flags");
+        this.button.innerText = changed_only ? "see all" : "see diff";
+    }
+});
 
 function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
@@ -242,7 +257,18 @@ function load_graph() {
     submit_inputs()
 }
 
-function report() { togglable_flags();}
+function run_components() {
+    for (var i = 0; i < window.COMPONENTS.length; i++) {
+        var component = window.COMPONENTS[i];
+        var elts = document.querySelectorAll(component.selector);
+        for (var j = 0; j < elts.length; j++) {
+            var instance = new ComponentInstance(elts[j], component);
+            instance.setup();
+        }
+    }
+}
+
+function report() { run_components();}
 function graph() { load_graph(); }
 function index() { }
 function timeline() { setup_timeline(); }
