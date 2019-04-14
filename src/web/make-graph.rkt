@@ -364,7 +364,7 @@
       ,(render-program test)
 
       ,(if (not (exn:fail:user:herbie? exn))
-           `(,(render-reproduction test #:bug? #t)
+           `(,@(render-reproduction test #:bug? #t)
              (section ([id "backtrace"])
               (h1 "Backtrace")
               ,(render-traceback exn)))
