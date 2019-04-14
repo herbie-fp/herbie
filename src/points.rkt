@@ -116,7 +116,9 @@
              [err
               (log! 'nan precision pt)
               +nan.0]
-             [(and (not err?) (or (equal? lo* hi*) (and (equal? lo* -0.0) (equal? hi* +0.0))))
+             [(and (not err?) (or (equal? lo* hi*)
+                                  (and (equal? lo* -0.0) (equal? hi* +0.0))
+                                  (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
               (log! 'sampled precision pt hi*)
               hi*]
              [else
