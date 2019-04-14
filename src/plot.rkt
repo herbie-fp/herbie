@@ -25,11 +25,12 @@
   (make-axis-transform (double-transform)))
 
 (define (power10-upto x)
+  (define ->repr (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
   (if (= x 0)
       '()
       (reverse
        (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (expt 10.0 power))
+         (define value (->repr (expt 10.0 power)))
          (if (= value 0) '() (cons value (loop (- power 1))))))))
 
 (define (possible-ticks min max)
