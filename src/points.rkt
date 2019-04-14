@@ -3,7 +3,7 @@
 (require math/flonum)
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt"
-         "range-analysis.rkt" "biginterval.rkt" "syntax/softposit.rkt")
+         "range-analysis.rkt" "biginterval.rkt" "syntax/softposit.rkt" "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points sampling-method
@@ -14,11 +14,18 @@
   (require rackunit))
 
 (define/contract (sample-multi-bounded ranges)
-  (-> (listof interval?) (or/c flonum? #f))
+  (-> (listof interval?) (or/c flonum? single-flonum? #f))
+  (define-values (->ordinal <-ordinal <-exact)
+    (if (flag-set? 'precision 'double)
+        (values flonum->ordinal ordinal->flonum real->double-flonum)
+        (values (representation-repr->ordinal binary32)
+                (representation-ordinal->repr binary32)
+                real->single-flonum)))
+
   (define ordinal-ranges
     (for/list ([range ranges])
-      (match-define (interval (app exact->inexact lo) (app exact->inexact hi) lo? hi?) range)
-      (list (flonum->ordinal lo) (flonum->ordinal hi) lo? hi?)))
+      (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) range)
+      (list (->ordinal lo) (->ordinal hi) lo? hi?)))
 
   (define (points-in-range lo hi lo? hi?)
     ;; The `max` handles the case lo > hi and similar
@@ -42,7 +49,7 @@
       ;; The `(car)` is guaranteed to succeed by the construction of `sample`
       (match-define (list lo hi lo? hi?) (car ordinal-ranges))
       (if (< sample (points-in-range lo hi lo? hi?))
-          (ordinal->flonum (+ lo (if lo? 0 1) sample))
+          (<-ordinal (+ lo (if lo? 0 1) sample))
           (loop (- sample (points-in-range lo hi lo? hi?)) (cdr ordinal-ranges))))]))
 
 (module+ test
