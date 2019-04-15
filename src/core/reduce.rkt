@@ -11,7 +11,7 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
+  (map rule-input (filter (λ (rule) (herbie-variable? (rule-output rule))) (*rules*))))
 
 (define (simplify expr)
   (define expr* expr)
@@ -32,7 +32,7 @@
   (define expr ((get-evaluator) expr*))
   (match expr
     [(? constant-or-num?) expr]
-    [(? variable?) expr]
+    [(? herbie-variable?) expr]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify* body))]
     [`(lambda ,vars ,body)
@@ -48,7 +48,7 @@
 (define (simplify-node expr)
   (match expr
     [(? constant-or-num?) expr]
-    [(? variable?) expr]
+    [(? herbie-variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_))
@@ -75,7 +75,7 @@
     (match expr
       [(? number?) `((,expr 1))]
       [(? constant-or-num?) `((1 ,expr))]
-      [(? variable?) `((1 ,expr))]
+      [(? herbie-variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(- ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...)

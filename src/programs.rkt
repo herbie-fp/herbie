@@ -46,7 +46,7 @@
       [(list (or 'lambda 'λ) (list vars ...) body)
        (loop body (cons 2 loc))]
       [(? constant-or-num?) (save expr (reverse loc))]
-      [(? variable?) (save expr (reverse loc))]
+      [(? herbie-variable?) (save expr (reverse loc))]
       [(list op args ...)
        (save expr (reverse loc))
        (for ([idx (in-naturals 1)] [arg args])

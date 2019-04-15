@@ -9,12 +9,12 @@
 
 (define (definition-rule? rule)
   (and (list? (rule-input rule))
-       (andmap variable? (cdr (rule-input rule)))))
+       (andmap herbie-variable? (cdr (rule-input rule)))))
 
 (define (all-ops expr good?)
   (match expr
     [(? constant-or-num?) #t]
-    [(? variable?) #t]
+    [(? herbie-variable?) #t]
     [(list f args ...)
      (and (good? f) (andmap (curryr all-ops good?) args))]))
 

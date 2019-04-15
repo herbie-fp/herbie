@@ -24,7 +24,7 @@
                 (match expr
                   [(? constant-or-num?)
                    (cons (repeat (->bf expr)) (repeat 1))]
-                  [(? variable?)
+                  [(? herbie-variable?)
                    (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]

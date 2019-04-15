@@ -45,7 +45,7 @@
 	 (when (and (constant-or-num? var) (equal? pat var))
 	   (k '(()))))
        '()))]
-   [(variable? pat)
+   [(herbie-variable? pat)
     `(((,pat . ,e)))]
    [(list? pat)
     (apply append
@@ -65,7 +65,7 @@
   (cond
    [(constant-or-num? pat)
     (mk-enode! eg pat)]
-   [(variable? pat)
+   [(herbie-variable? pat)
     (let ([binden (cdr (assoc pat bindings))])
       binden)]
    [(list? pat)

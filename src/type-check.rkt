@@ -50,7 +50,7 @@
   (match stx
     [(or #`TRUE #`FALSE) 'bool]
     [#`,(? constant-or-num? x) 'real]
-    [#`,(? variable? x) (dict-ref env x)]
+    [#`,(? herbie-variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t 'real)
      (for ([arg exprs] [i (in-naturals)])

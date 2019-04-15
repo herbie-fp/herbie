@@ -98,7 +98,7 @@
        ;; TODO : Do something more intelligent with 'PI
        (let ([val (if (rational? c) c (->flonum c))])
          (annotation val (reverse loc) 'constant val))]
-      [(? variable? x)
+      [(? herbie-variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]
       [(list 'if cond ift iff)
        (define ift* (loop ift (cons 2 loc)))

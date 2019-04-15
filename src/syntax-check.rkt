@@ -8,7 +8,7 @@
 (define (check-expression* stx vars error!)
   (match stx
     [#`,(? constant-or-num?) (void)]
-    [#`,(? variable? var)
+    [#`,(? herbie-variable? var)
      (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]
     [#`(let ((#,vars* #,vals) ...) #,body)
