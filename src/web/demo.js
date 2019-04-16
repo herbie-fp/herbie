@@ -150,7 +150,7 @@ function hide_extra_fields() {
         if (inputs[i].tagName == "SELECT" && inputs[i].selectedIndex) return;
     }
     var $a = document.createElement("a");
-    $a.textContent = "Additional fields »";
+    $a.textContent = "Additional options »";
     $a.classList.add("show-extra");
     $extra.parentNode.insertBefore($a, $extra.nextSibling);
     $extra.style.display = "none";
