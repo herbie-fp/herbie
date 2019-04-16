@@ -534,7 +534,7 @@
   [libm lgamma lgammaf] [bf bflog-gamma] [ival #f] [cost 55]
   [->c/double (curry format "lgamma(~a)")]
   [->c/mpfr (curry format "mpfr_lngamma(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\log_* \\left( \\mathsf{gamma} ~a \\right)")]
+  [->tex (curry format "\\mathsf{lgamma} \\left( ~a \\right)")]
   [nonffi log-gamma])
 
 (define-operator/libm (log real) real
@@ -579,7 +579,7 @@
   [libm logb logbf] [bf bflogb] [ival #f] [cost 70]
   [->c/double (curry format "logb(~a)")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)")]
-  [->tex (curry format "\\log^{*}_{b} ~a")]
+  [->tex (curry format "\\log_{b} ~a")]
   [nonffi (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))])
 
 (define-operator/libm (pow real real) real
@@ -687,14 +687,14 @@
   [libm tgamma tgammaf] [bf bfgamma] [ival #f] [cost 55]
   [->c/double (curry format "tgamma(~a)")]
   [->c/mpfr (curry format "mpfr_gamma(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{gamma} ~a")]
+  [->tex (curry format "\\Gamma\\left(~a\\right)")]
   [nonffi gamma])
 
 (define-operator/libm (trunc real) real
   [libm trunc truncf] [bf bftruncate] [ival #f] [cost 55]
   [->c/double (curry format "trunc(~a)")]
   [->c/mpfr (curry format "mpfr_trunc(~a, ~a)")]
-  [->tex (curry format "\\mathsf{trunc} ~a")]
+  [->tex (curry format "\\mathsf{trunc}\\left(~a\\right)")]
   [nonffi truncate])
 
 (define-operator/libm (y0 real) real
