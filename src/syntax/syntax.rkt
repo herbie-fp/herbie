@@ -446,7 +446,7 @@
   [libm expm1 expm1f] [bf bfexpm1] [ival ival-expm1] [cost 70]
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "(e^{~a} - 1)^*")]
+  [->tex (curry format "\\mathsf{expm1}\\left(~a\\right)")]
   [nonffi (from-bigfloat bfexpm1)])
 
 (define-operator/libm (fabs real) real
@@ -482,21 +482,21 @@
   [libm fma fmaf] [bf bffma] [ival ival-fma] [cost 55]
   [->c/double (curry format "fma(~a, ~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fma(~a, ~a, ~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "(~a \\cdot ~a + ~a)_*")]
+  [->tex (curry format "\\mathsf{fma}\\left(~a, ~a, ~a\\right)")]
   [nonffi (λ (x y z) (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))])
 
 (define-operator/libm (fmax real real) real
   [libm fmax fmaxf] [bf bfmax] [ival #f] [cost 55]
   [->c/double (curry format "fmax(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{fmax}\\left(~a, ~a\\right)")]
+  [->tex (curry format "\\mathsf{max}\\left(~a, ~a\\right)")]
   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (max x y)]))])
 
 (define-operator/libm (fmin real real) real
   [libm fmin fminf] [bf bfmin] [ival #f] [cost 55]
   [->c/double (curry format "fmin(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{fmin}\\left(~a, ~a\\right)")]
+  [->tex (curry format "\\mathsf{min}\\left(~a, ~a\\right)")]
   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (min x y)]))])
 
 (define (bffmod x mod)
@@ -513,21 +513,21 @@
   [libm hypot hypotf] [bf bfhypot] [ival ival-hypot] [cost 55]
   [->c/double (curry format "hypot(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_hypot(~a, ~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\sqrt{~a^2 + ~a^2}^*")]
+  [->tex (curry format "\\mathsf{hypot}\\left(~a, ~a\\right)")]
   [nonffi (from-bigfloat bfhypot)])
 
 (define-operator/libm (j0 real) real
   [libm j0 j0f] [bf bfbesj0] [ival #f] [cost 55]
   [->c/double (curry format "j0(~a)")]
   [->c/mpfr (curry format "mpfr_j0(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{j0} ~a")]
+  [->tex (curry format "j_0\\left(~a\\right)")]
   [nonffi (from-bigfloat bfbesj0)])
 
 (define-operator/libm (j1 real) real
   [libm j1 j1f] [bf bfbesj1] [ival #f] [cost 55]
   [->c/double (curry format "j1(~a)")]
   [->c/mpfr (curry format "mpfr_j1(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{j1} ~a")]
+  [->tex (curry format "j_1\\left(~a\\right)")]
   [nonffi (from-bigfloat bfbesj1)])
 
 (define-operator/libm (lgamma real) real
@@ -562,7 +562,7 @@
   [libm log1p log1pf] [bf bflog1p] [ival ival-log1p] [cost 90]
   [->c/double (curry format "log1p(~a)")]
   [->c/mpfr (curry format "mpfr_log1p(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\log_* (1 + ~a)")]
+  [->tex (curry format "\\mathsf{log1p}\\left(~a\\right)")]
   [nonffi (from-bigfloat bflog1p)])
 
 (define-operator/libm (log2 real) real
@@ -701,14 +701,14 @@
   [libm y0 y0f] [bf bfbesy0] [ival #f] [cost 55]
   [->c/double (curry format "y0(~a)")]
   [->c/mpfr (curry format "mpfr_y0(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{y0} ~a")]
+  [->tex (curry format "y_0\\left(~a\\right)")]
   [nonffi (from-bigfloat bfbesy0)])
 
 (define-operator/libm (y1 real) real
   [libm y1 y1f] [bf bfbesy1] [ival #f] [cost 55]
   [->c/double (curry format "y1(~a)")]
   [->c/mpfr (curry format "mpfr_y1(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{y1} ~a")]
+  [->tex (curry format "y_1\\left(~a\\right)")]
   [nonffi (from-bigfloat bfbesy1)])
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
