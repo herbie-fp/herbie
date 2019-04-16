@@ -11,6 +11,7 @@ p, li, dd, blockquote, figcaption {
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
   margin: .5em 0;
 }
+dd { margin: .5em 0 1em; }
 
 .showcase { background: #ddd; padding: 1em; margin: 4em 0; clear: both;}
 .showcase figcaption {font-size: 15px; line-height: 1.4; margin-top: 1em;}
