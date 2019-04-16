@@ -3,12 +3,12 @@ FUNCTIONS = {
     "+": [2], "-": [1, 2], "*": [2], "/": [2], "fabs": [1],
     "<": [2], ">": [2], "==": [2], "!=": [2], "<=": [2], ">=": [2],
     "and": [2], "or": [2],
-    "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "pow": [2],
+    "sqrt": [1], "exp": [1], "log": [1], "pow": [2],
     "sin": [1], "cos": [1], "tan": [1], "cot": [1],
     "asin": [1], "acos": [1], "atan": [1],
     "sinh": [1], "cosh": [1], "tanh": [1],
     "asinh": [1], "acosh": [1], "atanh": [1],
-    "cbrt": [1], "cube": [1], "ceil": [1], "copysign": [2],
+    "cbrt": [1], "ceil": [1], "copysign": [2],
     "erf": [1], "erfc": [1], "exp2": [1], "expm1": [1],
     "fdim": [2], "floor": [1], "fma": [3], "fmax": [2],
     "fmin": [2], "fmod": [2], "hypot": [2],
@@ -18,7 +18,7 @@ FUNCTIONS = {
     "tgamma": [1], "trunc": [1], "y0": [1], "y1": [1]
 }
 
-SECRETFUNCTIONS = {"^": "pow", "**": "pow", "abs": "fabs"}
+SECRETFUNCTIONS = {"^": "pow", "**": "pow", "abs": "fabs", "min": "fmin", "max": "fmax", "mod": "fmod"}
 
 function tree_errors(tree) /* tree -> list */ {
     var messages = [];
