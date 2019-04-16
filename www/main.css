@@ -29,6 +29,10 @@ header li { display: inline-block; margin: 0 .5em; }
 header li::before { content: "•"; margin-right: 1em; }
 header li:first-child::before { content: none; }
 
+.toc { margin: 2em 0; background: #eee; padding: 1em; }
+.toc::before { content: "Table of Contents"; font-size: 110%; font-weight: bold; }
+.toc ul { list-style: outside none; padding: 0; }
+
 svg {margin: 0 auto; display: block;}
 
 pre {padding-left: 2em; font-size: 16px; font-family: monospace;}
