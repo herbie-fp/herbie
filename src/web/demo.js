@@ -89,7 +89,7 @@ function dump_fpcore(formula, pre, precision) /* tree string -> string */ {
     if (pre) fpcore += " :pre " + precondition;
     if (precision) fpcore += " :precision " + precision;
 
-    return fpcore + " "  + body.res + ")";
+    return fpcore + " "  + body + ")";
 }
 
 function dump_tree(tree, names) {
@@ -128,6 +128,7 @@ function get_errors() {
             errors.push("" + e);
         }
     }
+    return errors;
 }
 
 function check_errors() {
@@ -168,7 +169,7 @@ function onload() /* null -> null */ {
     input.removeAttribute("disabled");
     var pre = document.querySelector("#formula input[name=pre]");
     pre.setAttribute("name", "pre-math");
-    pre.setAttribute("placeholder", "True");
+    pre.setAttribute("placeholder", "TRUE");
     pre.removeAttribute("disabled");
     var prec = document.querySelector("#formula select[name=precision]");
     var hinput = document.createElement("input");
@@ -193,12 +194,13 @@ function onload() /* null -> null */ {
             document.getElementById("errors").innerHTML = "";
         }
 
-        hinput.setAttribute("value", dump_fpcore(input.value, pre.value, prec.value));
+        var fpcore = dump_fpcore(input.value, /*pre.value*/ "TRUE", /*prec.value*/ "binary64");
+        hinput.setAttribute("value", fpcore);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
         if (url) {
             input.disabled = "true";
-            ajax_submit(url, txt, lisp);
+            ajax_submit(url, fpcore);
             evt.preventDefault();
             return false;
         } else {
@@ -242,7 +244,7 @@ function get_progress(loc) {
     req2.send();
 }
 
-function ajax_submit(url, text, lisp) {
+function ajax_submit(url, lisp) {
     document.getElementById("progress").style.display = "block";
     var req = new XMLHttpRequest();
     req.open("POST", url);
