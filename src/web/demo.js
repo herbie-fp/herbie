@@ -92,6 +92,32 @@ function dump_fpcore(formula, pre, precision) {
     return fpcore + " "  + body + ")";
 }
 
+function is_comparison(name) {
+    return ["==", "!=", "<", ">", "<=", ">="].indexOf(name) !== -1;
+}
+
+function flatten_comparisons(node) {
+    var terms = [];
+    (function collect_terms(node) {
+        if (node.type == "OperatorNode" && is_comparison(node.name)) {
+            collect_terms(node.args[0]);
+            collect_terms(node.args[1]);
+        } else {
+            terms.push(node.res);
+        }
+    })(node);
+    var conjuncts = [];
+    (function do_flatten(node) {
+        if (node.type == "OperatorNode" && is_comparison(node.name)) {
+            do_flatten(node.args[0]);
+            var i = conjuncts.length;
+            conjuncts.append("(" + node.op + " " + terms[i] + " " + terms[i+1] + ")");
+            do_flatten(node.args[1]);
+        }
+    })(node);
+    return "(and " + conjuncts.join(" ") + ")";
+}
+
 function dump_tree(tree, names) {
     function extract(args) {return args.map(function(n) {return n.res});}
     return bottom_up(tree, function(node) {
@@ -103,7 +129,11 @@ function dump_tree(tree, names) {
             return "(" + node.name + " " + extract(node.args).join(" ") + ")";
         case "OperatorNode":
             node.op = SECRETFUNCTIONS[node.op] || node.op;
-            return "(" + node.op + " " + extract(node.args).join(" ") + ")";
+            if (is_comparison(node.name)) {
+                return flatten_comparison(node);
+            } else {
+                return "(" + node.op + " " + extract(node.args).join(" ") + ")";
+            }
         case "SymbolNode":
             if (CONSTANTS.indexOf(node.name) === -1)
                 names.push(node.name);
