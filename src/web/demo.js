@@ -1,6 +1,8 @@
-CONSTANTS = ["PI", "E"]
+CONSTANTS = ["PI", "E", "TRUE", "FALSE"]
 FUNCTIONS = {
     "+": [2], "-": [1, 2], "*": [2], "/": [2], "fabs": [1],
+    "<": [2], ">": [2], "==": [2], "!=": [2], "<=": [2], ">=": [2],
+    "and": [2], "or": [2],
     "sqrt": [1], "sqr": [1], "exp": [1], "log": [1], "pow": [2],
     "sin": [1], "cos": [1], "tan": [1], "cot": [1],
     "asin": [1], "acos": [1], "atan": [1],
@@ -69,10 +71,30 @@ function bottom_up(tree, cb) {
     return tree;
 }
 
-function dump_tree(tree, txt) /* tree string -> string */ {
-    function extract(args) {return args.map(function(n) {return n.res});}
+function dump_fpcore(formula, pre, precision) /* tree string -> string */ {
+    var tree = math.parse(formula);
+    var ptree = math.parse(pre);
+
     var names = [];
-    var body = bottom_up(tree, function(node) {
+    var body = dump_tree(tree, names);
+    var precondition = dump_tree(ptree, names);
+
+    var dnames = [];
+    for (var i = 0; i < names.length; i++) {
+        if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
+    }
+
+    var name = formula.replace("\\", "\\\\").replace("\"", "\\\"");
+    var fpcore = "(FPCore (" + dnames.join(" ") + ") :name \"" + name + "\"";
+    if (pre) fpcore += " :pre " + precondition;
+    if (precision) fpcore += " :precision " + precision;
+
+    return fpcore + " "  + body.res + ")";
+}
+
+function dump_tree(tree, names) {
+    function extract(args) {return args.map(function(n) {return n.res});}
+    return bottom_up(tree, function(node) {
         switch(node.type) {
         case "ConstantNode":
             return "" + node.value;
@@ -86,61 +108,83 @@ function dump_tree(tree, txt) /* tree string -> string */ {
             if (CONSTANTS.indexOf(node.name) === -1)
                 names.push(node.name);
             return node.name;
+        case "ConditionalNode":
+            return "(if " + extract(node.condition) + 
+                " " + extract(node.trueExpr) + 
+                " " + extract(node.falseExpr) + ")";
         default:
             throw SyntaxError("Invalid tree!");
         }
-    });
+    }).res;
+}
 
-    var dnames = [];
-    for (var i = 0; i < names.length; i++) {
-        if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
+function get_errors() {
+    var tree, errors = [];
+    for (var i = 0; i < arguments.length; i++) {
+        try {
+            tree = math.parse(arguments[i]);
+            errors = errors.concat(tree_errors(tree));
+        } catch (e) {
+            errors.push("" + e);
+        }
     }
+}
 
-    var name = txt.replace("\\", "\\\\").replace("\"", "\\\"");
-    return "(FPCore (" + dnames.join(" ") + ") :name \"" + name + "\" "  + body.res + ")";
+function check_errors() {
+    var input = document.querySelector("#formula input[name=formula]");
+    var pre = document.querySelector("#formula input[name=pre]");
+    var errors = get_errors(input.value, pre.value || "TRUE");
+
+    if (input.value && errors.length > 0) {
+        document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
+    } else {
+        document.getElementById("errors").innerHTML = "";
+    }
+}
+
+function hide_extra_fields() {
+    var $extra = document.querySelector("#formula .extra-fields");
+    var inputs = $extra.querySelectorAll("input, select");
+    for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i].tagName == "INPUT" && inputs[i].value) return;
+        if (inputs[i].tagName == "SELECT" && inputs[i].selectedIndex) return;
+    }
+    var $a = document.createElement("a");
+    $a.textContent = "Additional fields »";
+    $a.classList.add("show-extra");
+    $extra.parentNode.insertBefore($a, $extra.nextSibling);
+    $extra.style.display = "none";
+    $a.addEventListener("click", function() {
+        $extra.style.display = "block";
+        $a.style.display = "none";
+    });
 }
 
 function onload() /* null -> null */ {
     var form = document.getElementById("formula");
-    var input = document.querySelector("#formula input");
+    var input = document.querySelector("#formula input[name=formula]");
     input.setAttribute("name", "formula-math");
     input.setAttribute("placeholder", "sqrt(x + 1) - sqrt(x)");
     input.removeAttribute("disabled");
-    var hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.setAttribute("name", "formula");
-    form.appendChild(hidden);
+    var pre = document.querySelector("#formula input[name=pre]");
+    pre.setAttribute("name", "pre-math");
+    pre.setAttribute("placeholder", "True");
+    pre.removeAttribute("disabled");
+    var prec = document.querySelector("#formula select[name=precision]");
+    var hinput = document.createElement("input");
+    hinput.type = "hidden";
+    hinput.setAttribute("name", "formula");
+    form.appendChild(hinput);
+    hide_extra_fields();
 
     document.getElementById("mathjs-instructions").style.display = "block";
     document.getElementById("lisp-instructions").style.display = "none";
 
-    input.addEventListener("keyup", function(evt) {
-        var txt = input.value;
-        var tree, errors = [];
-        try {
-            tree = math.parse(txt);
-            errors = tree_errors(tree);
-        } catch (e) {
-            errors = ["" + e];
-        }
-
-        if (txt && errors.length > 0) {
-            document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
-        } else {
-            document.getElementById("errors").innerHTML = "";
-        }
-    });
+    input.addEventListener("keyup", check_errors);
+    pre.addEventListener("keyup", check_errors);
 
     form.addEventListener("submit", function(evt) {
-        var txt = input.value;
-        var tree, errors;
-        try {
-            tree = math.parse(txt);
-            errors = tree_errors(tree);
-        } catch (e) {
-            errors = ["" + e];
-        }
-
+        var errors = get_errors(input.value, pre.value || "TRUE");
         if (errors.length > 0) {
             document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
             evt.preventDefault();
@@ -149,8 +193,7 @@ function onload() /* null -> null */ {
             document.getElementById("errors").innerHTML = "";
         }
 
-        var lisp = dump_tree(tree, txt);
-        hidden.setAttribute("value", lisp);
+        hinput.setAttribute("value", dump_fpcore(input.value, pre.value, prec.value));
 
         var url = document.getElementById("formula").getAttribute("data-progress");
         if (url) {

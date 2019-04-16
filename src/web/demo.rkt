@@ -100,6 +100,13 @@
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+           (div ([class "extra-fields"])
+             (label ([for "pre"]) "Precondition")
+             (input ([name "pre"] [id "pre"] [placeholder "TRUE"]))
+             (label ([for "precision"]) "Precision")
+             (select ([name "precision"] [id "precision"])
+               (option ([value "binary64"]) "Double-precision floats")
+               (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
