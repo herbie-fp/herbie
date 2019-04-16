@@ -71,7 +71,7 @@ function bottom_up(tree, cb) {
     return tree;
 }
 
-function dump_fpcore(formula, pre, precision) /* tree string -> string */ {
+function dump_fpcore(formula, pre, precision) {
     var tree = math.parse(formula);
     var ptree = math.parse(pre);
 
@@ -132,8 +132,8 @@ function get_errors() {
 }
 
 function check_errors() {
-    var input = document.querySelector("#formula input[name=formula]");
-    var pre = document.querySelector("#formula input[name=pre]");
+    var input = document.querySelector("#formula input[name=formula-math]");
+    var pre = document.querySelector("#formula input[name=pre-math]");
     var errors = get_errors(input.value, pre.value || "TRUE");
 
     if (input.value && errors.length > 0) {
@@ -161,7 +161,7 @@ function hide_extra_fields() {
     });
 }
 
-function onload() /* null -> null */ {
+function onload() {
     var form = document.getElementById("formula");
     var input = document.querySelector("#formula input[name=formula]");
     input.setAttribute("name", "formula-math");
@@ -194,7 +194,7 @@ function onload() /* null -> null */ {
             document.getElementById("errors").innerHTML = "";
         }
 
-        var fpcore = dump_fpcore(input.value, /*pre.value*/ "TRUE", /*prec.value*/ "binary64");
+        var fpcore = dump_fpcore(input.value, pre.value, prec.value);
         hinput.setAttribute("value", fpcore);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
@@ -216,13 +216,9 @@ function clean_progress(str) {
         var line = lines[i];
         var words = line.split("  ");
         var word0 = words.shift();
-        outlines.push(htmlescape((word0.substring(0, 6) === "* * * " ? "* " : "") + words.join("  ")));
+        outlines.push((word0.substring(0, 6) === "* * * " ? "* " : "") + words.join("  "));
     }
     return outlines.join("\n");
-}
-
-function htmlescape(str) {
-    return ("" + str).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 }
 
 function get_progress(loc) {
@@ -231,7 +227,7 @@ function get_progress(loc) {
     req2.onreadystatechange = function() {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
-                document.getElementById("progress").innerHTML = clean_progress(req2.responseText);
+                document.getElementById("progress").textContent = clean_progress(req2.responseText);
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
                 var loc2 = req2.getResponseHeader("Location");

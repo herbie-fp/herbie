@@ -108,7 +108,8 @@
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
-           (pre ([id "progress"] [style "display: none;"])))
+           (pre ([id "progress"] [style "display: none;"]))
+           (input ([type "submit"])))
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
