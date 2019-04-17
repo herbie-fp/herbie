@@ -1,62 +1,92 @@
-CONSTANTS = ["PI", "E", "TRUE", "FALSE"]
-FUNCTIONS = {
-    "+": [2], "-": [1, 2], "*": [2], "/": [2], "fabs": [1],
-    "<": [2], ">": [2], "==": [2], "!=": [2], "<=": [2], ">=": [2],
-    "and": [2], "or": [2],
-    "sqrt": [1], "exp": [1], "log": [1], "pow": [2],
-    "sin": [1], "cos": [1], "tan": [1], "cot": [1],
-    "asin": [1], "acos": [1], "atan": [1],
-    "sinh": [1], "cosh": [1], "tanh": [1],
-    "asinh": [1], "acosh": [1], "atanh": [1],
-    "cbrt": [1], "ceil": [1], "copysign": [2],
-    "erf": [1], "erfc": [1], "exp2": [1], "expm1": [1],
-    "fdim": [2], "floor": [1], "fma": [3], "fmax": [2],
-    "fmin": [2], "fmod": [2], "hypot": [2],
-    "j0": [1], "j1": [1], "lgamma": [1], "log10": [1],
-    "log1p": [1], "log2": [1], "logb": [1],
-    "remainder": [2], "rint": [1], "round": [1],
-    "tgamma": [1], "trunc": [1], "y0": [1], "y1": [1]
-}
+CONSTANTS = {"PI": "real", "E": "real", "TRUE": "bool", "FALSE": "bool"}
+
+FUNCTIONS = {}
+
+"+ - * / pow copysign fdim fmin fmax fmod hypot remainder".split(" ").forEach(function(op) {
+    FUNCTIONS[op] = [["real", "real"], "real"];
+});
+("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh" +
+ "cbrt ceil erf erfc exp2 expm1 floor j0 j1 lgamma log10 log1p log2 logb rint" + 
+ "round tgama trunc y0 y1").split(" ").forEach(function(op) {
+     FUNCTIONS[op] = [["real"], "real"];
+});
+FUNCTIONS["fma"] = [["real", "real", "real"], "real"];
+"< > == != <= >=".split(" ").forEach(function(op) {
+    FUNCTIONS[op] = [["real", "real"], "bool"];
+});
+"and or".split(" ").forEach(function(op) {
+    FUNCTIONS[op] = [["bool", "bool"], "bool"];
+});
 
 SECRETFUNCTIONS = {"^": "pow", "**": "pow", "abs": "fabs", "min": "fmin", "max": "fmax", "mod": "fmod"}
 
-function tree_errors(tree) /* tree -> list */ {
+function tree_errors(tree, expected) /* tree -> list */ {
     var messages = [];
     var names = [];
 
-    bottom_up(tree, function(node, path, parent) {
+    var rtype = bottom_up(tree, function(node, path, parent) {
         switch(node.type) {
         case "ConstantNode":
-            if (node.valueType !== "number")
+            if (["number", "boolean"].indexOf(node.valueType) === -1) {
                 messages.push("Constants that are " + node.valueType + "s not supported.");
-            break;
+            }
+            return ({"number": "real", "boolean": "bool"})[node.valueType] || "real";
         case "FunctionNode":
             node.name = SECRETFUNCTIONS[node.name] || node.name;
             if (!FUNCTIONS[node.name]) {
                 messages.push("Function <code>" + node.name + "</code> unsupported.");
-            } else if (FUNCTIONS[node.name].indexOf(node.args.length) === -1) {
+            } else if (FUNCTIONS[node.name][0].length !== node.args.length) {
                 messages.push("Function <code>" + node.name + "</code> expects " +
-                              FUNCTIONS[node.name].join(" or ") + " arguments");
+                              FUNCTIONS[node.name][0].length + " arguments");
+            } else if (""+extract(node.args) !== ""+FUNCTIONS[node.name][0]) {
+                messages.push("Function <code>" + node.name + "</code>" +
+                              " expects arguments of type " +
+                              FUNCTIONS[node.name][0].join(", ") +
+                              ", got " + extract(node.args).join(", "));
             }
-            break;
+            return (FUNCTIONS[node.name] || [[], "real"])[1];
         case "OperatorNode":
             node.op = SECRETFUNCTIONS[node.op] || node.op;
             if (!FUNCTIONS[node.op]) {
                 messages.push("Operator <code>" + node.op + "</code> unsupported.");
-            } else if (FUNCTIONS[node.op].indexOf(node.args.length) === -1) {
+            } else if (FUNCTIONS[node.op][0].length !== node.args.length &&
+                       !(node.op === "-" && node.args.length === 1)) {
                 messages.push("Operator <code>" + node.op + "</code> expects " +
-                              FUNCTIONS[node.op].join(" or ") + " arguments");
+                              FUNCTIONS[node.op][0].length + " arguments");
+            } else if (""+extract(node.args) !== ""+FUNCTIONS[node.op][0] &&
+                       !(node.op === "-" && ""+extract(node.args) === "real") &&
+                       !(is_comparison(node.op) /* TODO improve */)) {
+                messages.push("Operator <code>" + node.op + "</code>" +
+                              " expects arguments of type " +
+                              FUNCTIONS[node.op][0].join(", ") +
+                              ", got " + extract(node.args).join(", "));
             }
-            break;
+            return (FUNCTIONS[node.op] || [[], "real"])[1];
         case "SymbolNode":
-            if (CONSTANTS.indexOf(node.name) === -1)
+            if (!CONSTANTS[node.name]) {
                 names.push(node.name);
-            break;
+                return "real";
+            } else {
+                return CONSTANTS[node.name];
+            }
+        case "ConditionalNode":
+            console.log(node);
+            if (node.condition.res !== "bool") {
+                messages.push("Conditional has type " + node.condition.res + " instead of bool");
+            }
+            if (node.trueExpr.res !== node.falseExpr.res) {
+                messages.push("Conditional branches have different types " + node.trueExpr.res + " and " + node.falseExpr.res);
+            }
+            return node.trueExpr.res;
         default:
             messages.push("Unsupported syntax; found unexpected <code>" + node.type + "</code>.")
-            break;
+            return "real";
         }
-    });
+    }).res;
+
+    if (rtype !== expected) {
+        messages.push("Expected an expression of type " + expected + ", got " + rtype);
+    }
 
     return messages;
 }
@@ -64,10 +94,12 @@ function tree_errors(tree) /* tree -> list */ {
 function bottom_up(tree, cb) {
     if (tree.args) {
         tree.args = tree.args.map(function(node) {return bottom_up(node, cb)});
-        tree.res = cb(tree);
-    } else {
-        tree.res = cb(tree);
+    } else if (tree.condition) {
+        tree.condition = bottom_up(tree.condition, cb);
+        tree.trueExpr = bottom_up(tree.trueExpr, cb);
+        tree.falseExpr = bottom_up(tree.falseExpr, cb);
     }
+    tree.res = cb(tree);
     return tree;
 }
 
@@ -99,7 +131,7 @@ function is_comparison(name) {
 function flatten_comparisons(node) {
     var terms = [];
     (function collect_terms(node) {
-        if (node.type == "OperatorNode" && is_comparison(node.name)) {
+        if (node.type == "OperatorNode" && is_comparison(node.op)) {
             collect_terms(node.args[0]);
             collect_terms(node.args[1]);
         } else {
@@ -108,18 +140,19 @@ function flatten_comparisons(node) {
     })(node);
     var conjuncts = [];
     (function do_flatten(node) {
-        if (node.type == "OperatorNode" && is_comparison(node.name)) {
+        if (node.type == "OperatorNode" && is_comparison(node.op)) {
             do_flatten(node.args[0]);
             var i = conjuncts.length;
-            conjuncts.append("(" + node.op + " " + terms[i] + " " + terms[i+1] + ")");
+            conjuncts.push("(" + node.op + " " + terms[i] + " " + terms[i+1] + ")");
             do_flatten(node.args[1]);
         }
     })(node);
     return "(and " + conjuncts.join(" ") + ")";
 }
 
+function extract(args) {return args.map(function(n) {return n.res});}
+
 function dump_tree(tree, names) {
-    function extract(args) {return args.map(function(n) {return n.res});}
     return bottom_up(tree, function(node) {
         switch(node.type) {
         case "ConstantNode":
@@ -129,8 +162,8 @@ function dump_tree(tree, names) {
             return "(" + node.name + " " + extract(node.args).join(" ") + ")";
         case "OperatorNode":
             node.op = SECRETFUNCTIONS[node.op] || node.op;
-            if (is_comparison(node.name)) {
-                return flatten_comparison(node);
+            if (is_comparison(node.op)) {
+                return flatten_comparisons(node);
             } else {
                 return "(" + node.op + " " + extract(node.args).join(" ") + ")";
             }
@@ -152,8 +185,8 @@ function get_errors() {
     var tree, errors = [];
     for (var i = 0; i < arguments.length; i++) {
         try {
-            tree = math.parse(arguments[i]);
-            errors = errors.concat(tree_errors(tree));
+            tree = math.parse(arguments[i][0]);
+            errors = errors.concat(tree_errors(tree, arguments[i][1]));
         } catch (e) {
             errors.push("" + e);
         }
@@ -164,7 +197,7 @@ function get_errors() {
 function check_errors() {
     var input = document.querySelector("#formula input[name=formula-math]");
     var pre = document.querySelector("#formula input[name=pre-math]");
-    var errors = get_errors(input.value, pre.value || "TRUE");
+    var errors = get_errors([input.value, "real"], [pre.value || "TRUE", "bool"]);
 
     if (input.value && errors.length > 0) {
         document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
@@ -215,7 +248,7 @@ function onload() {
     pre.addEventListener("keyup", check_errors);
 
     form.addEventListener("submit", function(evt) {
-        var errors = get_errors(input.value, pre.value || "TRUE");
+        var errors = get_errors([input.value, "real"], [pre.value || "TRUE", "bool"]);
         if (errors.length > 0) {
             document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
             evt.preventDefault();
