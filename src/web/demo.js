@@ -70,7 +70,6 @@ function tree_errors(tree, expected) /* tree -> list */ {
                 return CONSTANTS[node.name];
             }
         case "ConditionalNode":
-            console.log(node);
             if (node.condition.res !== "bool") {
                 messages.push("Conditional has type " + node.condition.res + " instead of bool");
             }
@@ -168,13 +167,13 @@ function dump_tree(tree, names) {
                 return "(" + node.op + " " + extract(node.args).join(" ") + ")";
             }
         case "SymbolNode":
-            if (CONSTANTS.indexOf(node.name) === -1)
+            if (!CONSTANTS[node.name])
                 names.push(node.name);
             return node.name;
         case "ConditionalNode":
-            return "(if " + extract(node.condition) + 
-                " " + extract(node.trueExpr) + 
-                " " + extract(node.falseExpr) + ")";
+            return "(if " + node.condition.res + 
+                " " + node.trueExpr.res + 
+                " " + node.falseExpr.res + ")";
         default:
             throw SyntaxError("Invalid tree!");
         }
