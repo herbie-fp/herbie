@@ -142,3 +142,7 @@ function draw_results(node) {
         }
     });
 }
+
+var ArrowChart = new Component("svg.arrow-chart", {
+    setup: function() { draw_results(this.elt); }
+});

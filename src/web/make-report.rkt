@@ -84,9 +84,7 @@
        ,(render-large "Tests" (~a (length tests)))
        ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
  
-      (figure
-       (svg ((id "graph") (width "400")))
-       (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
+      (figure (svg ((id "graph") (class "arrow-chart") (width "400"))))
  
      (ul ((id "test-badges"))
       ,@(for/list ([(result id) (in-dict sorted-tests)])
