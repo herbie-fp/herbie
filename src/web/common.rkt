@@ -1,7 +1,7 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
-(require "../formats/c.rkt" "../formats/tex.rkt")
+(require "../formats/tex.rkt")
 (provide render-menu render-warnings render-large render-program)
 
 (define/contract (render-menu sections links)

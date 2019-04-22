@@ -4,7 +4,7 @@
 (require fpbench)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
-(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
+(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 (require "timeline.rkt" "common.rkt")
 
