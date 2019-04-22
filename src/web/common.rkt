@@ -2,6 +2,7 @@
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
 (require "../formats/tex.rkt")
+(require fpbench-package)
 (provide render-menu render-warnings render-large render-program)
 
 (define/contract (render-menu sections links)
@@ -36,7 +37,7 @@
 
 (define languages
   `(("TeX" . ,texify-prog)
-    ("C" . ,program->c)))
+    ("C" . ,core->c)))
 
 (define (render-program #:to [result #f] test)
   `(section ([id "program"])
