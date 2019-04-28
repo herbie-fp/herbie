@@ -9,7 +9,9 @@
 
 
 (struct table-row
-  (name status pre start result target inf- inf+ start-est result-est vars input output time bits link) #:prefab)
+  (name status pre precision vars input output
+        start result target inf- inf+ start-est result-est
+        time bits link) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
@@ -30,11 +32,13 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status pre start-bits end-bits target-bits
-                  inf- inf+ start-est end-est vars input output time bits link)
+      [(table-row name status pre prec vars input output
+                  start-bits end-bits target-bits inf- inf+ start-est end-est
+                  time bits link)
        (make-hash
         `((name . ,name)
           (pre . ,(write-string (write pre)))
+          (prec . (symbol->string prec))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)
@@ -95,7 +99,9 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (get 'start) (get 'end) (get 'target)
-                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (symbol->string (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
+                                (get 'start) (get 'end) (get 'target)
+                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                                
                                 (get 'time) (get 'bits) (get 'link)))))))

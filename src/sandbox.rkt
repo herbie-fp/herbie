@@ -135,8 +135,9 @@
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
-  (table-row (test-name test) status (test-precondition test)
-             #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
+  (table-row (test-name test) status (test-precondition test) (test-precision test)
+             (test-vars test) (test-input test) #f
+             #f #f #f #f #f #f #f
              (test-result-time result) (test-result-bits result) link))
 
 (define (get-table-data result link)
@@ -172,16 +173,17 @@
                         [(< end-score (+ start-score 1)) "apx-start"]
                         [else "uni-start"]))
                    (test-precondition test)
+                   (test-precision test)
+                   (program-variables (alt-program (test-success-start-alt result)))
+                   (program-body (alt-program (test-success-start-alt result)))
+                   (program-body (alt-program (test-success-end-alt result)))
                    start-score
                    end-score
-                   (and target-score target-score)
+                   target-score
                    (length good-inf)
                    (length bad-inf)
                    est-start-score
                    est-end-score
-                   (program-variables (alt-program (test-success-start-alt result)))
-                   (program-body (alt-program (test-success-start-alt result)))
-                   (program-body (alt-program (test-success-end-alt result)))
                    (test-result-time result)
                    (test-result-bits result)
                    link)))]
@@ -205,7 +207,7 @@
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
      :name ,(table-row-name row)
-     ;:precision ,(table-row-precision row)
+     :precision ,(table-row-precision row)
      ,@(if (eq? (table-row-pre row) 'TRUE)
            '()
            `(:pre ,(resugar-program (table-row-pre row))))
