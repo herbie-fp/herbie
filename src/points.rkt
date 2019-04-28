@@ -73,7 +73,8 @@
   (match expr
     [(list op args ...)
      (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
-    [(or (? variable?) (? constant?)) true]))
+    [(? variable?) true]
+    [(? constant?) (constant-info op 'ival)]))
 
 (module+ test
   (require "formats/test.rkt")

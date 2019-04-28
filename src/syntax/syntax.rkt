@@ -36,7 +36,7 @@
   [type type?]
   [bf (->* () bigvalue?)]
   [fl (->* () value?)]
-  [ival (->* () ival?)]
+  [ival (or/c (->* () ival?) #f)]
   [nonffi (->* () value?)]
   [->c/double string?]
   [->c/mpfr (->* (string?) string?)]
@@ -83,6 +83,15 @@
   [->c/double "0"]
   [->c/mpfr (curry format "mpfr_set_si(~a, 0, MPFR_RNDN)")]
   [->tex "\\perp"])
+
+(define-constant I complex
+  [bf (λ () (bigcomplex 0.bf 1.bf))]
+  [fl (const 0+1i)]
+  [nonffi (const 0+1i)]
+  [ival #f]
+  [->c/double "/* Complex numbers not supported in C */"]
+  [->c/mpfr "/* Complex numbers not supported in C */"]
+  [->tex "i"])
 
 ;; TODO: The contracts for operators are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
@@ -962,7 +971,7 @@
   [->tex (curry format "\\Im(~a)")]
   [nonffi imag-part])
 
-(define-operator (conj complex) real
+(define-operator (conj complex) complex
   ; Override number of arguments
   [fl conjugate] [bf bf-complex-conjugate] [cost 0] [ival #f]
   [->c/double (const "/* ERROR: no complex support in C */")]
