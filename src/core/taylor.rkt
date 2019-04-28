@@ -398,16 +398,6 @@
   (for/list ([run (group-by identity l)])
     (cons (length run) (car run))))
 
-(define (partition-list n)
-  (define (aux n k)
-    (cond
-     [(= n 0) '(())]
-     [(< n k) '()]
-     [else
-      (append (map (curry cons k) (aux (- n k) k))
-              (aux n (+ k 1)))]))
-  (map rle (aux n 1)))
-
 (define (taylor-exp coeffs)
   (let* ([hash (make-hash)])
     (hash-set! hash 0 (simplify `(exp ,(coeffs 0))))
@@ -418,11 +408,11 @@
                          (simplify
                           `(* (exp ,(coeffs 0))
                               (+
-                               ,@(for/list ([p (partition-list n)])
+                               ,@(for/list ([p (map rle (all-partitions n))])
                                    `(*
-                                     ,@(for/list ([factor p])
-                                         `(/ (pow ,(coeffs (cdr factor)) ,(car factor))
-                                             ,(factorial (car factor)))))))))))))))
+                                     ,@(for/list ([(count num) (in-dict p)])
+                                         `(/ (pow ,(coeffs num) ,count)
+                                             ,(factorial count))))))))))))))
 
 (define (taylor-sin coeffs)
   (let ([hash (make-hash)])
@@ -433,12 +423,12 @@
                        (λ ()
                          (simplify
                           `(+
-                            ,@(for/list ([p (partition-list n)])
+                            ,@(for/list ([p (map rle (all-partitions n))])
                                 (if (= (modulo (apply + (map car p)) 2) 1)
                                     `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                        ,@(for/list ([factor p])
-                                            `(/ (pow ,(coeffs (cdr factor)) ,(car factor))
-                                                ,(factorial (car factor)))))
+                                        ,@(for/list ([(count num) (in-dict p)])
+                                            `(/ (pow ,(coeffs num) ,count)
+                                                ,(factorial count))))
                                     0))))))))))
 
 (define (taylor-pow coeffs n)
@@ -462,12 +452,12 @@
                        (λ ()
                          (simplify
                           `(+
-                            ,@(for/list ([p (partition-list n)])
+                            ,@(for/list ([p (map rle (all-partitions n))])
                                 (if (= (modulo (apply + (map car p)) 2) 0)
                                     `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                        ,@(for/list ([factor p])
-                                            `(/ (pow ,(coeffs (cdr factor)) ,(car factor))
-                                                ,(factorial (car factor)))))
+                                        ,@(for/list ([(count num) (in-dict p)])
+                                            `(/ (pow ,(coeffs num) ,count)
+                                                ,(factorial count))))
                                     0))))))))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))

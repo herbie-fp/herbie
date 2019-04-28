@@ -8,7 +8,7 @@
 (provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
-         take-up-to flip-lists list/true find-duplicates
+         take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
          random-exp parse-flag get-seed set-seed!
@@ -273,3 +273,11 @@
   (if name
       (build-path web-resource-path name)
       web-resource-path))
+
+(define (all-partitions n #:from [k 1])
+  (cond
+   [(= n 0) '(())]
+   [(< n k) '()]
+   [else
+    (append (map (curry cons k) (all-partitions (- n k) #:from k))
+            (all-partitions n #:from (+ k 1)))]))
