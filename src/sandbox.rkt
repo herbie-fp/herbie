@@ -1,17 +1,9 @@
 #lang racket
-(require profile)
-(require math/bigfloat)
-(require racket/engine)
-
-(require "common.rkt" "errors.rkt")
-(require "debug.rkt")
-(require "mainloop.rkt")
-(require "formats/datafile.rkt")
-(require "programs.rkt")
-(require "points.rkt")
-(require "float.rkt")
-(require "formats/test.rkt")
-(require "alternative.rkt")
+(require profile math/bigfloat racket/engine)
+(require "common.rkt" "errors.rkt" "debug.rkt")
+(require "float.rkt" "points.rkt" "programs.rkt")
+(require "mainloop.rkt" "alternative.rkt")
+(require "formats/datafile.rkt" "formats/test.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -19,7 +11,7 @@
          get-table-data unparse-result)
 
 
-; For things that don't leave a thread
+;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
 (struct test-success test-result
   (start-alt end-alt points exacts start-est-error end-est-error
@@ -32,12 +24,9 @@
 (define *timeout* (make-parameter (* 1000 60 10)))
 
 (define (get-p&es context)
-  (call-with-values
-      (λ ()
-        (for/lists (pts exs)
-            ([(pt ex) (in-pcontext context)])
-          (values pt ex)))
-    list))
+  (for/lists (pts exs)
+      ([(pt ex) (in-pcontext context)])
+    (values pt ex)))
 
 (define (get-test-result test #:seed [seed #f] #:debug [debug? #f]
                          #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
@@ -109,8 +98,8 @@
       [`(good ,bits ,timeline ,warnings
               ,start ,end ,context ,newcontext
               ,baseline-errs ,oracle-errs ,all-alts)
-       (match-define (list newpoints newexacts) (get-p&es newcontext))
-       (match-define (list points exacts) (get-p&es context))
+       (define-values (newpoints newexacts) (get-p&es newcontext))
+       (define-values (points exacts) (get-p&es context))
        (define start-prog (alt-program start))
        (define end-prog (alt-program end))
        (define start-resugared (alt
@@ -144,16 +133,13 @@
        ;; TODO: These fields are meaningless because parameters don't work across engines
        (test-timeout test (bf-precision) (*timeout*) (^timeline^) '())])))
 
-(define (get-table-data result link)
-  (cons (unparse-result result) (get-table-data* result link)))
-
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (table-row (test-name test) status (test-precondition test)
              #f #f #f #f #f #f #f (test-vars test) (test-input test) #f
              (test-result-time result) (test-result-bits result) link))
 
-(define (get-table-data* result link)
+(define (get-table-data result link)
   (define test (test-result-test result))
 
   (cond
@@ -206,24 +192,24 @@
     (dummy-table-row result "timeout" link)]))
 
 (define (unparse-result row)
-  (match-define
-   (table-row name status pre start result target inf- inf+ start-est result-est
-              vars input output time bits link) row)
-
-  `(FPCore ,(test-vars test)
-           :herbie-status ,(string->symbol status)
-           :herbie-time ,time
-           :herbie-error-input  ([,(*num-points*) ,start-est] [,(*reeval-pts*) ,start])
-           :herbie-error-output ([,(*num-points*) ,result-est] [,(*reeval-pts*) ,result])
-           ,@(if target-error
-                 `(:herbie-error-target ([,(*reeval-pts*) ,target]))
-                 '())
-           :name ,(test-name test)
-           #;:precision ,(test-precision test)
-           ,@(if (eq? (test-precondition test) 'TRUE)
-                 '()
-                 `(:pre ,(resugar-program pre)))
-           #;,@(if (test-output test)
-                 `(:herbie-target ,target-prog)
-                 '())
-           ,(program-body output)))
+  `(FPCore ,vars
+     :herbie-status ,(string->symbol (table-row-status row))
+     :herbie-time ,(table-row-time row)
+     :herbie-error-input 
+     ([,(*num-points*) ,(table-row-start-est row)]
+      [,(*reeval-pts*) ,(table-row-start row)])
+     :herbie-error-output
+     ([,(*num-points*) ,(table-row-result-est row)]
+      [,(*reeval-pts*) ,(tablr-row-result row)])
+     ,@(if target-error
+           `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
+           '())
+     :name ,(table-row-name row)
+     ;:precision ,(table-row-precision row)
+     ,@(if (eq? (table-row-pre row) 'TRUE)
+           '()
+           `(:pre ,(resugar-program (table-row-pre row))))
+     #;,@(if (table-row-target-prog test)
+           `(:herbie-target ,(table-row-target-prog row))
+           '())
+     ,(program-body (table-row-output row))))
