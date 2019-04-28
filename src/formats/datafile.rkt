@@ -38,7 +38,7 @@
        (make-hash
         `((name . ,name)
           (pre . ,(write-string (write pre)))
-          (prec . (symbol->string prec))
+          (prec . ,(symbol->string prec))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)

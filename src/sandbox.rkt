@@ -145,49 +145,44 @@
 
   (cond
    [(test-success? result)
-    (let* ([name (test-name test)]
-           [start-errors  (test-success-start-error  result)]
-           [end-errors    (test-success-end-error    result)]
-           [target-errors (test-success-target-error result)]
+    (define name (test-name test))
+    (define start-errors  (test-success-start-error  result))
+    (define end-errors    (test-success-end-error    result))
+    (define target-errors (test-success-target-error result))
 
-           [start-score (errors-score start-errors)]
-           [end-score (errors-score end-errors)]
-           [target-score (and target-errors (errors-score target-errors))]
+    (define start-score (errors-score start-errors))
+    (define end-score (errors-score end-errors))
+    (define target-score (and target-errors (errors-score target-errors)))
+    (define est-start-score (errors-score (test-success-start-est-error result)))
+    (define est-end-score (errors-score (test-success-end-est-error result)))
 
-           [est-start-score (errors-score (test-success-start-est-error result))]
-           [est-end-score (errors-score (test-success-end-est-error result))])
+    ;; TODO: this is broken because errors are always ordinary values now!
+    (define-values (reals infs) (partition ordinary-value? (map - end-errors start-errors)))
+    (define-values (good-inf bad-inf) (partition positive? infs))
 
-      (let*-values ([(reals infs) (partition ordinary-value? (map - end-errors start-errors))]
-                    [(good-inf bad-inf) (partition positive? infs)])
-        (table-row name
-                   (if target-score
-                       (cond
-                        [(< end-score (- target-score 1)) "gt-target"]
-                        [(< end-score (+ target-score 1)) "eq-target"]
-                        [(> end-score (+ start-score 1)) "lt-start"]
-                        [(> end-score (- start-score 1)) "eq-start"]
-                        [(> end-score (+ target-score 1)) "lt-target"])
-                       (cond
-                        [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
-                        [(< end-score (- start-score 1)) "imp-start"]
-                        [(< end-score (+ start-score 1)) "apx-start"]
-                        [else "uni-start"]))
-                   (test-precondition test)
-                   (test-precision test)
-                   (program-variables (alt-program (test-success-start-alt result)))
-                   (program-body (alt-program (test-success-start-alt result)))
-                   (program-body (alt-program (test-success-end-alt result)))
-                   (test-output test)
-                   start-score
-                   end-score
-                   target-score
-                   (length good-inf)
-                   (length bad-inf)
-                   est-start-score
-                   est-end-score
-                   (test-result-time result)
-                   (test-result-bits result)
-                   link)))]
+    (define status
+      (if target-score
+          (cond
+           [(< end-score (- target-score 1)) "gt-target"]
+           [(< end-score (+ target-score 1)) "eq-target"]
+           [(> end-score (+ start-score 1)) "lt-start"]
+           [(> end-score (- start-score 1)) "eq-start"]
+           [(> end-score (+ target-score 1)) "lt-target"])
+          (cond
+           [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
+           [(< end-score (- start-score 1)) "imp-start"]
+           [(< end-score (+ start-score 1)) "apx-start"]
+           [else "uni-start"])))
+
+    (struct-copy table-row (dummy-table-row result status link)
+                 [output (program-body (alt-program (test-success-end-alt result)))]
+                 [start start-score]
+                 [result end-score]
+                 [target target-score]
+                 [start-est est-start-score]
+                 [result-est est-end-score]
+                 [inf- (length good-inf)]
+                 [inf+ (length bad-inf)])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]
@@ -195,7 +190,7 @@
     (dummy-table-row result "timeout" link)]))
 
 (define (unparse-result row)
-  `(FPCore ,vars
+  `(FPCore ,(table-row-vars row)
      :herbie-status ,(string->symbol (table-row-status row))
      :herbie-time ,(table-row-time row)
      :herbie-error-input 
@@ -203,8 +198,8 @@
       [,(*reeval-pts*) ,(table-row-start row)])
      :herbie-error-output
      ([,(*num-points*) ,(table-row-result-est row)]
-      [,(*reeval-pts*) ,(tablr-row-result row)])
-     ,@(if target-error
+      [,(*reeval-pts*) ,(table-row-result row)])
+     ,@(if (table-row-target row)
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
      :name ,(table-row-name row)
