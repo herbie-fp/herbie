@@ -230,6 +230,8 @@ function histogram(id, data) {
     var bucketwidth = 25;
 
     var canvas = document.getElementById(id);
+    if (data.length == 0) { return canvas.remove(); } // Early exit
+
     canvas.setAttribute("width", margin + width + margin + "px");
     canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
     var ctx = canvas.getContext("2d");
