@@ -256,7 +256,7 @@
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
   (function avg-fun
-            (car (first eby)) (car (last eby))
+            (flprev (car (first eby))) (flnext (car (last eby)))
             #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
