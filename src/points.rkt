@@ -74,7 +74,7 @@
     [(list op args ...)
      (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
     [(? variable?) true]
-    [(? constant?) (constant-info op 'ival)]))
+    [(? constant?) (constant-info expr 'ival)]))
 
 (module+ test
   (require "formats/test.rkt")

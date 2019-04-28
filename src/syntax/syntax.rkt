@@ -9,6 +9,8 @@
          variary-operators parametric-operators-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
+(module+ internals (provide operators constants))
+
 (module+ test (require rackunit))
 
 (define *unknown-d-ops* (make-parameter '()))
