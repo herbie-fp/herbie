@@ -136,7 +136,7 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (table-row (test-name test) status (test-precondition test) (test-precision test)
-             (test-vars test) (test-input test) #f
+             (test-vars test) (test-input test) #f (test-output test)
              #f #f #f #f #f #f #f
              (test-result-time result) (test-result-bits result) link))
 
@@ -177,6 +177,7 @@
                    (program-variables (alt-program (test-success-start-alt result)))
                    (program-body (alt-program (test-success-start-alt result)))
                    (program-body (alt-program (test-success-end-alt result)))
+                   (test-output test)
                    start-score
                    end-score
                    target-score
@@ -211,7 +212,7 @@
      ,@(if (eq? (table-row-pre row) 'TRUE)
            '()
            `(:pre ,(resugar-program (table-row-pre row))))
-     #;,@(if (table-row-target-prog test)
+     ,@(if (table-row-target-prog test)
            `(:herbie-target ,(table-row-target-prog row))
            '())
      ,(program-body (table-row-output row))))
