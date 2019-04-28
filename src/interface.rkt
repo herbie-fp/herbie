@@ -20,8 +20,8 @@
   'bool
   identity
   identity
-  (λ (x) (if x #t #f))
   (λ (x) (= x 0))
+  (λ (x) (if x 1 0))
   1
   null))
 
