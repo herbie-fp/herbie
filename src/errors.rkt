@@ -4,7 +4,7 @@
          herbie-error->string herbie-error-url
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
-         warn warning-log)
+         warn warning-log expect-warning)
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
@@ -68,6 +68,15 @@
     (eprintf "Warning: ~a\n" (apply format message args))
     (for ([line extra]) (eprintf "  ~a\n" line))
     (when url (eprintf "See <~a> for more.\n" url*))))
+
+(define (expect-warning type thunk)
+  (define already-silent #f)
+  (dynamic-wind
+    (λ ()
+      (set! already-silent (set-member? warnings-seen type))
+      (set-add! warnings-seen type))
+    thunk
+    (λ () (unless already-silent (set-remove! warnings-seen type)))))
 
 (register-reset
  (λ ()

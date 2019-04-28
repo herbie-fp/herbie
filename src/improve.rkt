@@ -6,8 +6,8 @@
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
   (for ([res results] [test tests] #:when res)
-    (define name (table-row-name row))
-    (match status
+    (define name (table-row-name res))
+    (match (table-row-status res)
       ["error"
        (fprintf p ";; Error in ~a\n" name)
        (write (unparse-result res) p)

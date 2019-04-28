@@ -74,14 +74,14 @@
     [(list op args ...)
      (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
     [(? variable?) true]
-    [(? constant?) (constant-info expr 'ival)]))
+    [(? constant?) (or (not (symbol? expr)) (constant-info expr 'ival))]))
 
 (module+ test
   (require "formats/test.rkt")
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs
-    (let ([tests (load-tests benchmarks)])
+    (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
   (define unsup-count (count (compose not supported-ival-expr?) exprs))
   (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
