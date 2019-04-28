@@ -205,60 +205,25 @@
    [(test-timeout? result)
     (dummy-table-row result "timeout" link)]))
 
-(define (unparse-result result)
-  (match result
-    [(test-success test bits time timeline warnings
-                   start-alt end-alt points exacts start-est-error end-est-error
-                   newpoints newexacts start-error end-error target-error
-                   baseline-error oracle-error all-alts)
-     `(FPCore ,(test-vars test)
-              :herbie-status success
-              :herbie-time ,time
-              :herbie-bits-used ,bits
-              :herbie-error-input
-              ([,(*num-points*) ,(errors-score start-est-error)]
-               [,(*reeval-pts*) ,(errors-score start-error)])
-              :herbie-error-output
-              ([,(*num-points*) ,(errors-score end-est-error)]
-               [,(*reeval-pts*) ,(errors-score end-error)])
-              ,@(if target-error
-                    `(:herbie-error-target
-                      ([,(*reeval-pts*) ,(errors-score target-error)]))
-                    '())
-              :name ,(test-name test)
-              :precision ,(test-precision test)
-              ,@(if (eq? (test-precondition test) 'TRUE)
-                    '()
-                    `(:pre ,(resugar-program (test-precondition test))))
-              ,@(if (test-output test)
-                    `(:herbie-target ,(test-output test))
-                    '())
-              ,(program-body (alt-program end-alt)))]
-    [(test-failure test bits time timeline warnings exn)
-     `(FPCore ,(test-vars test)
-              :herbie-status ,(if (exn:fail:user:herbie? (test-failure-exn result)) 'error 'crash)
-              :herbie-time ,time
-              :herbie-bits-used ,bits
-              :name ,(test-name test)
-              :precision ,(test-precision test)
-              ,@(if (eq? (test-precondition test) 'TRUE)
-                    '()
-                    `(:pre ,(test-precondition test)))
-              ,@(if (test-output test)
-                    `(:herbie-target ,(test-output test))
-                    '())
-              ,(test-input test))]
-    [(test-timeout test bits time timeline warnings)
-     `(FPCore ,(test-vars test)
-              :herbie-status timeout
-              :herbie-time ,time
-              :herbie-bits-used ,bits
-              :name ,(test-name test)
-              :precision ,(test-precision test)
-              ,@(if (eq? (test-precondition test) 'TRUE)
-                    '()
-                    `(:pre ,(test-precondition test)))
-              ,@(if (test-output test)
-                    `(:herbie-target ,(test-output test))
-                    '())
-              ,(test-input test))]))
+(define (unparse-result row)
+  (match-define
+   (table-row name status pre start result target inf- inf+ start-est result-est
+              vars input output time bits link) row)
+
+  `(FPCore ,(test-vars test)
+           :herbie-status ,(string->symbol status)
+           :herbie-time ,time
+           :herbie-error-input  ([,(*num-points*) ,start-est] [,(*reeval-pts*) ,start])
+           :herbie-error-output ([,(*num-points*) ,result-est] [,(*reeval-pts*) ,result])
+           ,@(if target-error
+                 `(:herbie-error-target ([,(*reeval-pts*) ,target]))
+                 '())
+           :name ,(test-name test)
+           #;:precision ,(test-precision test)
+           ,@(if (eq? (test-precondition test) 'TRUE)
+                 '()
+                 `(:pre ,(resugar-program pre)))
+           #;,@(if (test-output test)
+                 `(:herbie-target ,target-prog)
+                 '())
+           ,(program-body output)))

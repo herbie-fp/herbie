@@ -6,23 +6,23 @@
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
   (for ([res results] [test tests] #:when res)
-    (match-define (table-row name status pre start result target inf- inf+ start-est result-est vars input output time bits link) (cdr res))
+    (match-define (table-row name status pre start result target inf- inf+ start-est result-est vars input output time bits link) res)
     (match status
       ["error"
        (fprintf p ";; Error in ~a\n" name)
-       (write (car res) p)
+       (write (unparse-result res) p)
        (newline p)]
       ["crash"
        (fprintf p ";; Crash in ~a\n" name)
-       (write (car res) p)
+       (write (unparse-result res) p)
        (newline p)]
       ["timeout"
        (fprintf p ";; ~a times out in ~as\n"
                 (/ (*timeout*) 1000) name)
-       (write (car res) p)
+       (write (unparse-result res) p)
        (newline p)]
       [(? string?)
-       (write (car res) p)
+       (write (unparse-result res) p)
        (newline p)])))
 
 (define (run-improve input output #:threads [threads #f])

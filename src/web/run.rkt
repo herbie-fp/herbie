@@ -27,7 +27,7 @@
 
   (define results
     (get-test-results tests #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir))
-  (define info (make-report-info (map cdr (filter values results)) #:note note #:seed seed))
+  (define info (make-report-info (filter values results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
   (call-with-output-file (build-path dir "timeline.html")
