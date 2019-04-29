@@ -84,7 +84,7 @@
   the <kbd>precision:fallback</kbd> <a href="options.html">option</a>
   disables those functions instead.</p>
 
-  <h2>Conditionals</h2>
+  <h2 id="conditionals">Conditionals</h2>
   
   <p>FPCore uses <code>if</code> for conditional expressions:</p>
 
@@ -107,7 +107,7 @@
 
   <p>Note that unlike the arithmetic operators, the comparison functions can take any number of arguments.</p>
 
-  <h2>Intermediate variables</h2>
+  <h2 id="intermediates">Intermediate variables</h2>
   
   <p>Intermediate variables can be defined using <code>let</code>:</p>
 
@@ -161,15 +161,14 @@
   argument values are possible. In Herbie, you can describe the valid
   arugments with the <code>:pre</code> property.</p>
 
-  <p>These preconditions can use comparison operators, such
-  as <code>&lt;</code>, <code>&gt;=</code>, and <code>!=</code>,
-  and boolean operators such as <code>and</code> and <code>or</code>.
-  Herbie is particularly efficient when when the precondition
-  is an <code>and</code> of ranges for each variable, such as:</p>
+  <p>These preconditions can use the same comparison and boolean
+  operators as <a href="#conditionals">conditional statements</a>.
+  Herbie is particularly efficient when when the precondition is
+  an <code>and</code> of ranges for each variable, such as:</p>
 
   <pre>(FPCore (x) :pre (&lt; 1 x 10) (/ 1 (- x 1)))</pre>
 
-  <p>More complex preconditions may still work, but may also cause
+  <p>More complex preconditions do work, but may cause
   the <a href="faq.html#sample-valid-points">“Cannot sample enough
   valid points”</a> error if it is too hard to find points that
   satisfy the precondition.</p>
