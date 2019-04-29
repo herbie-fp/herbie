@@ -282,9 +282,9 @@ function clean_progress(str) {
     var outlines = [];
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
-        var words = line.split("  ");
+        var words = line.split(": ");
         var word0 = words.shift();
-        outlines.push((word0.substring(0, 6) === "* * * " ? "* " : "") + words.join("  "));
+        outlines.push(words.join(": "));
     }
     return outlines.join("\n");
 }
