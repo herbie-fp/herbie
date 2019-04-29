@@ -2,15 +2,16 @@ html {font-family: sans-serif; font-size: 16px; line-height: 1.4;}
 
 body { max-width: 650px; margin: 3em auto;}
 
-h1, h2, h3 {letter-spacing: .125em; font-weight: 600; margin-top: 4em; }
-h1 {font-size: 20px; line-height: 1; margin-bottom: .5em;}
-h2 {font-size: 18px; line-height: 1.125; margin-bottom: .25em; clear: both;}
-h3 {font-size: 17px; line-height: 1.286; margin-bottom: .2em; clear: both;}
+h1, h2, h3 {letter-spacing: .125em; font-weight: 600; clear: both; }
+h1 {font-size: 20px; line-height: 1; margin: 4em 0 .5em; }
+h2 {font-size: 18px; line-height: 1.125; margin: 3em 0 .25em; }
+h3 {font-size: 17px; line-height: 1.286; margin: 1.5em 0 .2em; font-weight: 400; }
 
 p, li, dd, blockquote, figcaption {
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
   margin: .5em 0;
 }
+dd { margin: .5em 0 1em; }
 
 .showcase { background: #ddd; padding: 1em; margin: 4em 0; clear: both;}
 .showcase figcaption {font-size: 15px; line-height: 1.4; margin-top: 1em;}
@@ -28,6 +29,10 @@ header ul { text-align: center; font-weight: bold; }
 header li { display: inline-block; margin: 0 .5em; }
 header li::before { content: "•"; margin-right: 1em; }
 header li:first-child::before { content: none; }
+
+.toc { margin: 2em 0; background: #eee; padding: 1em; }
+.toc::before { content: "Table of Contents"; font-size: 110%; font-weight: bold; }
+.toc ul { list-style: outside none; padding: 0; }
 
 svg {margin: 0 auto; display: block;}
 

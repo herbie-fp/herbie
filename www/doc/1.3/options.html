@@ -5,6 +5,7 @@
   <title>Herbie Command-line Options</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
 </head>
 <body>
   <header>
@@ -37,18 +38,20 @@
     Enter an <a href="input.html">FPCore expression</a> and Herbie
     will print its more-accurate version.</dd>
 
-    <dt><code>herbie improve input output</code></dt>
-    <dd>Runs Herbie on the expressions in the <code>input</code> file
-    or directory, and outputs the result to <code>output</code>, which
-    will be a single file of FPCore outputs.</dd>
+    <dt><code>herbie improve <var>input</var> <var>output</var></code></dt>
+    <dd>Runs Herbie on the expressions in the file or
+    directory <var>input</var>, and outputs the result
+    to <var>output</var>, which will be a single file of FPCore
+    outputs.</dd>
 
-    <dt><code>herbie report input output</code></dt>
-    <dd>Runs Herbie on the expressions in the <code>input</code> file
-    or directory, and produces a directory of HTML web pages that
-    describe Herbie's output, how it derived that output, and
-    additional charts and information about the improvement process.
-    These pages can be viewed in any browser (though with
-    a <a href="faq.html">quirk</a> for Chrome).</dd>
+    <dt><code>herbie report <var>input</var> <var>output</var></code></dt>
+    <dd>Runs Herbie on the expressions in the file or
+    directory <var>input</var>, and produces a
+    directory <var>output</var> of HTML pages that describe Herbie's
+    output, how it derived that output, and additional charts and
+    information about the improvement process. These pages can be
+    viewed in any browser (though with a <a href="faq.html">quirk</a>
+    for Chrome).</dd>
   </dl>
 
   <p>We recommend using the web tools, <code>web</code>
@@ -80,7 +83,7 @@
       number between 0 and 2<sup>31</sup> (exclusive both ends). This
       option can be used to make Herbie's results reproducible or to
       compare two different runs. Prior versions of Herbie used a
-      different format for seeds, which is also still supported.</dd>
+      different format for seeds, which is now deprecated.</dd>
 
     <dt><code>--num-iters N</code></dt>
     <dd>The number of improvements Herbie attempts to make to the
@@ -103,7 +106,7 @@
     <dd>The timeout to use per-example, in seconds. A fractional
     number of seconds can be given.</dd>
 
-    <dt><code>--threads N</code>, for <code>improve</code> and <code>reports</code></dt>
+    <dt><code>--threads N</code> (for the <code>improve</code> and <code>report</code> tools)</dt>
     <dd>Enables multi-threaded operation. By default, no threads are
       used. A number can be passed to this option to use that many
       threads, or <code>yes</code> can be passed to tell Herbie to use
@@ -168,6 +171,8 @@
     <tr><td>special</td><td>Special mathematical functions</td></tr>
     <tr><td>complex</td><td>Complex number arithmetic</td></tr>
     <tr><td>numerics</td><td>Special numerical functions <code>expm1</code>, <code>log1p</code>, <code>fma</code>, and <code>hypot</code></td></tr>
+    <tr><td>bools</td><td>Boolean operator identities</td></tr>
+    <tr><td>branches</td><td><code>if</code> statement simplification</td></tr>
   </table>
 
   <p>All groups except <code>numerics</code> are enabled by default,
@@ -197,13 +202,18 @@
   </p>
 
   <dl>
+    <dt><code>precision:double</code></dt>
+    <dd>This option, on by default, tells Herbie default to
+      double-precision calculations. If turned off, Herbie defaults to
+      single-precision calculations.</dd>
+
     <dt><code>precision:fallback</code></dt>
     <dd>This option, on by default, tells Herbie to use fallback
       functions if a native implementation is not found for any
       operations. If turned off, operations with no native
       implementation will be disabled from use in the input or output.
-      You will want to turn this option off if you are concerned with
-      the specific behavior of libm functions.</dd>
+      You will want to turn this option off if you require Herbie to
+      be faithful to your system's implementation of <code>libm</code>.</dd>
 
     <dt><code>setup:simplify</code></dt>
     <dd>This option, on by default, simplifies the expression before
@@ -252,13 +262,6 @@
       branches very expensive, such as in some cases of GPU
       programming.</dd>
 
-    <dt><code>reduce:simplify</code></dt>
-    <dd>This option, on by default, uses a final simplification pass
-      after all improvements have been made. This sometimes improves
-      accuracy further. If turned off, this final simplification pass
-      will not be done. You will rarely want to turn this option
-      off.</dd>
-
     <dt><code>reduce:avg-error</code></dt>
     <dd>This option, on by default, causes Herbie to output the
       candidate with the best average error over the chosen inputs. If
@@ -304,8 +307,7 @@
   <p>The new syntax somewhat changes Herbie's behavior, such as by
     using the input expression as the output if Herbie times out. It
     also makes it easier to write Herbie's output to a file without
-    using command-line redirection. The old syntax still works but is
-    deprecated and will be removed in the next release.</p>
+    using command-line redirection.</p>
 
 
 </body>

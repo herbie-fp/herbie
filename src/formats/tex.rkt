@@ -47,12 +47,11 @@
     [(or '+ '- 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
-    [(or 'fma 'hypot 'pow) (values #f #f)]
+    ['pow (values #f #f)]
     ['atan2 (values 'fn #t)]
-    ['log1p (values #f '+)]
     ['if (values #t #t)]
     [(or 'remainder 'fmod) (values #t #f)]
-    [(or 'cbrt 'ceil 'copysign 'expm1 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+    [(or 'cbrt 'ceil 'copysign 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
      (values #f #t)]
     [(or '== '< '> '<= '>= '!=)
      (values #f #t)]
