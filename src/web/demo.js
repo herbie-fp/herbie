@@ -146,7 +146,13 @@ function flatten_comparisons(node) {
             do_flatten(node.args[1]);
         }
     })(node);
-    return "(and " + conjuncts.join(" ") + ")";
+    if (conjuncts.length == 0) {
+        return "TRUE";
+    } else if (conjuncts.length == 1) {
+        return conjuncts[0];
+    } else {
+        return "(and " + conjuncts.join(" ") + ")";
+    }
 }
 
 function extract(args) {return args.map(function(n) {return n.res});}
