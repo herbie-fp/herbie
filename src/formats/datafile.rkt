@@ -102,7 +102,7 @@
                          [string-lst (parse-string string-lst)]))
                      (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
-                                (parse-string (hash-ref 'target-prog "#f"))
+                                (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 
