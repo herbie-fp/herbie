@@ -100,7 +100,7 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (symbol->string (hash-ref test 'prec "binary64"))
+                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (get 'target-prog))
                                 (get 'start) (get 'end) (get 'target)
