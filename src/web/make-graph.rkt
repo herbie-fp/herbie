@@ -1,11 +1,11 @@
 #lang racket
 
-(require json (only-in xml write-xexpr xexpr?))
+(require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
-(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt")
+(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt")
+(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -16,7 +16,7 @@
   (define pages
     `("graph.html"
       ,(and good? "interactive.js")
-      "timeline.json"
+      "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
                    #:when good? [type '("" "r" "g" "b")]
                    #:unless (and (equal? type "g") (not (test-output test))))
@@ -27,16 +27,18 @@
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out profile? (get-interactive-js result))]
+       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
        [(? test-timeout?) (make-timeout result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
      (make-interactive-js result out)]
+    ["timeline.html"
+     (make-timeline result out)]
     ["timeline.json"
      (make-timeline-json result out)]
-    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx ""))
+    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]?).png$" (list _ idx letter))
+    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
@@ -48,7 +50,7 @@
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
 (define/contract (regime-splitpoints altn)
-  (-> alt? (listof number?))
+  (-> alt? (or/c (listof number?) (listof posit16?)))
   (map sp-point (drop-right (regime-info altn) 1)))
 
 (define/contract (regime-var altn)
@@ -88,77 +90,6 @@
      (format "  ~a)" (test-input test))))
    "\n"))
 
-(define timeline-phase? (listof (cons/c symbol? any/c)))
-(define timeline? (listof timeline-phase?))
-
-(define/contract (render-timeline timeline)
-  (-> timeline? xexpr?)
-  `(div ((class "timeline"))
-        ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-            `(div
-              ([class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type))]
-               [data-id ,(format "timeline~a" n)]
-               [data-type ,(~a (dict-ref curr 'type))]
-               [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])))))
-
-(define/contract (render-phase curr n next)
-  (-> timeline-phase? integer? timeline-phase? xexpr?)
-  `(div ([class ,(format "timeline-block timeline-~a" (dict-ref curr 'type))]
-         [id ,(format "timeline~a" n)])
-    (h3 ,(~a (dict-ref curr 'type))
-        (span ([class "time"])
-         ,(format-time (- (dict-ref next 'time) (dict-ref curr 'time)))))
-    (dl
-     ,@(when-dict curr (method)
-         `((dt "Algorithm") (dd ,(~a method))))
-     ,@(when-dict curr (locations)
-         `((dt "Local error")
-           (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
-               (table ([class "times"])
-                ,@(for/list ([(expr err) (in-dict locations)])
-                    `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
-     ,@(when-dict curr (accuracy oracle baseline)
-         (define percentage
-           (if (= baseline oracle)
-               (if (= baseline accuracy) "100" "-∞")
-               (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
-
-         `((dt "Accuracy")
-           (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
-               (p "Error of " ,(format-bits accuracy) "b"
-                  " against oracle of " ,(format-bits oracle) "b"
-                  " and baseline of " ,(format-bits baseline) "b"))))
-     ,@(when-dict curr (kept-alts done-alts min-error)
-         `((dt "Pruning")
-           (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
-               (p "Merged error: " ,(format-bits min-error) "b"))))
-     ,@(when-dict curr (rules)
-         `((dt "Rules")
-           (dd (table ([class "times"])
-                ,@(for/list ([(rule count) (in-dict rules)])
-                    `(tr (td ,(~a count) "×") (td (code ,(~a rule)))))))))
-     ,@(when-dict curr (inputs outputs)
-         `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
-     ,@(when-dict curr (times)
-         `((dt "Calls")
-           (dd ,(~a (length times)) " calls:"
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-               (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
-     ,@(when-dict curr (slowest)
-         `((dt "Slowest")
-           (dd (table ([class "times"])
-                ,@(for/list ([(expr time) (in-dict slowest)])
-                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
-     ,@(when-dict curr (outcomes)
-         `((dt "Results")
-           (dd (table ([class "times"])
-                ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
-                    (match-define (cons count time) number)
-                    (match-define (list prog category prec) outcome)
-                    `(tr (td ,(format-time time)) (td ,(~a count) "×")
-                         (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category)))))))))))
-
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
 
@@ -172,25 +103,6 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
-
-(define/contract (render-process-info timeline profile?)
-  (-> timeline? boolean? xexpr?)
-
-  (define time
-    (apply + (for/list ([phase timeline] [next (cdr timeline)])
-               (- (dict-ref next 'time) (dict-ref phase 'time)))))
-
-  `(section ((id "process-info"))
-    (h1 "Details")
-    (p ((class "header"))
-     "Time bar (total: " (span ((class "number")) ,(format-time time)) ")"
-     (a ((class "attachment") (href "debug.txt")) "Debug log")
-     ,(if profile?
-          `(a ((class "attachment") (href "profile.txt")) "Profile")
-          ""))
-    ,(render-timeline timeline)
-    ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-        (render-phase curr n next))))
 
 (define (alt2fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
@@ -221,7 +133,6 @@
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
-                         [oninput "submit_inputs();"]
                          [value ,(~a val)])))))))
       (div ([id "try-result"] [class "no-error"])
        (p ([class "header"]) "Results")
@@ -233,10 +144,17 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
+(define (points->doubles pts)
+  (cond
+    [(or (real? (caar pts)) (complex? (caar pts))) pts]
+    [(posit8? (caar pts)) (map (curry map posit8->double) pts)]
+    [(posit16? (caar pts)) (map (curry map posit16->double) pts)]
+    [(posit32? (caar pts)) (map (curry map posit32->double) pts)]))
+
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
-  (define pts (test-success-newpoints result))
+  (define pts (points->doubles (test-success-newpoints result)))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
@@ -249,7 +167,7 @@
       ['g (values *green-theme* test-success-target-error)]
       ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define pts (test-success-newpoints result))
+  (define pts (points->doubles (test-success-newpoints result)))
   (define err (accessor result))
 
   (herbie-plot
@@ -303,13 +221,19 @@
         (open-file idx #:type 'g make-points-plot result idx 'g))
       (open-file idx #:type 'b make-points-plot result idx 'b))))
 
-(define (make-graph result out profile? valid-js-prog)
+(define (make-graph result out valid-js-prog profile?)
   (match-define
-   (test-success test bits time timeline
+   (test-success test bits time timeline warnings
                  start-alt end-alt points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
+   (define precision (test-precision test))
+   ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
+   ;; remove this when the number system interface is added
+   (define precision* (if (set-member? '(binary64 binary32) precision)
+                          'real
+                          precision))
 
    (fprintf out "<!doctype html>\n")
    (write-xexpr
@@ -322,25 +246,37 @@
        (script ([src "../report.js"]))
        (script ([src "interactive.js"]))
        (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
-      (body ([onload "graph()"])
+      (body
+       ,(render-menu
+         (list/true
+          '("Error" . "#graphs")
+          (and valid-js-prog (for/and ([p points]) (andmap number? p))
+               '("Try it out!" . "#try-it"))
+          (and (test-output test)
+               '("Target" . "#comparison"))
+          '("Derivation" . "#history")
+          '("Reproduce" . "#reproduce"))
+         (list/true
+          '("Report" . "../report.html")
+          '("Log" . "debug.txt")
+          (and profile? '("Profile" . "profile.txt"))
+          '("Metrics" . "timeline.html")))
 
        (section ([id "large"])
-        (div "Average Error: "
-             (span ([class "number"]
-                    [title ,(format "Maximum error: ~a → ~a"
-                                    (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
-                                    (format-bits (apply max (map ulps->bits end-error)) #:unit #f))])
-                   ,(format-bits (errors-score start-error) #:unit #f)
-                   " → "
-                   ,(format-bits (errors-score end-error) #:unit #f)))
-        (div "Time: " (span ([class "number"]) ,(format-time time)))
-        (div "Precision: " (span ([class "number"]) ,(format-bits (*bit-width*) #:unit #f)))
-        (div "Internal Precision: " (span ([class "number"]) ,(format-bits bits #:unit #f))))
+        ,(render-large "Average Error"
+                       (format-bits (errors-score start-error) #:unit #f)
+                       " → "
+                       (format-bits (errors-score end-error) #:unit #f)
+                       #:title
+                       (format "Maximum error: ~a → ~a"
+                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
+                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
+        ,(render-large "Time" (format-time time))
+        ,(render-large "Precision" (format-bits (*bit-width*) #:unit #f)))
 
-       (section ([id "program"])
-        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program start-alt)) "\\]")
-        (div ([class "arrow"]) "↓")
-        (div ([class "program math"]) "\\[" ,(texify-prog (alt-program end-alt)) "\\]"))
+       ,(render-warnings warnings)
+
+       ,(render-program test #:to (alt-program end-alt))
 
        (section ([id "graphs"])
         (h1 "Error")
@@ -364,7 +300,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(if valid-js-prog
+       ,(if (and valid-js-prog (for/and ([p points]) (andmap number? p)))
             (render-interactive start-alt (car points))
             "")
 
@@ -381,26 +317,35 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts))))
+         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision*)))
 
-       ,(render-reproduction test)
-       ,(render-process-info timeline profile?)))
+       ,(render-reproduction test)))
     out))
 
 (define (make-traceback result out profile?)
-  (match-define (test-failure test bits time timeline exn) result)
+  (match-define (test-failure test bits time timeline warnings exn) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../report.css"))))
+      (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
+      ,@js-tex-include
+      (script ([src "../report.js"])))
      (body
-      (h1 "Error in " ,(format-time time))
-      ,@(cond
-         [(exn:fail:user:herbie? exn)
-          `((section ([id "user-error"])
+      ,(render-menu
+        (list/true)
+        (list/true
+         '("Report" . "../report.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Metrics" . "timeline.html")))
+
+      ,(render-warnings warnings)
+
+      ,(if (exn:fail:user:herbie? exn)
+           `(section ([id "user-error"])
              (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
              ,(if (exn:fail:user:herbie:syntax? exn)
                   `(table
@@ -413,13 +358,17 @@
                            (td ,(~a (syntax-source stx)))
                            (td ,(or (~a (syntax-line stx) "")))
                            (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
-                  "")))]
-         [else
-          `(,(render-reproduction test #:bug? #t)
-            (section ([id "backtrace"])
-             (h1 "Backtrace")
-             ,(render-traceback exn))
-            ,(render-process-info timeline profile?))])))
+                  ""))
+           "")
+
+      ,(render-program test)
+
+      ,(if (not (exn:fail:user:herbie? exn))
+           `(,@(render-reproduction test #:bug? #t)
+             (section ([id "backtrace"])
+              (h1 "Backtrace")
+              ,(render-traceback exn)))
+           "")))
    out))
 
 (define (render-traceback exn)
@@ -441,33 +390,58 @@
               (td ([colspan "3"]) "unknown"))])))))
 
 (define (make-timeout result out profile?)
-  (match-define (test-timeout test bits time timeline) result)
+  (match-define (test-timeout test bits time timeline warnings) result)
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
      (head
       (meta ((charset "utf-8")))
       (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"])))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+      ,@js-tex-include
+      (script ([src "../report.js"])))
      (body
+      ,(render-menu
+        (list/true)
+        (list/true
+         '("Report" . "../report.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Metrics" . "timeline.html")))
+      ,(render-warnings warnings)
+
       (h1 "Timeout in " ,(format-time time))
       (p "Use the " (code "--timeout") " flag to change the timeout.")
-      ,(render-process-info timeline profile?)
+
+      ,(render-program test)
+
       ,(render-reproduction test)))
    out))
 
 (struct interval (alt-idx start-point end-point expr))
 
 (define (interval->string ival)
+  (define start (interval-start-point ival))
+  (define end (interval-end-point ival))
   (string-join
    (list
-    (if (interval-start-point ival)
-        (format "~a < " (interval-start-point ival))
+    (if start
+        (let ([start* (cond
+                        [(posit8? start) (posit8->double start)]
+                        [(posit16? start) (posit16->double start)]
+                        [(posit32? start) (posit32->double start)]
+                        [else start])])
+          (format "~a < " start*))
         "")
     (~a (interval-expr ival))
-    (if (equal? (interval-end-point ival) +nan.0)
+    (if (equal? end +nan.0)
         ""
-        (format " < ~a" (interval-end-point ival))))))
+        (let ([end* (cond
+                      [(posit8? end) (posit8->double end)]
+                      [(posit16? end) (posit16->double end)]
+                      [(posit32? end) (posit32->double end)]
+                      [else end])])
+          (format " < ~a" end*))))))
 
 (define (split-pcontext pcontext splitpoints alts)
   (define preds (splitpoints->point-preds splitpoints alts))
@@ -486,13 +460,22 @@
     ;; done it yet.
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
-(define (render-history altn pcontext pcontext2)
+(define (render-history altn pcontext pcontext2 precision)
   (-> alt? (listof xexpr?))
 
+  (define prog* (if (set-member? '(final-simplify resugar) (alt-event altn))
+    (let* ([prog (alt-program altn)]
+           [vars (program-variables prog)]
+           [expr (third prog)]
+           [precision-ctx (for/list ([var vars])
+                            (cons var precision))]
+           [desugared-expr (desugar-program expr precision-ctx)])
+      (list 'λ vars desugared-expr))
+    (alt-program altn)))
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext))))
+    (format-bits (errors-score (errors prog* pcontext))))
   (define err2
-    (format "Internal: ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors prog* pcontext2)))))
 
   (match altn
     [(alt prog 'start (list))
@@ -500,7 +483,7 @@
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[" ,(texify-prog prog) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt _ `(regimes ,splitpoints) prevs)
@@ -518,56 +501,36 @@
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map interval->string entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
-               (ol ,@(render-history entry new-pcontext new-pcontext2))))))
+               (ol ,@(render-history entry new-pcontext new-pcontext2 precision))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
-     `(,@(render-history prev pcontext pcontext2)
+     `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]))
-
-(define (make-timeline-json result out)
-  (define timeline (test-result-timeline result))
-  (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
-
-  (define/match (value-map k v)
-    [('method v) (~a v)]
-    [('type v) (~a v)]
-    [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
-    [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
-    [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
-    [('outcomes v)
-     (for/list ([(outcome number) (in-dict v)])
-       (match-define (cons count time) number)
-       (match-define (list prog category prec) outcome)
-       (hash 'count count 'time time
-             'program (~a prog) 'category (~a category) 'precision prec))]
-    [(_ v) v])
-
-  (define data
-    (for/list ([event timeline])
-     (for/hash ([(k v) (in-dict event)])
-       (values k (value-map k v)))))
-
-  (write-json data out))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
+    [(alt prog 'resugar `(,prev))
+     `(,@(render-history prev pcontext pcontext2 precision)
+       (li (p "Resugaring" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+    ))

@@ -25,9 +25,10 @@
 
     (set-seed! seed)
     (for ([page (all-pages result)])
-      (call-with-output-file (build-path rdir page)
-        #:exists 'replace
-        (λ (out) (make-page page out result #f))))
+      (with-handlers ([exn:fail? (λ (e) ((error-display-handler) (format "Error when making ~a: ~a" page (exn-message e)) e))])
+        (call-with-output-file (build-path rdir page)
+          #:exists 'replace
+          (λ (out) (make-page page out result #f)))))
 
     (get-table-data result dirname)]
    [else
@@ -65,19 +66,18 @@
       (loop seed profile? debug? dir))))
 
 (define (print-test-result data)
-  (match-define (cons fpcore tr) data)
-  (match (table-row-status tr)
+  (match (table-row-status data)
     ["error"  
-     (eprintf "[   ERROR   ]\t~a\n" (table-row-name tr))]
+     (eprintf "[   ERROR   ]\t~a\n" (table-row-name data))]
     ["crash"  
-     (eprintf "[   CRASH   ]\t~a\n" (table-row-name tr))]
+     (eprintf "[   CRASH   ]\t~a\n" (table-row-name data))]
     ["timeout"
-     (eprintf "[  timeout  ]\t~a\n" (table-row-name tr))]
+     (eprintf "[  timeout  ]\t~a\n" (table-row-name data))]
     [_
-     (eprintf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time tr) #:width 8)
-              (~r (table-row-start tr) #:min-width 2 #:precision 0)
-              (~r (table-row-result tr) #:min-width 2 #:precision 0)
-              (table-row-name tr))]))
+     (eprintf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time data) #:width 8)
+              (~r (table-row-start data) #:min-width 2 #:precision 0)
+              (~r (table-row-result data) #:min-width 2 #:precision 0)
+              (table-row-name data))]))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (define config
@@ -150,7 +150,7 @@
   (-> (listof test?) #:threads (or/c #f natural-number/c)
       #:seed (or/c pseudo-random-generator-vector? (integer-in 0 (sub1 (expt 2 31))))
       #:profile boolean? #:debug boolean? #:dir (or/c #f path-string?)
-      (listof (or/c #f (cons/c expr? table-row?))))
+      (listof (or/c #f table-row?)))
   (when (and threads (> threads (length progs)))
     (set! threads (length progs)))
 

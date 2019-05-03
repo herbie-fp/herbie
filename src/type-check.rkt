@@ -61,7 +61,7 @@
      (define sigs (hash-ref parametric-operators op))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
 
-     (match-define (cons true-name rtype)
+     (define res
        (for/or ([sig sigs])
          (match-define (list* true-name rtype atypes) sig)
          (and
@@ -69,20 +69,22 @@
               (andmap (curry equal? atypes) actual-types)
               (equal? atypes actual-types))
           (cons true-name rtype))))
-
-     (unless rtype
-       (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
-               (string-join
-                (for/list ([sig sigs])
-                  (match sig
-                    [(list _ rtype atypes ...)
-                     (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
-                    [(list* _ rtype atype)
-                     (format "(~a <~a> ...)" op atype)]))
-                " or ")
-               op (string-join (map (curry format "<~a>") actual-types) " ")))
-
-     rtype]
+     (if res
+       (let ([true-name (car res)]
+             [rtype (cdr res)])
+         (unless rtype
+           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+                   (string-join
+                    (for/list ([sig sigs])
+                      (match sig
+                        [(list _ rtype atypes ...)
+                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                        [(list* _ rtype atype)
+                         (format "(~a <~a> ...)" op atype)]))
+                    " or ")
+                   op (string-join (map (curry format "<~a>") actual-types) " ")))
+         rtype)
+       #f)]
     [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
      (unless sigs (error! stx "Operator ~a has no type signature of length ~a" op (length exprs)))

@@ -1,6 +1,6 @@
 /* Standard Herbie header */
 
-body { width: 800px; margin: 1em auto; font-family: sans; line-height: 1.25; }
+body { width: 800px; margin: 0 auto; font-family: sans; line-height: 1.25; }
 
 a {color: #2A6496; text-decoration: none; cursor: pointer}
 a:hover {text-decoration: underline; color: #295785}
@@ -47,7 +47,7 @@ li.lt-target  {background-color: #ffdb4c;}
 li.eq-start   {background-color: #ff9500;}
 li.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
 #test-badges li.crash      {
-    background-color:#ff9d87; color:#ed2b00; border: 2px solid #ff5e3a;
+    background-color: #ff9d87; color:#ed2b00; border: 2px solid #ff5e3a;
     width: 71px; height: 36px; line-height: 36px;
 }
 #test-badges li.error      {background-color: #4a4a4a; color: #f7f7f7;}
@@ -59,8 +59,8 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 #about th { font-weight: bold; text-align: left; padding-right: 1em; }
 
 #flag-list { position: relative; }
-#flag-list kbd:not(:last-child):after {content: ", ";}
-#flag-list a {float: right; margin: 0 .5em;}
+#flag-list kbd:not(:last-child):after { content: ", "; }
+#flag-list a { float: right; margin: 0 .5em; }
 #flag-list a:before { content: "("; }
 #flag-list a:after { content: ")"; }
 #flag-list #changed-flags { display: none; }
@@ -118,6 +118,12 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 }
 .help-button:hover { background: #444; cursor: pointer; }
 
+/* Links at the top */
+
+#links { border-bottom: 1px solid #ddd; line-height: 2; overflow: auto; }
+#links div:first-child { float: right; }
+#links a + a { margin-left: 1em; }
+
 /* Detail page layout */
 
 section { margin: 5em 0; position: relative; }
@@ -128,15 +134,33 @@ section h1 {
     font-size: 24px; font-weight: normal; color: #aaa;
 }
 
+/* Warnings */
+
+.warnings { list-style: inside none; padding: 0; }
+.warnings > li {
+    margin: .25em 0; padding: .5em; background: #ffdb4c; border: 2px solid #ff9500;
+}
+.warnings h2 { font-size: 100%; font-weight: normal; margin: 0; }
+.warnings h2:before { content: "Warning: "; font-weight: bold; }
+.warnings h2 a { float: right; }
+.warnings ol { list-style: inside none; padding: 0 1em; }
+.warnings ol li { margin: .25em 0; }
+
 /* Big block for program input output */
 
-#program { background: #ddd; padding: 1em; text-align: center; font-size: 24px; }
+#program {
+    background: #ddd; text-align: center; font-size: 24px;
+    position: relative; padding: 1em;
+}
 @media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
-#program .program { display: inline-block; }
+#program .program { display: inline-block; text-align: left; }
 #program .arrow { color: transparent; font-size: 0; }
 #program .arrow:after { content: "↓"; color: black; font-size: 24px; }
 #program.horizontal .arrow { display: inline-block; }
 #program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
+#language { position: absolute; right: 1em; }
+#precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
+#precondition:before { content: "Precondition"; float: left; color: #444; }
 
 /* Error graphs */
 
@@ -192,7 +216,7 @@ section h1 {
 .history li > div > div { margin: 0; display: inline-block; text-align: right !important; }
 
 .history h2 { margin: 1.333em 0 .333em; }
-.history li {margin: .5em 0; border-top: 1px solid #ddd; padding-top: .5em; }
+.history li { margin: .5em 0; border-top: 1px solid #ddd; padding-top: .5em; }
 .history li:first-child { border-top: none; padding-top: 0; }
 .history .rule { text-decoration: underline; }
 .history .event { display: block; margin: .5em 0; }
@@ -221,7 +245,7 @@ section h1 {
 .timeline-block dl { font-size: 90%; }
 .timeline-block dt { min-width: 6em; float: left; font-size: 100%; }
 .timeline-block dd { margin: 0 0 1ex 6em; max-width: 100%; overflow: auto; }
-table.times td { text-align: right; min-width: 8ex; }
+table.times td { text-align: right; min-width: 8ex; vertical-align: baseline; }
 table.times td:last-child { text-align: left; }
 table pre { padding: 0; margin: 0; text-align: left; }
 

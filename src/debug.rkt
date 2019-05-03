@@ -1,5 +1,5 @@
 #lang racket
-
+(require "config.rkt")
 (provide *debug* *debug-port* *debug-pref-range* debug set-debug-level!)
 
 ;; Sets how powerful, and therefore how computationally expensive, the
@@ -99,21 +99,20 @@
 	[(and from (dict-has-key? (*debug*) from)) (dict-ref (*debug*) from)]
 	[#t (dict-ref (*debug*) #t)]))
 
-(define (debug #:from [from 'none] #:tag [tag 'misc] #:depth [depth 1] . args)
+(define (debug #:from [from 'none] #:depth [depth 1] . args)
   (when (should-print-debug? from depth)
     (set! *last-time-printed* (/ (current-inexact-milliseconds) 1000))
-    (debug-print from depth tag args (*debug-port*))))
+    (debug-print from depth args (*debug-port*))))
 
-(define (debug-print from depth tag args port)
-  (display (~r (/ (current-inexact-milliseconds) 1000) #:precision '(= 3)) port)
-  (display " " port)
-  (for ([i (range depth)])
-    (display "* " port))
-  (display (hash-ref *tags* tag "; ") port)
-  (write from port)
-  (display ": " port)
-  (for/list ([arg args])
-    (display " " port)
-    ((if (string? arg) display write) arg port))
+(define debug-start-time (current-inexact-milliseconds))
+(register-reset (λ () (set! debug-start-time (current-inexact-milliseconds))))
+
+(define (debug-print from depth args port)
+  (fprintf port "~a ~a [~a]:"
+           (~r (/ (- (current-inexact-milliseconds) debug-start-time) 1000)
+               #:precision '(= 3))
+           (string-join (build-list depth (const "*")) " ")
+           from)
+  (for ([arg args]) (fprintf port " ~a" arg))
   (newline port)
   (flush-output port))

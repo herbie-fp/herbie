@@ -1,20 +1,41 @@
-function toggle_flag_list() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.toggle("changed-flags");
-    var changed_only = flags.classList.contains("changed-flags");
-    var button = document.getElementById("flag-list-toggle");
-    button.innerText = changed_only ? "see all" : "see diff";
+window.COMPONENTS = []
+
+function Component(selector, fns) {
+    this.selector = selector;
+    this.fns = fns;
+    window.COMPONENTS.push(this);
 }
 
-function togglable_flags() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.add("changed-flags");
-    var button = document.createElement("a");
-    button.setAttribute("id", "flag-list-toggle");
-    button.innerText = "see all";
-    button.addEventListener("click", toggle_flag_list);
-    flags.insertBefore(button, flags.children[0]);
+function ComponentInstance(elt, component) {
+    for (var i in component.fns) {
+        if (component.fns.hasOwnProperty(i)) {
+            this[i] = component.fns[i].bind(this);
+        }
+    }
+    this.elt = elt;
 }
+
+var TogglableFlags = new Component("#flag-list", {
+    setup: function() {
+        this.elt.classList.add("changed-flags");
+        this.button = document.createElement("a");
+        this.button.setAttribute("id", "flag-list-toggle");
+        this.button.innerText = "see all";
+        this.button.addEventListener("click", this.toggle);
+        this.elt.insertBefore(this.button, this.elt.children[0]);
+    },
+    toggle: function() {
+        this.elt.classList.toggle("changed-flags");
+        var changed_only = this.elt.classList.contains("changed-flags");
+        this.button.innerText = changed_only ? "see all" : "see diff";
+    }
+});
+
+var Figure = new Component("#graphs figure", {
+    setup: function() {
+        setup_figure(this.elt);
+    },
+});
 
 function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
@@ -55,6 +76,47 @@ function setup_figure(figure) {
     }
 }
 
+var TryIt = new Component("#try-it", {
+    depends: function() {
+        if (typeof window.start === "undefined") throw "start() function not defined";
+        if (typeof window.end === "undefined") throw "end() function not defined";
+    },
+    setup: function() {
+        this.origOut = this.elt.querySelector("#try-original-output");
+        this.herbieOut = this.elt.querySelector("#try-herbie-output");
+        this.result = this.elt.querySelector("#try-result");
+        this.inputs = this.elt.querySelectorAll("#try-inputs input");
+        this.submit();
+        for (var i = 0; i < this.inputs.length; i++) {
+            this.inputs[i].addEventListener("input", this.submit);
+        }
+    },
+    submit: function() {
+        var values = [];
+        for (var i = 0; i < this.inputs.length; i++) {
+            var val = parseFloat(this.inputs[i].value);
+            if (isNaN(val)) {
+                if (this.inputs[i].value.length != 0) {
+                    // Don't update error message if there is no input
+                    this.result.className = 'error'
+                }
+                return;
+            } else {
+                this.result.className = 'no-error'
+                values.push(val);
+            }
+        }
+        this.origOut.innerHTML = start.apply(null, values);
+        this.herbieOut.innerHTML = end.apply(null, values);
+    },
+});
+
+var FigureTabs = new Component("#graphs > div", {
+    setup: function() {
+        setup_figure_tabs(this.elt);
+    },
+});
+
 function select_tab(id) {
     var tab = document.getElementById("tab-" + id);
     var pane = document.getElementById(id);
@@ -68,28 +130,6 @@ function select_tab(id) {
 
     tab.classList.add("selected");
     pane.style.display = "block";
-}
-
-function submit_inputs() {
-    var originalOutputElem = document.querySelector('#try-original-output');
-    var herbieOutputElem = document.querySelector('#try-herbie-output');
-    var inputs = document.querySelectorAll('#try-inputs input');
-    var inputVals = [];
-    for (var i = 0; i < inputs.length; i++) {
-        var val = parseFloat(inputs[i].value);
-        if (isNaN(val)) {
-            if (inputs[i].value.length != 0) {
-                // Don't update error message if there is no input
-                document.querySelector('#try-result').className = 'error'
-            }
-            return;
-        } else {
-            document.querySelector('#try-result').className = 'no-error'
-            inputVals.push(val);
-        }
-    }
-    originalOutputElem.innerHTML = start.apply(null, inputVals);
-    herbieOutputElem.innerHTML = end.apply(null, inputVals);
 }
 
 function setup_figure_tabs(figure_container) {
@@ -125,34 +165,62 @@ function setup_figure_tabs(figure_container) {
     if (default_figure) select_tab(default_figure);
 }
 
-function setup_timeline() {
-    var ts = document.getElementsByClassName("timeline-phase");
-    var total_time = 0;
-    for (var i = 0; i < ts.length; i++) {
-        total_time += +ts[i].getAttribute("data-timespan");
-    }
-    var total_width = ts[0].parentNode.offsetWidth;
-    for (var i = 0; i < ts.length; i++) {
-        ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
-        var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
-        ts[i].title = s;
-    }
-}
+var RenderMath = new Component(".math", {
+    depends: function() {
+        if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
+    },
+    setup: function() {
+        renderMathInElement(this.elt);
+    },
+});
 
-function setup_program_arrow() {
-    var progelt = document.getElementById("program");
-    var progs = progelt.getElementsByClassName("program");
-    var arrs = progelt.getElementsByClassName("arrow");
-
-    progelt.classList.add("horizontal");
-    var progBot = progs[0].offsetTop + progs[0].offsetHeight;
-    for (var i in progs) {
-        if (progs[i].offsetTop >= progBot) {
-            return progelt.classList.remove("horizontal");
+var Timeline = new Component(".timeline", {
+    setup: function() {
+        var ts = this.elt.querySelectorAll(".timeline-phase");
+        var total_time = 0;
+        for (var i = 0; i < ts.length; i++) {
+            total_time += +ts[i].getAttribute("data-timespan");
+        }
+        var total_width = ts[0].parentNode.offsetWidth;
+        for (var i = 0; i < ts.length; i++) {
+            ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
+            var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+            ts[i].title = s;
         }
     }
-}
-  
+});
+
+var Implementations = new Component("#program", {
+    setup: function() {
+        this.dropdown = this.elt.querySelector("select");
+        this.programs = this.elt.querySelectorAll(".implementation");
+        this.elt.addEventListener("change", this.change);
+        this.change();
+    },
+    change: function() {
+        var lang = this.dropdown.options[this.dropdown.selectedIndex].text;
+        for (var i = 0; i < this.programs.length; i++) {
+            var $prog = this.programs[i];
+            if ($prog.dataset["language"] == lang) {
+                $prog.style.display = "block";
+                this.arrow($prog);
+            } else {
+                $prog.style.display =  "none";
+            }
+        }
+    },
+    arrow: function($prog) {
+        var progs = $prog.querySelectorAll(".program");
+        $prog.classList.add("horizontal");
+        for (var i = 0; i < progs.length; i++) {
+            var progBot = progs[i].offsetTop + progs[i].offsetHeight;
+            if (progs[i].offsetTop >= progBot) {
+                return $prog.classList.remove("horizontal");
+            }
+        }
+    },
+});
+
 function histogram(id, data) {
     var width = 676;
     var height = 60
@@ -162,6 +230,8 @@ function histogram(id, data) {
     var bucketwidth = 25;
 
     var canvas = document.getElementById(id);
+    if (data.length == 0) { return canvas.remove(); } // Early exit
+
     canvas.setAttribute("width", margin + width + margin + "px");
     canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
     var ctx = canvas.getContext("2d");
@@ -211,28 +281,28 @@ function histogram(id, data) {
     }
 }
 
-function load_graph() {
-    var figs = document.querySelectorAll("#graphs figure");
-    for (var i = 0; i < figs.length; i++) {
-        setup_figure(figs[i]);
+function run_components() {
+    for (var i = 0; i < window.COMPONENTS.length; i++) {
+        var component = window.COMPONENTS[i];
+        var elts = document.querySelectorAll(component.selector);
+
+        try {
+            if (elts.length > 0 && component.fns.depends) component.fns.depends();
+        } catch (e) {
+            console.error(e);
+            continue;
+        }
+
+        for (var j = 0; j < elts.length; j++) {
+            var instance = new ComponentInstance(elts[j], component);
+            console.log("Initiating", component.selector, "component at", elts[j]);
+            try {
+                instance.setup();
+            } catch (e) {
+                console.error(e);
+            }
+        }
     }
-    setup_figure_tabs(document.querySelector("#graphs div"));
-    setup_timeline();
-    // Run the program_arrow after rendering happens
-    var es = document.querySelectorAll('.math');
-    for (var i = 0; i < es.length; i++) renderMathInElement(es[i]);
-    // Submit the default vals in the "Try it out" section
-    submit_inputs()
 }
 
-function load_report() {
-    togglable_flags();
-}
-
-function load_index() {
-    // Nothing
-}
-
-function report() {load_report();}
-function graph() {load_graph();}
-function index() {load_index();}
+window.addEventListener("load", run_components);

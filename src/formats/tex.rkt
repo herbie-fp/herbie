@@ -47,12 +47,11 @@
     [(or '+ '- 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
-    [(or 'fma 'hypot 'pow) (values #f #f)]
+    ['pow (values #f #f)]
     ['atan2 (values 'fn #t)]
-    ['log1p (values #f '+)]
     ['if (values #t #t)]
     [(or 'remainder 'fmod) (values #t #f)]
-    [(or 'cbrt 'ceil 'copysign 'expm1 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+    [(or 'cbrt 'ceil 'copysign 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
      (values #f #t)]
     [(or '== '< '> '<= '>= '!=)
      (values #f #t)]
@@ -126,10 +125,7 @@
                   (texify arg arg-paren-level (cons id loc)))]
                [hl-loc
                 #f])
-           (format
-                                        ; omit parens if parent contex has lower precedence
-            (if (precedence< parens self-paren-level)
-                "~a"
-                "\\left(~a\\right)")
+           (format ; omit parens if parent contex has lower precedence
+            (if (precedence< parens self-paren-level) "~a" "\\left(~a\\right)")
             (apply (operator-info f '->tex) texed-args)))]))))
 

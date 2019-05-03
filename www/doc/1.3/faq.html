@@ -5,6 +5,7 @@
   <title>Herbie FAQ</title>
   <link rel='stylesheet' type='text/css' href='../../main.css'>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
 </head>
 <body>
   <header>
@@ -18,6 +19,7 @@
     frequently asked questions about Herbie.
   </p>
 
+
   <h2>Troubleshooting common errors</h2>
 
   <p>
@@ -25,20 +27,20 @@
     information and debugging tips.
   </p>
 
-  <h3 id="invalid-syntax">“Invalid syntax” error</h3>
+  <h3 id="invalid-syntax">Invalid syntax</h3>
 
   <p>
     This error means you mis-formatted Herbie's input. Common errors
     include misspelling function names and parenthesizing expressions
-    that must not be parenthesized. For example, in
+    that should not be parenthesized. For example, in
     <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
-    <code>x</code> is a variable so isn't parenthesized. <code>(- (exp
-    x) 1)</code> would be the correct way of writing that expression.
-    Please review the <a href="input.html">input format</a>
-    documentation for more.
+    <code>x</code> is a variable so shouldn't be
+    parenthesized. <code>(- (exp x) 1)</code> would be the correct way
+    of writing that expression. Please review
+    the <a href="input.html">input format</a> documentation for more.
   </p>
 
-  <h3 id="sample-valid-points">“Cannot sample enough valid points” error</h3>
+  <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
 
   <p>
     Herbie uses random sampling to select the points which it will use
@@ -56,7 +58,7 @@
     strategy.
   </p>
 
-  <h3 id="no-valid-values">“No valid values” error</h3>
+  <h3 id="no-valid-values">No valid values</h3>
 
   <p>
     This error indicates that your precondition excludes all possible
@@ -67,16 +69,52 @@
     unsatisfiable preconditions instead raise the error above.
   </p>
 
-  <h3 id="mpfr-prec-limit">“Exceeded MPFR precision limit” error</h3>
+  <h3 id="mpfr-prec-limit">Exceeded MPFR precision limit</h3>
 
   <p>
     Herbie computes "ground truth" results using
     <a href="http://www.mpfr.org/">MPFR</a>. For some expressions,
     like <code>(sin (exp x))</code>, using MPFR in this way requires
-    exponentially many bits to compute a correct result. Instead of
-    simply timing out in such cases, Herbie limits the MPFR precision
-    to 10,000 bits and raises this error when it hits that limit.
+    exponentially many bits to compute a correct result. Herbie raises
+    this error when more than 10,000 bits are required.
   </p>
+
+
+  <h2>Understanding Common Warnings</h2>
+
+  <p>Herbie’s warnings refer to this page to describe the warning and
+  common actions to take.</p>
+
+  <h3 id="ground-truth">Could not determine a ground truth</h3>
+
+  <p>
+    Herbie will raise this warning when some inputs require more than
+    10,000 bits to compute an exact ground truth value. This happens
+    most often for expressions that divide two exponents,
+    like <code>(/ (exp x) (exp x))</code> with very large inputs,
+    where absurdly large exponents would be required to compute the
+    accurate output. Herbie assumes that those points are invalid
+    inputs and raises this warning to let you know about the issue. If
+    you see this warning, you should add a restrictive precondition,
+    such as <code>:pre (&lt; -100 x 100)</code>, to prevent large
+    inputs.
+  </p>
+
+  <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
+
+  <p>
+    Some systems do not have native implementations for all operations
+    that Herbie uses. (For example, Microsoft's <code>math.h</code>
+    does not provide the <code>y0</code> function.) Herbie provides a
+    fallback implementation which is used by default for these
+    functions. You can disable this fallback functionality
+    with <code>--disable precision:fallback</code>.
+  </p>
+
+
+  <h2>Known bugs</h2>
+
+  <p>Some bugs cannot be directly fixed and are documented here.</p>
 
   <h3>Missing reports chart on Chrome</h3>
 
@@ -85,16 +123,6 @@
     disables certain APIs for security reasons; this prevents the
     Herbie reports from drawing the chart. Run Chrome
     with <code>--allow-file-access-from-files</code> to fix this error.
-  </p>
-
-  <h3 id="native-ops">"Warning: native <i>operation</i> not supported on your system"</h3>
-
-  <p>
-    Some systems may not support a native implementation for all
-    operations that Herbie uses. Herbie provides a default fallback
-    implementation which is used by default for functions whose
-    native implementation is not found. You can disable this fallback
-    functionality with <code>--disable precision:fallback</code>.
   </p>
 
 </body>

@@ -2,11 +2,7 @@
 
 (require math/flonum)
 (require plot/no-gui)
-(require "common.rkt")
-(require "float.rkt")
-(require "points.rkt")
-(require "programs.rkt")
-(require "alternative.rkt")
+(require "common.rkt" "float.rkt" "points.rkt" "programs.rkt" "alternative.rkt" "interface.rkt")
 
 (provide error-points best-alt-points herbie-plot alt-plot error-mark error-avg
          herbie-ratio-point-renderers herbie-ratio-point-colors error-axes
@@ -18,20 +14,23 @@
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 (define *yellow-theme* (color-theme "gold" "yellow" "olive"))
 
-(define double-transform
+(define (double-transform)
+  (define repr (if (flag-set? 'precision 'double) binary64 binary32))
+  (define ->repr (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
   (invertible-function
-   (compose flonum->ordinal fl)
-   (compose ordinal->flonum round)))
+   (compose (representation-repr->ordinal repr) ->repr)
+   (compose (representation-ordinal->repr repr) round)))
 
-(define double-axis
-  (make-axis-transform double-transform))
+(define (double-axis)
+  (make-axis-transform (double-transform)))
 
 (define (power10-upto x)
+  (define ->repr (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
   (if (= x 0)
       '()
       (reverse
        (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (expt 10.0 power))
+         (define value (->repr (expt 10.0 power)))
          (if (= value 0) '() (cons value (loop (- power 1))))))))
 
 (define (possible-ticks min max)
@@ -95,14 +94,14 @@
      (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
      (if (<= min 0.0 max) (list (pre-tick 0.0 #t)) '())
      (if (<= min -1.0 max) (list (pre-tick -1.0 #t)) '())
-     ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) double-transform)) min max))]
+     ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) (double-transform))) min max))]
    [else
     (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
     (define major-indices (pick-spaced-indices necessary (length possible) 12))
     (for/list ([idx major-indices])
       (pre-tick (list-ref possible idx) #t))]))
 
-(define double-ticks
+(define (double-ticks)
   (ticks
    choose-ticks
    (λ (lft rgt pticks)
@@ -161,8 +160,8 @@
 (define (with-herbie-plot #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
-                 [plot-x-transform double-axis]
-                 [plot-x-ticks double-ticks]
+                 [plot-x-transform (double-axis)]
+                 [plot-x-ticks (double-ticks)]
                  [plot-x-tick-label-anchor 'top]
                  [plot-x-label #f]
                  [plot-x-far-axis? #t]
@@ -184,14 +183,14 @@
 (define (with-alt-plot #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 800]
                  [plot-background-alpha 1]
-                 [plot-x-transform double-axis]
-                 [plot-x-ticks double-ticks]
+                 [plot-x-transform (double-axis)]
+                 [plot-x-ticks (double-ticks)]
                  [plot-x-tick-label-anchor 'top]
                  [plot-x-label #f]
                  [plot-x-far-axis? #t]
                  [plot-x-far-ticks no-ticks]
-                 [plot-y-transform double-axis]
-                 [plot-y-ticks double-ticks]
+                 [plot-y-transform (double-axis)]
+                 [plot-y-ticks (double-ticks)]
                  [plot-y-tick-label-anchor 'left]
                  [plot-y-label #f]
                  [plot-y-far-axis? #t]
@@ -257,7 +256,7 @@
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
   (function avg-fun
-            (car (first eby)) (car (last eby))
+            (flprev (car (first eby))) (flnext (car (last eby)))
             #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)

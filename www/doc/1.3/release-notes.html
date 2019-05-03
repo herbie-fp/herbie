@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.2 Release Notes</title>
+  <title>Herbie 1.3 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script type="text/javascript" src="compare.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
@@ -18,8 +18,8 @@
     The <a href="../..">Herbie</a> developers are excited to announce
     Herbie 1.3! This release focuses on <em>speed and
     extensibility</em>, including support for posits. Herbie 1.3 is
-    also nearly three times as fast as Herbie 1.2, and is more
-    accurate at evaluating rounding error.
+    nearly three times as fast as Herbie 1.2, and includes more
+    detailed HTML output.
   </p>
 
   <p>
@@ -35,18 +35,15 @@
   <h2>Improvement to core algorithm</h2>
 
   <ul>
-    <li>Careful performance work has sped Herbie up nearly three times
-      compared to the 1.2 release.</li>
-    <li>Herbie now uses a sound interval-based approach to computing
-      the "ground truth" accurate answer for computations. In rare
-      cases, this could change Herbie's accuracy estimate for a
-      program.</li>
+    <li>Careful performance work has made Herbie nearly three times
+      faster than the 1.2 release.</li>
+    <li>The "ground truth" answer for computations is now computed by
+      a sound interval analysis. In rare cases, this could change
+      Herbie's accuracy estimate for a program.</li>
     <li>Series expansion of <code>pow</code>s with constant exponents
       is now much faster.</li>
-    <li>Refactor the implementation of complex numbers so that type checking
-      is now done exactly once, significantly speeding up the code.</li>
-    <li>Various fixes to simplification and series expansion have eliminated
-      some rare but large slowdowns.</li>
+    <li>Complex numbers are now handled significantly more quickly.</li>
+    <li>Various fixes have eliminated rare but large slowdowns.</li>
   </ul>
 
   <h2>Beta-quality features</h2>
@@ -67,35 +64,47 @@
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>We have a <a href="../../index.html">new website</a>!
+    <li>Herbie's web interface now allows you to change preconditions
+      and precisions (click “additional options” below the formula bar).</li>
+    <li>Herbie has a <a href="../../index.html">new website</a>!
       Hopefully it's a little easier to learn about what Herbie is and
       how to use it.</li>
-    <li>Herbie will now prefer simpler to more complex programs in
-      several places. This should result in simpler output. For example,
-      Simplification can now simplify exact constant expressions
-      like <code>(+ 2 2)</code>.</li>
-    <li>The Herbie shell now indents and breaks lines when it prints
-      FPCores.</li>
-    <li>Herbie reports now use <a href="https://katex.org/">KaTeX</a>
-      to render math in the browser. KaTeX is significantly faster than
-      <a href="https://www.mathjax.org/">MathJax</a>, which we used to use.</li>
-    <li>You can now middle-click on the arrows on report pages to open
-      in new tab.</li>
+    <li>Herbie now produces somewhat simpler output, for example by
+      simplifying, exact constant expressions like <code>(+ 2
+      2)</code>.</li>
+    <li>Herbie now shows preconditions in its HTML output.</li>
+    <li>Herbie will now show warnings in its HTML output, including
+      links to more documentation.</li>
+    <li>Herbie now indents and breaks lines when it prints FPCores in
+      the terminal.</li>
+    <li>Herbie now uses <a href="https://katex.org/">KaTeX</a> to
+      render math in the browser, which is significantly faster than
+      the previous <a href="https://www.mathjax.org/">MathJax</a>
+      library.</li>
+    <li>Error and timeout pages now show the input program.</li>
+    <li>You can now middle-click on the report page arrows to open in
+      new tab.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
 
   <ul>
-    <li>Reports now display a quality metric for regime inference.
-      This should help improve regime inference over time.</li>
-    <li>The <kbd>reproduce<kbd> command now allows rerunning a report.</li>
-    <li>The timebar in the debug block now separates regime inference
+    <li>Reports now link to an extensive collection of quality and
+      performance metrics. This should help improve Herbie's speed and
+      accuracy over time.</li>
+    <li>Many bugs in single-precision mode have been fixed, including
+      in both the core algorithm and in output and plotting.</li>
+    <li>The new <kbd>reproduce</kbd> command allows rerunning a
+      report.</li>
+    <li>The timebar on the metrics page now separates regime inference
       from binary search.</li>
+    <li>Herbie's JavaScript code has been refactored, making it much
+      easier to maintain.</li>
     <li>Lots of old, unused code has been deleted, including a lot of
       support code for the
       obsolete <a href="https://pavpanchekha.com/blog/herbie-viz.html">Herbie
       Visualizer</a>.</li>
-    <li>Move a lot of glue code into a single glue file, clarifying
+    <li>Glue code has been moved into a single file, clarifying
       responsibilities for a lot of modules.</li>
   </ul>
   

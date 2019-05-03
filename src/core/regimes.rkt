@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../type-check.rkt")
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../type-check.rkt"
+         "../syntax/softposit.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -15,7 +16,7 @@
            (write (option-split-indices opt) port)
            (display ">" port))])
 
-;; Struct represeting a splitpoint
+;; Struct representing a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
 ;; bexpr = Branch Expression: The expression that this splitpoint should split on
 ;; point = Split Point: The point at which we should split.
@@ -79,19 +80,29 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option)
+(define (combine-alts best-option precision)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
-    (define splitpoints (sindices->spoints pts expr alts splitindices))
+    (define splitpoints (sindices->spoints pts expr alts splitindices precision))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        `(if (<= ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+        (define prec-point (match precision
+                             [(or 'binary64 'binary32) (sp-point splitpoint)]
+                             ['posit8 `(real->posit8 ,(posit8->double (sp-point splitpoint)))]
+                             ['posit16 `(real->posit16 ,(posit16->double (sp-point splitpoint)))]
+                             ['posit32 `(real->posit32 ,(posit32->double (sp-point splitpoint)))]))
+        (define <=-operator (match precision
+                             [(or 'binary64 'binary32) '<=]
+                             ['posit8 `<=.p8]
+                             ['posit16 `<=.p16]
+                             ['posit32 `<=.p32]))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,prec-point)
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
@@ -109,13 +120,35 @@
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
 
+(define (<-all-precisions x1 x2)
+(cond
+  [(or (real? x1) (complex? x1))
+   (< x1 x2)]
+  [(posit8? x1)
+   (posit8< x1 x2)]
+  [(posit16? x1)
+   (posit16< x1 x2)]
+  [(posit32? x1)
+   (posit32< x1 x2)]
+  [(quire8? x1)
+   (posit8< (quire8->posit8 x1) (quire8->posit8 x2))]
+  [(quire16? x1)
+   (posit16< (quire16->posit16 x1) (quire16->posit16 x2))]
+  [(quire32? x1)
+   (posit32< (quire32->posit32 x1) (quire32->posit32 x2))]))
+
+(define (sort-context-on-expr context expr variables)
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
+    (mk-pcontext (map car p&e) (map cdr p&e))))
+
 (define (option-on-expr alts expr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define vars (program-variables (*start-prog*)))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
-  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (< prev val))))
+  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (<-all-precisions prev val))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
@@ -156,7 +189,7 @@
 
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2)
-  (let ([midpoint (midpoint-float p1 p2)])
+  (let ([midpoint (midpoint p1 p2)])
     (cond [(< (bit-difference p1 p2) 48) midpoint]
 	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
 	  [else (binary-search-floats pred p1 midpoint)])))
@@ -174,7 +207,7 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices)
+(define (sindices->spoints points expr alts sindices precision)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
 
@@ -185,7 +218,7 @@
     (define (pred v)
       (define ctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v))))
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
     (binary-search-floats pred v1 v2))
 
@@ -296,7 +329,7 @@
   (reverse (cse-indices (last final))))
 
 (define (splitpoints->point-preds splitpoints alts)
-  (assert (all-equal? (map sp-bexpr splitpoints)))
+  (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
   (assert (nan? (sp-point (last splitpoints))))
 
   (define vars (program-variables (alt-program (first alts))))
@@ -307,7 +340,7 @@
     (λ (pt)
       (define val (prog pt))
       (for/first ([right splitpoints]
-                  #:when (or (nan? (sp-point right)) (<= val (sp-point right))))
+                  #:when (or (nan?-all-types (sp-point right)) (<=/total val (sp-point right))))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 

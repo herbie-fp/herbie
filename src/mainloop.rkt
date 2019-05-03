@@ -1,6 +1,6 @@
 #lang racket
 
-(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt")
+(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt")
 (require "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "core/simplify.rkt"
          "core/matcher.rkt" "core/regimes.rkt")
 (require "type-check.rkt") ;; For taylor not running on complex exprs
@@ -59,21 +59,34 @@
     (set-shellstate-timeline! (^shell-state^) (cons b (shellstate-timeline (^shell-state^))))
     (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
+(define (check-unused-variables vars precondition expr)
+  ;; Fun story: you might want variables in the precondition that
+  ;; don't appear in the `expr`, because that can allow you to do
+  ;; non-uniform sampling. For example, if you have the precondition
+  ;; `(< x y)`, where `y` is otherwise unused, then `x` is sampled
+  ;; non-uniformly (biased toward small values).
+  (define used (set-union (free-variables expr) (free-variables precondition)))
+  (unless (set=? vars used)
+    (define unused (set-subtract vars used))
+    (warn 'unused-variable
+          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
+          (string-join (map ~a unused) ", "))))
+
 ;; Setting up
-(define (setup-prog! prog #:precondition [precondition 'TRUE])
+(define (setup-prog! prog #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64])
   (*start-prog* prog)
   (rollback-improve!)
   (define log! (timeline-event! 'sample))
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
+  (check-unused-variables (program-variables prog) precondition (program-body prog))
   (define prepare-log (make-hash))
-  (let* ([context (prepare-points prog precondition #:log prepare-log)]
+  (let* ([context (prepare-points prog precondition precision #:log prepare-log)]
          [altn (make-alt prog)])
     (log! 'method (sampling-method prog precondition))
     (log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
-    (reset-analyze-cache!)
-    (reset-taylor-caches!)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
     (^table^ (make-alt-table context altn))
     (assert (equal? (atab-all-alts (^table^)) (list altn)))
@@ -259,7 +272,7 @@
           (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
           (set! exprs (cons (cons (location-get loc (alt-program child)) (- (current-inexact-milliseconds) tnow)) exprs))
           (debug #:from 'simplify "Simplified" loc "to" child*)
-          (if (> (num-nodes (program-body (alt-program child))) (num-nodes (program-body child*)))
+          (if (> (program-cost (alt-program child)) (program-cost child*))
               (alt child* (list 'simplify loc) (list child))
               child))))
 
@@ -342,9 +355,10 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:precondition precondition)
+  (setup-prog! prog #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
          (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
@@ -360,9 +374,9 @@
       (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
       (run-iter!))
     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-    (get-final-combination)]))
+    (get-final-combination precision)]))
 
-(define (get-final-combination)
+(define (get-final-combination precision)
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* all-alts)
   (define joined-alt
@@ -371,7 +385,7 @@
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts))
       (timeline-event! 'bsearch)
-      (combine-alts option)]
+      (combine-alts option precision)]
      [else
       (best-alt all-alts)]))
   (define cleaned-alt
@@ -382,8 +396,8 @@
   cleaned-alt)
 
 ;; Other tools
-(define (resample!)
-  (let ([context (prepare-points (*start-prog*) (^precondition^))])
+(define (resample! precision)
+  (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
     (*pcontext* context)
     (^table^ (atab-new-context (^table^) context)))
   (void))

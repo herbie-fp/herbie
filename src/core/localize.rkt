@@ -8,7 +8,7 @@
 (require "../programs.rkt")
 (require "../alternative.rkt")
 
-(provide localize-error reset-analyze-cache!)
+(provide localize-error)
 
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
@@ -44,9 +44,10 @@
 								     (->flonum ap))))) exact approx)])
                      (cons exact error))]))))
 
-(define (reset-analyze-cache!)
+(register-reset
+ (λ ()
   (*analyze-context* (*pcontext*))
-  (hash-clear! *analyze-cache*))
+  (hash-clear! *analyze-cache*)))
 
 (define (localize-error prog)
   (define varmap (map cons (program-variables prog)

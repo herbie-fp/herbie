@@ -5,7 +5,7 @@
 (require "../programs.rkt")
 (require "datafile.rkt")
 
-(provide compile-info program->c)
+(provide program->c)
 
 (define (unused-variables prog)
   (remove* (free-variables (program-body prog))
@@ -123,28 +123,3 @@
   (display (program->mpfr iprog bits "f_im"))
   (display (program->mpfr fprog bits "f_fm"))
   (display (program->mpfr dprog bits "f_dm")))
-
-(define (compile-info base-dir single-info double-info)
-  (for ([single-test (report-info-tests single-info)] [double-test (report-info-tests double-info)])
-    (when (and (not (member (table-row-status single-test) '("timeout" "error" "crash")))
-               (not (member (table-row-status double-test) '("timeout" "error" "crash"))))
-      (match (cons single-test double-test)
-        [(cons (table-row name single-status _ _ _ _ _ _ _ _ vars input single-output _ single-bits dir)
-               (table-row name double-status _ _ _ _ _ _ _ _ vars input double-output _ double-bits dir))
-         (define fname (build-path base-dir dir "compiled.c"))
-         (debug #:from 'compile-info "Compiling" name "to" fname)
-         (write-file fname
-                     (compile-all name `(λ ,vars ,input) `(λ ,vars ,single-output)
-                                  `(λ ,vars ,double-output) (max single-bits double-bits)))]
-        [else
-         (error "Test case order, names, inputs don't match for single and double precision results."
-                single-test double-test)]))))
-
-(module+ main
-  (require racket/cmdline)
-  (require "../config.rkt")
-
-  (command-line
-   #:program "compile/c.rkt"
-   #:args (single-json-file double-json-file dir)
-   (compile-info dir (read-datafile single-json-file) (read-datafile double-json-file))))

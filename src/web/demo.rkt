@@ -36,14 +36,14 @@
   (dispatch-rules
    [("") main]
    [("improve-start") #:method "post" improve-start]
-   [("improve") #:method "post" improve]
+   [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
   (match-define (cons result debug) results)
   (cond
-   [(set-member? page (all-pages result))
+   [(set-member? (all-pages result) page)
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out) (make-page page out result #f)))]
@@ -100,8 +100,16 @@
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+           (div ([class "extra-fields"])
+             (label ([for "pre"]) "Precondition")
+             (input ([name "pre"] [id "pre"] [placeholder "TRUE"]))
+             (label ([for "precision"]) "Precision")
+             (select ([name "precision"] [id "precision"])
+               (option ([value "binary64"]) "Double-precision floats")
+               (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
-           (pre ([id "progress"] [style "display: none;"])))
+           (pre ([id "progress"] [style "display: none;"]))
+           (input ([type "submit"])))
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
@@ -117,28 +125,24 @@
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "You can write ordinary mathematical expressions (parsed with "
-        (a ([href "https://mathjs.org"]) "math.js") ") using:")
+        (a ([href "https://mathjs.org"]) "math.js") ") using the standard "
+        (code "math.h") " functions, including:")
 
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
-     '((sqrt sqr) "Squares and square roots")
-     '((cbrt cube) "Cubes and cube roots")
+     '((sqrt cbrt) "Square and cube roots")
      '((exp log) "Natural exponent and natural log")
-     '((expt) "Raising a value to an exponent (also called " (code "pow") ")")
+     '((pow) "Raising a value to a power")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
      '((sinh cosh tanh) "The hyperbolic trigonometric functions")
      '((asinh acosh atanh) "The inverse hyperbolic trigonometric functions")
-     '((ceil floor rint round trunc) "Rounding functions")
      '((erf erfc) "Error function and complementary error function")
-     '((exp2 log2 log10) "Exponential base 2, log base 2, and log base 10")
-     '((fmod remainder) "Mod and remainder functions")
      '((j0 j1 y0 y1) "Bessel functions of the first and second kind")
-     '((tgamma lgamma) "The gamma function and log gamma function")
-     '((fmin fmax) "The min and max functions")
-     '((fdim copysign) "The positive difference and copysign functions")
+     '((tgamma lgamma) "The gamma function and log-gamma function")
+     '((min max) "The min and max functions")
      '((expm1 log1p) "The exponent of " (code "x - 1") " and the log of " (code "1 + x"))
-     '((fma hypot logb) "The fma, hypotenuse (distance from origin), and logb functions")
+     '((fma) "The fused multiply-add, with the additive term last")
      '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "
@@ -210,7 +214,7 @@
 
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
-  (match-define (cons _ data) (get-table-data result link))
+  (define data (get-table-data result link))
   (define info
     (if (file-exists? data-file)
         (let ([info (read-datafile data-file)])
@@ -318,19 +322,16 @@
    #:command-line? true
    #:launch-browser? (not quiet?)
    #:banner? true
-   #:servlets-root web-resource-path
-   #:server-root-path web-resource-path
+   #:servlets-root (web-resource)
+   #:server-root-path (web-resource)
    #:servlet-path "/"
    #:servlet-regexp #rx""
    #:extra-files-paths
-   (if (*demo-output*)
-       (list web-resource-path (*demo-output*))
-       (list web-resource-path))
+   (list/true (web-resource) (*demo-output*))
 
    #:log-file (*demo-log*)
    #:file-not-found-responder
-   (gen-file-not-found-responder
-    (build-path web-resource-path "404.html"))))
+   (gen-file-not-found-responder (web-resource "404.html"))))
 
 (module+ main
   (run-demo #t))

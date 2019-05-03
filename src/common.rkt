@@ -1,20 +1,19 @@
 #lang racket
 
 (require math/flonum math/bigfloat racket/runtime-path)
-(require "config.rkt" "errors.rkt" "debug.rkt")
+(require "config.rkt" "errors.rkt" "debug.rkt" "syntax/softposit.rkt"
+         "interface.rkt")
 (module+ test (require rackunit))
 
 (provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
-         ordinary-value? =-or-nan? </total
-         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
+         take-up-to flip-lists list/true find-duplicates all-partitions
+         argmins argmaxs setfindf index-of set-disjoint?
          write-file write-string
-         binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval quasisyntax
-         format-time format-bits when-dict in-sorted-dict
-         web-resource-path web-resource
+         common-eval quasisyntax
+         format-time format-bits when-dict in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -25,7 +24,6 @@
 (define *all-alts* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
-
 
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
@@ -63,10 +61,6 @@
     [(assert pred #:loc location)
      (when (not pred)
        (error location "~a returned false!" 'pred))]
-    [(assert pred #:extra-info func)
-     (when (not pred)
-       (error 'assert (format "~a returned false! Extra info: ~a"
-			       'pred (func))))]
     [(assert pred)
      (when (not pred)
        (error 'assert "~a returned false!" 'pred))]))
@@ -80,38 +74,6 @@
 (module+ test
   (check-equal? (for/append ([v (in-range 5)]) (list v v v))
                 '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
-
-;; Simple floating-point functions
-
-(define (ordinary-value? x)
-  (match x
-    [(? real?)
-     (not (or (infinite? x) (nan? x)))]
-    [(? complex?)
-     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
-    [(? boolean?)
-     true]))
-
-(module+ test
-  (check-true (ordinary-value? 2.5))
-  (check-false (ordinary-value? +nan.0))
-  (check-false (ordinary-value? -inf.f)))
-
-(define (=-or-nan? x1 x2)
-  (or (= x1 x2)
-      (and (nan? x1) (nan? x2))))
-
-(module+ test
-  (check-true (=-or-nan? 2.3 2.3))
-  (check-false (=-or-nan? 2.3 7.8))
-  (check-true (=-or-nan? +nan.0 -nan.f))
-  (check-false (=-or-nan? 2.3 +nan.f)))
-
-(define (</total x1 x2)
-  (cond
-   [(nan? x1) #f]
-   [(nan? x2) #t]
-   [else (< x1 x2)]))
 
 ;; Utility list functions
 
@@ -158,9 +120,21 @@
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
 
+(define (list/true . args)
+  (filter identity args))
+
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
                 '((1 4 7) (2 5 8) (3 6 9))))
+
+(define (find-duplicates l)
+  (define found (mutable-set))
+  (define duplicates '())
+  (for ([x l])
+    (when (set-member? found x)
+      (set! duplicates (cons x duplicates)))
+    (set-add! found x))
+  (reverse duplicates))
 
 (define (setfindf f s)
   (for/first ([elt (in-set s)] #:when (f elt))
@@ -186,11 +160,6 @@
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
 
-(define (all-equal? l)
-  (if (null? l)
-      true
-      (andmap (curry equal? (car l)) (cdr l))))
-
 ;; Utility output functions
 
 (define-syntax-rule (write-file filename . rest)
@@ -198,34 +167,6 @@
 
 (define-syntax-rule (write-string . rest)
   (with-output-to-string (lambda () . rest)))
-
-;; Binary search implementation
-
-;; Given two points, the first of which is pred, and the second is not,
-;; finds the point where pred becomes false, by calling split to binary
-;; search the space until (split a b) returns a, b, or #f.
-(define (binary-search split pred p1 p2)
-  ;; Get the midpoint using our given split function
-  (let ([midpoint (split p1 p2)])
-    ;; If the split function returned false, we're done.
-    (cond [(not midpoint) p1]
-	  ;; If our midpoint is one of our points, we're done.
-	  [(or (equal? p1 midpoint) (equal? p2 midpoint)) midpoint]
-	  ;; If our predicate is still true of our midpoint, search the
-	  ;; space between our midpoint and p2.
-	  [(pred midpoint) (binary-search split pred midpoint p2)]
-	  ;; Otherwise, search the space between our midpoint and p1.
-	  [#t (binary-search split pred p1 midpoint)])))
-
-;; Given two floating point numbers, the first of which is pred,
-;; and the second is not, find where pred becomes false (within epsilon).
-(define (binary-search-floats pred p1 p2 close-enough)
-  (binary-search (lambda (a b) (if (close-enough a b) #f
-				   (/ (+ a b) 2)))
-		 pred p1 p2))
-
-;; Implemented here for example.
-(define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
 ;; Miscellaneous helper
 
@@ -328,5 +269,15 @@
 
 (define-runtime-path web-resource-path "web/")
 
-(define (web-resource name)
-  (build-path web-resource-path name))
+(define (web-resource [name #f])
+  (if name
+      (build-path web-resource-path name)
+      web-resource-path))
+
+(define (all-partitions n #:from [k 1])
+  (cond
+   [(= n 0) '(())]
+   [(< n k) '()]
+   [else
+    (append (map (curry cons k) (all-partitions (- n k) #:from k))
+            (all-partitions n #:from (+ k 1)))]))

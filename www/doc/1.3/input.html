@@ -5,6 +5,7 @@
   <title>Herbie Input Format</title>
   <link rel='stylesheet' type='text/css' href='../../main.css'>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
 </head>
 <body>
   <header>
@@ -83,7 +84,7 @@
   the <kbd>precision:fallback</kbd> <a href="options.html">option</a>
   disables those functions instead.</p>
 
-  <h2>Conditionals</h2>
+  <h2 id="conditionals">Conditionals</h2>
   
   <p>FPCore uses <code>if</code> for conditional expressions:</p>
 
@@ -106,7 +107,7 @@
 
   <p>Note that unlike the arithmetic operators, the comparison functions can take any number of arguments.</p>
 
-  <h2>Intermediate variables</h2>
+  <h2 id="intermediates">Intermediate variables</h2>
   
   <p>Intermediate variables can be defined using <code>let</code>:</p>
 
@@ -153,26 +154,60 @@
   <p>In the future, we hope to support complex-number arguments and
   fully support all complex-number operations.</p>
 
-  <h2 id="properties">Properties</h2>
+  <h2 id="preconditions">Preconditions</h2>
 
-  <p>Herbie also allows several FPCore properties specified on inputs for additional meta-data:</p>
+  <p>By default, the arguments to formulas are assumed to be arbitrary
+  floating-point numbers. However, in many cases only a range of
+  argument values are possible. In Herbie, you can describe the valid
+  arugments with the <code>:pre</code> property.</p>
+
+  <p>These preconditions can use the same comparison and boolean
+  operators as <a href="#conditionals">conditional statements</a>.
+  Herbie is particularly efficient when when the precondition is
+  an <code>and</code> of ranges for each variable, such as:</p>
+
+  <pre>(FPCore (x) :pre (&lt; 1 x 10) (/ 1 (- x 1)))</pre>
+
+  <p>More complex preconditions do work, but may cause
+  the <a href="faq.html#sample-valid-points">“Cannot sample enough
+  valid points”</a> error if it is too hard to find points that
+  satisfy the precondition.</p>
+
+  <h2 id="precisions">Precisions</h2>
+
+  <p>Herbie supports both single- and double-precision values, as well
+  as beta-quality support
+  for <a href="https://posithub.org/">posit</a> values. By default,
+  Herbie assumes double-precision arithmetic. You can change this
+  default using the <code>:precision</code> FPCore property, which can
+  be:</p>
 
   <dl class="function-list">
-    <dt><code>:name <var>string</var></code></dt>
-    <dd>Herbie uses this name in its output</dd>
-    <dt><code>:pre <var>test</var></code></dt>
-    <dd>Herbie samples only points that pass the test in the reals</dd>
-    <dt>
+    <dt><code>binary32</code></dt>
+    <dd>Single-precision floating point</dd>
+    <dt><code>binary64</code></dt>
+    <dd>Double-precision floating point</dd>
+    <dt><code>posit16</code></dt>
+    <dd>16-bit posit numbers</dd>
   </dl>
 
-  <p>
-    Several additional properties can be found in the benchmark suite
-    and are used for testing, but are not supported and can change
-    without warning.
-  </p>
+  <p>The legacy <code>precision:double</code> option can be disabled
+  to change the default precision to single-precision floats, but this
+  option is deprecated and will be removed in a later release. Use
+  the <code>:precision</code> property to change precisions
+  instead.</p>
 
-  <p>Herbie's output uses custom FPCore properties in its output to
-  provide meta-data about the Herbie improvement process:</p>
+  <h2 id="properties">Miscellaneous Properties</h2>
+
+  <p>Herbie uses the <code>:name</code> property to describe inputs.
+  Its value ought to be a string.</p>
+
+  <p>Several additional properties can be found in the benchmark suite
+  (such as <code>:herbie-target</code>) and are used for testing, but
+  are not supported and can change without warning.</p>
+
+  <p>Herbie uses custom FPCore properties in its output to provide
+  meta-data about the Herbie improvement process:</p>
 
   <dl class="function-list">
     <dt><code>:herbie-status <var>status</var></code></dt>
@@ -187,8 +222,9 @@
     <dd>The computed average error of the output program, like above.</dd>
   </dl>
 
-  <p>Herbie's output also passes through any <code>:name</code>
-  and <code>:pre</code> properties on its inputs.</p>
+  <p>Herbie's output also passes through any <code>:name</code>,
+  <code>:pre</code>, and <code>:precision</code> properties on its
+  inputs.</p>
 
   <h2>Converting from Herbie 0.9</h2>
 

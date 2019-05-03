@@ -38,9 +38,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify* body))]
     [(? (compose null? free-variables) `(,op ,args ...))
-     (let ([value
-            (with-handlers ([(const #t) (const #f)])
-              (common-eval expr))])
+     (let ([value (with-handlers ([(const #t) (const #f)]) (eval-const-expr expr))])
        (if (and (number? value) (real? value) (exact? value))
            value
            (simplify-node `(,op ,@(map simplify* args)))))]

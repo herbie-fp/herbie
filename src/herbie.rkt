@@ -13,17 +13,6 @@
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
 
-(define (check-operator-fallbacks!)
-  (prune-operators!)
-  (prune-rules!)
-  (unless (null? (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-    (eprintf "Warning: native ~a not supported on your system; "
-             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-                          ", "))
-    (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
-    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*)))
-
 (module+ main
   (define quiet? #f)
   (define demo-output #f)
@@ -68,7 +57,6 @@
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
-    (check-operator-fallbacks!)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
@@ -89,14 +77,12 @@
     [("--debug") "Whether to compute metrics and debug info"
      (set! report-debug? true)]
     #:args ()
-    (check-operator-fallbacks!)
     (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:debug report-debug? #:demo? demo? #:port demo-port #:public? demo-public)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
     [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
     #:args (input output)
-    (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
@@ -109,7 +95,6 @@
     [("--debug") "Whether to compute metrics and debug info"
      (set! report-debug? true)]
     #:args (input output)
-    (check-operator-fallbacks!)
     (make-report (list input) #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
    [reproduce "Rerun an HTML report"
     #:once-each
@@ -120,7 +105,6 @@
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
-    (check-operator-fallbacks!)
     (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
 
    #:args files
