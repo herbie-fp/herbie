@@ -103,7 +103,7 @@
     (unless (null? valid-bindings) (try-prune-enode en))
     ;; Mark this node as having this rule applied so that we don't try
     ;; to apply it again.
-    (when (subset? valid-bindings bindings-set) (rule-applied! en rl)))
+    (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
 
   (define (try-prune-enode en)
     ;; If one of the variations of the enode is a single variable or
