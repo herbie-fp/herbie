@@ -249,7 +249,9 @@
 
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + (map first rows))) "b" " remaining"
-            " (",(~r (* (/ (apply + (map first rows)) total-gained) 100) #:precision 1) "%)")
+            " (" ,(~r (* (/ (apply + (map first rows)) total-gained) 100) #:precision 1) "%)")
+        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) (map first rows)))) "b"
+           " (" ,(~r (* (/ (apply + (filter (curry > 1) (map first rows))) total-gained) 100) #:precision 1) "%)")
         (table ([class "times"])
                ,@(for/list ([row (in-list top-bits-remaining)])
                    `(tr (td ,(format-bits (first row)) "b")
