@@ -255,8 +255,11 @@
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  (function avg-fun
-            (flprev (car (first eby))) (flnext (car (last eby)))
+  (define-values (min max)
+    (match* ((car (first eby)) (car (last eby)))
+            [(x x) (values #f #f)]
+            [(x y) (values x y)]))
+  (function avg-fun min max
             #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
