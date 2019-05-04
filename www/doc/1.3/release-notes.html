@@ -18,8 +18,8 @@
     The <a href="../..">Herbie</a> developers are excited to announce
     Herbie 1.3! This release focuses on <em>speed and
     extensibility</em>, including support for posits. Herbie 1.3 is
-    nearly three times as fast as Herbie 1.2, and includes more
-    detailed HTML output.
+    nearly three times as fast as Herbie 1.2, and includes cleaner,
+    more comprehensive HTML output.
   </p>
 
   <p>
@@ -40,6 +40,7 @@
     <li>The "ground truth" answer for computations is now computed by
       a sound interval analysis. In rare cases, this could change
       Herbie's accuracy estimate for a program.</li>
+    <li>Support for single-precision mode has been significantly improved.</li>
     <li>Series expansion of <code>pow</code>s with constant exponents
       is now much faster.</li>
     <li>Complex numbers are now handled significantly more quickly.</li>
@@ -72,6 +73,8 @@
     <li>Herbie now produces somewhat simpler output, for example by
       simplifying, exact constant expressions like <code>(+ 2
       2)</code>.</li>
+    <li>Herbie's web interface now supports if statements (using
+      conditional-expression syntax).</li>
     <li>Herbie now shows preconditions in its HTML output.</li>
     <li>Herbie will now show warnings in its HTML output, including
       links to more documentation.</li>
@@ -92,8 +95,8 @@
     <li>Reports now link to an extensive collection of quality and
       performance metrics. This should help improve Herbie's speed and
       accuracy over time.</li>
-    <li>Many bugs in single-precision mode have been fixed, including
-      in both the core algorithm and in output and plotting.</li>
+    <li>Documentation has been improved, with tables of content and
+      explanations of preconditions and precisions.</li>
     <li>The new <kbd>reproduce</kbd> command allows rerunning a
       report.</li>
     <li>The timebar on the metrics page now separates regime inference
