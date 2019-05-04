@@ -18,7 +18,7 @@ function make_graph(node, data, start, end) {
 
     var len = data.length;
 
-    var svg = node
+    var svg = d3.select(node)
         .attr("width", width + 2 * margin)
         .attr("height", len * barheight + 2 * margin + textbar)
         .append("g").attr("transform", "translate(" + margin + "," + margin + ")");
