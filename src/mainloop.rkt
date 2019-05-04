@@ -99,7 +99,7 @@
   (printf "x = already expanded\n")
   (printf "+ = currently chosen\n")
   (printf "* = left to expand\n")
-  (printf)
+  (printf "\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
     (for ([alt (atab-all-alts (^table^))]
 	  [n (in-naturals)])
@@ -256,14 +256,13 @@
             [(list 'taylor _ loc) (list loc)]
             [(list 'change cng)
              (match-define (change rule loc _) cng)
-             (define pattern (rule-input rule))
+             (define pattern (rule-output rule))
              (define expr (location-get loc (alt-program child)))
              (cond
               [(not (list? pattern)) '()]
-              [(not (list? expr)) '()]
               [else
-               (for/list ([pos (in-naturals 1)] [arg (cdr expr)] [arg-pattern (cdr pattern)]
-                          #:when (list? arg-pattern) #:when (list? arg))
+               (for/list ([pos (in-naturals 1)]
+                          [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
                  (append (change-location cng) (list pos)))])]
             [_ (list '(2))]))
 
