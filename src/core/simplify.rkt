@@ -7,7 +7,7 @@
 (require "ematch.rkt")
 (require "enode.rkt")
 
-(provide simplify-expr *max-egraph-iters*)
+(provide simplify-expr simplify-batch *max-egraph-iters*)
 
 (module+ test (require rackunit))
 
@@ -39,6 +39,17 @@
 	(define out (extract-smallest eg en))
         (debug #:from 'simplify (format "Simplified to ~a" out))
         out)))
+
+(define (simplify-batch #:rules rls . exprs)
+  (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
+  (let* ([iters (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))]
+	 [eg (mk-egraph)]
+         [ens (for/list ([expr exprs]) (mk-enode-rec! eg expr))])
+    (parameterize ([*node-limit* (* (length exprs) (*node-limit*))])
+      (iterate-egraph! eg iters #:rules rls))
+    (define out (for/list ([en ens]) (extract-smallest eg en))) ; TODO: batch extract
+    (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
+    out))
 
 (define (has-nan? expr)
   (or (and (number? expr) (nan? expr))
