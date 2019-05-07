@@ -30,15 +30,7 @@
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
-  (debug #:from 'simplify (format "Simplifying ~a" expr))
-  (if (has-nan? expr) +nan.0
-      (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
-	     [eg (mk-egraph)]
-             [en (mk-enode-rec! eg expr)])
-	(iterate-egraph! eg iters #:rules rls)
-	(define out (first (extract-smallest eg en)))
-        (debug #:from 'simplify (format "Simplified to ~a" out))
-        out)))
+  (if (has-nan? expr) +nan.0 (first (simplify-batch (list expr) #:rules rls))))
 
 (define (simplify-batch exprs #:rules rls)
   (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
