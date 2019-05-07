@@ -40,7 +40,7 @@
         (debug #:from 'simplify (format "Simplified to ~a" out))
         out)))
 
-(define (simplify-batch #:rules rls . exprs)
+(define (simplify-batch exprs #:rules rls)
   (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
   (let* ([iters (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))]
 	 [eg (mk-egraph)]

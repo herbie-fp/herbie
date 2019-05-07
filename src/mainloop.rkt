@@ -240,7 +240,39 @@
   (when (flag-set? 'generate 'simplify)
     (define log! (timeline-event! 'simplify))
 
-    (define exprs '())
+    (define to-simplify
+      (reap [sow]
+        (for ([child (^children^)] [n (in-naturals 1)])
+          (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
+          ;; We want to avoid simplifying if possible, so we only
+          ;; simplify things produced by function calls in the rule
+          ;; pattern. This means no simplification if the rule output as
+          ;; a whole is not a function call pattern, and no simplifying
+          ;; subexpressions that don't correspond to function call
+          ;; patterns.
+          (define locs
+            (match (alt-event child)
+              [(list 'taylor _ loc) (list loc)]
+              [(list 'change cng)
+               (match-define (change rule loc _) cng)
+               (define pattern (rule-output rule))
+               (define expr (location-get loc (alt-program child)))
+               (cond
+                [(not (list? pattern)) '()]
+                [else
+                 (for/list ([pos (in-naturals 1)]
+                            [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
+                   (append (change-location cng) (list pos)))])]
+              [_ (list '(2))]))
+
+          (for ([loc locs])
+            (sow (location-get loc (alt-program child)))))))
+
+    (define simplifications
+      (simplify-batch to-simplify #:rules (*simplify-rules*)))
+
+    (define simplify-hash
+      (make-immutable-hash (map cons to-simplify simplifications)))
 
     (define simplified
       (for/list ([child (^children^)] [n (in-naturals 1)])
@@ -267,17 +299,13 @@
             [_ (list '(2))]))
 
         (for/fold ([child child]) ([loc locs])
-          (define tnow (current-inexact-milliseconds))
-          (define child* (location-do loc (alt-program child) (λ (expr) (simplify-expr expr #:rules (*simplify-rules*)))))
-          (set! exprs (cons (cons (location-get loc (alt-program child)) (- (current-inexact-milliseconds) tnow)) exprs))
+          (define child* (location-do loc (alt-program child) (λ (expr) (hash-ref simplify-hash expr))))
           (debug #:from 'simplify "Simplified" loc "to" child*)
           (if (> (program-cost (alt-program child)) (program-cost child*))
               (alt child* (list 'simplify loc) (list child))
               child))))
 
-    (log! 'inputs (length exprs))
-    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
-    (log! 'times (map cdr exprs))
+    (log! 'inputs (length to-simplify))
     (log! 'outputs (length simplified))
 
     (^children^ simplified))
