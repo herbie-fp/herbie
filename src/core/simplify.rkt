@@ -36,7 +36,7 @@
 	     [eg (mk-egraph)]
              [en (mk-enode-rec! eg expr)])
 	(iterate-egraph! eg iters #:rules rls)
-	(define out (extract-smallest eg en))
+	(define out (first (extract-smallest eg en)))
         (debug #:from 'simplify (format "Simplified to ~a" out))
         out)))
 
@@ -47,7 +47,7 @@
          [ens (for/list ([expr exprs]) (mk-enode-rec! eg expr))])
     (parameterize ([*node-limit* 1000 #;(* (length exprs) (*node-limit*))])
       (iterate-egraph! eg iters #:rules rls))
-    (define out (for/list ([en ens]) (extract-smallest eg en))) ; TODO: batch extract
+    (define out (apply extract-smallest eg ens))
     (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
     out))
 
@@ -174,13 +174,14 @@
   (for/fold ([h hash]) ([assoc assocs])
     (hash-set h (car assoc) (cdr assoc))))
 
-(define (extract-smallest eg en)
+(define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
   ;; cheapest representation and its cost. If the cost is #f, the expr
   ;; is also #f, and in this case no expression is yet known for that
   ;; enode.
   (define work-list (make-hash))
-  (hash-set! work-list (pack-leader en) (cons #f #f))
+  (for ([en ens])
+    (hash-set! work-list (pack-leader en) (cons #f #f)))
 
   ;; Extracting the smallest expression means iterating, until
   ;; fixedpoint, either discovering new relevant expressions or
@@ -224,7 +225,8 @@
            (set! changed? #t))]))
     (if changed?
         (loop (+ iter 1))
-        (cdr (hash-ref work-list (pack-leader en))))))
+        (for/list ([en ens])
+          (cdr (hash-ref work-list (pack-leader en)))))))
 
 (module+ test
   (define test-exprs

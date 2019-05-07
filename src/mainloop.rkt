@@ -269,7 +269,9 @@
             (sow (location-get loc (alt-program child)))))))
 
     (define simplifications
-      (simplify-batch to-simplify #:rules (*simplify-rules*)))
+      (if (null? to-simplify)
+          '()
+          (simplify-batch to-simplify #:rules (*simplify-rules*))))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplifications)))
