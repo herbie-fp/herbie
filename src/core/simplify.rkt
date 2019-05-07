@@ -33,9 +33,10 @@
   (debug #:from 'simplify (format "Simplifying ~a" expr))
   (if (has-nan? expr) +nan.0
       (let* ([iters (min (*max-egraph-iters*) (iters-needed expr))]
-	     [eg (mk-egraph expr)])
+	     [eg (mk-egraph)]
+             [en (mk-enode-rec! eg expr)])
 	(iterate-egraph! eg iters #:rules rls)
-	(define out (extract-smallest eg))
+	(define out (extract-smallest eg en))
         (debug #:from 'simplify (format "Simplified to ~a" out))
         out)))
 
@@ -162,47 +163,13 @@
   (for/fold ([h hash]) ([assoc assocs])
     (hash-set h (car assoc) (cdr assoc))))
 
-(define (extract-smallest-best-effort eg)
-  (define (resolve en ens->exprs)
-    (let ([possible-resolutions
-	   (filter identity
-	     (for/list ([var (enode-vars en)])
-	       (if (not (list? var)) var
-		   (let ([expr (cons (car var)
-				     (for/list ([en (cdr var)])
-				       (hash-ref ens->exprs (pack-leader en) #f)))])
-		     (if (andmap identity (cdr expr))
-			 expr
-			 #f)))))])
-      (if (null? possible-resolutions) #f
-	  (argmin expression-cost possible-resolutions))))
-  (define (pass ens ens->exprs)
-    (let-values ([(pairs left)
-		  (partition pair?
-			     (for/list ([en ens])
-			       (let ([resolution (resolve en ens->exprs)])
-				 (if resolution
-				     (cons en resolution)
-				     en))))])
-      (list (hash-set*+ ens->exprs pairs)
-	    left)))
-  (let loop ([todo-ens (egraph-leaders eg)]
-	     [ens->exprs (hash)])
-    (match-let* ([`(,ens->exprs* ,todo-ens*)
-		  (pass todo-ens ens->exprs)]
-		 [top-expr (hash-ref ens->exprs* (pack-leader (egraph-top eg)) #f)])
-      (cond [top-expr top-expr]
-            [((length todo-ens*) . = . (length todo-ens))
-             (error "failed to extract: infinite loop.")]
-            [#t (loop todo-ens* ens->exprs*)]))))
-
-(define (extract-smallest eg)
+(define (extract-smallest eg en)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
   ;; cheapest representation and its cost. If the cost is #f, the expr
   ;; is also #f, and in this case no expression is yet known for that
   ;; enode.
   (define work-list (make-hash))
-  (hash-set! work-list (pack-leader (egraph-top eg)) (cons #f #f))
+  (hash-set! work-list (pack-leader en) (cons #f #f))
 
   ;; Extracting the smallest expression means iterating, until
   ;; fixedpoint, either discovering new relevant expressions or
@@ -246,7 +213,7 @@
            (set! changed? #t))]))
     (if changed?
         (loop (+ iter 1))
-        (cdr (hash-ref work-list (pack-leader (egraph-top eg)))))))
+        (cdr (hash-ref work-list (pack-leader en))))))
 
 (module+ test
   (define test-exprs

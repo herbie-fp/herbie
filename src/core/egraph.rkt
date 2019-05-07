@@ -4,9 +4,9 @@
 (require "../common.rkt")
 (require "../syntax/syntax.rkt")
 
-(provide mk-enode! mk-egraph
+(provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
-	 egraph? egraph-cnt egraph-top
+	 egraph? egraph-cnt
 	 map-enodes draw-egraph egraph-leaders
          elim-enode-loops! reduce-to-single! reduce-to-new!
          dedup-vars!
@@ -25,7 +25,6 @@
 ;;#
 ;;# The following things should always be true of egraphs:
 ;;# 1. (egraph-cnt eg) is a positive integer.
-;;# 2. (egraph-top eg) is a valid enode.
 ;;# 3. For each enode en which is a key of leader->iexprs, en is the leader of
 ;;#    its own pack.
 ;;# 4. For every mapping (k, v) in leader->iexprs, for each expression e in v,
@@ -50,7 +49,7 @@
 ;;################################################################################;;
 
 ;; Only ever use leaders as keys!
-(struct egraph (cnt top leader->iexprs expr->parent) #:mutable)
+(struct egraph (cnt leader->iexprs expr->parent) #:mutable)
 
 ;; For debugging
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
@@ -59,8 +58,6 @@
     (assert (not (hash-has-key? leader->iexprs #f)))
     ;; The egraphs count must be a positive integer
     (assert (and (integer? count) (positive? count)) #:loc location)
-    ;; The top is a valid enode. (enode validity is verified upon creation).
-    (assert (enode? (egraph-top eg)) #:loc location)
 
     ;; Verify properties 4-6
     (for ([(leader iexprs) (in-hash leader->iexprs)])
@@ -98,7 +95,7 @@
 ;; of the graph to indicate the addition, or if the expression already exists
 ;; in the egraph it returns the node associated with it. While the node exists
 ;; after this call, if we are creating a new node it still must be merged into
-;; an existing node or otherwise attached to the (egraph-top eg) node to be
+;; an existing node or otherwise attached to some node to be
 ;; completely added to the egraph.
 (define (mk-enode! eg expr)
   (if (hash-has-key? (egraph-expr->parent eg) expr)
@@ -129,12 +126,8 @@
 
 ;; Takes a plain mathematical expression, quoted, and returns the egraph
 ;; representing that expression with no expansion or saturation.
-(define (mk-egraph expr)
-  (let ([eg (egraph 0 #f (make-hash) (make-hash))])
-    (set-egraph-top! eg (mk-enode-rec! eg expr))
-    ;; This is an expensive check, but useful for debuggging.
-    #;(check-egraph-valid eg #:loc 'constructing-egraph)
-    eg))
+(define (mk-egraph)
+  (egraph 0 (make-hash) (make-hash)))
 
 ;; Maps a given function over all the equivilency classes
 ;; of a given egraph (node packs).
@@ -155,7 +148,7 @@
 ;; the leaders of en1 and en2, but the values of those mapping are
 ;; not.
 (define (merge-egraph-nodes! eg en1 en2)
-  (match-define (egraph _ _ leader->iexprs expr->parent) eg)
+  (match-define (egraph _ leader->iexprs expr->parent) eg)
   ;; Operate on the pack leaders in case we were passed a non-leader
   (define l1 (pack-leader en1))
   (define l2 (pack-leader en2))
