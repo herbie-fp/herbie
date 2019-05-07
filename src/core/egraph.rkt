@@ -179,8 +179,8 @@
     ;; Now that we know which one became leader, we can bind these.
     (define-values (leader follower follower-old-vars)
       (if (eq? l1 merged-en)
-          (values l1 l2 old-vars1)
-          (values l2 l1 old-vars2)))
+          (values l1 l2 old-vars2)
+          (values l2 l1 old-vars1)))
 
     ;; Get the expressions which mention the follower so we can see if
     ;; their new form causes new merges.
