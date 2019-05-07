@@ -26,7 +26,7 @@
 
 ;; Cap the number of iterations to try at this.
 (define *max-egraph-iters* (make-parameter 6))
-(define *node-limit* (make-parameter 500))
+(define *node-limit* (make-parameter 1000))
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
@@ -42,14 +42,19 @@
 
 (define (simplify-batch exprs #:rules rls)
   (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
-  (let* ([iters (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))]
-	 [eg (mk-egraph)]
-         [ens (for/list ([expr exprs]) (mk-enode-rec! eg expr))])
-    (parameterize ([*node-limit* 1000 #;(* (length exprs) (*node-limit*))])
-      (iterate-egraph! eg iters #:rules rls))
-    (define out (apply extract-smallest eg ens))
-    (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
-    out))
+
+  (define iters
+    (if (null? exprs)
+        0
+        (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))))
+
+  (define eg (mk-egraph))
+  (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
+
+  (iterate-egraph! eg iters #:rules rls)
+
+  (begin0 (apply extract-smallest eg ens)
+    (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))))
 
 (define (has-nan? expr)
   (or (and (number? expr) (nan? expr))
