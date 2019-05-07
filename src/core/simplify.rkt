@@ -45,7 +45,7 @@
   (let* ([iters (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))]
 	 [eg (mk-egraph)]
          [ens (for/list ([expr exprs]) (mk-enode-rec! eg expr))])
-    (parameterize ([*node-limit* (* (length exprs) (*node-limit*))])
+    (parameterize ([*node-limit* 1000 #;(* (length exprs) (*node-limit*))])
       (iterate-egraph! eg iters #:rules rls))
     (define out (for/list ([en ens]) (extract-smallest eg en))) ; TODO: batch extract
     (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
