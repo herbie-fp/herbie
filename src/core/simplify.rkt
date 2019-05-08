@@ -7,7 +7,7 @@
 (require "ematch.rkt")
 (require "enode.rkt")
 
-(provide simplify-expr simplify-batch *max-egraph-iters*)
+(provide simplify-expr simplify-batch)
 
 (module+ test (require rackunit))
 
@@ -44,11 +44,12 @@
   out)
 
 (define (iterate-egraph! eg #:rules [rls (*simplify-rules*)])
-  (let ([start-cnt (egraph-cnt eg)])
-    (debug #:from 'simplify #:depth 2 (format "iters left: ~a (~a enodes)" iters start-cnt))
+  (let loop ([iter 1])
+    (define start-cnt (egraph-cnt eg))
+    (debug #:from 'simplify #:depth 2 (format "iteration ~a: (~a enodes)" iter start-cnt))
     (one-iter eg rls)
     (when (< start-cnt (egraph-cnt eg) (*node-limit*))
-      (iterate-egraph! eg #:rules rls))))
+      (loop (+ iter 1)))))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
