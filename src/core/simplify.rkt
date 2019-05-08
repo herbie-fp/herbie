@@ -24,8 +24,8 @@
 ;;#
 ;;################################################################################;;
 
-;; Cap the number of iterations to try at this.
-(define *node-limit* (make-parameter 1000))
+;; Cap the maximum size of an egraph
+(define *node-limit* (make-parameter 2000))
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
