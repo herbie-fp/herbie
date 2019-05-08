@@ -25,50 +25,30 @@
 ;;################################################################################;;
 
 ;; Cap the number of iterations to try at this.
-(define *max-egraph-iters* (make-parameter 6))
 (define *node-limit* (make-parameter 1000))
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
-  (if (has-nan? expr) +nan.0 (first (simplify-batch (list expr) #:rules rls))))
+  (first (simplify-batch (list expr) #:rules rls)))
 
 (define (simplify-batch exprs #:rules rls)
   (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
 
-  (define iters
-    (if (null? exprs)
-        0
-        (min (*max-egraph-iters*) (apply max (map iters-needed exprs)))))
-
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
 
-  (iterate-egraph! eg iters #:rules rls)
+  (iterate-egraph! eg #:rules rls)
 
-  (begin0 (apply extract-smallest eg ens)
-    (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))))
+  (define out (apply extract-smallest eg ens))
+  (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
+  out)
 
-(define (has-nan? expr)
-  (or (and (number? expr) (nan? expr))
-      (and (list? expr)
-	   (ormap has-nan? (cdr expr)))))
-
-;; Returns the worst-case iterations needed to simplify this expression
-(define (iters-needed expr)
-  (if (not (list? expr)) 0
-      (let ([sub-iters-needed (apply max (map iters-needed (cdr expr)))])
-	(if (let ([op (car expr)]) (or (eq? op '*) (eq? op '+) (eq? op '-) (eq? op '/)))
-	    (+ 2 sub-iters-needed)
-	    (+ 1 sub-iters-needed)))))
-
-(define (iterate-egraph! eg iters #:rules [rls (*simplify-rules*)])
+(define (iterate-egraph! eg #:rules [rls (*simplify-rules*)])
   (let ([start-cnt (egraph-cnt eg)])
     (debug #:from 'simplify #:depth 2 (format "iters left: ~a (~a enodes)" iters start-cnt))
     (one-iter eg rls)
-    (when (and (> (egraph-cnt eg) start-cnt)
-	       (> iters 1)
-	       (< (egraph-cnt eg) (*node-limit*)))
-      (iterate-egraph! eg (sub1 iters) #:rules rls))))
+    (when (< start-cnt (egraph-cnt eg) (*node-limit*))
+      (iterate-egraph! eg #:rules rls))))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
