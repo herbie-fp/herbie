@@ -109,13 +109,15 @@
   (match type
     ['real (exact? val)]
     ['complex (exact? val)]
-    ['boolean true]))
+    ['boolean true]
+    [_ false]))
 
 (define (val-to-type type val)
   (match type
     ['real val]
     ['complex (if (real? val) `(complex ,val 0) val)]
-    ['boolean (if val 'TRUE 'FALSE)]))
+    ['boolean (if val 'TRUE 'FALSE)]
+    [_ (error "Unknown type" type)]))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
