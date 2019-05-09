@@ -135,7 +135,7 @@
   (define body*
     (let inductor ([prog (program-body prog)])
       (match prog
-        [(? real?) (real->precision prog)]
+        [(? value?) (real->precision prog)]
         [(? constant?) ((constant-info prog mode))]
         [(? variable?) prog]
         #;[(list 'if cond ift iff)
