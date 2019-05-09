@@ -14,10 +14,12 @@
 
 (define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
-  (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
-  (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
+  #;(define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  #;(printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
   (for/and ([test tests])
     (set-seed! seed)
+    (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
+    (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
     (match (get-test-result test #:seed seed)
       [(test-success test bits time timeline warnings
                      start-alt end-alt points exacts start-est-error end-est-error
