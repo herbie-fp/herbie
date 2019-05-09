@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt"
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt"
          "biginterval.rkt" "syntax/softposit.rkt")
 
 (module+ test (require rackunit))

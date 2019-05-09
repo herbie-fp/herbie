@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../type-check.rkt"
-         "../syntax/softposit.rkt")
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt")
+(require "../type-check.rkt" "../syntax/softposit.rkt" "../syntax/types.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test

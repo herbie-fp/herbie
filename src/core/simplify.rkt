@@ -1,11 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "../syntax/rules.rkt")
-(require "egraph.rkt")
-(require "ematch.rkt")
-(require "enode.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/rules.rkt" "../syntax/types.rkt")
+(require "enode.rkt" "egraph.rkt" "ematch.rkt")
 
 (provide simplify-expr simplify-batch)
 
@@ -109,27 +105,16 @@
   (for-each (curry set-precompute! eg) (egraph-leaders eg))
   (void))
 
-(define-syntax-rule (matches? expr pattern)
-  (match expr
-    [pattern #t]
-    [_ #f]))
-
 (define (exact-value? type val)
   (match type
     ['real (exact? val)]
     ['complex (exact? val)]
     ['boolean true]))
 
-(define/match (val-of-type type val)
-  [('real    (? real?))    true]
-  [('complex (? complex?)) true]
-  [('boolean (? boolean?)) true]
-  [(_ _) false])
-
 (define (val-to-type type val)
   (match type
     ['real val]
-    ['complex val]
+    ['complex (if (real? val) `(complex ,val 0) val)]
     ['boolean (if val 'TRUE 'FALSE)]))
 
 (define (set-precompute! eg en)
@@ -141,12 +126,8 @@
     (when (andmap identity constexpr)
       (with-handlers ([exn:fail:contract:divide-by-zero? void])
         (define res (eval-const-expr constexpr))
-        (when (and (val-of-type type res) (exact-value? type res))
+        (when (and ((value-of type) res) (exact-value? type res))
           (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res))))))))
-
-(define (hash-set*+ hash assocs)
-  (for/fold ([h hash]) ([assoc assocs])
-    (hash-set h (car assoc) (cdr assoc))))
 
 (define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
