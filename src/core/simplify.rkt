@@ -129,24 +129,19 @@
 (define (val-to-type type val)
   (match type
     ['real val]
-    ['complex `(complex ,(real-part val) ,(imag-part val))]
+    ['complex val]
     ['boolean (if val 'TRUE 'FALSE)]))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
-  (for ([var (enode-vars en)])
-    (when (list? var)
-      (let ([constexpr
-	     (cons (car var)
-		   (map (compose (curry setfindf constant?) enode-vars)
-			(cdr var)))])
-	(when (and (not (matches? constexpr `(/ ,a 0)))
-		   (not (matches? constexpr `(log 0)))
-		   (not (matches? constexpr `(/ 0)))
-		   (andmap real? (cdr constexpr)))
-	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (val-of-type type res) (exact-value? type res))
-	      (reduce-to-new! eg en (val-to-type type res)))))))))
+  (for ([var (enode-vars en)] #:when (list? var))
+    (define constexpr
+      (cons (car var)
+            (map (compose (curry setfindf constant?) enode-vars) (cdr var))))
+    (with-handlers ([exn:fail:contract:divide-by-zero? void])
+      (define res (eval-const-expr constexpr))
+      (when (and (val-of-type type res) (exact-value? type res))
+        (merge-egraph-nodes! eg en (mk-enode-rec! (val-to-type type res)))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])
