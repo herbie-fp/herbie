@@ -138,10 +138,11 @@
     (define constexpr
       (cons (car var)
             (map (compose (curry setfindf constant?) enode-vars) (cdr var))))
-    (with-handlers ([exn:fail:contract:divide-by-zero? void])
-      (define res (eval-const-expr constexpr))
-      (when (and (val-of-type type res) (exact-value? type res))
-        (merge-egraph-nodes! eg en (mk-enode-rec! (val-to-type type res)))))))
+    (when (andmap identity constexpr)
+      (with-handlers ([exn:fail:contract:divide-by-zero? void])
+        (define res (eval-const-expr constexpr))
+        (when (and (val-of-type type res) (exact-value? type res))
+          (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res))))))))
 
 (define (hash-set*+ hash assocs)
   (for/fold ([h hash]) ([assoc assocs])
