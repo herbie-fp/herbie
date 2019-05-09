@@ -7,9 +7,8 @@
 (provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
 	 egraph? egraph-cnt
-	 map-enodes draw-egraph egraph-leaders
+	 draw-egraph egraph-leaders
          elim-enode-loops! reduce-to-single! reduce-to-new!
-         dedup-vars!
          )
 
 (provide (all-defined-out)
@@ -128,11 +127,6 @@
 ;; representing that expression with no expansion or saturation.
 (define (mk-egraph)
   (egraph 0 (make-hash) (make-hash)))
-
-;; Maps a given function over all the equivilency classes
-;; of a given egraph (node packs).
-(define (map-enodes f eg)
-  (map f (egraph-leaders eg)))
 
 ;; Gets all the pack leaders in the egraph
 (define (egraph-leaders eg)

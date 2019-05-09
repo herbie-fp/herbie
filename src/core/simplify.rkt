@@ -106,7 +106,7 @@
 
   (for ([m (find-matches (egraph-leaders eg))])
     (apply-match m))
-  (map-enodes (curry set-precompute! eg) eg)
+  (for-each (curry set-precompute! eg) (egraph-leaders eg))
   (void))
 
 (define-syntax-rule (matches? expr pattern)
