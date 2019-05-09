@@ -266,7 +266,7 @@
     (define to-simplify
       (for/list ([child (^children^)] [locs locs-list]
                  #:when true [loc locs])
-        (location-get loc child)))
+        (location-get loc (alt-program child))))
 
     (define simplifications
       (simplify-batch to-simplify #:rules (*simplify-rules*)))
