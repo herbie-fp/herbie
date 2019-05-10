@@ -8,7 +8,7 @@
 	 merge-egraph-nodes!
 	 egraph? egraph-cnt
 	 draw-egraph egraph-leaders
-         elim-enode-loops! reduce-to-single! reduce-to-new!
+         elim-enode-loops! reduce-to-single!
          )
 
 (provide (all-defined-out)
@@ -327,33 +327,6 @@
                                   leader)])
       (when (not (eq? leader leader*))
         (update-leader! eg old-vars leader leader*)))))
-
-(define (reduce-to-new! eg en expr)
-  (define new-en (mk-enode-rec! eg expr))
-  (define child-ens 
-    (match expr
-      [(list op children ...)
-       (map (compose pack-leader (curry mk-enode-rec! eg)) children)]
-      [_ '()]))
-  (define vars (enode-vars en))
-  (define leader (merge-egraph-nodes! eg en new-en))
-
-  (hash-update! (egraph-leader->iexprs eg)
-                leader
-                (λ (st)
-                  (for/mutable-set ([expr (in-mutable-set st)])
-                                   (update-en-expr expr))))
-
-  (define leader* (pack-filter! (λ (inner-en)
-                                  (match expr
-                                    [(list op _ ...)
-                                     (and (list? (enode-expr inner-en))
-                                          (equal? (car (enode-expr inner-en)) op)
-                                          (equal? (map pack-leader (cdr (enode-expr inner-en))) child-ens))]
-                                    [_
-                                     (equal? (enode-expr inner-en) expr)]))
-                                leader))
-  (update-leader! eg vars leader leader*))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
