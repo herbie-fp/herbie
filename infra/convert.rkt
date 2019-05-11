@@ -11,14 +11,14 @@
      (cons (car out*) (cons (cons name value) (cdr out*)))]
     [(list body args* ...)
      (define out* (args&body* args*))
-     (assert (not (car out*)) #:extra-info (λ () (format "Two body expressions ~a and ~a" (car out*) body)))
+     (assert (not (car out*)))
      (cons body (cdr out*))]
     [(list)
      (cons #f '())]))
 
 (define (args&body args)
   (define out* (args&body* args))
-  (assert (car out*) #:extra-info (λ () "No body expression"))
+  (assert (car out*))
   out*)
 
 (define (var&dist expr)
