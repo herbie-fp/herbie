@@ -28,7 +28,7 @@
       (with-handlers ([exn:fail? (λ (e) ((error-display-handler) (format "Error when making ~a: ~a" page (exn-message e)) e))])
         (call-with-output-file (build-path rdir page)
           #:exists 'replace
-          (λ (out) (make-page page out result #f)))))
+          (λ (out) (make-page page out result profile?)))))
 
     (get-table-data result dirname)]
    [else
