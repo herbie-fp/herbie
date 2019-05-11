@@ -172,7 +172,7 @@
    out))
 
 (define (phase-time phase)
-  (define time (apply + (map cdr (dict-ref phase 'time)))))
+  (apply + (map cdr (dict-ref phase 'time))))
 
 (define (render-timeline-summary info summary)
   (define total-time (apply + (map phase-time (hash-values summary))))
