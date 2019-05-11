@@ -1,5 +1,6 @@
 
-margin = 5;
+vmargin = 10;
+hmargin = 5;
 width = 340;
 height = 200;
 labels = 50;
@@ -25,7 +26,7 @@ function get_point(tr) {
         bits: { got: +bits[0], total: +bits[1] },
         branch: tr.children[2].textContent,
         time: +tr.children[0].children[0].getAttribute("data-unix"),
-        speed: +tr.children[1].children[0].getAttribute("data-ms"),
+        speed: +tr.children[1].children[0].getAttribute("data-ms") / 1000 / 60,
         elt: tr,
         flags: flags,
     };
@@ -41,13 +42,17 @@ function get_data(table) {
     return data;
 }
 
+function print_date(d) {
+    var date = "" + Date(d * 1000);
+    return date.split(" ").slice(1, 4).join(" ");
+}
+
 step_sizes = [1e5, 1e4, 1000, 100, 10, 1, 0.1];
 
 function step_size(max) {
     for (var i = 0; i < step_sizes.length; i++) {
-        if (max > step_sizes[i] * 4) {
-            return Math.round(max / step_sizes[i] / 4) * step_sizes[i];
-        }
+        var step = step_sizes[i];
+        if (max > step * 4) return Math.round(max / step / 4) * step;
     }
     throw "Data points error: max of " + max;
 }
@@ -73,19 +78,19 @@ function make_accuracy_graph(node, data, type) {
     var max = steps * step;
 
     var svg = node
-        .attr("width", width + 2 * margin + labels)
-        .attr("height", height + 2 * margin)
-        .append("g").attr("transform", "translate(" + (margin + labels) + "," + margin + ")");
+        .attr("width", width + 2 * hmargin + labels)
+        .attr("height", height + 2 * vmargin)
+        .append("g").attr("transform", "translate(" + (hmargin + labels) + "," + vmargin + ")");
 
     svg.append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
-        .attr("x2", width)
+        .attr("x2", width-5)
         .attr("y1", height)
         .attr("y2", height);
 
     svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
-        .attr("transform", "translate(" + width + "," + height + ")");
+        .attr("transform", "translate(" + (width-5) + "," + height + ")");
 
     for (var i = 1; i <= steps; i++) {
         svg.append("line")
@@ -95,8 +100,8 @@ function make_accuracy_graph(node, data, type) {
             .attr("y1", height - (i / steps) * height)
             .attr("y2", height - (i / steps) * height);
         
-        svg.append("text").text(i * step).attr("class", "guide")
-            .attr("text-anchor", "end")
+        // rounding error
+        svg.append("text").text(step > 1 ? i * step : i / (1 / step)).attr("class", "guide")
             .attr("x", -5)
             .attr("y", height - (i / steps) * height + 6);
     }
@@ -109,7 +114,11 @@ function make_accuracy_graph(node, data, type) {
         }).append("g").attr("class", "arrow");
 
     g.append("title")
-        .text(function(d) { return "At " + new Date(d.time * 1000) + "\nOn " + d.branch });
+        .text(function(d) {
+            return print_date(d.time) + 
+                "\nOn " + d.branch +
+                "\nFrom " + d[type].total +  "b to " + d[type].got + "b";
+        });
 
     g.append("line")
         .attr("stroke", function(d) { return key(d.branch) })
@@ -146,19 +155,19 @@ function make_speed_graph(node, data) {
     var max = steps * step;
 
     var svg = node
-        .attr("width", width + 2 * margin + labels)
-        .attr("height", height + 2 * margin)
-        .append("g").attr("transform", "translate(" + (margin + labels) + "," + margin + ")");
+        .attr("width", width + 2 * hmargin + labels)
+        .attr("height", height + 2 * vmargin)
+        .append("g").attr("transform", "translate(" + (hmargin + labels) + "," + vmargin + ")");
 
     svg.append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
-        .attr("x2", width)
+        .attr("x2", width-5)
         .attr("y1", height)
         .attr("y2", height);
 
     svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
-        .attr("transform", "translate(" + width + "," + height + ")");
+        .attr("transform", "translate(" + (width - 5) + "," + height + ")");
 
     for (var i = 1; i <= steps; i++) {
         svg.append("line")
@@ -168,15 +177,28 @@ function make_speed_graph(node, data) {
             .attr("y1", height - (i / steps) * height)
             .attr("y2", height - (i / steps) * height);
         
-        svg.append("text").text(i * step / 1000).attr("class", "guide")
-            .attr("text-anchor", "end")
+        svg.append("text").text((step > 1 ? i * step : i / (1 / step)) + "m")
+            .attr("class", "guide")
             .attr("x", -5)
             .attr("y", height - (i / steps) * height + 6);
     }
 
     var bar = svg.selectAll("g").data(data).enter();
 
-    bar.append("circle")
+    var g = bar.append("a")
+        .attr("xlink:href", function(d) {
+            return d.elt.querySelector("a").href;
+        }).append("g").attr("class", "arrow");
+
+
+    g.append("title")
+        .text(function(d) {
+            return print_date(d.time) + 
+                "\nOn " + d.branch +
+                "\nTook " + Math.round(d.speed * 10) / 10 + "m";
+        });
+
+    g.append("circle")
         .attr("fill", function(d) { return key(d.branch) })
         .attr("cx", function(d, i) { return (i + .5) * spacing })
         .attr("cy", function(d) { return height - height * d.speed / max })
