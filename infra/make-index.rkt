@@ -1,14 +1,11 @@
 #lang racket
+
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(define-runtime-path report-json-path "../previous/")
-
-
-(require racket/date)
-(require "../src/common.rkt")
-(require "../src/formats/datafile.rkt")
-
+(require racket/date "../src/common.rkt" "../src/formats/datafile.rkt")
 (provide directory-jsons name->timestamp)
+
+(define-runtime-path report-json-path "../previous/")
 
 (define (name->timestamp path)
   (define rpath (find-relative-path (simple-form-path report-json-path) path))
@@ -83,9 +80,12 @@
   (define total-crashed
     (count (compose (curry equal? "crash") table-row-status) (or tests '())))
 
+  (define speed (apply + (map table-row-time (or tests '()))))
+
   (hash 'date-full (format "~a:~a on ~a" (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0") (date->string date))
         'date-short (date->string/short date)
         'date-unix (date->seconds date)
+        'speed speed
         'folder (path->string folder)
         'hostname hostname
         'commit commit
@@ -109,7 +109,7 @@
 
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
-           (th "Date") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
+           (th "Date") (th "Speed") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
     (tbody
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
@@ -119,6 +119,7 @@
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])
                (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
+           (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
            (td ([title ,(field 'commit)]) ,(field 'branch))
            (td ([title ,(string-join (field 'options) " ")]
                 [class ,(if (field 'note) "note" "")])
@@ -171,7 +172,6 @@
         (script ((src "regression-chart.js")))
         (script ((src "report.js"))))
        (body
-        ((onload "index()"))
         (div
          ((id "large"))
          (div "Reports: " (span ((class "number")) ,(~a (length folders))))
@@ -186,9 +186,10 @@
                 `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
         (figure
          (ul ((id "classes")))
-         (svg ((id "graph") (width "800")))
+         (svg ((id "accuracy-graph") (width "400")))
+         (svg ((id "speed-graph") (width "400")))
          (ul ((id "suites")))
-         (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
+         (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
         (table
          ((id "reports"))
          ,@(apply
