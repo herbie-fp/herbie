@@ -5,7 +5,7 @@ env:
     - RACKET_DIR=~/racket
       TBENCHES="bench/tutorial.fpcore bench/hamming/"
       HERBIE_SEED="0"
-      UNIT="raco test src"
+      UNIT="raco test src/ infra/"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
   matrix:
