@@ -23,10 +23,6 @@ index () {
     rm index.html
 }
 
-backfill () {
-    racket infra/backfill-index.rkt
-}
-
 download_reports () {
     rsync --recursive --checksum --inplace --ignore-existing \
           --include 'results.json' --include '*/' --exclude '*' \
@@ -60,9 +56,6 @@ if [[ $CMD = "upload" ]]; then
 elif [[ $CMD = "index" ]]; then
     download_reports
     index
-elif [[ $CMD = "backfill" ]]; then
-    download_reports
-    backfill
 elif [[ $CMD = "update-reports" ]]; then
     upload_reports
     index
