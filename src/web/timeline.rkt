@@ -175,7 +175,7 @@
   (apply + (map cdr (dict-ref phase 'time))))
 
 (define (render-timeline-summary info summary)
-  (define total-time (apply + (map phase-time (hash-values summary))))
+  (define total-time (apply + (map phase-time (dict-values summary))))
 
   (define blocks
     (for/list ([(type phase) (in-dict summary)])
