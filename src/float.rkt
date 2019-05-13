@@ -8,7 +8,8 @@
 (module+ test (require rackunit))
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
-         sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?)
+         sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?
+         exact-value? val-to-type)
 
 (define (ulp-difference x y)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -159,3 +160,17 @@
 
 (define (sample-double)
   (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
+
+(define (exact-value? type val)
+  (match type
+    ['real (exact? val)]
+    ['complex (exact? val)]
+    ['boolean true]
+    [_ false]))
+
+(define (val-to-type type val)
+  (match type
+    ['real val]
+    ['complex (if (real? val) `(complex ,val 0) val)]
+    ['boolean (if val 'TRUE 'FALSE)]
+    [_ (error "Unknown type" type)]))

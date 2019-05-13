@@ -1,10 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "../syntax/rules.rkt" "../syntax/types.rkt")
+(require "../common.rkt" "../programs.rkt" "../float.rkt")
+(require "../syntax/rules.rkt" "../syntax/types.rkt")
 (require "enode.rkt" "egraph.rkt" "ematch.rkt")
-
 (provide simplify-expr simplify-batch)
-
 (module+ test (require rackunit))
 
 ;;################################################################################;;
@@ -27,8 +26,9 @@
   (-> expr? #:rules (listof rule?) expr?)
   (first (simplify-batch (list expr) #:rules rls)))
 
-(define (simplify-batch exprs #:rules rls)
-  (debug #:from 'simplify (format "Simplifying ~a" (string-join (map ~a exprs) ", ")))
+(define/contract (simplify-batch exprs #:rules rls)
+  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+  (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
@@ -36,7 +36,7 @@
   (iterate-egraph! eg #:rules rls)
 
   (define out (apply extract-smallest eg ens))
-  (debug #:from 'simplify (format "Simplified to ~a" (string-join (map ~a out) ", ")))
+  (debug #:from 'simplify (format "Simplified to:\n  ~a" (string-join (map ~a out) "\n  ")))
   out)
 
 (define (iterate-egraph! eg #:rules [rls (*simplify-rules*)])
@@ -99,20 +99,6 @@
   (for ([m (find-matches (egraph-leaders eg) rls)])
     (apply-match m eg))
   (for-each (curry set-precompute! eg) (egraph-leaders eg)))
-
-(define (exact-value? type val)
-  (match type
-    ['real (exact? val)]
-    ['complex (exact? val)]
-    ['boolean true]
-    [_ false]))
-
-(define (val-to-type type val)
-  (match type
-    ['real val]
-    ['complex (if (real? val) `(complex ,val 0) val)]
-    ['boolean (if val 'TRUE 'FALSE)]
-    [_ (error "Unknown type" type)]))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
