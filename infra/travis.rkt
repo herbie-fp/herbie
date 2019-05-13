@@ -16,7 +16,8 @@
   (define tests (append-map load-tests bench-dirs))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
-  (for/and ([test tests])
+  (for/and ([test tests] [i (in-naturals)])
+    (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (match (get-test-result test #:seed seed)
       [(test-success test bits time timeline warnings
                      start-alt end-alt points exacts start-est-error end-est-error
