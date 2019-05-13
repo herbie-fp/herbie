@@ -183,7 +183,7 @@
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"]) ,(format-time time)
-                      " (" ,(~r (* (/ time total-time) 100) #:precision 1) "%)"))
+                      " (" ,(~r (* (/ time total-time) 100) #:precision '(= 1)) "%)"))
             (dl
              ,@(dict-call phase #:default '() render-summary-algorithm 'method)
              ,@(dict-call phase #:default '() render-summary-outcomes 'outcomes)
