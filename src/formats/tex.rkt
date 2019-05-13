@@ -51,7 +51,7 @@
     ['atan2 (values 'fn #t)]
     ['if (values #t #t)]
     [(or 'remainder 'fmod) (values #t #f)]
-    [(or 'cbrt 'ceil 'copysign 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+    [(or 'cbrt 'ceil 'copysign 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim  'expm1 'fma 'log1p 'hypot 'j0 'j1 'y0 'y1 'lgamma 'tgamma 'trunc)
      (values #f #t)]
     [(or '== '< '> '<= '>= '!=)
      (values #f #t)]
