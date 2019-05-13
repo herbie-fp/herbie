@@ -47,63 +47,58 @@
     (when (< start-cnt (egraph-cnt eg) (*node-limit*))
       (loop (+ iter 1)))))
 
+(define (rule-applicable? rl en)
+  (or (not (variable? (rule-input rl)))
+      (equal? (dict-ref (rule-itypes rl) (rule-input rl)) (enode-type en))))
+
+;; Tries to match the rules against the given enodes, and returns a
+;; list of matches found. Matches are of the form:
+;; 
+;; (rule enode . bindings)
+;;
+;; where bindings is a list of different matches between the rule and
+;; the enode.
+
+(define (find-matches ens rls)
+  (reap [sow]
+        (for* ([rl rls] [en ens]
+               #:when (rule-applicable? rl en)
+               #:unless (rule-applied? en rl))
+          (define bindings (match-e (rule-input rl) en))
+          (unless (null? bindings)
+            (sow (list* rl en bindings))))))
+
+(define (apply-match match eg)
+  (match-define (list rl en bindings ...) match)
+
+  ;; These next two lines are here because an earlier match
+  ;; application may have pruned the tree, invalidating the this
+  ;; one. Luckily, a pruned enode will still point to it's old
+  ;; leader, so we just get the leader, and then double check the
+  ;; bindings to make sure our match hasn't changed.
+  
+  (define en* (pack-leader en))
+  (define bindings-set (apply set bindings))
+  (define bindings* (apply set (match-e (rule-input rl) en*)))
+  (define valid-bindings (set-intersect bindings-set bindings*))
+
+  (for ([binding valid-bindings])
+    (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
+  ;; Prune the enode if we can
+  (unless (null? valid-bindings)
+    ;; If one of the variations of the enode is a single variable or
+    ;; constant, reduce to that.
+    (reduce-to-single! eg en))
+  ;; Mark this node as having this rule applied so that we don't try
+  ;; to apply it again.
+  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
+
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
-
-  ;; Tries to match the rules against the given enodes, and returns a
-  ;; list of matches found. Matches are of the form:
-  ;; 
-  ;; (rule enode . bindings)
-  ;;
-  ;; where bindings is a list of different matches between the rule
-  ;; and the enode.
-  (define (find-matches ens)
-    (filter (negate null?)
-	    (for*/list ([rl rls]
-			[en ens]
-                        #:when (or (not (variable? (rule-input rl)))
-                                   (equal? (dict-ref (rule-itypes rl) (rule-input rl)) (enode-type en))))
-	      (if (rule-applied? en rl) '()
-		  (let ([bindings (match-e (rule-input rl) en)])
-		    (if (null? bindings) '()
-			(list* rl en bindings)))))))
-
-  (define (apply-match match)
-    (match-define (list rl en bindings ...) match)
-
-    ;; These next two lines are here because an earlier match
-    ;; application may have pruned the tree, invalidating the this
-    ;; one. Luckily, a pruned enode will still point to it's old
-    ;; leader, so we just get the leader, and then double check the
-    ;; bindings to make sure our match hasn't changed.
-    
-    (define en* (pack-leader en))
-    (define bindings-set (apply set bindings))
-    (define bindings* (apply set (match-e (rule-input rl) en*)))
-    (define valid-bindings (set-intersect bindings-set bindings*))
-
-    (for ([binding valid-bindings])
-      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-    ;; Prune the enode if we can
-    (unless (null? valid-bindings) (try-prune-enode en))
-    ;; Mark this node as having this rule applied so that we don't try
-    ;; to apply it again.
-    (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
-
-  (define (try-prune-enode en)
-    ;; If one of the variations of the enode is a single variable or
-    ;; constant, reduce to that.
-    (reduce-to-single! eg en)
-    ;; If one of the variations of the enode chains back to itself,
-    ;; prune it away. Loops in the egraph coorespond to identity
-    ;; functions.
-    #;(elim-enode-loops! eg en))
-
-  (for ([m (find-matches (egraph-leaders eg))])
-    (apply-match m))
-  (for-each (curry set-precompute! eg) (egraph-leaders eg))
-  (void))
+  (for ([m (find-matches (egraph-leaders eg) rls)])
+    (apply-match m eg))
+  (for-each (curry set-precompute! eg) (egraph-leaders eg)))
 
 (define (exact-value? type val)
   (match type
