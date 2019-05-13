@@ -85,7 +85,10 @@
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,baseline-errs ,oracle-errs ,all-alts))))
 
+  (define shell-state #f)
+
   (define (in-engine _)
+    (set! shell-state (^shell-state^))
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
           (profile (compute-result test)))
@@ -130,8 +133,11 @@
       [`(error ,bits ,timeline ,warnings ,e)
        (test-failure test bits (- (current-inexact-milliseconds) start-time) timeline warnings e)]
       [#f
-       ;; TODO: These fields are meaningless because parameters don't work across engines
-       (test-timeout test (bf-precision) (*timeout*) (^timeline^) '())])))
+       (define timeline
+         (reverse 
+          (cons (list (cons 'type 'end) (cons 'time (current-inexact-milliseconds)))
+                (map unbox (shellstate-timeline shell-state)))))
+       (test-timeout test (bf-precision) (*timeout*) timeline '())])))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
