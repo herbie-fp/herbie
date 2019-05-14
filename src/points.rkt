@@ -198,11 +198,13 @@
    [else
     'halfpoints]))
 
-(define (point-error inexact exact)
+(define (point-error out exact)
   (add1
-    (if (real? inexact)
-      (abs (ulp-difference inexact exact))
-      (expt 2 (*bit-width*)))))
+   (if (or (real? out)
+           (posit8? out) (posit16? out) (posit32? out)
+           (quire8? out) (quire16? out) (quire32? out))
+       (abs (ulp-difference out exact))
+       (expt 2 (*bit-width*)))))
 
 (define (eval-errors eval-fn pcontext)
   (define max-ulps (expt 2 (*bit-width*)))
@@ -230,16 +232,9 @@
         (apply max (map ulps->bits reals)))))
 
 (define (errors prog pcontext)
-  (let ([fn (eval-prog prog 'fl)]
-	[max-ulps (expt 2 (*bit-width*))])
-    (for/list ([(point exact) (in-pcontext pcontext)])
-      (let ([out (fn point)])
-	(add1
-	 (if (or (real? out)
-                 (posit8? out) (posit16? out) (posit32? out)
-                 (quire8? out) (quire16? out) (quire32? out))
-           (abs (ulp-difference out exact))
-           max-ulps))))))
+  (define fn (eval-prog prog 'fl))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (point-error (fn point) out exact)))
 
 ;; Old, halfpoints method of sampling points
 
