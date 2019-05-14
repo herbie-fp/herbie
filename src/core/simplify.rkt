@@ -102,6 +102,7 @@
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
+  (define simplified? false)
   (for ([var (enode-vars en)] #:when (list? var))
     (define constexpr
       (cons (car var)
@@ -110,7 +111,9 @@
       (with-handlers ([exn:fail:contract:divide-by-zero? void])
         (define res (eval-const-expr constexpr))
         (when (and ((value-of type) res) (exact-value? type res))
-          (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res))))))))
+          (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res)))
+          (set! simplified? true)))))
+  (when simplified? (reduce-to-single! eg en)))
 
 (define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's

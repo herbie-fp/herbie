@@ -8,12 +8,7 @@
 (define types '(bool real complex _posit8 _posit16 _posit32 _quire8 _quire16 _quire32))
 (define (type? x) (set-member? types x))
 
-(define (either-flonum? x)
-  (if (flag-set? 'precision 'double)
-      (double-flonum? x)
-      (single-flonum? x)))
-
-(define/match (value-of type) [('bool) boolean?] [('real) either-flonum?] [('complex) complex?]
+(define/match (value-of type) [('bool) boolean?] [('real) real?] [('complex) complex?]
   [('_posit8) posit8?] [('_posit16) posit16?] [('_posit32) posit32?]
   [('_quire8) quire8?] [('_quire16) quire16?]  [('_quire32) quire32?])
 (define/match (bigvalue-of type) [('bool) boolean?] [('real) bigfloat?] [('complex) bigcomplex?]
