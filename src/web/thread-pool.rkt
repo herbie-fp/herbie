@@ -25,7 +25,7 @@
 
     (set-seed! seed)
     (for ([page (all-pages result)])
-      (with-handlers ([exn:fail? (λ (e) ((error-display-handler) (format "Error when making ~a: ~a" page (exn-message e)) e))])
+      (with-handlers ([exn:fail? (λ (e) ((error-display-handler) (format "In \"~a\":\n  ~a: ~a" (test-name test) page (exn-message e)) e))])
         (call-with-output-file (build-path rdir page)
           #:exists 'replace
           (λ (out) (make-page page out result profile?)))))

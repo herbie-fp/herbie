@@ -35,9 +35,7 @@
 ;; Converting constants
 
 (define/contract (->flonum x)
-  (-> any/c (or/c flonum? complex? boolean?
-                  posit8? posit16? posit32?
-                  quire8? quire16? quire32?))
+  (-> any/c value?)
   (define convert
     (if (flag-set? 'precision 'double)
         real->double-flonum
