@@ -234,7 +234,7 @@
 (define (errors prog pcontext)
   (define fn (eval-prog prog 'fl))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (fn point) out exact)))
+    (point-error (fn point) exact)))
 
 ;; Old, halfpoints method of sampling points
 
