@@ -1,13 +1,13 @@
 #lang racket
 (require "config.rkt")
 (provide timeline-event! timeline-log! timeline-push!)
-(module debug (provide *timeline*))
+(module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
 (define *timeline* (box '()))
 
-(register-reset (λ () (set! *timeline* (box '()))))
+(register-reset (λ () (set-box! *timeline* '())))
 
 (define (timeline-event! type)
   (define initial (hash 'type type 'time (current-inexact-milliseconds)))

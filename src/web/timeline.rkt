@@ -3,7 +3,7 @@
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt" "common.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
-(define timeline-phase? (listof (cons/c symbol? any/c)))
+(define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))
 
 ;; This first part handles timelines for a single Herbie run
@@ -76,7 +76,7 @@
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
                ,@(for/list ([(expr err) (in-dict locations)])
-                   `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
+                   `(tr (td ,(format-bits (car err)) "b") (td (pre ,(~a expr)))))))))
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
@@ -151,8 +151,8 @@
 
   (define data
     (for/list ([event timeline])
-     (for/hash ([(k v) (in-dict event)])
-       (values k (value-map k v)))))
+      (for/hash ([(k v) (in-dict event)])
+        (values k (value-map k v)))))
 
   (write-json data out))
 

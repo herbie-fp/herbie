@@ -93,8 +93,7 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,bits ,warnings
-              ,start ,end ,context ,newcontext
+      [`(good ,bits ,warnings ,start ,end ,context ,newcontext
               ,baseline-errs ,oracle-errs ,all-alts)
        (define-values (newpoints newexacts) (get-p&es newcontext))
        (define-values (points exacts) (get-p&es context))

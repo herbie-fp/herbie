@@ -72,7 +72,7 @@
   (timeline-event! 'sample)
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (check-unused-variables (program-variables prog) precondition (program-body prog))
-  (let* ([context (prepare-points prog precondition precision]
+  (let* ([context (prepare-points prog precondition precision)]
          [altn (make-alt prog)])
     (^precondition^ precondition)
     (*pcontext* context)
@@ -83,22 +83,16 @@
 
 ;; Information
 (define (list-alts)
-  (printf "Here are the current alts in the table\n")
-  (printf "Key:\n")
-  (printf "x = already expanded\n")
-  (printf "+ = currently chosen\n")
-  (printf "* = left to expand\n")
-  (printf "\n")
+  (printf "Key: (.) = done; (>) = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
     (for ([alt (atab-all-alts (^table^))]
 	  [n (in-naturals)])
       (printf "~a ~a ~a\n"
-       (cond [(equal? alt (^next-alt^)) "+"]
-             [(set-member? ndone-alts alt) "*"]
-             [else "x"])
+       (cond [(equal? alt (^next-alt^)) ">"]
+             [(set-member? ndone-alts alt) " "]
+             [else "."])
        n
-       alt)))
-  (void))
+       alt))))
 
 ;; Begin iteration
 (define (choose-alt! n)
@@ -185,6 +179,7 @@
 (define (gen-rewrites!)
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
+  (timeline-log! 'method (object-name rewrite))
   (define exprs '())
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
