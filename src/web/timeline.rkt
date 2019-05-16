@@ -60,7 +60,7 @@
      ,@(dict-call curr #:default '() render-phase-rules 'rules)
      ,@(dict-call curr #:default '() render-phase-counts 'inputs 'outputs)
      ,@(dict-call curr #:default '() render-phase-times 'times #:extra (list n))
-     ,@(dict-call curr #:default '() render-phase-slowest 'slowest)
+     ,@(dict-call curr #:default '() render-phase-iters 'iters)
      ,@(dict-call curr #:default '() render-phase-outcomes 'outcomes))))
 
 (define (dict-call d f #:default [default #f] #:extra [extra '()] . args)
@@ -77,6 +77,15 @@
         (table ([class "times"])
                ,@(for/list ([(expr err) (in-dict locations)])
                    `(tr (td ,(format-bits (car err)) "b") (td (pre ,(~a expr)))))))))
+
+(define (render-phase-iters iters)
+  `((dt "Iterations")
+    (dd (table ([class "times"])
+               ,@(for/list ([iter iters])
+                   `(tr (td ,(~a (if (list? iter) (car iter) iter)))
+                        ,@(if (list? iter)
+                              (map (compose (curry list 'td) ~a) (cdr iter))
+                              '())))))))
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
@@ -114,13 +123,10 @@
     (dd ,(~a (length times)) " calls:"
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string times) ")"))))
-
-(define (render-phase-slowest slowest)
-  `((dt "Slowest")
-    (dd (table ([class "times"])
-               ,@(for/list ([(expr time) (in-dict slowest)])
-                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (table ([class "times"])
+               ,@(for/list ([(expr time) (in-dict times)])
+                   `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
@@ -133,14 +139,15 @@
 
 (define (make-timeline-json result out)
   (define timeline (test-result-timeline result))
-  (define (cons->hash k1 f1 k2 f2 c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
+  (define ((cons->hash k1 f1 k2 f2) c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
 
   (define/match (value-map k v)
     [('method v) (~a v)]
     [('type v) (~a v)]
-    [('locations v) (map (curry cons->hash 'expr ~a 'error identity) v)]
-    [('slowest v) (map (curry cons->hash 'expr ~a 'time identity) v)]
-    [('rules v) (map (curry cons->hash 'rule ~a 'count identity) v)]
+    [('locations v) (map (cons->hash 'expr ~a 'error identity) v)]
+    [('slowest v) (map (cons->hash 'expr ~a 'time identity) v)]
+    [('rules v) (map (cons->hash 'rule ~a 'count identity) v)]
+    [('times v) (map (λ (x) (cons (~a (car x)) (cdr x))) v)]
     [('outcomes v)
      (for/list ([(outcome number) (in-dict v)])
        (match-define (cons count time) number)
@@ -188,7 +195,6 @@
              ,@(dict-call phase #:default '() render-summary-algorithm 'method)
              ,@(dict-call phase #:default '() render-summary-outcomes 'outcomes)
              ,@(dict-call phase #:default '() #:extra (list type) render-summary-times 'times)
-             ,@(dict-call phase #:default '() render-summary-slowest 'slowest)
              ,@(dict-call phase #:default '() #:extra (list info) render-summary-accuracy 'accuracy 'oracle 'baseline)
              ,@(dict-call phase #:default '() render-summary-rules 'rules)))))
 
@@ -203,23 +209,17 @@
                    `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
 
 (define (render-summary-times type times)
+  (define top-slowest
+    (take-up-to (sort (append-map cdr times) > #:key cadr) 5))
+
   `((dt "Calls")
     (dd (p ,(~a (length (append-map cdr times))) " calls:")
         (canvas ([id ,(format "calls-~a" type)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (append-map cdr times)) ")"))))
-
-(define (render-summary-slowest slowest)
-  (define slowest*
-    (append-map
-     (compose (curry map (λ (x) (cons (dict-ref x 'expr) (dict-ref x 'time)))) cdr)
-     slowest))
-  (define top-slowest
-    (take-up-to (sort slowest* > #:key cdr) 5))
-  `((dt "Slowest")
-    (dd (table ([class "times"])
-               ,@(for/list ([(expr time) (in-dict top-slowest)])
-                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (map second (append-map cdr times))) ")")
+        (dd (table ([class "times"])
+                   ,@(for/list ([(expr time) (in-dict top-slowest)])
+                       `(tr (td ,(format-time (car time))) (td (pre ,(~a expr))))))))))
 
 (define (render-summary-rules rules)
   (define counts (make-hash))
@@ -267,9 +267,6 @@
                             "%")
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
-
-(define (hash->cons key1 key2 val)
-  (cons (dict-ref val key1) (dict-ref val key2)))
 
 (define (render-summary-outcomes outcomes)
   (define entries (append-map cdr outcomes))

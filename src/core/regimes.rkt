@@ -215,14 +215,17 @@
   (define start-prog (extract-subexpression (*start-prog*) expr))
 
   (define (find-split prog1 prog2 v1 v2)
+    (define iters 0)
     (define (pred v)
       (define ctx
         (without-timeline
          (λ ()
            (parameterize ([*num-points* (*binary-search-test-points*)])
              (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))))
-      (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
-    (binary-search-floats pred v1 v2))
+      (begin0 (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx)))
+        (set! iters (+ 1 iters))))
+    (begin0 (binary-search-floats pred v1 v2)
+      (timeline-push! 'iters iters)))
 
   (define (sidx->spoint sidx next-sidx)
     (define prog1 (list-ref progs (si-cidx sidx)))

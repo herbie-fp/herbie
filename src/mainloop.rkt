@@ -153,7 +153,6 @@
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
-    (define exprs '())
 
     (define series-expansions
       (apply
@@ -163,12 +162,11 @@
          (define tnow (current-inexact-milliseconds))
          (begin0
              (taylor-alt (^next-alt^) location)
-           (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
-                                   (- (current-inexact-milliseconds) tnow)) exprs))))))
+           (timeline-push! 'times
+                           (location-get location (alt-program (^next-alt^)))
+                           (- (current-inexact-milliseconds) tnow))))))
     
-    (timeline-log! 'inputs (length exprs))
-    (timeline-log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
-    (timeline-log! 'times (map cdr exprs))
+    (timeline-log! 'inputs (length (^locs^)))
     (timeline-log! 'outputs (length series-expansions))
 
     (^children^ (append (^children^) series-expansions)))
@@ -179,7 +177,6 @@
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-log! 'method (object-name rewrite))
-  (define exprs '())
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
@@ -189,7 +186,7 @@
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
              (begin0 (rewrite expr #:root location)
-               (set! exprs (cons (cons expr (- (current-inexact-milliseconds) tnow)) exprs))))))
+               (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
     (append-map (curry map change-rule) changelists))
@@ -205,10 +202,8 @@
       (for/fold ([altn altn]) ([cng cl])
         (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
 
-  (timeline-log! 'inputs (length exprs))
-  (timeline-log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+  (timeline-log! 'inputs (length (^locs^)))
   (timeline-log! 'rules rule-counts)
-  (timeline-log! 'times (map cdr exprs))
   (timeline-log! 'outputs (length rewritten))
 
   (^children^ (append (^children^) rewritten))

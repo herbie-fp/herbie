@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
 (require "enode.rkt" "egraph.rkt" "ematch.rkt")
 (provide simplify-expr simplify-batch)
@@ -44,8 +44,9 @@
     (define start-cnt (egraph-cnt eg))
     (debug #:from 'simplify #:depth 2 (format "iteration ~a: (~a enodes)" iter start-cnt))
     (one-iter eg rls)
-    (when (< start-cnt (egraph-cnt eg) (*node-limit*))
-      (loop (+ iter 1)))))
+    (if (< start-cnt (egraph-cnt eg) (*node-limit*))
+        (loop (+ iter 1))
+        (timeline-push! 'iters iter (egraph-cnt eg)))))
 
 (define (rule-applicable? rl en)
   (or (not (variable? (rule-input rl)))
