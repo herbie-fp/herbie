@@ -1,6 +1,6 @@
 #lang racket
 (require "config.rkt")
-(provide timeline-event! timeline-log! timeline-push!)
+(provide timeline-event! timeline-log! timeline-push! without-timeline)
 (module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
@@ -27,3 +27,9 @@
         (error 'timeline "Attempting to push onto a timeline non-list ~a (value ~a)" key x)
         (cons val x)))
   (hash-update! (car (unbox *timeline*)) key  try-cons '()))
+
+(define (without-timeline thunk)
+  (define old-timeline (unbox *timeline*))
+  (set-box! *timeline* (list (make-hash)))
+  (begin0 (thunk)
+    (set-box! *timeline* old-timeline)))

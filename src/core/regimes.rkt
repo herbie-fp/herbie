@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt")
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
 (require "../type-check.rkt" "../syntax/softposit.rkt" "../syntax/types.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
@@ -217,8 +217,10 @@
   (define (find-split prog1 prog2 v1 v2)
     (define (pred v)
       (define ctx
-        (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
+        (without-timeline
+         (λ ()
+           (parameterize ([*num-points* (*binary-search-test-points*)])
+             (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))))
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
     (binary-search-floats pred v1 v2))
 
