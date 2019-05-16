@@ -122,6 +122,8 @@
 (define (prepare-points-intervals prog precondition)
   (timeline-log! 'method 'intervals)
   (define log (make-hash))
+  (timeline-log! 'outcomes log)
+
   (define range-table (condition->range-table precondition))
   (for ([var (program-variables prog)]
         #:unless (range-table-ref range-table var))
@@ -156,7 +158,6 @@
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exacts)])))
 
-  (timeline-log! 'outcomes log)
   (mk-pcontext points exacts))
 
 (define (prepare-points prog precondition precision)
