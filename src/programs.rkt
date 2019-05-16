@@ -8,7 +8,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
-         expr-supports
+         expr-supports?
          location-hash
          location? expr?
          location-do location-get
@@ -352,8 +352,9 @@
     expr]))
 
 (define (expr-supports? expr field)
-  (match expr
-    [(list op args ...)
-     (and (operator-info op field) (andmap supported-ival-expr? args))]
-    [(? variable?) true]
-    [(? constant?) (or (not (symbol? expr)) (constant-info expr field))]))
+  (let loop ([expr expr])
+    (match expr
+      [(list op args ...)
+       (and (operator-info op field) (andmap loop args))]
+      [(? variable?) true]
+      [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
