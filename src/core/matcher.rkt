@@ -116,6 +116,7 @@
            (display ">" port))])
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
+  (timeline-log! 'method 'non-recursive)
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
   (reap [sow]
     (for ([rule (*rules*)]
@@ -126,6 +127,7 @@
             (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
+  (timeline-log! 'method 'recursive)
 
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
   (define (rewriter expr ghead glen loc cdepth)

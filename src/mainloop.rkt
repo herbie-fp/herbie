@@ -72,11 +72,8 @@
   (timeline-event! 'sample)
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (check-unused-variables (program-variables prog) precondition (program-body prog))
-  (define prepare-log (make-hash))
-  (let* ([context (prepare-points prog precondition precision #:log prepare-log)]
+  (let* ([context (prepare-points prog precondition precision]
          [altn (make-alt prog)])
-    (timeline-log! 'method (sampling-method prog precondition))
-    (timeline-log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
@@ -186,9 +183,8 @@
   (void))
 
 (define (gen-rewrites!)
-  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-event! 'rewrite)
-  (timeline-log! 'method (object-name rewrite))
+  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (define exprs '())
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 

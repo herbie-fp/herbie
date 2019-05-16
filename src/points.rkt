@@ -6,8 +6,7 @@
          "range-analysis.rkt" "biginterval.rkt" "syntax/softposit.rkt" "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points sampling-method
-         errors errors-score
+         prepare-points errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test
@@ -120,7 +119,9 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (prepare-points-intervals prog precondition #:log [log #f])
+(define (prepare-points-intervals prog precondition)
+  (timeline-log! 'method 'intervals)
+  (define log (make-hash))
   (define range-table (condition->range-table precondition))
   (for ([var (program-variables prog)]
         #:unless (range-table-ref range-table var))
@@ -155,15 +156,16 @@
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exacts)])))
 
+  (timeline-log! 'outcomes log)
   (mk-pcontext points exacts))
 
-(define (prepare-points prog precondition precision #:log [log #f])
+(define (prepare-points prog precondition precision)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition #:log log)
-    (prepare-points-halfpoints prog precondition precision #:log log)))
+    (prepare-points-intervals prog precondition)
+    (prepare-points-halfpoints prog precondition precision)))
 
 #;(define (prepare-points prog precondition precision)
   "Given a program, return two lists:
@@ -183,13 +185,6 @@
                           #:url "faq.html#no-valid-values"))
     (prepare-points-halfpoints prog precondition precision range-table)]))
 
-
-(define (sampling-method prog precondition)
-  (cond
-   [(and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
-    'intervals]
-   [else
-    'halfpoints]))
 
 (define (point-error out exact)
   (add1
@@ -258,7 +253,7 @@
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at
-(define (make-exacts-halfpoints prog pts precondition #:log [log #f])
+(define (make-exacts-halfpoints prog pts precondition)
   (define n (length pts))
   (let loop ([nth (floor (/ n 16))])
     (if (< nth 2)
@@ -295,7 +290,8 @@
   (filter f points))
 
 ;; This is the obsolete version for the "halfpoint" method
-(define (prepare-points-halfpoints prog precondition precision #:log [log #f])
+(define (prepare-points-halfpoints prog precondition precision)
+  (timeline-log! 'method 'halfpoints)
   (define range-table (condition->range-table precondition))
   (for ([var (program-variables prog)]
         #:unless (range-table-ref range-table var))
