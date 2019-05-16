@@ -77,8 +77,8 @@
   (^precondition^ precondition)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-  (^table^ (make-alt-table context (make-alt prog))
-  (void)))
+  (^table^ (make-alt-table context (make-alt prog)))
+  (void))
 
 ;; Information
 (define (list-alts)
