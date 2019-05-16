@@ -1,4 +1,5 @@
 #lang racket
+(require "config.rkt")
 
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.

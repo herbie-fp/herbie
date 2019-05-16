@@ -1,9 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "../syntax/rules.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../timeline.rkt" "../programs.rkt")
+(require "../syntax/rules.rkt" "../type-check.rkt")
 
 (provide
  (all-from-out "../syntax/rules.rkt")
