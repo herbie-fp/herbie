@@ -2,7 +2,7 @@
 (require profile math/bigfloat racket/engine)
 (require "common.rkt" "errors.rkt" "debug.rkt")
 (require "float.rkt" "points.rkt" "programs.rkt")
-(require "mainloop.rkt" "alternative.rkt" "timeline.rkt")
+(require "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 (require "formats/datafile.rkt" "formats/test.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
