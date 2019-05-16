@@ -33,6 +33,7 @@
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
 
+  (timeline-push! 'egraph 0 (egraph-cnt eg))
   (iterate-egraph! eg #:rules rls)
 
   (define out (apply extract-smallest eg ens))
@@ -44,9 +45,9 @@
     (define start-cnt (egraph-cnt eg))
     (debug #:from 'simplify #:depth 2 (format "iteration ~a: (~a enodes)" iter start-cnt))
     (one-iter eg rls)
-    (if (< start-cnt (egraph-cnt eg) (*node-limit*))
-        (loop (+ iter 1))
-        (timeline-push! 'iters iter (egraph-cnt eg)))))
+    (timeline-push! 'egraph iter (egraph-cnt eg))
+    (when (< start-cnt (egraph-cnt eg) (*node-limit*))
+      (loop (+ iter 1)))))
 
 (define (rule-applicable? rl en)
   (or (not (variable? (rule-input rl)))

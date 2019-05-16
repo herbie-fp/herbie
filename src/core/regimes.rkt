@@ -3,6 +3,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
 (require "../type-check.rkt" "../syntax/softposit.rkt" "../syntax/types.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
+(require (submod "../timeline.rkt" debug))
 
 (module+ test
   (require rackunit))
@@ -217,15 +218,18 @@
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
+      (set! iters (+ 1 iters))
       (define ctx
         (without-timeline
          (λ ()
            (parameterize ([*num-points* (*binary-search-test-points*)])
              (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))))
-      (begin0 (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx)))
-        (set! iters (+ 1 iters))))
-    (begin0 (binary-search-floats pred v1 v2)
-      (timeline-push! 'iters iters)))
+      (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
+    (define pt (binary-search-floats pred v1 v2))
+    (timeline-push! 'bstep v1 v2 iters pt)
+    (pretty-print (length (unbox *timeline*)))
+    (pretty-print (first (unbox *timeline*)))
+    pt)
 
   (define (sidx->spoint sidx next-sidx)
     (define prog1 (list-ref progs (si-cidx sidx)))

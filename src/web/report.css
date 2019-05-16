@@ -245,9 +245,11 @@ section h1 {
 .timeline-block dl { font-size: 90%; }
 .timeline-block dt { min-width: 6em; float: left; font-size: 100%; }
 .timeline-block dd { margin: 0 0 1ex 6em; max-width: 100%; overflow: auto; }
+table.times { border-spacing: 15px 5px; }
+table th { text-align: left; }
 table.times td { text-align: right; min-width: 8ex; vertical-align: baseline; }
 table.times td:last-child { text-align: left; }
-table pre { padding: 0; margin: 0; text-align: left; }
+table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 
 /* Timeline colors */
 

@@ -23,9 +23,9 @@
 (define (timeline-push! key . values)
   (define val (if (= (length values) 1) (car values) values))
   (define (try-cons x)
-    (if (not (list? x))
-        (error 'timeline "Attempting to push onto a timeline non-list ~a (value ~a)" key x)
-        (cons val x)))
+    (if (list? x)
+        (cons val x)
+        (error 'timeline "Attempting to push onto a timeline non-list ~a (value ~a)" key x)))
   (hash-update! (car (unbox *timeline*)) key  try-cons '()))
 
 (define (without-timeline thunk)

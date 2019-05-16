@@ -370,6 +370,7 @@
       (combine-alts option precision)]
      [else
       (best-alt all-alts)]))
+  (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
             ,(simplify-expr (program-body (alt-program joined-alt)) #:rules (*fp-safe-simplify-rules*)))

@@ -60,7 +60,8 @@
      ,@(dict-call curr #:default '() render-phase-rules 'rules)
      ,@(dict-call curr #:default '() render-phase-counts 'inputs 'outputs)
      ,@(dict-call curr #:default '() render-phase-times 'times #:extra (list n))
-     ,@(dict-call curr #:default '() render-phase-iters 'iters)
+     ,@(dict-call curr #:default '() render-phase-bstep 'bstep)
+     ,@(dict-call curr #:default '() render-phase-egraph 'egraph)
      ,@(dict-call curr #:default '() render-phase-outcomes 'outcomes))))
 
 (define (dict-call d f #:default [default #f] #:extra [extra '()] . args)
@@ -78,14 +79,24 @@
                ,@(for/list ([(expr err) (in-dict locations)])
                    `(tr (td ,(format-bits (car err)) "b") (td (pre ,(~a expr)))))))))
 
-(define (render-phase-iters iters)
+(define (render-phase-bstep iters)
+  `((dt "Steps")
+    (dd (table ([class "times"])
+               (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
+               ,@(for/list ([iter iters])
+                   (match-define (list v1 v2 iters pt) iter)
+                   `(tr (td ,(~a iters)) 
+                        (td (pre ,(~a v1))) (td (pre ,(~a v2)))
+                        (td (pre ,(~a pt)))))))))
+
+(define (render-phase-egraph iters)
   `((dt "Iterations")
     (dd (table ([class "times"])
+               (tr (th "Iter") (th "Nodes"))
                ,@(for/list ([iter iters])
-                   `(tr (td ,(~a (if (list? iter) (car iter) iter)))
-                        ,@(if (list? iter)
-                              (map (compose (curry list 'td) ~a) (cdr iter))
-                              '())))))))
+                   `(tr (td ,(~a (car iter)))
+                        (td ,(~a (second iter)))))))))
+
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
@@ -145,7 +156,6 @@
     [('method v) (~a v)]
     [('type v) (~a v)]
     [('locations v) (map (cons->hash 'expr ~a 'error identity) v)]
-    [('slowest v) (map (cons->hash 'expr ~a 'time identity) v)]
     [('rules v) (map (cons->hash 'rule ~a 'count identity) v)]
     [('times v) (map (λ (x) (cons (~a (car x)) (cdr x))) v)]
     [('outcomes v)
