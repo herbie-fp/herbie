@@ -65,7 +65,8 @@
              `(done ,id ,self ,result)))])
       (loop seed profile? debug? dir))))
 
-(define (print-test-result data)
+(define (print-test-result i n data)
+  (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
   (match (table-row-status data)
     ["error"  
      (eprintf "[   ERROR   ]\t~a\n" (table-row-name data))]
@@ -74,7 +75,8 @@
     ["timeout"
      (eprintf "[  timeout  ]\t~a\n" (table-row-name data))]
     [_
-     (eprintf "[ ~ams]\t(~a→~a)\t~a\n" (~a (table-row-time data) #:width 8)
+     (eprintf "[ ~as]   ~a→~a\t~a\n"
+              (~r (/ (table-row-time data) 1000) #:min-width 7 #:precision '(= 3))
               (~r (table-row-start data) #:min-width 2 #:precision 0)
               (~r (table-row-result data) #:min-width 2 #:precision 0)
               (table-row-name data))]))
@@ -121,8 +123,7 @@
 
         (define out* (cons (cons id tr) out))
 
-        (eprintf "~a/~a\t" (~a (length out*) #:width 3 #:align 'right) (length progs))
-        (print-test-result tr)
+        (print-test-result (length out*) (length progs) tr)
 
         (if (= (length out*) (length progs))
             out*
@@ -141,8 +142,7 @@
                              (length out) (if (= (length out) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile? #:debug debug? #:dir dir))
-      (eprintf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length progs))
-      (print-test-result tr)
+      (print-test-result (+ 1 i) (length progs) tr)
       (set! out (cons (cons i tr) out))))
   out)
 
