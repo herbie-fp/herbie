@@ -1,6 +1,6 @@
 #lang racket
 
-(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt")
+(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt" "timeline.rkt")
 (require "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "core/simplify.rkt"
          "core/matcher.rkt" "core/regimes.rkt")
 (require "type-check.rkt") ;; For taylor not running on complex exprs
@@ -19,10 +19,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified precondition timeline)
+  (table next-alt locs children gened-series gened-rewrites simplified precondition)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE '())))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -39,9 +39,6 @@
 (define (^precondition^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
   (shellstate-precondition (^shell-state^)))
-(define (^timeline^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-timeline! (^shell-state^) newval))
-  (map unbox (reverse (shellstate-timeline (^shell-state^)))))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -53,11 +50,6 @@
 (define (^simplified^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
   (shellstate-simplified (^shell-state^)))
-
-(define (timeline-event! type)
-  (let ([b (box (list (cons 'type type) (cons 'time (current-inexact-milliseconds))))])
-    (set-shellstate-timeline! (^shell-state^) (cons b (shellstate-timeline (^shell-state^))))
-    (λ (key value) (set-box! b (cons (cons key value) (unbox b))))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -77,14 +69,14 @@
                      #:precision [precision 'binary64])
   (*start-prog* prog)
   (rollback-improve!)
-  (define log! (timeline-event! 'sample))
+  (timeline-event! 'sample)
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (check-unused-variables (program-variables prog) precondition (program-body prog))
   (define prepare-log (make-hash))
   (let* ([context (prepare-points prog precondition precision #:log prepare-log)]
          [altn (make-alt prog)])
-    (log! 'method (sampling-method prog precondition))
-    (log! 'outcomes prepare-log)
+    (timeline-log! 'method (sampling-method prog precondition))
+    (timeline-log! 'outcomes prepare-log)
     (^precondition^ precondition)
     (*pcontext* context)
     (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
@@ -136,11 +128,12 @@
 
 ;; Invoke the subsystems individually
 (define (localize!)
-  (define log! (timeline-event! 'localize))
+  (timeline-event! 'localize)
   (define locs (localize-error (alt-program (^next-alt^))))
-  (log! 'locations
-        (for/list ([(err loc) (in-dict locs)])
-          (cons (location-get loc (alt-program (^next-alt^))) (errors-score err))))
+  (for/list ([(err loc) (in-dict locs)])
+    (timeline-push! 'locations
+                    (location-get loc (alt-program (^next-alt^)))
+                    (errors-score err)))
   (^locs^ (map cdr locs))
   (void))
 
@@ -169,7 +162,7 @@
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
-    (define log! (timeline-event! 'series))
+    (timeline-event! 'series)
     (define exprs '())
 
     (define series-expansions
@@ -183,10 +176,10 @@
            (set! exprs (cons (cons (location-get location (alt-program (^next-alt^)))
                                    (- (current-inexact-milliseconds) tnow)) exprs))))))
     
-    (log! 'inputs (length exprs))
-    (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
-    (log! 'times (map cdr exprs))
-    (log! 'outputs (length series-expansions))
+    (timeline-log! 'inputs (length exprs))
+    (timeline-log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+    (timeline-log! 'times (map cdr exprs))
+    (timeline-log! 'outputs (length series-expansions))
 
     (^children^ (append (^children^) series-expansions)))
   (^gened-series^ #t)
@@ -194,8 +187,8 @@
 
 (define (gen-rewrites!)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (define log! (timeline-event! 'rewrite))
-  (log! 'method (object-name rewrite))
+  (timeline-event! 'rewrite)
+  (timeline-log! 'method (object-name rewrite))
   (define exprs '())
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
@@ -222,11 +215,11 @@
       (for/fold ([altn altn]) ([cng cl])
         (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
 
-  (log! 'inputs (length exprs))
-  (log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
-  (log! 'rules rule-counts)
-  (log! 'times (map cdr exprs))
-  (log! 'outputs (length rewritten))
+  (timeline-log! 'inputs (length exprs))
+  (timeline-log! 'slowest (take-up-to (sort exprs > #:key cdr) 5))
+  (timeline-log! 'rules rule-counts)
+  (timeline-log! 'times (map cdr exprs))
+  (timeline-log! 'outputs (length rewritten))
 
   (^children^ (append (^children^) rewritten))
   (^gened-rewrites^ #t)
@@ -238,7 +231,7 @@
 
 (define (simplify!)
   (when (flag-set? 'generate 'simplify)
-    (define log! (timeline-event! 'simplify))
+    (timeline-event! 'simplify)
 
     (define locs-list
       (for/list ([child (^children^)] [n (in-naturals 1)])
@@ -282,8 +275,8 @@
               (alt child* (list 'simplify loc) (list child))
               child))))
 
-    (log! 'inputs (length locs-list))
-    (log! 'outputs (length simplified))
+    (timeline-log! 'inputs (length locs-list))
+    (timeline-log! 'outputs (length simplified))
 
     (^children^ simplified))
   (^simplified^ #t)
@@ -292,11 +285,11 @@
 
 ;; Finish iteration
 (define (finalize-iter!)
-  (define log! (timeline-event! 'prune))
+  (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) (^children^)))
-  (log! 'kept-alts (length (atab-not-done-alts (^table^))))
-  (log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
-  (log! 'min-error (errors-score (atab-min-errors (^table^))))
+  (timeline-log! 'kept-alts (length (atab-not-done-alts (^table^))))
+  (timeline-log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
+  (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))
 
@@ -335,8 +328,8 @@
 
 (define (rollback-improve!)
   (rollback-iter!)
+  (reset!)
   (^table^ #f)
-  (^timeline^ '())
   (void))
 
 ;; Run a complete iteration

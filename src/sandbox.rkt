@@ -2,7 +2,7 @@
 (require profile math/bigfloat racket/engine)
 (require "common.rkt" "errors.rkt" "debug.rkt")
 (require "float.rkt" "points.rkt" "programs.rkt")
-(require "mainloop.rkt" "alternative.rkt")
+(require "mainloop.rkt" "alternative.rkt" "timeline.rkt")
 (require "formats/datafile.rkt" "formats/test.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
@@ -31,6 +31,8 @@
 (define (get-test-result test #:seed [seed #f] #:debug [debug? #f]
                          #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
 
+  (define timeline #f)
+
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))])
       (when seed (set-seed! seed))
@@ -38,8 +40,7 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
-      (with-handlers ([exn? (λ (e) `(error ,(bf-precision) ,(^timeline^) ,warning-log ,e))])
-        (reset!)
+      (with-handlers ([exn? (λ (e) `(error ,(bf-precision) ,warning-log ,e))])
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
@@ -47,13 +48,13 @@
                        #:precision (test-precision test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
-        (define log! (timeline-event! 'sample))
+        (timeline-event! 'sample)
         (define prepare-log (make-hash))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-program test) (test-precondition test) (test-precision test) #:log prepare-log)))
-        (log! 'method (sampling-method (test-program test) (test-precondition test)))
-        (log! 'outcomes prepare-log)
+        (timeline-log! 'method (sampling-method (test-program test) (test-precondition test)))
+        (timeline-log! 'outcomes prepare-log)
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 
@@ -68,27 +69,24 @@
         (debug #:from 'regime-testing #:depth 1
                "Oracle error score:" (errors-score oracle-errs))
             
-        (for/first ([cell (shellstate-timeline (^shell-state^))]
-                    #:when (equal? (dict-ref (unbox cell) 'type) 'regimes))
-          ;; Since the cells are stored in reverse order this is the last regimes invocation
-          (set-box! cell (list* (cons 'oracle (errors-score oracle-errs))
-                                (cons 'accuracy end-err)
-                                (cons 'baseline (errors-score baseline-errs))
-                                (unbox cell))))
+        ;; The cells are stored in reverse order, so this finds last regimes invocation
+        (for/first ([cell (unbox timeline)]
+                    #:when (equal? (dict-ref cell 'type) 'regimes))
+          (dict-set! cell 'oracle (errors-score oracle-errs))
+          (dict-set! cell 'accuracy end-err)
+          (dict-set! cell 'baseline (errors-score baseline-errs)))
         
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" end-err)
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score (errors (test-target test) newcontext))))
-        `(good ,(bf-precision) ,(^timeline^) ,warning-log
+        `(good ,(bf-precision) ,warning-log
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,baseline-errs ,oracle-errs ,all-alts))))
 
-  (define shell-state #f)
-
   (define (in-engine _)
-    (set! shell-state (^shell-state^))
+    (set! timeline *timeline*)
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
           (profile (compute-result test)))
@@ -98,7 +96,7 @@
     (engine-run (*timeout*) eng)
 
     (match (engine-result eng)
-      [`(good ,bits ,timeline ,warnings
+      [`(good ,bits ,warnings
               ,start ,end ,context ,newcontext
               ,baseline-errs ,oracle-errs ,all-alts)
        (define-values (newpoints newexacts) (get-p&es newcontext))
@@ -116,7 +114,7 @@
        (test-success test
                      bits
                      (- (current-inexact-milliseconds) start-time)
-                     timeline
+                     (reverse (unbox timeline))
                      warnings
                      start-resugared end-resugared points exacts
                      (errors (alt-program start) context)
@@ -130,13 +128,13 @@
                      baseline-errs
                      oracle-errs
                      all-alts)]
-      [`(error ,bits ,timeline ,warnings ,e)
-       (test-failure test bits (- (current-inexact-milliseconds) start-time) timeline warnings e)]
+      [`(error ,bits ,warnings ,e)
+       (test-failure test bits (- (current-inexact-milliseconds) start-time) (reverse (unbox timeline)) warnings e)]
       [#f
        (define timeline
          (reverse 
-          (cons (list (cons 'type 'end) (cons 'time (current-inexact-milliseconds)))
-                (map unbox (shellstate-timeline shell-state)))))
+          (cons (hash 'type 'end 'time (current-inexact-milliseconds))
+                (unbox timeline))))
        (test-timeout test (bf-precision) (*timeout*) timeline '())])))
 
 (define (dummy-table-row result status link)
