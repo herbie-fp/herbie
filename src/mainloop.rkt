@@ -69,17 +69,16 @@
                      #:precision [precision 'binary64])
   (*start-prog* prog)
   (rollback-improve!)
-  (timeline-event! 'sample)
-  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (check-unused-variables (program-variables prog) precondition (program-body prog))
-  (let* ([context (prepare-points prog precondition precision)]
-         [altn (make-alt prog)])
-    (^precondition^ precondition)
-    (*pcontext* context)
-    (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-    (^table^ (make-alt-table context altn))
-    (assert (equal? (atab-all-alts (^table^)) (list altn)))
-    (void)))
+
+  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
+  (timeline-event! 'sample)
+  (define context (prepare-points prog precondition precision))
+  (^precondition^ precondition)
+  (*pcontext* context)
+  (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
+  (^table^ (make-alt-table context (make-alt prog))
+  (void)))
 
 ;; Information
 (define (list-alts)
