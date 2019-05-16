@@ -69,13 +69,6 @@
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
-(define (supported-ival-expr? expr)
-  (match expr
-    [(list op args ...)
-     (and (operator-info op 'ival) (andmap supported-ival-expr? args))]
-    [(? variable?) true]
-    [(? constant?) (or (not (symbol? expr)) (constant-info expr 'ival))]))
-
 (module+ test
   (require "formats/test.rkt")
   (require racket/runtime-path)
@@ -83,7 +76,7 @@
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
-  (define unsup-count (count (compose not supported-ival-expr?) exprs))
+  (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
   (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
   (check <= unsup-count 50))
 
@@ -168,7 +161,7 @@
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
-  (if (and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+  (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
     (prepare-points-intervals prog precondition #:log log)
     (prepare-points-halfpoints prog precondition precision #:log log)))
 
@@ -193,7 +186,7 @@
 
 (define (sampling-method prog precondition)
   (cond
-   [(and (supported-ival-expr? precondition) (supported-ival-expr? (program-body prog)))
+   [(and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
     'intervals]
    [else
     'halfpoints]))

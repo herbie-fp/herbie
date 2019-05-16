@@ -8,6 +8,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
+         expr-supports
          location-hash
          location? expr?
          location-do location-get
@@ -349,3 +350,10 @@
     (cons (car expr) (map (replace-var var val) (cdr expr)))]
    [#t
     expr]))
+
+(define (expr-supports? expr field)
+  (match expr
+    [(list op args ...)
+     (and (operator-info op field) (andmap supported-ival-expr? args))]
+    [(? variable?) true]
+    [(? constant?) (or (not (symbol? expr)) (constant-info expr field))]))
