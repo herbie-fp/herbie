@@ -40,7 +40,7 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
-      (with-handlers ([exn? (λ (e) `(error ,(bf-precision) ,warning-log ,e))])
+      (with-handlers ([exn? (λ (e) (timeline-event! 'end) `(error ,(bf-precision) ,warning-log ,e))])
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
@@ -127,11 +127,11 @@
       [`(error ,bits ,warnings ,e)
        (test-failure test bits (- (current-inexact-milliseconds) start-time) (reverse (unbox timeline)) warnings e)]
       [#f
-       (define timeline
+       (define timeline*
          (reverse 
           (cons (hash 'type 'end 'time (current-inexact-milliseconds))
                 (unbox timeline))))
-       (test-timeout test (bf-precision) (*timeout*) timeline '())])))
+       (test-timeout test (bf-precision) (*timeout*) timeline* '())])))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
