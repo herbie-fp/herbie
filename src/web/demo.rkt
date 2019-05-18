@@ -77,7 +77,7 @@
      ,@other-include-head
      ,@(for/list ([script scripts])
          `(script ([src ,script] [type "text/javascript"])))
-     (link ([rel "stylesheet"] [type "text/css"] [href "/main.css"]))
+     (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
      ,@(for/list ([style styles])
          `(link ([rel "stylesheet"] [type "text/css"] [href ,style]))))
     (body
