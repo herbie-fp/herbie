@@ -47,14 +47,9 @@ function print_date(d) {
     return date.split(" ").slice(1, 4).join(" ");
 }
 
-step_sizes = [1e5, 1e4, 1000, 100, 10, 1, 0.1];
-
 function step_size(max) {
-    for (var i = 0; i < step_sizes.length; i++) {
-        var step = step_sizes[i];
-        if (max > step * 4) return Math.round(max / step / 4) * step;
-    }
-    throw "Data points error: max of " + max;
+    var step = Math.round(Math.log(max / 4));
+    return Math.round(max/step/4) * step;
 }
 
 function make_accuracy_graph(node, data, type) {
