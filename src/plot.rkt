@@ -252,14 +252,14 @@
         (eval-prog `(λ ,vars ,axis) 'fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
-  ;; TODO: What if (histogram-f) returns no points?
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
+  ;; TODO: This is a weird hack in several ways, and ideally wouldn't exist
   (define-values (min max)
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
-            [(x y) (values x y)]))
+            [(x y) (values (flmax (flnext -inf.0) x) (flmin (flprev +inf.0) y))]))
   (function avg-fun min max
             #:width 2 #:color (color-theme-fit color)))
 
