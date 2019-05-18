@@ -255,7 +255,7 @@
        (body hash formula))]
     [_
      (response/error "Demo Error"
-                     `(p "You didn't specify a formula (or you specified serveral). "
+                     `(p "You didn't specify a formula (or you specified several). "
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
 (define (improve-start req)
