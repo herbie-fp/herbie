@@ -47,6 +47,7 @@
            (lambdam (+ lambda1 (atan2 By (+ (cos phi1) Bx)))))
        lambdam))))
 
+;; TODO: phi2 unused
 (FPCore (lambda1 phi1 phi2 delta theta)
  :name "Destination given bearing on a great circle"
  (let ((phi2
