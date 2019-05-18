@@ -221,7 +221,7 @@
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (write-datafile data-file info)
-  (make-report-page html-file info))
+  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info))
 
 (define (run-improve hash formula)
   (hash-set! *jobs* hash (open-output-string))
