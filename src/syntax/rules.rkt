@@ -62,9 +62,12 @@
   [*.c-commutative     (*.c a b)               (*.c b a)])
 
 ; Posit conversions
-(define-ruleset insert/remove-p16 (arithmetic simplify posit)
+(define-ruleset insert-p16 (arithmetic posit)
   #:type ([a real])
-  [insert-posit16 a (posit16->real (real->posit16 a))]
+  [insert-posit16 a (posit16->real (real->posit16 a))])
+
+(define-ruleset remove-p16 (arithmetic simplify posit)
+  #:type ([a real])
   [remove-posit16 (posit16->real (real->posit16 a)) a])
 
 (define-ruleset id-p16 (arithmetic simplify posit)
@@ -74,7 +77,10 @@
   [-p16-rgt-identity-reduce    (-.p16 a (real->posit16 0.0))               a]
   [*p16-lft-identity-reduce    (*.p16 (real->posit16 1.0) a)               a]
   [*p16-rgt-identity-reduce    (*.p16 a (real->posit16 1.0))               a]
-  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a]
+  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a])
+
+(define-ruleset unid-p16 (arithmetic posit)
+  #:type ([a posit16])
   [+p16-lft-identity-expand    a               (+.p16 (real->posit16 0.0) a)]
   [+p16-rgt-identity-expand    a               (+.p16 a (real->posit16 0.0))]
   [-p16-rgt-identity-expand    a               (-.p16 a (real->posit16 0.0))]
@@ -86,19 +92,19 @@
 
 ;; TODO: We only cast back to posit after quire operations because herbie can't handle
 ;; non-double output right now (similar situtation for posits)
-(define-ruleset q16-arithmetic (arithmetic simplify posit)
+(define-ruleset q16-arithmetic (arithmetic posit)
   #:type ([a posit16] [b posit16] [c posit16] [q quire16])
   [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
   [insert-quire-add     (+.p16 (quire16->posit16 q) a)
                         (quire16->posit16 (quire16-mul-add q a (real->posit16 1.0)))]
-  [insert-quire-sub     (+.p16 (quire16->posit16 q) a)
+  [insert-quire-sub     (-.p16 (quire16->posit16 q) a)
                         (quire16->posit16 (quire16-mul-sub q a (real->posit16 1.0)))]
   [insert-quire-fdp-add (+.p16 (quire16->posit16 q) (*.p16 a b))
                         (quire16->posit16 (quire16-mul-add q a b))]
   [insert-quire-fdp-sub (-.p16 (quire16->posit16 q) (*.p16 a b))
                         (quire16->posit16 (quire16-mul-sub q a b))])
 
-(define-ruleset p16-test-rules (arithmetic simplify posit)
+(define-ruleset p16-test-rules (arithmetic posit)
   #:type ([a posit16] [b posit16] [c posit16] [d posit16])
   [p16-flip--            (-.p16 a b)                            (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
   [p16-*-un-lft-identity a                                      (*.p16 (real->posit16 1.0) a)]
@@ -258,13 +264,15 @@
   [mul0              (* 0 a)               0]
   [mul0              (* a 0)               0])
 
-(define-ruleset id-reduce-posit16 (arithmetic simplify fp-safe-nan)
+(define-ruleset exact-posit16 (arithmetic simplify posit fp-safe-nan)
   #:type ([a posit16])
   [+-inverses        (-.p16 a a)                                 (real->posit16 0.0)]
   [*-inverses        (/.p16 a a)                                 (real->posit16 1.0)]
   [div0              (/.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
   [mul0              (*.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0              (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)]
+  [mul0              (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)])
+
+(define-ruleset id-reduce-posit16 (arithmetic simplify posit)
   [remove-double-div (/.p16 (real->posit16 1.0) (/.p16 (real->posit16 1.0) a))         a]
   [rgt-mult-inverse  (*.p16 a (/.p16 (real->posit16 1.0) a))         (real->posit16 1.0)]
   [lft-mult-inverse  (*.p16 (/.p16 (real->posit16 1.0) a) a)         (real->posit16 1.0)])
@@ -815,7 +823,7 @@
       '(exp-prod pow-unpow pow-pow pow-exp
         asinh-2 tanh-1/2* sinh-cosh
         hang-p0-tan hang-m0-tan erf-odd erf-erfc erfc-erf
-        p16-flip-- insert-quire-sub sqrt-sqrd.p16)))
+        p16-flip-- sqrt-sqrd.p16)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
