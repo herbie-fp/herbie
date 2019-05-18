@@ -227,8 +227,6 @@
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
     (define pt (binary-search-floats pred v1 v2))
     (timeline-push! 'bstep v1 v2 iters pt)
-    (pretty-print (length (unbox *timeline*)))
-    (pretty-print (first (unbox *timeline*)))
     pt)
 
   (define (sidx->spoint sidx next-sidx)
