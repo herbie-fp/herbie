@@ -9,7 +9,7 @@
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
          sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?
-         exact-value? val-to-type)
+         exact-value? val-to-type flval)
 
 (define (ulp-difference x y)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -174,3 +174,11 @@
     ['complex (if (real? val) `(complex ,val 0) val)]
     ['boolean (if val 'TRUE 'FALSE)]
     [_ (error "Unknown type" type)]))
+
+(define (flval x)
+  (match x
+    [(? real?) x]
+    [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
+    [(? posit8?) (hash 'type "posit8" 'real (posit8->double x))]
+    [(? posit16?) (hash 'type "posit16" 'real (posit16->double x))]
+    [(? posit32?) (hash 'type "posit32" 'real (posit32->double x))]))

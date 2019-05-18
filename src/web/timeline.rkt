@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt" "common.rkt")
+(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt" "common.rkt" "../float.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -164,6 +164,7 @@
        (match-define (list prog category prec) outcome)
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
+    [('bstep v) (map (λ (x) (map (curryr apply '()) (list flval flval identity flval) x)) v)]
     [(_ v) v])
 
   (define data
