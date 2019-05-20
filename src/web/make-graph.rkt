@@ -263,7 +263,7 @@
           '("Derivation" . "#history")
           '("Reproduce" . "#reproduce"))
          (list/true
-          '("Report" . "../report.html")
+          '("Report" . "../results.html")
           '("Log" . "debug.txt")
           (and profile? '("Profile" . "profile.txt"))
           '("Metrics" . "timeline.html")))
@@ -343,7 +343,7 @@
       ,(render-menu
         (list/true)
         (list/true
-         '("Report" . "../report.html")
+         '("Report" . "../results.html")
          '("Log" . "debug.txt")
          (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))
@@ -410,7 +410,7 @@
       ,(render-menu
         (list/true)
         (list/true
-         '("Report" . "../report.html")
+         '("Report" . "../results.html")
          '("Log" . "debug.txt")
          (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))

@@ -35,7 +35,7 @@
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
-  (call-with-output-file (build-path dir "report.html")
+  (call-with-output-file (build-path dir "results.html")
     #:exists 'replace (curryr make-report-page info))
 
   ; Delete old files
