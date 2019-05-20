@@ -23,23 +23,29 @@
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
+(define ((page-error-handler test page) e)
+  ((error-display-handler)
+   (format "In \"~a\":\n  ~a: ~a" (test-name test) page (exn-message e))
+   e))
+
 (define (make-page page out result profile?)
-  (match page
-    ["graph.html"
-     (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
-       [(? test-timeout?) (make-timeout result out profile?)]
-       [(? test-failure?) (make-traceback result out profile?)])]
-    ["interactive.js"
-     (make-interactive-js result out)]
-    ["timeline.html"
-     (make-timeline result out)]
-    ["timeline.json"
-     (make-timeline-json result out)]
-    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-     (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]))
+  (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+    (match page
+      ["graph.html"
+       (match result
+         [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
+         [(? test-timeout?) (make-timeout result out profile?)]
+         [(? test-failure?) (make-traceback result out profile?)])]
+      ["interactive.js"
+       (make-interactive-js result out)]
+      ["timeline.html"
+       (make-timeline result out)]
+      ["timeline.json"
+       (make-timeline-json result out)]
+      [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
+       (make-axis-plot result out (string->number idx))]
+      [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
+       (make-points-plot result out (string->number idx) (string->symbol letter))])))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
