@@ -48,8 +48,10 @@ function print_date(d) {
 }
 
 function step_size(max) {
-    var step = Math.round(Math.log(max / 4));
-    return Math.round(max/step/4) * step;
+    var step = Math.pow(10, Math.floor(Math.log10(max / 4)))
+    if (max / step > 20) return step * 5;
+    if (max / step > 8) return step * 2;
+    return step;
 }
 
 function make_accuracy_graph(node, data, type) {
