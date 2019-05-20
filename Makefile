@@ -28,8 +28,8 @@ publish:
 	bash infra/publish.sh index
 
 start-server:
-	racket src/herbie.rkt web --seed '#(2775764126 3555076145 3898259844 1891440260 2599947619 1948460636)' \
-		--timeout 150 --num-iters 2 --demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
+	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
+		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 
 package:
