@@ -133,7 +133,8 @@
   (hash-keys (egraph-leader->iexprs eg)))
 
 (define (dedup-vars! en)
-  (update-vars! (pack-leader en) update-en-expr))
+  (update-vars! (pack-leader en) update-en-expr)
+  (dedup-children! en))
 
 ;; Given an egraph and two enodes present in that egraph, merge the
 ;; packs of those two nodes, so that those nodes return the same
@@ -339,8 +340,7 @@
           (define id (enode-pid en))
 
 	  (printf "node~a[label=\"NODE ~a\"]\n" id id)
-	  (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
-		[vid (in-naturals)])
+	  (for ([varen (pack-members en)] [vid (in-naturals)])
             (define var (enode-expr varen))
 	    (printf "node~avar~a[label=\"~a\",shape=box,color=blue]\n"
 		    id vid (if (list? var) (car var) var))

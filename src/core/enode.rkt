@@ -13,6 +13,7 @@
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
 	 set-enode-expr! update-vars!
+         dedup-children!
          )
 
 (provide (all-defined-out))
@@ -194,6 +195,9 @@
       (set-enode-cvars! en (apply set-union (set (enode-expr en))
                                   (map enode-cvars (enode-children en))))
       en)))
+
+(define (dedup-children! en)
+  (set-enode-children! en (remove-duplicates (enode-children en) #:key enode-expr)))
 
 ;; Updates the expressions in the pack, using a specified updater.
 (define (update-vars! en updater)
