@@ -402,8 +402,10 @@
 
 (define-ruleset exp-reduce-fp-safe (exponents simplify fp-safe)
   [exp-0        (exp 0)              1]
+  [exp-1-e      (exp 1)              E])
+
+(define-ruleset exp-expand-fp-safe (exponents fp-safe)
   [1-exp        1                    (exp 0)]
-  [exp-1-e      (exp 1)              E]
   [e-exp-1      E                    (exp 1)])
 
 
