@@ -193,6 +193,10 @@
     (with-check-info (['original original])
        (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target)))
 
+  (check set-member?
+         '((* x 6) (* 6 x))
+         (simplify-expr '(+ (+ (+ (+ (+ x x) x) x) x) x) #:rules (*simplify-rules*)))
+
   (define no-crash-exprs
     '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
 

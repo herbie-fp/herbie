@@ -178,6 +178,11 @@
   [sub-neg        (-.p16 a b)                   (+.p16 a (neg.p16 b))]
   [unsub-neg      (+.p16 a (neg.p16 b))         (-.p16 a b)])
 
+; Counting
+(define-ruleset counting (arithmetic simplify)
+  #:type ([a real])
+  [count-2   (+ x x)   (* 2 x)])
+
 ; Distributivity
 (define-ruleset distributivity (arithmetic simplify)
   #:type ([a real] [b real] [c real])
