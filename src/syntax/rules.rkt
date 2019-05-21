@@ -296,7 +296,7 @@
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
-(define-ruleset id-transform-fp-safe (arithmetic simplify fp-safe)
+(define-ruleset id-transform-fp-safe (arithmetic fp-safe)
   #:type ([a real] [b real])
   [sub-neg           (- a b)               (+ a (- b))]
   [unsub-neg         (+ a (- b))           (- a b)]
