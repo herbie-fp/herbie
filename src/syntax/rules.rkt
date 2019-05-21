@@ -180,7 +180,7 @@
 
 ; Counting
 (define-ruleset counting (arithmetic simplify)
-  #:type ([a real])
+  #:type ([x real])
   [count-2   (+ x x)   (* 2 x)])
 
 ; Distributivity
