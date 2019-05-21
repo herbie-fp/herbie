@@ -847,7 +847,7 @@
   [fl quire8-fdp-add] [bf bf-quire8-fdp-add] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire32])
 
 (define-operator (quire16-mul-add quire16 posit16 posit16) quire16
@@ -855,7 +855,7 @@
   [fl quire16-fdp-add] [bf bf-quire16-fdp-add] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire32])
 
 (define-operator (quire32-mul-add quire32 posit32 posit32) quire32
@@ -863,7 +863,7 @@
   [fl quire32-fdp-add] [bf bf-quire32-fdp-add] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire32])
 
 (define-operator (quire8-mul-sub quire8 posit8 posit8) quire8
@@ -871,7 +871,7 @@
   [fl quire8-fdp-sub] [bf bf-quire8-fdp-sub] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire8])
 
 (define-operator (quire16-mul-sub quire16 posit16 posit16) quire16
@@ -879,7 +879,7 @@
   [fl quire16-fdp-sub] [bf bf-quire16-fdp-sub] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire16])
 
 (define-operator (quire32-mul-sub quire32 posit32 posit32) quire32
@@ -887,7 +887,7 @@
   [fl quire32-fdp-sub] [bf bf-quire32-fdp-sub] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
   [nonffi double->quire32])
 
 (define-operator (quire8->posit8 quire8) posit8
