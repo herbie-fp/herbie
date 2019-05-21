@@ -43,7 +43,7 @@ function get_data(table) {
 }
 
 function print_date(d) {
-    var date = "" + Date(d * 1000);
+    var date = "" + new Date(d * 1000);
     return date.split(" ").slice(1, 4).join(" ");
 }
 
