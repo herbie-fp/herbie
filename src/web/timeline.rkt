@@ -10,6 +10,8 @@
 
 (define (make-timeline result out)
   (match-define (test-result test bits fulltime timeline warnings) result)
+  (unless (andmap (curryr hash-has-key? 'time) timeline)
+    (pretty-print timeline))
 
   (define time
     (apply + (for/list ([phase timeline] [next (cdr timeline)])
