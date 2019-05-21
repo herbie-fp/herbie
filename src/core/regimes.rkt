@@ -76,7 +76,11 @@
   (define (subexprs-in-expr expr)
     (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
   (define prog-body (program-body prog))
-  (for/list ([expr (remove-duplicates (subexprs-in-expr prog-body))]
+  ;; We append program-variables here in case of (λ (x y) 0) or
+  ;; similar, where the variables do not appear in the body but are
+  ;; still worth splitting on
+  (for/list ([expr (remove-duplicates (append (program-variables prog)
+                                              (subexprs-in-expr prog-body)))]
              #:when (and (not (null? (free-variables expr)))
                          (critical-subexpression? prog-body expr)))
     expr))
