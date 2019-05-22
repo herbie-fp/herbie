@@ -135,7 +135,7 @@
     (let inductor ([prog (program-body prog)])
       (match prog
         [(? value?) (real->precision prog)]
-        [(? constant?) ((constant-info prog mode))]
+        [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         #;[(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
