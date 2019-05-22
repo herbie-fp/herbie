@@ -57,8 +57,8 @@
 (define (mk-ival x)
   (match x
     [(? real?)
-  (define err? (or (nan? x) (infinite? x)))
-  (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
+     (define err? (or (nan? x) (infinite? x)))
+     (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
      (ival x* x* err? err?)]
     [(? boolean?)
      (ival x x #f #f)]))
@@ -318,15 +318,15 @@
   (define br (list (ival-lo y) (ival-hi x)))
 
   (define-values (a-lo a-hi)
-    (match (cons (classify-ival x) (classify-ival y))
-      ['(-1 -1) (values tl br)]
-      ['( 0 -1) (values tl tr)]
-      ['( 1 -1) (values bl tr)]
-      ['( 1  0) (values bl tl)]
-      ['( 1  1) (values br tl)]
-      ['( 0  1) (values br bl)]
-      ['(-1  1) (values tr bl)]
-      [_        (values #f #f)]))
+    (match* ((classify-ival x) (classify-ival y))
+      [(-1 -1) (values tl br)]
+      [( 0 -1) (values tl tr)]
+      [( 1 -1) (values bl tr)]
+      [( 1  0) (values bl tl)]
+      [( 1  1) (values br tl)]
+      [( 0  1) (values br bl)]
+      [(-1  1) (values tr bl)]
+      [( _  _) (values #f #f)]))
 
   (if a-lo
       (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err)
@@ -591,19 +591,19 @@
 
   (for ([(ival-fn fn) (in-dict weird)])
     (test-case (~a (object-name ival-fn))
-    (for ([n (in-range num-tests)])
-      (define i1 (sample-interval))
-      (define i2 (sample-interval))
-      (define x1 (sample-from i1))
-      (define x2 (sample-from i2))
+      (for ([n (in-range num-tests)])
+        (define i1 (sample-interval))
+        (define i2 (sample-interval))
+        (define x1 (sample-from i1))
+        (define x2 (sample-from i2))
 
         (define y (parameterize ([bf-precision 8000]) (fn x1 x2)))
 
-      ;; Known bug in bffmod where rounding error causes invalid output
-      (unless (or (bf<= (bf* y x1) 0.bf) (bf> (bfabs y) (bfabs x2)))
+        ;; Known bug in bffmod where rounding error causes invalid output
+        (unless (or (bf<= (bf* y x1) 0.bf) (bf> (bfabs y) (bfabs x2)))
           (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
-                          ['point1 x1] ['point2 x2] ['number n])
+                            ['point1 x1] ['point2 x2] ['number n])
             (define iy (ival-fn i1 i2))
-          (check-pred ival-valid? iy)
+            (check-pred ival-valid? iy)
             (check ival-contains? iy y))))))
   )
