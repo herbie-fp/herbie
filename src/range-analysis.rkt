@@ -1,5 +1,5 @@
 #lang racket
-(require "syntax/syntax.rkt")
+(require "syntax/syntax.rkt" "programs.rkt")
 (provide (struct-out interval) interval-union interval-intersect
          make-empty-range-table make-range-table range-table-ref range-table-union range-table-intersect
          condition->range-table)
@@ -263,38 +263,38 @@
 
 (define (condition->range-table condition)
   (match condition
-    [(list (and (or '< '> '<= '>= '==) cmp) (? number? a) (? number? b))
-     (if ((parse-cmp cmp) a b)
+    [(list (and (or '< '> '<= '>= '==) cmp) (? constant? a) (? constant? b))
+     (if ((parse-cmp cmp) (->flonum a) (->flonum b))
          (make-empty-range-table)
          (make-null-range-table))]
     ['TRUE (make-empty-range-table)]
     ['FALSE (make-null-range-table)]
-    [`(== ,(? variable? var) ,(? number? num))
-     (make-range-table var (make-interval num num #t #t))]
-    [`(< ,(? variable? var) ,(? number? num))
-     (make-range-table var (make-interval -inf.0 num #f #f))]
-    [`(< (fabs ,(? variable? var)) ,(? number? num))
-     (make-range-table var (make-interval (- num) num #f #f))]
-    [`(<= ,(? variable? var) ,(? number? num))
-     (make-range-table var (make-interval -inf.0 num #f #t))]
-    [`(<= (fabs ,(? variable? var)) ,(? number? num))
-     (make-range-table var (make-interval (- num) num #t #t))]
-    [`(== (fabs ,(? variable? var)) ,(? number? num))
-     (make-range-table var (make-interval (- num) (- num) #t #t) (make-interval num num #t #t))]
-    [`(> ,(? variable? var) ,(? number? num))
-     (make-range-table var (make-interval num +inf.0 #f #f))]
-    [`(> (fabs ,(? variable? var)) ,(? number? num))
-     (make-range-table var (make-interval num +inf.0 #f #f) (make-interval -inf.0 (- num) #f #f))]
-    [`(>= ,(? variable? var) ,(? number? num))
-     (make-range-table var (make-interval num +inf.0 #t #f))]
-    [`(>= (fabs ,(? variable? var)) ,(? number? num))
-     (make-range-table var (make-interval num +inf.0 #t #f) (make-interval -inf.0 (- num) #f #t))]
-    [(list (and (or '< '<= '== '>= '>) cmp) (? number? num) var) ; don't check for variable? here b/c fabs
-     (condition->range-table (list (flip-cmp cmp) var num))]
+    [`(== ,(? variable? var) ,(? constant? num))
+     (make-range-table var (make-interval (->flonum num) (->flonum num) #t #t))]
+    [`(< ,(? variable? var) ,(? constant? num))
+     (make-range-table var (make-interval -inf.0 (->flonum num) #f #f))]
+    [`(< (fabs ,(? variable? var)) ,(? constant? num))
+     (make-range-table var (make-interval (- (->flonum num)) (->flonum num) #f #f))]
+    [`(<= ,(? variable? var) ,(? constant? num))
+     (make-range-table var (make-interval -inf.0 (->flonum num) #f #t))]
+    [`(<= (fabs ,(? variable? var)) ,(? constant? num))
+     (make-range-table var (make-interval (- (->flonum num)) (->flonum num) #t #t))]
+    [`(== (fabs ,(? variable? var)) ,(? constant? num))
+     (make-range-table var (make-interval (- (->flonum num)) (- (->flonum num)) #t #t) (make-interval num num #t #t))]
+    [`(> ,(? variable? var) ,(? constant? num))
+     (make-range-table var (make-interval (->flonum num) +inf.0 #f #f))]
+    [`(> (fabs ,(? variable? var)) ,(? constant? num))
+     (make-range-table var (make-interval (->flonum num) +inf.0 #f #f) (make-interval -inf.0 (- (->flonum num)) #f #f))]
+    [`(>= ,(? variable? var) ,(? constant? num))
+     (make-range-table var (make-interval (->flonum num) +inf.0 #t #f))]
+    [`(>= (fabs ,(? variable? var)) ,(? constant? num))
+     (make-range-table var (make-interval (->flonum num) +inf.0 #t #f) (make-interval -inf.0 (- (->flonum num)) #f #t))]
+    [(list (and (or '< '<= '== '>= '>) cmp) (? constant? num) var) ; don't check for variable? here b/c fabs
+     (condition->range-table (list (flip-cmp cmp) var (->flonum num)))]
     [(list (and (or '< '<= '== '>= '>) cmp) _ _) ; handle case of complex expressions
      (make-empty-range-table)]
     [(list (and (or '< '<= '> '>=) cmp) exprs ...)
-     (if (not (equal? (filter number? exprs) (sort (filter number? exprs) (parse-cmp cmp))))
+     (if (not (equal? (map ->flonum (filter constant? exprs)) (sort (map ->flonum (filter constant? exprs)) (parse-cmp cmp))))
        #f
        (let
          ([from-left (last-number exprs)]
@@ -302,7 +302,7 @@
          (foldl range-table-intersect
                 (make-empty-range-table)
                 (for/list ([left from-left] [expr exprs] [right from-right]
-                          #:unless (number? expr))
+                          #:unless (constant? expr))
                   (range-table-intersect
                    (if left
                        (condition->range-table (list cmp left expr))
@@ -330,7 +330,7 @@
      (make-empty-range-table)]))
 
 (define (get-all-equal-value lst)
-  (let ([nums (filter number? lst)])
+  (let ([nums (filter constant? lst)])
     (if (foldl (lambda (x y) (and x y)) #t (map (lambda (x) (= x (car nums))) nums))
         (car nums)
         #f)))
@@ -339,7 +339,7 @@
   (let loop ([lst lst] [last #f])
     (match lst
       ['() '()]
-      [(cons (? number? x) rest)
+      [(cons (? constant? x) rest)
        (cons x (loop rest x))]
       [(cons _ rest)
        (cons last (loop rest last))])))
