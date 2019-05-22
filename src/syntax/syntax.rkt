@@ -325,7 +325,7 @@
   [nonffi acos])
 
 (define-operator/libm (acosh real) real
-  [libm acosh acoshf] [bf bfacosh] [ival #f] [cost 55]
+  [libm acosh acoshf] [bf bfacosh] [ival ival-acosh] [cost 55]
   [->c/double (curry format "acosh(~a)")]
   [->c/mpfr (curry format "mpfr_acosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh^{-1} ~a")]
@@ -339,7 +339,7 @@
   [nonffi asin])
 
 (define-operator/libm (asinh real) real
-  [libm asinh asinhf] [bf bfasinh] [ival #f] [cost 55]
+  [libm asinh asinhf] [bf bfasinh] [ival ival-asinh] [cost 55]
   [->c/double (curry format "asinh(~a)")]
   [->c/mpfr (curry format "mpfr_asinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh^{-1} ~a")]
@@ -360,7 +360,7 @@
   [nonffi atan])
 
 (define-operator/libm (atanh real) real
-  [libm atanh atanhf] [bf bfatanh] [ival #f] [cost 55]
+  [libm atanh atanhf] [bf bfatanh] [ival ival-atanh] [cost 55]
   [->c/double (curry format "atanh(~a)")]
   [->c/mpfr (curry format "mpfr_atanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh^{-1} ~a")]
@@ -405,14 +405,14 @@
   [nonffi cosh])
 
 (define-operator/libm (erf real) real
-  [libm erf erff] [bf bferf] [ival #f] [cost 70]
+  [libm erf erff] [bf bferf] [ival ival-erf] [cost 70]
   [->c/double (curry format "erf(~a)")]
   [->c/mpfr (curry format "mpfr_erf(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{erf} ~a")]
   [nonffi erf])
 
 (define-operator/libm (erfc real) real
-  [libm erfc erfcf] [bf bferfc] [ival #f] [cost 70]
+  [libm erfc erfcf] [bf bferfc] [ival ival-erfc] [cost 70]
   [->c/double (curry format "erfc(~a)")]
   [->c/mpfr (curry format "mpfr_erfc(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{erfc} ~a")]
@@ -600,7 +600,7 @@
   (bf- x (bf* (bfround (bf/ x mod)) mod)))
 
 (define-operator/libm (remainder real real) real
-  [libm remainder remainderf] [bf bfremainder] [ival #f] [cost 70]
+  [libm remainder remainderf] [bf bfremainder] [ival ival-remainder] [cost 70]
   [->c/double (curry format "remainder(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_remainder(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "~a \\mathsf{rem} ~a")]

@@ -210,14 +210,14 @@
 
 (define-ruleset distributivity.c (arithmetic simplify complex)
   #:type ([a complex] [b complex] [c complex])
-  [distribute-lft-in      (*.c a (+.c b c))           (+.c (*.c a b) (*.c a c))]
-  [distribute-rgt-in      (*.c a (+.c b c))           (+.c (*.c b a) (*.c c a))]
-  [distribute-lft-out     (+.c (*.c a b) (*.c a c))   (*.c a (+.c b c))]
-  [distribute-lft-out--   (-.c (*.c a b) (*.c a c))   (*.c a (-.c b c))]
-  [distribute-rgt-out     (+.c (*.c b a) (*.c c a))   (*.c a (+.c b c))]
-  [distribute-rgt-out--   (-.c (*.c b a) (*.c c a))   (*.c a (-.c b c))]
-  [distribute-lft1-in     (+.c (*.c b a) a)           (*.c (+.c b (complex 1 0)) a)]
-  [distribute-rgt1-in     (+.c a (*.c c a))           (*.c (+.c c (complex 1 0)) a)])
+  [distribute-lft-in.c      (*.c a (+.c b c))           (+.c (*.c a b) (*.c a c))]
+  [distribute-rgt-in.c      (*.c a (+.c b c))           (+.c (*.c b a) (*.c c a))]
+  [distribute-lft-out.c     (+.c (*.c a b) (*.c a c))   (*.c a (+.c b c))]
+  [distribute-lft-out--.c   (-.c (*.c a b) (*.c a c))   (*.c a (-.c b c))]
+  [distribute-rgt-out.c     (+.c (*.c b a) (*.c c a))   (*.c a (+.c b c))]
+  [distribute-rgt-out--.c   (-.c (*.c b a) (*.c c a))   (*.c a (-.c b c))]
+  [distribute-lft1-in.c     (+.c (*.c b a) a)           (*.c (+.c b (complex 1 0)) a)]
+  [distribute-rgt1-in.c     (+.c a (*.c c a))           (*.c (+.c c (complex 1 0)) a)])
 
 ; Safe Distributiviity
 (define-ruleset distributivity-fp-safe (arithmetic simplify fp-safe)
@@ -331,8 +331,8 @@
 
 (define-ruleset fractions-distribute.c (fractions simplify complex)
   #:type ([a complex] [b complex] [c complex] [d complex])
-  [div-sub     (/.c (-.c a b) c)          (-.c (/.c a c) (/.c b c))]
-  [times-frac  (/.c (*.c a b) (*.c c d))  (*.c (/.c a c) (/.c b d))])
+  [div-sub.c     (/.c (-.c a b) c)          (-.c (/.c a c) (/.c b c))]
+  [times-frac.c  (/.c (*.c a b) (*.c c d))  (*.c (/.c a c) (/.c b d))])
 
 (define-ruleset fractions-transform (fractions)
   #:type ([a real] [b real] [c real] [d real])
@@ -348,7 +348,7 @@
   [frac-add.c    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
   [frac-sub.c    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
   [frac-times.c  (*.c (/.c a b) (/.c c d))  (/.c (*.c a c) (*.c b d))]
-  [frac-2neg-c   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
+  [frac-2neg.c   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
 
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
@@ -856,6 +856,11 @@
           (define points (for/list ([n (in-range num-test-points)]) (make-point)))
           (values 'ival prog1 prog2 points)]
          [else
+          (unless (or (set-member? (dict-values itypes) 'complex)
+                      (set-member? (dict-values itypes) 'posits))
+            (error "Using bigfloat sampling on a real or boolean rule"))
+          (when (dict-has-key? *conditions* name)
+            (error "Using bigfloat sampling on a rule with a condition"))
           (define ((with-hiprec f) x) (parameterize ([bf-precision 2000]) (f x)))
           (define prog1 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf))))
           (define prog2 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf))))

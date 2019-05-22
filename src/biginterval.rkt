@@ -41,6 +41,8 @@
           [ival-asinh (-> ival? ival?)]
           [ival-acosh (-> ival? ival?)]
           [ival-atanh (-> ival? ival?)]
+          [ival-erf (-> ival? ival?)]
+          [ival-erfc (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
           [ival-remainder (-> ival? ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
@@ -398,6 +400,12 @@
   (if (bf= a b)
       (ival-sub x (ival-mult (ival a b err? err) y*))
       (ival (bf- (bf/ (ival-hi y*) 2.bf)) (bf/ (ival-hi y*) 2.bf) err? err)))
+
+(define (ival-erf x)
+  (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-erfc x)
+  (ival (rnd 'down bferfc (ival-hi x)) (rnd 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))
