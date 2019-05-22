@@ -9,6 +9,8 @@
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 
+(module+ test (require rackunit) (define num-test-points 2000))
+
 (struct rule (name input output itypes) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
@@ -803,51 +805,37 @@
         '())))
 
 (module+ test
-  (require rackunit math/bigfloat)
-  (require "../programs.rkt")
-  (define num-test-points 2000)
+  (require "../programs.rkt" (submod "../points.rkt" internals) math/bigfloat)
 
+  ;; These aren't treated as true preconditions, but only for range tables
   (define *conditions*
-    '([acosh-def  . (>= x 1)]
+    `([acosh-def  . (>= x 1)]
       [atanh-def  . (< (fabs x) 1)]
+      [asin-acos  . (<= -1 x 1)]
+      [acos-asin  . (<= -1 x 1)]
+      [diff-atan  . (and (<= -1 x 1) (<= -1 y 1))]
+      [sum-atan   . (and (<= -1 x 1) (<= -1 y 1))]
       [acosh-2    . (>= x 1)]
       [asinh-2    . (>= x 0)]
       [sinh-acosh . (> (fabs x) 1)]
       [sinh-atanh . (< (fabs x) 1)]
       [cosh-atanh . (< (fabs x) 1)]
       [tanh-acosh . (> (fabs x) 1)]
-      [asin-sin   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
-      [acos-cos   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
-      [atan-tan   . (<= 1e-10 (fabs x) 1e10)] ; Avoid minor rounding error
-      [asin-sin-s . (<= (fabs x) (/ PI 2))]
-      [acos-cos-s . (<= 1e-10 x PI)] ; Lower bound avoids false positive
-      [atan-tan-s . (<= (fabs x) (/ PI 2))]))
+      [asin-sin-s . (<= (fabs x) ,(/ pi 2))]
+      [acos-cos-s . (<= 0 x PI)]
+      [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
-  (define *skip-tests*
-    (append
-      ;; All these tests fail due to underflow to 0 and are irrelevant
-      ;; Posit tests may have unnaceptable error due to lack of
-      ;; representable numbers
-      '(exp-prod pow-unpow pow-pow pow-exp
-        asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan erf-odd erf-erfc erfc-erf
-        p16-flip-- sqrt-sqrd.p16)))
+  (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
+    (match-define (rule name p1 p2 itypes) test-rule)
+    (test-case (~a name)
+      (define fv (dict-keys itypes))
 
-  (for* ([test-ruleset (*rulesets*)]
-         [test-rule (first test-ruleset)]
-         #:unless (set-member? *skip-tests* (rule-name test-rule)))
-    (parameterize ([bf-precision 2000])
-      (test-case (~a (rule-name test-rule))
-        (match-define (rule name p1 p2 _) test-rule)
-        ;; Not using the normal prepare-points machinery for speed.
-        (define fv (free-variables p1))
-        (define valid-point?
-          (if (dict-has-key? *conditions* name)
-              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
-              (const true)))
-
-        (define (make-point)
-          (for/list ([v fv])
+      (define make-point
+        (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
+          (λ ()
+            (if (dict-has-key? *conditions* name)
+                (sample)
+                (for/list ([v fv] [i (in-naturals)])
             (match (dict-ref (rule-itypes test-rule) v)
               ['real (sample-double)]
               ['bool (if (< (random) .5) false true)]
@@ -857,11 +845,22 @@
               ['posit32 (random-posit32)]
               ['quire8 (random-quire8)]
               ['quire16 (random-quire16)]
-              ['quire32 (random-quire32)])))
-        (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf)))
-        (define prog2 (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf)))
+                    ['quire32 (random-quire32)]))))))
+
+      (define-values (method prog1 prog2 points)
+        (cond
+         [(and (expr-supports? p1 'ival) (expr-supports? p2 'ival))
+          (define prog1 (curry ival-eval (eval-prog `(λ ,fv ,p1) 'ival)))
+          (define prog2 (curry ival-eval (eval-prog `(λ ,fv ,p2) 'ival)))
+          (define points (for/list ([n (in-range num-test-points)]) (make-point)))
+          (values 'ival prog1 prog2 points)]
+         [else
+          (define ((with-hiprec f) x) (parameterize ([bf-precision 2000]) (f x)))
+          (define prog1 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf))))
+          (define prog2 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf))))
+          (define points (for/list ([n (in-range num-test-points)]) (make-point)))
+          (values 'bf prog1 prog2 points)]))
+
         (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
           (define ex1 (map prog1 points))
           (define ex2 (map prog2 points))
@@ -872,25 +871,25 @@
                   (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
                   #f)))
           (when (< (length (filter identity errs)) 100)
-            (eprintf "Could not sample enough points to test ~a\n" name))
+          (pretty-print (take (map list points ex1 ex2) 10))
+          (error 'testing "Could not sample enough points to test ~a\n" name))
           (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
           (define max-error
             (argmax car (filter car (map list errs points ex1 ex2 errs))))
-          (with-check-info (['max-error (first max-error)]
-                            ['max-point (map cons fv (second max-error))]
-                            ['max-input (third max-error)]
-                            ['max-output (fourth max-error)])
-                           (check-pred (curryr <= 1) score)))))))
+        (with-check-info (['error (first max-error)]
+                          ['point (map cons fv (second max-error))]
+                          ['input (third max-error)]
+                          ['output (fourth max-error)]
+                          ['method method])
+                         (check-pred (curryr <= 1) score))))))
 
 (module+ test
-  (require rackunit math/bigfloat)
-  (require "../programs.rkt" "../float.rkt")
+  (require math/bigfloat "../programs.rkt" "../float.rkt")
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
     (test-case (~a (rule-name test-rule))
-      (define num-test-points 2000)
       (match-define (rule name p1 p2 _) test-rule)
       (define fv (free-variables p1))
       (define (make-point)
