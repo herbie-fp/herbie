@@ -554,9 +554,6 @@
            (check-pred ival-valid? (ival-fn i))
            (check ival-contains? (ival-fn i) (fn x))))))
 
-  (define (bffmod x y)
-    (bf- x (bf* (bftruncate (bf/ x y)) y)))
-
   (define arg2
     (list (cons ival-add bf+)
           (cons ival-sub bf-)
@@ -584,20 +581,29 @@
            (check-pred ival-valid? iy)
            (check ival-contains? iy (fn x1 x2))))))
 
-  (test-case "ival-fmod"
+  (define (bffmod x y)
+    (bf- x (bf* (bftruncate (bf/ x y)) y)))
+
+  (define (bfremainder x mod)
+    (bf- x (bf* (bfround (bf/ x mod)) mod)))
+
+  (define weird (list (cons ival-fmod bffmod) (cons ival-remainder bfremainder)))
+
+  (for ([(ival-fn fn) (in-dict weird)])
+    (test-case (~a (object-name ival-fn))
     (for ([n (in-range num-tests)])
       (define i1 (sample-interval))
       (define i2 (sample-interval))
       (define x1 (sample-from i1))
       (define x2 (sample-from i2))
 
-      (define y (parameterize ([bf-precision 8000]) (bffmod x1 x2)))
+        (define y (parameterize ([bf-precision 8000]) (fn x1 x2)))
 
       ;; Known bug in bffmod where rounding error causes invalid output
       (unless (or (bf<= (bf* y x1) 0.bf) (bf> (bfabs y) (bfabs x2)))
-        (with-check-info (['fn ival-fmod] ['interval1 i1] ['interval2 i2]
+          (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
                           ['point1 x1] ['point2 x2] ['number n])
-          (define iy (ival-fmod i1 i2))
+            (define iy (ival-fn i1 i2))
           (check-pred ival-valid? iy)
-          (check ival-contains? iy y)))))
+            (check ival-contains? iy y))))))
   )
