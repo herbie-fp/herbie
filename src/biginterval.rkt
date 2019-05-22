@@ -42,6 +42,7 @@
           [ival-acosh (-> ival? ival?)]
           [ival-atanh (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
+          [ival-remainder (-> ival? ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]
@@ -381,6 +382,18 @@
    [(bf<= b 0.bf) (ival (bf- (ival-hi y*)) 0.bf err? err)]
    [(bf>= a 0.bf) (ival 0.bf (ival-hi y*) err? err)]
    [else (ival (bf- (ival-hi y*)) (ival-hi y*) err? err)]))
+
+(define (ival-remainder x y)
+  (define y* (ival-fabs y))
+  (define quot (ival-div x y*))
+  (define a (rnd 'down bfround (ival-lo quot)))
+  (define b (rnd 'up bfround (ival-hi quot)))
+  (define err? (or (ival-err? x) (ival-err? y) (bf= (ival-lo y*) 0.bf)))
+  (define err (or (ival-err x) (ival-err y) (bf= (ival-hi y*) 0.bf)))
+
+  (if (bf= a b)
+      (ival-sub x (ival-mult (ival a b err? err) y*))
+      (ival (bf- (bf/ (ival-hi y*) 2.bf)) (bf/ (ival-hi y*) 2.bf) err? err)))
 
 (define (ival-cmp x y)
   (define can-< (bf< (ival-lo x) (ival-hi y)))
