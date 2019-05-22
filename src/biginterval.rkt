@@ -9,7 +9,7 @@
 
 (provide (contract-out
           [struct ival ([lo bigvalue?] [hi bigvalue?] [err? boolean?] [err boolean?])]
-          [mk-ival (-> real? ival?)]
+          [mk-ival (-> (or/c real? boolean?) ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -55,9 +55,13 @@
           [ival-if (-> ival? ival? ival? ival?)]))
 
 (define (mk-ival x)
+  (match x
+    [(? real?)
   (define err? (or (nan? x) (infinite? x)))
   (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
-  (ival x* x* err? err?))
+     (ival x* x* err? err?)]
+    [(? boolean?)
+     (ival x x #f #f)]))
 
 (define (ival-pi)
   (ival (rnd 'down identity pi.bf) (rnd 'up identity pi.bf) #f #f))
