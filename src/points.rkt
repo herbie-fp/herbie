@@ -9,8 +9,9 @@
          prepare-points errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
-(module+ test
-  (require rackunit))
+(module+ test (require rackunit))
+
+(module+ internals (provide make-sampler ival-eval))
 
 (define/contract (sample-multi-bounded ranges)
   (-> (listof interval?) (or/c flonum? single-flonum? #f))
@@ -119,26 +120,30 @@
 
 ; These definitions in place, we finally generate the points.
 
+(define (make-sampler precondition)
+  (define range-table (condition->range-table (program-body precondition)))
+  (for ([var (program-variables precondition)]
+        #:unless (range-table-ref range-table var))
+    (raise-herbie-error "No valid values of variable ~a" var
+                        #:url "faq.html#no-valid-values"))
+  (λ ()
+    (map (compose sample-multi-bounded (curry range-table-ref range-table))
+         (program-variables precondition))))
+
 (define (prepare-points-intervals prog precondition)
   (timeline-log! 'method 'intervals)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
 
-  (define range-table (condition->range-table precondition))
-  (for ([var (program-variables prog)]
-        #:unless (range-table-ref range-table var))
-    (raise-herbie-error "No valid values of variable ~a" var
-                        #:url "faq.html#no-valid-values"))
-
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
+  (define sampler (make-sampler pre-prog))
+
   (define pre-fn (eval-prog pre-prog 'ival))
   (define body-fn (eval-prog prog 'ival))
 
   (define-values (points exacts)
     (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
-      (define pt
-        (map (compose sample-multi-bounded (curry range-table-ref range-table))
-             (program-variables prog)))
+      (define pt (sampler))
 
       (define pre
         (or (equal? precondition 'TRUE)
@@ -293,14 +298,7 @@
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition precision)
   (timeline-log! 'method 'halfpoints)
-  (define range-table (condition->range-table precondition))
-  (for ([var (program-variables prog)]
-        #:unless (range-table-ref range-table var))
-    (raise-herbie-error "No valid values of variable ~a" var
-                        #:url "faq.html#no-valid-values"))
-
-  (define (sample)
-    (map (compose sample-multi-bounded (curry range-table-ref range-table)) (program-variables prog)))
+  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition)))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
