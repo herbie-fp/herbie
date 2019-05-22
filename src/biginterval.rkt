@@ -38,6 +38,9 @@
           [ival-sinh (-> ival? ival?)]
           [ival-cosh (-> ival? ival?)]
           [ival-tanh (-> ival? ival?)]
+          [ival-asinh (-> ival? ival?)]
+          [ival-acosh (-> ival? ival?)]
+          [ival-atanh (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
@@ -353,6 +356,16 @@
 
 (define (ival-tanh x)
   (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-asinh x)
+  (ival (rnd 'down bfasinh (ival-lo x)) (rnd 'up bfasinh (ival-hi x)) (ival-err? x) (ival-err x)))
+
+(define (ival-acosh x)
+  (ival (rnd 'down bfacosh (bfmax (ival-lo x) 1.bf)) (rnd 'up bfacosh (ival-hi x))
+        (or (bf<= (ival-lo x) 1.bf) (ival-err? x)) (or (bf< (ival-hi x) 1.bf) (ival-err x))))
+
+(define (ival-atanh x)
+  (ival (rnd 'down bfatanh (ival-lo x)) (rnd 'up bfatanh (ival-hi x)) (ival-err? x) (ival-err x)))
 
 (define (ival-fmod x y)
   (define y* (ival-fabs y))
