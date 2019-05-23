@@ -819,10 +819,10 @@
       [sinh-atanh . (< (fabs x) 1)]
       [cosh-atanh . (< (fabs x) 1)]
       [tanh-acosh . (> (fabs x) 1)]
-      ;; These next three have sampling problems, the 2 and 4 are to help with that
-      [asin-sin-s . (<= (fabs x) (/ PI 2) 2)]
-      [acos-cos-s . (<= 0 x PI 4)]
-      [atan-tan-s . (<= (fabs x) (/ PI 2) 2)]))
+      ;; These next three unquote the pi computation so that range analysis will work
+      [asin-sin-s . (<= (fabs x) ,(/ pi 2))]
+      [acos-cos-s . (<= 0 x ,pi)]
+      [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)]
          ;; These tests fail because halfpoints sampling mis-samples them
@@ -837,15 +837,15 @@
             (if (dict-has-key? *conditions* name)
                 (sample)
                 (for/list ([v fv] [i (in-naturals)])
-            (match (dict-ref (rule-itypes test-rule) v)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))]
-              ['posit8 (random-posit8)]
-              ['posit16 (random-posit16)]
-              ['posit32 (random-posit32)]
-              ['quire8 (random-quire8)]
-              ['quire16 (random-quire16)]
+                  (match (dict-ref (rule-itypes test-rule) v)
+                    ['real (sample-double)]
+                    ['bool (if (< (random) .5) false true)]
+                    ['complex (make-rectangular (sample-double) (sample-double))]
+                    ['posit8 (random-posit8)]
+                    ['posit16 (random-posit16)]
+                    ['posit32 (random-posit32)]
+                    ['quire8 (random-quire8)]
+                    ['quire16 (random-quire16)]
                     ['quire32 (random-quire32)]))))))
 
       (define-values (method prog1 prog2 points)
@@ -856,38 +856,27 @@
           (define points (for/list ([n (in-range num-test-points)]) (make-point)))
           (values 'ival prog1 prog2 points)]
          [else
-          (unless (or (set-member? (dict-values itypes) 'complex)
-                      (set-member? (dict-values itypes) 'posits))
-            (error "Using bigfloat sampling on a real or boolean rule"))
+          (unless (or (set-member? (second test-ruleset) 'complex)
+                      (set-member? (second test-ruleset) 'posits))
+            (fail-check "Real or boolean rule not supported by intervals"))
           (when (dict-has-key? *conditions* name)
-            (error "Using bigfloat sampling on a rule with a condition"))
+            (fail-check "Using bigfloat sampling on a rule with a condition"))
           (define ((with-hiprec f) x) (parameterize ([bf-precision 2000]) (f x)))
           (define prog1 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf))))
           (define prog2 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf))))
           (define points (for/list ([n (in-range num-test-points)]) (make-point)))
           (values 'bf prog1 prog2 points)]))
 
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define errs
-            (for/list ([v1 ex1] [v2 ex2])
-              ;; Ignore points not in the input or output domain
-              (if (and (ordinary-value? v1) (ordinary-value? v2))
-                  (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
-                  #f)))
-          (when (< (length (filter identity errs)) 100)
-          (pretty-print (take (map list points ex1 ex2) 10))
-          (error 'testing "Could not sample enough points to test ~a\n" name))
-          (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
-          (define max-error
-            (argmax car (filter car (map list errs points ex1 ex2 errs))))
-        (with-check-info (['error (first max-error)]
-                          ['point (map cons fv (second max-error))]
-                          ['input (third max-error)]
-                          ['output (fourth max-error)]
-                          ['method method])
-                         (check-pred (curryr <= 1) score))))))
+      (define ex1 (map prog1 points))
+      (define ex2 (map prog2 points))
+      (define errs
+        (for/list ([pt points] [v1 ex1] [v2 ex2]
+                   #:when (and (ordinary-value? v1) (ordinary-value? v2)))
+          (with-check-info (['point (map cons fv pt)] ['method method]
+                            ['input v1] ['output v2])
+            (check-eq? (ulp-difference v1 v2) 0))))
+      (when (< (length errs) 100)
+        (fail-check "Not enough points sampled to test rule")))))
 
 (module+ test
   (require math/bigfloat "../programs.rkt" "../float.rkt")
@@ -908,14 +897,8 @@
       (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
       (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
       (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-      (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-        (define ex1 (map prog1 points))
-        (define ex2 (map prog2 points))
-        (define err
-          (for/first ([pt points] [v1 ex1] [v2 ex2]
-                      #:unless (equal? v1 v2))
-            (list pt v1 v2)))
-        (when err
-          (match-define (list pt v1 v2) err)
-          (with-check-info (['point (map list fv pt)] ['input v1] ['output v2])
-                           (check-false err)))))))
+      (define ex1 (map prog1 points))
+      (define ex2 (map prog2 points))
+      (for ([pt points] [v1 ex1] [v2 ex2])
+        (with-check-info (['point (map list fv pt)])
+          (check-equal? v1 v2))))))
