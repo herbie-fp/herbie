@@ -53,7 +53,7 @@
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
-(define-ruleset commutativity.p16 (arithmetic simplify posit16)
+(define-ruleset commutativity.p16 (arithmetic simplify posit)
   #:type ([a posit16] [b posit16])
   [+-commutative     (+.p16 a b)               (+.p16 b a)]
   [*-commutative     (*.p16 a b)               (*.p16 b a)])
