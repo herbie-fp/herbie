@@ -857,7 +857,7 @@
           (values 'ival prog1 prog2 points)]
          [else
           (unless (or (set-member? (second test-ruleset) 'complex)
-                      (set-member? (second test-ruleset) 'posits))
+                      (set-member? (second test-ruleset) 'posit))
             (fail-check "Real or boolean rule not supported by intervals"))
           (when (dict-has-key? *conditions* name)
             (fail-check "Using bigfloat sampling on a rule with a condition"))
