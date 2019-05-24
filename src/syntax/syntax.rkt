@@ -141,7 +141,6 @@
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
-#|
 (define-operator (+.p8 posit8 posit8) posit8
   [fl posit8-add] [bf big-posit8-add] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
@@ -162,7 +161,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi +])
-|#
 
 (define-operator (- real [real]) real
   ;; Override the normal argument handling because - can be unary
@@ -187,7 +185,6 @@
   [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [nonffi -])
 
-#|
 (define-operator (neg.p8 posit8) posit8
   [fl posit8-neg] [bf big-posit8-neg] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
@@ -229,7 +226,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
   [nonffi -])
-|#
 
 (define-operator (* real real) real
   [fl *] [bf bf*] [ival ival-mult] [cost 40]
@@ -245,7 +241,6 @@
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi *])
 
-#|
 (define-operator (*.p8 posit8 posit8) posit8
   [fl posit8-mul] [bf big-posit8-mul] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
@@ -266,7 +261,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi *])
-|#
 
 (define-operator (/ real real) real
   [fl /] [bf bf/] [ival ival-div] [cost 40]
@@ -282,7 +276,6 @@
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
 
-#|
 (define-operator (/.p8 posit8 posit8) posit8
   [fl posit8-div] [bf big-posit8-div] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
@@ -303,7 +296,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi /])
-|#
 
 (require ffi/unsafe)
 (define-syntax (define-operator/libm stx)
@@ -656,7 +648,6 @@
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi sqrt])
 
-#|
 (define-operator (sqrt.p8 posit8) posit8
   [fl posit8-sqrt] [bf big-posit8-sqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
@@ -677,7 +668,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi sqrt])
-|#
 
 (define-operator/libm (tan real) real
   [libm tan tanf] [bf bftan] [ival ival-tan] [cost 95]
@@ -756,7 +746,6 @@
   [->tex (infix-joiner " = ")]
   [nonffi (comparator =)])
 
-#|
 (define-operator (real->posit8 real) posit8
   ; Override number of arguments
   [fl double->posit8] [bf bf-double->posit8] [ival #f] [cost 0]
@@ -948,7 +937,6 @@
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
   [nonffi posit32->quire32])
-|#
 
 (define-operator (complex real real) complex
   ; Override number of arguments
@@ -1000,7 +988,6 @@
   [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator <)])
 
-#|
 (define-operator (<.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
@@ -1027,7 +1014,6 @@
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator posit32<)])
-|#
 
 (define-operator (> real real) bool
   ; Override number of arguments
@@ -1038,7 +1024,6 @@
   [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator >)])
 
-#|
 (define-operator (>.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
@@ -1065,7 +1050,6 @@
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator posit32>)])
-|#
 
 (define-operator (<= real real) bool
   ; Override number of arguments
@@ -1076,7 +1060,6 @@
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator <=)])
 
-#|
 (define-operator (<=.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
@@ -1103,7 +1086,6 @@
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit32<=)])
-|#
 
 (define-operator (>= real real) bool
   ; Override number of arguments
@@ -1114,7 +1096,6 @@
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator >=)])
 
-#|
 (define-operator (>=.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
@@ -1141,7 +1122,6 @@
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator posit32>=)])
-|#
 
 (define-operator (not bool) bool
   [fl not] [bf not] [cost 65] [ival ival-not]
@@ -1182,52 +1162,52 @@
 (define parametric-operators
   #hash([+ . ((+ real real real)
               (+.c complex complex complex)
-              #;(+.p8 posit8 posit8 posit8)
-              #;(+.p16 posit16 posit16 posit16)
-              #;(+.p32 posit32 posit32 posit32))]
+              (+.p8 posit8 posit8 posit8)
+              (+.p16 posit16 posit16 posit16)
+              (+.p32 posit32 posit32 posit32))]
         [- . ((- real real real) (- real real)
               (-.c complex complex complex) (neg.c complex complex)
-              #;(-.p8 posit8 posit8 posit8) (neg.p8 posit8 posit8)
-              #;(-.p16 posit16 posit16 posit16) (neg.p16 posit16 posit16)
-              #;(-.p32 posit32 posit32 posit32) (neg.p32 posit32 posit32)) ]
+              (-.p8 posit8 posit8 posit8) (neg.p8 posit8 posit8)
+              (-.p16 posit16 posit16 posit16) (neg.p16 posit16 posit16)
+              (-.p32 posit32 posit32 posit32) (neg.p32 posit32 posit32)) ]
         [* . ((* real real real)
               (*.c complex complex complex)
-              #;(*.p8 posit8 posit8 posit8)
-              #;(*.p16 posit16 posit16 posit16)
-              #;(*.p32 posit32 posit32 posit32))]
+              (*.p8 posit8 posit8 posit8)
+              (*.p16 posit16 posit16 posit16)
+              (*.p32 posit32 posit32 posit32))]
         [/ . ((/ real real real)
               (/.c complex complex complex)
-              #;(/.p8 posit8 posit8 posit8)
-              #;(/.p16 posit16 posit16 posit16)
-              #;(/.p32 posit32 posit32 posit32))]
+              (/.p8 posit8 posit8 posit8)
+              (/.p16 posit16 posit16 posit16)
+              (/.p32 posit32 posit32 posit32))]
         [pow . ((pow real real real) (pow.c complex complex complex))]
         [exp . ((exp real real) (exp.c complex complex))]
         [log . ((log real real) (log.c complex complex))]
         [sqrt . ((sqrt real real)
                  (sqrt.c complex complex)
-                 #;(sqrt.p8 posit8 posit8)
-                 #;(sqrt.p16 posit16 posit16)
-                 #;(sqrt.p32 posit32 posit32))]
+                 (sqrt.p8 posit8 posit8)
+                 (sqrt.p16 posit16 posit16)
+                 (sqrt.p32 posit32 posit32))]
         [< . ((< bool real real)
-              #;(<.p8 bool posit8 posit8)
-              #;(<.p16 bool posit16 posit16)
-              #;(<.p32 bool posit32 posit32))]
+              (<.p8 bool posit8 posit8)
+              (<.p16 bool posit16 posit16)
+              (<.p32 bool posit32 posit32))]
         [<= . ((<= bool real real)
-              #;(<=.p8 bool posit8 posit8)
-              #;(<=.p16 bool posit16 posit16)
-              #;(<=.p32 bool posit32 posit32))]
+              (<=.p8 bool posit8 posit8)
+              (<=.p16 bool posit16 posit16)
+              (<=.p32 bool posit32 posit32))]
         [> . ((> bool real real)
-              #;(>.p8 bool posit8 posit8)
-              #;(>.p16 bool posit16 posit16)
-              #;(>.p32 bool posit32 posit32))]
+              (>.p8 bool posit8 posit8)
+              (>.p16 bool posit16 posit16)
+              (>.p32 bool posit32 posit32))]
         [>= . ((>= bool real real)
-              #;(>=.p8 bool posit8 posit8)
-              #;(>=.p16 bool posit16 posit16)
-              #;(>=.p32 bool posit32 posit32))]
+              (>=.p8 bool posit8 posit8)
+              (>=.p16 bool posit16 posit16)
+              (>=.p32 bool posit32 posit32))]
         [== . ((== bool real real)
-              #;(=.p8 bool posit8 posit8)
-              #;(=.p16 bool posit16 posit16)
-              #;(=.p32 bool posit32 posit32))]))
+              (=.p8 bool posit8 posit8)
+              (=.p16 bool posit16 posit16)
+              (=.p32 bool posit32 posit32))]))
 
 (define variary-operators '(< <= > >= == !=))
 
