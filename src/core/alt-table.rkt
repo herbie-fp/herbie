@@ -48,7 +48,12 @@
                  [alt->done? old-done])))
 
 (define (atab-add-altns atab altns)
-  (for/fold ([atab atab]) ([altn altns])
+  (define prog-set (map alt-program (dict-keys (alt-table-alt->points atab))))
+  (define altns*
+    (filter
+     (negate (compose (curry set-member? prog-set) alt-program))
+     (remove-duplicates altns #:key alt-program)))
+  (for/fold ([atab atab]) ([altn altns*])
     (atab-add-altn atab altn)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
@@ -200,7 +205,7 @@
 (define (atab-add-altn atab altn)
   (match-define (alt-table point->alts alt->points _ _) atab)
   (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn))
-  (if (or (and (null? best-pnts) (null? tied-pnts)) (dict-has-key? alt->points altn))
+  (if (and (null? best-pnts) (null? tied-pnts))
       atab
       (let* ([alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts)]
 	     [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
