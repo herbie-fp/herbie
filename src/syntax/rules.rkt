@@ -826,7 +826,8 @@
 
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)]
          ;; These tests fail because halfpoints sampling mis-samples them
-         #:unless (set-member? '(p16-flip-- sqrt-sqrd.p16 +-inverses.p16) (rule-name test-rule)))
+         #:unless (set-member? '(p16-flip-- sqrt-sqrd.p16 +-inverses.p16 div0.p16)
+                               (rule-name test-rule)))
     (match-define (rule name p1 p2 itypes) test-rule)
     (test-case (~a name)
       (define fv (dict-keys itypes))
