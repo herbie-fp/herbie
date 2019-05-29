@@ -83,9 +83,9 @@
        ,(if (> total-crashes 0) (render-large "Crashes" (~a total-crashes)) "")
        ,(render-large "Tests" (~a (length tests)))
        ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
- 
+
       (figure (svg ((id "graph") (class "arrow-chart") (width "400"))))
- 
+
      (ul ((id "test-badges"))
       ,@(for/list ([(result id) (in-dict sorted-tests)])
           `(li ((class ,(format "badge ~a" (table-row-status result)))
@@ -96,14 +96,14 @@
                 (data-id ,(~a id)))
                ,(badge-label result))))
      (hr ((style "clear:both;visibility:hidden")))
- 
+
      (table ((id "about"))
       (tr (th "Date:") (td ,(date->string date)))
-      (tr (th "Commit:") (td ,commit " on " ,branch))
-      (tr (th "Hostname:") (td ,hostname))
-      (tr (th "Points:") (td ,(~a (*num-points*))))
-      (tr (th "Fuel:") (td ,(~a (*num-iterations*))))
+      (tr (th "Commit:") (td (abbr ([title ,commit]) ,(substring commit 0 8)) " on " ,branch))
+      (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
       (tr (th "Seed:") (td ,(~a seed)))
+      (tr (th "Parameters:") (td ,(~a (*num-points*)) " points "
+                                 "for " ,(~a (*num-iterations*)) " iterations"))
       (tr (th "Flags:")
           (td ((id "flag-list"))
               (div ((id "all-flags"))
@@ -116,7 +116,7 @@
                            (match-define (list delta class flag) rec)
                            `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                  " " ,(~a class) ":" ,(~a flag))))))))
- 
+
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
        (tr ,@(for/list ([label table-labels])
