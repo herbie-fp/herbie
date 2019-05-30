@@ -38,6 +38,7 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
+   [("up") check-up]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -267,7 +268,7 @@
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                    '(#"")))
+                    '()))
    (url main)))
 
 (define (check-status req hash)
@@ -281,6 +282,13 @@
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '())]))
+
+(define (check-up req)
+  (response/full (if (thread-running? *worker-thread*) 200 500)
+                 (if (thread-running? *worker-thread*) #"Up" #"Down")
+                 (current-seconds) #"text/plain"
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                 '()))
 
 (define (improve req)
   (improve-common
