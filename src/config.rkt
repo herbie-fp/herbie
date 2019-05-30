@@ -1,7 +1,7 @@
 #lang racket
 (provide (all-defined-out))
 
-;; Flag Stuff
+;;; Flags
 
 (define all-flags
   #hash([precision . (double fallback)]
@@ -41,6 +41,8 @@
               [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
 
+;;; Herbie internal parameters
+
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
 
@@ -50,26 +52,21 @@
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
-;; The step size with which arbitrary-precision precision is increased
-;; DANGEROUS TO CHANGE
-(define *precision-step* (make-parameter 256))
-
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
 
-;; In periodicity analysis,
-;; this is how small the period of a function must be to count as periodic
-(define *max-period-coeff* 20)
+;; The maximum size of an egraph
+(define *node-limit* (make-parameter 2000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
 
-(define *binary-search-test-points* (make-parameter 16))
-
 ;; How accurate to make the binary search
+(define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;;; About Herbie:
+
 (define (run-command cmd)
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
@@ -91,6 +88,8 @@
 (define *herbie-branch*
   (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
 
+;;; The "reset" mechanism for clearing caches and such
+
 (define resetters '())
 
 (define (register-reset fn #:priority [priority 0])
@@ -98,3 +97,13 @@
 
 (define (reset!)
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
+
+;; OBSOLETE
+
+;; The step size with which arbitrary-precision precision is increased
+;; DANGEROUS TO CHANGE
+(define *precision-step* (make-parameter 256))
+
+;; In periodicity analysis,
+;; this is how small the period of a function must be to count as periodic
+(define *max-period-coeff* 20)

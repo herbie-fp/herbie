@@ -19,9 +19,6 @@
 ;;#
 ;;################################################################################;;
 
-;; Cap the maximum size of an egraph
-(define *node-limit* (make-parameter 2000))
-
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
   (first (simplify-batch (list expr) #:rules rls)))
@@ -33,21 +30,16 @@
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
 
-  (timeline-push! 'egraph 0 (egraph-cnt eg))
-  (iterate-egraph! eg #:rules rls)
+  (for/and ([iter (in-naturals 0)])
+    (debug #:from 'simplify #:depth 2 (format "iteration ~a: ~a enodes" iter (egraph-cnt eg)))
+    (timeline-push! 'egraph iter (egraph-cnt eg))
+    (one-iter eg rls))
+  (debug #:from 'simplify #:depth 2 (format "iteration complete: ~a enodes" (egraph-cnt eg)))
+  (timeline-push! 'egraph "done" (egraph-cnt eg))
 
   (define out (apply extract-smallest eg ens))
   (debug #:from 'simplify (format "Simplified to:\n  ~a" (string-join (map ~a out) "\n  ")))
   out)
-
-(define (iterate-egraph! eg #:rules [rls (*simplify-rules*)])
-  (let loop ([iter 1])
-    (define start-cnt (egraph-cnt eg))
-    (debug #:from 'simplify #:depth 2 (format "iteration ~a: (~a enodes)" iter start-cnt))
-    (one-iter eg rls)
-    (timeline-push! 'egraph iter (egraph-cnt eg))
-    (when (< start-cnt (egraph-cnt eg) (*node-limit*))
-      (loop (+ iter 1)))))
 
 (define (rule-applicable? rl en)
   (or (not (variable? (rule-input rl)))
@@ -70,8 +62,7 @@
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
 
-(define (apply-match match eg)
-  (match-define (list rl en bindings ...) match)
+(define (apply-match eg rl en bindings)
 
   ;; These next two lines are here because an earlier match
   ;; application may have pruned the tree, invalidating the this
@@ -86,21 +77,28 @@
 
   (for ([binding valid-bindings])
     (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-  ;; Prune the enode if we can
-  (unless (null? valid-bindings)
-    ;; If one of the variations of the enode is a single variable or
-    ;; constant, reduce to that.
-    (reduce-to-single! eg en))
   ;; Mark this node as having this rule applied so that we don't try
   ;; to apply it again.
-  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
+  (when (subset? bindings-set valid-bindings) (rule-applied! en rl))
+
+  (not (null? valid-bindings)))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
-  (for ([m (find-matches (egraph-leaders eg) rls)])
-    (apply-match m eg))
-  (for-each (curry set-precompute! eg) (egraph-leaders eg)))
+  (define change? #f)
+  (for ([m (find-matches (egraph-leaders eg) rls)]
+        #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (match-define (list rl en bindings ...) m)
+    (define applied? (apply-match eg rl en bindings))
+    (set! change? (or applied? change?))
+    (when applied? (reduce-to-single! eg en)))
+  (for ([en (egraph-leaders eg)]
+        #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (define precomputed? (set-precompute! eg en))
+    (set! change? (or precomputed? change?))
+    (when precomputed? (reduce-to-single! eg en)))
+  change?)
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
@@ -115,7 +113,8 @@
         (when (and ((value-of type) res) (exact-value? type res))
           (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res)))
           (set! simplified? true)))))
-  (when simplified? (reduce-to-single! eg en)))
+  simplified?)
+  
 
 (define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
