@@ -55,67 +55,20 @@ function step_size(max) {
 }
 
 function make_accuracy_graph(node, data, type) {
-    if (!data.length) {
-        node.append("text")
-            .attr("x", width / 2)
-            .attr("y", height / 2 + 9)
-            .attr("class", "no-data").text("No tests found with these parameters.");
-        return;
-    }
+    if (!data.length) return no_data(node);
 
-    var len = data.length;
-    var spacing = width / len;
+    var spacing = width / data.length;
     
-    var max = 0;
-    for (var i = 0; i < len; i++) {
-        if (data[i][type].total > max) max = data[i][type].total;
-    }
+    var max = Math.max.apply(null, data.map(function(x) { return x[type].total }))
     var step = step_size(max);
     var steps = max ? Math.ceil(max / step) : 0;
     var max = steps * step;
 
-    var svg = node
-        .attr("width", width + 2 * hmargin + labels)
-        .attr("height", height + 2 * vmargin)
-        .append("g").attr("transform", "translate(" + (hmargin + labels) + "," + vmargin + ")");
+    var svg = initialize_svg(node);
+    add_axes(svg);
+    add_gridlines(svg, step, steps);
 
-    svg.append("line")
-        .attr("class", "gridline")
-        .attr("x1", 0)
-        .attr("x2", width-5)
-        .attr("y1", height)
-        .attr("y2", height);
-
-    svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
-        .attr("transform", "translate(" + (width-5) + "," + height + ")");
-
-    for (var i = 1; i <= steps; i++) {
-        svg.append("line")
-            .attr("class", "guide")
-            .attr("x1", 0)
-            .attr("x2", width)
-            .attr("y1", height - (i / steps) * height)
-            .attr("y2", height - (i / steps) * height);
-        
-        // rounding error
-        svg.append("text").text(step > 1 ? i * step : i / (1 / step)).attr("class", "guide")
-            .attr("x", -5)
-            .attr("y", height - (i / steps) * height + 6);
-    }
-
-    var bar = svg.selectAll("g").data(data).enter();
-
-    var g = bar.append("a")
-        .attr("xlink:href", function(d) {
-            return d.elt.querySelector("a").href;
-        }).append("g").attr("class", "arrow");
-
-    g.append("title")
-        .text(function(d) {
-            return print_date(d.time) + 
-                "\nOn " + d.branch +
-                "\nFrom " + d[type].total +  "b to " + d[type].got + "b";
-        });
+    var g = mk_datum(svg, data);
 
     g.append("line")
         .attr("stroke", function(d) { return key(d.branch) })
@@ -131,31 +84,21 @@ function make_accuracy_graph(node, data, type) {
         });
 }
 
-function make_speed_graph(node, data) {
-    if (!data.length) {
-        node.append("text")
-            .attr("x", width / 2)
-            .attr("y", height / 2 + 9)
-            .attr("class", "no-data").text("No tests found with these parameters.");
-        return;
-    }
+function no_data(node) {
+    node.append("text")
+        .attr("x", width / 2)
+        .attr("y", height / 2 + 9)
+        .attr("class", "no-data").text("No tests found with these parameters.");
+}
 
-    var len = data.length;
-    var spacing = width / len;
-    
-    var max = 0;
-    for (var i = 0; i < len; i++) {
-        if (data[i].speed > max) max = data[i].speed;
-    }
-    var step = step_size(max);
-    var steps = max ? Math.ceil(max / step) : 0;
-    var max = steps * step;
-
-    var svg = node
+function initialize_svg(node) {
+    return node
         .attr("width", width + 2 * hmargin + labels)
         .attr("height", height + 2 * vmargin)
         .append("g").attr("transform", "translate(" + (hmargin + labels) + "," + vmargin + ")");
+}
 
+function add_axes(svg) {
     svg.append("line")
         .attr("class", "gridline")
         .attr("x1", 0)
@@ -165,7 +108,9 @@ function make_speed_graph(node, data) {
 
     svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
         .attr("transform", "translate(" + (width - 5) + "," + height + ")");
+}
 
+function add_gridlines(svg, step, steps) {
     for (var i = 1; i <= steps; i++) {
         svg.append("line")
             .attr("class", "guide")
@@ -179,7 +124,9 @@ function make_speed_graph(node, data) {
             .attr("x", -5)
             .attr("y", height - (i / steps) * height + 6);
     }
+}
 
+function mk_datum(svg, data) {
     var bar = svg.selectAll("g").data(data).enter();
 
     var g = bar.append("a")
@@ -187,13 +134,31 @@ function make_speed_graph(node, data) {
             return d.elt.querySelector("a").href;
         }).append("g").attr("class", "arrow");
 
-
     g.append("title")
         .text(function(d) {
             return print_date(d.time) + 
                 "\nOn " + d.branch +
                 "\nTook " + Math.round(d.speed * 10) / 10 + "m";
         });
+    
+    return g;
+}
+
+function make_speed_graph(node, data) {
+    if (!data.length) return no_data(node);
+
+    var spacing = width / data.length;
+    
+    var max = Math.max.apply(null, data.map(function(x) { return x.speed }));
+    var step = step_size(max);
+    var steps = max ? Math.ceil(max / step) : 0;
+    var max = steps * step;
+
+    var svg = initialize_svg(node);
+    add_axes(svg);
+    add_gridlines(svg, step, steps);
+
+    var g = mk_datum(svg, data);
 
     g.append("circle")
         .attr("fill", function(d) { return key(d.branch) })

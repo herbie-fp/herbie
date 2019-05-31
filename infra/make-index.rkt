@@ -127,7 +127,7 @@
            (td ,(if (> (field 'tests-available) 0) (format "~a/~a" (field 'tests-passed) (field 'tests-available)) ""))
            (td ,(if (field 'bits-improved) (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available))) ""))
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
-               (a ([href ,(format "./~a/report.html" (field 'folder))]) "»")))))))
+               (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
 (define (make-index-page)
   (when (file-exists? (build-path report-json-path "index.cache"))
