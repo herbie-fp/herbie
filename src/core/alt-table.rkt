@@ -114,11 +114,9 @@
 
 (struct point-rec (berr altns) #:prefab)
 
-(define (best-and-tied-at-points point->alt altn)
+(define (best-and-tied-at-points point->alt altn errs)
   (let-values ([(best tied)
-		(for/lists (best tied)
-		    ([(pnt ex) (in-pcontext (*pcontext*))]
-		     [err (errors (alt-program altn) (*pcontext*))])
+		(for/lists (best tied) ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
 		  (let* ([pnt-rec (hash-ref point->alt pnt)]
 			 [table-err (point-rec-berr pnt-rec)])
 		    (cond [(< err table-err)
@@ -137,10 +135,9 @@
 	    (remove* chnged-pnts (hash-ref alt->points altn)))
 	  chnged-altns))))
 
-(define (override-at-pnts points->alts pnts altn)
-  (let ([pnt->alt-err (make-immutable-hash (for/list ([(pnt ex) (in-pcontext (*pcontext*))]
-						      [err (errors (alt-program altn) (*pcontext*))])
-					     (cons pnt err)))])
+(define (override-at-pnts points->alts pnts altn errs)
+  (let ([pnt->alt-err (for/hash ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
+                        (values pnt err))])
     (hash-set-lsts
      points->alts pnts
      (map (λ (pnt) (point-rec (hash-ref pnt->alt-err pnt) (list altn)))
@@ -203,18 +200,19 @@
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
 (define (atab-add-altn atab altn)
+  (define errs (errors (alt-program altn) (alt-table-context atab)))
   (match-define (alt-table point->alts alt->points _ _) atab)
-  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn))
-  (if (and (null? best-pnts) (null? tied-pnts))
-      atab
-      (let* ([alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts)]
-	     [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
-	     [pnts->alts*1 (override-at-pnts point->alts best-pnts altn)]
-	     [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
-	     [alts->done?* (hash-set (alt-table-alt->done? atab) altn #f)]
-	     [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab))]
-	     [atab*2 (minimize-alts atab*1)])
-	atab*2)))
+  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn errs))
+  (cond
+   [(and (null? best-pnts) (null? tied-pnts))
+    atab]
+   [else
+    (define alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts))
+    (define alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts)))
+    (define pnts->alts*1 (override-at-pnts point->alts best-pnts altn errs))
+    (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn))
+    (define alts->done?* (hash-set (alt-table-alt->done? atab) altn #f))
+    (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab)))]))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
