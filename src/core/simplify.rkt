@@ -79,30 +79,32 @@
     (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
   ;; Mark this node as having this rule applied so that we don't try
   ;; to apply it again.
-  (when (subset? bindings-set valid-bindings) (rule-applied! en rl))
-
-  (not (null? valid-bindings)))
+  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
   (define change? #f)
+  (define (run-phase f . args)
+    (define old-cnt (egraph-cnt eg))
+    (apply f args)
+    (define changed? (> (egraph-cnt eg) old-cnt))
+    (set! change? (or changed? change?))
+    changed?)
+
   (for ([m (find-matches (egraph-leaders eg) rls)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
-    (define applied? (apply-match eg rl en bindings))
-    (set! change? (or applied? change?))
-    (when applied? (reduce-to-single! eg en)))
+    (when (run-phase apply-match eg rl en bindings)
+      (reduce-to-single! eg en)))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (define precomputed? (set-precompute! eg en))
-    (set! change? (or precomputed? change?))
-    (when precomputed? (reduce-to-single! eg en)))
+    (when (run-phase set-precompute! eg en)
+      (reduce-to-single! eg en)))
   change?)
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
-  (define simplified? false)
   (for ([var (enode-vars en)] #:when (list? var))
     (define constexpr
       (cons (car var)
@@ -111,9 +113,8 @@
       (with-handlers ([exn:fail:contract:divide-by-zero? void])
         (define res (eval-const-expr constexpr))
         (when (and ((value-of type) res) (exact-value? type res))
-          (merge-egraph-nodes! eg en (mk-enode-rec! eg (val-to-type type res)))
-          (set! simplified? true)))))
-  simplified?)
+          (define en* (mk-enode-rec! eg (val-to-type type res)))
+          (merge-egraph-nodes! eg en en*))))))
   
 
 (define (extract-smallest eg . ens)
