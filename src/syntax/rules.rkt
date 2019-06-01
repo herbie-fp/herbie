@@ -407,11 +407,9 @@
   [rem-exp-log  (exp (log x))        x]
   [rem-log-exp  (log (exp x))        x])
 
-(define-ruleset exp-reduce-fp-safe (exponents simplify fp-safe)
+(define-ruleset exp-constants (exponents simplify fp-safe)
   [exp-0        (exp 0)              1]
-  [exp-1-e      (exp 1)              E])
-
-(define-ruleset exp-expand-fp-safe (exponents fp-safe)
+  [exp-1-e      (exp 1)              E]
   [1-exp        1                    (exp 0)]
   [e-exp-1      E                    (exp 1)])
 
