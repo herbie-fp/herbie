@@ -314,9 +314,9 @@
          (define ift* (loop ift))
          (define iff* (loop iff))
          (list 'if cond* ift* iff*)]
-        [(list 'real->posit8 (? real?)) expr]
-        [(list 'real->posit16 (? real?)) expr]
-        [(list 'real->posit32 (? real?)) expr]
+        [(list 'real->posit8  (? real? x)) x]
+        [(list 'real->posit16 (? real? x)) x]
+        [(list 'real->posit32 (? real? x)) x]
         [(list op args ...)
          (define args* (for/list ([arg args]) (loop arg)))
          (cons op args*)]
