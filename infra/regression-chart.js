@@ -66,7 +66,7 @@ function make_accuracy_graph(node, data, type) {
 
     var svg = initialize_svg(node);
     add_axes(svg);
-    add_gridlines(svg, step, steps);
+    add_gridlines(svg, step, steps, "m");
 
     var g = mk_datum(svg, data);
 
@@ -110,7 +110,7 @@ function add_axes(svg) {
         .attr("transform", "translate(" + (width - 5) + "," + height + ")");
 }
 
-function add_gridlines(svg, step, steps) {
+function add_gridlines(svg, step, steps, unit) {
     for (var i = 1; i <= steps; i++) {
         svg.append("line")
             .attr("class", "guide")
@@ -119,7 +119,7 @@ function add_gridlines(svg, step, steps) {
             .attr("y1", height - (i / steps) * height)
             .attr("y2", height - (i / steps) * height);
         
-        svg.append("text").text((step > 1 ? i * step : i / (1 / step)) + "m")
+        svg.append("text").text((step > 1 ? i * step : i / (1 / step)) + (unit ? unit : ""))
             .attr("class", "guide")
             .attr("x", -5)
             .attr("y", height - (i / steps) * height + 6);
@@ -156,7 +156,7 @@ function make_speed_graph(node, data) {
 
     var svg = initialize_svg(node);
     add_axes(svg);
-    add_gridlines(svg, step, steps);
+    add_gridlines(svg, step, steps, "b");
 
     var g = mk_datum(svg, data);
 
