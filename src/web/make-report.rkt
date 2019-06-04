@@ -99,7 +99,7 @@
 
      (table ((id "about"))
       (tr (th "Date:") (td ,(date->string date)))
-      (tr (th "Commit:") (td (abbr ([title ,commit]) ,(substring commit 0 8)) " on " ,branch))
+      (tr (th "Commit:") (td (abbr ([title ,commit]) ,(with-handlers ([exn:fail:contract? (const commit)]) (substring commit 0 8))) " on " ,branch))
       (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
       (tr (th "Seed:") (td ,(~a seed)))
       (tr (th "Parameters:") (td ,(~a (*num-points*)) " points "
