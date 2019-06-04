@@ -95,8 +95,19 @@
   (for ([m (find-matches (egraph-leaders eg) rls)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
-    (when (run-phase apply-match eg rl en bindings)
-      (reduce-to-single! eg en)))
+    ;; The loop here ensures that we don't pass the node limit just
+    ;; because the bindings are too long. This is pretty ugly.
+    (let loop ([bindings bindings])
+      (cond
+       [(>= (egraph-cnt eg) (*node-limit*))
+        (void)]
+       [(<= (+ (length bindings) (egraph-cnt eg)) (*node-limit*))
+        (when (run-phase apply-match eg rl en bindings)
+          (reduce-to-single! eg en))]
+       [else
+        (let-values ([(head tail) (split-at bindings (- (*node-limit*) (egraph-cnt eg)))])
+          (loop head)
+          (loop tail))])))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (when (run-phase set-precompute! eg en)
