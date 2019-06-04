@@ -101,7 +101,7 @@
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (when (run-phase set-precompute! eg en)
       (reduce-to-single! eg en)))
-  change?)
+  (and change? (< (egraph-cnt eg) (*node-limit*))))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
