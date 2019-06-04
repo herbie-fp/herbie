@@ -16,17 +16,8 @@ function run {
   bash infra/publish.sh upload "reports/$name"
 }
 
-function runEach {
-  for bench in bench/*; do
-    name=$(basename "$bench" .fpcore)
-    # add cases to skip large or misbehaving benchmarks
-    case $name in
-      haskell) ;;
-      random) ;;
-      *) run "$bench" "$name" "$@" ;;
-    esac
-  done
-}
-
 mkdir -p reports
-runEach --seed $(date "+%Y%j") "$@"
+for bench in bench/*; do
+  name=$(basename "$bench" .fpcore)
+  run "$bench" "$name"  --seed $(date "+%Y%j") "$@"
+done
