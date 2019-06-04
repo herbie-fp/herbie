@@ -42,11 +42,11 @@
 
        success?]
       [(test-failure test bits time timeline warnings exn)
-       (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
+       (printf "[  CRASH  ]\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
       [(test-timeout test bits time timeline warnings)
-       (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
+       (printf "[  TIMEOUT]\t\t~a\n" (test-name test))
        #f])))
 
 (module+ main

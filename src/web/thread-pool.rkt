@@ -68,11 +68,11 @@
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
   (match (table-row-status data)
     ["error"  
-     (eprintf "[   ERROR   ]\t~a\n" (table-row-name data))]
+     (eprintf "[  ERROR  ]\t\t~a\n" (table-row-name data))]
     ["crash"  
-     (eprintf "[   CRASH   ]\t~a\n" (table-row-name data))]
+     (eprintf "[  CRASH  ]\t\t~a\n" (table-row-name data))]
     ["timeout"
-     (eprintf "[  timeout  ]\t~a\n" (table-row-name data))]
+     (eprintf "[  TIMEOUT]\t\t~a\n" (table-row-name data))]
     [_
      (eprintf "[ ~as]   ~a→~a\t~a\n"
               (~r (/ (table-row-time data) 1000) #:min-width 7 #:precision '(= 3))
