@@ -66,7 +66,7 @@ function make_accuracy_graph(node, data, type) {
 
     var svg = initialize_svg(node);
     add_axes(svg);
-    add_gridlines(svg, step, steps, "m");
+    add_gridlines(svg, step, steps, "b");
 
     var g = mk_datum(svg, data);
 
@@ -156,7 +156,7 @@ function make_speed_graph(node, data) {
 
     var svg = initialize_svg(node);
     add_axes(svg);
-    add_gridlines(svg, step, steps, "b");
+    add_gridlines(svg, step, steps, "m");
 
     var g = mk_datum(svg, data);
 
