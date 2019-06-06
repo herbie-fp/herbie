@@ -224,10 +224,9 @@
     (define (pred v)
       (set! iters (+ 1 iters))
       (define ctx
-        (without-timeline
-         (λ ()
-           (parameterize ([*num-points* (*binary-search-test-points*)])
-             (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))))
+        (parameterize ([*num-points* (*binary-search-test-points*)]
+                       [*timeline-disabled* true])
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
     (define pt (binary-search-floats pred v1 v2))
     (timeline-push! 'bstep v1 v2 iters pt)
