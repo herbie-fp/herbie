@@ -7,10 +7,6 @@
 
 (provide (all-defined-out))
 
-; For debugging
-(define program-a '(λ (x) (/ (- (exp x) 1) x)))
-(define program-b '(λ (x) (- (sqrt (+ x 1)) (sqrt x))))
-
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global
 ;; state in the repl as you would normally do with debugging. This is
@@ -82,7 +78,7 @@
 
 ;; Information
 (define (list-alts)
-  (printf "Key: (.) = done; (>) = chosen\n")
+  (printf "Key: [.] = done; [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
     (for ([alt (atab-all-alts (^table^))]
 	  [n (in-naturals)])

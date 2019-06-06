@@ -56,7 +56,7 @@
 (define *max-mpfr-prec* (make-parameter 10000))
 
 ;; The maximum size of an egraph
-(define *node-limit* (make-parameter 2000))
+(define *node-limit* (make-parameter 5000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
