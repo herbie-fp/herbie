@@ -200,9 +200,11 @@
               (* (sqrt x) (sqrt x))) . 1]
           [(re (complex a b)) . a]))
 
-  (for ([(original target) test-exprs])
+  (*timeline-disabled* true)
+  (define outputs (simplify-batch (hash-keys test-exprs) #:rules (*simplify-rules*)))
+  (for ([(original target) test-exprs] [output outputs])
     (with-check-info (['original original])
-       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target)))
+       (check-equal? output target)))
 
   (check set-member?
          '((* x 6) (* 6 x))
