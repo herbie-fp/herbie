@@ -9,15 +9,15 @@
  rewrite-expression-head rewrite-expression
  (struct-out change) change-apply rule-rewrite)
 
-;; Our own pattern matcher.
-;
-; The racket (match) macro doesn't give us access to the bindings made
-; by the matcher, so we wrote our own.
-;
-; The syntax is simple:
-;   numbers are literals ; symbols are variables ; lists are expressions
-;
-; Bindings are stored as association lists
+;;; Our own pattern matcher.
+;;
+;; The racket (match) macro doesn't give us access to the bindings made
+;; by the matcher, so we wrote our own.
+;;
+;; The syntax is simple:
+;;   numbers are literals ; symbols are variables ; lists are expressions
+;;
+;; Bindings are stored as association lists
 
 (define (merge-bindings binding1 binding2)
   (define (fail . irr) #f)
@@ -26,8 +26,6 @@
        (let/ec quit
          (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
            (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
-
-; The matcher itself
 
 (define (pattern-match pattern expr)
   (define (fail . irr) #f)
@@ -54,6 +52,8 @@
    [(list phead pargs ...)
     (cons phead (map (curryr pattern-substitute bindings) pargs))]))
 
+;; Random helper functions
+
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
     (if bindings
@@ -67,7 +67,13 @@
                           [(cons out bindings) out]
                           [#f (return #f)])))))
 
+(define (change-apply cng prog)
+  (match-define (change rule location bindings) cng)
+  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
+
 (struct change (rule location bindings) #:transparent)
+
+;; The rewriter
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
@@ -139,7 +145,3 @@
 
   ;; The "#f #f" means that any output result works. It's a bit of a hack
   (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))
-
-(define (change-apply cng prog)
-  (match-define (change rule location bindings) cng)
-  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
