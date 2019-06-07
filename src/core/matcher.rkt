@@ -110,22 +110,19 @@
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define (rewriter expr ghead glen loc cdepth)
+  (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
-    (reap (sow)
-          (for ([rule (*rules*)]
-                #:when (or (not (variable? (rule-input rule))) (equal? (type-of expr env) (dict-ref (rule-itypes rule) (rule-input rule)))))
-            (when (or
-                    (not ghead) ; Any results work for me
-                    (and
-                      (list? (rule-output rule))
-                      (= (length (rule-output rule)) glen)
-                      (eq? (car (rule-output rule)) ghead)))
-              (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
-                (for ([option options])
-                  ; Each option is a list of change lists
-                  (sow (cons (change rule (reverse loc) (cdr option))
-                             (car option)))))))))
+    (for ([rule (*rules*)]
+          #:when (or (not (variable? (rule-input rule))) (equal? (type-of expr env) (dict-ref (rule-itypes rule) (rule-input rule)))))
+      (when (or
+             (not ghead) ; Any results work for me
+             (and
+              (list? (rule-output rule))
+              (= (length (rule-output rule)) glen)
+              (eq? (car (rule-output rule)) ghead)))
+        (for ([option (matcher expr (rule-input rule) loc (- cdepth 1))])
+          ;; Each option is a list of change lists
+          (sow (cons (change rule (reverse loc) (cdr option)) (car option)))))))
 
   (define (reduce-children sow options)
     ; (list (list ((list change) * bindings)))
@@ -135,15 +132,12 @@
         (when bindings*
           (sow (cons (apply append (map car children)) bindings*))))))
 
-  (define (fix-up-variables sow pattern options)
-    ; pattern (list (list change)) -> (list (list change) * pattern)
-    (for ([cngs options])
-      (let* ([out-pattern (rule-output (change-rule (car cngs)))]
-             [result (pattern-substitute out-pattern
-                                         (change-bindings (car cngs)))]
-             [bindings* (pattern-match pattern result)])
-        (when bindings*
-          (sow (cons cngs bindings*))))))
+  (define (fix-up-variables sow pattern cngs)
+    ; pattern (list change) -> (list change) * bindings
+    (match-define (change rule loc bindings) (car cngs))
+    (define result (pattern-substitute (rule-output rule) bindings))
+    (define bindings* (pattern-match pattern result))
+    (when bindings* (sow (cons cngs bindings*))))
 
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
@@ -172,12 +166,11 @@
                     (or (flag-set? 'generate 'better-rr)
                         (not (and (list? expr) (equal? phead (car expr)) (= (length pattern) (length expr))))))
            ;; Sort of a brute force approach to getting the bindings
-           (fix-up-variables
-            sow pattern
-            (rewriter expr (car pattern) (length pattern) loc (- cdepth 1))))])))
+           (rewriter (curry fix-up-variables sow pattern)
+                     expr (car pattern) (length pattern) loc (- cdepth 1)))])))
 
-  ; The #f #f mean that any output result works. It's a bit of a hack
-  (map reverse (rewriter expr #f #f (reverse root-loc) depth)))
+  ;; The "#f #f" means that any output result works. It's a bit of a hack
+  (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))
 
 (define (change-apply cng prog)
   (match-define (change rule location bindings) cng)
