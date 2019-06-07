@@ -5,9 +5,9 @@
 
 (provide
  (all-from-out "../syntax/rules.rkt")
- pattern-substitute pattern-match
+ pattern-match
  rewrite-expression-head rewrite-expression
- (struct-out change) change-apply changes-apply rule-rewrite)
+ (struct-out change) change-apply rule-rewrite)
 
 ;; Our own pattern matcher.
 ;
@@ -96,22 +96,7 @@
 (define (rule-apply-force-destructs rule expr)
   (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
 
-(struct change (rule location bindings) #:transparent
-        #:methods gen:custom-write
-        [(define (write-proc cng port mode)
-           (display "#<change " port)
-           (write (rule-name (change-rule cng)) port)
-           (display " at " port)
-           (write (change-location cng) port)
-           (let ([bindings (change-bindings cng)])
-             (when (not (null? bindings))
-               (display " with " port)
-               (for ([bind bindings])
-                 (write (car bind) port)
-                 (display "=" port)
-                 (write (cdr bind) port)
-                 (display ", " port))))
-           (display ">" port))])
+(struct change (rule location bindings) #:transparent)
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
@@ -195,11 +180,5 @@
   (map reverse (rewriter expr #f #f (reverse root-loc) depth)))
 
 (define (change-apply cng prog)
-  (let ([loc (change-location cng)]
-        [template (rule-output (change-rule cng))]
-        [bnd (change-bindings cng)])
-    (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
-
-(define (changes-apply chngs prog)
-  (for/fold ([prog prog]) ([chng chngs])
-    (change-apply chng prog)))
+  (match-define (change rule location bindings) cng)
+  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
