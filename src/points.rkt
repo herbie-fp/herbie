@@ -228,7 +228,8 @@
 (define (errors prog pcontext)
   (define fn (eval-prog prog 'fl))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (fn point) exact)))
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
+      (point-error (fn point) exact))))
 
 ;; Old, halfpoints method of sampling points
 
