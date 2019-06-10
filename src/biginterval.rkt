@@ -72,6 +72,7 @@
 (define 1.bf (bf 1))
 (define 2.bf (bf 2))
 (define +inf.bf (bf +inf.0))
+(define +nan.bf (bf +nan.0))
 
 (define (ival-pi)
   (ival (rnd 'down identity (pi.bf)) (rnd 'up identity (pi.bf)) #f #f))
