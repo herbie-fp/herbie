@@ -467,21 +467,10 @@
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (define (render-history altn pcontext pcontext2 precision)
-  (-> alt? (listof xexpr?))
-
-  (define prog* (if (set-member? '(final-simplify resugar) (alt-event altn))
-    (let* ([prog (alt-program altn)]
-           [vars (program-variables prog)]
-           [expr (third prog)]
-           [precision-ctx (for/list ([var vars])
-                            (cons var precision))]
-           [desugared-expr (desugar-program expr precision-ctx)])
-      (list 'λ vars desugared-expr))
-    (alt-program altn)))
   (define err
-    (format-bits (errors-score (errors prog* pcontext))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors prog* pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
 
   (match altn
     [(alt prog 'start (list))
@@ -535,8 +524,4 @@
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
-    [(alt prog 'resugar `(,prev))
-     `(,@(render-history prev pcontext pcontext2 precision)
-       (li (p "Resugaring" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
     ))
