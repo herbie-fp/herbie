@@ -7,9 +7,7 @@
 (require "../float.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
-(module+ internals (provide define-ruleset))
-
-(module+ test (require rackunit) (define num-test-points 2000))
+(module+ internals (provide define-ruleset *rulesets*))
 
 (struct rule (name input output itypes) ; Input and output are patterns
         #:methods gen:custom-write
