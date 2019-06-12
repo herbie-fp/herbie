@@ -742,7 +742,7 @@
 (declare-parametric-operator! '<  '<  '(real real) 'bool)
 (declare-parametric-operator! '<= '<= '(real real) 'bool)
 (declare-parametric-operator! '>  '>  '(real real) 'bool)
-(declare-parametric-operator! '<= '<= '(real real) 'bool)
+(declare-parametric-operator! '>= '>= '(real real) 'bool)
 (declare-parametric-operator! '== '== '(real real) 'bool)
 (declare-parametric-operator! '!= '!= '(real real) 'bool)
 

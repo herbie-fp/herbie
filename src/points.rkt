@@ -10,7 +10,6 @@
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
-
 (module+ internals (provide make-sampler ival-eval))
 
 (define/contract (sample-multi-bounded ranges)
@@ -70,7 +69,7 @@
   (pcontext (list->vector points) (list->vector exacts)))
 
 (module+ test
-  (require "formats/test.rkt")
+  (require "formats/test.rkt" "syntax/posits.rkt")
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs
