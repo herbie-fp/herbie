@@ -9,7 +9,7 @@
          reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
-         argmins argmaxs setfindf index-of set-disjoint?
+         argmins argmaxs setfindf index-of set-disjoint? comparator
          write-file write-string
          random-exp parse-flag get-seed set-seed!
          common-eval quasisyntax
@@ -281,3 +281,7 @@
    [else
     (append (map (curry cons k) (all-partitions (- n k) #:from k))
             (all-partitions n #:from (+ k 1)))]))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))

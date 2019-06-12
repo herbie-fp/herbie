@@ -1,8 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt"
-         "syntax/syntax.rkt" "syntax/rules.rkt")
+(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt" "syntax/posits.rkt")
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]

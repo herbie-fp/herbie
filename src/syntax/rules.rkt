@@ -8,6 +8,7 @@
 (require "../float.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(module+ internals (provide define-ruleset))
 
 (module+ test (require rackunit) (define num-test-points 2000))
 
@@ -53,68 +54,10 @@
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
-(define-ruleset commutativity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16])
-  [+-commutative     (+.p16 a b)               (+.p16 b a)]
-  [*-commutative     (*.p16 a b)               (*.p16 b a)])
-
 (define-ruleset commutativity.c (arithmetic simplify fp-safe complex)
   #:type ([a complex] [b complex])
   [+.c-commutative     (+.c a b)               (+.c b a)]
   [*.c-commutative     (*.c a b)               (*.c b a)])
-
-; Posit conversions
-(define-ruleset insert-p16 (arithmetic posit)
-  #:type ([a real])
-  [insert-posit16 a (posit16->real (real->posit16 a))])
-
-(define-ruleset remove-p16 (arithmetic simplify posit)
-  #:type ([a real])
-  [remove-posit16 (posit16->real (real->posit16 a)) a])
-
-(define-ruleset id-p16 (arithmetic simplify posit)
-  #:type ([a posit16])
-  [+p16-lft-identity-reduce    (+.p16 (real->posit16 0.0) a)               a]
-  [+p16-rgt-identity-reduce    (+.p16 a (real->posit16 0.0))               a]
-  [-p16-rgt-identity-reduce    (-.p16 a (real->posit16 0.0))               a]
-  [*p16-lft-identity-reduce    (*.p16 (real->posit16 1.0) a)               a]
-  [*p16-rgt-identity-reduce    (*.p16 a (real->posit16 1.0))               a]
-  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a])
-
-(define-ruleset unid-p16 (arithmetic posit)
-  #:type ([a posit16])
-  [+p16-lft-identity-expand    a               (+.p16 (real->posit16 0.0) a)]
-  [+p16-rgt-identity-expand    a               (+.p16 a (real->posit16 0.0))]
-  [-p16-rgt-identity-expand    a               (-.p16 a (real->posit16 0.0))]
-  [*p16-lft-identity-expand    a               (*.p16 (real->posit16 1.0) a)]
-  [*p16-rgt-identity-expand    a               (*.p16 a (real->posit16 1.0))]
-  [/p16-rgt-identity-expand    a               (/.p16 a (real->posit16 1.0))])
-
-;; TODO: Multiply add to mulAdd
-
-;; TODO: We only cast back to posit after quire operations because herbie can't handle
-;; non-double output right now (similar situtation for posits)
-(define-ruleset q16-arithmetic (arithmetic posit)
-  #:type ([a posit16] [b posit16] [c posit16] [q quire16])
-  [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
-  [insert-quire-add     (+.p16 (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-mul-add q a (real->posit16 1.0)))]
-  [insert-quire-sub     (-.p16 (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-mul-sub q a (real->posit16 1.0)))]
-  [insert-quire-fdp-add (+.p16 (quire16->posit16 q) (*.p16 a b))
-                        (quire16->posit16 (quire16-mul-add q a b))]
-  [insert-quire-fdp-sub (-.p16 (quire16->posit16 q) (*.p16 a b))
-                        (quire16->posit16 (quire16-mul-sub q a b))])
-
-(define-ruleset p16-test-rules (arithmetic posit)
-  #:type ([a posit16] [b posit16] [c posit16] [d posit16])
-  [p16-flip--            (-.p16 a b)                            (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
-  [p16-*-un-lft-identity a                                      (*.p16 (real->posit16 1.0) a)]
-  [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
-  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))              (*.p16 (/.p16 a c) (/.p16 b d))]
-  [sqrt-sqrd.p16   (*.p16 (sqrt.p16 a) (sqrt.p16 a))             a]
-  [remove-negate.p16 (+.p16 a (-.p16 (real->posit16 1.0) a))    (real->posit16 1.0)])
-
 
 ; Associativity
 (define-ruleset associativity (arithmetic simplify)
@@ -159,27 +102,6 @@
   [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
   [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
 
-(define-ruleset associativity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16] [c posit16])
-  [associate-+r+  (+.p16 a (+.p16 b c))         (+.p16 (+.p16 a b) c)]
-  [associate-+l+  (+.p16 (+.p16 a b) c)         (+.p16 a (+.p16 b c))]
-  [associate-+r-  (+.p16 a (-.p16 b c))         (-.p16 (+.p16 a b) c)]
-  [associate-+l-  (+.p16 (-.p16 a b) c)         (-.p16 a (-.p16 b c))]
-  [associate--r+  (-.p16 a (+.p16 b c))         (-.p16 (-.p16 a b) c)]
-  [associate--l+  (-.p16 (+.p16 a b) c)         (+.p16 a (-.p16 b c))]
-  [associate--l-  (-.p16 (-.p16 a b) c)         (-.p16 a (+.p16 b c))]
-  [associate--r-  (-.p16 a (-.p16 b c))         (+.p16 (-.p16 a b) c)]
-  [associate-*r*  (*.p16 a (*.p16 b c))         (*.p16 (*.p16 a b) c)]
-  [associate-*l*  (*.p16 (*.p16 a b) c)         (*.p16 a (*.p16 b c))]
-  [associate-*r/  (*.p16 a (/.p16 b c))         (/.p16 (*.p16 a b) c)]
-  [associate-*l/  (*.p16 (/.p16 a b) c)         (/.p16 (*.p16 a c) b)]
-  [associate-/r*  (/.p16 a (*.p16 b c))         (/.p16 (/.p16 a b) c)]
-  [associate-/l*  (/.p16 (*.p16 b c) a)         (/.p16 b (/.p16 a c))]
-  [associate-/r/  (/.p16 a (/.p16 b c))         (*.p16 (/.p16 a b) c)]
-  [associate-/l/  (/.p16 (/.p16 b c) a)         (/.p16 b (*.p16 a c))]
-  [sub-neg        (-.p16 a b)                   (+.p16 a (neg.p16 b))]
-  [unsub-neg      (+.p16 a (neg.p16 b))         (-.p16 a b)])
-
 ; Counting
 (define-ruleset counting (arithmetic simplify)
   #:type ([x real])
@@ -196,17 +118,6 @@
   [distribute-rgt-out--   (- (* b a) (* c a))   (* a (- b c))]
   [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)])
-
-(define-ruleset distributivity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16] [c posit16])
-  [distribute-lft-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 a b) (*.p16 a c))]
-  [distribute-rgt-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 b a) (*.p16 c a))]
-  [distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
-  [distribute-lft-out--   (-.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (-.p16 b c))]
-  [distribute-rgt-out     (+.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (+.p16 b c))]
-  [distribute-rgt-out--   (-.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (-.p16 b c))]
-  [distribute-lft1-in     (+.p16 (*.p16 b a) a)           (*.p16 (+.p16 b (real->posit16 1.0)) a)]
-  [distribute-rgt1-in     (+.p16 a (*.p16 c a))           (*.p16 (+.p16 c (real->posit16 1.0)) a)])
 
 (define-ruleset distributivity.c (arithmetic simplify complex)
   #:type ([a complex] [b complex] [c complex])
@@ -243,14 +154,6 @@
   [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))]
   )
 
-(define-ruleset difference-of-squares-canonicalize.p16 (polynomials simplify posit)
-  #:type ([a posit16] [b posit16])
-  [difference-of-squares (-.p16 (*.p16 a a) (*.p16 b b))   (*.p16 (+.p16 a b) (-.p16 a b))]
-  [difference-of-sqr-1   (-.p16 (*.p16 a a) (real->posit16 1.0))
-                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))]
-  [difference-of-sqr--1  (+.p16 (*.p16 a a) (real->posit16 -1.0))
-                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))])
-
 (define-ruleset difference-of-squares-flip (polynomials)
   #:type ([a real] [b real])
   [flip-+     (+ a b)  (/ (- (* a a) (* b b)) (- a b))]
@@ -270,20 +173,6 @@
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
   [mul0              (* a 0)               0])
-
-(define-ruleset exact-posit16 (arithmetic simplify posit fp-safe-nan)
-  #:type ([a posit16])
-  [+-inverses.p16    (-.p16 a a)                                 (real->posit16 0.0)]
-  [*-inverses.p16    (/.p16 a a)                                 (real->posit16 1.0)]
-  [div0.p16          (/.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0.p16          (*.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0.p16          (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)])
-
-(define-ruleset id-reduce-posit16 (arithmetic simplify posit)
-  #:type ([a posit16])
-  [remove-double-div.p16 (/.p16 (real->posit16 1.0) (/.p16 (real->posit16 1.0) a))         a]
-  [rgt-mult-inverse.p16  (*.p16 a (/.p16 (real->posit16 1.0) a))         (real->posit16 1.0)]
-  [lft-mult-inverse.p16  (*.p16 (/.p16 (real->posit16 1.0) a) a)         (real->posit16 1.0)])
 
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   #:type ([a real])
