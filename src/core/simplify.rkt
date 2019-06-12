@@ -56,8 +56,7 @@
 (define (find-matches ens rls)
   (reap [sow]
         (for* ([rl rls] [en ens]
-               #:when (rule-applicable? rl en)
-               #:unless (rule-applied? en rl))
+               #:when (rule-applicable? rl en))
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
@@ -76,10 +75,7 @@
   (define valid-bindings (set-intersect bindings-set bindings*))
 
   (for ([binding valid-bindings])
-    (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-  ;; Mark this node as having this rule applied so that we don't try
-  ;; to apply it again.
-  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
+    (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
