@@ -55,8 +55,7 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define/contract (regime-splitpoints altn)
-  (-> alt? (listof value?))
+(define (regime-splitpoints altn)
   (map sp-point (drop-right (regime-info altn) 1)))
 
 (define/contract (regime-var altn)
