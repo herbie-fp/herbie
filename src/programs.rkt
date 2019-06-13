@@ -237,7 +237,7 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
-        [(? real?) (values (fl->repr expr precision) precision)]
+        [(? real?) (values (fl->repr expr (get-representation precision)) precision)]
         [(? complex?) (values expr 'complex)]
         [(? value?) (values expr (representation-name (infer-representation expr)))]
         [(? constant?) (values expr (constant-info expr 'type))]
