@@ -8,7 +8,7 @@ env:
       UNIT="raco test src/ infra/"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
-      POSITS="racket $TRAVIS_BUILD_DIR/infra/travis bench/posits/"
+      POSITS="racket $TRAVIS_BUILD_DIR/infra/travis.rkt bench/posits/"
   matrix:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="7.3" JOB="${UNIT}" INSTALL_SOFTPOSIT=true
