@@ -58,8 +58,6 @@
   (match prog
     [(? constant?) '()]
     [(? variable?) (list prog)]
-    [(list (or 'lambda 'λ) vars body)
-           (remove* vars (free-variables body))]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
 

@@ -719,9 +719,7 @@
   (and (symbol? op) (dict-has-key? (cdr operators) op)))
 
 (define (constant? var)
-  (or (number? var)
-      (and (symbol? var)
-           (dict-has-key? (cdr constants) var))))
+  (or (value? var) (and (symbol? var) (dict-has-key? (cdr constants) var))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))
