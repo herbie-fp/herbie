@@ -21,7 +21,7 @@
 
 (define-representation posit8
   (compose double->posit8 bigfloat->flonum)
-  (compose bf posit8->double)
+  (compose big-posit8 bf posit8->double)
   ordinal->posit8
   posit8->ordinal
   8
@@ -29,7 +29,7 @@
 
 (define-representation posit16
   (compose double->posit16 bigfloat->flonum)
-  (compose bf posit16->double)
+  (compose big-posit16 bf posit16->double)
   ordinal->posit16
   posit16->ordinal
   16
@@ -37,7 +37,7 @@
 
 (define-representation posit32
   (compose double->posit32 bigfloat->flonum)
-  (compose bf posit32->double)
+  (compose big-posit32 bf posit32->double)
   ordinal->posit32
   posit32->ordinal
   32
@@ -46,7 +46,7 @@
 ;;TODO correct functions for quire (incorrect now for testing)
 (define-representation quire8
   (compose double->quire8 bigfloat->flonum)
-  (compose bf quire8->double)
+  (compose big-quire8 bf quire8->double)
   (compose double->quire8 ordinal->flonum)
   (compose flonum->ordinal quire8->double)
   64
@@ -54,7 +54,7 @@
 
 (define-representation quire16
   (compose double->quire16 bigfloat->flonum)
-  (compose bf quire16->double)
+  (compose big-quire16 bf quire16->double)
   (compose double->quire16 ordinal->flonum)
   (compose flonum->ordinal quire16->double)
   64
@@ -62,7 +62,7 @@
 
 (define-representation quire32
   (compose double->quire32 bigfloat->flonum)
-  (compose bf quire32->double)
+  (compose big-quire32 bf quire32->double)
   (compose double->quire32 ordinal->flonum)
   (compose flonum->ordinal quire32->double)
   64
