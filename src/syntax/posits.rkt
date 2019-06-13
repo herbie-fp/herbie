@@ -1,6 +1,6 @@
 #lang racket
 (require math/flonum math/bigfloat)
-(require "../common.rkt" "softposit.rkt" softposit-rkt)
+(require "../common.rkt" "softposit.rkt")
 
 ;; Defining the types
 
