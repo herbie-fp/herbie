@@ -158,7 +158,7 @@
   ((representation-bf->repr repr) (bf x)))
 
 (define (repr->fl x repr)
-  (bigfloat->flonum ((representation-repr->bf repr) (bf x))))
+  (bigfloat->flonum ((representation-repr->bf repr) x)))
 
 (define/contract (->bf x)
   (-> value? bigvalue?)
