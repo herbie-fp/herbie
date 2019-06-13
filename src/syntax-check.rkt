@@ -66,6 +66,15 @@
     (unless (string? (syntax-e desc))
       (error! desc "Invalid :description ~a; must be a string" desc)))
 
+  (when (dict-has-key? prop-dict ':precision)
+    (define prec (dict-ref prop-dict ':precision))
+    (define known-prec?
+      (with-handlers ([exn:fail:contract? (const false)])
+        (get-representation (syntax-e prec))
+        true))
+    (unless known-prec?
+      (error! prec "Unknown :precision ~a" prec)))
+
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))
     (unless (list? (syntax-e cite))

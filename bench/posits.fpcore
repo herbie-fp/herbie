@@ -4,9 +4,8 @@
  :pre (and (< 0 a) (< 0 b) (< 0 c))
  :name "Area of a triangle"
  :precision posit16
- (sqrt (* (* (* (/ (+ (+ a b) c) 2) (- (/ (+ (+ a b) c) 2) a))
-             (- (/ (+ (+ a b) c) 2) b))
-          (- (/ (+ (+ a b) c) 2) c))))
+ (let ([s (/ (+ (+ a b) c) 2)])
+   (sqrt (* s (- s a) (- s b) (- s c)))))
 
 (FPCore (lo hi x)
   :pre (and (< lo -1e308) (> hi 1e308))
