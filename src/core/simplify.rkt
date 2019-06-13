@@ -63,6 +63,7 @@
 
 (define (apply-match eg rl en bindings)
 
+  #|
   ;; These next two lines are here because an earlier match
   ;; application may have pruned the tree, invalidating the this
   ;; one. Luckily, a pruned enode will still point to it's old
@@ -73,8 +74,9 @@
   (define bindings-set (apply set bindings))
   (define bindings* (apply set (match-e (rule-input rl) en*)))
   (define valid-bindings (set-intersect bindings-set bindings*))
+  |#
 
-  (for ([binding valid-bindings])
+  (for ([binding bindings])
     (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
 
 ;; Iterates the egraph by applying each of the given rules in parallel
@@ -98,16 +100,16 @@
        [(>= (egraph-cnt eg) (*node-limit*))
         (void)]
        [(<= (+ (length bindings) (egraph-cnt eg)) (*node-limit*))
-        (when (run-phase apply-match eg rl en bindings)
-          (reduce-to-single! eg en))]
+        (run-phase apply-match eg rl en bindings)]
        [else
         (let-values ([(head tail) (split-at bindings (- (*node-limit*) (egraph-cnt eg)))])
           (loop head)
           (loop tail))])))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (when (run-phase set-precompute! eg en)
-      (reduce-to-single! eg en)))
+    (run-phase set-precompute! eg en))
+  (for ([en (egraph-leaders eg)])
+    (reduce-to-single! eg en))
   (and change? (< (egraph-cnt eg) (*node-limit*))))
 
 (define (set-precompute! eg en)
