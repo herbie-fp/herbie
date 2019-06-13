@@ -15,10 +15,9 @@
 (define *yellow-theme* (color-theme "gold" "yellow" "olive"))
 
 (define (double-transform)
-  (define repr (if (flag-set? 'precision 'double) binary64 binary32))
-  (define ->repr (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
+  (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
   (invertible-function
-   (compose (representation-repr->ordinal repr) ->repr)
+   (compose (representation-repr->ordinal repr) ->flonum)
    (compose (representation-ordinal->repr repr) round)))
 
 (define (double-axis)

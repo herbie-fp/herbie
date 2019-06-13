@@ -1,8 +1,74 @@
 #lang racket
-(require "../common.rkt")
-(require (submod "rules.rkt" internals) (submod "syntax.rkt" internals) "softposit.rkt")
+(require math/flonum math/bigfloat)
+(require "../common.rkt" "softposit.rkt" softposit-rkt)
 
-;; Operator definitions
+;; Defining the types
+
+(require (submod "types.rkt" internals))
+
+(define-type posit8 posit8? big-posit8?)
+(define-type posit16 posit16? big-posit16?)
+(define-type posit32 posit32? big-posit32?)
+(define-type quire8 quire8? big-quire8?)
+(define-type quire16 quire16? big-quire16?)
+(define-type quire32 quire32? big-quire32?)
+
+;; Defining the representations
+
+(require (submod "../interface.rkt" internals))
+
+(define-representation posit8
+  (compose double->posit8 bigfloat->flonum)
+  (compose bf posit8->double)
+  ordinal->posit8
+  posit8->ordinal
+  8
+  (list posit8-nar))
+
+(define-representation posit16
+  (compose double->posit16 bigfloat->flonum)
+  (compose bf posit16->double)
+  ordinal->posit16
+  posit16->ordinal
+  16
+  (list posit16-nar))
+
+(define-representation posit32
+  (compose double->posit32 bigfloat->flonum)
+  (compose bf posit32->double)
+  ordinal->posit32
+  posit32->ordinal
+  32
+  (list posit32-nar))
+
+;;TODO correct functions for quire (incorrect now for testing)
+(define-representation quire8
+  (compose double->quire8 bigfloat->flonum)
+  (compose bf quire8->double)
+  (compose double->quire8 ordinal->flonum)
+  (compose flonum->ordinal quire8->double)
+  64
+  null)
+
+(define-representation quire16
+  (compose double->quire16 bigfloat->flonum)
+  (compose bf quire16->double)
+  (compose double->quire16 ordinal->flonum)
+  (compose flonum->ordinal quire16->double)
+  64
+  null)
+
+(define-representation quire32
+  (compose double->quire32 bigfloat->flonum)
+  (compose bf quire32->double)
+  (compose double->quire32 ordinal->flonum)
+  (compose flonum->ordinal quire32->double)
+  64
+  null)
+
+;; Defining the operators
+
+(require (submod "syntax.rkt" internals))
 
 (declare-parametric-operator! '+ '+.p8 '(posit8 posit8) 'posit8)
 (declare-parametric-operator! '+ '+.p16 '(posit16 posit16) 'posit16)
@@ -469,6 +535,9 @@
   [->tex (curry format "~a")]
   [nonffi posit32->quire32])
 
+;; Defining the rules
+
+(require (submod "rules.rkt" internals))
 
 (define-ruleset commutativity.p16 (arithmetic simplify posit)
   #:type ([a posit16] [b posit16])

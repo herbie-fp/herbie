@@ -1,9 +1,9 @@
 #lang racket
 
-(require rackunit)
-(require "../programs.rkt" (submod "../points.rkt" internals) math/bigfloat)
-(require "softposit.rkt" "posits.rkt" "rules.rkt" (submod "rules.rkt" internals))
-(require math/bigfloat "../programs.rkt" "../float.rkt")
+(require rackunit math/bigfloat)
+(require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
+(require "posits.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
+(require "../programs.rkt" "../float.rkt")
 
 (define num-test-points 2000)
 
@@ -46,14 +46,8 @@
               (for/list ([v fv] [i (in-naturals)])
                 (match (dict-ref (rule-itypes test-rule) v)
                   ['real (sample-double)]
-                  ['bool (if (< (random) .5) false true)]
                   ['complex (make-rectangular (sample-double) (sample-double))]
-                  ['posit8 (random-posit8)]
-                  ['posit16 (random-posit16)]
-                  ['posit32 (random-posit32)]
-                  ['quire8 (random-quire8)]
-                  ['quire16 (random-quire16)]
-                  ['quire32 (random-quire32)]))))))
+                  [rname (random-generate (get-representation rname))]))))))
 
     (define points (for/list ([n (in-range num-test-points)]) (make-point)))
     (define prog1 (ground-truth fv p1))

@@ -3,8 +3,6 @@
 (require math/private/bigfloat/mpfr)
 (require "common.rkt" "syntax/types.rkt")
 
-(module+ test (require rackunit "float.rkt" math/flonum))
-
 (struct ival (lo hi err? err) #:transparent)
 
 (provide (contract-out
@@ -493,7 +491,10 @@
    [(not (ival-hi c)) (propagate-err c y)]
    [else (propagate-err c (ival-union x y))]))
 
+
 (module+ test
+  (require rackunit math/flonum)
+
   (define num-tests 1000)
 
   (define (sample-interval)

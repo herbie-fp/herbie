@@ -3,7 +3,7 @@
 (require math/flonum)
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "range-analysis.rkt" "biginterval.rkt" "syntax/softposit.rkt" "interface.rkt")
+         "range-analysis.rkt" "biginterval.rkt" "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points errors errors-score
@@ -17,8 +17,8 @@
   (define-values (->ordinal <-ordinal <-exact)
     (if (flag-set? 'precision 'double)
         (values flonum->ordinal ordinal->flonum real->double-flonum)
-        (values (representation-repr->ordinal binary32)
-                (representation-ordinal->repr binary32)
+        (values (representation-repr->ordinal (get-representation 'binary32))
+                (representation-ordinal->repr (get-representation 'binary32))
                 real->single-flonum)))
 
   (define ordinal-ranges
@@ -192,12 +192,9 @@
 
 
 (define (point-error out exact)
-  (add1
-   (if (or (real? out)
-           (posit8? out) (posit16? out) (posit32? out)
-           (quire8? out) (quire16? out) (quire32? out))
-       (abs (ulp-difference out exact))
-       (expt 2 (*bit-width*)))))
+  (if (ordinary-value? out)
+      (+ 1 (abs (ulp-difference out exact)))
+      (+ 1 (expt 2 (*bit-width*)))))
 
 (define (eval-errors eval-fn pcontext)
   (define max-ulps (expt 2 (*bit-width*)))
@@ -315,20 +312,11 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (match precision
-                     [(or 'binary64 'binary32) (for/list ([n (in-range num)]) (sample))]
-                     ['posit8 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-posit8)))]
-                     ['posit16 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-posit16)))]
-                     ['posit32 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-posit32)))]
-                     ['quire8 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-quire8)))]
-                     ['quire16 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-quire16)))]
-                     ['quire32 (for/list ([n (in-range num)])
-                                (for/list ([_ (range num-vars)]) (random-quire32)))]))
+      (define sampler
+        (if (set-member? '(binary32 binary64) precision)
+            sample
+            (λ () (random-generate (get-representation precision)))))
+      (define pts1 (for/list ([n (in-range num)]) (sampler)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")

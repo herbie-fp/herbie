@@ -12,9 +12,7 @@
 (struct rule (name input output itypes) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
-           (display "#<rule " port)
-           (write (rule-name rule) port)
-           (display ">" port))])
+           (fprintf port "#<rule ~a>" (rule-name rule)))])
 
 (define *rulesets* (make-parameter '()))
 

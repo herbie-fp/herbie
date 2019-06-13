@@ -1,44 +1,56 @@
 #lang racket
 
 (require math/flonum math/bigfloat)
-(require "config.rkt")
-(require "common.rkt")
-(require "syntax/softposit.rkt")
-(require "interface.rkt")
+(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt" "syntax/syntax.rkt")
 (module+ test (require rackunit))
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
-         sample-double </total <=/total =-or-nan? nan?-all-types ordinary-value?
-         exact-value? val-to-type flval)
+         </total <=/total =-or-nan? nan?-all-types ordinary-value?
+         exact-value? val-to-type flval
+         infer-representation infer-double-representation
+         ->flonum ->bf random-generate fl->repr repr->fl
+         <-all-precisions mk-<= special-value?)
+
+(define (infer-representation x)
+  (get-representation
+   (for/first ([(type rec) (in-hash type-dict)] #:when ((car rec) x))
+     (if (equal? type 'real)
+         (if (flag-set? 'precision 'double) 'binary64 'binary32)
+         type))))
+
+(define (infer-big-representation x)
+  (let/ec return
+     (for ([(type rec) (in-hash type-dict)] #:unless (equal? type 'complex))
+       (define name
+         (if (equal? type 'real)
+           (if (flag-set? 'precision 'double) 'binary64 'binary32)
+           type))
+       (cond
+        [((car rec) x) (return (cons (get-representation name) 'fl))]
+        [((cdr rec) x) (return (cons (get-representation name) 'bf))]))
+     (error "Could not infer big representation for" x)))
+
+(define (infer-double-representation x y)
+  (define repr1 (infer-representation x))
+  (define repr2 (infer-representation y))
+  (assert (equal? repr1 repr2))
+  repr1)
 
 (define (ulp-difference x y)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
     (+ (ulp-difference (real-part x) (real-part y))
        (ulp-difference (imag-part x) (imag-part y)))
-    (let ([->ordinal (representation-repr->ordinal (match* (x y)
-        [((? real?) (? real?)) (if (flag-set? 'precision 'double) binary64 binary32)]
-        [((? boolean?) (? boolean?)) bool]
-        [((? posit8?) (? posit8?)) posit8]
-        [((? posit16?) (? posit16?)) posit16]
-        [((? posit32?) (? posit32?)) posit32]
-        [((? quire8?) (? quire8?)) quire8]
-        [((? quire16?) (? quire16?)) quire16]
-        [((? quire32?) (? quire32?)) quire32]))])
+    (let ([->ordinal (representation-repr->ordinal (infer-double-representation x y))])
       (- (->ordinal y) (->ordinal x)))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2)
-  (define repr (cond
-    [(and (double-flonum? p1) (double-flonum? p2)) binary64]
-    [(and (single-flonum? p1) (single-flonum? p2)) binary32]
-    [(and (posit8? p1) (posit8? p2)) posit8]
-    [(and (posit16? p1) (posit16? p2)) posit16]
-    [(and (posit32? p1) (posit32? p2)) posit32]
-    [else (error "Mixed precisions in binary search")]))
-  ((representation-ordinal->repr repr) (floor (/ (+
-    ((representation-repr->ordinal repr) p1)
-    ((representation-repr->ordinal repr) p2)) 2))))
+  (define repr (infer-double-representation p1 p2))
+  ((representation-ordinal->repr repr)
+   (floor (/ (+ ((representation-repr->ordinal repr) p1)
+                ((representation-repr->ordinal repr) p2))
+             2))))
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
@@ -51,22 +63,17 @@
 (define (bit-difference x y)
   (ulps->bits (+ 1 (abs (ulp-difference x y)))))
 
+(define (random-generate repr)
+  ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))
+
+(define (special-value? x)
+  (define repr (infer-representation x))
+  (set-member? (representation-special-values repr) x))
+
 (define (ordinary-value? x)
-  (match x
-    [(? real?)
-     (not (or (set-member? (representation-special-values binary64) x)
-              (set-member? (representation-special-values binary32) x)))]
-    [(? complex?)
-     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
-    [(? boolean?)
-     (not (set-member? (representation-special-values bool) x))]
-    [(? posit8?)
-     (not (set-member? (representation-special-values posit8) x))]
-    [(? posit16?)
-     (not (set-member? (representation-special-values posit16) x))]
-    [(? posit32?)
-     (not (set-member? (representation-special-values posit32) x))]
-    [_ true]))
+  (if (and (complex? x) (not (real? x)))
+      (and (not (and (real? x) (nan? x))) (not (and (real? x) (infinite? x))))
+      (not (special-value? x))))
 
 (module+ test
   (check-true (ordinary-value? 2.5))
@@ -76,27 +83,11 @@
 (define (=-or-nan? x1 x2)
   (cond
     [(and (number? x1) (number? x2))
-     (or (= x1 x2)
-         (and (nan? x1) (nan? x2)))]
-    [(and (posit8? x1) (posit8? x2))
-     (= ((representation-repr->ordinal posit8) x1)
-        ((representation-repr->ordinal posit8) x2))]
-    [(and (posit16? x1) (posit16? x2))
-     (= ((representation-repr->ordinal posit16) x1)
-        ((representation-repr->ordinal posit16) x2))]
-    [(and (posit32? x1) (posit32? x2))
-     (= ((representation-repr->ordinal posit32) x1)
-        ((representation-repr->ordinal posit32) x2))]
-    ;; TODO once we have real ->ordinal for quires, fix this
-    [(and (quire8? x1) (quire8? x2))
-     (= ((representation-repr->ordinal quire8) x1)
-        ((representation-repr->ordinal quire8) x2))]
-    [(and (quire16? x1) (quire16? x2))
-     (= ((representation-repr->ordinal quire16) x1)
-        ((representation-repr->ordinal quire16) x2))]
-    [(and (quire32? x1) (quire32? x2))
-     (= ((representation-repr->ordinal quire32) x1)
-        ((representation-repr->ordinal quire32) x2))]))
+     (or (= x1 x2) (and (nan? x1) (nan? x2)))]
+    [else
+     (define repr (infer-double-representation x1 x2))
+     (= ((representation-repr->ordinal repr) x1)
+        ((representation-repr->ordinal repr) x2))]))
 
 (module+ test
   (check-true (=-or-nan? 2.3 2.3))
@@ -106,60 +97,25 @@
 
 (define (</total x1 x2)
   (cond
-    [(or (real? x1) (complex? x1))
-     (cond
-       [(nan? x1) #f]
-       [(nan? x2) #t]
-       [else (< x1 x2)])]
-    [(posit8? x1)
-     (cond
-       [(set-member? (representation-special-values posit8) x1) #f]
-       [(set-member? (representation-special-values posit8) x2) #t]
-       [else (< ((representation-repr->ordinal posit8) x1)
-                ((representation-repr->ordinal posit8) x2))])]
-    [(posit16? x1)
-     (cond
-       [(set-member? (representation-special-values posit16) x1) #f]
-       [(set-member? (representation-special-values posit16) x2) #t]
-       [else (< ((representation-repr->ordinal posit16) x1)
-                ((representation-repr->ordinal posit16) x2))])]
-    [(posit32? x1)
-     (cond
-       [(set-member? (representation-special-values posit32) x1) #f]
-       [(set-member? (representation-special-values posit32) x2) #t]
-       [else (< ((representation-repr->ordinal posit32) x1)
-                ((representation-repr->ordinal posit32) x2))])]
-    [(quire8? x1)
-     (cond
-       [(set-member? (representation-special-values quire8) x1) #f]
-       [(set-member? (representation-special-values quire8) x2) #t]
-       [else (< ((representation-repr->ordinal quire8) x1)
-                ((representation-repr->ordinal quire8) x2))])]
-    [(quire16? x1)
-     (cond
-       [(set-member? (representation-special-values quire16) x1) #f]
-       [(set-member? (representation-special-values quire16) x2) #t]
-       [else (< ((representation-repr->ordinal quire16) x1)
-                ((representation-repr->ordinal quire16) x2))])]
-    [(quire32? x1)
-     (cond
-       [(set-member? (representation-special-values quire32) x1) #f]
-       [(set-member? (representation-special-values quire32) x2) #t]
-       [else (< ((representation-repr->ordinal quire32) x1)
-                ((representation-repr->ordinal quire32) x2))])]))
+   [(and (complex? x1) (complex? x2) (not (real? x1)) (not (real? x2)))
+    (error "Complex numbers are unordered")]
+   [(and (real? x1) (real? x2))
+    (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
+   [else
+    (define repr (infer-double-representation x1 x2))
+    (cond
+     [(set-member? (representation-special-values repr) x1) #f]
+     [(set-member? (representation-special-values repr) x2) #t]
+     [else (< ((representation-repr->ordinal repr) x1)
+              ((representation-repr->ordinal repr) x2))])]))
 
 (define (nan?-all-types x)
-  (cond
-    [(or (real? x) (complex? x)) (nan? x)]
-    [(posit8? x) (set-member? (representation-special-values posit8) x)]
-    [(posit16? x) (set-member? (representation-special-values posit16) x)]
-    [(posit32? x) (set-member? (representation-special-values posit32) x)]))
+  (if (or (real? x) (complex? x))
+      (nan? x)
+      (set-member? (representation-special-values (infer-representation x)) x)))
 
 (define (<=/total x1 x2)
   (or (</total x1 x2) (=-or-nan? x1 x2)))
-
-(define (sample-double)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
 
 (define (exact-value? type val)
   (match type
@@ -179,6 +135,60 @@
   (match x
     [(? real?) x]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
-    [(? posit8?) (hash 'type "posit8" 'real (posit8->double x))]
-    [(? posit16?) (hash 'type "posit16" 'real (posit16->double x))]
-    [(? posit32?) (hash 'type "posit32" 'real (posit32->double x))]))
+    [_
+     (define repr (infer-representation x))
+     (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
+
+(define/contract (->flonum x)
+  (-> any/c value?)
+  (cond
+   [(and (complex? x) (not (real? x)))
+    (make-rectangular (->flonum (real-part x)) (->flonum (imag-part x)))]
+   [(bigcomplex? x)
+    (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
+   [(and (symbol? x) (constant? x))
+    (->flonum ((constant-info x 'fl)))]
+   [else
+    (match-define (cons repr kind) (infer-big-representation x))
+    (match kind
+      ['bf ((representation-bf->repr repr) x)]
+      ['fl (if (and (real? x) (exact? x)) (exact->inexact x) x)])]))
+
+(define (fl->repr x repr)
+  ((representation-bf->repr repr) (bf x)))
+
+(define (repr->fl x repr)
+  (bigfloat->flonum ((representation-repr->bf repr) (bf x))))
+
+(define/contract (->bf x)
+  (-> value? bigvalue?)
+  (cond
+   [(and (symbol? x) (constant? x)) ((constant-info x 'bf))]
+   [(and (complex? x) (not (real? x)))
+    (bigcomplex (bf (real-part x)) (bf (imag-part x)))]
+   [else
+    ((representation-repr->bf (infer-representation x)) x)]))
+
+(define (<-all-precisions x1 x2)
+  (cond
+   [(or (real? x1) (complex? x1))
+    (< x1 x2)]
+   [else
+    (define repr (infer-double-representation x1 x2))
+    (define ->ordinal (representation-repr->ordinal repr))
+    (< (->ordinal x1) (->ordinal x2))]))
+
+(define (mk-<= precision var val)
+  (define repr (get-representation precision))
+  (define (cast x)
+    (match precision
+      ['posit8 `(real->posit8 ,x)] ['posit16 `(real->posit16 ,x)] ['posit32 `(real->posit32 ,x)]
+      ['quire8 `(real->quire8 ,x)] ['quire16 `(real->quire16 ,x)] ['quire32 `(real->quire32 ,x)]
+      [(or 'binary64 'binary32) x]))
+  (define prec-point (cast (repr->fl val repr)))
+  (define <=-operator
+    (match precision
+      [(or 'binary64 'binary32) '<=] 
+      ['posit8 `<=.p8] ['posit16 `<=.p16] ['posit32 `<=.p32]
+      ['quire8 `<=.p8] ['quire16 `<=.q16] ['quire32 `<=.q32]))
+  (list <=-operator var prec-point))

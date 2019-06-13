@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../float.rkt" "../errors.rkt" "types.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt")
 (require "../bigcomplex.rkt" "../biginterval.rkt")
 
 (provide constant? variable? operator? operator-info constant-info parametric-operators
@@ -16,9 +16,6 @@
 (define *unknown-f-ops* (make-parameter '()))
 
 (define *loaded-ops* (make-parameter '()))
-
-(define value? (apply or/c (map value-of types)))
-(define bigvalue? (apply or/c (map bigvalue-of types)))
 
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
