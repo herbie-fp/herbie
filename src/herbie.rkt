@@ -3,18 +3,6 @@
 (require racket/lazy-require racket/runtime-path)
 (require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt")
 
-(define (module-exists? module)
-  (with-handlers ([exn:fail:filesystem:missing-module?
-                   (λ (e) ((error-display-handler) (exn-message e) e) (const false))])
-    (eprintf "Trying to require softposit-rkt\n")
-    (dynamic-require module #f)
-    (eprintf "Required softposit-rkt\n")
-    true))
-
-(define-runtime-path syntax-posits-module "syntax/posits.rkt")
-(when (module-exists? 'softposit-rkt)
-  (dynamic-require (make-resolved-module-path syntax-posits-module) #f))
-
 (lazy-require
  ["web/demo.rkt" (run-demo)]
  ["web/run.rkt" (make-report rerun-report)]
