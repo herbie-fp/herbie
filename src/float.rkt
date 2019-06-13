@@ -155,7 +155,7 @@
       ['fl (if (and (real? x) (exact? x)) (exact->inexact x) x)])]))
 
 (define (fl->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
+  ((representation-exact->repr repr) x))
 
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))

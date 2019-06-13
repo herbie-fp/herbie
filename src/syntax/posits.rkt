@@ -25,7 +25,8 @@
   ordinal->posit8
   posit8->ordinal
   8
-  (list posit8-nar))
+  (list posit8-nar)
+  (compose double->posit8 fl))
 
 (define-representation posit16
   (compose double->posit16 bigfloat->flonum big-posit16-v)
@@ -33,7 +34,8 @@
   ordinal->posit16
   posit16->ordinal
   16
-  (list posit16-nar))
+  (list posit16-nar)
+  (compose double->posit16 fl))
 
 (define-representation posit32
   (compose double->posit32 bigfloat->flonum big-posit32-v)
@@ -41,7 +43,8 @@
   ordinal->posit32
   posit32->ordinal
   32
-  (list posit32-nar))
+  (list posit32-nar)
+  (compose double->posit32 fl))
 
 ;;TODO correct functions for quire (incorrect now for testing)
 (define-representation quire8
@@ -50,7 +53,8 @@
   (compose double->quire8 ordinal->flonum)
   (compose flonum->ordinal quire8->double)
   64
-  null)
+  null
+  (compose double->quire8 fl))
 
 (define-representation quire16
   (compose double->quire16 bigfloat->flonum big-quire16-v)
@@ -58,7 +62,8 @@
   (compose double->quire16 ordinal->flonum)
   (compose flonum->ordinal quire16->double)
   64
-  null)
+  null
+  (compose double->quire16 fl))
 
 (define-representation quire32
   (compose double->quire32 bigfloat->flonum big-quire32-v)
@@ -66,7 +71,8 @@
   (compose double->quire32 ordinal->flonum)
   (compose flonum->ordinal quire32->double)
   64
-  null)
+  null
+  (compose double->quire32 fl))
 
 ;; Defining the operators
 

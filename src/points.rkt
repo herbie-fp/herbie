@@ -14,12 +14,10 @@
 
 (define/contract (sample-multi-bounded ranges)
   (-> (listof interval?) (or/c flonum? single-flonum? #f))
-  (define-values (->ordinal <-ordinal <-exact)
-    (if (flag-set? 'precision 'double)
-        (values flonum->ordinal ordinal->flonum real->double-flonum)
-        (values (representation-repr->ordinal (get-representation 'binary32))
-                (representation-ordinal->repr (get-representation 'binary32))
-                real->single-flonum)))
+  (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (define <-ordinal (representation-ordinal->repr repr))
+  (define <-exact (representation-exact->repr repr))
 
   (define ordinal-ranges
     (for/list ([range ranges])
