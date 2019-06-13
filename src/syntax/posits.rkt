@@ -120,126 +120,126 @@
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi +])
+  [nonffi posit8-add])
 
 (define-operator (+.p16 posit16 posit16) posit16
   [fl posit16-add] [bf big-posit16-add] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi +])
+  [nonffi posit16-add])
 
 (define-operator (+.p32 posit32 posit32) posit32
   [fl posit32-add] [bf big-posit32-add] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi +])
+  [nonffi posit32-add])
 
 (define-operator (neg.p8 posit8) posit8
   [fl posit8-neg] [bf big-posit8-neg] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
-  [nonffi -])
+  [nonffi posit8-neg])
 
 (define-operator (neg.p16 posit16) posit16
   [fl posit16-neg] [bf big-posit16-neg] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
-  [nonffi -])
+  [nonffi posit16-neg])
 
 (define-operator (neg.p32 posit32) posit32
   [fl posit32-neg] [bf big-posit32-neg] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
-  [nonffi -])
+  [nonffi posit32-neg])
 
 (define-operator (-.p8 posit8 posit8) posit8
   [fl posit8-sub] [bf big-posit8-sub] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
-  [nonffi -])
+  [nonffi posit8-sub])
 
 (define-operator (-.p16 posit16 posit16) posit16
   [fl posit16-sub] [bf big-posit16-sub] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
-  [nonffi -])
+  [nonffi posit16-sub])
 
 (define-operator (-.p32 posit32 posit32) posit32
   [fl posit32-sub] [bf big-posit32-sub] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
-  [nonffi -])
+  [nonffi posit32-sub])
 
 (define-operator (*.p8 posit8 posit8) posit8
   [fl posit8-mul] [bf big-posit8-mul] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
-  [nonffi *])
+  [nonffi posit8-mul])
 
 (define-operator (*.p16 posit16 posit16) posit16
   [fl posit16-mul] [bf big-posit16-mul] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
-  [nonffi *])
+  [nonffi posit16-mul])
 
 (define-operator (*.p32 posit32 posit32) posit32
   [fl posit32-mul] [bf big-posit32-mul] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
-  [nonffi *])
+  [nonffi posit32-mul])
 
 (define-operator (/.p8 posit8 posit8) posit8
   [fl posit8-div] [bf big-posit8-div] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi /])
+  [nonffi posit8-div])
 
 (define-operator (/.p16 posit16 posit16) posit16
   [fl posit16-div] [bf big-posit16-div] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi /])
+  [nonffi posit16-div])
 
 (define-operator (/.p32 posit32 posit32) posit32
   [fl posit32-div] [bf big-posit32-div] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
-  [nonffi /])
+  [nonffi posit32-div])
 
 (define-operator (sqrt.p8 posit8) posit8
   [fl posit8-sqrt] [bf big-posit8-sqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi sqrt])
+  [nonffi posit8-sqrt])
 
 (define-operator (sqrt.p16 posit16) posit16
   [fl posit16-sqrt] [bf big-posit16-sqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi sqrt])
+  [nonffi posit16-sqrt])
 
 (define-operator (sqrt.p32 posit32) posit32
   [fl posit32-sqrt] [bf big-posit32-sqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi sqrt])
+  [nonffi posit32-sqrt])
 
 (define-operator (real->posit8 real) posit8
   ; Override number of arguments
