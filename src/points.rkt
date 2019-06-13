@@ -315,7 +315,8 @@
       (define sampler
         (if (set-member? '(binary32 binary64) precision)
             sample
-            (λ () (random-generate (get-representation precision)))))
+            (λ () (for/list ([var (program-variables prog)])
+                    (random-generate (get-representation precision))))))
       (define pts1 (for/list ([n (in-range num)]) (sampler)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition))
       (debug #:from 'points #:depth 4
