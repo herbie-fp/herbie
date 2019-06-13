@@ -78,7 +78,7 @@
 (module+ test
   (check-true (ordinary-value? 2.5))
   (check-false (ordinary-value? +nan.0))
-  (check-false (ordinary-value? -inf.f)))
+  (check-false (ordinary-value? -inf.0)))
 
 (define (=-or-nan? x1 x2)
   (cond
