@@ -20,7 +20,7 @@
 (require (submod "../interface.rkt" internals))
 
 (define-representation posit8
-  (compose double->posit8 bigfloat->flonum)
+  (compose double->posit8 bigfloat->flonum big-posit8-v)
   (compose big-posit8 bf posit8->double)
   ordinal->posit8
   posit8->ordinal
@@ -28,7 +28,7 @@
   (list posit8-nar))
 
 (define-representation posit16
-  (compose double->posit16 bigfloat->flonum)
+  (compose double->posit16 bigfloat->flonum big-posit16-v)
   (compose big-posit16 bf posit16->double)
   ordinal->posit16
   posit16->ordinal
@@ -36,7 +36,7 @@
   (list posit16-nar))
 
 (define-representation posit32
-  (compose double->posit32 bigfloat->flonum)
+  (compose double->posit32 bigfloat->flonum big-posit32-v)
   (compose big-posit32 bf posit32->double)
   ordinal->posit32
   posit32->ordinal
@@ -45,7 +45,7 @@
 
 ;;TODO correct functions for quire (incorrect now for testing)
 (define-representation quire8
-  (compose double->quire8 bigfloat->flonum)
+  (compose double->quire8 bigfloat->flonum big-quire8-v)
   (compose big-quire8 bf quire8->double)
   (compose double->quire8 ordinal->flonum)
   (compose flonum->ordinal quire8->double)
@@ -53,7 +53,7 @@
   null)
 
 (define-representation quire16
-  (compose double->quire16 bigfloat->flonum)
+  (compose double->quire16 bigfloat->flonum big-quire16-v)
   (compose big-quire16 bf quire16->double)
   (compose double->quire16 ordinal->flonum)
   (compose flonum->ordinal quire16->double)
@@ -61,7 +61,7 @@
   null)
 
 (define-representation quire32
-  (compose double->quire32 bigfloat->flonum)
+  (compose double->quire32 bigfloat->flonum big-quire32-v)
   (compose big-quire32 bf quire32->double)
   (compose double->quire32 ordinal->flonum)
   (compose flonum->ordinal quire32->double)
