@@ -9,7 +9,7 @@
 (struct representation
   (name
    bf->repr repr->bf ordinal->repr repr->ordinal
-   real->repr total-bits special-values)
+   exact->repr total-bits special-values)
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
