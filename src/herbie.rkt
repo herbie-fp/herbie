@@ -10,7 +10,6 @@
 
 (define-runtime-path syntax-posits-module "syntax/posits.rkt")
 (when (module-exists? 'softposit-rkt)
-  (eprintf "Loading posits support...\n")
   (dynamic-require (make-resolved-module-path syntax-posits-module) #f))
 
 (lazy-require

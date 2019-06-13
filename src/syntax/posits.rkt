@@ -2,6 +2,8 @@
 (require math/flonum math/bigfloat)
 (require "../common.rkt" "softposit.rkt")
 
+(eprintf "Loading posits support...\n")
+
 ;; Defining the types
 
 (require (submod "types.rkt" internals))
