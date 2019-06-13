@@ -4,8 +4,11 @@
 (require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt")
 
 (define (module-exists? module)
-  (with-handlers ([exn:fail:filesystem:missing-module? (const false)])
+  (with-handlers ([exn:fail:filesystem:missing-module?
+                   (λ (e) ((error-display-handler) (exn-message e) e) (const false))])
+    (eprintf "Trying to require softposit-rkt\n")
     (dynamic-require module #f)
+    (eprintf "Required softposit-rkt\n")
     true))
 
 (define-runtime-path syntax-posits-module "syntax/posits.rkt")
