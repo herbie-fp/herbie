@@ -34,6 +34,7 @@
 (define (type-of expr env)
   ;; Fast version does not recurse into functions applications
   (match expr
+    [(? real?) 'real]
     [(? complex?) 'complex]
     [(? value?) (infer-representation expr)]
     [(? constant?) (constant-info expr 'type)]
