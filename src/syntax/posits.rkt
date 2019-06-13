@@ -247,7 +247,7 @@
   [fl (comparator posit8<)] [bf (comparator big-posit8<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
-  [->tex (curryr string-join " \\lt ")]
+  [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator posit8<)])
 
 (define-operator (<.p16 posit16 posit16) bool
@@ -256,7 +256,7 @@
   [fl (comparator posit16<)] [bf (comparator big-posit16<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
-  [->tex (curryr string-join " \\lt ")]
+  [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator posit16<)])
 
 (define-operator (<.p32 posit32 posit32) bool
@@ -265,7 +265,7 @@
   [fl (comparator posit32<)] [bf (comparator big-posit32<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
-  [->tex (curryr string-join " \\lt ")]
+  [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator posit32<)])
 
 (define-operator (>.p8 posit8 posit8) bool
@@ -274,7 +274,7 @@
   [fl (comparator posit8>)] [bf (comparator big-posit8>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
-  [->tex (curryr string-join " \\gt ")]
+  [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator posit8>)])
 
 (define-operator (>.p16 posit16 posit16) bool
@@ -283,7 +283,7 @@
   [fl (comparator posit16>)] [bf (comparator big-posit16>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
-  [->tex (curryr string-join " \\gt ")]
+  [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator posit16>)])
 
 (define-operator (>.p32 posit32 posit32) bool
@@ -292,7 +292,7 @@
   [fl (comparator posit32>)] [bf (comparator big-posit32>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
-  [->tex (curryr string-join " \\gt ")]
+  [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator posit32>)])
 
 (define-operator (<=.p8 posit8 posit8) bool
@@ -301,7 +301,7 @@
   [fl (comparator posit8<=)] [bf (comparator big-posit8<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
-  [->tex (curryr string-join " \\le ")]
+  [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit8<=)])
 
 (define-operator (<=.p16 posit16 posit16) bool
@@ -310,7 +310,7 @@
   [fl (comparator posit16<=)] [bf (comparator big-posit16<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
-  [->tex (curryr string-join " \\le ")]
+  [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit16<=)])
 
 (define-operator (<=.p32 posit32 posit32) bool
@@ -319,7 +319,7 @@
   [fl (comparator posit32<=)] [bf (comparator big-posit32<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
-  [->tex (curryr string-join " \\le ")]
+  [->tex (infix-joiner " \\le ")]
   [nonffi (comparator posit32<=)])
 
 (define-operator (>=.p8 posit8 posit8) bool
@@ -328,7 +328,7 @@
   [fl (comparator posit8>=)] [bf (comparator big-posit8>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
-  [->tex (curryr string-join " \\ge ")]
+  [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator posit8>=)])
 
 (define-operator (>=.p16 posit16 posit16) bool
@@ -337,7 +337,7 @@
   [fl (comparator posit16>=)] [bf (comparator big-posit16>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
-  [->tex (curryr string-join " \\ge ")]
+  [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator posit16>=)])
 
 (define-operator (>=.p32 posit32 posit32) bool
@@ -346,7 +346,7 @@
   [fl (comparator posit32>=)] [bf (comparator big-posit32>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
-  [->tex (curryr string-join " \\ge ")]
+  [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator posit32>=)])
 
 ;; Rewrite Rules (mostly a copy and paste of the real rules)

@@ -8,7 +8,7 @@
          variary-operators parametric-operators-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
-(module+ internals (provide operators constants define-constant define-operator declare-parametric-operator!))
+(module+ internals (provide operators constants define-constant define-operator declare-parametric-operator! infix-joiner))
 
 (module+ test (require rackunit))
 
@@ -601,13 +601,16 @@
   [->tex (curry format "~a ? ~a : ~a")]
   [nonffi if-fn])
 
+(define ((infix-joiner x) . args)
+  (string-join args x))
+
 (define-operator (== real real) bool
   ; Override number of arguments
   [type #hash((* . (((* real) bool))))] [args '(*)]
   [fl (comparator =)] [bf (comparator bf=)] [cost 65] [ival ival-==]
   [->c/double (curry format "~a == ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) == 0, MPFR_RNDN)")] ; TODO: cannot handle variary =
-  [->tex (curryr string-join " = ")]
+  [->tex (infix-joiner " = ")]
   [nonffi (comparator =)])
 
 (define-operator (complex real real) complex
@@ -648,7 +651,7 @@
   [fl !=-fn] [bf bf!=-fn] [cost 65] [ival ival-!=]
   [->c/double (curry format "~a != ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) != 0, MPFR_RNDN)")] ; TODO: cannot handle variary !=
-  [->tex (curryr string-join " \\ne ")]
+  [->tex (infix-joiner " \\ne ")]
   [nonffi !=-fn])
 
 (define-operator (< real real) bool
@@ -657,7 +660,7 @@
   [fl (comparator <)] [bf (comparator bf<)] [cost 65] [ival ival-<]
   [->c/double (curry format "~a < ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) < 0, MPFR_RNDN)")] ; TODO: cannot handle variary <
-  [->tex (curryr string-join " \\lt ")]
+  [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator <)])
 
 (define-operator (> real real) bool
@@ -666,7 +669,7 @@
   [fl (comparator >)] [bf (comparator bf>)] [cost 65] [ival ival->]
   [->c/double (curry format "~a > ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) > 0, MPFR_RNDN)")] ; TODO: cannot handle variary >
-  [->tex (curryr string-join " \\gt ")]
+  [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator >)])
 
 (define-operator (<= real real) bool
@@ -675,7 +678,7 @@
   [fl (comparator <=)] [bf (comparator bf<=)] [cost 65] [ival ival-<=]
   [->c/double (curry format "~a <= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) <= 0, MPFR_RNDN)")] ; TODO: cannot handle variary <=
-  [->tex (curryr string-join " \\le ")]
+  [->tex (infix-joiner " \\le ")]
   [nonffi (comparator <=)])
 
 (define-operator (>= real real) bool
@@ -684,7 +687,7 @@
   [fl (comparator >=)] [bf (comparator bf>=)] [cost 65] [ival ival->=]
   [->c/double (curry format "~a >= ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_cmp(~a, ~a) >= 0, MPFR_RNDN)")] ; TODO: cannot handle variary >=
-  [->tex (curryr string-join " \\ge ")]
+  [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator >=)])
 
 (define-operator (not bool) bool
@@ -700,7 +703,7 @@
   [fl and-fn] [bf and-fn] [cost 55] [ival ival-and]
   [->c/double (curry format "~a && ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) && mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
-  [->tex (curryr string-join " \\land ")]
+  [->tex (infix-joiner " \\land ")]
   [nonffi and-fn])
 
 (define-operator (or bool bool) bool
@@ -709,7 +712,7 @@
   [fl or-fn] [bf or-fn] [cost 55] [ival ival-or]
   [->c/double (curry format "~a || ~a")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_si(~a, MPFR_RNDN) || mpfr_get_si(~a, MPFR_RNDN), MPFR_RNDN)")]
-  [->tex (curryr string-join " \\lor ")]
+  [->tex (infix-joiner " \\lor ")]
   [nonffi or-fn])
 
 (define (operator? op)

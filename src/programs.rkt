@@ -258,7 +258,7 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (repr->fl expr)]
+        [(? value?) (repr->fl expr (infer-representation expr))]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)

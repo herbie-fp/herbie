@@ -125,9 +125,9 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (table-row (test-name test) status (resugar-program (test-precondition test)) (test-precision test)
-             (test-vars test) (resugar-program (test-input test)) #f (resugar-program (test-output test))
-             #f #f #f #f #f #f #f
-             (test-result-time result) (test-result-bits result) link))
+             (test-vars test) (resugar-program (test-input test)) #f
+             (and (test-output test) (resugar-program (test-output test)))
+             #f #f #f #f #f #f #f (test-result-time result) (test-result-bits result) link))
 
 (define (get-table-data result link)
   (define test (test-result-test result))
