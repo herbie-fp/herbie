@@ -1,8 +1,6 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
@@ -70,6 +68,7 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
+    [(? value?) (infer-representation expr)]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) 'real] ;; TODO: assumes variable types are real
     [(list 'if cond ift iff)
@@ -208,7 +207,7 @@
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
-    (assert (or (number? expr) (symbol? expr)
+    (assert (or (value? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
 		     (andmap enode? (cdr expr)))) #:loc location))
   ;; Checks that the depth is positive.
