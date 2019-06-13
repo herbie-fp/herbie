@@ -219,7 +219,7 @@
 	  (hash-keys (alt-table-alt->points atab))))
 
 (define (atab-min-errors atab)
-  (for/list ([(pt ex) (in-pcontext (*pcontext*))])
+  (for/list ([(pt ex) (alt-table-context atab)])
     (point-rec-berr (dict-ref (alt-table-point->alts atab) pt))))
 
 ;; The completeness invariant states that at any time, for every point there exists some

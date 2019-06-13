@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "float.rkt")
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
@@ -34,8 +34,8 @@
 (define (type-of expr env)
   ;; Fast version does not recurse into functions applications
   (match expr
-    [(? real?) 'real]
     [(? complex?) 'complex]
+    [(? value?) (infer-representation expr)]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)

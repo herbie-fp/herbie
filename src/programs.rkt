@@ -17,7 +17,7 @@
          free-variables replace-expression
          desugar-program resugar-program)
 
-(define expr? (or/c list? symbol? number?))
+(define expr? (or/c list? symbol? value?))
 
 (define location? (listof natural-number/c))
 
