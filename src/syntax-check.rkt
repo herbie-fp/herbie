@@ -69,7 +69,7 @@
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
     (define known-prec?
-      (with-handlers ([exn:fail:contract? (const false)])
+      (with-handlers ([exn:fail? (const false)])
         (get-representation (syntax-e prec))
         true))
     (unless known-prec?
