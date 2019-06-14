@@ -9,6 +9,9 @@
 
 (provide all-pages make-page)
 
+(define (unique-values pts idx)
+  (length (remove-duplicates (map (curryr list-ref idx) pts))))
+
 (define (all-pages result)
   (define test (test-result-test result))
   (define good? (test-success? result))
@@ -19,7 +22,9 @@
       "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
                    #:when good? [type '("" "r" "g" "b")]
-                   #:unless (and (equal? type "g") (not (test-output test))))
+                   #:unless (and (equal? type "g") (not (test-output test)))
+                   ;; Don't generate a plot with only one X value else plotting throws an exception
+                   #:when (> (unique-values (test-success-newpoints result)) 1))
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
