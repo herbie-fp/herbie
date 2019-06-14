@@ -64,24 +64,18 @@
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
-  (define change? #f)
-  (define (run-phase f . args)
-    (define old-cnt (egraph-cnt eg))
-    (apply f args)
-    (define changed? (> (egraph-cnt eg) old-cnt))
-    (set! change? (or changed? change?))
-    changed?)
+  (define initial-cnt (egraph-cnt eg))
   (for ([m (find-matches (egraph-leaders eg) rls)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
-      (run-phase merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
+      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (run-phase set-precompute! eg en))
-  (for ([en (egraph-leaders eg)])
+    (set-precompute! eg en))
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
     (reduce-to-single! eg en))
-  (and change? (< (egraph-cnt eg) (*node-limit*))))
+  (< initial-cnt (egraph-cnt eg) (*node-limit*)))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
