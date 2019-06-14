@@ -161,7 +161,7 @@
   (bigfloat->flonum ((representation-repr->bf repr) x)))
 
 (define/contract (->bf x)
-  (-> value? bigvalue?)
+  (-> any/c bigvalue?)
   (cond
    [(and (symbol? x) (constant? x)) ((constant-info x 'bf))]
    [(and (complex? x) (not (real? x)))
