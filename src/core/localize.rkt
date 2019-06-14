@@ -28,7 +28,7 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define <-bf (representation-bf->repr (get-representation precision)))
+                   (define <-bf (representation-bf->repr (get-representation prec)))
                    (let* ([argvals
                            (flip-lists (map (compose car (curryr localize-on-expression vars cache prec)) args))]
                           [f-exact  (operator-info f 'bf)]
