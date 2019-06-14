@@ -54,7 +54,7 @@
         (make-hash)))
   (define expr->loc (location-hash prog))
 
-  (localize-on-expression (program-body prog) varmap cache proc)
+  (localize-on-expression (program-body prog) varmap cache prec)
 
   (define locs
     (reap [sow]
