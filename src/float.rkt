@@ -26,8 +26,7 @@
            (if (flag-set? 'precision 'double) 'binary64 'binary32)
            type))
        (cond
-        [((car rec) x) (return (cons (get-representation name) 'fl))]
-        [((cdr rec) x) (return (cons (get-representation name) 'bf))]))
+        [((car rec) x) (return (cons (get-representation name) 'fl))]))
      (error "Could not infer big representation for" x)))
 
 (define (infer-double-representation x y)

@@ -97,12 +97,13 @@
     (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
   (if dict log! void))
 
-(define (ival-eval fn pt #:precision [precision 80] #:log [log! void])
+(define (ival-eval fn pt prec #:precision [precision 80] #:log [log! void])
+  (define <-bf (representation-bf->repr (get-representation prec)))
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
           (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (->flonum lo)] [hi* (->flonum hi)])
+          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
             (cond
              [err
               (log! 'nan precision pt)
@@ -127,7 +128,7 @@
     (map (compose sample-multi-bounded (curry range-table-ref range-table))
          (program-variables precondition))))
 
-(define (prepare-points-intervals prog precondition)
+(define (prepare-points-intervals prog precondition precision)
   (timeline-log! 'method 'intervals)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
@@ -144,10 +145,10 @@
 
       (define pre
         (or (equal? precondition 'TRUE)
-            (ival-eval pre-fn pt #:log (point-logger 'pre log pre-prog))))
+            (ival-eval pre-fn pt precision #:log (point-logger 'pre log pre-prog))))
 
       (define ex
-        (and pre (ival-eval body-fn pt #:log (point-logger 'body log prog))))
+        (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
       (cond
        [(and (andmap ordinary-value? pt) pre (ordinary-value? ex))
@@ -167,7 +168,7 @@
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition)
+    (prepare-points-intervals prog precondition precision)
     (prepare-points-halfpoints prog precondition precision)))
 
 #;(define (prepare-points prog precondition precision)
