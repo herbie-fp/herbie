@@ -1,4 +1,5 @@
 #lang racket
+(require math/bigfloat)
 (require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
