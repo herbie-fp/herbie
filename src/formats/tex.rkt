@@ -1,7 +1,5 @@
 #lang racket
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../programs.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
