@@ -1,9 +1,7 @@
 #lang racket
 
 (require net/uri-codec)
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "datafile.rkt")
+(require "../common.rkt" "../programs.rkt" "datafile.rkt" "../syntax/types.rkt")
 
 (provide program->c)
 
