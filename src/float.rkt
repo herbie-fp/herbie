@@ -9,7 +9,8 @@
          exact-value? val-to-type flval
          infer-representation infer-double-representation
          ->flonum ->bf random-generate fl->repr repr->fl
-         <-all-precisions mk-<= special-value?)
+         <-all-precisions mk-<= special-value?
+         get-representation*)
 
 (define (infer-representation x)
   (get-representation
@@ -36,6 +37,9 @@
     (error 'infer-representation "Different representations: ~a for ~a and ~a for ~a"
            repr1 x repr2 y))
   repr1)
+
+(define (get-representation* x)
+  (get-representation (match x ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)] [_ x])))
 
 (define (ulp-difference x y)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))

@@ -34,10 +34,10 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define <-bf (representation-bf->repr (get-representation (type-of expr ctx))))
+                   (define <-bf (representation-bf->repr (get-representation* (type-of expr ctx))))
                    (define arg<-bfs
                      (for/list ([arg args])
-                       (representation-bf->repr (get-representation (type-of arg ctx)))))
+                       (representation-bf->repr (get-representation* (type-of arg ctx)))))
 
                    (define argexacts
                      (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args)))
