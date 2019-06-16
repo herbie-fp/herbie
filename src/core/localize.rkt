@@ -33,7 +33,7 @@
                            (flip-lists (map (compose car (curryr localize-on-expression vars cache prec)) args))]
                           [f-exact  (operator-info f 'bf)]
                           [f-approx (operator-info f 'fl)]
-                          [exact  (<-bf (map (curry apply f-exact) argvals))]
+                          [exact  (map <-bf (map (curry apply f-exact) argvals))]
                           [approx (map (compose (curry apply f-approx) (curry map <-bf)) argvals)]
                           [error
                            (map (λ (ex ap) (+ 1 (abs (ulp-difference ex ap)))) exact approx)])
