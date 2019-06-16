@@ -3,7 +3,7 @@
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
 (require "posits.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt")
+(require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
 
 (define num-test-points 2000)
 
@@ -24,25 +24,26 @@
     [acos-cos-s . (<= 0 x ,pi)]
     [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
-(define (ival-ground-truth fv p)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival) x 'binary64)))
+(define (ival-ground-truth fv p repr)
+  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival) x (representation-name repr))))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (f x)))
 
-(define (<-bf x)
+(define (<-bf repr x)
   (match x
-    [(? bigfloat?) (bigfloat->flonum x)]
+    [(? bigfloat?) ((representation-bf->repr repr) x)]
     [(? boolean?) x]
     [(? bigcomplex?) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x)))]))
 
-(define (bf-ground-truth fv p)
-  (with-hiprec (compose <-bf (eval-prog `(λ ,fv ,p) 'bf))))
+(define (bf-ground-truth fv p repr)
+  (with-hiprec (compose (curry <-bf repr) (eval-prog `(λ ,fv ,p) 'bf))))
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (test-case (~a name)
     (define fv (dict-keys itypes))
+    (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
     (define make-point
       (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
@@ -56,8 +57,8 @@
                   [rname (random-generate (get-representation rname))]))))))
 
     (define points (for/list ([n (in-range num-test-points)]) (make-point)))
-    (define prog1 (ground-truth fv p1))
-    (define prog2 (ground-truth fv p2))
+    (define prog1 (ground-truth fv p1 repr))
+    (define prog2 (ground-truth fv p2 repr))
 
     (define ex1 (map prog1 points))
     (define ex2 (map prog2 points))
