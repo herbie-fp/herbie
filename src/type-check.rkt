@@ -40,7 +40,7 @@
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)
-     (type-of expr ift)]
+     (type-of ift env)]
     [(list op args ...)
      ;; Assumes single return type for any function
      (second (first (first (hash-values (operator-info op 'type)))))]))
