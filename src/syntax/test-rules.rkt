@@ -5,7 +5,7 @@
 (require "posits.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
 
-(define num-test-points 2000)
+(define num-test-points 1000)
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
@@ -30,14 +30,8 @@
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (f x)))
 
-(define (<-bf repr x)
-  (match x
-    [(? bigfloat?) ((representation-bf->repr repr) x)]
-    [(? boolean?) x]
-    [(? bigcomplex?) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x)))]))
-
 (define (bf-ground-truth fv p repr)
-  (with-hiprec (compose (curry <-bf repr) (eval-prog `(λ ,fv ,p) 'bf))))
+  (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf))))
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
@@ -108,6 +102,7 @@
         bf-ground-truth]))
 
     (test-case (~a (rule-name test-rule))
+               (eprintf "~a\n" test-rule)
       (check-rule-correct test-rule ground-truth)))
 
   (for* ([test-ruleset (*rulesets*)]
