@@ -36,7 +36,7 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
-    [(? value?) (infer-representation expr)]
+    [(? value?) (match (representation-name (infer-representation expr)) [(or 'binary32 'binary64) 'real] [x x])]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)
