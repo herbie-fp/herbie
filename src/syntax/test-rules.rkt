@@ -30,8 +30,14 @@
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (f x)))
 
-(define (bf-ground-truth fv p)
-  (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p) 'bf))))
+(define (<-bf x)
+  (match x
+    [(? bigfloat?) (bigfloat->flonum x)]
+    [(? boolean?) x]
+    [(? bigcomplex?) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x)))]))
+
+(define (bf-ground-truth fv p repr)
+  (with-hiprec (compose <-bf (eval-prog `(λ ,fv ,p) 'bf))))
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes) test-rule)
@@ -100,7 +106,7 @@
           (fail-check "Real or boolean rule not supported by intervals"))
         (when (dict-has-key? *conditions* (rule-name test-rule))
           (fail-check "Using bigfloat sampling on a rule with a condition"))
-        bf-ground-truth]))
+        (bf-ground-truth (rule-otype rule))]))
 
     (check-rule-correct test-rule ground-truth))
 
