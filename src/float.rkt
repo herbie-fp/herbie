@@ -21,13 +21,13 @@
 
 (define (infer-big-representation x)
   (let/ec return
-     (for ([(type big?) (in-hash type-dict)] #:unless (equal? type 'complex))
+     (for ([(type rec) (in-hash type-dict)] #:unless (equal? type 'complex))
        (define name
          (if (equal? type 'real)
            (if (flag-set? 'precision 'double) 'binary64 'binary32)
            type))
        (cond
-        [(big? x) (return (cons (get-representation name) 'fl))]))
+        [((car rec) x) (return (cons (get-representation name) 'fl))]))
      (error "Could not infer big representation for" x)))
 
 (define (infer-double-representation x y)

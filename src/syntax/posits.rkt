@@ -8,12 +8,12 @@
 
 (require (submod "types.rkt" internals))
 
-(define-type posit8  bigfloat?)
-(define-type posit16 bigfloat?)
-(define-type posit32 bigfloat?)
-(define-type quire8  bigfloat?)
-(define-type quire16 bigfloat?)
-(define-type quire32 bigfloat?)
+(define-type posit8 posit8? bigfloat?)
+(define-type posit16 posit16? bigfloat?)
+(define-type posit32 posit32? bigfloat?)
+(define-type quire8 quire8? bigfloat?)
+(define-type quire16 quire16? bigfloat?)
+(define-type quire32 quire32? bigfloat?)
 
 ;; Defining the representations
 

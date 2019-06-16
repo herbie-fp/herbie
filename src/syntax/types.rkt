@@ -7,8 +7,8 @@
 (module+ internals (provide define-type))
 
 (define type-dict (make-hash))
-(define-syntax-rule (define-type name bigval?)
-  (hash-set! type-dict 'name bigval?))
+(define-syntax-rule (define-type name val? bigval?)
+  (hash-set! type-dict 'name (cons val? bigval?)))
 
 (define (type? x) (hash-has-key? type-dict x))
 
@@ -18,6 +18,6 @@
 (define (value? x) (for/or ([(type rec) (in-hash type-dict)]) ((car rec) x)))
 (define (bigvalue? x) (for/or ([(type rec) (in-hash type-dict)]) ((cdr rec) x)))
 
-(define-type real bigfloat?)
-(define-type bool boolean?)
-(define-type complex bigcomplex?)
+(define-type real real? bigfloat?)
+(define-type bool boolean? boolean?)
+(define-type complex (conjoin complex? (negate real?)) bigcomplex?)
