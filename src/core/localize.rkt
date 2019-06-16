@@ -14,6 +14,11 @@
 (define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache)
+  (define ctx
+    (for/hash ([(var vals) (in-dict vars)])
+      (values var (match (representation-name (infer-representation (first vals)))
+                    [(or 'binary32 'binary64) 'real]
+                    [x x]))))
   (hash-ref! cache expr
              (λ ()
                 (match expr
@@ -29,7 +34,7 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define <-bf (representation-bf->repr (get-representation (type-of expr))))
+                   (define <-bf (representation-bf->repr (get-representation (type-of expr ctx))))
                    (let* ([argvals
                            (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args))]
                           [f-exact  (operator-info f 'bf)]
@@ -45,7 +50,7 @@
   (*analyze-context* (*pcontext*))
   (hash-clear! *analyze-cache*)))
 
-(define (localize-error prog)
+(define (localize-error prog prec)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
