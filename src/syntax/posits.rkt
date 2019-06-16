@@ -359,7 +359,7 @@
 
 (define-operator (real->posit16 real) posit16
   ; Override number of arguments
-  [fl double->posit16] [bf idenity] [ival #f] [cost 0]
+  [fl double->posit16] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
