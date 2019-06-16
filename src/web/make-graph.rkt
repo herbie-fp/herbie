@@ -24,7 +24,7 @@
                    #:when good? [type '("" "r" "g" "b")]
                    #:unless (and (equal? type "g") (not (test-output test)))
                    ;; Don't generate a plot with only one X value else plotting throws an exception
-                   #:when (> (unique-values (test-success-newpoints result)) 1))
+                   #:when (> (unique-values (test-success-newpoints result) idx) 1))
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
