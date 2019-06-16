@@ -28,6 +28,8 @@
      [(? (curry set-member? vars)) (fix-name expr)]
      [(? number?)
       (format (if (equal? type "float") "~af" "~a") (real->double-flonum expr))]
+     [(? value?)
+      (format "/* ERROR: no support for value ~a in C */" expr)]
      [(? constant?) (constant-info expr '->c/double)]
      [(? symbol?) (~a expr)])) ; intermediate variable
 
