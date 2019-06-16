@@ -106,7 +106,7 @@
           (fail-check "Real or boolean rule not supported by intervals"))
         (when (dict-has-key? *conditions* (rule-name test-rule))
           (fail-check "Using bigfloat sampling on a rule with a condition"))
-        (bf-ground-truth (rule-otype rule))]))
+        (bf-ground-truth (rule-otype test-rule))]))
 
     (check-rule-correct test-rule ground-truth))
 
