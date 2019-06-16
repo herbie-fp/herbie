@@ -32,7 +32,9 @@
 (define (infer-double-representation x y)
   (define repr1 (infer-representation x))
   (define repr2 (infer-representation y))
-  (assert (equal? repr1 repr2))
+  (unless (equal? repr1 repr2)
+    (error 'infer-representation "Different representations: ~a for ~a and ~a for ~a"
+           repr1 x repr2 y))
   repr1)
 
 (define (ulp-difference x y)
