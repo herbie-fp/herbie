@@ -116,143 +116,135 @@
 (declare-parametric-operator! '!= '!=.p32 '(posit32 posit32) 'bool)
 
 (define-operator (+.p8 posit8 posit8) posit8
-  [fl posit8-add] [bf big-posit8-add] [ival #f] [cost 40]
+  [fl posit8-add] [bf bf+] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit8-add])
 
 (define-operator (+.p16 posit16 posit16) posit16
-  [fl posit16-add] [bf big-posit16-add] [ival #f] [cost 40]
+  [fl posit16-add] [bf bf+] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit16-add])
 
 (define-operator (+.p32 posit32 posit32) posit32
-  [fl posit32-add] [bf big-posit32-add] [ival #f] [cost 40]
+  [fl posit32-add] [bf bf+] [ival #f] [cost 40]
   [->c/double (curry format "~a + ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit32-add])
 
 (define-operator (neg.p8 posit8) posit8
-  [fl posit8-neg] [bf big-posit8-neg] [ival #f] [cost 80]
+  [fl posit8-neg] [bf bf-] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
   [nonffi posit8-neg])
 
 (define-operator (neg.p16 posit16) posit16
-  [fl posit16-neg] [bf big-posit16-neg] [ival #f] [cost 80]
+  [fl posit16-neg] [bf bf-] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
   [nonffi posit16-neg])
 
 (define-operator (neg.p32 posit32) posit32
-  [fl posit32-neg] [bf big-posit32-neg] [ival #f] [cost 80]
+  [fl posit32-neg] [bf bf-] [ival #f] [cost 80]
   [->c/double (curry format "-~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "-~a")]
   [nonffi posit32-neg])
 
 (define-operator (-.p8 posit8 posit8) posit8
-  [fl posit8-sub] [bf big-posit8-sub] [ival #f] [cost 80]
+  [fl posit8-sub] [bf bf-] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
   [nonffi posit8-sub])
 
 (define-operator (-.p16 posit16 posit16) posit16
-  [fl posit16-sub] [bf big-posit16-sub] [ival #f] [cost 80]
+  [fl posit16-sub] [bf bf-] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
   [nonffi posit16-sub])
 
 (define-operator (-.p32 posit32 posit32) posit32
-  [fl posit32-sub] [bf big-posit32-sub] [ival #f] [cost 80]
+  [fl posit32-sub] [bf bf-] [ival #f] [cost 80]
   [->c/double (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a - ~a")]
   [nonffi posit32-sub])
 
 (define-operator (*.p8 posit8 posit8) posit8
-  [fl posit8-mul] [bf big-posit8-mul] [ival #f] [cost 320]
+  [fl posit8-mul] [bf bf*] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi posit8-mul])
 
 (define-operator (*.p16 posit16 posit16) posit16
-  [fl posit16-mul] [bf big-posit16-mul] [ival #f] [cost 320]
+  [fl posit16-mul] [bf bf*] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi posit16-mul])
 
 (define-operator (*.p32 posit32 posit32) posit32
-  [fl posit32-mul] [bf big-posit32-mul] [ival #f] [cost 320]
+  [fl posit32-mul] [bf bf*] [ival #f] [cost 320]
   [->c/double (curry format "~a * ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a \\cdot ~a")]
   [nonffi posit32-mul])
 
 (define-operator (/.p8 posit8 posit8) posit8
-  [fl posit8-div] [bf big-posit8-div] [ival #f] [cost 440]
+  [fl posit8-div] [bf bf/] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit8-div])
 
 (define-operator (/.p16 posit16 posit16) posit16
-  [fl posit16-div] [bf big-posit16-div] [ival #f] [cost 440]
+  [fl posit16-div] [bf bf/] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit16-div])
 
 (define-operator (/.p32 posit32 posit32) posit32
-  [fl posit32-div] [bf big-posit32-div] [ival #f] [cost 440]
+  [fl posit32-div] [bf bf/] [ival #f] [cost 440]
   [->c/double (curry format "~a / ~a")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\frac{~a}{~a}")]
   [nonffi posit32-div])
 
 (define-operator (sqrt.p8 posit8) posit8
-  [fl posit8-sqrt] [bf big-posit8-sqrt] [ival #f] [cost 40]
+  [fl posit8-sqrt] [bf bfsqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi posit8-sqrt])
 
 (define-operator (sqrt.p16 posit16) posit16
-  [fl posit16-sqrt] [bf big-posit16-sqrt] [ival #f] [cost 40]
+  [fl posit16-sqrt] [bf bfsqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi posit16-sqrt])
 
 (define-operator (sqrt.p32 posit32) posit32
-  [fl posit32-sqrt] [bf big-posit32-sqrt] [ival #f] [cost 40]
+  [fl posit32-sqrt] [bf bfsqrt] [ival #f] [cost 40]
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\sqrt{~a}")]
   [nonffi posit32-sqrt])
 
-(define-operator (real->posit8 real) posit8
-  ; Override number of arguments
-  [fl double->posit8] [bf bf-double->posit8] [ival #f] [cost 0]
-  [->c/double (const "/* ERROR: no posit support in C */")]
-  [->c/mpfr (const "/* ERROR: no posit support in C */")]
-  [->tex (curry format "~a")]
-  [nonffi double->posit8])
-
 (define-operator (<.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
-  [fl (comparator posit8<)] [bf (comparator big-posit8<)] [ival #f] [cost 65]
+  [fl (comparator posit8<)] [bf (comparator bf<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
@@ -261,7 +253,7 @@
 (define-operator (<.p16 posit16 posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* posit16) bool))))] [args '(*)]
-  [fl (comparator posit16<)] [bf (comparator big-posit16<)] [ival #f] [cost 65]
+  [fl (comparator posit16<)] [bf (comparator bf<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
@@ -270,7 +262,7 @@
 (define-operator (<.p32 posit32 posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* posit32) bool))))] [args '(*)]
-  [fl (comparator posit32<)] [bf (comparator big-posit32<)] [ival #f] [cost 65]
+  [fl (comparator posit32<)] [bf (comparator bf<)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
   [->tex (infix-joiner " \\lt ")]
@@ -279,7 +271,7 @@
 (define-operator (>.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
-  [fl (comparator posit8>)] [bf (comparator big-posit8>)] [ival #f] [cost 65]
+  [fl (comparator posit8>)] [bf (comparator bf>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
@@ -288,7 +280,7 @@
 (define-operator (>.p16 posit16 posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* posit16) bool))))] [args '(*)]
-  [fl (comparator posit16>)] [bf (comparator big-posit16>)] [ival #f] [cost 65]
+  [fl (comparator posit16>)] [bf (comparator bf>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
@@ -297,7 +289,7 @@
 (define-operator (>.p32 posit32 posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* posit32) bool))))] [args '(*)]
-  [fl (comparator posit32>)] [bf (comparator big-posit32>)] [ival #f] [cost 65]
+  [fl (comparator posit32>)] [bf (comparator bf>)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
   [->tex (infix-joiner " \\gt ")]
@@ -306,7 +298,7 @@
 (define-operator (<=.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
-  [fl (comparator posit8<=)] [bf (comparator big-posit8<=)] [ival #f] [cost 65]
+  [fl (comparator posit8<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
@@ -315,7 +307,7 @@
 (define-operator (<=.p16 posit16 posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* posit16) bool))))] [args '(*)]
-  [fl (comparator posit16<=)] [bf (comparator big-posit16<=)] [ival #f] [cost 65]
+  [fl (comparator posit16<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
@@ -324,7 +316,7 @@
 (define-operator (<=.p32 posit32 posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* posit32) bool))))] [args '(*)]
-  [fl (comparator posit32<=)] [bf (comparator big-posit32<=)] [ival #f] [cost 65]
+  [fl (comparator posit32<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
   [->tex (infix-joiner " \\le ")]
@@ -333,7 +325,7 @@
 (define-operator (>=.p8 posit8 posit8) bool
   ; Override number of arguments
   [type #hash((* . (((* posit8) bool))))] [args '(*)]
-  [fl (comparator posit8>=)] [bf (comparator big-posit8>=)] [ival #f] [cost 65]
+  [fl (comparator posit8>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
@@ -342,7 +334,7 @@
 (define-operator (>=.p16 posit16 posit16) bool
   ; Override number of arguments
   [type #hash((* . (((* posit16) bool))))] [args '(*)]
-  [fl (comparator posit16>=)] [bf (comparator big-posit16>=)] [ival #f] [cost 65]
+  [fl (comparator posit16>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
@@ -351,17 +343,23 @@
 (define-operator (>=.p32 posit32 posit32) bool
   ; Override number of arguments
   [type #hash((* . (((* posit32) bool))))] [args '(*)]
-  [fl (comparator posit32>=)] [bf (comparator big-posit32>=)] [ival #f] [cost 65]
+  [fl (comparator posit32>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
   [->c/double (curry format "/* Error: no posit support in C */")]
   [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator posit32>=)])
 
-;; Rewrite Rules (mostly a copy and paste of the real rules)
+(define-operator (real->posit8 real) posit8
+  ; Override number of arguments
+  [fl double->posit8] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit8])
 
 (define-operator (real->posit16 real) posit16
   ; Override number of arguments
-  [fl double->posit16] [bf bf-double->posit16] [ival #f] [cost 0]
+  [fl double->posit16] [bf idenity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -369,7 +367,7 @@
 
 (define-operator (real->posit32 real) posit32
   ; Override number of arguments
-  [fl double->posit32] [bf bf-double->posit32] [ival #f] [cost 0]
+  [fl double->posit32] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -377,7 +375,7 @@
 
 (define-operator (posit8->real posit8) real
   ; Override number of arguments
-  [fl posit8->double] [bf big-posit8->double] [ival #f] [cost 0]
+  [fl posit8->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -385,7 +383,7 @@
 
 (define-operator (posit16->real posit16) real
   ; Override number of arguments
-  [fl posit16->double] [bf big-posit16->double] [ival #f] [cost 0]
+  [fl posit16->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -393,7 +391,7 @@
 
 (define-operator (posit32->real posit32) real
   ; Override number of arguments
-  [fl posit32->double] [bf big-posit32->double] [ival #f] [cost 0]
+  [fl posit32->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/* ERROR: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -401,7 +399,7 @@
 
 (define-operator (real->quire8 real) quire8
   ; Override number of arguments
-  [fl double->quire8] [bf bf-double->quire8] [ival #f] [cost 0]
+  [fl double->quire8] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -409,7 +407,7 @@
 
 (define-operator (real->quire16 real) quire16
   ; Override number of arguments
-  [fl double->quire16] [bf bf-double->quire16] [ival #f] [cost 0]
+  [fl double->quire16] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -417,7 +415,7 @@
 
 (define-operator (real->quire32 real) quire32
   ; Override number of arguments
-  [fl double->quire32] [bf bf-double->quire32] [ival #f] [cost 0]
+  [fl double->quire32] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -425,7 +423,7 @@
 
 (define-operator (quire8->real quire8) real
   ; Override number of arguments
-  [fl quire8->double] [bf bf-quire8->double] [ival #f] [cost 0]
+  [fl quire8->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -433,7 +431,7 @@
 
 (define-operator (quire16->real quire16) real
   ; Override number of arguments
-  [fl quire16->double] [bf bf-quire16->double] [ival #f] [cost 0]
+  [fl quire16->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -441,15 +439,18 @@
 
 (define-operator (quire16->real quire16) real
   ; Override number of arguments
-  [fl quire16->double] [bf bf-quire16->double] [ival #f] [cost 0]
+  [fl quire16->double] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
   [nonffi double->quire32])
 
+(define (bffdp x y z) (bf+ x (bf* y z)))
+(define (bffdm x y z) (bf- x (bf* y z)))
+
 (define-operator (quire8-mul-add quire8 posit8 posit8) quire8
   ; Override number of arguments
-  [fl quire8-fdp-add] [bf bf-quire8-fdp-add] [ival #f] [cost 0]
+  [fl quire8-fdp-add] [bf bffdp] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
@@ -457,7 +458,7 @@
 
 (define-operator (quire16-mul-add quire16 posit16 posit16) quire16
   ; Override number of arguments
-  [fl quire16-fdp-add] [bf bf-quire16-fdp-add] [ival #f] [cost 0]
+  [fl quire16-fdp-add] [bf bffdp] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
@@ -465,7 +466,7 @@
 
 (define-operator (quire32-mul-add quire32 posit32 posit32) quire32
   ; Override number of arguments
-  [fl quire32-fdp-add] [bf bf-quire32-fdp-add] [ival #f] [cost 0]
+  [fl quire32-fdp-add] [bf bffdp] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
@@ -473,7 +474,7 @@
 
 (define-operator (quire8-mul-sub quire8 posit8 posit8) quire8
   ; Override number of arguments
-  [fl quire8-fdp-sub] [bf bf-quire8-fdp-sub] [ival #f] [cost 0]
+  [fl quire8-fdp-sub] [bf bffdm] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
@@ -481,7 +482,7 @@
 
 (define-operator (quire16-mul-sub quire16 posit16 posit16) quire16
   ; Override number of arguments
-  [fl quire16-fdp-sub] [bf bf-quire16-fdp-sub] [ival #f] [cost 0]
+  [fl quire16-fdp-sub] [bf bffdm] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
@@ -489,7 +490,7 @@
 
 (define-operator (quire32-mul-sub quire32 posit32 posit32) quire32
   ; Override number of arguments
-  [fl quire32-fdp-sub] [bf bf-quire32-fdp-sub] [ival #f] [cost 0]
+  [fl quire32-fdp-sub] [bf bffdm] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
@@ -497,7 +498,7 @@
 
 (define-operator (quire8->posit8 quire8) posit8
   ; Override number of arguments
-  [fl quire8->posit8] [bf bf-quire8->posit8] [ival #f] [cost 0]
+  [fl quire8->posit8] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -505,7 +506,7 @@
 
 (define-operator (quire16->posit16 quire16) posit16
   ; Override number of arguments
-  [fl quire16->posit16] [bf bf-quire16->posit16] [ival #f] [cost 0]
+  [fl quire16->posit16] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -513,7 +514,7 @@
 
 (define-operator (quire32->posit32 quire32) posit32
   ; Override number of arguments
-  [fl quire32->posit32] [bf bf-quire32->posit32] [ival #f] [cost 0]
+  [fl quire32->posit32] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -521,7 +522,7 @@
 
 (define-operator (posit8->quire8 posit8) quire8
   ; Override number of arguments
-  [fl posit8->quire8] [bf big-posit8->quire8] [ival #f] [cost 0]
+  [fl posit8->quire8] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -529,7 +530,7 @@
 
 (define-operator (posit16->quire16 posit16) quire16
   ; Override number of arguments
-  [fl posit16->quire16] [bf big-posit16->quire16] [ival #f] [cost 0]
+  [fl posit16->quire16] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
@@ -537,7 +538,7 @@
 
 (define-operator (posit32->quire32 posit32) quire32
   ; Override number of arguments
-  [fl posit32->quire32] [bf big-posit32->quire32] [ival #f] [cost 0]
+  [fl posit32->quire32] [bf identity] [ival #f] [cost 0]
   [->c/double (const "/*Error: no posit support in C */")]
   [->c/mpfr (const "/* ERROR: no posit support in C */")]
   [->tex (curry format "~a")]
