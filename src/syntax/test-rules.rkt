@@ -40,7 +40,7 @@
   (with-hiprec (compose <-bf (eval-prog `(λ ,fv ,p) 'bf))))
 
 (define (check-rule-correct test-rule ground-truth)
-  (match-define (rule name p1 p2 itypes) test-rule)
+  (match-define (rule name p1 p2 itypes otype) test-rule)
   (test-case (~a name)
     (define fv (dict-keys itypes))
 
@@ -72,7 +72,7 @@
 
 (define (check-rule-fp-safe test-rule)
   (test-case (~a (rule-name test-rule))
-    (match-define (rule name p1 p2 _) test-rule)
+    (match-define (rule name p1 p2 _ _) test-rule)
     (define fv (free-variables p1))
     (define (make-point)
       (for/list ([v fv])

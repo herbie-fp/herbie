@@ -2,14 +2,12 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt")
-(require "syntax.rkt")
-(require "../float.rkt")
+(require "../common.rkt" "syntax.rkt" "../float.rkt" "../type-check.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
 
-(struct rule (name input output itypes) ; Input and output are patterns
+(struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (fprintf port "#<rule ~a>" (rule-name rule)))])
@@ -40,7 +38,8 @@
      (define-ruleset name groups #:type () [rname input output] ...)]
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
-     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)) ...))
+     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)
+                                     (type-of 'input '((var . type) ...))) ...))
             (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
