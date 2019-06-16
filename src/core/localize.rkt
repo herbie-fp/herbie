@@ -35,12 +35,13 @@
                            (repeat 1)))]
                   [`(,f ,args ...)
                    (define <-bf (representation-bf->repr (get-representation (type-of expr ctx))))
+                   (define sub<-bf (map (compose representation-bf->repr get-representation (curryr type-of ctx)) args))
                    (let* ([argvals
                            (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args))]
                           [f-exact  (operator-info f 'bf)]
                           [f-approx (operator-info f 'fl)]
                           [exact  (map (curry apply f-exact) argvals)]
-                          [approx (map (compose (curry apply f-approx) (curry map <-bf)) argvals)]
+                          [approx (map (compose (curry apply f-approx) (curry map (λ (f x) (f x)) sub<-bf)) argvals)]
                           [error
                            (map (λ (ex ap) (+ 1 (abs (ulp-difference (<-bf ex) ap)))) exact approx)])
                      (cons exact error))]))))
