@@ -36,7 +36,7 @@
     [(? boolean?) x]
     [(? bigcomplex?) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x)))]))
 
-(define (bf-ground-truth fv p repr)
+(define (bf-ground-truth fv p)
   (with-hiprec (compose <-bf (eval-prog `(λ ,fv ,p) 'bf))))
 
 (define (check-rule-correct test-rule ground-truth)
@@ -106,7 +106,7 @@
           (fail-check "Real or boolean rule not supported by intervals"))
         (when (dict-has-key? *conditions* (rule-name test-rule))
           (fail-check "Using bigfloat sampling on a rule with a condition"))
-        (bf-ground-truth (rule-otype test-rule))]))
+        bf-ground-truth]))
 
     (check-rule-correct test-rule ground-truth))
 
