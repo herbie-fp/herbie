@@ -66,3 +66,12 @@
   32
   '(+nan.f +inf.f -inf.f)
   real->single-flonum)
+
+(define-representation complex64
+  (λ (x) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x))))
+  (λ (x) (bigcomplex (bf (real-part x)) (bf (imag-part x))))
+  (λ (x) (make-rectangular (ordinal->flonum (quotient x (expt 2 64))) (ordinal->flonum (modulo x (expt 2 64)))))
+  (λ (x) (+ (* (expt 2 64) (flonum->ordinal (real-part x))) (flonum->ordinal (imag-part x))))
+  128
+  '(+nan.0 +inf.0)
+  real->double-flonum)

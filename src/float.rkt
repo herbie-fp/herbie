@@ -39,7 +39,9 @@
   repr1)
 
 (define (get-representation* x)
-  (get-representation (match x ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)] [_ x])))
+  (match x
+    ['real (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32))]
+    [x (get-representation x)]))
 
 (define (ulp-difference x y)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
