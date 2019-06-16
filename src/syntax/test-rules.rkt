@@ -41,55 +41,53 @@
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
-  (test-case (~a name)
-    (define fv (dict-keys itypes))
-    (define repr (get-representation (match otype ['real 'binary64] [x x])))
+  (define fv (dict-keys itypes))
+  (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
-    (define make-point
-      (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
-        (λ ()
-          (if (dict-has-key? *conditions* name)
-              (sample)
-              (for/list ([v fv] [i (in-naturals)])
-                (match (dict-ref (rule-itypes test-rule) v)
-                  ['real (sample-double)]
-                  ['complex (make-rectangular (sample-double) (sample-double))]
-                  [rname (random-generate (get-representation rname))]))))))
+  (define make-point
+    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
+      (λ ()
+        (if (dict-has-key? *conditions* name)
+            (sample)
+            (for/list ([v fv] [i (in-naturals)])
+              (match (dict-ref (rule-itypes test-rule) v)
+                ['real (sample-double)]
+                ['complex (make-rectangular (sample-double) (sample-double))]
+                [rname (random-generate (get-representation rname))]))))))
 
-    (define points (for/list ([n (in-range num-test-points)]) (make-point)))
-    (define prog1 (ground-truth fv p1 repr))
-    (define prog2 (ground-truth fv p2 repr))
+  (define points (for/list ([n (in-range num-test-points)]) (make-point)))
+  (define prog1 (ground-truth fv p1 repr))
+  (define prog2 (ground-truth fv p2 repr))
 
-    (define ex1 (map prog1 points))
-    (define ex2 (map prog2 points))
-    (define errs
-      (for/list ([pt points] [v1 ex1] [v2 ex2]
-                 #:when (and (ordinary-value? v1) (ordinary-value? v2)))
-        (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
-                          ['input v1] ['output v2])
-          (check-eq? (ulp-difference v1 v2) 0))))
-    (when (< (length errs) 100)
-      (fail-check "Not enough points sampled to test rule"))))
+  (define ex1 (map prog1 points))
+  (define ex2 (map prog2 points))
+  (define errs
+    (for/list ([pt points] [v1 ex1] [v2 ex2]
+               #:when (and (ordinary-value? v1) (ordinary-value? v2)))
+      (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
+                        ['input v1] ['output v2])
+        (check-eq? (ulp-difference v1 v2) 0))))
+  (when (< (length errs) 100)
+    (fail-check "Not enough points sampled to test rule")))
 
 (define (check-rule-fp-safe test-rule)
-  (test-case (~a (rule-name test-rule))
-    (match-define (rule name p1 p2 _ _) test-rule)
-    (define fv (free-variables p1))
-    (define (make-point)
-      (for/list ([v fv])
-        (match (dict-ref (rule-itypes test-rule) v)
-          ['real (sample-double)]
-          ['bool (if (< (random) .5) false true)]
-          ['complex (make-rectangular (sample-double) (sample-double))])))
-    (define point-sequence (in-producer make-point))
-    (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-    (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-    (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-    (define ex1 (map prog1 points))
-    (define ex2 (map prog2 points))
-    (for ([pt points] [v1 ex1] [v2 ex2])
-      (with-check-info (['point (map list fv pt)])
-        (check-equal? v1 v2)))))
+  (match-define (rule name p1 p2 _ _) test-rule)
+  (define fv (free-variables p1))
+  (define (make-point)
+    (for/list ([v fv])
+      (match (dict-ref (rule-itypes test-rule) v)
+        ['real (sample-double)]
+        ['bool (if (< (random) .5) false true)]
+        ['complex (make-rectangular (sample-double) (sample-double))])))
+  (define point-sequence (in-producer make-point))
+  (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+  (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
+  (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+  (define ex1 (map prog1 points))
+  (define ex2 (map prog2 points))
+  (for ([pt points] [v1 ex1] [v2 ex2])
+    (with-check-info (['point (map list fv pt)])
+      (check-equal? v1 v2))))
 
 (module+ test
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)]
@@ -109,9 +107,11 @@
           (fail-check "Using bigfloat sampling on a rule with a condition"))
         bf-ground-truth]))
 
-    (check-rule-correct test-rule ground-truth))
+    (test-case (~a (rule-name test-rule))
+      (check-rule-correct test-rule ground-truth)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (check-rule-fp-safe test-rule)))
+    (test-case (~a (rule-name test-rule))
+      (check-rule-fp-safe test-rule))))
