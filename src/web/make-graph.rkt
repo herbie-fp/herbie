@@ -154,7 +154,7 @@
     [(or (real? (caar pts)) (complex? (caar pts))) pts]
     [else
      (define repr (infer-representation (caar pts)))
-     (map (curry map (curry repr->fl repr)) pts)]))
+     (map (curry map (curryr repr->fl repr)) pts)]))
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
