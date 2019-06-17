@@ -220,7 +220,6 @@
 
     (define locs-list
       (for/list ([child (^children^)] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
         ;; We want to avoid simplifying if possible, so we only
         ;; simplify things produced by function calls in the rule
         ;; pattern. This means no simplification if the rule output as
