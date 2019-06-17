@@ -85,14 +85,14 @@
      (format "  :name ~s" (test-name test))
      (if (equal? (test-precondition test) 'TRUE)
          #f
-         (format "  :pre ~a" (test-precondition test)))
+         (format "  :pre ~a" (resugar-program (test-precondition test))))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
-         (format "\n  :herbie-target\n  ~a\n" (test-output test)) ; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test))) ; Extra newlines for clarity
          #f)
-     (format "  ~a)" (test-input test))))
+     (format "  ~a)" (resugar-program (test-input test)))))
    "\n"))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
