@@ -7,11 +7,6 @@
  (let ([s (/ (+ (+ a b) c) 2)])
    (sqrt (* s (- s a) (- s b) (- s c)))))
 
-(FPCore (lo hi x)
-  :pre (and (< lo -1e308) (> hi 1e308))
- :precision posit16
-  (/ (- x lo) (- hi lo)))
-
 (FPCore (a b c)
  :name "quadp (p42, positive)"
  :precision posit16
