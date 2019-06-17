@@ -19,6 +19,6 @@
       (dynamic-require value #f))))
 
 ;; Legacy code to load softposit file (should be moved to softposit-rkt package)
-(define-runtime-path posits-module "softposit.rkt")
+(define-runtime-path posits-module "syntax/softposit.rkt")
 (when (module-exists? 'softposit-rkt)
   (dynamic-require (make-resolved-module-path posits-module) #f))
