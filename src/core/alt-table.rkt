@@ -114,17 +114,17 @@
 
 (struct point-rec (berr altns) #:prefab)
 
-(define (best-and-tied-at-points point->alt altn errs)
-  (let-values ([(best tied)
-		(for/lists (best tied) ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
-		  (let* ([pnt-rec (hash-ref point->alt pnt)]
-			 [table-err (point-rec-berr pnt-rec)])
-		    (cond [(< err table-err)
-			   (values pnt #f)]
-			  [(= err table-err)
-			   (values #f pnt)]
-			  [else (values #f #f)])))])
-    (list (filter identity best) (filter identity tied))))
+(define (best-and-tied-at-points atab altn errs)
+  (define point->alt (alt-table-point->alts atab))
+  (for/fold ([best '()] [tied '()])
+      ([(pnt ex) (in-pcontext (alt-table-context atab))] [err errs])
+    (define table-err (point-rec-berr (hash-ref point->alt pnt)))
+    (cond 
+     [(< err table-err)
+      (values (cons pnt best) tied)]
+     [(= err table-err)
+      (values best (cons pnt tied))]
+     [else (values best tied)])))
 
 (define (remove-chnged-pnts point->alts alt->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref point->alts) chnged-pnts)]
@@ -202,7 +202,7 @@
 (define (atab-add-altn atab altn)
   (define errs (errors (alt-program altn) (alt-table-context atab)))
   (match-define (alt-table point->alts alt->points _ _) atab)
-  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn errs))
+  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
    [(and (null? best-pnts) (null? tied-pnts))
     atab]
