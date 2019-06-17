@@ -48,7 +48,7 @@
                  [alt->done? old-done])))
 
 (define (atab-add-altns atab altns)
-  (define prog-set (map alt-program (dict-keys (alt-table-alt->points atab))))
+  (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
   (define altns*
     (filter
      (negate (compose (curry set-member? prog-set) alt-program))
@@ -202,7 +202,7 @@
 (define (atab-add-altn atab altn)
   (define errs (errors (alt-program altn) (alt-table-context atab)))
   (match-define (alt-table point->alts alt->points _ _) atab)
-  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
+  (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
    [(and (null? best-pnts) (null? tied-pnts))
     atab]
@@ -220,7 +220,7 @@
 
 (define (atab-min-errors atab)
   (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
-    (point-rec-berr (dict-ref (alt-table-point->alts atab) pt))))
+    (point-rec-berr (hash-ref (alt-table-point->alts atab) pt))))
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.
