@@ -1,5 +1,8 @@
 #lang racket
 (require racket/lazy-require racket/runtime-path setup/getinfo)
+(require (submod "syntax/types.rkt" internal) (submod "interface.rkt" internal)
+         (submod "syntax/rules.rkt" internal) (submod "syntax/syntax.rkt" internal))
+(provide define-type define-representation declare-parametric-operator define-operator define-ruleset)
 
 (define (module-exists? module)
   (with-handlers ([exn:fail:filesystem:missing-module? (const false)])
@@ -14,9 +17,6 @@
     (define value (info 'herbie-plugin (const false)))
     (when (and value (module-exists? value))
       (dynamic-require value #f))))
-
-;; Load all the plugins
-(load-herbie-plugins)
 
 ;; Legacy code to load softposit file (should be moved to softposit-rkt package)
 (define-runtime-path posits-module "softposit.rkt")
