@@ -1,7 +1,7 @@
 #lang racket
 (require racket/lazy-require racket/runtime-path setup/getinfo)
-(require (submod "syntax/types.rkt" internal) (submod "interface.rkt" internal)
-         (submod "syntax/rules.rkt" internal) (submod "syntax/syntax.rkt" internal))
+(require (submod "syntax/types.rkt" internals) (submod "interface.rkt" internals)
+         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide define-type define-representation declare-parametric-operator define-operator define-ruleset)
 
 (define (module-exists? module)
