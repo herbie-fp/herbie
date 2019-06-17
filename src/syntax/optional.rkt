@@ -6,6 +6,6 @@
     (dynamic-require module #f)
     true))
 
-(define-runtime-path posits-module "posits.rkt")
+(define-runtime-path posits-module "softposit.rkt")
 (when (module-exists? 'softposit-rkt)
   (dynamic-require (make-resolved-module-path posits-module) #f))

@@ -2,7 +2,7 @@
 
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
-(require "posits.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
+(require "softposit.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
 
 (define num-test-points 1000)
@@ -102,7 +102,6 @@
         bf-ground-truth]))
 
     (test-case (~a (rule-name test-rule))
-               (eprintf "~a\n" test-rule)
       (check-rule-correct test-rule ground-truth)))
 
   (for* ([test-ruleset (*rulesets*)]

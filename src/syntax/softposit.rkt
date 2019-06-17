@@ -1,6 +1,11 @@
 #lang racket
 
-(require math/bigfloat racket/lazy-require)
+(require math/flonum math/bigfloat racket/lazy-require)
+(require "../common.rkt")
+
+(eprintf "Loading posits support...\n")
+
+;; `lazy-require` so tests can run without softposit-rkt installed
 (lazy-require [softposit-rkt (_posit8 _posit16 _posit32 _posit64 _posit128
          posit8? posit16? posit32? posit64? posit128?
          _quire8 _quire16 _quire32
@@ -42,150 +47,657 @@
          posit8->ordinal posit16->ordinal posit32->ordinal
          ordinal->posit8 ordinal->posit16 ordinal->posit32)])
 
-(provide (all-defined-out)
-         _posit8 _posit16 _posit32 _posit64 _posit128
-         posit8? posit16? posit32? posit64? posit128?
-         _quire8 _quire16 _quire32
-         quire8? quire16? quire32?
-         random-posit8 random-posit16 random-posit32 random-posit64 random-posit128
-         random-quire8 random-quire16 random-quire32
-         posit8-nar posit16-nar posit32-nar posit64-nar posit128-nar
-         uint32->posit8 uint32->posit16 uint32->posit32
-         uint64->posit8 uint64->posit16 uint64->posit32
-         int32->posit8 int32->posit16 int32->posit32
-         int64->posit8 int64->posit16 int64->posit32
-         posit8->uint32 posit8->uint64 posit8->int32 posit8->int64
-         posit8->posit16 posit8->posit32
-         posit8-round-to-int posit8-add posit8-sub posit8-mul
-         posit8-mulAdd posit8-div posit8-sqrt posit8-neg
-         posit8= posit8<= posit8< posit8>= posit8>
-         create-quire8 create-quire16 create-quire32
-         quire8-fdp-add quire8-fdp-sub quire8->posit8
-         posit8->double double->posit8
-         posit16->uint32 posit16->uint64 posit16->int32 posit16->int64
-         posit16->posit8 posit16->posit32
-         posit16-round-to-int posit16-add posit16-sub posit16-mul
-         posit16-mulAdd posit16-div posit16-sqrt posit16-neg
-         posit16= posit16<= posit16< posit16>= posit16>
-         quire16-fdp-add quire16-fdp-sub quire16->posit16
-         quire16-twos-complement
-         posit16->double float->posit16 double->posit16
-         posit32->uint32 posit32->uint64 posit32->int32 posit32->int64
-         posit32->posit8 posit32->posit16
-         posit32-round-to-int posit32-add posit32-sub posit32-mul
-         posit32-mulAdd posit32-div posit32-sqrt posit32-neg
-         posit32= posit32<= posit32< posit32>= posit32>
-         quire32-fdp-add quire32-fdp-sub quire32->posit32
-         quire32-twos-complement
-         posit32->double float->posit32 double->posit32
-         posit8->quire8 posit16->quire16 posit32->quire32
-         double->quire8 double->quire16 double->quire32
-         quire8->double quire16->double quire32->double
-         posit8->ordinal posit16->ordinal posit32->ordinal
-         ordinal->posit8 ordinal->posit16 ordinal->posit32
-         p8s-between p16s-between p32s-between)
+;; Defining the types
 
-(struct big-posit8 (v))
-(struct big-posit16 (v))
-(struct big-posit32 (v))
+(require (submod "types.rkt" internals))
 
-(define (bf-double->posit8 x) (big-posit8 x))
-(define (big-posit8->double x) (big-posit8-v x))
-(define (big-posit8-add x y) (big-posit8 (bf+ (big-posit8-v x) (big-posit8-v y))))
-(define (big-posit8-sub x y) (big-posit8 (bf- (big-posit8-v x) (big-posit8-v y))))
-(define (big-posit8-mul x y) (big-posit8 (bf* (big-posit8-v x) (big-posit8-v y))))
-(define (big-posit8-div x y) (big-posit8 (bf/ (big-posit8-v x) (big-posit8-v y))))
-(define (big-posit8-sqrt x) (big-posit8 (bfsqrt (big-posit8-v x))))
-(define (big-posit8-neg x) (big-posit8 (bf- (bf 0) (big-posit8-v x))))
-(define (big-posit8< x y) (bf< (big-posit8-v x) (big-posit8-v y)))
-(define (big-posit8<= x y) (bf<= (big-posit8-v x) (big-posit8-v y)))
-(define (big-posit8> x y) (bf> (big-posit8-v x) (big-posit8-v y)))
-(define (big-posit8>= x y) (bf>= (big-posit8-v x) (big-posit8-v y)))
-(define (big-posit8= x y) (bf= (big-posit8-v x) (big-posit8-v y)))
+(define-type posit8 posit8? bigfloat?)
+(define-type posit16 posit16? bigfloat?)
+(define-type posit32 posit32? bigfloat?)
+(define-type quire8 quire8? bigfloat?)
+(define-type quire16 quire16? bigfloat?)
+(define-type quire32 quire32? bigfloat?)
 
-(define (bf-double->posit16 x) (big-posit16 x))
-(define (big-posit16->double x) (big-posit16-v x))
-(define (big-posit16-add x y) (big-posit16 (bf+ (big-posit16-v x) (big-posit16-v y))))
-(define (big-posit16-sub x y) (big-posit16 (bf- (big-posit16-v x) (big-posit16-v y))))
-(define (big-posit16-mul x y) (big-posit16 (bf* (big-posit16-v x) (big-posit16-v y))))
-(define (big-posit16-div x y) (big-posit16 (bf/ (big-posit16-v x) (big-posit16-v y))))
-(define (big-posit16-sqrt x) (big-posit16 (bfsqrt (big-posit16-v x))))
-(define (big-posit16-neg x) (big-posit16 (bf- (bf 0) (big-posit16-v x))))
-(define (big-posit16< x y) (bf< (big-posit16-v x) (big-posit16-v y)))
-(define (big-posit16<= x y) (bf<= (big-posit16-v x) (big-posit16-v y)))
-(define (big-posit16> x y) (bf> (big-posit16-v x) (big-posit16-v y)))
-(define (big-posit16>= x y) (bf>= (big-posit16-v x) (big-posit16-v y)))
-(define (big-posit16= x y) (bf= (big-posit16-v x) (big-posit16-v y)))
+;; Defining the representations
 
-(define (bf-double->posit32 x) (big-posit32 x))
-(define (big-posit32->double x) (big-posit32-v x))
-(define (big-posit32-add x y) (big-posit32 (bf+ (big-posit32-v x) (big-posit32-v y))))
-(define (big-posit32-sub x y) (big-posit32 (bf- (big-posit32-v x) (big-posit32-v y))))
-(define (big-posit32-mul x y) (big-posit32 (bf* (big-posit32-v x) (big-posit32-v y))))
-(define (big-posit32-div x y) (big-posit32 (bf/ (big-posit32-v x) (big-posit32-v y))))
-(define (big-posit32-sqrt x) (big-posit32 (bfsqrt (big-posit32-v x))))
-(define (big-posit32-neg x) (big-posit32 (bf- (bf 0) (big-posit32-v x))))
-(define (big-posit32< x y) (bf< (big-posit32-v x) (big-posit32-v y)))
-(define (big-posit32<= x y) (bf<= (big-posit32-v x) (big-posit32-v y)))
-(define (big-posit32> x y) (bf> (big-posit32-v x) (big-posit32-v y)))
-(define (big-posit32>= x y) (bf>= (big-posit32-v x) (big-posit32-v y)))
-(define (big-posit32= x y) (bf= (big-posit32-v x) (big-posit32-v y)))
+(require (submod "../interface.rkt" internals))
 
-(struct big-quire8 (v))
-(struct big-quire16 (v))
-(struct big-quire32 (v))
+(define-representation posit8
+  (compose double->posit8 bigfloat->flonum)
+  (compose bf posit8->double)
+  ordinal->posit8
+  posit8->ordinal
+  8
+  (list posit8-nar)
+  (compose double->posit8 fl))
 
-(define (bf-quire8->double x) (big-quire8-v x))
-(define (bf-quire16->double x) (big-quire16-v x))
-(define (bf-quire32->double x) (big-quire32-v x))
+(define-representation posit16
+  (compose double->posit16 bigfloat->flonum)
+  (compose bf posit16->double)
+  ordinal->posit16
+  posit16->ordinal
+  16
+  (list posit16-nar)
+  (compose double->posit16 fl))
 
-(define (bf-double->quire8 x) (big-quire8 x))
-(define (bf-double->quire16 x) (big-quire16 x))
-(define (bf-double->quire32 x) (big-quire32 x))
+(define-representation posit32
+  (compose double->posit32 bigfloat->flonum)
+  (compose bf posit32->double)
+  ordinal->posit32
+  posit32->ordinal
+  32
+  (list posit32-nar)
+  (compose double->posit32 fl))
 
-(define (bf-quire8->posit8 x) (big-posit8 (big-quire8-v x)))
-(define (bf-quire16->posit16 x) (big-posit16 (big-quire16-v x)))
-(define (bf-quire32->posit32 x) (big-posit32 (big-quire32-v x)))
+;;TODO correct functions for quire (incorrect now for testing)
+(define-representation quire8
+  (compose double->quire8 bigfloat->flonum)
+  (compose bf quire8->double)
+  (compose double->quire8 ordinal->flonum)
+  (compose flonum->ordinal quire8->double)
+  64
+  null
+  (compose double->quire8 fl))
 
-(define (big-posit8->quire8 x) (big-quire8 (big-posit8-v x)))
-(define (big-posit16->quire16 x) (big-quire16 (big-posit16-v x)))
-(define (big-posit32->quire32 x) (big-quire32 (big-posit32-v x)))
+(define-representation quire16
+  (compose double->quire16 bigfloat->flonum)
+  (compose bf quire16->double)
+  (compose double->quire16 ordinal->flonum)
+  (compose flonum->ordinal quire16->double)
+  64
+  null
+  (compose double->quire16 fl))
 
-(define (bf-quire8-fdp-add x y z) (big-quire8
-                                     (bf+ (big-quire8-v x)
-                                          (bf* (big-posit8-v y) (big-posit8-v z)))))
-(define (bf-quire8-fdp-sub x y z) (big-quire8
-                                     (bf- (big-quire8-v x)
-                                          (bf* (big-posit8-v y) (big-posit8-v z)))))
+(define-representation quire32
+  (compose double->quire32 bigfloat->flonum)
+  (compose bf quire32->double)
+  (compose double->quire32 ordinal->flonum)
+  (compose flonum->ordinal quire32->double)
+  64
+  null
+  (compose double->quire32 fl))
 
-(define (bf-quire16-fdp-add x y z) (big-quire16
-                                     (bf+ (big-quire16-v x)
-                                          (bf* (big-posit16-v y) (big-posit16-v z)))))
-(define (bf-quire16-fdp-sub x y z) (big-quire16
-                                     (bf- (big-quire16-v x)
-                                          (bf* (big-posit16-v y) (big-posit16-v z)))))
+;; Defining the operators
 
-(define (bf-quire32-fdp-add x y z) (big-quire32
-                                     (bf+ (big-quire32-v x)
-                                          (bf* (big-posit32-v y) (big-posit32-v z)))))
-(define (bf-quire32-fdp-sub x y z) (big-quire32
-                                     (bf- (big-quire32-v x)
-                                          (bf* (big-posit32-v y) (big-posit32-v z)))))
+(require (submod "syntax.rkt" internals))
 
-(define (p8s-between p1 p2)
-  (if (or (posit8= p1 (posit8-nar))
-          (posit8= p2 (posit8-nar)))
-    (expt 2 8)
-  (abs (- (posit8->ordinal p1) (posit8->ordinal p2)))))
+(declare-parametric-operator! '+ '+.p8 '(posit8 posit8) 'posit8)
+(declare-parametric-operator! '+ '+.p16 '(posit16 posit16) 'posit16)
+(declare-parametric-operator! '+ '+.p32 '(posit16 posit32) 'posit32)
+(declare-parametric-operator! '- '-.p8 '(posit8 posit8) 'posit8)
+(declare-parametric-operator! '- '-.p16 '(posit16 posit16) 'posit16)
+(declare-parametric-operator! '- '-.p32 '(posit16 posit32) 'posit32)
+(declare-parametric-operator! '- 'neg.p8 '(posit8) 'posit8)
+(declare-parametric-operator! '- 'neg.p16 '(posit16) 'posit16)
+(declare-parametric-operator! '- 'neg.p32 '(posit32) 'posit32)
+(declare-parametric-operator! '* '*.p8 '(posit8 posit8) 'posit8)
+(declare-parametric-operator! '* '*.p16 '(posit16 posit16) 'posit16)
+(declare-parametric-operator! '* '*.p32 '(posit16 posit32) 'posit32)
+(declare-parametric-operator! '/ '/.p8 '(posit8 posit8) 'posit8)
+(declare-parametric-operator! '/ '/.p16 '(posit16 posit16) 'posit16)
+(declare-parametric-operator! '/ '/.p32 '(posit16 posit32) 'posit32)
+(declare-parametric-operator! 'sqrt 'sqrt.p8 '(posit8) 'posit8)
+(declare-parametric-operator! 'sqrt 'sqrt.p16 '(posit16) 'posit16)
+(declare-parametric-operator! 'sqrt 'sqrt.p32 '(posit32) 'posit32)
+(declare-parametric-operator! '< '<.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '< '<.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '< '<.p32 '(posit32 posit32) 'bool)
+(declare-parametric-operator! '<= '<=.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '<= '<=.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '<= '<=.p32 '(posit32 posit32) 'bool)
+(declare-parametric-operator! '> '>.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '> '>.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '> '>.p32 '(posit32 posit32) 'bool)
+(declare-parametric-operator! '>= '>=.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '>= '>=.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '>= '>=.p32 '(posit32 posit32) 'bool)
+(declare-parametric-operator! '== '==.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '== '==.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '== '==.p32 '(posit32 posit32) 'bool)
+(declare-parametric-operator! '!= '!=.p8 '(posit8 posit8) 'bool)
+(declare-parametric-operator! '!= '!=.p16 '(posit16 posit16) 'bool)
+(declare-parametric-operator! '!= '!=.p32 '(posit32 posit32) 'bool)
 
-(define (p16s-between p1 p2)
-  (if (or (posit16= p1 (posit16-nar))
-          (posit16= p2 (posit16-nar)))
-    (expt 2 16)
-  (abs (- (posit16->ordinal p1) (posit16->ordinal p2)))))
+(define-operator (+.p8 posit8 posit8) posit8
+  [fl posit8-add] [bf bf+] [ival #f] [cost 40]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a + ~a")]
+  [nonffi posit8-add])
 
-(define (p32s-between p1 p2)
-  (if (or (posit32= p1 (posit32-nar))
-          (posit32= p2 (posit32-nar)))
-    (expt 2 32)
-  (abs (- (posit32->ordinal p1) (posit32->ordinal p2)))))
+(define-operator (+.p16 posit16 posit16) posit16
+  [fl posit16-add] [bf bf+] [ival #f] [cost 40]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a + ~a")]
+  [nonffi posit16-add])
+
+(define-operator (+.p32 posit32 posit32) posit32
+  [fl posit32-add] [bf bf+] [ival #f] [cost 40]
+  [->c/double (curry format "~a + ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a + ~a")]
+  [nonffi posit32-add])
+
+(define-operator (neg.p8 posit8) posit8
+  [fl posit8-neg] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "-~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi posit8-neg])
+
+(define-operator (neg.p16 posit16) posit16
+  [fl posit16-neg] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "-~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi posit16-neg])
+
+(define-operator (neg.p32 posit32) posit32
+  [fl posit32-neg] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "-~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "-~a")]
+  [nonffi posit32-neg])
+
+(define-operator (-.p8 posit8 posit8) posit8
+  [fl posit8-sub] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "~a - ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a - ~a")]
+  [nonffi posit8-sub])
+
+(define-operator (-.p16 posit16 posit16) posit16
+  [fl posit16-sub] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "~a - ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a - ~a")]
+  [nonffi posit16-sub])
+
+(define-operator (-.p32 posit32 posit32) posit32
+  [fl posit32-sub] [bf bf-] [ival #f] [cost 80]
+  [->c/double (curry format "~a - ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a - ~a")]
+  [nonffi posit32-sub])
+
+(define-operator (*.p8 posit8 posit8) posit8
+  [fl posit8-mul] [bf bf*] [ival #f] [cost 320]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a \\cdot ~a")]
+  [nonffi posit8-mul])
+
+(define-operator (*.p16 posit16 posit16) posit16
+  [fl posit16-mul] [bf bf*] [ival #f] [cost 320]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a \\cdot ~a")]
+  [nonffi posit16-mul])
+
+(define-operator (*.p32 posit32 posit32) posit32
+  [fl posit32-mul] [bf bf*] [ival #f] [cost 320]
+  [->c/double (curry format "~a * ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a \\cdot ~a")]
+  [nonffi posit32-mul])
+
+(define-operator (/.p8 posit8 posit8) posit8
+  [fl posit8-div] [bf bf/] [ival #f] [cost 440]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi posit8-div])
+
+(define-operator (/.p16 posit16 posit16) posit16
+  [fl posit16-div] [bf bf/] [ival #f] [cost 440]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi posit16-div])
+
+(define-operator (/.p32 posit32 posit32) posit32
+  [fl posit32-div] [bf bf/] [ival #f] [cost 440]
+  [->c/double (curry format "~a / ~a")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\frac{~a}{~a}")]
+  [nonffi posit32-div])
+
+(define-operator (sqrt.p8 posit8) posit8
+  [fl posit8-sqrt] [bf bfsqrt] [ival #f] [cost 40]
+  [->c/double (curry format "sqrt(~a)")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\sqrt{~a}")]
+  [nonffi posit8-sqrt])
+
+(define-operator (sqrt.p16 posit16) posit16
+  [fl posit16-sqrt] [bf bfsqrt] [ival #f] [cost 40]
+  [->c/double (curry format "sqrt(~a)")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\sqrt{~a}")]
+  [nonffi posit16-sqrt])
+
+(define-operator (sqrt.p32 posit32) posit32
+  [fl posit32-sqrt] [bf bfsqrt] [ival #f] [cost 40]
+  [->c/double (curry format "sqrt(~a)")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\sqrt{~a}")]
+  [nonffi posit32-sqrt])
+
+(define-operator (<.p8 posit8 posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit8) bool))))] [args '(*)]
+  [fl (comparator posit8<)] [bf (comparator bf<)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit8<)])
+
+(define-operator (<.p16 posit16 posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit16) bool))))] [args '(*)]
+  [fl (comparator posit16<)] [bf (comparator bf<)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit16<)])
+
+(define-operator (<.p32 posit32 posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit32) bool))))] [args '(*)]
+  [fl (comparator posit32<)] [bf (comparator bf<)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <
+  [->tex (infix-joiner " \\lt ")]
+  [nonffi (comparator posit32<)])
+
+(define-operator (>.p8 posit8 posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit8) bool))))] [args '(*)]
+  [fl (comparator posit8>)] [bf (comparator bf>)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit8>)])
+
+(define-operator (>.p16 posit16 posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit16) bool))))] [args '(*)]
+  [fl (comparator posit16>)] [bf (comparator bf>)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit16>)])
+
+(define-operator (>.p32 posit32 posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit32) bool))))] [args '(*)]
+  [fl (comparator posit32>)] [bf (comparator bf>)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary >
+  [->tex (infix-joiner " \\gt ")]
+  [nonffi (comparator posit32>)])
+
+(define-operator (<=.p8 posit8 posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit8) bool))))] [args '(*)]
+  [fl (comparator posit8<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [->tex (infix-joiner " \\le ")]
+  [nonffi (comparator posit8<=)])
+
+(define-operator (<=.p16 posit16 posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit16) bool))))] [args '(*)]
+  [fl (comparator posit16<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [->tex (infix-joiner " \\le ")]
+  [nonffi (comparator posit16<=)])
+
+(define-operator (<=.p32 posit32 posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit32) bool))))] [args '(*)]
+  [fl (comparator posit32<=)] [bf (comparator bf<=)] [ival #f] [cost 65]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/*Error: no posit support in C */")] ; TODO: cannot handle variary <=
+  [->tex (infix-joiner " \\le ")]
+  [nonffi (comparator posit32<=)])
+
+(define-operator (>=.p8 posit8 posit8) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit8) bool))))] [args '(*)]
+  [fl (comparator posit8>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit8>=)])
+
+(define-operator (>=.p16 posit16 posit16) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit16) bool))))] [args '(*)]
+  [fl (comparator posit16>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit16>=)])
+
+(define-operator (>=.p32 posit32 posit32) bool
+  ; Override number of arguments
+  [type #hash((* . (((* posit32) bool))))] [args '(*)]
+  [fl (comparator posit32>=)] [bf (comparator bf>=)] [ival #f] [cost 65]
+  [->c/double (curry format "/* Error: no posit support in C */")]
+  [->c/mpfr (curry format "/* Error: no posit support in C */")] ; TODO: cannot handle variary >=
+  [->tex (infix-joiner " \\ge ")]
+  [nonffi (comparator posit32>=)])
+
+(define-operator (real->posit8 real) posit8
+  ; Override number of arguments
+  [fl double->posit8] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit8])
+
+(define-operator (real->posit16 real) posit16
+  ; Override number of arguments
+  [fl double->posit16] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit16])
+
+(define-operator (real->posit32 real) posit32
+  ; Override number of arguments
+  [fl double->posit32] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit32])
+
+(define-operator (posit8->real posit8) real
+  ; Override number of arguments
+  [fl posit8->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit8])
+
+(define-operator (posit16->real posit16) real
+  ; Override number of arguments
+  [fl posit16->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit16])
+
+(define-operator (posit32->real posit32) real
+  ; Override number of arguments
+  [fl posit32->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/* ERROR: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->posit32])
+
+(define-operator (real->quire8 real) quire8
+  ; Override number of arguments
+  [fl double->quire8] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire8])
+
+(define-operator (real->quire16 real) quire16
+  ; Override number of arguments
+  [fl double->quire16] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire16])
+
+(define-operator (real->quire32 real) quire32
+  ; Override number of arguments
+  [fl double->quire32] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire32])
+
+(define-operator (quire8->real quire8) real
+  ; Override number of arguments
+  [fl quire8->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire8])
+
+(define-operator (quire16->real quire16) real
+  ; Override number of arguments
+  [fl quire16->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire16])
+
+(define-operator (quire16->real quire16) real
+  ; Override number of arguments
+  [fl quire16->double] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi double->quire32])
+
+(define (bffdp x y z) (bf+ x (bf* y z)))
+(define (bffdm x y z) (bf- x (bf* y z)))
+
+(define-operator (quire8-mul-add quire8 posit8 posit8) quire8
+  ; Override number of arguments
+  [fl quire8-fdp-add] [bf bffdp] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire32])
+
+(define-operator (quire16-mul-add quire16 posit16 posit16) quire16
+  ; Override number of arguments
+  [fl quire16-fdp-add] [bf bffdp] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire32])
+
+(define-operator (quire32-mul-add quire32 posit32 posit32) quire32
+  ; Override number of arguments
+  [fl quire32-fdp-add] [bf bffdp] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qma}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire32])
+
+(define-operator (quire8-mul-sub quire8 posit8 posit8) quire8
+  ; Override number of arguments
+  [fl quire8-fdp-sub] [bf bffdm] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire8])
+
+(define-operator (quire16-mul-sub quire16 posit16 posit16) quire16
+  ; Override number of arguments
+  [fl quire16-fdp-sub] [bf bffdm] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire16])
+
+(define-operator (quire32-mul-sub quire32 posit32 posit32) quire32
+  ; Override number of arguments
+  [fl quire32-fdp-sub] [bf bffdm] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "\\mathsf{qms}\\left(~a, ~a, ~a\\right)")]
+  [nonffi double->quire32])
+
+(define-operator (quire8->posit8 quire8) posit8
+  ; Override number of arguments
+  [fl quire8->posit8] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi quire8->posit8])
+
+(define-operator (quire16->posit16 quire16) posit16
+  ; Override number of arguments
+  [fl quire16->posit16] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi quire16->posit16])
+
+(define-operator (quire32->posit32 quire32) posit32
+  ; Override number of arguments
+  [fl quire32->posit32] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi quire32->posit32])
+
+(define-operator (posit8->quire8 posit8) quire8
+  ; Override number of arguments
+  [fl posit8->quire8] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi posit8->quire8])
+
+(define-operator (posit16->quire16 posit16) quire16
+  ; Override number of arguments
+  [fl posit16->quire16] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi posit16->quire16])
+
+(define-operator (posit32->quire32 posit32) quire32
+  ; Override number of arguments
+  [fl posit32->quire32] [bf identity] [ival #f] [cost 0]
+  [->c/double (const "/*Error: no posit support in C */")]
+  [->c/mpfr (const "/* ERROR: no posit support in C */")]
+  [->tex (curry format "~a")]
+  [nonffi posit32->quire32])
+
+;; Defining the rules
+
+(require (submod "rules.rkt" internals))
+
+(define-ruleset commutativity.p16 (arithmetic simplify posit)
+  #:type ([a posit16] [b posit16])
+  [+-commutative     (+.p16 a b)               (+.p16 b a)]
+  [*-commutative     (*.p16 a b)               (*.p16 b a)])
+
+; Posit conversions
+(define-ruleset insert-p16 (arithmetic posit)
+  #:type ([a real])
+  [insert-posit16 a (posit16->real (real->posit16 a))])
+
+(define-ruleset remove-p16 (arithmetic simplify posit)
+  #:type ([a real])
+  [remove-posit16 (posit16->real (real->posit16 a)) a])
+
+(define-ruleset id-p16 (arithmetic simplify posit)
+  #:type ([a posit16])
+  [+p16-lft-identity-reduce    (+.p16 (real->posit16 0.0) a)               a]
+  [+p16-rgt-identity-reduce    (+.p16 a (real->posit16 0.0))               a]
+  [-p16-rgt-identity-reduce    (-.p16 a (real->posit16 0.0))               a]
+  [*p16-lft-identity-reduce    (*.p16 (real->posit16 1.0) a)               a]
+  [*p16-rgt-identity-reduce    (*.p16 a (real->posit16 1.0))               a]
+  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a])
+
+(define-ruleset unid-p16 (arithmetic posit)
+  #:type ([a posit16])
+  [+p16-lft-identity-expand    a               (+.p16 (real->posit16 0.0) a)]
+  [+p16-rgt-identity-expand    a               (+.p16 a (real->posit16 0.0))]
+  [-p16-rgt-identity-expand    a               (-.p16 a (real->posit16 0.0))]
+  [*p16-lft-identity-expand    a               (*.p16 (real->posit16 1.0) a)]
+  [*p16-rgt-identity-expand    a               (*.p16 a (real->posit16 1.0))]
+  [/p16-rgt-identity-expand    a               (/.p16 a (real->posit16 1.0))])
+
+;; TODO: Multiply add to mulAdd
+
+;; TODO: We only cast back to posit after quire operations because herbie can't handle
+;; non-double output right now (similar situtation for posits)
+(define-ruleset q16-arithmetic (arithmetic posit)
+  #:type ([a posit16] [b posit16] [c posit16] [q quire16])
+  [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
+  [insert-quire-add     (+.p16 (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-mul-add q a (real->posit16 1.0)))]
+  [insert-quire-sub     (-.p16 (quire16->posit16 q) a)
+                        (quire16->posit16 (quire16-mul-sub q a (real->posit16 1.0)))]
+  [insert-quire-fdp-add (+.p16 (quire16->posit16 q) (*.p16 a b))
+                        (quire16->posit16 (quire16-mul-add q a b))]
+  [insert-quire-fdp-sub (-.p16 (quire16->posit16 q) (*.p16 a b))
+                        (quire16->posit16 (quire16-mul-sub q a b))])
+
+(define-ruleset p16-test-rules (arithmetic posit)
+  #:type ([a posit16] [b posit16] [c posit16] [d posit16])
+  [p16-flip--            (-.p16 a b)                            (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
+  [p16-*-un-lft-identity a                                      (*.p16 (real->posit16 1.0) a)]
+  [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
+  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))              (*.p16 (/.p16 a c) (/.p16 b d))]
+  [sqrt-sqrd.p16   (*.p16 (sqrt.p16 a) (sqrt.p16 a))             a]
+  [remove-negate.p16 (+.p16 a (-.p16 (real->posit16 1.0) a))    (real->posit16 1.0)])
+
+(define-ruleset associativity.p16 (arithmetic simplify posit)
+  #:type ([a posit16] [b posit16] [c posit16])
+  [associate-+r+  (+.p16 a (+.p16 b c))         (+.p16 (+.p16 a b) c)]
+  [associate-+l+  (+.p16 (+.p16 a b) c)         (+.p16 a (+.p16 b c))]
+  [associate-+r-  (+.p16 a (-.p16 b c))         (-.p16 (+.p16 a b) c)]
+  [associate-+l-  (+.p16 (-.p16 a b) c)         (-.p16 a (-.p16 b c))]
+  [associate--r+  (-.p16 a (+.p16 b c))         (-.p16 (-.p16 a b) c)]
+  [associate--l+  (-.p16 (+.p16 a b) c)         (+.p16 a (-.p16 b c))]
+  [associate--l-  (-.p16 (-.p16 a b) c)         (-.p16 a (+.p16 b c))]
+  [associate--r-  (-.p16 a (-.p16 b c))         (+.p16 (-.p16 a b) c)]
+  [associate-*r*  (*.p16 a (*.p16 b c))         (*.p16 (*.p16 a b) c)]
+  [associate-*l*  (*.p16 (*.p16 a b) c)         (*.p16 a (*.p16 b c))]
+  [associate-*r/  (*.p16 a (/.p16 b c))         (/.p16 (*.p16 a b) c)]
+  [associate-*l/  (*.p16 (/.p16 a b) c)         (/.p16 (*.p16 a c) b)]
+  [associate-/r*  (/.p16 a (*.p16 b c))         (/.p16 (/.p16 a b) c)]
+  [associate-/l*  (/.p16 (*.p16 b c) a)         (/.p16 b (/.p16 a c))]
+  [associate-/r/  (/.p16 a (/.p16 b c))         (*.p16 (/.p16 a b) c)]
+  [associate-/l/  (/.p16 (/.p16 b c) a)         (/.p16 b (*.p16 a c))]
+  [sub-neg        (-.p16 a b)                   (+.p16 a (neg.p16 b))]
+  [unsub-neg      (+.p16 a (neg.p16 b))         (-.p16 a b)])
+
+(define-ruleset distributivity.p16 (arithmetic simplify posit)
+  #:type ([a posit16] [b posit16] [c posit16])
+  [distribute-lft-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 a b) (*.p16 a c))]
+  [distribute-rgt-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 b a) (*.p16 c a))]
+  [distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
+  [distribute-lft-out--   (-.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (-.p16 b c))]
+  [distribute-rgt-out     (+.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (+.p16 b c))]
+  [distribute-rgt-out--   (-.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (-.p16 b c))]
+  [distribute-lft1-in     (+.p16 (*.p16 b a) a)           (*.p16 (+.p16 b (real->posit16 1.0)) a)]
+  [distribute-rgt1-in     (+.p16 a (*.p16 c a))           (*.p16 (+.p16 c (real->posit16 1.0)) a)])
+
+(define-ruleset difference-of-squares-canonicalize.p16 (polynomials simplify posit)
+  #:type ([a posit16] [b posit16])
+  [difference-of-squares (-.p16 (*.p16 a a) (*.p16 b b))   (*.p16 (+.p16 a b) (-.p16 a b))]
+  [difference-of-sqr-1   (-.p16 (*.p16 a a) (real->posit16 1.0))
+                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))]
+  [difference-of-sqr--1  (+.p16 (*.p16 a a) (real->posit16 -1.0))
+                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))])
+
+(define-ruleset exact-posit16 (arithmetic simplify posit fp-safe-nan)
+  #:type ([a posit16])
+  [+-inverses.p16    (-.p16 a a)                                 (real->posit16 0.0)]
+  [*-inverses.p16    (/.p16 a a)                                 (real->posit16 1.0)]
+  [div0.p16          (/.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
+  [mul0.p16          (*.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
+  [mul0.p16          (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)])
+
+(define-ruleset id-reduce-posit16 (arithmetic simplify posit)
+  #:type ([a posit16])
+  [remove-double-div.p16 (/.p16 (real->posit16 1.0) (/.p16 (real->posit16 1.0) a))         a]
+  [rgt-mult-inverse.p16  (*.p16 a (/.p16 (real->posit16 1.0) a))         (real->posit16 1.0)]
+  [lft-mult-inverse.p16  (*.p16 (/.p16 (real->posit16 1.0) a) a)         (real->posit16 1.0)])
