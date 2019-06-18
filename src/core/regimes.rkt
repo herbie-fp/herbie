@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../type-check.rkt" "../syntax/softposit.rkt" "../syntax/types.rkt")
+(require "../type-check.rkt" "../syntax/types.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 (require (submod "../timeline.rkt" debug))
 
@@ -97,17 +97,7 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        (define prec-point (match precision
-                             [(or 'binary64 'binary32) (sp-point splitpoint)]
-                             ['posit8 `(real->posit8 ,(posit8->double (sp-point splitpoint)))]
-                             ['posit16 `(real->posit16 ,(posit16->double (sp-point splitpoint)))]
-                             ['posit32 `(real->posit32 ,(posit32->double (sp-point splitpoint)))]))
-        (define <=-operator (match precision
-                             [(or 'binary64 'binary32) '<=]
-                             ['posit8 `<=.p8]
-                             ['posit16 `<=.p16]
-                             ['posit32 `<=.p32]))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,prec-point)
+        `(if ,(mk-<= precision (sp-bexpr splitpoint) (sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
@@ -124,23 +114,6 @@
     (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
-
-(define (<-all-precisions x1 x2)
-(cond
-  [(or (real? x1) (complex? x1))
-   (< x1 x2)]
-  [(posit8? x1)
-   (posit8< x1 x2)]
-  [(posit16? x1)
-   (posit16< x1 x2)]
-  [(posit32? x1)
-   (posit32< x1 x2)]
-  [(quire8? x1)
-   (posit8< (quire8->posit8 x1) (quire8->posit8 x2))]
-  [(quire16? x1)
-   (posit16< (quire16->posit16 x1) (quire16->posit16 x2))]
-  [(quire32? x1)
-   (posit32< (quire32->posit32 x1) (quire32->posit32 x2))]))
 
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))

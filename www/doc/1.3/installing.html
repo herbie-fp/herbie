@@ -47,7 +47,7 @@ Welcome to Racket v7.3.
 
   <p>Once Racket is installed, install Herbie with:</p>
 
-  <pre>raco pkg install herbie</pre>
+  <pre>raco pkg install --auto herbie</pre>
 
   <p>
     This will install Herbie, compile it for faster startup, and place
@@ -60,11 +60,12 @@ Welcome to Racket v7.3.
   <h2>Installing Herbie from source</h2>
 
   <p>
-    Once Racket is installed, download the Herbie source
+    Once Racket is installed, download and build the Herbie source
     <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
   </p>
 
-  <pre>git clone https://github.com/uwplse/herbie</pre>
+  <pre><strong>$</strong> git clone https://github.com/uwplse/herbie
+<strong>$</strong> raco pkg install --name herbie src/</pre>
 
   <p>
     If you go to the <code>herbie</code> directory,
@@ -86,10 +87,6 @@ Welcome to Racket v7.3.
       and if the error still persists,
       please <a href="https://github.com/uwplse/herbie/issues">submit a bug</a>.
   </p>
-
-  <p>You can make Herbie start up faster by byte-compiling it:</p>
-
-  <pre>raco make src/herbie.rkt</pre>
 
   <p>
     Once Herbie is installed and working correctly,
@@ -122,7 +119,9 @@ Welcome to Racket v7.3.
   
   <p>
     Check out the <a href="docker.html">Docker page</a> for more on
-    how to run Herbie with Docker.
+    how to run Herbie with Docker. Note that Herbie in Docker is more
+    limited; for example, it will not recognize plugins installed
+    outside the Docker container.
   </p>
 
 </body>

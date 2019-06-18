@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Plugins</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Plugins</h1>
+  </header>
+
+  <p><a href="../../">Herbie</a> allows plugins to define additional
+  functions, rewrite rules, and even number representations. The
+  plugins must be separately installed; once they are installed,
+  Herbie will automatically load and use them.</p>
+  
+  <h2>Posit Arithmetic</h2>
+
+  <p>The <kbd>softposit-herbie</kbd> plugin implements support
+  for <a href="https://posithub.org/">posit</a> arithmetic. Install it
+  with:</p>
+
+  <pre><strong>$</strong> raco pkg install --auto softposit-herbie</pre>
+
+  <p>Note that this plugin uses the SoftPosit library, which only
+  supports Linux platforms, and even then is reported to misbehave on
+  some machines.</p>
+
+  <p>Once <kbd>softposit-herbie</kbd> is installed,
+  specify <code>:precision</code> as <code>posit16</code> on an FPCore
+  to inform Herbie that it should assume the core's inputs and outputs
+  are posit numbers. Other posit sizes (from 8 to 128 bits) and also
+  quires (for 8, 16, and 32 bits) are available, but are poorly
+  supported.</p>
+  
+</body>
+</html>

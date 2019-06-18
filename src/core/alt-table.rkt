@@ -48,7 +48,7 @@
                  [alt->done? old-done])))
 
 (define (atab-add-altns atab altns)
-  (define prog-set (map alt-program (dict-keys (alt-table-alt->points atab))))
+  (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
   (define altns*
     (filter
      (negate (compose (curry set-member? prog-set) alt-program))
@@ -114,17 +114,17 @@
 
 (struct point-rec (berr altns) #:prefab)
 
-(define (best-and-tied-at-points point->alt altn errs)
-  (let-values ([(best tied)
-		(for/lists (best tied) ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
-		  (let* ([pnt-rec (hash-ref point->alt pnt)]
-			 [table-err (point-rec-berr pnt-rec)])
-		    (cond [(< err table-err)
-			   (values pnt #f)]
-			  [(= err table-err)
-			   (values #f pnt)]
-			  [else (values #f #f)])))])
-    (list (filter identity best) (filter identity tied))))
+(define (best-and-tied-at-points atab altn errs)
+  (define point->alt (alt-table-point->alts atab))
+  (for/fold ([best '()] [tied '()])
+      ([(pnt ex) (in-pcontext (alt-table-context atab))] [err errs])
+    (define table-err (point-rec-berr (hash-ref point->alt pnt)))
+    (cond 
+     [(< err table-err)
+      (values (cons pnt best) tied)]
+     [(= err table-err)
+      (values best (cons pnt tied))]
+     [else (values best tied)])))
 
 (define (remove-chnged-pnts point->alts alt->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref point->alts) chnged-pnts)]
@@ -202,7 +202,7 @@
 (define (atab-add-altn atab altn)
   (define errs (errors (alt-program altn) (alt-table-context atab)))
   (match-define (alt-table point->alts alt->points _ _) atab)
-  (match-define (list best-pnts tied-pnts) (best-and-tied-at-points point->alts altn errs))
+  (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
    [(and (null? best-pnts) (null? tied-pnts))
     atab]
@@ -219,8 +219,8 @@
 	  (hash-keys (alt-table-alt->points atab))))
 
 (define (atab-min-errors atab)
-  (for/list ([(pt ex) (in-pcontext (*pcontext*))])
-    (point-rec-berr (dict-ref (alt-table-point->alts atab) pt))))
+  (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
+    (point-rec-berr (hash-ref (alt-table-point->alts atab) pt))))
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.

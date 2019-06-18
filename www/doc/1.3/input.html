@@ -175,20 +175,16 @@
 
   <h2 id="precisions">Precisions</h2>
 
-  <p>Herbie supports both single- and double-precision values, as well
-  as beta-quality support
-  for <a href="https://posithub.org/">posit</a> values. By default,
-  Herbie assumes double-precision arithmetic. You can change this
-  default using the <code>:precision</code> FPCore property, which can
-  be:</p>
+  <p>Herbie supports both single- and double-precision values. By
+  default, Herbie assumes double-precision arithmetic. You can change
+  this default using the <code>:precision</code> FPCore property,
+  which can be:</p>
 
   <dl class="function-list">
     <dt><code>binary32</code></dt>
     <dd>Single-precision floating point</dd>
     <dt><code>binary64</code></dt>
     <dd>Double-precision floating point</dd>
-    <dt><code>posit16</code></dt>
-    <dd>16-bit posit numbers</dd>
   </dl>
 
   <p>The legacy <code>precision:double</code> option can be disabled
@@ -196,6 +192,9 @@
   option is deprecated and will be removed in a later release. Use
   the <code>:precision</code> property to change precisions
   instead.</p>
+
+  <p>Herbie also has a <a href="plugins.html">plugin system</a> to
+  load additional precisions.</p>
 
   <h2 id="properties">Miscellaneous Properties</h2>
 

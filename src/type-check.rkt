@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "float.rkt" "interface.rkt")
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
@@ -36,10 +36,11 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
+    [(? value?) (match (representation-name (infer-representation expr)) [(or 'binary32 'binary64) 'real] [x x])]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)
-     (type-of expr ift)]
+     (type-of ift env)]
     [(list op args ...)
      ;; Assumes single return type for any function
      (second (first (first (hash-values (operator-info op 'type)))))]))

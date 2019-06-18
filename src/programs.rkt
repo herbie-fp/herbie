@@ -1,8 +1,8 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt" "type-check.rkt"
-         "biginterval.rkt" "syntax/softposit.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt")
+(require "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -17,7 +17,7 @@
          free-variables replace-expression
          desugar-program resugar-program)
 
-(define expr? (or/c list? symbol? number?))
+(define expr? (or/c list? symbol? value?))
 
 (define location? (listof natural-number/c))
 
@@ -34,51 +34,6 @@
   vars)
 
 ;; Converting constants
-
-(define/contract (->flonum x)
-  (-> any/c value?)
-  (define convert
-    (if (flag-set? 'precision 'double)
-        real->double-flonum
-        real->single-flonum))
-  (cond
-   [(real? x) (convert x)]
-   [(bigfloat? x) (convert (bigfloat->flonum x))]
-   [(bigcomplex? x)
-    (make-rectangular (->flonum (bigcomplex-re x))
-                      (->flonum (bigcomplex-im x)))]
-   [(or (posit8? x) (posit16? x) (posit32? x)) x]
-   [(or (quire8? x) (quire16? x) (quire32? x)) x]
-   [(big-posit8? x) (double->posit8 (bigfloat->flonum (big-posit8-v x)))]
-   [(big-posit16? x) (double->posit16 (bigfloat->flonum (big-posit16-v x)))]
-   [(big-posit32? x) (double->posit32 (bigfloat->flonum (big-posit32-v x)))]
-   [(big-quire8? x) (double->quire8 (bigfloat->flonum (big-quire8-v x)))]
-   [(big-quire16? x) (double->quire16 (bigfloat->flonum (big-quire16-v x)))]
-   [(big-quire32? x) (double->quire32 (bigfloat->flonum (big-quire32-v x)))]
-   [(and (symbol? x) (constant? x))
-    (->flonum ((constant-info x 'fl)))]
-   [else x]))
-
-(define (->bf x)
-  (cond
-   [(real? x) (bf x)]
-   [(bigfloat? x) x]
-   [(complex? x)
-    (bigcomplex (->bf (real-part x)) (->bf (imag-part x)))]
-   [(posit8? x)
-    (big-posit8 (bf (posit8->double x)))]
-   [(posit16? x)
-    (big-posit16 (bf (posit16->double x)))]
-   [(posit32? x)
-    (big-posit32 (bf (posit32->double x)))]
-   [(quire8? x)
-    (big-quire8 (bf (posit8->double (quire8->posit8 x))))]
-   [(quire16? x)
-    (big-quire16 (bf (posit16->double (quire16->posit16 x))))]
-   [(quire32? x)
-    (big-quire32 (bf (posit32->double (quire32->posit32 x))))]
-   [(constant? x) ((constant-info x 'bf))]
-   [else x]))
 
 (define/contract (location-hash prog)
   (-> expr? (hash/c expr? (listof location?)))
@@ -103,8 +58,6 @@
   (match prog
     [(? constant?) '()]
     [(? variable?) (list prog)]
-    [(list (or 'lambda 'λ) vars body)
-           (remove* vars (free-variables body))]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
 
@@ -282,18 +235,9 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
-        [(? real?)
-         ;; cast to the correct type
-         (match precision
-           ['posit8 (values (list 'real->posit8 expr) 'posit8)]
-           ['posit16 (values (list 'real->posit16 expr) 'posit16)]
-           ['posit32 (values (list 'real->posit32 expr) 'posit32)]
-           [_ (values expr 'real)])]
-        [(? boolean?) (values expr 'bool)]
+        [(? real?) (values (fl->repr expr (get-representation (match precision ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)] [x x]))) precision)]
         [(? complex?) (values expr 'complex)]
-        [(? posit8?) (values expr 'posit8)]
-        [(? posit16?) (values expr 'posit16)]
-        [(? posit32?) (values expr 'posit32)]
+        [(? value?) (values expr (representation-name (infer-representation expr)))]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref ctx expr))])))
   expr*)
@@ -304,28 +248,15 @@
       ;; Run after unfold-let, so no need to track lets
       (match expr
         [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
-         (define args*
-           (for/list ([arg args])
-             (loop arg)))
+         (define args* (for/list ([arg args]) (loop arg)))
          (define op* (hash-ref parametric-operators-reverse op))
          (cons op* args*)]
         [(list 'if cond ift iff)
-         (define cond* (loop cond))
-         (define ift* (loop ift))
-         (define iff* (loop iff))
-         (list 'if cond* ift* iff*)]
-        [(list 'real->posit8  (? real? x)) x]
-        [(list 'real->posit16 (? real? x)) x]
-        [(list 'real->posit32 (? real? x)) x]
+         (list 'if (loop cond) (loop ift) (loop iff))]
         [(list op args ...)
-         (define args* (for/list ([arg args]) (loop arg)))
-         (cons op args*)]
-        [(? real?) expr]
-        [(? boolean?) expr]
-        [(? complex?) expr]
-        [(? posit8?) expr]
-        [(? posit16?) expr]
-        [(? posit32?) expr]
+         (cons op (for/list ([arg args]) (loop arg)))]
+        [(? (conjoin complex? (negate real?))) expr]
+        [(? value?) (repr->fl expr (infer-representation expr))]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)
