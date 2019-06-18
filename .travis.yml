@@ -10,7 +10,7 @@ env:
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
   matrix:
     # separate builds for travis benches and unit tests
-    - RACKET_VERSION="7.3" JOB="${UNIT}" INSTALL_SOFTPOSIT=true
+    - RACKET_VERSION="7.3" JOB="${UNIT}"
     - RACKET_VERSION="7.0" JOB="${INTEGRATION}"
     - RACKET_VERSION="7.2" JOB="${INTEGRATION}"
     - RACKET_VERSION="7.3" JOB="${INTEGRATION}"
@@ -24,7 +24,6 @@ before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
-  - test -z "$INSTALL_SOFTPOSIT" || raco pkg install softposit-rkt
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/src
 script:
