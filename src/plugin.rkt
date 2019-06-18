@@ -17,8 +17,3 @@
     (define value (info 'herbie-plugin (const false)))
     (when (and value (module-exists? value))
       (dynamic-require value #f))))
-
-;; Legacy code to load softposit file (should be moved to softposit-rkt package)
-(define-runtime-path posits-module "syntax/softposit.rkt")
-(when (module-exists? 'softposit-rkt)
-  (dynamic-require (make-resolved-module-path posits-module) #f))
