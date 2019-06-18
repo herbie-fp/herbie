@@ -227,11 +227,17 @@ else {
   </figure>
 
   <p>There's a lot going on here. Along the horizontal axis, you have
-  the various input values (of <code>xim</code>). On the vertical
-  axis, you have Herbie's error measure (bits of error), from 0 to 64.
-  There are two lines drawn: a red one for your input expression and a
-  blue one for Herbie's output. Lower is better. You can see from the
-  plot that as <code>xim</code> gets larger, Herbie's output becomes
+  the various input values (of <code>xim</code>). Note that the graph
+  is log-scale, and includes only negative values (thanks to our
+  precondition). So in the middle is the value 1, to the left you have
+  values with large exponents approaching infinity, and to the right
+  you have values with small exponents approaching 0.</p>
+
+  <p>On the vertical axis, you have Herbie's error measure (bits of
+  error), from 0 to 64. There are two lines drawn: a red one for your
+  input expression and a blue one for Herbie's output. Lower is
+  better. You can see from the plot that as <code>xim</code> gets
+  larger (moves to the right; closer to zero), Herbie's output becomes
   comparatively better and better. Below the plot, there is a list of
   the argument names, with <code>xim</code> highlighted. If you switch
   it to <code>xre</code>, you will see that the two expressions are
