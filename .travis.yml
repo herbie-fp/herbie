@@ -8,14 +8,12 @@ env:
       UNIT="raco test src/ infra/"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
-      POSITS="racket $TRAVIS_BUILD_DIR/infra/travis.rkt bench/posits.fpcore"
   matrix:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="7.3" JOB="${UNIT}" INSTALL_SOFTPOSIT=true
     - RACKET_VERSION="7.0" JOB="${INTEGRATION}"
     - RACKET_VERSION="7.2" JOB="${INTEGRATION}"
     - RACKET_VERSION="7.3" JOB="${INTEGRATION}"
-    - RACKET_VERSION="7.3" JOB="${POSITS}" INSTALL_SOFTPOSIT=true
     # remember to change the `allow_failures` key below!
     - RACKET_VERSION="7.3" JOB="${STABILITY}"
 matrix:
