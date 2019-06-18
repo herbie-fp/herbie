@@ -41,8 +41,8 @@
   </p>
 
   <figure>
-    <img width="100%" src="report-prog.png" />
-    <figcaption>Input and output program from a Herbie report.</figcaption>
+    <img width="100%" src="web-input.png" />
+    <figcaption>Input field on the Herbie web UI.</figcaption>
   </figure>
 
   <p>
@@ -54,7 +54,7 @@
   <p>
     You should see the entry box gray out, then some additional text
     appear on the screen describing the various steps Herbie is doing.
-    Eventually (after about 20 seconds) you'll be redirected to a page
+    Eventually (after a few seconds) you'll be redirected to a page
     with Herbie's results. The most important part of that page is the
     large gray box in the middle:
   </p>
@@ -194,26 +194,55 @@ else {
 
   <pre>0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))</pre>
 
-  <h2>Using Herbie's results</h2>
-
   <p>Before running Herbie on this expression, click the “Additional
   options” link. You should see a box where you can enter a
   precondition; enter <kbd>xim &lt;= 0</kbd>. This makes sure that
   Herbie only considers the points this expression will actually be
   run on when improving the accuracy of this expression.</p>
   
+  <h2>Using Herbie's results</h2>
+
   <p>Herbie will churn for a few seconds and produce an output,
   perhaps something like this:</p>
 
-  <pre>if xre ≤ 0:
-    |xim| * sqrt(0.5) / sqrt(sqrt(xre*xre + xim*xim) - xre)
-else
-    0.5 * sqrt(2.0 * (sqrt(xre*xre + xim*xim) + xre))</pre>
+  <figure>
+    <img width="100%" src="report-prog2.png" />
+    <figcaption>Herbie's version of the complex square root expression.</figcaption>
+  </figure>
 
-  <p>Herbie's algorithm is randomized, so you might not get exactly
-  the same thing. For example, you'll probably won't get <code>xre ≤
-  0</code>, but instead <code>xre</code> less than or equal to some
-  really small number. But the result should be recognizably similar.</p>
+  <p>Herbie's algorithm is randomized, so you likely won't see the
+  exact same thing. For example, the branch expression <code>xre ≤
+  6.68107529348e-308</code> will probably have some other really small
+  number. And perhaps Herbie will choose slightly different
+  expressions. But the result should be recognizably similar.</p>
+
+  <p>It's a little harder to describe what Herbie found wrong with the
+  original expression, and why its new version is better—it is due to
+  a floating-point phenomenon called “cancellation”. But you can get
+  some insight from the error plot on the output page:</p>
+
+  <figure>
+    <img width="100%" src="report-plot2.png" />
+    <figcaption>Herbie's error plot for the complex square root expression.</figcaption>
+  </figure>
+
+  <p>There's a lot going on here. Along the horizontal axis, you have
+  the various input values (of <code>xim</code>). On the vertical
+  axis, you have Herbie's error measure (bits of error), from 0 to 64.
+  There are two lines drawn: a red one for your input expression and a
+  blue one for Herbie's output. Lower is better. You can see from the
+  plot that as <code>xim</code> gets larger, Herbie's output becomes
+  comparatively better and better. Below the plot, there is a list of
+  the argument names, with <code>xim</code> highlighted. If you switch
+  it to <code>xre</code>, you will see that the two expressions are
+  the same for positive <code>xre</code>, and that Herbie's output is
+  better for negative <code>xre</code>. You can also see that the
+  difference is quite large, with Herbie's output expression being
+  much more accurate than its input.</p>
+
+  <p>Note again that Herbie is randomized, and you may see somewhat
+  different output than the screenshots and descriptions here. The
+  overall gist should be similar, however.</p>
 
   <p>Now that you have the more accurate version of this expression,
     all you need to do is insert it back into the program:</p>
@@ -243,6 +272,11 @@ else {
   That's because the original code is a bit more readable, and it also
   means that as Herbie gets better, we can re-run it to get future
   improvements in accuracy.</p>
+
+  <p>By the way, for some languages, like C, you can use the drop-down
+  in the top-right corner of the gray program block to see Herbie's
+  output in that language. You'll probably need to clean up the
+  resulting program a bit, though.</p>
 
   <h2>Next steps</h2>
 

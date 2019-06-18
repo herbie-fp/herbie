@@ -9,7 +9,7 @@ h3 {font-size: 17px; line-height: 1.286; margin: 1.5em 0 .2em; font-weight: 400;
 
 p, li, dd, blockquote, figcaption {
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
-  margin: .5em 0;
+  margin: 0 0 1em 0;
 }
 dd { margin: .5em 0 1em; }
 
