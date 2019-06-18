@@ -2,7 +2,7 @@
 
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
-(require "softposit.rkt" "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
+(require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
 
 (define num-test-points 1000)
@@ -84,9 +84,7 @@
       (check-equal? v1 v2))))
 
 (module+ test
-  (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)]
-         ;; The posit rules currently fail, possibly due to halfpoints sampling
-         #:unless (set-member? (second test-ruleset) 'posit))
+  (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
 
     (define ground-truth
       (cond
@@ -94,8 +92,7 @@
              (expr-supports? (rule-output test-rule) 'ival))
         ival-ground-truth]
        [else
-        (unless (or (set-member? (second test-ruleset) 'complex)
-                    (set-member? (second test-ruleset) 'posit))
+        (unless (set-member? (second test-ruleset) 'complex)
           (fail-check "Real or boolean rule not supported by intervals"))
         (when (dict-has-key? *conditions* (rule-name test-rule))
           (fail-check "Using bigfloat sampling on a rule with a condition"))
