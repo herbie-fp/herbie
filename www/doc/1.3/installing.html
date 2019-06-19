@@ -13,10 +13,7 @@
     <h1>Installing Herbie</h1>
   </header>
   
-  <p>
-    Herbie currently supports Linux, OS X, and
-    Windows<sup title="Supported in beta since Herbie 1.2.">β</sup>.
-  </p>
+  <p>Herbie supports Linux, macOS, and Windows.</p>
 
   <p>
     <a href="../../">Herbie</a> can be installed from a package or
@@ -39,7 +36,7 @@
     Test that Racket is installed correctly and has a correct version:
   </p>
 
-  <pre><strong>$</strong> racket
+  <pre class="shell">racket
 Welcome to Racket v7.3.
 > (exit)</pre>
   
@@ -47,14 +44,19 @@ Welcome to Racket v7.3.
 
   <p>Once Racket is installed, install Herbie with:</p>
 
-  <pre>raco pkg install --auto herbie</pre>
+  <pre class="shell">raco pkg install --auto herbie</pre>
 
   <p>
     This will install Herbie, compile it for faster startup, and place
     an executable in your Racket user path, likely
     into <code>~/.racket/7.3/</code>. If you add this directory to
     your <code>PATH</code> you will be able to run herbie with
-    the <code>herbie</code> command.
+    the <kbd>herbie</kbd> command.
+  </p>
+
+  <p>
+    Once Herbie is installed and working correctly,
+    check out the <a href="tutorial.html">tutorial</a>.
   </p>
 
   <h2>Installing Herbie from source</h2>
@@ -64,8 +66,7 @@ Welcome to Racket v7.3.
     <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
   </p>
 
-  <pre><strong>$</strong> git clone https://github.com/uwplse/herbie
-<strong>$</strong> raco pkg install --name herbie src/</pre>
+  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
 
   <p>
     If you go to the <code>herbie</code> directory,
@@ -74,10 +75,9 @@ Welcome to Racket v7.3.
     Do a trial run of Herbie to make sure everything is installed and working correctly:
   </p>
 
-  <pre>racket src/herbie.rkt report bench/tutorial.fpcore graphs/</pre>
+  <pre class="shell">racket src/herbie.rkt report bench/tutorial.fpcore graphs/</pre>
 
-  <p>
-    This command will take approximately a minute to run.
+  <p>This command will take approximately a minute to run.
     After the command completes,
       a directory named <code>graphs</code> should be created.
     Open the <code>report.html</code> file inside with your browser;
@@ -87,6 +87,11 @@ Welcome to Racket v7.3.
       and if the error still persists,
       please <a href="https://github.com/uwplse/herbie/issues">submit a bug</a>.
   </p>
+
+  <p>For faster startup, to create the <kbd>herbie</kbd> command, and
+  to enable plugins, run the following command:</p>
+
+  <pre class="shell">raco pkg install --name herbie src/</pre>
 
   <p>
     Once Herbie is installed and working correctly,
@@ -104,18 +109,17 @@ Welcome to Racket v7.3.
 
   <p>
     First, <a href="https://docs.docker.com/installation/">install
-    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
-    how you install Docker, you may need to prefix
-    all <code>docker</code> commands on this page
-    with <code>sudo</code> or run them as the root or administrative
-    user.
+    Docker</a>. Docker supports Windows, macOS, and Linux. Depending
+    on how you install Docker, you may need to prefix
+    the <code>docker</code> command with <code>sudo</code> or run them
+    as the administrative user.
   </p>
 
   <p>
     With Docker installed, you should be able to download the Herbie image with:
   </p>
  
-  <pre>docker pull uwplse/herbie</pre>
+  <pre class="shell">docker pull uwplse/herbie</pre>
   
   <p>
     Check out the <a href="docker.html">Docker page</a> for more on

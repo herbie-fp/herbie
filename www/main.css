@@ -37,6 +37,7 @@ header li:first-child::before { content: none; }
 svg {margin: 0 auto; display: block;}
 
 pre {padding-left: 2em; font-size: 16px; font-family: monospace;}
+pre.shell:before { content: "$"; margin-right: 1ex; font-weight: bold; }
 
 div.column-container { display: flex; justify-content: space-around;}
 div.column-container h3 { margin: 0 0 1em; }

@@ -17,22 +17,21 @@
       floating point expressions to make them more accurate.
     Floating point arithmetic is inaccurate;
       hence the jokes that 0.1 + 0.2 ≠ 0.3 for a computer.
-    But to understand the inaccuracies and reduce them is a much harder task.
-    Usually, programs that use floating point arithmetic
-      are just written with the hope that these inaccuracies will not cause bugs,
-      and when they do, these bugs are mysterious and hard to fix.
+    But it is hard to understand and fix these inaccuracies,
+      creating mysterious and hard-to-fix bugs.
+    Herbie is a tool to help.
   </p>
 
   <p>
-    To get started using Herbie, <a href="installing.html">download and install</a> it.
-    Now that Herbie is installed, you're ready to begin using it.
+    To get started, <a href="installing.html">download and install</a>
+    Herbie. With Herbie installed, you're ready to begin using it.
   </p>
 
   <h2>Giving Herbie expressions</h2>
 
   <p>Now that Herbie is installed, start it with:</p>
 
-  <pre>herbie web</pre>
+  <pre class="shell">herbie web</pre>
 
   <p>
     After a brief wait, this ought to open a web browser to a page
@@ -42,21 +41,15 @@
 
   <figure>
     <img width="100%" src="web-input.png" />
-    <figcaption>Input field on the Herbie web UI.</figcaption>
+    <figcaption>The program input field in the Herbie web UI.</figcaption>
   </figure>
 
-  <p>
-    In the middle of the page is a box where you can input
-    mathematical expressions; go ahead and input <kbd>(x + 1) -
-    x</kbd> and press enter.
-  </p>
-
-  <p>
-    You should see the entry box gray out, then some additional text
-    appear on the screen describing the various steps Herbie is doing.
-    Eventually (after a few seconds) you'll be redirected to a page
-    with Herbie's results. The most important part of that page is the
-    large gray box in the middle:
+  <p>Go ahead and type <kbd>(1 + x) - x</kbd> into this box and press
+  enter. You should see the entry box gray out, then some additional
+  text appear on the screen describing the various steps Herbie is
+  doing. Eventually (after a few seconds) you'll be redirected to a
+  page with Herbie's results. The most important part of that page is
+  the large gray box in the middle:
   </p>
 
   <figure>
@@ -65,15 +58,15 @@
   </figure>
 
   <p>
-    This shows both the input you gave Herbie (<code>(x + 1) -
-    x</code>) and what Herbie thinks is a more accurate version of
-    that expression (<code>1</code>). Here, Herbie did a good job,
+    This shows both the input <code>(1 + x) - x</code> that you gave
+    Herbie, and also Herbie's idea of a more accurate way to evaluate
+    that expression: <code>1</code>. Here, Herbie did a good job,
     which you can double check using the statistics above that box:
   </p>
 
   <figure>
     <img width="100%" src="report-large.png" />
-    <figcaption>Statistics about the Herbie run.</figcaption>
+    <figcaption>Statistics and error measures for this Herbie run.</figcaption>
   </figure>
 
   <p>
@@ -91,25 +84,22 @@
 
   <h2>Programming with Herbie</h2>
 
-  <p>
-    Now that you've run Herbie and know how to read its results,
-    let's work through applying Herbie while writing a realistic program.
-  </p>
+  <p>Now that you've run Herbie and know how to read its results,
+  let's work through applying Herbie to a realistic program.</p>
 
   <p>
     When you're working on a numerical program, it's best to keep
     Herbie open in a browser tab so you can run it easily. That way,
     when you're writing a complex floating-point expression, you can
     run Herbie to make sure you use the most accurate version of that
-    expression that you can.
+    expression that you can. Herbie
+    has <a href="options.html">options</a> to log all the expressions
+    you enter, so that you can refer to them later.
   </p>
 
-  <p>
-    On the other hand, if you're tracking down a bug that you think is
-    caused by floating-point error, you'll need to identify the
-    problematic floating-point expression before you can use Herbie on
-    it.
-  </p>
+  <p>However, if you're tracking down a bug that you think is caused
+  by floating-point error, you'll need to identify the problematic
+  floating-point expression before you can use Herbie on it.</p>
 
   <p>
     As an example, let's use <a href="http://mathjs.org">math.js</a>,
@@ -118,18 +108,18 @@
     208</a>, which found an inaccuracy in the implementation of complex
     square root. (For a full write-up of the bug itself, check out
     a <a href="https://pavpanchekha.com/blog/casio-mathjs.html">blog
-    post</a> by one of the Herbie authors).
+    post</a> by one of the Herbie authors.)
   </p>
 
   <h2>Finding the problematic expression</h2>
 
   <p>
     Before using Herbie you need to know what floating-point
-    expressions to feed it. In most programs, there's a small core of
-    your application does the mathematical computations, and the rest
-    sets up parameters, handles control flow, visualizes or print
-    results, and so on. The mathematical core is what Herbie will be
-    interested in.
+    expressions to feed it. In most programs, there's a small core
+    that does the mathematical computations, while the rest of the
+    program sets up parameters, handles control flow, visualizes or
+    print results, and so on. The mathematical core is what Herbie
+    will be interested in.
   </p>
 
   <p>
@@ -176,9 +166,8 @@ else {
     type <code>Complex</code>, a data structure with multiple fields.
     Herbie only deals with floating-point numbers, not data
     structures, so we will treat the input <code>x</code> as two
-    separate inputs to Herbie (<code>xre</code> and <code>xim</code>).
-    Also, this code produces a data structure as an output;
-    we'll pass Herbie each field separately.
+    separate inputs to Herbie: <code>xre</code> and <code>xim</code>.
+    We'll also pass each field of the output to Herbie separately.
   </p>
 
   <p>
@@ -214,12 +203,14 @@ else {
   exact same thing. For example, the branch expression <code>xre ≤
   6.68107529348e-308</code> will probably have some other really small
   number. And perhaps Herbie will choose slightly different
-  expressions. But the result should be recognizably similar.</p>
+  expressions. But the result should be recognizably similar. In this
+  case, Herbie reports that the initial expression had 38.7 bits of
+  error, and that the output has 29.4.</p>
 
   <p>It's a little harder to describe what Herbie found wrong with the
   original expression, and why its new version is better—it is due to
   a floating-point phenomenon called “cancellation”. But you can get
-  some insight from the error plot on the output page:</p>
+  some insight from the error plot just below the program block:</p>
 
   <figure>
     <img width="100%" src="report-plot2.png" />
@@ -229,7 +220,7 @@ else {
   <p>There's a lot going on here. Along the horizontal axis, you have
   the various input values (of <code>xim</code>). Note that the graph
   is log-scale, and includes only negative values (thanks to our
-  precondition). So in the middle is the value 1, to the left you have
+  precondition). So in the middle is the value -1, to the left you have
   values with large exponents approaching infinity, and to the right
   you have values with small exponents approaching 0.</p>
 
@@ -237,8 +228,8 @@ else {
   error), from 0 to 64. There are two lines drawn: a red one for your
   input expression and a blue one for Herbie's output. Lower is
   better. You can see from the plot that as <code>xim</code> gets
-  larger (moves to the right; closer to zero), Herbie's output becomes
-  comparatively better and better. Below the plot, there is a list of
+  larger (toward the right, closer to zero), Herbie's improvement
+  becomes more and more important. Below the plot, there is a list of
   the argument names, with <code>xim</code> highlighted. If you switch
   it to <code>xre</code>, you will see that the two expressions are
   the same for positive <code>xre</code>, and that Herbie's output is
