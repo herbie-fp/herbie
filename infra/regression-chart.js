@@ -1,8 +1,9 @@
 
-margin = 10;
-width = 740;
+vmargin = 10;
+hmargin = 5;
+width = 340;
 height = 200;
-labels = 40;
+labels = 50;
 precision = 64;
 precision_step = 8;
 
@@ -11,9 +12,9 @@ used_branch = {};
 used_tag = {};
 
 function get_point(tr) {
-    var tests = tr.children[3].textContent.split("/");
-    var bits = tr.children[4].textContent.split("/");
-    var flags = tr.children[2].getAttribute("title");
+    var tests = tr.children[4].textContent.split("/");
+    var bits = tr.children[5].textContent.split("/");
+    var flags = tr.children[3].getAttribute("title");
     flags = flags !== "" ? flags.split(" ") : [];
 
     var note = tr.getElementsByClassName("note")[0];
@@ -23,8 +24,9 @@ function get_point(tr) {
         tag: trtag,
         tests: { got: +tests[0], total: +tests[1]},
         bits: { got: +bits[0], total: +bits[1] },
-        branch: tr.children[1].textContent,
+        branch: tr.children[2].textContent,
         time: +tr.children[0].children[0].getAttribute("data-unix"),
+        speed: +tr.children[1].children[0].getAttribute("data-ms") / 1000 / 60,
         elt: tr,
         flags: flags,
     };
@@ -40,75 +42,33 @@ function get_data(table) {
     return data;
 }
 
-function step_size(max) {
-    if (max > 400) {
-        return Math.round(max / 400) * 100;
-    } else if (max > 40) {
-        return Math.round(max / 40) * 10;
-    } else if (max > 4) {
-        return Math.round(max / 4);
-    } else if (max > .4) {
-        return Math.round(max / .4) / 10;
-    } else {
-        throw "Data points error";
-    }
+function print_date(d) {
+    var date = "" + new Date(d * 1000);
+    return date.split(" ").slice(1, 4).join(" ");
 }
 
-function make_graph(node, data, type) {
-    if (!data.length) {
-        console.log("hi!!", data.length);
-        node.append("text")
-            .attr("x", width / 2)
-            .attr("y", height / 2 + 9)
-            .attr("class", "no-data").text("No tests found with these parameters.");
-        return;
-    }
+function step_size(max) {
+    var step = Math.pow(10, Math.floor(Math.log10(max / 4)))
+    if (max / step > 20) return step * 5;
+    if (max / step > 8) return step * 2;
+    return step;
+}
 
-    var len = data.length;
-    var spacing = width / len;
+function make_accuracy_graph(node, data, type) {
+    if (!data.length) return no_data(node);
+
+    var spacing = width / data.length;
     
-    var max = 0;
-    for (var i = 0; i < len; i++) {
-        if (data[i][type].total > max) max = data[i][type].total;
-    }
+    var max = Math.max.apply(null, data.map(function(x) { return x[type].total }))
     var step = step_size(max);
     var steps = max ? Math.ceil(max / step) : 0;
     var max = steps * step;
 
-    var svg = node
-        .attr("width", width + 2 * margin + labels)
-        .attr("height", height + 2 * margin)
-        .append("g").attr("transform", "translate(" + (margin + labels) + "," + margin + ")");
+    var svg = initialize_svg(node);
+    add_axes(svg);
+    add_gridlines(svg, step, steps, "b");
 
-    svg.append("line")
-        .attr("class", "gridline")
-        .attr("x1", 0)
-        .attr("x2", width)
-        .attr("y1", height)
-        .attr("y2", height);
-
-    svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
-        .attr("transform", "translate(" + width + "," + height + ")");
-
-    for (var i = 1; i <= steps; i++) {
-        svg.append("line")
-            .attr("class", "guide")
-            .attr("x1", 0)
-            .attr("x2", width)
-            .attr("y1", height - (i / steps) * height)
-            .attr("y2", height - (i / steps) * height);
-        
-        svg.append("text").text(i * step).attr("class", "guide")
-            .attr("x", -5)
-            .attr("y", height - (i / steps) * height + 6);
-    }
-
-    var bar = svg.selectAll("g").data(data).enter();
-
-    var g = bar.append("g").attr("class", "arrow");
-
-    g.append("title")
-        .text(function(d) { return "At " + new Date(d.time * 1000) + "\nOn " + d.branch });
+    var g = mk_datum(svg, data);
 
     g.append("line")
         .attr("stroke", function(d) { return key(d.branch) })
@@ -122,10 +82,90 @@ function make_graph(node, data, type) {
         .attr("transform", function(d, i) {
             return "translate(" + spacing*(i + .5) + ", " + (height - height * (d[type].total - d[type].got) / max) + ")";
         });
+}
+
+function no_data(node) {
+    node.append("text")
+        .attr("x", width / 2)
+        .attr("y", height / 2 + 9)
+        .attr("class", "no-data").text("No tests found with these parameters.");
+}
+
+function initialize_svg(node) {
+    return node
+        .attr("width", width + 2 * hmargin + labels)
+        .attr("height", height + 2 * vmargin)
+        .append("g").attr("transform", "translate(" + (hmargin + labels) + "," + vmargin + ")");
+}
+
+function add_axes(svg) {
+    svg.append("line")
+        .attr("class", "gridline")
+        .attr("x1", 0)
+        .attr("x2", width-5)
+        .attr("y1", height)
+        .attr("y2", height);
+
+    svg.append("polygon").attr("class", "gridline").attr("points", "0,3,0,-3,5,0")
+        .attr("transform", "translate(" + (width - 5) + "," + height + ")");
+}
+
+function add_gridlines(svg, step, steps, unit) {
+    for (var i = 1; i <= steps; i++) {
+        svg.append("line")
+            .attr("class", "guide")
+            .attr("x1", 0)
+            .attr("x2", width)
+            .attr("y1", height - (i / steps) * height)
+            .attr("y2", height - (i / steps) * height);
+        
+        svg.append("text").text((step > 1 ? i * step : i / (1 / step)) + (unit ? unit : ""))
+            .attr("class", "guide")
+            .attr("x", -5)
+            .attr("y", height - (i / steps) * height + 6);
+    }
+}
+
+function mk_datum(svg, data) {
+    var bar = svg.selectAll("g").data(data).enter();
+
+    var g = bar.append("a")
+        .attr("xlink:href", function(d) {
+            return d.elt.querySelector("a").href;
+        }).append("g").attr("class", "arrow");
+
+    g.append("title")
+        .text(function(d) {
+            return print_date(d.time) + 
+                "\nOn " + d.branch +
+                "\nTook " + Math.round(d.speed * 10) / 10 + "m";
+        });
     
-    g.on("click", function(d) {
-        d.elt.querySelector("a").click();
-    });
+    return g;
+}
+
+function make_speed_graph(node, data) {
+    if (!data.length) return no_data(node);
+
+    var spacing = width / data.length;
+    
+    var max = Math.max.apply(null, data.map(function(x) { return x.speed }));
+    var step = step_size(max);
+    var steps = max ? Math.ceil(max / step) : 0;
+    var max = steps * step;
+
+    var svg = initialize_svg(node);
+    add_axes(svg);
+    add_gridlines(svg, step, steps, "m");
+
+    var g = mk_datum(svg, data);
+
+    g.append("circle")
+        .attr("fill", function(d) { return key(d.branch) })
+        .attr("cx", function(d, i) { return (i + .5) * spacing })
+        .attr("cy", function(d) { return height - height * d.speed / max })
+        .attr("r", spacing * .75 / 2);
+
 }
 
 function select_data(data, options, tag) {
@@ -138,8 +178,9 @@ function select_data(data, options, tag) {
     });
 }
 
-function render(node, data, options, tag) {
-    node.selectAll("*").remove();
+function render(node1, node2, data, options, tag) {
+    node1.selectAll("*").remove();
+    node2.selectAll("*").remove();
     // Update classes
     var olds = Array.prototype.slice.call(document.getElementsByClassName("selected"));
     olds.forEach(function(old) { old.classList.remove("selected") })
@@ -147,26 +188,29 @@ function render(node, data, options, tag) {
     for (var flag in options) {
         if (options[flag]) document.getElementById("flag-" + flag).classList.add("selected");
     }
-    make_graph(node, select_data(data, options, tag), "bits");
+    var data = select_data(data, options, tag);
+    make_accuracy_graph(node1, data, "bits");
+    make_speed_graph(node2, data);
 }
 
-function draw_results(node) {
+function draw_results(node1, node2) {
     DATA = get_data(document.getElementById("reports"));
     OPTIONS = {"rules:numerics": false};
     TAG = null;
-    NODE = node;
+    NODE1 = node1;
+    NODE2 = node2;
 
     function toggle_tag(tag) {
         return function(evt) {
             TAG = tag;
-            render(NODE, DATA, OPTIONS, TAG);
+            render(NODE1, NODE2, DATA, OPTIONS, TAG);
         }
     }
 
     function toggle_flag(flag) {
         return function(evt) {
             OPTIONS[flag] = !OPTIONS[flag];
-            render(NODE, DATA, OPTIONS, TAG);
+            render(NODE1, NODE2, DATA, OPTIONS, TAG);
         }
     }
 
@@ -207,7 +251,7 @@ function draw_results(node) {
     }
     key = d3.scale.category20().domain(branches);
 
-    render(NODE, DATA, OPTIONS, TAG);
+    render(NODE1, NODE2, DATA, OPTIONS, TAG);
 
     var branches = [];
     var toclinks = document.getElementById("toc").querySelectorAll("li a");

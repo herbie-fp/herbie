@@ -1,47 +1,55 @@
 #lang racket
 
-(require racket/date)
-(require racket/cmdline)
-(require "../src/common.rkt")
-(require "../src/points.rkt")
-(require "../src/alternative.rkt")
-(require "../src/sandbox.rkt")
-(require "../src/formats/test.rkt")
-(require "../src/formats/datafile.rkt")
+(require racket/date racket/cmdline)
+(require "../src/common.rkt" "../src/points.rkt")
+(require "../src/alternative.rkt" "../src/sandbox.rkt")
+(require "../src/formats/test.rkt" "../src/formats/datafile.rkt")
+
+(define (test-successful? test input-bits target-bits output-bits)
+  (match* ((test-output test) (test-expected test))
+    [(_ #f) #t]
+    [(_ (? number? n)) (>= n output-bits)]
+    [(#f #t) (>= input-bits output-bits)]
+    [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (define (run-tests . bench-dirs)
   (define tests (append-map load-tests bench-dirs))
-  (define seed (get-seed))
-  (printf "Running Herbie on ~a tests (seed: ~a)...\n" (length tests) seed)
-  (for/and ([test tests])
+  (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
+  (for/and ([test tests] [i (in-naturals)])
+    (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (match (get-test-result test #:seed seed)
-      [(test-result test time prec input output pts exs
-                    start-errors end-error newpts newexs
-                    start-newerrors end-newerrors target-newerrors timeline)
-       (printf "[ ~ams]\t(~a→~a)\t~a\n"
-               (~a time #:width 8)
-               (~r (errors-score start-newerrors) #:min-width 2 #:precision 0)
-               (~r (errors-score end-newerrors) #:min-width 2 #:precision 0)
+      [(test-success test bits time timeline warnings
+                     start-alt end-alt points exacts start-est-error end-est-error
+                     newpoints newexacts start-error end-error target-error
+                     baseline-error oracle-error all-alts)
+       (printf "[ ~as]   ~a→~a\t~a\n"
+               (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
+               (~r (errors-score start-error) #:min-width 2 #:precision 0)
+               (~r (errors-score end-error) #:min-width 2 #:precision 0)
                (test-name test))
        (define success?
          (test-successful? test
-                           (errors-score start-newerrors)
-                           (and target-newerrors (errors-score target-newerrors))
-                           (errors-score end-newerrors)))
+                           (errors-score start-error)
+                           (and target-error (errors-score target-error))
+                           (errors-score end-error)))
 
        (when (not success?)
-         (printf "Input: ~a\n" (alt-program input))
-         (printf "Output:\n")
-         (pretty-print (alt-program output))
-         (when (test-output test) (printf "Target: ~a\n" (test-output test))))
+         (printf "\nInput (~a bits):\n" (errors-score start-error))
+         (pretty-print (alt-program start-alt) (current-output-port) 1)
+         (printf "\nOutput (~a bits):\n" (errors-score end-error))
+         (pretty-print (alt-program end-alt) (current-output-port) 1)
+         (when (test-output test)
+           (printf "\nTarget (~a bits):\n" (errors-score target-error))
+           (pretty-print (test-output test) (current-output-port) 1)))
 
        success?]
-      [(test-failure test prec exn time timeline)
-       (printf "[   CRASH   ]\t\t\t~a\n" (test-name test))
+      [(test-failure test bits time timeline warnings exn)
+       (printf "[  CRASH  ]\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)
        #f]
-      [(test-timeout test prec time timeline)
-       (printf "[  timeout  ]\t\t\t~a\n" (test-name test))
+      [(test-timeout test bits time timeline warnings)
+       (printf "[  TIMEOUT]\t\t~a\n" (test-name test))
        #f])))
 
 (module+ main

@@ -18,6 +18,7 @@
 			     . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
+  (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))
   (atab-new-context (alt-table? pcontext? . -> . alt-table?))))
 
@@ -32,7 +33,7 @@
 (define (make-alt-table context initial-alt)
    (alt-table (make-immutable-hash
 	       (for/list ([(pt ex) (in-pcontext context)]
-			  [err (alt-errors initial-alt)])
+			  [err (errors (alt-program initial-alt) context)])
 		 (cons pt (point-rec err (list initial-alt)))))
 	      (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
 				  pt))
@@ -43,18 +44,22 @@
   (let* ([old-done (alt-table-alt->done? atab)]
          [alts (atab-all-alts atab)]
          [table-init (make-alt-table ctx (car alts))])
-    (alt-table-with
-     (atab-add-altns table-init (cdr alts))
-     #:alt->done? old-done)))
+    (struct-copy alt-table (atab-add-altns table-init (cdr alts))
+                 [alt->done? old-done])))
 
 (define (atab-add-altns atab altns)
-  (for/fold ([atab atab]) ([altn altns])
+  (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
+  (define altns*
+    (filter
+     (negate (compose (curry set-member? prog-set) alt-program))
+     (remove-duplicates altns #:key alt-program)))
+  (for/fold ([atab atab]) ([altn altns*])
     (atab-add-altn atab altn)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
 		       #:only-fresh [only-fresh? #t])
   (let* ([picked (atab-peek-alt atab #:picking-func pick #:only-fresh only-fresh?)]
-	 [atab* (alt-table-with atab #:alt->done? (hash-set (alt-table-alt->done? atab) picked #t))])
+	 [atab* (struct-copy alt-table atab [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])])
     (values picked atab*)))
 
 (define (atab-peek-alt atab #:picking-func [pick car]
@@ -92,16 +97,6 @@
 
 ;; Helper Functions
 
-(define (alt-table-with atab
-			#:point->alts [pnt->alts #f]
-			#:alt->points [alt->pnts #f]
-			#:alt->done? [alt->done? #f]
-			#:context [pcontext #f])
-  (alt-table (or pnt->alts (alt-table-point->alts atab))
-	     (or alt->pnts (alt-table-alt->points atab))
-	     (or alt->done? (alt-table-alt->done? atab))
-	     (or pcontext (alt-table-context atab))))
-
 (define (alternate . lsts)
   (let loop ([rest-lsts lsts] [acc '()])
     (if (ormap null? rest-lsts)
@@ -119,19 +114,17 @@
 
 (struct point-rec (berr altns) #:prefab)
 
-(define (best-and-tied-at-points point->alt altn)
-  (let-values ([(best tied)
-		(for/lists (best tied)
-		    ([(pnt ex) (in-pcontext (*pcontext*))]
-		     [err (alt-errors altn)])
-		  (let* ([pnt-rec (hash-ref point->alt pnt)]
-			 [table-err (point-rec-berr pnt-rec)])
-		    (cond [(< err table-err)
-			   (values pnt #f)]
-			  [(= err table-err)
-			   (values #f pnt)]
-			  [else (values #f #f)])))])
-    (list (filter identity best) (filter identity tied))))
+(define (best-and-tied-at-points atab altn errs)
+  (define point->alt (alt-table-point->alts atab))
+  (for/fold ([best '()] [tied '()])
+      ([(pnt ex) (in-pcontext (alt-table-context atab))] [err errs])
+    (define table-err (point-rec-berr (hash-ref point->alt pnt)))
+    (cond 
+     [(< err table-err)
+      (values (cons pnt best) tied)]
+     [(= err table-err)
+      (values best (cons pnt tied))]
+     [else (values best tied)])))
 
 (define (remove-chnged-pnts point->alts alt->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref point->alts) chnged-pnts)]
@@ -142,10 +135,9 @@
 	    (remove* chnged-pnts (hash-ref alt->points altn)))
 	  chnged-altns))))
 
-(define (override-at-pnts points->alts pnts altn)
-  (let ([pnt->alt-err (make-immutable-hash (for/list ([(pnt ex) (in-pcontext (*pcontext*))]
-						      [err (alt-errors altn)])
-					     (cons pnt err)))])
+(define (override-at-pnts points->alts pnts altn errs)
+  (let ([pnt->alt-err (for/hash ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
+                        (values pnt err))])
     (hash-set-lsts
      points->alts pnts
      (map (λ (pnt) (point-rec (hash-ref pnt->alt-err pnt) (list altn)))
@@ -177,7 +169,9 @@
       ; There must always be a not-done tied alt,
       ; since before adding any alts there weren't any tied alts
       (let ([undone-altns (filter (compose not alts->done?) altns)])
-        (argmin (compose length alts->pnts) (if (null? undone-altns) altns undone-altns)))))
+        (argmax
+         alt-cost
+         (argmins (compose length alts->pnts) (if (null? undone-altns) altns undone-altns))))))
 
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alt->points cur-atab)]
@@ -206,23 +200,27 @@
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
 (define (atab-add-altn atab altn)
-  (match-let* ([pnts->alts (alt-table-point->alts atab)]
-	       [alts->pnts (alt-table-alt->points atab)]
-	       [`(,best-pnts ,tied-pnts) (best-and-tied-at-points pnts->alts altn)])
-    (if (null? best-pnts)
-	atab
-	(let* ([alts->pnts*1 (remove-chnged-pnts pnts->alts alts->pnts best-pnts)]
-	       [alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts))]
-	       [pnts->alts*1 (override-at-pnts pnts->alts best-pnts altn)]
-	       [pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn)]
-	       [alts->done?* (hash-set (alt-table-alt->done? atab) altn #f)]
-	       [atab*1 (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab))]
-	       [atab*2 (minimize-alts atab*1)])
-	  atab*2))))
+  (define errs (errors (alt-program altn) (alt-table-context atab)))
+  (match-define (alt-table point->alts alt->points _ _) atab)
+  (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
+  (cond
+   [(and (null? best-pnts) (null? tied-pnts))
+    atab]
+   [else
+    (define alts->pnts*1 (remove-chnged-pnts point->alts alt->points best-pnts))
+    (define alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts)))
+    (define pnts->alts*1 (override-at-pnts point->alts best-pnts altn errs))
+    (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn))
+    (define alts->done?* (hash-set (alt-table-alt->done? atab) altn #f))
+    (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab)))]))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
 	  (hash-keys (alt-table-alt->points atab))))
+
+(define (atab-min-errors atab)
+  (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
+    (point-rec-berr (hash-ref (alt-table-point->alts atab) pt))))
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.

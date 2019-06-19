@@ -1,8 +1,6 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
@@ -13,6 +11,7 @@
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
 	 set-enode-expr! update-vars!
+         dedup-children!
          )
 
 (provide (all-defined-out))
@@ -69,15 +68,14 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
+    [(? value?) (infer-representation expr)]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real]
+    [(? variable?) 'real] ;; TODO: assumes variable types are real
+    [(list 'if cond ift iff)
+     (enode-type ift)]
     [(list op ens ...)
-     (define sigs (get-sigs op (length ens)))
-     (define argtypes
-       (for/list ([en ens])
-         (enode-type en)))
-     (for/or ([sig sigs])
-       (argtypes->rtype argtypes sig))]))
+     ;; Assumes single return type for any function
+     (second (first (first (hash-values (operator-info op 'type)))))]))
 
 (module+ test
   (require rackunit)
@@ -87,7 +85,7 @@
   (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real)
   (define xc (new-enode '1+2i 1))
   (define yc (new-enode '2+3i 2))
-  (define xcplusyc (new-enode (list '+ xc yc) 3))
+  (define xcplusyc (new-enode (list '+.c xc yc) 3))
   (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex))
   
        
@@ -144,7 +142,7 @@
     (let ([filtered-children
            (filter
             identity
-            (for/list ([child (enode-children en)])
+            (for/list ([child (in-list (enode-children en))])
               (let ([child* (filter-loop! child)])
                 (or child*
                     (begin (set-enode-parent! child en) #f)))))])
@@ -197,7 +195,10 @@
                                   (map enode-cvars (enode-children en))))
       en)))
 
-;; Updates the expressions in the pack, using s specified updater.
+(define (dedup-children! en)
+  (set-enode-children! en (remove-duplicates (enode-children en) #:key enode-expr)))
+
+;; Updates the expressions in the pack, using a specified updater.
 (define (update-vars! en updater)
   (for-pack! (λ (inner-en)
                (set-enode-expr! inner-en (updater (enode-expr inner-en))))
@@ -206,9 +207,9 @@
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
-    (assert (or (number? expr) (symbol? expr)
+    (assert (or (value? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
-		     (ormap enode? (cdr expr)))) #:loc location))
+		     (andmap enode? (cdr expr)))) #:loc location))
   ;; Checks that the depth is positive.
   (assert (positive? (enode-depth en)) #:loc location))
 

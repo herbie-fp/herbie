@@ -1,23 +1,22 @@
 ; -*- mode: scheme -*-
 
-; TODO: exp function unimplemented.
-#;(FPCore (xre xim)
+(FPCore (xre xim)
   :name "exp with complex power real part (p55)"
   (let ([x (complex xre xim)])
     (re (/ (+ (exp x) (exp (- x))) (complex 2 0)))))
 
-#;(FPCore (xre xim)
+(FPCore (xre xim)
   :name "exp with complex power imaginary part (p55)"
   (let ([x (complex xre xim)])
     (im (/ (+ (exp x) (exp (- x))) (complex 2 0)))))
 
-#;(FPCore (x y)
+(FPCore (x y)
   :name "Euler formula real part (p55)"
   (let ([a (/ (+ (exp x) (exp (- x))) 2)]
 	[b (/ (- (exp x) (exp (- x))) 2)])
     (re (complex (* a (cos y)) (* b (sin y))))))
 
-#;(FPCore (x y)
+(FPCore (x y)
   :name "Euler formula imaginary part (p55)"
   (let ([a (/ (+ (exp x) (exp (- x))) 2)]
 	[b (/ (- (exp x) (exp (- x))) 2)])

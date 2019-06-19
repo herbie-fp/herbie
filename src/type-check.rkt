@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "float.rkt" "interface.rkt")
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
@@ -16,10 +16,6 @@
     [`((,expected-types ...) ,rtype)
      (and (andmap equal? argtypes expected-types) rtype)]))
 
-;; Unit tests
-;; Rewrite expression->type so that expr is a syntax object
-;; Collect errors somewhere
-;; error! is a function that takes (stx format . args) and puts it somewhere
 (define (assert-program-type! stx)
   (match-define (list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body) (syntax-e stx))
   (assert-expression-type! body 'real #:env (for/hash ([var vars]) (values (syntax-e var) 'real))))
@@ -36,11 +32,18 @@
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
 
 (define (type-of expr env)
-  (expression->type (datum->syntax #f expr) env
-                    (lambda (stx msg . args)
-                      (error "Unexpected call to error! within type-of"
-                             stx (apply format msg args)))))
-
+  ;; Fast version does not recurse into functions applications
+  (match expr
+    [(? real?) 'real]
+    [(? complex?) 'complex]
+    [(? value?) (match (representation-name (infer-representation expr)) [(or 'binary32 'binary64) 'real] [x x])]
+    [(? constant?) (constant-info expr 'type)]
+    [(? variable?) (dict-ref env expr)]
+    [(list 'if cond ift iff)
+     (type-of ift env)]
+    [(list op args ...)
+     ;; Assumes single return type for any function
+     (second (first (first (hash-values (operator-info op 'type)))))]))
 
 (define (expression->type stx env error!)
   (match stx
@@ -55,9 +58,38 @@
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
+    [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
+     (define sigs (hash-ref parametric-operators op))
+     (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
+
+     (define res
+       (for/or ([sig sigs])
+         (match-define (list* true-name rtype atypes) sig)
+         (and
+          (if (symbol? atypes)
+              (andmap (curry equal? atypes) actual-types)
+              (equal? atypes actual-types))
+          (cons true-name rtype))))
+     (if res
+       (let ([true-name (car res)]
+             [rtype (cdr res)])
+         (unless rtype
+           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+                   (string-join
+                    (for/list ([sig sigs])
+                      (match sig
+                        [(list _ rtype atypes ...)
+                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                        [(list* _ rtype atype)
+                         (format "(~a <~a> ...)" op atype)]))
+                    " or ")
+                   op (string-join (map (curry format "<~a>") actual-types) " ")))
+         rtype)
+       #f)]
     [#`(,(? operator? op) #,exprs ...)
      (define sigs (get-sigs op (length exprs)))
-     (unless sigs (error "Operator ~a has no type signature of length ~a" op (length exprs)))
+     (unless sigs (error! stx "Operator ~a has no type signature of length ~a" op (length exprs)))
+
 
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
      (define rtype

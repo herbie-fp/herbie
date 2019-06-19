@@ -11,34 +11,28 @@
           [bf-complex-neg (-> bigcomplex? bigcomplex?)]
           [bf-complex-mult (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-conjugate (-> bigcomplex? bigcomplex?)]
-          [bf-complex-sqr (-> bigcomplex? bigcomplex?)]
           [bf-complex-exp (-> bigcomplex? bigcomplex?)]
           [bf-complex-log (-> bigcomplex? bigcomplex?)]
           [bf-complex-sqrt (-> bigcomplex? bigcomplex?)]
           [bf-complex-pow (-> bigcomplex? bigcomplex? bigcomplex?)]
-          [bf-complex-div (-> bigcomplex? bigcomplex? bigcomplex?)])
-         exact+ exact- exact* exact/ exact-sqr exact-log exact-pow exact-sqrt exact-exp)
-
-(define (bf-complex-add x y)
-  (bigcomplex (bf+ (bigcomplex-re x) (bigcomplex-re y)) (bf+ (bigcomplex-im x) (bigcomplex-im y))))
-
-(define (bf-complex-sub x [y #f])
-  (if y
-      (bf-complex-add x (bf-complex-neg y))
-      (bf-complex-neg x)))
+          [bf-complex-div (-> bigcomplex? bigcomplex? bigcomplex?)]))
 
 (define (bf-complex-neg x)
   (bigcomplex (bf- (bigcomplex-re x)) (bf- (bigcomplex-im x))))
 
+(define (bf-complex-add x y)
+  (bigcomplex (bf+ (bigcomplex-re x) (bigcomplex-re y))
+              (bf+ (bigcomplex-im x) (bigcomplex-im y))))
+
+(define (bf-complex-sub x y)
+  (bf-complex-add x (bf-complex-neg y)))
+
 (define (bf-complex-mult x y)
   (bigcomplex (bf+ (bf* (bigcomplex-re x) (bigcomplex-re y)) (bf- (bf* (bigcomplex-im x) (bigcomplex-im y))))
-        (bf+ (bf* (bigcomplex-im x) (bigcomplex-re y)) (bf* (bigcomplex-re x) (bigcomplex-im y)))))
+              (bf+ (bf* (bigcomplex-im x) (bigcomplex-re y)) (bf* (bigcomplex-re x) (bigcomplex-im y)))))
 
 (define (bf-complex-conjugate x)
   (bigcomplex (bigcomplex-re x) (bf- (bigcomplex-im x))))
-
-(define (bf-complex-sqr x)
-  (bf-complex-mult x x))
 
 (define (bf-complex-exp x)
   (match-define (bigcomplex re im) x)
@@ -61,26 +55,6 @@
   (define numer (bf-complex-mult x (bf-complex-conjugate y)))
   (define denom (bf-complex-mult y (bf-complex-conjugate y)))
   (bigcomplex (bf/ (bigcomplex-re numer) (bigcomplex-re denom)) (bf/ (bigcomplex-im numer) (bigcomplex-re denom))))
-
-(define (make-exact-fun bf-fun bf-complex-fun)
-  (lambda args
-    (match args
-      [(list (? bigfloat?) ...)
-       (apply bf-fun args)]
-      [(list (? bigcomplex?) ...)
-       (apply bf-complex-fun args)])))
-
-(require (only-in racket/base [exp e]))
-
-(define exact+ (make-exact-fun bf+ bf-complex-add))
-(define exact- (make-exact-fun bf- bf-complex-sub))
-(define exact* (make-exact-fun bf* bf-complex-mult))
-(define exact/ (make-exact-fun bf/ bf-complex-div))
-(define exact-exp (make-exact-fun bfexp bf-complex-exp))
-(define exact-log (make-exact-fun bflog bf-complex-log))
-(define exact-pow (make-exact-fun bfexpt bf-complex-pow))
-(define exact-sqr (make-exact-fun bfsqr bf-complex-sqr))
-(define exact-sqrt (make-exact-fun bfsqrt bf-complex-sqrt))
 
 (module+ test
   (define (bf-complex-eq-approx bf1 bf2)

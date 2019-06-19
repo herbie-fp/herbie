@@ -9,7 +9,7 @@ h3 {font-size: 14px; line-height: 1.286; margin-bottom: .2em; clear: both;}
 
 p, li, dd, blockquote, figcaption {
   text-align: justify; -moz-hyphens: auto; -webkit-hyphens: auto; hyphens: auto;
-  margin: .5em;
+  margin: .5em 0;
 }
 
 .showcase { background: #ddd; padding: 1em; margin: 5em 0; clear: both;}
@@ -46,7 +46,15 @@ ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
-#formula input { width: 100%; font-size: 125%; }
+#formula input[autofocus] { width: 100%; font-size: 125%; }
+.extra-fields { margin-top: 1em; }
+.show-extra {
+    display: block; text-align: right; margin-top: .5em;
+    cursor: pointer;
+}
+#formula input[type=submit] { display: none; }
+label { display: inline-block; width: 20%; line-height: 3; }
+input, select { width: 80%; }
 #errors li { color: #800; }
 #progress {
     font-size: 14px; font-family: sans-serif; background-color: #f1f1f1;

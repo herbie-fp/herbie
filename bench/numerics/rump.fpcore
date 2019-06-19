@@ -1,0 +1,28 @@
+(FPCore (x y)
+  :name "Rump's expression from Stadtherr's award speech"
+  :pre (and (== x 77617) (== y 33096))
+  :spec -54767/66192
+  (+ (* 333.75 (pow y 6))
+     (* (* x x)
+        (- (* 11 x x y y)
+           (pow y 6)
+           (* 121 (pow y 4))
+           2))
+     (* 5.5 (pow y 8))
+     (/ x (* 2 y))))
+
+;; From
+;; How Reliable are the Results of Computers
+;; Jahrbuch Uberblicke Mathematik (1983)
+
+(FPCore (x y)
+  :name "From Rump in a 1983 paper"
+  :pre (and (== x 10864) (== y 18817))
+  ;:pre (and (< 10500 x 11000) (< 18500 y 19000))
+  (+ (- (* 9 (pow x 4)) (pow y 4)) (* 2 (* y y))))
+
+(FPCore (x y)
+  :name "From Rump in a 1983 paper, rewritten"
+  :pre (and (== x 10864) (== y 18817))
+  ;:pre (and (< 10500 x 11000) (< 18500 y 19000))
+  (- (* 9 (pow x 4)) (* (* y y) (- (* y y) 2))))

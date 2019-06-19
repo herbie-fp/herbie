@@ -1,9 +1,7 @@
 #lang racket
 
-(require racket/date)
-(require json)
-(require "../common.rkt")
-(require "../float.rkt")
+(require racket/date json)
+(require "../common.rkt" "../float.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)
@@ -11,7 +9,9 @@
 
 
 (struct table-row
-  (name status start result target inf- inf+ start-est result-est vars input output time bits link) #:prefab)
+  (name status pre precision vars input output target-prog
+        start result target inf- inf+ start-est result-est
+        time bits link) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
@@ -32,20 +32,25 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status start-bits end-bits target-bits
-                  inf- inf+ start-est end-est vars input output time bits link)
+      [(table-row name status pre prec vars input output target-prog
+                  start-bits end-bits target-bits inf- inf+ start-est end-est
+                  time bits link)
        (make-hash
         `((name . ,name)
+          (pre . ,(write-string (write pre)))
+          (prec . ,(symbol->string prec))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)
           (target . ,target-bits)
           (ninf . ,inf-)
           (pinf . ,inf+)
+          (start-est . ,start-est)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
-          (input . ,(~a input))
-          (output . ,(~a output))
+          (input . ,(write-string (write input)))
+          (output . ,(write-string (write output)))
+          (target-prog . ,(write-string (write target-prog)))
           (time . ,time)
           (bits . ,bits)
           (link . ,(~a link))))]))
@@ -91,12 +96,14 @@
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
                    (let ([get (λ (field) (hash-ref test field))])
-                     ;; TODO: ignoring the result-est
                      (define vars
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (get 'start) (get 'end) (get 'target)
-                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
+                                (parse-string (hash-ref test 'target-prog "#f"))
+                                (get 'start) (get 'end) (get 'target)
+                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                                
                                 (get 'time) (get 'bits) (get 'link)))))))

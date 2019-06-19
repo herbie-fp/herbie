@@ -1,20 +1,41 @@
-function toggle_flag_list() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.toggle("changed-flags");
-    var changed_only = flags.classList.contains("changed-flags");
-    var button = document.getElementById("flag-list-toggle");
-    button.innerText = changed_only ? "see all" : "see diff";
+window.COMPONENTS = []
+
+function Component(selector, fns) {
+    this.selector = selector;
+    this.fns = fns;
+    window.COMPONENTS.push(this);
 }
 
-function togglable_flags() {
-    var flags = document.getElementById("flag-list");
-    flags.classList.add("changed-flags");
-    var button = document.createElement("a");
-    button.setAttribute("id", "flag-list-toggle");
-    button.innerText = "see all";
-    button.addEventListener("click", toggle_flag_list);
-    flags.insertBefore(button, flags.children[0]);
+function ComponentInstance(elt, component) {
+    for (var i in component.fns) {
+        if (component.fns.hasOwnProperty(i)) {
+            this[i] = component.fns[i].bind(this);
+        }
+    }
+    this.elt = elt;
 }
+
+var TogglableFlags = new Component("#flag-list", {
+    setup: function() {
+        this.elt.classList.add("changed-flags");
+        this.button = document.createElement("a");
+        this.button.setAttribute("id", "flag-list-toggle");
+        this.button.innerText = "see all";
+        this.button.addEventListener("click", this.toggle);
+        this.elt.insertBefore(this.button, this.elt.children[0]);
+    },
+    toggle: function() {
+        this.elt.classList.toggle("changed-flags");
+        var changed_only = this.elt.classList.contains("changed-flags");
+        this.button.innerText = changed_only ? "see all" : "see diff";
+    }
+});
+
+var Figure = new Component("#graphs figure", {
+    setup: function() {
+        setup_figure(this.elt);
+    },
+});
 
 function figure_names(figure) {
     var imgs = figure.querySelectorAll("img");
@@ -55,6 +76,47 @@ function setup_figure(figure) {
     }
 }
 
+var TryIt = new Component("#try-it", {
+    depends: function() {
+        if (typeof window.start === "undefined") throw "start() function not defined";
+        if (typeof window.end === "undefined") throw "end() function not defined";
+    },
+    setup: function() {
+        this.origOut = this.elt.querySelector("#try-original-output");
+        this.herbieOut = this.elt.querySelector("#try-herbie-output");
+        this.result = this.elt.querySelector("#try-result");
+        this.inputs = this.elt.querySelectorAll("#try-inputs input");
+        this.submit();
+        for (var i = 0; i < this.inputs.length; i++) {
+            this.inputs[i].addEventListener("input", this.submit);
+        }
+    },
+    submit: function() {
+        var values = [];
+        for (var i = 0; i < this.inputs.length; i++) {
+            var val = parseFloat(this.inputs[i].value);
+            if (isNaN(val)) {
+                if (this.inputs[i].value.length != 0) {
+                    // Don't update error message if there is no input
+                    this.result.className = 'error'
+                }
+                return;
+            } else {
+                this.result.className = 'no-error'
+                values.push(val);
+            }
+        }
+        this.origOut.innerHTML = start.apply(null, values);
+        this.herbieOut.innerHTML = end.apply(null, values);
+    },
+});
+
+var FigureTabs = new Component("#graphs > div", {
+    setup: function() {
+        setup_figure_tabs(this.elt);
+    },
+});
+
 function select_tab(id) {
     var tab = document.getElementById("tab-" + id);
     var pane = document.getElementById(id);
@@ -70,28 +132,6 @@ function select_tab(id) {
     pane.style.display = "block";
 }
 
-function submit_inputs() {
-    var originalOutputElem = document.querySelector('#try-original-output');
-    var herbieOutputElem = document.querySelector('#try-herbie-output');
-    var inputs = document.querySelectorAll('#try-inputs input');
-    var inputVals = [];
-    for (var i = 0; i < inputs.length; i++) {
-        var val = parseFloat(inputs[i].value);
-        if (isNaN(val)) {
-            if (inputs[i].value.length != 0) {
-                // Don't update error message if there is no input
-                document.querySelector('#try-result').className = 'error'
-            }
-            return;
-        } else {
-            document.querySelector('#try-result').className = 'no-error'
-            inputVals.push(val);
-        }
-    }
-    originalOutputElem.innerHTML = start.apply(null, inputVals);
-    herbieOutputElem.innerHTML = end.apply(null, inputVals);
-}
-
 function setup_figure_tabs(figure_container) {
     var figures = figure_container.getElementsByTagName("figure");
     var figure_array = {};
@@ -104,7 +144,7 @@ function setup_figure_tabs(figure_container) {
         figures[i].style.display = "none";
         figures[i].querySelector("figcaption > p").style.display = "none";
     }
-    if (default_figure === null) default_figure = figures[0].id;
+    if (default_figure === null && figures.length > 0) default_figure = figures[0].id;
 
     var tab_bar = document.createElement("ul");
     tab_bar.classList.add("tabbar");
@@ -122,56 +162,147 @@ function setup_figure_tabs(figure_container) {
         tab_bar.appendChild(tab_button);
     }
 
-    select_tab(default_figure);
+    if (default_figure) select_tab(default_figure);
 }
 
-function setup_timeline() {
-    var ts = document.getElementsByClassName("timeline-phase");
-    var total_time = 0;
-    for (var i = 0; i < ts.length; i++) {
-        total_time += +ts[i].getAttribute("data-timespan");
+var RenderMath = new Component(".math", {
+    depends: function() {
+        if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
+    },
+    setup: function() {
+        renderMathInElement(this.elt);
+    },
+});
+
+var Timeline = new Component(".timeline", {
+    setup: function() {
+        var ts = this.elt.querySelectorAll(".timeline-phase");
+        var total_time = 0;
+        for (var i = 0; i < ts.length; i++) {
+            total_time += +ts[i].getAttribute("data-timespan");
+        }
+        var total_width = ts[0].parentNode.offsetWidth;
+        for (var i = 0; i < ts.length; i++) {
+            ts[i].style.borderLeftWidth = (+ts[i].getAttribute("data-timespan")) / total_time * total_width + "px";
+            var s = ts[i].getAttribute("data-type") + " (" + Math.round(+ts[i].getAttribute("data-timespan")/100)/10 + "s)";
+            ts[i].title = s;
+        }
     }
-    for (var i = 0; i < ts.length; i++) {
-        ts[i].style.width = (+ts[i].getAttribute("data-timespan")) / total_time * 100 + "%";
-        ts[i].title = ts[i].getAttribute("data-type");
+});
+
+var Implementations = new Component("#program", {
+    setup: function() {
+        this.dropdown = this.elt.querySelector("select");
+        this.programs = this.elt.querySelectorAll(".implementation");
+        this.elt.addEventListener("change", this.change);
+        this.change();
+    },
+    change: function() {
+        var lang = this.dropdown.options[this.dropdown.selectedIndex].text;
+        for (var i = 0; i < this.programs.length; i++) {
+            var $prog = this.programs[i];
+            if ($prog.dataset["language"] == lang) {
+                $prog.style.display = "block";
+                this.arrow($prog);
+            } else {
+                $prog.style.display =  "none";
+            }
+        }
+    },
+    arrow: function($prog) {
+        var progs = $prog.querySelectorAll(".program");
+        $prog.classList.add("horizontal");
+        for (var i = 0; i < progs.length; i++) {
+            var progBot = progs[i].offsetTop + progs[i].offsetHeight;
+            if (progs[i].offsetTop >= progBot) {
+                return $prog.classList.remove("horizontal");
+            }
+        }
+    },
+});
+
+function histogram(id, data) {
+    var width = 676;
+    var height = 60
+    var margin = 5;
+    var labels = 10;
+    var ticks = 5;
+    var bucketwidth = 25;
+
+    var canvas = document.getElementById(id);
+    if (data.length == 0) { return canvas.remove(); } // Early exit
+
+    canvas.setAttribute("width", margin + width + margin + "px");
+    canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
+    var ctx = canvas.getContext("2d");
+      
+    ctx.beginPath();
+    ctx.strokeStyle = "black";
+    ctx.moveTo(margin, labels + margin + height);
+    ctx.lineTo(margin + width, labels + margin + height);
+    ctx.stroke();
+    
+    var xma = Math.max.apply(null, data);
+      
+    var buckets = Array(Math.round(width / bucketwidth));
+    var sum = 0;
+    buckets.fill(0);
+    for (var i = 0; i < data.length; i++) {
+        var j = Math.floor(data[i] / xma * buckets.length);
+        buckets[Math.min(j, buckets.length-1)] += data[i];
+        sum += data[i];
+    }
+    var yma = Math.max.apply(null, buckets);
+    
+    ctx.fillStyle = "rgba(0, 0, 0, .2)";
+    for (var i = 0; i < buckets.length; i++) {
+        ctx.fillRect(margin + i/buckets.length*width, labels + margin + height, width/buckets.length, -height*buckets[i]/yma);
+    }
+
+    ctx.fillStyle = "black";
+    ctx.textBaseline = "bottom";
+    ctx.textAlign = "center";
+    for (var i = 0; i < buckets.length; i++) {
+        ctx.fillText(Math.round(buckets[i] / sum * 100) + "%", margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
+    }
+    
+    ctx.textBaseline = "top";
+    var step = Math.pow(10, Math.round(Math.log10(xma)) - 1);
+    if (xma / step > 20) step *= 2;
+    if (xma / step < 10) step /= 2;
+    for (var i = 0; i < 10 * Math.sqrt(10); i++) {
+        var pos = i * step;
+        if (pos > yma) break;
+        ctx.beginPath();
+        ctx.moveTo(pos / xma * width + margin, labels + margin + height);
+        ctx.lineTo(pos / xma * width + margin, labels + margin + height + ticks);
+        ctx.fillText(pos, pos / xma * width + margin, labels + margin + height + ticks + margin);
+        ctx.stroke();
     }
 }
 
-function setup_program_arrow() {
-    var progelt = document.getElementById("program");
-    var progs = progelt.getElementsByClassName("program");
-    var arrs = progelt.getElementsByClassName("arrow");
+function run_components() {
+    for (var i = 0; i < window.COMPONENTS.length; i++) {
+        var component = window.COMPONENTS[i];
+        var elts = document.querySelectorAll(component.selector);
 
-    progelt.classList.add("horizontal");
-    var progBot = progs[0].offsetTop + progs[0].offsetHeight;
-    for (var i in progs) {
-        if (progs[i].offsetTop >= progBot) {
-            return progelt.classList.remove("horizontal");
+        try {
+            if (elts.length > 0 && component.fns.depends) component.fns.depends();
+        } catch (e) {
+            console.error(e);
+            continue;
+        }
+
+        for (var j = 0; j < elts.length; j++) {
+            var instance = new ComponentInstance(elts[j], component);
+            console.log("Initiating", component.selector, "component at", elts[j]);
+            try {
+                instance.setup();
+            } catch (e) {
+                console.error(e);
+            }
         }
     }
 }
 
-function load_graph() {
-    var figs = document.querySelectorAll("#graphs figure");
-    for (var i = 0; i < figs.length; i++) {
-        setup_figure(figs[i]);
-    }
-    setup_figure_tabs(document.querySelector("#graphs div"));
-    setup_timeline();
-    // Run the program_arrow after rendering happens
-    MathJax.Hub.Queue(setup_program_arrow);
-    // Submit the default vals in the "Try it out" section
-    submit_inputs()
-}
-
-function load_report() {
-    togglable_flags();
-}
-
-function load_index() {
-    // Nothing
-}
-
-function report() {load_report();}
-function graph() {load_graph();}
-function index() {load_index();}
+window.addEventListener("load", run_components);

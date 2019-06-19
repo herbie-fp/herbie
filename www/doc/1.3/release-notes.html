@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 1.3 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Herbie 1.3 Release Notes</h1>
+  </header>
+
+  <p>
+    The <a href="../..">Herbie</a> developers are excited to announce
+    Herbie 1.3! This release focuses on <em>speed and
+    transparency</em>: Herbie 1.3 is nearly twice as fast as
+    Herbie 1.2, and includes cleaner, more comprehensive HTML output.
+  </p>
+
+  <p>
+    Herbie automatically improves the accuracy of floating point
+    expressions. This avoids the bugs, errors, and surprises that so
+    often occur when working with floating point. Since
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
+    work making Herbie more versatile and easier to use.
+  </p>
+
+  <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
+
+  <h2>Major features of this release</h2>
+
+  <p><em>Speed:</em> Herbie is roughly twice as fast as in
+  previous releases. Making this happen has involved changes large and
+  small: a clever change to how we use simplification, a new sampling
+  algorithm, and also lots of work tracking down especially slow
+  expressions.</p>
+
+  <p><em>Transparency:</em> Herbie's web output has become
+  cleaner and more comprehensive. Herbie can now show you its output
+  in C and TeX as well as mathematical notation. You can now specify
+  preconditions and precisions when inputting expressions. And Herbie
+  has a new "Metrics" tab to show in-depth internal information, which
+  will help us continue to improve Herbie.</p>
+
+  <h2>Beta features in this release</h2>
+
+  <p><em>Windows support</em> has graduated from beta. We
+  intend to support Windows going forward; if you run into any bugs,
+  please <a href="https://github.com/uwplse/herbie/issues">let us
+  know</a>.</p>
+
+  <p><em>Plugins</em> can now
+  <a href="plugins.html">define new number systems</a> and then teach
+  Herbie to use them. There's a new plugin to add support
+  for <a href="https://posithub.org/">posit arithmetic</a>. Right now
+  the plugin system is still in flux, so if you'd like to use it,
+  please <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">write
+  to us</a>.</p>
+
+  <figure class="showcase" style="background: white; border: 1px solid gray;">
+    <img src="travis-time.png" style="display: block; width: 100%"/>
+    <figcaption>Herbie 1.3 is roughly 2× faster than Herbie 1.2,
+    thanks to efforts throughout the year. This plot shows how long
+    Herbie's CI takes to run, for every passing CI run this release
+    cycle. In April we added more tests, causing the bump in Travis
+    time around then.</figcaption>
+  </figure>
+
+
+  <h2>Improvement to core algorithm</h2>
+
+  <ul>
+    <li>Careful performance work has made Herbie nearly three times
+      faster than the 1.2 release.</li>
+    <li>Herbie now uses interval arithmetic to compute "ground truth"
+      values. This makes Herbie's accuracy estimate for a
+      program more correct.</li>
+    <li>Support for single-precision mode has been significantly improved.</li>
+    <li>Series expansion of <code>pow</code>s with constant exponents
+      is now much faster.</li>
+    <li>Complex numbers are now handled significantly more quickly.</li>
+    <li>Various fixes have eliminated rare but large slowdowns.</li>
+  </ul>
+
+  <h2>Usability improvements</h2>
+
+  <ul>
+    <li>Herbie's web interface now allows you to change preconditions
+      and precisions (click “additional options” below the formula bar).</li>
+    <li>You can now see C code for Herbie's output—use the drop-down
+    above and to the right of the program box.</li>
+    <li>Herbie has a <a href="../../index.html">new website</a>!
+      Hopefully it's a little easier to learn about what Herbie is and
+      how to use it.</li>
+    <li>Herbie now shows preconditions in its HTML output.</li>
+    <li>Herbie now produces somewhat simpler output, for example by
+      simplifying exact constant expressions like <code>(+ 2
+      2)</code>.</li>
+    <li>You can now input if statements on the web using
+      conditional-expression syntax.</li>
+    <li>Herbie will now show warnings in its HTML output, including
+      links to more documentation.</li>
+    <li>Herbie now indents and breaks lines when it prints FPCores in
+      the terminal.</li>
+    <li>Herbie now uses <a href="https://katex.org/">KaTeX</a> to
+      render math in the browser, which is significantly faster than
+      the previous <a href="https://www.mathjax.org/">MathJax</a>
+      library.</li>
+    <li>Error and timeout pages now show the input program.</li>
+  </ul>
+
+  <h2>Code Cleanup</h2>
+
+  <ul>
+    <li>Reports now link to an extensive collection of quality and
+      performance metrics. This should help improve Herbie's speed and
+      accuracy over time.</li>
+    <li>Documentation has been improved, with tables of content and
+      explanations of preconditions and precisions.</li>
+    <li>The new <kbd>reproduce</kbd> tool allows rerunning a
+      report.</li>
+    <li>The timebar on the metrics page now separates regime inference
+      from binary search.</li>
+    <li>Herbie's JavaScript code has been refactored, making it much
+      easier to maintain.</li>
+    <li>Lots of old, unused code has been deleted, including a lot of
+      support code for the
+      obsolete <a href="https://pavpanchekha.com/blog/herbie-viz.html">Herbie
+      Visualizer</a>.</li>
+    <li>Glue code has been moved into a single file, clarifying
+      responsibilities for a lot of modules.</li>
+  </ul>
+  
+  <h2>Try it out!</h2>
+
+  <p>
+    We're excited to continue to improve Herbie and make it more
+    useful to scientists, engineers, and programmers around the world.
+    We've got a lot of features we're excited to work on in the coming
+    months. Please
+    <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
+    join
+    <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
+    mailing list</a>,
+    or <a href="https://github.com/uw-plse/herbie">contribute</a>.
+  </p>
+  
+  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+</body>
+</html>

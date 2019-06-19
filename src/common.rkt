@@ -1,21 +1,18 @@
 #lang racket
 
-(require math/flonum)
-(require math/bigfloat)
-(require "config.rkt" "errors.rkt" "debug.rkt")
+(require math/flonum math/bigfloat racket/runtime-path)
+(require "config.rkt" "errors.rkt" "debug.rkt" "interface.rkt")
+(module+ test (require rackunit))
 
-(module+ test
-  (require rackunit))
-
-(provide *start-prog*
+(provide *start-prog* *all-alts*
          reap define-table table-ref table-set! table-remove!
-         first-value assert for/append
-         ordinary-value? =-or-nan? log2 </total
-         take-up-to flip-lists argmins argmaxs setfindf index-of set-disjoint? all-equal?
+         assert for/append string-prefix call-with-output-files
+         take-up-to flip-lists list/true find-duplicates all-partitions
+         argmins argmaxs setfindf index-of set-disjoint? comparator sample-double
          write-file write-string
-         binary-search-floats binary-search-ints binary-search
          random-exp parse-flag get-seed set-seed!
-         common-eval-ns common-eval quasisyntax
+         common-eval quasisyntax
+         format-time format-bits when-dict in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; A useful parameter for many of Herbie's subsystems, though
@@ -23,9 +20,9 @@
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
+(define *all-alts* (make-parameter '()))
 
 ;; Various syntactic forms of convenience used in Herbie
-
 
 (define-syntax-rule (reap [sows ...] body ...)
   (let* ([sows (let ([store '()])
@@ -39,56 +36,30 @@
 ;; The new, contracts-using version of the above
 
 (define-syntax-rule (define-table name [field type] ...)
-  (define/contract name
-    (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (list/c type ...)))
-    (cons (list (cons 'field type) ...) (make-hash))))
+  (define name (cons (list (cons 'field type) ...) (make-hash))))
 
-(define/contract (table-ref tbl key field)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [field symbol?])
-       [_ (tbl field) (dict-ref (car tbl) field)])
+(define (table-ref tbl key field)
   (match-let ([(cons header rows) tbl])
     (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (dict-ref rows key))]
+                [value (in-list (hash-ref rows key))]
                 #:when (equal? field-name field))
       value)))
 
-(define/contract (table-set! tbl key fields)
-  (->i ([tbl (cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c)))]
-        [key symbol?]
-        [fields (tbl)
-                ;; Don't check value types because the contract gets pretty rough :(
-                (and/c dict? (λ (d) (andmap (curry dict-has-key? d) (dict-keys (car tbl)))))])
-       any)
+(define (table-set! tbl key fields)
   (match-let ([(cons header rows) tbl])
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (dict-set! rows key row)))
+    (hash-set! rows key row)))
 
-(define/contract (table-remove! tbl key)
-  ((cons/c (listof (cons/c symbol? contract?)) (hash/c symbol? (listof any/c))) symbol? . -> . void?)
-  (match-let ([(cons header rows) tbl])
-    (dict-remove! rows key)))
+(define (table-remove! tbl key)
+  (hash-remove! (cdr tbl) key))
 
 ;; More various helpful values
-
-(define-syntax-rule (first-value expr)
-  (call-with-values
-      (λ () expr)
-    (compose car list)))
-
-(module+ test
-  (check-equal? (first-value (values 1 2 3)) 1))
 
 (define-syntax assert
   (syntax-rules ()
     [(assert pred #:loc location)
      (when (not pred)
        (error location "~a returned false!" 'pred))]
-    [(assert pred #:extra-info func)
-     (when (not pred)
-       (error 'assert (format "~a returned false! Extra info: ~a"
-			       'pred (func))))]
     [(assert pred)
      (when (not pred)
        (error 'assert "~a returned false!" 'pred))]))
@@ -103,47 +74,16 @@
   (check-equal? (for/append ([v (in-range 5)]) (list v v v))
                 '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
 
-;; Simple floating-point functions
-
-(define (ordinary-value? x)
-  (match x
-    [(? real?)
-     (not (or (infinite? x) (nan? x)))]
-    [(? complex?)
-     (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))]
-    [(? boolean?)
-     true]))
-
-(module+ test
-  (check-true (ordinary-value? 2.5))
-  (check-false (ordinary-value? +nan.0))
-  (check-false (ordinary-value? -inf.f)))
-
-(define (=-or-nan? x1 x2)
-  (or (= x1 x2)
-      (and (nan? x1) (nan? x2))))
-
-(module+ test
-  (check-true (=-or-nan? 2.3 2.3))
-  (check-false (=-or-nan? 2.3 7.8))
-  (check-true (=-or-nan? +nan.0 -nan.f))
-  (check-false (=-or-nan? 2.3 +nan.f)))
-
-(define (</total x1 x2)
-  (cond
-   [(nan? x1) #f]
-   [(nan? x2) #t]
-   [else (< x1 x2)]))
-
-(define (log2 x)
-  (/ (log x) (log 2)))
-
 ;; Utility list functions
 
 (define (take-up-to l k)
-  ; This is unnecessarily slow. It is O(l), not O(k).
-  ; To be honest, it just isn't that big a deal for now.
-  (take l (min k (length l))))
+  (for/list ([x l] [i (in-range k)])
+    x))
+
+(define (string-prefix s length)
+  (if (<= (string-length s) length)
+      s
+      (substring s 0 length)))
 
 (module+ test
   (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
@@ -179,9 +119,21 @@
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
 
+(define (list/true . args)
+  (filter identity args))
+
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
                 '((1 4 7) (2 5 8) (3 6 9))))
+
+(define (find-duplicates l)
+  (define found (mutable-set))
+  (define duplicates '())
+  (for ([x l])
+    (when (set-member? found x)
+      (set! duplicates (cons x duplicates)))
+    (set-add! found x))
+  (reverse duplicates))
 
 (define (setfindf f s)
   (for/first ([elt (in-set s)] #:when (f elt))
@@ -199,18 +151,13 @@
   (check-equal? (index-of '(a b c d e) 'd) 3)
   (check-equal? (index-of '(a b c d e) 'foo) #f))
 
-(define (set-disjoint? s1 s2) ; TODO could be faster?
-  (set=? (set-intersect s2 s1) '()))
+(define (set-disjoint? s1 s2)
+  (set-empty? (set-intersect s2 s1)))
 
 (module+ test
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
-
-(define (all-equal? l)
-  (if (null? l)
-      true
-      (andmap (curry equal? (car l)) (cdr l))))
 
 ;; Utility output functions
 
@@ -219,34 +166,6 @@
 
 (define-syntax-rule (write-string . rest)
   (with-output-to-string (lambda () . rest)))
-
-;; Binary search implementation
-
-;; Given two points, the first of which is pred, and the second is not,
-;; finds the point where pred becomes false, by calling split to binary
-;; search the space until (split a b) returns a, b, or #f.
-(define (binary-search split pred p1 p2)
-  ;; Get the midpoint using our given split function
-  (let ([midpoint (split p1 p2)])
-    ;; If the split function returned false, we're done.
-    (cond [(not midpoint) p1]
-	  ;; If our midpoint is one of our points, we're done.
-	  [(or (equal? p1 midpoint) (equal? p2 midpoint)) midpoint]
-	  ;; If our predicate is still true of our midpoint, search the
-	  ;; space between our midpoint and p2.
-	  [(pred midpoint) (binary-search split pred midpoint p2)]
-	  ;; Otherwise, search the space between our midpoint and p1.
-	  [#t (binary-search split pred p1 midpoint)])))
-
-;; Given two floating point numbers, the first of which is pred,
-;; and the second is not, find where pred becomes false (within epsilon).
-(define (binary-search-floats pred p1 p2 close-enough)
-  (binary-search (lambda (a b) (if (close-enough a b) #f
-				   (/ (+ a b) 2)))
-		 pred p1 p2))
-
-;; Implemented here for example.
-(define binary-search-ints (curry binary-search (compose floor (compose (curryr / 2) +))))
 
 ;; Miscellaneous helper
 
@@ -311,3 +230,60 @@
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a)
        #'(app syntax-e 'a)])))
+
+;; String formatting operations
+
+(define (format-time ms)
+  (cond
+   [(< ms 1000) (format "~ams" (round ms))]
+   [(< ms 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
+   [(< ms 3600000) (format "~am" (/ (round (/ ms 6000.0)) 10))]
+   [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+
+(define (format-bits r #:sign [sign #f] #:unit [unit? #f])
+  (define unit (if unit? "b" ""))
+  (cond
+   [(not r) ""]
+   [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+   [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+
+(define (call-with-output-files names k)
+  (let loop ([names names] [ps '()])
+    (if (null? names)
+        (apply k (reverse ps))
+        (if (car names)
+            (call-with-output-file
+                (car names) #:exists 'replace
+                (λ (p) (loop (cdr names) (cons p ps))))
+            (loop (cdr names) (cons #f ps))))))
+
+(define-syntax-rule (when-dict d (arg ...) body ...)
+  (if (and (dict-has-key? d 'arg) ...)
+      (let ([arg (dict-ref d 'arg)] ...)
+        body ...)
+      '()))
+
+(define (in-sorted-dict d #:key [key identity])
+  (in-dict (sort (dict->list d) > #:key (compose key cdr))))
+
+(define-runtime-path web-resource-path "web/")
+
+(define (web-resource [name #f])
+  (if name
+      (build-path web-resource-path name)
+      web-resource-path))
+
+(define (all-partitions n #:from [k 1])
+  (cond
+   [(= n 0) '(())]
+   [(< n k) '()]
+   [else
+    (append (map (curry cons k) (all-partitions (- n k) #:from k))
+            (all-partitions n #:from (+ k 1)))]))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
+(define (sample-double)
+  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))

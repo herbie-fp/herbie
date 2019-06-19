@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "interface.rkt")
 (provide assert-expression! assert-program!)
 
 (define (check-expression* stx vars error!)
@@ -17,13 +17,13 @@
          (error! var "Invalid variable name ~a" var))
        (check-expression* val vars error!))
      (check-expression* body (bound-id-set-union vars (immutable-bound-id-set vars*)) error!)]
+    [#`(let ,varlist #,body)
+     (error! stx "Invalid `let` expression variable list ~a" (syntax->datum varlist))
+     (check-expression* body vars error!)]
+    [#`(let ,args ...)
+     (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))]
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [#`(,(and (or 'sqr 'cube) f) #,args ...)
-     (unless (= (length args) 1)
-       (error! stx "Operator ~a given ~a arguments (expects 1)" f (length args)))
-     (eprintf "Warning: the `sqr` and `cube` operators are deprecated and will be removed in later versions.\n")
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(,f #,args ...)
      (if (operator? f)
@@ -33,7 +33,7 @@
                      f (length args) (string-join (map ~a num-args) " or "))))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
-    [_ (error! stx "Unknown syntax ~a" stx)]))
+    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
 (define (check-property* prop error!)
   (unless (identifier? prop)
@@ -65,6 +65,15 @@
     (define desc (dict-ref prop-dict ':description))
     (unless (string? (syntax-e desc))
       (error! desc "Invalid :description ~a; must be a string" desc)))
+
+  (when (dict-has-key? prop-dict ':precision)
+    (define prec (dict-ref prop-dict ':precision))
+    (define known-prec?
+      (with-handlers ([exn:fail? (const false)])
+        (get-representation (syntax-e prec))
+        true))
+    (unless known-prec?
+      (error! prec "Unknown :precision ~a" prec)))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

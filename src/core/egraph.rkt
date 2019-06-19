@@ -1,14 +1,12 @@
 #lang racket
 
-(require "enode.rkt")
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "enode.rkt")
 
-(provide mk-enode! mk-egraph
+(provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
-	 egraph? egraph-cnt egraph-top
-	 map-enodes draw-egraph egraph-leaders
-         elim-enode-loops! reduce-to-single! reduce-to-new!
+	 egraph? egraph-cnt
+	 draw-egraph egraph-leaders
+         elim-enode-loops! reduce-to-single!
          )
 
 (provide (all-defined-out)
@@ -24,7 +22,6 @@
 ;;#
 ;;# The following things should always be true of egraphs:
 ;;# 1. (egraph-cnt eg) is a positive integer.
-;;# 2. (egraph-top eg) is a valid enode.
 ;;# 3. For each enode en which is a key of leader->iexprs, en is the leader of
 ;;#    its own pack.
 ;;# 4. For every mapping (k, v) in leader->iexprs, for each expression e in v,
@@ -49,7 +46,7 @@
 ;;################################################################################;;
 
 ;; Only ever use leaders as keys!
-(struct egraph (cnt top leader->iexprs expr->parent) #:mutable)
+(struct egraph (cnt leader->iexprs expr->parent) #:mutable)
 
 ;; For debugging
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
@@ -58,36 +55,34 @@
     (assert (not (hash-has-key? leader->iexprs #f)))
     ;; The egraphs count must be a positive integer
     (assert (and (integer? count) (positive? count)) #:loc location)
-    ;; The top is a valid enode. (enode validity is verified upon creation).
-    (assert (enode? (egraph-top eg)) #:loc location)
+
     ;; Verify properties 4-6
-    (hash-for-each leader->iexprs
-		   (λ (leader iexprs)
-		     (assert (eq? leader (pack-leader leader)) #:loc location)
-		     (assert (set-mutable? iexprs) #:loc location)
-		     (for ([iexpr iexprs])
-		       (assert (list? iexpr) #:loc location)
-		       (assert (for/or ([sub (cdr iexpr)])
-                                 (eq? (pack-leader sub) leader))
-                               #:loc location)
-                       (assert (for/and ([sub (cdr iexpr)])
-                                 (eq? (pack-leader sub) sub)))
-		       (assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location))))
+    (for ([(leader iexprs) (in-hash leader->iexprs)])
+      (assert (eq? leader (pack-leader leader)) #:loc location)
+      (assert (set-mutable? iexprs) #:loc location)
+      (for ([iexpr iexprs])
+	(assert (list? iexpr) #:loc location)
+	(assert (for/or ([sub (cdr iexpr)])
+                  (eq? (pack-leader sub) leader))
+                #:loc location)
+        (assert (for/and ([sub (cdr iexpr)])
+                  (eq? (pack-leader sub) sub)))
+	(assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location)))
+
     ;; Verify property 7
-    (hash-for-each (egraph-expr->parent eg)
-		   (λ (k v)
-		     ;; This line verifies that we didn't change the definition of hashing
-		     ;; for some part of this expression without also refreshing the binding.
-		     (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
-		     
-		     (when (list? k)
-		       (for ([en (cdr k)])
-			 (assert (eq? en (pack-leader en)) #:loc location)))))
+    (for ([(k v) (in-hash (egraph-expr->parent eg))])
+      ;; This line verifies that we didn't change the definition of hashing
+      ;; for some part of this expression without also refreshing the binding.
+      (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
+      (when (list? k)
+	(for ([en (cdr k)])
+	  (assert (eq? en (pack-leader en)) #:loc location))))
+
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
 	(assert (for/and ([var cur-leader-vars])
-		  (or (number? var) (symbol? var) (list? var))))
+		  (or (value? var) (symbol? var) (list? var))))
 	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
 	(when (not (null? (cdr rest-leaders)))
 	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))
@@ -97,7 +92,7 @@
 ;; of the graph to indicate the addition, or if the expression already exists
 ;; in the egraph it returns the node associated with it. While the node exists
 ;; after this call, if we are creating a new node it still must be merged into
-;; an existing node or otherwise attached to the (egraph-top eg) node to be
+;; an existing node or otherwise attached to some node to be
 ;; completely added to the egraph.
 (define (mk-enode! eg expr)
   (if (hash-has-key? (egraph-expr->parent eg) expr)
@@ -111,7 +106,7 @@
  	(set-egraph-cnt! eg (add1 (egraph-cnt eg)))
 	(hash-set! leader->iexprs en (mutable-set))
 	(when (list? expr*)
-	  (for ([suben (cdr expr*)])
+	  (for ([suben (in-list (cdr expr*))])
 	    (set-add! (hash-ref leader->iexprs (pack-leader suben))
 		      expr*)))
 	(hash-set! (egraph-expr->parent eg)
@@ -128,21 +123,16 @@
 
 ;; Takes a plain mathematical expression, quoted, and returns the egraph
 ;; representing that expression with no expansion or saturation.
-(define (mk-egraph expr)
-  (let ([eg (egraph 0 #f (make-hash) (make-hash))])
-    (set-egraph-top! eg (mk-enode-rec! eg expr))
-    ;; This is an expensive check, but useful for debuggging.
-    #;(check-egraph-valid eg #:loc 'constructing-egraph)
-    eg))
-
-;; Maps a given function over all the equivilency classes
-;; of a given egraph (node packs).
-(define (map-enodes f eg)
-  (map f (egraph-leaders eg)))
+(define (mk-egraph)
+  (egraph 0 (make-hash) (make-hash)))
 
 ;; Gets all the pack leaders in the egraph
 (define (egraph-leaders eg)
   (hash-keys (egraph-leader->iexprs eg)))
+
+(define (dedup-vars! en)
+  (update-vars! (pack-leader en) update-en-expr)
+  (dedup-children! en))
 
 ;; Given an egraph and two enodes present in that egraph, merge the
 ;; packs of those two nodes, so that those nodes return the same
@@ -151,67 +141,70 @@
 ;; the leaders of en1 and en2, but the values of those mapping are
 ;; not.
 (define (merge-egraph-nodes! eg en1 en2)
-  (let ([leader->iexprs (egraph-leader->iexprs eg)]
-	[expr->parent (egraph-expr->parent eg)]
-        ;; Operate on the pack leaders in case we were passed a non-leader
-        [l1 (pack-leader en1)]
-        [l2 (pack-leader en2)])
+  (match-define (egraph _ leader->iexprs expr->parent) eg)
+  ;; Operate on the pack leaders in case we were passed a non-leader
+  (define l1 (pack-leader en1))
+  (define l2 (pack-leader en2))
+
+  (cond
+   [(eq? l1 l2)
     ;; If the leaders are the same, then these nodes are already part
     ;; of the same pack. However, this call usually means that two
     ;; vars of this leader were found equivalent through another
     ;; merge, so we want to update the vars to remove the redundancy.
-    (if (eq? l1 l2) (update-vars! l1 update-en-expr)
-        (let*-values (;; Hold on to these vars as they won't be the
-                      ;; same after the merge, but we don't yet know
-                      ;; which one we need.
-                      [(old-vars1) (enode-vars l1)]
-                      [(old-vars2) (enode-vars l2)]
-                      ;; Merge the node packs
-                      [(merged-en) (enode-merge! l1 l2)]
-                      ;; Now that we know which one became leader, we
-                      ;; can bind these.
-                      [(leader follower follower-old-vars)
-                       (if (eq? l1 merged-en)
-                           (values l1 l2 old-vars1)
-                           (values l2 l1 old-vars2))]
-                      ;; Get the expressions which mention the
-                      ;; follower so we can see if their new form
-                      ;; causes new merges.
-                      [(iexprs) (hash-ref leader->iexprs follower)])
-          ;; Once we've merged these enodes, other ones might
-          ;; have become equivalent. For example, if we had an
-          ;; enode which had the variation (+ x 1), and an
-          ;; enode which had the variation (+ y 1), and we
-          ;; merged x and y, then we know that these two
-          ;; enodes are equivalent, and should be merged.
-          (define to-merge
-            (for/append ([iexpr iexprs])
-              (let* ([replaced-iexpr (update-en-expr iexpr)]
-                     [other-parent (hash-ref expr->parent replaced-iexpr #f)])
-                (if other-parent (list (cons other-parent (hash-ref expr->parent iexpr)))
-                    '()))))
-          ;; Now that we have extracted all the information we
-          ;; need from the egraph maps in their current state, we
-          ;; are ready to update them. We need to know which one
-          ;; is the old leader, and which is the new to easily do
-          ;; this, so we branch on which one is eq? to merged-en.
-          (update-leader! eg follower-old-vars follower leader)
-          ;; Now the state is consistent for this merge, so we can
-          ;; tackle the other merges.
-          (for ([node-pair to-merge])
-            (merge-egraph-nodes! eg (car node-pair) (cdr node-pair)))
-          ;; The other merges can have caused new things to merge
-          ;; with our merged-en from before (due to loops in the
-          ;; egraph), so we turn this into a leader before finally
-          ;; returning it.
-          (pack-leader merged-en)))))
+    (dedup-vars! l1)]
+   [else
+    ;; Hold on to these vars as they won't be the same after the
+    ;; merge, but we don't yet know which one we need.
+    (define old-vars1 (enode-vars l1))
+    (define old-vars2 (enode-vars l2))
 
-(define (mutable-set-remove-duplicates st)
-  (list->mutable-set (set->list st)))
+    ;; Merge the node packs
+    (define merged-en (enode-merge! l1 l2))
+
+    ;; Now that we know which one became leader, we can bind these.
+    (define-values (leader follower follower-old-vars)
+      (if (eq? l1 merged-en)
+          (values l1 l2 old-vars2)
+          (values l2 l1 old-vars1)))
+
+    ;; Get the expressions which mention the follower so we can see if
+    ;; their new form causes new merges.
+    (define iexprs (hash-ref leader->iexprs follower))
+
+    ;; Once we've merged these enodes, other ones might have become
+    ;; equivalent. For example, if we had an enode which had the
+    ;; variation (+ x 1), and an enode which had the variation (+ y
+    ;; 1), and we merged x and y, then we know that these two enodes
+    ;; are equivalent, and should be merged.
+    (define to-merge
+      (for/append ([iexpr (in-mutable-set iexprs)])
+        (define replaced-iexpr (update-en-expr iexpr))
+        (define other-parent (hash-ref expr->parent replaced-iexpr #f))
+        (if other-parent
+            (list (cons other-parent (hash-ref expr->parent iexpr)))
+            '())))
+
+    ;; Now that we have extracted all the information we need from the
+    ;; egraph maps in their current state, we are ready to update
+    ;; them. We need to know which one is the old leader, and which is
+    ;; the new to easily do this, so we branch on which one is eq? to
+    ;; merged-en.
+    (update-leader! eg follower-old-vars follower leader)
+
+    ;; Now the state is consistent for this merge, so we can tackle
+    ;; the other merges.
+    (for ([node-pair (in-list to-merge)])
+      (merge-egraph-nodes! eg (car node-pair) (cdr node-pair)))
+
+    ;; The other merges can have caused new things to merge with our
+    ;; merged-en from before (due to loops in the egraph), so we turn
+    ;; this into a leader before finally returning it.
+    (pack-leader merged-en)]))
 
 (define (update-en-expr expr)
   (if (list? expr)
-      (for/list ([sub expr])
+      (for/list ([sub (in-list expr)])
         (if (enode? sub) (pack-leader sub) sub))
       expr))
 
@@ -220,17 +213,17 @@
     (let* ([changed-exprs (hash-ref (egraph-leader->iexprs eg) old-leader)])
       (set-union! (hash-ref! (egraph-leader->iexprs eg) new-leader (mutable-set))
                   changed-exprs)
-      (for ([ch-expr changed-exprs])
-        (for ([suben (cdr ch-expr)])
+      (for ([ch-expr (in-mutable-set changed-exprs)])
+        (for ([suben (in-list (cdr ch-expr))])
           (hash-update! (egraph-leader->iexprs eg) (pack-leader suben)
                         (λ (st)
-                          (for/mutable-set ([expr st])
+                          (for/mutable-set ([expr (in-mutable-set st)])
                             (update-en-expr expr)))))
         (let ([old-binding (hash-ref (egraph-expr->parent eg) ch-expr)])
           (hash-remove! (egraph-expr->parent eg) ch-expr)
           (hash-set! (egraph-expr->parent eg) (update-en-expr ch-expr) (update-en-expr old-binding))))
       (hash-remove! (egraph-leader->iexprs eg) old-leader)
-      (for ([variation old-vars])
+      (for ([variation (in-set old-vars)])
         (hash-set! (egraph-expr->parent eg)
                    (update-en-expr variation)
                    new-leader)))))
@@ -323,10 +316,10 @@
 ;; If there are any variations of this enode that are a single
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
-  (when (for/or ([var (enode-vars en)])
+  (when (for/or ([var (in-set (enode-vars en))])
 	  (or (constant? var) (variable? var)))
     (let* ([leader (pack-leader en)]
-           [old-vars (for/mutable-set ([var (enode-vars leader)])
+           [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
                        (update-en-expr var))]
            [leader* (pack-filter! (λ (inner-en)
                                     (not (list? (enode-expr inner-en))))
@@ -334,48 +327,33 @@
       (when (not (eq? leader leader*))
         (update-leader! eg old-vars leader leader*)))))
 
-(define (reduce-to-new! eg en expr)
-  (unless true
-    (let* ([new-en (mk-enode-rec! eg expr)]
-           [vars (enode-vars en)]
-           [leader (merge-egraph-nodes! eg en new-en)])
-      (hash-update! (egraph-leader->iexprs eg)
-                    leader
-                    (λ (st)
-                      (for/mutable-set ([expr st])
-                                       (update-en-expr expr))))
-      (let ([leader* (pack-filter! (λ (inner-en)
-                                     (equal? (enode-expr inner-en) (enode-expr new-en)))
-                                   leader)])
-        (update-leader! eg vars leader leader*)))))
-
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
 (define (draw-egraph eg fp)
   (with-output-to-file
       fp #:exists 'replace
       (λ ()
-	(displayln "digraph {")
+	(printf "digraph {\n")
 	(for ([en (egraph-leaders eg)])
-	  (let ([id (enode-pid en)])
-	    (printf "node~a[label=\"NODE ~a\"]~n" id id)
-	    (for ([varen (remove-duplicates (pack-members en) #:key enode-expr)]
-		  [vid (in-naturals)])
-	      (let ([var (enode-expr varen)])
-		(printf "node~avar~a[label=\"~a\",shape=box,color=blue]~n"
-			id vid (if (list? var) (car var) var))
-		(printf "node~a -> node~avar~a[style=dashed]~n"
-			id id vid)
-		(cond
-		 [(not (list? var)) (void)]
-		 [(= (length var) 2)
-		  (printf "node~avar~a -> node~a~n"
-			  id vid (enode-pid (second var)))]
-		 [(= (length var) 3)
-		  (printf "node~avar~a -> node~a[tailport=sw]~n"
-			  id vid (enode-pid (second var)))
-		  (printf "node~avar~a -> node~a[tailport=se]~n"
-			  id vid (enode-pid (third var)))])))))
-	(displayln "}")))
-  (system (format "dot -Tpng -o ~a.png ~a" fp fp))
-  (system (format "feh ~a.png" fp)))
+          (define id (enode-pid en))
+
+	  (printf "node~a[label=\"NODE ~a\"]\n" id id)
+	  (for ([varen (pack-members en)] [vid (in-naturals)])
+            (define var (enode-expr varen))
+	    (printf "node~avar~a[label=\"~a\",shape=box,color=blue]\n"
+		    id vid (if (list? var) (car var) var))
+	    (printf "node~a -> node~avar~a[style=dashed]\n"
+		    id id vid)
+            (when (list? var)
+              (define n (length (cdr var)))
+              (for ([arg (cdr var)] [i (in-naturals)])
+	        (printf "node~avar~a -> node~a[tailport=~a]\n"
+                        id vid
+                        (enode-pid arg)
+                        (cond
+                          [(= i 0) "sw"]
+                          [(= i (- n 1)) "se"]
+                          [else "s"])
+                        )))))
+	(printf "}\n")))
+  (system (format "dot -Tpng -o ~a.png ~a" fp fp)))

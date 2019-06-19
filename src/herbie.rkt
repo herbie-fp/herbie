@@ -1,29 +1,19 @@
 #lang racket
 
-(require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt"
-         "syntax/syntax.rkt" "syntax/rules.rkt")
+(require racket/lazy-require racket/runtime-path)
+(require "common.rkt" "multi-command-line.rkt" "sandbox.rkt" "errors.rkt" "plugin.rkt")
+
+;; Load all the plugins
+(load-herbie-plugins)
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["reports/run.rkt" (make-report)]
+ ["web/run.rkt" (make-report rerun-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
-
-(define (check-operator-fallbacks!)
-  (prune-operators!)
-  (prune-rules!)
-  (unless (null? (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-    (eprintf "Warning: native ~a not supported on your system; "
-             (string-join (map ~a (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*)))
-                          ", "))
-    (eprintf (if (flag-set? 'precision 'fallback) "fallbacks will be used.\n" "functions are disabled.\n"))
-    (eprintf "See <https://herbie.uwplse.org/doc/~a/faq.html#native-ops> for more info.\n"
-             *herbie-version*))
-  (unless (flag-set? 'fn 'cbrt) (eprintf "cbrt is diabled.\n")))
 
 (module+ main
   (define quiet? #f)
@@ -32,10 +22,12 @@
   (define demo-prefix "/")
   (define demo? #f)
   (define demo-port 8000)
+  (define demo-public #f)
 
   (define threads #f)
   (define report-profile? #f)
   (define report-note #f)
+  (define report-debug? #f)
 
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
@@ -45,34 +37,35 @@
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") rs "The random seed to use in point generation"
-    (define given-seed (read (open-input-string rs)))
+   [("--seed") int "The random seed to use in point generation"
+    (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
-   [("--num-iters") fu "The number of iterations of the main loop to use"
-    (*num-iterations* (string->number fu))]
-   [("--num-points") points "The number of points to use"
-    (*num-points* (string->number points))]
+   [("--num-iters") num "The number of iterations of the main loop to use"
+    (*num-iterations* (string->number num))]
+   [("--num-points") num "The number of points to use"
+    (*num-points* (string->number num))]
    #:multi
-   [("-o" "--disable") tf "Disable a flag (formatted category:name)"
-    (define flag (parse-flag tf))
-    (when (not flag)
-      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
-    (apply disable-flag! flag)]
-   [("+o" "--enable") tf "Enable a flag (formatted category:name)"
-    (define flag (parse-flag tf))
-    (when (not flag)
-      (raise-herbie-error "Invalid flag ~a" tf #:url "options.html"))
-    (apply enable-flag! flag)]
+   [("-o" "--disable") flag "Disable a flag (formatted category:name)"
+    (define tf (parse-flag flag))
+    (when (not tf)
+      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
+    (apply disable-flag! tf)]
+   [("+o" "--enable") flag "Enable a flag (formatted category:name)"
+    (define tf (parse-flag flag))
+    (when (not tf)
+      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
+    (apply enable-flag! tf)]
 
    #:subcommands
    [shell "Interact with Herbie from the shell"
     #:args ()
-    (check-operator-fallbacks!)
     (run-shell)]
    [web "Interact with Herbie from your browser"
     #:once-each
     [("--port") port "Port to run the web shell on"
      (set! demo-port (string->number port))]
+    [("--public") "Whether to listen on a public port (instead of localhost)"
+     (set! demo-public #t)]
     [("--save-session") dir "The dir to place a report from submitted expressions"
      (set! demo-output dir)]
     [("--log") file "The file to write web access log to"
@@ -83,27 +76,38 @@
      (set! demo? true)]
     [("--quiet") "Print a smaller banner and don't start a browser."
      (set! quiet? true)]
+    [("--debug") "Whether to compute metrics and debug info"
+     (set! report-debug? true)]
     #:args ()
-    (check-operator-fallbacks!)
-    (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:demo? demo? #:port demo-port)]
+    (run-demo #:quiet quiet? #:output demo-output #:log demo-log #:prefix demo-prefix #:debug report-debug? #:demo? demo? #:port demo-port #:public? demo-public)]
    [improve "Run Herbie on an FPCore file, producing an FPCore file"
     #:once-each
-    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count th))]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
     #:args (input output)
-    (check-operator-fallbacks!)
     (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
     [("--note") note "Add a note for this run"
      (set! report-note note)]
-    [("--threads") th "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count th))]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
+    [("--profile") "Whether to profile each run"
+     (set! report-profile? true)]
+    [("--debug") "Whether to compute metrics and debug info"
+     (set! report-debug? true)]
+    #:args (input output)
+    (make-report (list input) #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
+   [reproduce "Rerun an HTML report"
+    #:once-each
+    [("--note") note "Add a note for this run"
+     (set! report-note note)]
+    [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
+     (set! threads (string->thread-count num))]
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
     #:args (input output)
-    (check-operator-fallbacks!)
-    (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
 
    #:args files
    (begin

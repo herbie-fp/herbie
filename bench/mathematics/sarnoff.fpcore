@@ -25,25 +25,25 @@
             (< 4.930380657631324e-32 c 2.028240960365167e31))
   (/ (+ (- b) (sqrt (- (* b b) (* 4 a c)))) (* 2 a)))
 
-(FPCore (a b c d)
+(FPCore (a b c)
   :name "Cubic critical"
   (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
 
-(FPCore (a b c d)
+(FPCore (a b c)
   :name "Cubic critical, narrow range"
   :pre (and (< 1.0536712127723509e-8 a 9.490626562425156e7)
             (< 1.0536712127723509e-8 b 9.490626562425156e7)
             (< 1.0536712127723509e-8 c 9.490626562425156e7))
   (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
 
-(FPCore (a b c d)
+(FPCore (a b c)
   :name "Cubic critical, medium range"
   :pre (and (< 1.1102230246251565e-16 a 9.007199254740992e15)
             (< 1.1102230246251565e-16 b 9.007199254740992e15)
             (< 1.1102230246251565e-16 c 9.007199254740992e15))
   (/ (+ (- b) (sqrt (- (* b b) (* 3 a c)))) (* 3 a)))
 
-(FPCore (a b c d)
+(FPCore (a b c)
   :name "Cubic critical, wide range"
   :pre (and (< 4.930380657631324e-32 a 2.028240960365167e31)
             (< 4.930380657631324e-32 b 2.028240960365167e31)

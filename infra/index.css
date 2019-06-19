@@ -14,19 +14,20 @@ a:hover {text-decoration: underline; color: #295785}
 
 
 figure { margin: 0; overflow: auto; }
-#graph { float: left; }
-#graph text { text-anchor: end; }
-#graph .guide { stroke: rgb(60%, 60%, 60%); stroke-width: 1px; }
-#graph .gridline { stroke: black; stroke-width: 3px; }
-#graph .arrow {pointer-events: all; stroke-width: 7px; cursor: pointer;}
-#graph:hover .arrow {stroke-opacity: .7; fill-opacity: 0.7;}
-#graph:hover .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
+svg { float: left; }
+svg text { text-anchor: end; }
+svg text.guide { fill: rgb(30%, 30%, 30%); }
+svg line.guide { stroke: rgb(60%, 60%, 60%); stroke-width: 1px; }
+svg .gridline { stroke: black; stroke-width: 3px; }
+svg .arrow {pointer-events: all; stroke-width: 7px; cursor: pointer;}
+svg:hover .arrow {stroke-opacity: .7; fill-opacity: 0.7;}
+svg:hover .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
 figure ul { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: center; }
 figure li { padding: .5ex; display: inline-block; margin: .1em; }
 figure li:hover { background: #e4e4e4; }
 figure li.selected { background: #d3d3d3; }
 figure a { color: black; text-decoration: none; display: block; }
-#graph .no-data { text-anchor: middle; font-size: 18px; fill: rgb(60%, 60%, 60%)}
+svg .no-data { text-anchor: middle; font-size: 18px; fill: rgb(60%, 60%, 60%)}
 
 #toc {
     clear: both; 
@@ -43,8 +44,8 @@ figure a { color: black; text-decoration: none; display: block; }
 #reports tr.crash { color: red; }
 #reports td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
 #reports tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
-#reports td:nth-child(2), #reports th:nth-child(2) { text-align: center; display: none; }
-#reports td:nth-child(3) { text-align: center; }
+#reports td:nth-child(3), #reports th:nth-child(2) { text-align: center; display: none; }
+#reports td:nth-child(4) { text-align: center; }
 #reports thead { border-bottom: 1px solid black; height: 5em; vertical-align: bottom; }
 #reports a {
     position: absolute; left: 0; right: 0; z-index: 100;

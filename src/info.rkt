@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.1")
+(define version "1.3")
 
 ;; Packaging information
 
@@ -9,6 +9,7 @@
 (define pkg-authors
   '("Pavel Panchekha"
     "Alex Sanchez-Stern"
+    "David Thien"
     "Jason Qiu"
     "James Wilcox"
     "Zachary Tatlock"
@@ -22,7 +23,7 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "6.3")
+  '(("base" #:version "7.0")
     "math-lib"
     "plot-lib"
     "profile-lib"
@@ -31,6 +32,3 @@
 
 (define build-deps
   '("rackunit-lib"))
-
-(define compile-omit-paths '("test" "old"))
-(define test-omit-paths '("test" "old"))

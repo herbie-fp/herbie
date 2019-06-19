@@ -38,9 +38,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify* body))]
     [(? (compose null? free-variables) `(,op ,args ...))
-     (let ([value
-            (with-handlers ([(const #t) (const #f)])
-              (common-eval expr))])
+     (let ([value (with-handlers ([(const #t) (const #f)]) (eval-const-expr expr))])
        (if (and (number? value) (real? value) (exact? value))
            value
            (simplify-node `(,op ,@(map simplify* args)))))]
@@ -53,7 +51,7 @@
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-    [(or `(* ,_ ...) `(/ ,_ ...) `(sqr ,_) `(sqrt ,_))
+    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
@@ -100,8 +98,6 @@
                (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term)))))
            `((1 ,expr)))]
 
-      [`(sqr ,arg)
-       (recurse `(* ,arg ,arg) #:label expr)]
       [`(pow ,arg ,(? integer? n))
        (cond
         [(positive? n)
@@ -132,11 +128,6 @@
        (cons (if (ormap (compose (curry = 0) car) dens) +nan.0 (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
-    [`(sqr ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (cons (sqr (car terms))
-             (for/list ([term (cdr terms)])
-               (cons (* 2 (car term)) (cdr term)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (cond
@@ -151,6 +142,19 @@
                 (cons 1 `(sqrt ,(car terms)))
                 (for/list ([term (cdr terms)])
                   (cons (/ (car term) 2) (cdr term))))]))]
+    [`(cbrt ,arg)
+     (let ([terms (gather-multiplicative-terms arg)])
+       (define head-cbrt (expt (car terms) 1/3))
+       (cond
+        [(equal? (expt (inexact->exact head-cbrt) 3) (car terms))
+         (cons head-cbrt
+               (for/list ([term (cdr terms)])
+                 (cons (/ (car term) 3) (cdr term))))]
+        [else
+         (list* 1
+                (cons 1 `(cbrt ,(car terms)))
+                (for/list ([term (cdr terms)])
+                  (cons (/ (car term) 3) (cdr term))))]))]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (cond

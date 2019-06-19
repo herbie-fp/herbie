@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Installing Herbie</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Installing Herbie</h1>
+  </header>
+  
+  <p>Herbie supports Linux, macOS, and Windows.</p>
+
+  <p>
+    <a href="../../">Herbie</a> can be installed from a package or
+    from source. (It is also available in
+    a <a href="docker.html">Docker</a> image.) To install Herbie, first install
+    <a href="https://racket-lang.org">Racket</a>, which Herbie is
+    written in.
+  </p>
+
+  <h2>Installing Racket</h2>
+
+  <p>
+    Use the <a href="http://download.racket-lang.org/racket-v7.3.html">official
+    installer</a> to install Racket, or use distro-provided packages
+    provided they are version 7.0 or later of Racket (earlier versions
+    are not supported).
+  </p>
+
+  <p>
+    Test that Racket is installed correctly and has a correct version:
+  </p>
+
+  <pre class="shell">racket
+Welcome to Racket v7.3.
+> (exit)</pre>
+  
+  <h2>Installing Herbie from a package</h2>
+
+  <p>Once Racket is installed, install Herbie with:</p>
+
+  <pre class="shell">raco pkg install --auto herbie</pre>
+
+  <p>
+    This will install Herbie, compile it for faster startup, and place
+    an executable in your Racket user path, likely
+    into <code>~/.racket/7.3/</code>. If you add this directory to
+    your <code>PATH</code> you will be able to run herbie with
+    the <kbd>herbie</kbd> command.
+  </p>
+
+  <p>
+    Once Herbie is installed and working correctly,
+    check out the <a href="tutorial.html">tutorial</a>.
+  </p>
+
+  <h2>Installing Herbie from source</h2>
+
+  <p>
+    Once Racket is installed, download and build the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
+
+  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
+
+  <p>
+    If you go to the <code>herbie</code> directory,
+    you should see a <code>README.md</code> file, a directory named <code>src</code>,
+    a directory named <code>bench/</code>, and a few other directories.
+    Do a trial run of Herbie to make sure everything is installed and working correctly:
+  </p>
+
+  <pre class="shell">racket src/herbie.rkt report bench/tutorial.fpcore graphs/</pre>
+
+  <p>This command will take approximately a minute to run.
+    After the command completes,
+      a directory named <code>graphs</code> should be created.
+    Open the <code>report.html</code> file inside with your browser;
+      you will see a listing of the expressions Herbie was run on,
+      all of which should be green.
+    If not, please check that your Racket installation is at least version 7.3,
+      and if the error still persists,
+      please <a href="https://github.com/uwplse/herbie/issues">submit a bug</a>.
+  </p>
+
+  <p>For faster startup, to create the <kbd>herbie</kbd> command, and
+  to enable plugins, run the following command:</p>
+
+  <pre class="shell">raco pkg install --name herbie src/</pre>
+
+  <p>
+    Once Herbie is installed and working correctly,
+    check out the <a href="tutorial.html">tutorial</a>.
+  </p>
+
+  <h2>Installing Herbie from Docker</h2>
+
+  <p>
+    <a href="https://docker.com">Docker</a> is a container manager,
+    which is sort of like an easily-scriptable virtual machine. We do
+    not recommend using Herbie through Docker without prior Docker
+    experience.
+  </p>
+
+  <p>
+    First, <a href="https://docs.docker.com/installation/">install
+    Docker</a>. Docker supports Windows, macOS, and Linux. Depending
+    on how you install Docker, you may need to prefix
+    the <code>docker</code> command with <code>sudo</code> or run them
+    as the administrative user.
+  </p>
+
+  <p>
+    With Docker installed, you should be able to download the Herbie image with:
+  </p>
+ 
+  <pre class="shell">docker pull uwplse/herbie</pre>
+  
+  <p>
+    Check out the <a href="docker.html">Docker page</a> for more on
+    how to run Herbie with Docker. Note that Herbie in Docker is more
+    limited; for example, it will not recognize plugins installed
+    outside the Docker container.
+  </p>
+
+</body>
+</html>

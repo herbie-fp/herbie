@@ -5,13 +5,34 @@
   <title>Herbie: Automatically Improving Floating Point Accuracy</title>
   <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
   <script type='text/javascript' src='graph.js'></script>
-  <link rel='stylesheet' type='text/css' href='main.css'>
+  <link rel='stylesheet' type='text/css' href='main.css' />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
   <header>
     <img class="logo" src="logo.png" />
-    <p>Herbie aims to make floating point problems easier to find and fix.</p>
+    <p>Find and fix floating-point problems.</p>
+    <ul>
+      <li><a href="/demo/">Try</a></li>
+      <li><a href="doc/latest/installing.html">Install</a></li>
+      <li><a href="doc/latest/tutorial.html">Learn</a></li>
+    </ul>
   </header>
+
+  <figure class="showcase">
+    <div class="before-after">
+      <code class="before">sqrt(x+1) - sqrt(x)</code>
+      →
+      <code class="after">1/(sqrt(x+1) + sqrt(x))</code>
+    </div>
+    <figcaption>
+      Herbie detects inaccurate expressions
+      and finds more accurate replacements.
+      The red expression is inaccurate when <i>x > 1</i>;
+      Herbie's replacement, in green, is accurate for all <i>x</i>.
+    </figcaption>
+  </figure>
+
 
   <div class="column-container">
     <div>
@@ -20,17 +41,16 @@
         <li><a href="/demo/">Web demo</a></li>
         <li><a href="doc/latest/installing.html">Install</a></li>
         <li><a href="#news">News</a></li>
-        <li><a href="#blog">Blog</a></li>
+        <li><a href="doc.html#blog">Blog</a></li>
       </ul>
     </div>
     <div>
       <h3>Learn</h3>
       <ul>
-        <li><a href="doc/latest/using-web.html">How to Use</a></li>
+        <li><a href="doc/latest/tutorial.html">Tutorial</a></li>
         <li><a href="doc/latest/release-notes.html">Release Notes</a></li>
-        <li><a href="#docs">Documentation</a></li>
+        <li><a href="doc.html">Documentation</a></li>
         <li><a href="pldi15.html">PLDI'15 Paper</a></li>
-        <li><a href="http://herbgrind.ucsd.edu">Herbgrind</a></li>
       </ul>
     </div>
     <div>
@@ -38,41 +58,11 @@
       <ul>
         <li><a href="https://github.com/uwplse/herbie/issues">Report a Bug</a></li>
         <li><a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">Mailing List</a></li>
-        <li><a href="https://github.com/uw-plse/herbie">Source Code</a></li>
-        <li><a href="https://github.com/uw-plse/herbie/blob/master/LICENSE.md">License</a></li>
+        <li><a href="https://github.com/uwplse/herbie">Source Code</a></li>
+        <li><a href="https://github.com/uwplse/herbie/blob/master/LICENSE.md">License</a></li>
       </ul>
     </div>
   </div>
-  
-  <figure class="showcase">
-    <div class="before-after">
-      <code class="before">sqrt(x + 1) - sqrt(x)</code>
-      ⬇
-      <code class="after">1/(sqrt(x+1) + sqrt(x))</code>
-    </div>
-    <figcaption>
-      Herbie can detect inaccurate floating point expressions
-      and gives you more-accurate replacements.
-      The red expression gives inaccurate answers when <i>x > 0</i>;
-      Herbie rewrites it into the 
-      green expression, accurate for all <i>x</i>.
-    </figcaption>
-  </figure>
-
-  <h2 id="docs">Documentation</h2>
-  
-  <ul>
-    <li><a href="doc/latest/release-notes.html">Release Notes</a>: the biggest and latest changes to Herbie.</li>
-    <li><a href="doc/latest/faq.html">FAQ</a>: troubleshooting and using Herbie.</li>
-    <li><a href="doc/latest/installing.html">Installing Herbie</a>: getting Herbie up and running.</li>
-    <li><a href="doc/1.0/installing-herbgrind.html">Installing Herbgrind</a>: installing Herbgrind.</li>
-    <li><a href="doc/latest/docker.html">Installing with Docker</a>: an alternate installation method for Docker users.</li>
-    <li><a href="doc/latest/using-web.html">Using Herbie from the browser</a>: a guide to running Herbie from your browser.</li>
-    <li><a href="doc/latest/using-cli.html">Using Herbie from the CLI</a>: a guide to running Herbie from the command line.</li>
-    <li><a href="doc/latest/input.html">Input format</a>: how to write expressions for Herbie to improve.</li>
-    <li><a href="doc/latest/options.html">Command-line flags</a>: modifying Herbie's behavior.</li>
-    <li><a href="doc/1.0/using-herbgrind.html">Using Herbgrind</a>: a guide to running Herbgrind.</li>
-  </ul>
 
   <figure class="showcase">
     <style scoped>
@@ -84,13 +74,17 @@
       .gridline, .guide { stroke: rgb(40%, 40%, 40%); }
       text { text-anchor: middle; }
     </style>
-    <svg id="results" width="525" height="320"></svg>
+    <svg id="results" width="100%" viewBox="0 0 525 320"></svg>
     <script>draw_results(d3.select("#results"))</script>
-    <figcaption>Longer arrows are better. Each arrow measures an improvement in accuracy due to Herbie. Each arrow points from the accuracy of the original program, and to the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
+    <figcaption>Herbie improving accuracy on the “Hamming” benchmark suite. Longer arrows are better. Each arrow starts at the accuracy of the original expression, and ends at the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
   </figure>
 
   <h2>Herbie Project News</h2>
   <ol id="news">
+    <li><time>1 May</time><a href="https://pavpanchekha.com/">Pavel</a> will be joining the <a href="https://www.utah.edu/">University of Utah</a> as an assistant professor next year, joining <a href="http://www.cs.utah.edu/~ganesh/">Ganesh</a> and <a href="https://zvonimir.info/">Zvonimir</a> at what is already a nexus of floating-point research.</li>
+    <li><time>13 Mar</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> gave a keynote at <a href="https://posithub.org/conga/2019/">CoNGA’19</a> on multi-precision, multi-format computations and our efforts to support them in Herbie, <a href="http://fpbench.org">FPBench</a>, and <a href="http://titanic.uwplse.org">Titanic</a>.</li>
+    <hr class="yearmark" />
+    <li><time>20 Jun</time><a href="http://alex.uwplse.org/">Alex</a> gave <a href="https://www.youtube.com/watch?v=bFL6PaPrz8Y">a talk</a> on our sister project Herbgrind at <a href="https://conf.researchr.org/home/pldi-2018">PLDI’18</a>. Watch it if you want to know how Herbgrind pulls inaccurate floating-point expressions out of large numeric code bases.</li>
     <li><time>15 Jun</time>After a year of work, <a href="doc/1.2/release-notes.html">Herbie 1.2</a> has been released. This release focuses on creativity and accuracy, with a new system to infer better branches and more accurate defaults for Herbie's various parameters. Read about all the changes in the <a href="doc/1.2/release-notes.html">release notes</a>.</li>
     <li><time>9 Apr</time>We teamed up with <a href="https://www.mpi-sws.org/people/hbecker/">Heiko</a> and <a href="https://people.mpi-sws.org/~eva/">Eva</a> on the <a href="https://github.com/malyzajko/daisy">Daisy</a> team to combine our tools and evaluate how best to use them together—it'll be published at <a href="https://fm2018.org">FM’18</a>. If you're using Herbie with other floating point tools, let us know!</li>
     <li><time>1 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> and <a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> went to see <a href="https://www.mccawhall.com/events/detail/herbie-hancock">Herbie Hancock play at the Seattle Center</a>. Watching Herbie play Chameleon on the keytar is sure to inspire the next generation of floating point accuracy improvement!</li>
@@ -121,36 +115,40 @@
     <li><time>15 May</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">lightning talk</a> on a new project to improve the accuracy of floating point expressions.</li>
     <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
   </ol>
+
+  <script>
+    var news = document.getElementById("news");
+    for (var i = 3; i < news.children.length; i++) {
+        news.children[i].style.display = "none";
+    }
+    var more = document.createElement("li");
+    more.classList.add("more");
+    more.innerHTML = "See older news";
+    more.addEventListener("click", function(e) {
+        for (var i = 0; i < news.children.length; i++) {
+            news.children[i].style.display = "list-item";
+        }
+        more.style.display = "none";
+    });
+    news.appendChild(more);
+  </script>
   
-  <h2>Blog posts about Herbie</h2>
-
-  <ul id="blog">
-    <li><a href="http://cseweb.ucsd.edu/~alexss/2017/04/22/introducing-herbgrind.html">Introducing Herbgrind</a>: what is our sister project Herbgrind all about?</li>
-    <li><a href="http://www.i-programmer.info/news/202-number-crunching/9378-let-herbie-make-your-floating-point-better.html">Let Herbie Make Your Floating Point Better</a>: why programmers who deal with floating point should use Herbie.</li>
-    <li><a href="http://alex.uwplse.org/2015/10/16/improving-accuracy-summation.html">Improving Accuracy: a Look at Sums</a>: why floating point summation is hard, and how compensated summation works.</li>
-    <li><a href="http://alex.uwplse.org/2015/08/03/measuring-error.html">Measuring the Error of Floating Point Programs</a>: how Herbie measures the error of a floating point program, and how we're working to extend that to programs with loops.</li>
-    <li><a href="https://pavpanchekha.com/blog/taylor-log.html">Logarithms of Taylor Expansions</a>: how Herbie takes Taylor expansions of logarithms.</li>
-    <li><a href="https://pavpanchekha.com/blog/mathjs-series.html">Hyperbolic sines in math.js</a>: how Herbie fixed an accuracy bug in <a href="http://mathjs.org">math.js</a> using series expansion.</li>
-    <li><a href="https://pavpanchekha.com/blog/taylor-exp.html">Taylor Expansions of Taylor Expansions</a>: how Herbie takes Taylor expansions of exponential and trigonometric functions.</li>
-    <li><a href="https://pavpanchekha.com/blog/arbitrary-precision.html">Arbitrary Precision, not Arbitrary Accuracy</a>: why arbitrary-precision libraries aren’t an answer to rounding error.</li>
-    <li><a href="https://pavpanchekha.com/blog/casio-mathjs.html">Complex Square Roots in math.js</a>: how Herbie automatically fixed an accuracy bug in <a href="http://mathjs.org">math.js</a>, an open source mathematics library.</li>
-    <li><a href="https://pavpanchekha.com/blog/fp-guarantees.html">Floating Point Guarantees</a>: how floating point rounding and primitive operators work.</li>
-  </ul>
-
   <h2>The Herbie Developers</h2>
 
-  <p>Herbie is chiefly developed at the <a href="https://cs.washington.edu">University of Washington</a> Programming Languages and Software Engineering group, with contributions from a supportive community.</p>
+  <p>Herbie is developed at <a href="https://cs.washington.edu">UW</a> <a href="https://uwplse.org">PLSE</a>, with contributions from a supportive community.</p>
 
-  <img width="100%" src="doc/latest/team.png" style="display: block; margin: 2em 0;" />
+  <p>The main contributors are
+    <a href="https://pavpanchekha.com">Pavel Panchekha</a>,
+    <a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a>,
+    <a href="https://homes.cs.washington.edu/~dthien/blog/">David Thien</a>,
+    <a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a>,
+    <a>Jason Qiu</a>,
+    <a href="https://github.com/jackfirth">Jack Firth</a>, and
+    <a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a>.
+  </p>
+
+  <img src="doc/latest/team.png" />
   
-  <ol class="author-list">
-    <li><a href="https://pavpanchekha.com">Pavel Panchekha</a></li>
-    <li><a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a></li>
-    <li><a>Jason Qiu</a></li>
-    <li><a href="https://github.com/jackfirth">Jack Firth</a></li>
-    <li><a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a></li>
-    <li><a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a></li>
-  </ol>
 
 </body>
 </html>

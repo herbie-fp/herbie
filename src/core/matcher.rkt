@@ -1,86 +1,58 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "../syntax/rules.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../timeline.rkt" "../programs.rkt")
+(require "../syntax/rules.rkt" "../type-check.rkt")
 
 (provide
  (all-from-out "../syntax/rules.rkt")
- pattern-substitute pattern-match
+ pattern-match
  rewrite-expression-head rewrite-expression
- (struct-out change) change-apply changes-apply rule-rewrite)
+ (struct-out change) change-apply rule-rewrite)
 
-;; Our own pattern matcher.
-;
-; The racket (match) macro doesn't give us access to the bindings made
-; by the matcher, so we wrote our own.
-;
-; The syntax is simple:
-;   numbers are literals ; symbols are variables ; lists are expressions
-;
-; Bindings are stored as association lists
+;;; Our own pattern matcher.
+;;
+;; The racket (match) macro doesn't give us access to the bindings made
+;; by the matcher, so we wrote our own.
+;;
+;; The syntax is simple:
+;;   numbers are literals ; symbols are variables ; lists are expressions
+;;
+;; Bindings are stored as association lists
 
-(define (merge-bindings . bindings)
-  ; (list bindings) -> binding
-  (foldl merge-2-bindings '() bindings))
-
-(define (merge-2-bindings binding1 binding2)
+(define (merge-bindings binding1 binding2)
   (define (fail . irr) #f)
-
-  ; binding binding -> binding
-  (if (and binding1 binding2)
-      (let loop ([acc binding1] [rest binding2])
-        (if (null? rest)
-            acc
-            (let* ([curr (car rest)]
-                   [lookup (assoc (car curr) acc)])
-              (if lookup
-                  (if (equal? (cdr lookup) (cdr curr))
-                      (loop acc (cdr rest))
-                      (fail "pattern-match: Variable has two different bindings"
-                            (car curr) (cdr lookup) (cdr curr)))
-                  (loop (cons curr acc) (cdr rest))))))
-      #f))
-
-; The matcher itself
+  (and binding1
+       binding2
+       (let/ec quit
+         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
+           (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
 
 (define (pattern-match pattern expr)
-  ; pattern expr -> bindings
-
   (define (fail . irr) #f)
 
-  (cond
-   [(constant? pattern)
-    (if (and (constant? expr) (equal? pattern expr))
-        '()
-        (fail "pattern-match: Literals do not match"
-              pattern expr))]
-   [(variable? pattern)
+  (match pattern
+   [(? constant?)
+    (and (equal? pattern expr) '())]
+   [(? variable?)
     (list (cons pattern expr))]
-   ; TODO : test for allowed operators
-   [(list? pattern)
-    (if (and (list? expr) (eq? (car expr) (car pattern))
-             (= (length expr) (length pattern)))
-        (apply merge-bindings
-         (for/list ([pat (cdr pattern)] [subterm (cdr expr)])
-           (pattern-match pat subterm)))
-        (fail "pattern-match: Not a list, or wrong length, or wrong operator."
-              "Don't ask me, I don't know!"
-              pattern expr))]
-   [#t (fail "pattern-match: Confused by pattern term" pattern)]))
+   [(list phead _ ...)
+    (and (list? expr)
+         (equal? (car expr) phead)
+         (= (length expr) (length pattern))
+         (for/fold ([bindings '()])
+             ([pat (cdr pattern)] [subterm (cdr expr)])
+           (merge-bindings bindings (pattern-match pat subterm))))]))
 
 (define (pattern-substitute pattern bindings)
   ; pattern binding -> expr
-  (cond
-   [(constant? pattern) pattern]
-   [(variable? pattern)
-    (cdr (assoc pattern bindings))]
-   [(list? pattern)
-    (cons (car pattern)
-          (for/list ([pat (cdr pattern)])
-            (pattern-substitute pat bindings)))]
-   [#t (error "pattern-substitute: Confused by pattern term" pattern)]))
+  (match pattern
+   [(? constant?) pattern]
+   [(? variable?)
+    (dict-ref bindings pattern)]
+   [(list phead pargs ...)
+    (cons phead (map (curryr pattern-substitute bindings) pargs))]))
+
+;; Random helper functions
 
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
@@ -95,115 +67,81 @@
                           [(cons out bindings) out]
                           [#f (return #f)])))))
 
-(define (rule-apply-force-destructs rule expr)
-  (and (not (symbol? (rule-input rule))) (rule-apply rule expr)))
+(define (change-apply cng prog)
+  (match-define (change rule location bindings) cng)
+  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
-(struct change (rule location bindings) #:transparent
-        #:methods gen:custom-write
-        [(define (write-proc cng port mode)
-           (display "#<change " port)
-           (write (rule-name (change-rule cng)) port)
-           (display " at " port)
-           (write (change-location cng) port)
-           (let ([bindings (change-bindings cng)])
-             (when (not (null? bindings))
-               (display " with " port)
-               (for ([bind bindings])
-                 (write (car bind) port)
-                 (display "=" port)
-                 (write (cdr bind) port)
-                 (display ", " port))))
-           (display ">" port))])
+(struct change (rule location bindings) #:transparent)
+
+;; The rewriter
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
+  (define type (type-of expr env))
   (reap [sow]
-    ; TODO: don't recompute the type of every expression
-    (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
-      (let* ([applyer (if destruct? rule-apply-force-destructs rule-apply)]
-             [result (applyer rule expr)])
+    (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))
+      (let* ([result (rule-apply rule expr)])
         (when result
-            (sow (change rule root-loc (cdr result))))))))
+            (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
-
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define (rewriter expr ghead glen loc cdepth)
+  (define type (type-of expr env))
+  (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
-    (reap (sow)
-          (for ([rule (if (equal? 'complex (type-of expr env)) (*complex-rules*) (*rules*))])
-            (when (or
-                    (not ghead) ; Any results work for me
-                    (and
-                      (list? (rule-output rule))
-                      (= (length (rule-output rule)) glen)
-                      (eq? (car (rule-output rule)) ghead)))
-              (let ([options (matcher expr (rule-input rule) loc (- cdepth 1))])
-                (for ([option options])
-                  ; Each option is a list of change lists
-                  (sow (cons (change rule (reverse loc) (cdr option))
-                             (car option)))))))))
+    (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))
+      (when (or
+             (not ghead) ; Any results work for me
+             (and
+              (list? (rule-output rule))
+              (= (length (rule-output rule)) glen)
+              (eq? (car (rule-output rule)) ghead)))
+        (for ([option (matcher expr (rule-input rule) loc (- cdepth 1))])
+          ;; Each option is a list of change lists
+          (sow (cons (change rule (reverse loc) (cdr option)) (car option)))))))
 
-  (define (reduce-children options)
+  (define (reduce-children sow options)
     ; (list (list ((list change) * bindings)))
     ; -> (list ((list change) * bindings))
-    (reap (sow)
-      (for ([children options])
-        (let ([bindings* (apply merge-bindings (map cdr children))])
-          (when bindings*
-            (sow (cons (apply append (map car children)) bindings*)))))))
+    (for ([children options])
+      (let ([bindings* (foldl merge-bindings '() (map cdr children))])
+        (when bindings*
+          (sow (cons (apply append (map car children)) bindings*))))))
 
-  (define (fix-up-variables pattern options)
-    ; pattern (list (list change)) -> (list (list change) * pattern)
-    (reap (sow)
-      (for ([cngs options])
-        (let* ([out-pattern (rule-output (change-rule (car cngs)))]
-               [result (pattern-substitute out-pattern
-                                           (change-bindings (car cngs)))]
-               [bindings* (pattern-match pattern result)])
-          (when bindings*
-            (sow (cons cngs bindings*)))))))
+  (define (fix-up-variables sow pattern cngs)
+    ; pattern (list change) -> (list change) * bindings
+    (match-define (change rule loc bindings) (car cngs))
+    (define result (pattern-substitute (rule-output rule) bindings))
+    (define bindings* (pattern-match pattern result))
+    (when bindings* (sow (cons cngs bindings*))))
 
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
-      (cond
-       [(variable? pattern)
-        ; Do nothing, bind variable
-        (list (cons '() (list (cons pattern expr))))]
-       [(constant? pattern)
-        (if (and (constant? expr) (equal? expr pattern))
-            '((()) . ()) ; Do nothing, bind nothing
-            '())] ; No options
-       [(and (list? expr) (list? pattern))
-        (if (and (eq? (car pattern) (car expr))
-                 (= (length pattern) (length expr)))
-            ; Everything is terrible
-            (reduce-children
-              (apply cartesian-product ; (list (list ((list cng) * bnd)))
-                     (for/list ([i (in-naturals)] [sube expr] [subp pattern]
-                                #:when (> i 0)) ; (list (list ((list cng) * bnd)))
-                       ;; Note: we reset the fuel to "depth", not "cdepth"
-                       (matcher sube subp (cons i loc) depth)))) ; list (expr * pattern)
-            (if (> cdepth 0)
-                ; Sort of a brute force approach to getting the bindings
-                (fix-up-variables
-                 pattern
-                 (rewriter expr (car pattern) (length pattern) loc (- cdepth 1)))
-                '()))]
-       [(and (list? pattern) (not (list? expr)))
-        '()]
-       [else
-        (error "Unknown pattern" pattern)]))
+    (reap [sow]
+      (match pattern
+        [(? variable?)
+         (sow (cons '() (list (cons pattern expr))))]
+        [(? constant?)
+         (when (equal? expr pattern)
+           (sow (cons '() '())))]
+        [(list phead _ ...)
+         (when (and (list? expr) (equal? phead (car expr))
+                    (= (length pattern) (length expr)))
+           (let/ec k ;; We have an option to early exit if a child pattern cannot be matched
+             (define child-options ; (list (list ((list cng) * bnd)))
+               (for/list ([i (in-naturals)] [sube expr] [subp pattern] #:when (> i 0))
+                 ;; Note: fuel is "depth" not "cdepth", because we're recursing to a child
+                 (define options (matcher sube subp (cons i loc) depth))
+                 (when (null? options) (k)) ;; Early exit 
+                 options))
+             (reduce-children sow (apply cartesian-product child-options))))
 
-  ; The #f #f mean that any output result works. It's a bit of a hack
-  (rewriter expr #f #f (reverse root-loc) depth))
+         (when (and (> cdepth 0)
+                    (or (flag-set? 'generate 'better-rr)
+                        (not (and (list? expr) (equal? phead (car expr)) (= (length pattern) (length expr))))))
+           ;; Sort of a brute force approach to getting the bindings
+           (rewriter (curry fix-up-variables sow pattern)
+                     expr (car pattern) (length pattern) loc (- cdepth 1)))])))
 
-(define (change-apply cng prog)
-  (let ([loc (change-location cng)]
-        [template (rule-output (change-rule cng))]
-        [bnd (change-bindings cng)])
-    (location-do loc prog (λ (expr) (pattern-substitute template bnd)))))
-
-(define (changes-apply chngs prog)
-  (for/fold ([prog prog]) ([chng chngs])
-    (change-apply chng prog)))
+  ;; The "#f #f" means that any output result works. It's a bit of a hack
+  (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))

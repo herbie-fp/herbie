@@ -2,18 +2,15 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt")
-(require "syntax.rkt")
+(require "../common.rkt" "syntax.rkt" "../float.rkt" "../type-check.rkt")
 
-(provide (struct-out rule) *complex-rules* rule-valid-at-type? *rules* *simplify-rules* 
-         *fp-safe-simplify-rules* prune-rules!)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(module+ internals (provide define-ruleset *rulesets*))
 
-(struct rule (name input output) ; Input and output are patterns
+(struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
-           (display "#<rule " port)
-           (write (rule-name rule) port)
-           (display ">" port))])
+           (fprintf port "#<rule ~a>" (rule-name rule)))])
 
 (define *rulesets* (make-parameter '()))
 
@@ -27,12 +24,13 @@
       [else #t]))
   (ops-in-expr (rule-output rule)))
 
-(define (prune-rules!)
-  (*rulesets* (for/list ([ruleset (*rulesets*)])
-                (cons (for/list ([rule (car ruleset)]
-                                 #:when (rule-ops-supported? rule))
-                        rule)
-                      (cdr ruleset)))))
+(register-reset
+ #:priority 10 ; Must be higher than priority for pruning operators
+ (λ ()
+   (*rulesets* 
+    (for/list ([ruleset (*rulesets*)])
+      (match-define (list rules groups types) ruleset)
+      (list (filter rule-ops-supported? rules) groups types)))))
 
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -40,16 +38,24 @@
      (define-ruleset name groups #:type () [rname input output] ...)]
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
-     (begin (define name (list (rule 'rname 'input 'output) ...))
+     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)
+                                     (type-of 'input '((var . type) ...))) ...))
             (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
-(define-ruleset commutativity (arithmetic simplify complex fp-safe)
+(define-ruleset commutativity (arithmetic simplify fp-safe)
+  #:type ([a real] [b real])
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
+(define-ruleset commutativity.c (arithmetic simplify fp-safe complex)
+  #:type ([a complex] [b complex])
+  [+.c-commutative     (+.c a b)               (+.c b a)]
+  [*.c-commutative     (*.c a b)               (*.c b a)])
+
 ; Associativity
-(define-ruleset associativity (arithmetic simplify complex)
+(define-ruleset associativity (arithmetic simplify)
+  #:type ([a real] [b real] [c real])
   [associate-+r+     (+ a (+ b c))         (+ (+ a b) c)]
   [associate-+l+     (+ (+ a b) c)         (+ a (+ b c))]
   [associate-+r-     (+ a (- b c))         (- (+ a b) c)]
@@ -69,8 +75,35 @@
   [sub-neg           (- a b)               (+ a (- b))]
   [unsub-neg         (+ a (- b))           (- a b)])
 
+(define-ruleset associativity.c (arithmetic simplify complex)
+  #:type ([a complex] [b complex] [c complex])
+  [associate-+r+.c     (+.c a (+.c b c))         (+.c (+.c a b) c)]
+  [associate-+l+.c     (+.c (+.c a b) c)         (+.c a (+.c b c))]
+  [associate-+r-.c     (+.c a (-.c b c))         (-.c (+.c a b) c)]
+  [associate-+l-.c     (+.c (-.c a b) c)         (-.c a (-.c b c))]
+  [associate--r+.c     (-.c a (+.c b c))         (-.c (-.c a b) c)]
+  [associate--l+.c     (-.c (+.c a b) c)         (+.c a (-.c b c))]
+  [associate--l-.c     (-.c (-.c a b) c)         (-.c a (+.c b c))]
+  [associate--r-.c     (-.c a (-.c b c))         (+.c (-.c a b) c)]
+  [associate-*r*.c     (*.c a (*.c b c))         (*.c (*.c a b) c)]
+  [associate-*l*.c     (*.c (*.c a b) c)         (*.c a (*.c b c))]
+  [associate-*r/.c     (*.c a (/.c b c))         (/.c (*.c a b) c)]
+  [associate-*l/.c     (*.c (/.c a b) c)         (/.c (*.c a c) b)]
+  [associate-/r*.c     (/.c a (*.c b c))         (/.c (/.c a b) c)]
+  [associate-/l*.c     (/.c (*.c b c) a)         (/.c b (/.c a c))]
+  [associate-/r/.c     (/.c a (/.c b c))         (*.c (/.c a b) c)]
+  [associate-/l/.c     (/.c (/.c b c) a)         (/.c b (*.c a c))]
+  [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
+  [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
+
+; Counting
+(define-ruleset counting (arithmetic simplify)
+  #:type ([x real])
+  [count-2   (+ x x)   (* 2 x)])
+
 ; Distributivity
-(define-ruleset distributivity (arithmetic simplify complex)
+(define-ruleset distributivity (arithmetic simplify)
+  #:type ([a real] [b real] [c real])
   [distribute-lft-in      (* a (+ b c))         (+ (* a b) (* a c))]
   [distribute-rgt-in      (* a (+ b c))         (+ (* b a) (* c a))]
   [distribute-lft-out     (+ (* a b) (* a c))   (* a (+ b c))]
@@ -80,8 +113,20 @@
   [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)])
 
+(define-ruleset distributivity.c (arithmetic simplify complex)
+  #:type ([a complex] [b complex] [c complex])
+  [distribute-lft-in.c      (*.c a (+.c b c))           (+.c (*.c a b) (*.c a c))]
+  [distribute-rgt-in.c      (*.c a (+.c b c))           (+.c (*.c b a) (*.c c a))]
+  [distribute-lft-out.c     (+.c (*.c a b) (*.c a c))   (*.c a (+.c b c))]
+  [distribute-lft-out--.c   (-.c (*.c a b) (*.c a c))   (*.c a (-.c b c))]
+  [distribute-rgt-out.c     (+.c (*.c b a) (*.c c a))   (*.c a (+.c b c))]
+  [distribute-rgt-out--.c   (-.c (*.c b a) (*.c c a))   (*.c a (-.c b c))]
+  [distribute-lft1-in.c     (+.c (*.c b a) a)           (*.c (+.c b (complex 1 0)) a)]
+  [distribute-rgt1-in.c     (+.c a (*.c c a))           (*.c (+.c c (complex 1 0)) a)])
+
 ; Safe Distributiviity
 (define-ruleset distributivity-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real] [b real])
   [distribute-lft-neg-in  (- (* a b))           (* (- a) b)]
   [distribute-rgt-neg-in  (- (* a b))           (* a (- b))]
   [distribute-lft-neg-out (* (- a) b)           (- (* a b))]
@@ -90,23 +135,33 @@
   [distribute-neg-out     (+ (- a) (- b))       (- (+ a b))]
   [distribute-frac-neg    (/ (- a) b)           (- (/ a b))]
   [distribute-neg-frac    (- (/ a b))           (/ (- a) b)])
+
 ; Difference of squares
 (define-ruleset difference-of-squares-canonicalize (polynomials simplify)
+  #:type ([a real] [b real])
+  [swap-sqr              (* (* a b) (* a b))   (* (* a a) (* b b))]
+  [unswap-sqr            (* (* a a) (* b b))   (* (* a b) (* a b))]
   [difference-of-squares (- (* a a) (* b b))   (* (+ a b) (- a b))]
   [difference-of-sqr-1   (- (* a a) 1)         (* (+ a 1) (- a 1))]
-  [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))])
+  [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))]
+  [sqr-pow               (pow a b)             (* (pow a (/ b 2)) (pow a (/ b 2)))]
+  [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))]
+  )
 
 (define-ruleset difference-of-squares-flip (polynomials)
+  #:type ([a real] [b real])
   [flip-+     (+ a b)  (/ (- (* a a) (* b b)) (- a b))]
   [flip--     (- a b)  (/ (- (* a a) (* b b)) (+ a b))])
 
 ; Identity
 (define-ruleset id-reduce (arithmetic simplify)
+  #:type ([a real])
   [remove-double-div (/ 1 (/ 1 a))         a]
   [rgt-mult-inverse  (* a (/ 1 a))         1]
   [lft-mult-inverse  (* (/ 1 a) a)         1])
 
 (define-ruleset id-reduce-fp-safe-nan (arithmetic simplify fp-safe-nan)
+  #:type ([a real])
   [+-inverses        (- a a)               0]
   [*-inverses        (/ a a)               1]
   [div0              (/ 0 a)               0]
@@ -114,10 +169,11 @@
   [mul0              (* a 0)               0])
 
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real])
   [+-lft-identity    (+ 0 a)               a]
   [+-rgt-identity    (+ a 0)               a]
   [--rgt-identity    (- a 0)               a]
-  [sub0-neg          (- 0 b)               (- b)]
+  [sub0-neg          (- 0 a)               (- a)]
   [remove-double-neg (- (- a))             a]
   [*-lft-identity    (* 1 a)               a]
   [*-rgt-identity    (* a 1)               a]
@@ -125,11 +181,13 @@
   [mul-1-neg         (* -1 a)              (- a)])
 
 (define-ruleset id-transform (arithmetic)
+  #:type ([a real] [b real])
   [div-inv           (/ a b)               (* a (/ 1 b))]
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
 (define-ruleset id-transform-fp-safe (arithmetic fp-safe)
+  #:type ([a real] [b real])
   [sub-neg           (- a b)               (+ a (- b))]
   [unsub-neg         (+ a (- b))           (- a b)]
   [neg-sub0          (- b)                 (- 0 b)]
@@ -138,6 +196,7 @@
 
 ; Difference of cubes
 (define-ruleset difference-of-cubes (polynomials)
+  #:type ([a real] [b real])
   [sum-cubes        (+ (pow a 3) (pow b 3))
                     (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
   [difference-cubes (- (pow a 3) (pow b 3))
@@ -148,49 +207,67 @@
                     (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
 
 ; Dealing with fractions
-(define-ruleset fractions-distribute (fractions simplify complex)
+(define-ruleset fractions-distribute (fractions simplify)
+  #:type ([a real] [b real] [c real] [d real])
   [div-sub     (/ (- a b) c)        (- (/ a c) (/ b c))]
   [times-frac  (/ (* a b) (* c d))  (* (/ a c) (/ b d))])
 
-(define-ruleset fractions-transform (fractions complex)
+(define-ruleset fractions-distribute.c (fractions simplify complex)
+  #:type ([a complex] [b complex] [c complex] [d complex])
+  [div-sub.c     (/.c (-.c a b) c)          (-.c (/.c a c) (/.c b c))]
+  [times-frac.c  (/.c (*.c a b) (*.c c d))  (*.c (/.c a c) (/.c b d))])
+
+(define-ruleset fractions-transform (fractions)
+  #:type ([a real] [b real] [c real] [d real])
   [sub-div     (- (/ a c) (/ b c))  (/ (- a b) c)]
   [frac-add    (+ (/ a b) (/ c d))  (/ (+ (* a d) (* b c)) (* b d))]
   [frac-sub    (- (/ a b) (/ c d))  (/ (- (* a d) (* b c)) (* b d))]
   [frac-times  (* (/ a b) (/ c d))  (/ (* a c) (* b d))]
   [frac-2neg   (/ a b)              (/ (- a) (- b))])
 
+(define-ruleset fractions-transform.c (fractions complex)
+  #:type ([a complex] [b complex] [c complex] [d complex])
+  [sub-div.c     (-.c (/.c a c) (/.c b c))  (/.c (-.c a b) c)]
+  [frac-add.c    (+.c (/.c a b) (/.c c d))  (/.c (+.c (*.c a d) (*.c b c)) (*.c b d))]
+  [frac-sub.c    (-.c (/.c a b) (/.c c d))  (/.c (-.c (*.c a d) (*.c b c)) (*.c b d))]
+  [frac-times.c  (*.c (/.c a b) (/.c c d))  (/.c (*.c a c) (*.c b d))]
+  [frac-2neg.c   (/.c a b)                  (/.c (neg.c a) (neg.c b))])
+
 ; Square root
 (define-ruleset squares-reduce (arithmetic simplify)
+  #:type ([x real])
   [rem-square-sqrt   (* (sqrt x) (sqrt x))     x]
   [rem-sqrt-square   (sqrt (* x x))     (fabs x)])
 
 (define-ruleset squares-reduce-fp-sound (arithmetic simplify fp-sound)
+  #:type ([x real])
   [sqr-neg           (* (- x) (- x))        (* x x)])
 
-(define-ruleset squares-distribute (arithmetic simplify)
-  [square-prod       (sqr (* x y))      (* (* x x) (* y y))]
-  [square-div        (sqr (/ x y))      (/ (* x x) (* y y))]
-  [square-mult       (sqr x)            (* x x)])
-
 (define-ruleset squares-transform (arithmetic)
+  #:type ([x real] [y real])
   [sqrt-prod         (sqrt (* x y))         (* (sqrt x) (sqrt y))]
   [sqrt-div          (sqrt (/ x y))         (/ (sqrt x) (sqrt y))]
+  [sqrt-pow1         (sqrt (pow x y))       (pow x (/ y 2))]
+  [sqrt-pow2         (pow (sqrt x) y)       (pow x (/ y 2))]
   [sqrt-unprod       (* (sqrt x) (sqrt y))  (sqrt (* x y))]
   [sqrt-undiv        (/ (sqrt x) (sqrt y))  (sqrt (/ x y))]
   [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))])
 
 ; Cube root
 (define-ruleset cubes-reduce (arithmetic simplify)
+  #:type ([x real])
   [rem-cube-cbrt     (pow (cbrt x) 3) x]
   [rem-cbrt-cube     (cbrt (pow x 3)) x]
   [cube-neg          (pow (- x) 3)    (- (pow x 3))])
 
 (define-ruleset cubes-distribute (arithmetic simplify)
+  #:type ([x real] [y real])
   [cube-prod       (pow (* x y) 3) (* (pow x 3) (pow y 3))]
   [cube-div        (pow (/ x y) 3) (/ (pow x 3) (pow y 3))]
   [cube-mult       (pow x 3)       (* x (* x x))])
 
 (define-ruleset cubes-transform (arithmetic)
+  #:type ([x real] [y real])
   [cbrt-prod         (cbrt (* x y))           (* (cbrt x) (cbrt y))]
   [cbrt-div          (cbrt (/ x y))           (/ (cbrt x) (cbrt y))]
   [cbrt-unprod       (* (cbrt x) (cbrt y))    (cbrt (* x y))]
@@ -199,30 +276,35 @@
   [add-cbrt-cube     x                        (cbrt (* (* x x) x))])
 
 (define-ruleset cubes-canonicalize (arithmetic simplify)
+  #:type ([x real])
   [cube-unmult       (* x (* x x))          (pow x 3)])
 
 ; Exponentials
 (define-ruleset exp-expand (exponents)
+  #:type ([x real])
   [add-exp-log  x                    (exp (log x))]
   [add-log-exp  x                    (log (exp x))])
 
 (define-ruleset exp-reduce (exponents simplify)
+  #:type ([x real])
   [rem-exp-log  (exp (log x))        x]
   [rem-log-exp  (log (exp x))        x])
 
-(define-ruleset exp-reduce-fp-safe (exponents simplify fp-safe)
+(define-ruleset exp-constants (exponents simplify fp-safe)
   [exp-0        (exp 0)              1]
-  [1-exp        1                    (exp 0)]
   [exp-1-e      (exp 1)              E]
+  [1-exp        1                    (exp 0)]
   [e-exp-1      E                    (exp 1)])
 
 
 (define-ruleset exp-distribute (exponents simplify)
+  #:type ([a real] [b real])
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
   [exp-neg      (exp (- a))          (/ 1 (exp a))]
   [exp-diff     (exp (- a b))        (/ (exp a) (exp b))])
 
 (define-ruleset exp-factor (exponents simplify)
+  #:type ([a real] [b real])
   [prod-exp     (* (exp a) (exp b))  (exp (+ a b))]
   [rec-exp      (/ 1 (exp a))        (exp (- a))]
   [div-exp      (/ (exp a) (exp b))  (exp (- a b))]
@@ -234,19 +316,24 @@
 
 ; Powers
 (define-ruleset pow-reduce (exponents simplify)
+  #:type ([a real])
   [unpow-1        (pow a -1)                 (/ 1 a)])
 
 (define-ruleset pow-reduce-fp-safe (exponents simplify fp-safe)
+  #:type ([a real])
   [unpow1         (pow a 1)                  a])
 
 (define-ruleset pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan)
+  #:type ([a real])
   [unpow0         (pow a 0)                  1]
   [pow-base-1     (pow 1 a)                  1])
 
 (define-ruleset pow-expand-fp-safe (exponents fp-safe)
+  #:type ([a real])
   [pow1           a                           (pow a 1)])
 
 (define-ruleset pow-canonicalize (exponents simplify)
+  #:type ([a real] [b real])
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [pow-plus        (* (pow a b) a)            (pow a (+ b 1))]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
@@ -255,6 +342,7 @@
   [unpow1/3        (pow a 1/3)                (cbrt a)])
 
 (define-ruleset pow-transform (exponents)
+  #:type ([a real] [b real] [c real])
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
@@ -273,13 +361,16 @@
   [pow3             (* (* a a) a)               (pow a 3)])
 
 (define-ruleset pow-transform-fp-safe-nan (exponents fp-safe-nan)
+  #:type ([a real])
   [pow-base-0       (pow 0 a)                   0])
 
 (define-ruleset pow-transform-fp-safe (exponents fp-safe)
+  #:type ([a real])
   [inv-pow          (/ 1 a)                     (pow a -1)])
 
 ; Logarithms
 (define-ruleset log-distribute (exponents simplify)
+  #:type ([a real] [b real])
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (- (log a))]
@@ -289,12 +380,14 @@
   [log-E        (log E)             1])
 
 (define-ruleset log-factor (exponents)
+  #:type ([a real] [b real])
   [sum-log      (+ (log a) (log b))  (log (* a b))]
   [diff-log     (- (log a) (log b))  (log (/ a b))]
   [neg-log      (- (log a))          (log (/ 1 a))])
 
 ; Trigonometry
 (define-ruleset trig-reduce (trigonometry simplify)
+  #:type ([a real] [b real] [x real])
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
   [1-sub-cos   (- 1 (* (cos a) (cos a)))   (* (sin a) (sin a))]
   [1-sub-sin   (- 1 (* (sin a) (sin a)))   (* (cos a) (cos a))]
@@ -337,11 +430,13 @@
   [tan-0       (tan 0)               0])
 
 (define-ruleset trig-reduce-fp-sound-nan (trigonometry simplify fp-safe-nan)
+  #:type ([x real])
   [sin-neg     (sin (- x))           (- (sin x))]
   [cos-neg     (cos (- x))           (cos x)]
   [tan-neg     (tan (- x))           (- (tan x))])
 
 (define-ruleset trig-expand (trigonometry)
+  #:type ([x real] [y real] [a real] [b real])
   [sin-sum     (sin (+ x y))             (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))             (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [tan-sum     (tan (+ x y))             (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
@@ -384,28 +479,42 @@
                (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
 (define-ruleset trig-expand-fp-safe (trignometry fp-safe)
+  #:type ([x real])
   [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
   [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
 
-(define-ruleset atrig-expand (trigonometry)
+(define-ruleset trig-inverses (trigonometry)
+  #:type ([x real])
   [sin-asin    (sin (asin x))         x]
+  [cos-acos    (cos (acos x))         x]
+  [tan-atan    (tan (atan x))         x]
+  [atan-tan    (atan (tan x))         (remainder x PI)]
+  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ PI 2)) (* 2 PI))) (/ PI 2))]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))])
+
+(define-ruleset trig-inverses-simplified (trigonometry)
+  #:type ([x real])
+  [atan-tan-s  (atan (tan x))         x]
+  [asin-sin-s  (asin (sin x))         x]
+  [acos-cos-s  (acos (cos x))         x])
+
+(define-ruleset atrig-expand (trigonometry)
+  #:type ([x real])
   [cos-asin    (cos (asin x))         (sqrt (- 1 (* x x)))]
   [tan-asin    (tan (asin x))         (/ x (sqrt (- 1 (* x x))))]
   [sin-acos    (sin (acos x))         (sqrt (- 1 (* x x)))]
-  [cos-acos    (cos (acos x))         x]
   [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (* x x))) x)]
   [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (* x x))))]
   [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (* x x))))]
-  [tan-atan    (tan (atan x))         x]
   [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
   [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
   [asin-neg    (asin (- x))           (- (asin x))]
   [acos-neg    (acos (- x))           (- PI (acos x))]
-  [atan-neg    (atan (- x))           (- (atan x))]
- )
+  [atan-neg    (atan (- x))           (- (atan x))])
 
 ; Hyperbolic trigonometric functions
 (define-ruleset htrig-reduce (hyperbolic simplify)
+  #:type ([x real])
   [sinh-def    (sinh x)               (/ (- (exp x) (exp (- x))) 2)]
   [cosh-def    (cosh x)               (/ (+ (exp x) (exp (- x))) 2)]
   [tanh-def    (tanh x)               (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x))))]
@@ -416,6 +525,7 @@
   [sinh---cosh (- (cosh x) (sinh x))  (exp (- x))])
 
 (define-ruleset htrig-expand (hyperbolic)
+  #:type ([x real] [y real])
   [sinh-undef  (/ (- (exp x) (exp (- x))) 2)                       (sinh x)]
   [cosh-undef  (/ (+ (exp x) (exp (- x))) 2)                       (cosh x)]
   [tanh-undef  (/ (- (exp x) (exp (- x))) (+ (exp x) (exp (- x)))) (tanh x)]
@@ -437,12 +547,14 @@
   [diff-cosh   (- (cosh x) (cosh y))  (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))])
 
 (define-ruleset htrig-expand-fp-safe (hyperbolic fp-safe)
+  #:type ([x real])
   [sinh-neg    (sinh (- x))           (- (sinh x))]
   [sinh-0      (sinh 0)               0]
   [cosh-neg    (cosh (- x))           (cosh x)]
   [cosh-0      (cosh 0)               1])
 
 (define-ruleset ahtrig-expand (hyperbolic)
+  #:type ([x real])
   [asinh-def   (asinh x)              (log (+ x (sqrt (+ (* x x) 1))))]
   [acosh-def   (acosh x)              (log (+ x (sqrt (- (* x x) 1))))]
   [atanh-def   (atanh x)              (/ (log (/ (+ 1 x) (- 1 x))) 2)]
@@ -460,6 +572,7 @@
 
 ; Specialized numerical functions
 (define-ruleset special-numerical-reduce (numerics simplify)
+  #:type ([x real] [y real] [z real])
   [expm1-def   (- (exp x) 1)              (expm1 x)]
   [log1p-def   (log (+ 1 x))              (log1p x)]
   [log1p-expm1 (log1p (expm1 x))          x]
@@ -471,6 +584,7 @@
   [fma-udef    (fma x y z)                (+ (* x y) z)])
 
 (define-ruleset special-numerical-expand (numerics)
+  #:type ([x real] [y real])
   [expm1-udef    (expm1 x)      (- (exp x) 1)]
   [log1p-udef    (log1p x)      (log (+ 1 x))]
   [log1p-expm1-u x              (log1p (expm1 x))]
@@ -478,6 +592,7 @@
   [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
 
 (define-ruleset numerics-papers (numerics)
+  #:type ([a real] [b real] [c real] [d real])
   ;  "Further Analysis of Kahan's Algorithm for
   ;   the Accurate Computation of 2x2 Determinants"
   ;  Jeannerod et al., Mathematics of Computation, 2013
@@ -506,6 +621,7 @@
   [or-same      (or a a)         a])
 
 (define-ruleset compare-reduce (bools simplify fp-safe-nan)
+  #:type ([x real] [y real])
   [lt-same      (<  x x)         FALSE]
   [gt-same      (>  x x)         FALSE]
   [lte-same     (<= x x)         TRUE]
@@ -516,7 +632,7 @@
   [not-gte      (not (>= x y))   (<  x y)])
 
 (define-ruleset branch-reduce (branches simplify fp-safe)
-  #:type ([a bool] [b bool])
+  #:type ([a bool] [b bool] [x real] [y real])
   [if-true        (if TRUE x y)       x]
   [if-false       (if FALSE x y)      y]
   [if-same        (if a x x)          x]
@@ -527,40 +643,25 @@
   [if-if-and-not  (if a (if b y x) y) (if (and a (not b)) x y)])
 
 (define-ruleset complex-number-basics (complex simplify)
+  #:type ([x real] [y real] [a real] [b real] [c real] [d real])
   [real-part     (re (complex x y))     x]
   [imag-part     (im (complex x y))     y]
-  [complex-add-def  (+ (complex a b) (complex c d)) (complex (+ a c) (+ b d))]
-  [complex-def-add  (complex (+ a c) (+ b d)) (+ (complex a b) (complex c d))]
-  [complex-sub-def  (- (complex a b) (complex c d)) (complex (- a c) (- b d))]
-  [complex-def-sub  (complex (- a c) (- b d)) (- (complex a b) (complex c d))]
-  [complex-neg-def  (- (complex a b)) (complex (- a) (- b))]
-  [complex-def-neg  (complex (- a) (- b)) (- (complex a b))]
-  [complex-mul-def  (* (complex a b) (complex c d)) (complex (- (* a c) (* b d)) (+ (* a d) (* b c)))]
-  [complex-div-def  (/ (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
+  [complex-add-def  (+.c (complex a b) (complex c d)) (complex (+ a c) (+ b d))]
+  [complex-def-add  (complex (+ a c) (+ b d)) (+.c (complex a b) (complex c d))]
+  [complex-sub-def  (-.c (complex a b) (complex c d)) (complex (- a c) (- b d))]
+  [complex-def-sub  (complex (- a c) (- b d)) (-.c (complex a b) (complex c d))]
+  [complex-neg-def  (neg.c (complex a b)) (complex (- a) (- b))]
+  [complex-def-neg  (complex (- a) (- b)) (neg.c (complex a b))]
+  [complex-mul-def  (*.c (complex a b) (complex c d)) (complex (- (* a c) (* b d)) (+ (* a d) (* b c)))]
+  [complex-div-def  (/.c (complex a b) (complex c d)) (complex (/ (+ (* a c) (* b d)) (+ (* c c) (* d d))) (/ (- (* b c) (* a d)) (+ (* c c) (* d d))))]
   [complex-conj-def (conj (complex a b)) (complex a (- b))]
   )
 
 (define-ruleset erf-rules (special simplify)
+  #:type ([x real])
   [erf-odd          (erf (- x))          (- (erf x))]
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (- 1 (erf x))        (erfc x)])
-
-(define (rule-valid-at-type? rule type)
-  (match type
-    ['complex (set-member? (for/set ([r (*complex-rules*)]) (values (rule-name r))) (rule-name rule))]
-    ['real #t]
-    [_ #f]))
-
-(module+ test
-  (for ([r (*complex-rules*)])
-    (check-equal? #t (rule-valid-at-type? r 'complex)))
-  (for ([r (*rules*)])
-    (check-equal? #t (rule-valid-at-type? r 'real))))
-
-(define (*complex-rules*)
-  (for/append ([rec (*rulesets*)])
-    (match-define (list rules groups _) rec)
-    (if (set-member? groups 'complex) rules '())))
 
 (define (*rules*)
   (for/append ([rec (*rulesets*)])
@@ -583,107 +684,3 @@
              (set-member? groups 'simplify))
         rules
         '())))
-
-(module+ test
-  (require rackunit math/bigfloat)
-  (require "../programs.rkt" "../float.rkt")
-  (define num-test-points 2000)
-
-  (define *conditions*
-    '([acosh-def  . (>= x 1)]
-      [atanh-def  . (< (fabs x) 1)]
-      [acosh-2    . (>= x 1)]
-      [asinh-2    . (>= x 0)]
-      [sinh-acosh . (> (fabs x) 1)]
-      [sinh-atanh . (< (fabs x) 1)]
-      [cosh-atanh . (< (fabs x) 1)]
-      [tanh-acosh . (> (fabs x) 1)]))
-
-  (define *skip-tests*
-    (append
-      ;; All these tests fail due to underflow to 0 and are irrelevant
-      '(exp-prod pow-unpow pow-pow pow-exp
-        asinh-2 tanh-1/2* sinh-cosh
-        hang-p0-tan hang-m0-tan)))
-
-  (for* ([test-ruleset (*rulesets*)]
-         [test-rule (first test-ruleset)]
-         #:unless (set-member? *skip-tests* (rule-name test-rule)))
-    (parameterize ([bf-precision 2000])
-    (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e)
-                                   ((error-display-handler)
-                                    (exn-message e) e)
-                                   (fail (exn-message e)))])
-        (match-define (rule name p1 p2) test-rule)
-        ;; Not using the normal prepare-points machinery for speed.
-        (define fv (free-variables p1))
-        (define valid-point?
-          (if (dict-has-key? *conditions* name)
-              (eval-prog `(λ ,fv ,(dict-ref *conditions* name)) 'bf)
-              (const true)))
-
-        (define (make-point)
-          (for/list ([v fv])
-            (match (dict-ref (third test-ruleset) v 'real)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))])))
-        (define point-sequence (sequence-filter valid-point? (in-producer make-point)))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) 'bf))
-        (define prog2 (eval-prog `(λ ,fv ,p2) 'bf))
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define errs
-            (for/list ([v1 ex1] [v2 ex2])
-              ;; Ignore points not in the input or output domain
-              (if (and (ordinary-value? v1) (ordinary-value? v2))
-                  (ulps->bits (+ (abs (ulp-difference v1 v2)) 1))
-                  #f)))
-          (when (< (length (filter identity errs)) 100)
-            (eprintf "Could not sample enough points to test ~a\n" name))
-          (define score (/ (apply + (filter identity errs)) (length (filter identity errs))))
-          (define max-error
-            (argmax car (filter car (map list errs points ex1 ex2 errs))))
-          (with-check-info (['max-error (first max-error)]
-                            ['max-point (map cons fv (second max-error))]
-                            ['max-input (third max-error)]
-                            ['max-output (fourth max-error)])
-                           (check-pred (curryr <= 1) score))))))))
-
-(module+ test
-  (require rackunit math/bigfloat)
-  (require "../programs.rkt" "../float.rkt")
-
-  (for* ([test-ruleset (*rulesets*)]
-         [test-rule (first test-ruleset)]
-         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (with-check-info (['rule test-rule])
-      (with-handlers ([exn:fail? (λ (e) (fail (exn-message e)))])
-        (define num-test-points 2000)
-        (match-define (rule name p1 p2) test-rule)
-        (define fv (free-variables p1))
-        (define (make-point)
-          (for/list ([v fv])
-            (match (dict-ref (third test-ruleset) v 'real)
-              ['real (sample-double)]
-              ['bool (if (< (random) .5) false true)]
-              ['complex (make-rectangular (sample-double) (sample-double))])))
-        (define point-sequence (in-producer make-point))
-        (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-        (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-        (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-        (with-handlers ([exn:fail:contract? (λ (e) (eprintf "~a: ~a\n" name (exn-message e)))])
-          (define ex1 (map prog1 points))
-          (define ex2 (map prog2 points))
-          (define err
-            (for/first ([pt points] [v1 ex1] [v2 ex2]
-                        #:unless (equal? v1 v2))
-              (list pt v1 v2)))
-          (when err
-            (match-define (list pt v1 v2) err)
-            (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
-                             (check-false err))))))))
-;

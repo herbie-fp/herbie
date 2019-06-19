@@ -1,26 +1,20 @@
 #lang racket
-(require racket/runtime-path)
 (provide (all-defined-out))
 
-(define-runtime-path viz-output-path "../www/viz/")
-(define-runtime-path web-resource-path "web/")
-
-;; Flag Stuff
+;;; Flags
 
 (define all-flags
   #hash([precision . (double fallback)]
-        [fn . (cbrt)] ;; TODO: This is a bad way to disable functions: figure out a better one
         [setup . (simplify early-exit)]
-        [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error post-process binary-search branch-expressions)]
+        [generate . (rr taylor simplify better-rr)]
+        [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex special bools branches)]))
 
 (define default-flags
   #hash([precision . (double fallback)]
-        [fn . (cbrt)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
-        [reduce . (regimes taylor simplify avg-error binary-search branch-expressions)]
+        [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex special bools branches)]))
 
 (define (enable-flag! category flag)
@@ -47,32 +41,32 @@
               [(#t #f) (list 'enabled class flag)]
               [(#f #t) (list 'disabled class flag)]))))
 
+;;; Herbie internal parameters
+
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
 
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
 
-;; The step size with which arbitrary-precision precision is increased
-;; DANGEROUS TO CHANGE
-(define *precision-step* (make-parameter 256))
+;; The maximum number of consecutive skipped points for sampling valid points
+(define *max-skipped-points* (make-parameter 100))
 
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
 
-;; In periodicity analysis,
-;; this is how small the period of a function must be to count as periodic
-(define *max-period-coeff* 20)
+;; The maximum size of an egraph
+(define *node-limit* (make-parameter 5000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
 
-(define *binary-search-test-points* (make-parameter 16))
-
 ;; How accurate to make the binary search
+(define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;;; About Herbie:
+
 (define (run-command cmd)
   (parameterize ([current-error-port (open-output-nowhere)])
     (string-trim (with-output-to-string (λ () (system cmd))))))
@@ -84,7 +78,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.2")
+(define *herbie-version* "1.3")
 
 (define *hostname* (run-command "hostname"))
 
@@ -93,3 +87,23 @@
 
 (define *herbie-branch*
   (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
+
+;;; The "reset" mechanism for clearing caches and such
+
+(define resetters '())
+
+(define (register-reset fn #:priority [priority 0])
+  (set! resetters (cons (cons priority fn) resetters)))
+
+(define (reset!)
+  (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
+
+;; OBSOLETE
+
+;; The step size with which arbitrary-precision precision is increased
+;; DANGEROUS TO CHANGE
+(define *precision-step* (make-parameter 256))
+
+;; In periodicity analysis,
+;; this is how small the period of a function must be to count as periodic
+(define *max-period-coeff* 20)

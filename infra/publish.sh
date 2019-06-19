@@ -9,7 +9,7 @@ upload () {
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
-    find "$DIR" -name "debug.txt" -exec gzip -f {} \;
+    find "$DIR" -name "profile.txt" -or -name "debug.txt" -exec gzip -f {} \;
     rsync --recursive "$DIR" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
 }
@@ -21,10 +21,6 @@ index () {
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html
-}
-
-backfill () {
-    racket infra/backfill-index.rkt
 }
 
 download_reports () {
@@ -60,9 +56,6 @@ if [[ $CMD = "upload" ]]; then
 elif [[ $CMD = "index" ]]; then
     download_reports
     index
-elif [[ $CMD = "backfill" ]]; then
-    download_reports
-    backfill
 elif [[ $CMD = "update-reports" ]]; then
     upload_reports
     index

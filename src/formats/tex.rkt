@@ -1,12 +1,19 @@
 #lang racket
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../programs.rkt")
+(require math/bigfloat)
+(require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
 
-(provide mathjax-url texify-expr texify-prog)
+(provide js-tex-include texify-expr texify-prog)
 
-(define mathjax-url
-  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML")
+(define js-tex-include
+  '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
+           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
+             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
+             [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+             [crossorigin "anonymous"]))))
 
 (define/match (texify-variable var)
   [('l)       "\\ell"]
@@ -22,17 +29,6 @@
   [('lambda1) "\\lambda_1"]
   [('lambda2) "\\lambda_2"]
   [(_) (symbol->string var)])
-
-; "enclose" is a MathJax extension which may
-; not work with standard TeX processors.
-(define (tag str idx)
-  (let* ([enc (format "\\enclose{circle}{~a}" str)]
-         [col (format "\\color{red}{~a}" enc)]
-         [css (format "\\class{location}{\\cssId{~a}{~a}}" idx col)])
-    css))
-
-(define (untag str)
-  (format "\\color{black}{~a}" str))
 
 ; self-paren-level : #t --> paren me
 ;                    #f --> do not paren me
@@ -50,37 +46,15 @@
     [(or '+ '- 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
-    [(or 'sqr 'cube 'fma 'hypot 'pow) (values #f #f)]
+    ['pow (values #f #f)]
     ['atan2 (values 'fn #t)]
-    ['log1p (values #f '+)]
     ['if (values #t #t)]
     [(or 'remainder 'fmod) (values #t #f)]
-    [(or 'cbrt 'ceil 'copysign 'expm1 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim)
+    [(or 'cbrt 'ceil 'copysign 'exp2 'floor 'fmax 'exp 'sqrt 'fmin 'fabs 'fdim  'expm1 'fma 'log1p 'hypot 'j0 'j1 'y0 'y1 'lgamma 'tgamma 'trunc)
      (values #f #t)]
     [(or '== '< '> '<= '>= '!=)
      (values #f #t)]
     [_ (values 'fn #f)]))
-
-(define ((highlight-template op) idx args)
-  (define to-tag-infix
-    #hash((+ . "+") (- . "-") (* . "\\cdot") (fmod . "\\bmod") (remainder . "\\mathsf{rem}")
-          (< . "\\lt") (> . "\\gt") (== . "=") (!= . "\\ne") (<= . "\\le") (>= . "\\ge")
-          (and . "\\land") (or . "\\lor")))
-  (cond
-   [(and (equal? (length args) 2) (hash-has-key? to-tag-infix op))
-    (match-define (list a b) args)
-    (format "~a ~a ~a" a (tag (hash-ref to-tag-infix op) idx) b)]
-   [(equal? op 'if)
-    (match-define (list a b c) args)
-    (format "~a ~a ~a : ~a" a (tag "?" idx) b c)]
-   [(equal? op 'sqr)
-    (match-define (list a) args)
-    (format "{~a}^{~a}" a (tag "2" idx))]
-   [(equal? op 'cube)
-    (match-define (list a) args)
-    (format "{~a}^{~a}" a (tag "3" idx))]
-   [else
-    (tag (apply (operator-info op '->tex) (map untag args)) idx)]))
 
 (define (collect-branches expr loc)
   (match expr
@@ -90,16 +64,12 @@
     [else
      (list (list #t expr loc))]))
 
-;; The highlight ops are an alist of locations to indexes that marks
-;; those locations as highlighted with the given location
-;; index. highlight-ops and loc/colors are not meant to be used
-;; simultaniously.
-(define (texify-prog prog
-                     #:loc [color-loc #f]
-                     #:color [color "red"]
-                     #:highlight-ops [highlight-locs '()])
-  "Compile the body of a program to math mode TeX."
-  (let texify ([expr (program-body prog)] [parens #t] [loc '(2)])
+(define (texify-prog expr #:loc [color-loc #f] #:color [color "red"])
+  (texify-expr (program-body expr) #:loc color-loc #:color color))
+
+(define (texify-expr expr #:loc [color-loc #f] #:color [color "red"])
+  "Compile an expression to math mode TeX."
+  (let texify ([expr expr] [parens #t] [loc '(2)])
     (format
       (if (and color-loc (equal? (reverse color-loc) loc))
         (format "\\color{~a}{~~a}" color)
@@ -107,12 +77,18 @@
       (match expr
         [(? exact-integer?)
          (number->string expr)]
-        [(? exact-rational?)
+        [(and (? rational?) (? exact?))
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
-        [(? real?)
-         (match (string-split (number->string expr) "e")
-           [(list "-inf.0") "-\\infty"]
-           [(list "+inf.0") "+\\infty"]
+        [(? (conjoin complex? (negate real?)))
+         (format "~a ~a ~a i"
+                 (texify (real-part expr) '+ loc)
+                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
+                 (texify (abs (imag-part expr)) '+ loc))]
+        [(? value?)
+         (define s (bigfloat->string ((representation-repr->bf (infer-representation expr)) expr)))
+         (match (string-split s "e")
+           [(list "-inf.bf") "-\\infty"]
+           [(list "+inf.bf") "+\\infty"]
            [(list num) num]
            [(list significand exp)
             (define num
@@ -120,11 +96,6 @@
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
             (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
-        [(? complex?)
-         (format "~a ~a ~a i"
-                 (texify (real-part expr) '+ loc)
-                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
-                 (texify (abs (imag-part expr)) '+ loc))]
         [(? constant?)
          (constant-info expr '->tex)]
         [(? symbol?) (texify-variable expr)]
@@ -134,13 +105,14 @@
          (with-output-to-string
            (λ ()
              (printf "\\begin{array}{l}\n")
-             (for ([branch (collect-branches expr loc)])
+             (for ([branch (collect-branches expr loc)] [n (in-naturals)])
                (match branch
                  [(list #t bexpr bloc)
                   (printf "\\mathbf{else}:~a~a~a~a\n"
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]
                  [(list bcond bexpr bloc)
-                  (printf "\\mathbf{if}\\;~a:~a~a~a~a\n"
+                  (printf "\\mathbf{~a}\\;~a:~a~a~a~a\n"
+                          (if (= n 0) "if" "elif")
                           (texify bcond #t (cons 1 bloc))
                           NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
@@ -152,27 +124,8 @@
                 (for/list ([arg args] [id (in-naturals 1)])
                   (texify arg arg-paren-level (cons id loc)))]
                [hl-loc
-                (assoc (reverse loc) highlight-locs)])
-           (format
-                                        ; omit parens if parent contex has lower precedence
-            (if (precedence< parens self-paren-level)
-                "~a"
-                "\\left(~a\\right)")
-            (if hl-loc
-                ((highlight-template f) (cdr hl-loc) texed-args)
-                (apply (operator-info f '->tex) texed-args))))]))))
-
-; TODO probably a better way to write this wrapper using
-;      make-keyword-procedure and keyword-apply
-(define (texify-expr expr
-                     #:loc [color-loc #f]
-                     #:color [color "red"]
-                     #:highlight-ops [highlight-locs '()])
-  (texify-prog (expr->prog expr)
-               #:loc color-loc
-               #:color color
-               #:highlight-ops highlight-locs))
-
-(define (exact-rational? r)
-  (and (rational? r) (exact? r)))
+                #f])
+           (format ; omit parens if parent contex has lower precedence
+            (if (precedence< parens self-paren-level) "~a" "\\left(~a\\right)")
+            (apply (operator-info f '->tex) texed-args)))]))))
 

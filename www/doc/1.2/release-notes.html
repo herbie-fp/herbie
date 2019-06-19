@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <title>Herbie 1.2 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
-  <script type="text/javascript" src="compare.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
   <header>
@@ -106,9 +106,9 @@
 \;\;\;\;c0 \cdot \frac{\sqrt{A}}{\sqrt{V \cdot \ell}}\\
 
 \end{array}\]</div>
-    <figcaption>A program produced by the new, more create branch
-    inference system in Herbie 1.2. Herbie 1.2 is more creative and
-    produces more accurate output than prior versions.</figcaption>
+    <figcaption>A program produced by the new branch inference system
+    in Herbie 1.2. Herbie 1.2 is more creative and produces more
+    accurate output than prior versions.</figcaption>
   </figure>
 
   <h2>Usability improvements</h2>
@@ -119,7 +119,7 @@
       version on argument values of your choice.</li>
     <li>Herbie can now efficiently sample from preconditions such
       as <code>(or (&lt; 1 x 2) (&lt; 1001 x 1002))</code>. Previously
-      such preconditions would produce to the dreaded
+      such preconditions would produce the dreaded
       “<a href="faq.html#sample-valid-points">could not sample</a>”
       error message.</li>
     <li>Herbie's web output now includes additional descriptive text,
@@ -140,12 +140,12 @@
   <h2>Code Cleanup</h2>
 
   <ul>
-    <li>Many bugs fixed, including adding missing rules, infinite
-      loops, and a few crashes in exceptional circumstances.</li>
+    <li>Many bugs fixed, including missing rules, infinite loops, and
+      a few crashes in exceptional circumstances.</li>
     <li>Herbie’s HTML output now uses the Racket XML library,
       eliminating the possibility of generating invalid HTML.</li>
     <li>Herbie uses a new mechanism for defining supported functions,
-      which should adding functions in the future easier.</li>
+      which should make it easier to add functions in the future.</li>
   </ul>
   
   <h2>Try it out!</h2>

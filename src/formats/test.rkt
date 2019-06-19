@@ -1,14 +1,11 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../errors.rkt")
-(require "../alternative.rkt")
-(require "../programs.rkt")
-(require "../syntax-check.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../errors.rkt")
+(require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
 
-(provide (struct-out test) test-program
-         load-tests load-file test-target parse-test test-successful? test<?)
+(provide (struct-out test) test-program test-target load-tests parse-test)
+
+(struct test (name vars input output expected precondition precision) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -16,72 +13,64 @@
 (define (test-target test)
   `(λ ,(test-vars test) ,(test-output test)))
 
-(define (test-successful? test input-bits target-bits output-bits)
-  (match* ((test-output test) (test-expected test))
-    [(_ #f) #t]
-    [(_ (? number? n)) (>= n output-bits)]
-    [(#f #t) (>= input-bits output-bits)]
-    [(_ #t) (>= target-bits (- output-bits 1))]))
-
-(struct test (name vars input output expected precondition) #:prefab)
-
 (define (parse-test stx)
   (assert-program! stx)
   (assert-program-type! stx)
-  (define expr (syntax->datum stx))
-  (match expr
-    [(list 'FPCore (list args ...) props ... body)
-     (define prop-dict
-       (let loop ([props props] [out '()])
-         (if (null? props)
-             (reverse out)
-             (loop (cddr props) (cons (cons (first props) (second props)) out)))))
+  (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
 
-     (test (~a (dict-ref prop-dict ':name body))
-           args
-           (desugar-program body)
-           (desugar-program (dict-ref prop-dict ':herbie-target #f))
-           (dict-ref prop-dict ':herbie-expected #t)
-           (desugar-program (dict-ref prop-dict ':pre 'TRUE)))]
-    [(list (or 'λ 'lambda 'define 'herbie-test) _ ...)
-     (raise-herbie-error "Herbie 1.0+ no longer supports input formats other than FPCore."
-                         #:url "input.html")]
-    [_
-     (raise-herbie-error "Invalid input expression." #:url "input.html")]))
+  (define prop-dict
+    (let loop ([props props])
+      (match props
+        ['() '()]
+        [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-(define (load-file file)
-  (call-with-input-file file
-    (λ (port)
-      (for/list ([test (in-port (curry read-syntax file) port)])
-        (parse-test test)))))
+  (define ctx-prec
+    ;; Default to 'real because types and precisions are mixed up right now
+    (match (dict-ref prop-dict ':precision 'real)
+      ['binary32 'real]
+      ['binary64 'real]
+      [x x]))
+  (define type-ctx (map (curryr cons ctx-prec) args))
 
-(define (is-racket-file? f)
-  (and (equal? (filename-extension f) #"fpcore") (file-exists? f)))
+  (test (~a (dict-ref prop-dict ':name body))
+        args
+        (desugar-program body type-ctx)
+        (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
+        (dict-ref prop-dict ':herbie-expected #t)
+        (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
+        (dict-ref prop-dict ':precision 'binary64)))
 
 (define (load-stdin)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
     (parse-test test)))
 
+(define (load-file file)
+  (call-with-input-file file
+    (λ (port)
+      (port-count-lines! port)
+      (for/list ([test (in-port (curry read-syntax file) port)])
+        (parse-test test)))))
+
 (define (load-directory dir)
-  (for/append ([fname (in-directory dir)] #:when (is-racket-file? fname))
+  (for/append ([fname (in-directory dir)]
+               #:when (file-exists? fname)
+               #:when (equal? (filename-extension fname) #"fpcore"))
     (load-file fname)))
 
 (define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
-  (cond
-   [(equal? path "-")
-    (load-stdin)]
-   [(directory-exists? path*)
-    (load-directory path*)]
-   [else
-    (load-file path*)]))
-
-(define (test<? t1 t2)
-  (cond
-   [(and (test-output t1) (test-output t2))
-    (string<? (test-name t1) (test-name t2))]
-   [(and (not (test-output t1)) (not (test-output t2)))
-    (string<? (test-name t1) (test-name t2))]
-   [else
-    ; Put things with an output first
-    (test-output t1)]))
+  (define out
+    (cond
+     [(equal? path "-")
+      (load-stdin)]
+     [(directory-exists? path*)
+      (load-directory path*)]
+     [else
+      (load-file path*)]))
+  (define duplicates (find-duplicates (map test-name out)))
+  (unless (null? duplicates)
+    (warn 'duplicate-names
+          "Duplicate ~a ~a used for multiple cores"
+          (if (equal? (length duplicates) 1) "name" "names")
+          (string-join (map (curry format "\"~a\"") duplicates) ", ")))
+  out)

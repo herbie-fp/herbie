@@ -1,14 +1,11 @@
 #lang racket
+
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(define-runtime-path report-json-path "../previous/")
-
-
-(require racket/date)
-(require "../src/common.rkt")
-(require "../src/formats/datafile.rkt")
-
+(require racket/date "../src/common.rkt" "../src/formats/datafile.rkt")
 (provide directory-jsons name->timestamp)
+
+(define-runtime-path report-json-path "../previous/")
 
 (define (name->timestamp path)
   (define rpath (find-relative-path (simple-form-path report-json-path) path))
@@ -52,7 +49,8 @@
         (or/c string? false) '(note)
         exact-nonnegative-integer? '(date-unix tests-passed tests-available tests-crashed)
         (listof string?) '(options)
-        (and/c real? (curryr >= 0)) '(bits-improved bits-available)))
+        (and/c real? (curryr >= 0)) '(bits-available)
+        real? '(bits-improved)))
 
 (define cache-row?
   (apply and/c hash?
@@ -82,9 +80,12 @@
   (define total-crashed
     (count (compose (curry equal? "crash") table-row-status) (or tests '())))
 
+  (define speed (apply + (map table-row-time (or tests '()))))
+
   (hash 'date-full (format "~a:~a on ~a" (date-hour date) (~r (date-minute date) #:min-width 2 #:pad-string "0") (date->string date))
         'date-short (date->string/short date)
         'date-unix (date->seconds date)
+        'speed speed
         'folder (path->string folder)
         'hostname hostname
         'commit commit
@@ -108,7 +109,7 @@
 
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
-           (th "Date") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
+           (th "Date") (th "Speed") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
     (tbody
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
@@ -118,6 +119,7 @@
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])
                (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
+           (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
            (td ([title ,(field 'commit)]) ,(field 'branch))
            (td ([title ,(string-join (field 'options) " ")]
                 [class ,(if (field 'note) "note" "")])
@@ -125,7 +127,7 @@
            (td ,(if (> (field 'tests-available) 0) (format "~a/~a" (field 'tests-passed) (field 'tests-available)) ""))
            (td ,(if (field 'bits-improved) (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available))) ""))
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
-               (a ([href ,(format "./~a/report.html" (field 'folder))]) "»")))))))
+               (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
 (define (make-index-page)
   (when (file-exists? (build-path report-json-path "index.cache"))
@@ -136,7 +138,9 @@
 
   (define dirs (directory-jsons report-json-path))
   (define folders
-    (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp)))
+    (filter
+     (λ (x) (< (- (current-seconds) (dict-ref x 'date-unix)) (* 60 60 24 30)))
+     (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp))))
 
   (define branch-infos*
     (sort
@@ -147,10 +151,14 @@
     (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
                branch-infos*))
 
+  (define crashes
+    (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
   (define last-crash
-    (argmax (curryr dict-ref 'date-unix) (apply append mainline-infos)))
+    (if (null? crashes)
+        #f
+        (argmax (curryr dict-ref 'date-unix) crashes)))
   (define since-last-crash
-    (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24)))
+    (and last-crash (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24))))
 
   (write-file "index.html"
     (printf "<!doctype html>\n")
@@ -164,22 +172,24 @@
         (script ((src "regression-chart.js")))
         (script ((src "report.js"))))
        (body
-        ((onload "index()"))
         (div
          ((id "large"))
          (div "Reports: " (span ((class "number")) ,(~a (length folders))))
          (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
-         (div "Crash-free: " (span ((class "number")) ,(~a (inexact->exact (round since-last-crash))) "d")))
+         (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
+                                                           (format "~ad" (inexact->exact (round since-last-crash)))
+                                                           "∞"))))
         (ul ((id "toc"))
             ,@(for/list ([rows (append mainline-infos other-infos)])
                 (define branch (dict-ref (first rows) 'branch))
                 `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
         (figure
          (ul ((id "classes")))
-         (svg ((id "graph") (width "800")))
+         (svg ((id "accuracy-graph") (width "400")))
+         (svg ((id "speed-graph") (width "400")))
          (ul ((id "suites")))
-         (script "window.addEventListener('load', function(){draw_results(d3.select('#graph'))})"))
+         (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
         (table
          ((id "reports"))
          ,@(apply
