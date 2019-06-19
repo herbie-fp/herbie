@@ -1,7 +1,6 @@
 #lang racket
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../programs.rkt")
+(require math/bigfloat)
+(require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -80,10 +79,16 @@
          (number->string expr)]
         [(and (? rational?) (? exact?))
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
-        [(? real?)
-         (match (string-split (number->string expr) "e")
-           [(list "-inf.0") "-\\infty"]
-           [(list "+inf.0") "+\\infty"]
+        [(? (conjoin complex? (negate real?)))
+         (format "~a ~a ~a i"
+                 (texify (real-part expr) '+ loc)
+                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
+                 (texify (abs (imag-part expr)) '+ loc))]
+        [(? value?)
+         (define s (bigfloat->string ((representation-repr->bf (infer-representation expr)) expr)))
+         (match (string-split s "e")
+           [(list "-inf.bf") "-\\infty"]
+           [(list "+inf.bf") "+\\infty"]
            [(list num) num]
            [(list significand exp)
             (define num
@@ -91,11 +96,6 @@
                   (format "10^{~a}" exp)
                   (format "~a \\cdot 10^{~a}" significand exp)))
             (if (precedence< parens #f) num (format "\\left( ~a \\right)" num))])]
-        [(? complex?)
-         (format "~a ~a ~a i"
-                 (texify (real-part expr) '+ loc)
-                 (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
-                 (texify (abs (imag-part expr)) '+ loc))]
         [(? constant?)
          (constant-info expr '->tex)]
         [(? symbol?) (texify-variable expr)]

@@ -47,6 +47,7 @@
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
+      (port-count-lines! port)
       (for/list ([test (in-port (curry read-syntax file) port)])
         (parse-test test)))))
 

@@ -35,10 +35,13 @@
                            (errors-score end-error)))
 
        (when (not success?)
-         (printf "Input: ~a\n" (alt-program start-alt))
-         (printf "Output:\n")
-         (pretty-print (alt-program end-alt))
-         (when (test-output test) (printf "Target: ~a\n" (test-output test))))
+         (printf "\nInput (~a bits):\n" (errors-score start-error))
+         (pretty-print (alt-program start-alt) (current-output-port) 1)
+         (printf "\nOutput (~a bits):\n" (errors-score end-error))
+         (pretty-print (alt-program end-alt) (current-output-port) 1)
+         (when (test-output test)
+           (printf "\nTarget (~a bits):\n" (errors-score target-error))
+           (pretty-print (test-output test) (current-output-port) 1)))
 
        success?]
       [(test-failure test bits time timeline warnings exn)

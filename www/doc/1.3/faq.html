@@ -13,91 +13,72 @@
     <h1>Frequently Asked Questions</h1>
   </header>
 
-  <p>
-    <a href="../../">Herbie</a> automatically transforms floating point
-    expressions into more accurate forms. This page catalogs questions
-    frequently asked questions about Herbie.
-  </p>
+  <p><a href="../../">Herbie</a> automatically transforms floating
+  point expressions into more accurate forms. This page troubleshoots
+  common Herbie errors.</p>
 
 
-  <h2>Troubleshooting common errors</h2>
+  <h2>Common errors</h2>
 
   <p>
-    Several Herbie error messages refer to this page for additional
-    information and debugging tips.
+    Herbie error messages refer here for additional information and
+    debugging tips.
   </p>
 
   <h3 id="invalid-syntax">Invalid syntax</h3>
 
   <p>
     This error means you mis-formatted Herbie's input. Common errors
-    include misspelling function names and parenthesizing expressions
+    include misspelled function names and parenthesized expressions
     that should not be parenthesized. For example, in
-    <code>(- (exp (x)) 1)</code>, <code>(x)</code> is incorrect:
-    <code>x</code> is a variable so shouldn't be
-    parenthesized. <code>(- (exp x) 1)</code> would be the correct way
-    of writing that expression. Please review
+    <code>(- (exp (x)) 1)</code>, the expression <code>x</code> is a
+    variable so shouldn't be parenthesized. <code>(- (exp x) 1)</code>
+    would be the correct way of writing that expression. Please review
     the <a href="input.html">input format</a> documentation for more.
   </p>
 
   <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
 
-  <p>
-    Herbie uses random sampling to select the points which it will use
-    to evaluate the error of an expression. This error occurs when it
-    is not able to find enough valid points. For example, consider the
-    expression <code>(acos (+ 1000 x))</code>. This expression yields
-    a valid result only when <code>x</code> is between -1001 and -999,
-    a rather narrow range.
-  </p>
-
-  <p>
-    The solution is to help out Herbie by specifying a precondition.
-    Specify <code>:pre (&lt; -1001 x -999)</code> for the example
-    above. Herbie will use the precondition to improve its sampling
-    strategy.
+  <p>This error occurs when Herbie is unable to find enough valid
+  points. For example, the expression <code>(acos (+ 1000 x))</code>
+  only yields a valid result when <code>x</code> is between -1001 and
+  -999, a rather narrow range. The solution is to help out Herbie by
+  specifying a precondition: <code>:pre (&lt; -1001 x -999)</code>.
+  Herbie will use the precondition to improve its sampling strategy.
   </p>
 
   <h3 id="no-valid-values">No valid values</h3>
 
-  <p>
-    This error indicates that your precondition excludes all possible
-    inputs. For example, the precondition <code>(&lt 3 x 2)</code>
-    excludes all inputs. Herbie raises this exception only when it can
-    determine that no inputs work. The solution is to fix the
-    precondition to allow some inputs. Note that sufficiently complex
-    unsatisfiable preconditions instead raise the error above.
-  </p>
+  <p>This error indicates that your precondition excludes all possible
+  inputs. For example, the precondition <code>(&lt 3 x 2)</code>
+  excludes all inputs. Herbie raises this exception when it can prove
+  that no inputs could work. The solution is to fix the precondition
+  to allow some inputs.</p>
 
   <h3 id="mpfr-prec-limit">Exceeded MPFR precision limit</h3>
 
-  <p>
-    Herbie computes "ground truth" results using
-    <a href="http://www.mpfr.org/">MPFR</a>. For some expressions,
-    like <code>(sin (exp x))</code>, using MPFR in this way requires
-    exponentially many bits to compute a correct result. Herbie raises
-    this error when more than 10,000 bits are required.
-  </p>
+  <p>This rare error indicates that Herbie could not compute a "ground
+  truth" for your expression. For some expressions, like <code>(sin
+  (exp x))</code>, calculating a correct output for large input values
+  requires exponentially many bits. Herbie raises this error when more
+  than 10,000 bits are required.</p>
 
 
-  <h2>Understanding Common Warnings</h2>
+  <h2>Common warnings</h2>
 
-  <p>Herbie’s warnings refer to this page to describe the warning and
-  common actions to take.</p>
+  <p>Herbie warnings refer here for explanations and common actions to
+  take.</p>
 
   <h3 id="ground-truth">Could not determine a ground truth</h3>
 
   <p>
     Herbie will raise this warning when some inputs require more than
-    10,000 bits to compute an exact ground truth value. This happens
-    most often for expressions that divide two exponents,
-    like <code>(/ (exp x) (exp x))</code> with very large inputs,
-    where absurdly large exponents would be required to compute the
-    accurate output. Herbie assumes that those points are invalid
-    inputs and raises this warning to let you know about the issue. If
-    you see this warning, you should add a restrictive precondition,
-    such as <code>:pre (&lt; -100 x 100)</code>, to prevent large
-    inputs.
+    10 000 bits to compute an exact ground truth value. For example,
+    to compute <code>(/ (exp x) (exp x))</code> for very
+    large <code>x</code>, absurdly large exponents would be required.
+    Herbie discards such inputs and raises this warning. If you see
+    this warning, you should add a restrictive precondition, such
+    as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
   </p>
 
   <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
@@ -106,8 +87,7 @@
     Some systems do not have native implementations for all operations
     that Herbie uses. (For example, Microsoft's <code>math.h</code>
     does not provide the <code>y0</code> function.) Herbie provides a
-    fallback implementation which is used by default for these
-    functions. You can disable this fallback functionality
+    fallback implementation, but you can disable the fallback
     with <code>--disable precision:fallback</code>.
   </p>
 
@@ -121,8 +101,10 @@
   <p>
     When using Chrome to view web pages on your local machine, Chrome
     disables certain APIs for security reasons; this prevents the
-    Herbie reports from drawing the chart. Run Chrome
-    with <code>--allow-file-access-from-files</code> to fix this error.
+    Herbie reports from drawing the
+    chart. <a href="http://www.chrome-allow-file-access-from-file.com/">Run
+    Chrome with <code>--allow-file-access-from-files</code></a> to fix
+    this error.
   </p>
 
 </body>

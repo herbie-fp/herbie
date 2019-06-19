@@ -97,22 +97,11 @@
               ,baseline-errs ,oracle-errs ,all-alts)
        (define-values (newpoints newexacts) (get-p&es newcontext))
        (define-values (points exacts) (get-p&es context))
-       (define start-prog (alt-program start))
-       (define end-prog (alt-program end))
-       (define start-resugared (alt
-         (list 'λ (program-variables start-prog)
-               (resugar-program (program-body start-prog)))
-         'resugar
-         (list end)))
-       (define end-resugared (struct-copy alt end
-         [program (list 'λ (program-variables start-prog)
-                        (resugar-program (program-body end-prog)))]))
        (test-success test
                      bits
                      (- (current-inexact-milliseconds) start-time)
                      (reverse (unbox timeline))
-                     warnings
-                     start-resugared end-resugared points exacts
+                     warnings start end points exacts
                      (errors (alt-program start) context)
                      (errors (alt-program end) context)
                      newpoints newexacts
@@ -135,10 +124,10 @@
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
-  (table-row (test-name test) status (test-precondition test) (test-precision test)
-             (test-vars test) (test-input test) #f (test-output test)
-             #f #f #f #f #f #f #f
-             (test-result-time result) (test-result-bits result) link))
+  (table-row (test-name test) status (resugar-program (test-precondition test)) (test-precision test)
+             (test-vars test) (resugar-program (test-input test)) #f
+             (and (test-output test) (resugar-program (test-output test)))
+             #f #f #f #f #f #f #f (test-result-time result) (test-result-bits result) link))
 
 (define (get-table-data result link)
   (define test (test-result-test result))
@@ -175,14 +164,9 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (program-body (alt-program (test-success-end-alt result)))]
-                 [start start-score]
-                 [result end-score]
-                 [target target-score]
-                 [start-est est-start-score]
-                 [result-est est-end-score]
-                 [inf- (length good-inf)]
-                 [inf+ (length bad-inf)])]
+                 [output (resugar-program (program-body (alt-program (test-success-end-alt result))))]
+                 [start start-score] [result end-score] [target target-score]
+                 [start-est est-start-score] [result-est est-end-score] [inf- (length good-inf)] [inf+ (length bad-inf)])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]
@@ -204,10 +188,6 @@
            '())
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
-     ,@(if (eq? (table-row-pre row) 'TRUE)
-           '()
-           `(:pre ,(resugar-program (table-row-pre row))))
-     ,@(if (table-row-target-prog row)
-           `(:herbie-target ,(table-row-target-prog row))
-           '())
+     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre (table-row-pre row)))
+     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
      ,(table-row-output row)))

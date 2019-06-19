@@ -15,10 +15,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified precondition)
+  (table next-alt locs children gened-series gened-rewrites simplified precondition precision)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -35,6 +35,9 @@
 (define (^precondition^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
   (shellstate-precondition (^shell-state^)))
+(define (^precision^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-precision! (^shell-state^) newval))
+  (shellstate-precision (^shell-state^)))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -71,6 +74,7 @@
   (timeline-event! 'sample)
   (define context (prepare-points prog precondition precision))
   (^precondition^ precondition)
+  (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (^table^ (make-alt-table context (make-alt prog)))
@@ -216,7 +220,6 @@
 
     (define locs-list
       (for/list ([child (^children^)] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
         ;; We want to avoid simplifying if possible, so we only
         ;; simplify things produced by function calls in the rule
         ;; pattern. This means no simplification if the rule output as

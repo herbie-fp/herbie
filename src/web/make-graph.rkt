@@ -5,9 +5,12 @@
 (require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
 (require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
 (require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "../syntax/softposit.rkt" "common.rkt")
+(require "../fpcore/core2js.rkt" "timeline.rkt" "common.rkt")
 
 (provide all-pages make-page)
+
+(define (unique-values pts idx)
+  (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
 (define (all-pages result)
   (define test (test-result-test result))
@@ -19,7 +22,9 @@
       "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
                    #:when good? [type '("" "r" "g" "b")]
-                   #:unless (and (equal? type "g") (not (test-output test))))
+                   #:unless (and (equal? type "g") (not (test-output test)))
+                   ;; Don't generate a plot with only one X value else plotting throws an exception
+                   #:when (> (unique-values (test-success-newpoints result) idx) 1))
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
@@ -55,8 +60,7 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define/contract (regime-splitpoints altn)
-  (-> alt? (or/c (listof number?) (listof posit16?)))
+(define (regime-splitpoints altn)
   (map sp-point (drop-right (regime-info altn) 1)))
 
 (define/contract (regime-var altn)
@@ -86,14 +90,14 @@
      (format "  :name ~s" (test-name test))
      (if (equal? (test-precondition test) 'TRUE)
          #f
-         (format "  :pre ~a" (test-precondition test)))
+         (format "  :pre ~a" (resugar-program (test-precondition test))))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
-         (format "\n  :herbie-target\n  ~a\n" (test-output test)) ; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test))) ; Extra newlines for clarity
          #f)
-     (format "  ~a)" (test-input test))))
+     (format "  ~a)" (resugar-program (test-input test)))))
    "\n"))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
@@ -153,9 +157,9 @@
 (define (points->doubles pts)
   (cond
     [(or (real? (caar pts)) (complex? (caar pts))) pts]
-    [(posit8? (caar pts)) (map (curry map posit8->double) pts)]
-    [(posit16? (caar pts)) (map (curry map posit16->double) pts)]
-    [(posit32? (caar pts)) (map (curry map posit32->double) pts)]))
+    [else
+     (define repr (infer-representation (caar pts)))
+     (map (curry map (curryr repr->fl repr)) pts)]))
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
@@ -432,22 +436,12 @@
   (string-join
    (list
     (if start
-        (let ([start* (cond
-                        [(posit8? start) (posit8->double start)]
-                        [(posit16? start) (posit16->double start)]
-                        [(posit32? start) (posit32->double start)]
-                        [else start])])
-          (format "~a < " start*))
+        (format "~a < " (repr->fl start (infer-representation start)))
         "")
     (~a (interval-expr ival))
     (if (equal? end +nan.0)
         ""
-        (let ([end* (cond
-                      [(posit8? end) (posit8->double end)]
-                      [(posit16? end) (posit16->double end)]
-                      [(posit32? end) (posit32->double end)]
-                      [else end])])
-          (format " < ~a" end*))))))
+        (format " < ~a" (repr->fl end (infer-representation end)))))))
 
 (define (split-pcontext pcontext splitpoints alts)
   (define preds (splitpoints->point-preds splitpoints alts))
@@ -467,21 +461,10 @@
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (define (render-history altn pcontext pcontext2 precision)
-  (-> alt? (listof xexpr?))
-
-  (define prog* (if (set-member? '(final-simplify resugar) (alt-event altn))
-    (let* ([prog (alt-program altn)]
-           [vars (program-variables prog)]
-           [expr (third prog)]
-           [precision-ctx (for/list ([var vars])
-                            (cons var precision))]
-           [desugared-expr (desugar-program expr precision-ctx)])
-      (list 'λ vars desugared-expr))
-    (alt-program altn)))
   (define err
-    (format-bits (errors-score (errors prog* pcontext))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors prog* pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
 
   (match altn
     [(alt prog 'start (list))
@@ -535,8 +518,4 @@
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
-    [(alt prog 'resugar `(,prev))
-     `(,@(render-history prev pcontext pcontext2 precision)
-       (li (p "Resugaring" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
     ))

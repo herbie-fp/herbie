@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "interface.rkt")
 (provide assert-expression! assert-program!)
 
 (define (check-expression* stx vars error!)
@@ -65,6 +65,15 @@
     (define desc (dict-ref prop-dict ':description))
     (unless (string? (syntax-e desc))
       (error! desc "Invalid :description ~a; must be a string" desc)))
+
+  (when (dict-has-key? prop-dict ':precision)
+    (define prec (dict-ref prop-dict ':precision))
+    (define known-prec?
+      (with-handlers ([exn:fail? (const false)])
+        (get-representation (syntax-e prec))
+        true))
+    (unless known-prec?
+      (error! prec "Unknown :precision ~a" prec)))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

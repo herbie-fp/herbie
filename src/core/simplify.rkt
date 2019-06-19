@@ -42,8 +42,7 @@
   out)
 
 (define (rule-applicable? rl en)
-  (or (not (variable? (rule-input rl)))
-      (equal? (dict-ref (rule-itypes rl) (rule-input rl)) (enode-type en))))
+  (equal? (rule-otype rl) (enode-type en)))
 
 ;; Tries to match the rules against the given enodes, and returns a
 ;; list of matches found. Matches are of the form:

@@ -2,21 +2,15 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt")
-(require "syntax.rkt")
-(require "softposit.rkt")
-(require "../float.rkt")
+(require "../common.rkt" "syntax.rkt" "../float.rkt" "../type-check.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(module+ internals (provide define-ruleset *rulesets*))
 
-(module+ test (require rackunit) (define num-test-points 2000))
-
-(struct rule (name input output itypes) ; Input and output are patterns
+(struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
-           (display "#<rule " port)
-           (write (rule-name rule) port)
-           (display ">" port))])
+           (fprintf port "#<rule ~a>" (rule-name rule)))])
 
 (define *rulesets* (make-parameter '()))
 
@@ -44,7 +38,8 @@
      (define-ruleset name groups #:type () [rname input output] ...)]
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
-     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)) ...))
+     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)
+                                     (type-of 'input '((var . type) ...))) ...))
             (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
@@ -53,68 +48,10 @@
   [+-commutative     (+ a b)               (+ b a)]
   [*-commutative     (* a b)               (* b a)])
 
-(define-ruleset commutativity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16])
-  [+-commutative     (+.p16 a b)               (+.p16 b a)]
-  [*-commutative     (*.p16 a b)               (*.p16 b a)])
-
 (define-ruleset commutativity.c (arithmetic simplify fp-safe complex)
   #:type ([a complex] [b complex])
   [+.c-commutative     (+.c a b)               (+.c b a)]
   [*.c-commutative     (*.c a b)               (*.c b a)])
-
-; Posit conversions
-(define-ruleset insert-p16 (arithmetic posit)
-  #:type ([a real])
-  [insert-posit16 a (posit16->real (real->posit16 a))])
-
-(define-ruleset remove-p16 (arithmetic simplify posit)
-  #:type ([a real])
-  [remove-posit16 (posit16->real (real->posit16 a)) a])
-
-(define-ruleset id-p16 (arithmetic simplify posit)
-  #:type ([a posit16])
-  [+p16-lft-identity-reduce    (+.p16 (real->posit16 0.0) a)               a]
-  [+p16-rgt-identity-reduce    (+.p16 a (real->posit16 0.0))               a]
-  [-p16-rgt-identity-reduce    (-.p16 a (real->posit16 0.0))               a]
-  [*p16-lft-identity-reduce    (*.p16 (real->posit16 1.0) a)               a]
-  [*p16-rgt-identity-reduce    (*.p16 a (real->posit16 1.0))               a]
-  [/p16-rgt-identity-reduce    (/.p16 a (real->posit16 1.0))               a])
-
-(define-ruleset unid-p16 (arithmetic posit)
-  #:type ([a posit16])
-  [+p16-lft-identity-expand    a               (+.p16 (real->posit16 0.0) a)]
-  [+p16-rgt-identity-expand    a               (+.p16 a (real->posit16 0.0))]
-  [-p16-rgt-identity-expand    a               (-.p16 a (real->posit16 0.0))]
-  [*p16-lft-identity-expand    a               (*.p16 (real->posit16 1.0) a)]
-  [*p16-rgt-identity-expand    a               (*.p16 a (real->posit16 1.0))]
-  [/p16-rgt-identity-expand    a               (/.p16 a (real->posit16 1.0))])
-
-;; TODO: Multiply add to mulAdd
-
-;; TODO: We only cast back to posit after quire operations because herbie can't handle
-;; non-double output right now (similar situtation for posits)
-(define-ruleset q16-arithmetic (arithmetic posit)
-  #:type ([a posit16] [b posit16] [c posit16] [q quire16])
-  [introduce-quire      a               (quire16->posit16 (posit16->quire16 a))]
-  [insert-quire-add     (+.p16 (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-mul-add q a (real->posit16 1.0)))]
-  [insert-quire-sub     (-.p16 (quire16->posit16 q) a)
-                        (quire16->posit16 (quire16-mul-sub q a (real->posit16 1.0)))]
-  [insert-quire-fdp-add (+.p16 (quire16->posit16 q) (*.p16 a b))
-                        (quire16->posit16 (quire16-mul-add q a b))]
-  [insert-quire-fdp-sub (-.p16 (quire16->posit16 q) (*.p16 a b))
-                        (quire16->posit16 (quire16-mul-sub q a b))])
-
-(define-ruleset p16-test-rules (arithmetic posit)
-  #:type ([a posit16] [b posit16] [c posit16] [d posit16])
-  [p16-flip--            (-.p16 a b)                            (/.p16 (-.p16 (*.p16 a a) (*.p16 b b)) (+.p16 a b))]
-  [p16-*-un-lft-identity a                                      (*.p16 (real->posit16 1.0) a)]
-  [p16-distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
-  [p16-times-frac  (/.p16 (*.p16 a b) (*.p16 c d))              (*.p16 (/.p16 a c) (/.p16 b d))]
-  [sqrt-sqrd.p16   (*.p16 (sqrt.p16 a) (sqrt.p16 a))             a]
-  [remove-negate.p16 (+.p16 a (-.p16 (real->posit16 1.0) a))    (real->posit16 1.0)])
-
 
 ; Associativity
 (define-ruleset associativity (arithmetic simplify)
@@ -159,27 +96,6 @@
   [sub-neg.c           (-.c a b)                 (+.c a (neg.c b))]
   [unsub-neg.c         (+.c a (neg.c b))           (-.c a b)])
 
-(define-ruleset associativity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16] [c posit16])
-  [associate-+r+  (+.p16 a (+.p16 b c))         (+.p16 (+.p16 a b) c)]
-  [associate-+l+  (+.p16 (+.p16 a b) c)         (+.p16 a (+.p16 b c))]
-  [associate-+r-  (+.p16 a (-.p16 b c))         (-.p16 (+.p16 a b) c)]
-  [associate-+l-  (+.p16 (-.p16 a b) c)         (-.p16 a (-.p16 b c))]
-  [associate--r+  (-.p16 a (+.p16 b c))         (-.p16 (-.p16 a b) c)]
-  [associate--l+  (-.p16 (+.p16 a b) c)         (+.p16 a (-.p16 b c))]
-  [associate--l-  (-.p16 (-.p16 a b) c)         (-.p16 a (+.p16 b c))]
-  [associate--r-  (-.p16 a (-.p16 b c))         (+.p16 (-.p16 a b) c)]
-  [associate-*r*  (*.p16 a (*.p16 b c))         (*.p16 (*.p16 a b) c)]
-  [associate-*l*  (*.p16 (*.p16 a b) c)         (*.p16 a (*.p16 b c))]
-  [associate-*r/  (*.p16 a (/.p16 b c))         (/.p16 (*.p16 a b) c)]
-  [associate-*l/  (*.p16 (/.p16 a b) c)         (/.p16 (*.p16 a c) b)]
-  [associate-/r*  (/.p16 a (*.p16 b c))         (/.p16 (/.p16 a b) c)]
-  [associate-/l*  (/.p16 (*.p16 b c) a)         (/.p16 b (/.p16 a c))]
-  [associate-/r/  (/.p16 a (/.p16 b c))         (*.p16 (/.p16 a b) c)]
-  [associate-/l/  (/.p16 (/.p16 b c) a)         (/.p16 b (*.p16 a c))]
-  [sub-neg        (-.p16 a b)                   (+.p16 a (neg.p16 b))]
-  [unsub-neg      (+.p16 a (neg.p16 b))         (-.p16 a b)])
-
 ; Counting
 (define-ruleset counting (arithmetic simplify)
   #:type ([x real])
@@ -196,17 +112,6 @@
   [distribute-rgt-out--   (- (* b a) (* c a))   (* a (- b c))]
   [distribute-lft1-in     (+ (* b a) a)         (* (+ b 1) a)]
   [distribute-rgt1-in     (+ a (* c a))         (* (+ c 1) a)])
-
-(define-ruleset distributivity.p16 (arithmetic simplify posit)
-  #:type ([a posit16] [b posit16] [c posit16])
-  [distribute-lft-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 a b) (*.p16 a c))]
-  [distribute-rgt-in      (*.p16 a (+.p16 b c))           (+.p16 (*.p16 b a) (*.p16 c a))]
-  [distribute-lft-out     (+.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (+.p16 b c))]
-  [distribute-lft-out--   (-.p16 (*.p16 a b) (*.p16 a c))   (*.p16 a (-.p16 b c))]
-  [distribute-rgt-out     (+.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (+.p16 b c))]
-  [distribute-rgt-out--   (-.p16 (*.p16 b a) (*.p16 c a))   (*.p16 a (-.p16 b c))]
-  [distribute-lft1-in     (+.p16 (*.p16 b a) a)           (*.p16 (+.p16 b (real->posit16 1.0)) a)]
-  [distribute-rgt1-in     (+.p16 a (*.p16 c a))           (*.p16 (+.p16 c (real->posit16 1.0)) a)])
 
 (define-ruleset distributivity.c (arithmetic simplify complex)
   #:type ([a complex] [b complex] [c complex])
@@ -243,14 +148,6 @@
   [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))]
   )
 
-(define-ruleset difference-of-squares-canonicalize.p16 (polynomials simplify posit)
-  #:type ([a posit16] [b posit16])
-  [difference-of-squares (-.p16 (*.p16 a a) (*.p16 b b))   (*.p16 (+.p16 a b) (-.p16 a b))]
-  [difference-of-sqr-1   (-.p16 (*.p16 a a) (real->posit16 1.0))
-                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))]
-  [difference-of-sqr--1  (+.p16 (*.p16 a a) (real->posit16 -1.0))
-                         (*.p16 (+.p16 a (real->posit16 1.0)) (-.p16 a (real->posit16 1.0)))])
-
 (define-ruleset difference-of-squares-flip (polynomials)
   #:type ([a real] [b real])
   [flip-+     (+ a b)  (/ (- (* a a) (* b b)) (- a b))]
@@ -270,20 +167,6 @@
   [div0              (/ 0 a)               0]
   [mul0              (* 0 a)               0]
   [mul0              (* a 0)               0])
-
-(define-ruleset exact-posit16 (arithmetic simplify posit fp-safe-nan)
-  #:type ([a posit16])
-  [+-inverses.p16    (-.p16 a a)                                 (real->posit16 0.0)]
-  [*-inverses.p16    (/.p16 a a)                                 (real->posit16 1.0)]
-  [div0.p16          (/.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0.p16          (*.p16 (real->posit16 0.0) a)               (real->posit16 0.0)]
-  [mul0.p16          (*.p16 a (real->posit16 0.0))               (real->posit16 0.0)])
-
-(define-ruleset id-reduce-posit16 (arithmetic simplify posit)
-  #:type ([a posit16])
-  [remove-double-div.p16 (/.p16 (real->posit16 1.0) (/.p16 (real->posit16 1.0) a))         a]
-  [rgt-mult-inverse.p16  (*.p16 a (/.p16 (real->posit16 1.0) a))         (real->posit16 1.0)]
-  [lft-mult-inverse.p16  (*.p16 (/.p16 (real->posit16 1.0) a) a)         (real->posit16 1.0)])
 
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   #:type ([a real])
@@ -801,102 +684,3 @@
              (set-member? groups 'simplify))
         rules
         '())))
-
-(module+ test
-  (require "../programs.rkt" (submod "../points.rkt" internals) math/bigfloat)
-
-  ;; WARNING: These aren't treated as preconditions, they are only used for range inference
-  (define *conditions*
-    `([acosh-def  . (>= x 1)]
-      [atanh-def  . (< (fabs x) 1)]
-      [asin-acos  . (<= -1 x 1)]
-      [acos-asin  . (<= -1 x 1)]
-      [acosh-2    . (>= x 1)]
-      [asinh-2    . (>= x 0)]
-      [sinh-acosh . (> (fabs x) 1)]
-      [sinh-atanh . (< (fabs x) 1)]
-      [cosh-atanh . (< (fabs x) 1)]
-      [tanh-acosh . (> (fabs x) 1)]
-      ;; These next three unquote the pi computation so that range analysis will work
-      [asin-sin-s . (<= (fabs x) ,(/ pi 2))]
-      [acos-cos-s . (<= 0 x ,pi)]
-      [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
-
-  (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)]
-         ;; The posit rules currently fail, possibly due to halfpoints sampling
-         #:unless (set-member? (second test-ruleset) 'posit))
-    (match-define (rule name p1 p2 itypes) test-rule)
-    (test-case (~a name)
-      (define fv (dict-keys itypes))
-
-      (define make-point
-        (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
-          (λ ()
-            (if (dict-has-key? *conditions* name)
-                (sample)
-                (for/list ([v fv] [i (in-naturals)])
-                  (match (dict-ref (rule-itypes test-rule) v)
-                    ['real (sample-double)]
-                    ['bool (if (< (random) .5) false true)]
-                    ['complex (make-rectangular (sample-double) (sample-double))]
-                    ['posit8 (random-posit8)]
-                    ['posit16 (random-posit16)]
-                    ['posit32 (random-posit32)]
-                    ['quire8 (random-quire8)]
-                    ['quire16 (random-quire16)]
-                    ['quire32 (random-quire32)]))))))
-
-      (define-values (method prog1 prog2 points)
-        (cond
-         [(and (expr-supports? p1 'ival) (expr-supports? p2 'ival))
-          (define prog1 (curry ival-eval (eval-prog `(λ ,fv ,p1) 'ival)))
-          (define prog2 (curry ival-eval (eval-prog `(λ ,fv ,p2) 'ival)))
-          (define points (for/list ([n (in-range num-test-points)]) (make-point)))
-          (values 'ival prog1 prog2 points)]
-         [else
-          (unless (or (set-member? (second test-ruleset) 'complex)
-                      (set-member? (second test-ruleset) 'posit))
-            (fail-check "Real or boolean rule not supported by intervals"))
-          (when (dict-has-key? *conditions* name)
-            (fail-check "Using bigfloat sampling on a rule with a condition"))
-          (define ((with-hiprec f) x) (parameterize ([bf-precision 2000]) (f x)))
-          (define prog1 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p1) 'bf))))
-          (define prog2 (with-hiprec (compose ->flonum (eval-prog `(λ ,fv ,p2) 'bf))))
-          (define points (for/list ([n (in-range num-test-points)]) (make-point)))
-          (values 'bf prog1 prog2 points)]))
-
-      (define ex1 (map prog1 points))
-      (define ex2 (map prog2 points))
-      (define errs
-        (for/list ([pt points] [v1 ex1] [v2 ex2]
-                   #:when (and (ordinary-value? v1) (ordinary-value? v2)))
-          (with-check-info (['point (map cons fv pt)] ['method method]
-                            ['input v1] ['output v2])
-            (check-eq? (ulp-difference v1 v2) 0))))
-      (when (< (length errs) 100)
-        (fail-check "Not enough points sampled to test rule")))))
-
-(module+ test
-  (require math/bigfloat "../programs.rkt" "../float.rkt")
-
-  (for* ([test-ruleset (*rulesets*)]
-         [test-rule (first test-ruleset)]
-         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (test-case (~a (rule-name test-rule))
-      (match-define (rule name p1 p2 _) test-rule)
-      (define fv (free-variables p1))
-      (define (make-point)
-        (for/list ([v fv])
-          (match (dict-ref (rule-itypes test-rule) v)
-            ['real (sample-double)]
-            ['bool (if (< (random) .5) false true)]
-            ['complex (make-rectangular (sample-double) (sample-double))])))
-      (define point-sequence (in-producer make-point))
-      (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-      (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-      (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
-      (define ex1 (map prog1 points))
-      (define ex2 (map prog2 points))
-      (for ([pt points] [v1 ex1] [v2 ex2])
-        (with-check-info (['point (map list fv pt)])
-          (check-equal? v1 v2))))))

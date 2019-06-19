@@ -31,29 +31,42 @@
 
   <p>
     First, <a href="https://docs.docker.com/installation/">install
-    Docker</a>. Docker supports Windows, OS X, and Linux. Depending on
-    how you install Docker, you may need to prefix
-    all <code>docker</code> commands on this page
-    with <code>sudo</code> or run them as the root or administrative
-    user.
+    Docker</a>. Docker supports Windows, macOS, and Linux. Depending
+    on how you install Docker, you may need to prefix
+    the <code>docker</code> command with <code>sudo</code> or run them
+    as the administrative user.
   </p>
-  
-  <p>
-    With Docker installed, you should be able to download the Herbie image with:
-  </p>
- 
 
-  <pre>docker pull uwplse/herbie</pre>
-  
-  <p>
-    You can now run Herbie:
-  </p>
+  <p>With Docker installed, download the Herbie image:</p>
+ 
+  <pre class="shell">docker pull uwplse/herbie</pre>
+
+  <p>You can now run Herbie:</p>
 
   <pre>docker run -it uwplse/herbie shell</pre>
   
+  <p>This will run the <a href="using-cli.html">Herbie shell</a>,
+  reading input from the standard input.</p>
+  
+  <p>Note that Herbie in Docker is more limited; for example, it will
+  not recognize plugins installed outside the Docker container.</p>
+
+  <h2>Running the web shell</h2>
+
+  <p>Running the web shell in Docker requires exposing the ports
+  inside the container. The Herbie Docker image binds to port 80 by
+  default; use the <code>-p &lt;hostport&gt;:80</code> option to
+  Docker to expose Herbie on whatever port you choose.
+  </p>
+
+  <pre class="shell">docker run -it --rm -p 8000:80 uwplse/herbie</pre>
+
   <p>
-    This will run the <a href="using-cli.html">Herbie shell</a>,
-    reading input from the standard input.
+    If you are using the <code>--log</code>
+    or <code>--save-session</code> flags for the web shell,
+    you will also need to mount the relevant directories into the
+    Docker container using the <code>-v</code> Docker option, as in
+    the examples below.
   </p>
 
   <h2>Generating files and reports</h2>
@@ -63,7 +76,7 @@
     need to mount the input in the Docker container. Do that with:
   </p>
   
-  <pre><strong>$</strong> docker run -it --rm \
+  <pre class="shell">docker run -it --rm \
     -v <var>in-dir</var>:/in \
     -v <var>out-dir</var>:/out \
     -u $USER \
@@ -81,7 +94,7 @@
     To generate reports from Herbie, you can run:
   </p>
 
-  <pre><strong>$</strong> docker run -it --rm \
+  <pre class="shell">docker run -it --rm \
     -v <var>in-dir</var>:/in \
     -v <var>out-dir</var>:/out \
     -u $USER \
@@ -92,25 +105,6 @@
     the Docker container. Note that both here and above, the user is
     set to the current user. This is to ensure that the files Herbie creates
     have the correct permissions set.
-  </p>
-
-  <h2>Running the web shell</h2>
-
-  <p>
-    Running the web shell in Docker requires exposing the ports inside
-    the container. The Herbie Docker image binds to port 80 by default;
-    use the <code>-p &lt;hostport&gt;:80</code> option to Docker to expose
-    Herbie on whatever port you choose.
-  </p>
-
-  <pre><strong>$</strong> docker run -it --rm -p 8000:80 uwplse/herbie</pre>
-
-  <p>
-    If you are using the <code>--log</code>
-    or <code>--save-session</code> flags for the web shell,
-    you will also need to mount the relevant directories into the
-    Docker container using the <code>-v</code> Docker option, as in
-    the examples above.
   </p>
 
 </body>
