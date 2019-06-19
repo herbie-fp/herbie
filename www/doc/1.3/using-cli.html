@@ -28,11 +28,10 @@
 
   <h2>Input expressions</h2>
 
-  <p>
-    Herbie ships a collection of benchmarks in its <code>bench/</code>
-    directory. For example, <code>bench/tutorial.fpcore</code>
-    contains the following code:
-  </p>
+  <p>Herbie takes file and command-line input
+  in <a href="input.html">FPCore syntax</a>. You can find example
+  FPCore files in the <code>bench/</code> directory in the source
+  code. For example, <code>bench/tutorial.fpcore</code> contains:</p>
 
   <pre>(FPCore (x)
   :name "Cancel like terms"
@@ -56,8 +55,7 @@
     and associate”</li>
   </ul>
 
-  <p>You can check out our <a href="input.html">input format
-    documentation</a> for more about the Herbie input format. </p>
+  <p>The <a href="input.html">input format documentation</a> contains more details.</p>
 
   <h2 id="interactive">The Herbie shell</h2>
 
@@ -73,29 +71,32 @@
     After a few seconds, Herbie will start up and wait for input:
   </p>
 
-  <pre><strong>$</strong> herbie shell
-Herbie 1.2 with seed #(891614428 1933754021 544017565 2852994348 404070416 672462396)
-Find help on <https://herbie.uwplse.org/>, exit with Ctrl-D
-herbie> </pre>
+  <pre class="shell">herbie shell
+Herbie 1.3 with seed 2098242187
+Find help on https://herbie.uwplse.org/, exit with Ctrl-D
+herbie&gt; </pre>
 
-  <p>
-    The printed seed can be used to reproduce a Herbie run. You can
-    now paste inputs directly into your terminal for Herbie to
-    improve:
-  </p>
+  <p>The printed seed can be used to reproduce a Herbie run. You can
+  now paste inputs directly into your terminal for Herbie to
+  improve:</p>
 
-  <pre>(FPCore (x) :name "Cancel like terms" (- (+ 1 x) x))
-(FPCore (x) <var>...</var> 1)</pre>
+  <pre><strong>herbie&gt;</strong> (FPCore (x) :name "Cancel like terms" (- (+ 1 x) x))
+(FPCore
+  (x)
+  <var>...</var>
+  1.0)</pre>
 
-  <p>
-    Interactive use is helpful if you want to play with different
-    expressions and try multiple variants, informed by Herbie's
-    advice. Note that Herbie will print a variety of additional
-    information (like its error estimates and how long it took to
-    process your input) in the <var>...</var> portion of the output.
-  </p>
+  <p>The output suggests the expression <code>1</code> as a more
+  accurate variant of the original expression. Note that
+  the <var>...</var> hides lots
+  of <a href="file:///home/pavpan/herbie/www/doc/1.3/input.html#properties">additional
+  information</a> from Herbie, including error estimates and runtime
+  information.</p>
 
-  <h2 id="batch">Batch processing FPCore</h2>
+  <p>The Herbie shell makes it easy to play with different expressions
+  and try multiple variants, informed by Herbie's advice.</p>
+
+  <h2 id="batch">Batch processing FPCores</h2>
 
   <p>
     Alternatively, you can run Herbie on a file with multiple
@@ -103,22 +104,22 @@ herbie> </pre>
     This mode is intended for use by scripts.
   </p>
 
-  <pre><strong>$</strong> herbie improve bench/tutorial.fpcore out.fpcore
-Seed: 921081490
-  1/3   [ 1563.552ms]	Cancel like terms	(29→ 0)
-  2/3   [ 4839.121ms]	Expanding a square	(38→ 0)
-  3/3   [ 3083.238ms]	Commute and associate	( 0→ 0)</pre>
+  <pre class="shell">herbie improve bench/tutorial.fpcore out.fpcore
+Starting Herbie on 3 problems (seed: 1809676410)...
+  1/3	[   2.202s]   29→ 0	Cancel like terms
+  2/3	[  14.875s]   39→ 0	Expanding a square
+  3/3	[   8.546s]    0→ 0	Commute and associate</pre>
 
   <p>
     The output file <code>out.fpcore</code> contains more accurate
     versions of each program:
   </p>
 
-  <pre>;; seed: #(3123212801 2137904229 2993294009 3035080405 3708006222 26032508)
+  <pre>;; seed: 1809676410
 
-(FPCore (x) 1)
-(FPCore (x) (* (+ 2 x) x))
-(FPCore (x y z) 0)</pre>
+(FPCore (x) <var>...</var> 1.0)
+(FPCore (x) <var>...</var> (+ (* x x) (* 2.0 x)))
+(FPCore (x y z) <var>...</var> 0.0)</pre>
 
   <p>
     Note that the order of expressions is identical.
