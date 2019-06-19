@@ -13,19 +13,18 @@
     <h1>Command-line Options</h1>
   </header>
 
-  <p>
-    The <a href="../../"><code>herbie</code></a> command has several
-    subcommands and allows multiple options that influence its search
-    procedure and the types of solutions it finds. These options apply
-    both to the report generator and the one-off command-line tool.
-  </p>
+  <p>The <a href="../../"><code>herbie</code></a> command several
+  subcommands and options that influence both its user interface and
+  the quality of solutions that it finds.</p>
 
   <h2>Herbie commands</h2>
 
   <p>Herbie can be run both interactively and in batch mode, and can
-  generate output intended either for the command line or the web. We
-  call these different ways of running Herbie different tools. Herbie
-  provides four tools:</p>
+  generate output intended either for
+  the <a href="using-cli.html">command line</a>
+  or <a href="using-web.html">the web</a>. We call these different
+  ways of running Herbie different tools. Herbie provides four
+  tools:</p>
 
   <dl>
     <dt><code>herbie web</code></dt>
@@ -72,7 +71,7 @@
     name but before other arguments, such as:
   </p>
 
-  <pre><code>herbie improve --timeout 60 in.fpcore out.fpcore</code></pre>
+  <pre class="shell">herbie improve --timeout 60 in.fpcore out.fpcore</pre>
 
   <p>Arguments cannot be put anywhere else.</p>
 
@@ -103,14 +102,14 @@
       inconsistent results between runs with different seeds.</dd>
     
     <dt><code>--timeout T</code></dt>
-    <dd>The timeout to use per-example, in seconds. A fractional
-    number of seconds can be given.</dd>
+    <dd>The timeout to use per-input, in seconds. A fractional number
+    of seconds can be given.</dd>
 
     <dt><code>--threads N</code> (for the <code>improve</code> and <code>report</code> tools)</dt>
     <dd>Enables multi-threaded operation. By default, no threads are
       used. A number can be passed to this option to use that many
       threads, or <code>yes</code> can be passed to tell Herbie to use
-      all but one of the hardware threads.</dd>
+      all of the hardware threads.</dd>
   </dl>
 
   <h2>Web shell options</h2>
@@ -134,8 +133,9 @@
     log will <emph>not</emph> contain a traceback.</dd>
 
     <dt><code>--quiet</code></dt>
-    <dd>When set, a browser is not started to point to the server main
-    page, and a smaller banner is printed to the command line.</dd>
+    <dd>By default, but not when this option is set, a browser is
+    started to point to the Herbie page. This option also shrinks the
+    a banner printed to the command line.</dd>
 
     <dt><code>--public</code></dt>
     <dd>When set, users on other computers can connect to the demo and
@@ -147,15 +147,12 @@
   <h2>Rulesets</h2>
 
   <p>
-    Herbie uses a set of rewrite rules to define the changes it is
-    allowed to make to formulas to improve their accuracy. These rules
-    can be turned on and off in groups using <code>--disable
-    rules:<var>group</var></code> and <code>--enable
-    rules:<var>group</var></code>. In general, enabling more rules
-    should only improve the accuracy of Herbie's output. However, if
-    certain functions are not available on your platform, disabling
-    the rules associated with those functions will prevent Herbie from
-    using them.
+    Herbie uses rewrite rules to make changes to formulas and improve
+    their accuracy. These rules can be turned on and off in groups
+    using <code>--disable rules:<var>group</var></code>
+    and <code>--enable rules:<var>group</var></code>. In general,
+    enabling rules improves the accuracy of Herbie's output but may
+    allow it to use functions not available on your platform.
   </p>
 
   <p>The full list of rule groups is:</p>
@@ -175,27 +172,26 @@
     <tr><td>branches</td><td><code>if</code> statement simplification</td></tr>
   </table>
 
-  <p>All groups except <code>numerics</code> are enabled by default,
-  and we recommend turning it on if these functions are available in
-  your language. If complex arithmetic or special mathematical
-  functions are poorly implemented in your language, you may wish to
-  disable those rule groups as well.</p>
+  <p>All groups except <code>numerics</code> are enabled by default.
+  We recommend turning <code>numerics</code> on if these functions are
+  available in your language, and disabling <code>complex</code>
+  or <code>special</code> if those functions are poorly implemented in
+  your language.</p>
 
   <h2>Search options</h2>
 
   <p>
-    These options influence the fine properties of Herbie's search, most
-    importantly the types of transformations that Herbie uses to find
-    candidate programs. These options offer very fine-grained control
-    over Herbie's output, and are only recommended for advanced uses of
-    Herbie.
+    These options influence Herbie's search, most importantly the
+    types of transformations that Herbie uses to find candidate
+    programs. They offer fine-grained control and are only recommended
+    for advanced uses of Herbie.
   </p>
 
   <p>
-    Each option can be turned off with the <code>-o X</code>
-    or <code>--disable X</code> command-line flag, and turned on with
-    the <code>+o X</code> or <code>--enable X</code>. The defaults are
-    the recommended options; turning a default-on option off typically
+    Each option can be turned off with the <code>-o</code>
+    or <code>--disable</code> command-line flag, and turned on with
+    <code>+o</code> or <code>--enable</code>. The recommended options
+    are the defaults; turning a default-on option off typically
     results in less-accurate results, while turning a default-off
     option on typically results in more-complex and more-surprising
     output expressions.
@@ -204,91 +200,87 @@
   <dl>
     <dt><code>precision:double</code></dt>
     <dd>This option, on by default, tells Herbie default to
-      double-precision calculations. If turned off, Herbie defaults to
-      single-precision calculations.</dd>
+    double-precision calculations. If turned off, Herbie defaults to
+    single-precision calculations. This option is a legacy option; use
+    the <a href="input.rkt#precisions"><code>:precision</code> FPCore
+    property</a> to change precisions instead.</dd>
 
     <dt><code>precision:fallback</code></dt>
     <dd>This option, on by default, tells Herbie to use fallback
-      functions if a native implementation is not found for any
-      operations. If turned off, operations with no native
-      implementation will be disabled from use in the input or output.
-      You will want to turn this option off if you require Herbie to
-      be faithful to your system's implementation of <code>libm</code>.</dd>
+    functions if a native implementation is not found for an operation
+    (and print a warning). If turned off, operations with no native
+    implementation will be disabled entirely. Turn this option off if
+    you require Herbie to be faithful to your system's implementation
+    of <code>libm</code>.</dd>
 
     <dt><code>setup:simplify</code></dt>
     <dd>This option, on by default, simplifies the expression before
-      passing it to Herbie. If turned off, Herbie will not simplify
-      input programs before improving them. You will want to turn off
-      this option if simplifying the program will create a lot of
-      error, say if the association of operations is cleverly
-      chosen.</dd>
+    passing it to Herbie. If turned off, Herbie will not simplify
+    input programs before improving them. Turn this option off if
+    simplifying the input will create a lot of error, say if the
+    association of operations is cleverly chosen.</dd>
 
     <dt><code>setup:early-exit</code></dt>
     <dd>This option, off by default, causes Herbie to exit without
-      modifying the input program if it determines that the input
-      program has less than 0.1 bits of error. You will want to turn
-      this option on if you are running Herbie on a large corpus of
-      programs that you do not believe to be inaccurate.</dd>
+    modifying the input program if it determines that the input
+    program has less than 0.1 bits of error. Turn this option on if
+    you are running Herbie on a large corpus of programs that you do
+    not believe to be inaccurate.</dd>
 
     <dt><code>generate:rr</code></dt>
     <dd>This option, on by default, uses Herbie's recursive rewriting
-      algorithm to generate candidate programs. If turned off, Herbie
-      will use a non-recursive rewriting algorithm, which will
-      substantially limit the candidates Herbie finds. You will rarely
-      want to turn this option off.</dd>
+    algorithm to generate candidate programs. If turned off, Herbie
+    will use a non-recursive rewriting algorithm, which will
+    substantially limit the candidates Herbie finds. You will rarely
+    want to turn this option off.</dd>
 
     <dt><code>generate:taylor</code></dt>
     <dd>This option, on by default, uses series expansion to produce
-      new candidates during the main improvement loop. If turned off,
-      Herbie will not use series expansion in the main improvement loop.
-      You will want to turn this option off if you want to avoid
-      series-expansion-based rewrites, such as if you need to preserve
-      the equivalence of the input and output expressions as real-number
-      formulas.</dd>
+    new candidates during the main improvement loop. If turned off,
+    Herbie will not use series expansion. Turn this option off if you
+    want to avoid series-expansion-based rewrites, such as if you need
+    to preserve the equivalence of the input and output expressions as
+    real-number formulas.</dd>
 
     <dt><code>generate:simplify</code></dt>
     <dd>This option, on by default, simplifies candidates during the
-      main improvement loop. If turned off, candidates will not be
-      simplified, which typically results in much less accurate
-      expressions, since simplification is often necessary for
-      cancelling terms. You will rarely want to turn this option off.</dd>
+    main improvement loop. If turned off, candidates will not be
+    simplified, which typically results in much less accurate
+    expressions, since simplification is often necessary for
+    cancelling terms. You will rarely want to turn this option
+    off.</dd>
 
     <dt><code>reduce:regimes</code></dt>
     <dd>This option, on by default, uses Herbie's regime inference
-      algorithm to branch between several program candidates. If
-      turned off, branches will not be inferred and the output program
-      will be straight-line code (if the input was). You will want to
-      turn this option off if your programming environment makes
-      branches very expensive, such as in some cases of GPU
-      programming.</dd>
+    algorithm to branch between several program candidates. If turned
+    off, branches will not be inferred and the output program will be
+    straight-line code (if the input was). Turn this option off if
+    your programming environment makes branches very expensive, such
+    as in some cases of GPU programming.</dd>
 
     <dt><code>reduce:avg-error</code></dt>
     <dd>This option, on by default, causes Herbie to output the
-      candidate with the best average error over the chosen inputs. If
-      turned off, Herbie will choose the candidate with the least
-      maximum error instead. This usually produces programs with worse
-      overall accuracy. You may want to turn this option off if
-      worst-case accuracy is more important to you than overall
-      accuracy.</dd>
+    candidate with the best average error over the chosen inputs. If
+    turned off, Herbie will choose the candidate with the least
+    maximum error instead. This usually produces programs with worse
+    overall accuracy. Turn this option off if worst-case accuracy is
+    more important to you than overall accuracy.</dd>
 
     <dt><code>reduce:binary-search</code></dt>
     <dd>This option, on by default, uses binary search to refine the
-      values used in <code>if</code> statement conditionals. This
-      makes different runs of Herbie produce more similar results, and
-      improves accuracy near those values. If turned off, binary
-      search will not be used, and the branch values will be less
-      accurately chosen. You will want to turn this option off if
-      behavior near branches is not important to you, in which case
-      turning off this option will make Herbie slightly faster.</dd>
+    values used in inferred conditionals. This makes different runs of
+    Herbie produce more similar results, and improves accuracy near
+    those values. If turned off, binary search will not be used, and
+    the branch values will be less accurately chosen. Turn this option
+    off if behavior near branches is not important to you.</dd>
 
     <dt><code>reduce:branch-expressions</code></dt>
     <dd>This option, on by default, allows Herbie to branch on
       expressions, not just variables. This can improve accuracy on
-      regime branching, but can significantly increase the runtime,
-      particularly for large programs. If turned off, Herbie will only
-      try to branch on variables. You may want to turn this option off
-      if Herbie runtime is more important to you than expression
-      accuracy.</dd>
+      regime branching, slows Herbie down, particularly for large
+      programs. If turned off, Herbie will only try to branch on
+      variables. Turn this option off if Herbie runtime is more
+      important to you than expression accuracy.</dd>
   </dl>
 
   <h2>Upgrading from Herbie 1.0</h2>
@@ -298,16 +290,16 @@
   syntax, without multiple tools. Translate like so:</p>
 
   <ul>
-    <li><code>herbie-1.0</code> → <code>herbie-1.1 shell</code></li>
-    <li><code>herbie-1.0 file</code> → <code>herbie-1.1 improve file -</code></li>
-    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.1 improve - -</code><br/>
-      Alternatively, collect the files into a directory and run <code>herbie-1.1 improve dir/ -</code></li>
+    <li><code>herbie-1.0</code> → <code>herbie-1.3 shell</code></li>
+    <li><code>herbie-1.0 file</code> → <code>herbie-1.3 improve file -</code></li>
+    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.3 improve - -</code><br/>
+      Alternatively, collect the files into a directory and run <code>herbie-1.3 improve dir/ -</code></li>
   </ul>
 
   <p>The new syntax somewhat changes Herbie's behavior, such as by
-    using the input expression as the output if Herbie times out. It
-    also makes it easier to write Herbie's output to a file without
-    using command-line redirection.</p>
+  using the input expression as the output if Herbie times out. It
+  also makes it easier to write Herbie's output to a file without
+  using command-line redirection.</p>
 
 
 </body>
