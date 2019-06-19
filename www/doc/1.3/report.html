@@ -16,37 +16,29 @@
   
   <h1>The Herbie report</h1>
 
-  <p>The Herbie report, which is output by
-  the <a href="using-web.html">Herbie web commands</a>, lists five items.</p>
+  <p>Herbie can <a href="using-web.html">generate HTML reports</a>
+  which give its output expression and also how Herbie found it.</p>
 
   <h2 id="summary">Summary numbers</h2>
 
-  <p>First, a brief summary of the results.
-    For most uses, the “Average Error”
-      number, which summarizes how accurate the input and output
-      expressions are, is the most important number in this section.
-    The other numbers are:
-      the time Herbie took to improve the program;
-      the precision Herbie assumed floating-point operations
-      (which can be set at the <a href="options.html">command line</a>);
-      and the internal precision used to ensure accurate results.</p>
+  <p>First, a brief summary of the results. For most uses, the
+    “Average Error” number, which summarizes how accurate the input
+    and output expressions are, is the most important number in this
+    section. The other numbers list time Herbie took to improve the
+    program and the <a href="input.html#precisions">precision</a> of
+    floating-point operations.
+  </p>
 
   <figure>
     <img width="100%" src="report-large.png" />
-    <figcaption>A summary of results from a Herbie report.</figcaption>
+    <figcaption>Summary numbers from a Herbie report.</figcaption>
   </figure>
 
   <h2 id="programs">Input and output programs</h2>
 
-  <p>Second, the input and output programs themselves.
-    These are printed in standard mathematical syntax.
-    Library functions not often used by mathematicians,
-      including <code>atan2</code>, <code>expm1</code>,
-      <code>fma</code>, <code>hypot</code>, <code>lgamma</code>,
-      <code>log1p</code>, and <code>logb</code>
-      are drawn with a sub- or super-script asterisk,
-      while <code>if</code> statements are rendered as in a program.
-  </p>
+  <p>Second, the input and output programs themselves. These are
+  printed in standard mathematical syntax. In the top-right corner,
+  the drop-down can be used to change to C syntax or raw TeX.</p>
 
   <figure>
     <img width="100%" src="report-prog.png" />
@@ -84,7 +76,7 @@
     input and output program (both are toggled on).</figcaption>
   </figure>
 
-  <h2 id="try-it">Try it</h2>
+  <h2 id="try-it">Interactive inputs</h2>
 
   <p>
     Fourth, a form where you can try out specific inputs on the input
@@ -121,22 +113,25 @@
     error at each step, in bits, in gray.</figcaption>
   </figure>
 
-  <h2 id="time">Runtime information</h2>
-  
-  <p>Sixth and finally, a breakdown of Herbie's runtime.
-    This can usually be ignored.
-    The colored bar is a timeline of Herbie's run,
-    with each section of the bar sized proportionally to its runtime,
-    and each color corresponding to a strategy;
-    hover over that section of the bar to learn which strategy.</p>
+  <h2 id="reproduction">Reproduction</h2>
 
-  <p>If you find a bug, include the code snippet in this section when
-  filing the bug. Please also include the debug log linked from this block.</p>
-    
+  <p>Sixth, a command you can use to reproduce this Herbie result.
+  If you find a bug, include the code snippet in this section when
+  <a href="https://github.com/uwplse/herbie/issues">filing the
+  bug</a>. Please also include the debug log linked at the top of the
+  page.</p>
+
   <figure>
-    <img width="100%" src="report-runtime.png" />
-    <figcaption>Runtime breakdown from a Herbie report.</figcaption>
+    <img width="100%" src="report-reproduce.png" />
+    <figcaption>Reproduction information for a Herbie run.</figcaption>
   </figure>
+
+  <h2 id="links">Additional links</h2>
+  
+  <p>The top of the page has a right-hand menu bar with additional
+  links. “Log” you to a detailed debug log. “Profile” gives
+  a <code>gprof</code>-style profile. and “Metrics” gives detailed
+  internal metrics on Herbie's results.</p>
 
   <p>We expect the report to grow more informative with future
   versions. Please <a href="mailto:herbie@cs.washington.edu">get in
