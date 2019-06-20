@@ -22,36 +22,15 @@
   (define ordinal-ranges
     (for/list ([range ranges])
       (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) range)
-      (list (->ordinal lo) (->ordinal hi) lo? hi?)))
+      (cons (+ (->ordinal lo) (if lo? 0 1)) (+ (->ordinal hi) (if hi? 1 0)))))
 
-  (define (points-in-range lo hi lo? hi?)
-    ;; The `max` handles the case lo > hi and similar
-    (max 0 (- hi lo (if lo? 0 1) (if hi? -1 0))))
-
-  (define total-weight
-    (apply +
-           (for/list ([range ordinal-ranges])
-             (match-define (list lo hi lo? hi?) range)
-             (points-in-range lo hi lo? hi?))))
-
-  (match total-weight
-   [0 #f]
-   [_
-    (define num-bits (ceiling (/ (log total-weight) (log 2))))
-    (define sample
-      (let loop ()
-        (define sample (random-exp (inexact->exact num-bits)))
-        (if (< sample total-weight) sample (loop))))
-    (let loop ([sample sample] [ordinal-ranges ordinal-ranges])
-      ;; The `(car)` is guaranteed to succeed by the construction of `sample`
-      (match-define (list lo hi lo? hi?) (car ordinal-ranges))
-      (if (< sample (points-in-range lo hi lo? hi?))
-          (<-ordinal (+ lo (if lo? 0 1) sample))
-          (loop (- sample (points-in-range lo hi lo? hi?)) (cdr ordinal-ranges))))]))
+  (<-ordinal (apply random-ranges ordinal-ranges)))
 
 (module+ test
   (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)))))
-  (check-false (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)))))
+  (check-exn
+   exn:fail?
+   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t))))))
 
 (define *pcontext* (make-parameter #f))
 
