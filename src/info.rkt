@@ -32,3 +32,9 @@
 
 (define build-deps
   '("rackunit-lib"))
+
+(define test-omit-paths
+  (if (getenv "PLT_PKG_BUILD_SERVICE")
+      '("syntax/test-rules.rkt" ; These take too long, package server gives us 60s
+        "points.rkt") ; These require the benchmarks
+      '()))
