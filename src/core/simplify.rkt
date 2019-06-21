@@ -27,17 +27,24 @@
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
+  (define start-time (current-inexact-milliseconds))
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
+  (define ex (apply mk-extractor ens))
 
   (for/and ([iter (in-naturals 0)])
-    (debug #:from 'simplify #:depth 2 (format "iteration ~a: ~a enodes" iter (egraph-cnt eg)))
-    (timeline-push! 'egraph iter (egraph-cnt eg))
+    (extractor-iterate ex)
+    (define cost (apply + (map car (apply extractor-extract ex ens))))
+    (debug #:from 'simplify #:depth 2 "iteration " iter ": " (egraph-cnt eg) " enodes " "(cost " cost ")")
+    (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
     (one-iter eg rls))
-  (debug #:from 'simplify #:depth 2 (format "iteration complete: ~a enodes" (egraph-cnt eg)))
-  (timeline-push! 'egraph "done" (egraph-cnt eg))
+  (extractor-iterate ex)
+  (define cost (apply + (map car (apply extractor-extract ex ens))))
+  (debug #:from 'simplify #:depth 2
+         "iteration complete: " (egraph-cnt eg) " enodes " "(cost " cost ")")
+  (timeline-push! 'egraph "done" (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
 
-  (define out (apply extract-smallest eg ens))
+  (define out (map cdr (apply extractor-extract ex ens)))
   (debug #:from 'simplify (format "Simplified to:\n  ~a" (string-join (map ~a out) "\n  ")))
   out)
 
@@ -127,24 +134,31 @@
           (merge-egraph-nodes! eg en en*))))))
   
 
-(define (extract-smallest eg . ens)
-  ;; The work list maps enodes to a pair (cost . expr) of that node's
-  ;; cheapest representation and its cost. If the cost is #f, the expr
-  ;; is also #f, and in this case no expression is yet known for that
-  ;; enode.
+;; The work list maps enodes to a pair (cost . expr) of that node's
+;; cheapest representation and its cost. If the cost is #f, the expr
+;; is also #f, and in this case no expression is yet known for that
+;; enode.
+
+(define (mk-extractor . ens)
   (define work-list (make-hash))
   (for ([en ens])
     (hash-set! work-list (pack-leader en) (cons #f #f)))
+  work-list)
 
-  ;; Extracting the smallest expression means iterating, until
-  ;; fixedpoint, either discovering new relevant expressions or
-  ;; cheaper expressions for some expression.
+(define (extractor-cost work-list)
+  (for/fold ([infs 0] [cost 0]) ([val (in-hash-values work-list)])
+    (if (not (car val))
+        (values (+ 1 infs) cost)
+        (values infs (+ (car val) cost)))))
+
+;; Extracting the smallest expression means iterating, until
+;; fixedpoint, either discovering new relevant expressions or
+;; cheaper expressions for some expression.
+(define (extractor-iterate work-list)
   (let loop ([iter 0])
     (define changed? #f)
-    (debug #:from 'simplify #:depth 2
-           (format "Extracting #~a: cost ~a inf + ~a"
-                   iter (count (compose not car) (hash-values work-list))
-                   (apply + (filter identity (map car (hash-values work-list))))))
+    (define-values (infs cost) (extractor-cost work-list))
+    (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " infs " inf + " cost)
     (for ([leader (in-list (hash-keys work-list))])
       (define vars (enode-vars leader))
       (define vars*
@@ -176,10 +190,12 @@
          (when (or (not old-cost) (< cost old-cost))
            (hash-set! work-list leader (cons cost best-resolution))
            (set! changed? #t))]))
-    (if changed?
-        (loop (+ iter 1))
-        (for/list ([en ens])
-          (cdr (hash-ref work-list (pack-leader en)))))))
+    (when changed?
+      (loop (+ iter 1)))))
+
+(define (extractor-extract work-list . ens)
+  (for/list ([en ens])
+    (hash-ref work-list (pack-leader en))))
 
 (module+ test
   (define test-exprs
