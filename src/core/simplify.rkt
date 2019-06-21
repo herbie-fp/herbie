@@ -125,7 +125,7 @@
                             (set! changed? (or changed? not-in-hash?))
                             #f])))
                      (if (andmap identity args*)
-                         (cons (apply + (operator-info op 'cost) (map car args*))
+                         (cons (apply + 1 (map car args*))
                                (cons op (map cdr args*)))
                          #f)]
                     [_
