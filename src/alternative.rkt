@@ -1,6 +1,5 @@
 #lang racket
 
-(require "programs.rkt")
 (require "common.rkt")
 
 (provide (struct-out alt) make-alt alt? alt-program alt-add-event)
@@ -13,9 +12,7 @@
 (struct alt (program event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (display "#<alt " port)
-           (write (alt-program alt) port)
-           (display ">" port))])
+           (fprintf port "#<alt ~a>" (alt-program alt)))])
 
 (define (make-alt prog)
   (alt prog 'start '()))
