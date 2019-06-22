@@ -104,8 +104,8 @@
 	(void))))
 
 (define (best-alt alts)
-  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
-	   alts))
+  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
+          alts))
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
