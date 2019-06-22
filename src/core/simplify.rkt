@@ -62,63 +62,26 @@
 (define (find-matches ens rls)
   (reap [sow]
         (for* ([rl rls] [en ens]
-               #:when (rule-applicable? rl en)
-               #:unless (rule-applied? en rl))
+               #:when (rule-applicable? rl en))
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
 
-(define (apply-match eg rl en bindings)
-
-  ;; These next two lines are here because an earlier match
-  ;; application may have pruned the tree, invalidating the this
-  ;; one. Luckily, a pruned enode will still point to it's old
-  ;; leader, so we just get the leader, and then double check the
-  ;; bindings to make sure our match hasn't changed.
-  
-  (define en* (pack-leader en))
-  (define bindings-set (apply set bindings))
-  (define bindings* (apply set (match-e (rule-input rl) en*)))
-  (define valid-bindings (set-intersect bindings-set bindings*))
-
-  (for ([binding valid-bindings])
-    (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-  ;; Mark this node as having this rule applied so that we don't try
-  ;; to apply it again.
-  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
-
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
-  (define change? #f)
-  (define (run-phase f . args)
-    (define old-cnt (egraph-cnt eg))
-    (apply f args)
-    (define changed? (> (egraph-cnt eg) old-cnt))
-    (set! change? (or changed? change?))
-    changed?)
-
+  (define initial-cnt (egraph-cnt eg))
   (for ([m (find-matches (egraph-leaders eg) rls)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
-    ;; The loop here ensures that we don't pass the node limit just
-    ;; because the bindings are too long. This is pretty ugly.
-    (let loop ([bindings bindings])
-      (cond
-       [(>= (egraph-cnt eg) (*node-limit*))
-        (void)]
-       [(<= (+ (length bindings) (egraph-cnt eg)) (*node-limit*))
-        (when (run-phase apply-match eg rl en bindings)
-          (reduce-to-single! eg en))]
-       [else
-        (let-values ([(head tail) (split-at bindings (- (*node-limit*) (egraph-cnt eg)))])
-          (loop head)
-          (loop tail))])))
+    (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
+      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (when (run-phase set-precompute! eg en)
-      (reduce-to-single! eg en)))
-  (and change? (< (egraph-cnt eg) (*node-limit*))))
+    (set-precompute! eg en))
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (reduce-to-single! eg en))
+  (< initial-cnt (egraph-cnt eg) (*node-limit*)))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
