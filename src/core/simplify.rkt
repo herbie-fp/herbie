@@ -41,7 +41,7 @@
   (extractor-iterate ex)
   (define cost (apply + (map car (apply extractor-extract ex ens))))
   (debug #:from 'simplify #:depth 2
-         "iteration complete: " (egraph-cnt eg) " enodes " "(cost " cost ")")
+         "iteration done: " (egraph-cnt eg) " enodes " "(cost " cost ")")
   (timeline-push! 'egraph "done" (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
 
   (define out (map cdr (apply extractor-extract ex ens)))
@@ -159,7 +159,11 @@
     (define changed? #f)
     (define-values (infs cost) (extractor-cost work-list))
     (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " infs " inf + " cost)
-    (for ([leader (in-list (hash-keys work-list))])
+    (for ([en (in-list (hash-keys work-list))]) ;; in-list to avoid mutating the iterator
+      (define leader (pack-leader en))
+      (when (not (eq? en leader))
+        (hash-set! work-list leader (hash-ref work-list en))
+        (hash-remove! work-list en))
       (define vars (enode-vars leader))
       (define vars*
         (filter identity
@@ -167,8 +171,8 @@
                   (match var
                     [(list op args ...)
                      (define args*
-                       (for/list ([en args])
-                         (define subleader (pack-leader en))
+                       (for/list ([suben args])
+                         (define subleader (pack-leader suben))
                          (match (hash-ref work-list subleader (cons #f #t))
                            [(cons (? number? cost) best-arg)
                             best-arg]
