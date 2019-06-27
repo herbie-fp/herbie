@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "enode.rkt" "egraph.rkt" "ematch.rkt")
+(require "egraph.rkt" "ematch.rkt" "extraction.rkt")
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
@@ -34,12 +34,12 @@
 
   (for/and ([iter (in-naturals 0)])
     (extractor-iterate ex)
-    (define cost (apply + (map car (apply extractor-extract ex ens))))
+    (define cost (apply extractor-cost ex ens))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " (egraph-cnt eg) " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
     (one-iter eg rls))
   (extractor-iterate ex)
-  (define cost (apply + (map car (apply extractor-extract ex ens))))
+  (define cost (apply extractor-cost ex ens))
   (debug #:from 'simplify #:depth 2
          "iteration done: " (egraph-cnt eg) " enodes " "(cost " cost ")")
   (timeline-push! 'egraph "done" (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
@@ -95,74 +95,6 @@
         (when (and ((value-of type) res) (exact-value? type res))
           (define en* (mk-enode-rec! eg (val-to-type type res)))
           (merge-egraph-nodes! eg en en*))))))
-  
-
-;; The work list maps enodes to a pair (cost . expr) of that node's
-;; cheapest representation and its cost. If the cost is #f, the expr
-;; is also #f, and in this case no expression is yet known for that
-;; enode.
-
-(define (mk-extractor . ens)
-  (define work-list (make-hash))
-  (for ([en ens])
-    (hash-set! work-list (pack-leader en) (cons #f #f)))
-  work-list)
-
-(define (extractor-cost work-list)
-  (for/fold ([infs 0] [cost 0]) ([val (in-hash-values work-list)])
-    (if (not (car val))
-        (values (+ 1 infs) cost)
-        (values infs (+ (car val) cost)))))
-
-;; Extracting the smallest expression means iterating, until
-;; fixedpoint, either discovering new relevant expressions or
-;; cheaper expressions for some expression.
-(define (extractor-iterate work-list)
-  (let loop ([iter 0])
-    (define changed? #f)
-    (define-values (infs cost) (extractor-cost work-list))
-    (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " infs " inf + " cost)
-    (for ([en (in-list (hash-keys work-list))]) ;; in-list to avoid mutating the iterator
-      (define leader (pack-leader en))
-      (when (not (eq? en leader))
-        (hash-set! work-list leader (hash-ref work-list en))
-        (hash-remove! work-list en))
-      (define vars (enode-vars leader))
-      (define vars*
-        (filter identity
-                (for/list ([var vars])
-                  (match var
-                    [(list op args ...)
-                     (define args*
-                       (for/list ([suben args])
-                         (define subleader (pack-leader suben))
-                         (match (hash-ref work-list subleader (cons #f #t))
-                           [(cons (? number? cost) best-arg)
-                            best-arg]
-                           [(cons #f not-in-hash?)
-                            (hash-set! work-list subleader (cons #f #f))
-                            (set! changed? (or changed? not-in-hash?))
-                            #f])))
-                     (if (andmap identity args*)
-                         (cons op args*)
-                         #f)]
-                    [_
-                     var]))))
-      (match vars*
-        ['() #f]
-        [_
-         (define best-resolution (argmin expression-cost vars*))
-         (define cost (expression-cost best-resolution))
-         (define old-cost (car (hash-ref work-list leader)))
-         (when (or (not old-cost) (< cost old-cost))
-           (hash-set! work-list leader (cons cost best-resolution))
-           (set! changed? #t))]))
-    (when changed?
-      (loop (+ iter 1)))))
-
-(define (extractor-extract work-list . ens)
-  (for/list ([en ens])
-    (hash-ref work-list (pack-leader en))))
 
 (module+ test
   (define test-exprs
