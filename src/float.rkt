@@ -98,10 +98,10 @@
      [else (< ((representation-repr->ordinal repr) x1)
               ((representation-repr->ordinal repr) x2))])]))
 
-(define (nan?-all-types x)
+(define (nan?-all-types x repr)
   (if (or (real? x) (complex? x))
       (nan? x)
-      (set-member? (representation-special-values (infer-representation x)) x)))
+      (set-member? (representation-special-values repr) x)))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2)))
@@ -120,13 +120,11 @@
     ['boolean (if val 'TRUE 'FALSE)]
     [_ (error "Unknown type" type)]))
 
-(define (flval x)
+(define (flval x repr)
   (match x
     [(? real?) x]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
-    [_
-     (define repr (infer-representation x))
-     (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
+    [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
 (define/contract (->flonum x)
   (-> any/c value?)
