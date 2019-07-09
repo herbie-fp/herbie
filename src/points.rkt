@@ -170,8 +170,9 @@
 
 
 (define (point-error out exact)
+  (define repr (infer-double-representation out exact))
   (if (ordinary-value? out)
-      (+ 1 (abs (ulp-difference out exact)))
+      (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
 
 (define (eval-errors eval-fn pcontext)

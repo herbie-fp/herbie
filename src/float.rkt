@@ -32,17 +32,16 @@
     ['real (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32))]
     [x (get-representation x)]))
 
-(define (ulp-difference x y)
+(define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
     (+ (ulp-difference (real-part x) (real-part y))
        (ulp-difference (imag-part x) (imag-part y)))
-    (let ([->ordinal (representation-repr->ordinal (infer-double-representation x y))])
+    (let ([->ordinal (representation-repr->ordinal repr)])
       (- (->ordinal y) (->ordinal x)))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
-(define (midpoint p1 p2)
-  (define repr (infer-double-representation p1 p2))
+(define (midpoint p1 p2 repr)
   ((representation-ordinal->repr repr)
    (floor (/ (+ ((representation-repr->ordinal repr) p1)
                 ((representation-repr->ordinal repr) p2))
@@ -56,8 +55,8 @@
    [(infinite? x) (*bit-width*)]
    [else (/ (log x) (log 2))]))
 
-(define (bit-difference x y)
-  (ulps->bits (+ 1 (abs (ulp-difference x y)))))
+(define (bit-difference x y repr)
+  (ulps->bits (+ 1 (abs (ulp-difference x y repr)))))
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))
@@ -77,13 +76,8 @@
   (check-false (ordinary-value? -inf.0)))
 
 (define (=-or-nan? x1 x2)
-  (cond
-    [(and (number? x1) (number? x2))
-     (or (= x1 x2) (and (nan? x1) (nan? x2)))]
-    [else
-     (define repr (infer-double-representation x1 x2))
-     (= ((representation-repr->ordinal repr) x1)
-        ((representation-repr->ordinal repr) x2))]))
+  (and (number? x1) (number? x2)
+       (or (equal? x1 x2) (and (nan? x1) (nan? x2)))))
 
 (module+ test
   (check-true (=-or-nan? 2.3 2.3))
@@ -91,14 +85,13 @@
   (check-true (=-or-nan? +nan.0 -nan.f))
   (check-false (=-or-nan? 2.3 +nan.f)))
 
-(define (</total x1 x2)
+(define (</total x1 x2 repr)
   (cond
    [(and (complex? x1) (complex? x2) (not (real? x1)) (not (real? x2)))
     (error "Complex numbers are unordered")]
    [(and (real? x1) (real? x2))
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
-    (define repr (infer-double-representation x1 x2))
     (cond
      [(set-member? (representation-special-values repr) x1) #f]
      [(set-member? (representation-special-values repr) x2) #t]
@@ -110,8 +103,8 @@
       (nan? x)
       (set-member? (representation-special-values (infer-representation x)) x)))
 
-(define (<=/total x1 x2)
-  (or (</total x1 x2) (=-or-nan? x1 x2)))
+(define (<=/total x1 x2 repr)
+  (or (</total x1 x2 repr) (=-or-nan? x1 x2)))
 
 (define (exact-value? type val)
   (match type
@@ -163,12 +156,11 @@
    [else
     ((representation-repr->bf (infer-representation x)) x)]))
 
-(define (<-all-precisions x1 x2)
+(define (<-all-precisions x1 x2 repr)
   (cond
    [(or (real? x1) (complex? x1))
     (< x1 x2)]
    [else
-    (define repr (infer-double-representation x1 x2))
     (define ->ordinal (representation-repr->ordinal repr))
     (< (->ordinal x1) (->ordinal x2))]))
 
