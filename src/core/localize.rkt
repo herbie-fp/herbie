@@ -47,8 +47,9 @@
 
                    (define exact (map (curry apply (operator-info f 'bf)) argexacts))
                    (define approx (map (curry apply (operator-info f 'fl)) argapprox))
-                   (define repr (infer-double-representation (<-bf ex) ap))
-                   (cons exact (map (λ (ex ap) (+ 1 (abs (ulp-difference (<-bf ex) ap repr)))) exact approx))]))))
+                   (cons exact (map (λ (ex ap)
+                                       (define repr (infer-double-representation (<-bf ex) ap))
+                                       (+ 1 (abs (ulp-difference (<-bf ex) ap repr)))) exact approx))]))))
 
 (register-reset
  (λ ()
