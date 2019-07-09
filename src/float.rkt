@@ -19,17 +19,6 @@
          (if (flag-set? 'precision 'double) 'binary64 'binary32)
          type))))
 
-(define (infer-big-representation x)
-  (let/ec return
-     (for ([(type rec) (in-hash type-dict)] #:unless (equal? type 'complex))
-       (define name
-         (if (equal? type 'real)
-           (if (flag-set? 'precision 'double) 'binary64 'binary32)
-           type))
-       (cond
-        [((car rec) x) (return (cons (get-representation name) 'fl))]))
-     (error "Could not infer big representation for" x)))
-
 (define (infer-double-representation x y)
   (define repr1 (infer-representation x))
   (define repr2 (infer-representation y))
@@ -156,10 +145,8 @@
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)))]
    [else
-    (match-define (cons repr kind) (infer-big-representation x))
-    (match kind
-      ['bf ((representation-bf->repr repr) x)]
-      ['fl (if (and (real? x) (exact? x)) (exact->inexact x) x)])]))
+    (define repr (infer-representation x))
+    (if (and (real? x) (exact? x)) (exact->inexact x) x)]))
 
 (define (fl->repr x repr)
   ((representation-exact->repr repr) x))
