@@ -1,9 +1,8 @@
 #lang racket
 (require profile math/bigfloat racket/engine)
-(require "common.rkt" "errors.rkt" "debug.rkt")
-(require "float.rkt" "points.rkt" "programs.rkt")
-(require "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
-(require "formats/datafile.rkt" "formats/test.rkt")
+(require "common.rkt" "errors.rkt" "debug.rkt" "float.rkt" "points.rkt" "programs.rkt"
+         "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
+         "interface.rkt" "formats/datafile.rkt" "formats/test.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -146,7 +145,9 @@
     (define est-end-score (errors-score (test-success-end-est-error result)))
 
     ;; TODO: this is broken because errors are always ordinary values now!
-    (define-values (reals infs) (partition ordinary-value? (map - end-errors start-errors)))
+    (define binary64 (get-representation 'binar64))
+    (define-values (reals infs) (partition (curryr ordinary-value? binary64)
+                                           (map - end-errors start-errors)))
     (define-values (good-inf bad-inf) (partition positive? infs))
 
     (define status

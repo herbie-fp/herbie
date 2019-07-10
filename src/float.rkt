@@ -61,19 +61,19 @@
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))
 
-(define (special-value? x)
-  (define repr (infer-representation x))
+(define (special-value? x repr)
   (set-member? (representation-special-values repr) x))
 
-(define (ordinary-value? x)
+(define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
       (and (not (and (real? x) (nan? x))) (not (and (real? x) (infinite? x))))
-      (not (special-value? x))))
+      (not (special-value? x repr))))
 
 (module+ test
-  (check-true (ordinary-value? 2.5))
-  (check-false (ordinary-value? +nan.0))
-  (check-false (ordinary-value? -inf.0)))
+  (define binary64 (get-representation 'binary64))
+  (check-true (ordinary-value? 2.5 binary64))
+  (check-false (ordinary-value? +nan.0 binary64))
+  (check-false (ordinary-value? -inf.0 binary64)))
 
 (define (=-or-nan? x1 x2)
   (and (number? x1) (number? x2)

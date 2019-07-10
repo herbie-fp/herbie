@@ -129,8 +129,9 @@
       (define ex
         (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
+      (define repr (infer-representation pt))
       (cond
-       [(and (andmap ordinary-value? pt) pre (ordinary-value? ex))
+       [(and (andmap ordinary-value? pt repr) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
@@ -171,7 +172,7 @@
 
 (define (point-error out exact)
   (define repr (infer-double-representation out exact))
-  (if (ordinary-value? out)
+  (if (ordinary-value? out repr)
       (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
 
@@ -193,7 +194,8 @@
   (eval-errors baseline newpcontext))
 
 (define (errors-score e)
-  (let-values ([(reals unreals) (partition ordinary-value? e)])
+  (define repr (infer-representation e))
+  (let-values ([(reals unreals) (partition (curryr ordinary-value? repr) e)])
     (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
               (* (*bit-width*) (length unreals)))
@@ -253,8 +255,10 @@
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
+  (define repr (infer-representation (car pts)))
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex) #:when (andmap ordinary-value? pt))
+      ([pt pts] [ex exacts] #:when (ordinary-value? ex repr)
+                            #:when (andmap (curryr ordinary-value? repr) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)
