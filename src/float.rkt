@@ -34,8 +34,8 @@
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
-    (+ (ulp-difference (real-part x) (real-part y))
-       (ulp-difference (imag-part x) (imag-part y)))
+    (+ (ulp-difference (real-part x) (real-part y) repr)
+       (ulp-difference (imag-part x) (imag-part y) repr))
     (let ([->ordinal (representation-repr->ordinal repr)])
       (- (->ordinal y) (->ordinal x)))))
 
