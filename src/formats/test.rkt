@@ -3,9 +3,11 @@
 (require "../common.rkt" "../errors.rkt")
 (require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
 
-(provide (struct-out test) test-program test-target load-tests parse-test)
+(provide (struct-out test) test-program test-target test-specification load-tests parse-test)
 
-(struct test (name vars input output expected precondition precision) #:prefab)
+
+(struct test (name vars input output expected spec precondition
+                   output-prec var-precs) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -13,16 +15,30 @@
 (define (test-target test)
   `(λ ,(test-vars test) ,(test-output test)))
 
+(define (test-specification test)
+  `(λ ,(test-vars test) ,(test-spec test)))
+
 (define (parse-test stx)
   (assert-program! stx)
   (assert-program-type! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  (define arg-names (for/list ([arg args])
+                      (if (list? arg)
+                        (last arg)
+                        arg)))
 
   (define prop-dict
     (let loop ([props props])
       (match props
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
+
+  (define default-prec (dict-ref prop-dict ':precision 'binary64))
+  (define var-precs (for/list ([arg args] [arg-name arg-names])
+                      (if (and (list? arg) (set-member? args ':precision))
+                        (cons arg-name
+                              (list-ref args (add1 (index-of args ':precision))))
+                        (cons arg-name default-prec))))
 
   (define ctx-prec
     ;; Default to 'real because types and precisions are mixed up right now
@@ -33,12 +49,14 @@
   (define type-ctx (map (curryr cons ctx-prec) args))
 
   (test (~a (dict-ref prop-dict ':name body))
-        args
+        arg-names
         (desugar-program body type-ctx)
         (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
         (dict-ref prop-dict ':herbie-expected #t)
+        (desugar-program (dict-ref prop-dict ':spec body) type-ctx)
         (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
-        (dict-ref prop-dict ':precision 'binary64)))
+        default-prec
+        var-precs))
 
 (define (load-stdin)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])

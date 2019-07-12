@@ -22,36 +22,15 @@
   (define ordinal-ranges
     (for/list ([range ranges])
       (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) range)
-      (list (->ordinal lo) (->ordinal hi) lo? hi?)))
+      (cons (+ (->ordinal lo) (if lo? 0 1)) (+ (->ordinal hi) (if hi? 1 0)))))
 
-  (define (points-in-range lo hi lo? hi?)
-    ;; The `max` handles the case lo > hi and similar
-    (max 0 (- hi lo (if lo? 0 1) (if hi? -1 0))))
-
-  (define total-weight
-    (apply +
-           (for/list ([range ordinal-ranges])
-             (match-define (list lo hi lo? hi?) range)
-             (points-in-range lo hi lo? hi?))))
-
-  (match total-weight
-   [0 #f]
-   [_
-    (define num-bits (ceiling (/ (log total-weight) (log 2))))
-    (define sample
-      (let loop ()
-        (define sample (random-exp (inexact->exact num-bits)))
-        (if (< sample total-weight) sample (loop))))
-    (let loop ([sample sample] [ordinal-ranges ordinal-ranges])
-      ;; The `(car)` is guaranteed to succeed by the construction of `sample`
-      (match-define (list lo hi lo? hi?) (car ordinal-ranges))
-      (if (< sample (points-in-range lo hi lo? hi?))
-          (<-ordinal (+ lo (if lo? 0 1) sample))
-          (loop (- sample (points-in-range lo hi lo? hi?)) (cdr ordinal-ranges))))]))
+  (<-ordinal (apply random-ranges ordinal-ranges)))
 
 (module+ test
   (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)))))
-  (check-false (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)))))
+  (check-exn
+   exn:fail?
+   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t))))))
 
 (define *pcontext* (make-parameter #f))
 
@@ -61,7 +40,7 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  ;; TODO: The second argumnet type should be any of the possible input types,
+  ;; TODO: The second argument type should be any of the possible input types,
   ;; not just any type in general (maybe the first argument too?)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
@@ -121,7 +100,7 @@
 (define (make-sampler precondition)
   (define range-table (condition->range-table (program-body precondition)))
   (for ([var (program-variables precondition)]
-        #:unless (range-table-ref range-table var))
+        #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
                         #:url "faq.html#no-valid-values"))
   (λ ()
@@ -150,8 +129,9 @@
       (define ex
         (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
+      (define repr (infer-representation (car pt)))
       (cond
-       [(and (andmap ordinary-value? pt) pre (ordinary-value? ex))
+       [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
@@ -191,8 +171,9 @@
 
 
 (define (point-error out exact)
-  (if (ordinary-value? out)
-      (+ 1 (abs (ulp-difference out exact)))
+  (define repr (infer-double-representation out exact))
+  (if (ordinary-value? out repr)
+      (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
 
 (define (eval-errors eval-fn pcontext)
@@ -213,7 +194,8 @@
   (eval-errors baseline newpcontext))
 
 (define (errors-score e)
-  (let-values ([(reals unreals) (partition ordinary-value? e)])
+  (define repr (get-representation 'binary64))
+  (let-values ([(reals unreals) (partition (curryr ordinary-value? repr) e)])
     (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
               (* (*bit-width*) (length unreals)))
@@ -273,8 +255,10 @@
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
+  (define repr (get-representation (*output-prec*)))
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex) #:when (andmap ordinary-value? pt))
+      ([pt pts] [ex exacts] #:when (ordinary-value? ex repr)
+                            #:when (andmap (curryr ordinary-value? repr) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)

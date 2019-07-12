@@ -10,6 +10,14 @@
     [#`,(? variable? var)
      (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]
+    [#`(let* ((#,vars* #,vals) ...) #,body)
+     (define bindings
+       (for/fold ([vars vars]) ([var vars*] [val vals])
+         (unless (identifier? var)
+           (error! var "Invalid variable name ~a" var))
+         (check-expression* val vars error!)
+         (bound-id-set-union vars (immutable-bound-id-set (list var)))))
+     (check-expression* body bindings error!)]
     [#`(let ((#,vars* #,vals) ...) #,body)
      ;; These are unfolded by desugaring
      (for ([var vars*] [val vals])
@@ -17,15 +25,17 @@
          (error! var "Invalid variable name ~a" var))
        (check-expression* val vars error!))
      (check-expression* body (bound-id-set-union vars (immutable-bound-id-set vars*)) error!)]
-    [#`(let ,varlist #,body)
+    [#`(let #,varlist #,body)
      (error! stx "Invalid `let` expression variable list ~a" (syntax->datum varlist))
      (check-expression* body vars error!)]
-    [#`(let ,args ...)
-     (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))]
+    [#`(let #,args ...)
+     (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))
+     (unless (null? args) (check-expression* (last args) vars error!))]
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
-    [#`(,f #,args ...)
+    [#`(#,f-syntax #,args ...)
+     (define f (syntax->datum f-syntax))
      (if (operator? f)
          (let ([num-args (operator-info f 'args)])
            (unless (or (set-member? num-args (length args)) (set-member? num-args '*))

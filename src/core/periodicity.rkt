@@ -22,6 +22,7 @@
 (require "../alternative.rkt")
 (require "../points.rkt")
 (require "../syntax/rules.rkt")
+(require "../float.rkt")
 (require "matcher.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
@@ -95,8 +96,9 @@
       [(list (or 'lambda 'λ) (list vars ...) body)
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? constant? c)
+       (define repr (infer-representation c))
        ;; TODO : Do something more intelligent with 'PI
-       (let ([val (if (rational? c) c (->flonum c))])
+       (let ([val (if (rational? c) c (->flonum c repr))])
          (annotation val (reverse loc) 'constant val))]
       [(? variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]
