@@ -11,7 +11,7 @@
          argmins argmaxs setfindf index-of set-disjoint? comparator sample-double
          write-file write-string
          random-exp random-ranges parse-flag get-seed set-seed!
-         common-eval quasisyntax
+         common-eval quasisyntax value->string
          format-time format-bits when-dict in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -258,6 +258,18 @@
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a)
        #'(app syntax-e 'a)])))
+
+(define (value->string n repr)
+  ;; Prints a number with relatively few digits
+  (define ->bf (representation-repr->bf repr))
+  (define <-bf (representation-bf->repr repr))
+  ;; Linear search because speed not an issue
+  (let loop ([precision 16])
+    (parameterize ([bf-precision precision])
+  (define bf (->bf n))
+  (if (=-or-nan? n (<-bf bf))
+      (bigfloat->string bf)
+      (loop (+ precision 4)))))) ; 2^4 > 10
 
 ;; String formatting operations
 

@@ -2,19 +2,7 @@
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
 (require "../formats/c.rkt" "../formats/tex.rkt" "../interface.rkt")
-(provide render-menu render-warnings render-large render-program value->string)
-
-(define (value->string n repr)
-  ;; Prints a number with relatively few digits
-  (define ->bf (representation-repr->bf repr))
-  (define <-bf (representation-bf->repr repr))
-  ;; Linear search because speed not an issue
-  (let loop ([precision 16])
-    (parameterize ([bf-precision precision])
-  (define bf (->bf n))
-  (if (=-or-nan? n (<-bf bf))
-      (bigfloat->string bf)
-      (loop (+ precision 4)))))) ; 2^4 > 10
+(provide render-menu render-warnings render-large render-program)
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
