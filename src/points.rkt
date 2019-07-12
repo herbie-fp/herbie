@@ -255,7 +255,7 @@
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
-  (define repr (infer-representation (car pts)))
+  (define repr (infer-representation (caar pts)))
   (for/lists (ps es)
       ([pt pts] [ex exacts] #:when (ordinary-value? ex repr)
                             #:when (andmap (curryr ordinary-value? repr) pt))
