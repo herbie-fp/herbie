@@ -145,7 +145,7 @@
     (define est-end-score (errors-score (test-success-end-est-error result)))
 
     ;; TODO: this is broken because errors are always ordinary values now!
-    (define binary64 (get-representation 'binar64))
+    (define binary64 (get-representation 'binary64))
     (define-values (reals infs) (partition (curryr ordinary-value? binary64)
                                            (map - end-errors start-errors)))
     (define-values (good-inf bad-inf) (partition positive? infs))
