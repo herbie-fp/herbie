@@ -40,7 +40,7 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  ;; TODO: The second argumnet type should be any of the possible input types,
+  ;; TODO: The second argument type should be any of the possible input types,
   ;; not just any type in general (maybe the first argument too?)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
