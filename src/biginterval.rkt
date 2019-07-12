@@ -448,7 +448,7 @@
            (match tail
              ['() acc]
              [(cons next rest)
-              (loop next rest (ival-and (f head next) ival-true))]))))
+              (loop next rest (ival-and (f head next) acc))]))))
    name))
 
 (define ival-<  (ival-comparator ival-<2  'ival-<))
