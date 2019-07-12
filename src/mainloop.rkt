@@ -68,6 +68,7 @@
                      #:precondition [precondition 'TRUE]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
+  (*output-prec* precision)
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))

@@ -166,7 +166,10 @@
        (match-define (list prog category prec) outcome)
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
-    [('bstep v) (map (λ (x) (map (curryr apply '()) (list flval flval identity flval) x)) v)]
+    [('bstep v) (map (λ (x) (map (curryr apply '())
+                                 (list flval flval (λ (x _) x) flval) x))
+                                 v
+                                 (map (infer-representation) v))]
     [(_ v) v])
 
   (define data
