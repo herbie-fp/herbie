@@ -34,8 +34,8 @@
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
-    (+ (ulp-difference (real-part x) (real-part y) repr)
-       (ulp-difference (imag-part x) (imag-part y) repr))
+    (+ (ulp-difference (real-part x) (real-part y) (get-representation 'binary64))
+       (ulp-difference (imag-part x) (imag-part y) (get-representation 'binary64)))
     (let ([->ordinal (representation-repr->ordinal repr)])
       (- (->ordinal y) (->ordinal x)))))
 
