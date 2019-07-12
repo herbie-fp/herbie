@@ -100,7 +100,7 @@
 (define (make-sampler precondition)
   (define range-table (condition->range-table (program-body precondition)))
   (for ([var (program-variables precondition)]
-        #:unless (range-table-ref range-table var))
+        #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
                         #:url "faq.html#no-valid-values"))
   (λ ()
