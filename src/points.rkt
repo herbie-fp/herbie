@@ -129,9 +129,9 @@
       (define ex
         (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
-      (define repr (infer-representation pt))
+      (define repr (infer-representation (car pt)))
       (cond
-       [(and (andmap ordinary-value? pt repr) pre (ordinary-value? ex repr))
+       [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
