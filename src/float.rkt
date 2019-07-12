@@ -66,7 +66,7 @@
 
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
-      (and (not (and (real? x) (nan? x))) (not (and (real? x) (infinite? x))))
+      (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))
       (not (special-value? x repr))))
 
 (module+ test
