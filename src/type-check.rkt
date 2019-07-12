@@ -36,7 +36,9 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
-    [(? value?) (match (representation-name (infer-representation expr)) [(or 'binary32 'binary64) 'real] [x x])]
+    ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
+    ;; standards, this will have to have more information passed in
+    [(? value?) (*output-prec*)]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)
