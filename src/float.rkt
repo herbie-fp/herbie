@@ -145,14 +145,14 @@
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))
 
-(define/contract (->bf x)
-  (-> any/c bigvalue?)
+(define/contract (->bf x repr)
+  (-> any/c representation? bigvalue?)
   (cond
    [(and (symbol? x) (constant? x)) ((constant-info x 'bf))]
    [(and (complex? x) (not (real? x)))
     (bigcomplex (bf (real-part x)) (bf (imag-part x)))]
    [else
-    ((representation-repr->bf (infer-representation x)) x)]))
+    ((representation-repr->bf repr) x)]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond

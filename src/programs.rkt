@@ -82,12 +82,16 @@
 
 (define (eval-prog prog mode)
   ; Keep exact numbers exact
-  (define real->precision (match mode ['bf ->bf]
+  (define real->precision (match mode
+                            ['bf (λ (x) (->bf x (infer-representation x)))]
                             ['fl (λ (x) (->flonum x (infer-representation x)))]
-                            ['ival mk-ival] ['nonffi identity]))
-  (define precision->real (match mode ['bf identity]
+                            ['ival mk-ival]
+                            ['nonffi identity]))
+  (define precision->real (match mode
+                            ['bf identity]
                             ['fl (λ (x) (->flonum x (infer-representation x)))]
-                            ['ival identity] ['nonffi identity]))
+                            ['ival identity]
+                            ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
