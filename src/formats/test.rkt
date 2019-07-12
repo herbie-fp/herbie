@@ -3,15 +3,18 @@
 (require "../common.rkt" "../errors.rkt")
 (require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
 
-(provide (struct-out test) test-program test-target load-tests parse-test)
+(provide (struct-out test) test-program test-target test-specification load-tests parse-test)
 
-(struct test (name vars input output expected precondition precision) #:prefab)
+(struct test (name vars input output expected spec precondition precision) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
 
 (define (test-target test)
   `(λ ,(test-vars test) ,(test-output test)))
+
+(define (test-specification test)
+  `(λ ,(test-vars test) ,(test-spec test)))
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -37,6 +40,7 @@
         (desugar-program body type-ctx)
         (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
         (dict-ref prop-dict ':herbie-expected #t)
+        (desugar-program (dict-ref prop-dict ':spec body) type-ctx)
         (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
         (dict-ref prop-dict ':precision 'binary64)))
 
