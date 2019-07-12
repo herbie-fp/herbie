@@ -44,13 +44,14 @@
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
+                       #:specification (test-specification test)
                        #:precision (test-output-prec test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-program test) (test-precondition test) (test-output-prec test))))
+            (prepare-points (test-specification test) (test-precondition test) (test-output-prec test))))
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 
@@ -125,7 +126,7 @@
   (define test (test-result-test result))
   (table-row (test-name test) status (resugar-program (test-precondition test)) (test-output-prec test)
              (test-vars test) (resugar-program (test-input test)) #f
-             (and (test-output test) (resugar-program (test-output test)))
+             (resugar-program (test-spec test)) (and (test-output test) (resugar-program (test-output test)))
              #f #f #f #f #f #f #f (test-result-time result) (test-result-bits result) link))
 
 (define (get-table-data result link)

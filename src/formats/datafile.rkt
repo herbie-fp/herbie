@@ -9,7 +9,7 @@
 
 
 (struct table-row
-  (name status pre precision vars input output target-prog
+  (name status pre precision vars input output spec target-prog
         start result target inf- inf+ start-est result-est
         time bits link) #:prefab)
 
@@ -32,7 +32,7 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status pre prec vars input output target-prog
+      [(table-row name status pre prec vars input output spec target-prog
                   start-bits end-bits target-bits inf- inf+ start-est end-est
                   time bits link)
        (make-hash
@@ -50,6 +50,7 @@
           (vars . ,(if vars (map symbol->string vars) #f))
           (input . ,(write-string (write input)))
           (output . ,(write-string (write output)))
+          (spec . ,(write-string (write spec)))
           (target-prog . ,(write-string (write target-prog)))
           (time . ,time)
           (bits . ,bits)
@@ -102,6 +103,7 @@
                          [string-lst (parse-string string-lst)]))
                      (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
+                                (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
                                 (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
