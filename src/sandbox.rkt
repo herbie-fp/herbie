@@ -1,9 +1,8 @@
 #lang racket
 (require profile math/bigfloat racket/engine)
-(require "common.rkt" "errors.rkt" "debug.rkt")
-(require "float.rkt" "points.rkt" "programs.rkt")
-(require "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
-(require "formats/datafile.rkt" "formats/test.rkt")
+(require "common.rkt" "errors.rkt" "debug.rkt" "float.rkt" "points.rkt" "programs.rkt"
+         "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
+         "interface.rkt" "formats/datafile.rkt" "formats/test.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -45,13 +44,13 @@
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
-                       #:precision (test-precision test)))
+                       #:precision (test-output-prec test)))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-program test) (test-precondition test) (test-precision test))))
+            (prepare-points (test-program test) (test-precondition test) (test-output-prec test))))
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext)))
 
@@ -124,7 +123,7 @@
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
-  (table-row (test-name test) status (resugar-program (test-precondition test)) (test-precision test)
+  (table-row (test-name test) status (resugar-program (test-precondition test)) (test-output-prec test)
              (test-vars test) (resugar-program (test-input test)) #f
              (and (test-output test) (resugar-program (test-output test)))
              #f #f #f #f #f #f #f (test-result-time result) (test-result-bits result) link))
@@ -146,7 +145,9 @@
     (define est-end-score (errors-score (test-success-end-est-error result)))
 
     ;; TODO: this is broken because errors are always ordinary values now!
-    (define-values (reals infs) (partition ordinary-value? (map - end-errors start-errors)))
+    (define binary64 (get-representation 'binary64))
+    (define-values (reals infs) (partition (curryr ordinary-value? binary64)
+                                           (map - end-errors start-errors)))
     (define-values (good-inf bad-inf) (partition positive? infs))
 
     (define status

@@ -238,7 +238,7 @@
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
-   (define precision (test-precision test))
+   (define precision (test-output-prec test))
    ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
    ;; remove this when the number system interface is added
    (define precision* (if (set-member? '(binary64 binary32) precision)
