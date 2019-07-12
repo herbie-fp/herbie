@@ -5,7 +5,8 @@
 
 (provide (struct-out test) test-program test-target load-tests parse-test)
 
-(struct test (name vars input output expected precondition precision) #:prefab)
+(struct test (name vars input output expected precondition
+                   output-prec var-precs) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
