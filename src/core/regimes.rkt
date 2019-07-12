@@ -117,7 +117,10 @@
 
 (define (sort-context-on-expr context expr variables)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   </total #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
+		   (λ (x1 x2)
+          (define repr (infer-double-representation x1 x2))
+          (</total x1 x2 repr))
+       #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (option-on-expr alts expr)
@@ -126,7 +129,10 @@
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
-  (define can-split? (append (list #f) (for/list ([val (cdr splitvals)] [prev splitvals]) (<-all-precisions prev val))))
+  (define can-split? (append (list #f)
+                             (for/list ([val (cdr splitvals)] [prev splitvals])
+                               (define repr (infer-double-representation prev val))
+                               (<-all-precisions prev val repr))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
@@ -167,8 +173,9 @@
 
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2)
-  (let ([midpoint (midpoint p1 p2)])
-    (cond [(< (bit-difference p1 p2) 48) midpoint]
+  (define repr (infer-double-representation p1 p2))
+  (let ([midpoint (midpoint p1 p2 repr)])
+    (cond [(< (bit-difference p1 p2 repr) 48) midpoint]
 	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
 	  [else (binary-search-floats pred p1 midpoint)])))
 
@@ -323,7 +330,10 @@
     (λ (pt)
       (define val (prog pt))
       (for/first ([right splitpoints]
-                  #:when (or (nan?-all-types (sp-point right)) (<=/total val (sp-point right))))
+                  #:when (or (nan?-all-types (sp-point right)
+                                             (infer-representation (sp-point right)))
+                             (<=/total val (sp-point right)
+                                       (infer-double-representation val (sp-point right)))))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 
