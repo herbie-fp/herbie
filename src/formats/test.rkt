@@ -53,11 +53,11 @@
 
   (test (~a (dict-ref prop-dict ':name body))
         arg-names
-        (desugar-program body type-ctx)
-        (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
+        (desugar-program body default-prec var-precs)
+        (desugar-program (dict-ref prop-dict ':herbie-target #f) default-prec var-precs)
         (dict-ref prop-dict ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict ':spec body) type-ctx)
-        (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
+        (desugar-program (dict-ref prop-dict ':spec body) default-prec var-precs)
+        (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-prec var-precs)
         default-prec
         var-precs))
 

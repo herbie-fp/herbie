@@ -208,7 +208,9 @@
     [_
      expr]))
 
-(define (expand-parametric expr ctx)
+;; TODO(interface): This needs to be changed once the syntax checker is updated
+;; and supports multiple precisions
+(define (expand-parametric expr prec var-precs)
   (define precision (if (and (list? ctx) (not (empty? ctx))) (cdr (first ctx)) 'real))
   (define-values (expr* type)
     (let loop ([expr expr])
@@ -238,14 +240,21 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
-        [(? real?) (values (fl->repr expr (get-representation (match precision ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)] [x x]))) precision)]
+         (values (cons op args*)
+                 (second (first (first(hash-values (operator-info op 'type))))))]
+        [(? real?) (values
+                     (fl->repr expr (get-representation (match precision
+                        ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
+                        [x x])))
+                     precision)]
         [(? complex?) (values expr 'complex)]
-        [(? value?) (values expr (representation-name (infer-representation expr)))]
+        [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref ctx expr))])))
   expr*)
 
+;; TODO(interface): This needs to be changed once the syntax checker is updated
+;; and supports multiple precisions
 (define (expand-parametric-reverse expr)
   (define expr*
     (let loop ([expr expr])
@@ -260,13 +269,13 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (repr->fl expr (infer-representation expr))]
+        [(? value?) (value->string expr (get-representation (*output-prec*)))]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)
 
-(define (desugar-program prog ctx)
-  (expand-parametric (expand-associativity (unfold-let prog)) ctx))
+(define (desugar-program prog prec var-precs)
+  (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
 
 (define (resugar-program prog)
   (expand-parametric-reverse prog))
