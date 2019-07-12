@@ -194,7 +194,7 @@
   (eval-errors baseline newpcontext))
 
 (define (errors-score e)
-  (define repr (infer-representation e))
+  (define repr (get-representation 'binary64))
   (let-values ([(reals unreals) (partition (curryr ordinary-value? repr) e)])
     (if (flag-set? 'reduce 'avg-error)
         (/ (+ (apply + (map ulps->bits reals))
