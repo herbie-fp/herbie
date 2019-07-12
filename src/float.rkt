@@ -66,7 +66,10 @@
 
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
-      (and (ordinary-value? (real-part x)) (ordinary-value? (imag-part x)))
+      ;; TODO: Once complex is a separate type rather than a repr, check to see
+      ;; what repr the complex implementation is using
+      (and (ordinary-value? (real-part x) (get-representation 'binary64))
+           (ordinary-value? (imag-part x) (get-representation 'binary64)))
       (not (special-value? x repr))))
 
 (module+ test
