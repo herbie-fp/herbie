@@ -186,7 +186,11 @@
   (match expr
     [`(let ([,vars ,vals] ...) ,body)
      (define bindings (map cons vars vals))
-     (unfold-let (replace-vars bindings body))]
+     (replace-vars bindings (unfold-let body))]
+    [`(let* () ,body)
+     (unfold-let body)]
+    [`(let* ([,var ,val] ,rest ...) ,body)
+     (replace-vars (list (cons var val)) (unfold-let `(let* ,rest ,body)))]
     [`(,head ,args ...)
      (cons head (map unfold-let args))]
     [x x]))
