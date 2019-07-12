@@ -69,6 +69,7 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-prec* precision)
+  ;; TODO(interface): when the syntax checker is udpated, set *var-precs* too
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
