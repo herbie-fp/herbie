@@ -77,10 +77,10 @@
     [else
      (list (list #t expr loc))]))
 
-(define (texify-prog expr #:loc [color-loc #f] #:color [color "red"])
-  (texify-expr (program-body expr) #:loc color-loc #:color color))
+(define (texify-prog expr prec #:loc [color-loc #f] #:color [color "red"])
+  (texify-expr (program-body expr) prec #:loc color-loc #:color color))
 
-(define (texify-expr expr #:loc [color-loc #f] #:color [color "red"])
+(define (texify-expr expr prec #:loc [color-loc #f] #:color [color "red"])
   "Compile an expression to math mode TeX."
   (let texify ([expr expr] [parens #t] [loc '(2)])
     (format

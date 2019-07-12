@@ -321,7 +321,7 @@
                (tr (th "Original") (td ,(format-bits (errors-score start-error))))
                (tr (th "Target") (td ,(format-bits (errors-score target-error))))
                (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
+              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test)) (*output-prec*)) "\\]"))
             "")
 
        (section ([id "history"])
@@ -470,7 +470,7 @@
     [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[" ,(texify-prog prog (*output-prec*)) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -496,26 +496,26 @@
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog (*output-prec*) #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog (*output-prec*) #:loc loc #:color "blue") "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog (*output-prec*)) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog (*output-prec*)) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog (*output-prec*) #:loc (change-location cng) #:color "blue") "\\]")))]
     ))
