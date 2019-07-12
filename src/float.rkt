@@ -126,17 +126,17 @@
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
-(define/contract (->flonum x)
-  (-> any/c value?)
+(define/contract (->flonum x repr)
+  (-> any/c representation? value?)
   (cond
    [(and (complex? x) (not (real? x)))
-    (make-rectangular (->flonum (real-part x)) (->flonum (imag-part x)))]
+    (make-rectangular (->flonum (real-part x) repr) (->flonum (imag-part x) repr))]
    [(bigcomplex? x)
-    (make-rectangular (->flonum (bigcomplex-re x)) (->flonum (bigcomplex-im x)))]
+    (make-rectangular (->flonum (bigcomplex-re x) repr)
+                      (->flonum (bigcomplex-im x) repr))]
    [(and (symbol? x) (constant? x))
-    (->flonum ((constant-info x 'fl)))]
+    (->flonum ((constant-info x 'fl)) repr)]
    [else
-    (define repr (infer-representation x))
     (if (and (real? x) (exact? x)) (exact->inexact x) x)]))
 
 (define (fl->repr x repr)
