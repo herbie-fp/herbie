@@ -8,7 +8,7 @@
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
          infer-representation infer-double-representation
-         ->flonum ->bf random-generate fl->repr repr->fl
+         ->flonum ->bf random-generate fl->repr repr->fl value->string
          <-all-precisions mk-<= special-value?
          get-representation*)
 
@@ -147,6 +147,18 @@
 
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))
+
+(define (value->string n repr)
+  ;; Prints a number with relatively few digits
+  (define ->bf (representation-repr->bf repr))
+  (define <-bf (representation-bf->repr repr))
+  ;; Linear search because speed not an issue
+  (let loop ([precision 16])
+    (parameterize ([bf-precision precision])
+  (define bf (->bf n))
+  (if (=-or-nan? n (<-bf bf))
+      (bigfloat->string bf)
+      (loop (+ precision 4)))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
