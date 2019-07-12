@@ -64,15 +64,19 @@
           (string-join (map ~a unused) ", "))))
 
 ;; Setting up
-(define (setup-prog! prog #:precondition [precondition 'TRUE]
-                     #:precision [precision 'binary64])
+(define (setup-prog! prog
+                     #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
+  (*output-prec* precision)
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (timeline-event! 'sample)
-  (define context (prepare-points prog precondition precision))
+  ;; If the specification is given, it is used for sampling points
+  (define context (prepare-points (or specification prog) precondition precision))
   (^precondition^ precondition)
   (^precision^ precision)
   (*pcontext* context)
@@ -335,10 +339,12 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:precondition [precondition 'TRUE]
-                     #:precision [precision 'binary64])
+(define (run-improve prog iters
+                     #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:precondition precondition #:precision precision)
+  (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
          (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))

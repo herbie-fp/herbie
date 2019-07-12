@@ -81,8 +81,17 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['ival mk-ival] ['nonffi identity])) ; Keep exact numbers exact
-  (define precision->real (match mode ['bf identity] ['fl ->flonum] ['ival identity] ['nonffi identity]))
+  ; Keep exact numbers exact
+  (define real->precision (match mode
+                            ['bf (λ (x) (->bf x (infer-representation x)))]
+                            ['fl (λ (x) (->flonum x (infer-representation x)))]
+                            ['ival mk-ival]
+                            ['nonffi identity]))
+  (define precision->real (match mode
+                            ['bf identity]
+                            ['fl (λ (x) (->flonum x (infer-representation x)))]
+                            ['ival identity]
+                            ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
@@ -177,7 +186,11 @@
   (match expr
     [`(let ([,vars ,vals] ...) ,body)
      (define bindings (map cons vars vals))
-     (unfold-let (replace-vars bindings body))]
+     (replace-vars bindings (unfold-let body))]
+    [`(let* () ,body)
+     (unfold-let body)]
+    [`(let* ([,var ,val] ,rest ...) ,body)
+     (replace-vars (list (cons var val)) (unfold-let `(let* ,rest ,body)))]
     [`(,head ,args ...)
      (cons head (map unfold-let args))]
     [x x]))

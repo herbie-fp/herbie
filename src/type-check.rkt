@@ -112,6 +112,11 @@
        (for/fold ([env2 env]) ([var id] [val expr])
          (dict-set env2 var (expression->type val env error!))))
      (expression->type body env2 error!)]
+    [#`(let* ((,id #,expr) ...) #,body)
+     (define env2
+       (for/fold ([env2 env]) ([var id] [val expr])
+         (dict-set env2 var (expression->type val env2 error!))))
+     (expression->type body env2 error!)]
     [#`(if #,branch #,ifstmt #,elsestmt)
      (define branch-type (expression->type branch env error!))
      (unless (equal? branch-type 'bool)

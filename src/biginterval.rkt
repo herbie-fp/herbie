@@ -73,7 +73,7 @@
 (define +nan.bf (bf +nan.0))
 
 (define (ival-pi)
-  (ival (rnd 'down identity (pi.bf)) (rnd 'up identity (pi.bf)) #f #f))
+  (ival (rnd 'down pi.bf) (rnd 'up pi.bf) #f #f))
 
 (define (ival-e)
   (ival (rnd 'down bfexp 1.bf) (rnd 'up bfexp 1.bf) #f #f))
@@ -273,8 +273,8 @@
   (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cos x)
-  (define lopi (rnd 'down identity (pi.bf)))
-  (define hipi (rnd 'up identity (pi.bf)))
+  (define lopi (rnd 'down pi.bf))
+  (define hipi (rnd 'up pi.bf))
   (define a (rnd 'down bffloor (bfdiv (ival-lo x) (if (bflt? (ival-lo x) 0.bf) lopi hipi))))
   (define b (rnd 'up   bffloor (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi))))
   (cond
@@ -290,8 +290,8 @@
     (ival -1.bf 1.bf (ival-err? x) (ival-err x))]))
 
 (define (ival-sin x)
-  (define lopi (rnd 'down identity (pi.bf)))
-  (define hipi (rnd 'up identity (pi.bf)))
+  (define lopi (rnd 'down pi.bf))
+  (define hipi (rnd 'up pi.bf))
   (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo x) (if (bflt? (ival-lo x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
   (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi)) half.bf)))
   (cond
@@ -337,7 +337,7 @@
 
   (if a-lo
       (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err)
-      (ival (rnd 'down bfneg (pi.bf)) (rnd 'up identity (pi.bf))
+      (ival (rnd 'down bfneg (pi.bf)) (rnd 'up pi.bf)
             (or err? (bfgte? (ival-hi x) 0.bf))
             (or err (and (bf=? (ival-lo x) 0.bf) (bf=? (ival-hi x) 0.bf) (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))))
 
@@ -448,7 +448,7 @@
            (match tail
              ['() acc]
              [(cons next rest)
-              (loop next rest (ival-and (f head next) ival-true))]))))
+              (loop next rest (ival-and (f head next) acc))]))))
    name))
 
 (define ival-<  (ival-comparator ival-<2  'ival-<))
