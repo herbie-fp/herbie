@@ -22,6 +22,7 @@
 (require "../alternative.rkt")
 (require "../points.rkt")
 (require "../syntax/rules.rkt")
+(require "../float.rkt")
 (require "matcher.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
