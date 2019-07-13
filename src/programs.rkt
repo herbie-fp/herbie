@@ -13,7 +13,7 @@
          location? expr?
          location-do location-get
          eval-prog eval-const-expr
-         compile expression-cost program-cost
+         compile
          free-variables replace-expression
          desugar-program resugar-program)
 
@@ -159,15 +159,6 @@
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
-
-(define (program-cost prog)
-  (expression-cost (program-body prog)))
-
-(define (expression-cost expr)
-  (for/sum ([step (second (compile expr))])
-    (if (list? (second step))
-        (operator-info (caadr step) 'cost)
-        1)))
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)
