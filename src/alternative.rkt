@@ -1,9 +1,8 @@
 #lang racket
 
-(require "programs.rkt")
 (require "common.rkt")
 
-(provide (struct-out alt) make-alt alt? alt-program alt-cost alt-add-event)
+(provide (struct-out alt) make-alt alt? alt-program alt-add-event)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -13,15 +12,10 @@
 (struct alt (program event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (display "#<alt " port)
-           (write (alt-program alt) port)
-           (display ">" port))])
+           (fprintf port "#<alt ~a>" (alt-program alt)))])
 
 (define (make-alt prog)
   (alt prog 'start '()))
-
-(define (alt-cost altn)
-  (program-cost (alt-program altn)))
 
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))

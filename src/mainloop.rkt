@@ -108,9 +108,8 @@
 	(void))))
 
 (define (best-alt alts)
-  (argmin alt-cost
-	  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
-		   alts)))
+  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
+          alts))
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
@@ -259,7 +258,7 @@
       (for/list ([child (^children^)] [locs locs-list])
         (for/fold ([child child]) ([loc locs])
           (define child* (location-do loc (alt-program child) (λ (expr) (hash-ref simplify-hash expr))))
-          (if (> (program-cost (alt-program child)) (program-cost child*))
+          (if (not (equal? (alt-program child) child*))
               (alt child* (list 'simplify loc) (list child))
               child))))
 
