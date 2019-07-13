@@ -88,7 +88,6 @@
         (when (and ((value-of type) res) (exact-value? type res))
           (define en* (mk-enode-rec! eg (val-to-type type res)))
           (merge-egraph-nodes! eg en en*))))))
-  
 
 (define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
@@ -120,24 +119,25 @@
                          (define subleader (pack-leader en))
                          (match (hash-ref work-list subleader (cons #f #t))
                            [(cons (? number? cost) best-arg)
-                            best-arg]
+                            (cons cost best-arg)]
                            [(cons #f not-in-hash?)
                             (hash-set! work-list subleader (cons #f #f))
                             (set! changed? (or changed? not-in-hash?))
                             #f])))
                      (if (andmap identity args*)
-                         (cons op args*)
+                         (cons (apply + 1 (map car args*))
+                               (cons op (map cdr args*)))
                          #f)]
                     [_
-                     var]))))
+                     (cons 1 var)]))))
       (match vars*
         ['() #f]
         [_
-         (define best-resolution (argmin expression-cost vars*))
-         (define cost (expression-cost best-resolution))
+         (define best-resolution (argmin car vars*))
+         (define cost (car best-resolution))
          (define old-cost (car (hash-ref work-list leader)))
          (when (or (not old-cost) (< cost old-cost))
-           (hash-set! work-list leader (cons cost best-resolution))
+           (hash-set! work-list leader best-resolution)
            (set! changed? #t))]))
     (if changed?
         (loop (+ iter 1))

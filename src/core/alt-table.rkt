@@ -170,7 +170,8 @@
       ; since before adding any alts there weren't any tied alts
       (let ([undone-altns (filter (compose not alts->done?) altns)])
         (argmax
-         alt-cost
+         ;; The simplicity metric
+         (λ (x) (let loop ([expr x]) (if (list? expr) (apply + 1 (map loop (cdr expr))) 1)))
          (argmins (compose length alts->pnts) (if (null? undone-altns) altns undone-altns))))))
 
   (let loop ([cur-atab atab])
