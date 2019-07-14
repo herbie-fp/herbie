@@ -14,9 +14,12 @@
   work-list)
 
 (define (extractor-cost work-list . ens)
-  (apply +
-         (for/list ([en ens])
-           (car (hash-ref work-list en '(#f . #f))))))
+  (define-values (fins infs)
+    (partition
+     identity
+     (for/list ([en ens])
+       (car (hash-ref work-list (pack-leader en) '(#f . #f))))))
+  (values (length infs) (apply + fins)))
 
 ;; Extracting the smallest expression means iterating, until
 ;; fixedpoint, either discovering new relevant expressions or
