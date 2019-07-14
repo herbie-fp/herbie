@@ -15,10 +15,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified precondition)
+  (table next-alt locs children gened-series gened-rewrites simplified precondition precision)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -35,6 +35,9 @@
 (define (^precondition^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
   (shellstate-precondition (^shell-state^)))
+(define (^precision^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-precision! (^shell-state^) newval))
+  (shellstate-precision (^shell-state^)))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -61,16 +64,21 @@
           (string-join (map ~a unused) ", "))))
 
 ;; Setting up
-(define (setup-prog! prog #:precondition [precondition 'TRUE]
-                     #:precision [precision 'binary64])
+(define (setup-prog! prog
+                     #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
+  (*output-prec* precision)
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (timeline-event! 'sample)
-  (define context (prepare-points prog precondition precision))
+  ;; If the specification is given, it is used for sampling points
+  (define context (prepare-points (or specification prog) precondition precision))
   (^precondition^ precondition)
+  (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (^table^ (make-alt-table context (make-alt prog)))
@@ -100,9 +108,8 @@
 	(void))))
 
 (define (best-alt alts)
-  (argmin alt-cost
-	  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
-		   alts)))
+  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
+          alts))
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
@@ -216,7 +223,6 @@
 
     (define locs-list
       (for/list ([child (^children^)] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length (^children^)) "] simplifiying candidate" child)
         ;; We want to avoid simplifying if possible, so we only
         ;; simplify things produced by function calls in the rule
         ;; pattern. This means no simplification if the rule output as
@@ -252,7 +258,7 @@
       (for/list ([child (^children^)] [locs locs-list])
         (for/fold ([child child]) ([loc locs])
           (define child* (location-do loc (alt-program child) (λ (expr) (hash-ref simplify-hash expr))))
-          (if (> (program-cost (alt-program child)) (program-cost child*))
+          (if (not (equal? (alt-program child) child*))
               (alt child* (list 'simplify loc) (list child))
               child))))
 
@@ -333,10 +339,12 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:precondition [precondition 'TRUE]
-                     #:precision [precision 'binary64])
+(define (run-improve prog iters
+                     #:precondition [precondition 'TRUE]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog #:precondition precondition #:precision precision)
+  (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
          (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))

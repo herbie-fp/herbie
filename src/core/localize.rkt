@@ -1,12 +1,8 @@
 #lang racket
 
-(require math/flonum)
-(require math/bigfloat)
-(require "../common.rkt")
-(require "../points.rkt")
-(require "../float.rkt")
-(require "../programs.rkt")
-(require "../alternative.rkt")
+(require math/flonum math/bigfloat)
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../alternative.rkt")
+(require "../interface.rkt" "../type-check.rkt")
 
 (provide localize-error)
 
@@ -18,13 +14,20 @@
 (define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache)
+  (define ctx
+    (for/hash ([(var vals) (in-dict vars)])
+      (values var (match (representation-name (infer-representation (first vals)))
+                    [(or 'binary32 'binary64) 'real]
+                    [x x]))))
   (hash-ref! cache expr
              (λ ()
                 (match expr
                   [(? constant?)
-                   (cons (repeat (->bf expr)) (repeat 1))]
+                   (cons (repeat (->bf expr (infer-representation expr))) (repeat 1))]
                   [(? variable?)
-                   (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
+                   (cons (map (curryr ->bf (get-representation 'binary64))
+                              (dict-ref vars expr))
+                         (repeat 1))]
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]
                          [exact-iff (car (localize-on-expression iff vars cache))]
@@ -33,16 +36,22 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (let* ([argvals
-                           (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args))]
-                          [f-exact  (operator-info f 'bf)]
-                          [f-approx (operator-info f 'fl)]
-                          [exact  (map (curry apply f-exact) argvals)]
-                          [approx (map (compose (curry apply f-approx) (curry map ->flonum)) argvals)]
-                          [error
-                           (map (λ (ex ap) (+ 1 (abs (ulp-difference (->flonum ex)
-								     (->flonum ap))))) exact approx)])
-                     (cons exact error))]))))
+                   (define <-bf (representation-bf->repr (get-representation* (type-of expr ctx))))
+                   (define arg<-bfs
+                     (for/list ([arg args])
+                       (representation-bf->repr (get-representation* (type-of arg ctx)))))
+
+                   (define argexacts
+                     (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args)))
+                   (define argapprox
+                     (for/list ([pt argexacts])
+                       (for/list ([val pt] [arg<-bf arg<-bfs]) (arg<-bf val))))
+
+                   (define exact (map (curry apply (operator-info f 'bf)) argexacts))
+                   (define approx (map (curry apply (operator-info f 'fl)) argapprox))
+                   (cons exact (map (λ (ex ap)
+                                       (define repr (infer-double-representation (<-bf ex) ap))
+                                       (+ 1 (abs (ulp-difference (<-bf ex) ap repr)))) exact approx))]))))
 
 (register-reset
  (λ ()

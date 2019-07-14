@@ -15,12 +15,26 @@ function ComponentInstance(elt, component) {
     this.elt = elt;
 }
 
+function Element(tagname, props, children) {
+    if (!children) { children = props; props = {}; }
+
+    var $elt = document.createElement(tagname);
+    for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
+
+    function addAll(c) {
+        if (!c) return;
+        else if (Array.isArray(c)) c.map(addAll);
+        else if (typeof c == "string") $elt.appendChild(document.createTextNode(c))
+        else $elt.appendChild(c);
+    }
+    addAll(children);
+    return $elt;
+}
+
 var TogglableFlags = new Component("#flag-list", {
     setup: function() {
         this.elt.classList.add("changed-flags");
-        this.button = document.createElement("a");
-        this.button.setAttribute("id", "flag-list-toggle");
-        this.button.innerText = "see all";
+        this.button = Element("a", {id: "flag-list-toggle"}, "see all");
         this.button.addEventListener("click", this.toggle);
         this.elt.insertBefore(this.button, this.elt.children[0]);
     },
@@ -31,50 +45,35 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-var Figure = new Component("#graphs figure", {
+var FigureColors = new Component("#graphs figure", {
     setup: function() {
-        setup_figure(this.elt);
+        this.caption = this.elt.querySelector("figcaption");
+        var imgs = [].slice.call(this.elt.querySelectorAll("img"));
+        var names = imgs.map(function(i) { return i.getAttribute("data-name"); });
+        var buttons = names.filter(function(i) { return i; }).map(this.mkbutton);
+        var caption_text = this.elt.querySelector("figcaption p");
+        this.caption.insertBefore(Element("div", buttons), caption_text);
+    },
+    mkbutton: function(name) {
+        var title = "Click to toggle " + name.toLowerCase() + " graph";
+        var control = Element("button", { className: name, title: title}, name);
+        control.addEventListener("click", this.toggler(control, name));
+        return control;
+    },
+    toggler: function(button, name) {
+        var figure = this.elt;
+        var img = figure.querySelector("img[data-name=" + name + "]");
+        return function() {
+            if (button.classList.contains("inactive")) {
+                button.classList.remove("inactive");
+                img.style.display = "";
+            } else {
+                button.classList.add("inactive");
+                img.style.display = "none";
+            }
+        }
     },
 });
-
-function figure_names(figure) {
-    var imgs = figure.querySelectorAll("img");
-    var names = {};
-    for (var i = 0; i < imgs.length; i++) {
-        if (!imgs[i].getAttribute("data-name")) continue;
-        names[imgs[i].getAttribute("data-name")] = imgs[i];
-    }
-    return names;
-}
-
-function toggle_figure(figure, name) {
-    var img = figure.querySelector("img[data-name=" + name + "]");
-    var button = figure.querySelector("button." + name);
-    if (button.classList.contains("inactive")) {
-        button.classList.remove("inactive");
-        img.style.display = "";
-    } else {
-        button.classList.add("inactive");
-        img.style.display = "none";
-    }
-}
-
-function setup_figure(figure) {
-    var names = figure_names(figure);
-    var caption_text = figure.querySelector("figcaption p");
-    for (var name in names) {
-        var control = document.createElement("button");
-        control.className = name;
-        control.textContent = name;
-        control.title = ("Click to toggle " + name.toLowerCase() + " graph");
-        (function(name){
-            control.addEventListener("click", function() {
-                toggle_figure(figure, name);
-            });
-        })(name);
-        figure.querySelector("figcaption").insertBefore(control, caption_text);
-    }
-}
 
 var TryIt = new Component("#try-it", {
     depends: function() {
@@ -113,57 +112,49 @@ var TryIt = new Component("#try-it", {
 
 var FigureTabs = new Component("#graphs > div", {
     setup: function() {
-        setup_figure_tabs(this.elt);
+        var figures = this.elt.getElementsByTagName("figure");
+        var figure_array = {};
+        var default_figure = null;
+        for (var i = 0; i < figures.length; i++) {
+            var idx = figures[i].id;
+            var variable = figures[i].getElementsByTagName("var")[0].innerText;
+            if (figures[i].classList.contains("default")) default_figure = figures[i];
+            figure_array[idx] = { elt: figures[i], name: variable };
+            figures[i].style.display = "none";
+            figures[i].querySelector("figcaption > p").style.display = "none";
+        }
+        if (default_figure === null && figures.length > 0) default_figure = figures[0];
+
+        var tab_bar = Element("ul", { className: "tabbar" }, [
+            Element("p", "Bits error vs value of"),
+            Object.keys(figure_array).map(function(idx) {
+                var button = Element("li", { id: "tab-" + idx }, figure_array[idx].name);
+                button.addEventListener("click", this.click_handler);
+                return button;
+            })
+        ]);
+        this.elt.querySelector("figcaption").appendChild(tab_bar);
+    
+        if (default_figure) this.toggle(default_figure.id);
     },
+    click_handler: function() {
+        this.toggle(this.id.substr(4));
+    },
+    toggle: function(id) {
+        var tab = document.getElementById("tab-" + id);
+        var pane = document.getElementById(id);
+
+        var old_tab = tab.parentNode.getElementsByClassName("selected");
+        if (old_tab.length > 0) {
+            var old_pane = document.getElementById(old_tab[0].id.substr(4));
+            old_pane.style.display = "none";
+            old_tab[0].classList.remove("selected")
+        }
+
+        tab.classList.add("selected");
+        pane.style.display = "block";
+    }
 });
-
-function select_tab(id) {
-    var tab = document.getElementById("tab-" + id);
-    var pane = document.getElementById(id);
-
-    var old_tab = tab.parentNode.getElementsByClassName("selected");
-    if (old_tab.length > 0) {
-        var old_pane = document.getElementById(old_tab[0].id.substr(4));
-        old_pane.style.display = "none";
-        old_tab[0].classList.remove("selected")
-    }
-
-    tab.classList.add("selected");
-    pane.style.display = "block";
-}
-
-function setup_figure_tabs(figure_container) {
-    var figures = figure_container.getElementsByTagName("figure");
-    var figure_array = {};
-    var default_figure = null;
-    for (var i = 0; i < figures.length; i++) {
-        var idx = figures[i].id;
-        var variable = figures[i].getElementsByTagName("var")[0].innerText;
-        if (figures[i].classList.contains("default")) default_figure = idx;
-        figure_array[idx] = { elt: figures[i], name: variable };
-        figures[i].style.display = "none";
-        figures[i].querySelector("figcaption > p").style.display = "none";
-    }
-    if (default_figure === null && figures.length > 0) default_figure = figures[0].id;
-
-    var tab_bar = document.createElement("ul");
-    tab_bar.classList.add("tabbar");
-    var p = document.createElement("p");
-    p.innerText = "Bits error vs value of"
-    tab_bar.appendChild(p)
-    figure_container.appendChild(tab_bar);
-    for (var idx in figure_array) {
-        var tab_button = document.createElement("li");
-        tab_button.id = "tab-" + idx;
-        tab_button.innerText = figure_array[idx].name;
-        tab_button.addEventListener("click", function() {
-            select_tab(this.id.substr(4));
-        });
-        tab_bar.appendChild(tab_button);
-    }
-
-    if (default_figure) select_tab(default_figure);
-}
 
 var RenderMath = new Component(".math", {
     depends: function() {

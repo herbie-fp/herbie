@@ -42,8 +42,7 @@
   out)
 
 (define (rule-applicable? rl en)
-  (or (not (variable? (rule-input rl)))
-      (equal? (dict-ref (rule-itypes rl) (rule-input rl)) (enode-type en))))
+  (equal? (rule-otype rl) (enode-type en)))
 
 ;; Tries to match the rules against the given enodes, and returns a
 ;; list of matches found. Matches are of the form:
@@ -56,63 +55,26 @@
 (define (find-matches ens rls)
   (reap [sow]
         (for* ([rl rls] [en ens]
-               #:when (rule-applicable? rl en)
-               #:unless (rule-applied? en rl))
+               #:when (rule-applicable? rl en))
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
 
-(define (apply-match eg rl en bindings)
-
-  ;; These next two lines are here because an earlier match
-  ;; application may have pruned the tree, invalidating the this
-  ;; one. Luckily, a pruned enode will still point to it's old
-  ;; leader, so we just get the leader, and then double check the
-  ;; bindings to make sure our match hasn't changed.
-  
-  (define en* (pack-leader en))
-  (define bindings-set (apply set bindings))
-  (define bindings* (apply set (match-e (rule-input rl) en*)))
-  (define valid-bindings (set-intersect bindings-set bindings*))
-
-  (for ([binding valid-bindings])
-    (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding)))
-  ;; Mark this node as having this rule applied so that we don't try
-  ;; to apply it again.
-  (when (subset? bindings-set valid-bindings) (rule-applied! en rl)))
-
 ;; Iterates the egraph by applying each of the given rules in parallel
 ;; to the egraph nodes.
 (define (one-iter eg rls)
-  (define change? #f)
-  (define (run-phase f . args)
-    (define old-cnt (egraph-cnt eg))
-    (apply f args)
-    (define changed? (> (egraph-cnt eg) old-cnt))
-    (set! change? (or changed? change?))
-    changed?)
-
+  (define initial-cnt (egraph-cnt eg))
   (for ([m (find-matches (egraph-leaders eg) rls)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
-    ;; The loop here ensures that we don't pass the node limit just
-    ;; because the bindings are too long. This is pretty ugly.
-    (let loop ([bindings bindings])
-      (cond
-       [(>= (egraph-cnt eg) (*node-limit*))
-        (void)]
-       [(<= (+ (length bindings) (egraph-cnt eg)) (*node-limit*))
-        (when (run-phase apply-match eg rl en bindings)
-          (reduce-to-single! eg en))]
-       [else
-        (let-values ([(head tail) (split-at bindings (- (*node-limit*) (egraph-cnt eg)))])
-          (loop head)
-          (loop tail))])))
+    (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
+      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (when (run-phase set-precompute! eg en)
-      (reduce-to-single! eg en)))
-  (and change? (< (egraph-cnt eg) (*node-limit*))))
+    (set-precompute! eg en))
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (reduce-to-single! eg en))
+  (< initial-cnt (egraph-cnt eg) (*node-limit*)))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
@@ -126,7 +88,6 @@
         (when (and ((value-of type) res) (exact-value? type res))
           (define en* (mk-enode-rec! eg (val-to-type type res)))
           (merge-egraph-nodes! eg en en*))))))
-  
 
 (define (extract-smallest eg . ens)
   ;; The work list maps enodes to a pair (cost . expr) of that node's
@@ -158,24 +119,25 @@
                          (define subleader (pack-leader en))
                          (match (hash-ref work-list subleader (cons #f #t))
                            [(cons (? number? cost) best-arg)
-                            best-arg]
+                            (cons cost best-arg)]
                            [(cons #f not-in-hash?)
                             (hash-set! work-list subleader (cons #f #f))
                             (set! changed? (or changed? not-in-hash?))
                             #f])))
                      (if (andmap identity args*)
-                         (cons op args*)
+                         (cons (apply + 1 (map car args*))
+                               (cons op (map cdr args*)))
                          #f)]
                     [_
-                     var]))))
+                     (cons 1 var)]))))
       (match vars*
         ['() #f]
         [_
-         (define best-resolution (argmin expression-cost vars*))
-         (define cost (expression-cost best-resolution))
+         (define best-resolution (argmin car vars*))
+         (define cost (car best-resolution))
          (define old-cost (car (hash-ref work-list leader)))
          (when (or (not old-cost) (< cost old-cost))
-           (hash-set! work-list leader (cons cost best-resolution))
+           (hash-set! work-list leader best-resolution)
            (set! changed? #t))]))
     (if changed?
         (loop (+ iter 1))

@@ -101,6 +101,7 @@
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
            (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+           (pre ([id "progress"] [style "display: none;"]))
            (div ([class "extra-fields"])
              (label ([for "pre"]) "Precondition")
              (input ([name "pre"] [id "pre"] [placeholder "TRUE"]))
@@ -109,7 +110,6 @@
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
-           (pre ([id "progress"] [style "display: none;"]))
            (input ([type "submit"])))
 
     (if (*demo?*)
@@ -318,7 +318,7 @@
   (thread-send *worker-thread* config)
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
-  (eprintf "Find help on <https://herbie.uwplse.org/>, exit with Ctrl-C\n")
+  (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n")
 
   (serve/servlet
    dispatch

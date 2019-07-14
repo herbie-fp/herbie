@@ -1,15 +1,12 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../syntax/syntax.rkt")
-(require "../type-check.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
 	 enode?
 	 enode-expr enode-type
 	 pack-leader pack-members
-	 rule-applied? rule-applied!
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
 	 set-enode-expr! update-vars!
@@ -52,7 +49,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars applied-rules type)
+(struct enode (expr id-code children parent depth cvars type)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -70,6 +67,7 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
+    [(? value?) (infer-representation expr)]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) 'real] ;; TODO: assumes variable types are real
     [(list 'if cond ift iff)
@@ -94,7 +92,7 @@
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr) (mutable-set) (type-of-enode-expr expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (type-of-enode-expr expr))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -112,8 +110,6 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
-  (set-intersect! (enode-applied-rules new-parent)
-                  (enode-applied-rules child))
   #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
@@ -208,7 +204,7 @@
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
-    (assert (or (number? expr) (symbol? expr)
+    (assert (or (value? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
 		     (andmap enode? (cdr expr)))) #:loc location))
   ;; Checks that the depth is positive.
@@ -272,14 +268,6 @@
 ;; Returns the pack ID of the pack of the given enode.
 (define (enode-pid en)
   (enode-id-code (pack-leader en)))
-
-;; Returns whether the given rule has already been applied to the given enode
-(define (rule-applied? en rl)
-  (set-member? (enode-applied-rules (pack-leader en)) rl))
-
-;; Marks the given enode as having the given rule applied to it.
-(define (rule-applied! en rl)
- (set-add! (enode-applied-rules (pack-leader en)) rl))
 
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])

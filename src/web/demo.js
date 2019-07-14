@@ -138,20 +138,30 @@ function flatten_comparisons(node) {
         }
     })(node);
     var conjuncts = [];
+    var iters = 0;
     (function do_flatten(node) {
         if (node.type == "OperatorNode" && is_comparison(node.op)) {
             do_flatten(node.args[0]);
-            var i = conjuncts.length;
-            conjuncts.push("(" + node.op + " " + terms[i] + " " + terms[i+1] + ")");
+            var i = iters++; // save old value and increment it
+            var prev = conjuncts[conjuncts.length - 1];
+            if (prev && prev[0] == node.op && prev[2] == terms[i]) {
+                prev.push(terms[i + 1]);
+            } else {
+                conjuncts.push([node.op, terms[i], terms[i+1]]);
+            }
             do_flatten(node.args[1]);
         }
     })(node);
-    if (conjuncts.length == 0) {
+    var comparisons = [];
+    for (var i = 0; i < conjuncts.length; i++) {
+        comparisons.push("(" + conjuncts[i].join(" ") + ")");
+    }
+    if (comparisons.length == 0) {
         return "TRUE";
-    } else if (conjuncts.length == 1) {
-        return conjuncts[0];
+    } else if (comparisons.length == 1) {
+        return comparisons[0];
     } else {
-        return "(and " + conjuncts.join(" ") + ")";
+        return "(and " + comparisons.join(" ") + ")";
     }
 }
 

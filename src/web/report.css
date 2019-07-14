@@ -4,6 +4,7 @@ body { width: 800px; margin: 0 auto; font-family: sans; line-height: 1.25; }
 
 a {color: #2A6496; text-decoration: none; cursor: pointer}
 a:hover {text-decoration: underline; color: #295785}
+figure { margin: 0; }
 
 #large { margin: 2em 0; text-align: center; }
 #large div { margin: 0 1em; display: inline-block; vertical-align: top; }
@@ -12,8 +13,7 @@ a:hover {text-decoration: underline; color: #295785}
 
 /* Arrow chart */
 
-figure { float: left; margin: 0; }
-#graph { cursor: pointer; }
+#graph { float: left; cursor: pointer; }
 #graph line { pointer-events: all; }
 #graph .good * { stroke: black; fill: black; }
 #graph .bad * { stroke: darkred; fill: darkred; }
@@ -178,7 +178,7 @@ section h1 {
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
 
-.tabbar { margin: -1.25em 0 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
+.tabbar { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
 .tabbar p { display: inline-block; margin: 0 .5em 0 0}
 .tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
 .tabbar li:hover { background: #e4e4e4; }

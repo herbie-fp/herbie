@@ -3,11 +3,11 @@
 
 [![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
 
-Herbie synthesizes floating-point programs from real-number programs,
-automatically handling simple numerical instabilities. Visit [our
-website](https://herbie.uwplse.org) for tutorials, documentation, and
-an online demo. Herbie has semi-regular releases twice a year,
-maintains backwards compatibility, and uses standardized formats.
+Herbie automatically improves the error of floating point expressions.
+Visit [our website](https://herbie.uwplse.org) for tutorials,
+documentation, and an online demo. Herbie has semi-regular releases
+once a year, maintains backwards compatibility, and uses standardized
+formats.
 
 Installing
 ----------
@@ -15,10 +15,10 @@ Installing
 For full details on installing Herbie, please see the
 [tutorial](http://herbie.uwplse.org/doc/latest/installing.html).
 
-Herbie requires Racket 6.7 or later, and supports Windows, OS X, and
+Herbie requires Racket 7.0 or later, and supports Windows, macOS, and
 Linux. Install it with:
 
-    raco pkg install herbie
+    raco pkg install --auto herbie
 
 This will install a `herbie` binary to somewhere in your home
 directory. You can also run `src/herbie.rkt` directly instead of using
@@ -35,15 +35,14 @@ Herbie's input is a Scheme-based language called [FPCore](http://fpbench.org/spe
 you can several examples in `bench/`.
 For example, consider this simple expression:
 
-    (FPCore (x)
-      (- (+ 1 x) x))
+    (FPCore (x) (- (+ 1 x) x))
 
 Run Herbie from the top-level directory of the repo, and enter the
 cancellation test:
 
     $ herbie shell
-    Herbie 1.2 with seed #(349461420 3681359142 2680361770 2900531005 1939065059 1779362427)
-    Find help on <https://herbie.uwplse.org/>, exit with Ctrl-D
+    Herbie 1.3 with seed 1866513483
+    Find help on https://herbie.uwplse.org/, exit with Ctrl-D
     herbie> (FPCore (x) (- (+ 1 x) x))
     (FPCore (x) ... 1)
 
@@ -53,7 +52,7 @@ the constant `1`.
 Besides the `shell`, Herbie also has a `web` interface, and can run on
 files of FPCore expressions with the `improve` and `report` commands.
 Consult the
-[documentation](http://herbie.uwplse.org/doc/latest/options.html).
+[documentation](http://herbie.uwplse.org/doc/latest/tutorial.html).
 for more.
 
 Helping Out
@@ -66,8 +65,7 @@ where we discuss work in progress and announce major improvements.
 
 We use [Github](https://github.com/uwplse/herbie)
 and [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize some
-development goals. Some old reports and test cases are archived on
-[Google Drive](https://drive.google.com/drive/folders/1oaxPusk9IPOa0KxJra0WzWc_z8SzEt8x).
+development goals.
 
 Running Tests
 -------------

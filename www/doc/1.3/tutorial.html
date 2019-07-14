@@ -5,188 +5,286 @@
   <title>Herbie Tutorial</title>
   <link rel='stylesheet' type='text/css' href='../../main.css'>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script type="text/javascript" src="toc.js"></script>
 </head>
 <body>
   <header>
     <img class="logo" src="../../logo.png" />
-    <h1>Herbie Tutorial, Part 1</h1>
-    <p>See <a href="../../">the main page</a> for more info on Herbie.</p>
+    <h1>Herbie Tutorial</h1>
   </header>
 
   <p>
-    <a href="../../">Herbie</a> is a tool
-      that automatically rewrites floating point expressions to make them more accurate.
-    It's well-known that floating point arithmetic is inaccurate;
+    <a href="../../">Herbie</a> automatically rewrites
+      floating point expressions to make them more accurate.
+    Floating point arithmetic is inaccurate;
       hence the jokes that 0.1 + 0.2 ≠ 0.3 for a computer.
-    But to understand the inaccuracies and reduce them is a much harder task.
-    Usually, programs that use floating point arithmetic
-      are just written with the hope that these inaccuracies will not cause bugs,
-      and when they do, these bugs are mysterious and hard to fix.
+    But it is hard to understand and fix these inaccuracies,
+      creating mysterious and hard-to-fix bugs.
+    Herbie is a tool to help.
   </p>
 
   <p>
-    To get started using Herbie, <a href="installing.html">download and install</a> it,
-    including running the test suite (as described in the installation instructions)
-    to ensure that you have Herbie working properly.
-    Now that Herbie is installed, you're ready to begin using it.
+    To get started, <a href="installing.html">download and install</a>
+    Herbie. With Herbie installed, you're ready to begin using it.
   </p>
 
-  <h2>The format of input files</h2>
+  <h2>Giving Herbie expressions</h2>
+
+  <p>Now that Herbie is installed, start it with:</p>
+
+  <pre class="shell">herbie web</pre>
 
   <p>
-    Herbie is a stand-alone tool, which accepts floating point expressions as inputs
-    and produces floating point expressions as output.
-    These floating point expressions are written in Herbie's custom input language,
-    which is approximately a subset of Racket.
-    For an example, open up <code>bench/tutorial.fpcore</code>.
-    You'll see three blocks of code, the first of which is
-  </p>
-
-  <pre>(herbie-test (x)
-  "Cancel like terms"
-  (- (+ 1 x) x))</pre>
-
-  <p>
-    Each of these blocks describes a single input to Herbie;
-    the block has a list of variables: <code>(x)</code>;
-    a name: <code>"Cancel like terms"</code>;
-    and the expression itself: <code>(- (+ 1 x) x)</code>.
-    Inputs can also have an optional "target"—an equivalent expression
-    for Herbie to compare its results to.
-    That's used for tests, but isn't that useful to you.
-  </p>
-
-  <p>
-    Take a look at the three test cases in the file. If you're not
-    familiar with Lisp syntax, it might take a bit to get used to the
-    way expressions are written. As you can see, Herbie has common
-    mathematical operators built in, from arithmetic to more
-    complicated functions like as <code>pow</code>
-    and <code>sin</code>.
-  </p>
-
-  <h2>The Herbie main report page</h2>
-
-  <p> Now run the tutorial file through Herbie by running </p>
-
-  <pre>racket src/herbie.rkt report bench/tutorial.fpcore graphs/</pre>
-
-  <p>
-    from the base Herbie directory.
-    A <code>graphs</code> directory should appear
-    (if it already existed, its contents will be replaced),
-    which contains a detailed description of Herbie's results and how it got them.
-    Open up <code>graphs/report.html</code> with your web browser to view these results.
+    After a brief wait, this ought to open a web browser to a page
+    with Herbie's results. The most important part of the page is this
+    bit:
   </p>
 
   <figure>
-    <img width="100%" src="tutorial-report-image.png" />
-    <figcaption>A screenshot of the main Herbie reports page for the tutorial file.</figcaption>
+    <img width="100%" src="web-input.png" />
+    <figcaption>The program input field in the Herbie web UI.</figcaption>
   </figure>
 
-  <p>
-    There's a lot going on in this page, so let's break it down.
-    On top, you see a quick summary of the results:
-    the running time, the number of expressions improved,
-    the total number of expressions run on, and the starting/ending bits of accuracy.
-    You should see that Herbie considers itself to have improved 2/2 expressions,
-    even though it ran on three.
-    The reason is that Herbie doesn't consider itself to have “improved” an expression
-    until it improves it accuracy by at least one bit.
-    Since one of the expressions was pretty accurate to start (less than a bit of error),
-    it isn't even a contender, and the improved version doesn't count as an improvement.
-  </p>
-
-  <p>
-    Next, there's a graph summarizing the test results.
-    Each horizontal row is a single expression,
-    and the line stretches from the original accuracy of that expression
-    to the accuracy of Herbie's output.
-    You should see one long arrow (for the expression <i>(x + 1)<sup>2</sup> - 1</i>),
-    one short arrow (for the expression <i>(1 + x) - x</i>)
-    and one bare arrowhead (for the expression <i>((x + y) + z) - (x + (y + z))</i>).
-    This corresponds to the fact that the first expression is pretty inaccurate (for small <i>x</i>),
-    the second is also inaccurate (for large <i>x</i>),
-    and the last one is pretty accurate (though not exactly so).
-  </p>
-
-  <p>
-    Next to the graph is a grid of blocks, each one listing the bits improved for a test case.
-    These are in the same order as the arrows;
-    mouse over one to see the associated arrow light up.
-    The colors describe how Herbie scores itself:
-    white for already accurate, green for improved, orange for not improved, and red for made worse.
-    You won't be seeing the last one (if you do, report it as a bug).
-  </p>
-
-  <p>
-    Below that, you have a lot of information about Herbie's internal configuration.
-    You can usually skip it, but many of these parameters are configurable from the command line.
-    The most useful one is the seed.
-    Herbie uses random sampling internally, so different runs can yield slightly different results.
-    and can be set with the <code>--seed</code> flag to Herbie.
-  </p>
-
-  <p>
-    Finally, the page has a table of each expression,
-    with the starting error, final error, runtime, and a link to details.
-  </p>
-
-  <h2>The Herbie details page</h2>
-
-  <p>
-    Click on the last row, for the expression <i>(x + 1)<sup>2</sup> - 1</i>.
-    This page explains what Herbie did to that expression,
-    including how the error is distributed for that expression,
-    the final expression Herbie came up with,
-    and how it derived that expression.
+  <p>Go ahead and type <kbd>(1 + x) - x</kbd> into this box and press
+  enter. You should see the entry box gray out, then some additional
+  text appear on the screen describing the various steps Herbie is
+  doing. Eventually (after a few seconds) you'll be redirected to a
+  page with Herbie's results. The most important part of that page is
+  the large gray box in the middle:
   </p>
 
   <figure>
-    <img width="100%" src="tutorial-detail-image.png" />
-    <figcaption>A screenshot of a details page in the Herbie report for the tutorial file.</figcaption>
+    <img width="100%" src="report-prog.png" />
+    <figcaption>Input and output program from a Herbie report.</figcaption>
   </figure>
 
   <p>
-    At the top, like before, you see some run-specific data, which probably isn't that useful to you.
-    (The debug output, and profiling data,
-    could all help the developers track down any problems you have).
-    On the right, there is a plot.
-    This plot shows where the original expression, and Herbie's result, have error.
-    The horizontal axis is the input; in this case, it is the value of <i>x</i>,
-    and if your expression has multiple input variables, you'll see several plots,
-    one for each input variable.
-    Note that this axis is logarithmic;
-    one is about halfway between zero and infinity.
-    The vertical axis is the error, in number of bits; it ranges from 0 at the bottom to 64 at the top.
-    In this example, you can see that the error of the original program (in red)
-    is large near zero and small far from zero.
-    On the other hand, Herbie's output (barely visible in blue) is approximately 0 for all inputs.
+    This shows both the input <code>(1 + x) - x</code> that you gave
+    Herbie, and also Herbie's idea of a more accurate way to evaluate
+    that expression: <code>1</code>. Here, Herbie did a good job,
+    which you can double check using the statistics above that box:
+  </p>
+
+  <figure>
+    <img width="100%" src="report-large.png" />
+    <figcaption>Statistics and error measures for this Herbie run.</figcaption>
+  </figure>
+
+  <p>
+    Here, Herbie reports that the improved the program has 0 bits of
+    error, on average, whereas the original program had 29.4. That's
+    because, when <code>x</code> is really big, <code>x + 1 = x</code>
+    in floating-point arithmetic, so <code>(x + 1) - x = 0</code>.
   </p>
 
   <p>
-    Finally, on the left, you have Herbie's derivation of its result.
-    Usually you skip to the bottom of this and look at the result:
-    <code>(λ (x) (+ (* x x) (* x 2)))</code>, or <i>x<sup>2</sup> + 2 x</i>.
-    But sometimes it is useful to look at the derivation.
-    In my case, the derivation uses simplification
-    to expand the expression into <i>(2 + x) x</i>,
-    then uses Taylor expansion to expand this into <i>1 x<sup>2</sup> + 2 x</i>,
-    and then simplifies again to get rid of the unnecessary multiplication by 1.
-    Again, you usually don't care about this derivation,
-    but when a result seems strange, it can be helpful to look at the derivation.
+    There's <a href="report.html">lots more information</a> on this
+    results web page to help explain both what the accuracy is on
+    different inputs and to describe how Herbie derived its result.
   </p>
 
-  <h2>Next Steps</h2>
+  <h2>Programming with Herbie</h2>
+
+  <p>Now that you've run Herbie and know how to read its results,
+  let's work through applying Herbie to a realistic program.</p>
 
   <p>
-    If you've made it this far, you've now run Herbie and know how to read its output.
-    The next step is to use it on some more realistic programs.
-    Pick a floating point expression you care about and try it out,
-    or check out <a href="tutorial-2.html">Part 2</a> of the tutorial,
-    which walks through a more-realistic example.
+    When you're working on a numerical program, it's best to keep
+    Herbie open in a browser tab so you can run it easily. That way,
+    when you're writing a complex floating-point expression, you can
+    run Herbie to make sure you use the most accurate version of that
+    expression that you can. Herbie
+    has <a href="options.html">options</a> to log all the expressions
+    you enter, so that you can refer to them later.
   </p>
+
+  <p>However, if you're tracking down a bug that you think is caused
+  by floating-point error, you'll need to identify the problematic
+  floating-point expression before you can use Herbie on it.</p>
+
+  <p>
+    As an example, let's use <a href="http://mathjs.org">math.js</a>,
+    an extensive math library for JavaScript, and walk
+    through <a href="https://github.com/josdejong/mathjs/pull/208">bug
+    208</a>, which found an inaccuracy in the implementation of complex
+    square root. (For a full write-up of the bug itself, check out
+    a <a href="https://pavpanchekha.com/blog/casio-mathjs.html">blog
+    post</a> by one of the Herbie authors.)
+  </p>
+
+  <h2>Finding the problematic expression</h2>
+
+  <p>
+    Before using Herbie you need to know what floating-point
+    expressions to feed it. In most programs, there's a small core
+    that does the mathematical computations, while the rest of the
+    program sets up parameters, handles control flow, visualizes or
+    print results, and so on. The mathematical core is what Herbie
+    will be interested in.
+  </p>
+
+  <p>
+    For example, in the case of math.js, the mathematical core
+    is in <a href="https://github.com/josdejong/mathjs/tree/master/lib/function"><code>lib/function/</code></a>.
+    Each file in each subdirectory contains a collection of mathematical functions.
+    The bug we're interested in is about complex square root, so let's look at the file
+    <a href="https://github.com/josdejong/mathjs/blob/da306e26ed34272db44e35f07a3b015c0155d99a/lib/function/arithmetic/sqrt.js"><code>arithmetic/sqrt.js</code></a>,
+    which contains real and complex square roots.
+  </p>
+
+  <p>
+    The code handles argument checks, five different number types, and
+    error handling. None of that is of interest to Herbie; we want to
+    extract just the mathematical computation. So let's look at
+    the <code>isComplex(x)</code> case:
+  </p>
+
+  <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
+if (x.im &gt;= 0) {
+  return new Complex(
+      0.5 * Math.sqrt(2.0 * (r + x.re)),
+      0.5 * Math.sqrt(2.0 * (r - x.re))
+  );
+}
+else {
+  return new Complex(
+      0.5 * Math.sqrt(2.0 * (r + x.re)),
+      -0.5 * Math.sqrt(2.0 * (r - x.re))
+  );
+}</pre>
+
+  <h2>Converting problematic code to Herbie input</h2>
+
+  <p>
+    This code contains a branch: one option for non-negative <code>x.im</code>,
+    and one for positive <code>x.im</code>.
+    While Herbie supports an <code>if</code> construct,
+    it's usually better to send each branch to Herbie separately.
+  </p>
+
+  <p>
+    Also, in this code, <code>x</code> is of
+    type <code>Complex</code>, a data structure with multiple fields.
+    Herbie only deals with floating-point numbers, not data
+    structures, so we will treat the input <code>x</code> as two
+    separate inputs to Herbie: <code>xre</code> and <code>xim</code>.
+    We'll also pass each field of the output to Herbie separately.
+  </p>
+
+  <p>
+    Finally, each field of the final output uses the
+    variable <code>r</code>, which is defined in the first line of the
+    code snippet. When you're using Herbie, you want to expand or
+    inline intermediate variables like this, because the definition of
+    that variable contains important information that Herbie can use
+    to improve accuracy.</p>
+
+  <p>Putting this all together, let's do the first field of the
+  non-negative <code>x.im</code> case first. It looks like this:</p>
+
+  <pre>0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))</pre>
+
+  <p>Before running Herbie on this expression, click the “Additional
+  options” link. You should see a box where you can enter a
+  precondition; enter <kbd>xim &lt;= 0</kbd>. This makes sure that
+  Herbie only considers the points this expression will actually be
+  run on when improving the accuracy of this expression.</p>
+  
+  <h2>Using Herbie's results</h2>
+
+  <p>Herbie will churn for a few seconds and produce an output,
+  perhaps something like this:</p>
+
+  <figure>
+    <img width="100%" src="report-prog2.png" />
+    <figcaption>Herbie's version of the complex square root expression.</figcaption>
+  </figure>
+
+  <p>Herbie's algorithm is randomized, so you likely won't see the
+  exact same thing. For example, the branch expression <code>xre ≤
+  6.68107529348e-308</code> will probably have some other really small
+  number. And perhaps Herbie will choose slightly different
+  expressions. But the result should be recognizably similar. In this
+  case, Herbie reports that the initial expression had 38.7 bits of
+  error, and that the output has 29.4.</p>
+
+  <p>It's a little harder to describe what Herbie found wrong with the
+  original expression, and why its new version is better—it is due to
+  a floating-point phenomenon called “cancellation”. But you can get
+  some insight from the error plot just below the program block:</p>
+
+  <figure>
+    <img width="100%" src="report-plot2.png" />
+    <figcaption>Herbie's error plot for the complex square root expression.</figcaption>
+  </figure>
+
+  <p>There's a lot going on here. Along the horizontal axis, you have
+  the various input values (of <code>xim</code>). Note that the graph
+  is log-scale, and includes only negative values (thanks to our
+  precondition). So in the middle is the value -1, to the left you have
+  values with large exponents approaching infinity, and to the right
+  you have values with small exponents approaching 0.</p>
+
+  <p>On the vertical axis, you have Herbie's error measure (bits of
+  error), from 0 to 64. There are two lines drawn: a red one for your
+  input expression and a blue one for Herbie's output. Lower is
+  better. You can see from the plot that as <code>xim</code> gets
+  larger (toward the right, closer to zero), Herbie's improvement
+  becomes more and more important. Below the plot, there is a list of
+  the argument names, with <code>xim</code> highlighted. If you switch
+  it to <code>xre</code>, you will see that the two expressions are
+  the same for positive <code>xre</code>, and that Herbie's output is
+  better for negative <code>xre</code>. You can also see that the
+  difference is quite large, with Herbie's output expression being
+  much more accurate than its input.</p>
+
+  <p>Note again that Herbie is randomized, and you may see somewhat
+  different output than the screenshots and descriptions here. The
+  overall gist should be similar, however.</p>
+
+  <p>Now that you have the more accurate version of this expression,
+    all you need to do is insert it back into the program:</p>
+
+  <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
+// Herbie version of 0.5 * Math.sqrt(2.0 * (r + x.re))
+var re;
+if (x.re &lt;= 0) {
+    re = Math.abs(x.im) * Math.sqrt(0.5) / Math.sqrt(r - x.re);
+} else {
+    re = 0.5 * Math.sqrt(2.0 * (r + x.re));
+}
+if (x.im &gt;= 0) {
+  return new Complex(
+      re,
+      0.5 * Math.sqrt(2.0 * (r - x.re))
+  );
+}
+else {
+  return new Complex(
+      0.5 * Math.sqrt(2.0 * (r + x.re)),
+      -0.5 * Math.sqrt(2.0 * (r - x.re))
+  );
+}</pre>
+
+  <p>Note that I've left the original code in place in a comment.
+  That's because the original code is a bit more readable, and it also
+  means that as Herbie gets better, we can re-run it to get future
+  improvements in accuracy.</p>
+
+  <p>By the way, for some languages, like C, you can use the drop-down
+  in the top-right corner of the gray program block to see Herbie's
+  output in that language. You'll probably need to clean up the
+  resulting program a bit, though.</p>
+
+  <h2>Next steps</h2>
+
+  <p>With this change, we've made this part of the complex square root
+  function much more accurate, and we could repeat the same steps for
+  the other branches and other fields in this program. You now have a
+  pretty good understanding of Herbie and how to use it.
+  Please <a href="mailto:herbie@cs.washington.edu">let us know</a> if
+  Herbie has helped you, and check out
+  the <a href="../../doc.html">documentation</a> to learn more about
+  Herbie's various options and outputs.</p>
 
 </body>
 </html>
