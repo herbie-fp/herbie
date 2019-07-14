@@ -14,12 +14,9 @@
   work-list)
 
 (define (extractor-cost work-list . ens)
-  (define-values (fins infs)
-    (partition
-     identity
-     (for/list ([en ens])
-       (car (hash-ref work-list (pack-leader en) '(#f . #f))))))
-  (values (length infs) (apply + fins)))
+  (apply +
+         (for/list ([en ens])
+           (car (hash-ref work-list (pack-leader en) '(#f . #f))))))
 
 ;; Extracting the smallest expression means iterating, until
 ;; fixedpoint, either discovering new relevant expressions or
@@ -27,8 +24,8 @@
 (define (extractor-iterate work-list)
   (let loop ([iter 0])
     (define changed? #f)
-    (define-values (infs cost) (extractor-cost work-list))
-    (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " infs " inf + " cost)
+    (define cost (extractor-cost work-list))
+    (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " cost)
     (for ([en (in-list (hash-keys work-list))]) ;; in-list to avoid mutating the iterator
       (define leader (pack-leader en))
       (when (not (eq? en leader))
@@ -52,7 +49,7 @@
                             #f])))
                      (if (andmap identity args*)
                          (cons (apply + 1 (map car args*))
-                               (cons op args*))
+                               (cons op (map cdr args*)))
                          #f)]
                     [_
                      (cons 1 var)]))))
