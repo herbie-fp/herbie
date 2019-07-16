@@ -23,7 +23,11 @@
              (λ ()
                 (match expr
                   [(? constant?)
-                   (cons (repeat (->bf expr (infer-representation expr))) (repeat 1))]
+                   (define bf
+                     (if (symbol? expr)
+                         ((constant-info expr 'bf))
+                         (->bf expr (infer-representation expr))))
+                   (cons (repeat bf) (repeat 1))]
                   [(? variable?)
                    (cons (map (curryr ->bf (get-representation 'binary64))
                               (dict-ref vars expr))

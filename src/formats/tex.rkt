@@ -30,6 +30,19 @@
   [('lambda2) "\\lambda_2"]
   [(_) (symbol->string var)])
 
+(define (texify-number n)
+  ;; Prints a number with relatively few digits
+  (define repr (infer-representation n))
+  (define ->bf (representation-repr->bf repr))
+  (define <-bf (representation-bf->repr repr))
+  ;; Linear search because speed not an issue
+  (let loop ([precision 16])
+    (parameterize ([bf-precision precision])
+      (define bf (->bf n))
+      (if (=-or-nan? n (<-bf bf))
+          (bigfloat->string bf)
+          (loop (+ precision 4)))))) ; 2^4 > 10
+
 ; self-paren-level : #t --> paren me
 ;                    #f --> do not paren me
 ;
@@ -85,8 +98,7 @@
                  (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
                  (texify (abs (imag-part expr)) '+ loc))]
         [(? value?)
-         (define s (bigfloat->string ((representation-repr->bf (infer-representation expr)) expr)))
-         (match (string-split s "e")
+         (match (string-split (texify-number expr) "e")
            [(list "-inf.bf") "-\\infty"]
            [(list "+inf.bf") "+\\infty"]
            [(list num) num]
