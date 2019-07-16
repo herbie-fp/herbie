@@ -1,8 +1,7 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../alternative.rkt")
-(require "../points.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt"
+         "../interface.rkt")
 
 (provide
  (contract-out
