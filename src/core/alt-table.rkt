@@ -11,11 +11,11 @@
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-add-altns (alt-table? (listof alt?) any/c . -> . alt-table?))
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-			     #:only-fresh boolean?
-			     . -> . (values alt? alt-table?)))
+                             #:only-fresh boolean?
+                             . -> . (values alt? alt-table?)))
   (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-			     #:only-fresh boolean?
-			     . -> . (values alt? alt-table?)))
+                             #:only-fresh boolean?
+                             . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
@@ -32,13 +32,12 @@
 
 (define (make-alt-table context initial-alt prec)
   (alt-table (make-immutable-hash
-	      (for/list ([(pt ex) (in-pcontext context)]
-	 	  [err (errors (alt-program initial-alt) context prec)])
-	  (cons pt (point-rec err (list initial-alt)))))
-	     (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
-	 		  pt))
-	     (hash initial-alt #f)
-	     context))
+               (for/list ([(pt ex) (in-pcontext context)]
+                          [err (errors (alt-program initial-alt) context prec)])
+                 (cons pt (point-rec err (list initial-alt)))))
+             (hash initial-alt (for/list ([(pt ex) (in-pcontext context)]) pt))
+             (hash initial-alt #f)
+             context))
 
 (define (atab-new-context atab ctx prec)
   (let* ([old-done (alt-table-alt->done? atab)]
@@ -57,16 +56,17 @@
     (atab-add-altn atab altn prec)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
-		       #:only-fresh [only-fresh? #t])
+           #:only-fresh [only-fresh? #t])
   (let* ([picked (atab-peek-alt atab #:picking-func pick #:only-fresh only-fresh?)]
-	 [atab* (struct-copy alt-table atab [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])])
+         [atab* (struct-copy alt-table atab
+                             [alt->done? (hash-set (alt-table-alt->done? atab)
+                                                   picked #t)])])
     (values picked atab*)))
 
-(define (atab-peek-alt atab #:picking-func [pick car]
-		       #:only-fresh [only-fresh? #f])
+(define (atab-peek-alt atab #:picking-func [pick car] #:only-fresh [only-fresh? #f])
   (pick (if only-fresh?
-	    (atab-not-done-alts atab)
-	    (atab-all-alts atab))))
+      (atab-not-done-alts atab)
+      (atab-all-alts atab))))
 
 (define (atab-all-alts atab)
   (hash-keys (alt-table-alt->points atab)))
@@ -79,20 +79,20 @@
 (define (split-atab atab preds)
   (for/list ([pred preds])
     (let* ([point->alts (make-immutable-hash (for/list ([(pt ex) (in-atab-pcontext atab)]
-							#:when (pred pt))
-					       (cons pt (hash-ref (alt-table-point->alts atab) pt))))]
-	   [alt->points (make-immutable-hash (filter (compose (negate null?) cdr)
-						     (for/list ([(alt points)
-								 (in-hash (alt-table-alt->points atab))])
-						       (cons alt (filter pred points)))))]
-	   [alt->done? (make-immutable-hash (for/list ([alt (in-hash-keys alt->points)])
-					      (cons alt (hash-ref (alt-table-alt->done? atab) alt))))]
-	   [context (call-with-values
-			(λ () (for/lists (pts exs)
-				  ([(pt ex) (in-atab-pcontext atab)]
-				   #:when (pred pt))
-				(values pt ex)))
-		      mk-pcontext)])
+              #:when (pred pt))
+                 (cons pt (hash-ref (alt-table-point->alts atab) pt))))]
+     [alt->points (make-immutable-hash (filter (compose (negate null?) cdr)
+                 (for/list ([(alt points)
+                 (in-hash (alt-table-alt->points atab))])
+                   (cons alt (filter pred points)))))]
+     [alt->done? (make-immutable-hash (for/list ([alt (in-hash-keys alt->points)])
+                (cons alt (hash-ref (alt-table-alt->done? atab) alt))))]
+     [context (call-with-values
+      (λ () (for/lists (pts exs)
+          ([(pt ex) (in-atab-pcontext atab)]
+           #:when (pred pt))
+        (values pt ex)))
+          mk-pcontext)])
       (minimize-alts (alt-table point->alts alt->points alt->done? context)))))
 
 ;; Helper Functions
@@ -100,8 +100,8 @@
 (define (alternate . lsts)
   (let loop ([rest-lsts lsts] [acc '()])
     (if (ormap null? rest-lsts)
-	(reverse acc)
-	(loop (map cdr rest-lsts) (append (reverse (map car rest-lsts)) acc)))))
+  (reverse acc)
+  (loop (map cdr rest-lsts) (append (reverse (map car rest-lsts)) acc)))))
 
 (define (hash-set-lsts hash keys values)
   (apply hash-set* hash (alternate keys values)))
@@ -128,12 +128,12 @@
 
 (define (remove-chnged-pnts point->alts alt->points chnged-pnts)
   (let* ([chnged-entries (map (curry hash-ref point->alts) chnged-pnts)]
-	 [chnged-altns (remove-duplicates (append-map point-rec-altns chnged-entries))])
+   [chnged-altns (remove-duplicates (append-map point-rec-altns chnged-entries))])
     (hash-set-lsts
      alt->points chnged-altns
      (map (λ (altn)
-	    (remove* chnged-pnts (hash-ref alt->points altn)))
-	  chnged-altns))))
+      (remove* chnged-pnts (hash-ref alt->points altn)))
+    chnged-altns))))
 
 (define (override-at-pnts points->alts pnts altn errs)
   (let ([pnt->alt-err (for/hash ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
@@ -141,24 +141,24 @@
     (hash-set-lsts
      points->alts pnts
      (map (λ (pnt) (point-rec (hash-ref pnt->alt-err pnt) (list altn)))
-	  pnts))))
+    pnts))))
 
 (define (append-at-pnts points->alts pnts altn)
   (hash-set-lsts
    points->alts pnts
    (map (λ (pnt) (let ([old-val (hash-ref points->alts pnt)])
-		   (point-rec (point-rec-berr old-val)
-			      (cons altn (point-rec-altns old-val)))))
-	pnts)))
+       (point-rec (point-rec-berr old-val)
+            (cons altn (point-rec-altns old-val)))))
+  pnts)))
 
 (define (minimize-alts atab)
   (define (get-essential pnts->alts)
     (remove-duplicates (filter identity
-			       (map (λ (pnt-rec) (let ([altns (point-rec-altns pnt-rec)])
-						   (cond [(> (length altns) 1) #f]
-							 [(= (length altns) 1) (car altns)]
-							 [else (error "This point has no alts which are best at it!" pnt-rec)])))
-				    (hash-values pnts->alts)))))
+             (map (λ (pnt-rec) (let ([altns (point-rec-altns pnt-rec)])
+               (cond [(> (length altns) 1) #f]
+               [(= (length altns) 1) (car altns)]
+               [else (error "This point has no alts which are best at it!" pnt-rec)])))
+            (hash-values pnts->alts)))))
 
   (define (get-tied-alts essential-alts alts->pnts pnts->alts)
     (remove* essential-alts (hash-keys alts->pnts)))
@@ -176,28 +176,28 @@
 
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alt->points cur-atab)]
-	   [pnts->alts (alt-table-point->alts cur-atab)]
-	   [essential-alts (get-essential pnts->alts)]
-	   [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
+     [pnts->alts (alt-table-point->alts cur-atab)]
+     [essential-alts (get-essential pnts->alts)]
+     [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
       (if (null? tied-alts) cur-atab
-	  (let ([atab* (rm-alts cur-atab (worst cur-atab tied-alts))])
-	    (loop atab*))))))
+    (let ([atab* (rm-alts cur-atab (worst cur-atab tied-alts))])
+      (loop atab*))))))
 
 (define (rm-alts atab . altns)
   (let* ([rel-points (remove-duplicates
-		      (apply append
-			     (map (curry hash-ref (alt-table-alt->points atab))
-				  altns)))]
-	 [pnts->alts* (let ([pnts->alts (alt-table-point->alts atab)])
-			(hash-set-lsts
-			 pnts->alts rel-points
-			 (map (λ (pnt) (let ([old-val (hash-ref pnts->alts pnt)])
-					 (point-rec (point-rec-berr old-val) (remove* altns (point-rec-altns old-val)))))
-			      rel-points)))]
-	 [alts->pnts* (hash-remove* (alt-table-alt->points atab)
-				    altns)]
-	 [alts->done?* (hash-remove* (alt-table-alt->done? atab)
-				     altns)])
+          (apply append
+           (map (curry hash-ref (alt-table-alt->points atab))
+          altns)))]
+   [pnts->alts* (let ([pnts->alts (alt-table-point->alts atab)])
+      (hash-set-lsts
+       pnts->alts rel-points
+       (map (λ (pnt) (let ([old-val (hash-ref pnts->alts pnt)])
+           (point-rec (point-rec-berr old-val) (remove* altns (point-rec-altns old-val)))))
+            rel-points)))]
+   [alts->pnts* (hash-remove* (alt-table-alt->points atab)
+            altns)]
+   [alts->done?* (hash-remove* (alt-table-alt->done? atab)
+             altns)])
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
 (define (atab-add-altn atab altn prec)
@@ -217,7 +217,7 @@
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
-	  (hash-keys (alt-table-alt->points atab))))
+    (hash-keys (alt-table-alt->points atab))))
 
 (define (atab-min-errors atab)
   (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
@@ -227,8 +227,8 @@
 ;; alt that is best at it.
 (define (check-completeness-invariant atab #:message [message ""])
   (if (andmap (negate (compose null? point-rec-altns
-			       (curry hash-ref (alt-table-point->alts atab))))
-	      (hash-keys (alt-table-point->alts atab)))
+             (curry hash-ref (alt-table-point->alts atab))))
+        (hash-keys (alt-table-point->alts atab)))
       atab
       (error (string-append "Completeness invariant violated. " message))))
 
@@ -237,15 +237,15 @@
 ;; it maps to, those alternatives also map back to the point.
 (define (check-reflexive-invariant atab #:message [message ""])
   (if (and (andmap (λ (altn)
-		     (andmap (λ (pnt)
-			       (member altn (point-rec-altns (hash-ref (alt-table-point->alts atab) pnt))))
-			     (hash-ref (alt-table-alt->points atab) altn)))
-		   (hash-keys (alt-table-alt->done? atab)))
-	   (andmap (λ (pnt)
-		     (andmap (λ (altn)
-			       (member pnt (hash-ref (alt-table-alt->points atab) altn)))
-			     (point-rec-altns (hash-ref (alt-table-point->alts atab) pnt))))
-		   (hash-keys (alt-table-point->alts atab))))
+         (andmap (λ (pnt)
+             (member altn (point-rec-altns (hash-ref (alt-table-point->alts atab) pnt))))
+           (hash-ref (alt-table-alt->points atab) altn)))
+       (hash-keys (alt-table-alt->done? atab)))
+     (andmap (λ (pnt)
+         (andmap (λ (altn)
+             (member pnt (hash-ref (alt-table-alt->points atab) altn)))
+           (point-rec-altns (hash-ref (alt-table-point->alts atab) pnt))))
+       (hash-keys (alt-table-point->alts atab))))
       atab
       (error (string-append "Reflexive invariant violated. " message))))
 
@@ -261,10 +261,10 @@
 
 (define (assert-points-orphaned alts->pnts opnts all-pnts #:message [msg ""])
   (hash-for-each alts->pnts
-		 (λ (altn pnts)
-		   (when (ormap (curryr member pnts) opnts)
-		     (error (string-append "Assert Failed: The given points were not orphaned. " msg)))))
+     (λ (altn pnts)
+       (when (ormap (curryr member pnts) opnts)
+         (error (string-append "Assert Failed: The given points were not orphaned. " msg)))))
   (let ([hopefully-unorphaned-points (remove* opnts all-pnts)]
-	[actually-unorphaned-points (remove-duplicates (apply append (hash-values alts->pnts)))])
+  [actually-unorphaned-points (remove-duplicates (apply append (hash-values alts->pnts)))])
     (when (ormap (negate (curryr member actually-unorphaned-points)) hopefully-unorphaned-points)
       (error (string-append "Assert Failed: Points other than the given points were orphaned. " msg)))))
