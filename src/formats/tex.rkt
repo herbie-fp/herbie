@@ -98,7 +98,9 @@
                  (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
                  (texify (abs (imag-part expr)) '+ loc))]
         [(? value?)
-         (match (string-split (texify-number expr) "e")
+         (define repr (get-representation prec))
+         (define s (bigfloat->string ((representation-repr->bf repr) expr)))
+         (match (string-split s "e")
            [(list "-inf.bf") "-\\infty"]
            [(list "+inf.bf") "+\\infty"]
            [(list num) num]
