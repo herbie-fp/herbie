@@ -135,7 +135,7 @@
                                (define repr (infer-double-representation prev val))
                                (<-all-precisions prev val repr))))
   (define err-lsts
-    (for/list ([alt alts]) (errors (alt-program alt) pcontext* (*output-prec*))))
+    (for/list ([alt alts]) (errors (alt-program alt) pcontext* (representation-name repr))))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
