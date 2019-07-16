@@ -491,7 +491,7 @@
            (for/list ([entry prevs] [idx (in-naturals)]
                       [new-pcontext (split-pcontext pcontext splitpoints
                                                     prevs precision)]
-                      [new-pcontext2 (split-pcontext pcontext2splitpoints
+                      [new-pcontext2 (split-pcontext pcontext splitpoints
                                                      prevs precision)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map interval->string entry-ivals) " or "))
