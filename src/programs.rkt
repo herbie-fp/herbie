@@ -83,13 +83,13 @@
 (define (eval-prog prog mode)
   ; Keep exact numbers exact
   (define real->precision (match mode
-    ['bf (λ (x) (->bf x (get-representation (*output-precision*))))]
-    ['fl (λ (x) (->flonum x (get-representation (*output-precision*))))]
+    ['bf (λ (x) (->bf x (get-representation (*output-prec*))))]
+    ['fl (λ (x) (->flonum x (get-representation (*output-prec*))))]
     ['ival mk-ival]
     ['nonffi identity]))
   (define precision->real (match mode
     ['bf identity]
-    ['fl (λ (x) (->flonum x (get-representation (*output-precision*))))]
+    ['fl (λ (x) (->flonum x (get-representation (*output-prec*))))]
     ['ival identity]
     ['nonffi identity]))
 
@@ -211,7 +211,6 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric expr prec var-precs)
-  (define precision (if (and (list? ctx) (not (empty? ctx))) (cdr (first ctx)) 'real))
   (define-values (expr* type)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -243,14 +242,14 @@
          (values (cons op args*)
                  (second (first (first(hash-values (operator-info op 'type))))))]
         [(? real?) (values
-                     (fl->repr expr (get-representation (match precision
+                     (fl->repr expr (get-representation (match prec
                         ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
                         [x x])))
-                     precision)]
+                     prec)]
         [(? complex?) (values expr 'complex)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
-        [(? variable?) (values expr (dict-ref ctx expr))])))
+        [(? variable?) (values expr (dict-ref var-precs expr))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
