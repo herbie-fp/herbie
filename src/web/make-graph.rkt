@@ -1,11 +1,11 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
-(require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
-(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
-(require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "common.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../alternative.rkt" "../errors.rkt" "../plot.rkt" "../interface.rkt"
+         "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
+         "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
+         "timeline.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -193,7 +193,7 @@
   (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
-  (define repr (get-representation (test-output-prec (test-success-test result))))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
   (define all-alts (test-success-all-alts result))
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
   (define newpoints (test-success-newpoints result))
