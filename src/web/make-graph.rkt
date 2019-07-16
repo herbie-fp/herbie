@@ -90,14 +90,17 @@
      (format "  :name ~s" (test-name test))
      (if (equal? (test-precondition test) 'TRUE)
          #f
-         (format "  :pre ~a" (resugar-program (test-precondition test))))
+         (format "  :pre ~a" (resugar-program (test-precondition test)
+                                              (test-output-prec test))))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test))) ; Extra newlines for clarity
+         ;; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
+                                                               (test-output-prec test)))
          #f)
-     (format "  ~a)" (resugar-program (test-input test)))))
+     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
    "\n"))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
@@ -190,8 +193,9 @@
   (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
+  (define repr (get-representation (test-output-prec (test-success-test result))))
   (define all-alts (test-success-all-alts result))
-  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
+  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
   (define newpoints (test-success-newpoints result))
   (define newexacts (test-success-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts))
@@ -443,8 +447,8 @@
         ""
         (format " < ~a" (repr->fl end (infer-representation end)))))))
 
-(define (split-pcontext pcontext splitpoints alts)
-  (define preds (splitpoints->point-preds splitpoints alts))
+(define (split-pcontext pcontext splitpoints alts precision)
+  (define preds (splitpoints->point-preds splitpoints alts precision))
 
   (for/list ([pred preds])
     (define-values (pts* exs*)
@@ -462,9 +466,9 @@
 
 (define (render-history altn pcontext pcontext2 precision)
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext precision))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 precision)))))
 
   (match altn
     [(alt prog 'start (list))
@@ -485,8 +489,10 @@
         ,@(apply
            append
            (for/list ([entry prevs] [idx (in-naturals)]
-                      [new-pcontext (split-pcontext pcontext splitpoints prevs)]
-                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
+                      [new-pcontext (split-pcontext pcontext splitpoints
+                                                    prevs precision)]
+                      [new-pcontext2 (split-pcontext pcontext2splitpoints
+                                                     prevs precision)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map interval->string entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))

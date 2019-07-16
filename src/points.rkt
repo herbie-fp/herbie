@@ -112,11 +112,12 @@
   (define log (make-hash))
   (timeline-log! 'outcomes log)
 
+  (define repr (get-representation precision))
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
   (define sampler (make-sampler pre-prog))
 
-  (define pre-fn (eval-prog pre-prog 'ival))
-  (define body-fn (eval-prog prog 'ival))
+  (define pre-fn (eval-prog pre-prog 'ival repr))
+  (define body-fn (eval-prog prog 'ival repr))
 
   (define-values (points exacts)
     (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
@@ -129,7 +130,7 @@
       (define ex
         (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
-      (define repr precision)
+      (define repr (get-representation precision))
       (cond
        [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
@@ -202,8 +203,9 @@
            (length e))
         (apply max (map ulps->bits reals)))))
 
-(define (errors prog pcontext)
-  (define fn (eval-prog prog 'fl))
+(define (errors prog pcontext prec)
+  (define repr (get-representation prec))
+  (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
       (point-error (fn point) exact))))
@@ -221,8 +223,9 @@
 
 (define (make-exacts-walkup prog pts precondition prec)
   (define <-bf (representation-bf->repr (get-representation prec)))
-  (let ([f (eval-prog prog 'bf)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
+  (define repr (get-representation prec))
+  (let ([f (eval-prog prog 'bf repr)] [n (length pts)]
+        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf repr)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (when (> prec (*max-mpfr-prec*))

@@ -31,6 +31,7 @@
                          #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
 
   (define timeline #f)
+  (define output-prec (test-output-prec test))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))])
@@ -53,13 +54,14 @@
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-specification test) (test-precondition test) (test-output-prec test))))
         (timeline-event! 'end)
-        (define end-err (errors-score (errors (alt-program alt) newcontext)))
+        (define end-err (errors-score (errors (alt-program alt) newcontext output-prec)))
 
         (define all-alts (remove-duplicates (*all-alts*)))
+        (define output-repr (get-representation output-prec))
         (define baseline-errs
-          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) context newcontext))
+          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext))
         (define oracle-errs
-          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts) newcontext))
+          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext))
 
         (debug #:from 'regime-testing #:depth 1
                "Baseline error score:" (errors-score baseline-errs))
@@ -77,7 +79,8 @@
                "End program error score:" end-err)
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
-                 "Target error score:" (errors-score (errors (test-target test) newcontext))))
+                 "Target error score:" (errors-score
+                                         (errors (test-target test) newcontext output-prec))))
         `(good ,(bf-precision) ,warning-log
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,baseline-errs ,oracle-errs ,all-alts))))
@@ -102,13 +105,13 @@
                      (- (current-inexact-milliseconds) start-time)
                      (reverse (unbox timeline))
                      warnings start end points exacts
-                     (errors (alt-program start) context)
-                     (errors (alt-program end) context)
+                     (errors (alt-program start) context output-prec)
+                     (errors (alt-program end) context output-prec)
                      newpoints newexacts
-                     (errors (alt-program start) newcontext)
-                     (errors (alt-program end) newcontext)
+                     (errors (alt-program start) newcontext output-prec)
+                     (errors (alt-program end) newcontext output-prec)
                      (if (test-output test)
-                         (errors (test-target test) newcontext)
+                         (errors (test-target test) newcontext output-prec)
                          #f)
                      baseline-errs
                      oracle-errs
@@ -124,10 +127,16 @@
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
-  (table-row (test-name test) status (resugar-program (test-precondition test)) (test-output-prec test)
-             (test-vars test) (resugar-program (test-input test)) #f
-             (resugar-program (test-spec test)) (and (test-output test) (resugar-program (test-output test)))
-             #f #f #f #f #f #f #f (test-result-time result) (test-result-bits result) link))
+  (table-row (test-name test) status
+             (resugar-program (test-precondition test) (test-output-prec test))
+             (test-output-prec test)
+             (test-vars test)
+             (resugar-program (test-input test) (test-output-prec test)) #f
+             (resugar-program (test-spec test) (test-output-prec test))
+             (and (test-output test)
+                  (resugar-program (test-output test) (test-output-prec test)))
+             #f #f #f #f #f #f #f (test-result-time result)
+             (test-result-bits result) link))
 
 (define (get-table-data result link)
   (define test (test-result-test result))
@@ -145,8 +154,8 @@
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
 
-    ;; TODO: this is broken because errors are always ordinary values now!
     (define binary64 (get-representation 'binary64))
+    ;; TODO: this is broken because errors are always ordinary values now!
     (define-values (reals infs) (partition (curryr ordinary-value? binary64)
                                            (map - end-errors start-errors)))
     (define-values (good-inf bad-inf) (partition positive? infs))
@@ -166,7 +175,9 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (resugar-program (program-body (alt-program (test-success-end-alt result))))]
+                 [output (resugar-program
+                           (program-body (alt-program (test-success-end-alt result)))
+                           (test-output-prec test))]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score] [inf- (length good-inf)] [inf+ (length bad-inf)])]
    [(test-failure? result)

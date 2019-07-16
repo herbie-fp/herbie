@@ -80,16 +80,16 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode)
+(define (eval-prog prog mode repr)
   ; Keep exact numbers exact
   (define real->precision (match mode
-    ['bf (λ (x) (->bf x (get-representation (*output-prec*))))]
-    ['fl (λ (x) (->flonum x (get-representation (*output-prec*))))]
+    ['bf (λ (x) (->bf x repr))]
+    ['fl (λ (x) (->flonum x repr))]
     ['ival mk-ival]
     ['nonffi identity]))
   (define precision->real (match mode
     ['bf identity]
-    ['fl (λ (x) (->flonum x (get-representation (*output-prec*))))]
+    ['fl (λ (x) (->flonum x repr))]
     ['ival identity]
     ['nonffi identity]))
 
@@ -109,9 +109,11 @@
     (precision->real (apply fn (map real->precision pts)))))
 
 (define (eval-const-expr expr)
-  ((eval-prog `(λ () ,expr) 'nonffi) '()))
+  ;; When we are in nonffi mode, we don't use repr, so pass in #f
+  ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
 
 (module+ test
+  (define repr (get-representation 'binary64))
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
   (check-equal? (eval-const-expr 'PI) pi)
   (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
@@ -130,8 +132,9 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv ((eval-prog e 'ival) p))
-      (define val ((eval-prog e 'bf) p))
+      ;; When we are in ival mode, we don't use repr, so pass in #f
+      (define iv ((eval-prog e 'ival #f) p))
+      (define val ((eval-prog e 'bf (get-representation 'binary64)) p))
       (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 
@@ -261,7 +264,7 @@
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
-(define (expand-parametric-reverse expr)
+(define (expand-parametric-reverse expr repr)
   (define expr*
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -275,7 +278,7 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (value->string expr (get-representation (*output-prec*)))]
+        [(? value?) (value->string expr repr)]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)
@@ -283,8 +286,9 @@
 (define (desugar-program prog prec var-precs)
   (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
 
-(define (resugar-program prog)
-  (expand-parametric-reverse prog))
+(define (resugar-program prog prec)
+  (define repr (get-representation prec))
+  (expand-parametric-reverse prog repr))
 
 (define (replace-vars dict expr)
   (cond

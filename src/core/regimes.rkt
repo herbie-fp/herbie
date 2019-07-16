@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../type-check.rkt" "../syntax/types.rkt")
+(require "../type-check.rkt" "../syntax/types.rkt" "../interface.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 (require (submod "../timeline.rkt" debug))
 
@@ -31,7 +31,7 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts)
+(define (infer-splitpoints alts precision)
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
@@ -39,18 +39,19 @@
         (program-variables (*start-prog*))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
+  (define repr (get-representation precision))
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
     (reap [sow]
       (for ([bexpr branch-exprs])
-        (define unsound-option (option-on-expr alts bexpr))
+        (define unsound-option (option-on-expr alts bexpr repr))
         (sow unsound-option)
         (define sound-alts (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
         (when (and (> (length sound-alts) 1)
                    (for/or ([si (option-split-indices unsound-option)])
                      (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
-          (sow (option-on-expr sound-alts bexpr))))))
+          (sow (option-on-expr sound-alts bexpr repr))))))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
@@ -115,26 +116,26 @@
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
 
-(define (sort-context-on-expr context expr variables)
+(define (sort-context-on-expr context expr variables repr)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   (λ (x1 x2)
           (define repr (infer-double-representation x1 x2))
           (</total x1 x2 repr))
-       #:key (compose (eval-prog `(λ ,variables ,expr) 'fl) car))])
+       #:key (compose (eval-prog `(λ ,variables ,expr) 'fl repr) car))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
 
-(define (option-on-expr alts expr)
+(define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define vars (program-variables (*start-prog*)))
-  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars))
+  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
-  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl) pts))
+  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl repr) pts))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
                                (define repr (infer-double-representation prev val))
                                (<-all-precisions prev val repr))))
   (define err-lsts
-    (for/list ([alt alts]) (errors (alt-program alt) pcontext*)))
+    (for/list ([alt alts]) (errors (alt-program alt) pcontext* (*output-prec*))))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
@@ -154,21 +155,22 @@
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
+    (define repr (get-representation 'binary64))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts 'x)
+           (option-on-expr alts 'x repr)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '1)
+           (option-on-expr alts '1 repr)
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '(if (== x 0.5) 1 +nan.0))
+           (option-on-expr alts '(if (== x 0.5) 1 +nan.0) repr)
            '(0))))
 
 ;; (pred p1) and (not (pred p2))
@@ -193,8 +195,9 @@
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
 (define (sindices->spoints points expr alts sindices precision)
+  (define repr (get-representation precision))
   (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl))
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
   (define progs (map (compose (curryr extract-subexpression expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) expr))
@@ -207,7 +210,8 @@
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true])
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
-      (< (errors-score (errors prog1 ctx)) (errors-score (errors prog2 ctx))))
+      (< (errors-score (errors prog1 ctx (*output-prec*)))
+         (errors-score (errors prog2 ctx (*output-prec*)))))
     (define pt (binary-search-floats pred v1 v2))
     (timeline-push! 'bstep v1 v2 iters pt)
     pt)
@@ -318,13 +322,14 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-indices (last final))))
 
-(define (splitpoints->point-preds splitpoints alts)
+(define (splitpoints->point-preds splitpoints alts precision)
   (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
   (assert (nan? (sp-point (last splitpoints))))
 
+  (define repr (get-representation precision))
   (define vars (program-variables (alt-program (first alts))))
   (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
-  (define prog (eval-prog expr 'fl))
+  (define prog (eval-prog expr 'fl repr))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
@@ -345,7 +350,10 @@
             (sp 0 '(/ y x) +inf.0)
             (sp 1 '(/ y x) +nan.0)))
     (match-define (list p0? p1? p2?)
-                  (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))))
+                  (splitpoints->point-preds
+                    sps
+                    (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
+                    (get-representation 'binary64)))
 
     (check-true (p0? '(0 -1)))
     (check-true (p2? '(-1 1)))

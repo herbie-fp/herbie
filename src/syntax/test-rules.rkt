@@ -25,13 +25,13 @@
     [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
 (define (ival-ground-truth fv p repr)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival) x (representation-name repr))))
+  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x (representation-name repr))))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (f x)))
 
 (define (bf-ground-truth fv p repr)
-  (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf))))
+  (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf repr))))
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
@@ -77,8 +77,8 @@
         ['complex (make-rectangular (sample-double) (sample-double))])))
   (define point-sequence (in-producer make-point))
   (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-  (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-  (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+  (define prog1 (eval-prog `(λ ,fv ,p1) 'fl (get-representation 'binary64)))
+  (define prog2 (eval-prog `(λ ,fv, p2) 'fl (get-representation 'binary64)))
   (define ex1 (map prog1 points))
   (define ex2 (map prog2 points))
   (for ([pt points] [v1 ex1] [v2 ex2])

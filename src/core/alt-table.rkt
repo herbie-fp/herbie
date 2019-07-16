@@ -6,10 +6,10 @@
 
 (provide
  (contract-out
-  (make-alt-table (pcontext? alt? . -> . alt-table?))
+  (make-alt-table (pcontext? alt? any/c . -> . alt-table?))
   (atab-all-alts (alt-table? . -> . (listof alt?)))
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-  (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
+  (atab-add-altns (alt-table? (listof alt?) any/c . -> . alt-table?))
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
 			     #:only-fresh boolean?
 			     . -> . (values alt? alt-table?)))
@@ -20,7 +20,7 @@
   (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))
-  (atab-new-context (alt-table? pcontext? . -> . alt-table?))))
+  (atab-new-context (alt-table? pcontext? any/c . -> . alt-table?))))
 
 ;; Public API
 
@@ -30,31 +30,31 @@
 
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
-(define (make-alt-table context initial-alt)
-   (alt-table (make-immutable-hash
-	       (for/list ([(pt ex) (in-pcontext context)]
-			  [err (errors (alt-program initial-alt) context)])
-		 (cons pt (point-rec err (list initial-alt)))))
-	      (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
-				  pt))
-	      (hash initial-alt #f)
-	      context))
+(define (make-alt-table context initial-alt prec)
+  (alt-table (make-immutable-hash
+	      (for/list ([(pt ex) (in-pcontext context)]
+	 	  [err (errors (alt-program initial-alt) context prec)])
+	  (cons pt (point-rec err (list initial-alt)))))
+	     (hash initial-alt (for/list ([(pt ex) (in-pcontext context)])
+	 		  pt))
+	     (hash initial-alt #f)
+	     context))
 
-(define (atab-new-context atab ctx)
+(define (atab-new-context atab ctx prec)
   (let* ([old-done (alt-table-alt->done? atab)]
          [alts (atab-all-alts atab)]
-         [table-init (make-alt-table ctx (car alts))])
-    (struct-copy alt-table (atab-add-altns table-init (cdr alts))
+         [table-init (make-alt-table ctx (car alts) prec)])
+    (struct-copy alt-table (atab-add-altns table-init (cdr alts) prec)
                  [alt->done? old-done])))
 
-(define (atab-add-altns atab altns)
+(define (atab-add-altns atab altns prec)
   (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
   (define altns*
     (filter
      (negate (compose (curry set-member? prog-set) alt-program))
      (remove-duplicates altns #:key alt-program)))
   (for/fold ([atab atab]) ([altn altns*])
-    (atab-add-altn atab altn)))
+    (atab-add-altn atab altn prec)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
 		       #:only-fresh [only-fresh? #t])
@@ -200,8 +200,8 @@
 				     altns)])
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
-(define (atab-add-altn atab altn)
-  (define errs (errors (alt-program altn) (alt-table-context atab)))
+(define (atab-add-altn atab altn prec)
+  (define errs (errors (alt-program altn) (alt-table-context atab) prec))
   (match-define (alt-table point->alts alt->points _ _) atab)
   (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
