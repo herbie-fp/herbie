@@ -57,9 +57,8 @@
   (define ex2 (map prog2 points))
   (define errs
     (for/list ([pt points] [v1 ex1] [v2 ex2]
-               #:when (and (ordinary-value? v1 (infer-representation v1))
-                           (ordinary-value? v2 (infer-representation v2))))
-      (define repr (infer-double-representation v1 v2))
+               #:when (and (ordinary-value? v1 repr)
+                           (ordinary-value? v2 repr)))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 0))))
