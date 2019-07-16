@@ -39,12 +39,13 @@
     ("C" . ,program->c)))
 
 (define (render-program #:to [result #f] test)
+  (define output-prec (test-output-prec test))
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test) (*output-prec*)) "\\]")))
+                  "\\[" ,(texify-expr (test-precondition test) output-prec) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([(lang fn) (in-dict languages)])
@@ -52,12 +53,12 @@
      (div ([class "implementation"] [data-language "Math"])
        (div ([class "program math"]) "\\[" ,(texify-prog
                                               (test-program test)
-                                              (*output-prec*)) "\\]")
+                                              output-prec) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
                (div ([class "program math"]) "\\[" ,(texify-prog
                                                       result
-                                                      (*output-prec*)) "\\]"))
+                                                      output-prec) "\\]"))
              `()))
      ,@(for/list ([(lang fn) (in-dict languages)])
          `(div ([class "implementation"] [data-language ,lang])
