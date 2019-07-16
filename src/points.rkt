@@ -272,10 +272,6 @@
      (and (andmap identity pts) pts)]
     [_ #f]))
 
-(define (filter-valid-points prog precondition points)
-  (define f (eval-prog (list 'λ (program-variables prog) precondition) 'fl))
-  (filter f points))
-
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition precision)
   (timeline-log! 'method 'halfpoints)
