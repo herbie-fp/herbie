@@ -219,7 +219,14 @@
          (define sigs (hash-ref parametric-operators op))
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
-             (loop arg)))
+             ;; TODO(interface): Right now we check if the actual-type is binary64
+             ;; or binary32 because we don't have a distinction between them (both
+             ;; are included in real). Once the operator code is fixed, this check
+             ;; can be removed.
+             (define-values (arg* actual-type) (loop arg))
+             (if (set-member? '(binary64 binary32) actual-type)
+               (values arg* 'real)
+               (values arg* actual-type))))
          (match-define (cons op* rtype)
            (for/or ([sig sigs])
              (match-define (list* true-name rtype atypes) sig)
