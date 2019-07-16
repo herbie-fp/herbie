@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "enode.rkt" "egraph.rkt" "ematch.rkt")
+(require "egraph.rkt" "ematch.rkt" "extraction.rkt")
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
@@ -27,17 +27,24 @@
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
+  (define start-time (current-inexact-milliseconds))
   (define eg (mk-egraph))
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
+  (define ex (apply mk-extractor ens))
 
   (for/and ([iter (in-naturals 0)])
-    (debug #:from 'simplify #:depth 2 (format "iteration ~a: ~a enodes" iter (egraph-cnt eg)))
-    (timeline-push! 'egraph iter (egraph-cnt eg))
+    (extractor-iterate ex)
+    (define cost (apply extractor-cost ex ens))
+    (debug #:from 'simplify #:depth 2 "iteration " iter ": " (egraph-cnt eg) " enodes " "(cost " cost ")")
+    (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
     (one-iter eg rls))
-  (debug #:from 'simplify #:depth 2 (format "iteration complete: ~a enodes" (egraph-cnt eg)))
-  (timeline-push! 'egraph "done" (egraph-cnt eg))
+  (extractor-iterate ex)
+  (define cost (apply extractor-cost ex ens))
+  (debug #:from 'simplify #:depth 2
+         "iteration done: " (egraph-cnt eg) " enodes " "(cost " cost ")")
+  (timeline-push! 'egraph "done" (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
 
-  (define out (apply extract-smallest eg ens))
+  (define out (map cdr (apply extractor-extract ex ens)))
   (debug #:from 'simplify (format "Simplified to:\n  ~a" (string-join (map ~a out) "\n  ")))
   out)
 
@@ -88,61 +95,6 @@
         (when (and ((value-of type) res) (exact-value? type res))
           (define en* (mk-enode-rec! eg (val-to-type type res)))
           (merge-egraph-nodes! eg en en*))))))
-  
-
-(define (extract-smallest eg . ens)
-  ;; The work list maps enodes to a pair (cost . expr) of that node's
-  ;; cheapest representation and its cost. If the cost is #f, the expr
-  ;; is also #f, and in this case no expression is yet known for that
-  ;; enode.
-  (define work-list (make-hash))
-  (for ([en ens])
-    (hash-set! work-list (pack-leader en) (cons #f #f)))
-
-  ;; Extracting the smallest expression means iterating, until
-  ;; fixedpoint, either discovering new relevant expressions or
-  ;; cheaper expressions for some expression.
-  (let loop ([iter 0])
-    (define changed? #f)
-    (debug #:from 'simplify #:depth 2
-           (format "Extracting #~a: cost ~a inf + ~a"
-                   iter (count (compose not car) (hash-values work-list))
-                   (apply + (filter identity (map car (hash-values work-list))))))
-    (for ([leader (in-list (hash-keys work-list))])
-      (define vars (enode-vars leader))
-      (define vars*
-        (filter identity
-                (for/list ([var vars])
-                  (match var
-                    [(list op args ...)
-                     (define args*
-                       (for/list ([en args])
-                         (define subleader (pack-leader en))
-                         (match (hash-ref work-list subleader (cons #f #t))
-                           [(cons (? number? cost) best-arg)
-                            best-arg]
-                           [(cons #f not-in-hash?)
-                            (hash-set! work-list subleader (cons #f #f))
-                            (set! changed? (or changed? not-in-hash?))
-                            #f])))
-                     (if (andmap identity args*)
-                         (cons op args*)
-                         #f)]
-                    [_
-                     var]))))
-      (match vars*
-        ['() #f]
-        [_
-         (define best-resolution (argmin expression-cost vars*))
-         (define cost (expression-cost best-resolution))
-         (define old-cost (car (hash-ref work-list leader)))
-         (when (or (not old-cost) (< cost old-cost))
-           (hash-set! work-list leader (cons cost best-resolution))
-           (set! changed? #t))]))
-    (if changed?
-        (loop (+ iter 1))
-        (for/list ([en ens])
-          (cdr (hash-ref work-list (pack-leader en)))))))
 
 (module+ test
   (define test-exprs

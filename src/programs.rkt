@@ -13,7 +13,7 @@
          location? expr?
          location-do location-get
          eval-prog eval-const-expr
-         compile expression-cost program-cost
+         compile
          free-variables replace-expression
          desugar-program resugar-program)
 
@@ -81,8 +81,17 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode)
-  (define real->precision (match mode ['bf ->bf] ['fl ->flonum] ['ival mk-ival] ['nonffi identity])) ; Keep exact numbers exact
-  (define precision->real (match mode ['bf identity] ['fl ->flonum] ['ival identity] ['nonffi identity]))
+  ; Keep exact numbers exact
+  (define real->precision (match mode
+                            ['bf (λ (x) (->bf x (infer-representation x)))]
+                            ['fl (λ (x) (->flonum x (infer-representation x)))]
+                            ['ival mk-ival]
+                            ['nonffi identity]))
+  (define precision->real (match mode
+                            ['bf identity]
+                            ['fl (λ (x) (->flonum x (infer-representation x)))]
+                            ['ival identity]
+                            ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
@@ -150,15 +159,6 @@
 
   (let ([reg (compile-one expr)])
     `(let* ,(reverse assignments) ,reg)))
-
-(define (program-cost prog)
-  (expression-cost (program-body prog)))
-
-(define (expression-cost expr)
-  (for/sum ([step (second (compile expr))])
-    (if (list? (second step))
-        (operator-info (caadr step) 'cost)
-        1)))
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)

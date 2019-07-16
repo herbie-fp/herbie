@@ -23,9 +23,15 @@
              (λ ()
                 (match expr
                   [(? constant?)
-                   (cons (repeat (->bf expr)) (repeat 1))]
+                   (define bf
+                     (if (symbol? expr)
+                         ((constant-info expr 'bf))
+                         (->bf expr (infer-representation expr))))
+                   (cons (repeat bf) (repeat 1))]
                   [(? variable?)
-                   (cons (map ->bf (dict-ref vars expr)) (repeat 1))]
+                   (cons (map (curryr ->bf (get-representation 'binary64))
+                              (dict-ref vars expr))
+                         (repeat 1))]
                   [`(if ,c ,ift ,iff)
                    (let ([exact-ift (car (localize-on-expression ift vars cache))]
                          [exact-iff (car (localize-on-expression iff vars cache))]
@@ -47,7 +53,9 @@
 
                    (define exact (map (curry apply (operator-info f 'bf)) argexacts))
                    (define approx (map (curry apply (operator-info f 'fl)) argapprox))
-                   (cons exact (map (λ (ex ap) (+ 1 (abs (ulp-difference (<-bf ex) ap)))) exact approx))]))))
+                   (cons exact (map (λ (ex ap)
+                                       (define repr (infer-double-representation (<-bf ex) ap))
+                                       (+ 1 (abs (ulp-difference (<-bf ex) ap repr)))) exact approx))]))))
 
 (register-reset
  (λ ()
