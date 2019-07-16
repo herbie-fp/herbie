@@ -109,7 +109,8 @@
 	(void))))
 
 (define (best-alt alts prec)
-  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) prec)))
+  (define repr (get-representation prec))
+  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
 		   alts))
 
 (define (choose-best-alt!)
@@ -346,10 +347,11 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
+  (define repr (get-representation precision))
   (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
-         (< (errors-score (errors (*start-prog*) (*pcontext*) precision))
+         (< (errors-score (errors (*start-prog*) (*pcontext*) repr))
             0.1))
     (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
     (make-alt (*start-prog*))]

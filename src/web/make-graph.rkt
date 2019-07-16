@@ -465,10 +465,11 @@
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (define (render-history altn pcontext pcontext2 precision)
+  (define repr (get-representation precision))
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext precision))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 precision)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 repr)))))
 
   (match altn
     [(alt prog 'start (list))

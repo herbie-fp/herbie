@@ -135,7 +135,7 @@
                                (define repr (infer-double-representation prev val))
                                (<-all-precisions prev val repr))))
   (define err-lsts
-    (for/list ([alt alts]) (errors (alt-program alt) pcontext* (representation-name repr))))
+    (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
   (for ([pidx (map si-pidx (drop-right split-indices 1))])
@@ -210,8 +210,8 @@
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true])
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
-      (< (errors-score (errors prog1 ctx (*output-prec*)))
-         (errors-score (errors prog2 ctx (*output-prec*)))))
+      (< (errors-score (errors prog1 ctx repr))
+         (errors-score (errors prog2 ctx repr))))
     (define pt (binary-search-floats pred v1 v2))
     (timeline-push! 'bstep v1 v2 iters pt)
     pt)

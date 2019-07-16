@@ -203,8 +203,7 @@
            (length e))
         (apply max (map ulps->bits reals)))))
 
-(define (errors prog pcontext prec)
-  (define repr (get-representation prec))
+(define (errors prog pcontext repr)
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])

@@ -32,6 +32,7 @@
 
   (define timeline #f)
   (define output-prec (test-output-prec test))
+  (define output-repr (get-representation output-prec))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))])
@@ -46,18 +47,18 @@
                        (*num-iterations*)
                        #:precondition (test-precondition test)
                        #:specification (test-specification test)
-                       #:precision (test-output-prec test)))
+                       #:precision output-prec))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-specification test) (test-precondition test) (test-output-prec test))))
+            (prepare-points (test-specification test) (test-precondition test) output-prec)))
         (timeline-event! 'end)
-        (define end-err (errors-score (errors (alt-program alt) newcontext output-prec)))
+        (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
         (define all-alts (remove-duplicates (*all-alts*)))
-        (define output-repr (get-representation output-prec))
         (define baseline-errs
           (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext))
         (define oracle-errs
@@ -80,7 +81,7 @@
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score
-                                         (errors (test-target test) newcontext output-prec))))
+                                         (errors (test-target test) newcontext output-repr))))
         `(good ,(bf-precision) ,warning-log
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
                ,baseline-errs ,oracle-errs ,all-alts))))
@@ -105,13 +106,13 @@
                      (- (current-inexact-milliseconds) start-time)
                      (reverse (unbox timeline))
                      warnings start end points exacts
-                     (errors (alt-program start) context output-prec)
-                     (errors (alt-program end) context output-prec)
+                     (errors (alt-program start) context output-repr)
+                     (errors (alt-program end) context output-repr)
                      newpoints newexacts
-                     (errors (alt-program start) newcontext output-prec)
-                     (errors (alt-program end) newcontext output-prec)
+                     (errors (alt-program start) newcontext output-repr)
+                     (errors (alt-program end) newcontext output-repr)
                      (if (test-output test)
-                         (errors (test-target test) newcontext output-prec)
+                         (errors (test-target test) newcontext output-repr)
                          #f)
                      baseline-errs
                      oracle-errs
