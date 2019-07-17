@@ -157,17 +157,17 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (points->doubles pts)
+(define (points->doubles pts repr)
   (cond
     [(or (real? (caar pts)) (complex? (caar pts))) pts]
     [else
-     (define repr (infer-representation (caar pts)))
      (map (curry map (curryr repr->fl repr)) pts)]))
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
-  (define pts (points->doubles (test-success-newpoints result)))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
@@ -180,7 +180,8 @@
       ['g (values *green-theme* test-success-target-error)]
       ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define pts (points->doubles (test-success-newpoints result)))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
   (define err (accessor result))
 
   (herbie-plot
@@ -434,18 +435,18 @@
 
 (struct interval (alt-idx start-point end-point expr))
 
-(define (interval->string ival)
+(define (interval->string ival repr)
   (define start (interval-start-point ival))
   (define end (interval-end-point ival))
   (string-join
    (list
     (if start
-        (format "~a < " (repr->fl start (infer-representation start)))
+        (format "~a < " (repr->fl start repr))
         "")
     (~a (interval-expr ival))
     (if (equal? end +nan.0)
         ""
-        (format " < ~a" (repr->fl end (infer-representation end)))))))
+        (format " < ~a" (repr->fl end repr))))))
 
 (define (split-pcontext pcontext splitpoints alts precision)
   (define repr (get-representation precision))
@@ -496,7 +497,7 @@
                       [new-pcontext2 (split-pcontext pcontext splitpoints
                                                      prevs precision)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-             (define condition (string-join (map interval->string entry-ivals) " or "))
+             (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
                (ol ,@(render-history entry new-pcontext new-pcontext2 precision))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
