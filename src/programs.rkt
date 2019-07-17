@@ -82,9 +82,22 @@
 
 (define (eval-prog prog mode repr)
   ; Keep exact numbers exact
+  ;; TODO(interface): Right now, real->precision and precision->real are
+  ;; mixed up for bf and fl because there is a mismatch between the fpbench
+  ;; input format for how we specify complex numbers (which is the format
+  ;; the interface will ultimately use), and the 1.3 herbie input format
+  ;; (which has no way of specifying complex numbers as input.) Once types
+  ;; and representations are cleanly distinguished, we can get rid of the
+  ;; additional check to see if the repr is complex.
   (define real->precision (match mode
-    ['bf (λ (x) (->bf x repr))]
-    ['fl (λ (x) (->flonum x repr))]
+    ['bf
+     (if (eq? (representation-name repr) 'complex)
+       bf
+       (λ (x) (->bf x repr)))]
+    ['fl
+     (if (eq? (representation-name repr) 'complex)
+       identity
+       (λ (x) (->flonum x repr)))]
     ['ival mk-ival]
     ['nonffi identity]))
   (define precision->real (match mode
