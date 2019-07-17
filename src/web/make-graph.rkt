@@ -448,7 +448,8 @@
         (format " < ~a" (repr->fl end (infer-representation end)))))))
 
 (define (split-pcontext pcontext splitpoints alts precision)
-  (define preds (splitpoints->point-preds splitpoints alts precision))
+  (define repr (get-representation precision))
+  (define preds (splitpoints->point-preds splitpoints alts repr))
 
   (for/list ([pred preds])
     (define-values (pts* exs*)

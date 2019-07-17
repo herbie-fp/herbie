@@ -322,11 +322,10 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-indices (last final))))
 
-(define (splitpoints->point-preds splitpoints alts precision)
+(define (splitpoints->point-preds splitpoints alts repr)
   (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
   (assert (nan? (sp-point (last splitpoints))))
 
-  (define repr (get-representation precision))
   (define vars (program-variables (alt-program (first alts))))
   (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
   (define prog (eval-prog expr 'fl repr))
