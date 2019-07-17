@@ -77,7 +77,7 @@
   (define point-sequence (in-producer make-point))
   (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl (get-representation 'binary64)))
-  (define prog2 (eval-prog `(λ ,fv, p2) 'fl (get-representation 'binary64)))
+  (define prog2 (eval-prog `(λ ,fv ,p2) 'fl (get-representation 'binary64)))
   (define ex1 (map prog1 points))
   (define ex2 (map prog2 points))
   (for ([pt points] [v1 ex1] [v2 ex2])
