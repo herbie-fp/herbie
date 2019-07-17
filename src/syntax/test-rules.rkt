@@ -57,6 +57,7 @@
   (define ex2 (map prog2 points))
   (define errs
     (for/list ([pt points] [v1 ex1] [v2 ex2]
+               #:unless (or (eq? v1 +nan.0) (eq? v2 +nan.0))
                #:when (and (ordinary-value? v1 repr)
                            (ordinary-value? v2 repr)))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]

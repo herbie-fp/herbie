@@ -86,12 +86,7 @@
             (cond
              [err
               (log! 'nan precision pt)
-              ;; TODO(interface): Right now we have this weird check because we are
-              ;; are mixing up types and representations. Once we have a clean
-              ;; distinction, this check should be propagated out.
-              (if (and (eq? prec 'bool) (eq? lo hi))
-                lo
-                +nan.0)]
+              +nan.0]
              [(and (not err?) (or (equal? lo* hi*)
                                   (and (equal? lo* -0.0) (equal? hi* +0.0))
                                   (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
