@@ -57,9 +57,8 @@
 (define (mk-ival x)
   (match x
     [(? real?)
-     (define err? (or (nan? x) (infinite? x)))
      (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
-     (ival x* x* err? err?)]
+     (ival x* x* #f #f)]
     [(? boolean?)
      (ival x x #f #f)]))
 
