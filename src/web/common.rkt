@@ -35,8 +35,9 @@
                          ,@values)))
 
 (define languages
-  `(("TeX" . ,(curryr texify-prog (*output-prec*)))
-    ("C" . ,program->c)))
+  `(("TeX" . ,texify-prog)
+    ;; TODO(interface): currently program->c doesn't take the repr into account
+    ("C" . ,(λ (prog repr) (program->c prog)))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
@@ -62,8 +63,8 @@
              `()))
      ,@(for/list ([(lang fn) (in-dict languages)])
          `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,(fn (test-program test)))
+            (pre ([class "program"]) ,(fn (test-program test) output-prec))
             ,@(if result
                   `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,(fn result)))
+                    (pre ([class "program"]) ,(fn result output-prec)))
                   `())))))
