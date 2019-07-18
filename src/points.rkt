@@ -171,8 +171,7 @@
     (prepare-points-halfpoints prog precondition precision range-table)]))
 
 
-(define (point-error out exact)
-  (define repr (infer-double-representation out exact))
+(define (point-error out exact repr)
   (if (ordinary-value? out repr)
       (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
@@ -180,15 +179,18 @@
 (define (eval-errors eval-fn pcontext)
   (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (eval-fn point) exact)))
+    (define repr (infer-double-representation (eval-fn point) exact))
+    (point-error (eval-fn point) exact repr)))
 
 (define (oracle-error-idx alt-bodies points exacts)
   (for/list ([point points] [exact exacts])
-    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
+    (define repr (infer-double-representation ((list-ref alt-bodies i) point) exact))
+    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact repr)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error (alt point) exact)) alt-bodies))))
+    (define repr (infer-double-representation (alt point) exact))
+    (argmin identity (map (λ (alt) (point-error (alt point) exact repr)) alt-bodies))))
 
 (define (baseline-error alt-bodies pcontext newpcontext)
   (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
@@ -207,7 +209,7 @@
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (fn point) exact))))
+      (point-error (fn point) exact repr))))
 
 ;; Old, halfpoints method of sampling points
 
