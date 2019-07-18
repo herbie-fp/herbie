@@ -526,7 +526,8 @@
     (or (ival-err? ival)
         (if (bigfloat? pt)
             (if (bfnan? pt)
-                (ival-err? ival)
+                (or (ival-err? ival)
+                    (and (bfnan? (ival-lo ival)) (bfnan? (ival-hi ival))))
                 (and (bflte? (ival-lo ival) pt) (bflte? pt (ival-hi ival))))
             (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
 
