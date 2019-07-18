@@ -62,7 +62,7 @@
         (define baseline-errs
           (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext output-repr))
         (define oracle-errs
-          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext))
+          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext output-repr))
 
         (debug #:from 'regime-testing #:depth 1
                "Baseline error score:" (errors-score baseline-errs))

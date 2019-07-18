@@ -181,14 +181,12 @@
   (for/list ([(point exact) (in-pcontext pcontext)])
     (point-error (eval-fn point) exact repr)))
 
-(define (oracle-error-idx alt-bodies points exacts)
+(define (oracle-error-idx alt-bodies points exacts repr)
   (for/list ([point points] [exact exacts])
-    (define repr (infer-double-representation ((list-ref alt-bodies i) point) exact))
     (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact repr)) (range (length alt-bodies))))))
 
-(define (oracle-error alt-bodies pcontext)
+(define (oracle-error alt-bodies pcontext repr)
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (define repr (infer-double-representation (alt point) exact))
     (argmin identity (map (λ (alt) (point-error (alt point) exact repr)) alt-bodies))))
 
 (define (baseline-error alt-bodies pcontext newpcontext repr)

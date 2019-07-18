@@ -201,7 +201,7 @@
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
   (define newpoints (test-success-newpoints result))
   (define newexacts (test-success-newexacts result))
-  (oracle-error-idx all-alt-bodies newpoints newexacts))
+  (oracle-error-idx all-alt-bodies newpoints newexacts repr))
 
 (define (make-contour-plot point-colors var-idxs title out)
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
