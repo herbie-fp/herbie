@@ -3,7 +3,7 @@
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
+(require "../programs.rkt" "../float.rkt")
 
 (define num-test-points 1000)
 

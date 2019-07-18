@@ -1,8 +1,8 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt")
-(require "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt"
+         "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -90,14 +90,8 @@
   ;; and representations are cleanly distinguished, we can get rid of the
   ;; additional check to see if the repr is complex.
   (define real->precision (match mode
-    ['bf
-     (if (eq? (representation-name repr) 'complex)
-       bf
-       (λ (x) (->bf x repr)))]
-    ['fl
-     (if (eq? (representation-name repr) 'complex)
-       identity
-       (λ (x) (->flonum x repr)))]
+    ['bf (curryr ->bf repr)]
+    ['fl (curryr ->flonum repr)]
     ['ival mk-ival]
     ['nonffi identity]))
   (define precision->real (match mode
