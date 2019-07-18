@@ -16,7 +16,7 @@
 (define (localize-on-expression expr vars cache repr)
   (define ctx
     (for/hash ([(var vals) (in-dict vars)])
-      (values var (match (representation-name (infer-representation (first vals)))
+      (values var (match (representation-name repr)
                     [(or 'binary32 'binary64) 'real]
                     [x x]))))
   (hash-ref! cache expr
@@ -26,7 +26,7 @@
                    (define bf
                      (if (symbol? expr)
                          ((constant-info expr 'bf))
-                         (->bf expr (infer-representation expr))))
+                         (->bf expr repr)))
                    (cons (repeat bf) (repeat 1))]
                   [(? variable?)
                    ;; TODO(interface): when the syntax checker is udpated,
