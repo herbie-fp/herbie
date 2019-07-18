@@ -110,12 +110,12 @@
 
 (define (best-alt alts prec)
   (define repr (get-representation prec))
-  (argmins (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
+  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
 		   alts))
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^)
-                                  #:picking-func (λ (x) (best-alt x (*output-prec*)))
+                                  #:picking-func (curryr best-alt (*output-prec*))
                                   #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
