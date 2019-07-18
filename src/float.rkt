@@ -124,7 +124,12 @@
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)) repr)]
    [else
-    (if (and (real? x) (exact? x)) (exact->inexact x) x)]))
+    ;; TODO(interface): Once we have complex numbers as types rather than
+    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; repr->bf for everything.
+    (if (eq? (representation-name repr) 'complex)
+      (bigfloat->flonum x)
+      (if (and (real? x) (exact? x)) (exact->inexact x) x))]))
 
 (define (fl->repr x repr)
   ((representation-exact->repr repr) x))
@@ -151,7 +156,12 @@
    [(and (complex? x) (not (real? x)))
     (bigcomplex (bf (real-part x)) (bf (imag-part x)))]
    [else
-    ((representation-repr->bf repr) x)]))
+    ;; TODO(interface): Once we have complex numbers as types rather than
+    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; repr->bf for everything.
+    (if (eq? (representation-name repr) 'complex)
+      (bf x)
+      ((representation-repr->bf repr) x))]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond
