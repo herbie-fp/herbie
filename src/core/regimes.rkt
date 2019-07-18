@@ -119,7 +119,6 @@
 (define (sort-context-on-expr context expr variables repr)
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
 		   (λ (x1 x2)
-          (define repr (infer-double-representation x1 x2))
           (</total x1 x2 repr))
        #:key (compose (eval-prog `(λ ,variables ,expr) 'fl repr) car))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
@@ -132,7 +131,6 @@
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl repr) pts))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
-                               (define repr (infer-double-representation prev val))
                                (<-all-precisions prev val repr))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
@@ -174,12 +172,11 @@
            '(0))))
 
 ;; (pred p1) and (not (pred p2))
-(define (binary-search-floats pred p1 p2)
-  (define repr (infer-double-representation p1 p2))
+(define (binary-search-floats pred p1 p2 repr)
   (let ([midpoint (midpoint p1 p2 repr)])
     (cond [(< (bit-difference p1 p2 repr) 48) midpoint]
-	  [(pred midpoint) (binary-search-floats pred midpoint p2)]
-	  [else (binary-search-floats pred p1 midpoint)])))
+	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
+	  [else (binary-search-floats pred p1 midpoint repr)])))
 
 (define (extract-subexpression program expr)
   (define var (gensym 'branch))
@@ -212,7 +209,7 @@
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx repr))
          (errors-score (errors prog2 ctx repr))))
-    (define pt (binary-search-floats pred v1 v2))
+    (define pt (binary-search-floats pred v1 v2 repr))
     (timeline-push! 'bstep v1 v2 iters pt)
     pt)
 
