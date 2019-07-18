@@ -7,25 +7,9 @@
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
-         infer-representation infer-double-representation
          ->flonum ->bf random-generate fl->repr repr->fl value->string
          <-all-precisions mk-<= special-value?
          get-representation*)
-
-(define (infer-representation x)
-  (get-representation
-   (for/first ([(type rec) (in-hash type-dict)] #:when ((car rec) x))
-     (if (equal? type 'real)
-         (if (flag-set? 'precision 'double) 'binary64 'binary32)
-         type))))
-
-(define (infer-double-representation x y)
-  (define repr1 (infer-representation x))
-  (define repr2 (infer-representation y))
-  (unless (equal? repr1 repr2)
-    (error 'infer-representation "Different representations: ~a for ~a and ~a for ~a"
-           repr1 x repr2 y))
-  repr1)
 
 (define (get-representation* x)
   (match x
