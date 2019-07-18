@@ -35,6 +35,8 @@
 
 (define (make-page page out result profile?)
   (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+    (define test (test-result-test result))
+    (define precision (test-output-prec test))
     (match page
       ["graph.html"
        (match result
@@ -46,7 +48,7 @@
       ["timeline.html"
        (make-timeline result out)]
       ["timeline.json"
-       (make-timeline-json result out)]
+       (make-timeline-json result out precision)]
       [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
        (make-axis-plot result out (string->number idx))]
       [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
