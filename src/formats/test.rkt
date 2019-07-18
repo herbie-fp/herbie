@@ -22,6 +22,9 @@
   (assert-program! stx)
   (assert-program-type! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
+  ;; allowed for variables because of the syntax checker yet. This should run correctly
+  ;; once the syntax checker is updated to the FPBench 1.1 standard.
   (define arg-names (for/list ([arg args])
                       (if (list? arg)
                         (last arg)
@@ -50,11 +53,11 @@
 
   (test (~a (dict-ref prop-dict ':name body))
         arg-names
-        (desugar-program body type-ctx)
-        (desugar-program (dict-ref prop-dict ':herbie-target #f) type-ctx)
+        (desugar-program body default-prec var-precs)
+        (desugar-program (dict-ref prop-dict ':herbie-target #f) default-prec var-precs)
         (dict-ref prop-dict ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict ':spec body) type-ctx)
-        (desugar-program (dict-ref prop-dict ':pre 'TRUE) type-ctx)
+        (desugar-program (dict-ref prop-dict ':spec body) default-prec var-precs)
+        (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-prec var-precs)
         default-prec
         var-precs))
 

@@ -67,7 +67,12 @@
   (match expr
     [(? real?) 'real]
     [(? complex?) 'complex]
-    [(? value?) (infer-representation expr)]
+    [(? value?)
+     ;; TODO(interface): Once we allow for mixed-precision expressions,
+     ;; we will have to pass through what the precision is
+     (if (set-member? '(binary64 binary32) (*output-prec*))
+       'real
+       (*output-prec*))]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?) 'real] ;; TODO: assumes variable types are real
     [(list 'if cond ift iff)
@@ -78,14 +83,16 @@
 
 (module+ test
   (require rackunit)
-  (define x (new-enode '1 1))
-  (define y (new-enode '2 2))
-  (define xplusy (new-enode (list '+ x y) 3))
-  (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real)
-  (define xc (new-enode '1+2i 1))
-  (define yc (new-enode '2+3i 2))
-  (define xcplusyc (new-enode (list '+.c xc yc) 3))
-  (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex))
+  (parameterize ([*output-prec* 'binary64])
+    (define x (new-enode '1 1))
+    (define y (new-enode '2 2))
+    (define xplusy (new-enode (list '+ x y) 3))
+    (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real))
+  (parameterize ([*output-prec* 'complex])
+    (define xc (new-enode '1+2i 1))
+    (define yc (new-enode '2+3i 2))
+    (define xcplusyc (new-enode (list '+.c xc yc) 3))
+    (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex)))
   
        
 ;; Creates a new enode. Keep in mind that this is egraph-blind,

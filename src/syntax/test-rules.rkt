@@ -3,7 +3,7 @@
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "../bigcomplex.rkt" "../type-check.rkt")
+(require "../programs.rkt" "../float.rkt")
 
 (define num-test-points 1000)
 
@@ -25,13 +25,13 @@
     [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
 (define (ival-ground-truth fv p repr)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival) x (representation-name repr))))
+  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x (representation-name repr))))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (f x)))
 
 (define (bf-ground-truth fv p repr)
-  (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf))))
+  (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf repr))))
 
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
@@ -57,9 +57,9 @@
   (define ex2 (map prog2 points))
   (define errs
     (for/list ([pt points] [v1 ex1] [v2 ex2]
-               #:when (and (ordinary-value? v1 (infer-representation v1))
-                           (ordinary-value? v2 (infer-representation v2))))
-      (define repr (infer-double-representation v1 v2))
+               #:unless (or (eq? v1 +nan.0) (eq? v2 +nan.0))
+               #:when (and (ordinary-value? v1 repr)
+                           (ordinary-value? v2 repr)))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 0))))
@@ -77,8 +77,8 @@
         ['complex (make-rectangular (sample-double) (sample-double))])))
   (define point-sequence (in-producer make-point))
   (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
-  (define prog1 (eval-prog `(λ ,fv ,p1) 'fl))
-  (define prog2 (eval-prog `(λ ,fv, p2) 'fl))
+  (define prog1 (eval-prog `(λ ,fv ,p1) 'fl (get-representation 'binary64)))
+  (define prog2 (eval-prog `(λ ,fv ,p2) 'fl (get-representation 'binary64)))
   (define ex1 (map prog1 points))
   (define ex2 (map prog2 points))
   (for ([pt points] [v1 ex1] [v2 ex2])

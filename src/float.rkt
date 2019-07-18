@@ -7,25 +7,9 @@
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
-         infer-representation infer-double-representation
-         ->flonum ->bf random-generate fl->repr repr->fl
+         ->flonum ->bf random-generate fl->repr repr->fl value->string
          <-all-precisions mk-<= special-value?
          get-representation*)
-
-(define (infer-representation x)
-  (get-representation
-   (for/first ([(type rec) (in-hash type-dict)] #:when ((car rec) x))
-     (if (equal? type 'real)
-         (if (flag-set? 'precision 'double) 'binary64 'binary32)
-         type))))
-
-(define (infer-double-representation x y)
-  (define repr1 (infer-representation x))
-  (define repr2 (infer-representation y))
-  (unless (equal? repr1 repr2)
-    (error 'infer-representation "Different representations: ~a for ~a and ~a for ~a"
-           repr1 x repr2 y))
-  repr1)
 
 (define (get-representation* x)
   (match x
@@ -140,13 +124,30 @@
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)) repr)]
    [else
-    (if (and (real? x) (exact? x)) (exact->inexact x) x)]))
+    ;; TODO(interface): Once we have complex numbers as types rather than
+    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; repr->bf for everything.
+    (if (eq? (representation-name repr) 'complex)
+      (bigfloat->flonum x)
+      (if (and (real? x) (exact? x)) (exact->inexact x) x))]))
 
 (define (fl->repr x repr)
   ((representation-exact->repr repr) x))
 
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))
+
+(define (value->string n repr)
+  ;; Prints a number with relatively few digits
+  (define ->bf (representation-repr->bf repr))
+  (define <-bf (representation-bf->repr repr))
+  ;; Linear search because speed not an issue
+  (let loop ([precision 16])
+    (parameterize ([bf-precision precision])
+  (define bf (->bf n))
+  (if (=-or-nan? n (<-bf bf))
+      (bigfloat->string bf)
+      (loop (+ precision 4)))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
@@ -155,7 +156,12 @@
    [(and (complex? x) (not (real? x)))
     (bigcomplex (bf (real-part x)) (bf (imag-part x)))]
    [else
-    ((representation-repr->bf repr) x)]))
+    ;; TODO(interface): Once we have complex numbers as types rather than
+    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; repr->bf for everything.
+    (if (eq? (representation-name repr) 'complex)
+      (bf x)
+      ((representation-repr->bf repr) x))]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond

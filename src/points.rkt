@@ -112,11 +112,12 @@
   (define log (make-hash))
   (timeline-log! 'outcomes log)
 
+  (define repr (get-representation precision))
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
   (define sampler (make-sampler pre-prog))
 
-  (define pre-fn (eval-prog pre-prog 'ival))
-  (define body-fn (eval-prog prog 'ival))
+  (define pre-fn (eval-prog pre-prog 'ival repr))
+  (define body-fn (eval-prog prog 'ival repr))
 
   (define-values (points exacts)
     (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
@@ -129,7 +130,7 @@
       (define ex
         (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
 
-      (define repr (infer-representation (car pt)))
+      (define repr (get-representation precision))
       (cond
        [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
@@ -170,28 +171,27 @@
     (prepare-points-halfpoints prog precondition precision range-table)]))
 
 
-(define (point-error out exact)
-  (define repr (infer-double-representation out exact))
+(define (point-error out exact repr)
   (if (ordinary-value? out repr)
       (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
 
-(define (eval-errors eval-fn pcontext)
+(define (eval-errors eval-fn pcontext repr)
   (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (eval-fn point) exact)))
+    (point-error (eval-fn point) exact repr)))
 
-(define (oracle-error-idx alt-bodies points exacts)
+(define (oracle-error-idx alt-bodies points exacts repr)
   (for/list ([point points] [exact exacts])
-    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
+    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact repr)) (range (length alt-bodies))))))
 
-(define (oracle-error alt-bodies pcontext)
+(define (oracle-error alt-bodies pcontext repr)
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error (alt point) exact)) alt-bodies))))
+    (argmin identity (map (λ (alt) (point-error (alt point) exact repr)) alt-bodies))))
 
-(define (baseline-error alt-bodies pcontext newpcontext)
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
-  (eval-errors baseline newpcontext))
+(define (baseline-error alt-bodies pcontext newpcontext repr)
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
+  (eval-errors baseline newpcontext repr))
 
 (define (errors-score e)
   (define repr (get-representation 'binary64))
@@ -202,11 +202,11 @@
            (length e))
         (apply max (map ulps->bits reals)))))
 
-(define (errors prog pcontext)
-  (define fn (eval-prog prog 'fl))
+(define (errors prog pcontext repr)
+  (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (fn point) exact))))
+      (point-error (fn point) exact repr))))
 
 ;; Old, halfpoints method of sampling points
 
@@ -221,8 +221,9 @@
 
 (define (make-exacts-walkup prog pts precondition prec)
   (define <-bf (representation-bf->repr (get-representation prec)))
-  (let ([f (eval-prog prog 'bf)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf)])
+  (define repr (get-representation prec))
+  (let ([f (eval-prog prog 'bf repr)] [n (length pts)]
+        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf repr)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (when (> prec (*max-mpfr-prec*))
@@ -271,10 +272,6 @@
              #f)))
      (and (andmap identity pts) pts)]
     [_ #f]))
-
-(define (filter-valid-points prog precondition points)
-  (define f (eval-prog (list 'λ (program-variables prog) precondition) 'fl))
-  (filter f points))
 
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition precision)

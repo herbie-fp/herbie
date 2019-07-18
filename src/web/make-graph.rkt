@@ -1,11 +1,11 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
-(require "../alternative.rkt" "../errors.rkt" "../plot.rkt")
-(require "../formats/test.rkt" "../formats/datafile.rkt" "../formats/tex.rkt" "../formats/c.rkt")
-(require "../core/matcher.rkt" "../core/regimes.rkt" "../sandbox.rkt")
-(require "../fpcore/core2js.rkt" "timeline.rkt" "common.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../alternative.rkt" "../errors.rkt" "../plot.rkt" "../interface.rkt"
+         "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
+         "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
+         "timeline.rkt" "common.rkt")
 
 (provide all-pages make-page)
 
@@ -35,6 +35,8 @@
 
 (define (make-page page out result profile?)
   (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+    (define test (test-result-test result))
+    (define precision (test-output-prec test))
     (match page
       ["graph.html"
        (match result
@@ -46,7 +48,7 @@
       ["timeline.html"
        (make-timeline result out)]
       ["timeline.json"
-       (make-timeline-json result out)]
+       (make-timeline-json result out precision)]
       [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
        (make-axis-plot result out (string->number idx))]
       [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
@@ -90,14 +92,17 @@
      (format "  :name ~s" (test-name test))
      (if (equal? (test-precondition test) 'TRUE)
          #f
-         (format "  :pre ~a" (resugar-program (test-precondition test))))
+         (format "  :pre ~a" (resugar-program (test-precondition test)
+                                              (test-output-prec test))))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test))) ; Extra newlines for clarity
+         ;; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
+                                                               (test-output-prec test)))
          #f)
-     (format "  ~a)" (resugar-program (test-input test)))))
+     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
    "\n"))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
@@ -154,17 +159,17 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (points->doubles pts)
+(define (points->doubles pts repr)
   (cond
     [(or (real? (caar pts)) (complex? (caar pts))) pts]
     [else
-     (define repr (infer-representation (caar pts)))
      (map (curry map (curryr repr->fl repr)) pts)]))
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
-  (define pts (points->doubles (test-success-newpoints result)))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
   (herbie-plot
    #:port out #:kind 'png
    (error-axes pts #:axis idx)
@@ -177,7 +182,8 @@
       ['g (values *green-theme* test-success-target-error)]
       ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define pts (points->doubles (test-success-newpoints result)))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
   (define err (accessor result))
 
   (herbie-plot
@@ -190,11 +196,12 @@
   (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
+  (define repr (get-representation (test-output-prec (test-result-test result))))
   (define all-alts (test-success-all-alts result))
-  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl)) all-alts))
+  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
   (define newpoints (test-success-newpoints result))
   (define newexacts (test-success-newexacts result))
-  (oracle-error-idx all-alt-bodies newpoints newexacts))
+  (oracle-error-idx all-alt-bodies newpoints newexacts repr))
 
 (define (make-contour-plot point-colors var-idxs title out)
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
@@ -321,7 +328,9 @@
                (tr (th "Original") (td ,(format-bits (errors-score start-error))))
                (tr (th "Target") (td ,(format-bits (errors-score target-error))))
                (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test) ,(test-output test))) "\\]"))
+              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test)
+                                                            ,(test-output test))
+                                                        precision) "\\]"))
             "")
 
        (section ([id "history"])
@@ -430,21 +439,22 @@
 
 (struct interval (alt-idx start-point end-point expr))
 
-(define (interval->string ival)
+(define (interval->string ival repr)
   (define start (interval-start-point ival))
   (define end (interval-end-point ival))
   (string-join
    (list
     (if start
-        (format "~a < " (repr->fl start (infer-representation start)))
+        (format "~a < " (repr->fl start repr))
         "")
     (~a (interval-expr ival))
     (if (equal? end +nan.0)
         ""
-        (format " < ~a" (repr->fl end (infer-representation end)))))))
+        (format " < ~a" (repr->fl end repr))))))
 
-(define (split-pcontext pcontext splitpoints alts)
-  (define preds (splitpoints->point-preds splitpoints alts))
+(define (split-pcontext pcontext splitpoints alts precision)
+  (define repr (get-representation precision))
+  (define preds (splitpoints->point-preds splitpoints alts repr))
 
   (for/list ([pred preds])
     (define-values (pts* exs*)
@@ -461,16 +471,22 @@
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (define (render-history altn pcontext pcontext2 precision)
+  (define precision* (if (eq? precision 'real)
+                       (if (flag-set? 'precision 'double)
+                         'binary64
+                         'binary32)
+                       precision))
+  (define repr (get-representation precision*))
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 repr)))))
 
   (match altn
     [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[" ,(texify-prog prog precision*) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -485,10 +501,12 @@
         ,@(apply
            append
            (for/list ([entry prevs] [idx (in-naturals)]
-                      [new-pcontext (split-pcontext pcontext splitpoints prevs)]
-                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs)])
+                      [new-pcontext (split-pcontext pcontext splitpoints
+                                                    prevs precision)]
+                      [new-pcontext2 (split-pcontext pcontext splitpoints
+                                                     prevs precision)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-             (define condition (string-join (map interval->string entry-ivals) " or "))
+             (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
                (ol ,@(render-history entry new-pcontext new-pcontext2 precision))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
@@ -496,26 +514,28 @@
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc loc
+                                                               #:color "blue") "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc loc #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc loc
+                                                               #:color "blue") "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision*) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision*) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog #:loc (change-location cng) #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc (change-location cng) #:color "blue") "\\]")))]
     ))

@@ -1,9 +1,9 @@
 #lang racket
 
-(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt" "timeline.rkt")
-(require "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "core/simplify.rkt"
-         "core/matcher.rkt" "core/regimes.rkt")
-(require "type-check.rkt") ;; For taylor not running on complex exprs
+(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
+         "timeline.rkt" "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
+         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
+         "type-check.rkt") ;; For taylor not running on complex exprs
 
 (provide (all-defined-out))
 
@@ -69,6 +69,7 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-prec* precision)
+  ;; TODO(interface): when the syntax checker is udpated, set *var-precs* too
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
@@ -81,7 +82,7 @@
   (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-  (^table^ (make-alt-table context (make-alt prog)))
+  (^table^ (make-alt-table context (make-alt prog) precision))
   (void))
 
 ;; Information
@@ -107,13 +108,15 @@
 	(^table^ table*)
 	(void))))
 
-(define (best-alt alts)
-  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*))))
-          alts))
+(define (best-alt alts prec)
+  (define repr (get-representation prec))
+  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
+		   alts))
 
 (define (choose-best-alt!)
-  (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func best-alt
-					       #:only-fresh #t)])
+  (let-values ([(picked table*) (atab-pick-alt (^table^)
+                                  #:picking-func (curryr best-alt (*output-prec*))
+                                  #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
     (debug #:from 'pick #:depth 4 "Picked " picked)
@@ -122,7 +125,7 @@
 ;; Invoke the subsystems individually
 (define (localize!)
   (timeline-event! 'localize)
-  (define locs (localize-error (alt-program (^next-alt^))))
+  (define locs (localize-error (alt-program (^next-alt^)) (*output-prec*)))
   (for/list ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
                     (location-get loc (alt-program (^next-alt^)))
@@ -273,7 +276,7 @@
 ;; Finish iteration
 (define (finalize-iter!)
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) (^children^)))
+  (^table^ (atab-add-altns (^table^) (^children^) (*output-prec*)))
   (timeline-log! 'kept-alts (length (atab-not-done-alts (^table^))))
   (timeline-log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
   (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
@@ -281,7 +284,7 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog))))
+  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-prec*)))
   (void))
 
 (define (finish-iter!)
@@ -344,10 +347,12 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
+  (define repr (get-representation precision))
   (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
-         (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
+         (< (errors-score (errors (*start-prog*) (*pcontext*) repr))
+            0.1))
     (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
     (make-alt (*start-prog*))]
    [else
@@ -369,11 +374,11 @@
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (timeline-event! 'regimes)
-      (define option (infer-splitpoints all-alts))
+      (define option (infer-splitpoints all-alts precision))
       (timeline-event! 'bsearch)
       (combine-alts option precision)]
      [else
-      (best-alt all-alts)]))
+      (best-alt all-alts precision)]))
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
@@ -386,5 +391,5 @@
 (define (resample! precision)
   (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
     (*pcontext* context)
-    (^table^ (atab-new-context (^table^) context)))
+    (^table^ (atab-new-context (^table^) context )))
   (void))

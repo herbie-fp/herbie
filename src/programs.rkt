@@ -1,8 +1,8 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt")
-(require "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt"
+         "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -80,18 +80,25 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode)
+(define (eval-prog prog mode repr)
   ; Keep exact numbers exact
+  ;; TODO(interface): Right now, real->precision and precision->real are
+  ;; mixed up for bf and fl because there is a mismatch between the fpbench
+  ;; input format for how we specify complex numbers (which is the format
+  ;; the interface will ultimately use), and the 1.3 herbie input format
+  ;; (which has no way of specifying complex numbers as input.) Once types
+  ;; and representations are cleanly distinguished, we can get rid of the
+  ;; additional check to see if the repr is complex.
   (define real->precision (match mode
-                            ['bf (λ (x) (->bf x (infer-representation x)))]
-                            ['fl (λ (x) (->flonum x (infer-representation x)))]
-                            ['ival mk-ival]
-                            ['nonffi identity]))
+    ['bf (curryr ->bf repr)]
+    ['fl (curryr ->flonum repr)]
+    ['ival mk-ival]
+    ['nonffi identity]))
   (define precision->real (match mode
-                            ['bf identity]
-                            ['fl (λ (x) (->flonum x (infer-representation x)))]
-                            ['ival identity]
-                            ['nonffi identity]))
+    ['bf identity]
+    ['fl (λ (x) (->flonum x repr))]
+    ['ival identity]
+    ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
@@ -109,9 +116,11 @@
     (precision->real (apply fn (map real->precision pts)))))
 
 (define (eval-const-expr expr)
-  ((eval-prog `(λ () ,expr) 'nonffi) '()))
+  ;; When we are in nonffi mode, we don't use repr, so pass in #f
+  ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
 
 (module+ test
+  (define repr (get-representation 'binary64))
   (check-equal? (eval-const-expr '(+ 1 1)) 2)
   (check-equal? (eval-const-expr 'PI) pi)
   (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
@@ -130,8 +139,9 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv ((eval-prog e 'ival) p))
-      (define val ((eval-prog e 'bf) p))
+      ;; When we are in ival mode, we don't use repr, so pass in #f
+      (define iv ((eval-prog e 'ival #f) p))
+      (define val ((eval-prog e 'bf (get-representation 'binary64)) p))
       (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 
@@ -208,8 +218,9 @@
     [_
      expr]))
 
-(define (expand-parametric expr ctx)
-  (define precision (if (and (list? ctx) (not (empty? ctx))) (cdr (first ctx)) 'real))
+;; TODO(interface): This needs to be changed once the syntax checker is updated
+;; and supports multiple precisions
+(define (expand-parametric expr prec var-precs)
   (define-values (expr* type)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -218,7 +229,14 @@
          (define sigs (hash-ref parametric-operators op))
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
-             (loop arg)))
+             ;; TODO(interface): Right now we check if the actual-type is binary64
+             ;; or binary32 because we don't have a distinction between them (both
+             ;; are included in real). Once the operator code is fixed, this check
+             ;; can be removed.
+             (define-values (arg* actual-type) (loop arg))
+             (if (set-member? '(binary64 binary32) actual-type)
+               (values arg* 'real)
+               (values arg* actual-type))))
          (match-define (cons op* rtype)
            (for/or ([sig sigs])
              (match-define (list* true-name rtype atypes) sig)
@@ -238,15 +256,22 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*) (second (first (first (hash-values (operator-info op 'type))))))]
-        [(? real?) (values (fl->repr expr (get-representation (match precision ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)] [x x]))) precision)]
+         (values (cons op args*)
+                 (second (first (first(hash-values (operator-info op 'type))))))]
+        [(? real?) (values
+                     (fl->repr expr (get-representation (match prec
+                        ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
+                        [x x])))
+                     prec)]
         [(? complex?) (values expr 'complex)]
-        [(? value?) (values expr (representation-name (infer-representation expr)))]
+        [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
-        [(? variable?) (values expr (dict-ref ctx expr))])))
+        [(? variable?) (values expr (dict-ref var-precs expr))])))
   expr*)
 
-(define (expand-parametric-reverse expr)
+;; TODO(interface): This needs to be changed once the syntax checker is updated
+;; and supports multiple precisions
+(define (expand-parametric-reverse expr repr)
   (define expr*
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -260,16 +285,17 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (repr->fl expr (infer-representation expr))]
+        [(? value?) (value->string expr repr)]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)
 
-(define (desugar-program prog ctx)
-  (expand-parametric (expand-associativity (unfold-let prog)) ctx))
+(define (desugar-program prog prec var-precs)
+  (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
 
-(define (resugar-program prog)
-  (expand-parametric-reverse prog))
+(define (resugar-program prog prec)
+  (define repr (get-representation prec))
+  (expand-parametric-reverse prog repr))
 
 (define (replace-vars dict expr)
   (cond

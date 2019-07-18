@@ -17,13 +17,8 @@
 ; bubbled up the expression tree.
 
 (require racket/match)
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "../alternative.rkt")
-(require "../points.rkt")
-(require "../syntax/rules.rkt")
-(require "../float.rkt")
-(require "matcher.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "../points.rkt"
+         "../syntax/rules.rkt" "../float.rkt" "matcher.rkt" "../interface.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)
@@ -96,7 +91,7 @@
       [(list (or 'lambda 'λ) (list vars ...) body)
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? constant? c)
-       (define repr (infer-representation c))
+       (define repr (get-representation (*output-prec*)))
        ;; TODO : Do something more intelligent with 'PI
        (let ([val (if (rational? c) c (->flonum c repr))])
          (annotation val (reverse loc) 'constant val))]

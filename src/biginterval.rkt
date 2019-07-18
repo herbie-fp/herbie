@@ -57,9 +57,8 @@
 (define (mk-ival x)
   (match x
     [(? real?)
-     (define err? (or (nan? x) (infinite? x)))
      (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
-     (ival x* x* err? err?)]
+     (ival x* x* #f #f)]
     [(? boolean?)
      (ival x x #f #f)]))
 
@@ -527,7 +526,8 @@
     (or (ival-err? ival)
         (if (bigfloat? pt)
             (if (bfnan? pt)
-                (ival-err? ival)
+                (or (ival-err? ival)
+                    (and (bfnan? (ival-lo ival)) (bfnan? (ival-hi ival))))
                 (and (bflte? (ival-lo ival) pt) (bflte? pt (ival-hi ival))))
             (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
 

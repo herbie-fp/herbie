@@ -1,6 +1,8 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt" "../formats/datafile.rkt" "common.rkt" "../float.rkt")
+(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt"
+         "../formats/datafile.rkt" "common.rkt" "../float.rkt"
+         "../interface.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -155,7 +157,8 @@
                    `(tr (td ,(format-time time)) (td ,(~a count) "×")
                         (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category))))))))
 
-(define (make-timeline-json result out)
+(define (make-timeline-json result out precision)
+  (define repr (get-representation precision))
   (define timeline (test-result-timeline result))
   (define ((cons->hash k1 f1 k2 f2) c) (hash k1 (f1 (car c)) k2 (f2 (cdr c))))
 
@@ -172,7 +175,7 @@
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
     [('bstep v)
-     (define (flval-wrapper x) (flval x (infer-representation x)))
+     (define (flval-wrapper x) (flval x repr))
      (map (λ (x) (map (curryr apply '())
                       (list flval-wrapper flval-wrapper identity flval-wrapper) x))
           v)]

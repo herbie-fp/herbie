@@ -1,7 +1,7 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt")
-(require "../formats/c.rkt" "../formats/tex.rkt")
+(require "../formats/c.rkt" "../formats/tex.rkt" "../interface.rkt")
 (provide render-menu render-warnings render-large render-program)
 
 (define/contract (render-menu sections links)
@@ -36,29 +36,35 @@
 
 (define languages
   `(("TeX" . ,texify-prog)
-    ("C" . ,program->c)))
+    ;; TODO(interface): currently program->c doesn't take the repr into account
+    ("C" . ,(λ (prog repr) (program->c prog)))))
 
 (define (render-program #:to [result #f] test)
+  (define output-prec (test-output-prec test))
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test)) "\\]")))
+                  "\\[" ,(texify-expr (test-precondition test) output-prec) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([(lang fn) (in-dict languages)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog (test-program test)) "\\]")
+       (div ([class "program math"]) "\\[" ,(texify-prog
+                                              (test-program test)
+                                              output-prec) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog result) "\\]"))
+               (div ([class "program math"]) "\\[" ,(texify-prog
+                                                      result
+                                                      output-prec) "\\]"))
              `()))
      ,@(for/list ([(lang fn) (in-dict languages)])
          `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,(fn (test-program test)))
+            (pre ([class "program"]) ,(fn (test-program test) output-prec))
             ,@(if result
                   `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,(fn result)))
+                    (pre ([class "program"]) ,(fn result output-prec)))
                   `())))))

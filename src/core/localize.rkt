@@ -13,10 +13,10 @@
 (define *analyze-cache* (make-hash))
 (define *analyze-context* (make-parameter #f))
 
-(define (localize-on-expression expr vars cache)
+(define (localize-on-expression expr vars cache repr)
   (define ctx
     (for/hash ([(var vals) (in-dict vars)])
-      (values var (match (representation-name (infer-representation (first vals)))
+      (values var (match (representation-name repr)
                     [(or 'binary32 'binary64) 'real]
                     [x x]))))
   (hash-ref! cache expr
@@ -26,17 +26,19 @@
                    (define bf
                      (if (symbol? expr)
                          ((constant-info expr 'bf))
-                         (->bf expr (infer-representation expr))))
+                         (->bf expr repr)))
                    (cons (repeat bf) (repeat 1))]
                   [(? variable?)
+                   ;; TODO(interface): when the syntax checker is udpated,
+                   ;; use *var-precs* to get the representation
                    (cons (map (curryr ->bf (get-representation 'binary64))
                               (dict-ref vars expr))
                          (repeat 1))]
                   [`(if ,c ,ift ,iff)
-                   (let ([exact-ift (car (localize-on-expression ift vars cache))]
-                         [exact-iff (car (localize-on-expression iff vars cache))]
+                   (let ([exact-ift (car (localize-on-expression ift vars cache repr))]
+                         [exact-iff (car (localize-on-expression iff vars cache repr))]
                          [exact-cond (for/list ([(p _) (in-pcontext (*pcontext*))])
-				       ((eval-prog `(λ ,(map car vars) ,c) 'bf) p))])
+				       ((eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
@@ -46,23 +48,22 @@
                        (representation-bf->repr (get-representation* (type-of arg ctx)))))
 
                    (define argexacts
-                     (flip-lists (map (compose car (curryr localize-on-expression vars cache)) args)))
+                     (flip-lists (map (compose car (curryr localize-on-expression vars cache repr)) args)))
                    (define argapprox
                      (for/list ([pt argexacts])
                        (for/list ([val pt] [arg<-bf arg<-bfs]) (arg<-bf val))))
 
                    (define exact (map (curry apply (operator-info f 'bf)) argexacts))
                    (define approx (map (curry apply (operator-info f 'fl)) argapprox))
-                   (cons exact (map (λ (ex ap)
-                                       (define repr (infer-double-representation (<-bf ex) ap))
-                                       (+ 1 (abs (ulp-difference (<-bf ex) ap repr)))) exact approx))]))))
+                   (cons exact (map (λ (ex ap) (+ 1 (abs (ulp-difference (<-bf ex) ap repr))))
+                                    exact approx))]))))
 
 (register-reset
  (λ ()
   (*analyze-context* (*pcontext*))
   (hash-clear! *analyze-cache*)))
 
-(define (localize-error prog)
+(define (localize-error prog prec)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
@@ -72,7 +73,8 @@
         (make-hash)))
   (define expr->loc (location-hash prog))
 
-  (localize-on-expression (program-body prog) varmap cache)
+  (define repr (get-representation prec))
+  (localize-on-expression (program-body prog) varmap cache repr)
 
   (define locs
     (reap [sow]

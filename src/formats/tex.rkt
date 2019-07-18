@@ -30,19 +30,6 @@
   [('lambda2) "\\lambda_2"]
   [(_) (symbol->string var)])
 
-(define (texify-number n)
-  ;; Prints a number with relatively few digits
-  (define repr (infer-representation n))
-  (define ->bf (representation-repr->bf repr))
-  (define <-bf (representation-bf->repr repr))
-  ;; Linear search because speed not an issue
-  (let loop ([precision 16])
-    (parameterize ([bf-precision precision])
-      (define bf (->bf n))
-      (if (=-or-nan? n (<-bf bf))
-          (bigfloat->string bf)
-          (loop (+ precision 4)))))) ; 2^4 > 10
-
 ; self-paren-level : #t --> paren me
 ;                    #f --> do not paren me
 ;
@@ -77,10 +64,10 @@
     [else
      (list (list #t expr loc))]))
 
-(define (texify-prog expr #:loc [color-loc #f] #:color [color "red"])
-  (texify-expr (program-body expr) #:loc color-loc #:color color))
+(define (texify-prog expr prec #:loc [color-loc #f] #:color [color "red"])
+  (texify-expr (program-body expr) prec #:loc color-loc #:color color))
 
-(define (texify-expr expr #:loc [color-loc #f] #:color [color "red"])
+(define (texify-expr expr prec #:loc [color-loc #f] #:color [color "red"])
   "Compile an expression to math mode TeX."
   (let texify ([expr expr] [parens #t] [loc '(2)])
     (format
@@ -98,7 +85,9 @@
                  (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
                  (texify (abs (imag-part expr)) '+ loc))]
         [(? value?)
-         (match (string-split (texify-number expr) "e")
+         (define repr (get-representation prec))
+         (define s (bigfloat->string ((representation-repr->bf repr) expr)))
+         (match (string-split s "e")
            [(list "-inf.bf") "-\\infty"]
            [(list "+inf.bf") "+\\infty"]
            [(list num) num]

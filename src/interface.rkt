@@ -72,5 +72,9 @@
   (λ (x) (make-rectangular (ordinal->flonum (quotient x (expt 2 64))) (ordinal->flonum (modulo x (expt 2 64)))))
   (λ (x) (+ (* (expt 2 64) (flonum->ordinal (real-part x))) (flonum->ordinal (imag-part x))))
   128
+  ;; TODO(interface): note that these values for special-values are incorrect;
+  ;; any value that includes +nan.0 should be a special value, but because
+  ;; types and representations are not cleanly separated, this is not reasonable to
+  ;; express. Once types and representations are separated, fix this.
   '(+nan.0 +inf.0)
   real->double-flonum)
