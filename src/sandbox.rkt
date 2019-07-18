@@ -60,7 +60,7 @@
 
         (define all-alts (remove-duplicates (*all-alts*)))
         (define baseline-errs
-          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext))
+          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext output-repr))
         (define oracle-errs
           (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext))
 

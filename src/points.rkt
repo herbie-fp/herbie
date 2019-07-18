@@ -176,10 +176,9 @@
       (+ 1 (abs (ulp-difference out exact repr)))
       (+ 1 (expt 2 (*bit-width*)))))
 
-(define (eval-errors eval-fn pcontext)
+(define (eval-errors eval-fn pcontext repr)
   (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (define repr (infer-double-representation (eval-fn point) exact))
     (point-error (eval-fn point) exact repr)))
 
 (define (oracle-error-idx alt-bodies points exacts)
@@ -192,9 +191,9 @@
     (define repr (infer-double-representation (alt point) exact))
     (argmin identity (map (λ (alt) (point-error (alt point) exact repr)) alt-bodies))))
 
-(define (baseline-error alt-bodies pcontext newpcontext)
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
-  (eval-errors baseline newpcontext))
+(define (baseline-error alt-bodies pcontext newpcontext repr)
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
+  (eval-errors baseline newpcontext repr))
 
 (define (errors-score e)
   (define repr (get-representation 'binary64))
