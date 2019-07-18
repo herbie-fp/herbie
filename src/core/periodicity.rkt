@@ -96,7 +96,7 @@
       [(list (or 'lambda 'λ) (list vars ...) body)
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? constant? c)
-       (define repr (infer-representation c))
+       (define repr (get-representation (*output-prec*)))
        ;; TODO : Do something more intelligent with 'PI
        (let ([val (if (rational? c) c (->flonum c repr))])
          (annotation val (reverse loc) 'constant val))]
