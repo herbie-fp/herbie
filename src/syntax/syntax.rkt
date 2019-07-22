@@ -298,14 +298,14 @@
   [libm erf erff] [bf bferf] [ival ival-erf]
   [->c/double (curry format "erf(~a)")]
   [->c/mpfr (curry format "mpfr_erf(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{erf} ~a")]
+  [->tex (curry format "\\mathsf{erf}\\left(~a\\right)")]
   [nonffi erf])
 
 (define-operator/libm (erfc real) real
   [libm erfc erfcf] [bf bferfc] [ival ival-erfc]
   [->c/double (curry format "erfc(~a)")]
   [->c/mpfr (curry format "mpfr_erfc(~a, ~a, MPFR_RNDN)")]
-  [->tex (curry format "\\mathsf{erfc} ~a")]
+  [->tex (curry format "\\mathsf{erfc}\\left(~a\\right)")]
   [nonffi erfc])
 
 (define-operator/libm (exp real) real

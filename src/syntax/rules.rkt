@@ -661,7 +661,7 @@
   #:type ([x real])
   [erf-odd          (erf (- x))          (- (erf x))]
   [erf-erfc         (erfc x)             (- 1 (erf x))]
-  [erfc-erf         (- 1 (erf x))        (erfc x)])
+  [erfc-erf         (erf x)              (- 1 (erfc x))])
 
 (define (*rules*)
   (for/append ([rec (*rulesets*)])
