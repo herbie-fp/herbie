@@ -90,6 +90,7 @@
     (list
      (format "(FPCore ~a" (test-vars test))
      (format "  :name ~s" (test-name test))
+     (format "  :precision ~s" (test-output-prec test))
      (if (equal? (test-precondition test) 'TRUE)
          #f
          (format "  :pre ~a" (resugar-program (test-precondition test)
