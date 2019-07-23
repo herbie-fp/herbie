@@ -249,9 +249,6 @@
    (define precision (test-output-prec test))
    ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
    ;; remove this when the number system interface is added
-   (define precision* (if (set-member? '(binary64 binary32) precision)
-                          'real
-                          precision))
 
    (fprintf out "<!doctype html>\n")
    (write-xexpr
@@ -337,7 +334,7 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision*)))
+         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision)))
 
        ,(render-reproduction test)))
     out))
@@ -472,12 +469,7 @@
     (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (define (render-history altn pcontext pcontext2 precision)
-  (define precision* (if (eq? precision 'real)
-                       (if (flag-set? 'precision 'double)
-                         'binary64
-                         'binary32)
-                       precision))
-  (define repr (get-representation precision*))
+  (define repr (get-representation precision))
   (define err
     (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
   (define err2
@@ -487,7 +479,7 @@
     [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(texify-prog prog precision*) "\\]")))]
+           (div ([class "math"]) "\\[" ,(texify-prog prog precision) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -515,28 +507,28 @@
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc loc
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision #:loc loc
                                                                #:color "blue") "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc loc
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision #:loc loc
                                                                #:color "blue") "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision*) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision*) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2 precision)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision* #:loc (change-location cng) #:color "blue") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(texify-prog prog precision #:loc (change-location cng) #:color "blue") "\\]")))]
     ))
