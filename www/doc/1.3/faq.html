@@ -91,6 +91,19 @@
     with <code>--disable precision:fallback</code>.
   </p>
 
+  <h3 id="value-to-string">Could not find a unique string representation
+                           for value <var>val</var></h3>
+
+  <p>
+    Herbie will raise this warning when it has to use more than 10,000
+    bits to find a unique string representation for the given value.
+    If you are using non-herbie provided representation plugins, then it
+    could mean that your representation has a bug in it. Otherwise, there
+    is probably a bug in the Herbie code, and you should file a bug report
+    on our <a href="https://github.com/uwplse/herbie/issues/new">github</a>
+    about it.
+  </p>
+
 
   <h2>Known bugs</h2>
 

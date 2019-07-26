@@ -146,8 +146,8 @@
   (let loop ([precision 16])
     (if (> precision (*max-mpfr-prec*))
       (begin
-        (printf "Error: value->string could not find a unique representation for ~a" n)
-        (printf "in the allowed mpfr precision\n")
+        (warn 'value-to-string #:url "faq.html#value-to-string"
+               "Could not find a unique string representation for value ~a" n)
         n)
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
