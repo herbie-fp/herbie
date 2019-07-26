@@ -139,15 +139,21 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
+  (define n* (if (exact? n) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
   (let loop ([precision 16])
-    (parameterize ([bf-precision precision])
-  (define bf (->bf n))
-  (if (=-or-nan? n (<-bf bf))
-      (bigfloat->string bf)
-      (loop (+ precision 4)))))) ; 2^4 > 10
+    (if (> precision (*max-mpfr-prec*))
+      (begin
+        (printf "Error: value->string could not find a unique representation for ~a" n)
+        (printf "in the allowed mpfr precision\n")
+        n)
+      (parameterize ([bf-precision precision])
+        (define bf (->bf n*))
+        (if (=-or-nan? n* (<-bf bf))
+            (bigfloat->string bf)
+            (loop (+ precision 4))))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
