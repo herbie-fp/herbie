@@ -1,7 +1,8 @@
 #lang racket
 
 (require math/flonum math/bigfloat)
-(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt" "syntax/syntax.rkt")
+(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
+         "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
