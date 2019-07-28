@@ -148,7 +148,7 @@
     (if (> precision (*max-mpfr-prec*))
       (begin
         (warn 'value-to-string #:url "faq.html#value-to-string"
-               "Could not find a unique string representation for value ~a" n)
+               "Could not uniquely print ~a" n)
         n)
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
