@@ -1,7 +1,8 @@
 #lang racket
 
 (require math/flonum math/bigfloat)
-(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt" "syntax/syntax.rkt")
+(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
+         "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
 (provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
@@ -139,15 +140,21 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
+  (define n* (if (exact? n) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
   (let loop ([precision 16])
-    (parameterize ([bf-precision precision])
-  (define bf (->bf n))
-  (if (=-or-nan? n (<-bf bf))
-      (bigfloat->string bf)
-      (loop (+ precision 4)))))) ; 2^4 > 10
+    (if (> precision (*max-mpfr-prec*))
+      (begin
+        (warn 'value-to-string #:url "faq.html#value-to-string"
+               "Could not uniquely print ~a" n)
+        n)
+      (parameterize ([bf-precision precision])
+        (define bf (->bf n*))
+        (if (=-or-nan? n* (<-bf bf))
+            (bigfloat->string bf)
+            (loop (+ precision 4))))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
