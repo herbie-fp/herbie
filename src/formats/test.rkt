@@ -36,7 +36,10 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define default-prec (dict-ref prop-dict ':precision 'binary64))
+  (define default-prec (dict-ref prop-dict ':precision
+                                 (if (flag-set? 'precision 'double)
+                                   'binary64
+                                   'binary32)))
   (define var-precs (for/list ([arg args] [arg-name arg-names])
                       (if (and (list? arg) (set-member? args ':precision))
                         (cons arg-name
