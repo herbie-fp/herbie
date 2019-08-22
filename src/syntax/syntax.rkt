@@ -116,6 +116,13 @@
     (table-set! operators 'operator
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
+(define (no-complex fun)
+  (λ (x . xs)
+     (define res (apply fun (cons x xs)))
+     (if (real? res)
+       res
+       +nan.0)))
+
 (define (default-nonffi . args)
   (raise
    (make-exn:fail:unsupported
@@ -212,56 +219,56 @@
   [->c/double (curry format "acos(~a)")]
   [->c/mpfr (curry format "mpfr_acos(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cos^{-1} ~a")]
-  [nonffi acos])
+  [nonffi (no-complex acos)])
 
 (define-operator/libm (acosh real) real
   [libm acosh acoshf] [bf bfacosh] [ival ival-acosh]
   [->c/double (curry format "acosh(~a)")]
   [->c/mpfr (curry format "mpfr_acosh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\cosh^{-1} ~a")]
-  [nonffi acosh])
+  [nonffi (no-complex acosh)])
 
 (define-operator/libm (asin real) real
   [libm asin asinf] [bf bfasin] [ival ival-asin]
   [->c/double (curry format "asin(~a)")]
   [->c/mpfr (curry format "mpfr_asin(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sin^{-1} ~a")]
-  [nonffi asin])
+  [nonffi (no-complex asin)])
 
 (define-operator/libm (asinh real) real
   [libm asinh asinhf] [bf bfasinh] [ival ival-asinh]
   [->c/double (curry format "asinh(~a)")]
   [->c/mpfr (curry format "mpfr_asinh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sinh^{-1} ~a")]
-  [nonffi asinh])
+  [nonffi (no-complex asinh)])
 
 (define-operator/libm (atan real) real
   [libm atan atanf] [bf bfatan] [ival ival-atan]
   [->c/double (curry format "atan(~a)")]
   [->c/mpfr (curry format "mpfr_atan(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1} ~a")]
-  [nonffi atan])
+  [nonffi (no-complex atan)])
 
 (define-operator/libm (atan2 real real) real
   [libm atan2 atan2f] [bf bfatan2] [ival ival-atan2]
   [->c/double (curry format "atan2(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_atan2(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tan^{-1}_* \\frac{~a}{~a}")]
-  [nonffi atan])
+  [nonffi (no-complex atan)])
 
 (define-operator/libm (atanh real) real
   [libm atanh atanhf] [bf bfatanh] [ival ival-atanh]
   [->c/double (curry format "atanh(~a)")]
   [->c/mpfr (curry format "mpfr_atanh(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\tanh^{-1} ~a")]
-  [nonffi atanh])
+  [nonffi (no-complex atanh)])
 
 (define-operator/libm (cbrt real) real
   [libm cbrt cbrtf] [bf bfcbrt] [ival ival-cbrt]
   [->c/double (curry format "cbrt(~a)")]
   [->c/mpfr (curry format "mpfr_cbrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt[3]{~a}")]
-  [nonffi (λ (x) (expt x (/ 1 3)))])
+  [nonffi (no-complex (λ (x) (expt x (/ 1 3))))])
 
 (define-operator/libm (ceil real) real
   [libm ceil ceilf] [bf bfceiling] [ival #f]
@@ -299,7 +306,7 @@
   [->c/double (curry format "erf(~a)")]
   [->c/mpfr (curry format "mpfr_erf(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{erf}\\left(~a\\right)")]
-  [nonffi erf])
+  [nonffi (no-complex erf)])
 
 (define-operator/libm (erfc real) real
   [libm erfc erfcf] [bf bferfc] [ival ival-erfc]
@@ -327,7 +334,7 @@
   [->c/double (curry format "exp2(~a)")]
   [->c/mpfr (curry format "mpfr_exp2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "2^{~a}")]
-  [nonffi (λ (x) (expt 2 x))])
+  [nonffi (no-complex (λ (x) (expt 2 x)))])
 
 (define (from-bigfloat bff)
   (λ args (bigfloat->flonum (apply bff (map bf args)))))
@@ -337,7 +344,7 @@
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{expm1}\\left(~a\\right)")]
-  [nonffi (from-bigfloat bfexpm1)])
+  [nonffi (no-complex (from-bigfloat bfexpm1))])
 
 (define-operator/libm (fabs real) real
   [libm fabs fabsf] [bf bfabs] [ival ival-fabs]
@@ -432,7 +439,7 @@
   [->c/double (curry format "log(~a)")]
   [->c/mpfr (curry format "mpfr_log(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log ~a")]
-  [nonffi log])
+  [nonffi (no-complex log)])
 
 (define-operator (log.c complex) complex
   [fl log] [bf bf-complex-log] [ival #f]
@@ -446,7 +453,7 @@
   [->c/double (curry format "log10(~a)")]
   [->c/mpfr (curry format "mpfr_log10(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{10} ~a")]
-  [nonffi (λ (x) (log x 10))])
+  [nonffi (no-complex (λ (x) (log x 10)))])
 
 (define-operator/libm (log1p real) real
   [libm log1p log1pf] [bf bflog1p] [ival ival-log1p]
@@ -477,7 +484,7 @@
   [->c/double (curry format "pow(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_pow(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "{~a}^{~a}")]
-  [nonffi expt])
+  [nonffi (no-complex expt)])
 
 (define-operator (pow.c complex complex) complex
   [fl expt] [bf bf-complex-pow] [ival #f]
@@ -529,7 +536,7 @@
   [->c/double (curry format "sqrt(~a)")]
   [->c/mpfr (curry format "mpfr_sqrt(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\sqrt{~a}")]
-  [nonffi sqrt])
+  [nonffi (no-complex sqrt)])
 
 (define-operator (sqrt.c complex) complex
   [fl sqrt] [bf bf-complex-sqrt] [ival #f]
