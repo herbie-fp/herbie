@@ -117,8 +117,8 @@
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
 
 (define (no-complex fun)
-  (λ (x . xs)
-     (define res (apply fun (cons x xs)))
+  (λ xs
+     (define res (apply fun xs))
      (if (real? res)
        res
        +nan.0)))
@@ -344,7 +344,7 @@
   [->c/double (curry format "expm1(~a)")]
   [->c/mpfr (curry format "mpfr_expm1(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{expm1}\\left(~a\\right)")]
-  [nonffi (no-complex (from-bigfloat bfexpm1))])
+  [nonffi (from-bigfloat bfexpm1)])
 
 (define-operator/libm (fabs real) real
   [libm fabs fabsf] [bf bfabs] [ival ival-fabs]
