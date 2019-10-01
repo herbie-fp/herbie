@@ -3,10 +3,12 @@
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
 (require "egraph.rkt" "ematch.rkt" "extraction.rkt")
+(require "eggmath.rkt")
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
-;;################################################################################;;
+;;################################################################################
+;;
 ;;# One module to rule them all, the great simplify. This makes use of the other
 ;;# modules in this directory to simplify an expression as much as possible without
 ;;# making unecessary changes. We do this by creating an egraph, saturating it
@@ -17,13 +19,37 @@
 ;;# exact x, evalutating the input on x will yield the same expression as evaluating
 ;;# the output on x.
 ;;#
-;;################################################################################;;
+;;################################################################################
+;
 
 (define/contract (simplify-expr expr #:rules rls)
   (-> expr? #:rules (listof rule?) expr?)
   (first (simplify-batch (list expr) #:rules rls)))
 
+
 (define/contract (simplify-batch exprs #:rules rls)
+  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+  (with-handlers ([egg-add-exn?
+                   (lambda (e)
+                     (simplify-batch-herbie-egraph exprs #:rules rls))])
+    (simplify-batch-egg exprs #:rules rls)))
+
+(define/contract (simplify-batch-egg exprs #:rules rls)
+  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+  (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
+
+  (define start-time (current-inexact-milliseconds))
+  (egraph-run
+   (lambda (egg-graph)
+     (egraph-add-exprs
+      egg-graph
+      exprs
+      (lambda (node-ids rename-dicts)
+        (egraph_run_rules egg-graph 2000 (*node-limit*))
+        (for/list ([id node-ids] [dict rename-dicts])
+          (egg-expr->expr (egraph_get_simplest egg-graph id) dict)))))))
+
+(define/contract (simplify-batch-herbie-egraph exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
