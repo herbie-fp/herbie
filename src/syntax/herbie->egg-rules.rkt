@@ -1,7 +1,7 @@
 #lang racket
 
 
-(define port (open-input-file "./testrules.rkt"))
+(define port (open-input-file "./rules.rkt"))
 
 (define (convert-syntax datum)
   (cond
@@ -19,8 +19,10 @@
      ")")]
     [(symbol? datum)
      (string-append "?" (symbol->string datum))]
+    [(number? datum)
+     (number->string datum)]
     [else
-     (error "expected list or symbol")]))
+     (error "expected list, number, or symbol")]))
 
 (define (herbie-pattern->rust-pattern stx)
   (convert-syntax (syntax->datum stx)))
@@ -73,7 +75,7 @@
      [else (read-once rust-list)])))
 
 (define output (open-output-file "./rustgenerated.txt" #:exists 'replace))
-
+(read-line port) ; read the #lang so that it doesn't appear
 (for-each (lambda (rust-str)
             (display rust-str output))
           (read-once (list)))
