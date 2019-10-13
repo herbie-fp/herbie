@@ -5,7 +5,13 @@
 
 (provide egraph-run egraph-add-exprs egraph_run_rules egraph_get_simplest egg-expr->expr egg-add-exn?)
 
-(define-ffi-definer define-eggmath (ffi-lib "/home/oliver/egg/target/debug/libegg_math.so"))
+(define linux-path "../../../egg-herbie/target/debug/libegg_math.so")
+(define windows-path "../../../egg-herbie/target/debug/egg_math.dll")
+
+(define-ffi-definer define-eggmath (ffi-lib (if
+                                             (file-exists? linux-path)
+                                             linux-path
+                                             windows-path)))
 
 (define _egraph-pointer (_cpointer 'egraph))
 
