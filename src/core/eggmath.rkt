@@ -2,6 +2,7 @@
 
 (require ffi/unsafe
          ffi/unsafe/define)
+(module+ test (require rackunit))
 
 (provide egraph-run egraph-add-exprs egraph_run_rules egraph_get_simplest egg-expr->expr egg-add-exn?)
 
@@ -122,7 +123,18 @@
   
   (define res (result-function node-ids expr-rename-dicts))
 
-  (for/list ([result expr-results])
-    (free result))
   res)
+
+
+(module+ test
+  (check-equal?
+   (egraph-run
+    (lambda (egg-graph)
+      (egraph-add-exprs
+       egg-graph
+       (list '(+ x 2) '(+ x 1) '(+ x 0) '(+ x 23))
+       (lambda (node-ids rename-dicts)
+         (egg-expr->expr (egraph_get_simplest egg-graph (first node-ids)) (first rename-dicts))))))
+   '(+ x 2)))
+
 
