@@ -31,6 +31,7 @@
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
   (with-handlers ([egg-add-exn?
                    (lambda (e)
+                     (println "Falling back on simplify-batch-herbie-egraph")
                      (simplify-batch-herbie-egraph exprs #:rules rls))])
     (simplify-batch-egg exprs #:rules rls)))
 
@@ -45,7 +46,7 @@
       egg-graph
       exprs
       (lambda (node-ids rename-dicts)
-        (egraph_run_rules egg-graph 2000 (*node-limit*))
+        (egraph_run_rules egg-graph 9999999 (*node-limit*))
         (for/list ([id node-ids] [dict rename-dicts])
           (egg-expr->expr (egraph_get_simplest egg-graph id) dict)))))))
 
