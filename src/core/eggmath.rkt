@@ -30,6 +30,8 @@
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string -> _EGraphAddResult-pointer))
 
+(define-eggmath egraph_addresult_destroy (_fun _EGraphAddResult-pointer -> _void))
+
 ;; egraph pointer, number of iterations, limit on size of egraph
 (define-eggmath egraph_run_rules (_fun _egraph-pointer _uint _uint -> _void))
 
@@ -125,6 +127,9 @@
       (second pair)))
   
   (define res (result-function node-ids expr-rename-dicts))
+
+  (for/list ([result expr-results])
+    (egraph_addresult_destroy result))
 
   res)
 
