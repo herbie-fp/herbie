@@ -2,6 +2,7 @@
 
 (require ffi/unsafe
          ffi/unsafe/define)
+(require "../syntax/rules.rkt")
 (module+ test (require rackunit))
 
 (provide egraph-run egraph-add-exprs egraph_run_rules egraph_get_simplest egg-expr->expr egg-add-exn?)
@@ -58,7 +59,9 @@
     [(integer? parsed)
      parsed]
     [else
-     (hash-ref rename-dict parsed)]))
+     (if (set-member? fpconstants parsed)
+         parsed
+         (hash-ref rename-dict parsed))]))
 
 ;; returns a pair of the string representing an egg expr, and a hash table for mapping symbols on the way back
 ;; the hash table maps all symbols and non-integer values to new names for egg

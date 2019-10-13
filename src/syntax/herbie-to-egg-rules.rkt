@@ -1,9 +1,10 @@
 #lang racket
 
+(provide fpconstants)
+(require "./rules.rkt")
 
 (define port (open-input-file "./rules.rkt"))
 
-(define fpconstants (set 'E 'LOG2E 'LOG10E 'LN2 'LN10 'PI 'PI_2 'PI_4 '1_PI '2_PI '2_SQRTPI 'SQRT2 'SQRT1_2 'INFINITY 'NAN 'TRUE 'FALSE))
 
 (define (convert-syntax datum)
   (cond
