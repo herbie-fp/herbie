@@ -118,9 +118,9 @@
     (for/list ([result expr-results])
       (if (EGraphAddResult-successp result)
           (EGraphAddResult-id result)
-          (raise egg-add-exn
+          (raise (egg-add-exn
                (string-append "Failed to add expr to egraph")
-               (current-continuation-marks)))))
+               (current-continuation-marks))))))
 
   (define expr-rename-dicts
     (for/list ([pair expr-pairs])
