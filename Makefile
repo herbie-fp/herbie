@@ -10,7 +10,7 @@ install:
 update:
 	raco pkg update --name herbie src/
 
-nightly:
+nightly: egg_math
 	bash infra/nightly.sh
 	bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
@@ -40,3 +40,6 @@ package:
 deploy:
 	cd $(shell ~/uwplse/getdir) && git pull
 
+egg_math:
+	cd .. && test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
+	cd ../egg-herbie/egg-math/ && cargo build

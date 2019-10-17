@@ -2,18 +2,21 @@
 
 (require ffi/unsafe
          ffi/unsafe/define)
+(require racket/runtime-path)
 (require "../syntax/rules.rkt")
 (module+ test (require rackunit))
 
 (provide egraph-run egraph-add-exprs egraph_run_rules egraph_get_simplest egg-expr->expr egg-add-exn?)
 
-(define linux-path "../../../egg-herbie/target/debug/libegg_math.so")
-(define windows-path "../../../egg-herbie/target/debug/egg_math.dll")
 
-(define-ffi-definer define-eggmath (ffi-lib (if
-                                             (file-exists? linux-path)
-                                             linux-path
-                                             windows-path)))
+(define-runtime-path libeggmath-path
+  (build-path 'up 'up 'up "egg-herbie" "target" "debug"
+              (case (system-type)
+                [(windows) "egg_math"]
+                [else "libegg_math"])))
+
+
+(define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
 
 (define _egraph-pointer (_cpointer 'egraph))
 

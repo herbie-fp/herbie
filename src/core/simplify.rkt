@@ -29,11 +29,11 @@
 
 (define/contract (simplify-batch exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
-  (with-handlers ([egg-add-exn?
-                   (lambda (e)
-                     (println "Falling back on simplify-batch-herbie-egraph")
-                     (simplify-batch-herbie-egraph exprs #:rules rls))])
-    (simplify-batch-egg exprs #:rules rls)))
+  ;(with-handlers ([egg-add-exn?
+  ;                 (lambda (e)
+   ;                  (println "Falling back on simplify-batch-herbie-egraph")
+    ;                 (simplify-batch-herbie-egraph exprs #:rules rls))])
+  (simplify-batch-egg exprs #:rules rls))
 
 (define/contract (simplify-batch-egg exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))

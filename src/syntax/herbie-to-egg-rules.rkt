@@ -40,11 +40,11 @@
   (define groups
     (for/list ([rule-stx (syntax->list (third top))])
       (syntax->datum rule-stx)))
-  (define groups-filtered
-    (filter (lambda (rule) (or (equal? rule 'fp-safe) (equal? rule 'simplify)))
-            groups))
+  (define is-groups-valid
+    (and (member 'simplify groups) (not (member 'numerics groups))))
+  
   (cond
-    [(eq? (length groups-filtered) 0)
+    [(not is-groups-valid)
      ""]
     [else
      (define rules
