@@ -45,10 +45,10 @@
      (egraph-add-exprs
       egg-graph
       exprs
-      (lambda (node-ids rename-dicts)
-        (egraph_run_rules egg-graph 9999999 (*node-limit*))
-        (for/list ([id node-ids] [dict rename-dicts])
-          (egg-expr->expr (egraph_get_simplest egg-graph id) dict)))))))
+      (lambda (node-ids)
+        (egraph-run-rules egg-graph 9999999 (*node-limit*))
+        (for/list ([id node-ids])
+          (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
 
 (define/contract (simplify-batch-herbie-egraph exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
