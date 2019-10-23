@@ -40,15 +40,19 @@
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))
-  (egraph-run
-   (lambda (egg-graph)
-     (egraph-add-exprs
-      egg-graph
-      exprs
-      (lambda (node-ids)
-        (egraph-run-rules egg-graph 9999999 (*node-limit*))
-        (for/list ([id node-ids])
-          (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
+  (define res
+    (egraph-run
+     (lambda (egg-graph)
+       (egraph-add-exprs
+        egg-graph
+        exprs
+        (lambda (node-ids)
+          (define start-time-inner (current-inexact-milliseconds))
+          (egraph-run-rules egg-graph 9999999 (*node-limit*))
+          (for/list ([id node-ids])
+            (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
+  (println (- (current-inexact-milliseconds) start-time))
+  res)
 
 (define/contract (simplify-batch-herbie-egraph exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
