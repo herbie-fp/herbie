@@ -131,7 +131,7 @@
           (raise (egg-add-exn
                (string-append "Failed to add expr to egraph")
                (current-continuation-marks))))))
-  
+
   (define res (result-function node-ids))
 
   (for/list ([result expr-results])
@@ -151,4 +151,42 @@
          (egraph-run-rules egg-graph 4 9000)
          (for/list [(node-id node-ids)]
            (egg-expr->expr (egraph-get-simplest egg-graph node-id) egg-graph))))))
-   (list '(+ x 2) '(+ x 1) 'x '(+ x 23) 0 1)))
+   (list '(+ x 2) '(+ x 1) 'x '(+ x 23) 0 1))
+
+  (define expr-list
+    (list
+     '(+ x y)
+     '(+ y x)
+     '(- 2 (+ x y))
+     '(- z (+ (+ y 2) x))))
+  
+  (check-equal?
+   (egraph-run
+    (lambda (egg-graph)
+      (for/list ([expr
+                  expr-list])
+        (expr->egg-expr expr egg-graph))))
+   (list
+    "(+ h1 h0)"
+    "(+ h0 h1)"
+    "(- 2 (+ h1 h0))"
+    "(- h2 (+ (+ h0 2) h1))"))
+
+  (define extended-expr-list
+    (append
+     (list
+      '(/ (- (exp x) (exp (- x))) 2)
+      '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+      '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a)) ;; duplicated to make sure it would still work
+      '(* r 30))
+     expr-list))
+
+  (check-equal?
+   (egraph-run
+    (lambda (egg-graph)
+      (for/list ([expr
+                  extended-expr-list])
+        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph) ;; call twice to make sure mutation works
+        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph))))
+   extended-expr-list)
+  )
