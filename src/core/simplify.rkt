@@ -51,7 +51,7 @@
           (egraph-run-rules egg-graph 9999999 (*node-limit*))
           (for/list ([id node-ids])
             (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
-  (println (- (current-inexact-milliseconds) start-time))
+  ;; (println (- (current-inexact-milliseconds) start-time))
   res)
 
 (define/contract (simplify-batch-herbie-egraph exprs #:rules rls)
