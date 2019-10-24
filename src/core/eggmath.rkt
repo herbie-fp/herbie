@@ -3,6 +3,7 @@
 (require ffi/unsafe
          ffi/unsafe/define)
 (require racket/runtime-path)
+(require "../debug.rkt")
 (require "../syntax/rules.rkt")
 (module+ test (require rackunit))
 
@@ -119,6 +120,8 @@
   (define egg-exprs
     (for/list ([expr exprs])
       (expr->egg-expr expr eg-data)))
+  (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
+                                  (string-join (map ~a egg-exprs) "\n ")))
       
   (define expr-results
     (for/list ([expr egg-exprs])
