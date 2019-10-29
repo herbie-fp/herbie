@@ -175,9 +175,13 @@
 (define (make-empty-range-table)
   (make-hash))
 
+;; If `symbols` is non-empty, it creates a null range table but with
+;; only those symbols mentioned, for better error messages.
 ;; NOTE: an range-table can also be #f for an invalid range-table 
-(define (make-null-range-table)
-  #f)
+(define (make-null-range-table [symbols '()])
+  (if (null? symbols)
+      #f
+      (for/hash ([s symbols]) (values s '()))))
 
 (define (range-table-ref rt x)
   (if rt
@@ -210,9 +214,7 @@
            (hash-set! new-range-table key1 (hash-ref table1 key1))))
      (for ([key2 (hash-keys table2)] #:unless (hash-has-key? new-range-table key2))
        (hash-set! new-range-table key2 (hash-ref table2 key2)))
-     (if (ormap (curry null?) (hash-values new-range-table))
-         #f
-         new-range-table)]))
+     new-range-table]))
 
 (module+ test  
   (check-equal? (list (interval 2 3 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-x2) 'x))
@@ -295,7 +297,7 @@
      (make-empty-range-table)]
     [(list (and (or '< '<= '> '>=) cmp) exprs ...)
      (if (not (equal? (filter number? exprs) (sort (filter number? exprs) (parse-cmp cmp))))
-       #f
+       (make-null-range-table (filter variable? exprs))
        (let
          ([from-left (last-number exprs)]
           [from-right (reverse (last-number (reverse exprs)))])
@@ -317,7 +319,7 @@
                 (make-empty-range-table)
                 (map (lambda (x) (make-range-table x (make-interval num num #t #t)))
                      (filter variable? exprs)))
-         (make-null-range-table))]
+         (make-null-range-table (filter variable? exprs)))]
     [(list '!= expr1 expr2) ; == and != are not inverses for more than two arguments
      (range-table-invert (condition->range-table `(== ,expr1 ,expr2)))]
      
