@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "egraph.rkt" "ematch.rkt" "extraction.rkt")
+(require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
@@ -75,7 +75,9 @@
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
-      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
+      (define expr* (pattern-substitute (rule-output rl) binding))
+      (define en* (mk-enode-rec! eg expr*))
+      (merge-egraph-nodes! eg en en*)))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (set-precompute! eg en))

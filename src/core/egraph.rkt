@@ -118,6 +118,8 @@
   (match expr
     [(list op args ...)
      (mk-enode! eg (cons op (map (curry mk-enode-rec! eg) args)))]
+    [(? enode?)
+     (pack-leader expr)]
     [_
      (mk-enode! eg expr)]))
 
