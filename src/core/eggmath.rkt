@@ -69,7 +69,7 @@
       (first parsed)
       (for/list ([expr (rest parsed)])
         (egg-parsed->expr expr rename-dict)))]
-    [(integer? parsed)
+    [(rational? parsed)
      parsed]
     [else
      (if (set-member? fpconstants parsed)
@@ -97,6 +97,9 @@
       ")")]
     [(integer? expr)
      (number->string expr)]
+    [(rational? expr)
+     (string-append "(/ " (number->string (numerator expr)) " "
+                    (number->string (denominator expr)) ")")]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
