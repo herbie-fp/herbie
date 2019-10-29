@@ -183,6 +183,12 @@
       #f
       (for/hash ([s symbols]) (values s '()))))
 
+(define (range-table-empty? rt)
+  (= (hash-count rt) 0))
+
+(define (range-table-null? rt)
+  (or (not rt) (ormap null? (hash-values rt))))
+
 (define (range-table-ref rt x)
   (if rt
       (hash-ref rt x (list (interval -inf.0 +inf.0 #f #f)))
@@ -220,8 +226,8 @@
   (check-equal? (list (interval 2 3 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-x2) 'x))
   (check-equal? (list (interval 1 3 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-y2) 'x))
   (check-equal? (list (interval 2 4 #t #t)) (hash-ref (range-table-intersect rt-x1 rt-y2) 'y))
-  (check-equal? #f (range-table-intersect rt-x1 #f))
-  (check-equal? #f (range-table-intersect rt-x3 rt-x1)))
+  (check-pred range-table-null? (range-table-intersect rt-x1 #f))
+  (check-pred range-table-null? (range-table-intersect rt-x3 rt-x1)))
 
 (define (range-table-union table1 table2)
   (cond
@@ -235,7 +241,7 @@
 
 (module+ test
   (check-equal? (list (interval 1 4 #t #t)) (hash-ref (range-table-union rt-x1 rt-x2) 'x))
-  (check-true (hash-empty? (range-table-union rt-x1 rt-y2)))
+  (check-pred range-table-empty? (range-table-union rt-x1 rt-y2))
   (check-equal? rt-x1 (range-table-union rt-x1 #f)))
 
 (define (range-table-invert table)
@@ -348,13 +354,13 @@
 
 (module+ test
   (check-equal? (condition->range-table '(== 1 x 1 1 y 1 1 1)) (make-hash (list (list 'x (interval 1 1 #t #t)) (list 'y (interval 1 1 #t #t)))))
-  (check-equal? (condition->range-table '(== 1 x 1 2 y 1 1 1)) #f)
+  (check-pred range-table-null? (condition->range-table '(== 1 x 1 2 y 1 1 1)))
   (check-equal? (condition->range-table '(> x 1)) (make-hash (list (list 'x (interval 1 +inf.0 #f #f)))))
   (check-equal? (condition->range-table '(>= x 1)) (make-hash (list (list 'x (interval 1 +inf.0 #t #f)))))
   (check-equal? (condition->range-table '(<= x 1)) (make-hash (list (list 'x (interval -inf.0 1 #f #t)))))
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (list 'x (interval -inf.0 1 #f #f)))))
-  (check-equal? (condition->range-table '(< 1 1)) #f)
-  (check-equal? (condition->range-table '(< 1 2)) (make-hash))
+  (check-pred range-table-null? (condition->range-table '(< 1 1)))
+  (check-pred range-table-empty? (condition->range-table '(< 1 2)))
   (check-equal? (condition->range-table '(< x 1)) (make-hash (list (list 'x (interval -inf.0 1 #f #f)))))
   (check-equal? (condition->range-table '(< x y 2)) (make-hash (list (list 'x (interval -inf.0 2 #f #f)) (list 'y (interval -inf.0 2 #f #f)))))
   (check-equal? (condition->range-table '(< 1 x y 2)) (make-hash (list (list 'x (interval 1.0 2.0 #f #f)) (list 'y (interval 1.0 2.0 #f #f)))))
