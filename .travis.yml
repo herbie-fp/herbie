@@ -31,8 +31,8 @@ before_install:
   - export PATH="${RACKET_DIR}/bin:${PATH}"
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/src
-  - (cd .. && test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie)
-  - (cd ../egg-herbie/egg-math/ && cargo build)
+  - test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
+  - (cd ./egg-herbie/egg-math/ && cargo build --release)
 script:
   - echo ${JOB} && eval ${JOB}
 notifications:

@@ -41,5 +41,5 @@ deploy:
 	cd $(shell ~/uwplse/getdir) && git pull
 
 egg_math:
-	cd .. && test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
-	cd ../egg-herbie/egg-math/ && cargo build --release
+	test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
+	cd ./egg-herbie/egg-math/ && cargo build --release
