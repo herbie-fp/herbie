@@ -11,7 +11,7 @@
 
 
 (define-runtime-path libeggmath-path
-  (build-path 'up 'up 'up "egg-herbie" "target" "debug"
+  (build-path 'up 'up 'up "egg-herbie" "target" "release"
               (case (system-type)
                 [(windows) "egg_math"]
                 [else "libegg_math"])))

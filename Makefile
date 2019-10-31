@@ -42,4 +42,4 @@ deploy:
 
 egg_math:
 	cd .. && test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
-	cd ../egg-herbie/egg-math/ && cargo build
+	cd ../egg-herbie/egg-math/ && cargo build --release
