@@ -69,7 +69,7 @@
       (first parsed)
       (for/list ([expr (rest parsed)])
         (egg-parsed->expr expr rename-dict)))]
-    [(rational? parsed)
+    [(and (exact? parsed) (real? parsed))
      parsed]
     [else
      (if (set-member? fpconstants parsed)
