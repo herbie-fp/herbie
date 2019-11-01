@@ -5,7 +5,7 @@
 (require "enode.rkt")
 (require "egraph.rkt")
 
-(provide match-e substitute-e)
+(provide match-e)
 
 ;;################################################################################;;
 ;;# The matcher module that allows us to match enode structure against patterns,
@@ -60,15 +60,3 @@
 		 '())))]
    [else
     (error "WTF" pat)]))
-
-(define (substitute-e eg pat bindings)
-  (cond
-   [(constant? pat)
-    (mk-enode! eg pat)]
-   [(variable? pat)
-    (let ([binden (cdr (assoc pat bindings))])
-      binden)]
-   [(list? pat)
-    (mk-enode! eg (cons (car pat)
-			(for/list ([subpat (cdr pat)])
-			  (substitute-e eg subpat bindings))))]))

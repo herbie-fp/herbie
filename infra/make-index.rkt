@@ -138,18 +138,31 @@
 
   (define dirs (directory-jsons report-json-path))
   (define folders
-    (filter
-     (λ (x) (< (- (current-seconds) (dict-ref x 'date-unix)) (* 60 60 24 30)))
-     (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp))))
+     (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp)))
+  (define recent-folders
+    (filter (λ (x) (< (- (current-seconds) (dict-ref x 'date-unix)) (* 60 60 24 30)))
+            folders))
 
   (define branch-infos*
     (sort
-     (group-by (curryr dict-ref 'branch) folders)
+     (group-by (curryr dict-ref 'branch) recent-folders)
      > #:key (λ (x) (dict-ref (first x) 'date-unix))))
 
   (define-values (mainline-infos other-infos)
     (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
                branch-infos*))
+
+  (when (null? mainline-infos)
+    (set! mainline-infos
+          (list
+           (filter
+            (curryr dict-ref 'note)
+            (map first
+                 (group-by
+                  (curryr dict-ref 'note)
+                  (sort
+                   (filter (λ (x) (set-member? '("master" "develop") (dict-ref x 'branch))) folders)
+                   > #:key (curryr dict-ref 'date-unix))))))))
 
   (define crashes
     (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
@@ -174,7 +187,7 @@
        (body
         (div
          ((id "large"))
-         (div "Reports: " (span ((class "number")) ,(~a (length folders))))
+         (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
          (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
          (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
          (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
