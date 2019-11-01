@@ -114,7 +114,9 @@
           [(/ (* x 3) x) . 3]
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
               (* (sqrt x) (sqrt x))) . 1]
-          [(re (complex a b)) . a]))
+          [(re (complex a b)) . a]
+          [(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
+          ))
 
   (*timeline-disabled* true)
   (define outputs (simplify-batch (hash-keys test-exprs) #:rules (*simplify-rules*)))
