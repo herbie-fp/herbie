@@ -69,7 +69,7 @@
       (first parsed)
       (for/list ([expr (rest parsed)])
         (egg-parsed->expr expr rename-dict)))]
-    [(and (exact? parsed) (real? parsed))
+    [(and (number? parsed) (exact? parsed) (real? parsed))
      parsed]
     [else
      (if (set-member? fpconstants parsed)
@@ -95,11 +95,8 @@
                         acc))
        "" (rest expr))
       ")")]
-    [(integer? expr)
+    [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
-    [(rational? expr)
-     (string-append "(/ " (number->string (numerator expr)) " "
-                    (number->string (denominator expr)) ")")]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
@@ -184,7 +181,9 @@
       '(/ (- (exp x) (exp (- x))) 2)
       '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
       '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a)) ;; duplicated to make sure it would still work
-      '(* r 30))
+      '(* r 30)
+      '(* 23/54 r)
+      '(+ 3/2 1.4))
      expr-list))
 
   (check-equal?

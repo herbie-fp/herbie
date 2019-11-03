@@ -155,8 +155,12 @@
          '((* x 6) (* 6 x))
          (simplify-expr '(+ (+ (+ (+ (+ x x) x) x) x) x) #:rules (*simplify-rules*)))
 
+  (check-equal?
+         '5/10
+         (simplify-expr '(+ 1/5 3/10) #:rules (*simplify-rules*)))
+
   (define no-crash-exprs
-    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c))))))(* 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])
