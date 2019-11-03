@@ -255,6 +255,7 @@
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
   ;; TODO: This is a weird hack in several ways, and ideally wouldn't exist
+  ;; TODO: This doesn't work in single-precision
   (define-values (min max)
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]

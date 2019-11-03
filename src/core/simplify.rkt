@@ -2,8 +2,8 @@
 
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "egraph.rkt" "ematch.rkt" "extraction.rkt")
-(require "eggmath.rkt")
+(require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt" "eggmath.rkt")
+
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
@@ -106,7 +106,9 @@
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
-      (merge-egraph-nodes! eg en (substitute-e eg (rule-output rl) binding))))
+      (define expr* (pattern-substitute (rule-output rl) binding))
+      (define en* (mk-enode-rec! eg expr*))
+      (merge-egraph-nodes! eg en en*)))
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (set-precompute! eg en))
@@ -143,7 +145,9 @@
           [(/ (* x 3) x) . 3]
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
               (* (sqrt x) (sqrt x))) . 1]
-          [(re (complex a b)) . a]))
+          [(re (complex a b)) . a]
+          [(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
+          ))
 
   (*timeline-disabled* true)
   (define outputs (simplify-batch (hash-keys test-exprs) #:rules (*simplify-rules*)))

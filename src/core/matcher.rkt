@@ -5,7 +5,7 @@
 
 (provide
  (all-from-out "../syntax/rules.rkt")
- pattern-match
+ pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
  (struct-out change) change-apply rule-rewrite)
 
