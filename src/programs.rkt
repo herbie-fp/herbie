@@ -92,7 +92,7 @@
   (define real->precision (match mode
     ['bf (curryr ->bf repr)]
     ['fl (curryr ->flonum repr)]
-    ['ival mk-ival]
+    ['ival (compose mk-ival (curryr ->bf repr))]
     ['nonffi identity]))
   (define precision->real (match mode
     ['bf identity]

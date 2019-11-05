@@ -74,7 +74,7 @@
        'real
        (*output-prec*))]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real] ;; TODO: assumes variable types are real
+    [(? variable?) (dict-ref (*var-precs*) expr)]
     [(list 'if cond ift iff)
      (enode-type ift)]
     [(list op ens ...)

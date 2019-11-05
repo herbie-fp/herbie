@@ -76,8 +76,7 @@
 ;; The rewriter
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
-  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define type (type-of expr env))
+  (define type (type-of expr (*var-precs*)))
   (reap [sow]
     (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
@@ -85,8 +84,7 @@
             (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
-  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define type (type-of expr env))
+  (define type (type-of expr (*var-precs*)))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
     (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))

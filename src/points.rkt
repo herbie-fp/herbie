@@ -12,9 +12,7 @@
 (module+ test (require rackunit))
 (module+ internals (provide make-sampler ival-eval))
 
-(define/contract (sample-multi-bounded ranges)
-  (-> (listof interval?) (or/c flonum? single-flonum? #f))
-  (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
+(define (sample-multi-bounded ranges repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define <-ordinal (representation-ordinal->repr repr))
   (define <-exact (representation-exact->repr repr))
@@ -97,15 +95,27 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (make-sampler precondition)
+(define (make-sampler precondition precision)
   (define range-table (condition->range-table (program-body precondition)))
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
                         #:url "faq.html#no-valid-values"))
-  (λ ()
-    (map (compose sample-multi-bounded (curry range-table-ref range-table))
-         (program-variables precondition))))
+  (define reprs
+    (for/list ([var (program-variables precondition)])
+      (when (null? (range-table-ref range-table var))
+        (raise-herbie-error "No valid values of variable ~a" var
+                            #:url "faq.html#no-valid-values"))
+      (get-representation (dict-ref (*var-precs*) var))))
+  ;; TODO(interface): range tables do not handle representations right now
+  ;; They produce +-inf endpoints, which aren't valid values in generic representations
+  (if (set-member? '(binary32 binary64) precision)
+      (λ ()
+        (map 
+         (λ (var repr)
+           (sample-multi-bounded (range-table-ref range-table var) repr))
+         (program-variables precondition) reprs))
+      (λ () (map random-generate reprs))))
 
 (define (prepare-points-intervals prog precondition precision)
   (timeline-log! 'method 'intervals)
@@ -114,7 +124,7 @@
 
   (define repr (get-representation precision))
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler pre-prog))
+  (define sampler (make-sampler pre-prog precision))
 
   (define pre-fn (eval-prog pre-prog 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
@@ -234,7 +244,7 @@
       (bf-precision prec)
       (let ([curr (map (compose <-bf f) pts)]
             [good? (map pre pts)])
-        (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new))) good? prev curr))
+        (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new repr))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
 
@@ -276,7 +286,7 @@
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition precision)
   (timeline-log! 'method 'halfpoints)
-  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition)))
+  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition) precision))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -293,12 +303,7 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define sampler
-        (if (set-member? '(binary32 binary64) precision)
-            sample
-            (λ () (for/list ([var (program-variables prog)])
-                    (random-generate (get-representation precision))))))
-      (define pts1 (for/list ([n (in-range num)]) (sampler)))
+      (define pts1 (for/list ([n (in-range num)]) (sample)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition precision))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")

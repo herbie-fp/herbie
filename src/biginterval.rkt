@@ -7,7 +7,7 @@
 
 (provide (contract-out
           [struct ival ([lo bigvalue?] [hi bigvalue?] [err? boolean?] [err boolean?])]
-          [mk-ival (-> (or/c real? boolean?) ival?)]
+          [mk-ival (-> bigvalue? ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -56,11 +56,12 @@
 
 (define (mk-ival x)
   (match x
-    [(? real?)
-     (define x* (bf x)) ;; TODO: Assuming that float precision < bigfloat precision
-     (ival x* x* #f #f)]
+    [(? bigfloat?)
+     (ival x x #f #f)]
     [(? boolean?)
-     (ival x x #f #f)]))
+     (ival x x #f #f)]
+    [_
+     (error "Interval arithmetic on ~a not supported" x)]))
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))

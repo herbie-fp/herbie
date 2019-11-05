@@ -29,9 +29,7 @@
                          (->bf expr repr)))
                    (cons (repeat bf) (repeat 1))]
                   [(? variable?)
-                   ;; TODO(interface): when the syntax checker is udpated,
-                   ;; use *var-precs* to get the representation
-                   (cons (map (curryr ->bf (get-representation 'binary64))
+                   (cons (map (curryr ->bf (get-representation (dict-ref (*var-precs*) expr)))
                               (dict-ref vars expr))
                          (repeat 1))]
                   [`(if ,c ,ift ,iff)

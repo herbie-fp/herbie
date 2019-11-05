@@ -63,15 +63,10 @@
   (check-false (ordinary-value? +nan.0 binary64))
   (check-false (ordinary-value? -inf.0 binary64)))
 
-(define (=-or-nan? x1 x2)
-  (and (number? x1) (number? x2)
-       (or (equal? x1 x2) (and (nan? x1) (nan? x2)))))
-
-(module+ test
-  (check-true (=-or-nan? 2.3 2.3))
-  (check-false (=-or-nan? 2.3 7.8))
-  (check-true (=-or-nan? +nan.0 -nan.f))
-  (check-false (=-or-nan? 2.3 +nan.f)))
+(define (=-or-nan? x1 x2 repr)
+  (define ->ordinal (representation-repr->ordinal repr))
+  (or (= (->ordinal x1) (->ordinal x2))
+      (and (special-value? x1 repr) (special-value? x2 repr))))
 
 (define (</total x1 x2 repr)
   (cond
@@ -92,7 +87,7 @@
       (set-member? (representation-special-values repr) x)))
 
 (define (<=/total x1 x2 repr)
-  (or (</total x1 x2 repr) (=-or-nan? x1 x2)))
+  (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
 
 (define (exact-value? type val)
   (match type
@@ -140,7 +135,7 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* (if (exact? n) (exact->inexact n) n))
+  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
@@ -152,7 +147,7 @@
         n)
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
-        (if (=-or-nan? n* (<-bf bf))
+        (if (=-or-nan? n* (<-bf bf) repr)
             (bigfloat->string bf)
             (loop (+ precision 4))))))) ; 2^4 > 10
 
