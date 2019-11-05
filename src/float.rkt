@@ -10,7 +10,7 @@
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
          <-all-precisions mk-<= special-value?
-         get-representation*)
+         get-representation* representation-type)
 
 (define (get-representation* x)
   (match x
@@ -164,6 +164,12 @@
     (if (eq? (representation-name repr) 'complex)
       (bf x)
       ((representation-repr->bf repr) x))]))
+
+(define (representation-type repr)
+  (match (representation-name repr)
+    ['binary64 'real]
+    ['binary32 'real]
+    [x xx]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond

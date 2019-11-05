@@ -40,7 +40,7 @@
     ;; standards, this will have to have more information passed in
     [(? value?) (*output-prec*)]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (match (dict-ref env expr) ['binary64 'real] ['binary32 'real] [x x])]
+    [(? variable?) (representation-type (get-representation (dict-ref env expr)))]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
@@ -49,8 +49,8 @@
 
 (define (expression->type stx env error!)
   (match stx
-    [(or #`TRUE #`FALSE) 'bool]
-    [#`,(? constant? x) 'real]
+    [#`,(? real?) 'real]
+    [#`,(? constant? x) (constant-info x 'type)]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t 'real)
