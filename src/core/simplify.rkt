@@ -99,6 +99,8 @@
           (merge-egraph-nodes! eg en en*))))))
 
 (module+ test
+  (*var-precs* '((x . real) (a . real) (b . real)))
+
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]

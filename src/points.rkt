@@ -25,10 +25,11 @@
   (<-ordinal (apply random-ranges ordinal-ranges)))
 
 (module+ test
-  (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)))))
+  (define repr (get-representation 'binary64))
+  (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)) repr)))
   (check-exn
    exn:fail?
-   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t))))))
+   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)) repr))))
 
 (define *pcontext* (make-parameter #f))
 

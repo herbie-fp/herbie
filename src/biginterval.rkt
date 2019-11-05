@@ -540,7 +540,7 @@
     (for ([i (in-range num-tests)])
       (define pt (sample-double))
       (with-check-info (['point pt])
-        (check-pred ival-valid? (mk-ival pt))
+        (check-pred ival-valid? (mk-ival (bf pt)))
         (check ival-contains? (mk-ival pt) (bf pt)))))
 
   (define arg1

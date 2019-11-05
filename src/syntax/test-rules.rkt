@@ -36,10 +36,11 @@
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
+  (*var-precs* itypes)
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)))])
+    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) 'binary64)])
       (λ ()
         (if (dict-has-key? *conditions* name)
             (sample)

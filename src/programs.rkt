@@ -126,6 +126,8 @@
   (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
 
 (module+ test
+  (*var-precs* '((a . binary64) (b . binary64) (c . binary64)))
+
   (define tests
     #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -140,7 +142,7 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
-      (define iv ((eval-prog e 'ival #f) p))
+      (define iv ((eval-prog e 'ival (get-representation 'binary64)) p))
       (define val ((eval-prog e 'bf (get-representation 'binary64)) p))
       (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
