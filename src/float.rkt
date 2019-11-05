@@ -169,7 +169,7 @@
   (match (representation-name repr)
     ['binary64 'real]
     ['binary32 'real]
-    [x xx]))
+    [x x]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond
