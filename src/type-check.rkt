@@ -40,7 +40,7 @@
     ;; standards, this will have to have more information passed in
     [(? value?) (*output-prec*)]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (dict-ref env expr)]
+    [(? variable?) (match (dict-ref env expr) ['binary64 'real] ['binary32 'real] [x x])]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)

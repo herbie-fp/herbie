@@ -61,7 +61,7 @@
     [(? boolean?)
      (ival x x #f #f)]
     [_
-     (error "Interval arithmetic on ~a not supported" x)]))
+     (error "Invalid exact value for interval arithmetic" x)]))
 
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
@@ -541,7 +541,7 @@
       (define pt (sample-double))
       (with-check-info (['point pt])
         (check-pred ival-valid? (mk-ival (bf pt)))
-        (check ival-contains? (mk-ival pt) (bf pt)))))
+        (check ival-contains? (mk-ival (bf pt)) (bf pt)))))
 
   (define arg1
     (list (cons ival-neg   bfneg)
