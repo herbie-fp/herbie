@@ -40,7 +40,7 @@
     ;; standards, this will have to have more information passed in
     [(? value?) (*output-prec*)]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (representation-type (get-representation (dict-ref env expr)))]
+    [(? variable?) (dict-ref env expr)]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
