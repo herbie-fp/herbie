@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CORES=6
+CORES=4
 
 function run {
   bench=$1; shift
