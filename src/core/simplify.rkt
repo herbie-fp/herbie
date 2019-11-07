@@ -48,7 +48,7 @@
         exprs
         (lambda (node-ids)
           (define start-time-inner (current-inexact-milliseconds))
-          (egraph-run-rules egg-graph 9999999 (*node-limit*))
+          (egraph-run-rules egg-graph (*node-limit*) rls)
           (for/list ([id node-ids])
             (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
   ;; (println (- (current-inexact-milliseconds) start-time))

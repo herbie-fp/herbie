@@ -1,37 +1,9 @@
 #lang racket
 
-(provide fpconstants)
+
 (require "./rules.rkt")
+(require "../syntax/herbie-to-egg-pattern.rkt")
 
-(define port (open-input-file "./rules.rkt"))
-
-
-(define (convert-syntax datum)
-  (cond
-    [(list? datum)
-     (string-append
-      "("
-      (symbol->string (first datum))
-     (foldr
-      (lambda (sub-expr acc)
-        (string-append " "
-                       (convert-syntax sub-expr)
-                       acc))
-      ""
-      (rest datum))
-     ")")]
-    [(symbol? datum)
-     (if
-      (set-member? fpconstants datum)
-      (symbol->string datum)
-      (string-append "?" (symbol->string datum)))]
-    [(number? datum)
-     (number->string datum)]
-    [else
-     (error "expected list, number, or symbol")]))
-
-(define (herbie-pattern->rust-pattern stx)
-  (convert-syntax (syntax->datum stx)))
 
 (define (rule-syntax->rust-string stx)
   (define top (syntax->list stx))
@@ -53,8 +25,8 @@
        (for/list ([rule rules])
          (define rule-list (syntax->list rule))
          (define rule-name (symbol->string (syntax->datum (first rule-list))))
-         (define first-expr (herbie-pattern->rust-pattern (second rule-list)))
-         (define second-expr (herbie-pattern->rust-pattern (third rule-list)))
+         (define first-expr (herbie-pattern->rust-pattern (syntax->datum (second rule-list))))
+         (define second-expr (herbie-pattern->rust-pattern (syntax->datum (third rule-list))))
          (string-append "(\"" rule-name "\",\"" first-expr "\",\"" second-expr "\")")))
      (define rules-together
        (foldr (lambda (next acc)
@@ -66,6 +38,7 @@
                     "\"" name "\","
                     "&[" rules-together "],);")]))
 
+(define port (open-input-file "./rules.rkt"))
 (define (read-once rust-list)
   (define stx (read-syntax "./testrules.rkt" port))
   (if
@@ -79,6 +52,7 @@
       (read-once (cons (rule-syntax->rust-string stx)
                        rust-list))]
      [else (read-once rust-list)])))
+
 
 (define output (open-output-file "./rustgenerated.txt" #:exists 'replace))
 (read-line port) ; read the #lang so that it doesn't appear
