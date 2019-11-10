@@ -7,6 +7,7 @@ function run {
   name=$1; shift
 
   echo "Running $name test with flags $@"
+  rm -rf "reports/$name"
   racket "src/herbie.rkt" report \
       --note "$name" \
       --profile \
