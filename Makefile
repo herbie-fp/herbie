@@ -1,4 +1,4 @@
-.PHONY: all install update nightly index publish start-server package deploy
+.PHONY: all install update nightly index publish start-server package deploy egg-herbie
 
 all:
 	@echo "Type 'make install' to install Herbie as a Racket package,"
