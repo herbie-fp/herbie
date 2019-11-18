@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
-(require "../syntax/rules.rkt" "../syntax/types.rkt")
+(require "../syntax/rules.rkt" "../syntax/types.rkt" "../interface.rkt")
 (require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
