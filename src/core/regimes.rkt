@@ -36,7 +36,7 @@
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts)
-        (program-variables (*start-prog*))))
+        (program-variables (alt-program (first alts)))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
   (define repr (get-representation precision))
@@ -104,7 +104,7 @@
 
     ;; We don't want unused alts in our history!
     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt `(λ ,(program-variables (*start-prog*)) ,expr*)
+    (alt `(λ ,(program-variables (alt-program (first alts))) ,expr*)
          (list 'regimes splitpoints*) alts*)]))
 
 (define (remove-unused-alts alts splitpoints)
@@ -125,7 +125,7 @@
 
 (define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
-  (define vars (program-variables (*start-prog*)))
+  (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
   (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl repr) pts))

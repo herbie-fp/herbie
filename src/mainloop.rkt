@@ -351,10 +351,9 @@
   (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
   (cond
    [(and (flag-set? 'setup 'early-exit)
-         (< (errors-score (errors (*start-prog*) (*pcontext*) repr))
-            0.1))
+         (< (errors-score (errors prog (*pcontext*) repr)) 0.1))
     (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-    (make-alt (*start-prog*))]
+    (first (atab-all-alts (^table^)))]
    [else
     (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
     (when (flag-set? 'setup 'simplify)
@@ -391,5 +390,5 @@
 (define (resample! precision)
   (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
     (*pcontext* context)
-    (^table^ (atab-new-context (^table^) context )))
+    (^table^ (atab-new-context (^table^) context)))
   (void))

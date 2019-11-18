@@ -201,6 +201,6 @@
            '())
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
-     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre (table-row-pre row)))
+     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
      ,(table-row-output row)))
