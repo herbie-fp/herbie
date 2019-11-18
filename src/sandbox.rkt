@@ -85,7 +85,7 @@
                                          (errors (test-target test) newcontext output-repr))))
         `(good ,(bf-precision) ,warning-log
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,baseline-errs ,oracle-errs ,all-alts))))
+               ,baseline-errs ,oracle-errs ,(*all-alts*)))))
 
   (define (in-engine _)
     (set! timeline *timeline*)
