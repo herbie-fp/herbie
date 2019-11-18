@@ -23,14 +23,18 @@
                                 #:rules rls
                                 #:precompute [precompute? false]
                                 #:prune [prune? false])
-  (-> expr? #:rules (listof rule?) #:precompute boolean? #:prune boolean? expr?)
+  (->* (expr? #:rules (listof rule?))
+       (#:precompute boolean? #:prune boolean?)
+       expr?)
   (first (simplify-batch (list expr) #:rules rls)))
 
 (define/contract (simplify-batch exprs
                                  #:rules rls
                                  #:precompute [precompute? false]
                                  #:prune [prune? false])
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prune boolean? (listof expr?))
+  (->* (expr? #:rules (listof rule?))
+       (#:precompute boolean? #:prune boolean?)
+       expr?)
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))
