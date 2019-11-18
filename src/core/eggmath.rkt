@@ -3,12 +3,13 @@
 (require ffi/unsafe
          ffi/unsafe/define)
 (require racket/runtime-path)
-(require "../debug.rkt")
+
+(require "../debug.rkt" "../timeline.rkt" "../common.rkt")
 (require "../syntax/rules.rkt")
 (require "../syntax/herbie-to-egg-pattern.rkt")
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs egraph-run-rules egraph-get-simplest egg-expr->expr egg-add-exn?)
+(provide egraph-run egraph-add-exprs egraph-run-iter egraph-get-simplest egg-expr->expr egg-add-exn? make-ffi-rules egraph-get-cost egraph-get-size)
 
 
 (define-runtime-path libeggmath-path
@@ -42,30 +43,52 @@
 
 (define-eggmath egraph_addresult_destroy (_fun _EGraphAddResult-pointer -> _void))
 
-;; egraph pointer, node size limit, a pointer to an array of ffirule, and the size of that array
-(define-eggmath egraph_run_rules (_fun _egraph-pointer
-                                        _uint
-                                       (ffi-rules : (_list i _FFIRule-pointer))
-                                       (_uint = (length ffi-rules)) -> _void))
+
+;; egraph pointer, a node limit, a pointer to an array of ffirule, and the size of that array
+(define-eggmath egraph_run_iter (_fun _egraph-pointer
+                                      _uint
+                                      (ffi-rules : (_list i _FFIRule-pointer))
+                                      (_uint = (length ffi-rules)) -> _void))
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer _uint -> _string/utf-8))
 
+(define-eggmath egraph_get_cost (_fun _egraph-pointer _uint -> _uint))
+(define-eggmath egraph_get_size (_fun _egraph-pointer -> _uint))
+
+
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 
+
+(define (egraph-get-size egraph-data)
+  (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
+
+(define (egraph-get-cost egraph-data node-id)
+  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id))
 
 (define (egraph-get-simplest egraph-data node-id)
   (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id))
 
-(define (egraph-run-rules egraph-data node-limit rules)
-  (define ffi-rules
-    (for/list [(rule rules)]
+(define (make-ffi-rules rules)
+  (for/list [(rule rules)]
       (make-FFIRule (symbol->string (rule-name rule))
                     (herbie-pattern->rust-pattern (rule-input rule))
                     (herbie-pattern->rust-pattern (rule-output rule)))))
-  (egraph_run_rules (egraph-data-egraph-pointer egraph-data)
-                    node-limit
-                    ffi-rules))
+
+(define (egraph-run-iter egraph-data node-limit ffi-rules)
+  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules))  
+
+
+(define (egraph-run-rules egraph-data node-limit rules)
+  (define ffi-rules (make-ffi-rules rules))
+  (define old-cnt 0)
+  (for/and ([iter (in-naturals 0)])
+    (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules)
+    (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
+    (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
+    (set! old-cnt cnt)
+    (not is_stop)))
+
 
 ;; calls the function on a new egraph, and cleans up
 (define (egraph-run egraph-function)
@@ -167,7 +190,7 @@
        egg-graph
        (list '(+ x 2) '(+ x 1) '(+ x 0) '(+ x 23) 0 1)
        (lambda (node-ids)
-         (egraph-run-rules egg-graph 9000 (*simplify-rules*))
+         (egraph-run-rules egg-graph 100 (*simplify-rules*))
          (for/list [(node-id node-ids)]
            (egg-expr->expr (egraph-get-simplest egg-graph node-id) egg-graph))))))
    (list '(+ x 2) '(+ x 1) 'x '(+ x 23) 0 1))
@@ -207,7 +230,6 @@
     (lambda (egg-graph)
       (for/list ([expr
                   extended-expr-list])
-        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph) ;; call twice to make sure mutation works
         (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph))))
    extended-expr-list)
   )

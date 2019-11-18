@@ -48,11 +48,34 @@
         exprs
         (lambda (node-ids)
           (define start-time-inner (current-inexact-milliseconds))
-          (egraph-run-rules egg-graph (*node-limit*) rls)
+          (egg-run-rules egg-graph (*node-limit*) rls node-ids)
           (for/list ([id node-ids])
             (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
   ;; (println (- (current-inexact-milliseconds) start-time))
   res)
+
+(define (egg-run-rules egg-graph node-limit rules node-ids)
+  (define ffi-rules (make-ffi-rules rules))
+  (define start-time (current-inexact-milliseconds))
+  (define old-cnt 0)
+  (for/and ([iter (in-naturals 0)])
+    (egraph-run-iter egg-graph node-limit ffi-rules)
+    (define cnt (egraph-get-size egg-graph))
+    (define cost
+      (apply +
+             (for/list ([node-id node-ids])
+               (egraph-get-cost egg-graph node-id))))
+    (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time))
+    (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
+    (set! old-cnt cnt)
+    (not is_stop))
+
+  (define cost
+      (apply +
+             (for/list ([node-id node-ids])
+               (egraph-get-cost egg-graph node-id))))
+  (timeline-push! 'egraph "done" old-cnt cost (- (current-inexact-milliseconds) start-time)))
 
 (define/contract (simplify-batch-herbie-egraph exprs #:rules rls)
   (-> (listof expr?) #:rules (listof rule?) (listof expr?))
