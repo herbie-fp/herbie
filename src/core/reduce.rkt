@@ -279,5 +279,5 @@
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
      (match (type-of x (*var-precs*))
-       ['real `(pow ,x ,power)]
+       [(or 'real 'binary64 'binary32) `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))
