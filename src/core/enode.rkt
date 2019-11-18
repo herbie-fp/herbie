@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt" "../interface.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
