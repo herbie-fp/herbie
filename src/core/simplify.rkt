@@ -21,8 +21,8 @@
 
 (define/contract (simplify-expr expr
                                 #:rules rls
-                                #:precompute [precompute? false]
-                                #:prune [prune? false])
+                                #:precompute [precompute? true]
+                                #:prune [prune? true])
   (->* (expr? #:rules (listof rule?))
        (#:precompute boolean? #:prune boolean?)
        expr?)
@@ -30,8 +30,8 @@
 
 (define/contract (simplify-batch exprs
                                  #:rules rls
-                                 #:precompute [precompute? false]
-                                 #:prune [prune? false])
+                                 #:precompute [precompute? true]
+                                 #:prune [prune? true])
   (->* (expr? #:rules (listof rule?))
        (#:precompute boolean? #:prune boolean?)
        expr?)
