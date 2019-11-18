@@ -57,20 +57,21 @@
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
-        (define all-alts (remove-duplicates (*all-alts*)))
-        (define baseline-errs
-          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext output-repr))
-        (define oracle-errs
-          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext output-repr))
-
-        (debug #:from 'regime-testing #:depth 1
-               "Baseline error score:" (errors-score baseline-errs))
-        (debug #:from 'regime-testing #:depth 1
-               "Oracle error score:" (errors-score oracle-errs))
-            
         ;; The cells are stored in reverse order, so this finds last regimes invocation
         (for/first ([cell (unbox timeline)]
                     #:when (equal? (dict-ref cell 'type) 'regimes))
+          (define fns
+            (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
+                 (remove-duplicates (*all-alts*))))
+
+          (define baseline-errs (baseline-error fns context newcontext output-repr))
+          (define oracle-errs (oracle-error fns newcontext output-repr))
+          
+          (debug #:from 'regime-testing #:depth 1
+                 "Baseline error score:" (errors-score baseline-errs))
+          (debug #:from 'regime-testing #:depth 1
+                 "Oracle error score:" (errors-score oracle-errs))
+
           (dict-set! cell 'oracle (errors-score oracle-errs))
           (dict-set! cell 'accuracy end-err)
           (dict-set! cell 'baseline (errors-score baseline-errs)))
