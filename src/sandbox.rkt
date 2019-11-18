@@ -57,15 +57,16 @@
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
+        (define fns
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
+               (remove-duplicates (*all-alts*))))
+
+        (define baseline-errs (baseline-error fns context newcontext output-repr))
+        (define oracle-errs (oracle-error fns newcontext output-repr))
+
         ;; The cells are stored in reverse order, so this finds last regimes invocation
         (for/first ([cell (unbox timeline)]
                     #:when (equal? (dict-ref cell 'type) 'regimes))
-          (define fns
-            (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
-                 (remove-duplicates (*all-alts*))))
-
-          (define baseline-errs (baseline-error fns context newcontext output-repr))
-          (define oracle-errs (oracle-error fns newcontext output-repr))
           
           (debug #:from 'regime-testing #:depth 1
                  "Baseline error score:" (errors-score baseline-errs))
