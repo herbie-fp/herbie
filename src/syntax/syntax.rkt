@@ -271,7 +271,7 @@
   [nonffi (no-complex (λ (x) (expt x (/ 1 3))))])
 
 (define-operator/libm (ceil real) real
-  [libm ceil ceilf] [bf bfceiling] [ival #f]
+  [libm ceil ceilf] [bf bfceiling] [ival ival-ceil]
   [->c/double (curry format "ceil(~a)")]
   [->c/mpfr (curry format "mpfr_ceil(~a, ~a)")]
   [->tex (curry format "\\left\\lceil~a\\right\\rceil")]
@@ -330,7 +330,7 @@
   [nonffi exp])
 
 (define-operator/libm (exp2 real) real
-  [libm exp2 exp2f] [bf bfexp2] [ival #f]
+  [libm exp2 exp2f] [bf bfexp2] [ival ival-exp2]
   [->c/double (curry format "exp2(~a)")]
   [->c/mpfr (curry format "mpfr_exp2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "2^{~a}")]
@@ -366,7 +366,7 @@
   [nonffi (λ (x y) (max (- x y) 0))])
 
 (define-operator/libm (floor real) real
-  [libm floor floorf] [bf bffloor] [ival #f]
+  [libm floor floorf] [bf bffloor] [ival ival-floor]
   [->c/double (curry format "floor(~a)")]
   [->c/mpfr (curry format "mpfr_floor(~a, ~a)")]
   [->tex (curry format "\\left\\lfloor~a\\right\\rfloor")]
@@ -449,7 +449,7 @@
   [nonffi log])
 
 (define-operator/libm (log10 real) real
-  [libm log10 log10f] [bf bflog10] [ival #f]
+  [libm log10 log10f] [bf bflog10] [ival ival-log10]
   [->c/double (curry format "log10(~a)")]
   [->c/mpfr (curry format "mpfr_log10(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{10} ~a")]
@@ -463,7 +463,7 @@
   [nonffi (from-bigfloat bflog1p)])
 
 (define-operator/libm (log2 real) real
-  [libm log2 log2f] [bf bflog2] [ival #f]
+  [libm log2 log2f] [bf bflog2] [ival ival-log2]
   [->c/double (curry format "log2(~a)")]
   [->c/mpfr (curry format "mpfr_log2(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\log_{2} ~a")]
@@ -504,14 +504,14 @@
   [nonffi remainder])
 
 (define-operator/libm (rint real) real
-  [libm rint rintf] [bf bfrint] [ival #f]
+  [libm rint rintf] [bf bfrint] [ival ival-rint]
   [->c/double (curry format "rint(~a)")]
   [->c/mpfr (curry format "mpfr_rint(~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{rint} ~a")]
   [nonffi round])
 
 (define-operator/libm (round real) real
-  [libm round roundf] [bf bfround] [ival #f]
+  [libm round roundf] [bf bfround] [ival ival-round]
   [->c/double (curry format "round(~a)")]
   [->c/mpfr (curry format "mpfr_round(~a, ~a)")]
   [->tex (curry format "\\mathsf{round} ~a")]
@@ -567,7 +567,7 @@
   [nonffi gamma])
 
 (define-operator/libm (trunc real) real
-  [libm trunc truncf] [bf bftruncate] [ival #f]
+  [libm trunc truncf] [bf bftruncate] [ival ival-trunc]
   [->c/double (curry format "trunc(~a)")]
   [->c/mpfr (curry format "mpfr_trunc(~a, ~a)")]
   [->tex (curry format "\\mathsf{trunc}\\left(~a\\right)")]

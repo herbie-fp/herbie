@@ -22,8 +22,11 @@
           [ival-cbrt (-> ival? ival?)]
           [ival-hypot (-> ival? ival? ival?)]
           [ival-exp (-> ival? ival?)]
+          [ival-exp2 (-> ival? ival?)]
           [ival-expm1 (-> ival? ival?)]
           [ival-log (-> ival? ival?)]
+          [ival-log2 (-> ival? ival?)]
+          [ival-log10 (-> ival? ival?)]
           [ival-log1p (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
           [ival-sin (-> ival? ival?)]
@@ -43,6 +46,11 @@
           [ival-erfc (-> ival? ival?)]
           [ival-fmod (-> ival? ival? ival?)]
           [ival-remainder (-> ival? ival? ival?)]
+          [ival-rint (-> ival? ival?)]
+          [ival-round (-> ival? ival?)]
+          [ival-ceil (-> ival? ival?)]
+          [ival-floor (-> ival? ival?)]
+          [ival-trunc (-> ival? ival?)]
           [ival-and (->* () #:rest (listof ival?) ival?)]
           [ival-or  (->* () #:rest (listof ival?) ival?)]
           [ival-not (-> ival? ival?)]
@@ -176,17 +184,23 @@
             (bfdiv (ival-lo x) (ival-hi y)) (bfdiv (ival-hi x) (ival-hi y))))
      (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err)]))
 
-(define (ival-exp x)
-  (ival (rnd 'down bfexp (ival-lo x)) (rnd 'up bfexp (ival-hi x)) (ival-err? x) (ival-err x)))
+(define-syntax-rule (define-monotonic name bffn)
+  (define (name x)
+    (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) (ival-err? x) (ival-err x))))
 
-(define (ival-expm1 x)
-  (ival (rnd 'down bfexpm1 (ival-lo x)) (rnd 'up bfexpm1 (ival-hi x)) (ival-err? x) (ival-err x)))
+(define-monotonic ival-exp bfexp)
+(define-monotonic ival-exp2 bfexp2)
+(define-monotonic ival-expm1 bfexpm1)
 
-(define (ival-log x)
-  (define err (or (ival-err x) (bflte? (ival-hi x) 0.bf)))
-  (define err? (or err (ival-err? x) (bflte? (ival-lo x) 0.bf)))
-  (ival (rnd 'down bflog (ival-lo x)) (rnd 'up bflog (ival-hi x))
-        err? err))
+(define-syntax-rule (define-monotonic-positive name bffn)
+  (define (name x)
+    (define err (or (ival-err x) (bflte? (ival-hi x) 0.bf)))
+    (define err? (or err (ival-err? x) (bflte? (ival-lo x) 0.bf)))
+    (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) err? err)))
+
+(define-monotonic-positive ival-log bflog)
+(define-monotonic-positive ival-log2 bflog2)
+(define-monotonic-positive ival-log10 bflog10)
 
 (define (ival-log1p x)
   (define err (or (ival-err x) (bflte? (ival-hi x) -1.bf)))
@@ -195,8 +209,8 @@
         err? err))
 
 (define (ival-sqrt x)
-  (define err (or (ival-err x) (bflte? (ival-hi x) 0.bf)))
-  (define err? (or err (ival-err? x) (bflte? (ival-lo x) 0.bf)))
+  (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
+  (define err? (or err (ival-err? x) (bflt? (ival-lo x) 0.bf)))
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
         err? err))
 
@@ -404,6 +418,12 @@
   (if (bf=? a b)
       (ival-sub x (ival-mult (ival a b err? err) y*))
       (ival (bfneg (bfdiv (ival-hi y*) 2.bf)) (bfdiv (ival-hi y*) 2.bf) err? err)))
+
+(define-monotonic ival-rint bfrint)
+(define-monotonic ival-round bfround)
+(define-monotonic ival-ceil bfceiling)
+(define-monotonic ival-floor bffloor)
+(define-monotonic ival-trunc bftruncate)
 
 (define (ival-erf x)
   (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x)))
