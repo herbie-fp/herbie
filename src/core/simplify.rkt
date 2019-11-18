@@ -19,12 +19,18 @@
 ;;#
 ;;################################################################################;;
 
-(define/contract (simplify-expr expr #:rules rls)
-  (-> expr? #:rules (listof rule?) expr?)
+(define/contract (simplify-expr expr
+                                #:rules rls
+                                #:precompute [precompute? false]
+                                #:prune [prune? false])
+  (-> expr? #:rules (listof rule?) #:precompute boolean? #:prune boolean? expr?)
   (first (simplify-batch (list expr) #:rules rls)))
 
-(define/contract (simplify-batch exprs #:rules rls)
-  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+(define/contract (simplify-batch exprs
+                                 #:rules rls
+                                 #:precompute [precompute? false]
+                                 #:prune [prune? false])
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prune boolean? (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))
@@ -33,7 +39,9 @@
   (define ex (apply mk-extractor ens))
 
   (define phases
-    (append (map rule-phase rls) (list precompute-phase prune-phase)))
+    (append (map rule-phase rls)
+            (if precompute? (list precompute-phase) '())
+            (if prune? (list prune-phase) '())))
 
   (for/and ([iter (in-naturals 0)])
     (extractor-iterate ex)
@@ -46,7 +54,7 @@
     (define leaders (egraph-leaders eg))
     (for ([phase phases]) (phase eg leaders))
 
-    (< initial-cnt (egraph-cnt eg) (*node-limit*))))
+    (< initial-cnt (egraph-cnt eg) (*node-limit*)))
 
   (extractor-iterate ex)
   (define cost (apply extractor-cost ex ens))
