@@ -32,12 +32,22 @@
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
   (define ex (apply mk-extractor ens))
 
+  (define phases
+    (append (map rule-phase rls) (list precompute-phase prune-phase)))
+
   (for/and ([iter (in-naturals 0)])
     (extractor-iterate ex)
     (define cost (apply extractor-cost ex ens))
+    (define initial-cnt (egraph-cnt eg))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " (egraph-cnt eg) " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
-    (one-iter eg rls))
+
+    ;; Iterates the egraph by applying each of the given rules to the egraph
+    (define leaders (egraph-leaders eg))
+    (for ([phase phases]) (phase eg leaders))
+
+    (< initial-cnt (egraph-cnt eg) (*node-limit*))))
+
   (extractor-iterate ex)
   (define cost (apply extractor-cost ex ens))
   (debug #:from 'simplify #:depth 2
@@ -59,31 +69,30 @@
 ;; where bindings is a list of different matches between the rule and
 ;; the enode.
 
-(define (find-matches ens rls)
+(define (find-matches ens rl)
   (reap [sow]
-        (for* ([rl rls] [en ens]
-               #:when (rule-applicable? rl en))
+        (for ([en ens] #:when (rule-applicable? rl en))
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
-            (sow (list* rl en bindings))))))
+            (sow (cons en bindings))))))
 
-;; Iterates the egraph by applying each of the given rules in parallel
-;; to the egraph nodes.
-(define (one-iter eg rls)
-  (define initial-cnt (egraph-cnt eg))
-  (for ([m (find-matches (egraph-leaders eg) rls)]
-        #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (match-define (list rl en bindings ...) m)
+(define ((rule-phase rl) eg leaders)
+  (for* ([m (find-matches leaders rl)]
+         #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (match-define (cons en bindings) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
       (define expr* (pattern-substitute (rule-output rl) binding))
       (define en* (mk-enode-rec! eg expr*))
-      (merge-egraph-nodes! eg en en*)))
-  (for ([en (egraph-leaders eg)]
+      (merge-egraph-nodes! eg en en*))))
+
+(define (precompute-phase eg leaders)
+  (for ([en leaders]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (set-precompute! eg en))
-  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (reduce-to-single! eg en))
-  (< initial-cnt (egraph-cnt eg) (*node-limit*)))
+    (set-precompute! eg en)))
+
+(define (prune-phase eg leaders)
+  (for ([en leaders] #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (reduce-to-single! eg en)))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
