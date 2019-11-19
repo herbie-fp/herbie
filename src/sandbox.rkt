@@ -135,7 +135,7 @@
              (resugar-program (test-spec test) (test-output-prec test))
              (and (test-output test)
                   (resugar-program (test-output test) (test-output-prec test)))
-             #f #f #f #f #f #f #f (test-result-time result)
+             #f #f #f #f #f (test-result-time result)
              (test-result-bits result) link))
 
 (define (get-table-data result link)
@@ -173,7 +173,7 @@
                            (program-body (alt-program (test-success-end-alt result)))
                            (test-output-prec test))]
                  [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score] [inf- 0] [inf+ 0])]
+                 [start-est est-start-score] [result-est est-end-score])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]

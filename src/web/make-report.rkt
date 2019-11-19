@@ -16,7 +16,7 @@
   (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
 
   (define table-labels
-    '("Test" "Start" "Result" "Target" "∞ ↔ ℝ" "Time"))
+    '("Test" "Start" "Result" "Target" "Time"))
 
   (define help-text
     #hash(("Result" . "Color key:\nGreen: improved accuracy\nLight green: no initial error\nOrange: no accuracy change\nRed: accuracy worsened")
@@ -43,19 +43,12 @@
   (define (round* x)
     (inexact->exact (round x)))
 
-  (define any-has-target? (ormap table-row-target tests))
-  (define any-has-inf+/-?
-    (for*/or ([test tests] [field (list table-row-inf- table-row-inf+)])
-      (and (field test) (> (field test) 0))))
-
   (define sorted-tests
     (sort (map cons tests (range (length tests))) >
           #:key (λ (x) (or (table-row-start (car x)) 0))))
 
   (define classes
-    (filter identity
-            (list (if any-has-target? #f 'no-target)
-                  (if any-has-inf+/-? #f 'no-inf))))
+    (if (ormap table-row-target tests) '(no-target) '()))
 
   ;; HTML cruft
   (fprintf out "<!doctype html>\n")
@@ -130,10 +123,6 @@
                 (td ,(format-bits (table-row-start result)))
                 (td ,(format-bits (table-row-result result)))
                 (td ,(format-bits (table-row-target result)))
-                (td ,(let ([inf- (table-row-inf- result)])
-                       (if (and inf- (> inf- 0)) (format "+~a" inf-) ""))
-                    ,(let ([inf+ (table-row-inf+ result)])
-                       (if (and inf+ (> inf+ 0)) (format "-~a" inf+) "")))
                 (td ,(format-time (table-row-time result)))
                 ,(if (table-row-link result)
                      `(td

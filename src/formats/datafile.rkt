@@ -10,7 +10,7 @@
 
 (struct table-row
   (name status pre precision vars input output spec target-prog
-        start result target inf- inf+ start-est result-est
+        start result target start-est result-est
         time bits link) #:prefab)
 
 (struct report-info
@@ -33,7 +33,7 @@
   (define (simplify-test test)
     (match test
       [(table-row name status pre prec vars input output spec target-prog
-                  start-bits end-bits target-bits inf- inf+ start-est end-est
+                  start-bits end-bits target-bits start-est end-est
                   time bits link)
        (make-hash
         `((name . ,name)
@@ -43,8 +43,6 @@
           (start . ,start-bits)
           (end . ,end-bits)
           (target . ,target-bits)
-          (ninf . ,inf-)
-          (pinf . ,inf+)
           (start-est . ,start-est)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
@@ -106,6 +104,6 @@
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
-                                (get 'ninf) (get 'pinf) (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
+                                (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 
                                 (get 'time) (get 'bits) (get 'link)))))))
