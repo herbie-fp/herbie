@@ -66,7 +66,9 @@
 (define (=-or-nan? x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (or (= (->ordinal x1) (->ordinal x2))
-      (and (special-value? x1 repr) (special-value? x2 repr))))
+      (if (real? x1) ; Infinities are considered special values for real reprs for some reason
+          (and (nan? x1) (nan? x2))
+          (and (special-value? x1 repr) (special-value? x2 repr)))))
 
 (define (</total x1 x2 repr)
   (cond

@@ -350,7 +350,7 @@
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
                     (get-representation 'binary64)))
 
-    (check-true (p0? '(0 -1)))
-    (check-true (p2? '(-1 1)))
-    (check-true (p0? '(+1 1)))
-    (check-true (p1? '(0 0)))))
+    (check-pred p0? '(0 -1))
+    (check-pred p2? '(-1 1))
+    (check-pred p0? '(+1 1))
+    (check-pred p1? '(0 0))))
