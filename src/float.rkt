@@ -123,7 +123,7 @@
     (->flonum ((constant-info x 'fl)) repr)]
    [else
     ;; TODO(interface): Once we have complex numbers as types rather than
-    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; reprs, we don't have to do this additional check and we can just use
     ;; repr->bf for everything.
     (if (eq? (representation-name repr) 'complex)
       (bigfloat->flonum x)
