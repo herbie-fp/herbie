@@ -43,9 +43,10 @@
   (define ex (apply mk-extractor ens))
 
   (define phases
-    (append (map rule-phase rls)
-            (if precompute? (list precompute-phase) '())
-            (if prune? (list prune-phase) '())))
+    (filter identity
+            (list (rule-phase rls)
+                  (and precompute? precompute-phase)
+                  (and prune? prune-phase))))
 
   (for/and ([iter (in-naturals 0)])
     (extractor-iterate ex)
@@ -55,8 +56,7 @@
     (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
 
     ;; Iterates the egraph by applying each of the given rules to the egraph
-    (define leaders (egraph-leaders eg))
-    (for ([phase phases]) (phase eg leaders))
+    (for ([phase phases]) (phase eg))
 
     (< initial-cnt (egraph-cnt eg) (*node-limit*)))
 
@@ -81,29 +81,30 @@
 ;; where bindings is a list of different matches between the rule and
 ;; the enode.
 
-(define (find-matches ens rl)
+(define (find-matches ens rls)
   (reap [sow]
-        (for ([en ens] #:when (rule-applicable? rl en))
+        (for* ([rl rls] [en ens]
+               #:when (rule-applicable? rl en))
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
-            (sow (cons en bindings))))))
+            (sow (list* rl en bindings))))))
 
-(define ((rule-phase rl) eg leaders)
-  (for* ([m (find-matches leaders rl)]
+(define ((rule-phase rls) eg)
+  (for* ([m (find-matches (egraph-leaders eg) rls)]
          #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (match-define (cons en bindings) m)
+    (match-define (list rl en bindings ...) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
       (define expr* (pattern-substitute (rule-output rl) binding))
       (define en* (mk-enode-rec! eg expr*))
       (merge-egraph-nodes! eg en en*))))
 
-(define (precompute-phase eg leaders)
-  (for ([en leaders]
+(define (precompute-phase eg)
+  (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (set-precompute! eg en)))
 
-(define (prune-phase eg leaders)
-  (for ([en leaders] #:break (>= (egraph-cnt eg) (*node-limit*)))
+(define (prune-phase eg)
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
     (reduce-to-single! eg en)))
 
 (define (set-precompute! eg en)
