@@ -42,10 +42,10 @@
   ;                 (lambda (e)
   ;                  (println "Falling back on simplify-batch-herbie-egraph")
   ;                 (simplify-batch-herbie-egraph exprs #:rules rls))])
-  (simplify-batch-egg exprs #:rules rls))
+  (simplify-batch-egg exprs #:rules rls #:precompute precompute?))
 
-(define/contract (simplify-batch-egg exprs #:rules rls #:precompute [precompute? true])
-  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+(define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))

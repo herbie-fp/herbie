@@ -7,7 +7,7 @@
 (require "../debug.rkt" "../common.rkt")
 (require "../syntax/rules.rkt")
 (require "../syntax/herbie-to-egg-pattern.rkt")
-(require "./eggmath-bindings.rkt")
+(require "../../egg-herbie/main.rkt")
 
 (module+ test (require rackunit))
 
