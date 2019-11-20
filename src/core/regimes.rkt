@@ -178,8 +178,7 @@
 	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
 	  [else (binary-search-floats pred p1 midpoint repr)])))
 
-(define (extract-subexpression program expr)
-  (define var (gensym 'branch))
+(define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
   (define vars* (set-subtract (program-variables program) (free-variables expr)))
   (if (subset? (free-variables body*) (cons var vars*))
@@ -196,8 +195,9 @@
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
-  (define progs (map (compose (curryr extract-subexpression expr) alt-program) alts))
-  (define start-prog (extract-subexpression (*start-prog*) expr))
+  (define var (gensym 'branch))
+  (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
+  (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -206,7 +206,7 @@
       (define ctx
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true]
-                       [*var-precs* (cons (cons (first (program-variables prog1)) precision) (*var-precs*))])
+                       [*var-precs* (cons (cons var precision) (*var-precs*))])
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx repr))
          (errors-score (errors prog2 ctx repr))))
