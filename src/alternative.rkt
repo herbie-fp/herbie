@@ -2,7 +2,7 @@
 
 (require "common.rkt")
 
-(provide (struct-out alt) make-alt alt? alt-program alt-add-event)
+(provide (struct-out alt) make-alt alt? alt-program alt-add-event *start-prog* *all-alts*)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -19,3 +19,10 @@
 
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
+
+;; A useful parameter for many of Herbie's subsystems, though
+;; ultimately one that should be located somewhere else or perhaps
+;; exorcised
+
+(define *start-prog* (make-parameter '()))
+(define *all-alts* (make-parameter '()))

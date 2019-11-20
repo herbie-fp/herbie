@@ -81,7 +81,7 @@ li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
 }
 
 #results td:nth-child(1) { text-align: left; word-break: break-all; }
-#results td:nth-child(7) {width: 0;}
+#results td:nth-child(6) {width: 0;}
 
 tr.imp-start  td:nth-child(3) {background-color:#87fc70;}
 tr.apx-start  td:nth-child(3) {background-color:#ff9500;}
@@ -105,8 +105,6 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 
 #results.no-target td:nth-child(4) {display: none;}
 #results.no-target th:nth-child(4) {display: none;}
-#results.no-inf td:nth-child(5) {display: none;}
-#results.no-inf th:nth-child(5) {display: none;}
 
 /* Help button */
 

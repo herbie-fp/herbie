@@ -82,8 +82,9 @@
   (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-  (^table^ (make-alt-table context (make-alt prog) precision))
-  (void))
+  (define alt (make-alt prog))
+  (^table^ (make-alt-table context alt precision))
+  alt)
 
 ;; Information
 (define (list-alts)
@@ -348,13 +349,13 @@
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (define repr (get-representation precision))
-  (setup-prog! prog #:specification specification #:precondition precondition #:precision precision)
+  (define alt
+    (setup-prog! prog #:specification specification #:precondition precondition #:precision precision))
   (cond
    [(and (flag-set? 'setup 'early-exit)
-         (< (errors-score (errors (*start-prog*) (*pcontext*) repr))
-            0.1))
+         (< (errors-score (errors (alt-program alt) (*pcontext*) repr)) 0.1))
     (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-    (make-alt (*start-prog*))]
+    alt]
    [else
     (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
     (when (flag-set? 'setup 'simplify)
@@ -382,7 +383,9 @@
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
-            ,(simplify-expr (program-body (alt-program joined-alt)) #:rules (*fp-safe-simplify-rules*)))
+            ,(simplify-expr (program-body (alt-program joined-alt))
+                            #:rules (*fp-safe-simplify-rules*)
+                            #:precompute false))
          'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
@@ -391,5 +394,5 @@
 (define (resample! precision)
   (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
     (*pcontext* context)
-    (^table^ (atab-new-context (^table^) context )))
+    (^table^ (atab-new-context (^table^) context)))
   (void))

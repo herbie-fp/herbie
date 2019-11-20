@@ -57,20 +57,22 @@
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
-        (define all-alts (remove-duplicates (*all-alts*)))
-        (define baseline-errs
-          (baseline-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) context newcontext output-repr))
-        (define oracle-errs
-          (oracle-error (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr)) all-alts) newcontext output-repr))
+        (define fns
+          (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
+               (remove-duplicates (*all-alts*))))
 
-        (debug #:from 'regime-testing #:depth 1
-               "Baseline error score:" (errors-score baseline-errs))
-        (debug #:from 'regime-testing #:depth 1
-               "Oracle error score:" (errors-score oracle-errs))
-            
+        (define baseline-errs (baseline-error fns context newcontext output-repr))
+        (define oracle-errs (oracle-error fns newcontext output-repr))
+
         ;; The cells are stored in reverse order, so this finds last regimes invocation
         (for/first ([cell (unbox timeline)]
                     #:when (equal? (dict-ref cell 'type) 'regimes))
+          
+          (debug #:from 'regime-testing #:depth 1
+                 "Baseline error score:" (errors-score baseline-errs))
+          (debug #:from 'regime-testing #:depth 1
+                 "Oracle error score:" (errors-score oracle-errs))
+
           (dict-set! cell 'oracle (errors-score oracle-errs))
           (dict-set! cell 'accuracy end-err)
           (dict-set! cell 'baseline (errors-score baseline-errs)))
@@ -83,7 +85,7 @@
                                          (errors (test-target test) newcontext output-repr))))
         `(good ,(bf-precision) ,warning-log
                ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,baseline-errs ,oracle-errs ,all-alts))))
+               ,baseline-errs ,oracle-errs ,(*all-alts*)))))
 
   (define (in-engine _)
     (set! timeline *timeline*)
@@ -135,7 +137,7 @@
              (resugar-program (test-spec test) (test-output-prec test))
              (and (test-output test)
                   (resugar-program (test-output test) (test-output-prec test)))
-             #f #f #f #f #f #f #f (test-result-time result)
+             #f #f #f #f #f (test-result-time result)
              (test-result-bits result) link))
 
 (define (get-table-data result link)
@@ -153,12 +155,6 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
-
-    (define binary64 (get-representation 'binary64))
-    ;; TODO: this is broken because errors are always ordinary values now!
-    (define-values (reals infs) (partition (curryr ordinary-value? binary64)
-                                           (map - end-errors start-errors)))
-    (define-values (good-inf bad-inf) (partition positive? infs))
 
     (define status
       (if target-score
@@ -179,7 +175,7 @@
                            (program-body (alt-program (test-success-end-alt result)))
                            (test-output-prec test))]
                  [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score] [inf- (length good-inf)] [inf+ (length bad-inf)])]
+                 [start-est est-start-score] [result-est est-end-score])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]
@@ -201,6 +197,6 @@
            '())
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
-     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre (table-row-pre row)))
+     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
      ,(table-row-output row)))

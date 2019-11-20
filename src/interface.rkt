@@ -2,8 +2,14 @@
 
 (require math/bigfloat math/flonum "bigcomplex.rkt")
 
-(provide (struct-out representation) get-representation)
+(provide (struct-out representation) get-representation *output-prec* *var-precs*)
 (module+ internals (provide define-representation))
+
+;; Global precision tacking
+(define *output-prec* (make-parameter '()))
+(define *var-precs* (make-parameter '()))
+
+;; Structs
 
 (struct representation
   (name
