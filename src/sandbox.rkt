@@ -137,7 +137,7 @@
              (resugar-program (test-spec test) (test-output-prec test))
              (and (test-output test)
                   (resugar-program (test-output test) (test-output-prec test)))
-             #f #f #f #f #f #f #f (test-result-time result)
+             #f #f #f #f #f (test-result-time result)
              (test-result-bits result) link))
 
 (define (get-table-data result link)
@@ -155,12 +155,6 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
-
-    (define binary64 (get-representation 'binary64))
-    ;; TODO: this is broken because errors are always ordinary values now!
-    (define-values (reals infs) (partition (curryr ordinary-value? binary64)
-                                           (map - end-errors start-errors)))
-    (define-values (good-inf bad-inf) (partition positive? infs))
 
     (define status
       (if target-score
@@ -181,7 +175,7 @@
                            (program-body (alt-program (test-success-end-alt result)))
                            (test-output-prec test))]
                  [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score] [inf- (length good-inf)] [inf+ (length bad-inf)])]
+                 [start-est est-start-score] [result-est est-end-score])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]
