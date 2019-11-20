@@ -205,7 +205,8 @@
       (set! iters (+ 1 iters))
       (define ctx
         (parameterize ([*num-points* (*binary-search-test-points*)]
-                       [*timeline-disabled* true])
+                       [*timeline-disabled* true]
+                       [*var-precs* (cons (cons (first (program-variables prog1)) precision) (*var-precs*))])
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
       (< (errors-score (errors prog1 ctx repr))
          (errors-score (errors prog2 ctx repr))))
