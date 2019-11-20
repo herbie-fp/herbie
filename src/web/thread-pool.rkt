@@ -34,35 +34,25 @@
     (define result (get-test-result test #:seed seed))
     (get-table-data result "")]))
 
-(define (make-worker)
+(define (make-worker seed profile? debug? dir)
+  (define the-flags (*flags*))
+  (define the-num-iters (*num-iterations*))
+  (define the-num-points (*num-points*))
+  (define the-timeout (*timeout*))
+  (define the-reeval (*reeval-pts*))
   (place ch
-    (let loop ([seed #f] [profile? #f] [debug? #f] [dir #f])
-      (match (place-channel-get ch)
-	[`(init
-	   rand ,vec
-	   flags ,flag-table
-	   num-iters ,iterations
-           points ,points
-           profile? ,profile
-           debug? ,debug
-           dir ,path
-           timeout ,timeout
-           reeval ,reeval)
+    (let loop ()
+      (*flags* the-flag)
+      (*num-iterations* the-num-iters)
+      (*num-points* the-num-points)
+      (*timeout* the-timeout)
+      (*reeval-pts* the-reeval)
 
-	 (set! seed vec)
-         (set! profile? profile)
-         (set! debug? debug)
-         (set! dir path)
-	 (*flags* flag-table)
-	 (*num-iterations* iterations)
-         (*num-points* points)
-         (*timeout* timeout)
-         (*reeval-pts* reeval)]
-        [`(apply ,self ,id ,test)
-         (let ([result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir)])
-           (place-channel-put ch
-             `(done ,id ,self ,result)))])
-      (loop seed profile? debug? dir))))
+      (match-define (list 'apply self id test) (place-channel-get ch))
+      (define result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir))
+      (place-channel-put ch `(done ,id ,self ,result))
+
+      (loop))))
 
 (define (print-test-result i n data)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
@@ -81,22 +71,9 @@
               (table-row-name data))]))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
-  (define config
-    `(init rand ,seed
-           flags ,(*flags*)
-           num-iters ,(*num-iterations*)
-           points ,(*num-points*)
-           profile? ,profile?
-           debug? ,debug?
-           dir ,dir
-           timeout ,(*timeout*)
-           reeval ,(*reeval-pts*)))
-
   (define workers
     (for/list ([wid (in-range threads)])
-      (define worker (make-worker))
-      (place-channel-put worker config)
-      worker))
+      (make-worker seed profile? debug? dir)))
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
