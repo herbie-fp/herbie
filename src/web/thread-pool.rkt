@@ -42,7 +42,7 @@
   (define the-reeval (*reeval-pts*))
   (place ch
     (let loop ()
-      (*flags* the-flag)
+      (*flags* the-flags)
       (*num-iterations* the-num-iters)
       (*num-points* the-num-points)
       (*timeout* the-timeout)
@@ -105,38 +105,30 @@
             out*
             (loop out*)))))
 
-  (map place-kill workers)
+  (for-each place-kill workers)
 
-  outs)
+  (map cdr (sort outs < #:key car)))
 
 (define (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (eprintf "Starting Herbie on ~a problems (seed: ~a)...\n" (length progs) seed)
-  (define out '())
+  (define outs '())
   (with-handlers ([exn:break?
                    (λ (_)
                      (eprintf "Terminating after ~a problem~a!\n"
-                             (length out) (if (= (length out) 1) "s" "")))])
+                             (length outs) (if (= (length outs) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile? #:debug debug? #:dir dir))
       (print-test-result (+ 1 i) (length progs) tr)
-      (set! out (cons (cons i tr) out))))
-  out)
+      (set! outs (cons tr outs))))
+  outs)
 
 (define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)
       #:seed (or/c pseudo-random-generator-vector? (integer-in 0 (sub1 (expt 2 31))))
       #:profile boolean? #:debug boolean? #:dir (or/c #f path-string?)
       (listof (or/c #f table-row?)))
-  (when (and threads (> threads (length progs)))
-    (set! threads (length progs)))
 
-  (define outs
-    (if threads
-        (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
-        (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)))
-  
-  (define out (make-vector (length progs) #f))
-  (for ([(idx result) (in-dict outs)])
-    (vector-set! out idx result))
-
-  (vector->list out))
+  (if threads
+      (run-workers progs (min threads (length progs))
+                   #:seed seed #:profile profile? #:debug debug? #:dir dir)
+      (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)))
