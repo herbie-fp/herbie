@@ -19,12 +19,22 @@
 ;;#
 ;;################################################################################;;
 
-(define/contract (simplify-expr expr #:rules rls)
-  (-> expr? #:rules (listof rule?) expr?)
+(define/contract (simplify-expr expr
+                                #:rules rls
+                                #:precompute [precompute? true]
+                                #:prune [prune? true])
+  (->* (expr? #:rules (listof rule?))
+       (#:precompute boolean? #:prune boolean?)
+       expr?)
   (first (simplify-batch (list expr) #:rules rls)))
 
-(define/contract (simplify-batch exprs #:rules rls)
-  (-> (listof expr?) #:rules (listof rule?) (listof expr?))
+(define/contract (simplify-batch exprs
+                                 #:rules rls
+                                 #:precompute [precompute? true]
+                                 #:prune [prune? true])
+  (->* (expr? #:rules (listof rule?))
+       (#:precompute boolean? #:prune boolean?)
+       expr?)
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))
@@ -32,12 +42,24 @@
   (define ens (for/list ([expr exprs]) (mk-enode-rec! eg expr)))
   (define ex (apply mk-extractor ens))
 
+  (define phases
+    (filter identity
+            (list (rule-phase rls)
+                  (and precompute? precompute-phase)
+                  (and prune? prune-phase))))
+
   (for/and ([iter (in-naturals 0)])
     (extractor-iterate ex)
     (define cost (apply extractor-cost ex ens))
+    (define initial-cnt (egraph-cnt eg))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " (egraph-cnt eg) " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter (egraph-cnt eg) cost (- (current-inexact-milliseconds) start-time))
-    (one-iter eg rls))
+
+    ;; Iterates the egraph by applying each of the given rules to the egraph
+    (for ([phase phases]) (phase eg))
+
+    (< initial-cnt (egraph-cnt eg) (*node-limit*)))
+
   (extractor-iterate ex)
   (define cost (apply extractor-cost ex ens))
   (debug #:from 'simplify #:depth 2
@@ -67,23 +89,23 @@
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
 
-;; Iterates the egraph by applying each of the given rules in parallel
-;; to the egraph nodes.
-(define (one-iter eg rls)
-  (define initial-cnt (egraph-cnt eg))
-  (for ([m (find-matches (egraph-leaders eg) rls)]
-        #:break (>= (egraph-cnt eg) (*node-limit*)))
+(define ((rule-phase rls) eg)
+  (for* ([m (find-matches (egraph-leaders eg) rls)]
+         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (match-define (list rl en bindings ...) m)
     (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
       (define expr* (pattern-substitute (rule-output rl) binding))
       (define en* (mk-enode-rec! eg expr*))
-      (merge-egraph-nodes! eg en en*)))
+      (merge-egraph-nodes! eg en en*))))
+
+(define (precompute-phase eg)
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (set-precompute! eg en))
+    (set-precompute! eg en)))
+
+(define (prune-phase eg)
   (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (reduce-to-single! eg en))
-  (< initial-cnt (egraph-cnt eg) (*node-limit*)))
+    (reduce-to-single! eg en)))
 
 (define (set-precompute! eg en)
   (define type (enode-type en))
