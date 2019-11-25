@@ -33,8 +33,8 @@
                     (herbie-pattern->rust-pattern (rule-input rule))
                     (herbie-pattern->rust-pattern (rule-output rule)))))
 
-(define (egraph-run-iter egraph-data node-limit ffi-rules)
-  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules))  
+(define (egraph-run-iter egraph-data node-limit ffi-rules precompute?)
+  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
 
 
 (define (egraph-run-rules egraph-data node-limit rules)

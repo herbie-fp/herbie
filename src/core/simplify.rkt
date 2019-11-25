@@ -29,7 +29,7 @@
   (->* (expr? #:rules (listof rule?))
        (#:precompute boolean? #:prune boolean?)
        expr?)
-  (first (simplify-batch (list expr) #:rules rls)))
+  (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prune prune?)))
 
 (define/contract (simplify-batch exprs
                                  #:rules rls
@@ -57,18 +57,18 @@
         exprs
         (lambda (node-ids)
           (define start-time-inner (current-inexact-milliseconds))
-          (egg-run-rules egg-graph (*node-limit*) rls node-ids)
+          (egg-run-rules egg-graph (*node-limit*) rls node-ids precompute?)
           (for/list ([id node-ids])
             (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
   ;; (println (- (current-inexact-milliseconds) start-time))
   res)
 
-(define (egg-run-rules egg-graph node-limit rules node-ids)
+(define (egg-run-rules egg-graph node-limit rules node-ids precompute?)
   (define ffi-rules (make-ffi-rules rules))
   (define start-time (current-inexact-milliseconds))
   (define old-cnt 0)
   (for/and ([iter (in-naturals 0)])
-    (egraph-run-iter egg-graph node-limit ffi-rules)
+    (egraph-run-iter egg-graph node-limit ffi-rules precompute?)
     (define cnt (egraph-get-size egg-graph))
     (define cost
       (apply +
