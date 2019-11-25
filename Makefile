@@ -1,4 +1,4 @@
-.PHONY: all install update nightly index publish start-server package deploy egg-herbie
+.PHONY: all install update nightly index publish start-server package deploy
 
 all:
 	@echo "Type 'make install' to install Herbie as a Racket package,"
@@ -10,7 +10,7 @@ install:
 update:
 	raco pkg update --name herbie src/
 
-nightly: egg-herbie
+nightly:
 	bash infra/nightly.sh
 	# bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
@@ -39,7 +39,3 @@ package:
 # It does not restart the demo server, but it does pull new static content
 deploy:
 	cd $(shell ~/uwplse/getdir) && git pull
-
-egg-herbie:
-	test -d egg-herbie || git clone https://github.com/oflatt/egg-herbie
-	cd ./egg-herbie/ && cargo build --release

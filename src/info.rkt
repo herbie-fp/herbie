@@ -28,7 +28,10 @@
     "plot-lib"
     "profile-lib"
     "rackunit-lib"
-    "web-server-lib"))
+    "web-server-lib"
+    ("egg-herbie-windows" #:platform "win32\\x86_64")
+    ("egg-herbie-osx" #:platform "x86_64-macosx")
+    ("egg-herbie-linux" #:platform "x86_64-linux")))
 
 (define build-deps
   '("rackunit-lib"))
