@@ -37,11 +37,11 @@
   (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
 
 
-(define (egraph-run-rules egraph-data node-limit rules)
+(define (egraph-run-rules egraph-data node-limit rules precompute?)
   (define ffi-rules (make-ffi-rules rules))
   (define old-cnt 0)
   (for/and ([iter (in-naturals 0)])
-    (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules)
+    (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
     (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
     (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
     (set! old-cnt cnt)
@@ -148,7 +148,7 @@
        egg-graph
        (list '(+ x 2) '(+ x 1) '(+ x 0) '(+ x 23) 0 1)
        (lambda (node-ids)
-         (egraph-run-rules egg-graph 100 (*simplify-rules*))
+         (egraph-run-rules egg-graph 100 (*simplify-rules*) true)
          (for/list [(node-id node-ids)]
            (egg-expr->expr (egraph-get-simplest egg-graph node-id) egg-graph))))))
    (list '(+ x 2) '(+ x 1) 'x '(+ x 23) 0 1))
