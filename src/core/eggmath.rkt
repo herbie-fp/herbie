@@ -141,6 +141,26 @@
 
 
 (module+ test
+  (require (submod "../syntax/rules.rkt" internals))
+  
+  (define all-simplify-rules
+    (for/append ([rec (*rulesets*)])
+      (match-define (list rules groups _) rec)
+      (if 
+       (set-member? groups 'simplify)
+       rules
+       '())))
+
+  ;; check that no rules in simplify match on bare variables
+  ;; this would be bad because we don't want to match type-specific operators on a value of a different type
+  (for ([rule all-simplify-rules])
+    (check-true
+     (or
+      (not (symbol? (rule-input rule)))
+      (set-member? fpconstants (rule-input rule)))
+     (string-append "Rule failed: " (symbol->string (rule-name rule)))))
+
+  
   (check-equal?
    (egraph-run
     (lambda (egg-graph)

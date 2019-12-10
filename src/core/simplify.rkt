@@ -1,8 +1,10 @@
 #lang racket
 
+(require pkg/lib)
+
 (require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
 (require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt" "eggmath.rkt")
+(require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
 
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
@@ -22,6 +24,10 @@
 ;;################################################################################
 ;
 
+(define use-egg-math?
+  (hash-has-key? (installed-pkg-table) "egg-math"))
+
+
 (define/contract (simplify-expr expr
                                 #:rules rls
                                 #:precompute [precompute? true]
@@ -38,15 +44,15 @@
   (->* (expr? #:rules (listof rule?))
        (#:precompute boolean? #:prune boolean?)
        expr?)
-  ;(with-handlers ([egg-add-exn?
-  ;                 (lambda (e)
-  ;                  (println "Falling back on simplify-batch-herbie-egraph")
-  ;                 (simplify-batch-herbie-egraph exprs #:rules rls))])
-  (simplify-batch-egg exprs #:rules rls #:precompute precompute?))
+  (if use-egg-math?
+      (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute?)
+      (simplify-batch-egg exprs #:rules rls #:precompute precompute?)))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
+
+  (local-require "eggmath.rkt")
 
   (define start-time (current-inexact-milliseconds))
   (define res
@@ -64,6 +70,7 @@
   res)
 
 (define (egg-run-rules egg-graph node-limit rules node-ids precompute?)
+  (local-require "eggmath.rkt")
   (define ffi-rules (make-ffi-rules rules))
   (define start-time (current-inexact-milliseconds))
   (define old-cnt 0)
