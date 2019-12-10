@@ -12,7 +12,7 @@ update:
 
 nightly:
 	bash infra/nightly.sh
-	# bash infra/nightly.sh --enable rules:numerics
+	bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
 
 index:

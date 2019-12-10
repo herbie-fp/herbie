@@ -17,6 +17,10 @@ function run {
   bash infra/publish.sh upload "reports/$name"
 }
 
+# install package deps
+raco pkg install --auto ./src
+raco pkg update --auto ./src
+
 mkdir -p reports
 for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
