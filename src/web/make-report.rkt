@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/date (only-in xml write-xexpr) json)
+(require (only-in xml write-xexpr) json)
 (require "../common.rkt" "../formats/datafile.rkt" "common.rkt")
 
 (provide make-report-page)

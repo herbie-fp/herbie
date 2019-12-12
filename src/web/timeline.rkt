@@ -1,5 +1,5 @@
 #lang racket
-(require json (only-in xml write-xexpr xexpr?))
+(require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt"
          "../formats/datafile.rkt" "common.rkt" "../float.rkt"
          "../interface.rkt")
