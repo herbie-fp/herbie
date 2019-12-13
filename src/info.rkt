@@ -29,9 +29,9 @@
     "profile-lib"
     "rackunit-lib"
     "web-server-lib"
-    ("egg-herbie-windows" #:platform "win32\\x86_64" #:version "1.1")
-    ("egg-herbie-osx" #:platform "x86_64-macosx" #:version "1.1")
-    ("egg-herbie-linux" #:platform "x86_64-linux" #:version "1.1")))
+    ("egg-herbie-windows" #:platform "win32\\x86_64" #:version "1.2")
+    ("egg-herbie-osx" #:platform "x86_64-macosx" #:version "1.2")
+    ("egg-herbie-linux" #:platform "x86_64-linux" #:version "1.2")))
 
 (define build-deps
   '("rackunit-lib"))
