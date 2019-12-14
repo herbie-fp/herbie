@@ -2,7 +2,7 @@
 
 (require pkg/lib)
 
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt")
 (require "../syntax/rules.rkt")
 
 ;; fall back on racket egraph if rust package unavailable
@@ -47,8 +47,11 @@
        (#:precompute boolean? #:prune boolean?)
        expr?)
   (if use-egg-math?
-      (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute?)
-      (simplify-batch-egg exprs #:rules rls #:precompute precompute?)))
+      (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
+      (begin
+        (warn 'simplify #:url "faq.html#egg-herbie"
+              "Falling back on racket egraph because egg-herbie package not installed")
+        (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute?))))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
