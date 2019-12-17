@@ -12,11 +12,12 @@
 (module+ test (require rackunit))
 
 ;;################################################################################
-;;
-;;# One module to rule them all, the great simplify. This makes use of the other
-;;# modules in this directory to simplify an expression as much as possible without
-;;# making unecessary changes. We do this by creating an egraph, saturating it
+;;# One module to rule them all, the great simplify. This makes use of egg-herbie
+;;# to simplify an expression as much as possible without making unecessary changes
+;;# We do this by creating an egraph, saturating it
 ;;# partially, then extracting the simplest expression from it.
+;;#
+;;# If egg-herbie is not available, it utilizes herbie-egraph to simplify.
 ;;#
 ;;# Simplify attempts to make only one strong guarantee:
 ;;# that the input is mathematically equivalent to the output; that is, for any
@@ -134,7 +135,7 @@
          (simplify-expr '(+ 1/5 3/10) #:rules (*simplify-rules*)))
 
   (define no-crash-exprs
-    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c))))))(* 2 a)))))
+    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])

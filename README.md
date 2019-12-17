@@ -18,9 +18,6 @@ For full details on installing Herbie, please see the
 Herbie requires Racket 7.0 or later, and supports Windows, macOS, and
 Linux.
 
-Herbie also requires Rust.
-Typically, you install Rust using [`rustup`](https://www.rust-lang.org/tools/install).
-
 Install Herbie with:
 
     raco pkg install --auto herbie
