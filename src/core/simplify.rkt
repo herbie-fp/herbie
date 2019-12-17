@@ -28,7 +28,10 @@
 ;
 
 (define use-egg-math?
-  (hash-has-key? (installed-pkg-table) "egg-math"))
+  (or
+   (hash-has-key? (installed-pkg-table) "egg-herbie-windows")
+   (hash-has-key? (installed-pkg-table) "egg-herbie-osx")
+   (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
 
 
 (define/contract (simplify-expr expr
