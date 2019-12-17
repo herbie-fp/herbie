@@ -13,7 +13,7 @@
 
 ;;################################################################################
 ;;# One module to rule them all, the great simplify. This makes use of egg-herbie
-;;# to simplify an expression as much as possible without making unecessary changes
+;;# to simplify an expression as much as possible without making unecessary changes.
 ;;# We do this by creating an egraph, saturating it
 ;;# partially, then extracting the simplest expression from it.
 ;;#

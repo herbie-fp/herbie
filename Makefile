@@ -39,3 +39,4 @@ package:
 # It does not restart the demo server, but it does pull new static content
 deploy:
 	cd $(shell ~/uwplse/getdir) && git pull
+

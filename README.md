@@ -16,9 +16,7 @@ For full details on installing Herbie, please see the
 [tutorial](http://herbie.uwplse.org/doc/latest/installing.html).
 
 Herbie requires Racket 7.0 or later, and supports Windows, macOS, and
-Linux.
-
-Install Herbie with:
+Linux. Install it with:
 
     raco pkg install --auto herbie
 
@@ -26,8 +24,6 @@ This will install a `herbie` binary to somewhere in your home
 directory. You can also run `src/herbie.rkt` directly instead of using
 the `herbie` command, for example if you'd like to download the source
 directly instead of through the package manager.
-
-
 
 Running Herbie
 --------------
