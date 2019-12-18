@@ -29,6 +29,7 @@
 
 (define use-egg-math?
   (or
+   (hash-has-key? (installed-pkg-table) "egg-herbie")
    (hash-has-key? (installed-pkg-table) "egg-herbie-windows")
    (hash-has-key? (installed-pkg-table) "egg-herbie-osx")
    (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
@@ -119,6 +120,7 @@
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
               (* (sqrt x) (sqrt x))) . 1]
           [(re (complex a b)) . a]
+          [(+ 1/5 3/10) . 1/2]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
@@ -132,10 +134,6 @@
   (check set-member?
          '((* x 6) (* 6 x))
          (simplify-expr '(+ (+ (+ (+ (+ x x) x) x) x) x) #:rules (*simplify-rules*)))
-
-  (check-equal?
-         '5/10
-         (simplify-expr '(+ 1/5 3/10) #:rules (*simplify-rules*)))
 
   (define no-crash-exprs
     '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
