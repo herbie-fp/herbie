@@ -4,6 +4,7 @@
 
 (module+ test (require rackunit))
 
+;; copy of constants from herbie/fpcore for egg-herbie
 (define constants
   '(E LOG2E LOG10E LN2 LN10
       PI PI_2 PI_4 1_PI 2_PI 2_SQRTPI
@@ -33,7 +34,7 @@
 
 (module+ test
   (check-equal? (herbie-pattern->rust-pattern `(+ a b)) "(+ ?a ?b)")
-  (check-equal? (herbie-pattern->rust-pattern `(/ c (- 2 a)) "(/ ?c (- 2 ?a))")))
+  (check-equal? (herbie-pattern->rust-pattern `(/ c (- 2 a))) "(/ ?c (- 2 ?a))"))
 
 ;; use as a command line tool  to generate rules in the egg rust syntax
 ;; this is good for direct use on the rust side (testing)

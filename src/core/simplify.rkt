@@ -60,6 +60,7 @@
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
+  (timeline-log! 'method 'egg-herbie)
 
   (local-require "eggmath.rkt")
 
