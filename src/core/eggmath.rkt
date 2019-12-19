@@ -104,7 +104,7 @@
       new-key]))
 
 
-(define-struct (egg-add-exn exn:fail) ())
+(struct egg-add-exn exn:fail ())
 
 ;; result function is a function that takes the ids of the nodes
 ;; egraph-add-exprs returns the result of result-function
