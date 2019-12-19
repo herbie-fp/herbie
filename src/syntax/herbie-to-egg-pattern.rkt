@@ -25,7 +25,7 @@
       #:before-first "("
       #:after-last ")")]
     [(symbol? datum)
-     (format (if (constant? datum) "?~a" "~a") datum)]
+     (format (if (constant? datum) "~a" "?~a") datum)]
     [(number? datum)
      (number->string datum)]
     [else
