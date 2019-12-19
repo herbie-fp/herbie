@@ -1,10 +1,5 @@
 language: c
 sudo: required
-
-language: rust
-rust:
-  - 1.38.0
-
 env:
   global:
     - RACKET_DIR=~/racket

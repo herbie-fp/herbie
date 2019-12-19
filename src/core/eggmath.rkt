@@ -1,18 +1,17 @@
 #lang racket
 
-(require ffi/unsafe
-         ffi/unsafe/define)
-(require racket/runtime-path)
-
-(require "../debug.rkt" "../common.rkt")
-(require "../syntax/rules.rkt")
-(require "../syntax/herbie-to-egg-pattern.rkt")
+(require ffi/unsafe ffi/unsafe/define racket/runtime-path)
 
 (require egg-herbie)
 
+(require "../debug.rkt" "../common.rkt" "../syntax/rules.rkt"
+         "../syntax/herbie-to-egg-pattern.rkt")
+
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs egraph-run-iter egraph-get-simplest egg-expr->expr egg-add-exn? make-ffi-rules egraph-get-cost egraph-get-size)
+(provide egraph-run egraph-add-exprs egraph-run-iter
+         egraph-get-simplest egg-expr->expr egg-add-exn?
+         make-ffi-rules egraph-get-cost egraph-get-size)
 
 
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
@@ -36,16 +35,15 @@
 (define (egraph-run-iter egraph-data node-limit ffi-rules precompute?)
   (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
 
+(define (run-rules-recursive egraph-data node-limit ffi-rules precompute? last-count)
+  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
+  (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
+  (if (and (< cnt node-limit) (> cnt last-count))
+      (run-rules-recursive egraph-data node-limit ffi-rules precompute? cnt)
+      (void)))
 
 (define (egraph-run-rules egraph-data node-limit rules precompute?)
-  (define ffi-rules (make-ffi-rules rules))
-  (define old-cnt 0)
-  (for/and ([iter (in-naturals 0)])
-    (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
-    (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
-    (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
-    (set! old-cnt cnt)
-    (not is_stop)))
+  (run-rules-recursive egraph-data node-limit (make-ffi-rules rules) precompute? 0))
 
 
 ;; calls the function on a new egraph, and cleans up

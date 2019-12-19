@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# lowered number of cores from 6 to 4 to avoid pagetable error
+# caused by heavy use of FFI by eggmath.rkt
 CORES=4
 
 function run {

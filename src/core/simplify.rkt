@@ -2,11 +2,9 @@
 
 (require pkg/lib)
 
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt")
-(require "../syntax/rules.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
+         "../syntax/rules.rkt" "herbie-egraph.rkt")
 
-;; fall back on racket egraph if rust package unavailable
-(require "herbie-egraph.rkt")
 
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
@@ -27,6 +25,7 @@
 ;;################################################################################
 ;
 
+;; fall back on herbie-egraph if egg-herbie is unavailable
 (define use-egg-math?
   (or
    (hash-has-key? (installed-pkg-table) "egg-herbie")
