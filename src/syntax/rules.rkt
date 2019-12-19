@@ -4,11 +4,8 @@
 
 (require "../common.rkt" "syntax.rkt" "../float.rkt" "../type-check.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules* fpconstants)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
-
-(define fpconstants (set 'E 'LOG2E 'LOG10E 'LN2 'LN10 'PI 'PI_2 'PI_4 '1_PI '2_PI '2_SQRTPI 'SQRT2 'SQRT1_2 'INFINITY 'NAN 'TRUE 'FALSE))
-
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write

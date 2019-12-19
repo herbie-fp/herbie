@@ -1,7 +1,15 @@
 #lang racket
 (require "./rules.rkt")
-(provide herbie-pattern->rust-pattern)
+(provide herbie-pattern->rust-pattern constant?)
 
+(define constants
+  '(E LOG2E LOG10E LN2 LN10
+      PI PI_2 PI_4 1_PI 2_PI 2_SQRTPI
+      SQRT2 SQRT1_2 MAXFLOAT HUGE_VAL
+      TRUE FALSE))
+
+(define (constant? x)
+  (set-member? constants x))
 
 (define (herbie-pattern->rust-pattern datum)
   (cond
@@ -19,7 +27,7 @@
      ")")]
     [(symbol? datum)
      (if
-      (set-member? fpconstants datum)
+      (constant? datum)
       (symbol->string datum)
       (string-append "?" (symbol->string datum)))]
     [(number? datum)

@@ -13,7 +13,8 @@
          egraph-get-simplest egg-expr->expr egg-add-exn?
          make-ffi-rules egraph-get-cost egraph-get-size)
 
-
+;; the first hash table maps all symbols and non-integer values to new names for egg
+;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 
 
@@ -58,21 +59,18 @@
   (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
 
 (define (egg-parsed->expr parsed rename-dict)
-  (cond
-    [(list? parsed)
+  (match parsed
+    [(list first-parsed rest-parsed ...)
      (cons
-      (first parsed)
-      (for/list ([expr (rest parsed)])
+      first-parsed
+      (for/list ([expr rest-parsed])
         (egg-parsed->expr expr rename-dict)))]
-    [(and (number? parsed) (exact? parsed) (real? parsed))
+    [(or (? number?) (? constant?))
      parsed]
     [else
-     (if (set-member? fpconstants parsed)
-         parsed
-         (hash-ref rename-dict parsed))]))
+     (hash-ref rename-dict parsed)]))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
-;; the hash table maps all symbols and non-integer values to new names for egg
 (define (expr->egg-expr expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
@@ -81,21 +79,20 @@
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
   (cond
     [(list? expr)
-     (string-append
-      "("
-      (symbol->string (first expr))
-      (foldr
-       (lambda (sub-expr acc)
-         (string-append " " (expr->egg-expr-helper sub-expr egg->herbie-dict herbie->egg-dict)
-                        acc))
-       "" (rest expr))
-      ")")]
+     (string-join
+      (cons
+       (symbol->string (first expr))
+       (map (lambda (e) (expr->egg-expr-helper e egg->herbie-dict herbie->egg-dict))
+            (rest expr)))
+      " "
+      #:before-first "("
+      #:after-last ")")]
     [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
-     (define new-key (string-append "h" (number->string (hash-count herbie->egg-dict))))
+     (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
      (define new-key-symbol (string->symbol new-key))
          
      (hash-set! herbie->egg-dict
@@ -107,20 +104,24 @@
       new-key]))
 
 
-(define-struct (egg-add-exn exn:fail:user) ())
+(define-struct (egg-add-exn exn:fail) ())
 
 ;; result function is a function that takes the ids of the nodes
 ;; egraph-add-exprs returns the result of result-function
 (define (egraph-add-exprs eg-data exprs result-function)
   (define egg-exprs
-    (for/list ([expr exprs])
-      (expr->egg-expr expr eg-data)))
+    (map
+     (lambda (expr) (expr->egg-expr expr eg-data))
+     exprs))
+    
   (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
-                                  (string-join (map ~a egg-exprs) "\n ")))
+                                  (string-join egg-exprs "\n ")))
       
   (define expr-results
-    (for/list ([expr egg-exprs])
-      (egraph_add_expr (egraph-data-egraph-pointer eg-data) expr)))
+    (map
+     (lambda (expr)
+       (egraph_add_expr (egraph-data-egraph-pointer eg-data) expr))
+     egg-exprs))
   
   (define node-ids
     (for/list ([result expr-results])
@@ -155,57 +156,41 @@
     (check-true
      (or
       (not (symbol? (rule-input rule)))
-      (set-member? fpconstants (rule-input rule)))
+      (constant? (rule-input rule)))
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
 
+  (define test-exprs
+    (list (cons '(+ y x) "(+ h0 h1)")
+          (cons '(+ x y) "(+ h1 h0)")
+          (cons '(- 2 (+ x y)) "(- 2 (+ h1 h0))")
+          (cons '(- z (+ (+ y 2) x)) "(- h2 (+ (+ h0 2) h1))")))
   
-  (check-equal?
+  (define outputs
    (egraph-run
     (lambda (egg-graph)
-      (egraph-add-exprs
-       egg-graph
-       (list '(+ x 2) '(+ x 1) '(+ x 0) '(+ x 23) 0 1)
-       (lambda (node-ids)
-         (egraph-run-rules egg-graph 100 (*simplify-rules*) true)
-         (for/list [(node-id node-ids)]
-           (egg-expr->expr (egraph-get-simplest egg-graph node-id) egg-graph))))))
-   (list '(+ x 2) '(+ x 1) 'x '(+ x 23) 0 1))
-
-  (define expr-list
-    (list
-     '(+ x y)
-     '(+ y x)
-     '(- 2 (+ x y))
-     '(- z (+ (+ y 2) x))))
+      (for/list ([expr-pair test-exprs])
+        (expr->egg-expr (car expr-pair) egg-graph)))))
   
-  (check-equal?
-   (egraph-run
-    (lambda (egg-graph)
-      (for/list ([expr
-                  expr-list])
-        (expr->egg-expr expr egg-graph))))
-   (list
-    "(+ h1 h0)"
-    "(+ h0 h1)"
-    "(- 2 (+ h1 h0))"
-    "(- h2 (+ (+ h0 2) h1))"))
-
+  (for ([expr-pair test-exprs]
+        [output outputs])
+    (check-equal? (cdr expr-pair) output))
+    
+  
   (define extended-expr-list
-    (append
-     (list
-      '(/ (- (exp x) (exp (- x))) 2)
-      '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
-      '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a)) ;; duplicated to make sure it would still work
-      '(* r 30)
-      '(* 23/54 r)
-      '(+ 3/2 1.4))
-     expr-list))
+    (list
+     '(/ (- (exp x) (exp (- x))) 2)
+     '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+     '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a)) ;; duplicated to make sure it would still work
+     '(* r 30)
+     '(* 23/54 r)
+     '(+ 3/2 1.4)))
 
-  (check-equal?
+  (define extended-results
    (egraph-run
     (lambda (egg-graph)
       (for/list ([expr
                   extended-expr-list])
-        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph))))
-   extended-expr-list)
+        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph)))))
+  (for ([res extended-results] [expected extended-expr-list])
+    (check-equal? res expected))
   )
