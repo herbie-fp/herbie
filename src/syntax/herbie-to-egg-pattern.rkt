@@ -2,6 +2,8 @@
 (require "./rules.rkt")
 (provide herbie-pattern->rust-pattern constant?)
 
+(module+ test (require rackunit))
+
 (define constants
   '(E LOG2E LOG10E LN2 LN10
       PI PI_2 PI_4 1_PI 2_PI 2_SQRTPI
@@ -14,28 +16,26 @@
 (define (herbie-pattern->rust-pattern datum)
   (cond
     [(list? datum)
-     (string-append
-      "("
-      (symbol->string (first datum))
-     (foldr
-      (lambda (sub-expr acc)
-        (string-append " "
-                       (herbie-pattern->rust-pattern sub-expr)
-                       acc))
-      ""
-      (rest datum))
-     ")")]
+     (string-join
+      (cons
+       (symbol->string (first datum))
+       (map (lambda (sub-expr) (herbie-pattern->rust-pattern sub-expr))
+            (rest datum)))
+      " "
+      #:before-first "("
+      #:after-last ")")]
     [(symbol? datum)
-     (if
-      (constant? datum)
-      (symbol->string datum)
-      (string-append "?" (symbol->string datum)))]
+     (format (if (constant? datum) "?~a" "~a") datum)]
     [(number? datum)
      (number->string datum)]
     [else
      (error "expected list, number, or symbol")]))
 
-;; use as a command line tuool  to generate rules in the egg rust syntax
+(module+ test
+  (check-equal? (herbie-pattern->rust-pattern `(+ a b)) "(+ ?a ?b)")
+  (check-equal? (herbie-pattern->rust-pattern `(/ c (- 2 a)) "(/ ?c (- 2 ?a))")))
+
+;; use as a command line tool  to generate rules in the egg rust syntax
 ;; this is good for direct use on the rust side (testing)
 (module+ main
   (define (rule-syntax->rust-string stx)

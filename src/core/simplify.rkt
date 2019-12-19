@@ -63,43 +63,37 @@
 
   (local-require "eggmath.rkt")
 
-  (define start-time (current-inexact-milliseconds))
-  (define res
-    (egraph-run
-     (lambda (egg-graph)
-       (egraph-add-exprs
-        egg-graph
-        exprs
-        (lambda (node-ids)
-          (define start-time-inner (current-inexact-milliseconds))
-          (egg-run-rules egg-graph (*node-limit*) rls node-ids precompute?)
-          (for/list ([id node-ids])
-            (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph)))))))
-  res)
+  (egraph-run
+   (lambda (egg-graph)
+     (egraph-add-exprs
+      egg-graph
+      exprs
+      (lambda (node-ids)
+        (egg-run-rules egg-graph (*node-limit*) rls node-ids precompute?)
+        (map
+         (lambda (id) (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph))
+         node-ids))))))
 
 (define (egg-run-rules egg-graph node-limit rules node-ids precompute?)
   (local-require "eggmath.rkt")
   (define ffi-rules (make-ffi-rules rules))
   (define start-time (current-inexact-milliseconds))
-  (define old-cnt 0)
-  (for/and ([iter (in-naturals 0)])
-    (egraph-run-iter egg-graph node-limit ffi-rules precompute?)
-    (define cnt (egraph-get-size egg-graph))
+
+  (define (timeline-cost iter)
     (define cost
       (apply +
-             (for/list ([node-id node-ids])
-               (egraph-get-cost egg-graph node-id))))
+             (map (lambda (node-id) (egraph-get-cost egg-graph node-id)) node-ids)))
+    (define cnt (egraph-get-size egg-graph))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time))
+    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+  
+  (for/and ([iter (in-naturals 0)])
+    (define old-cnt (egraph-get-size egg-graph))
+    (egraph-run-iter egg-graph node-limit ffi-rules precompute?)
+    (timeline-cost iter)
+    (define cnt (egraph-get-size egg-graph))
     (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
-    (set! old-cnt cnt)
-    (not is_stop))
-
-  (define cost
-      (apply +
-             (for/list ([node-id node-ids])
-               (egraph-get-cost egg-graph node-id))))
-  (timeline-push! 'egraph "done" old-cnt cost (- (current-inexact-milliseconds) start-time)))
+    (not is_stop)))
 
 
 (module+ test
