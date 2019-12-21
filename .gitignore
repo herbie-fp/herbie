@@ -8,3 +8,4 @@ infra/cost
 previous
 *.swp
 plugins
+egg-herbie

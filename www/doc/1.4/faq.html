@@ -99,6 +99,12 @@
     likely the result of a bug in a third-party plugin.
   </p>
 
+  <h3 id="egg-herbie">Falling back on racket egraph because egg-herbie package not installed</h3>
+
+  <p>
+    The package egg-herbie provides Herbie with a compiled equivalence graph implementation written in rust called egg. If it is not installed, Herbie will fall back on an implementation written in Racket. The only downside to this is that Herbie will run about two times slower using the Racket implementation.
+  </p>
+
 
   <h2>Known bugs</h2>
 
