@@ -30,8 +30,12 @@
 
   <h2>Major features of this release</h2>
 
-  <p><em>egg-herbie:</em>
-    The equivalence graph used to simplify expressions in Herbie has been replaced by a Rust implementation called egg. This made Herbie twice as fast overall because the simplify step now takes one-hundredth of the time it used to. egg-herbie is the racket package and c interface between Herbie and Egg. It is a compiled package that supports Windows, OSX, and Linux.
+  <p><em>Egg Support:</em> Herbie now uses
+    the <a href="https://github.com/mwillsey/egg">Egg</a> library to
+    simplify expressions. Egg is roughly thirty times faster than
+    Herbie's existing simplifier, making Herbie with Egg roughly twice
+    as fast overall. Egg is packaged for Windows, macOS, and Linux, so
+    it should be transparently usable on all platforms.
     </p>
   
   <h2>Beta features in this release</h2>
