@@ -24,9 +24,7 @@
        (for-each loop args)]
       [_ 'ok]))
 
-  (let ([simpl (simplify* expr)])
-    (debug #:from 'backup-simplify "Simplify" expr "into" simpl)
-    simpl))
+  (simplify* expr))
 
 (define (simplify* expr*)
   (define expr ((get-evaluator) expr*))
