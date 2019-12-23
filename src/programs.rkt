@@ -137,7 +137,7 @@
   (check-equal? (eval-application '+ 1 1) 2)
   (check-equal? (eval-const-expr 'PI) pi)
   (check-equal? (eval-const-expr '(exp 2)) (exp 2))
-  (check-equal? (eval-application 'exp 2) (exp 2)))
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (module+ test
   (define tests
