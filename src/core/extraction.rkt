@@ -1,5 +1,5 @@
 #lang racket
-(require "../common.rkt" "enode.rkt")
+(require (only-in "../common.rkt" debug) "enode.rkt")
 (provide mk-extractor extractor-cost extractor-iterate extractor-extract)
 
 ;; The work list maps enodes to a pair (cost . expr) of that node's

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt")
+(require (only-in "../common.rkt" assert))
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid

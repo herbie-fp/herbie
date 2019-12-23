@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../programs.rkt" "enode.rkt" "egraph.rkt")
+(require (only-in "../programs.rkt" constant? variable?))
+(require "enode.rkt")
 (provide match-e)
 
 ;;################################################################################;;

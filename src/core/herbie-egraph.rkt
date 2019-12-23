@@ -1,7 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt")
-(require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
+(require (only-in "../common.rkt" debug *node-limit* reap setfindf)
+         (only-in "../timeline.rkt" timeline-push!)
+         (only-in "matcher.rkt" pattern-substitute rule? rule-output rule-input))
+(require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt")
 
 (provide simplify-batch-herbie-egraph)
 
@@ -9,9 +11,9 @@
                                  #:rules rls
                                  #:precompute [precompute? true]
                                  #:prune [prune? true])
-  (->* (expr? #:rules (listof rule?))
+  (->* (any/c #:rules (listof rule?))
        (#:precompute (or/c #f procedure?) #:prune boolean?)
-       expr?)
+       any/c)
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
   (define start-time (current-inexact-milliseconds))
@@ -83,7 +85,7 @@
 (define (set-precompute! eg en fn)
   (for ([var (enode-vars en)] #:when (list? var))
     (define op (car var))
-    (define args (map (compose (curry setfindf constant?) enode-vars) (cdr var)))
+    (define args (map (compose (curry setfindf (λ (x) (not (or (list? x) (symbol? x))))) enode-vars) (cdr var)))
     (when (andmap identity args)
       (define constant (apply fn op args))
       (when constant

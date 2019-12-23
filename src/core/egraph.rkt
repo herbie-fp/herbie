@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "enode.rkt")
+(require (only-in "../common.rkt" assert))
+(require "enode.rkt")
 
 (provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
@@ -178,12 +179,13 @@
     ;; 1), and we merged x and y, then we know that these two enodes
     ;; are equivalent, and should be merged.
     (define to-merge
-      (for/append ([iexpr (in-mutable-set iexprs)])
-        (define replaced-iexpr (update-en-expr iexpr))
-        (define other-parent (hash-ref expr->parent replaced-iexpr #f))
-        (if other-parent
-            (list (cons other-parent (hash-ref expr->parent iexpr)))
-            '())))
+      (filter
+       identity
+       (for/list ([iexpr (in-mutable-set iexprs)])
+         (define replaced-iexpr (update-en-expr iexpr))
+         (define other-parent (hash-ref expr->parent replaced-iexpr #f))
+         (and other-parent
+              (cons other-parent (hash-ref expr->parent iexpr))))))
 
     ;; Now that we have extracted all the information we need from the
     ;; egraph maps in their current state, we are ready to update
@@ -316,8 +318,7 @@
 ;; If there are any variations of this enode that are a single
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
-  (when (for/or ([var (in-set (enode-vars en))])
-	  (or (constant? var) (variable? var)))
+  (when (for/first ([var (in-set (enode-vars en))] #:when (not (list? var))) 'ok)
     (let* ([leader (pack-leader en)]
            [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
                        (update-en-expr var))]
