@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "enode.rkt")
+(require "../common.rkt" "../syntax/syntax.rkt" "enode.rkt")
 
 (provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
@@ -9,8 +9,6 @@
          elim-enode-loops! reduce-to-single!
          )
 
-(provide (all-defined-out)
-	 (all-from-out "enode.rkt"))
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -82,7 +80,7 @@
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
 	(assert (for/and ([var cur-leader-vars])
-		  (or (value? var) (symbol? var) (list? var))))
+		  (or (number? var) (symbol? var) (list? var))))
 	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
 	(when (not (null? (cdr rest-leaders)))
 	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))

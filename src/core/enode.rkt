@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt" "../interface.rkt")
+(require "../common.rkt")
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
@@ -12,8 +12,6 @@
 	 set-enode-expr! update-vars!
          dedup-children!
          )
-
-(provide (all-defined-out))
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -178,7 +176,7 @@
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
-    (assert (or (value? expr) (symbol? expr)
+    (assert (or (number? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
 		     (andmap enode? (cdr expr)))) #:loc location))
   ;; Checks that the depth is positive.

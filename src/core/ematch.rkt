@@ -1,10 +1,6 @@
 #lang racket
 
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "enode.rkt")
-(require "egraph.rkt")
-
+(require "../programs.rkt" "enode.rkt" "egraph.rkt")
 (provide match-e)
 
 ;;################################################################################;;

@@ -1,8 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "../float.rkt" "../timeline.rkt")
-(require "../syntax/rules.rkt" "../syntax/types.rkt")
-(require "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt")
+(require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt" "matcher.rkt")
 
 (provide simplify-batch-herbie-egraph)
 
