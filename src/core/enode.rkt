@@ -5,7 +5,7 @@
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
 	 enode?
-	 enode-expr enode-type
+	 enode-expr
 	 pack-leader pack-members
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
@@ -49,7 +49,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars type)
+(struct enode (expr id-code children parent depth cvars)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -62,44 +62,11 @@
 	 (define (hash2-proc en recurse-hash)
 	   (enode-id-code en))])
 
-; Get the type for an enode or an enode expr
-(define (type-of-enode-expr expr)
-  (match expr
-    [(? real?) 'real]
-    [(? complex?) 'complex]
-    [(? value?)
-     ;; TODO(interface): Once we allow for mixed-precision expressions,
-     ;; we will have to pass through what the precision is
-     (if (set-member? '(binary64 binary32) (*output-prec*))
-       'real
-       (*output-prec*))]
-    [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real] ;; TODO: assumes variable types are real
-    [(list 'if cond ift iff)
-     (enode-type ift)]
-    [(list op ens ...)
-     ;; Assumes single return type for any function
-     (second (first (first (hash-values (operator-info op 'type)))))]))
-
-(module+ test
-  (require rackunit)
-  (parameterize ([*output-prec* 'binary64])
-    (define x (new-enode '1 1))
-    (define y (new-enode '2 2))
-    (define xplusy (new-enode (list '+ x y) 3))
-    (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real))
-  (parameterize ([*output-prec* 'complex])
-    (define xc (new-enode '1+2i 1))
-    (define yc (new-enode '2+3i 2))
-    (define xcplusyc (new-enode (list '+.c xc yc) 3))
-    (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex)))
-  
-       
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr) (type-of-enode-expr expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 

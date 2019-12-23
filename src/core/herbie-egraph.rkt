@@ -48,9 +48,6 @@
   (debug #:from 'simplify (format "Simplified to:\n  ~a" (string-join (map ~a out) "\n  ")))
   out)
 
-(define (rule-applicable? rl en)
-  (equal? (rule-otype rl) (enode-type en)))
-
 ;; Tries to match the rules against the given enodes, and returns a
 ;; list of matches found. Matches are of the form:
 ;; 
@@ -61,8 +58,7 @@
 
 (define (find-matches ens rls)
   (reap [sow]
-        (for* ([rl rls] [en ens]
-               #:when (rule-applicable? rl en))
+        (for* ([rl rls] [en ens])
           (define bindings (match-e (rule-input rl) en))
           (unless (null? bindings)
             (sow (list* rl en bindings))))))
