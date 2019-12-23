@@ -11,7 +11,7 @@
                                  #:precompute [precompute? true]
                                  #:prune [prune? true])
   (->* (expr? #:rules (listof rule?))
-       (#:precompute boolean? #:prune boolean?)
+       (#:precompute (or/c #f procedure?) #:prune boolean?)
        expr?)
   (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
 
@@ -23,7 +23,7 @@
   (define phases
     (filter identity
             (list (rule-phase rls)
-                  (and precompute? precompute-phase)
+                  (and precompute? (precompute-phase precompute?))
                   (and prune? prune-phase))))
 
   (for/and ([iter (in-naturals 0)])
@@ -72,24 +72,22 @@
       (define en* (mk-enode-rec! eg expr*))
       (merge-egraph-nodes! eg en en*))))
 
-(define (precompute-phase eg)
+(define ((precompute-phase fn) eg)
   (for ([en (egraph-leaders eg)]
         #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (set-precompute! eg en)))
+    (set-precompute! eg en fn)))
 
 (define (prune-phase eg)
   (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
     (reduce-to-single! eg en)))
 
-(define (set-precompute! eg en)
-  (define type (enode-type en))
+(define (set-precompute! eg en fn)
   (for ([var (enode-vars en)] #:when (list? var))
-    (define constexpr
-      (cons (car var)
-            (map (compose (curry setfindf constant?) enode-vars) (cdr var))))
-    (when (andmap identity constexpr)
-      (with-handlers ([exn:fail:contract:divide-by-zero? void])
-        (define res (eval-const-expr constexpr))
-        (when (and ((value-of type) res) (exact-value? type res))
-          (define en* (mk-enode-rec! eg (val-to-type type res)))
-          (merge-egraph-nodes! eg en en*))))))
+    (define op (car var))
+    (define args (map (compose (curry setfindf constant?) enode-vars) (cdr var)))
+    (when (andmap identity args)
+      (define constant (apply fn op args))
+      (when constant
+        (define en* (mk-enode-rec! eg constant))
+        (merge-egraph-nodes! eg en en*)))))
+

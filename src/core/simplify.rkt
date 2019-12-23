@@ -36,19 +36,19 @@
 
 (define/contract (simplify-expr expr
                                 #:rules rls
-                                #:precompute [precompute? true]
-                                #:prune [prune? true])
+                                #:precompute [precompute? false]
+                                #:prune [prune? false])
   (->* (expr? #:rules (listof rule?))
-       (#:precompute boolean? #:prune boolean?)
+       (#:precompute (or/c #f procedure?) #:prune boolean?)
        expr?)
   (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prune prune?)))
 
 (define/contract (simplify-batch exprs
                                  #:rules rls
-                                 #:precompute [precompute? true]
-                                 #:prune [prune? true])
+                                 #:precompute [precompute? false]
+                                 #:prune [prune? false])
   (->* (expr? #:rules (listof rule?))
-       (#:precompute boolean? #:prune boolean?)
+       (#:precompute (or/c #f procedure?) #:prune boolean?)
        expr?)
   (if use-egg-math?
       (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
@@ -70,7 +70,7 @@
       egg-graph
       exprs
       (lambda (node-ids)
-        (egg-run-rules egg-graph (*node-limit*) rls node-ids precompute?)
+        (egg-run-rules egg-graph (*node-limit*) rls node-ids (and precompute? true))
         (map
          (lambda (id) (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph))
          node-ids))))))
@@ -98,6 +98,9 @@
 
 
 (module+ test
+  (define (test-simplify . args)
+    (simplify-batch args #:rules (*simplify-rules*) #:precompute eval-application #:prune true))
+
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
@@ -120,18 +123,16 @@
           ))
 
   (*timeline-disabled* true)
-  (define outputs (simplify-batch (hash-keys test-exprs) #:rules (*simplify-rules*)))
+  (define outputs (apply test-simplify (hash-keys test-exprs)))
   (for ([(original target) test-exprs] [output outputs])
     (with-check-info (['original original])
        (check-equal? output target)))
 
-  (check set-member?
-         '((* x 6) (* 6 x))
-         (simplify-expr '(+ (+ (+ (+ (+ x x) x) x) x) x) #:rules (*simplify-rules*)))
+  (check set-member? '((* x 6) (* 6 x)) (first (test-simplify '(+ (+ (+ (+ (+ x x) x) x) x) x))))
 
   (define no-crash-exprs
     '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])
-       (check-not-exn (λ () (simplify-expr expr #:rules (*simplify-rules*)))))))
+       (check-not-exn (λ () (test-simplify expr))))))
