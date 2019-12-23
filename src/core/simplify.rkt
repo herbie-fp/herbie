@@ -51,7 +51,7 @@
        (#:precompute (or/c #f procedure?) #:prune boolean?)
        expr?)
   (if use-egg-math?
-      (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
+      (simplify-batch-egg exprs #:rules rls #:precompute (and precompute? true))
       (begin
         (warn 'simplify #:url "faq.html#egg-herbie"
               "Falling back on racket egraph because egg-herbie package not installed")
