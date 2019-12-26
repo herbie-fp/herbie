@@ -1,11 +1,14 @@
 #lang racket
 
-(require (only-in "../common.rkt" debug *node-limit* reap)
+(require (only-in "../common.rkt" debug)
          (only-in "../timeline.rkt" timeline-push!)
          (only-in "matcher.rkt" pattern-substitute rule? rule-output rule-input))
 (require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt")
 
-(provide simplify-batch-herbie-egraph)
+(provide simplify-batch-herbie-egraph *regraph-node-limit*)
+
+;; The maximum size of an egraph
+(define *regraph-node-limit* (make-parameter 10000))
 
 (define/contract (simplify-batch-herbie-egraph exprs
                                  #:rules rls
@@ -37,7 +40,7 @@
     ;; Iterates the egraph by applying each of the given rules to the egraph
     (for ([phase phases]) (phase eg))
 
-    (< initial-cnt (egraph-cnt eg) (*node-limit*)))
+    (< initial-cnt (egraph-cnt eg) (*regraph-node-limit*)))
 
   (extractor-iterate ex)
   (define cost (apply extractor-cost ex ens))
@@ -58,24 +61,25 @@
 ;; the enode.
 
 (define (find-matches ens rls)
-  (reap [sow]
-        (for* ([rl rls] [en ens])
-          (define bindings (match-e (rule-input rl) en))
-          (unless (null? bindings)
-            (sow (list* rl en bindings))))))
+  (define out '())
+  (for* ([rl rls] [en ens])
+    (define bindings (match-e (rule-input rl) en))
+    (unless (null? bindings)
+      (set! out (cons (list* rl en bindings) out))))
+  out)
 
 (define ((rule-phase rls) eg)
   (for* ([m (find-matches (egraph-leaders eg) rls)]
-         #:break (>= (egraph-cnt eg) (*node-limit*)))
+         #:break (>= (egraph-cnt eg) (*regraph-node-limit*)))
     (match-define (list rl en bindings ...) m)
-    (for ([binding bindings] #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (for ([binding bindings] #:break (>= (egraph-cnt eg) (*regraph-node-limit*)))
       (define expr* (pattern-substitute (rule-output rl) binding))
       (define en* (mk-enode-rec! eg expr*))
       (merge-egraph-nodes! eg en en*))))
 
 (define ((precompute-phase fn) eg)
   (for ([en (egraph-leaders eg)]
-        #:break (>= (egraph-cnt eg) (*node-limit*)))
+        #:break (>= (egraph-cnt eg) (*regraph-node-limit*)))
     (set-precompute! eg en fn)))
 
 (define (set-precompute! eg en fn)
@@ -89,6 +93,6 @@
         (merge-egraph-nodes! eg en en*)))))
 
 (define (prune-phase eg)
-  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*regraph-node-limit*)))
     (reduce-to-single! eg en)))
 

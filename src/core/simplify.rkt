@@ -36,26 +36,19 @@
 
 (define/contract (simplify-expr expr
                                 #:rules rls
-                                #:precompute [precompute? false]
-                                #:prune [prune? false])
-  (->* (expr? #:rules (listof rule?))
-       (#:precompute (or/c #f procedure?) #:prune boolean?)
-       expr?)
-  (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prune prune?)))
+                                #:precompute [precompute? false])
+  (->* (expr? #:rules (listof rule?)) (#:precompute (or/c #f procedure?)) expr?)
+  (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))
 
-(define/contract (simplify-batch exprs
-                                 #:rules rls
-                                 #:precompute [precompute? false]
-                                 #:prune [prune? false])
-  (->* (expr? #:rules (listof rule?))
-       (#:precompute (or/c #f procedure?) #:prune boolean?)
-       expr?)
+(define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
+  (->* (expr? #:rules (listof rule?)) (#:precompute (or/c #f procedure?)) expr?)
   (if use-egg-math?
       (simplify-batch-egg exprs #:rules rls #:precompute (and precompute? true))
       (begin
         (warn 'simplify #:url "faq.html#egg-herbie"
               "Falling back on racket egraph because egg-herbie package not installed")
-        (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute?))))
+        (parameterize ([*regraph-node-limit* (*node-limit*)])
+          (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute? #:prune true)))))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
@@ -99,7 +92,7 @@
 
 (module+ test
   (define (test-simplify . args)
-    (simplify-batch args #:rules (*simplify-rules*) #:precompute eval-application #:prune true))
+    (simplify-batch args #:rules (*simplify-rules*) #:precompute eval-application))
 
   (define test-exprs
     #hash([1 . 1]
