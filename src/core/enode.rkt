@@ -4,7 +4,7 @@
 
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
-	 enode?
+	 enode? enode-atom
 	 enode-expr
 	 pack-leader pack-members
 	 enode-subexpr?
@@ -47,7 +47,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars)
+(struct enode (expr id-code children parent depth cvars atom)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -64,7 +64,7 @@
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (if (list? expr) #f expr))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -82,6 +82,7 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
+  (set-enode-atom! new-parent (or (enode-atom new-parent) (enode-atom child)))
   #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)

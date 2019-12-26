@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in "../common.rkt" debug *node-limit* reap setfindf)
+(require (only-in "../common.rkt" debug *node-limit* reap)
          (only-in "../timeline.rkt" timeline-push!)
          (only-in "matcher.rkt" pattern-substitute rule? rule-output rule-input))
 (require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt")
@@ -78,17 +78,17 @@
         #:break (>= (egraph-cnt eg) (*node-limit*)))
     (set-precompute! eg en fn)))
 
-(define (prune-phase eg)
-  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
-    (reduce-to-single! eg en)))
-
 (define (set-precompute! eg en fn)
   (for ([var (enode-vars en)] #:when (list? var))
     (define op (car var))
-    (define args (map (compose (curry setfindf (λ (x) (not (or (list? x) (symbol? x))))) enode-vars) (cdr var)))
+    (define args (map enode-atom (cdr var)))
     (when (andmap identity args)
       (define constant (apply fn op args))
       (when constant
         (define en* (mk-enode-rec! eg constant))
         (merge-egraph-nodes! eg en en*)))))
+
+(define (prune-phase eg)
+  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) (*node-limit*)))
+    (reduce-to-single! eg en)))
 
