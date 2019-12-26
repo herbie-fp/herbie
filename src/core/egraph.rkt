@@ -318,15 +318,17 @@
 ;; If there are any variations of this enode that are a single
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
-  (when (for/first ([var (in-set (enode-vars en))] #:when (not (list? var))) 'ok)
-    (let* ([leader (pack-leader en)]
-           [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
-                       (update-en-expr var))]
-           [leader* (pack-filter! (λ (inner-en)
-                                    (not (list? (enode-expr inner-en))))
-                                  leader)])
-      (when (not (eq? leader leader*))
-        (update-leader! eg old-vars leader leader*)))))
+  (when (enode-atom en)
+    (define leader (pack-leader en))
+    (define old-vars
+      (for/mutable-set ([var (in-set (enode-vars leader))])
+          (update-en-expr var)))
+    (define leader*
+      (pack-filter! (λ (inner-en)
+                      (not (list? (enode-expr inner-en))))
+                    leader))
+    (when (not (eq? leader leader*))
+      (update-leader! eg old-vars leader leader*))))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.
