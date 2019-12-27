@@ -5,25 +5,19 @@
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "herbie-egraph.rkt")
 
-
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
 
-;;################################################################################
-;;# One module to rule them all, the great simplify. This makes use of egg-herbie
-;;# to simplify an expression as much as possible without making unecessary changes.
-;;# We do this by creating an egraph, saturating it
-;;# partially, then extracting the simplest expression from it.
-;;#
-;;# If egg-herbie is not available, it utilizes herbie-egraph to simplify.
-;;#
-;;# Simplify attempts to make only one strong guarantee:
-;;# that the input is mathematically equivalent to the output; that is, for any
-;;# exact x, evalutating the input on x will yield the same expression as evaluating
-;;# the output on x.
-;;#
-;;################################################################################
-;
+;; One module to rule them all, the great simplify. It uses egg-herbie
+;; to simplify an expression as much as possible without making
+;; unnecessary changes. We do this by creating an egraph, saturating
+;; it partially, then extracting the simplest expression from it.
+;;
+;; If egg-herbie is not available, simplify uses regraph instead.
+;;
+;; Simplify makes only one guarantee: that the input is mathematically
+;; equivalent to the output. For any exact x, evaluating the input on
+;; x will yield the same expression as evaluating the output on x.
 
 ;; fall back on herbie-egraph if egg-herbie is unavailable
 (define use-egg-math?
@@ -34,25 +28,58 @@
    (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
 
 
-(define/contract (simplify-expr expr
-                                #:rules rls
-                                #:precompute [precompute? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute (or/c #f procedure?)) expr?)
+(define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
+  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))
 
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute (or/c #f procedure?)) expr?)
-  (if use-egg-math?
-      (simplify-batch-egg exprs #:rules rls #:precompute (and precompute? true))
-      (begin
-        (warn 'simplify #:url "faq.html#egg-herbie"
-              "Falling back on racket egraph because egg-herbie package not installed")
-        (parameterize ([*regraph-node-limit* (*node-limit*)])
-          (simplify-batch-herbie-egraph exprs #:rules rls #:precompute precompute? #:prune true)))))
+  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
+
+  (define driver
+    (cond
+     [use-egg-math?
+      simplify-batch-egg]
+     [else
+      (warn 'simplify #:url "faq.html#egg-herbie"
+            "Falling back on racket egraph because egg-herbie package not installed")
+      simplify-batch-regraph]))
+
+  (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
+  (define out (driver exprs #:rules rls #:precompute precompute?))
+  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a out) "\n  "))
+    
+  out)
+
+(define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
+
+  (define start-time (current-inexact-milliseconds))
+  (define (log rg iter)
+    (define cnt (regraph-count rg))
+    (define cost (regraph-cost rg))
+    (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+
+  (define rg (make-regraph exprs #:limit (*node-limit*)))
+
+  (define phases
+    (list (rule-phase rls)
+          (and precompute? (precompute-phase eval-application))
+          prune-phase
+          extractor-phase))
+
+  (for/and ([iter (in-naturals 0)])
+    (log rg iter)
+    (define initial-cnt (regraph-count rg))
+    ;; Iterates the egraph by applying each of the given rules to the egraph
+    (for ([phase phases] #:when phase) (phase rg))
+    (and (< initial-cnt (regraph-count rg) (*node-limit*))))
+
+  (log rg 'done)
+  (regraph-extract rg))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
-  (debug #:from 'simplify (format "Simplifying:\n  ~a" (string-join (map ~a exprs) "\n  ")))
   (timeline-log! 'method 'egg-herbie)
 
   (local-require "eggmath.rkt")
@@ -92,7 +119,7 @@
 
 (module+ test
   (define (test-simplify . args)
-    (simplify-batch args #:rules (*simplify-rules*) #:precompute eval-application))
+    (simplify-batch args #:rules (*simplify-rules*) #:precompute true))
 
   (define test-exprs
     #hash([1 . 1]
