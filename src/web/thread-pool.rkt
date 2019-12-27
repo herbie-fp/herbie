@@ -1,8 +1,7 @@
 #lang racket
 
-(require racket/place profile)
-(require "../common.rkt" "../points.rkt" "../programs.rkt")
-(require "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
+(require racket/place)
+(require "../common.rkt" "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
 
 (provide get-test-results)
 

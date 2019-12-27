@@ -1,6 +1,5 @@
 #lang racket
-(require math/bigfloat)
-(require "../common.rkt" "../syntax/syntax.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../syntax/syntax.rkt" "../common.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -86,7 +85,7 @@
                  (texify (abs (imag-part expr)) '+ loc))]
         [(? value?)
          (define repr (get-representation prec))
-         (define s (bigfloat->string ((representation-repr->bf repr) expr)))
+         (define s (value->string expr repr))
          (match (string-split s "e")
            [(list "-inf.bf") "-\\infty"]
            [(list "+inf.bf") "+\\infty"]

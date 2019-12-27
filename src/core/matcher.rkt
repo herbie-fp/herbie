@@ -1,10 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../timeline.rkt" "../programs.rkt")
+(require "../common.rkt" "../programs.rkt")
 (require "../syntax/rules.rkt" "../type-check.rkt")
 
 (provide
- (all-from-out "../syntax/rules.rkt")
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
  (struct-out change) change-apply rule-rewrite)

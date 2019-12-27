@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt")
+(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt")
 (provide get-expander get-evaluator)
 
 (define (evaluation-rule? rule)
