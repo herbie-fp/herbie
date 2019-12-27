@@ -120,7 +120,7 @@
   ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
 
 (define (eval-application op . args)
-  (if (andmap (conjoin number? exact?) args)
+  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define res (eval-const-expr (cons op args)))
         (define type-info (operator-info op 'type))

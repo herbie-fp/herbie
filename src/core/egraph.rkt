@@ -81,8 +81,6 @@
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
-	(unless (for/and ([var cur-leader-vars]) (or (number? var) (symbol? var) (list? var)))
-          (error location "Invalid variation syntax"))
 	(unless (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars))
           (error location "Expectation on sets broken"))
 	(when (not (null? (cdr rest-leaders)))

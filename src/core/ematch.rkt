@@ -1,6 +1,5 @@
 #lang racket
 
-(require (only-in "../programs.rkt" constant? variable?))
 (require "enode.rkt")
 (provide match-e substitute-e)
 
@@ -35,14 +34,7 @@
 
 (define (match-e pat e)
   (cond
-   [(constant? pat)
-    (call/ec
-     (λ (k)
-       (for ([var (in-set (enode-vars e))])
-	 (when (and (constant? var) (equal? pat var))
-	   (k '(()))))
-       '()))]
-   [(variable? pat)
+   [(symbol? pat)
     `(((,pat . ,e)))]
    [(list? pat)
     (apply append
@@ -56,11 +48,13 @@
 				       (match-e subpat sube)))))
 		 '())))]
    [else
-    (error "WTF" pat)]))
+    (if (and (enode-atom e) (equal? (enode-atom e) pat))
+        '(())
+        '())]))
 
 (define (substitute-e pattern bindings)
   (match pattern
-   [(? constant?) pattern]
-   [(? variable?) (dict-ref bindings pattern)]
+   [(? symbol?) (dict-ref bindings pattern)]
    [(list phead pargs ...)
-    (cons phead (map (curryr substitute-e bindings) pargs))]))
+    (cons phead (map (curryr substitute-e bindings) pargs))]
+   [else pattern]))

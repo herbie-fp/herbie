@@ -173,12 +173,6 @@
              en))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
-  ;; Checks that the enodes expr field is well formed.
-  (let ([expr (enode-expr en)])
-    (unless (or (number? expr) (symbol? expr)
-		(and (list? expr) (symbol? (car expr))
-		     (andmap enode? (cdr expr))))
-      (error location "Expression invalid!")))
   ;; Checks that the depth is positive.
   (unless (positive? (enode-depth en)) (error location "Non-positive enode depth")))
 

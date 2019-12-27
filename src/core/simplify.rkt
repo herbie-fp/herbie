@@ -60,10 +60,11 @@
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
 
-  (define rg (make-regraph exprs #:limit (*node-limit*)))
+  (define rg (make-regraph (map munge exprs) #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase (map rule-input rls) (map rule-output rls))
+    (list (rule-phase (map (compose munge rule-input) rls)
+                      (map (compose munge rule-output) rls))
           (and precompute? (precompute-phase eval-application))
           prune-phase
           extractor-phase))
@@ -76,7 +77,7 @@
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
   (log rg 'done)
-  (regraph-extract rg))
+  (map unmunge (regraph-extract rg)))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
@@ -116,6 +117,26 @@
     (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
     (not is_stop)))
 
+(define (munge expr)
+  ;; Despite the name, `expr` might be an expression OR a pattern
+  (match expr
+    [(? constant?)
+     (if (symbol? expr)
+         (list expr)
+         expr)]
+    [(? variable?)
+     expr]
+    [(list head subs ...)
+     (cons head (map munge subs))]))
+
+(define (unmunge expr)
+  ;; Despite the name, `expr` might be an expression OR a pattern
+  (match expr
+    [(list constant)
+     constant]
+    [(list head subs ...)
+     (cons head (map unmunge subs))]
+    [_ expr]))
 
 (module+ test
   (define (test-simplify . args)
@@ -138,6 +159,7 @@
               (* (sqrt x) (sqrt x))) . 1]
           [(re (complex a b)) . a]
           [(+ 1/5 3/10) . 1/2]
+          [(cos PI) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
