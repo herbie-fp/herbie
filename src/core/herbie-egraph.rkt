@@ -1,6 +1,5 @@
 #lang racket
 
-(require (only-in "matcher.rkt" pattern-substitute rule? rule-output rule-input))
 (require "enode.rkt" "egraph.rkt" "ematch.rkt" "extraction.rkt")
 
 (provide make-regraph regraph-cost regraph-count regraph-extract
@@ -32,22 +31,22 @@
 ;; where bindings is a list of different matches between the rule and
 ;; the enode.
 
-(define (find-matches ens rls)
+(define (find-matches ens ipats opats)
   (define out '())
-  (for* ([rl rls] [en ens])
-    (define bindings (match-e (rule-input rl) en))
+  (for ([ipat ipats] [opat opats] #:when true [en ens])
+    (define bindings (match-e ipat en))
     (unless (null? bindings)
-      (set! out (cons (list* rl en bindings) out))))
+      (set! out (cons (list* opat en bindings) out))))
   out)
 
-(define ((rule-phase rls) rg)
+(define ((rule-phase ipats opats) rg)
   (define eg (regraph-egraph rg))
   (define limit (regraph-limit rg))
-  (for* ([m (find-matches (egraph-leaders eg) rls)]
-         #:break (>= (egraph-cnt eg) limit))
-    (match-define (list rl en bindings ...) m)
-    (for ([binding bindings] #:break (>= (egraph-cnt eg) limit))
-      (define expr* (pattern-substitute (rule-output rl) binding))
+  (for* ([m (find-matches (egraph-leaders eg) ipats opats)]
+         #:break (and limit (>= (egraph-cnt eg) limit)))
+    (match-define (list opat en bindings ...) m)
+    (for ([binding bindings] #:break (and limit (>= (egraph-cnt eg) limit)))
+      (define expr* (substitute-e opat binding))
       (define en* (mk-enode-rec! eg expr*))
       (merge-egraph-nodes! eg en en*))))
 
@@ -55,7 +54,7 @@
   (define eg (regraph-egraph rg))
   (define limit (regraph-limit rg))
   (for ([en (egraph-leaders eg)]
-        #:break (>= (egraph-cnt eg) limit))
+        #:break (and limit (>= (egraph-cnt eg) limit)))
     (set-precompute! eg en fn)))
 
 (define (set-precompute! eg en fn)
@@ -71,7 +70,7 @@
 (define (prune-phase rg)
   (define eg (regraph-egraph rg))
   (define limit (regraph-limit rg))
-  (for ([en (egraph-leaders eg)] #:break (>= (egraph-cnt eg) limit))
+  (for ([en (egraph-leaders eg)] #:break (and limit (>= (egraph-cnt eg) limit)))
     (reduce-to-single! eg en)))
 
 (define (extractor-phase rg)

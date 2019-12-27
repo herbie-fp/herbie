@@ -2,7 +2,7 @@
 
 (require (only-in "../programs.rkt" constant? variable?))
 (require "enode.rkt")
-(provide match-e)
+(provide match-e substitute-e)
 
 ;;################################################################################;;
 ;;# The matcher module that allows us to match enode structure against patterns,
@@ -57,3 +57,10 @@
 		 '())))]
    [else
     (error "WTF" pat)]))
+
+(define (substitute-e pattern bindings)
+  (match pattern
+   [(? constant?) pattern]
+   [(? variable?) (dict-ref bindings pattern)]
+   [(list phead pargs ...)
+    (cons phead (map (curryr substitute-e bindings) pargs))]))

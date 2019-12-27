@@ -1,7 +1,5 @@
 #lang racket
 
-(require (only-in "../common.rkt" assert))
-
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
 	 enode? enode-atom
@@ -72,8 +70,8 @@
 ;; To maintain invariants, the child should not be
 ;; deeper than the parent.
 (define (adopt-enode! new-parent child)
-  (assert (>= (enode-depth new-parent) (enode-depth child)))
-  (assert (not (eq? new-parent child)))
+  (unless (>= (enode-depth new-parent) (enode-depth child)) (error "Child deeper than parent"))
+  (unless (not (eq? new-parent child)) (error "Parent and child are same"))
   (set-enode-children! new-parent
 		       (append (list child)
 			       (enode-children child)
@@ -177,39 +175,42 @@
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
   ;; Checks that the enodes expr field is well formed.
   (let ([expr (enode-expr en)])
-    (assert (or (number? expr) (symbol? expr)
+    (unless (or (number? expr) (symbol? expr)
 		(and (list? expr) (symbol? (car expr))
-		     (andmap enode? (cdr expr)))) #:loc location))
+		     (andmap enode? (cdr expr))))
+      (error location "Expression invalid!")))
   ;; Checks that the depth is positive.
-  (assert (positive? (enode-depth en)) #:loc location))
+  (unless (positive? (enode-depth en)) (error location "Non-positive enode depth")))
 
 (define (check-valid-parent en #:loc [location 'check-valid-parent])
   (let ([parent (enode-parent en)])
     (when parent
       ;; Checks that we are one of our parents children.
-      (assert (memf (compose (curry equal? (enode-expr en))
-			     enode-expr)
+      (unless (memf (compose (curry equal? (enode-expr en)) enode-expr)
 		    (enode-children parent))
-		    #:loc location)
+	(error location "Node isn't its parent's child"))
       ;; Checks that the parents depth is greater than the childs.
-      (assert (> (enode-depth parent) (enode-depth en)) #:loc location)
+      (unless (> (enode-depth parent) (enode-depth en))
+        (error location "Parent not deeper than child"))
       ;; Checks that the parent links are non-cyclic
       (let check-parent-cycles ([seen (list en parent)] [cur-en parent])
 	(let ([next-parent (enode-parent cur-en)])
 	  (when next-parent
-	    (assert (not (memq next-parent seen)) #:loc 'checking-for-parent-cycles)
+	    (unless (not (memq next-parent seen))
+              (error location "Parent pointers form a cycle!"))
 	    (check-parent-cycles (cons next-parent seen) next-parent)))))))
 
 (define (check-valid-children en #:loc [location 'check-valid-children])
   (let ([children (enode-children en)])
     (when (not (null? children))
       ;; Checks that all of our children have a parent.
-      (assert (ormap enode-parent children) #:loc location)
+      (unless (ormap enode-parent children) (error location "Children have no parent!"))
       ;; Checks that our children have valid parent relations.
       (map check-valid-parent children)
       ;; Checks that the children links are non-cyclic
       (let check-children-cycles ([seen '()] [cur-en en])
-	(assert (not (memq cur-en seen)) #:loc 'checking-for-parent-cycles)
+	(unless (not (memq cur-en seen))
+          (error location "Checking for parent cycles"))
 	(map (curry check-children-cycles (cons cur-en seen))
 	     (enode-children cur-en))))))
 
@@ -245,17 +246,17 @@
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])
     ;; Check that exactly one member of the pack is a leader.
-    (assert (= 1 (length (filter (negate enode-parent) members))))
+    (unless (= 1 (length (filter (negate enode-parent) members)))
+      (error location "Not exactly one leader in pack"))
     ;; Check that all members of the pack report the same leader.
     (let check-all-equal ([leaders (map pack-leader members)])
       (when (< 1 (length leaders))
-	(assert (eq? (car leaders) (cadr leaders)))
+	(unless (eq? (car leaders) (cadr leaders)) (error location "Multiple different leaders"))
 	(check-all-equal (cdr leaders))))
     ;; Check that the depth of the leader of any pack is at least log_2(n),
     ;; where n is the size of the pack.
-    (assert (>= (enode-depth (pack-leader en))
-		(/ (log (length members))
-		   (log 2))))))
+    (unless (>= (enode-depth (pack-leader en)) (log (length members) 2))
+      (error location "Leader isn't deep enough for its pack size"))))
 
 ;; Searches up to a specified depth for needle-e occuring in the
 ;; children of haystack-e, and returns true if it can find it.  Will

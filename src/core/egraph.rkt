@@ -1,6 +1,5 @@
 #lang racket
 
-(require (only-in "../common.rkt" assert))
 (require "enode.rkt")
 
 (provide mk-enode! mk-enode-rec! mk-egraph
@@ -51,38 +50,41 @@
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
   (let ([leader->iexprs (egraph-leader->iexprs eg)]
 	[count (egraph-cnt eg)])
-    (assert (not (hash-has-key? leader->iexprs #f)))
+    (unless (not (hash-has-key? leader->iexprs #f)) (error location "False is a leader!"))
     ;; The egraphs count must be a positive integer
-    (assert (and (integer? count) (positive? count)) #:loc location)
+    (unless (and (integer? count) (positive? count)) (error location "Invalid egraph count"))
 
     ;; Verify properties 4-6
     (for ([(leader iexprs) (in-hash leader->iexprs)])
-      (assert (eq? leader (pack-leader leader)) #:loc location)
-      (assert (set-mutable? iexprs) #:loc location)
+      (unless (eq? leader (pack-leader leader)) (error location "Leader isn't a leader"))
+      (unless (set-mutable? iexprs) (error location "Leader doesn't point to a mutable set"))
       (for ([iexpr iexprs])
-	(assert (list? iexpr) #:loc location)
-	(assert (for/or ([sub (cdr iexpr)])
-                  (eq? (pack-leader sub) leader))
-                #:loc location)
-        (assert (for/and ([sub (cdr iexpr)])
-                  (eq? (pack-leader sub) sub)))
-	(assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location)))
+	(unless (list? iexpr) (error location "iExpr isn't a list"))
+	(unless (for/or ([sub (cdr iexpr)]) (eq? (pack-leader sub) leader))
+          (error location "No subexpression of iExpr references pack"))
+        (unless (for/and ([sub (cdr iexpr)]) (eq? (pack-leader sub) sub))
+          (error location "Subexpression of iExpr isn't a pack leader"))
+	(unless (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr))
+          (error location "iExpr isn't in expr->parent hash"))))
 
     ;; Verify property 7
     (for ([(k v) (in-hash (egraph-expr->parent eg))])
       ;; This line verifies that we didn't change the definition of hashing
       ;; for some part of this expression without also refreshing the binding.
-      (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
+      (unless (hash-has-key? (egraph-expr->parent eg) k)
+        (error location "Definition of hashing expression changed without refreshing binding"))
       (when (list? k)
 	(for ([en (cdr k)])
-	  (assert (eq? en (pack-leader en)) #:loc location))))
+	  (unless (eq? en (pack-leader en))
+            (error location "Expr in expr->parent has non-leader subexpression")))))
 
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
-	(assert (for/and ([var cur-leader-vars])
-		  (or (number? var) (symbol? var) (list? var))))
-	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
+	(unless (for/and ([var cur-leader-vars]) (or (number? var) (symbol? var) (list? var)))
+          (error location "Invalid variation syntax"))
+	(unless (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars))
+          (error location "Expectation on sets broken"))
 	(when (not (null? (cdr rest-leaders)))
 	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))
 

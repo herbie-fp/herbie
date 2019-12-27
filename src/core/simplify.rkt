@@ -63,7 +63,7 @@
   (define rg (make-regraph exprs #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase rls)
+    (list (rule-phase (map rule-input rls) (map rule-output rls))
           (and precompute? (precompute-phase eval-application))
           prune-phase
           extractor-phase))
