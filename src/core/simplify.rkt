@@ -115,6 +115,7 @@
               (* (sqrt x) (sqrt x))) . 1]
           [(re (complex a b)) . a]
           [(+ 1/5 3/10) . 1/2]
+          [(cos PI) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
