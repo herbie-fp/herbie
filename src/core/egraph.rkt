@@ -179,13 +179,11 @@
     ;; 1), and we merged x and y, then we know that these two enodes
     ;; are equivalent, and should be merged.
     (define to-merge
-      (filter
-       identity
-       (for/list ([iexpr (in-mutable-set iexprs)])
-         (define replaced-iexpr (update-en-expr iexpr))
-         (define other-parent (hash-ref expr->parent replaced-iexpr #f))
-         (and other-parent
-              (cons other-parent (hash-ref expr->parent iexpr))))))
+      (for/list ([iexpr (in-mutable-set iexprs)])
+        (define replaced-iexpr (update-en-expr iexpr))
+        (define other-parent (hash-ref expr->parent replaced-iexpr #f))
+        (and other-parent
+             (cons other-parent (hash-ref expr->parent iexpr)))))
 
     ;; Now that we have extracted all the information we need from the
     ;; egraph maps in their current state, we are ready to update
@@ -196,7 +194,7 @@
 
     ;; Now the state is consistent for this merge, so we can tackle
     ;; the other merges.
-    (for ([node-pair (in-list to-merge)])
+    (for ([node-pair (in-list to-merge)] #:when node-pair)
       (merge-egraph-nodes! eg (car node-pair) (cdr node-pair)))
 
     ;; The other merges can have caused new things to merge with our
