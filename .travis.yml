@@ -25,7 +25,7 @@ before_install:
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
 install:
-  - raco pkg install --auto $TRAVIS_BUILD_DIR/src
+  - raco pkg install --no-cache --auto $TRAVIS_BUILD_DIR/src 
 script:
   - echo ${JOB} && eval ${JOB}
 notifications:
