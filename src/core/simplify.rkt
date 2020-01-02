@@ -26,6 +26,16 @@
    (hash-has-key? (installed-pkg-table) "egg-herbie-osx")
    (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
 
+;; prefab struct used to send rules to egg-herbie
+(struct irule (name input output) #:prefab)
+
+(define (rules->irules rules)
+  (if use-egg-math?
+      (for/list [(rule rules)]
+        (irule (rule-name rule) (rule-input rule) (rule-output rule)))
+      (list)))
+
+
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))
@@ -81,8 +91,9 @@
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (timeline-log! 'method 'egg-herbie)
+  (define irules (rules->irules rls))
 
-  (local-require "eggmath.rkt")
+  (local-require egg-herbie)
 
   (egraph-run
    (lambda (egg-graph)
@@ -90,14 +101,14 @@
       egg-graph
       exprs
       (lambda (node-ids)
-        (egg-run-rules egg-graph (*node-limit*) rls node-ids (and precompute? true))
+        (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))
         (map
          (lambda (id) (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph))
          node-ids))))))
 
-(define (egg-run-rules egg-graph node-limit rules node-ids precompute?)
-  (local-require "eggmath.rkt")
-  (define ffi-rules (make-ffi-rules rules))
+(define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
+  (local-require egg-herbie)
+  (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
   (define (timeline-cost iter)
@@ -138,6 +149,25 @@
     [_ expr]))
 
 (module+ test
+  (require (submod "../syntax/rules.rkt" internals))
+  
+  (define all-simplify-rules
+    (for/append ([rec (*rulesets*)])
+      (match-define (list rules groups _) rec)
+      (if 
+       (set-member? groups 'simplify)
+       rules
+       '())))
+
+  ;; check that no rules in simplify match on bare variables
+  ;; this would be bad because we don't want to match type-specific operators on a value of a different type
+  (for ([rule all-simplify-rules])
+    (check-true
+     (or
+      (not (symbol? (rule-input rule)))
+      (constant? (rule-input rule)))
+     (string-append "Rule failed: " (symbol->string (rule-name rule)))))
+  
   (define (test-simplify . args)
     (simplify-batch args #:rules (*simplify-rules*) #:precompute true))
 
