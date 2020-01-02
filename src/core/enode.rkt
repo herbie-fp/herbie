@@ -173,6 +173,10 @@
              en))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
+  ;; Checks that if it's a list, all arguments are enodes
+  (when (list? (enode-expr en))
+    (unless (andmap enode? (cdr (enode-expr en)))
+      (error location "List enode has non-list children")))
   ;; Checks that the depth is positive.
   (unless (positive? (enode-depth en)) (error location "Non-positive enode depth")))
 
