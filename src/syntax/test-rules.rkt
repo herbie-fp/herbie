@@ -5,7 +5,7 @@
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt")
 
-(define num-test-points 10)
+(define num-test-points 1000)
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
