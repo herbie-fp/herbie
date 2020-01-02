@@ -1,8 +1,7 @@
 #lang racket
 
-(require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt"
-         "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
+         "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -142,6 +141,7 @@
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (module+ test
+  (require math/bigfloat)
   (define tests
     #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)

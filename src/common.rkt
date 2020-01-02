@@ -1,13 +1,13 @@
 #lang racket
 
-(require math/flonum math/bigfloat racket/runtime-path)
-(require "config.rkt" "errors.rkt" "debug.rkt" "interface.rkt")
+(require racket/runtime-path)
+(require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
 (provide reap define-table table-ref table-set! table-remove!
          assert for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
-         argmins argmaxs setfindf index-of set-disjoint? comparator sample-double
+         argmins argmaxs index-of set-disjoint? comparator sample-double
          write-file write-string
          random-exp random-ranges parse-flag get-seed set-seed!
          common-eval quasisyntax
@@ -126,13 +126,6 @@
       (set! duplicates (cons x duplicates)))
     (set-add! found x))
   (reverse duplicates))
-
-(define (setfindf f s)
-  (for/first ([elt (in-set s)] #:when (f elt))
-    elt))
-
-(module+ test
-  (check-equal? (setfindf positive? (set -3 6 0)) 6))
 
 (define (index-of lst elt)
   (for/first ([e lst] [i (in-naturals)]

@@ -1,7 +1,8 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
+         "timeline.rkt" "syntax/rules.rkt"
+         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
          "type-check.rkt") ;; For taylor not running on complex exprs
 

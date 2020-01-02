@@ -2,8 +2,7 @@
 
 (require pkg/lib)
 
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "herbie-egraph.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
 
 (provide simplify-expr simplify-batch)
 (module+ test (require rackunit))
@@ -61,6 +60,7 @@
 
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
+  (local-require regraph)
 
   (define start-time (current-inexact-milliseconds))
   (define (log rg iter)

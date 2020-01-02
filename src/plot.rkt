@@ -2,7 +2,7 @@
 
 (require math/flonum)
 (require plot/no-gui)
-(require "common.rkt" "float.rkt" "points.rkt" "programs.rkt" "alternative.rkt" "interface.rkt")
+(require "common.rkt" "float.rkt" "programs.rkt" "interface.rkt")
 
 (provide error-points best-alt-points herbie-plot alt-plot error-mark error-avg
          herbie-ratio-point-renderers herbie-ratio-point-colors error-axes
