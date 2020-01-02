@@ -1,19 +1,15 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../type-check.rkt" "../float.rkt" "../interface.rkt")
-
 (provide new-enode enode-merge!
 	 enode-vars refresh-vars! enode-pid
-	 enode?
-	 enode-expr enode-type
+	 enode? enode-atom
+	 enode-expr
 	 pack-leader pack-members
 	 enode-subexpr?
          pack-filter! for-pack! pack-removef!
 	 set-enode-expr! update-vars!
          dedup-children!
          )
-
-(provide (all-defined-out))
 
 ;;################################################################################;;
 ;;# The mighty enode, one of the main lifeforms of this planet.
@@ -49,7 +45,7 @@
 ;;#
 ;;################################################################################;;
 
-(struct enode (expr id-code children parent depth cvars type)
+(struct enode (expr id-code children parent depth cvars atom)
 	#:mutable
 	#:methods gen:custom-write
 	[(define (write-proc en port mode)
@@ -62,44 +58,11 @@
 	 (define (hash2-proc en recurse-hash)
 	   (enode-id-code en))])
 
-; Get the type for an enode or an enode expr
-(define (type-of-enode-expr expr)
-  (match expr
-    [(? real?) 'real]
-    [(? complex?) 'complex]
-    [(? value?)
-     ;; TODO(interface): Once we allow for mixed-precision expressions,
-     ;; we will have to pass through what the precision is
-     (if (set-member? '(binary64 binary32) (*output-prec*))
-       'real
-       (*output-prec*))]
-    [(? constant?) (constant-info expr 'type)]
-    [(? variable?) 'real] ;; TODO: assumes variable types are real
-    [(list 'if cond ift iff)
-     (enode-type ift)]
-    [(list op ens ...)
-     ;; Assumes single return type for any function
-     (second (first (first (hash-values (operator-info op 'type)))))]))
-
-(module+ test
-  (require rackunit)
-  (parameterize ([*output-prec* 'binary64])
-    (define x (new-enode '1 1))
-    (define y (new-enode '2 2))
-    (define xplusy (new-enode (list '+ x y) 3))
-    (check-equal? (type-of-enode-expr (enode-expr xplusy)) 'real))
-  (parameterize ([*output-prec* 'complex])
-    (define xc (new-enode '1+2i 1))
-    (define yc (new-enode '2+3i 2))
-    (define xcplusyc (new-enode (list '+.c xc yc) 3))
-    (check-equal? (type-of-enode-expr (enode-expr xcplusyc)) 'complex)))
-  
-       
 ;; Creates a new enode. Keep in mind that this is egraph-blind,
 ;; and it should be wrapped in an egraph function for registering
 ;; with the egraph on creation.
 (define (new-enode expr id-code)
-  (let ([en* (enode expr id-code '() #f 1 (set expr) (type-of-enode-expr expr))])
+  (let ([en* (enode expr id-code '() #f 1 (set expr) (if (list? expr) #f expr))])
     (check-valid-enode en* #:loc 'node-creation)
     en*))
 
@@ -107,8 +70,8 @@
 ;; To maintain invariants, the child should not be
 ;; deeper than the parent.
 (define (adopt-enode! new-parent child)
-  (assert (>= (enode-depth new-parent) (enode-depth child)))
-  (assert (not (eq? new-parent child)))
+  (unless (>= (enode-depth new-parent) (enode-depth child)) (error "Child deeper than parent"))
+  (unless (not (eq? new-parent child)) (error "Parent and child are same"))
   (set-enode-children! new-parent
 		       (append (list child)
 			       (enode-children child)
@@ -117,6 +80,7 @@
   (when (<= (enode-depth new-parent) (enode-depth child))
     (set-enode-depth! new-parent (add1 (enode-depth new-parent))))
   (set-enode-cvars! new-parent (set-union (enode-cvars new-parent) (enode-cvars child)))
+  (set-enode-atom! new-parent (or (enode-atom new-parent) (enode-atom child)))
   #;(map refresh-victory! (pack-members new-parent))
   ;; This is an expensive check, but useful for debuggging.
   #;(check-valid-parent child)
@@ -209,41 +173,42 @@
              en))
 
 (define (check-valid-enode en #:loc [location 'check-valid-enode])
-  ;; Checks that the enodes expr field is well formed.
-  (let ([expr (enode-expr en)])
-    (assert (or (value? expr) (symbol? expr)
-		(and (list? expr) (symbol? (car expr))
-		     (andmap enode? (cdr expr)))) #:loc location))
+  ;; Checks that if it's a list, all arguments are enodes
+  (when (list? (enode-expr en))
+    (unless (andmap enode? (cdr (enode-expr en)))
+      (error location "List enode has non-list children")))
   ;; Checks that the depth is positive.
-  (assert (positive? (enode-depth en)) #:loc location))
+  (unless (positive? (enode-depth en)) (error location "Non-positive enode depth")))
 
 (define (check-valid-parent en #:loc [location 'check-valid-parent])
   (let ([parent (enode-parent en)])
     (when parent
       ;; Checks that we are one of our parents children.
-      (assert (memf (compose (curry equal? (enode-expr en))
-			     enode-expr)
+      (unless (memf (compose (curry equal? (enode-expr en)) enode-expr)
 		    (enode-children parent))
-		    #:loc location)
+	(error location "Node isn't its parent's child"))
       ;; Checks that the parents depth is greater than the childs.
-      (assert (> (enode-depth parent) (enode-depth en)) #:loc location)
+      (unless (> (enode-depth parent) (enode-depth en))
+        (error location "Parent not deeper than child"))
       ;; Checks that the parent links are non-cyclic
       (let check-parent-cycles ([seen (list en parent)] [cur-en parent])
 	(let ([next-parent (enode-parent cur-en)])
 	  (when next-parent
-	    (assert (not (memq next-parent seen)) #:loc 'checking-for-parent-cycles)
+	    (unless (not (memq next-parent seen))
+              (error location "Parent pointers form a cycle!"))
 	    (check-parent-cycles (cons next-parent seen) next-parent)))))))
 
 (define (check-valid-children en #:loc [location 'check-valid-children])
   (let ([children (enode-children en)])
     (when (not (null? children))
       ;; Checks that all of our children have a parent.
-      (assert (ormap enode-parent children) #:loc location)
+      (unless (ormap enode-parent children) (error location "Children have no parent!"))
       ;; Checks that our children have valid parent relations.
       (map check-valid-parent children)
       ;; Checks that the children links are non-cyclic
       (let check-children-cycles ([seen '()] [cur-en en])
-	(assert (not (memq cur-en seen)) #:loc 'checking-for-parent-cycles)
+	(unless (not (memq cur-en seen))
+          (error location "Checking for parent cycles"))
 	(map (curry check-children-cycles (cons cur-en seen))
 	     (enode-children cur-en))))))
 
@@ -279,17 +244,17 @@
 (define (check-valid-pack en #:loc [location 'check-valid-pack])
   (let ([members (pack-members en)])
     ;; Check that exactly one member of the pack is a leader.
-    (assert (= 1 (length (filter (negate enode-parent) members))))
+    (unless (= 1 (length (filter (negate enode-parent) members)))
+      (error location "Not exactly one leader in pack"))
     ;; Check that all members of the pack report the same leader.
     (let check-all-equal ([leaders (map pack-leader members)])
       (when (< 1 (length leaders))
-	(assert (eq? (car leaders) (cadr leaders)))
+	(unless (eq? (car leaders) (cadr leaders)) (error location "Multiple different leaders"))
 	(check-all-equal (cdr leaders))))
     ;; Check that the depth of the leader of any pack is at least log_2(n),
     ;; where n is the size of the pack.
-    (assert (>= (enode-depth (pack-leader en))
-		(/ (log (length members))
-		   (log 2))))))
+    (unless (>= (enode-depth (pack-leader en)) (log (length members) 2))
+      (error location "Leader isn't deep enough for its pack size"))))
 
 ;; Searches up to a specified depth for needle-e occuring in the
 ;; children of haystack-e, and returns true if it can find it.  Will

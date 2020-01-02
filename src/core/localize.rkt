@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/flonum math/bigfloat)
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../alternative.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
 (require "../interface.rkt" "../type-check.rkt")
 
 (provide localize-error)

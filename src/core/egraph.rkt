@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "enode.rkt")
+(require "enode.rkt")
 
 (provide mk-enode! mk-enode-rec! mk-egraph
 	 merge-egraph-nodes!
@@ -9,8 +9,6 @@
          elim-enode-loops! reduce-to-single!
          )
 
-(provide (all-defined-out)
-	 (all-from-out "enode.rkt"))
 
 ;;################################################################################;;
 ;;# The mighty land of egraph, where the enodes reside for their entire lives.
@@ -52,38 +50,39 @@
 (define (check-egraph-valid eg #:loc [location 'check-egraph-valid])
   (let ([leader->iexprs (egraph-leader->iexprs eg)]
 	[count (egraph-cnt eg)])
-    (assert (not (hash-has-key? leader->iexprs #f)))
+    (unless (not (hash-has-key? leader->iexprs #f)) (error location "False is a leader!"))
     ;; The egraphs count must be a positive integer
-    (assert (and (integer? count) (positive? count)) #:loc location)
+    (unless (and (integer? count) (positive? count)) (error location "Invalid egraph count"))
 
     ;; Verify properties 4-6
     (for ([(leader iexprs) (in-hash leader->iexprs)])
-      (assert (eq? leader (pack-leader leader)) #:loc location)
-      (assert (set-mutable? iexprs) #:loc location)
+      (unless (eq? leader (pack-leader leader)) (error location "Leader isn't a leader"))
+      (unless (set-mutable? iexprs) (error location "Leader doesn't point to a mutable set"))
       (for ([iexpr iexprs])
-	(assert (list? iexpr) #:loc location)
-	(assert (for/or ([sub (cdr iexpr)])
-                  (eq? (pack-leader sub) leader))
-                #:loc location)
-        (assert (for/and ([sub (cdr iexpr)])
-                  (eq? (pack-leader sub) sub)))
-	(assert (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr)) #:loc location)))
+	(unless (list? iexpr) (error location "iExpr isn't a list"))
+	(unless (for/or ([sub (cdr iexpr)]) (eq? (pack-leader sub) leader))
+          (error location "No subexpression of iExpr references pack"))
+        (unless (for/and ([sub (cdr iexpr)]) (eq? (pack-leader sub) sub))
+          (error location "Subexpression of iExpr isn't a pack leader"))
+	(unless (hash-has-key? (egraph-expr->parent eg) (update-en-expr iexpr))
+          (error location "iExpr isn't in expr->parent hash"))))
 
     ;; Verify property 7
     (for ([(k v) (in-hash (egraph-expr->parent eg))])
       ;; This line verifies that we didn't change the definition of hashing
       ;; for some part of this expression without also refreshing the binding.
-      (assert (hash-has-key? (egraph-expr->parent eg) k) #:loc location)
+      (unless (hash-has-key? (egraph-expr->parent eg) k)
+        (error location "Definition of hashing expression changed without refreshing binding"))
       (when (list? k)
 	(for ([en (cdr k)])
-	  (assert (eq? en (pack-leader en)) #:loc location))))
+	  (unless (eq? en (pack-leader en))
+            (error location "Expr in expr->parent has non-leader subexpression")))))
 
     ;; Verify property 8
     (let loop ([seen (set)] [rest-leaders (hash-keys leader->iexprs)])
       (let ([cur-leader-vars (enode-vars (car rest-leaders))])
-	(assert (for/and ([var cur-leader-vars])
-		  (or (value? var) (symbol? var) (list? var))))
-	(assert (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars)))
+	(unless (set-empty? (set-intersect (set-copy-clear seen) cur-leader-vars))
+          (error location "Expectation on sets broken"))
 	(when (not (null? (cdr rest-leaders)))
 	  (loop (set-union cur-leader-vars seen) (cdr rest-leaders)))))))
 
@@ -180,12 +179,11 @@
     ;; 1), and we merged x and y, then we know that these two enodes
     ;; are equivalent, and should be merged.
     (define to-merge
-      (for/append ([iexpr (in-mutable-set iexprs)])
+      (for/list ([iexpr (in-mutable-set iexprs)])
         (define replaced-iexpr (update-en-expr iexpr))
         (define other-parent (hash-ref expr->parent replaced-iexpr #f))
-        (if other-parent
-            (list (cons other-parent (hash-ref expr->parent iexpr)))
-            '())))
+        (and other-parent
+             (cons other-parent (hash-ref expr->parent iexpr)))))
 
     ;; Now that we have extracted all the information we need from the
     ;; egraph maps in their current state, we are ready to update
@@ -196,7 +194,7 @@
 
     ;; Now the state is consistent for this merge, so we can tackle
     ;; the other merges.
-    (for ([node-pair (in-list to-merge)])
+    (for ([node-pair (in-list to-merge)] #:when node-pair)
       (merge-egraph-nodes! eg (car node-pair) (cdr node-pair)))
 
     ;; The other merges can have caused new things to merge with our
@@ -318,16 +316,17 @@
 ;; If there are any variations of this enode that are a single
 ;; constant or variable, prune to that.
 (define (reduce-to-single! eg en)
-  (when (for/or ([var (in-set (enode-vars en))])
-	  (or (constant? var) (variable? var)))
-    (let* ([leader (pack-leader en)]
-           [old-vars (for/mutable-set ([var (in-set (enode-vars leader))])
-                       (update-en-expr var))]
-           [leader* (pack-filter! (λ (inner-en)
-                                    (not (list? (enode-expr inner-en))))
-                                  leader)])
-      (when (not (eq? leader leader*))
-        (update-leader! eg old-vars leader leader*)))))
+  (when (enode-atom en)
+    (define leader (pack-leader en))
+    (define old-vars
+      (for/mutable-set ([var (in-set (enode-vars leader))])
+          (update-en-expr var)))
+    (define leader*
+      (pack-filter! (λ (inner-en)
+                      (not (list? (enode-expr inner-en))))
+                    leader))
+    (when (not (eq? leader leader*))
+      (update-leader! eg old-vars leader leader*))))
 
 ;; Draws a representation of the egraph to the output file specified
 ;; in the DOT format.

@@ -1,5 +1,5 @@
 #lang racket
-(require "../common.rkt" "enode.rkt" "../programs.rkt")
+(require "enode.rkt")
 (provide mk-extractor extractor-cost extractor-iterate extractor-extract)
 
 ;; The work list maps enodes to a pair (cost . expr) of that node's
@@ -25,7 +25,6 @@
   (let loop ([iter 0])
     (define changed? #f)
     (define cost (extractor-cost work-list))
-    (debug #:from 'simplify #:depth 2 "Extracting #" iter ": cost " cost)
     (for ([en (in-list (hash-keys work-list))]) ;; in-list to avoid mutating the iterator
       (define leader (pack-leader en))
       (when (not (eq? en leader))
