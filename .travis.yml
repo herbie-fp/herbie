@@ -10,15 +10,15 @@ env:
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
   matrix:
     # separate builds for travis benches and unit tests
-    - RACKET_VERSION="7.3" JOB="${UNIT}"
+    - RACKET_VERSION="7.5" JOB="${UNIT}"
     - RACKET_VERSION="7.0" JOB="${INTEGRATION}"
-    - RACKET_VERSION="7.2" JOB="${INTEGRATION}"
     - RACKET_VERSION="7.3" JOB="${INTEGRATION}"
+    - RACKET_VERSION="7.5" JOB="${INTEGRATION}"
     # remember to change the `allow_failures` key below!
-    - RACKET_VERSION="7.3" JOB="${STABILITY}"
+    - RACKET_VERSION="7.5" JOB="${STABILITY}"
 matrix:
   allow_failures:
-    - env: RACKET_VERSION="7.3" JOB="${STABILITY}"
+    - env: RACKET_VERSION="7.5" JOB="${STABILITY}"
   fast_finish: true
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
