@@ -89,6 +89,8 @@
       #:after-last ")")]
     [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
+    [(constant? expr)
+     (symbol->string expr)]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
