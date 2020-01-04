@@ -64,7 +64,7 @@
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 0))))
-  (when (< (length errs) 100)
+  (when (< (length errs) (/ num-test-points 10))
     (fail-check "Not enough points sampled to test rule")))
 
 (define (check-rule-fp-safe test-rule)
@@ -85,6 +85,14 @@
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
       (check-equal? v1 v2))))
+
+(module+ main
+  (command-line
+   #:args names
+   (for ([name names])
+     (eprintf "Checking ~a...\n" name)
+     (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
+     (check-rule-correct rule ival-ground-truth))))
 
 (module+ test
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])

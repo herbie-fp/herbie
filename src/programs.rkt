@@ -90,30 +90,31 @@
   ;; and representations are cleanly distinguished, we can get rid of the
   ;; additional check to see if the repr is complex.
   (define real->precision (match mode
-    ['bf (curryr ->bf repr)]
-    ['fl (curryr ->flonum repr)]
-    ['ival (compose mk-ival (curryr ->bf repr))]
-    ['nonffi identity]))
+    ['bf (λ (repr x) (->bf x repr))]
+    ['fl (λ (repr x) (->flonum x repr))]
+    ['ival (λ (repr x) (mk-ival (->bf x repr)))]
+    ['nonffi (λ (repr x) x)]))
   (define precision->real (match mode
     ['bf identity]
-    ['fl (λ (x) (->flonum x repr))]
+    ['fl (curryr ->flonum repr)]
     ['ival identity]
     ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
       (match prog
-        [(? value?) (real->precision prog)]
+        [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
-        [(? variable?) prog]
+        [(? variable?)
+         (define repr (get-representation (dict-ref (*var-precs*) prog)))
+         (list (curry real->precision repr) prog)]
         #;[(list 'if cond ift iff)
          `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]
         [_ (error (format "Invalid program ~a" prog))])))
   (define fn (common-eval `(λ ,(program-variables prog) ,(compile body*))))
-  (lambda (pts)
-    (precision->real (apply fn (map real->precision pts)))))
+  (lambda (pt) (precision->real (apply fn pt))))
 
 (define (eval-const-expr expr)
   ;; When we are in nonffi mode, we don't use repr, so pass in #f
