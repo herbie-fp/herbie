@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/private/bigfloat/mpfr)
-(require "common.rkt" "syntax/types.rkt")
+(require "syntax/types.rkt")
 
 (struct ival (lo hi err? err) #:transparent)
 
@@ -514,6 +514,7 @@
 
 (module+ test
   (require rackunit math/flonum)
+  (require "common.rkt")
 
   (define num-tests 1000)
 

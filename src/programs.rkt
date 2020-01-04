@@ -1,8 +1,7 @@
 #lang racket
 
-(require math/bigfloat math/flonum)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "plugin.rkt"
-         "errors.rkt" "type-check.rkt" "biginterval.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
+         "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -12,7 +11,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-const-expr
+         eval-prog eval-const-expr eval-application
          compile
          free-variables replace-expression
          desugar-program resugar-program)
@@ -120,15 +119,28 @@
   ;; When we are in nonffi mode, we don't use repr, so pass in #f
   ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
 
+(define (eval-application op . args)
+  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
+      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
+        (define res (eval-const-expr (cons op args)))
+        (define type-info (operator-info op 'type))
+        (match-define (list (list _ type))
+                      (if (hash-has-key? type-info (length args))
+                          (hash-ref type-info (length args))
+                          (hash-ref type-info '*)))
+        (and ((value-of type) res)
+             (exact-value? type res)
+             (val-to-type type res)))
+      false))
+
 (module+ test
   (define repr (get-representation 'binary64))
-  (check-equal? (eval-const-expr '(+ 1 1)) 2)
-  (check-equal? (eval-const-expr 'PI) pi)
-  (check-equal? (eval-const-expr '(exp 2)) (exp 2)))
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (module+ test
   (*var-precs* '((a . binary64) (b . binary64) (c . binary64)))
-
+  (require math/bigfloat)
   (define tests
     #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)

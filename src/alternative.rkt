@@ -1,7 +1,5 @@
 #lang racket
 
-(require "common.rkt")
-
 (provide (struct-out alt) make-alt alt? alt-program alt-add-event *start-prog* *all-alts*)
 
 ;; Alts are a lightweight audit trail.

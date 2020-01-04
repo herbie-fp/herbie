@@ -1,7 +1,8 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
+         "timeline.rkt" "syntax/rules.rkt"
+         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
          "type-check.rkt") ;; For taylor not running on complex exprs
 
@@ -253,7 +254,7 @@
         (location-get loc (alt-program child))))
 
     (define simplifications
-      (simplify-batch to-simplify #:rules (*simplify-rules*)))
+      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplifications)))
@@ -384,8 +385,7 @@
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
             ,(simplify-expr (program-body (alt-program joined-alt))
-                            #:rules (*fp-safe-simplify-rules*)
-                            #:precompute false))
+                            #:rules (*fp-safe-simplify-rules*)))
          'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)

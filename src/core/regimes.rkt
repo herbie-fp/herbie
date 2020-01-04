@@ -3,7 +3,6 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
 (require "../type-check.rkt" "../syntax/types.rkt" "../interface.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
-(require (submod "../timeline.rkt" debug))
 
 (module+ test
   (require rackunit))

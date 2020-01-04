@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.3")
+(define version "1.4")
 
 ;; Packaging information
 
@@ -28,7 +28,11 @@
     "plot-lib"
     "profile-lib"
     "rackunit-lib"
-    "web-server-lib"))
+    "web-server-lib"
+    ("egg-herbie-windows" #:platform "win32\\x86_64" #:version "1.3")
+    ("egg-herbie-osx" #:platform "x86_64-macosx" #:version "1.3")
+    ("egg-herbie-linux" #:platform "x86_64-linux" #:version "1.3")
+    "regraph"))
 
 (define build-deps
   '("rackunit-lib"))

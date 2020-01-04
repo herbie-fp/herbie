@@ -1,6 +1,5 @@
 #lang racket
 
-(require math/flonum)
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "range-analysis.rkt" "biginterval.rkt" "interface.rkt")

@@ -1,8 +1,7 @@
 #lang racket
 
-(require racket/place profile)
-(require "../common.rkt" "../points.rkt" "../programs.rkt")
-(require "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
+(require racket/place)
+(require "../common.rkt" "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
 
 (provide get-test-results)
 
@@ -34,35 +33,19 @@
     (define result (get-test-result test #:seed seed))
     (get-table-data result "")]))
 
-(define (make-worker)
-  (place ch
-    (let loop ([seed #f] [profile? #f] [debug? #f] [dir #f])
-      (match (place-channel-get ch)
-	[`(init
-	   rand ,vec
-	   flags ,flag-table
-	   num-iters ,iterations
-           points ,points
-           profile? ,profile
-           debug? ,debug
-           dir ,path
-           timeout ,timeout
-           reeval ,reeval)
+(define-syntax (place/context* stx)
+  (syntax-case stx ()
+    [(_ name #:parameters (params ...) body ...)
+     (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
+       #'(let ([fresh (params)] ...)
+           (place/context name (parameterize ([params fresh] ...) body ...))))]))
 
-	 (set! seed vec)
-         (set! profile? profile)
-         (set! debug? debug)
-         (set! dir path)
-	 (*flags* flag-table)
-	 (*num-iterations* iterations)
-         (*num-points* points)
-         (*timeout* timeout)
-         (*reeval-pts* reeval)]
-        [`(apply ,self ,id ,test)
-         (let ([result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir)])
-           (place-channel-put ch
-             `(done ,id ,self ,result)))])
-      (loop seed profile? debug? dir))))
+(define (make-worker seed profile? debug? dir)
+  (place/context* ch #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts*)
+    (for ([_ (in-naturals)])
+      (match-define (list 'apply self id test) (place-channel-get ch))
+      (define result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir))
+      (place-channel-put ch `(done ,id ,self ,result)))))
 
 (define (print-test-result i n data)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
@@ -81,22 +64,9 @@
               (table-row-name data))]))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
-  (define config
-    `(init rand ,seed
-           flags ,(*flags*)
-           num-iters ,(*num-iterations*)
-           points ,(*num-points*)
-           profile? ,profile?
-           debug? ,debug?
-           dir ,dir
-           timeout ,(*timeout*)
-           reeval ,(*reeval-pts*)))
-
   (define workers
     (for/list ([wid (in-range threads)])
-      (define worker (make-worker))
-      (place-channel-put worker config)
-      worker))
+      (make-worker seed profile? debug? dir)))
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
@@ -128,38 +98,30 @@
             out*
             (loop out*)))))
 
-  (map place-kill workers)
+  (for-each place-kill workers)
 
-  outs)
+  (map cdr (sort outs < #:key car)))
 
 (define (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (eprintf "Starting Herbie on ~a problems (seed: ~a)...\n" (length progs) seed)
-  (define out '())
+  (define outs '())
   (with-handlers ([exn:break?
                    (λ (_)
                      (eprintf "Terminating after ~a problem~a!\n"
-                             (length out) (if (= (length out) 1) "s" "")))])
+                             (length outs) (if (= (length outs) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile? #:debug debug? #:dir dir))
       (print-test-result (+ 1 i) (length progs) tr)
-      (set! out (cons (cons i tr) out))))
-  out)
+      (set! outs (cons tr outs))))
+  outs)
 
 (define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)
       #:seed (or/c pseudo-random-generator-vector? (integer-in 0 (sub1 (expt 2 31))))
       #:profile boolean? #:debug boolean? #:dir (or/c #f path-string?)
       (listof (or/c #f table-row?)))
-  (when (and threads (> threads (length progs)))
-    (set! threads (length progs)))
 
-  (define outs
-    (if threads
-        (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
-        (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)))
-  
-  (define out (make-vector (length progs) #f))
-  (for ([(idx result) (in-dict outs)])
-    (vector-set! out idx result))
-
-  (vector->list out))
+  (if threads
+      (run-workers progs (min threads (length progs))
+                   #:seed seed #:profile profile? #:debug debug? #:dir dir)
+      (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)))

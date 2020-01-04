@@ -5,7 +5,7 @@
          "../alternative.rkt" "../errors.rkt" "../plot.rkt" "../interface.rkt"
          "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
          "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
-         "timeline.rkt" "common.rkt")
+         "timeline.rkt" "common.rkt" "../syntax/rules.rkt")
 
 (provide all-pages make-page)
 
