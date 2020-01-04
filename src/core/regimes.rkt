@@ -151,7 +151,9 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
+                 [*var-precs* '((x . binary64))]
+                 [*output-prec* 'binary64])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
     (define repr (get-representation 'binary64))
 
@@ -338,7 +340,9 @@
         (equal? (sp-cidx right) i)))))
 
 (module+ test
-  (parameterize ([*start-prog* '(λ (x y) (/ x y))])
+  (parameterize ([*start-prog* '(λ (x y) (/ x y))]
+                 [*var-precs* '((x . binary64) (y . binary64))]
+                 [*output-prec* 'binary64])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)
