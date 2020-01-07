@@ -299,3 +299,9 @@
              "Filtering points with unrepresentable outputs")
       (define-values (pts* exs*) (filter-p&e pts1 exs1))
       (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
+
+
+(module+ test
+  (define num 
+  (for/and ([iter (in-naturals 0)])
+    
