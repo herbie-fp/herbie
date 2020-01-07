@@ -194,8 +194,7 @@
 (define (sindices->spoints points expr alts sindices precision)
   (define repr (get-representation precision))
   (define eval-expr
-    (parameterize ([*var-precs* (cons (cons var (*output-prec*)) (*var-precs*))])
-      (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr)))
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
   (define var (gensym 'branch))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
@@ -205,13 +204,13 @@
     (define iters 0)
     (define (pred v)
       (set! iters (+ 1 iters))
-      (define ctx
-        (parameterize ([*num-points* (*binary-search-test-points*)]
-                       [*timeline-disabled* true]
-                       [*var-precs* (cons (cons var precision) (*var-precs*))])
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
-      (< (errors-score (errors prog1 ctx repr))
-         (errors-score (errors prog2 ctx repr))))
+      (parameterize ([*num-points* (*binary-search-test-points*)]
+                     [*timeline-disabled* true]
+                     [*var-precs* (cons (cons var precision) (*var-precs*))])
+        (define ctx
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision))
+        (< (errors-score (errors prog1 ctx repr))
+           (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
     (timeline-push! 'bstep v1 v2 iters pt)
     pt)
