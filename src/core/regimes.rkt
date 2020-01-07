@@ -194,7 +194,8 @@
 (define (sindices->spoints points expr alts sindices precision)
   (define repr (get-representation precision))
   (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
+    (parameterize ([*var-precs* (cons (cons var (*output-prec*)) (*var-precs*))])
+      (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr)))
 
   (define var (gensym 'branch))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
