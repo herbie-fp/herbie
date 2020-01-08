@@ -193,7 +193,7 @@
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr #:root location)
+             (begin0 (rewrite expr #:rules (*rules*) #:root location)
                (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
