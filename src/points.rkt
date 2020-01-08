@@ -241,7 +241,7 @@
              "Setting MPFR precision to" prec)
       (bf-precision prec)
       (let ([curr (map (compose <-bf (call f)) pts)]
-            [good? (map pre (call pts))])
+            [good? (map (call pre) pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new repr))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
