@@ -104,20 +104,22 @@
       (match prog
         [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
-        [(? variable?)
-         (define repr (get-representation (dict-ref (*var-precs*) prog)))
-         (list (curry real->precision repr) prog)]
-        #;[(list 'if cond ift iff)
-         `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
+        [(? variable?) prog]
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]
         [_ (error (format "Invalid program ~a" prog))])))
-  (define fn (common-eval `(λ ,(program-variables prog) ,(compile body*))))
-  (lambda (pt) (precision->real (apply fn pt))))
+
+  (define fn
+    `(λ ,(program-variables prog)
+       (let (,@(for/list ([var (program-variables prog)])
+                 (define repr (get-representation (dict-ref (*var-precs*) var)))
+                 `[,var (,(curry real->precision repr) ,var)]))
+         (,precision->real ,(compile body*)))))
+  (common-eval fn))
 
 (define (eval-const-expr expr)
   ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
+  ((eval-prog `(λ () ,expr) 'nonffi #f)))
 
 (define (eval-application op . args)
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
@@ -155,8 +157,8 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
-      (define iv ((eval-prog e 'ival (get-representation 'binary64)) p))
-      (define val ((eval-prog e 'bf (get-representation 'binary64)) p))
+      (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
+      (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 

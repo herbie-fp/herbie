@@ -116,10 +116,10 @@
     (values alts** splitpoints**)))
 
 (define (sort-context-on-expr context expr variables repr)
+  (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   (λ (x1 x2)
-          (</total x1 x2 repr))
-       #:key (compose (eval-prog `(λ ,variables ,expr) 'fl repr) car))])
+		   (λ (x1 x2) (</total x1 x2 repr))
+                   #:key (λ (pts) (apply fn (car pts))))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (option-on-expr alts expr repr)
@@ -127,7 +127,8 @@
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
-  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl repr) pts))
+  (define fn (eval-prog `(λ ,vars ,expr) 'fl repr))
+  (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
                                (<-all-precisions prev val repr))))
@@ -219,8 +220,8 @@
     (define prog1 (list-ref progs (si-cidx sidx)))
     (define prog2 (list-ref progs (si-cidx next-sidx)))
 
-    (define p1 (eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-    (define p2 (eval-expr (list-ref points (si-pidx sidx))))
+    (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
+    (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
 
     (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
@@ -237,7 +238,7 @@
        (begin
          (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts)
          (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	   (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
+	   (sp (si-cidx sindex) expr (apply eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
    (list final-sp)))
 
 (define (point-with-dim index point val)
@@ -331,7 +332,7 @@
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
-      (define val (prog pt))
+      (define val (apply prog pt))
       (for/first ([right splitpoints]
                   #:when (or (nan?-all-types (sp-point right) repr)
                              (<=/total val (sp-point right) repr)))

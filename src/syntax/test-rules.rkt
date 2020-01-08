@@ -28,7 +28,7 @@
   (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x (representation-name repr))))
 
 (define ((with-hiprec f) x)
-  (parameterize ([bf-precision 2000]) (f x)))
+  (parameterize ([bf-precision 2000]) (apply f x)))
 
 (define (bf-ground-truth fv p repr)
   (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf repr))))
@@ -82,8 +82,9 @@
   (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl repr))
   (define prog2 (eval-prog `(λ ,fv ,p2) 'fl repr))
-  (define ex1 (map prog1 points))
-  (define ex2 (map prog2 points))
+  (define-values (ex1 ex2)
+    (for/lists (ex1 ex2) ([pt points])
+      (values (apply prog1 pt) (apply prog2 pt))))
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
       (check-equal? v1 v2))))

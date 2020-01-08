@@ -35,7 +35,7 @@
                    (let ([exact-ift (car (localize-on-expression ift vars cache repr))]
                          [exact-iff (car (localize-on-expression iff vars cache repr))]
                          [exact-cond (for/list ([(p _) (in-pcontext (*pcontext*))])
-				       ((eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
+				       (apply (eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)

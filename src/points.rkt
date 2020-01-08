@@ -80,7 +80,7 @@
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
           (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
+          (match-let* ([(ival lo hi err? err) (apply fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
             (cond
              [err
               (log! 'nan precision pt)
@@ -189,7 +189,7 @@
 (define (eval-errors eval-fn pcontext repr)
   (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (eval-fn point) exact repr)))
+    (point-error (apply eval-fn point) exact repr)))
 
 (define (oracle-error-idx alt-bodies points exacts repr)
   (for/list ([point points] [exact exacts])
@@ -197,7 +197,7 @@
 
 (define (oracle-error alt-bodies pcontext repr)
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error (alt point) exact repr)) alt-bodies))))
+    (argmin identity (map (λ (alt) (point-error (apply alt point) exact repr)) alt-bodies))))
 
 (define (baseline-error alt-bodies pcontext newpcontext repr)
   (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
@@ -212,7 +212,7 @@
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (fn point) exact repr))))
+      (point-error (apply fn point) exact repr))))
 
 ;; Old, halfpoints method of sampling points
 
@@ -224,6 +224,8 @@
       (cons (car l) (loop (cdr l) skip))]
      [else
       (loop (cdr l) (- count 1))])))
+
+(define ((call f) pt) (apply f pt))
 
 (define (make-exacts-walkup prog pts precondition prec)
   (define <-bf (representation-bf->repr (get-representation prec)))
@@ -238,8 +240,8 @@
       (debug #:from 'points #:depth 4
              "Setting MPFR precision to" prec)
       (bf-precision prec)
-      (let ([curr (map (compose <-bf f) pts)]
-            [good? (map pre pts)])
+      (let ([curr (map (compose <-bf (call f)) pts)]
+            [good? (map pre (call pts))])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new repr))) good? prev curr))
             (map (λ (good? x) (if good? x +nan.0)) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))

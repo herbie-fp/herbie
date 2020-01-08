@@ -113,11 +113,11 @@
 (define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
   (define x
     (if (number? axis)
-        (curryr list-ref axis)
+        (λ x (list-ref x axis))
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (x pt) (+ (ulps->bits err) (random) -1/2)))
+      (vector (apply x pt) (+ (ulps->bits err) (random) -1/2)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)
@@ -204,7 +204,7 @@
   (with-alt-plot #:title title thunk))
 
 (define (errors-by x errs pts)
-  (sort (map (λ (pt err) (cons (x pt) err)) pts errs) < #:key car))
+  (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) < #:key car))
 
 (define (vector-binary-search v x cmp)
   (define (search l r)
@@ -247,7 +247,7 @@
                    #:color [color *blue-theme*] #:bin-size [bin-size 128])
   (define get-coord
     (if (number? axis)
-        (curryr list-ref axis)
+        (λ (x) (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
