@@ -103,14 +103,14 @@
         (rnd 'up bfadd (ival-hi x) (ival-hi y))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))
-        (and (ival-must-overflow? x) (ival-must-overflow? y))))
+        (or (ival-must-overflow? x) (ival-must-overflow? y))))
 
 (define (ival-sub x y)
   (ival (rnd 'down bfsub (ival-lo x) (ival-hi y))
         (rnd 'up bfsub (ival-hi x) (ival-lo y))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))
-        (and (ival-must-overflow? x) (ival-must-overflow? y))))
+        (or (ival-must-overflow? x) (ival-must-overflow? y))))
 
 (define (bfmin* a . as)
   (if (null? as) a (apply bfmin* (bfmin2 a (car as)) (cdr as))))
@@ -121,7 +121,7 @@
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
+  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
   (match* ((classify-ival x) (classify-ival y))
    [(1 1)
     (ival (rnd 'down bfmul (ival-lo x) (ival-lo y))
@@ -190,7 +190,8 @@
 
 (define-syntax-rule (define-monotonic name bffn)
   (define (name x)
-    (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))))
+    (let ([low (rnd 'down bffn (ival-lo x))])
+      (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) (ival-err? x) (ival-err x) (or (equal? low +inf.bf) (equal? low -inf.bf))))))
 
 (define-monotonic ival-exp bfexp)
 (define-monotonic ival-exp2 bfexp2)
@@ -558,6 +559,13 @@
               (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)
               (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)))))
 
+  (define (sample-interval-sized size-limit)
+    (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
+      (define v2 (bfstep v1 (exact-floor (* (* sign (+ exp mantissa)) size-limit))))
+      (if (= sign -1)
+          (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)
+          (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f))))
+
   (define (sample-bf)
     (bf (sample-double)))
 
@@ -683,16 +691,22 @@
             (check-pred ival-valid? iy)
             (check ival-contains? iy y))))))
 
-
-  ;; must-overflow test
+  
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
-       (for ([n (in-range num-tests)])
-         (define i (sample-interval))
-         (define x (sample-from i))
-         (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
-           ;;(println (ival-must-overflow? (ival-fn i)))
-           (check-pred ival-valid? (ival-fn i))
-           (check ival-contains? (ival-fn i) (fn x))))))
-
+      (for ([n (in-range num-tests)])
+        (let find-overflow-loop ([interval-size 0.5])
+          (define i (sample-interval-sized interval-size))
+          (define x (sample-from i))
+          (define y (parameterize ([bf-precision 8000]) (fn x)))
+          (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
+            (let ([result (ival-fn i)])
+              (if (ival-must-overflow? result)
+                  (begin
+                    (println "overflowed")
+                    (check-true (or (equal? (fn x) +inf.bf) (equal? (fn x) -inf.bf))))
+                  (if (> interval-size 0.01)
+                      (find-overflow-loop (max (/ interval-size 2.0) 0.00001))
+                      void))))))))
   )
+

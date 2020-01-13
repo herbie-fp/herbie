@@ -81,8 +81,11 @@
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
           (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err) (fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
+          (match-let* ([(ival lo hi err? err must-overflow?) (fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
             (cond
+             [must-overflow?
+              (log! 'exit precision pt)
+              hi*]
              [err
               (log! 'nan precision pt)
               +nan.0]
@@ -301,7 +304,4 @@
       (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
 
 
-(module+ test
-  (define num 
-  (for/and ([iter (in-naturals 0)])
     
