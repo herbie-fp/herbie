@@ -87,7 +87,12 @@
   (or
    (equal? bf +inf.bf)
    (equal? bf maxbf-rounded-down)))
-   
+
+(define (overflow-down? bf)
+  (or
+   (equal? bf -inf.bf)
+   (equal? bf minbf-rounded-up)))
+
 
 
 (define (ival-pi)
@@ -110,18 +115,25 @@
   (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
 
 (define (ival-add x y)
-  (ival (rnd 'down bfadd (ival-lo x) (ival-lo y))
-        (rnd 'up bfadd (ival-hi x) (ival-hi y))
-        (or (ival-err? x) (ival-err? y))
-        (or (ival-err x) (ival-err y))
-        (or (ival-must-overflow? x) (ival-must-overflow? y))))
+  (let ([low (rnd 'down bfadd (ival-lo x) (ival-lo y))]
+        [hi (rnd 'up bfadd (ival-hi x) (ival-hi y))])
+    (ival
+     low
+     hi
+     (or (ival-err? x) (ival-err? y))
+     (or (ival-err x) (ival-err y))
+     (or (overflow-up? low)
+         (overflow-down? hi)))))
 
 (define (ival-sub x y)
-  (ival (rnd 'down bfsub (ival-lo x) (ival-hi y))
-        (rnd 'up bfsub (ival-hi x) (ival-lo y))
-        (or (ival-err? x) (ival-err? y))
-        (or (ival-err x) (ival-err y))
-        (or (ival-must-overflow? x) (ival-must-overflow? y))))
+  (let ([low (rnd 'down bfsub (ival-lo x) (ival-hi y))]
+        [hi (rnd 'up bfsub (ival-hi x) (ival-lo y))])
+    (ival low
+          hi
+          (or (ival-err? x) (ival-err? y))
+          (or (ival-err x) (ival-err y))
+          (or (overflow-up? low)
+              (overflow-down? hi)))))
 
 (define (bfmin* a . as)
   (if (null? as) a (apply bfmin* (bfmin2 a (car as)) (cdr as))))
@@ -705,9 +717,10 @@
             (check ival-contains? iy y))))))
 
   ;; must-overflow test
+  (define num-overflow-tests (/ num-tests 4))
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
-      (for ([n (in-range num-tests)])
+      (for ([n (in-range num-overflow-tests)])
         (let find-overflow-loop ([interval-size 1])
           (define i (sample-interval-sized interval-size))
           (define x (sample-from i))
