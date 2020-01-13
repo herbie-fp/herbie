@@ -78,6 +78,17 @@
 (define 2.bf (bf 2))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
+(define maxbf-rounded-down
+  (rnd 'down bfexp (bf 9999999999999999)))
+(define minbf-rounded-up
+  (bfneg maxbf-rounded-down))
+
+(define (overflow-up? bf)
+  (or
+   (equal? bf +inf.bf)
+   (equal? bf maxbf-rounded-down)))
+   
+
 
 (define (ival-pi)
   (ival (rnd 'down pi.bf) (rnd 'up pi.bf) #f #f #f))
@@ -190,8 +201,9 @@
 
 (define-syntax-rule (define-monotonic name bffn)
   (define (name x)
-    (let ([low (rnd 'down bffn (ival-lo x))])
-      (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) (ival-err? x) (ival-err x) (or (equal? low +inf.bf) (equal? low -inf.bf))))))
+    (let ([low (rnd 'down bffn (ival-lo x))]
+          [high (rnd 'up bffn (ival-hi x))])
+      (ival low high (ival-err? x) (ival-err x) (overflow-up? low)))))
 
 (define-monotonic ival-exp bfexp)
 (define-monotonic ival-exp2 bfexp2)
@@ -559,12 +571,13 @@
               (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)
               (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)))))
 
-  (define (sample-interval-sized size-limit)
+  ;; limit how big interval can be
+  (define (sample-interval-sized [size-limit 1])
     (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
-      (define v2 (bfstep v1 (exact-floor (* (* sign (+ exp mantissa)) size-limit))))
-      (if (= sign -1)
-          (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)
-          (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f))))
+          (define v2 (bfstep v1 (exact-floor (* (* sign (+ exp mantissa)) size-limit))))
+          (if (= sign -1)
+              (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f)
+              (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)) #f))))
 
   (define (sample-bf)
     (bf (sample-double)))
@@ -686,16 +699,16 @@
         ;; Known bug in bffmod where rounding error causes invalid output
         (unless (or (bflte? (bfmul y x1) 0.bf) (bfgt? (bfabs y) (bfabs x2)))
           (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
-                            ['point1 x1] ['point2 x2] ['number n])
+                                          ['point1 x1] ['point2 x2] ['number n])
             (define iy (ival-fn i1 i2))
             (check-pred ival-valid? iy)
             (check ival-contains? iy y))))))
 
-  
+  ;; must-overflow test
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
       (for ([n (in-range num-tests)])
-        (let find-overflow-loop ([interval-size 0.5])
+        (let find-overflow-loop ([interval-size 1])
           (define i (sample-interval-sized interval-size))
           (define x (sample-from i))
           (define y (parameterize ([bf-precision 8000]) (fn x)))
@@ -703,10 +716,9 @@
             (let ([result (ival-fn i)])
               (if (ival-must-overflow? result)
                   (begin
-                    (println "overflowed")
                     (check-true (or (equal? (fn x) +inf.bf) (equal? (fn x) -inf.bf))))
-                  (if (> interval-size 0.01)
-                      (find-overflow-loop (max (/ interval-size 2.0) 0.00001))
+                  (if (> interval-size 0.005)
+                      (find-overflow-loop (/ interval-size 4.0))
                       void))))))))
   )
 
