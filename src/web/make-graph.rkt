@@ -334,7 +334,8 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision)))
+         ,@(parameterize ([*output-prec* precision] [*var-precs* (map (curryr cons precision) (test-vars test))])
+             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision))))
 
        ,(render-reproduction test)))
     out))

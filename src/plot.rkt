@@ -247,7 +247,7 @@
                    #:color [color *blue-theme*] #:bin-size [bin-size 128])
   (define get-coord
     (if (number? axis)
-        (λ (x) (list-ref x axis))
+        (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
