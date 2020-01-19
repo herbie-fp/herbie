@@ -28,6 +28,7 @@ publish:
 	bash infra/publish.sh index
 
 start-server:
+	raco pkg install --auto --name herbie src/
 	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
