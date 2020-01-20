@@ -85,6 +85,12 @@
   (parameterize ([bf-precision 80])
     (bfneg max-bf-rounded-down)))
 
+(define (overflow-up? low-val)
+  (bfgte? low-val max-bf-rounded-down))
+
+(define (overflow-down? high-val)
+  (bflte? high-val min-bf-rounded-up))
+
 
 (define (ival-pi)
   (ival (rnd 'down pi.bf) (rnd 'up pi.bf) #f #f #f))
@@ -170,7 +176,7 @@
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
   (define err (or (ival-err x) (ival-err y) (and (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
+  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
@@ -204,7 +210,8 @@
   (define (name x)
     (let ([low (rnd 'down bffn (ival-lo x))]
           [high (rnd 'up bffn (ival-hi x))])
-      (ival low high (ival-err? x) (ival-err x) (bfgt? (ival-lo x) overflow-threshold)))))
+      (ival low high (ival-err? x) (ival-err x)
+            (bfgt? (bfabs (ival-lo x)) overflow-threshold)))))
 
 (define exp-overflow-threshold
   (parameterize ([bf-precision 80])
@@ -232,16 +239,14 @@
 (define (ival-log1p x)
   (define err (or (ival-err x) (bflte? (ival-hi x) -1.bf)))
   (define err? (or err (ival-err? x) (bflte? (ival-lo x) -1.bf)))
-  (define must-overflow? (ival-must-overflow? x))
   (ival (rnd 'down bflog1p (ival-lo x)) (rnd 'up bflog1p (ival-hi x))
-        err? err must-overflow?))
+        err? err (ival-must-overflow? x)))
 
 (define (ival-sqrt x)
   (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
   (define err? (or err (ival-err? x) (bflt? (ival-lo x) 0.bf)))
-  (define must-overflow? (ival-must-overflow? x))
   (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
-        err? err must-overflow?))
+        err? err (ival-must-overflow? x)))
 
 (define (ival-cbrt x)
   (ival (rnd 'down bfcbrt (ival-lo x)) (rnd 'up bfcbrt (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
@@ -249,7 +254,7 @@
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
+  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
   (define x* (ival-fabs x))
   (define y* (ival-fabs y))
   (ival (rnd 'down bfhypot (ival-lo x*) (ival-lo y*))
@@ -259,48 +264,55 @@
 (define (ival-pow x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
-  (cond
-   [(bfgte? (ival-lo x) 0.bf)
-    (let ([lo
-           (if (bflt? (ival-lo x) 1.bf)
-               (rnd 'down bfexpt (ival-lo x) (ival-hi y))
-               (rnd 'down bfexpt (ival-lo x) (ival-lo y)))]
-          [hi
-           (if (bfgt? (ival-hi x) 1.bf)
-               (rnd 'up bfexpt (ival-hi x) (ival-hi y))
-               (rnd 'up bfexpt (ival-hi x) (ival-lo y)))])
-      (ival lo hi err? err must-overflow?))]
-   [(and (bf=? (ival-lo y) (ival-hi y)) (bfinteger? (ival-lo y)))
-    (ival (rnd 'down bfexpt (ival-lo x) (ival-lo y))
-          (rnd 'up bfexpt (ival-lo x) (ival-lo y))
-          err? err must-overflow?)]
-   [else
-    ;; In this case, the base range includes negatives and the exp range includes reals
-    ;; Focus first on just the negatives in the base range
-    ;; All the reals in the exp range just make NaN a possible output
-    ;; If there are no integers in the exp range, those NaNs are the only output
-    ;; If there are, the min of the negative base values is from the biggest odd integer in the range
-    ;;  and the max is from the biggest even integer in the range
-    (define a (bfceiling (ival-lo y)))
-    (define b (bffloor (ival-hi y)))
-    (define lo (ival-lo x))
-    (define neg-range
-      (cond
-       [(bflt? b a)
-        (ival +nan.bf +nan.bf #t #t #t)]
-       [(bf=? a b)
-        (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err must-overflow?)]
-       [(bfodd? b)
-        (ival (rnd 'down bfexpt (ival-lo x) b)
-              (rnd 'up bfmax2 (bfexpt (ival-hi x) (bfsub b 1.bf)) (bfexpt (ival-lo x) (bfsub b 1.bf))) err? err must-overflow?)]
-       [(bfeven? b)
-        (ival (rnd 'down bfexpt (ival-lo x) (bfsub b 1.bf))
-              (rnd 'up bfmax2 (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err must-overflow?)]
-       [else (ival +nan.bf +nan.bf #f #t #t)]))
-    (if (bfgt? (ival-hi x) 0.bf)
-        (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err must-overflow?) y))
-        neg-range)]))
+  (define result-without-overflow-check
+    (cond
+      [(bfgte? (ival-lo x) 0.bf)
+       (let ([lo
+              (if (bflt? (ival-lo x) 1.bf)
+                  (rnd 'down bfexpt (ival-lo x) (ival-hi y))
+                  (rnd 'down bfexpt (ival-lo x) (ival-lo y)))]
+             [hi
+              (if (bfgt? (ival-hi x) 1.bf)
+                  (rnd 'up bfexpt (ival-hi x) (ival-hi y))
+                  (rnd 'up bfexpt (ival-hi x) (ival-lo y)))])
+         (ival lo hi err? err #f))]
+      [(and (bf=? (ival-lo y) (ival-hi y)) (bfinteger? (ival-lo y)))
+       (ival (rnd 'down bfexpt (ival-lo x) (ival-lo y))
+             (rnd 'up bfexpt (ival-lo x) (ival-lo y))
+             err? err #f)]
+      [else
+       ;; In this case, the base range includes negatives and the exp range includes reals
+       ;; Focus first on just the negatives in the base range
+       ;; All the reals in the exp range just make NaN a possible output
+       ;; If there are no integers in the exp range, those NaNs are the only output
+       ;; If there are, the min of the negative base values is from the biggest odd integer in the range
+       ;;  and the max is from the biggest even integer in the range
+       (define a (bfceiling (ival-lo y)))
+       (define b (bffloor (ival-hi y)))
+       (define lo (ival-lo x))
+       (define neg-range
+         (cond
+           [(bflt? b a)
+            (ival +nan.bf +nan.bf #t #t #t)]
+           [(bf=? a b)
+            (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err #f)]
+           [(bfodd? b)
+            (ival (rnd 'down bfexpt (ival-lo x) b)
+                  (rnd 'up bfmax2 (bfexpt (ival-hi x) (bfsub b 1.bf)) (bfexpt (ival-lo x) (bfsub b 1.bf))) err? err #f)]
+           [(bfeven? b)
+            (ival (rnd 'down bfexpt (ival-lo x) (bfsub b 1.bf))
+                  (rnd 'up bfmax2 (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err #f)]
+           [else (ival +nan.bf +nan.bf #f #t #t)]))
+       (if (bfgt? (ival-hi x) 0.bf)
+           (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err #f) y))
+           neg-range)]))
+
+  (struct-copy
+   ival
+   result-without-overflow-check
+   [must-overflow?
+    (or (overflow-up? (ival-lo result-without-overflow-check))
+        (overflow-down? (ival-hi result-without-overflow-check)))]))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
@@ -315,7 +327,6 @@
         (ormap ival-err? as) (ormap ival-err as)
         (andmap ival-must-overflow? as)))
 
-;;TODO not sure what must-overflow should be
 (define (ival-not x)
   (ival (not (ival-hi x)) (not (ival-lo x)) (ival-err? x) (ival-err x) #f))
 

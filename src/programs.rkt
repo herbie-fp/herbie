@@ -39,7 +39,6 @@
   (define hash (make-hash))
   (define (save expr loc)
     (hash-update! hash expr (curry cons loc) '()))
-
   (let loop ([expr prog] [loc '()])
     (match expr
       [(list (or 'lambda 'λ) (list vars ...) body)

@@ -1,4 +1,4 @@
-#lang racket
+#lang errortrace racket
 
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
