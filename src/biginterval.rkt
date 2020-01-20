@@ -78,21 +78,12 @@
 (define 2.bf (bf 2))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
-(define maxbf-rounded-down
-  (rnd 'down bfexp (bf 9999999999999999)))
-(define minbf-rounded-up
-  (bfneg maxbf-rounded-down))
-
-(define (overflow-up? bf)
-  (or
-   (equal? bf +inf.bf)
-   (equal? bf maxbf-rounded-down)))
-
-(define (overflow-down? bf)
-  (or
-   (equal? bf -inf.bf)
-   (equal? bf minbf-rounded-up)))
-
+(define max-bf-rounded-down
+  (parameterize ([bf-precision 80])
+    (rnd 'down bfexp (bf 9999999999999999))))
+(define min-bf-rounded-up
+  (parameterize ([bf-precision 80])
+    (bfneg max-bf-rounded-down)))
 
 
 (define (ival-pi)
@@ -115,25 +106,23 @@
   (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
 
 (define (ival-add x y)
-  (let ([low (rnd 'down bfadd (ival-lo x) (ival-lo y))]
-        [hi (rnd 'up bfadd (ival-hi x) (ival-hi y))])
-    (ival
-     low
-     hi
-     (or (ival-err? x) (ival-err? y))
-     (or (ival-err x) (ival-err y))
-     (or (overflow-up? low)
-         (overflow-down? hi)))))
+  (ival
+   (rnd 'down bfadd (ival-lo x) (ival-lo y))
+   (rnd 'up bfadd (ival-hi x) (ival-hi y))
+   (or (ival-err? x) (ival-err? y))
+   (or (ival-err x) (ival-err y))
+   (or
+    (ival-must-overflow? x)
+    (ival-must-overflow? y))))
 
 (define (ival-sub x y)
-  (let ([low (rnd 'down bfsub (ival-lo x) (ival-hi y))]
-        [hi (rnd 'up bfsub (ival-hi x) (ival-lo y))])
-    (ival low
-          hi
-          (or (ival-err? x) (ival-err? y))
-          (or (ival-err x) (ival-err y))
-          (or (overflow-up? low)
-              (overflow-down? hi)))))
+  (ival (rnd 'down bfsub (ival-lo x) (ival-hi y))
+        (rnd 'up bfsub (ival-hi x) (ival-lo y))
+        (or (ival-err? x) (ival-err? y))
+        (or (ival-err x) (ival-err y))
+        (or
+         (ival-must-overflow? x)
+         (ival-must-overflow? y))))
 
 (define (bfmin* a . as)
   (if (null? as) a (apply bfmin* (bfmin2 a (car as)) (cdr as))))
@@ -211,15 +200,23 @@
             (bfdiv (ival-lo x) (ival-hi y)) (bfdiv (ival-hi x) (ival-hi y))))
      (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err must-overflow?)]))
 
-(define-syntax-rule (define-monotonic name bffn)
+(define-syntax-rule (define-monotonic name bffn overflow-threshold)
   (define (name x)
     (let ([low (rnd 'down bffn (ival-lo x))]
           [high (rnd 'up bffn (ival-hi x))])
-      (ival low high (ival-err? x) (ival-err x) (overflow-up? low)))))
+      (ival low high (ival-err? x) (ival-err x) (bfgt? (ival-lo x) overflow-threshold)))))
 
-(define-monotonic ival-exp bfexp)
-(define-monotonic ival-exp2 bfexp2)
-(define-monotonic ival-expm1 bfexpm1)
+(define exp-overflow-threshold
+  (parameterize ([bf-precision 80])
+    (rnd 'up bflog max-bf-rounded-down)))
+(define-monotonic ival-exp bfexp exp-overflow-threshold)
+
+(define exp2-overflow-threshold
+  (parameterize ([bf-precision 80])
+    (rnd 'up bflog2 max-bf-rounded-down)))
+(define-monotonic ival-exp2 bfexp2 exp2-overflow-threshold)
+
+(define-monotonic ival-expm1 bfexpm1 exp-overflow-threshold)
 
 (define-syntax-rule (define-monotonic-positive name bffn)
   (define (name x)
@@ -291,7 +288,7 @@
     (define neg-range
       (cond
        [(bflt? b a)
-        (ival +nan.bf +nan.bf #t #t)]
+        (ival +nan.bf +nan.bf #t #t #t)]
        [(bf=? a b)
         (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err must-overflow?)]
        [(bfodd? b)
@@ -300,7 +297,7 @@
        [(bfeven? b)
         (ival (rnd 'down bfexpt (ival-lo x) (bfsub b 1.bf))
               (rnd 'up bfmax2 (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err must-overflow?)]
-       [else (ival +nan.bf +nan.bf #f #t)]))
+       [else (ival +nan.bf +nan.bf #f #t #t)]))
     (if (bfgt? (ival-hi x) 0.bf)
         (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err must-overflow?) y))
         neg-range)]))
@@ -464,11 +461,11 @@
       (ival-sub x (ival-mult (ival a b err? err must-overflow?) y*))
       (ival (bfneg (bfdiv (ival-hi y*) 2.bf)) (bfdiv (ival-hi y*) 2.bf) err? err must-overflow?)))
 
-(define-monotonic ival-rint bfrint)
-(define-monotonic ival-round bfround)
-(define-monotonic ival-ceil bfceiling)
-(define-monotonic ival-floor bffloor)
-(define-monotonic ival-trunc bftruncate)
+(define-monotonic ival-rint bfrint max-bf-rounded-down)
+(define-monotonic ival-round bfround max-bf-rounded-down)
+(define-monotonic ival-ceil bfceiling max-bf-rounded-down)
+(define-monotonic ival-floor bffloor max-bf-rounded-down)
+(define-monotonic ival-trunc bftruncate max-bf-rounded-down)
 
 (define (ival-erf x)
   (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))

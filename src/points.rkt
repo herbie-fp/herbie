@@ -67,6 +67,8 @@
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
+        [`(overflowed ,prec ,pt)
+         (list name 'overflowed prec)]
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]
         [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
@@ -83,9 +85,6 @@
           (begin (log! 'exit precision pt) +nan.0)
           (match-let* ([(ival lo hi err? err must-overflow?) (fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
             (cond
-             [must-overflow?
-              (log! 'exit precision pt)
-              hi*]
              [err
               (log! 'nan precision pt)
               +nan.0]
@@ -94,6 +93,9 @@
                                   (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
               (log! 'sampled precision pt hi*)
               hi*]
+             [must-overflow?
+              (log! 'overflowed precision pt)
+              +nan.0]
              [else
               (loop (inexact->exact (round (* precision 2))))]))))))
 
