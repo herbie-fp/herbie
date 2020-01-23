@@ -482,7 +482,7 @@
   (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
 
 (define (ival-erfc x)
-  (ival (rnd 'down bferfc (ival-hi x)) (rnd 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x)) (ival-must-overflow? x))
+  (ival (rnd 'down bferfc (ival-hi x)) (rnd 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
 
 (define (ival-cmp x y)
   (define can-< (bflt? (ival-lo x) (ival-hi y)))
