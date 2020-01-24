@@ -25,7 +25,7 @@
     [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
 (define (ival-ground-truth fv p repr)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x (representation-name repr))))
+  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x repr)))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (apply f x)))
@@ -40,7 +40,7 @@
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) 'binary64)])
+    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
       (λ ()
         (if (dict-has-key? *conditions* name)
             (sample)
