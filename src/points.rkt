@@ -134,7 +134,7 @@
 
       (define pre
         (or (equal? precondition 'TRUE)
-            (ival-eval pre-fn pt 'bool #:log (point-logger 'pre log pre-prog))))
+            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log pre-prog))))
 
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
