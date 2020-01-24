@@ -106,7 +106,7 @@
       (when (null? (range-table-ref range-table var))
         (raise-herbie-error "No valid values of variable ~a" var
                             #:url "faq.html#no-valid-values"))
-      (get-representation (dict-ref (*var-precs*) var))))
+      (dict-ref (*var-reprs*) var)))
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
   (if (set-member? '(binary32 binary64) precision)
@@ -264,10 +264,9 @@
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
-  (define repr (get-representation (*output-prec*)))
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex repr)
-                            #:when (andmap (curryr ordinary-value? repr) pt))
+      ([pt pts] [ex exacts] #:when (ordinary-value? ex (*output-repr*))
+                            #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)

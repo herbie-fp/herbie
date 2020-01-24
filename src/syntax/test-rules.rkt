@@ -36,7 +36,7 @@
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-precs* (for/list ([(v t) (in-dict itypes)]) (cons v (match t ['real 'binary64] [x x]))))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
   (define make-point
@@ -70,7 +70,7 @@
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-precs* (for/list ([(v t) (in-dict itypes)]) (cons v (match t ['real 'binary64] [x x]))))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
   (define (make-point)
     (for/list ([v fv])

@@ -61,7 +61,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-precs*)))) 'real))
+   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-reprs*)))) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -152,8 +152,8 @@
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-precs* '((x . binary64))]
-                 [*output-prec* 'binary64])
+                 [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
+                 [*output-repr* (get-representation 'binary64)])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
     (define repr (get-representation 'binary64))
 
@@ -207,7 +207,7 @@
       (set! iters (+ 1 iters))
       (parameterize ([*num-points* (*binary-search-test-points*)]
                      [*timeline-disabled* true]
-                     [*var-precs* (cons (cons var precision) (*var-precs*))])
+                     [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
           (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision))
         (< (errors-score (errors prog1 ctx repr))
@@ -341,8 +341,8 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))]
-                 [*var-precs* '((x . binary64) (y . binary64))]
-                 [*output-prec* 'binary64])
+                 [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
+                 [*output-repr* (get-representation 'binary64)])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)

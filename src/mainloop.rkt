@@ -69,8 +69,8 @@
                      #:precondition [precondition 'TRUE]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
-  (*output-prec* precision)
-  (*var-precs* (map (curryr cons precision) (program-variables prog)))
+  (*output-repr* (get-representation precision))
+  (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
@@ -117,7 +117,7 @@
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^)
-                                  #:picking-func (curryr best-alt (*output-prec*))
+                                  #:picking-func (curryr best-alt (*output-repr*))
                                   #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
@@ -127,7 +127,7 @@
 ;; Invoke the subsystems individually
 (define (localize!)
   (timeline-event! 'localize)
-  (define locs (localize-error (alt-program (^next-alt^)) (*output-prec*)))
+  (define locs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
   (for/list ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
                     (location-get loc (alt-program (^next-alt^)))
@@ -148,7 +148,7 @@
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (equal? (type-of expr (*var-precs*)) 'real)))
+          (not (equal? (type-of expr (*var-reprs*)) 'real)))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
@@ -278,7 +278,7 @@
 ;; Finish iteration
 (define (finalize-iter!)
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) (^children^) (*output-prec*)))
+  (^table^ (atab-add-altns (^table^) (^children^) (*output-repr*)))
   (timeline-log! 'kept-alts (length (atab-not-done-alts (^table^))))
   (timeline-log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
   (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
@@ -286,7 +286,7 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-prec*)))
+  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-repr*)))
   (void))
 
 (define (finish-iter!)

@@ -91,9 +91,8 @@
       [(list (or 'lambda 'λ) (list vars ...) body)
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? constant? c)
-       (define repr (get-representation (*output-prec*)))
        ;; TODO : Do something more intelligent with 'PI
-       (let ([val (if (rational? c) c (->flonum c repr))])
+       (let ([val (if (rational? c) c (->flonum c (*output-repr*)))])
          (annotation val (reverse loc) 'constant val))]
       [(? variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]

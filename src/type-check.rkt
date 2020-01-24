@@ -38,9 +38,9 @@
     [(? complex?) 'complex]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
-    [(? value?) (*output-prec*)]
+    [(? value?) (representation-type (*output-repr*))]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (dict-ref env expr)]
+    [(? variable?) (representation-type (dict-ref env expr))]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)

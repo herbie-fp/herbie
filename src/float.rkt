@@ -9,8 +9,7 @@
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
-         <-all-precisions mk-<= special-value?
-         get-representation* representation-type)
+         <-all-precisions mk-<= special-value? get-representation*)
 
 (define (get-representation* x)
   (match x
@@ -166,12 +165,6 @@
     (if (eq? (representation-name repr) 'complex)
       (bf x)
       ((representation-repr->bf repr) x))]))
-
-(define (representation-type repr)
-  (match (representation-name repr)
-    ['binary64 'real]
-    ['binary32 'real]
-    [x x]))
 
 (define (<-all-precisions x1 x2 repr)
   (cond
