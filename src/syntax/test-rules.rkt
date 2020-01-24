@@ -25,7 +25,7 @@
     [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
 
 (define (ival-ground-truth fv p repr)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x (representation-name repr))))
+  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x repr)))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (apply f x)))
@@ -36,11 +36,11 @@
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-precs* (for/list ([(v t) (in-dict itypes)]) (cons v (match t ['real 'binary64] [x x]))))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) 'binary64)])
+    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
       (λ ()
         (if (dict-has-key? *conditions* name)
             (sample)
@@ -70,7 +70,7 @@
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-precs* (for/list ([(v t) (in-dict itypes)]) (cons v (match t ['real 'binary64] [x x]))))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
   (define repr (get-representation (match otype ['real 'binary64] [x x])))
   (define (make-point)
     (for/list ([v fv])

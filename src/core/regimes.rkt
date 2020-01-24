@@ -30,7 +30,7 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts precision)
+(define (infer-splitpoints alts repr)
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
@@ -38,7 +38,6 @@
         (program-variables (alt-program (first alts)))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
-  (define repr (get-representation precision))
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
@@ -61,7 +60,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-precs*)))) 'real))
+   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-reprs*)))) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -85,19 +84,19 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option precision)
+(define (combine-alts best-option repr)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
-    (define splitpoints (sindices->spoints pts expr alts splitindices precision))
+    (define splitpoints (sindices->spoints pts expr alts splitindices repr))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        `(if ,(mk-<= precision (sp-bexpr splitpoint) (sp-point splitpoint))
+        `(if ,(mk-<= repr (sp-bexpr splitpoint) (sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
@@ -152,8 +151,8 @@
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-precs* '((x . binary64))]
-                 [*output-prec* 'binary64])
+                 [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
+                 [*output-repr* (get-representation 'binary64)])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
     (define repr (get-representation 'binary64))
 
@@ -192,8 +191,7 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices precision)
-  (define repr (get-representation precision))
+(define (sindices->spoints points expr alts sindices repr)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
@@ -207,9 +205,9 @@
       (set! iters (+ 1 iters))
       (parameterize ([*num-points* (*binary-search-test-points*)]
                      [*timeline-disabled* true]
-                     [*var-precs* (cons (cons var precision) (*var-precs*))])
+                     [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision))
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) repr))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
@@ -341,8 +339,8 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))]
-                 [*var-precs* '((x . binary64) (y . binary64))]
-                 [*output-prec* 'binary64])
+                 [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
+                 [*output-repr* (get-representation 'binary64)])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)

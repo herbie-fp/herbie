@@ -54,7 +54,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-prec)))
+            (prepare-points (test-specification test) (test-precondition test) output-repr)))
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 

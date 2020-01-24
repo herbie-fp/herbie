@@ -18,7 +18,7 @@
   (let loop ([expr expr])
     (match expr
       [`(pow ,base ,(? real?))
-       (when (equal? (type-of base (*var-precs*)) 'complex)
+       (when (equal? (type-of base (*var-reprs*)) 'complex)
          (error "Bad pow!!!" expr*))]
       [(list f args ...)
        (for-each loop args)]
@@ -276,6 +276,6 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of x (*var-precs*))
+     (match (type-of x (*var-reprs*))
        [(or 'real 'binary64 'binary32) `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

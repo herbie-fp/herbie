@@ -2,12 +2,12 @@
 
 (require math/bigfloat math/flonum "bigcomplex.rkt")
 
-(provide (struct-out representation) get-representation *output-prec* *var-precs*)
+(provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
 (module+ internals (provide define-representation))
 
 ;; Global precision tacking
-(define *output-prec* (make-parameter '()))
-(define *var-precs* (make-parameter '()))
+(define *output-repr* (make-parameter '()))
+(define *var-reprs* (make-parameter '()))
 
 ;; Structs
 
@@ -23,6 +23,12 @@
 (define (get-representation name)
   (hash-ref representations name
             (λ () (error 'get-representation "Unknown representation ~a" name))))
+
+(define (representation-type repr)
+  (match (representation-name repr)
+    ['binary64 'real]
+    ['binary32 'real]
+    [x x]))
 
 (define-syntax-rule (define-representation name args ...)
   (begin

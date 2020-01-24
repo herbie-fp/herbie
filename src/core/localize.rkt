@@ -13,11 +13,6 @@
 (define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache repr)
-  (define ctx
-    (for/hash ([(var vals) (in-dict vars)])
-      (values var (match (representation-name repr)
-                    [(or 'binary32 'binary64) 'real]
-                    [x x]))))
   (hash-ref! cache expr
              (λ ()
                 (match expr
@@ -28,7 +23,7 @@
                          (->bf expr repr)))
                    (cons (repeat bf) (repeat 1))]
                   [(? variable?)
-                   (cons (map (curryr ->bf (get-representation (dict-ref (*var-precs*) expr)))
+                   (cons (map (curryr ->bf (dict-ref (*var-reprs*) expr))
                               (dict-ref vars expr))
                          (repeat 1))]
                   [`(if ,c ,ift ,iff)
@@ -39,10 +34,10 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define <-bf (representation-bf->repr (get-representation* (type-of expr ctx))))
+                   (define <-bf (representation-bf->repr (get-representation* (type-of expr (*var-reprs*)))))
                    (define arg<-bfs
                      (for/list ([arg args])
-                       (representation-bf->repr (get-representation* (type-of arg ctx)))))
+                       (representation-bf->repr (get-representation* (type-of arg (*var-reprs*))))))
 
                    (define argexacts
                      (flip-lists (map (compose car (curryr localize-on-expression vars cache repr)) args)))
@@ -60,7 +55,7 @@
   (*analyze-context* (*pcontext*))
   (hash-clear! *analyze-cache*)))
 
-(define (localize-error prog prec)
+(define (localize-error prog repr)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
@@ -70,7 +65,6 @@
         (make-hash)))
   (define expr->loc (location-hash prog))
 
-  (define repr (get-representation prec))
   (localize-on-expression (program-body prog) varmap cache repr)
 
   (define locs
