@@ -38,8 +38,9 @@
      (define-ruleset name groups #:type () [rname input output] ...)]
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
-     (begin (define name (list (rule 'rname 'input 'output '((var . type) ...)
-                                     (type-of 'input `((var . ,(get-representation* type)) ...))) ...))
+     (begin
+       (define name (list (rule 'rname 'input 'output '((var . type) ...)
+                                     (type-of 'input `((var . type) ...))) ...))
             (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity

@@ -174,16 +174,15 @@
     (define ->ordinal (representation-repr->ordinal repr))
     (< (->ordinal x1) (->ordinal x2))]))
 
-(define (mk-<= precision var val)
-  (define repr (get-representation precision))
+(define (mk-<= repr var val)
   (define (cast x)
-    (match precision
+    (match (representation-name repr)
       ['posit8 `(real->posit8 ,x)] ['posit16 `(real->posit16 ,x)] ['posit32 `(real->posit32 ,x)]
       ['quire8 `(real->quire8 ,x)] ['quire16 `(real->quire16 ,x)] ['quire32 `(real->quire32 ,x)]
       [(or 'binary64 'binary32) x]))
   (define prec-point (cast (repr->fl val repr)))
   (define <=-operator
-    (match precision
+    (match (representation-name repr)
       [(or 'binary64 'binary32) '<=] 
       ['posit8 `<=.p8] ['posit16 `<=.p16] ['posit32 `<=.p32]
       ['quire8 `<=.p8] ['quire16 `<=.q16] ['quire32 `<=.q32]))

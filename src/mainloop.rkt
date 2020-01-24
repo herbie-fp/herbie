@@ -78,13 +78,13 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (timeline-event! 'sample)
   ;; If the specification is given, it is used for sampling points
-  (define context (prepare-points (or specification prog) precondition precision))
+  (define context (prepare-points (or specification prog) precondition (*output-repr*)))
   (^precondition^ precondition)
   (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
-  (^table^ (make-alt-table context alt precision))
+  (^table^ (make-alt-table context alt (*output-repr*)))
   alt)
 
 ;; Information
@@ -110,8 +110,7 @@
 	(^table^ table*)
 	(void))))
 
-(define (best-alt alts prec)
-  (define repr (get-representation prec))
+(define (best-alt alts repr)
   (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
 		   alts))
 
@@ -367,20 +366,20 @@
       (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
       (run-iter!))
     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-    (get-final-combination precision)]))
+    (get-final-combination repr)]))
 
-(define (get-final-combination precision)
+(define (get-final-combination repr)
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* all-alts)
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (timeline-event! 'regimes)
-      (define option (infer-splitpoints all-alts precision))
+      (define option (infer-splitpoints all-alts repr))
       (timeline-event! 'bsearch)
-      (combine-alts option precision)]
+      (combine-alts option repr)]
      [else
-      (best-alt all-alts precision)]))
+      (best-alt all-alts repr)]))
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
@@ -389,10 +388,3 @@
          'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
-
-;; Other tools
-(define (resample! precision)
-  (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
-    (*pcontext* context)
-    (^table^ (atab-new-context (^table^) context)))
-  (void))

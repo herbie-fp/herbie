@@ -55,7 +55,7 @@
   (*analyze-context* (*pcontext*))
   (hash-clear! *analyze-cache*)))
 
-(define (localize-error prog prec)
+(define (localize-error prog repr)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
@@ -65,7 +65,6 @@
         (make-hash)))
   (define expr->loc (location-hash prog))
 
-  (define repr (get-representation prec))
   (localize-on-expression (program-body prog) varmap cache repr)
 
   (define locs

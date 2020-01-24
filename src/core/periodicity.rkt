@@ -183,7 +183,8 @@
 				    (prepare-points
 				     program
                                      `(and ,@(for/list ([(var period) (lp-periods ploc)])
-                                               `(<= 0 ,var ,(* 2 pi var)))))])
+                                               `(<= 0 ,var ,(* 2 pi var))))
+                                     (*output-repr*))])
 			       (parameterize ([*pcontext* context])
 				 (improve-func (make-alt program)))))))
 		     plocs)]
