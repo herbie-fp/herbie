@@ -88,34 +88,37 @@
   ;; and representations are cleanly distinguished, we can get rid of the
   ;; additional check to see if the repr is complex.
   (define real->precision (match mode
-    ['bf (curryr ->bf repr)]
-    ['fl (curryr ->flonum repr)]
-    ['ival mk-ival]
-    ['nonffi identity]))
+    ['bf (λ (repr x) (->bf x repr))]
+    ['fl (λ (repr x) (->flonum x repr))]
+    ['ival (λ (repr x) (mk-ival (->bf x repr)))]
+    ['nonffi (λ (repr x) x)]))
   (define precision->real (match mode
     ['bf identity]
-    ['fl (λ (x) (->flonum x repr))]
+    ['fl (curryr ->flonum repr)]
     ['ival identity]
     ['nonffi identity]))
 
   (define body*
     (let inductor ([prog (program-body prog)])
       (match prog
-        [(? value?) (real->precision prog)]
+        [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
-        #;[(list 'if cond ift iff)
-         `(if ,(inductor cond) ,(inductor ift) ,(inductor iff))]
         [(list op args ...)
          (cons (operator-info op mode) (map inductor args))]
         [_ (error (format "Invalid program ~a" prog))])))
-  (define fn (common-eval `(λ ,(program-variables prog) ,(compile body*))))
-  (lambda (pts)
-    (precision->real (apply fn (map real->precision pts)))))
+
+  (define fn
+    `(λ ,(program-variables prog)
+       (let (,@(for/list ([var (program-variables prog)])
+                 (define repr (get-representation (dict-ref (*var-precs*) var)))
+                 `[,var (,(curry real->precision repr) ,var)]))
+         (,precision->real ,(compile body*)))))
+  (common-eval fn))
 
 (define (eval-const-expr expr)
   ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f) '()))
+  ((eval-prog `(λ () ,expr) 'nonffi #f)))
 
 (define (eval-application op . args)
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
@@ -133,13 +136,11 @@
 
 (module+ test
   (define repr (get-representation 'binary64))
-  (check-equal? (eval-const-expr '(+ 1 1)) 2)
   (check-equal? (eval-application '+ 1 1) 2)
-  (check-equal? (eval-const-expr 'PI) pi)
-  (check-equal? (eval-const-expr '(exp 2)) (exp 2))
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (module+ test
+  (*var-precs* '((a . binary64) (b . binary64) (c . binary64)))
   (require math/bigfloat)
   (define tests
     #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
@@ -155,8 +156,8 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
-      (define iv ((eval-prog e 'ival #f) p))
-      (define val ((eval-prog e 'bf (get-representation 'binary64)) p))
+      (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
+      (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 

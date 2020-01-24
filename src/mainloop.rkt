@@ -70,7 +70,7 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-prec* precision)
-  ;; TODO(interface): when the syntax checker is udpated, set *var-precs* too
+  (*var-precs* (map (curryr cons precision) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
@@ -148,7 +148,7 @@
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (equal? (type-of expr (for/hash ([var vars]) (values var 'real))) 'real)))
+          (not (equal? (type-of expr (*var-precs*)) 'real)))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
@@ -193,7 +193,7 @@
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr #:root location)
+             (begin0 (rewrite expr #:rules (*rules*) #:root location)
                (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used

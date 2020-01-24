@@ -61,7 +61,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-of e (for/list ([v (program-variables (alt-program (first alts)))]) (cons v 'real))) 'real))
+   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-precs*)))) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -116,10 +116,10 @@
     (values alts** splitpoints**)))
 
 (define (sort-context-on-expr context expr variables repr)
+  (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
-		   (λ (x1 x2)
-          (</total x1 x2 repr))
-       #:key (compose (eval-prog `(λ ,variables ,expr) 'fl repr) car))])
+		   (λ (x1 x2) (</total x1 x2 repr))
+                   #:key (λ (pts) (apply fn (car pts))))])
     (mk-pcontext (map car p&e) (map cdr p&e))))
 
 (define (option-on-expr alts expr repr)
@@ -127,7 +127,8 @@
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
-  (define splitvals (map (eval-prog `(λ ,vars ,expr) 'fl repr) pts))
+  (define fn (eval-prog `(λ ,vars ,expr) 'fl repr))
+  (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
                                (<-all-precisions prev val repr))))
@@ -150,7 +151,9 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
+                 [*var-precs* '((x . binary64))]
+                 [*output-prec* 'binary64])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
     (define repr (get-representation 'binary64))
 
@@ -177,8 +180,7 @@
 	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
 	  [else (binary-search-floats pred p1 midpoint repr)])))
 
-(define (extract-subexpression program expr)
-  (define var (gensym 'branch))
+(define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
   (define vars* (set-subtract (program-variables program) (free-variables expr)))
   (if (subset? (free-variables body*) (cons var vars*))
@@ -195,19 +197,21 @@
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
-  (define progs (map (compose (curryr extract-subexpression expr) alt-program) alts))
-  (define start-prog (extract-subexpression (*start-prog*) expr))
+  (define var (gensym 'branch))
+  (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
+  (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
       (set! iters (+ 1 iters))
-      (define ctx
-        (parameterize ([*num-points* (*binary-search-test-points*)]
-                       [*timeline-disabled* true])
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision)))
-      (< (errors-score (errors prog1 ctx repr))
-         (errors-score (errors prog2 ctx repr))))
+      (parameterize ([*num-points* (*binary-search-test-points*)]
+                     [*timeline-disabled* true]
+                     [*var-precs* (cons (cons var precision) (*var-precs*))])
+        (define ctx
+          (prepare-points start-prog `(== ,(caadr start-prog) ,v) precision))
+        (< (errors-score (errors prog1 ctx repr))
+           (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
     (timeline-push! 'bstep v1 v2 iters pt)
     pt)
@@ -216,8 +220,8 @@
     (define prog1 (list-ref progs (si-cidx sidx)))
     (define prog2 (list-ref progs (si-cidx next-sidx)))
 
-    (define p1 (eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-    (define p2 (eval-expr (list-ref points (si-pidx sidx))))
+    (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
+    (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
 
     (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
@@ -234,7 +238,7 @@
        (begin
          (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts)
          (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	   (sp (si-cidx sindex) expr (eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
+	   (sp (si-cidx sindex) expr (apply eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
    (list final-sp)))
 
 (define (point-with-dim index point val)
@@ -328,7 +332,7 @@
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
-      (define val (prog pt))
+      (define val (apply prog pt))
       (for/first ([right splitpoints]
                   #:when (or (nan?-all-types (sp-point right) repr)
                              (<=/total val (sp-point right) repr)))
@@ -336,7 +340,9 @@
         (equal? (sp-cidx right) i)))))
 
 (module+ test
-  (parameterize ([*start-prog* '(λ (x y) (/ x y))])
+  (parameterize ([*start-prog* '(λ (x y) (/ x y))]
+                 [*var-precs* '((x . binary64) (y . binary64))]
+                 [*output-prec* 'binary64])
     (define sps
       (list (sp 0 '(/ y x) -inf.0)
             (sp 2 '(/ y x) 0.0)
@@ -348,7 +354,7 @@
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
                     (get-representation 'binary64)))
 
-    (check-true (p0? '(0 -1)))
-    (check-true (p2? '(-1 1)))
-    (check-true (p0? '(+1 1)))
-    (check-true (p1? '(0 0)))))
+    (check-pred p0? '(0 -1))
+    (check-pred p2? '(-1 1))
+    (check-pred p0? '(+1 1))
+    (check-pred p1? '(0 0))))
