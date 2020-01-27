@@ -184,7 +184,7 @@
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
   (define err (or (ival-err x) (ival-err y) (and (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))
-  (define must-overflow? (ival-must-overflow? x))
+  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
@@ -572,7 +572,7 @@
   (ival (ival-lo x) (ival-hi x)
         (or (ival-err? c) (ival-err? x))
         (or (ival-err c) (ival-err x))
-        (ival-must-oveflow? x)))
+        (ival-must-overflow? x)))
 
 (define (ival-if c x y)
   (cond
@@ -731,13 +731,11 @@
             (check ival-contains? iy y))))))
   
   ;; ##################################################### must-overflow tests
-  (define num-overflow-tests (/ num-tests 8))
+  (define num-overflow-tests (/ num-tests 4))
 
-
-  
-  (define (test-function-overflows ival-fn fn num-of-arguments)
+  (define (test-function-overflows ival-fn fn num-of-arguments iterations)
     (test-case (~a (object-name ival-fn))
-      (for ([n (in-range num-overflow-tests)])
+      (for ([n (in-range iterations)])
         (let find-overflow-loop ([interval-size 1])
           (define intervals
             (for/list ([n (in-range num-of-arguments)])
@@ -745,26 +743,33 @@
           (define points
             (for/list ([i intervals])
               (sample-from i)))
-            
-          (define y (parameterize ([bf-precision 8000]) (apply fn points)))
-          (with-check-info (['fn ival-fn] ['intervals intervals] ['points points] ['number n])
-            (let ([result (apply ival-fn intervals)])
-              (if (ival-must-overflow? result)
-                  (check-true (or (equal? (apply fn points) +inf.bf) (equal? (apply fn points) -inf.bf)))
-                  (if (> interval-size 0.005)
-                      (find-overflow-loop (/ interval-size 4.0))
-                      void))))))))
+
+          (parameterize ([bf-precision 8000])
+            (define fn-result  (apply fn points))
+            (with-check-info (['fn ival-fn] ['intervals intervals] ['points points] ['number n])
+              (let ([result (apply ival-fn intervals)])
+                (if (ival-must-overflow? result)
+                    (check-true (or (equal? fn-result +inf.bf)
+                                    (equal? fn-result -inf.bf)
+                                    (equal? fn-result +nan.bf)
+                                    (boolean? fn-result)))
+                    (if (> interval-size 0.005)
+                        (find-overflow-loop (/ interval-size 4.0))
+                        void)))))))))
     
   (for ([(ival-fn fn) (in-dict arg1)])
-    (test-function-overflows ival-fn fn 1))
+    (test-function-overflows ival-fn fn 1 num-overflow-tests))
   (for ([(ival-fn fn) (in-dict arg2)])
-    (test-function-overflows ival-fn fn 2))
+    (test-function-overflows ival-fn fn 2 num-overflow-tests))
 
+
+  
   
   (define arg1-list (dict->list arg1))
   (define arg2-list (dict->list arg2))
+  
   ;; test composition overflows
-  (for ([n (in-range num-overflow-tests)])
+  (for ([n (in-range 20)])
     (define func1 (list-ref arg1-list (random 0 (length arg1-list))))
     (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
     (test-function-overflows (procedure-rename (compose (car func1) (car func2))
@@ -777,7 +782,30 @@
                                                 (string-append (symbol->string (object-name (cdr func1)))
                                                                "-composed-with-"
                                                                (symbol->string (object-name (cdr func2))))))
-                             1))
+                             1
+                             (/ num-overflow-tests 40)))
+
+  (define (compose-2-with-1 arity-2-func arity-1-func-1 arity-1-func-2)
+    (lambda (a b)
+      (arity-2-func (arity-1-func-1 a) (arity-1-func-2 b))))
+
+  
+  (for ([n (in-range 20)])
+    (define func1 (list-ref arg2-list (random 0 (length arg2-list))))
+    (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
+    (define func3 (list-ref arg1-list (random 0 (length arg1-list))))
+    (test-function-overflows (procedure-rename (compose-2-with-1 (car func1) (car func2) (car func3))
+                                               (string->symbol
+                                                (string-append (symbol->string (object-name (car func1)))
+                                                               "-composed-with-"
+                                                               (symbol->string (object-name (car func2))))))
+                             (procedure-rename (compose-2-with-1 (cdr func1) (cdr func2) (cdr func3))
+                                               (string->symbol
+                                                (string-append (symbol->string (object-name (cdr func1)))
+                                                               "-composed-with-"
+                                                               (symbol->string (object-name (cdr func2))))))
+                             2
+                             (/ num-overflow-tests 40)))
   
   
   )
