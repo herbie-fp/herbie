@@ -140,44 +140,51 @@
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
-  (match* ((classify-ival x) (classify-ival y))
-   [(1 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-lo y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err must-overflow?)]
-   [(1 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-lo x) (ival-hi y)) err? err must-overflow?)]
-   [(1 0)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err must-overflow?)]
-   [(-1 0)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err must-overflow?)]
-   [(-1 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-hi x) (ival-lo y)) err? err must-overflow?)]
-   [(-1 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-hi y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err must-overflow?)]
-   [(0 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err must-overflow?)]
-   [(0 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err must-overflow?)]
-   [(0 0) ; The "else" case is always correct, but is slow
-    ;; We round only down, and approximate rounding up with bfnext below
-    (define opts
-      (rnd 'down list
-           (bfmul (ival-lo x) (ival-lo y)) (bfmul (ival-hi x) (ival-lo y))
-           (bfmul (ival-lo x) (ival-hi y)) (bfmul (ival-hi x) (ival-hi y))))
-    (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err must-overflow?)]))
+
+  (define result-without-overflow-check
+    (match* ((classify-ival x) (classify-ival y))
+      [(1 1)
+       (ival (rnd 'down bfmul (ival-lo x) (ival-lo y))
+             (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err false)]
+      [(1 -1)
+       (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
+             (rnd 'up bfmul (ival-lo x) (ival-hi y)) err? err false)]
+      [(1 0)
+       (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
+             (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err false)]
+      [(-1 0)
+       (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
+             (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err false)]
+      [(-1 1)
+       (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
+             (rnd 'up bfmul (ival-hi x) (ival-lo y)) err? err false)]
+      [(-1 -1)
+       (ival (rnd 'down bfmul (ival-hi x) (ival-hi y))
+             (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err false)]
+      [(0 1)
+       (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
+             (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err false)]
+      [(0 -1)
+       (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
+             (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err false)]
+      [(0 0) ; The "else" case is always correct, but is slow
+       ;; We round only down, and approximate rounding up with bfnext below
+       (define opts
+         (rnd 'down list
+              (bfmul (ival-lo x) (ival-lo y)) (bfmul (ival-hi x) (ival-lo y))
+              (bfmul (ival-lo x) (ival-hi y)) (bfmul (ival-hi x) (ival-hi y))))
+       (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err false)]))
+  (struct-copy
+   ival
+   result-without-overflow-check
+   [must-overflow?
+    (or (overflow-up? (ival-lo result-without-overflow-check))
+        (overflow-down? (ival-hi result-without-overflow-check)))]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
   (define err (or (ival-err x) (ival-err y) (and (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))
-  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
+  (define must-overflow? (ival-must-overflow? x))
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
@@ -212,7 +219,7 @@
     (let ([low (rnd 'down bffn (ival-lo x))]
           [high (rnd 'up bffn (ival-hi x))])
       (ival low high (ival-err? x) (ival-err x)
-            (bfgt? (bfabs (ival-lo x)) overflow-threshold)))))
+            (bfgt? (ival-lo x) overflow-threshold)))))
 
 (define exp-overflow-threshold
   (parameterize ([bf-precision 80])
@@ -338,15 +345,15 @@
   (define b (rnd 'up   bffloor (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi))))
   (cond
    [(and (bf=? a b) (bfeven? a))
-    (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfcos (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfcos (ival-hi x)) (rnd 'up bfcos (ival-lo x)) (ival-err? x) (ival-err x) false)]
    [(and (bf=? a b) (bfodd? a))
-    (ival (rnd 'down bfcos (ival-lo x)) (rnd 'up bfcos (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfcos (ival-lo x)) (rnd 'up bfcos (ival-hi x)) (ival-err? x) (ival-err x) false)]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival -1.bf (rnd 'up bfmax2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival -1.bf (rnd 'up bfmax2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) (ival-err? x) (ival-err x) false)]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd 'down bfmin2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) 1.bf (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfmin2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) 1.bf (ival-err? x) (ival-err x) false)]
    [else
-    (ival -1.bf 1.bf (ival-err? x) (ival-err x) (ival-must-overflow? x))]))
+    (ival -1.bf 1.bf (ival-err? x) (ival-err x) false)]))
 
 (define (ival-sin x)
   (define lopi (rnd 'down pi.bf))
@@ -355,21 +362,21 @@
   (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi)) half.bf)))
   (cond
    [(and (bf=? a b) (bfeven? a))
-    (ival (rnd 'down bfsin (ival-hi x)) (rnd 'up bfsin (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfsin (ival-hi x)) (rnd 'up bfsin (ival-lo x)) (ival-err? x) (ival-err x) false)]
    [(and (bf=? a b) (bfodd? a))
-    (ival (rnd 'down bfsin (ival-lo x)) (rnd 'up bfsin (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfsin (ival-lo x)) (rnd 'up bfsin (ival-hi x)) (ival-err? x) (ival-err x) false)]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival -1.bf (rnd 'up bfmax2 (bfsin (ival-lo x)) (bfsin (ival-hi x))) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival -1.bf (rnd 'up bfmax2 (bfsin (ival-lo x)) (bfsin (ival-hi x))) (ival-err? x) (ival-err x) false)]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd 'down bfmin2 (bfsin (ival-lo x)) (bfsin (ival-hi x))) 1.bf (ival-err? x) (ival-err x) (ival-must-overflow? x))]
+    (ival (rnd 'down bfmin2 (bfsin (ival-lo x)) (bfsin (ival-hi x))) 1.bf (ival-err? x) (ival-err x) false)]
    [else
-    (ival -1.bf 1.bf (ival-err? x) (ival-err x) (ival-must-overflow? x))]))
+    (ival -1.bf 1.bf (ival-err? x) (ival-err x) false)]))
 
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
 
 (define (ival-atan x)
-  (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x) false))
 
 (define (classify-ival x)
   (cond [(bfgte? (ival-lo x) 0.bf) 1] [(bflte? (ival-hi x) 0.bf) -1] [else 0]))
@@ -377,7 +384,6 @@
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
 
   (define tl (list (ival-hi y) (ival-lo x)))
   (define tr (list (ival-hi y) (ival-hi x)))
@@ -396,23 +402,23 @@
       [( _  _) (values #f #f)]))
 
   (if a-lo
-      (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err must-overflow?)
+      (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err false)
       (ival (rnd 'down bfneg (pi.bf)) (rnd 'up pi.bf)
             (or err? (bfgte? (ival-hi x) 0.bf))
             (or err (and (bf=? (ival-lo x) 0.bf) (bf=? (ival-hi x) 0.bf) (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf)))
-            must-overflow?)))
+            false)))
 
 (define (ival-asin x)
   (ival (rnd 'down bfasin (ival-lo x)) (rnd 'up bfasin (ival-hi x))
         (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
         (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))
-        (ival-must-overflow? x)))
+        false))
 
 (define (ival-acos x)
   (ival (rnd 'down bfacos (ival-hi x)) (rnd 'up bfacos (ival-lo x))
         (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
         (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))
-        (ival-must-overflow? x)))
+        false))
 
 (define (ival-fabs x)
   (cond
@@ -420,29 +426,29 @@
    [(bflt? (ival-hi x) 0.bf)
     (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]
    [else ; interval stradles 0
-    (ival 0.bf (bfmax2 (bfneg (ival-lo x)) (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]))
+    (ival 0.bf (bfmax2 (bfneg (ival-lo x)) (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x))]))atan
 
 (define (ival-sinh x)
-  (ival (rnd 'down bfsinh (ival-lo x)) (rnd 'up bfsinh (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bfsinh (ival-lo x)) (rnd 'up bfsinh (ival-hi x)) (ival-err? x) (ival-err x) false))
 
 (define (ival-cosh x)
   (define y (ival-fabs x))
-  (ival (rnd 'down bfcosh (ival-lo y)) (rnd 'up bfcosh (ival-hi y)) (ival-err? y) (ival-err y) (ival-must-overflow? x)))
+  (ival (rnd 'down bfcosh (ival-lo y)) (rnd 'up bfcosh (ival-hi y)) (ival-err? y) (ival-err y) false))
 
 (define (ival-tanh x)
-  (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x) false))
 
 (define (ival-asinh x)
-  (ival (rnd 'down bfasinh (ival-lo x)) (rnd 'up bfasinh (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bfasinh (ival-lo x)) (rnd 'up bfasinh (ival-hi x)) (ival-err? x) (ival-err x) false))
 
 (define (ival-acosh x)
   (ival (rnd 'down bfacosh (bfmax2 (ival-lo x) 1.bf)) (rnd 'up bfacosh (ival-hi x))
         (or (bflte? (ival-lo x) 1.bf) (ival-err? x)) (or (bflt? (ival-hi x) 1.bf) (ival-err x))
-        (ival-must-overflow? x)))
+        false))
 
 (define (ival-atanh x)
   (ival (rnd 'down bfatanh (ival-lo x)) (rnd 'up bfatanh (ival-hi x)) (ival-err? x) (ival-err x)
-        (ival-must-overflow? x)))
+        false))
 
 (define (ival-fmod x y)
   (define y* (ival-fabs y))
@@ -480,10 +486,10 @@
 (define-monotonic ival-trunc bftruncate max-bf-rounded-down)
 
 (define (ival-erf x)
-  (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bferf (ival-lo x)) (rnd 'up bferf (ival-hi x)) (ival-err? x) (ival-err x) false))
 
 (define (ival-erfc x)
-  (ival (rnd 'down bferfc (ival-hi x)) (rnd 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x) (ival-must-overflow? x)))
+  (ival (rnd 'down bferfc (ival-hi x)) (rnd 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x) false))
 
 (define (ival-cmp x y)
   (define can-< (bflt? (ival-lo x) (ival-hi y)))
@@ -551,7 +557,7 @@
              (loop (car tail) (cdr tail)))))))
 
 (define (ival-union x y)
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? y)))
+  (define must-overflow? (or (ival-must-overflow? x) (ival-must-overflow? y)))
   (match (ival-lo x)
    [(? bigfloat?)
     (ival (bfmin2 (ival-lo x) (ival-lo y)) (bfmax2 (ival-hi x) (ival-hi y))
@@ -563,11 +569,10 @@
           must-overflow?)]))
 
 (define (propagate-err c x)
-  (define must-overflow? (and (ival-must-overflow? x) (ival-must-overflow? c)))
   (ival (ival-lo x) (ival-hi x)
         (or (ival-err? c) (ival-err? x))
         (or (ival-err c) (ival-err x))
-        must-overflow?))
+        (ival-must-oveflow? x)))
 
 (define (ival-if c x y)
   (cond
@@ -724,23 +729,56 @@
             (define iy (ival-fn i1 i2))
             (check-pred ival-valid? iy)
             (check ival-contains? iy y))))))
+  
+  ;; ##################################################### must-overflow tests
+  (define num-overflow-tests (/ num-tests 8))
 
-  ;; must-overflow test
-  (define num-overflow-tests (/ num-tests 4))
-  (for ([(ival-fn fn) (in-dict arg1)])
+
+  
+  (define (test-function-overflows ival-fn fn num-of-arguments)
     (test-case (~a (object-name ival-fn))
       (for ([n (in-range num-overflow-tests)])
         (let find-overflow-loop ([interval-size 1])
-          (define i (sample-interval-sized interval-size))
-          (define x (sample-from i))
-          (define y (parameterize ([bf-precision 8000]) (fn x)))
-          (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
-            (let ([result (ival-fn i)])
+          (define intervals
+            (for/list ([n (in-range num-of-arguments)])
+              (sample-interval-sized interval-size)))
+          (define points
+            (for/list ([i intervals])
+              (sample-from i)))
+            
+          (define y (parameterize ([bf-precision 8000]) (apply fn points)))
+          (with-check-info (['fn ival-fn] ['intervals intervals] ['points points] ['number n])
+            (let ([result (apply ival-fn intervals)])
               (if (ival-must-overflow? result)
-                  (begin
-                    (check-true (or (equal? (fn x) +inf.bf) (equal? (fn x) -inf.bf))))
+                  (check-true (or (equal? (apply fn points) +inf.bf) (equal? (apply fn points) -inf.bf)))
                   (if (> interval-size 0.005)
                       (find-overflow-loop (/ interval-size 4.0))
                       void))))))))
+    
+  (for ([(ival-fn fn) (in-dict arg1)])
+    (test-function-overflows ival-fn fn 1))
+  (for ([(ival-fn fn) (in-dict arg2)])
+    (test-function-overflows ival-fn fn 2))
+
+  
+  (define arg1-list (dict->list arg1))
+  (define arg2-list (dict->list arg2))
+  ;; test composition overflows
+  (for ([n (in-range num-overflow-tests)])
+    (define func1 (list-ref arg1-list (random 0 (length arg1-list))))
+    (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
+    (test-function-overflows (procedure-rename (compose (car func1) (car func2))
+                                               (string->symbol
+                                                (string-append (symbol->string (object-name (car func1)))
+                                                               "-composed-with-"
+                                                               (symbol->string (object-name (car func2))))))
+                             (procedure-rename (compose (cdr func1) (cdr func2))
+                                               (string->symbol
+                                                (string-append (symbol->string (object-name (cdr func1)))
+                                                               "-composed-with-"
+                                                               (symbol->string (object-name (cdr func2))))))
+                             1))
+  
+  
   )
 
