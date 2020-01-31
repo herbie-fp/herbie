@@ -112,13 +112,13 @@
 
 (define ival-true (ival-bool #t))
 
-(define-syntax-rule (endpoint-compute op args ...)
-    (endpoint (op (endpoint-val args) ...) #f))
-
 ;; handles rounding and deciding if endpoint is immovable
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (op args ...))) ; for now using false
+    (op args ...)))
+
+(define-syntax-rule (endpoint-compute op args ...)
+    (endpoint (op (endpoint-val args) ...) #f))
 
 (define-syntax-rule (rnd-endpoint mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -211,7 +211,7 @@
            (endpoint-compute bfmul (ival-hi x) (ival-lo y))
            (endpoint-compute bfmul (ival-lo x) (ival-hi y))
            (endpoint-compute bfmul (ival-hi x) (ival-hi y))))
-    (ival (apply endpoint-min* opts) (bfnext (apply endpoint-max* opts)) err? err)]))
+    (ival (apply endpoint-min* opts) (endpoint-compute bfnext (apply endpoint-max* opts)) err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
@@ -263,8 +263,8 @@
 
 (define-syntax-rule (define-monotonic-positive name bffn)
   (define (name x)
-    (define err (or (ival-err x) (bflte? (ival-hi x) 0.bf)))
-    (define err? (or err (ival-err? x) (bflte? (ival-lo x) 0.bf)))
+    (define err (or (ival-err x) (bflte? (ival-hi-val x) 0.bf)))
+    (define err? (or err (ival-err? x) (bflte? (ival-lo-val x) 0.bf)))
     (ival (rnd-endpoint 'down bffn (ival-lo x)) (rnd-endpoint 'up bffn (ival-hi x)) err? err)))
 
 (define-monotonic-positive ival-log bflog)
@@ -272,8 +272,8 @@
 (define-monotonic-positive ival-log10 bflog10)
 
 (define (ival-log1p x)
-  (define err (or (ival-err x) (bflte? (ival-hi x) -1.bf)))
-  (define err? (or err (ival-err? x) (bflte? (ival-lo x) -1.bf)))
+  (define err (or (ival-err x) (bflte? (ival-hi-val x) -1.bf)))
+  (define err? (or err (ival-err? x) (bflte? (ival-lo-val x) -1.bf)))
   (ival (rnd-endpoint 'down bflog1p (ival-lo x)) (rnd-endpoint 'up bflog1p (ival-hi x))
         err? err))
 
@@ -395,9 +395,9 @@
    [(and (bf=? a b) (bfodd? a))
     (ival (rnd-endpoint 'down bfsin (ival-lo x)) (rnd-endpoint 'up bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival -1.bf (rnd-endpoint 'up bfmax2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+    (ival (endpoint -1.bf #t) (rnd-endpoint 'up bfmax2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd-endpoint 'down bfmin2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) 1.bf (ival-err? x) (ival-err x))]
+    (ival (rnd-endpoint 'down bfmin2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]
    [else
     (ival (endpoint -1.bf #t) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]))
 
@@ -431,10 +431,11 @@
       [( _  _) (values #f #f)]))
 
   (if a-lo
-      (ival (rnd-endpoint 'down apply bfatan2 a-lo) (rnd-endpoint 'up apply bfatan2 a-hi) err? err)
-      (ival (rnd-endpoint 'down bfneg (pi.bf)) (rnd-endpoint 'up pi.bf)
-            (or err? (bfgte? (ival-hi x) 0.bf))
-            (or err (and (bf=? (ival-lo x) 0.bf) (bf=? (ival-hi x) 0.bf) (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))))
+      (ival (rnd-endpoint 'down bfatan2 (first a-lo) (second a-lo))
+            (rnd-endpoint 'up bfatan2 (first a-hi) (second a-hi)) err? err)
+      (ival (endpoint (rnd 'down bfneg (pi.bf)) #f) (endpoint (rnd 'up pi.bf) #f)
+            (or err? (bfgte? (ival-hi-val x) 0.bf))
+            (or err (and (bf=? (ival-lo-val x) 0.bf) (bf=? (ival-hi-val x) 0.bf) (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))))
 
 (define (ival-asin x)
   (ival (rnd-endpoint 'down bfasin (ival-lo x)) (rnd-endpoint 'up bfasin (ival-hi x))
@@ -492,7 +493,7 @@
 
   (cond
    [(bf=? (endpoint-val a) (endpoint-val b)) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? (endpoint-val b) 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) 0.bf err? err)]
+   [(bflte? (endpoint-val b) 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) (endpoint 0.bf #t) err? err)]
    [(bfgte? (endpoint-val a) 0.bf) (ival (endpoint 0.bf #t) (ival-hi y*) err? err)]
    [else (ival (endpoint-compute bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
 
@@ -633,7 +634,7 @@
     (bf (sample-double)))
 
   (define (sample-from ival)
-    (if (bigfloat? (ival-lo ival))
+    (if (bigfloat? (ival-lo-val ival))
         (let ([p (random)])
           (bfadd (bfmul (bf p) (ival-lo-val ival)) (bfmul (bfsub 1.bf (bf p)) (ival-hi-val ival))))
         (let ([p (random 0 2)])
