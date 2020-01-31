@@ -206,22 +206,12 @@
     [(0 0) ; The "else" case is always correct, but is slow
      ;; We round only down, and approximate rounding up with bfnext below
      (define opts
-       (rnd 'down list
-        ((ival-lo x) (ival-lo y))
-        (rnd-endpoint 'down bfmul (ival-hi x) (ival-lo y))
-        (rnd-endpoint 'down bfmul (ival-lo x) (ival-hi y))
-        (rnd-endpoint 'down bfmul (ival-hi x) (ival-hi y))))
-     (define low
-       (if (bflt? (endpoint-val (first opts)) (endpoint-val (second opts)))
-           (first opts)
-           (second opts)))
-     (define hi
-       (if (bfgt? (endpoint-val (first opts)) (endpoint-val (second opts)))
-           (first opts)
-           (second opts)))
-     (ival low
-           hi
-           err? err)]))
+      (rnd 'down list
+           (endpoint-compute bfmul (ival-lo x) (ival-lo y))
+           (endpoint-compute bfmul (ival-hi x) (ival-lo y))
+           (endpoint-compute bfmul (ival-lo x) (ival-hi y))
+           (endpoint-compute bfmul (ival-hi x) (ival-hi y))))
+    (ival (apply endpoint-min* opts) (bfnext (apply endpoint-max* opts)) err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
@@ -288,8 +278,8 @@
         err? err))
 
 (define (ival-sqrt x)
-  (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
-  (define err? (or err (ival-err? x) (bflt? (ival-lo x) 0.bf)))
+  (define err (or (ival-err x) (bflt? (ival-hi-val x) 0.bf)))
+  (define err? (or err (ival-err? x) (bflt? (ival-lo-val x) 0.bf)))
   (ival (rnd-endpoint 'down bfsqrt (ival-lo x)) (rnd-endpoint 'up bfsqrt (ival-hi x))
         err? err))
 
@@ -354,10 +344,8 @@
   (ival-add (ival-mult a b) c))
 
 (define (ival-and . as)
-  (ival (andmap
-         (lambda (a) (endpoint (ival-lo-val a) (endpoint-immovable? a))) as)
-        (andmap
-         (lambda (a) (endpoint (ival-hi-val a) (endpoint-immovable? a))) as)
+  (ival (endpoint (andmap ival-lo-val as) #t)
+        (endpoint (andmap ival-hi-val as) #t)
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-or . as)
@@ -374,19 +362,25 @@
         (ival-err x) #f))
 
 (define (ival-cos x)
-  (define lopi (rnd-endpoint 'down pi.bf))
-  (define hipi (rnd-endpoint 'up pi.bf))
-  (define a (rnd-endpoint 'down bffloor (bfdiv (ival-lo x) (if (bflt? (ival-lo x) 0.bf) lopi hipi))))
-  (define b (rnd-endpoint 'up   bffloor (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi))))
+  (define lopi (rnd 'down pi.bf))
+  (define hipi (rnd 'up pi.bf))
+  (define a (rnd 'down bffloor (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi))))
+  (define b (rnd 'up   bffloor (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi))))
   (cond
    [(and (bf=? a b) (bfeven? a))
     (ival (rnd-endpoint 'down bfcos (ival-hi x)) (rnd-endpoint 'up bfcos (ival-lo x)) (ival-err? x) (ival-err x))]
    [(and (bf=? a b) (bfodd? a))
     (ival (rnd-endpoint 'down bfcos (ival-lo x)) (rnd-endpoint 'up bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival (endpoint -1.bf #t) (rnd-endpoint 'up bfmax2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) (ival-err? x) (ival-err x))]
+    (ival (endpoint -1.bf #t)
+          (rnd-endpoint 'up bfmax2 (endpoint-compute bfcos (ival-lo x))
+                        (endpoint-compute bfcos (ival-hi x)))
+          (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd-endpoint 'down bfmin2 (bfcos (ival-lo x)) (bfcos (ival-hi x))) 1.bf (ival-err? x) (ival-err x))]
+    (ival (rnd-endpoint 'down bfmin2
+                        (endpoint-compute bfcos (ival-lo x))
+                        (endpoint-compute bfcos (ival-hi x)))
+          (endpoint 1.bf #t) (ival-err? x) (ival-err x))]
    [else
     (ival (endpoint -1.bf #t) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]))
 
@@ -444,13 +438,13 @@
 
 (define (ival-asin x)
   (ival (rnd-endpoint 'down bfasin (ival-lo x)) (rnd-endpoint 'up bfasin (ival-hi x))
-        (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
-        (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))))
+        (or (ival-err? x) (bflt? (ival-lo-val x) -1.bf) (bfgt? (ival-hi-val x) 1.bf))
+        (or (ival-err x) (bflt? (ival-hi-val x) -1.bf) (bfgt? (ival-lo-val x) 1.bf))))
 
 (define (ival-acos x)
   (ival (rnd-endpoint 'down bfacos (ival-hi x)) (rnd-endpoint 'up bfacos (ival-lo x))
-        (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
-        (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))))
+        (or (ival-err? x) (bflt? (ival-lo-val x) -1.bf) (bfgt? (ival-hi-val x) 1.bf))
+        (or (ival-err x) (bflt? (ival-hi-val x) -1.bf) (bfgt? (ival-lo-val x) 1.bf))))
 
 (define (ival-fabs x)
   (cond
@@ -492,14 +486,14 @@
   (define quot (ival-div x y*))
   (define a (rnd-endpoint 'down bftruncate (ival-lo quot)))
   (define b (rnd-endpoint 'up bftruncate (ival-hi quot)))
-  (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo y*) 0.bf)))
-  (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi y*) 0.bf)))
+  (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo-val y*) 0.bf)))
+  (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi-val y*) 0.bf)))
   (define tquot (ival a b err? err))
 
   (cond
-   [(bf=? a b) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? b 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) 0.bf err? err)]
-   [(bfgte? a 0.bf) (ival (endpoint 0.bf #t) (ival-hi y*) err? err)]
+   [(bf=? (endpoint-val a) (endpoint-val b)) (ival-sub x (ival-mult tquot y*))]
+   [(bflte? (endpoint-val b) 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) 0.bf err? err)]
+   [(bfgte? (endpoint-val a) 0.bf) (ival (endpoint 0.bf #t) (ival-hi y*) err? err)]
    [else (ival (endpoint-compute bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
 
 (define (ival-remainder x y)
@@ -510,7 +504,7 @@
   (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo-val y*) 0.bf)))
   (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi-val y*) 0.bf)))
 
-  (if (bf=? a b)
+  (if (bf=? (endpoint-val a) (endpoint-val b))
       (ival-sub x (ival-mult (ival a b err? err) y*))
       (ival (endpoint (bfneg (bfdiv (ival-hi-val y*) 2.bf)) #f)
             (endpoint (bfdiv (ival-hi-val y*) 2.bf) #f)
@@ -529,10 +523,10 @@
   (ival (rnd-endpoint 'down bferfc (ival-hi x)) (rnd-endpoint 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
-  (define can-< (bflt? (ival-lo x) (ival-hi y)))
-  (define must-< (bflt? (ival-hi x) (ival-lo y)))
-  (define can-> (bfgt? (ival-hi x) (ival-lo y)))
-  (define must-> (bfgt? (ival-lo x) (ival-hi y)))
+  (define can-< (bflt? (ival-lo-val x) (ival-hi-val y)))
+  (define must-< (bflt? (ival-hi-val x) (ival-lo-val y)))
+  (define can-> (bfgt? (ival-hi-val x) (ival-lo-val y)))
+  (define must-> (bfgt? (ival-lo-val x) (ival-hi-val y)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
@@ -578,7 +572,7 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (or c< c>) (or m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (endpoint (or c< c>) #t) (endpoint (or m< m>) #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
   (if (null? as)
