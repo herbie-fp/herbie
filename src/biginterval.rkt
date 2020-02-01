@@ -85,6 +85,16 @@
 (define 2.bf (bf 2))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
+
+(define -inf.endpoint (endpoint -inf.bf #t))
+(define -1.endpoint (endpoint -1.bf #t))
+(define 0.endpoint (endpoint 0.bf #t))
+(define half.endpoint (endpoint half.bf #t))
+(define 1.endpoint (endpoint 1.bf #t))
+(define 2.endpoint (endpoint 2.bf #t))
+(define +inf.endpoint (endpoint +inf.bf #t))
+(define +nan.endpoint (endpoint +nan.bf #t))
+
 #;
 (define max-bf-rounded-down
   (parameterize ([bf-precision 80])
@@ -105,24 +115,59 @@
   (ival (rnd-endpoint 'down pi.bf) (rnd-endpoint 'up pi.bf) #f #f))
 
 (define (ival-e)
-  (ival (rnd-endpoint 'down bfexp (endpoint 1.bf #t)) (rnd-endpoint 'up bfexp (endpoint 1.bf #t)) #f #f))
+  (ival (rnd-endpoint 'down bfexp 1.endpoint) (rnd-endpoint 'up bfexp 1.endpoint) #f #f))
 
 (define (ival-bool b)
   (ival (endpoint b #t) (endpoint b #t) #f #f))
 
 (define ival-true (ival-bool #t))
 
-;; handles rounding and deciding if endpoint is immovable
+
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
 
-(define-syntax-rule (endpoint-compute op args ...)
-    (endpoint (op (endpoint-val args) ...) #f))
+(define (special-immovable-value? v)
+  (or (bf=? v +inf.bf) (bf=? v -inf.bf) (bf=? v +nan.bf)))
 
-(define-syntax-rule (rnd-endpoint mode op args ...)
+
+(define (endpoint-compute-no-check op . args)
+  (let ([result (apply op (map (lambda (x)
+                                 (endpoint-val x)) args))])
+    (endpoint result (special-immovable-value? result))))
+
+
+(define (rnd-endpoint-no-check mode op . args)
   (parameterize ([bf-rounding-mode mode])
-    (endpoint (op (endpoint-val args) ...) #f))) ; for now using false
+    (apply endpoint-compute-no-check (cons op args))))
+
+;; This function computes and propagates the immovable? flag for endpoints
+;; Only do this when precision is low, since it has to compute twice
+(define (endpoint-compute op . args)
+  (cond
+    [(> (bf-precision) 80)
+     (apply endpoint-compute-no-check (cons op args))]
+    [else
+     (define args-bf (map (lambda (x)
+                            (endpoint-val x)) args))
+     (define result (apply op args-bf))
+     (define other-result
+       (parameterize ([bf-rounding-mode
+                       (if (equal? (bf-rounding-mode) 'up) 'down 'up)])
+         (apply op args-bf)))
+     (endpoint result
+               (or (special-immovable-value? result)
+                   ;; if one of the values is special, the result is always immovable
+                   (and (or (andmap endpoint-immovable? args) (ormap special-immovable-value? args))
+                        ;; make sure not affected by rounding
+                        (bf=? result other-result))))]))
+
+
+(define (rnd-endpoint mode op . args)
+  (parameterize ([bf-rounding-mode mode])
+    (apply endpoint-compute (cons op args))))
+
+
 
 (define (ival-neg x)
   ;; No rounding, negation is exact
@@ -220,7 +265,7 @@
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
-     (ival (endpoint -inf.bf #t) (endpoint +inf.bf #t) err? err)]
+     (ival -inf.endpoint (endpoint +inf.bf #t) err? err)]
     [(1 1)
      (ival (rnd-endpoint 'down bfdiv (ival-lo x) (ival-hi y))
            (rnd-endpoint 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
@@ -337,7 +382,7 @@
                 (rnd-endpoint 'up bfmax2 (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err)]
          [else (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t)]))
      (if (bfgt? (ival-hi x) 0.bf)
-         (ival-union neg-range (ival-pow (ival (endpoint 0.bf #t) (ival-hi x) err? err) y))
+         (ival-union neg-range (ival-pow (ival 0.endpoint (ival-hi x) err? err) y))
          neg-range)]))
 
 (define (ival-fma a b c)
@@ -372,7 +417,7 @@
    [(and (bf=? a b) (bfodd? a))
     (ival (rnd-endpoint 'down bfcos (ival-lo x)) (rnd-endpoint 'up bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival (endpoint -1.bf #t)
+    (ival -1.endpoint
           (rnd-endpoint 'up bfmax2 (endpoint-compute bfcos (ival-lo x))
                         (endpoint-compute bfcos (ival-hi x)))
           (ival-err? x) (ival-err x))]
@@ -380,9 +425,9 @@
     (ival (rnd-endpoint 'down bfmin2
                         (endpoint-compute bfcos (ival-lo x))
                         (endpoint-compute bfcos (ival-hi x)))
-          (endpoint 1.bf #t) (ival-err? x) (ival-err x))]
+          1.endpoint (ival-err? x) (ival-err x))]
    [else
-    (ival (endpoint -1.bf #t) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]))
+    (ival -1.endpoint 1.endpoint (ival-err? x) (ival-err x))]))
 
 (define (ival-sin x)
   (define lopi (rnd 'down pi.bf))
@@ -395,11 +440,11 @@
    [(and (bf=? a b) (bfodd? a))
     (ival (rnd-endpoint 'down bfsin (ival-lo x)) (rnd-endpoint 'up bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival (endpoint -1.bf #t) (rnd-endpoint 'up bfmax2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+    (ival -1.endpoint (rnd-endpoint 'up bfmax2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd-endpoint 'down bfmin2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]
+    (ival (rnd-endpoint 'down bfmin2 (endpoint-compute bfsin (ival-lo x)) (endpoint-compute bfsin (ival-hi x))) 1.endpoint (ival-err? x) (ival-err x))]
    [else
-    (ival (endpoint -1.bf #t) (endpoint 1.bf #t) (ival-err? x) (ival-err x))]))
+    (ival -1.endpoint 1.endpoint (ival-err? x) (ival-err x))]))
 
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
@@ -457,7 +502,7 @@
       (if (bfgt? (bfneg (ival-lo-val x)) (ival-hi-val x))
           (endpoint-compute bfneg (ival-lo x))
           (ival-hi x)))
-    (ival (endpoint 0.bf #t) top
+    (ival 0.endpoint top
           (ival-err? x) (ival-err x))]))
 
 (define (ival-sinh x)
@@ -493,8 +538,8 @@
 
   (cond
    [(bf=? (endpoint-val a) (endpoint-val b)) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? (endpoint-val b) 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) (endpoint 0.bf #t) err? err)]
-   [(bfgte? (endpoint-val a) 0.bf) (ival (endpoint 0.bf #t) (ival-hi y*) err? err)]
+   [(bflte? (endpoint-val b) 0.bf) (ival (endpoint-compute bfneg (ival-hi y*)) 0.endpoint err? err)]
+   [(bfgte? (endpoint-val a) 0.bf) (ival 0.endpoint (ival-hi y*) err? err)]
    [else (ival (endpoint-compute bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
 
 (define (ival-remainder x y)

@@ -82,7 +82,11 @@
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
           (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err must-overflow?) (apply fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
+          (match-let* ([(ival lo-endpoint hi-endpoint err? err) (apply fn pt)]
+                       [lo (endpoint-val lo-endpoint)]
+                       [hi (endpoint-val hi-endpoint)]
+                       [lo* (<-bf lo)]
+                       [hi* (<-bf hi)])
             (cond
              [err
               (log! 'nan precision pt)
@@ -92,7 +96,7 @@
                                   (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
               (log! 'sampled precision pt hi*)
               hi*]
-             [must-overflow?
+             [(and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
               (log! 'overflowed precision pt)
               +nan.0]
              [else
