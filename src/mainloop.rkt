@@ -69,8 +69,8 @@
                      #:precondition [precondition 'TRUE]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
-  (*output-prec* precision)
-  (*var-precs* (map (curryr cons precision) (program-variables prog)))
+  (*output-repr* (get-representation precision))
+  (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
   (check-unused-variables (program-variables prog) precondition (program-body prog))
@@ -78,13 +78,13 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   (timeline-event! 'sample)
   ;; If the specification is given, it is used for sampling points
-  (define context (prepare-points (or specification prog) precondition precision))
+  (define context (prepare-points (or specification prog) precondition (*output-repr*)))
   (^precondition^ precondition)
   (^precision^ precision)
   (*pcontext* context)
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
-  (^table^ (make-alt-table context alt precision))
+  (^table^ (make-alt-table context alt (*output-repr*)))
   alt)
 
 ;; Information
@@ -110,14 +110,13 @@
 	(^table^ table*)
 	(void))))
 
-(define (best-alt alts prec)
-  (define repr (get-representation prec))
+(define (best-alt alts repr)
   (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
 		   alts))
 
 (define (choose-best-alt!)
   (let-values ([(picked table*) (atab-pick-alt (^table^)
-                                  #:picking-func (curryr best-alt (*output-prec*))
+                                  #:picking-func (curryr best-alt (*output-repr*))
                                   #:only-fresh #t)])
     (^next-alt^ picked)
     (^table^ table*)
@@ -127,7 +126,7 @@
 ;; Invoke the subsystems individually
 (define (localize!)
   (timeline-event! 'localize)
-  (define locs (localize-error (alt-program (^next-alt^)) (*output-prec*)))
+  (define locs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
   (for/list ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
                     (location-get loc (alt-program (^next-alt^)))
@@ -148,7 +147,7 @@
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (equal? (type-of expr (*var-precs*)) 'real)))
+          (not (equal? (type-of expr (*var-reprs*)) 'real)))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
@@ -278,7 +277,7 @@
 ;; Finish iteration
 (define (finalize-iter!)
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) (^children^) (*output-prec*)))
+  (^table^ (atab-add-altns (^table^) (^children^) (*output-repr*)))
   (timeline-log! 'kept-alts (length (atab-not-done-alts (^table^))))
   (timeline-log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
   (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
@@ -286,7 +285,7 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-prec*)))
+  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-repr*)))
   (void))
 
 (define (finish-iter!)
@@ -367,20 +366,20 @@
       (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
       (run-iter!))
     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-    (get-final-combination precision)]))
+    (get-final-combination repr)]))
 
-(define (get-final-combination precision)
+(define (get-final-combination repr)
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* all-alts)
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
       (timeline-event! 'regimes)
-      (define option (infer-splitpoints all-alts precision))
+      (define option (infer-splitpoints all-alts repr))
       (timeline-event! 'bsearch)
-      (combine-alts option precision)]
+      (combine-alts option repr)]
      [else
-      (best-alt all-alts precision)]))
+      (best-alt all-alts repr)]))
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
@@ -389,10 +388,3 @@
          'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
-
-;; Other tools
-(define (resample! precision)
-  (let ([context (prepare-points (*start-prog*) (^precondition^) precision)])
-    (*pcontext* context)
-    (^table^ (atab-new-context (^table^) context)))
-  (void))

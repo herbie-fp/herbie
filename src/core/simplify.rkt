@@ -149,7 +149,7 @@
 
 (module+ test
   (require "../interface.rkt" (submod "../syntax/rules.rkt" internals))
-  (*var-precs* '((x . binary64) (a . binary64) (b . binary64) (c . binary64)))
+  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
   
   (define all-simplify-rules
     (for/append ([rec (*rulesets*)])

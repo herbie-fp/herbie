@@ -9,8 +9,7 @@
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
-         <-all-precisions mk-<= special-value?
-         get-representation* representation-type)
+         <-all-precisions mk-<= special-value? get-representation*)
 
 (define (get-representation* x)
   (match x
@@ -167,12 +166,6 @@
       (bf x)
       ((representation-repr->bf repr) x))]))
 
-(define (representation-type repr)
-  (match (representation-name repr)
-    ['binary64 'real]
-    ['binary32 'real]
-    [x x]))
-
 (define (<-all-precisions x1 x2 repr)
   (cond
    [(or (real? x1) (complex? x1))
@@ -181,16 +174,15 @@
     (define ->ordinal (representation-repr->ordinal repr))
     (< (->ordinal x1) (->ordinal x2))]))
 
-(define (mk-<= precision var val)
-  (define repr (get-representation precision))
+(define (mk-<= repr var val)
   (define (cast x)
-    (match precision
+    (match (representation-name repr)
       ['posit8 `(real->posit8 ,x)] ['posit16 `(real->posit16 ,x)] ['posit32 `(real->posit32 ,x)]
       ['quire8 `(real->quire8 ,x)] ['quire16 `(real->quire16 ,x)] ['quire32 `(real->quire32 ,x)]
       [(or 'binary64 'binary32) x]))
   (define prec-point (cast (repr->fl val repr)))
   (define <=-operator
-    (match precision
+    (match (representation-name repr)
       [(or 'binary64 'binary32) '<=] 
       ['posit8 `<=.p8] ['posit16 `<=.p16] ['posit32 `<=.p32]
       ['quire8 `<=.p8] ['quire16 `<=.q16] ['quire32 `<=.q32]))

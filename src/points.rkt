@@ -76,8 +76,8 @@
     (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
   (if dict log! void))
 
-(define (ival-eval fn pt prec #:precision [precision 80] #:log [log! void])
-  (define <-bf (representation-bf->repr (get-representation prec)))
+(define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
+  (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
@@ -104,7 +104,7 @@
 
 ; These definitions in place, we finally generate the points.
 
-(define (make-sampler precondition precision)
+(define (make-sampler precondition repr)
   (define range-table (condition->range-table (program-body precondition)))
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
@@ -115,10 +115,10 @@
       (when (null? (range-table-ref range-table var))
         (raise-herbie-error "No valid values of variable ~a" var
                             #:url "faq.html#no-valid-values"))
-      (get-representation (dict-ref (*var-precs*) var))))
+      (dict-ref (*var-reprs*) var)))
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
-  (if (set-member? '(binary32 binary64) precision)
+  (if (set-member? '(binary32 binary64) (representation-name repr))
       (λ ()
         (map 
          (λ (var repr)
@@ -126,14 +126,13 @@
          (program-variables precondition) reprs))
       (λ () (map random-generate reprs))))
 
-(define (prepare-points-intervals prog precondition precision)
+(define (prepare-points-intervals prog precondition repr)
   (timeline-log! 'method 'intervals)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
 
-  (define repr (get-representation precision))
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler pre-prog precision))
+  (define sampler (make-sampler pre-prog repr))
 
   (define pre-fn (eval-prog pre-prog 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
@@ -144,12 +143,11 @@
 
       (define pre
         (or (equal? precondition 'TRUE)
-            (ival-eval pre-fn pt 'bool #:log (point-logger 'pre log pre-prog))))
+            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log pre-prog))))
 
       (define ex
-        (and pre (ival-eval body-fn pt precision #:log (point-logger 'body log prog))))
+        (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
 
-      (define repr (get-representation precision))
       (cond
        [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
@@ -163,32 +161,13 @@
 
   (mk-pcontext points exacts))
 
-(define (prepare-points prog precondition precision)
+(define (prepare-points prog precondition repr)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition precision)
-    (prepare-points-halfpoints prog precondition precision)))
-
-#;(define (prepare-points prog precondition precision)
-  "Given a program, return two lists:
-   a list of input points (each a list of flonums)
-   and a list of exact values for those points (each a flonum)"
-
-  (define sampled-pts (extract-sampled-points (program-variables prog) precondition))
-  (define range-table (condition->range-table precondition))
-
-  (cond
-   [sampled-pts
-    (mk-pcontext sampled-pts (make-exacts prog sampled-pts 'TRUE))]
-   [else
-    (for ([var (program-variables prog)]
-          #:unless (range-table-ref range-table var))
-      (raise-herbie-error "No valid values of variable ~a" var
-                          #:url "faq.html#no-valid-values"))
-    (prepare-points-halfpoints prog precondition precision range-table)]))
-
+    (prepare-points-intervals prog precondition repr)
+    (prepare-points-halfpoints prog precondition repr)))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -236,9 +215,8 @@
 
 (define ((call f) pt) (apply f pt))
 
-(define (make-exacts-walkup prog pts precondition prec)
-  (define <-bf (representation-bf->repr (get-representation prec)))
-  (define repr (get-representation prec))
+(define (make-exacts-walkup prog pts precondition repr)
+  (define <-bf (representation-bf->repr repr))
   (let ([f (eval-prog prog 'bf repr)] [n (length pts)]
         [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf repr)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
@@ -256,27 +234,26 @@
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at
-(define (make-exacts-halfpoints prog pts precondition prec)
+(define (make-exacts-halfpoints prog pts precondition repr)
   (define n (length pts))
   (let loop ([nth (floor (/ n 16))])
     (if (< nth 2)
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts for" n "points")
-          (make-exacts-walkup prog pts precondition prec))
+          (make-exacts-walkup prog pts precondition repr))
         (begin
           (debug #:from 'points #:depth 4
                  "Computing exacts on every" nth "of" n
                  "points to ramp up precision")
-          (make-exacts-walkup prog (select-every nth pts) precondition prec)
+          (make-exacts-walkup prog (select-every nth pts) precondition repr)
           (loop (floor (/ nth 2)))))))
 
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
-  (define repr (get-representation (*output-prec*)))
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex repr)
-                            #:when (andmap (curryr ordinary-value? repr) pt))
+      ([pt pts] [ex exacts] #:when (ordinary-value? ex (*output-repr*))
+                            #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)
@@ -291,9 +268,9 @@
     [_ #f]))
 
 ;; This is the obsolete version for the "halfpoint" method
-(define (prepare-points-halfpoints prog precondition precision)
+(define (prepare-points-halfpoints prog precondition repr)
   (timeline-log! 'method 'halfpoints)
-  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition) precision))
+  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition) repr))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -311,7 +288,7 @@
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
       (define pts1 (for/list ([n (in-range num)]) (sample)))
-      (define exs1 (make-exacts-halfpoints prog pts1 precondition precision))
+      (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
       (define-values (pts* exs*) (filter-p&e pts1 exs1))

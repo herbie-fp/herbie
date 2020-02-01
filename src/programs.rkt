@@ -111,7 +111,7 @@
   (define fn
     `(λ ,(program-variables prog)
        (let (,@(for/list ([var (program-variables prog)])
-                 (define repr (get-representation (dict-ref (*var-precs*) var)))
+                 (define repr (dict-ref (*var-reprs*) var))
                  `[,var (,(curry real->precision repr) ,var)]))
          (,precision->real ,(compile body*)))))
   (common-eval fn))
@@ -140,7 +140,7 @@
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (module+ test
-  (*var-precs* '((a . binary64) (b . binary64) (c . binary64)))
+  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
   (require math/bigfloat)
   (define tests
     #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))

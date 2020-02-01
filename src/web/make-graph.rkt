@@ -247,6 +247,7 @@
                  baseline-error oracle-error all-alts)
    result)
    (define precision (test-output-prec test))
+   (define repr (get-representation precision))
    ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
    ;; remove this when the number system interface is added
 
@@ -334,7 +335,7 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(parameterize ([*output-prec* precision] [*var-precs* (map (curryr cons precision) (test-vars test))])
+         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
              (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision))))
 
        ,(render-reproduction test)))
