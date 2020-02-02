@@ -515,8 +515,8 @@
   (ival (rnd-endpoint 'down bfasinh (ival-lo x)) (rnd-endpoint 'up bfasinh (ival-hi x)) (ival-err? x) (ival-err x)))
 
 (define (ival-acosh x)
-  (ival (rnd-endpoint 'down bfacosh (bfmax2 (ival-lo x) 1.bf)) (rnd-endpoint 'up bfacosh (ival-hi x))
-        (or (bflte? (ival-lo x) 1.bf) (ival-err? x)) (or (bflt? (ival-hi x) 1.bf) (ival-err x))
+  (ival (rnd-endpoint 'down bfacosh (e-compute bfmax2 (ival-lo x) 1.endpoint)) (rnd-endpoint 'up bfacosh (ival-hi x))
+        (or (bflte? (ival-lo-val x) 1.bf) (ival-err? x)) (or (bflt? (ival-hi-val x) 1.bf) (ival-err x))
 ))
 
 (define (ival-atanh x)
@@ -573,7 +573,7 @@
 
 (define (ival-<2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival m< c> (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival m< c< (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -644,8 +644,8 @@
 
 (define (ival-if c x y)
   (cond
-   [(ival-lo c) (propagate-err c x)]
-   [(not (ival-hi c)) (propagate-err c y)]
+   [(ival-lo-val c) (propagate-err c x)]
+   [(not (ival-hi-val c)) (propagate-err c y)]
    [else (propagate-err c (ival-union x y))]))
 
 
