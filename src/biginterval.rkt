@@ -10,6 +10,7 @@
 (define (ival-lo-val ival)
   (endpoint-val (ival-lo ival)))
 
+
 (provide (contract-out
           [struct endpoint ([val bigvalue?] [immovable? boolean?])]
           [struct ival ([lo endpoint?] [hi endpoint?] [err? boolean?] [err boolean?])]
@@ -80,7 +81,7 @@
 (define (equal-or-bf=? a b)
   (if
    (and (bigfloat? a) (bigfloat? b))
-   (bf=? a b)
+   (or (equal? a b) (bf=? a b))
    (equal? a b)))
 
 (define -inf.bf (bf -inf.0))
@@ -102,21 +103,10 @@
 (define +inf.endpoint (endpoint +inf.bf #f))
 (define +nan.endpoint (endpoint +nan.bf #f))
 
-#;
-(define max-bf-rounded-down
-  (parameterize ([bf-precision 80])
-    (rnd-endpoint 'down bfexp (bf 9999999999999999))))
-#;
-(define min-bf-rounded-up
-  (parameterize ([bf-precision 80])
-    (bfneg max-bf-rounded-down)))
-#;
-(define (overflow-up? low-val)
-  (bfgte? low-val max-bf-rounded-down))
-#;
-(define (overflow-down? high-val)
-  (bflte? high-val min-bf-rounded-up))
-
+(define (and-2 a b)
+  (and a b))
+(define (or-2 a b)
+  (or a b))
 
 (define (ival-pi)
   (ival (rnd-endpoint 'down pi.bf) (rnd-endpoint 'up pi.bf) #f #f))
@@ -265,7 +255,7 @@
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
-     (ival -inf.endpoint (endpoint +inf.bf #t) err? err)]
+     (ival -inf.endpoint +inf.endpoint err? err)]
     [(1 1)
      (ival (rnd-endpoint 'down bfdiv (ival-lo x) (ival-hi y))
            (rnd-endpoint 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
@@ -395,20 +385,18 @@
   (ival-add (ival-mult a b) c))
 
 (define (ival-and . as)
-  (ival (endpoint (andmap ival-lo-val as) #t)
-        (endpoint (andmap ival-hi-val as) #t)
+  (ival (endpoint (andmap ival-lo-val as) (andmap (lambda (x) (endpoint-immovable? (ival-lo x))) as))
+        (endpoint (andmap ival-hi-val as) (andmap (lambda (x) (endpoint-immovable? (ival-hi x))) as))
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-or . as)
-  (ival (ormap
-         (lambda (a) (endpoint (ival-lo-val a) (endpoint-immovable? a))) as)
-        (ormap
-         (lambda (a) (endpoint (ival-hi-val a) (endpoint-immovable? a))) as)
+  (ival (endpoint (ormap ival-lo-val as) (andmap (lambda (x) (endpoint-immovable? (ival-lo x))) as))
+        (endpoint (ormap ival-hi-val as) (andmap (lambda (x) (endpoint-immovable? (ival-hi x))) as))
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (endpoint (not (ival-hi-val x)) (endpoint-immovable? (ival-hi x)))
-        (endpoint (not (ival-lo-val x)) (endpoint-immovable? (ival-lo x)))
+  (ival (e-compute not (ival-hi x))
+        (e-compute not (ival-lo x))
         (ival-err? x)
         (ival-err x) #f))
 
@@ -575,32 +563,32 @@
   (ival (rnd-endpoint 'down bferfc (ival-hi x)) (rnd-endpoint 'up bferfc (ival-lo x)) (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
-  (define can-< (bflt? (ival-lo-val x) (ival-hi-val y)))
-  (define must-< (bflt? (ival-hi-val x) (ival-lo-val y)))
-  (define can-> (bfgt? (ival-hi-val x) (ival-lo-val y)))
-  (define must-> (bfgt? (ival-lo-val x) (ival-hi-val y)))
+  (define can-< (e-compute bflt? (ival-lo x) (ival-hi y)))
+  (define must-< (e-compute bflt? (ival-hi x) (ival-lo y)))
+  (define can-> (e-compute bfgt? (ival-hi x) (ival-lo y)))
+  (define must-> (e-compute bfgt? (ival-lo x) (ival-hi y)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint m< #t) (endpoint c< #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival m< c> (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint (not c>) #t) (endpoint (not m>) #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (e-compute not c>) (e-compute not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint m> #t) (endpoint c> #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival m> c> (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint (not c<) #t) (endpoint (not m<) #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (e-compute not c<) (e-compute not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint (and (not c<) (not c>)) #t)
-        (endpoint (or (not m<) (not m>)) #t)
+  (ival (and-2 (e-compute not c<) (e-compute not c>))
+        (or-2 (e-compute not m<) (e-compute not m>))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -624,7 +612,7 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (endpoint (or c< c>) #t) (endpoint (or m< m>) #t) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (e-compute or-2 c< c>) (e-compute or-2 m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
   (if (null? as)
@@ -636,10 +624,6 @@
              (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
              (loop (car tail) (cdr tail)))))))
 
-(define (and-2 a b)
-  (and a b))
-(define (or-2 a b)
-  (and a b))
 
 (define (ival-union x y)
   (match (ival-lo-val x)
@@ -771,8 +755,7 @@
           (cons ival-<= bflte?)
           (cons ival->= bfgte?)
           (cons ival-== bf=?)
-          (cons ival-!= (compose not bf=?))
-          (cons ival-pow bfexpt)))
+          (cons ival-!= (compose not bf=?))))
 
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-case (~a (object-name ival-fn))
@@ -793,6 +776,26 @@
   (define (bfremainder x mod)
     (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))
 
+  (define bf-gets-nan
+    (list (cons ival-pow bfexpt)))
+  
+  (for ([(ival-fn fn) (in-dict bf-gets-nan)])
+    (test-case (~a (object-name ival-fn))
+      (for ([n (in-range num-tests)])
+        (define i1 (sample-interval))
+        (define i2 (sample-interval))
+        (define x1 (sample-from i1))
+        (define x2 (sample-from i2))
+
+        (define y (parameterize ([bf-precision 8000]) (fn x1 x2)))
+        
+        (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
+                                        ['point1 x1] ['point2 x2] ['number n])
+          (define iy (ival-fn i1 i2))
+          (unless (bf=? +nan.bf y)
+            (check ival-contains? iy y))
+          (check-pred ival-valid? iy)))))
+  
   (define weird (list (cons ival-fmod bffmod) (cons ival-remainder bfremainder)))
   (for ([(ival-fn fn) (in-dict weird)])
     (test-case (~a (object-name ival-fn))
