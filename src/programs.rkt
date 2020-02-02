@@ -148,7 +148,7 @@
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
   (define (in-interval? iv pt)
-    (match-define (ival lo hi err? err must-overflow?) iv)
+    (match-define (ival (endpoint lo lo-immovable?) (endpoint hi hi-immovable?) err? err) iv)
     (and (bf<= lo pt) (bf<= pt hi)))
 
   (define-binary-check (check-in-interval? in-interval? interval point))
