@@ -158,7 +158,7 @@
       ;; When we are in ival mode, we don't use repr, so pass in #f
       (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
-      (check bf<= (ival-lo iv) (ival-hi iv))
+      (check bf<= (ival-lo-val iv) (ival-hi-val iv))
       (check-in-interval? iv val))))
 
 ;; To compute the cost of a program, we could use the tree as a

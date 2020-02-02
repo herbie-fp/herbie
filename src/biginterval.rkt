@@ -15,6 +15,8 @@
           [struct endpoint ([val bigvalue?] [immovable? boolean?])]
           [struct ival ([lo endpoint?] [hi endpoint?] [err? boolean?] [err boolean?])]
           [mk-ival (-> bigvalue? ival?)]
+          [ival-hi-val (-> ival? bigvalue?)]
+          [ival-lo-val (-> ival? bigvalue?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -398,7 +400,7 @@
   (ival (e-compute not (ival-hi x))
         (e-compute not (ival-lo x))
         (ival-err? x)
-        (ival-err x) #f))
+        (ival-err x)))
 
 (define (ival-cos x)
   (define lopi (rnd 'down pi.bf))
