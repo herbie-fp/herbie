@@ -776,26 +776,6 @@
   (define (bfremainder x mod)
     (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))
 
-  (define bf-gets-nan
-    (list (cons ival-pow bfexpt)))
-  
-  (for ([(ival-fn fn) (in-dict bf-gets-nan)])
-    (test-case (~a (object-name ival-fn))
-      (for ([n (in-range num-tests)])
-        (define i1 (sample-interval))
-        (define i2 (sample-interval))
-        (define x1 (sample-from i1))
-        (define x2 (sample-from i2))
-
-        (define y (parameterize ([bf-precision 8000]) (fn x1 x2)))
-        
-        (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
-                                        ['point1 x1] ['point2 x2] ['number n])
-          (define iy (ival-fn i1 i2))
-          (unless (bf=? +nan.bf y)
-            (check ival-contains? iy y))
-          (check-pred ival-valid? iy)))))
-  
   (define weird (list (cons ival-fmod bffmod) (cons ival-remainder bfremainder)))
   (for ([(ival-fn fn) (in-dict weird)])
     (test-case (~a (object-name ival-fn))
@@ -816,7 +796,7 @@
             (check ival-contains? iy y))))))
   
   ;; ##################################################### tests for endpoint-immovable
-  (define num-overflow-tests (/ num-tests 2))
+  (define num-immovable-tests (/ num-tests 2))
   
   (define (check-endpoints-consistant result result2)
     (if (endpoint-immovable? (ival-lo result))
@@ -849,15 +829,14 @@
 
   
   (for ([(ival-fn fn) (in-dict arg1)])
-    (test-function-overflows ival-fn fn 1 num-overflow-tests))
+    (test-function-overflows ival-fn fn 1 num-immovable-tests))
   (for ([(ival-fn fn) (in-dict arg2)])
-    (test-function-overflows ival-fn fn 2 num-overflow-tests))
+    (test-function-overflows ival-fn fn 2 num-immovable-tests))
   
   (define arg1-list (dict->list arg1))
   (define arg2-list (dict->list arg2))
   
   ;; test endpoint-immovable also works with compoisition of functions
-  #;
   (for ([n (in-range 20)])
     (define func1 (list-ref arg1-list (random 0 (length arg1-list))))
     (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
@@ -872,13 +851,12 @@
                                                                "-composed-with-"
                                                                (symbol->string (object-name (cdr func2))))))
                              1
-                             (/ num-overflow-tests 40)))
+                             (/ num-immovable-tests 40)))
 
   (define (compose-2-with-1 arity-2-func arity-1-func-1 arity-1-func-2)
     (lambda (a b)
       (arity-2-func (arity-1-func-1 a) (arity-1-func-2 b))))
 
-  #;
   (for ([n (in-range 20)])
     (define func1 (list-ref arg2-list (random 0 (length arg2-list))))
     (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
@@ -894,7 +872,7 @@
                                                                "-composed-with-"
                                                                (symbol->string (object-name (cdr func2))))))
                              2
-                             (/ num-overflow-tests 40)))
+                             (/ num-immovable-tests 40)))
   
   
   )
