@@ -99,8 +99,6 @@
 
 (module+ test
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
-    (println test-rule)
-    (flush-output)
     (define ground-truth
       (cond
        [(and (expr-supports? (rule-input test-rule) 'ival)

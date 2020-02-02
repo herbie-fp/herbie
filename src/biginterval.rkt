@@ -83,7 +83,7 @@
 (define (equal-or-bf=? a b)
   (if
    (and (bigfloat? a) (bigfloat? b))
-   (or (equal? a b) (bf=? a b))
+   (or (bf=? a b) (equal? a b))
    (equal? a b)))
 
 (define -inf.bf (bf -inf.0))

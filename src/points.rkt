@@ -76,6 +76,13 @@
     (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
   (if dict log! void))
 
+(define (serious-immovable-endpoint? endpoint)
+  (and
+   (endpoint-immovable? endpoint)
+   (or (equal? (endpoint-val endpoint) +nan.bf)
+       (equal? (endpoint-val endpoint) +inf.bf)
+       (equal? (endpoint-val endpoint) -inf.bf))))
+
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
@@ -96,7 +103,10 @@
                                   (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
               (log! 'sampled precision pt hi*)
               hi*]
-             [(and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
+             [(or
+               (and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
+               (serious-immovable-endpoint? lo-endpoint)
+               (serious-immovable-endpoint? hi-endpoint))
               (log! 'overflowed precision pt)
               +nan.0]
              [else
