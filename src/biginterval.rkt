@@ -333,23 +333,29 @@
            (e-compute bfnext (apply endpoint-max* opts)) err? err)]))
 
 ;; Also detects for overflow to decide that endpoints are immovable
-(define-syntax-rule (define-monotonic name bffn)
+(define-syntax-rule (define-monotonic name bffn overflow-threshold)
   (define (name x)
     (let ([low (rnd-endpoint-strong 'down bffn (ival-lo x))]
           [high (rnd-endpoint-strong 'up bffn (ival-hi x))])
       (ival (endpoint (endpoint-val low)
                       (or (endpoint-immovable? low)
-                          (overflow-down? (endpoint-val high))))
+                          (bflte? (ival-hi-val x) (bfneg overflow-threshold))))
             (endpoint (endpoint-val high)
-                      (or (endpoint-immovable? low)
-                          (overflow-up? (endpoint-val low))))
+                      (or (endpoint-immovable? high)
+                          (bfgte? (ival-lo-val x) overflow-threshold)))
             (ival-err? x) (ival-err x)))))
 
-(define-monotonic ival-exp bfexp)
+(define exp-overflow-threshold
+  (parameterize ([bf-precision 80])
+    (rnd 'up bflog max-bf-rounded-down)))
+(define-monotonic ival-exp bfexp exp-overflow-threshold)
 
-(define-monotonic ival-exp2 bfexp2)
+(define exp2-overflow-threshold
+  (parameterize ([bf-precision 80])
+    (rnd 'up bflog2 max-bf-rounded-down)))
+(define-monotonic ival-exp2 bfexp2 exp2-overflow-threshold)
 
-(define-monotonic ival-expm1 bfexpm1)
+(define-monotonic ival-expm1 bfexpm1 exp-overflow-threshold)
 
 (define-syntax-rule (define-monotonic-positive name bffn)
   (define (name x)
@@ -608,11 +614,11 @@
             (endpoint (bfdiv (ival-hi-val y*) 2.bf) #f)
             err? err)))
 
-(define-monotonic ival-rint bfrint)
-(define-monotonic ival-round bfround)
-(define-monotonic ival-ceil bfceiling)
-(define-monotonic ival-floor bffloor)
-(define-monotonic ival-trunc bftruncate)
+(define-monotonic ival-rint bfrint +inf.bf)
+(define-monotonic ival-round bfround +inf.bf)
+(define-monotonic ival-ceil bfceiling +inf.bf)
+(define-monotonic ival-floor bffloor +inf.bf)
+(define-monotonic ival-trunc bftruncate +inf.bf)
 
 (define (ival-erf x)
   (ival (rnd-endpoint-strong 'down bferf (ival-lo x)) (rnd-endpoint-strong 'up bferf (ival-hi x)) (ival-err? x) (ival-err x)))
