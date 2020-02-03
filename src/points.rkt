@@ -100,6 +100,7 @@
                (and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
                (serious-immovable-endpoint? lo-endpoint)
                (serious-immovable-endpoint? hi-endpoint))
+              (println "over")
               (log! 'overflowed precision pt)
               +nan.0]
              [else
