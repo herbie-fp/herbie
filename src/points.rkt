@@ -98,8 +98,8 @@
               hi*]
              [(or
                (and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
-               (serious-immovable-endpoint? lo-endpoint)
-               (serious-immovable-endpoint? hi-endpoint))
+               (strong-immovable-endpoint? lo-endpoint)
+               (strong-immovable-endpoint? hi-endpoint))
               (log! 'overflowed precision pt)
               +nan.0]
              [else

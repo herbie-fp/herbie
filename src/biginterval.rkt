@@ -17,7 +17,7 @@
           [mk-ival (-> bigvalue? ival?)]
           [ival-hi-val (-> ival? bigvalue?)]
           [ival-lo-val (-> ival? bigvalue?)]
-          [serious-immovable-endpoint? (-> endpoint? boolean?)]
+          [strong-immovable-endpoint? (-> endpoint? boolean?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -120,14 +120,17 @@
 (define (overflow-down? high-val)
   (bflte? high-val min-bf-rounded-up))
 
-(define (serious-immovable-endpoint? endpoint)
+(define (strong-immovable-endpoint? endpoint)
   (and
    (endpoint-immovable? endpoint)
    (or (equal? (endpoint-val endpoint) +nan.bf)
        (equal? (endpoint-val endpoint) +inf.bf)
        (equal? (endpoint-val endpoint) -inf.bf))))
 
-(define (serious-immovable-endpoint-0? endpoint)
+(define (immovable-0? endpoint)
+  (and (endpoint-immovable? endpoint) (equal? 0.bf endpoint)))
+
+(define (strong-immovable-endpoint-0? endpoint)
   (and
    (endpoint-immovable? endpoint)
    (or (equal? (endpoint-val endpoint) +nan.bf)
@@ -185,27 +188,38 @@
                     (equal-or-bf=? result other-result)))]))
 
 ;; When we know no branches in a function will change,
-;; we can check for serious immovable endpoints and propogate the immovable flag
+;; we can check for strong immovable endpoints and propogate the immovable flag
 (define (e-compute-strong op . args)
   (let ([result (apply e-compute (cons op args))])
     (endpoint (endpoint-val result)
               (or (endpoint-immovable? result)
-                  (ormap serious-immovable-endpoint? args)))))
+                  (ormap strong-immovable-endpoint? args)))))
 
 (define-syntax-rule (rnd-endpoint-strong mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (e-compute-strong op args ...)))
 
-;; add 0 as a serious endpoint
+;; add 0 as a strong endpoint
 (define (e-compute-strong-0 op . args)
   (let ([result (apply e-compute (cons op args))])
     (endpoint (endpoint-val result)
               (or (endpoint-immovable? result)
-                  (ormap serious-immovable-endpoint-0? args)))))
+                  (ormap strong-immovable-endpoint-0? args)))))
+
+;; used when a immovable 0 implies that no conditions will change
+(define (e-compute-weak-0 op . args)
+  (let ([result (apply e-compute (cons op args))])
+    (endpoint (endpoint-val result)
+              (or (endpoint-immovable? result)
+                  (ormap immovable-0? args)))))
 
 (define-syntax-rule (rnd-endpoint-strong-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (e-compute-strong-0 op args ...)))
+
+(define-syntax-rule (rnd-endpoint-weak-0 mode op args ...)
+  (parameterize ([bf-rounding-mode mode])
+    (e-compute-weak-0 op args ...)))
 
 
 (define (ival-neg x)
@@ -269,11 +283,11 @@
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-hi x) (ival-lo y))
            (rnd-endpoint-strong-0 'up bfmul (ival-lo x) (ival-hi y)) err? err)]
     [(1 0)
-     (ival (rnd-endpoint 'down bfmul (ival-hi x) (ival-lo y))
-           (rnd-endpoint 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfmul (ival-hi x) (ival-lo y))
+           (rnd-endpoint-weak-0 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
     [(-1 0)
-     (ival (rnd-endpoint 'down bfmul (ival-lo x) (ival-hi y))
-           (rnd-endpoint 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfmul (ival-lo x) (ival-hi y))
+           (rnd-endpoint-weak-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
     [(-1 1)
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-lo x) (ival-hi y))
            (rnd-endpoint-strong-0 'up bfmul (ival-hi x) (ival-lo y)) err? err)]
@@ -281,19 +295,19 @@
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-hi x) (ival-hi y))
            (rnd-endpoint-strong-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
     [(0 1)
-     (ival (rnd-endpoint 'down bfmul (ival-lo x) (ival-hi y))
-           (rnd-endpoint 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfmul (ival-lo x) (ival-hi y))
+           (rnd-endpoint-weak-0 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
     [(0 -1)
-     (ival (rnd-endpoint 'down bfmul (ival-hi x) (ival-lo y))
-           (rnd-endpoint 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfmul (ival-hi x) (ival-lo y))
+           (rnd-endpoint-weak-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
     [(0 0) ; The "else" case is always correct, but is slow
      ;; We round only down, and approximate rounding up with bfnext below
      (define opts
       (rnd 'down list
-           (e-compute bfmul (ival-lo x) (ival-lo y))
-           (e-compute bfmul (ival-hi x) (ival-lo y))
-           (e-compute bfmul (ival-lo x) (ival-hi y))
-           (e-compute bfmul (ival-hi x) (ival-hi y))))
+           (e-compute-weak-0 bfmul (ival-lo x) (ival-lo y))
+           (e-compute-weak-0 bfmul (ival-hi x) (ival-lo y))
+           (e-compute-weak-0 bfmul (ival-lo x) (ival-hi y))
+           (e-compute-weak-0 bfmul (ival-hi x) (ival-hi y))))
     (ival (apply endpoint-min* opts) (e-compute bfnext (apply endpoint-max* opts)) err? err)]))
 
 (define (ival-div x y)
@@ -303,7 +317,13 @@
     ;; We round only down, and approximate rounding up with bfnext below
   (match* ((classify-ival x) (classify-ival y))
     [(_ 0)
-     (ival -inf.endpoint +inf.endpoint err? err)]
+     (define immovable?
+       (or (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))
+           (or (immovable-0? (ival-lo y))
+               (immovable-0? (ival-hi y)))))
+     (ival (endpoint -inf.bf immovable?)
+           (endpoint +inf.bf immovable?)
+           err? err)]
     [(1 1)
      (ival (rnd-endpoint-strong-0 'down bfdiv (ival-lo x) (ival-hi y))
            (rnd-endpoint-strong-0 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
@@ -317,20 +337,20 @@
      (ival (rnd-endpoint-strong-0 'down bfdiv (ival-hi x) (ival-lo y))
            (rnd-endpoint-strong-0 'up bfdiv (ival-lo x) (ival-hi y)) err? err)]
     [(0 1)
-     (ival (rnd-endpoint 'down bfdiv (ival-lo x) (ival-lo y))
-           (rnd-endpoint 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfdiv (ival-lo x) (ival-lo y))
+           (rnd-endpoint-weak-0 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
     [(0 -1)
-     (ival (rnd-endpoint 'down bfdiv (ival-hi x) (ival-hi y))
-           (rnd-endpoint 'up bfdiv (ival-lo x) (ival-hi y)) err? err)]
+     (ival (rnd-endpoint-weak-0 'down bfdiv (ival-hi x) (ival-hi y))
+           (rnd-endpoint-weak-0 'up bfdiv (ival-lo x) (ival-hi y)) err? err)]
     [(_ _)
      (define opts
        (rnd 'down list
-            (e-compute bfdiv (ival-lo x) (ival-lo y))
-            (e-compute bfdiv (ival-hi x) (ival-lo y))
-            (e-compute bfdiv (ival-lo x) (ival-hi y))
-            (e-compute bfdiv (ival-hi x) (ival-hi y))))
+            (e-compute-weak-0 bfdiv (ival-lo x) (ival-lo y))
+            (e-compute-weak-0 bfdiv (ival-hi x) (ival-lo y))
+            (e-compute-weak-0 bfdiv (ival-lo x) (ival-hi y))
+            (e-compute-weak-0 bfdiv (ival-hi x) (ival-hi y))))
      (ival (apply endpoint-min* opts)
-           (e-compute bfnext (apply endpoint-max* opts)) err? err)]))
+           (e-compute-weak-0 bfnext (apply endpoint-max* opts)) err? err)]))
 
 ;; Also detects for overflow to decide that endpoints are immovable
 (define-syntax-rule (define-monotonic name bffn overflow-threshold)
@@ -409,12 +429,12 @@
                   (or (endpoint-immovable? low)
                       (overflow-down? (endpoint-val high))))
         (endpoint (endpoint-val high)
-                  (or (endpoint-immovable? low)
+                  (or (endpoint-immovable? high)
                       (overflow-up? (endpoint-val low))))
         err? err))]
     [(and (bf=? (ival-lo-val y) (ival-hi-val y)) (bfinteger? (ival-lo-val y)))
-     (ival (rnd-endpoint 'down bfexpt (ival-lo x) (ival-lo y))
-           (rnd-endpoint 'up bfexpt (ival-lo x) (ival-lo y))
+     (ival (rnd-endpoint-strong-0 'down bfexpt (ival-lo x) (ival-lo y))
+           (rnd-endpoint-strong-0 'up bfexpt (ival-lo x) (ival-lo y))
            err? err)]
     [else
      ;; In this case, the base range includes negatives and the exp range includes reals
@@ -674,6 +694,7 @@
 (define ival->= (ival-comparator ival->=2 'ival->=))
 (define ival-== (ival-comparator ival-==2 'ival-==))
 
+
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (e-compute or-2 c< c>) (e-compute or-2 m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
@@ -709,7 +730,6 @@
    [(ival-lo-val c) (propagate-err c x)]
    [(not (ival-hi-val c)) (propagate-err c y)]
    [else (propagate-err c (ival-union x y))]))
-
 
 (module+ test
   (require rackunit math/flonum)
@@ -937,7 +957,5 @@
                                                                (symbol->string (object-name (cdr func2))))))
                              2
                              (/ num-immovable-tests 40)))
-  
-  
   )
 
