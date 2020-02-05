@@ -81,7 +81,8 @@
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
       (if (> precision (*max-mpfr-prec*))
-          (begin (log! 'exit precision pt) +nan.0)
+          (begin 
+            (log! 'exit precision pt) +nan.0)
           (match-let* ([(ival lo-endpoint hi-endpoint err? err) (apply fn pt)]
                        [lo (endpoint-val lo-endpoint)]
                        [hi (endpoint-val hi-endpoint)]

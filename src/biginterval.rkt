@@ -187,31 +187,32 @@
                     ;; make sure not affected by rounding
                     (equal-or-bf=? result other-result)))]))
 
-;; When we know no branches in a function will change,
-;; we can check for strong immovable endpoints and propogate the immovable flag
-(define (e-compute-strong op . args)
+(define-syntax-rule (e-compute-wrap op args args-check)
   (let ([result (apply e-compute (cons op args))])
     (endpoint (endpoint-val result)
               (or (endpoint-immovable? result)
-                  (ormap strong-immovable-endpoint? args)))))
+                  args-check))))
+
+;; When we know no branches in a function will change,
+;; we can check for strong immovable endpoints and propogate the immovable flag
+(define (e-compute-strong op . args)
+  (e-compute-wrap op args (ormap strong-immovable-endpoint? args)))
+
+;; add 0 as a strong endpoint
+(define (e-compute-strong-0 op . args)
+  (e-compute-wrap op args (ormap strong-immovable-endpoint-0? args)))
+
+;; add 0 as a strong endpoint
+(define (e-compute-strong-first-0 op . args)
+  (e-compute-wrap op args (strong-immovable-endpoint-0? (first args))))
+
+;; used when a immovable 0 implies that no conditions will change
+(define (e-compute-weak-0 op . args)
+  (e-compute-wrap op args (ormap immovable-0? args)))
 
 (define-syntax-rule (rnd-endpoint-strong mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (e-compute-strong op args ...)))
-
-;; add 0 as a strong endpoint
-(define (e-compute-strong-0 op . args)
-  (let ([result (apply e-compute (cons op args))])
-    (endpoint (endpoint-val result)
-              (or (endpoint-immovable? result)
-                  (ormap strong-immovable-endpoint-0? args)))))
-
-;; used when a immovable 0 implies that no conditions will change
-(define (e-compute-weak-0 op . args)
-  (let ([result (apply e-compute (cons op args))])
-    (endpoint (endpoint-val result)
-              (or (endpoint-immovable? result)
-                  (ormap immovable-0? args)))))
 
 (define-syntax-rule (rnd-endpoint-strong-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -220,6 +221,10 @@
 (define-syntax-rule (rnd-endpoint-weak-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (e-compute-weak-0 op args ...)))
+
+(define-syntax-rule (rnd-endpoint-strong-first-0 mode op args ...)
+  (parameterize ([bf-rounding-mode mode])
+    (e-compute-strong-first-0 op args ...)))
 
 
 (define (ival-neg x)
@@ -283,11 +288,11 @@
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-hi x) (ival-lo y))
            (rnd-endpoint-strong-0 'up bfmul (ival-lo x) (ival-hi y)) err? err)]
     [(1 0)
-     (ival (rnd-endpoint-weak-0 'down bfmul (ival-hi x) (ival-lo y))
-           (rnd-endpoint-weak-0 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
+     (ival (rnd-endpoint-strong-first-0 'down bfmul (ival-lo y) (ival-hi x))
+           (rnd-endpoint-strong-first-0 'up bfmul (ival-hi y) (ival-hi x)) err? err)]
     [(-1 0)
-     (ival (rnd-endpoint-weak-0 'down bfmul (ival-lo x) (ival-hi y))
-           (rnd-endpoint-weak-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
+     (ival (rnd-endpoint-strong-first-0 'down bfmul (ival-hi y) (ival-lo x))
+           (rnd-endpoint-strong-first-0 'up bfmul (ival-lo y) (ival-lo x)) err? err)]
     [(-1 1)
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-lo x) (ival-hi y))
            (rnd-endpoint-strong-0 'up bfmul (ival-hi x) (ival-lo y)) err? err)]
@@ -295,11 +300,11 @@
      (ival (rnd-endpoint-strong-0 'down bfmul (ival-hi x) (ival-hi y))
            (rnd-endpoint-strong-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
     [(0 1)
-     (ival (rnd-endpoint-weak-0 'down bfmul (ival-lo x) (ival-hi y))
-           (rnd-endpoint-weak-0 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
+     (ival (rnd-endpoint-strong-first-0 'down bfmul (ival-lo x) (ival-hi y))
+           (rnd-endpoint-strong-first-0 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
     [(0 -1)
-     (ival (rnd-endpoint-weak-0 'down bfmul (ival-hi x) (ival-lo y))
-           (rnd-endpoint-weak-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
+     (ival (rnd-endpoint-strong-first-0 'down bfmul (ival-hi x) (ival-lo y))
+           (rnd-endpoint-strong-first-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
     [(0 0) ; The "else" case is always correct, but is slow
      ;; We round only down, and approximate rounding up with bfnext below
      (define opts
