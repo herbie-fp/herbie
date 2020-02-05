@@ -533,7 +533,7 @@
   (ival-div (ival-sin x) (ival-cos x)))
 
 (define (ival-atan x)
-  (ival (rnd-endpoint-strong 'down bfatan (ival-lo x)) (rnd-endpoint-strong 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
+  (ival (rnd-endpoint 'down bfatan (ival-lo x)) (rnd-endpoint 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
 
 (define (classify-ival x)
   (cond [(bfgte? (ival-lo-val x) 0.bf) 1] [(bflte? (ival-hi-val x) 0.bf) -1] [else 0]))
