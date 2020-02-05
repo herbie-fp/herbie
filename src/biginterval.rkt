@@ -600,6 +600,24 @@
            (check-pred ival-valid? (ival-fn i))
            (check ival-contains? (ival-fn i) (fn x))))))
 
+  (define check-if-not-nan
+    (list (cons ival-pow bfexpt)))
+
+  (for ([(ival-fn fn) (in-dict check-if-not-nan)])
+    (test-case (~a (object-name ival-fn))
+       (for ([n (in-range num-tests)])
+         (define i1 (sample-interval))
+         (define i2 (sample-interval))
+         (define x1 (sample-from i1))
+         (define x2 (sample-from i2))
+
+         (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
+           (define iy (ival-fn i1 i2))
+           (define y (fn x1 x2))
+           (check-pred ival-valid? iy)
+           (unless (equal? y +nan.bf)
+             (check ival-contains? iy y))))))
+
   (define arg2
     (list (cons ival-add bfadd)
           (cons ival-sub bfsub)
