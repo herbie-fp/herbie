@@ -16,7 +16,7 @@
           [ival-neg (-> ival? ival?)]
           [ival-mult (-> ival? ival? ival?)]
           [ival-div (-> ival? ival? ival?)]
-          [ival-fma (-> ival? ival? ival? ival?)]
+          [ival-fma (-> ival? ival? ival? ival?)] ; TODO: untested
           [ival-fabs (-> ival? ival?)]
           [ival-sqrt (-> ival? ival?)]
           [ival-cbrt (-> ival? ival?)]
@@ -51,16 +51,16 @@
           [ival-ceil (-> ival? ival?)]
           [ival-floor (-> ival? ival?)]
           [ival-trunc (-> ival? ival?)]
-          [ival-and (->* () #:rest (listof ival?) ival?)]
-          [ival-or  (->* () #:rest (listof ival?) ival?)]
-          [ival-not (-> ival? ival?)]
+          [ival-and (->* () #:rest (listof ival?) ival?)] ; TODO: untested
+          [ival-or  (->* () #:rest (listof ival?) ival?)] ; TODO: untested
+          [ival-not (-> ival? ival?)] ; TODO: untested
           [ival-<  (->* () #:rest (listof ival?) ival?)]
           [ival-<= (->* () #:rest (listof ival?) ival?)]
           [ival->  (->* () #:rest (listof ival?) ival?)]
           [ival->= (->* () #:rest (listof ival?) ival?)]
           [ival-== (->* () #:rest (listof ival?) ival?)]
           [ival-!= (->* () #:rest (listof ival?) ival?)]
-          [ival-if (-> ival? ival? ival? ival?)]))
+          [ival-if (-> ival? ival? ival? ival?)])) ; TODO: untested
 
 (define (mk-ival x)
   (match x
@@ -585,11 +585,16 @@
           (cons ival-sinh  bfsinh)
           (cons ival-cosh  bfcosh)
           (cons ival-tanh  bftanh)
+          (cons ival-asinh bfasinh)
+          (cons ival-acosh bfacosh)
+          (cons ival-atanh bfatanh)
+          (cons ival-erf   bferf)
+          (cons ival-erfc  bferfc)
           (cons ival-rint  bfrint)
           (cons ival-round bfround)
           (cons ival-ceil  bfceiling)
-          (cons ival-trunc bftruncate)
-          (cons ival-floor bffloor)))
+          (cons ival-floor bffloor)
+          (cons ival-trunc bftruncate)))
 
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
@@ -623,11 +628,12 @@
           (cons ival-sub bfsub)
           (cons ival-mult bfmul)
           (cons ival-div bfdiv)
+          (cons ival-pow   bfexpt)
           (cons ival-hypot bfhypot)
           (cons ival-atan2 bfatan2)
           (cons ival-< bflt?)
-          (cons ival-> bfgt?)
           (cons ival-<= bflte?)
+          (cons ival-> bfgt?)
           (cons ival->= bfgte?)
           (cons ival-== bf=?)
           (cons ival-!= (compose not bf=?))))
