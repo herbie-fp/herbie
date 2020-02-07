@@ -391,7 +391,10 @@
         (or (bflte? (ival-lo x) 1.bf) (ival-err? x)) (or (bflt? (ival-hi x) 1.bf) (ival-err x))))
 
 (define (ival-atanh x)
-  (ival (rnd 'down bfatanh (ival-lo x)) (rnd 'up bfatanh (ival-hi x)) (ival-err? x) (ival-err x)))
+  (ival (rnd 'down bfatanh (ival-lo x))
+        (rnd 'up bfatanh (ival-hi x))
+        (or (bflte? (ival-lo x) -1.bf) (bfgte? (ival-hi x) 1.bf) (ival-err? x))
+        (or (bflte? (ival-hi x) -1.bf) (bfgte? (ival-lo x) 1.bf) (ival-err x))))
 
 (define (ival-fmod x y)
   (define y* (ival-fabs y))
