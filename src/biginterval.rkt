@@ -227,50 +227,44 @@
         (rnd 'up bfhypot (ival-hi x*) (ival-hi y*))
         err? err))
 
-(define (ival-pow x y)
-  (define err? (or (ival-err? x) (ival-err? y)))
+(define (ival-pow-pos x y)
+  ;; Assumes x is positive
+  (ival (rnd 'down bfmin*
+             (bfexpt (ival-lo x) (ival-lo y)) (bfexpt (ival-hi x) (ival-lo y))
+             (bfexpt (ival-lo x) (ival-hi y)) (bfexpt (ival-hi x) (ival-hi y)))
+        (rnd 'up bfmax*
+             (bfexpt (ival-lo x) (ival-lo y)) (bfexpt (ival-hi x) (ival-lo y))
+             (bfexpt (ival-lo x) (ival-hi y)) (bfexpt (ival-hi x) (ival-hi y)))
+        (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo x) 0.bf) (bflte? (ival-lo y) 0.bf)))
+        (or (ival-err x) (ival-err y)  (and (bflte? (ival-hi x) 0.bf) (bflte? (ival-hi y) 0.bf)))))
+
+(define (ival-pow-neg x y)
+  ;; Assumes x is positive
+  (define err? (or (ival-err? x) (ival-err? y) (bflt? (ival-lo y) (ival-hi y))))
   (define err (or (ival-err x) (ival-err y)))
+  (define xpos (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x)))
+  ;; Assumes x is negative
+  (define a (bfceiling (ival-lo y)))
+  (define b (bffloor (ival-hi y)))
   (cond
-   [(bfgte? (ival-lo x) 0.bf)
-    (let ([lo
-           (if (bflt? (ival-lo x) 1.bf)
-               (rnd 'down bfexpt (ival-lo x) (ival-hi y))
-               (rnd 'down bfexpt (ival-lo x) (ival-lo y)))]
-          [hi
-           (if (bfgt? (ival-hi x) 1.bf)
-               (rnd 'up bfexpt (ival-hi x) (ival-hi y))
-               (rnd 'up bfexpt (ival-hi x) (ival-lo y)))])
-      (ival lo hi err? err))]
-   [(and (bf=? (ival-lo y) (ival-hi y)) (bfinteger? (ival-lo y)))
-    (ival (rnd 'down bfexpt (ival-lo x) (ival-lo y))
-          (rnd 'up bfexpt (ival-lo x) (ival-lo y))
-          err? err)]
+   [(bflt? b a)
+    (ival +nan.bf +nan.bf #t #t)]
+   [(bf=? a b)
+    (if (bfodd? a)
+        (ival-neg (ival-pow-pos xpos (ival a a #t #f)))
+        (ival-pow-pos xpos (ival a a #t #f)))]
    [else
-    ;; In this case, the base range includes negatives and the exp range includes reals
-    ;; Focus first on just the negatives in the base range
-    ;; All the reals in the exp range just make NaN a possible output
-    ;; If there are no integers in the exp range, those NaNs are the only output
-    ;; If there are, the min of the negative base values is from the biggest odd integer in the range
-    ;;  and the max is from the biggest even integer in the range
-    (define a (bfceiling (ival-lo y)))
-    (define b (bffloor (ival-hi y)))
-    (define lo (ival-lo x))
-    (define neg-range
-      (cond
-       [(bflt? b a)
-        (ival +nan.bf +nan.bf #t #t)]
-       [(bf=? a b)
-        (ival (rnd 'down bfexpt (ival-lo x) a) (rnd 'up bfexpt (ival-hi x) a) err? err)]
-       [(bfodd? b)
-        (ival (rnd 'down bfexpt (ival-lo x) b)
-              (rnd 'up bfmax2 (bfexpt (ival-hi x) (bfsub b 1.bf)) (bfexpt (ival-lo x) (bfsub b 1.bf))) err? err)]
-       [(bfeven? b)
-        (ival (rnd 'down bfexpt (ival-lo x) (bfsub b 1.bf))
-              (rnd 'up bfmax2 (bfexpt (ival-hi x) b) (bfexpt (ival-lo x) b)) err? err)]
-       [else (ival +nan.bf +nan.bf #f #t)]))
-    (if (bfgt? (ival-hi x) 0.bf)
-        (ival-union neg-range (ival-pow (ival 0.bf (ival-hi x) err? err) y))
-        neg-range)]))
+    (define odds (ival (if (bfodd? a) a (bfadd a 1.bf)) (if (bfodd? b) b (bfsub b 1.bf)) err? err))
+    (define evens (ival (if (bfodd? a) (bfadd a 1.bf) a) (if (bfodd? b) (bfsub b 1.bf) b) err? err))
+    (ival-union (ival-pow-pos xpos evens)
+                (ival-neg (ival-pow-pos xpos odds)))]))
+
+(define (ival-pow x y)
+  (match (classify-ival x)
+    [-1 (ival-pow-neg x y)]
+    [1 (ival-pow-pos x y)]
+    [0 (ival-union (ival-pow-neg (ival (ival-lo x) 0.bf (ival-err? x) (ival-err x)) y)
+                   (ival-pow-pos (ival 0.bf (ival-hi x) (ival-err? x) (ival-err x)) y))]))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
