@@ -193,6 +193,10 @@
   (ival (rnd 'down bflog1p (ival-lo x)) (rnd 'up bflog1p (ival-hi x))
         err? err))
 
+(define (ival-logb x)
+  (match-define (ival ylo yhi yerr? yerr) (ival-log2 (ival-fabs x)))
+  (ival (rnd 'down bffloor ylo) (rnd 'up bffloor yhi) yerr? yerr))
+
 (define (ival-sqrt x)
   (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
   (define err? (or err (ival-err? x) (bflt? (ival-lo x) 0.bf)))
@@ -575,6 +579,9 @@
       (with-check-info (['point pt])
         (check-pred ival-valid? (mk-ival (bf pt)))
         (check ival-contains? (mk-ival (bf pt)) (bf pt)))))
+  
+  (define (bflogb x)
+    (bffloor (bflog2 (bfabs x))))
 
   (define arg1
     (list (cons ival-neg   bfneg)
@@ -588,6 +595,7 @@
           (cons ival-log2  bflog2)
           (cons ival-log10 bflog10)
           (cons ival-log1p bflog1p)
+          (cons ival-logb  bflogb)
           (cons ival-sin   bfsin)
           (cons ival-cos   bfcos)
           (cons ival-tan   bftan)
