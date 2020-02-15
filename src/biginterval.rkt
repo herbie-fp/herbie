@@ -502,6 +502,13 @@
    [(not (ival-hi c)) (propagate-err c y)]
    [else (propagate-err c (ival-union x y))]))
 
+(define (ival-fmin x y)
+  (ival (bfmin2 (ival-lo x) (ival-lo y)) (bfmin2 (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+
+(define (ival-fmax x y)
+  (ival (bfmax2 (ival-lo x) (ival-lo y)) (bfmax2 (ival-hi x) (ival-hi y))
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (module+ test
   (require rackunit math/flonum)
@@ -627,7 +634,10 @@
           (cons ival-> bfgt?)
           (cons ival->= bfgte?)
           (cons ival-== bf=?)
-          (cons ival-!= (compose not bf=?))))
+          (cons ival-!= (compose not bf=?))
+          (cons ival-fmin bfmin2)
+          (cons ival-fmax bfmax2)
+          ))
 
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-case (~a (object-name ival-fn))
