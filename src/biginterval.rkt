@@ -510,6 +510,20 @@
   (ival (bfmax2 (ival-lo x) (ival-lo y)) (bfmax2 (ival-hi x) (ival-hi y))
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
+(define (ival-copysign x y)
+  (match-define (ival xlo xhi xerr? xerr) (ival-fabs x))
+  (define can-neg (= (bigfloat-signbit (ival-lo y)) 1))
+  (define can-pos (= (bigfloat-signbit (ival-hi y)) 0))
+  (define err? (or (ival-err? y) xerr?))
+  (define err (or (ival-err y) xerr))
+  (match* (can-neg can-pos)
+    [(#t #t) (ival (bfneg xhi) xhi err? err)]
+    [(#t #f) (ival (bfneg xhi) (bfneg xlo) err? err)]
+    [(#f #t) (ival xlo xhi err? err)]))
+
+(define (ival-fdim x y)
+  (ival-if (ival->2 x y) (ival-sub x y) (ival-sub y x)))
+
 (module+ test
   (require rackunit math/flonum)
   (require "common.rkt")
@@ -621,6 +635,12 @@
            (unless (equal? y +nan.bf)
              (check ival-contains? iy y))))))
 
+  (define (bfcopysign x y)
+    (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
+
+  (define (bffdim x y)
+    (if (bfgt? x y) (bfsub x y) (bfsub y x)))
+
   (define arg2
     (list (cons ival-add bfadd)
           (cons ival-sub bfsub)
@@ -637,7 +657,8 @@
           (cons ival-!= (compose not bf=?))
           (cons ival-fmin bfmin2)
           (cons ival-fmax bfmax2)
-          ))
+          (cons ival-copysign bfcopysign)
+          (cons ival-fdim bffdim)))
 
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-case (~a (object-name ival-fn))
