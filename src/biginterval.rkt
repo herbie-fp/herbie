@@ -118,40 +118,24 @@
   (if (null? as) a (apply bfmax* (bfmax2 a (car as)) (cdr as))))
 
 (define (ival-mult x y)
-  (define err? (or (ival-err? x) (ival-err? y)))
-  (define err (or (ival-err x) (ival-err y)))
+  (match-define (ival xlo xhi xerr? xerr) x)
+  (match-define (ival ylo yhi yerr? yerr) y)
+  (define err? (or xerr? yerr?))
+  (define err (or xerr yerr))
+  (define (mkmult a b c d)
+    (ival (rnd 'down bfmul a b) (rnd 'up bfmul c d) err? err))
   (match* ((classify-ival x) (classify-ival y))
-   [(1 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-lo y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
-   [(1 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-lo x) (ival-hi y)) err? err)]
-   [(1 0)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
-   [(-1 0)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
-   [(-1 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-hi x) (ival-lo y)) err? err)]
-   [(-1 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-hi y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
-   [(0 1)
-    (ival (rnd 'down bfmul (ival-lo x) (ival-hi y))
-          (rnd 'up bfmul (ival-hi x) (ival-hi y)) err? err)]
-   [(0 -1)
-    (ival (rnd 'down bfmul (ival-hi x) (ival-lo y))
-          (rnd 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
-   [(0 0) ; The "else" case is always correct, but is slow
-    ;; We round only down, and approximate rounding up with bfnext below
-    (define opts
-      (rnd 'down list
-           (bfmul (ival-lo x) (ival-lo y)) (bfmul (ival-hi x) (ival-lo y))
-           (bfmul (ival-lo x) (ival-hi y)) (bfmul (ival-hi x) (ival-hi y))))
-    (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err)]))
+    [( 1  1) (mkmult xlo ylo xhi yhi)]
+    [( 1  0) (mkmult xhi ylo xhi yhi)]
+    [( 1 -1) (mkmult xhi ylo xlo yhi)]
+    [( 0  1) (mkmult xlo yhi xhi yhi)]
+    [( 0 -1) (mkmult xhi ylo xlo ylo)]
+    [(-1  1) (mkmult xlo yhi xhi ylo)]
+    [(-1  0) (mkmult xlo yhi xlo ylo)]
+    [(-1 -1) (mkmult xhi yhi xlo ylo)]
+    [( 0  0) ;; Special case
+     (ival (rnd 'down bfmin2 (bfmul xlo yhi) (bfmul xhi ylo))
+           (rnd 'up bfmax2 (bfmul xhi yhi) (bfmul xlo ylo)) err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
@@ -228,21 +212,31 @@
         err? err))
 
 (define (ival-pow-pos x y)
-  ;; Assumes x is positive
-  (ival (rnd 'down bfmin*
-             (bfexpt (ival-lo x) (ival-lo y)) (bfexpt (ival-hi x) (ival-lo y))
-             (bfexpt (ival-lo x) (ival-hi y)) (bfexpt (ival-hi x) (ival-hi y)))
-        (rnd 'up bfmax*
-             (bfexpt (ival-lo x) (ival-lo y)) (bfexpt (ival-hi x) (ival-lo y))
-             (bfexpt (ival-lo x) (ival-hi y)) (bfexpt (ival-hi x) (ival-hi y)))
-        (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo x) 0.bf) (bflte? (ival-lo y) 0.bf)))
-        (or (ival-err x) (ival-err y)  (and (bflte? (ival-hi x) 0.bf) (bflte? (ival-hi y) 0.bf)))))
+  ;; Assumes x is positive; code copied from ival-mult
+  (match-define (ival xlo xhi xerr? xerr) x)
+  (match-define (ival ylo yhi yerr? yerr) y)
+  (define err? (or xerr? yerr? (and (bflte? xlo 0.bf) (bflte? ylo 0.bf))))
+  (define err (or xerr yerr (and (bflte? xhi 0.bf) (bflte? yhi 0.bf))))
+  (define (mkpow a b c d)
+    (ival (rnd 'down bfexpt a b) (rnd 'up bfexpt c d) err? err))
+  (match* ((classify-ival x 1.bf) (classify-ival y))
+    [( 1  1) (mkpow xlo ylo xhi yhi)]
+    [( 1  0) (mkpow xhi ylo xhi yhi)]
+    [( 1 -1) (mkpow xhi ylo xlo yhi)]
+    [( 0  1) (mkpow xlo yhi xhi yhi)]
+    [( 0 -1) (mkpow xhi ylo xlo ylo)]
+    [(-1  1) (mkpow xlo yhi xhi ylo)]
+    [(-1  0) (mkpow xlo yhi xlo ylo)]
+    [(-1 -1) (mkpow xhi yhi xlo ylo)]
+    [( 0  0) ;; Special case
+     (ival (rnd 'down bfmin2 (bfexpt xlo yhi) (bfexpt xhi ylo))
+           (rnd 'up bfmax2 (bfexpt xhi yhi) (bfexpt xlo ylo)) err? err)]))
 
 (define (ival-pow-neg x y)
   ;; Assumes x is positive
   (define err? (or (ival-err? x) (ival-err? y) (bflt? (ival-lo y) (ival-hi y))))
   (define err (or (ival-err x) (ival-err y)))
-  (define xpos (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x)))
+  (define xpos (ival-fabs x))
   ;; Assumes x is negative
   (define a (bfceiling (ival-lo y)))
   (define b (bffloor (ival-hi y)))
@@ -320,8 +314,8 @@
 (define (ival-atan x)
   (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
 
-(define (classify-ival x)
-  (cond [(bfgte? (ival-lo x) 0.bf) 1] [(bflte? (ival-hi x) 0.bf) -1] [else 0]))
+(define (classify-ival x [val 0.bf])
+  (cond [(bfgte? (ival-lo x) val) 1] [(bflte? (ival-hi x) val) -1] [else 0]))
 
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
