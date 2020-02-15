@@ -254,8 +254,8 @@
     (ival +nan.bf +nan.bf #t #t)]
    [(bf=? a b)
     (if (bfodd? a)
-        (ival-neg (ival-pow-pos xpos (ival a a #t #f)))
-        (ival-pow-pos xpos (ival a a #t #f)))]
+        (ival-neg (ival-pow-pos xpos (ival a a err? err)))
+        (ival-pow-pos xpos (ival a a err? err)))]
    [else
     (define odds (ival (if (bfodd? a) a (bfadd a 1.bf)) (if (bfodd? b) b (bfsub b 1.bf)) err? err))
     (define evens (ival (if (bfodd? a) (bfadd a 1.bf) a) (if (bfodd? b) (bfsub b 1.bf) b) err? err))
