@@ -28,6 +28,7 @@
           [ival-log2 (-> ival? ival?)]
           [ival-log10 (-> ival? ival?)]
           [ival-log1p (-> ival? ival?)]
+          [ival-logb (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
           [ival-sin (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
@@ -60,7 +61,11 @@
           [ival->= (->* () #:rest (listof ival?) ival?)]
           [ival-== (->* () #:rest (listof ival?) ival?)]
           [ival-!= (->* () #:rest (listof ival?) ival?)]
-          [ival-if (-> ival? ival? ival? ival?)])) ; TODO: untested
+          [ival-if (-> ival? ival? ival? ival?)] ; TODO: untested
+          [ival-fmin (-> ival? ival? ival?)]
+          [ival-fmax (-> ival? ival? ival?)]
+          [ival-copysign (-> ival? ival? ival?)]
+          [ival-fdim (-> ival? ival? ival?)]))
 
 (define (mk-ival x)
   (match x
