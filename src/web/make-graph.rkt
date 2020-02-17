@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?))
+(require (only-in xml write-xexpr xexpr?) (only-in fpbench core->js fpcore?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
          "../formats/test.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
@@ -120,17 +120,17 @@
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
 
-(define (alt2fpcore alt)
+(define (alt->fpcore alt)
   (match-define (list _ args expr) (alt-program alt))
   (list 'FPCore args ':name 'alt expr))
 
 (define (get-interactive-js result)
-  (with-handlers ([exn:fail? (λ (e) #f)])
-    (define start-fpcore (alt2fpcore (test-success-start-alt result)))
-    (define end-fpcore (alt2fpcore (test-success-end-alt result)))
-    (define start-js (compile-program start-fpcore #:name "start"))
-    (define end-js (compile-program end-fpcore #:name "end"))
-    (string-append start-js end-js)))
+  (define start-fpcore (alt->fpcore (test-success-start-alt result)))
+  (define end-fpcore (alt->fpcore (test-success-end-alt result)))
+  (and (fpcore? start-fpcore) (fpcore? end-fpcore)
+       (string-append
+        (core->js start-fpcore "start")
+        (core->js end-fpcore "end"))))
 
 (define (make-interactive-js result out)
   (define js-text (get-interactive-js result))
