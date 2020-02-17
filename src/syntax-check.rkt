@@ -2,7 +2,7 @@
 
 (require syntax/id-set)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "interface.rkt")
-(provide assert-expression! assert-program!)
+(provide assert-program!)
 
 (define (check-expression* stx vars error!)
   (match stx

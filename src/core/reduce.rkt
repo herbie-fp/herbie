@@ -1,8 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
-         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
-         "../type-check.rkt")
+         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt")
 
 (provide simplify)
 

@@ -252,7 +252,7 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (assert-program! formula)
-       (assert-program-type! formula)
+       (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_
