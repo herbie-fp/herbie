@@ -77,7 +77,7 @@
   (define total-available
     (count (negate (curry equal? "ex-start")) statuses))
   (define total-crashed
-    (count (curry equal? "crash") statuses))
+    (or (count (curry equal? "crash") statuses) (= iterations -1)))
   (define total-unimproved
     (count (curry set-member? '("lt-start" "uni-start")) statuses))
 
