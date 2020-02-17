@@ -120,13 +120,9 @@
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
 
-(define (alt->fpcore alt)
-  (match-define (list _ args expr) (alt-program alt))
-  (list 'FPCore args ':name 'alt expr))
-
 (define (get-interactive-js result)
-  (define start-fpcore (alt->fpcore (test-success-start-alt result)))
-  (define end-fpcore (alt->fpcore (test-success-end-alt result)))
+  (define start-fpcore (program->fpcore (alt-program (test-success-start-alt result))))
+  (define end-fpcore (program->fpcore (alt-program (test-success-end-alt result))))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (string-append
         (core->js start-fpcore "start")

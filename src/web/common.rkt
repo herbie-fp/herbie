@@ -1,7 +1,11 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?))
-(require "../formats/test.rkt" "../formats/c.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program)
+(require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
+(require "../formats/test.rkt" "tex.rkt")
+(provide render-menu render-warnings render-large render-program alt->fpcore)
+
+(define (program->fpcore alt)
+  (match-define (list _ args expr) program)
+  (list 'FPCore args expr))
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -36,10 +40,22 @@
 (define languages
   `(("TeX" . ,texify-prog)
     ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr) (program->c prog)))))
+    ("C" . ,(λ (prog repr)
+              (define fpcore (program->fpcore prog))
+              (and (fpcore? fpcore) (core->c fpcore))))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
+
+  (define versions
+    (reap [sow]
+      (for ([(lang converter) (in-dict languages)])
+        (with-handlers ([exn:fail? void]))
+          (define out (converter (test-program test) output-prec))
+          (define out2 (and result (converter result output-prec)))
+          (when (and out (or (not result) out))
+            (sow (cons lang (cons out out2)))))))
+
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
@@ -48,7 +64,7 @@
                   "\\[" ,(texify-expr (test-precondition test) output-prec) "\\]")))
      (select ([id "language"])
        (option "Math")
-       ,@(for/list ([(lang fn) (in-dict languages)])
+       ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
        (div ([class "program math"]) "\\[" ,(texify-prog
@@ -60,10 +76,11 @@
                                                       result
                                                       output-prec) "\\]"))
              `()))
-     ,@(for/list ([(lang fn) (in-dict languages)])
+     ,@(for/list ([(lang outs) (in-dict versions)])
+         (match-define (cons out-input out-output))
          `(div ([class "implementation"] [data-language ,lang])
             (pre ([class "program"]) ,(fn (test-program test) output-prec))
-            ,@(if result
+            ,@(if out-output
                   `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,(fn result output-prec)))
+                    (pre ([class "program"]) ,out-output))
                   `())))))
