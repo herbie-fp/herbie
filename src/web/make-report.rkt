@@ -90,26 +90,6 @@
                ,(badge-label result))))
      (hr ((style "clear:both;visibility:hidden")))
 
-     (table ((id "about"))
-      (tr (th "Date:") (td ,(date->string date)))
-      (tr (th "Commit:") (td (abbr ([title ,commit]) ,(with-handlers ([exn:fail:contract? (const commit)]) (substring commit 0 8))) " on " ,branch))
-      (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
-      (tr (th "Seed:") (td ,(~a seed)))
-      (tr (th "Parameters:") (td ,(~a (*num-points*)) " points "
-                                 "for " ,(~a (*num-iterations*)) " iterations"))
-      (tr (th "Flags:")
-          (td ((id "flag-list"))
-              (div ((id "all-flags"))
-                   ,@(for*/list ([(class flags) (*flags*)] [flag flags])
-                       `(kbd ,(~a class) ":" ,(~a flag))))
-              (div ((id "changed-flags"))
-                   ,@(if (null? (changed-flags))
-                         '("default")
-                         (for/list ([rec (changed-flags)])
-                           (match-define (list delta class flag) rec)
-                           `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
-                                 " " ,(~a class) ":" ,(~a flag))))))))
-
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
        (tr ,@(for/list ([label table-labels])

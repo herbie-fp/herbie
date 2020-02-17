@@ -1,5 +1,5 @@
 #lang racket
-(require json (only-in xml write-xexpr xexpr?))
+(require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt"
          "../formats/datafile.rkt" "common.rkt" "../float.rkt"
          "../interface.rkt")
@@ -191,6 +191,8 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (make-summary-html out info dir)
+  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
@@ -200,6 +202,27 @@
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js"))))
      (body
+
+      (table ((id "about"))
+       (tr (th "Date:") (td ,(date->string date)))
+       (tr (th "Commit:") (td (abbr ([title ,commit]) ,(with-handlers ([exn:fail:contract? (const commit)]) (substring commit 0 8))) " on " ,branch))
+       (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
+       (tr (th "Seed:") (td ,(~a seed)))
+       (tr (th "Parameters:") (td ,(~a (*num-points*)) " points "
+                                  "for " ,(~a (*num-iterations*)) " iterations"))
+       (tr (th "Flags:")
+           (td ((id "flag-list"))
+               (div ((id "all-flags"))
+                    ,@(for*/list ([(class flags) (*flags*)] [flag flags])
+                        `(kbd ,(~a class) ":" ,(~a flag))))
+               (div ((id "changed-flags"))
+                    ,@(if (null? (changed-flags))
+                          '("default")
+                          (for/list ([rec (changed-flags)])
+                            (match-define (list delta class flag) rec)
+                            `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
+                                  " " ,(~a class) ":" ,(~a flag))))))))
+
       ,(render-timeline-summary info (summarize-timelines info dir))))
    out))
 
