@@ -3,9 +3,9 @@
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
-         "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
+         "../formats/test.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
          "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
-         "timeline.rkt" "common.rkt" "../syntax/rules.rkt" "plot.rkt")
+         "common.rkt" "timeline.rkt" "tex.rkt" "plot.rkt")
 
 (provide all-pages make-page)
 
