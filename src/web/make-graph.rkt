@@ -7,7 +7,7 @@
          "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
          "common.rkt" "timeline.rkt" "tex.rkt" "plot.rkt")
 
-(provide all-pages make-page)
+(provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
@@ -28,31 +28,31 @@
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
-(define ((page-error-handler test page) e)
+(define ((page-error-handler result page) e)
+  (define test (test-result-test result))
   ((error-display-handler)
-   (format "In \"~a\":\n  ~a: ~a" (test-name test) page (exn-message e))
+   (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
    e))
 
 (define (make-page page out result profile?)
-  (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
-    (define test (test-result-test result))
-    (define precision (test-output-prec test))
-    (match page
-      ["graph.html"
-       (match result
-         [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
-         [(? test-timeout?) (make-timeout result out profile?)]
-         [(? test-failure?) (make-traceback result out profile?)])]
-      ["interactive.js"
-       (make-interactive-js result out)]
-      ["timeline.html"
-       (make-timeline result out)]
-      ["timeline.json"
-       (make-timeline-json result out precision)]
-      [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-       (make-axis-plot result out (string->number idx))]
-      [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-       (make-points-plot result out (string->number idx) (string->symbol letter))])))
+  (define test (test-result-test result))
+  (define precision (test-output-prec test))
+  (match page
+    ["graph.html"
+     (match result
+       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
+       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-failure?) (make-traceback result out profile?)])]
+    ["interactive.js"
+     (make-interactive-js result out)]
+    ["timeline.html"
+     (make-timeline result out)]
+    ["timeline.json"
+     (make-timeline-json result out precision)]
+    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
+     (make-axis-plot result out (string->number idx))]
+    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
