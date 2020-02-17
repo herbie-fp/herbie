@@ -1,5 +1,6 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "interface.rkt")
+
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (get-sigs fun-name num-args)
