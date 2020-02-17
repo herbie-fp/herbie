@@ -23,13 +23,15 @@
        (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
 
     (set-seed! seed)
+    (define error? #f)
     (for ([page (all-pages result)])
-      (with-handlers ([exn:fail? (page-error-handler result page)])
+      (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page) e) (set! error? #t))])
         (call-with-output-file (build-path rdir page)
           #:exists 'replace
           (λ (out) (make-page page out result profile?)))))
 
-    (get-table-data result dirname)]
+    (define out (get-table-data result dirname))
+    (if error? (struct-copy table-row out [status "crash"]) out)]
    [else
     (define result (get-test-result test #:seed seed))
     (get-table-data result "")]))
