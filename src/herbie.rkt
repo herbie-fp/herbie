@@ -110,11 +110,10 @@
     (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
 
    #:args files
-   (begin
-     (match files
-       ['()
-        (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
-        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
-       [(cons tool _)
-        (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
-        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]))))
+   (match files
+     ['()
+      (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+     [(cons tool _)
+      (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)])))
