@@ -1,6 +1,6 @@
 #lang racket
 (require profile math/bigfloat racket/engine)
-(require "common.rkt" "errors.rkt" "debug.rkt" "float.rkt" "points.rkt" "programs.rkt"
+(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "formats/datafile.rkt" "formats/test.rkt")
 
@@ -36,12 +36,13 @@
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))])
+      (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
-      (with-handlers ([exn? (λ (e) (timeline-event! 'end) `(error ,(bf-precision) ,warning-log ,e))])
+      (with-handlers ([exn? (curry on-exception start-time)])
         (define alt
           (run-improve (test-program test)
                        (*num-iterations*)
@@ -53,7 +54,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-prec)))
+            (prepare-points (test-specification test) (test-precondition test) output-repr)))
         (timeline-event! 'end)
         (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
@@ -83,9 +84,31 @@
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score
                                          (errors (test-target test) newcontext output-repr))))
-        `(good ,(bf-precision) ,warning-log
-               ,(make-alt (test-program test)) ,alt ,context ,newcontext
-               ,baseline-errs ,oracle-errs ,(*all-alts*)))))
+
+        (define-values (points exacts) (get-p&es context))
+        (define-values (newpoints newexacts) (get-p&es newcontext))
+        (test-success test
+                      (bf-precision)
+                      (- (current-inexact-milliseconds) start-time)
+                      (reverse (unbox timeline))
+                      warning-log (make-alt (test-program test)) alt points exacts
+                      (errors (test-program test) context output-repr)
+                      (errors (alt-program alt) context output-repr)
+                      newpoints newexacts
+                      (errors (test-program test) newcontext output-repr)
+                      (errors (alt-program alt) newcontext output-repr)
+                      (if (test-output test)
+                          (errors (test-target test) newcontext output-repr)
+                          #f)
+                      baseline-errs
+                      oracle-errs
+                      (*all-alts*)))))
+
+  (define (on-exception start-time e)
+    (timeline-event! 'end)
+    (test-failure test (bf-precision)
+                  (- (current-inexact-milliseconds) start-time) (reverse (unbox timeline))
+                  warning-log e))
 
   (define (in-engine _)
     (set! timeline *timeline*)
@@ -94,38 +117,14 @@
           (profile (compute-result test)))
         (compute-result test)))
 
-  (let* ([start-time (current-inexact-milliseconds)] [eng (engine in-engine)])
-    (engine-run (*timeout*) eng)
-
-    (match (engine-result eng)
-      [`(good ,bits ,warnings ,start ,end ,context ,newcontext
-              ,baseline-errs ,oracle-errs ,all-alts)
-       (define-values (newpoints newexacts) (get-p&es newcontext))
-       (define-values (points exacts) (get-p&es context))
-       (test-success test
-                     bits
-                     (- (current-inexact-milliseconds) start-time)
-                     (reverse (unbox timeline))
-                     warnings start end points exacts
-                     (errors (alt-program start) context output-repr)
-                     (errors (alt-program end) context output-repr)
-                     newpoints newexacts
-                     (errors (alt-program start) newcontext output-repr)
-                     (errors (alt-program end) newcontext output-repr)
-                     (if (test-output test)
-                         (errors (test-target test) newcontext output-repr)
-                         #f)
-                     baseline-errs
-                     oracle-errs
-                     all-alts)]
-      [`(error ,bits ,warnings ,e)
-       (test-failure test bits (- (current-inexact-milliseconds) start-time) (reverse (unbox timeline)) warnings e)]
-      [#f
-       (define timeline*
-         (reverse 
-          (cons (hash 'type 'end 'time (current-inexact-milliseconds))
-                (unbox timeline))))
-       (test-timeout test (bf-precision) (*timeout*) timeline* '())])))
+  (define eng (engine in-engine))
+  (if (engine-run (*timeout*) eng)
+      (engine-result eng)
+      (let ([timeline*
+             (reverse 
+              (cons (hash 'type 'end 'time (current-inexact-milliseconds))
+                    (unbox timeline)))])
+        (test-timeout test (bf-precision) (*timeout*) timeline* '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))

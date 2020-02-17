@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/flonum math/bigfloat)
-(require "config.rkt" "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
+(require math/bigfloat)
+(require "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
@@ -9,8 +9,7 @@
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
-         <-all-precisions mk-<= special-value?
-         get-representation*)
+         <-all-precisions mk-<= special-value? get-representation*)
 
 (define (get-representation* x)
   (match x
@@ -63,15 +62,12 @@
   (check-false (ordinary-value? +nan.0 binary64))
   (check-false (ordinary-value? -inf.0 binary64)))
 
-(define (=-or-nan? x1 x2)
-  (and (number? x1) (number? x2)
-       (or (equal? x1 x2) (and (nan? x1) (nan? x2)))))
-
-(module+ test
-  (check-true (=-or-nan? 2.3 2.3))
-  (check-false (=-or-nan? 2.3 7.8))
-  (check-true (=-or-nan? +nan.0 -nan.f))
-  (check-false (=-or-nan? 2.3 +nan.f)))
+(define (=-or-nan? x1 x2 repr)
+  (define ->ordinal (representation-repr->ordinal repr))
+  (or (= (->ordinal x1) (->ordinal x2))
+      (if (real? x1) ; Infinities are considered special values for real reprs for some reason
+          (and (nan? x1) (nan? x2))
+          (and (special-value? x1 repr) (special-value? x2 repr)))))
 
 (define (</total x1 x2 repr)
   (cond
@@ -92,7 +88,7 @@
       (set-member? (representation-special-values repr) x)))
 
 (define (<=/total x1 x2 repr)
-  (or (</total x1 x2 repr) (=-or-nan? x1 x2)))
+  (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
 
 (define (exact-value? type val)
   (match type
@@ -118,15 +114,15 @@
   (-> any/c representation? value?)
   (cond
    [(and (complex? x) (not (real? x)))
-    (make-rectangular (->flonum (real-part x) repr) (->flonum (imag-part x) repr))]
+    (make-rectangular (->flonum (real-part x) (get-representation 'binary64)) (->flonum (imag-part x) (get-representation 'binary64)))]
    [(bigcomplex? x)
-    (make-rectangular (->flonum (bigcomplex-re x) repr)
-                      (->flonum (bigcomplex-im x) repr))]
+    (make-rectangular (->flonum (bigcomplex-re x) (get-representation 'binary64))
+                      (->flonum (bigcomplex-im x) (get-representation 'binary64)))]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)) repr)]
    [else
     ;; TODO(interface): Once we have complex numbers as types rather than
-    ;; reprs, we don't have to do this additional check abd we can just use
+    ;; reprs, we don't have to do this additional check and we can just use
     ;; repr->bf for everything.
     (if (eq? (representation-name repr) 'complex)
       (bigfloat->flonum x)
@@ -140,7 +136,7 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* (if (exact? n) (exact->inexact n) n))
+  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
@@ -152,7 +148,7 @@
         n)
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
-        (if (=-or-nan? n* (<-bf bf))
+        (if (=-or-nan? n* (<-bf bf) repr)
             (bigfloat->string bf)
             (loop (+ precision 4))))))) ; 2^4 > 10
 
@@ -178,16 +174,15 @@
     (define ->ordinal (representation-repr->ordinal repr))
     (< (->ordinal x1) (->ordinal x2))]))
 
-(define (mk-<= precision var val)
-  (define repr (get-representation precision))
+(define (mk-<= repr var val)
   (define (cast x)
-    (match precision
+    (match (representation-name repr)
       ['posit8 `(real->posit8 ,x)] ['posit16 `(real->posit16 ,x)] ['posit32 `(real->posit32 ,x)]
       ['quire8 `(real->quire8 ,x)] ['quire16 `(real->quire16 ,x)] ['quire32 `(real->quire32 ,x)]
       [(or 'binary64 'binary32) x]))
   (define prec-point (cast (repr->fl val repr)))
   (define <=-operator
-    (match precision
+    (match (representation-name repr)
       [(or 'binary64 'binary32) '<=] 
       ['posit8 `<=.p8] ['posit16 `<=.p16] ['posit32 `<=.p32]
       ['quire8 `<=.p8] ['quire16 `<=.q16] ['quire32 `<=.q32]))

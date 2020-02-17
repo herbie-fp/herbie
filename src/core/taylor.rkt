@@ -5,7 +5,6 @@
 (require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
-(require "matcher.rkt")
 
 (provide approximate)
 

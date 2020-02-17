@@ -5,7 +5,7 @@
          "../alternative.rkt" "../errors.rkt" "../plot.rkt" "../interface.rkt"
          "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
          "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
-         "timeline.rkt" "common.rkt")
+         "timeline.rkt" "common.rkt" "../syntax/rules.rkt")
 
 (provide all-pages make-page)
 
@@ -247,6 +247,7 @@
                  baseline-error oracle-error all-alts)
    result)
    (define precision (test-output-prec test))
+   (define repr (get-representation precision))
    ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
    ;; remove this when the number system interface is added
 
@@ -334,7 +335,8 @@
        (section ([id "history"])
         (h1 "Derivation")
         (ol ([class "history"])
-         ,@(render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision)))
+         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
+             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) precision))))
 
        ,(render-reproduction test)))
     out))

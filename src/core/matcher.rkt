@@ -1,10 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../timeline.rkt" "../programs.rkt")
-(require "../syntax/rules.rkt" "../type-check.rkt")
+(require "../common.rkt" "../programs.rkt")
+(require "../syntax/rules.rkt" "../type-check.rkt" "../interface.rkt")
 
 (provide
- (all-from-out "../syntax/rules.rkt")
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
  (struct-out change) change-apply rule-rewrite)
@@ -75,21 +74,19 @@
 
 ;; The rewriter
 
-(define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
-  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define type (type-of expr env))
+(define (rewrite-expression expr #:rules rules #:root [root-loc '()] #:destruct [destruct? #f])
+  (define type (type-of expr (*var-reprs*)))
   (reap [sow]
-    (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))
+    (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
             (sow (list (change rule root-loc (cdr result)))))))))
 
-(define (rewrite-expression-head expr #:root [root-loc '()] #:depth [depth 1])
-  (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
-  (define type (type-of expr env))
+(define (rewrite-expression-head expr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+  (define type (type-of expr (*var-reprs*)))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
-    (for ([rule (*rules*)] #:when (equal? type (rule-otype rule)))
+    (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (when (or
              (not ghead) ; Any results work for me
              (and

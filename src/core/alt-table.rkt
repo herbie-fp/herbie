@@ -18,8 +18,7 @@
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
-  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))
-  (atab-new-context (alt-table? pcontext? any/c . -> . alt-table?))))
+  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
 
 ;; Public API
 
@@ -29,8 +28,7 @@
 
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
-(define (make-alt-table context initial-alt prec)
-  (define repr (get-representation prec))
+(define (make-alt-table context initial-alt repr)
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext context)]
                           [err (errors (alt-program initial-alt) context repr)])
@@ -39,21 +37,14 @@
              (hash initial-alt #f)
              context))
 
-(define (atab-new-context atab ctx prec)
-  (let* ([old-done (alt-table-alt->done? atab)]
-         [alts (atab-all-alts atab)]
-         [table-init (make-alt-table ctx (car alts) prec)])
-    (struct-copy alt-table (atab-add-altns table-init (cdr alts) prec)
-                 [alt->done? old-done])))
-
-(define (atab-add-altns atab altns prec)
+(define (atab-add-altns atab altns repr)
   (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
   (define altns*
     (filter
      (negate (compose (curry set-member? prog-set) alt-program))
      (remove-duplicates altns #:key alt-program)))
   (for/fold ([atab atab]) ([altn altns*])
-    (atab-add-altn atab altn prec)))
+    (atab-add-altn atab altn repr)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
@@ -200,8 +191,7 @@
              altns)])
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
 
-(define (atab-add-altn atab altn prec)
-  (define repr (get-representation prec))
+(define (atab-add-altn atab altn repr)
   (define errs (errors (alt-program altn) (alt-table-context atab) repr))
   (match-define (alt-table point->alts alt->points _ _) atab)
   (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))

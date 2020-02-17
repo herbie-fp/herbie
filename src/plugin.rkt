@@ -1,5 +1,5 @@
 #lang racket
-(require racket/lazy-require racket/runtime-path setup/getinfo)
+(require setup/getinfo)
 (require (submod "syntax/types.rkt" internals) (submod "interface.rkt" internals)
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide define-type define-representation declare-parametric-operator! define-operator define-ruleset load-herbie-plugins)

@@ -1,6 +1,8 @@
 #!/bin/bash
 
-CORES=6
+# lowered number of cores from 6 to 4 to avoid pagetable error
+# caused by heavy use of FFI by eggmath.rkt
+CORES=4
 
 function run {
   bench=$1; shift
@@ -17,6 +19,10 @@ function run {
       "$bench" "reports/$name"
   bash infra/publish.sh upload "reports/$name"
 }
+
+# install package deps
+raco pkg install --auto ./src
+raco pkg update --auto ./src
 
 mkdir -p reports
 for bench in bench/*; do

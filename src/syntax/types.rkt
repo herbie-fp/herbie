@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../common.rkt" "../bigcomplex.rkt")
+(require "../bigcomplex.rkt")
 
 (provide type-dict type? value? bigvalue? value-of bigvalue-of)
 (module+ internals (provide define-type))

@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "syntax/types.rkt" "interface.rkt")
 (provide assert-program-type! assert-expression-type! type-of get-sigs argtypes->rtype)
 
 (define (get-sigs fun-name num-args)
@@ -31,6 +31,8 @@
   (unless (null? errs)
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
 
+;; `env` is in an indeterminate state, where it's a mapping from
+;; variables to *either* types or reprs.
 (define (type-of expr env)
   ;; Fast version does not recurse into functions applications
   (match expr
@@ -38,9 +40,12 @@
     [(? complex?) 'complex]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
-    [(? value?) (*output-prec*)]
+    [(? value?) (representation-type (*output-repr*))]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (dict-ref env expr)]
+    [(? variable?)
+     (match (dict-ref env expr)
+       [(? symbol? t) t]
+       [(? representation? r) (representation-type r)])]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
@@ -49,8 +54,8 @@
 
 (define (expression->type stx env error!)
   (match stx
-    [(or #`TRUE #`FALSE) 'bool]
-    [#`,(? constant? x) 'real]
+    [#`,(? real?) 'real]
+    [#`,(? constant? x) (constant-info x 'type)]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t 'real)

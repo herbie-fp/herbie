@@ -99,6 +99,17 @@
     likely the result of a bug in a third-party plugin.
   </p>
 
+  <h3 id="egg-herbie">Falling back on racket egraph because egg-herbie package not installed</h3>
+
+  <p>
+    The package <code>egg-herbie</code> provides the "equivalence
+    graph" data structure for simplifying expressions. If it is not
+    installed, Herbie will fall back on an implementation written in
+    Racket. Herbie will get similar results but run roughly twice as
+    long. <code>egg-herbie</code> is packaged for Windows, macOS, and
+    Linux, and is installed automatically by <code>raco</code>.
+  </p>
+
 
   <h2>Known bugs</h2>
 
