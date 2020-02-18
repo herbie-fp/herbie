@@ -1,10 +1,10 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
-(require "../formats/test.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program alt->fpcore)
+(require "../common.rkt" "../formats/test.rkt" "tex.rkt")
+(provide render-menu render-warnings render-large render-program program->fpcore)
 
-(define (program->fpcore alt)
-  (match-define (list _ args expr) program)
+(define (program->fpcore prog)
+  (match-define (list _ args expr) prog)
   (list 'FPCore args expr))
 
 (define/contract (render-menu sections links)
@@ -42,7 +42,7 @@
     ;; TODO(interface): currently program->c doesn't take the repr into account
     ("C" . ,(λ (prog repr)
               (define fpcore (program->fpcore prog))
-              (and (fpcore? fpcore) (core->c fpcore))))))
+              (and (fpcore? fpcore) (core->c fpcore "code"))))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
@@ -50,11 +50,10 @@
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (with-handlers ([exn:fail? void]))
-          (define out (converter (test-program test) output-prec))
-          (define out2 (and result (converter result output-prec)))
-          (when (and out (or (not result) out))
-            (sow (cons lang (cons out out2)))))))
+        (define out (converter (test-program test) output-prec))
+        (define out2 (and result (converter result output-prec)))
+        (when (and out (or (not result) out))
+          (sow (cons lang (cons out out2)))))))
 
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
@@ -77,9 +76,9 @@
                                                       output-prec) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
-         (match-define (cons out-input out-output))
+         (match-define (cons out-input out-output) outs)
          `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,(fn (test-program test) output-prec))
+            (pre ([class "program"]) ,out-input)
             ,@(if out-output
                   `((div ([class "arrow"]) "↓")
                     (pre ([class "program"]) ,out-output))

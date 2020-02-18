@@ -4,7 +4,7 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
          "../formats/test.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
-         "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
+         "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "timeline.rkt" "tex.rkt" "plot.rkt")
 
 (provide all-pages make-page page-error-handler)
