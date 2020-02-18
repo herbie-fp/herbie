@@ -45,11 +45,12 @@
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
 
+  (define in-prog (program->fpcore (test-program test)))
+  (define out-prog (and result (program->fpcore result)))
+
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (define in-prog (program->fpcore (test-program test)))
-        (define out-prog (and result (program->fpcore result)))
         (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
           (sow (cons lang (cons (converter in-prog output-prec)
                                 (and out-prog (converter out-prog output-prec)))))))))
@@ -65,14 +66,10 @@
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog
-                                              (test-program test)
-                                              output-prec) "\\]")
+       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-prec) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog
-                                                      result
-                                                      output-prec) "\\]"))
+               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-prec) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
