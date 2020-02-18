@@ -40,9 +40,7 @@
 (define languages
   `(("TeX" . ,texify-prog)
     ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr)
-              (define fpcore (program->fpcore prog))
-              (and (fpcore? fpcore) (core->c fpcore "code"))))))
+    ("C" . ,(λ (prog repr) (core->c prog "code")))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
@@ -50,10 +48,11 @@
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (define out (converter (test-program test) output-prec))
-        (define out2 (and result (converter result output-prec)))
-        (when (and out (or (not result) out))
-          (sow (cons lang (cons out out2)))))))
+        (define in-prog (program->fpcore (test-program test)))
+        (define out-prog (and result (program->fpcore result)))
+        (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
+          (sow (cons lang (cons (converter in-prog output-prec)
+                                (and out-prog (converter out-prog output-prec)))))))))
 
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)

@@ -25,12 +25,12 @@
 
 (define/contract (program-body prog)
   (-> expr? expr?)
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   body)
 
 (define/contract (program-variables prog)
   (-> expr? (listof symbol?))
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
 
 
