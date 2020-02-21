@@ -60,6 +60,7 @@
      ,@(dict-call curr render-phase-method 'method)
      ,@(dict-call curr render-phase-locations 'locations)
      ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
+     ,@(dict-call curr render-phase-filtered 'filtered)
      ,@(dict-call curr render-phase-pruning 'kept-alts 'done-alts 'min-error)
      ,@(dict-call curr render-phase-rules 'rules)
      ,@(dict-call curr render-phase-counts 'inputs 'outputs)
@@ -147,6 +148,11 @@
         (table ([class "times"])
                ,@(for/list ([(expr time) (in-dict times)])
                    `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-filtered filtered)
+  (match-define (list to from) filtered)
+  `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
+                        " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)")))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
@@ -244,6 +250,7 @@
              ,@(dict-call phase render-summary-outcomes 'outcomes)
              ,@(dict-call phase #:extra (list type) render-summary-times 'times)
              ,@(dict-call phase #:extra (list info) render-summary-accuracy 'accuracy 'oracle 'baseline)
+             ,@(dict-call phase render-summary-filtered 'filtered)
              ,@(dict-call phase render-summary-rules 'rules)))))
 
   `(section ([id "process-info"])
@@ -315,6 +322,12 @@
                             "%")
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
+
+(define (render-summary-filtered filtered)
+  (match-define (list (list _ tos froms) ...) filtered)
+  `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a (apply + tos)) " candidates"
+                        " (" ,(~r (* (/ (apply + tos) (apply + froms)) 100) #:precision '(= 1)) "%)")))
+
 
 (define (render-summary-outcomes outcomes)
   (define entries (append-map cdr outcomes))
