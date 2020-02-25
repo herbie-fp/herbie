@@ -2,12 +2,12 @@
 
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../errors.rkt" "../plot.rkt" "../interface.rkt"
-         "../formats/test.rkt" "../formats/tex.rkt" "../core/matcher.rkt"
+         "../alternative.rkt" "../errors.rkt" "../interface.rkt"
+         "../formats/test.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
          "../core/regimes.rkt" "../sandbox.rkt" "../fpcore/core2js.rkt"
-         "timeline.rkt" "common.rkt" "../syntax/rules.rkt")
+         "common.rkt" "timeline.rkt" "tex.rkt" "plot.rkt")
 
-(provide all-pages make-page)
+(provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
@@ -28,31 +28,31 @@
           (format "plot-~a~a.png" idx type))))
   (filter identity pages))
 
-(define ((page-error-handler test page) e)
+(define ((page-error-handler result page) e)
+  (define test (test-result-test result))
   ((error-display-handler)
-   (format "In \"~a\":\n  ~a: ~a" (test-name test) page (exn-message e))
+   (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
    e))
 
 (define (make-page page out result profile?)
-  (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
-    (define test (test-result-test result))
-    (define precision (test-output-prec test))
-    (match page
-      ["graph.html"
-       (match result
-         [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
-         [(? test-timeout?) (make-timeout result out profile?)]
-         [(? test-failure?) (make-traceback result out profile?)])]
-      ["interactive.js"
-       (make-interactive-js result out)]
-      ["timeline.html"
-       (make-timeline result out)]
-      ["timeline.json"
-       (make-timeline-json result out precision)]
-      [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-       (make-axis-plot result out (string->number idx))]
-      [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-       (make-points-plot result out (string->number idx) (string->symbol letter))])))
+  (define test (test-result-test result))
+  (define precision (test-output-prec test))
+  (match page
+    ["graph.html"
+     (match result
+       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
+       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-failure?) (make-traceback result out profile?)])]
+    ["interactive.js"
+     (make-interactive-js result out)]
+    ["timeline.html"
+     (make-timeline result out)]
+    ["timeline.json"
+     (make-timeline-json result out precision)]
+    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
+     (make-axis-plot result out (string->number idx))]
+    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -159,85 +159,6 @@
            (tr (td (label ([for "try-herbie-output"]) "Out"))
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
-
-(define (points->doubles pts repr)
-  (cond
-    [(or (real? (caar pts)) (complex? (caar pts))) pts]
-    [else
-     (map (curry map (curryr repr->fl repr)) pts)]))
-
-(define (make-axis-plot result out idx)
-  (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
-  (define repr (get-representation (test-output-prec (test-result-test result))))
-  (define pts (points->doubles (test-success-newpoints result) repr))
-  (herbie-plot
-   #:port out #:kind 'png
-   (error-axes pts #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
-
-(define (make-points-plot result out idx letter)
-  (define-values (theme accessor)
-    (match letter
-      ['r (values *red-theme*   test-success-start-error)]
-      ['g (values *green-theme* test-success-target-error)]
-      ['b (values *blue-theme*  test-success-end-error)]))
-
-  (define repr (get-representation (test-output-prec (test-result-test result))))
-  (define pts (points->doubles (test-success-newpoints result) repr))
-  (define err (accessor result))
-
-  (herbie-plot
-   #:port out #:kind 'png
-   (error-points err pts #:axis idx #:color theme)
-   (error-avg err pts #:axis idx #:color theme)))
-
-(define (make-alt-plots point-alt-idxs alt-idxs title out)
-  (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
-  (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
-
-(define (make-point-alt-idxs result)
-  (define repr (get-representation (test-output-prec (test-result-test result))))
-  (define all-alts (test-success-all-alts result))
-  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
-  (define newpoints (test-success-newpoints result))
-  (define newexacts (test-success-newexacts result))
-  (oracle-error-idx all-alt-bodies newpoints newexacts repr))
-
-(define (make-contour-plot point-colors var-idxs title out)
-  (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
-  (alt-plot point-renderers #:port out #:kind 'png #:title title))
-
-#;
-(define (make-plots result rdir profile? debug?)
-  (define (open-file #:type [type #f] idx fun . args)
-    (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
-      (apply curry fun args)))
-
-  (define vars (program-variables (alt-program (test-success-start-alt result))))
-  (when (and debug? (>= (length vars) 2))
-    (define point-alt-idxs (make-point-alt-idxs result))
-    (define newpoints (test-success-newpoints result))
-    (define baseline-errs (test-success-baseline-error result))
-    (define herbie-errs (test-success-end-error result))
-    (define oracle-errs (test-success-oracle-error result))
-    (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
-    (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])
-      (define alt-idxs (list i j))
-      (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
-      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
-                 make-alt-plots point-alt-idxs alt-idxs title)
-      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
-                 make-contour-plot point-colors alt-idxs title)))
-
-  (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
-    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-success-newpoints result)))) 1)
-      ;; This is bad code
-      (open-file idx make-axis-plot result idx)
-      (open-file idx #:type 'r make-points-plot result idx 'r)
-      (when (test-success-target-error result)
-        (open-file idx #:type 'g make-points-plot result idx 'g))
-      (open-file idx #:type 'b make-points-plot result idx 'b))))
 
 (define (make-graph result out valid-js-prog profile?)
   (match-define
