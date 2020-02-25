@@ -154,7 +154,7 @@
   (if (> from 0)
       `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
                             " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
-      ""))
+      '()))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
@@ -332,7 +332,7 @@
   (if (> from 0)
       `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a to) " candidates"
                             " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
-      ""))
+      '()))
 
 
 (define (render-summary-outcomes outcomes)
