@@ -10,3 +10,4 @@ regraph
 *.swp
 plugins
 egg-herbie
+.DS_Store
