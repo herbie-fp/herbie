@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "../formats/datafile.rkt")
 (require "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
 (provide make-report rerun-report)

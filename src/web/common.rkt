@@ -1,6 +1,6 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
-(require "../common.rkt" "../formats/test.rkt" "tex.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "tex.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore)
 
 (define (program->fpcore prog)

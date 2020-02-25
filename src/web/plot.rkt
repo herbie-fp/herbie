@@ -2,7 +2,7 @@
 
 (require math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../interface.rkt" "../formats/test.rkt" "../core/regimes.rkt" 
+         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot)

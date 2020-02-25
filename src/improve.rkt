@@ -1,5 +1,5 @@
 #lang racket
-(require "formats/datafile.rkt" "web/thread-pool.rkt" "formats/test.rkt" "common.rkt" "sandbox.rkt")
+(require "formats/datafile.rkt" "web/thread-pool.rkt" "syntax/read.rkt" "common.rkt" "sandbox.rkt")
 (provide run-improve)
 
 (define (print-outputs tests results p #:seed [seed #f])

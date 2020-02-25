@@ -44,7 +44,7 @@
   (pcontext (list->vector points) (list->vector exacts)))
 
 (module+ test
-  (require "formats/test.rkt")
+  (require "syntax/read.rkt")
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs

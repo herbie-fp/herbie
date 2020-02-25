@@ -3,7 +3,7 @@
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench core->js fpcore?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
-         "../formats/test.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
+         "../syntax/read.rkt" "../syntax/rules.rkt" "../core/matcher.rkt"
          "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "timeline.rkt" "tex.rkt" "plot.rkt")
 

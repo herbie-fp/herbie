@@ -4,7 +4,7 @@
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
-(require "../common.rkt" "../config.rkt" "../formats/test.rkt" "../errors.rkt")
+(require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
 (require "../formats/datafile.rkt" "make-graph.rkt" "make-report.rkt")
 

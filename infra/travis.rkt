@@ -3,7 +3,7 @@
 (require racket/date racket/cmdline)
 (require "../src/common.rkt" "../src/points.rkt")
 (require "../src/alternative.rkt" "../src/sandbox.rkt")
-(require "../src/formats/test.rkt" "../src/formats/datafile.rkt")
+(require "../src/syntax/read.rkt" "../src/formats/datafile.rkt")
 
 (define (test-successful? test input-bits target-bits output-bits)
   (match* ((test-output test) (test-expected test))
