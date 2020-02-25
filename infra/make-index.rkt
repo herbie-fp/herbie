@@ -2,7 +2,7 @@
 
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(require racket/date "../src/common.rkt" "../src/formats/datafile.rkt")
+(require racket/date "../src/common.rkt" "../src/datafile.rkt")
 (provide directory-jsons name->timestamp)
 
 (define-runtime-path report-json-path "../previous/")
