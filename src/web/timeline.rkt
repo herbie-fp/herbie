@@ -151,8 +151,10 @@
 
 (define (render-phase-filtered filtered)
   (match-define (list to from) filtered)
-  `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
-                        " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)")))
+  (if (> from 0)
+      `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
+                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+      ""))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
@@ -325,8 +327,12 @@
 
 (define (render-summary-filtered filtered)
   (match-define (list (list _ tos froms) ...) filtered)
-  `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a (apply + tos)) " candidates"
-                        " (" ,(~r (* (/ (apply + tos) (apply + froms)) 100) #:precision '(= 1)) "%)")))
+  (define from (apply + froms))
+  (define to (apply + tos))
+  (if (> from 0)
+      `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a to) " candidates"
+                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+      ""))
 
 
 (define (render-summary-outcomes outcomes)
