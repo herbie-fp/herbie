@@ -1,13 +1,13 @@
-#lang racket
+#lang racket/base
 
-(require math/private/bigfloat/mpfr)
-(require "syntax/types.rkt")
+(require racket/contract racket/match racket/function math/private/bigfloat/mpfr)
 
+(define value? (or/c bigfloat? boolean?))
 (struct ival (lo hi err? err) #:transparent)
 
 (provide (contract-out
-          [struct ival ([lo bigvalue?] [hi bigvalue?] [err? boolean?] [err boolean?])]
-          [mk-ival (-> bigvalue? ival?)]
+          [struct ival ([lo value?] [hi value?] [err? boolean?] [err boolean?])]
+          [mk-ival (-> value? ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]
@@ -534,8 +534,8 @@
   (ival-if (ival->2 x y) (ival-sub x y) (ival-sub y x)))
 
 (module+ test
-  (require rackunit math/flonum)
-  (require "common.rkt")
+  (require rackunit racket/math racket/dict racket/format math/flonum)
+  (require (only-in "common.rkt" sample-double))
 
   (define num-tests 1000)
 
