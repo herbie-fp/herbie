@@ -166,13 +166,7 @@
            (rnd 'up bfdiv (ival-hi x) (ival-lo y)) err? err)]
     [(0 -1)
      (ival (rnd 'down bfdiv (ival-hi x) (ival-hi y))
-           (rnd 'up bfdiv (ival-lo x) (ival-hi y)) err? err)]
-    [(_ _)
-     (define opts
-       (rnd 'down list
-            (bfdiv (ival-lo x) (ival-lo y)) (bfdiv (ival-hi x) (ival-lo y))
-            (bfdiv (ival-lo x) (ival-hi y)) (bfdiv (ival-hi x) (ival-hi y))))
-     (ival (apply bfmin* opts) (bfnext (apply bfmax* opts)) err? err)]))
+           (rnd 'up bfdiv (ival-lo x) (ival-hi y)) err? err)]))
 
 (define-syntax-rule (define-monotonic name bffn)
   (define (name x)
@@ -318,7 +312,13 @@
     (ival -1.bf 1.bf (ival-err? x) (ival-err x))]))
 
 (define (ival-tan x)
-  (ival-div (ival-sin x) (ival-cos x)))
+  (define lopi (rnd 'down pi.bf))
+  (define hipi (rnd 'up pi.bf))
+  (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo x) (if (bflt? (ival-lo x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
+  (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi x) (if (bflt? (ival-hi x) 0.bf) hipi lopi)) half.bf)))
+  (if (bf=? a b) ; Same period
+      (ival (rnd 'down bftan (ival-lo x)) (rnd 'up bftan (ival-hi x)) #f #f)
+      (ival -inf.bf +inf.bf #t #f)))
 
 (define (ival-atan x)
   (ival (rnd 'down bfatan (ival-lo x)) (rnd 'up bfatan (ival-hi x)) (ival-err? x) (ival-err x)))
@@ -348,7 +348,7 @@
 
   (if a-lo
       (ival (rnd 'down apply bfatan2 a-lo) (rnd 'up apply bfatan2 a-hi) err? err)
-      (ival (rnd 'down bfneg (pi.bf)) (rnd 'up pi.bf)
+      (ival (bfneg (rnd 'up pi.bf)) (rnd 'up pi.bf)
             (or err? (bfgte? (ival-hi x) 0.bf))
             (or err (and (bf=? (ival-lo x) 0.bf) (bf=? (ival-hi x) 0.bf) (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))))
 
@@ -479,7 +479,7 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (or c< c>) (or m< m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (or m< m>) (or c< c>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
   (if (null? as)
