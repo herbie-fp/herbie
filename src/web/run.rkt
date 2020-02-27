@@ -3,7 +3,7 @@
 (require "../common.rkt" "../syntax/read.rkt" "../datafile.rkt")
 (require "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
-(provide make-report rerun-report)
+(provide make-report rerun-report replot-report)
 
 (define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
@@ -16,12 +16,64 @@
       (test (table-row-name row) (table-row-vars row)
             (table-row-input row) (table-row-output row)
             (table-row-target-prog row) (table-row-spec row)
-            (table-row-pre row) (table-row-precision row))))
+            (table-row-pre row) (table-row-precision row)
+            (map (curryr cons (table-row-precision row)) (table-row-vars row)))))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
   (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads))
+
+(define (replot-report json-file #:dir dir)
+  (local-require "../points.rkt" "../interface.rkt" "../sandbox.rkt" "../alternative.rkt"
+                 "make-graph.rkt" "../timeline.rkt")
+
+  (define data (read-datafile json-file))
+  ;; This must create a `test-success` object with the following fields set to something real:
+  ;; test; end-alt; newpoints; start-error; target-error; end-error
+  (*flags* (report-info-flags data))
+  (set-seed! (report-info-seed data))
+  (*num-points* (report-info-points data))
+  (*num-iterations* (report-info-iterations data))
+
+  (define (get-p&es context)
+    (for/lists (pts exs)
+        ([(pt ex) (in-pcontext context)])
+      (values pt ex)))
+
+  (for ([row (report-info-tests data)] [index (in-naturals)])
+    (set-seed! (report-info-seed data))
+    (define orig-test
+      (test (table-row-name row) (table-row-vars row)
+            (table-row-input row) (table-row-target-prog row)
+            #f (table-row-spec row)
+            (table-row-pre row) (table-row-precision row)
+            (map (curryr cons (table-row-precision row)) (table-row-vars row))))
+    (define output-repr (get-representation (test-output-prec orig-test)))
+    (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
+                   [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
+      (define newcontext
+        (parameterize ([*num-points* (*reeval-pts*)])
+          (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr)))
+      (define start-alt (make-alt (test-program orig-test)))
+      (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(table-row-output row))))
+      (define-values (newpoints newexacts) (get-p&es newcontext))
+      (define result
+        (test-success orig-test #f #f #f #f start-alt end-alt
+                      #f #f #f #f
+                      newpoints newexacts
+                      (errors (alt-program start-alt) newcontext output-repr)
+                      (errors (alt-program end-alt) newcontext output-repr)
+                      (if (test-output orig-test)
+                          (errors (test-target orig-test) newcontext output-repr)
+                          #f)
+                      #f #f #f))
+      (define images (filter (curryr string-suffix? ".png") (all-pages result)))
+      (for ([page images])
+        (with-handlers ([exn:fail? (page-error-handler result page)])
+          (call-with-output-file (build-path dir (table-row-link row) page)
+            #:exists 'replace
+            (λ (out) (make-page page out result #f))))))))
 
 (define (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define seed (get-seed))

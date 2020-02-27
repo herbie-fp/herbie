@@ -8,7 +8,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["web/run.rkt" (make-report rerun-report)]
+ ["web/run.rkt" (make-report rerun-report replot-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
@@ -110,6 +110,9 @@
      (set! report-profile? true)]
     #:args (input output)
     (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
+   [replot "Regenerate plots for an HTML report"
+    #:args (input output)
+    (replot-report input #:dir output)]
 
    #:args files
    (match files
