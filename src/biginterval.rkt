@@ -549,9 +549,6 @@
               (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))
               (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))))))
 
-  (define (sample-bf)
-    (bf (sample-double)))
-
   (define (sample-from ival)
     (if (bigfloat? (ival-lo ival))
         (let ([p (random)])
@@ -560,10 +557,12 @@
           (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
   (define (ival-valid? ival)
-    (or (boolean? (ival-lo ival))
-        (bfnan? (ival-lo ival))
-        (bfnan? (ival-hi ival))
-        (bflte? (ival-lo ival) (ival-hi ival))))
+    (if (boolean? (ival-lo ival))
+        (or (not (ival-lo ival)) (ival-hi ival))
+        (or
+         (bfnan? (ival-lo ival))
+         (bfnan? (ival-hi ival))
+         (bflte? (ival-lo ival) (ival-hi ival)))))
 
   (define (ival-contains? ival pt)
     (or (ival-err? ival)
@@ -573,6 +572,16 @@
                     (and (bfnan? (ival-lo ival)) (bfnan? (ival-hi ival))))
                 (and (bflte? (ival-lo ival) pt) (bflte? pt (ival-hi ival))))
             (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
+
+  (define (bf-equals? bf1 bf2)
+    (if (boolean? bf1)
+        (equal? bf1 bf2)
+        (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+
+  (define (ival-equals? ival1 ival2)
+    (or (ival-err? ival1)
+        (and (bf-equals? (ival-lo ival1) (ival-lo ival2))
+             (bf-equals? (ival-hi ival1) (ival-hi ival2)))))
 
   (check ival-contains? (ival-bool #f) #f)
   (check ival-contains? (ival-bool #t) #t)
@@ -626,9 +635,13 @@
        (for ([n (in-range num-tests)])
          (define i (sample-interval))
          (define x (sample-from i))
+         (define ilo (struct-copy ival i [lo x]))
+         (define ihi (struct-copy ival i [hi x]))
          (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
-           (check-pred ival-valid? (ival-fn i))
-           (check ival-contains? (ival-fn i) (fn x))))))
+           (define out (ival-fn i))
+           (check-pred ival-valid? out)
+           (check ival-contains? out (fn x))
+           (check ival-equals? out (ival-union (ival-fn ilo) (ival-fn ihi)))))))
 
   (define (bfcopysign x y)
     (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
@@ -663,16 +676,23 @@
          (define x1 (sample-from i1))
          (define x2 (sample-from i2))
 
+         (define i1lo (struct-copy ival i1 [lo x1]))
+         (define i1hi (struct-copy ival i1 [hi x1]))
+         (define i2lo (struct-copy ival i2 [lo x2]))
+         (define i2hi (struct-copy ival i2 [hi x2]))
+
          (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
            (define iy (ival-fn i1 i2))
            (check-pred ival-valid? iy)
-           (check ival-contains? iy (fn x1 x2))))))
+           (check ival-contains? iy (fn x1 x2))
+           (check ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2)))
+           (check ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi)))))))
 
   (define (bffmod x y)
-    (bfsub x (bfmul (bftruncate (bfdiv x y)) y)))
+    (parameterize ([bf-precision 8000]) (bfsub x (bfmul (bftruncate (bfdiv x y)) y))))
 
   (define (bfremainder x mod)
-    (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))
+    (parameterize ([bf-precision 8000]) (bfsub x (bfmul (bfround (bfdiv x mod)) mod))))
 
   (define weird (list (cons ival-fmod bffmod) (cons ival-remainder bfremainder)))
 
@@ -683,8 +703,12 @@
         (define i2 (sample-interval))
         (define x1 (sample-from i1))
         (define x2 (sample-from i2))
+        (define i1lo (struct-copy ival i1 [lo x1]))
+        (define i1hi (struct-copy ival i1 [hi x1]))
+        (define i2lo (struct-copy ival i2 [lo x2]))
+        (define i2hi (struct-copy ival i2 [hi x2]))
 
-        (define y (parameterize ([bf-precision 8000]) (fn x1 x2)))
+        (define y (fn x1 x2))
 
         ;; Known bug in bffmod where rounding error causes invalid output
         (unless (or (bflte? (bfmul y x1) 0.bf) (bfgt? (bfabs y) (bfabs x2)))
@@ -692,5 +716,7 @@
                             ['point1 x1] ['point2 x2] ['number n])
             (define iy (ival-fn i1 i2))
             (check-pred ival-valid? iy)
-            (check ival-contains? iy y))))))
+            (check ival-contains? iy y)
+            (check ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2)))
+            (check ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi))))))))
   )
