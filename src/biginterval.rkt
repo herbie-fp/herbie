@@ -531,7 +531,7 @@
     [(#f #t) (ival xlo xhi err? err)]))
 
 (define (ival-fdim x y)
-  (ival-if (ival->2 x y) (ival-sub x y) (ival-sub y x)))
+  (ival-fabs (ival-sub x y)))
 
 (module+ test
   (require rackunit racket/math racket/dict racket/format math/flonum)
