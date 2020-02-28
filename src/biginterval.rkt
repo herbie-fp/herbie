@@ -101,6 +101,9 @@
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
 
+(define (split-ival i x)
+  (values (struct-copy ival i [hi x]) (struct-copy ival i [lo x])))
+
 (define (ival-neg x)
   ;; No rounding, negation is exact
   (ival (bfneg (ival-hi x)) (bfneg (ival-lo x)) (ival-err? x) (ival-err x)))
@@ -401,20 +404,40 @@
         (or too-low too-high (ival-err? x))
         (or (bflte? (ival-hi x) -1.bf) (bfgte? (ival-lo x) 1.bf) (ival-err x))))
 
-(define (ival-fmod x y)
-  (define y* (ival-fabs y))
-  (define quot (ival-div x y*))
-  (define a (rnd 'down bftruncate (ival-lo quot)))
-  (define b (rnd 'up bftruncate (ival-hi quot)))
-  (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo y*) 0.bf)))
-  (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi y*) 0.bf)))
-  (define tquot (ival a b err? err))
-
+(define (ival-fmod-pos x y err? err)
+  ;; Assumes both `x` and `y` are entirely positive
+  (define a (rnd 'down bftruncate (bfdiv (ival-lo x) (ival-hi y))))
+  (define b (rnd 'up bftruncate (bfdiv (ival-hi x) (ival-hi y))))
   (cond
-   [(bf=? a b) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? b 0.bf) (ival (bfneg (ival-hi y*)) 0.bf err? err)]
-   [(bfgte? a 0.bf) (ival 0.bf (ival-hi y*) err? err)]
-   [else (ival (bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
+   [(bf=? a b) ; No intersection along `y.hi` edge
+    (define c (rnd 'down bftruncate (bfdiv (ival-hi x) (ival-hi y))))
+    (define d (rnd 'up bftruncate (bfdiv (ival-hi x) (ival-lo y))))
+    (define multiplier (rnd 'down bftruncate (bfdiv (ival-hi x) (ival-hi y))))
+    (cond
+     [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
+      (ival (rnd 'down bfsub (ival-lo x) (rnd 'up bfmul multiplier (ival-hi y)))
+            (rnd 'up bfsub (ival-hi x) (rnd 'down bfmul multiplier (ival-lo y)))
+            err? err)]
+     [else
+      (ival 0.bf (rnd 'down bfdiv (ival-hi x) multiplier) err? err)])]
+   [else
+    (ival 0.bf (ival-hi y) err? err)]))
+
+(define (ival-fmod x y)
+  (define err? (or (ival-err? x) (ival-err? y)
+                   (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
+  (define err (or (ival-err x) (ival-err y)
+                  (and (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))
+  (define y* (ival-fabs y))
+  (cond
+   [(bflte? (ival-hi x) 0.bf)
+    (ival-neg (ival-fmod-pos (ival-neg x) y* err? err))]
+   [(bfgte? (ival-lo x) 0.bf)
+    (ival-fmod-pos x y* err? err)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
+    (ival-union (ival-fmod-pos pos y* err? err)
+                (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
 
 (define (ival-remainder x y)
   (define y* (ival-fabs y))
@@ -552,7 +575,7 @@
         (let ([v1 (sample-double)] [v2 (sample-double)])
           (if (or (nan? v1) (nan? v2))
               (sample-interval)
-              (ival (bf (min v1 v2)) (bf (max v1 v2)) #f #t)))
+              (ival (bf (min v1 v2)) (bf (max v1 v2)) #f #f)))
         (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
           (define v2 (bfstep v1 (* sign (+ exp mantissa))))
           (if (or (bfnan? v1) (bfnan? v2))
@@ -567,9 +590,11 @@
           (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
   (define (ival-valid? ival)
-    (if (boolean? (ival-lo ival))
-        (or (not (ival-lo ival)) (ival-hi ival))
-        (or (ival-err ival) (bflte? (ival-lo ival) (ival-hi ival)))))
+    (if (ival-err ival)
+        (ival-err? ival)
+        (if (boolean? (ival-lo ival))
+            (or (not (ival-lo ival)) (ival-hi ival))
+            (bflte? (ival-lo ival) (ival-hi ival)))))
 
   (define (ival-contains? ival pt)
     (if (bigfloat? pt)
@@ -640,8 +665,7 @@
        (for ([n (in-range num-tests)])
          (define i (sample-interval))
          (define x (sample-from i))
-         (define ilo (struct-copy ival i [lo x]))
-         (define ihi (struct-copy ival i [hi x]))
+         (define-values (ilo ihi) (split-ival i x))
          (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
            (define out (ival-fn i))
            (check-pred ival-valid? out)
@@ -681,10 +705,8 @@
          (define x1 (sample-from i1))
          (define x2 (sample-from i2))
 
-         (define i1lo (struct-copy ival i1 [lo x1]))
-         (define i1hi (struct-copy ival i1 [hi x1]))
-         (define i2lo (struct-copy ival i2 [lo x2]))
-         (define i2hi (struct-copy ival i2 [hi x2]))
+         (define-values (i1lo i1hi) (split-ival i1 x1))
+         (define-values (i2lo i2hi) (split-ival i2 x2))
 
          (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
            (define iy (ival-fn i1 i2))
@@ -710,10 +732,9 @@
         (define i2 (sample-interval))
         (define x1 (sample-from i1))
         (define x2 (sample-from i2))
-        (define i1lo (struct-copy ival i1 [lo x1]))
-        (define i1hi (struct-copy ival i1 [hi x1]))
-        (define i2lo (struct-copy ival i2 [lo x2]))
-        (define i2hi (struct-copy ival i2 [hi x2]))
+
+        (define-values (i1lo i1hi) (split-ival i1 x1))
+        (define-values (i2lo i2hi) (split-ival i2 x2))
 
         (define y (fn x1 x2))
 
