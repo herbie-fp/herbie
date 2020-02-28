@@ -412,14 +412,13 @@
    [(bf=? a b) ; No intersection along `y.hi` edge
     (define c (rnd 'down bftruncate (bfdiv (ival-hi x) (ival-hi y))))
     (define d (rnd 'up bftruncate (bfdiv (ival-hi x) (ival-lo y))))
-    (define multiplier (rnd 'down bftruncate (bfdiv (ival-hi x) (ival-hi y))))
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-      (ival (rnd 'down bfsub (ival-lo x) (rnd 'up bfmul multiplier (ival-hi y)))
-            (rnd 'up bfsub (ival-hi x) (rnd 'down bfmul multiplier (ival-lo y)))
+      (ival (rnd 'down bfsub (ival-lo x) (rnd 'up bfmul c (ival-hi y)))
+            (rnd 'up bfsub (ival-hi x) (rnd 'down bfmul c (ival-lo y)))
             err? err)]
      [else
-      (ival 0.bf (rnd 'down bfdiv (ival-hi x) multiplier) err? err)])]
+      (ival 0.bf (rnd 'up bfdiv (ival-hi x) (bfadd c 1.bf)) err? err)])]
    [else
     (ival 0.bf (ival-hi y) err? err)]))
 
@@ -568,7 +567,7 @@
   (require rackunit racket/math racket/dict racket/format math/flonum)
   (require (only-in "common.rkt" sample-double))
 
-  (define num-tests 1000)
+  (define num-tests 2500)
 
   (define (sample-interval)
     (if (= (random 0 2) 0)
@@ -589,14 +588,14 @@
         (let ([p (random 0 2)])
           (if (= p 0) (ival-lo ival) (ival-hi ival)))))
 
-  (define (ival-valid? ival)
+  (define-simple-check (check-ival-valid? ival)
     (if (ival-err ival)
         (ival-err? ival)
         (if (boolean? (ival-lo ival))
             (or (not (ival-lo ival)) (ival-hi ival))
             (bflte? (ival-lo ival) (ival-hi ival)))))
 
-  (define (ival-contains? ival pt)
+  (define-simple-check (check-ival-contains? ival pt)
     (if (bigfloat? pt)
         (if (bfnan? pt)
             (ival-err? ival)
@@ -608,21 +607,21 @@
         (equal? bf1 bf2)
         (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
 
-  (define (ival-equals? ival1 ival2)
+  (define-binary-check (check-ival-equals? ival1 ival2)
     (or (ival-err? ival1)
         (and (bf-equals? (ival-lo ival1) (ival-lo ival2))
              (bf-equals? (ival-hi ival1) (ival-hi ival2)))))
 
-  (check ival-contains? (ival-bool #f) #f)
-  (check ival-contains? (ival-bool #t) #t)
-  (check ival-contains? (ival-pi) (pi.bf))
-  (check ival-contains? (ival-e) (bfexp 1.bf))
+  (check-ival-contains? (ival-bool #f) #f)
+  (check-ival-contains? (ival-bool #t) #t)
+  (check-ival-contains? (ival-pi) (pi.bf))
+  (check-ival-contains? (ival-e) (bfexp 1.bf))
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])
       (define pt (sample-double))
       (with-check-info (['point pt])
-        (check-pred ival-valid? (mk-ival (bf pt)))
-        (check ival-contains? (mk-ival (bf pt)) (bf pt)))))
+        (check-ival-valid? (mk-ival (bf pt)))
+        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
   
   (define (bflogb x)
     (bffloor (bflog2 (bfabs x))))
@@ -666,11 +665,11 @@
          (define i (sample-interval))
          (define x (sample-from i))
          (define-values (ilo ihi) (split-ival i x))
+         (define iy (ival-fn i))
          (with-check-info (['fn ival-fn] ['interval i] ['point x] ['number n])
-           (define out (ival-fn i))
-           (check-pred ival-valid? out)
-           (check ival-contains? out (fn x))
-           (check ival-equals? out (ival-union (ival-fn ilo) (ival-fn ihi)))))))
+           (check-ival-valid? iy)
+           (check-ival-contains? iy (fn x))
+           (check-ival-equals? iy (ival-union (ival-fn ilo) (ival-fn ihi)))))))
 
   (define (bfcopysign x y)
     (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
@@ -708,14 +707,15 @@
          (define-values (i1lo i1hi) (split-ival i1 x1))
          (define-values (i2lo i2hi) (split-ival i2 x2))
 
+         (define iy (ival-fn i1 i2))
+
          (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2] ['point1 x1] ['point2 x2] ['number n])
-           (define iy (ival-fn i1 i2))
-           (check-pred ival-valid? iy)
-           (check ival-contains? iy (fn x1 x2))
+           (check-ival-valid? iy)
+           (check-ival-contains? iy (fn x1 x2))
            (with-check-info (['split 'left])
-             (check ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2))))
+             (check-ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2))))
            (with-check-info (['split 'right])
-             (check ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi))))))))
+             (check-ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi))))))))
 
   (define (bffmod x y)
     (parameterize ([bf-precision 8000]) (bfsub x (bfmul (bftruncate (bfdiv x y)) y))))
@@ -737,16 +737,16 @@
         (define-values (i2lo i2hi) (split-ival i2 x2))
 
         (define y (fn x1 x2))
+        (define iy (ival-fn i1 i2))
 
         ;; Known bug in bffmod where rounding error causes invalid output
         (unless (or (bflte? (bfmul y x1) 0.bf) (bfgt? (bfabs y) (bfabs x2)))
           (with-check-info (['fn ival-fn] ['interval1 i1] ['interval2 i2]
                             ['point1 x1] ['point2 x2] ['number n])
-            (define iy (ival-fn i1 i2))
-            (check-pred ival-valid? iy)
-            (check ival-contains? iy y)
+            (check-ival-valid? iy)
+            (check-ival-contains? iy y)
             (with-check-info (['split 'left])
-              (check ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2))))
+              (check-ival-equals? iy (ival-union (ival-fn i1lo i2) (ival-fn i1hi i2))))
             (with-check-info (['split 'right])
-              (check ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi)))))))))
+              (check-ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi)))))))))
   )
