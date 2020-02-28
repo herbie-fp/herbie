@@ -70,7 +70,8 @@
 (define (mk-ival x)
   (match x
     [(? bigfloat?)
-     (ival x x #f #f)]
+     (define err? (bfnan? x))
+     (ival x x err? err?)]
     [(? boolean?)
      (ival x x #f #f)]
     [_
@@ -178,18 +179,20 @@
 
 (define-syntax-rule (define-monotonic-positive name bffn)
   (define (name x)
+    (define too-low? (bflte? (ival-lo x) 0.bf))
     (define err (or (ival-err x) (bflte? (ival-hi x) 0.bf)))
-    (define err? (or err (ival-err? x) (bflte? (ival-lo x) 0.bf)))
-    (ival (rnd 'down bffn (ival-lo x)) (rnd 'up bffn (ival-hi x)) err? err)))
+    (define err? (or err (ival-err? x) too-low?))
+    (ival (rnd 'down bffn (if too-low? 0.bf (ival-lo x))) (rnd 'up bffn (ival-hi x)) err? err)))
 
 (define-monotonic-positive ival-log bflog)
 (define-monotonic-positive ival-log2 bflog2)
 (define-monotonic-positive ival-log10 bflog10)
 
 (define (ival-log1p x)
+  (define too-low? (bflte? (ival-lo x) -1.bf))
   (define err (or (ival-err x) (bflte? (ival-hi x) -1.bf)))
-  (define err? (or err (ival-err? x) (bflte? (ival-lo x) -1.bf)))
-  (ival (rnd 'down bflog1p (ival-lo x)) (rnd 'up bflog1p (ival-hi x))
+  (define err? (or err (ival-err? x) too-low?))
+  (ival (if too-low? -inf.bf (rnd 'down bflog1p (ival-lo x))) (rnd 'up bflog1p (ival-hi x))
         err? err))
 
 (define (ival-logb x)
@@ -197,9 +200,10 @@
   (ival (rnd 'down bffloor ylo) (rnd 'up bffloor yhi) yerr? yerr))
 
 (define (ival-sqrt x)
+  (define too-low? (bflt? (ival-lo x) 0.bf))
   (define err (or (ival-err x) (bflt? (ival-hi x) 0.bf)))
-  (define err? (or err (ival-err? x) (bflt? (ival-lo x) 0.bf)))
-  (ival (rnd 'down bfsqrt (ival-lo x)) (rnd 'up bfsqrt (ival-hi x))
+  (define err? (or (ival-err? x) too-low?))
+  (ival (if too-low? 0.bf (rnd 'down bfsqrt (ival-lo x))) (rnd 'up bfsqrt (ival-hi x))
         err? err))
 
 (define (ival-cbrt x)
@@ -353,13 +357,19 @@
             (or err (and (bf=? (ival-lo x) 0.bf) (bf=? (ival-hi x) 0.bf) (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))))
 
 (define (ival-asin x)
-  (ival (rnd 'down bfasin (ival-lo x)) (rnd 'up bfasin (ival-hi x))
-        (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
+  (define too-low? (bflt? (ival-lo x) -1.bf))
+  (define too-high? (bfgt? (ival-hi x) 1.bf))
+  (ival (rnd 'down bfasin (if too-low? -1.bf (ival-lo x)))
+        (rnd 'up bfasin (if too-high? 1.bf (ival-hi x)))
+        (or (ival-err? x) too-low? too-high?)
         (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))))
 
 (define (ival-acos x)
-  (ival (rnd 'down bfacos (ival-hi x)) (rnd 'up bfacos (ival-lo x))
-        (or (ival-err? x) (bflt? (ival-lo x) -1.bf) (bfgt? (ival-hi x) 1.bf))
+  (define too-low? (bflt? (ival-lo x) -1.bf))
+  (define too-high? (bfgt? (ival-hi x) 1.bf))
+  (ival (rnd 'down bfacos (if too-high? 1.bf (ival-hi x)))
+        (rnd 'up bfacos (if too-low? -1.bf (ival-lo x)))
+        (or (ival-err? x) too-low? too-high?)
         (or (ival-err x) (bflt? (ival-hi x) -1.bf) (bfgt? (ival-lo x) 1.bf))))
 
 (define (ival-fabs x)
@@ -370,27 +380,25 @@
    [else ; interval stradles 0
     (ival 0.bf (bfmax2 (bfneg (ival-lo x)) (ival-hi x)) (ival-err? x) (ival-err x))]))
 
-(define (ival-sinh x)
-  (ival (rnd 'down bfsinh (ival-lo x)) (rnd 'up bfsinh (ival-hi x)) (ival-err? x) (ival-err x)))
-
 (define (ival-cosh x)
   (define y (ival-fabs x))
   (ival (rnd 'down bfcosh (ival-lo y)) (rnd 'up bfcosh (ival-hi y)) (ival-err? y) (ival-err y)))
 
-(define (ival-tanh x)
-  (ival (rnd 'down bftanh (ival-lo x)) (rnd 'up bftanh (ival-hi x)) (ival-err? x) (ival-err x)))
-
-(define (ival-asinh x)
-  (ival (rnd 'down bfasinh (ival-lo x)) (rnd 'up bfasinh (ival-hi x)) (ival-err? x) (ival-err x)))
+(define-monotonic ival-sinh bfsinh)
+(define-monotonic ival-tanh bftanh)
+(define-monotonic ival-asinh bfasinh)
 
 (define (ival-acosh x)
-  (ival (rnd 'down bfacosh (bfmax2 (ival-lo x) 1.bf)) (rnd 'up bfacosh (ival-hi x))
-        (or (bflte? (ival-lo x) 1.bf) (ival-err? x)) (or (bflt? (ival-hi x) 1.bf) (ival-err x))))
+  (define too-low? (bflt? (ival-lo x) 1.bf))
+  (ival (if too-low? 0.bf (rnd 'down bfacosh (ival-lo x))) (rnd 'up bfacosh (ival-hi x))
+        (or too-low? (ival-err? x)) (or (bflt? (ival-hi x) 1.bf) (ival-err x))))
 
 (define (ival-atanh x)
-  (ival (rnd 'down bfatanh (ival-lo x))
-        (rnd 'up bfatanh (ival-hi x))
-        (or (bflte? (ival-lo x) -1.bf) (bfgte? (ival-hi x) 1.bf) (ival-err? x))
+  (define too-low (bflt? (ival-lo x) -1.bf))
+  (define too-high (bfgt? (ival-hi x) 1.bf))
+  (ival (if too-low -inf.bf (rnd 'down bfatanh (ival-lo x)))
+        (if too-high +inf.bf (rnd 'up bfatanh (ival-hi x)))
+        (or too-low too-high (ival-err? x))
         (or (bflte? (ival-hi x) -1.bf) (bfgte? (ival-lo x) 1.bf) (ival-err x))))
 
 (define (ival-fmod x y)
@@ -542,12 +550,14 @@
   (define (sample-interval)
     (if (= (random 0 2) 0)
         (let ([v1 (sample-double)] [v2 (sample-double)])
-          (ival (bf (min v1 v2)) (bf (max v1 v2)) (or (nan? v1) (nan? v2)) (and (nan? v1) (nan? v2))))
+          (if (or (nan? v1) (nan? v2))
+              (sample-interval)
+              (ival (bf (min v1 v2)) (bf (max v1 v2)) #f #t)))
         (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
           (define v2 (bfstep v1 (* sign (+ exp mantissa))))
-          (if (= sign -1)
-              (ival v2 v1 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))
-              (ival v1 v2 (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))))))
+          (if (or (bfnan? v1) (bfnan? v2))
+              (sample-interval)
+              (if (= sign -1) (ival v2 v1 #f #f) (ival v1 v2 #f #f))))))
 
   (define (sample-from ival)
     (if (bigfloat? (ival-lo ival))
@@ -559,19 +569,14 @@
   (define (ival-valid? ival)
     (if (boolean? (ival-lo ival))
         (or (not (ival-lo ival)) (ival-hi ival))
-        (or
-         (bfnan? (ival-lo ival))
-         (bfnan? (ival-hi ival))
-         (bflte? (ival-lo ival) (ival-hi ival)))))
+        (or (ival-err ival) (bflte? (ival-lo ival) (ival-hi ival)))))
 
   (define (ival-contains? ival pt)
-    (or (ival-err? ival)
-        (if (bigfloat? pt)
-            (if (bfnan? pt)
-                (or (ival-err? ival)
-                    (and (bfnan? (ival-lo ival)) (bfnan? (ival-hi ival))))
-                (and (bflte? (ival-lo ival) pt) (bflte? pt (ival-hi ival))))
-            (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival))))))
+    (if (bigfloat? pt)
+        (if (bfnan? pt)
+            (ival-err? ival)
+            (and (bflte? (ival-lo ival) pt) (bflte? pt (ival-hi ival))))
+        (or (equal? pt (ival-lo ival)) (equal? pt (ival-hi ival)))))
 
   (define (bf-equals? bf1 bf2)
     (if (boolean? bf1)
