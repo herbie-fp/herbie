@@ -1,5 +1,4 @@
 language: c
-sudo: required
 env:
   global:
     - RACKET_DIR=~/racket
@@ -8,7 +7,7 @@ env:
       UNIT="raco test src/ infra/"
       INTEGRATION="racket $TRAVIS_BUILD_DIR/infra/travis.rkt --seed '${HERBIE_SEED}' $TBENCHES"
       STABILITY="racket $TRAVIS_BUILD_DIR/infra/travis.rkt $TBENCHES"
-  matrix:
+  jobs:
     # separate builds for travis benches and unit tests
     - RACKET_VERSION="7.5" JOB="${UNIT}"
     - RACKET_VERSION="7.0" JOB="${INTEGRATION}"
@@ -16,7 +15,7 @@ env:
     - RACKET_VERSION="7.5" JOB="${INTEGRATION}"
     # remember to change the `allow_failures` key below!
     - RACKET_VERSION="7.5" JOB="${STABILITY}"
-matrix:
+jobs:
   allow_failures:
     - env: RACKET_VERSION="7.5" JOB="${STABILITY}"
   fast_finish: true
