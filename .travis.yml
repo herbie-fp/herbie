@@ -1,4 +1,5 @@
 language: c
+os: linux
 env:
   global:
     - RACKET_DIR=~/racket
