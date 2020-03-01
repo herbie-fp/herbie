@@ -438,7 +438,43 @@
     (ival-union (ival-fmod-pos pos y* err? err)
                 (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
 
+(define (ival-remainder-pos x y err? err)
+  ;; Assumes both `x` and `y` are entirely positive
+  (define a (rnd 'down bfround (bfdiv (ival-lo x) (ival-hi y))))
+  (define b (rnd 'up bfround (bfdiv (ival-hi x) (ival-hi y))))
+  (cond
+   [(bf=? a b) ; No intersection along `y.hi` edge
+    (define c (rnd 'down bfround (bfdiv (ival-hi x) (ival-hi y))))
+    (define d (rnd 'up bfround (bfdiv (ival-hi x) (ival-lo y))))
+    (cond
+     [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
+      (ival (rnd 'down bfsub (ival-lo x) (rnd 'up bfmul c (ival-hi y)))
+            (rnd 'up bfsub (ival-hi x) (rnd 'down bfmul c (ival-lo y)))
+            err? err)]
+     [else
+      (define y* (bfdiv (rnd 'down bfdiv (ival-hi x) (bfadd c half.bf)) 2.bf))
+      (ival (bfneg y*) y* err? err)])]
+   [else
+    (define y* (bfdiv (ival-hi y) 2.bf))
+    (ival (bfneg y*) y* err? err)]))
+
 (define (ival-remainder x y)
+  (define err? (or (ival-err? x) (ival-err? y)
+                   (and (bflte? (ival-lo y) 0.bf) (bfgte? (ival-hi y) 0.bf))))
+  (define err (or (ival-err x) (ival-err y)
+                  (and (bf=? (ival-lo y) 0.bf) (bf=? (ival-hi y) 0.bf))))
+  (define y* (ival-fabs y))
+  (cond
+   [(bflte? (ival-hi x) 0.bf)
+    (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
+   [(bfgte? (ival-lo x) 0.bf)
+    (ival-remainder-pos x y* err? err)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
+    (ival-union (ival-remainder-pos pos y* err? err)
+                (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
+
+#;(define (ival-remainder x y)
   (define y* (ival-fabs y))
   (define quot (ival-div x y*))
   (define a (rnd 'down bfround (ival-lo quot)))
