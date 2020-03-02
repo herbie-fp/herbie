@@ -1,6 +1,6 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
-(require "../common.rkt" "../syntax/read.rkt" "tex.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "../interface.rkt" "tex.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore)
 
 (define (program->fpcore prog)
@@ -44,6 +44,7 @@
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
+  (define output-repr (get-representation output-prec))
 
   (define in-prog (program->fpcore (test-program test)))
   (define out-prog (and result (program->fpcore result)))
@@ -52,24 +53,24 @@
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
         (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
-          (sow (cons lang (cons (converter in-prog output-prec)
-                                (and out-prog (converter out-prog output-prec)))))))))
+          (sow (cons lang (cons (converter in-prog output-repr)
+                                (and out-prog (converter out-prog output-repr)))))))))
 
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test) output-prec) "\\]")))
+                  "\\[" ,(texify-expr (test-precondition test) output-repr) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-prec) "\\]")
+       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-repr) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-prec) "\\]"))
+               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-repr) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
