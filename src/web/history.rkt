@@ -1,11 +1,8 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?))
-(require "../points.rkt" "../float.rkt"
-         "../alternative.rkt" "../interface.rkt"
-         "../syntax/rules.rkt" "../core/matcher.rkt"
-         "../core/regimes.rkt"
-         "../common.rkt" "tex.rkt")
+(require "../points.rkt" "../float.rkt" "../alternative.rkt" "../interface.rkt"
+         "../syntax/rules.rkt" "../core/regimes.rkt" "../common.rkt" "tex.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts repr)

@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt")
-(require "../syntax/rules.rkt" "../interface.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
+         "../syntax/rules.rkt" "../interface.rkt")
 
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- (struct-out change) change-apply rule-rewrite)
+ change-apply rule-rewrite)
 
 ;;; Our own pattern matcher.
 ;;
@@ -69,8 +69,6 @@
 (define (change-apply cng prog)
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
-
-(struct change (rule location bindings) #:transparent)
 
 ;; The rewriter
 
