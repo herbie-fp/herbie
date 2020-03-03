@@ -53,97 +53,94 @@
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
-   (define precision (test-output-prec test))
-   (define repr (get-representation precision))
-   ;; render-history expects the precision to be 'real rather than 'binary64 or 'binary32
-   ;; remove this when the number system interface is added
+  (define repr (get-representation (test-output-prec test)))
 
-   (fprintf out "<!doctype html>\n")
-   (write-xexpr
-    `(html
-      (head
-       (meta ([charset "utf-8"]))
-       (title "Result for " ,(~a (test-name test)))
-       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-       ,@js-tex-include
-       (script ([src "../report.js"]))
-       (script ([src "interactive.js"]))
-       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
-      (body
-       ,(render-menu
-         (list/true
-          '("Error" . "#graphs")
-          (and fpcore? (for/and ([p points]) (andmap number? p))
-               '("Try it out!" . "#try-it"))
-          (and (test-output test)
-               '("Target" . "#comparison"))
-          '("Derivation" . "#history")
-          '("Reproduce" . "#reproduce"))
-         (list/true
-          '("Report" . "../results.html")
-          '("Log" . "debug.txt")
-          (and profile? '("Profile" . "profile.txt"))
-          '("Metrics" . "timeline.html")))
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (meta ([charset "utf-8"]))
+      (title "Result for " ,(~a (test-name test)))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+      ,@js-tex-include
+      (script ([src "../report.js"]))
+      (script ([src "interactive.js"]))
+      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
+     (body
+      ,(render-menu
+        (list/true
+         '("Error" . "#graphs")
+         (and fpcore? (for/and ([p points]) (andmap number? p))
+              '("Try it out!" . "#try-it"))
+         (and (test-output test)
+              '("Target" . "#comparison"))
+         '("Derivation" . "#history")
+         '("Reproduce" . "#reproduce"))
+        (list/true
+         '("Report" . "../results.html")
+         '("Log" . "debug.txt")
+         (and profile? '("Profile" . "profile.txt"))
+         '("Metrics" . "timeline.html")))
 
-       (section ([id "large"])
-        ,(render-large "Average Error"
-                       (format-bits (errors-score start-error) #:unit #f)
-                       " → "
-                       (format-bits (errors-score end-error) #:unit #f)
-                       #:title
-                       (format "Maximum error: ~a → ~a"
-                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
-                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
-        ,(render-large "Time" (format-time time))
-        ,(render-large "Precision" (format-bits (*bit-width*) #:unit #f)))
+      (section ([id "large"])
+       ,(render-large "Average Error"
+                      (format-bits (errors-score start-error) #:unit #f)
+                      " → "
+                      (format-bits (errors-score end-error) #:unit #f)
+                      #:title
+                      (format "Maximum error: ~a → ~a"
+                              (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
+                              (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
+       ,(render-large "Time" (format-time time))
+       ,(render-large "Precision" (format-bits (*bit-width*) #:unit #f)))
 
-       ,(render-warnings warnings)
+      ,(render-warnings warnings)
 
-       ,(render-program test #:to (alt-program end-alt))
+      ,(render-program test #:to (alt-program end-alt))
 
-       (section ([id "graphs"])
-        (h1 "Error")
-        (div
-         ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
-             (cond
-              [(> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
-               (define split-var? (equal? var (regime-var end-alt)))
-               (define title "The X axis uses an exponential scale")
-               `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
-                 (img ([width "800"] [height "300"] [title ,title]
-                       [src ,(format "plot-~a.png" idx)]))
-                 (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
-                       [src ,(format "plot-~ar.png" idx)]))
-                 ,(if target-error
-                      `(img ([width "800"] [height "300"] [title ,title] [data-name "Target"]
-                             [src ,(format "plot-~ag.png" idx)]))
-                      "")
-                 (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
-                       [src ,(format "plot-~ab.png" idx)]))
-                 (figcaption (p "Bits error versus " (var ,(~a var)))))]
-              [else ""]))))
+      (section ([id "graphs"])
+       (h1 "Error")
+       (div
+        ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
+            (cond
+             [(> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
+              (define split-var? (equal? var (regime-var end-alt)))
+              (define title "The X axis uses an exponential scale")
+              `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
+                (img ([width "800"] [height "300"] [title ,title]
+                      [src ,(format "plot-~a.png" idx)]))
+                (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
+                      [src ,(format "plot-~ar.png" idx)]))
+                ,(if target-error
+                     `(img ([width "800"] [height "300"] [title ,title] [data-name "Target"]
+                            [src ,(format "plot-~ag.png" idx)]))
+                     "")
+                (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
+                      [src ,(format "plot-~ab.png" idx)]))
+                (figcaption (p "Bits error versus " (var ,(~a var)))))]
+             [else ""]))))
 
-       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-            (render-interactive start-alt (car points))
-            "")
+      ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
+           (render-interactive start-alt (car points))
+           "")
 
-       ,(if (test-output test)
-            `(section ([id "comparison"])
-              (h1 "Target")
-              (table
-               (tr (th "Original") (td ,(format-bits (errors-score start-error))))
-               (tr (th "Target") (td ,(format-bits (errors-score target-error))))
-               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-              (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test)
-                                                            ,(test-output test))
-                                                        repr) "\\]"))
-            "")
+      ,(if (test-output test)
+           `(section ([id "comparison"])
+             (h1 "Target")
+             (table
+              (tr (th "Original") (td ,(format-bits (errors-score start-error))))
+              (tr (th "Target") (td ,(format-bits (errors-score target-error))))
+              (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
+             (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test)
+                                                           ,(test-output test))
+                                                       repr) "\\]"))
+           "")
 
-       (section ([id "history"])
-        (h1 "Derivation")
-        (ol ([class "history"])
-         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-             (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) repr))))
+      (section ([id "history"])
+       (h1 "Derivation")
+       (ol ([class "history"])
+        ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
+            (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) repr))))
 
-       ,(render-reproduction test)))
+      ,(render-reproduction test)))
     out))

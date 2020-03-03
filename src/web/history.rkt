@@ -37,9 +37,8 @@
         ""
         (format " < ~a" (repr->fl end repr))))))
 
-(define/contract (render-history altn pcontext pcontext2 precision)
+(define/contract (render-history altn pcontext pcontext2 repr)
   (-> alt? pcontext? pcontext? representation? xexpr?)
-  (define repr (get-representation precision))
   (define err
     (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
   (define err2
