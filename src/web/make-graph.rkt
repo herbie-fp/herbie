@@ -1,57 +1,11 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?) (only-in fpbench core->js fpcore?))
+(require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
-         "common.rkt" "timeline.rkt" "tex.rkt" "history.rkt" "plot.rkt")
-
-(provide all-pages make-page page-error-handler)
-
-(define (unique-values pts idx)
-  (length (remove-duplicates (map (curryr list-ref idx) pts))))
-
-(define (all-pages result)
-  (define test (test-result-test result))
-  (define good? (test-success? result))
-
-  (define pages
-    `("graph.html"
-      ,(and good? "interactive.js")
-      "timeline.html" "timeline.json"
-      ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
-                   #:when good? [type '("" "r" "g" "b")]
-                   #:unless (and (equal? type "g") (not (test-output test)))
-                   ;; Don't generate a plot with only one X value else plotting throws an exception
-                   #:when (> (unique-values (test-success-newpoints result) idx) 1))
-          (format "plot-~a~a.png" idx type))))
-  (filter identity pages))
-
-(define ((page-error-handler result page) e)
-  (define test (test-result-test result))
-  ((error-display-handler)
-   (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
-   e))
-
-(define (make-page page out result profile?)
-  (define test (test-result-test result))
-  (define precision (test-output-prec test))
-  (match page
-    ["graph.html"
-     (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
-       [(? test-timeout?) (make-timeout result out profile?)]
-       [(? test-failure?) (make-traceback result out profile?)])]
-    ["interactive.js"
-     (make-interactive-js result out)]
-    ["timeline.html"
-     (make-timeline result out)]
-    ["timeline.json"
-     (make-timeline-json result out precision)]
-    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-     (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]))
+         "common.rkt" "tex.rkt" "history.rkt")
+(provide make-graph make-timeout make-traceback)
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -119,19 +73,6 @@
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
 
-(define (get-interactive-js result)
-  (define start-fpcore (program->fpcore (alt-program (test-success-start-alt result))))
-  (define end-fpcore (program->fpcore (alt-program (test-success-end-alt result))))
-  (and (fpcore? start-fpcore) (fpcore? end-fpcore)
-       (string-append
-        (core->js start-fpcore "start")
-        (core->js end-fpcore "end"))))
-
-(define (make-interactive-js result out)
-  (define js-text (get-interactive-js result))
-  (when (string? js-text)
-    (display js-text out)))
-
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
   `(section ([id "try-it"])
@@ -155,7 +96,7 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (make-graph result out valid-js-prog profile?)
+(define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
                  start-alt end-alt points exacts start-est-error end-est-error
@@ -182,7 +123,7 @@
        ,(render-menu
          (list/true
           '("Error" . "#graphs")
-          (and valid-js-prog (for/and ([p points]) (andmap number? p))
+          (and fpcore? (for/and ([p points]) (andmap number? p))
                '("Try it out!" . "#try-it"))
           (and (test-output test)
                '("Target" . "#comparison"))
@@ -232,7 +173,7 @@
                  (figcaption (p "Bits error versus " (var ,(~a var)))))]
               [else ""]))))
 
-       ,(if (and valid-js-prog (for/and ([p points]) (andmap number? p)))
+       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
             (render-interactive start-alt (car points))
             "")
 

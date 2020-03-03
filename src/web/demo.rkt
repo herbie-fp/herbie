@@ -6,7 +6,7 @@
          web-server/managers/none)
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
-(require "../datafile.rkt" "make-graph.rkt" "make-report.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt")
 
 (provide run-demo)
 

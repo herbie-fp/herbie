@@ -26,7 +26,7 @@
 
 (define (replot-report json-file #:dir dir)
   (local-require "../points.rkt" "../interface.rkt" "../sandbox.rkt" "../alternative.rkt"
-                 "make-graph.rkt" "../timeline.rkt")
+                 "pages.rkt" "../timeline.rkt")
 
   (define data (read-datafile json-file))
   ;; This must create a `test-success` object with the following fields set to something real:
