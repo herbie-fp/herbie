@@ -37,7 +37,7 @@
     ["graph.html"
      (match result
        [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
-       [(? test-timeout?) (make-timeout result out profile?)]
+       [(? test-timeout?) (make-traceback result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
      (make-interactive-js result out)]

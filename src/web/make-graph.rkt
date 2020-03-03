@@ -5,7 +5,7 @@
          "../alternative.rkt" "../errors.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "tex.rkt" "history.rkt")
-(provide make-graph make-timeout make-traceback)
+(provide make-graph make-traceback)
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -199,7 +199,10 @@
     out))
 
 (define (make-traceback result out profile?)
-  (match-define (test-failure test bits time timeline warnings exn) result)
+  ;; Called with timeout or failure results
+  (match-define (test-result test bits time timeline warnings) result)
+  (define exn (if (test-failure? result) (test-failure-exn result) 'timeout))
+
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
@@ -220,32 +223,42 @@
 
       ,(render-warnings warnings)
 
-      ,(if (exn:fail:user:herbie? exn)
-           `(section ([id "user-error"])
-             (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
-             ,(if (exn:fail:user:herbie:syntax? exn)
-                  `(table
-                    (thead
-                     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-                    (tbody
-                     ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
-                         `(tr
-                           (td ([class "procedure"]) ,(~a msg))
-                           (td ,(~a (syntax-source stx)))
-                           (td ,(or (~a (syntax-line stx) "")))
-                           (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx))))))))
-                  ""))
-           "")
+      ,(match exn
+         [(? exn:fail:user:herbie?)
+          `(section ([id "user-error"])
+            (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
+            ,(if (exn:fail:user:herbie:syntax? exn) (render-syntax-errors exn) ""))]
+         ['timeout
+          `(section ([id "user-error"])
+            (h2 "Timeout after " ,(format-time time))
+            (p "Use the " (code "--timeout") " flag to change the timeout."))]
+         [_ ""])
 
       ,(render-program test)
 
-      ,(if (not (exn:fail:user:herbie? exn))
-           `(,@(render-reproduction test #:bug? #t)
-             (section ([id "backtrace"])
-              (h1 "Backtrace")
-              ,(render-traceback exn)))
-           "")))
+      ,(match
+        [(? exn:fail:user:herbie?) ""]
+        [(? exn?)
+         `(,@(render-reproduction test #:bug? #t)
+           (section ([id "backtrace"])
+             (h1 "Backtrace")
+             ,(render-traceback exn)))]
+        [_ ""])
+
+     ,(render-reproduction test)))
    out))
+
+(define (render-syntax-errors exn)
+  `(table
+    (thead
+     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
+    (tbody
+     ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
+         `(tr
+           (td ([class "procedure"]) ,(~a msg))
+           (td ,(~a (syntax-source stx)))
+           (td ,(or (~a (syntax-line stx) "")))
+           (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx)))))))))
 
 (define (render-traceback exn)
   `(table
@@ -264,33 +277,3 @@
             `(tr
               (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
               (td ([colspan "3"]) "unknown"))])))))
-
-(define (make-timeout result out profile?)
-  (match-define (test-timeout test bits time timeline warnings) result)
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
-   `(html
-     (head
-      (meta ((charset "utf-8")))
-      (title ,(format "Timeout for ~a" (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-      ,@js-tex-include
-      (script ([src "../report.js"])))
-     (body
-      ,(render-menu
-        (list/true)
-        (list/true
-         '("Report" . "../results.html")
-         '("Log" . "debug.txt")
-         (and profile? '("Profile" . "profile.txt"))
-         '("Metrics" . "timeline.html")))
-      ,(render-warnings warnings)
-
-      (h1 "Timeout in " ,(format-time time))
-      (p "Use the " (code "--timeout") " flag to change the timeout.")
-
-      ,(render-program test)
-
-      ,(render-reproduction test)))
-   out))
-
