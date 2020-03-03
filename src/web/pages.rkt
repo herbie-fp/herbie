@@ -2,7 +2,7 @@
 
 (require (only-in fpbench core->js fpcore?))
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt")
-(require "common.rkt""timeline.rkt" "plot.rkt" "make-graph.rkt")
+(require "common.rkt""timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)

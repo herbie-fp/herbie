@@ -2,10 +2,10 @@
 
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../errors.rkt" "../interface.rkt"
+         "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "tex.rkt" "history.rkt")
-(provide make-graph make-traceback)
+(provide make-graph)
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -22,56 +22,6 @@
   (-> alt? (or/c expr? #f))
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
-
-(define/contract (render-command-line)
-  (-> string?)
-  (format
-   "herbie shell --seed ~a ~a"
-   (if (vector? (get-seed)) (format "'~a'" (get-seed)) (get-seed))
-   (string-join
-    (for/list ([rec (changed-flags)])
-      (match rec
-        [(list 'enabled class flag) (format "+o ~a:~a" class flag)]
-        [(list 'disabled class flag) (format "-o ~a:~a" class flag)]))
-    " ")))
-
-(define/contract (render-fpcore test)
-  (-> test? string?)
-  (string-join
-   (filter
-    identity
-    (list
-     (format "(FPCore ~a" (test-vars test))
-     (format "  :name ~s" (test-name test))
-     (format "  :precision ~s" (test-output-prec test))
-     (if (equal? (test-precondition test) 'TRUE)
-         #f
-         (format "  :pre ~a" (resugar-program (test-precondition test)
-                                              (test-output-prec test))))
-     (if (equal? (test-expected test) #t)
-         #f
-         (format "  :herbie-expected ~a" (test-expected test)))
-     (if (test-output test)
-         ;; Extra newlines for clarity
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
-                                                               (test-output-prec test)))
-         #f)
-     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
-   "\n"))
-
-(define/contract (render-reproduction test #:bug? [bug? #f])
-  (->* (test?) (#:bug? boolean?) xexpr?)
-
-  `(section ((id "reproduce"))
-    (h1 "Reproduce")
-    ,(if bug?
-         `(p "Please include this information when filing a "
-             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
-         "")
-    (pre ((class "shell"))
-         (code
-          ,(render-command-line) "\n"
-          ,(render-fpcore test) "\n"))))
 
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
@@ -197,83 +147,3 @@
 
        ,(render-reproduction test)))
     out))
-
-(define (make-traceback result out profile?)
-  ;; Called with timeout or failure results
-  (match-define (test-result test bits time timeline warnings) result)
-  (define exn (if (test-failure? result) (test-failure-exn result) 'timeout))
-
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
-   `(html
-     (head
-      (meta ((charset "utf-8")))
-      (title "Exception for " ,(~a (test-name test)))
-      (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
-      ,@js-tex-include
-      (script ([src "../report.js"])))
-     (body
-      ,(render-menu
-        (list/true)
-        (list/true
-         '("Report" . "../results.html")
-         '("Log" . "debug.txt")
-         (and profile? '("Profile" . "profile.txt"))
-         '("Metrics" . "timeline.html")))
-
-      ,(render-warnings warnings)
-
-      ,(match exn
-         [(? exn:fail:user:herbie?)
-          `(section ([id "user-error"])
-            (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
-            ,(if (exn:fail:user:herbie:syntax? exn) (render-syntax-errors exn) ""))]
-         ['timeout
-          `(section ([id "user-error"])
-            (h2 "Timeout after " ,(format-time time))
-            (p "Use the " (code "--timeout") " flag to change the timeout."))]
-         [_ ""])
-
-      ,(render-program test)
-
-      ,(match
-        [(? exn:fail:user:herbie?) ""]
-        [(? exn?)
-         `(,@(render-reproduction test #:bug? #t)
-           (section ([id "backtrace"])
-             (h1 "Backtrace")
-             ,(render-traceback exn)))]
-        [_ ""])
-
-     ,(render-reproduction test)))
-   out))
-
-(define (render-syntax-errors exn)
-  `(table
-    (thead
-     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-    (tbody
-     ,@(for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
-         `(tr
-           (td ([class "procedure"]) ,(~a msg))
-           (td ,(~a (syntax-source stx)))
-           (td ,(or (~a (syntax-line stx) "")))
-           (td ,(or (~a (syntax-column stx)) (~a (syntax-position stx)))))))))
-
-(define (render-traceback exn)
-  `(table
-    (thead
-     (th ([colspan "2"]) ,(exn-message exn)) (th "L") (th "C"))
-    (tbody
-     ,@(for/list ([tb (continuation-mark-set->context (exn-continuation-marks exn))])
-         (match (cdr tb)
-           [(srcloc file line col _ _)
-            `(tr
-              (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
-              (td ,(~a file))
-              (td ,(~a line))
-              (td ,(~a col)))]
-           [#f
-            `(tr
-              (td ([class "procedure"]) ,(~a (or (car tb) "(unnamed)")))
-              (td ([colspan "3"]) "unknown"))])))))

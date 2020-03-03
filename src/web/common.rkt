@@ -1,7 +1,7 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
-(require "../common.rkt" "../syntax/read.rkt" "../interface.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program program->fpcore)
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
+(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction)
 
 (define (program->fpcore prog)
   (match-define (list _ args expr) prog)
@@ -80,3 +80,53 @@
                   `((div ([class "arrow"]) "↓")
                     (pre ([class "program"]) ,out-output))
                   `())))))
+
+(define/contract (render-command-line)
+  (-> string?)
+  (format
+   "herbie shell --seed ~a ~a"
+   (if (vector? (get-seed)) (format "'~a'" (get-seed)) (get-seed))
+   (string-join
+    (for/list ([rec (changed-flags)])
+      (match rec
+        [(list 'enabled class flag) (format "+o ~a:~a" class flag)]
+        [(list 'disabled class flag) (format "-o ~a:~a" class flag)]))
+    " ")))
+
+(define/contract (render-fpcore test)
+  (-> test? string?)
+  (string-join
+   (filter
+    identity
+    (list
+     (format "(FPCore ~a" (test-vars test))
+     (format "  :name ~s" (test-name test))
+     (format "  :precision ~s" (test-output-prec test))
+     (if (equal? (test-precondition test) 'TRUE)
+         #f
+         (format "  :pre ~a" (resugar-program (test-precondition test)
+                                              (test-output-prec test))))
+     (if (equal? (test-expected test) #t)
+         #f
+         (format "  :herbie-expected ~a" (test-expected test)))
+     (if (test-output test)
+         ;; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
+                                                               (test-output-prec test)))
+         #f)
+     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
+   "\n"))
+
+(define/contract (render-reproduction test #:bug? [bug? #f])
+  (->* (test?) (#:bug? boolean?) xexpr?)
+
+  `(section ((id "reproduce"))
+    (h1 "Reproduce")
+    ,(if bug?
+         `(p "Please include this information when filing a "
+             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+         "")
+    (pre ((class "shell"))
+         (code
+          ,(render-command-line) "\n"
+          ,(render-fpcore test) "\n"))))
