@@ -281,7 +281,7 @@
   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
 
 (define-operator/libm (copysign real real) real
-  [libm copysign copysignf] [bf bfcopysign] [ival #f]
+  [libm copysign copysignf] [bf bfcopysign] [ival ival-copysign]
   [->c/double (curry format "copysign(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_copysign(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{copysign}\\left(~a, ~a\\right)")]
@@ -359,7 +359,7 @@
     0.bf))
 
 (define-operator/libm (fdim real real) real
-  [libm fdim fdimf] [bf bffdim] [ival #f]
+  [libm fdim fdimf] [bf bffdim] [ival ival-fdim]
   [->c/double (curry format "fdim(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_dim(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{fdim}\\left(~a, ~a\\right)")]
@@ -383,14 +383,14 @@
   [nonffi (λ (x y z) (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))])
 
 (define-operator/libm (fmax real real) real
-  [libm fmax fmaxf] [bf bfmax] [ival #f]
+  [libm fmax fmaxf] [bf bfmax] [ival ival-fmax]
   [->c/double (curry format "fmax(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmax(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{max}\\left(~a, ~a\\right)")]
   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (max x y)]))])
 
 (define-operator/libm (fmin real real) real
-  [libm fmin fminf] [bf bfmin] [ival #f]
+  [libm fmin fminf] [bf bfmin] [ival ival-fmin]
   [->c/double (curry format "fmin(~a, ~a)")]
   [->c/mpfr (curry format "mpfr_fmin(~a, ~a, ~a, MPFR_RNDN)")]
   [->tex (curry format "\\mathsf{min}\\left(~a, ~a\\right)")]
@@ -473,7 +473,7 @@
   (bffloor (bflog2 (bfabs x))))
 
 (define-operator/libm (logb real) real
-  [libm logb logbf] [bf bflogb] [ival #f]
+  [libm logb logbf] [bf bflogb] [ival ival-logb]
   [->c/double (curry format "logb(~a)")]
   [->c/mpfr (curry format "mpfr_set_si(~a, mpfr_get_exp(~a), MPFR_RNDN)")]
   [->tex (curry format "\\log_{b} ~a")]
