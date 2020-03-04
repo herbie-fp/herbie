@@ -1,43 +1,47 @@
 #lang racket
 (require math/bigfloat)
-(require "biginterval.rkt")
-(require "programs.rkt")
-(require "interface.rkt")
+(require "biginterval.rkt" "common.rkt" "programs.rkt" "interface.rkt")
 
-(define (done? ival)
-  (and (not (ival-err? ival))
-       (<= -1 (- (bigfloat->ordinal (ival-lo ival)) (bigfloat->ordinal (ival-hi ival))) 1)))
+(define (done? <-bf iv)
+  (match-define (ival (app <-bf lo) (app <-bf hi) _ _) iv)
+  (< (- hi lo) 0.5)
+  #;(or (and (number? lo) (= lo hi)) (equal? lo hi)))
 
-(define (could-zero? ival)
-  (and (bf<= (ival-lo ival) 0.bf) (bf>= (ival-hi ival) 0.bf) (not (ival-err ival))))
+(define (find-ranges prog repr #:depth [depth 128] #:initial [initial #f])
+  (define vars (program-variables prog))
+  (define body (program-body prog))
+  (define fn
+    (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables prog))])
+      (eval-prog `(λ ,vars ,body) 'ival repr)))
+  (unless initial
+    (set! initial (map (const (ival -inf.bf +inf.bf #f #f)) (program-variables prog))))
+  (define <-bf (representation-bf->repr repr))
+  (reap [sow] (find-intervals fn initial #:fuel depth #:true sow #:unknown sow)))
 
-(define (find-roots prog accuracy)
-  (define repr (get-representation 'binary64))
-  (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables prog))]
-                 [bf-precision accuracy])
-    (define fn (eval-prog prog 'ival repr))
-    (define initial-ranges (map (const (ival -inf.bf +inf.bf #f #f)) (program-variables prog)))
-    (for/list ([ivl (in-list (find-roots-interval fn initial-ranges 0))])
-      ivl)))
-
-(define (find-roots-interval fn ranges n)
-  (define range (list-ref ranges n))
-  (define n* (if (= (+ n 1) (length ranges)) 0 (+ n 1)))
-  (cond
-   [(not (could-zero? (apply fn ranges)))
-    '()]
-   [(andmap done? ranges)
-    (list ranges)]
-   [(done? range)
-    (find-roots-interval fn ranges n*)]
-   [else
-    (define midpoint
-      (ordinal->bigfloat
-       (floor (/ (+ (bigfloat->ordinal (ival-lo range))
-                    (bigfloat->ordinal (ival-hi range)))
-                 2))))
-    (define range-lo (struct-copy ival range [hi midpoint]))
-    (define range-hi (struct-copy ival range [lo midpoint]))
-    (append
-     (find-roots-interval fn (list-set ranges n range-lo) n*)
-     (find-roots-interval fn (list-set ranges n range-hi) n*))]))
+(define (find-intervals ival-fn ranges #:fuel [depth 128]
+                        #:true [true! void] #:false [false! void] #:error [error! void]
+                        #:unknown [other! void])
+  (let loop ([ranges ranges] [n 0])
+    (define n* (remainder n (length ranges)))
+    (define range (list-ref ranges n*))
+    (match-define (ival ylo yhi yerr? yerr) (apply ival-fn ranges))
+    ;(printf "~a. ~a -> (~a ~a ~a ~a)\n" (make-string n #\space) ranges ylo yhi yerr? yerr)
+    (cond
+     [yerr
+      (error! ranges)]
+     [(and (not yerr?) ylo)
+      (true! ranges)]
+     [(and (not yerr?) (not yhi))
+      (false! ranges)]
+     [(> n depth)
+      (other! ranges)]
+     [else
+      (define midpoint
+        (ordinal->bigfloat
+         (floor (/ (+ (bigfloat->ordinal (ival-lo range))
+                      (bigfloat->ordinal (ival-hi range)))
+                   2))))
+      (define range-lo (struct-copy ival range [hi midpoint]))
+      (define range-hi (struct-copy ival range [lo midpoint]))
+      (loop (list-set ranges n* range-lo) (add1 n))
+      (loop (list-set ranges n* range-hi) (add1 n))])))
