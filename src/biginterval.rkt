@@ -523,7 +523,7 @@
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (and (not c<) (not c>)) (or (not m<) (not m>)) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (and (not c<) (not c>)) (and (not m<) (not m>)) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-comparator f name)
   (procedure-rename

@@ -276,9 +276,28 @@
 ;; Finish iteration
 (define (finalize-iter!)
   (timeline-event! 'prune)
+  (define new-alts (^children^))
+  (define orig-fresh-alts (atab-not-done-alts (^table^)))
+  (define orig-done-alts (set-subtract (atab-all-alts (^table^)) (atab-not-done-alts (^table^))))
   (^table^ (atab-add-altns (^table^) (^children^) (*output-repr*)))
-  (timeline-log! 'kept-alts (length (atab-not-done-alts (^table^))))
-  (timeline-log! 'done-alts (- (length (atab-all-alts (^table^))) (length (atab-not-done-alts (^table^)))))
+  (define final-fresh-alts (atab-not-done-alts (^table^)))
+  (define final-done-alts (set-subtract (atab-all-alts (^table^)) (atab-not-done-alts (^table^))))
+
+  (timeline-log! 'inputs (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts)))
+  (timeline-log! 'outputs (+ (length final-fresh-alts) (length final-done-alts)))
+
+  (define data
+    (hash 'new (list (length new-alts)
+                     (length (set-intersect new-alts final-fresh-alts)))
+          'fresh (list (length orig-fresh-alts)
+                       (length (set-intersect orig-fresh-alts final-fresh-alts)))
+          'done (list (- (length orig-done-alts) (if (^next-alt^) 1 0))
+                      (- (length (set-intersect orig-done-alts final-done-alts))
+                         (if (set-member? final-done-alts (^next-alt^)) 1 0)))
+          'picked (list (if (^next-alt^) 1 0)
+                        (if (and (^next-alt^) (set-member? final-done-alts (^next-alt^))) 1 0))))
+  (timeline-log! 'kept data)
+
   (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))

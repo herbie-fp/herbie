@@ -61,7 +61,7 @@
      ,@(dict-call curr render-phase-locations 'locations)
      ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
      ,@(dict-call curr render-phase-filtered 'filtered)
-     ,@(dict-call curr render-phase-pruning 'kept-alts 'done-alts 'min-error)
+     ,@(dict-call curr render-phase-pruning 'kept 'min-error)
      ,@(dict-call curr render-phase-rules 'rules)
      ,@(dict-call curr render-phase-counts 'inputs 'outputs)
      ,@(dict-call curr render-phase-times 'times #:extra (list n))
@@ -120,9 +120,28 @@
            " against oracle of " ,(format-bits oracle) "b"
            " and baseline of " ,(format-bits baseline) "b"))))
 
-(define (render-phase-pruning kept-alts done-alts min-error)
+(define (render-phase-pruning kept min-error)
+  (define (altnum kind [col #f])
+    (define rec (hash-ref kept kind))
+    (match col [#f (first rec)] [0 (- (first rec) (second rec))] [1 (second rec)]))
+  (define kept-alts (+ (altnum 'new 1) (altnum 'fresh 1)))
+  (define done-alts (+ (altnum 'done 1) (altnum 'picked 1)))
   `((dt "Pruning")
     (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
+        (table ([class "states"])
+         (thead
+          (tr (th) (th "Pruned") (th "Kept") (th "Total")))
+         (tbody
+          ,@(for/list ([type '(new fresh picked done)])
+              `(tr (th ,(string-titlecase (~a type)))
+                   (td ,(~a (altnum type 0)))
+                   (td ,(~a (altnum type 1)))
+                   (td ,(~a (altnum type))))))
+         (tfoot
+          (tr (th "Total")
+              (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
+              (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
+              (td ,(~a (apply + (map altnum '(new fresh picked done))))))))
         (p "Merged error: " ,(format-bits min-error) "b"))))
 
 (define (render-phase-rules rules)
