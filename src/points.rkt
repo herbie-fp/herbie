@@ -1,8 +1,8 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "range-analysis.rkt" "biginterval.rkt" "interface.rkt")
+         "biginterval.rkt" "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points errors errors-score
@@ -44,7 +44,7 @@
   (pcontext (list->vector points) (list->vector exacts)))
 
 (module+ test
-  (require "formats/test.rkt")
+  (require "syntax/read.rkt")
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs
@@ -96,7 +96,9 @@
 ; These definitions in place, we finally generate the points.
 
 (define (make-sampler precondition repr)
-  (define range-table (condition->range-table (program-body precondition)))
+  (define body (program-body precondition))
+  (define range-table
+    (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var

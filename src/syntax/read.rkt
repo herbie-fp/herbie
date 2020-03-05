@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt")
-(require "../programs.rkt" "../syntax-check.rkt" "../type-check.rkt")
+(require "../common.rkt" "../errors.rkt" "../programs.rkt" "syntax-check.rkt" "type-check.rkt")
 
 (provide (struct-out test) test-program test-target test-specification load-tests parse-test)
 
@@ -20,7 +19,7 @@
 
 (define (parse-test stx)
   (assert-program! stx)
-  (assert-program-type! stx)
+  (assert-program-typed! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
   ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
   ;; allowed for variables because of the syntax checker yet. This should run correctly

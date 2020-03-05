@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/place)
-(require "../common.rkt" "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
+(require "../common.rkt" "../sandbox.rkt" "pages.rkt" "../syntax/read.rkt" "../datafile.rkt")
 
 (provide get-test-results)
 

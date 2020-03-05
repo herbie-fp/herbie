@@ -1,11 +1,14 @@
 #lang racket
 
-(provide (struct-out alt) make-alt alt? alt-program alt-add-event *start-prog* *all-alts*)
+(provide (struct-out change) (struct-out alt) make-alt alt?
+         alt-program alt-add-event *start-prog* *all-alts*)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
+
+(struct change (rule location bindings) #:transparent)
 
 (struct alt (program event prevs)
         #:methods gen:custom-write

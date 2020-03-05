@@ -162,7 +162,7 @@ section h1 {
 
 /* Error graphs */
 
-#graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
+#graphs figure { margin: 0 auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 #graphs figcaption button {

@@ -8,7 +8,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["web/run.rkt" (make-report rerun-report)]
+ ["web/run.rkt" (make-report rerun-report replot-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
@@ -40,10 +40,12 @@
    [("--seed") int "The random seed to use in point generation"
     (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
-   [("--num-iters") num "The number of iterations of the main loop to use"
+   [("--num-iters") num "The number of iterations to use for the main loop"
     (*num-iterations* (string->number num))]
-   [("--num-points") num "The number of points to use"
+   [("--num-points") num "The number of points to use during sampling"
     (*num-points* (string->number num))]
+   [("--num-enodes") num "The number of enodes to use during simplification"
+    (*node-limit* (string->number num))]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
     (define tf (parse-flag flag))
@@ -108,13 +110,15 @@
      (set! report-profile? true)]
     #:args (input output)
     (rerun-report input #:dir output #:profile report-profile? #:debug report-debug? #:note report-note #:threads threads)]
+   [replot "Regenerate plots for an HTML report"
+    #:args (input output)
+    (replot-report input #:dir output)]
 
    #:args files
-   (begin
-     (match files
-       ['()
-        (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
-        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
-       [(cons tool _)
-        (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
-        (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]))))
+   (match files
+     ['()
+      (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+     [(cons tool _)
+      (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)])))

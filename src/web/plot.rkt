@@ -2,7 +2,7 @@
 
 (require math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../interface.rkt" "../formats/test.rkt" "../core/regimes.rkt" 
+         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot)
@@ -115,7 +115,7 @@
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (apply x pt) (+ (ulps->bits err) (random) -1/2)))
+      (vector (apply x pt) (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)

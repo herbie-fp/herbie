@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../points.rkt"
-         "../interface.rkt")
+         "../interface.rkt" "../timeline.rkt")
 
 (provide
  (contract-out
@@ -36,15 +36,6 @@
              (hash initial-alt (for/list ([(pt ex) (in-pcontext context)]) pt))
              (hash initial-alt #f)
              context))
-
-(define (atab-add-altns atab altns repr)
-  (define prog-set (map alt-program (hash-keys (alt-table-alt->points atab))))
-  (define altns*
-    (filter
-     (negate (compose (curry set-member? prog-set) alt-program))
-     (remove-duplicates altns #:key alt-program)))
-  (for/fold ([atab atab]) ([altn altns*])
-    (atab-add-altn atab altn repr)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
@@ -190,6 +181,16 @@
    [alts->done?* (hash-remove* (alt-table-alt->done? atab)
              altns)])
     (alt-table pnts->alts* alts->pnts* alts->done?* (alt-table-context atab))))
+
+(define (atab-add-altns atab altns repr)
+  (define prog-set (list->set (map alt-program (hash-keys (alt-table-alt->points atab)))))
+  (define altns*
+    (filter
+     (negate (compose (curry set-member? prog-set) alt-program))
+     (remove-duplicates altns #:key alt-program)))
+  (timeline-log! 'filtered (list (length altns*) (length altns)))
+  (for/fold ([atab atab]) ([altn altns*])
+    (atab-add-altn atab altn repr)))
 
 (define (atab-add-altn atab altn repr)
   (define errs (errors (alt-program altn) (alt-table-context atab) repr))

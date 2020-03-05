@@ -6,6 +6,8 @@ demo.log
 *.class
 infra/cost
 previous
+regraph
 *.swp
 plugins
 egg-herbie
+.DS_Store
