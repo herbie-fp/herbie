@@ -84,7 +84,7 @@
     (for ([phase phases] #:when phase) (phase rg))
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
-  (log rg 'done)
+  (log rg "done")
   (map unmunge (regraph-extract rg)))
 
 (define-syntax-rule (egg method)
@@ -119,7 +119,7 @@
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (for/and ([iter (in-naturals 0)])
-    (define old-cnt ((egg egraph-get-size) egg-graph))
+    (define old-cnt ((egg egraph-get-size )egg-graph))
     ((egg egraph-run-iter) egg-graph node-limit ffi-rules precompute?)
     (timeline-cost iter)
     (define cnt ((egg egraph-get-size) egg-graph))
