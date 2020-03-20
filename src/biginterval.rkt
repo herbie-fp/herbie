@@ -97,16 +97,6 @@
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
 
-;; movable because the check that led to their use might change
-(define -inf.endpoint (endpoint -inf.bf #f))
-(define -1.endpoint (endpoint -1.bf #f))
-(define 0.endpoint (endpoint 0.bf #f))
-(define half.endpoint (endpoint half.bf #f))
-(define 1.endpoint (endpoint 1.bf #f))
-(define 2.endpoint (endpoint 2.bf #f))
-(define +inf.endpoint (endpoint +inf.bf #f))
-(define +nan.endpoint (endpoint +nan.bf #f))
-
 (define max-bf-rounded-down
   (parameterize ([bf-precision 80])
     (rnd 'down bfexp (bf 9999999999999999))))
@@ -144,10 +134,10 @@
   (or a b))
 
 (define (ival-pi)
-  (ival (rnd 'down e-compute pi.bf) (rnd 'up e-compute pi.bf) #f #f))
+  (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf)) #f #f))
 
 (define (ival-e)
-  (ival (rnd 'down e-compute bfexp 1.endpoint) (rnd 'up e-compute bfexp 1.endpoint) #f #f))
+  (ival (endpoint (rnd 'down bfexp 1.bf) #f) (endpoint (rnd 'up bfexp 1.bf) #f) #f #f))
 
 (define (ival-bool b)
   (ival (endpoint b #t) (endpoint b #t) #f #f))
@@ -302,12 +292,12 @@
      (ival (endpoint -inf.bf immovable?)
            (endpoint +inf.bf immovable?)
            err? err)]
-    [(1 1) (mkdiv (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) all-strong-0?)]
-    [(1 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) all-strong-0?)]
-    [(-1 1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) all-strong-0?)]
+    [( 1  1) (mkdiv (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) all-strong-0?)]
+    [( 1 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) all-strong-0?)]
+    [(-1  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) all-strong-0?)]
     [(-1 -1) (mkdiv (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) all-strong-0?)]
-    [(0 1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) all-weak-0?)]
-    [(0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) all-weak-0?)]))
+    [( 0  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) all-weak-0?)]
+    [( 0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) all-weak-0?)]))
 
 ;; Also detects for overflow to decide that endpoints are immovable
 (define-syntax-rule (define-monotonic name bffn overflow-threshold)
@@ -403,20 +393,20 @@
      (define neg-range
        (cond
          [(bflt? (endpoint-val b) (endpoint-val a))
-          (ival +nan.endpoint +nan.endpoint #t #t)]
+          (ival (endpoint +nan.bf #f) (endpoint +nan.bf #f) #t #t)]
          [(bf=? (endpoint-val a) (endpoint-val b))
           (ival (rnd-endpoint 'down bfexpt (ival-lo x) a) (rnd-endpoint 'up bfexpt (ival-hi x) a) err? err)]
          [(bfodd? (endpoint-val b))
           (ival (rnd-endpoint 'down bfexpt (ival-lo x) b)
                 (rnd-endpoint 'up bfmax2
-                              (e-compute bfexpt (ival-hi x) (e-compute bfsub b 1.endpoint))
-                              (e-compute bfexpt (ival-lo x) (e-compute bfsub b 1.endpoint))) err? err)]
+                              (e-compute bfexpt (ival-hi x) (e-compute bfsub b (endpoint 1.bf #f)))
+                              (e-compute bfexpt (ival-lo x) (e-compute bfsub b (endpoint 1.bf #f)))) err? err)]
          [(bfeven? (endpoint-val b))
-          (ival (rnd-endpoint 'down bfexpt (ival-lo x) (e-compute  bfsub b 1.endpoint))
+          (ival (rnd-endpoint 'down bfexpt (ival-lo x) (e-compute  bfsub b (endpoint 1.bf #f)))
                 (rnd-endpoint 'up bfmax2 (e-compute bfexpt (ival-hi x) b) (e-compute bfexpt (ival-lo x) b)) err? err)]
-         [else (ival +nan.endpoint +nan.endpoint #t #t)]))
+         [else (ival (endpoint +nan.bf #f) (endpoint +nan.bf #f) #t #t)]))
      (if (bfgt? (ival-hi-val x) 0.bf)
-         (ival-union neg-range (ival-pow (ival 0.endpoint (ival-hi x) err? err) y))
+         (ival-union neg-range (ival-pow (ival (endpoint 0.bf #f) (ival-hi x) err? err) y))
          neg-range)]))
 
 (define (ival-fma a b c)
@@ -452,14 +442,14 @@
     (ival (rnd 'down e-compute bfcos (ival-lo x))
           (rnd 'up e-compute bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival -1.endpoint
+    (ival (endpoint -1.bf #f)
           (rnd 'up e-compute bfmax2 (e-compute bfcos (ival-lo x)) (e-compute bfcos (ival-hi x)))
           (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
     (ival (rnd 'down e-compute bfmin2 (e-compute bfcos (ival-lo x)) (e-compute bfcos (ival-hi x)))
-          1.endpoint (ival-err? x) (ival-err x))]
+          (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
    [else
-    (ival -1.endpoint 1.endpoint (ival-err? x) (ival-err x))]))
+    (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
 
 (define (ival-sin x)
   (define lopi (rnd 'down pi.bf))
@@ -473,11 +463,11 @@
     [(and (bf=? a b) (bfodd? a))
      (ival (rnd 'down e-compute bfsin (ival-lo x)) (rnd 'up e-compute bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival -1.endpoint (rnd 'up e-compute bfmax2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+     (ival (endpoint -1.bf #f) (rnd 'up e-compute bfmax2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (rnd 'down e-compute bfmin2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) 1.endpoint (ival-err? x) (ival-err x))]
+     (ival (rnd 'down e-compute bfmin2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
     [else
-     (ival -1.endpoint 1.endpoint (ival-err? x) (ival-err x))]))
+     (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
 
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
@@ -534,7 +524,7 @@
       (if (bfgt? (bfneg (ival-lo-val x)) (ival-hi-val x))
           (e-compute bfneg (ival-lo x))
           (ival-hi x)))
-    (ival 0.endpoint top
+    (ival (endpoint 0.bf #f) top
           (ival-err? x) (ival-err x))]))
 
 (define-monotonic ival-sinh bfsinh +inf.bf)
@@ -548,7 +538,7 @@
 (define-monotonic ival-asinh bfasinh +inf.bf)
 
 (define (ival-acosh x)
-  (ival (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) 1.endpoint))
+  (ival (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) (endpoint 1.bf #f)))
         (rnd 'up e-compute bfacosh (ival-hi x))
         (or (bflte? (ival-lo-val x) 1.bf) (ival-err? x))
         (or (bflt? (ival-hi-val x) 1.bf) (ival-err x))
@@ -567,8 +557,8 @@
 
   (cond
    [(bf=? (endpoint-val a) (endpoint-val b)) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? (endpoint-val b) 0.bf) (ival (e-compute bfneg (ival-hi y*)) 0.endpoint err? err)]
-   [(bfgte? (endpoint-val a) 0.bf) (ival 0.endpoint (ival-hi y*) err? err)]
+   [(bflte? (endpoint-val b) 0.bf) (ival (e-compute bfneg (ival-hi y*)) (endpoint 0.bf #f) err? err)]
+   [(bfgte? (endpoint-val a) 0.bf) (ival (endpoint 0.bf #f) (ival-hi y*) err? err)]
    [else (ival (e-compute bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
 
 (define (ival-remainder x y)
