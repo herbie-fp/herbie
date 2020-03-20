@@ -155,27 +155,27 @@
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (e-compute #:check [check (const false)] op . args)
   (define args-bf (map endpoint-val args))
-  (define result (apply op args-bf))
-  (define immovable?
-    ;; Inputs don't move and the rounding doesn't affect things
-    (and (andmap endpoint-immovable? args) (exact-result? op args-bf result)))
+  (define-values (result exact?) (bf-return-exact? op args-bf))
+
+  ;; Inputs don't move and the rounding doesn't affect things
+  (define immovable? (and (andmap endpoint-immovable? args) exact?))
   (endpoint result (or immovable? (check args))))
 
-(define (exact-result? op args result)
-  ;; Racket does not provide access to the MPFR "inexact" exception;
-  ;; thus, to determine if an MPFR result is exact, we compute it
-  ;; twice in opposite rounding modes. It's not ideal but it works.
-  ;; Since that can be very slow, we always return "false" when more
-  ;; than 80 bits are used.
-  (cond
-   [(> (bf-precision) 80)
-    false]
-   [else
-    (define other-mode (if (equal? (bf-rounding-mode) 'up) 'down 'up))
-    (define other-result
-      (parameterize ([bf-rounding-mode other-mode])
-        (apply op args)))
-    (equal-or-bf=? result other-result)]))
+;; Some hairy code follows to access the MPFR "inexact" exception.
+;; It assumes no one else cares about the flag, so it clobbers it.
+(module hairy racket/base
+  (require ffi/unsafe math/private/bigfloat/mpfr)
+  (provide mpfr_clear_inexflag mpfr_get_inexflag)
+  (define mpfr_clear_inexflag (get-mpfr-fun 'mpfr_clear_inexflag (_fun -> _void)))
+  (define mpfr_get_inexflag (get-mpfr-fun 'mpfr_inexflag_p (_fun -> _int))))
+(require (submod "." hairy))
+
+(define (bf-return-exact? op args)
+  (mpfr_clear_inexflag)
+  (define out (apply op args))
+  (define exact? (= (mpfr_get_inexflag) 0))
+  (values out exact?))
+;; End hairy code
 
 (define all-strong? (curry ormap strong-immovable-endpoint?))
 (define all-strong-0? (curry ormap strong-immovable-endpoint-0?))
