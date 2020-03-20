@@ -289,7 +289,7 @@
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
   (define err (or (ival-err x) (ival-err y) (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
 
-  (define (mk-div a b c d check)
+  (define (mkdiv a b c d check)
     (ival (rnd 'down e-compute #:check check bfdiv a b) (rnd 'up e-compute #:check check bfdiv c d) err? err))
   
     ;; We round only down, and approximate rounding up with bfnext below
@@ -304,7 +304,7 @@
            err? err)]
     [(1 1) (mkdiv (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) all-strong-0?)]
     [(1 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) all-strong-0?)]
-    [(-1 1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) all-strong-0?)]
+    [(-1 1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) all-strong-0?)]
     [(-1 -1) (mkdiv (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) all-strong-0?)]
     [(0 1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) all-weak-0?)]
     [(0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) all-weak-0?)]))
@@ -354,15 +354,15 @@
 
 (define-monotonic-positive ival-sqrt bfsqrt)
 
-(define-monotonic ival-cbrt bfcbrt)
+(define-monotonic ival-cbrt bfcbrt +inf.bf)
 
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
   (define x* (ival-fabs x))
   (define y* (ival-fabs y))
-  (ival (rnd 'down #:check all-strong? bfhypot (ival-lo x*) (ival-lo y*))
-        (rnd 'up   #:check all-strong? bfhypot (ival-hi x*) (ival-hi y*))
+  (ival (rnd 'down e-compute #:check all-strong? bfhypot (ival-lo x*) (ival-lo y*))
+        (rnd 'up   e-compute #:check all-strong? bfhypot (ival-hi x*) (ival-hi y*))
         err? err))
 
 (define (ival-pow x y)
@@ -482,7 +482,7 @@
 (define (ival-tan x)
   (ival-div (ival-sin x) (ival-cos x)))
 
-(define-monotonic ival-atan bfatan)
+(define-monotonic ival-atan bfatan +inf.bf)
 
 (define (classify-ival x)
   (cond [(bfgte? (ival-lo-val x) 0.bf) 1] [(bflte? (ival-hi-val x) 0.bf) -1] [else 0]))
@@ -537,15 +537,15 @@
     (ival 0.endpoint top
           (ival-err? x) (ival-err x))]))
 
-(define-monotonic ival-sinh bfsinh)
+(define-monotonic ival-sinh bfsinh +inf.bf)
 
 (define (ival-cosh x)
   (define y (ival-fabs x))
   (ival (rnd 'down e-compute bfcosh (ival-lo y))
         (rnd 'up e-compute bfcosh (ival-hi y)) (ival-err? y) (ival-err y)))
 
-(define-monotonic ival-tanh bftanh)
-(define-monotonic ival-asinh bfasinh)
+(define-monotonic ival-tanh bftanh +inf.bf)
+(define-monotonic ival-asinh bfasinh +inf.bf)
 
 (define (ival-acosh x)
   (ival (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) 1.endpoint))
@@ -554,7 +554,7 @@
         (or (bflt? (ival-hi-val x) 1.bf) (ival-err x))
 ))
 
-(define-monotonic ival-atanh bfatanh)
+(define-monotonic ival-atanh bfatanh +inf.bf)
 
 (define (ival-fmod x y)
   (define y* (ival-fabs y))
