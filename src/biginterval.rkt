@@ -162,76 +162,58 @@
   (parameterize ([bf-rounding-mode mode])
     (e-compute op args ...)))
 
-(define (e-compute-no-check op . args)
-  (let ([result (apply op (map (lambda (x)
-                                 (endpoint-val x)) args))])
-    (endpoint result #f)))
-
 ;; This function computes and propagates the immovable? flag for endpoints
-;; Only do this when precision is low, since it has to compute twice
-(define (e-compute op . args)
+(define (e-compute #:check [check (const false)] op . args)
+  (define args-bf (map endpoint-val args))
+  (define result (apply op args-bf))
+  (define immovable?
+    ;; Inputs don't move and the rounding doesn't affect things
+    (and (andmap endpoint-immovable? args) (exact-result? op args-bf result)))
+  (endpoint result (or immovable? (check args))))
+
+(define (exact-result? op args result)
+  ;; Racket does not provide access to the MPFR "inexact" exception;
+  ;; thus, to determine if an MPFR result is exact, we compute it
+  ;; twice in opposite rounding modes. It's not ideal but it works.
+  ;; Since that can be very slow, we always return "false" when more
+  ;; than 80 bits are used.
   (cond
-    [(> (bf-precision) 80)
-     (apply e-compute-no-check (cons op args))]
-    [else
-     (define args-bf (map (lambda (x)
-                            (endpoint-val x)) args))
-     (define result (apply op args-bf))
-     (define other-result
-       (parameterize ([bf-rounding-mode
-                       (if (equal? (bf-rounding-mode) 'up) 'down 'up)])
-         (apply op args-bf)))
-     (endpoint result
-               ;; if one of the values is special, the result is always immovable
-               (and (andmap endpoint-immovable? args)
-                    ;; make sure not affected by rounding
-                    (equal-or-bf=? result other-result)))]))
+   [(> (bf-precision) 80)
+    false]
+   [else
+    (define other-mode (if (equal? (bf-rounding-mode) 'up) 'down 'up))
+    (define other-result
+      (parameterize ([bf-rounding-mode other-mode])
+        (apply op args)))
+    (equal-or-bf=? result other-result)]))
 
-(define-syntax-rule (e-compute-wrap op args args-check)
-  (let ([result (apply e-compute (cons op args))])
-    (endpoint (endpoint-val result)
-              (or (endpoint-immovable? result)
-                  args-check))))
-
-;; When we know no branches in a function will change,
-;; we can check for strong immovable endpoints and propogate the immovable flag
-(define (e-compute-strong op . args)
-  (e-compute-wrap op args (ormap strong-immovable-endpoint? args)))
-
-;; add 0 as a strong endpoint
-(define (e-compute-strong-0 op . args)
-  (e-compute-wrap op args (ormap strong-immovable-endpoint-0? args)))
-
-;; add 0 as a strong endpoint
-(define (e-compute-strong-first-0 op . args)
-  (e-compute-wrap op args (strong-immovable-endpoint-0? (first args))))
-
-;; used when a immovable 0 implies that no conditions will change
-(define (e-compute-weak-0 op . args)
-  (e-compute-wrap op args (ormap immovable-0? args)))
+(define all-strong? (curry ormap strong-immovable-endpoint?))
+(define all-strong-0? (curry ormap strong-immovable-endpoint-0?))
+(define first-strong-0? (compose strong-immovable-endpoint-0? first))
+(define all-weak-0? (curry ormap immovable-0?))
 
 (define-syntax-rule (rnd-endpoint-strong mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute-strong op args ...)))
+    (e-compute #:check all-strong? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-strong-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute-strong-0 op args ...)))
+    (e-compute #:check all-strong-0? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-weak-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute-weak-0 op args ...)))
+    (e-compute #:check all-weak-0? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-strong-first-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute-strong-first-0 op args ...)))
+    (e-compute #:check first-strong-0? op args ...)))
 
 
 (define (ival-neg x)
   ;; No rounding, negation is exact
   (ival
-   (e-compute-strong bfneg (ival-hi x))
-   (e-compute-strong bfneg (ival-lo x))
+   (e-compute #:check all-strong? bfneg (ival-hi x))
+   (e-compute #:check all-strong? bfneg (ival-lo x))
    (ival-err? x) (ival-err x)))
 
 (define (ival-add x y)
@@ -305,15 +287,16 @@
     [(0 -1)
      (ival (rnd-endpoint-strong-first-0 'down bfmul (ival-hi x) (ival-lo y))
            (rnd-endpoint-strong-first-0 'up bfmul (ival-lo x) (ival-lo y)) err? err)]
-    [(0 0) ; The "else" case is always correct, but is slow
-     ;; We round only down, and approximate rounding up with bfnext below
-     (define opts
-      (rnd 'down list
-           (e-compute-weak-0 bfmul (ival-lo x) (ival-lo y))
-           (e-compute-weak-0 bfmul (ival-hi x) (ival-lo y))
-           (e-compute-weak-0 bfmul (ival-lo x) (ival-hi y))
-           (e-compute-weak-0 bfmul (ival-hi x) (ival-hi y))))
-    (ival (apply endpoint-min* opts) (e-compute bfnext (apply endpoint-max* opts)) err? err)]))
+    [(0 0)
+     (define lo
+      (rnd 'up endpoint-min2
+           (e-compute #:check all-weak-0? bfmul (ival-hi x) (ival-lo y))
+           (e-compute #:check all-weak-0? bfmul (ival-lo x) (ival-hi y))))
+     (define hi
+      (rnd 'down endpoint-max2
+           (e-compute #:check all-weak-0? bfmul (ival-lo x) (ival-lo y))
+           (e-compute #:check all-weak-0? bfmul (ival-hi x) (ival-hi y))))
+    (ival lo hi err? err)]))
 
 (define (ival-div x y)
   (define err? (or (ival-err? x) (ival-err? y) (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
@@ -350,12 +333,12 @@
     [(_ _)
      (define opts
        (rnd 'down list
-            (e-compute-weak-0 bfdiv (ival-lo x) (ival-lo y))
-            (e-compute-weak-0 bfdiv (ival-hi x) (ival-lo y))
-            (e-compute-weak-0 bfdiv (ival-lo x) (ival-hi y))
-            (e-compute-weak-0 bfdiv (ival-hi x) (ival-hi y))))
+            (e-compute #:check all-weak-0? bfdiv (ival-lo x) (ival-lo y))
+            (e-compute #:check all-weak-0? bfdiv (ival-hi x) (ival-lo y))
+            (e-compute #:check all-weak-0? bfdiv (ival-lo x) (ival-hi y))
+            (e-compute #:check all-weak-0? bfdiv (ival-hi x) (ival-hi y))))
      (ival (apply endpoint-min* opts)
-           (e-compute-weak-0 bfnext (apply endpoint-max* opts)) err? err)]))
+           (e-compute #:check all-weak-0? bfnext (apply endpoint-max* opts)) err? err)]))
 
 ;; Also detects for overflow to decide that endpoints are immovable
 (define-syntax-rule (define-monotonic name bffn overflow-threshold)
@@ -484,8 +467,8 @@
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (e-compute-strong not (ival-hi x))
-        (e-compute-strong not (ival-lo x))
+  (ival (e-compute #:check all-strong? not (ival-hi x))
+        (e-compute #:check all-strong? not (ival-lo x))
         (ival-err? x)
         (ival-err x)))
 
@@ -579,7 +562,7 @@
   (cond
    [(bfgt? (ival-lo-val x) 0.bf) x]
    [(bflt? (ival-hi-val x) 0.bf)
-    (ival (e-compute-strong bfneg (ival-hi x)) (e-compute-strong bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
+    (ival (e-compute #:check all-strong? bfneg (ival-hi x)) (e-compute #:check all-strong? bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
     (define top
       (if (bfgt? (bfneg (ival-lo-val x)) (ival-hi-val x))
@@ -718,7 +701,7 @@
 (define (ival-union x y)
   (match (ival-lo-val x)
    [(? bigfloat?)
-    (ival (e-compute-strong bfmin2 (ival-lo x) (ival-lo y)) (e-compute-strong bfmax2 (ival-hi x) (ival-hi y))
+    (ival (e-compute #:check all-strong? bfmin2 (ival-lo x) (ival-lo y)) (e-compute #:check all-strong? bfmax2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]
    [(? boolean?)
     (ival (e-compute and-2 (ival-lo x) (ival-lo y))
