@@ -134,7 +134,7 @@
   (or a b))
 
 (define (ival-pi)
-  (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf)) #f #f))
+  (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf) #f) #f #f))
 
 (define (ival-e)
   (ival (endpoint (rnd 'down bfexp 1.bf) #f) (endpoint (rnd 'up bfexp 1.bf) #f) #f #f))
