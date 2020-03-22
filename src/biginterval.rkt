@@ -81,13 +81,6 @@
     [_
      (error "Invalid exact value for interval arithmetic" x)]))
 
-;; necessary because (bf=? +nan.bf +nan.bf) returns false
-(define (equal-or-bf=? a b)
-  (if
-   (and (bigfloat? a) (bigfloat? b))
-   (or (bf=? a b) (equal? a b))
-   (equal? a b)))
-
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
 (define 0.bf (bf 0))
@@ -219,35 +212,15 @@
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
-(define (bfmin* a . as)
-  (if (null? as) a (apply bfmin* (bfmin2 a (car as)) (cdr as))))
-
 (define (endpoint-min2 e1 e2)
   (if (bfgt? (endpoint-val e1) (endpoint-val e2))
       e2
       e1))
 
-(define (endpoint-min* a . as)
-  (if (null? as)
-      a
-      (apply endpoint-min*
-             (endpoint-min2 a (car as))
-             (cdr as))))
-
 (define (endpoint-max2 e1 e2)
   (if (bfgt? (endpoint-val e1) (endpoint-val e2))
       e1
       e2))
-
-(define (endpoint-max* a . as)
-  (if (null? as)
-      a
-      (apply endpoint-max*
-             (endpoint-max2 a (car as))
-             (cdr as))))
-
-(define (bfmax* a . as)
-  (if (null? as) a (apply bfmax* (bfmax2 a (car as)) (cdr as))))
 
 (define (ival-mult x y)
   (define err? (or (ival-err? x) (ival-err? y)))
@@ -732,10 +705,9 @@
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])
       (define pt (sample-double))
-      (void)
-      #;(with-check-info (['point pt])
+      (with-check-info (['point pt])
         (check-pred ival-valid? (mk-ival (bf pt)))
-        #;(check ival-contains? (mk-ival (bf pt)) (bf pt)))))
+        (check ival-contains? (mk-ival (bf pt)) (bf pt)))))
   (define arg1
     (list (cons ival-neg   bfneg)
           (cons ival-fabs  bfabs)
@@ -823,18 +795,16 @@
             (define iy (ival-fn i1 i2))
             (check-pred ival-valid? iy)
             (check ival-contains? iy y))))))
-  
+
   ;; ##################################################### tests for endpoint-immovable
   (define num-immovable-tests (/ num-tests 2))
-  
+
   (define (check-endpoints-consistant result result2)
-    (if (endpoint-immovable? (ival-lo result))
-        (check equal-or-bf=? (ival-lo-val result) (ival-lo-val result2))
-        (void))
-    (if (endpoint-immovable? (ival-hi result))
-        (check equal-or-bf=? (ival-hi-val result) (ival-hi-val result2))
-        (void)))
-  
+    (when (endpoint-immovable? (ival-lo result))
+      (check (disjoin equal? bf=?) (ival-lo-val result) (ival-lo-val result2)))
+    (when (endpoint-immovable? (ival-hi result))
+      (check (disjoin equal? bf=?) (ival-hi-val result) (ival-hi-val result2))))
+
   (define (test-function-overflows ival-fn fn num-of-arguments iterations)
     (parameterize ([bf-precision 80])
       (test-case (~a (object-name ival-fn))
@@ -861,10 +831,10 @@
     (test-function-overflows ival-fn fn 1 num-immovable-tests))
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-function-overflows ival-fn fn 2 num-immovable-tests))
-  
+
   (define arg1-list (dict->list arg1))
   (define arg2-list (dict->list arg2))
-  
+
   ;; test endpoint-immovable also works with compoisition of functions
   (for ([n (in-range 20)])
     (define func1 (list-ref arg1-list (random 0 (length arg1-list))))
