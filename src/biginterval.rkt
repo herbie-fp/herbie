@@ -170,22 +170,22 @@
   (values out exact?))
 ;; End hairy code
 
-(define all-strong? (curry ormap strong-immovable-endpoint?))
-(define all-strong-0? (curry ormap strong-immovable-endpoint-0?))
+(define any-strong? (curry ormap strong-immovable-endpoint?))
+(define any-strong-0? (curry ormap strong-immovable-endpoint-0?))
 (define first-strong-0? (compose strong-immovable-endpoint-0? first))
-(define all-weak-0? (curry ormap immovable-0?))
+(define any-weak-0? (curry ormap immovable-0?))
 
 (define-syntax-rule (rnd-endpoint-strong mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check all-strong? op args ...)))
+    (e-compute #:check any-strong? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-strong-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check all-strong-0? op args ...)))
+    (e-compute #:check any-strong-0? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-weak-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check all-weak-0? op args ...)))
+    (e-compute #:check any-weak-0? op args ...)))
 
 (define-syntax-rule (rnd-endpoint-strong-first-0 mode op args ...)
   (parameterize ([bf-rounding-mode mode])
@@ -195,20 +195,20 @@
 (define (ival-neg x)
   ;; No rounding, negation is exact
   (ival
-   (e-compute #:check all-strong? bfneg (ival-hi x))
-   (e-compute #:check all-strong? bfneg (ival-lo x))
+   (e-compute bfneg (ival-hi x))
+   (e-compute bfneg (ival-lo x))
    (ival-err? x) (ival-err x)))
 
 (define (ival-add x y)
   (ival
-   (rnd 'down e-compute #:check all-strong? bfadd (ival-lo x) (ival-lo y))
-   (rnd 'up   e-compute #:check all-strong? bfadd (ival-hi x) (ival-hi y))
+   (rnd 'down e-compute #:check any-strong? bfadd (ival-lo x) (ival-lo y))
+   (rnd 'up   e-compute #:check any-strong? bfadd (ival-hi x) (ival-hi y))
    (or (ival-err? x) (ival-err? y))
    (or (ival-err x) (ival-err y))))
 
 (define (ival-sub x y)
-  (ival (rnd 'down e-compute #:check all-strong? bfsub (ival-lo x) (ival-hi y))
-        (rnd 'up   e-compute #:check all-strong? bfsub (ival-hi x) (ival-lo y))
+  (ival (rnd 'down e-compute #:check any-strong? bfsub (ival-lo x) (ival-hi y))
+        (rnd 'up   e-compute #:check any-strong? bfsub (ival-hi x) (ival-lo y))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -229,23 +229,23 @@
     (ival (rnd 'down e-compute #:check check bfmul a b)
           (rnd 'up   e-compute #:check check bfmul c d) err? err))
   (match* ((classify-ival x) (classify-ival y))
-    [( 1  1) (mk-mult (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) all-strong-0?)]
-    [( 1 -1) (mk-mult (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) all-strong-0?)]
+    [( 1  1) (mk-mult (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) any-strong-0?)]
+    [( 1 -1) (mk-mult (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) any-strong-0?)]
     [( 1  0) (mk-mult (ival-lo y) (ival-hi x) (ival-hi y) (ival-hi x) first-strong-0?)]
     [(-1  0) (mk-mult (ival-hi y) (ival-lo x) (ival-lo y) (ival-lo x) first-strong-0?)]
-    [(-1  1) (mk-mult (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) all-strong-0?)]
-    [(-1 -1) (mk-mult (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) all-strong-0?)]
+    [(-1  1) (mk-mult (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) any-strong-0?)]
+    [(-1 -1) (mk-mult (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) any-strong-0?)]
     [( 0  1) (mk-mult (ival-lo x) (ival-hi y) (ival-hi x) (ival-hi y) first-strong-0?)]
     [( 0 -1) (mk-mult (ival-hi x) (ival-lo y) (ival-lo x) (ival-lo y) first-strong-0?)]
     [( 0  0)
      (define lo
       (rnd 'up endpoint-min2
-           (e-compute #:check all-weak-0? bfmul (ival-hi x) (ival-lo y))
-           (e-compute #:check all-weak-0? bfmul (ival-lo x) (ival-hi y))))
+           (e-compute #:check any-weak-0? bfmul (ival-hi x) (ival-lo y))
+           (e-compute #:check any-weak-0? bfmul (ival-lo x) (ival-hi y))))
      (define hi
       (rnd 'down endpoint-max2
-           (e-compute #:check all-weak-0? bfmul (ival-lo x) (ival-lo y))
-           (e-compute #:check all-weak-0? bfmul (ival-hi x) (ival-hi y))))
+           (e-compute #:check any-weak-0? bfmul (ival-lo x) (ival-lo y))
+           (e-compute #:check any-weak-0? bfmul (ival-hi x) (ival-hi y))))
     (ival lo hi err? err)]))
 
 (define (ival-div x y)
@@ -265,18 +265,18 @@
      (ival (endpoint -inf.bf immovable?)
            (endpoint +inf.bf immovable?)
            err? err)]
-    [( 1  1) (mkdiv (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) all-strong-0?)]
-    [( 1 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) all-strong-0?)]
-    [(-1  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) all-strong-0?)]
-    [(-1 -1) (mkdiv (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) all-strong-0?)]
-    [( 0  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) all-weak-0?)]
-    [( 0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) all-weak-0?)]))
+    [( 1  1) (mkdiv (ival-lo x) (ival-hi y) (ival-hi x) (ival-lo y) any-strong-0?)]
+    [( 1 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-lo y) any-strong-0?)]
+    [(-1  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-hi y) any-strong-0?)]
+    [(-1 -1) (mkdiv (ival-hi x) (ival-lo y) (ival-lo x) (ival-hi y) any-strong-0?)]
+    [( 0  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) any-weak-0?)]
+    [( 0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) any-weak-0?)]))
 
 ;; Also detects for overflow to decide that endpoints are immovable
 (define-syntax-rule (define-monotonic name bffn overflow-threshold)
   (define (name x)
-    (let ([low (rnd 'down e-compute #:check all-strong? bffn (ival-lo x))]
-          [high (rnd 'up e-compute #:check all-strong? bffn (ival-hi x))])
+    (let ([low (rnd 'down e-compute #:check any-strong? bffn (ival-lo x))]
+          [high (rnd 'up e-compute #:check any-strong? bffn (ival-hi x))])
       (ival (endpoint (endpoint-val low)
                       (or (endpoint-immovable? low)
                           (bflte? (ival-hi-val x) (bfneg overflow-threshold))))
@@ -301,8 +301,8 @@
   (define (name x)
     (define err (or (ival-err x) (bflte? (ival-hi-val x) 0.bf)))
     (define err? (or err (ival-err? x) (bflte? (ival-lo-val x) 0.bf)))
-    (ival (rnd 'down e-compute #:check all-strong? bffn (ival-lo x))
-          (rnd 'up   e-compute #:check all-strong? bffn (ival-hi x)) err? err)))
+    (ival (rnd 'down e-compute #:check any-strong? bffn (ival-lo x))
+          (rnd 'up   e-compute #:check any-strong? bffn (ival-hi x)) err? err)))
 
 (define-monotonic-positive ival-log bflog)
 (define-monotonic-positive ival-log2 bflog2)
@@ -311,8 +311,8 @@
 (define (ival-log1p x)
   (define err (or (ival-err x) (bflte? (ival-hi-val x) -1.bf)))
   (define err? (or err (ival-err? x) (bflte? (ival-lo-val x) -1.bf)))
-  (ival (rnd 'down e-compute #:check all-strong? bflog1p (ival-lo x))
-        (rnd 'up   e-compute #:check all-strong? bflog1p (ival-hi x))
+  (ival (rnd 'down e-compute #:check any-strong? bflog1p (ival-lo x))
+        (rnd 'up   e-compute #:check any-strong? bflog1p (ival-hi x))
         err? err))
 
 (define-monotonic-positive ival-sqrt bfsqrt)
@@ -324,8 +324,8 @@
   (define err (or (ival-err x) (ival-err y)))
   (define x* (ival-fabs x))
   (define y* (ival-fabs y))
-  (ival (rnd 'down e-compute #:check all-strong? bfhypot (ival-lo x*) (ival-lo y*))
-        (rnd 'up   e-compute #:check all-strong? bfhypot (ival-hi x*) (ival-hi y*))
+  (ival (rnd 'down e-compute #:check any-strong? bfhypot (ival-lo x*) (ival-lo y*))
+        (rnd 'up   e-compute #:check any-strong? bfhypot (ival-hi x*) (ival-hi y*))
         err? err))
 
 (define (ival-pow x y)
@@ -396,8 +396,8 @@
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (e-compute #:check all-strong? not (ival-hi x))
-        (e-compute #:check all-strong? not (ival-lo x))
+  (ival (e-compute #:check any-strong? not (ival-hi x))
+        (e-compute #:check any-strong? not (ival-lo x))
         (ival-err? x)
         (ival-err x)))
 
@@ -491,7 +491,7 @@
   (cond
    [(bfgt? (ival-lo-val x) 0.bf) x]
    [(bflt? (ival-hi-val x) 0.bf)
-    (ival (e-compute #:check all-strong? bfneg (ival-hi x)) (e-compute #:check all-strong? bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
+    (ival (e-compute #:check any-strong? bfneg (ival-hi x)) (e-compute #:check any-strong? bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
     (define top
       (if (bfgt? (bfneg (ival-lo-val x)) (ival-hi-val x))
@@ -555,13 +555,13 @@
 (define-monotonic ival-trunc bftruncate +inf.bf)
 
 (define (ival-erf x)
-  (ival (rnd 'down e-compute #:check all-strong? bferf (ival-lo x))
-        (rnd 'up e-compute #:check all-strong? bferf (ival-hi x))
+  (ival (rnd 'down e-compute #:check any-strong? bferf (ival-lo x))
+        (rnd 'up e-compute #:check any-strong? bferf (ival-hi x))
         (ival-err? x) (ival-err x)))
 
 (define (ival-erfc x)
-  (ival (rnd 'down e-compute #:check all-strong? bferfc (ival-hi x))
-        (rnd 'up   e-compute #:check all-strong? bferfc (ival-lo x))
+  (ival (rnd 'down e-compute #:check any-strong? bferfc (ival-hi x))
+        (rnd 'up   e-compute #:check any-strong? bferfc (ival-lo x))
         (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
@@ -631,7 +631,8 @@
 (define (ival-union x y)
   (match (ival-lo-val x)
    [(? bigfloat?)
-    (ival (e-compute #:check all-strong? bfmin2 (ival-lo x) (ival-lo y)) (e-compute #:check all-strong? bfmax2 (ival-hi x) (ival-hi y))
+    (ival (e-compute #:check any-strong? bfmin2 (ival-lo x) (ival-lo y))
+          (e-compute #:check any-strong? bfmax2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]
    [(? boolean?)
     (ival (e-compute and-2 (ival-lo x) (ival-lo y))
