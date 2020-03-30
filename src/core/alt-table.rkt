@@ -33,7 +33,7 @@
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext context)]
                           [err (errors (alt-program initial-alt) context repr)])
-                 (cons pt (point-rec err (prog-cost (alt-program initial-alt)) (list initial-alt)))))
+                 (cons pt (point-rec err (alt-cost initial-alt) (list initial-alt)))))
              (hash initial-alt (for/list ([(pt ex) (in-pcontext context)]) pt))
              (hash initial-alt #f)
              context))
@@ -118,7 +118,7 @@
    points->alts
    (for/hash ([pnt pnts])
      (values pnt (point-rec (hash-ref pnt->alt-err pnt)
-                            (prog-cost (alt-program altn))
+                            (alt-cost altn)
                             (list altn))))
    #:combine (λ (a b) b)))
 
@@ -127,7 +127,7 @@
    points->alts
    (for/hash ([pnt pnts])
      (match-define (point-rec berr cost altns) (hash-ref points->alts pnt))
-     (values pnt (point-rec berr (min (prog-cost (alt-program altn)) cost) (cons altn altns))))
+     (values pnt (point-rec berr (min (alt-cost altn) cost) (cons altn altns))))
    #:combine (λ (a b) b)))
 
 (define (expr-cost expr)
@@ -135,8 +135,8 @@
       (apply + 1 (map expr-cost (cdr expr)))
       1))
 
-(define (prog-cost prog)
-  (expr-cost (program-body prog)))
+(define (alt-cost prog)
+  (expr-cost (program-body (alt-program prog))))
 
 (define (minimize-alts atab)
   (define (get-essential pnts->alts)
@@ -157,7 +157,7 @@
       ; since before adding any alts there weren't any tied alts
       (let ([undone-altns (filter (compose not alts->done?) altns)])
         (argmax
-         prog-cost
+         alt-cost
          (argmins (compose length alts->pnts) (if (null? undone-altns) altns undone-altns))))))
 
   (let loop ([cur-atab atab])
@@ -203,7 +203,7 @@
 
 (define (atab-add-altn atab altn repr)
   (define errs (errors (alt-program altn) (alt-table-context atab) repr))
-  (define cost (prog-cost (alt-program altn)))
+  (define cost (alt-cost altn))
   (match-define (alt-table point->alts alt->points _ _) atab)
   (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
