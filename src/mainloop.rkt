@@ -88,7 +88,7 @@
 
 ;; Information
 (define (list-alts)
-  (printf "Key: [.] = done; [>] = chosen\n")
+  (printf "Key: [.] = done, [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
     (for ([alt (atab-all-alts (^table^))]
 	  [n (in-naturals)])
@@ -96,8 +96,9 @@
        (cond [(equal? alt (^next-alt^)) ">"]
              [(set-member? ndone-alts alt) " "]
              [else "."])
-       n
-       alt))))
+       (~r #:min-width 4 n)
+       (program-body (alt-program alt)))))
+  (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
 
 ;; Begin iteration
 (define (choose-alt! n)
