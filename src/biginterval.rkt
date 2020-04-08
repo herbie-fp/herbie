@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require racket/contract racket/match racket/function math/private/bigfloat/mpfr)
-(require "syntax/types.rkt")
 
 (struct endpoint (val immovable?) #:transparent)
 (struct ival (lo hi err? err) #:transparent)
@@ -88,9 +87,6 @@
     [_
      (error "Invalid exact value for interval arithmetic" x)]))
 
-(define (split-ival i x)
-  (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
-
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
 (define 0.bf (bf 0))
@@ -150,6 +146,9 @@
 (define-syntax-rule (rnd mode op args ...)
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
+
+(define (split-ival i x)
+  (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
 
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (e-compute #:check [check (const #f)] op . args)
@@ -217,18 +216,18 @@
   (match-define (ival ylo yhi yerr? yerr) y)
   (define err? (or xerr? yerr?))
   (define err (or xerr yerr))
-  (define (mk-mult a b c d check)
+  (define (mkmult a b c d check)
     (ival (rnd 'down e-compute #:check check bfmul a b)
           (rnd 'up   e-compute #:check check bfmul c d) err? err))
   (match* ((classify-ival x) (classify-ival y))
-    [( 1  1) (mk-mult xlo ylo xhi yhi any-strong-0?)]
-    [( 1 -1) (mk-mult xhi ylo xlo yhi any-strong-0?)]
-    [( 1  0) (mk-mult xhi ylo xhi yhi second-strong-0?)]
-    [(-1  0) (mk-mult xlo yhi xlo ylo second-strong-0?)]
-    [(-1  1) (mk-mult xlo yhi xhi ylo any-strong-0?)]
-    [(-1 -1) (mk-mult xhi yhi xlo ylo any-strong-0?)]
-    [( 0  1) (mk-mult xlo yhi xhi yhi first-strong-0?)]
-    [( 0 -1) (mk-mult xhi ylo xlo ylo first-strong-0?)]
+    [( 1  1) (mkmult xlo ylo xhi yhi any-strong-0?)]
+    [( 1 -1) (mkmult xhi ylo xlo yhi any-strong-0?)]
+    [( 1  0) (mkmult xhi ylo xhi yhi second-strong-0?)]
+    [(-1  0) (mkmult xlo yhi xlo ylo second-strong-0?)]
+    [(-1  1) (mkmult xlo yhi xhi ylo any-strong-0?)]
+    [(-1 -1) (mkmult xhi yhi xlo ylo any-strong-0?)]
+    [( 0  1) (mkmult xlo yhi xhi yhi first-strong-0?)]
+    [( 0 -1) (mkmult xhi ylo xlo ylo first-strong-0?)]
     [( 0  0)
      (define lo
       (rnd 'up endpoint-min2
@@ -300,8 +299,8 @@
 (define (ival-log1p x)
   (define too-low? (bflte? (ival-lo-val x) -1.bf))
   (define err (or (ival-err x) (bflte? (ival-hi-val x) -1.bf)))
-  (define err? (or err (ival-err? x) (bflte? (ival-lo-val x) -1.bf)))
-  (ival (rnd 'down e-compute #:check any-strong? bflog1p (if too-low? (endpoint -1.bf #f) (ival-lo x)))
+  (define err? (or err (ival-err? x) too-low?))
+  (ival (if too-low? (endpoint -inf.bf #f) (rnd 'down e-compute #:check any-strong? bflog1p (ival-lo x)))
         (rnd 'up   e-compute #:check any-strong? bflog1p (ival-hi x))
         err? err))
 
@@ -321,12 +320,6 @@
   (ival (rnd 'down e-compute #:check any-strong? bfhypot (ival-lo x*) (ival-lo y*))
         (rnd 'up   e-compute #:check any-strong? bfhypot (ival-hi x*) (ival-hi y*))
         err? err))
-
-;; a^b is immovable when:
-;; - a is immovably 1;
-;; - a is immovably 0 or inf and power's sign is immovable
-;; - b is immovably 0
-;; - b is immovably -inf or +inf but base is immovably above or below 1
 
 (define (ival-pow-pos x y)
   ;; Assumes x is positive; code copied from ival-mult
@@ -417,8 +410,8 @@
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (e-compute #:check any-strong? not (ival-hi x))
-        (e-compute #:check any-strong? not (ival-lo x))
+  (ival (e-compute not (ival-hi x))
+        (e-compute not (ival-lo x))
         (ival-err? x)
         (ival-err x)))
 
@@ -464,13 +457,18 @@
      (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
 
 (define (ival-tan x)
-  (ival-div (ival-sin x) (ival-cos x)))
+  (define lopi (rnd 'down pi.bf))
+  (define hipi (rnd 'up pi.bf))
+  (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
+  (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi)) half.bf)))
+  (if (bf=? a b) ; Same period
+      (ival (rnd 'down e-compute bftan (ival-lo x)) (rnd 'up e-compute bftan (ival-hi x)) #f #f)
+      (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #t #f)))
 
 (define-monotonic ival-atan bfatan +inf.bf)
 
-(define (classify-ival x [pt 0.bf])
-  (cond [(bfgte? (ival-lo-val x) pt) 1] [(bflte? (ival-hi-val x) pt) -1] [else 0]))
-
+(define (classify-ival x [val 0.bf])
+  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
@@ -520,27 +518,24 @@
    [(bflt? (ival-hi-val x) 0.bf)
     (ival (e-compute #:check any-strong? bfneg (ival-hi x)) (e-compute #:check any-strong? bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
-    (define top
-      (if (bfgt? (bfneg (ival-lo-val x)) (ival-hi-val x))
-          (e-compute bfneg (ival-lo x))
-          (ival-hi x)))
-    (ival (endpoint 0.bf #f) top
+    (ival (endpoint 0.bf #f) (endpoint-max2 (e-compute bfneg (ival-lo x)) (ival-hi x))
           (ival-err? x) (ival-err x))]))
-
-(define-monotonic ival-sinh bfsinh +inf.bf)
 
 (define (ival-cosh x)
   (define y (ival-fabs x))
   (ival (rnd 'down e-compute bfcosh (ival-lo y))
         (rnd 'up e-compute bfcosh (ival-hi y)) (ival-err? y) (ival-err y)))
 
+
+(define-monotonic ival-sinh bfsinh +inf.bf)
 (define-monotonic ival-tanh bftanh +inf.bf)
 (define-monotonic ival-asinh bfasinh +inf.bf)
 
 (define (ival-acosh x)
-  (ival (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) (endpoint 1.bf #f)))
+  (define too-low? (bflt? (ival-lo-val x) 1.bf))
+  (ival (if too-low? (endpoint 0.bf #f) (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) (endpoint 1.bf #f))))
         (rnd 'up e-compute bfacosh (ival-hi x))
-        (or (bflte? (ival-lo-val x) 1.bf) (ival-err? x))
+        (or too-low? (ival-err? x))
         (or (bflt? (ival-hi-val x) 1.bf) (ival-err x))
 ))
 
@@ -686,7 +681,6 @@
 (define ival->= (ival-comparator ival->=2 'ival->=))
 (define ival-== (ival-comparator ival-==2 'ival-==))
 
-
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
   (ival (e-compute or-2 m< m>) (e-compute or-2 c< c>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
@@ -700,7 +694,6 @@
             (ival-and
              (foldl ival-and ival-true (map (curry ival-!=2 head) tail))
              (loop (car tail) (cdr tail)))))))
-
 
 (define (ival-union x y)
   (match (ival-lo-val x)
