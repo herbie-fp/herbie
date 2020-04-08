@@ -1,0 +1,14 @@
+name: Unit Tests
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: raco pkg install --name herbie --no-cache --auto src/
+      - run: raco test src/ infra/
