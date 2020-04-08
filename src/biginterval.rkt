@@ -151,10 +151,6 @@
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
 
-(define-syntax-rule (rnd-endpoint mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (e-compute op args ...)))
-
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (e-compute #:check [check (const #f)] op . args)
   (define args-bf (map endpoint-val args))
@@ -185,23 +181,6 @@
 (define first-strong-0? (compose strong-immovable-endpoint-0? car))
 (define second-strong-0? (compose strong-immovable-endpoint-0? cadr))
 (define any-weak-0? (curry ormap immovable-0?))
-
-(define-syntax-rule (rnd-endpoint-strong mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check any-strong? op args ...)))
-
-(define-syntax-rule (rnd-endpoint-strong-0 mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check any-strong-0? op args ...)))
-
-(define-syntax-rule (rnd-endpoint-weak-0 mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check any-weak-0? op args ...)))
-
-(define-syntax-rule (rnd-endpoint-strong-first-0 mode op args ...)
-  (parameterize ([bf-rounding-mode mode])
-    (e-compute #:check first-strong-0? op args ...)))
-
 
 (define (ival-neg x)
   ;; No rounding, negation is exact
@@ -341,23 +320,6 @@
   (define y* (ival-fabs y))
   (ival (rnd 'down e-compute #:check any-strong? bfhypot (ival-lo x*) (ival-lo y*))
         (rnd 'up   e-compute #:check any-strong? bfhypot (ival-hi x*) (ival-hi y*))
-        err? err))
-
-#;(let ([low
-            (if (bflt? (ival-lo-val x) 1.bf)
-                (rnd-endpoint-strong-0 'down bfexpt (ival-lo x) (ival-hi y))
-                (rnd-endpoint-strong-0 'down bfexpt (ival-lo x) (ival-lo y)))]
-           [high
-            (if (bfgt? (ival-hi-val x) 1.bf)
-                (rnd-endpoint-strong-0 'up bfexpt (ival-hi x) (ival-hi y))
-                (rnd-endpoint-strong-0 'up bfexpt (ival-hi x) (ival-lo y)))])
-       (ival
-        (endpoint (endpoint-val low)
-                  (or (endpoint-immovable? low)
-                      (overflow-down? (endpoint-val high))))
-        (endpoint (endpoint-val high)
-                  (or (endpoint-immovable? high)
-                      (overflow-up? (endpoint-val low))))
         err? err))
 
 ;; a^b is immovable when:
