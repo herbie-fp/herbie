@@ -88,6 +88,9 @@
     [_
      (error "Invalid exact value for interval arithmetic" x)]))
 
+(define (split-ival i x)
+  (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
+
 (define -inf.bf (bf -inf.0))
 (define -1.bf (bf -1))
 (define 0.bf (bf 0))
@@ -587,34 +590,75 @@
         (or too-low? too-high? (ival-err? x))
         (or (bflte? (ival-hi-val x) -1.bf) (bfgte? (ival-lo-val x) 1.bf) (ival-err x))))
 
-(define (ival-fmod x y)
-  (define y* (ival-fabs y))
-  (define quot (ival-div x y*))
-  (define a (rnd-endpoint 'down bftruncate (ival-lo quot)))
-  (define b (rnd-endpoint 'up bftruncate (ival-hi quot)))
-  (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo-val y*) 0.bf)))
-  (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi-val y*) 0.bf)))
-  (define tquot (ival a b err? err))
-
+(define (ival-fmod-pos x y err? err)
+  ;; Assumes both `x` and `y` are entirely positive
+  (define a (rnd 'down bftruncate (bfdiv (ival-lo-val x) (ival-hi-val y))))
+  (define b (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y))))
   (cond
-   [(bf=? (endpoint-val a) (endpoint-val b)) (ival-sub x (ival-mult tquot y*))]
-   [(bflte? (endpoint-val b) 0.bf) (ival (e-compute bfneg (ival-hi y*)) (endpoint 0.bf #f) err? err)]
-   [(bfgte? (endpoint-val a) 0.bf) (ival (endpoint 0.bf #f) (ival-hi y*) err? err)]
-   [else (ival (e-compute bfneg (ival-hi y*)) (ival-hi y*) err? err)]))
+   [(bf=? a b) ; No intersection along `y.hi` edge
+    (define c (rnd 'down bftruncate (bfdiv (ival-hi-val x) (ival-hi-val y))))
+    (define d (rnd 'up bftruncate (bfdiv (ival-hi-val x) (ival-lo-val y))))
+    (cond
+     [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
+      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) #f)
+            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) #f)
+            err? err)]
+     [else
+      (ival (endpoint 0.bf #f) (endpoint (rnd 'up bfdiv (ival-hi-val x) (bfadd c 1.bf)) #f) err? err)])]
+   [else
+    (ival (endpoint 0.bf #f) (ival-hi y) err? err)]))
+
+(define (ival-fmod x y)
+  (define err? (or (ival-err? x) (ival-err? y)
+                   (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
+  (define err (or (ival-err x) (ival-err y)
+                  (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
+  (define y* (ival-fabs y))
+  (cond
+   [(bflte? (ival-hi-val x) 0.bf)
+    (ival-neg (ival-fmod-pos (ival-neg x) y* err? err))]
+   [(bfgte? (ival-lo-val x) 0.bf)
+    (ival-fmod-pos x y* err? err)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
+    (ival-union (ival-fmod-pos pos y* err? err)
+                (ival-neg (ival-fmod-pos (ival-neg neg) y* err? err)))]))
+
+(define (ival-remainder-pos x y err? err)
+  ;; Assumes both `x` and `y` are entirely positive
+  (define a (rnd 'down bfround (bfdiv (ival-lo-val x) (ival-hi-val y))))
+  (define b (rnd 'up bfround (bfdiv (ival-hi-val x) (ival-hi-val y))))
+  (cond
+   [(bf=? a b) ; No intersection along `y.hi` edge
+    (define c (rnd 'down bfround (bfdiv (ival-hi-val x) (ival-hi-val y))))
+    (define d (rnd 'up bfround (bfdiv (ival-hi-val x) (ival-lo-val y))))
+    (cond
+     [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
+      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) #f)
+            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) #f)
+            err? err)]
+     [else
+      (define y* (bfdiv (rnd 'down bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
+      (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)])]
+   [else
+    (define y* (bfdiv (ival-hi-val y) 2.bf))
+    (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)]))
 
 (define (ival-remainder x y)
+  (define err? (or (ival-err? x) (ival-err? y)
+                   (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
+  (define err (or (ival-err x) (ival-err y)
+                  (and (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))
   (define y* (ival-fabs y))
-  (define quot (ival-div x y*))
-  (define a (rnd-endpoint 'down bfround (ival-lo quot)))
-  (define b (rnd-endpoint 'up bfround (ival-hi quot)))
-  (define err? (or (ival-err? x) (ival-err? y) (bf=? (ival-lo-val y*) 0.bf)))
-  (define err (or (ival-err x) (ival-err y) (bf=? (ival-hi-val y*) 0.bf)))
-
-  (if (bf=? (endpoint-val a) (endpoint-val b))
-      (ival-sub x (ival-mult (ival a b err? err) y*))
-      (ival (endpoint (bfneg (bfdiv (ival-hi-val y*) 2.bf)) #f)
-            (endpoint (bfdiv (ival-hi-val y*) 2.bf) #f)
-            err? err)))
+  (cond
+   [(bflte? (ival-hi-val x) 0.bf)
+    (ival-neg (ival-remainder-pos (ival-neg x) y* err? err))]
+   [(bfgte? (ival-lo-val x) 0.bf)
+    (ival-remainder-pos x y* err? err)]
+   [else
+    (define-values (neg pos) (split-ival x 0.bf))
+    (ival-union (ival-remainder-pos pos y* err? err)
+                (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
 
 (define-monotonic ival-rint bfrint +inf.bf)
 (define-monotonic ival-round bfround +inf.bf)
@@ -787,10 +831,6 @@
             (ival-err? ival)
             (and (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
         (or (equal? pt (ival-lo-val ival)) (equal? pt (ival-hi-val ival)))))
-
-  (define (split-ival i x)
-    (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
-
 
   (define (bf-equals? bf1 bf2)
     (if (boolean? bf1)
