@@ -534,7 +534,7 @@
      [else
       (ival (endpoint 0.bf #f) (endpoint (rnd 'up bfdiv (ival-hi-val x) (bfadd c 1.bf)) #f) err? err)])]
    [else
-    (ival (endpoint 0.bf #f) (ival-hi y) err? err)]))
+    (ival (endpoint 0.bf #f) (endpoint (ival-hi-val y) #f) err? err)]))
 
 (define (ival-fmod x y)
   (define err? (or (ival-err? x) (ival-err? y)
@@ -684,21 +684,22 @@
 
   (define num-tests 2500)
 
+  (define (sample-wide-interval)
+    (define v1 (sample-double))
+    (define v2 (sample-double))
+    (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f))
+
+  (define (sample-narrow-interval)
+    (define v1 (bf (sample-double)))
+    (define delta (* (match (random 0 2) [0 -1] [1 1]) (random 0 (expt 2 31))))
+    (define v2 (bfstep v1 delta))
+    (ival (endpoint (bfmin2 v1 v2) #t) (endpoint (bfmax2 v1 v2) #t) #f #f))
+
   (define (sample-interval type)
     (match type
       ['real
-       (if (= (random 0 2) 0)
-           (let ([v1 (sample-double)] [v2 (sample-double)])
-             (if (or (nan? v1) (nan? v2))
-                 (sample-interval type)
-                 (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f)))
-           (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
-             (define v2 (bfstep v1 (* sign (+ exp mantissa))))
-             (if (or (bfnan? v1) (bfnan? v2))
-                 (sample-interval type)
-                 (if (= sign -1)
-                     (ival (endpoint v2 #t) (endpoint v1 #t) #f #f)
-                     (ival (endpoint v1 #t) (endpoint v2 #t) #f #f)))))]
+       (define x (if (= (random 0 2) 0) (sample-wide-interval) (sample-narrow-interval)))
+       (if (or (bfnan? (ival-lo-val x)) (bfnan? (ival-hi-val x))) (sample-interval type) x)]
       ['bool
        (match (random 0 3)
          [0 (ival-bool #f)]
@@ -766,20 +767,17 @@
   (define (if-fn c x y)
     (if c x y))
 
-  ;;; These functions don't always work; they return 'bad when results are unreliable
   (define (bffmod x mod)
-    (parameterize ([bf-precision 8000]) 
-      (define r (bfsub x (bfmul (bftruncate (bfdiv x mod)) mod)))
-      (if (or (bflte? (bfmul r x) 0.bf) (bfgt? (bfabs r) (bfabs mod)))
-          'bad
-          r)))
+    ;; For this to be precise, we need enough bits
+    (define precision (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
+    (parameterize ([bf-precision precision]) 
+      (bfcanonicalize (bfsub x (bfmul (bftruncate (bfdiv x mod)) mod)))))
 
   (define (bfremainder x mod)
-    (parameterize ([bf-precision 8000])
-      (define r (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))
-      (if (or (bflte? (bfmul r x) 0.bf) (bfgt? (bfabs r) (bfabs mod)))
-          'bad
-          r)))
+    ;; For this to be precise, we need enough bits
+    (define precision (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
+    (parameterize ([bf-precision precision])
+      (bfcanonicalize (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))))
 
   (define function-table
     (list (list ival-neg   bfneg      '(real) 'real)
@@ -847,20 +845,19 @@
          (define iy (apply ival-fn is))
          (define y (apply fn xs))
 
-         (unless (equal? y 'bad) ; for bffmod and bfremainder, which sometimes fail
-           (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
-             (check-ival-valid? iy)
-             (check-ival-contains? iy y)
-             (for ([k (in-naturals)] [i is] [x xs])
-               (define-values (ilo ihi) (split-ival i x))
-               (with-check-info (['split-argument k])
-                 (check-ival-equals? iy
-                   (ival-union (apply ival-fn (list-set is k ilo))
-                               (apply ival-fn (list-set is k ihi)))))))))))
+         (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
+           (check-ival-valid? iy)
+           (check-ival-contains? iy y)
+           (for ([k (in-naturals)] [i is] [x xs])
+             (define-values (ilo ihi) (split-ival i x))
+             (with-check-info (['split-argument k])
+               (check-ival-equals? iy
+                 (ival-union (apply ival-fn (list-set is k ilo))
+                             (apply ival-fn (list-set is k ihi))))))))))
 
   ;; ##################################################### tests for endpoint-immovable
   
-  (define-binary-check (check-movability coarse fine)
+  (define-binary-check (check-movability? coarse fine)
     (and
      (or (not (endpoint-immovable? (ival-lo coarse)))
          (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
@@ -881,10 +878,9 @@
             (if (or (endpoint-immovable? (ival-lo result)) (endpoint-immovable? (ival-hi result)))
                 (parameterize ([bf-precision 16000])
                   (let ([higher-precision-result (apply ival-fn intervals)])
-                    (check-movability result higher-precision-result)))
+                    (check-movability? result higher-precision-result)))
                 (when (> interval-size 0.005)
                   (find-overflow-loop (/ interval-size 4.0)))))))))
-
   
   (for ([entry (in-list function-table)] #:when (andmap (curry equal? 'real) (caddr entry)))
     (test-case (~a (object-name (car entry)))
