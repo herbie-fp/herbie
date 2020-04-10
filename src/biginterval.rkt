@@ -150,6 +150,9 @@
 (define (split-ival i x)
   (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
 
+(define (classify-ival x [val 0.bf])
+  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
+
 ;; This function computes and propagates the immovable? flag for endpoints
 (define (e-compute #:check [check (const #f)] op . args)
   (define args-bf (map endpoint-val args))
@@ -263,54 +266,64 @@
     [( 0  1) (mkdiv (ival-lo x) (ival-lo y) (ival-hi x) (ival-lo y) any-weak-0?)]
     [( 0 -1) (mkdiv (ival-hi x) (ival-hi y) (ival-lo x) (ival-hi y) any-weak-0?)]))
 
-;; Also detects for overflow to decide that endpoints are immovable
-(define-syntax-rule (define-monotonic name bffn overflow-threshold)
-  (define (name x)
-    (let ([low (rnd 'down e-compute bffn (ival-lo x))]
-          [high (rnd 'up e-compute bffn (ival-hi x))])
-      (ival (endpoint (endpoint-val low)
-                      (or (endpoint-immovable? low)
-                          (bflte? (ival-hi-val x) (bfneg overflow-threshold))))
-            (endpoint (endpoint-val high)
-                      (or (endpoint-immovable? high)
-                          (bfgte? (ival-lo-val x) overflow-threshold)))
-            (ival-err? x) (ival-err x)))))
+;; Helpers for defining interval functions
+
+(define-syntax-rule (define* name expr)
+  (define name (procedure-rename expr 'name)))
+
+(define ((monotonic bffn) x)
+  (match-define (ival lo hi err? err) x)
+  (ival  (rnd 'down e-compute bffn lo) (rnd 'up   e-compute bffn hi) err? err))
+
+(define ((comonotonic bffn) x)
+  (match-define (ival lo hi err? err) x)
+  (ival  (rnd 'down e-compute bffn hi) (rnd 'up   e-compute bffn lo) err? err))
+
+(define ((clamp lo hi) x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (ival (endpoint (bfmax2 xlo lo) xlo!)
+        (endpoint (bfmin2 xhi hi) xhi!)
+        (or xerr? (bflt? xlo lo) (bfgt? xhi hi))
+        (or xerr (bflt? xhi lo) (bfgt? xlo hi))))
+
+(define ((overflows-at fn lo hi) x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  (match-define (ival (endpoint ylo ylo!) (endpoint yhi yhi!) yerr? yerr) (fn x))
+  (ival (endpoint ylo (or ylo! (bflte? xhi lo) (and (bflte? xlo lo) xlo!)))
+        (endpoint yhi (or yhi! (bfgte? xlo hi) (and (bfgte? xhi hi) xhi!)))
+        xerr? xerr))
+
+(define* ival-rint (monotonic bfrint))
+(define* ival-round (monotonic bfround))
+(define* ival-ceil (monotonic bfceiling))
+(define* ival-floor (monotonic bffloor))
+(define* ival-trunc (monotonic bftruncate))
+
+(define (ival-fabs x)
+  (cond
+   [(bfgt? (ival-lo-val x) 0.bf) x]
+   [(bflt? (ival-hi-val x) 0.bf)
+    (ival (e-compute bfneg (ival-hi x)) (e-compute bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
+   [else ; interval stradles 0
+    (ival (endpoint 0.bf #f) (endpoint-max2 (e-compute bfneg (ival-lo x)) (ival-hi x))
+          (ival-err? x) (ival-err x))]))
+
 
 (define exp-overflow-threshold (rnd 'up bflog max-bf-rounded-down))
-(define-monotonic ival-exp bfexp exp-overflow-threshold)
+(define* ival-exp (overflows-at (monotonic bfexp) (bfneg exp-overflow-threshold) exp-overflow-threshold))
+(define* ival-expm1 (overflows-at (monotonic bfexpm1) (bfneg exp-overflow-threshold) exp-overflow-threshold))
 
 (define exp2-overflow-threshold (rnd 'up bflog2 max-bf-rounded-down))
-(define-monotonic ival-exp2 bfexp2 exp2-overflow-threshold)
+(define* ival-exp2 (overflows-at (monotonic bfexp2) (bfneg exp2-overflow-threshold) exp2-overflow-threshold))
 
-(define-monotonic ival-expm1 bfexpm1 exp-overflow-threshold)
+(define* ival-log (compose (monotonic bflog) (clamp 0.bf +inf.bf)))
+(define* ival-log2 (compose (monotonic bflog2) (clamp 0.bf +inf.bf)))
+(define* ival-log10 (compose (monotonic bflog10) (clamp 0.bf +inf.bf)))
+(define* ival-log1p (compose (monotonic bflog1p) (clamp -1.bf +inf.bf)))
+(define* ival-logb (compose ival-floor ival-log2 ival-fabs))
 
-(define-syntax-rule (define-monotonic-positive name bffn)
-  (define (name x)
-    (define too-low? (bflte? (ival-lo-val x) 0.bf))
-    (define err (or (ival-err x) (bflte? (ival-hi-val x) 0.bf)))
-    (define err? (or err (ival-err? x) too-low?))
-    (ival (rnd 'down e-compute bffn (if too-low? (endpoint 0.bf #f) (ival-lo x)))
-          (rnd 'up   e-compute bffn (ival-hi x)) err? err)))
-
-(define-monotonic-positive ival-log bflog)
-(define-monotonic-positive ival-log2 bflog2)
-(define-monotonic-positive ival-log10 bflog10)
-
-(define (ival-log1p x)
-  (define too-low? (bflte? (ival-lo-val x) -1.bf))
-  (define err (or (ival-err x) (bflte? (ival-hi-val x) -1.bf)))
-  (define err? (or err (ival-err? x) too-low?))
-  (ival (if too-low? (endpoint -inf.bf #f) (rnd 'down e-compute bflog1p (ival-lo x)))
-        (rnd 'up   e-compute bflog1p (ival-hi x))
-        err? err))
-
-(define (ival-logb x)
-  (match-define (ival ylo yhi yerr? yerr) (ival-log2 (ival-fabs x)))
-  (ival (rnd 'down e-compute bffloor ylo) (rnd 'up e-compute bffloor yhi) yerr? yerr))
-
-(define-monotonic-positive ival-sqrt bfsqrt)
-
-(define-monotonic ival-cbrt bfcbrt +inf.bf)
+(define* ival-sqrt (compose (monotonic bfsqrt) (clamp 0.bf +inf.bf)))
+(define* ival-cbrt (monotonic bfcbrt))
 
 (define (ival-hypot x y)
   (define err? (or (ival-err? x) (ival-err? y)))
@@ -465,10 +478,10 @@
       (ival (rnd 'down e-compute bftan (ival-lo x)) (rnd 'up e-compute bftan (ival-hi x)) #f #f)
       (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #t #f)))
 
-(define-monotonic ival-atan bfatan +inf.bf)
+(define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
+(define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))
+(define* ival-atan (monotonic bfatan))
 
-(define (classify-ival x [val 0.bf])
-  (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
 (define (ival-atan2 y x)
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
@@ -496,56 +509,12 @@
             (or err? (bfgte? (ival-hi-val x) 0.bf))
             (or err (and (bf=? (ival-lo-val x) 0.bf) (bf=? (ival-hi-val x) 0.bf) (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))))
 
-(define (ival-asin x)
-  (define too-low? (bflt? (ival-lo-val x) -1.bf))
-  (define too-high? (bfgt? (ival-hi-val x) 1.bf))
-  (ival (rnd 'down e-compute bfasin (if too-low? (endpoint -1.bf #f) (ival-lo x)))
-        (rnd 'up e-compute bfasin (if too-high? (endpoint 1.bf #f) (ival-hi x)))
-        (or (ival-err? x) too-low? too-high?)
-        (or (ival-err x) (bflt? (ival-hi-val x) -1.bf) (bfgt? (ival-lo-val x) 1.bf))))
-
-(define (ival-acos x)
-  (define too-low? (bflt? (ival-lo-val x) -1.bf))
-  (define too-high? (bfgt? (ival-hi-val x) 1.bf))
-  (ival (rnd 'down e-compute bfacos (if too-high? (endpoint 1.bf #f) (ival-hi x)))
-        (rnd 'up e-compute bfacos (if too-low? (endpoint -1.bf #f) (ival-lo x)))
-        (or (ival-err? x) too-low? too-high?)
-        (or (ival-err x) (bflt? (ival-hi-val x) -1.bf) (bfgt? (ival-lo-val x) 1.bf))))
-
-(define (ival-fabs x)
-  (cond
-   [(bfgt? (ival-lo-val x) 0.bf) x]
-   [(bflt? (ival-hi-val x) 0.bf)
-    (ival (e-compute bfneg (ival-hi x)) (e-compute bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
-   [else ; interval stradles 0
-    (ival (endpoint 0.bf #f) (endpoint-max2 (e-compute bfneg (ival-lo x)) (ival-hi x))
-          (ival-err? x) (ival-err x))]))
-
-(define (ival-cosh x)
-  (define y (ival-fabs x))
-  (ival (rnd 'down e-compute bfcosh (ival-lo y))
-        (rnd 'up e-compute bfcosh (ival-hi y)) (ival-err? y) (ival-err y)))
-
-
-(define-monotonic ival-sinh bfsinh +inf.bf)
-(define-monotonic ival-tanh bftanh +inf.bf)
-(define-monotonic ival-asinh bfasinh +inf.bf)
-
-(define (ival-acosh x)
-  (define too-low? (bflt? (ival-lo-val x) 1.bf))
-  (ival (if too-low? (endpoint 0.bf #f) (rnd 'down e-compute bfacosh (e-compute bfmax2 (ival-lo x) (endpoint 1.bf #f))))
-        (rnd 'up e-compute bfacosh (ival-hi x))
-        (or too-low? (ival-err? x))
-        (or (bflt? (ival-hi-val x) 1.bf) (ival-err x))
-))
-
-(define (ival-atanh x)
-  (define too-low? (bflt? (ival-lo-val x) -1.bf))
-  (define too-high? (bfgt? (ival-hi-val x) 1.bf))
-  (ival (if too-low? (endpoint -inf.bf #f) (rnd 'down e-compute bfatanh (ival-lo x)))
-        (if too-high? (endpoint +inf.bf #f) (rnd 'up e-compute bfatanh (ival-hi x)))
-        (or too-low? too-high? (ival-err? x))
-        (or (bflte? (ival-hi-val x) -1.bf) (bfgte? (ival-lo-val x) 1.bf) (ival-err x))))
+(define* ival-cosh (compose (monotonic bfcosh) ival-fabs))
+(define* ival-sinh (monotonic bfsinh))
+(define* ival-tanh (monotonic bftanh))
+(define* ival-asinh (monotonic bfasinh))
+(define* ival-acosh (compose (monotonic bfacosh) (clamp 1.bf +inf.bf)))
+(define* ival-atanh (compose (monotonic bfatanh) (clamp -1.bf 1.bf)))
 
 (define (ival-fmod-pos x y err? err)
   ;; Assumes both `x` and `y` are entirely positive
@@ -617,21 +586,8 @@
     (ival-union (ival-remainder-pos pos y* err? err)
                 (ival-neg (ival-remainder-pos (ival-neg neg) y* err? err)))]))
 
-(define-monotonic ival-rint bfrint +inf.bf)
-(define-monotonic ival-round bfround +inf.bf)
-(define-monotonic ival-ceil bfceiling +inf.bf)
-(define-monotonic ival-floor bffloor +inf.bf)
-(define-monotonic ival-trunc bftruncate +inf.bf)
-
-(define (ival-erf x)
-  (ival (rnd 'down e-compute bferf (ival-lo x))
-        (rnd 'up e-compute bferf (ival-hi x))
-        (ival-err? x) (ival-err x)))
-
-(define (ival-erfc x)
-  (ival (rnd 'down e-compute bferfc (ival-hi x))
-        (rnd 'up   e-compute bferfc (ival-lo x))
-        (ival-err? x) (ival-err x)))
+(define* ival-erf (monotonic bferf))
+(define* ival-erfc (comonotonic bferfc))
 
 (define (ival-cmp x y)
   (define can-< (e-compute bflt? (ival-lo x) (ival-hi y)))
@@ -675,11 +631,11 @@
               (loop next rest (ival-and (f head next) acc))]))))
    name))
 
-(define ival-<  (ival-comparator ival-<2  'ival-<))
-(define ival-<= (ival-comparator ival-<=2 'ival-<=))
-(define ival->  (ival-comparator ival->2  'ival->))
-(define ival->= (ival-comparator ival->=2 'ival->=))
-(define ival-== (ival-comparator ival-==2 'ival-==))
+(define* ival-<  (ival-comparator ival-<2  'ival-<))
+(define* ival-<= (ival-comparator ival-<=2 'ival-<=))
+(define* ival->  (ival-comparator ival->2  'ival->))
+(define* ival->= (ival-comparator ival->=2 'ival->=))
+(define* ival-== (ival-comparator ival-==2 'ival-==))
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -736,8 +692,7 @@
     [(#t #f) (ival (e-compute bfneg xhi) (e-compute bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]))
 
-(define (ival-fdim x y)
-  (ival-fabs (ival-sub x y)))
+(define* ival-fdim (compose ival-fabs ival-sub))
 
 (module+ test
   (require rackunit racket/math racket/dict racket/format math/flonum)
