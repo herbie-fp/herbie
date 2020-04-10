@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
-(require "../interface.rkt" "../type-check.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
 
 (provide localize-error)
 

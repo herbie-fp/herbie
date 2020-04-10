@@ -1,7 +1,11 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?))
-(require "../formats/test.rkt" "../formats/c.rkt" "../formats/tex.rkt")
-(provide render-menu render-warnings render-large render-program)
+(require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
+(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction)
+
+(define (program->fpcore prog)
+  (match-define (list _ args expr) prog)
+  (list 'FPCore args expr))
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -36,34 +40,93 @@
 (define languages
   `(("TeX" . ,texify-prog)
     ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr) (program->c prog)))))
+    ("C" . ,(λ (prog repr) (core->c prog "code")))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
+  (define output-repr (get-representation output-prec))
+
+  (define in-prog (program->fpcore (test-program test)))
+  (define out-prog (and result (program->fpcore result)))
+
+  (define versions
+    (reap [sow]
+      (for ([(lang converter) (in-dict languages)])
+        (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
+          (sow (cons lang (cons (converter in-prog output-repr)
+                                (and out-prog (converter out-prog output-repr)))))))))
+
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test) output-prec) "\\]")))
+                  "\\[" ,(texify-expr (test-precondition test) output-repr) "\\]")))
      (select ([id "language"])
        (option "Math")
-       ,@(for/list ([(lang fn) (in-dict languages)])
+       ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog
-                                              (test-program test)
-                                              output-prec) "\\]")
+       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-repr) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog
-                                                      result
-                                                      output-prec) "\\]"))
+               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-repr) "\\]"))
              `()))
-     ,@(for/list ([(lang fn) (in-dict languages)])
+     ,@(for/list ([(lang outs) (in-dict versions)])
+         (match-define (cons out-input out-output) outs)
          `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,(fn (test-program test) output-prec))
-            ,@(if result
+            (pre ([class "program"]) ,out-input)
+            ,@(if out-output
                   `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,(fn result output-prec)))
+                    (pre ([class "program"]) ,out-output))
                   `())))))
+
+(define/contract (render-command-line)
+  (-> string?)
+  (format
+   "herbie shell --seed ~a ~a"
+   (if (vector? (get-seed)) (format "'~a'" (get-seed)) (get-seed))
+   (string-join
+    (for/list ([rec (changed-flags)])
+      (match rec
+        [(list 'enabled class flag) (format "+o ~a:~a" class flag)]
+        [(list 'disabled class flag) (format "-o ~a:~a" class flag)]))
+    " ")))
+
+(define/contract (render-fpcore test)
+  (-> test? string?)
+  (string-join
+   (filter
+    identity
+    (list
+     (format "(FPCore ~a" (test-vars test))
+     (format "  :name ~s" (test-name test))
+     (format "  :precision ~s" (test-output-prec test))
+     (if (equal? (test-precondition test) 'TRUE)
+         #f
+         (format "  :pre ~a" (resugar-program (test-precondition test)
+                                              (test-output-prec test))))
+     (if (equal? (test-expected test) #t)
+         #f
+         (format "  :herbie-expected ~a" (test-expected test)))
+     (if (test-output test)
+         ;; Extra newlines for clarity
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
+                                                               (test-output-prec test)))
+         #f)
+     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
+   "\n"))
+
+(define/contract (render-reproduction test #:bug? [bug? #f])
+  (->* (test?) (#:bug? boolean?) xexpr?)
+
+  `(section ((id "reproduce"))
+    (h1 "Reproduce")
+    ,(if bug?
+         `(p "Please include this information when filing a "
+             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+         "")
+    (pre ((class "shell"))
+         (code
+          ,(render-command-line) "\n"
+          ,(render-fpcore test) "\n"))))

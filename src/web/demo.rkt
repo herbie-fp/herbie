@@ -4,9 +4,9 @@
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
-(require "../common.rkt" "../config.rkt" "../formats/test.rkt" "../errors.rkt")
-(require "../syntax-check.rkt" "../type-check.rkt" "../sandbox.rkt")
-(require "../formats/datafile.rkt" "make-graph.rkt" "make-report.rkt")
+(require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt")
 
 (provide run-demo)
 
@@ -45,7 +45,9 @@
    [(set-member? (all-pages result) page)
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-              (λ (out) (make-page page out result #f)))]
+              (λ (out)
+                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                  (make-page page out result #f))))]
    [(equal? page "debug.log")
     (response 200 #"OK" (current-seconds) #"text/plain"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -198,8 +200,9 @@
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
               (for ([page (all-pages result)])
-                (call-with-output-file (build-path (*demo-output*) path page)
-                  (λ (out) (make-page page out result #f))))
+                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                  (call-with-output-file (build-path (*demo-output*) path page)
+                    (λ (out) (make-page page out result #f)))))
               (write-file (build-path (*demo-output*) path "debug.txt")
                 (display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed
@@ -249,7 +252,7 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (assert-program! formula)
-       (assert-program-type! formula)
+       (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_

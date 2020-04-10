@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt")
-(require "../syntax/rules.rkt" "../type-check.rkt" "../interface.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
+         "../syntax/rules.rkt" "../interface.rkt")
 
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- (struct-out change) change-apply rule-rewrite)
+ change-apply rule-rewrite)
 
 ;;; Our own pattern matcher.
 ;;
@@ -70,8 +70,6 @@
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
-(struct change (rule location bindings) #:transparent)
-
 ;; The rewriter
 
 (define (rewrite-expression expr #:rules rules #:root [root-loc '()] #:destruct [destruct? #f])
@@ -93,7 +91,7 @@
               (list? (rule-output rule))
               (= (length (rule-output rule)) glen)
               (eq? (car (rule-output rule)) ghead)))
-        (for ([option (matcher expr (rule-input rule) loc (- cdepth 1))])
+        (for ([option (matcher* expr (rule-input rule) loc (- cdepth 1))])
           ;; Each option is a list of change lists
           (sow (cons (change rule (reverse loc) (cdr option)) (car option)))))))
 
@@ -112,6 +110,10 @@
     (define bindings* (pattern-match pattern result))
     (when bindings* (sow (cons cngs bindings*))))
 
+  (define cache (make-hash))
+  (define (matcher* expr pattern loc cdepth)
+    (hash-ref! cache (list loc pattern cdepth) (λ () (matcher expr pattern loc cdepth))))
+
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
     (reap [sow]
@@ -128,7 +130,7 @@
              (define child-options ; (list (list ((list cng) * bnd)))
                (for/list ([i (in-naturals)] [sube expr] [subp pattern] #:when (> i 0))
                  ;; Note: fuel is "depth" not "cdepth", because we're recursing to a child
-                 (define options (matcher sube subp (cons i loc) depth))
+                 (define options (matcher* sube subp (cons i loc) depth))
                  (when (null? options) (k)) ;; Early exit 
                  options))
              (reduce-children sow (apply cartesian-product child-options))))

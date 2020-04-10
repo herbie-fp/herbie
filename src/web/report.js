@@ -124,24 +124,26 @@ var FigureTabs = new Component("#graphs > div", {
             figures[i].querySelector("figcaption > p").style.display = "none";
         }
         if (default_figure === null && figures.length > 0) default_figure = figures[0];
+        
+        var buttons = Object.keys(figure_array).map(function(idx) {
+            return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
+        });
 
         var tab_bar = Element("ul", { className: "tabbar" }, [
             Element("p", "Bits error vs value of"),
-            Object.keys(figure_array).map(function(idx) {
-                var button = Element("li", { id: "tab-" + idx }, figure_array[idx].name);
-                button.addEventListener("click", this.click_handler);
-                return button;
-            })
+            buttons,
         ]);
-        this.elt.querySelector("figcaption").appendChild(tab_bar);
+        this.elt.appendChild(tab_bar);
+
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
+        }
     
-        if (default_figure) this.toggle(default_figure.id);
+        if (default_figure) this.toggle("tab-" + default_figure.id);
     },
-    click_handler: function() {
-        this.toggle(this.id.substr(4));
-    },
-    toggle: function(id) {
-        var tab = document.getElementById("tab-" + id);
+    toggle: function(tabid) {
+        var id = tabid.substr(4);
+        var tab = document.getElementById(tabid);
         var pane = document.getElementById(id);
 
         var old_tab = tab.parentNode.getElementsByClassName("selected");

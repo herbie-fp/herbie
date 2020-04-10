@@ -162,7 +162,7 @@ section h1 {
 
 /* Error graphs */
 
-#graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
+#graphs figure { margin: 0 auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 #graphs figcaption button {
@@ -247,6 +247,8 @@ table.times { border-spacing: 15px 5px; }
 table th { text-align: left; }
 table.times td { text-align: right; min-width: 8ex; vertical-align: baseline; }
 table.times td:last-child { text-align: left; }
+table.states { min-width: 50%; }
+table.states td:last-child, table.states tfoot { font-weight: bold; }
 table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 
 /* Timeline colors */

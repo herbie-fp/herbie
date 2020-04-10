@@ -2,7 +2,7 @@
 
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(require racket/date "../src/common.rkt" "../src/formats/datafile.rkt")
+(require racket/date "../src/common.rkt" "../src/datafile.rkt")
 (provide directory-jsons name->timestamp)
 
 (define-runtime-path report-json-path "../previous/")
@@ -71,14 +71,15 @@
        (+ start (or (table-row-start row) 0))
        (+ end (or (table-row-result row) 0)))))
 
+  (define statuses (map table-row-status (or tests '())))
   (define total-passed
-    (for/sum ([row (or tests '())])
-      (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
+    (count (curry set-member? '("gt-target" "eq-target" "imp-start")) statuses))
   (define total-available
-    (for/sum ([row (or tests '())])
-      (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+    (count (negate (curry equal? "ex-start")) statuses))
   (define total-crashed
-    (count (compose (curry equal? "crash") table-row-status) (or tests '())))
+    (or (count (curry equal? "crash") statuses) (= iterations -1)))
+  (define total-unimproved
+    (count (curry set-member? '("lt-start" "uni-start")) statuses))
 
   (define speed (apply + (map table-row-time (or tests '()))))
 
@@ -95,6 +96,7 @@
         'tests-passed total-passed
         'tests-available total-available
         'tests-crashed total-crashed
+        'tests-unimproved total-unimproved
         'bits-improved (- total-start total-end)
         'bits-available total-start))
 
@@ -114,7 +116,7 @@
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
 
-         `(tr ([class ,(if (> (field 'tests-crashed) 0) "crash" "")])
+         `(tr ([class ,(if (or (> (field 'tests-crashed) 0) (> (field 'tests-unimproved) 0)) "crash" "")])
            ;; TODO: Best to output a datetime field in RFC3338 format,
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])

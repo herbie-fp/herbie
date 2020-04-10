@@ -1,7 +1,7 @@
 #lang racket
-(require json (only-in xml write-xexpr xexpr?))
-(require "../common.rkt" "../formats/test.rkt" "../sandbox.rkt"
-         "../formats/datafile.rkt" "common.rkt" "../float.rkt"
+(require json (only-in xml write-xexpr xexpr?) racket/date)
+(require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
+         "../datafile.rkt" "common.rkt" "../float.rkt"
          "../interface.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
@@ -60,7 +60,8 @@
      ,@(dict-call curr render-phase-method 'method)
      ,@(dict-call curr render-phase-locations 'locations)
      ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
-     ,@(dict-call curr render-phase-pruning 'kept-alts 'done-alts 'min-error)
+     ,@(dict-call curr render-phase-filtered 'filtered)
+     ,@(dict-call curr render-phase-pruning 'kept 'min-error)
      ,@(dict-call curr render-phase-rules 'rules)
      ,@(dict-call curr render-phase-counts 'inputs 'outputs)
      ,@(dict-call curr render-phase-times 'times #:extra (list n))
@@ -119,9 +120,28 @@
            " against oracle of " ,(format-bits oracle) "b"
            " and baseline of " ,(format-bits baseline) "b"))))
 
-(define (render-phase-pruning kept-alts done-alts min-error)
+(define (render-phase-pruning kept min-error)
+  (define (altnum kind [col #f])
+    (define rec (hash-ref kept kind))
+    (match col [#f (first rec)] [0 (- (first rec) (second rec))] [1 (second rec)]))
+  (define kept-alts (+ (altnum 'new 1) (altnum 'fresh 1)))
+  (define done-alts (+ (altnum 'done 1) (altnum 'picked 1)))
   `((dt "Pruning")
     (dd (p ,(~a (+ kept-alts done-alts)) " alts after pruning (" ,(~a kept-alts) " fresh and " ,(~a done-alts) " done)")
+        (table ([class "states"])
+         (thead
+          (tr (th) (th "Pruned") (th "Kept") (th "Total")))
+         (tbody
+          ,@(for/list ([type '(new fresh picked done)])
+              `(tr (th ,(string-titlecase (~a type)))
+                   (td ,(~a (altnum type 0)))
+                   (td ,(~a (altnum type 1)))
+                   (td ,(~a (altnum type))))))
+         (tfoot
+          (tr (th "Total")
+              (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
+              (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
+              (td ,(~a (apply + (map altnum '(new fresh picked done))))))))
         (p "Merged error: " ,(format-bits min-error) "b"))))
 
 (define (render-phase-rules rules)
@@ -147,6 +167,13 @@
         (table ([class "times"])
                ,@(for/list ([(expr time) (in-dict times)])
                    `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-filtered filtered)
+  (match-define (list to from) filtered)
+  (if (> from 0)
+      `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
+                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+      '()))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
@@ -191,6 +218,8 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (make-summary-html out info dir)
+  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+
   (fprintf out "<!doctype html>\n")
   (write-xexpr
    `(html
@@ -200,6 +229,27 @@
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js"))))
      (body
+
+      (table ((id "about"))
+       (tr (th "Date:") (td ,(date->string date)))
+       (tr (th "Commit:") (td (abbr ([title ,commit]) ,(with-handlers ([exn:fail:contract? (const commit)]) (substring commit 0 8))) " on " ,branch))
+       (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
+       (tr (th "Seed:") (td ,(~a seed)))
+       (tr (th "Parameters:") (td ,(~a (*num-points*)) " points "
+                                  "for " ,(~a (*num-iterations*)) " iterations"))
+       (tr (th "Flags:")
+           (td ((id "flag-list"))
+               (div ((id "all-flags"))
+                    ,@(for*/list ([(class flags) (*flags*)] [flag flags])
+                        `(kbd ,(~a class) ":" ,(~a flag))))
+               (div ((id "changed-flags"))
+                    ,@(if (null? (changed-flags))
+                          '("default")
+                          (for/list ([rec (changed-flags)])
+                            (match-define (list delta class flag) rec)
+                            `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
+                                  " " ,(~a class) ":" ,(~a flag))))))))
+
       ,(render-timeline-summary info (summarize-timelines info dir))))
    out))
 
@@ -221,6 +271,7 @@
              ,@(dict-call phase render-summary-outcomes 'outcomes)
              ,@(dict-call phase #:extra (list type) render-summary-times 'times)
              ,@(dict-call phase #:extra (list info) render-summary-accuracy 'accuracy 'oracle 'baseline)
+             ,@(dict-call phase render-summary-filtered 'filtered)
              ,@(dict-call phase render-summary-rules 'rules)))))
 
   `(section ([id "process-info"])
@@ -292,6 +343,16 @@
                             "%")
                         (td (a ([href ,(format "~a/graph.html" (table-row-link (third row)))])
                                ,(or (table-row-name (third row)) "")))))))))
+
+(define (render-summary-filtered filtered)
+  (match-define (list (list _ tos froms) ...) filtered)
+  (define from (apply + froms))
+  (define to (apply + tos))
+  (if (> from 0)
+      `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a to) " candidates"
+                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+      '()))
+
 
 (define (render-summary-outcomes outcomes)
   (define entries (append-map cdr outcomes))

@@ -1,18 +1,16 @@
 #lang racket
 
-(require math/flonum)
-(require plot/no-gui)
-(require "common.rkt" "float.rkt" "programs.rkt" "interface.rkt")
+(require math/flonum plot/no-gui)
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
+         "../sandbox.rkt")
 
-(provide error-points best-alt-points herbie-plot alt-plot error-mark error-avg
-         herbie-ratio-point-renderers herbie-ratio-point-colors error-axes
-         *red-theme* *blue-theme* *green-theme* *yellow-theme*)
+(provide make-axis-plot make-points-plot)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
-(define *yellow-theme* (color-theme "gold" "yellow" "olive"))
 
 (define (double-transform)
   (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
@@ -117,7 +115,7 @@
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (apply x pt) (+ (ulps->bits err) (random) -1/2)))
+      (vector (apply x pt) (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)
@@ -265,3 +263,98 @@
 
 (define (error-mark x-val)
   (inverse (const x-val) #:color "gray" #:width 3))
+
+(define/contract (regime-info altn)
+  (-> alt? (or/c (listof sp?) #f))
+  (let loop ([altn altn])
+    (match altn
+      [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
+      [(alt _ _ (list)) #f]
+      [(alt _ _ (list prev _ ...)) (loop prev)])))
+
+(define (regime-splitpoints altn)
+  (map sp-point (drop-right (regime-info altn) 1)))
+
+(define/contract (regime-var altn)
+  (-> alt? (or/c expr? #f))
+  (define info (regime-info altn))
+  (and info (sp-bexpr (car info))))
+
+(define (points->doubles pts repr)
+  (cond
+    [(or (real? (caar pts)) (complex? (caar pts))) pts]
+    [else
+     (map (curry map (curryr repr->fl repr)) pts)]))
+
+(define (make-axis-plot result out idx)
+  (define var (list-ref (test-vars (test-result-test result)) idx))
+  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
+  (herbie-plot
+   #:port out #:kind 'png
+   (error-axes pts #:axis idx)
+   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
+
+(define (make-points-plot result out idx letter)
+  (define-values (theme accessor)
+    (match letter
+      ['r (values *red-theme*   test-success-start-error)]
+      ['g (values *green-theme* test-success-target-error)]
+      ['b (values *blue-theme*  test-success-end-error)]))
+
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define pts (points->doubles (test-success-newpoints result) repr))
+  (define err (accessor result))
+
+  (herbie-plot
+   #:port out #:kind 'png
+   (error-points err pts #:axis idx #:color theme)
+   (error-avg err pts #:axis idx #:color theme)))
+
+(define (make-alt-plots point-alt-idxs alt-idxs title out)
+  (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
+  (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+
+(define (make-point-alt-idxs result)
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define all-alts (test-success-all-alts result))
+  (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
+  (define newpoints (test-success-newpoints result))
+  (define newexacts (test-success-newexacts result))
+  (oracle-error-idx all-alt-bodies newpoints newexacts repr))
+
+(define (make-contour-plot point-colors var-idxs title out)
+  (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
+  (alt-plot point-renderers #:port out #:kind 'png #:title title))
+
+#;
+(define (make-plots result rdir profile? debug?)
+  (define (open-file #:type [type #f] idx fun . args)
+    (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
+      (apply curry fun args)))
+
+  (define vars (program-variables (alt-program (test-success-start-alt result))))
+  (when (and debug? (>= (length vars) 2))
+    (define point-alt-idxs (make-point-alt-idxs result))
+    (define newpoints (test-success-newpoints result))
+    (define baseline-errs (test-success-baseline-error result))
+    (define herbie-errs (test-success-end-error result))
+    (define oracle-errs (test-success-oracle-error result))
+    (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
+    (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])
+      (define alt-idxs (list i j))
+      (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
+                 make-alt-plots point-alt-idxs alt-idxs title)
+      (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
+                 make-contour-plot point-colors alt-idxs title)))
+
+  (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
+    (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-success-newpoints result)))) 1)
+      ;; This is bad code
+      (open-file idx make-axis-plot result idx)
+      (open-file idx #:type 'r make-points-plot result idx 'r)
+      (when (test-success-target-error result)
+        (open-file idx #:type 'g make-points-plot result idx 'g))
+      (open-file idx #:type 'b make-points-plot result idx 'b))))
