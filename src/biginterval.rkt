@@ -61,16 +61,16 @@
           [ival-ceil (-> ival? ival?)]
           [ival-floor (-> ival? ival?)]
           [ival-trunc (-> ival? ival?)]
-          [ival-and (->* () #:rest (listof ival?) ival?)] ; TODO: untested
-          [ival-or  (->* () #:rest (listof ival?) ival?)] ; TODO: untested
-          [ival-not (-> ival? ival?)] ; TODO: untested
+          [ival-and (->* () #:rest (listof ival?) ival?)]
+          [ival-or  (->* () #:rest (listof ival?) ival?)]
+          [ival-not (-> ival? ival?)]
           [ival-<  (->* () #:rest (listof ival?) ival?)]
           [ival-<= (->* () #:rest (listof ival?) ival?)]
           [ival->  (->* () #:rest (listof ival?) ival?)]
           [ival->= (->* () #:rest (listof ival?) ival?)]
           [ival-== (->* () #:rest (listof ival?) ival?)]
           [ival-!= (->* () #:rest (listof ival?) ival?)]
-          [ival-if (-> ival? ival? ival? ival?)] ; TODO: untested
+          [ival-if (-> ival? ival? ival? ival?)]
           [ival-fmin (-> ival? ival? ival?)]
           [ival-fmax (-> ival? ival? ival?)]
           [ival-copysign (-> ival? ival? ival?)]
@@ -95,10 +95,10 @@
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
 
-(define (and-2 a b)
-  (and a b))
-(define (or-2 a b)
-  (or a b))
+(define (and-fn . as)
+  (andmap identity as))
+(define (or-fn . as)
+  (ormap identity as))
 
 (define (ival-pi)
   (ival (endpoint (rnd 'down pi.bf) #f) (endpoint (rnd 'up pi.bf) #f) #f #f))
@@ -140,8 +140,8 @@
           (endpoint-max2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
    [(? boolean?)
-    (ival (e-compute and-2 (ival-lo x) (ival-lo y))
-          (e-compute or-2 (ival-hi x) (ival-hi y))
+    (ival (e-compute and-fn (ival-lo x) (ival-lo y))
+          (e-compute or-fn (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
 
 (define (propagate-err c x)
@@ -616,8 +616,8 @@
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute and-2 (e-compute not c<) (e-compute not c>))
-        (e-compute and-2 (e-compute not m<) (e-compute not m>))
+  (ival (e-compute and-fn (e-compute not c<) (e-compute not c>))
+        (e-compute and-fn (e-compute not m<) (e-compute not m>))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -638,7 +638,8 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute or-2 m< m>) (e-compute or-2 c< c>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (e-compute or-fn m< m>) (e-compute or-fn c< c>)
+        (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
   (if (null? as)
@@ -683,19 +684,26 @@
 
   (define num-tests 2500)
 
-  (define (sample-interval)
-    (if (= (random 0 2) 0)
-        (let ([v1 (sample-double)] [v2 (sample-double)])
-          (if (or (nan? v1) (nan? v2))
-              (sample-interval)
-              (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f)))
-        (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
-          (define v2 (bfstep v1 (* sign (+ exp mantissa))))
-          (if (or (bfnan? v1) (bfnan? v2))
-              (sample-interval)
-              (if (= sign -1)
-                  (ival (endpoint v2 #t) (endpoint v1 #t) #f #f)
-                  (ival (endpoint v1 #t) (endpoint v2 #t) #f #f))))))
+  (define (sample-interval type)
+    (match type
+      ['real
+       (if (= (random 0 2) 0)
+           (let ([v1 (sample-double)] [v2 (sample-double)])
+             (if (or (nan? v1) (nan? v2))
+                 (sample-interval type)
+                 (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f)))
+           (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
+             (define v2 (bfstep v1 (* sign (+ exp mantissa))))
+             (if (or (bfnan? v1) (bfnan? v2))
+                 (sample-interval type)
+                 (if (= sign -1)
+                     (ival (endpoint v2 #t) (endpoint v1 #t) #f #f)
+                     (ival (endpoint v1 #t) (endpoint v2 #t) #f #f)))))]
+      ['bool
+       (match (random 0 3)
+         [0 (ival-bool #f)]
+         [1 (ival-bool #t)]
+         [2 (ival (endpoint #f #t) (endpoint #t #t) #f #f)])]))
 
   (define (sample-interval-sized [size-limit 1])
     (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
@@ -754,6 +762,9 @@
 
   (define (bffdim x y)
     (if (bfgt? x y) (bfsub x y) (bfsub y x)))
+
+  (define (if-fn c x y)
+    (if c x y))
 
   ;;; These functions don't always work; they return 'bad when results are unreliable
   (define (bffmod x mod)
@@ -820,13 +831,18 @@
           (list ival-fmin  bfmin2     '(real real) 'real)
           (list ival-fmax  bfmax2     '(real real) 'real)
           (list ival-copysign bfcopysign '(real real) 'real)
-          (list ival-fdim  bffdim     '(real real) 'real)))
+          (list ival-fdim  bffdim     '(real real) 'real)
+          (list ival-and   and-fn     '(bool bool bool) 'bool)
+          (list ival-or    or-fn      '(bool bool bool) 'bool)
+          (list ival-not   not        '(bool) 'bool)
+          (list ival-if    if-fn      '(bool real real) 'real)
+          ))
 
   (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
     (test-case (~a (object-name ival-fn))
        (for ([n (in-range num-tests)])
-         (define is (for/list ([arg args]) (sample-interval)))
+         (define is (for/list ([arg args]) (sample-interval arg)))
          (define xs (for/list ([i is]) (sample-from i)))
          (define iy (apply ival-fn is))
          (define y (apply fn xs))
@@ -870,7 +886,7 @@
                   (find-overflow-loop (/ interval-size 4.0)))))))))
 
   
-  (for ([entry (in-list function-table)])
+  (for ([entry (in-list function-table)] #:when (andmap (curry equal? 'real) (caddr entry)))
     (test-case (~a (object-name (car entry)))
       (for ([n (in-range num-tests)])
         (test-function-overflows (car entry) (cadr entry) (length (caddr entry)))))))
