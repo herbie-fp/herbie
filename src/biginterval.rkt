@@ -266,8 +266,8 @@
 ;; Also detects for overflow to decide that endpoints are immovable
 (define-syntax-rule (define-monotonic name bffn overflow-threshold)
   (define (name x)
-    (let ([low (rnd 'down e-compute #:check any-strong? bffn (ival-lo x))]
-          [high (rnd 'up e-compute #:check any-strong? bffn (ival-hi x))])
+    (let ([low (rnd 'down e-compute bffn (ival-lo x))]
+          [high (rnd 'up e-compute bffn (ival-hi x))])
       (ival (endpoint (endpoint-val low)
                       (or (endpoint-immovable? low)
                           (bflte? (ival-hi-val x) (bfneg overflow-threshold))))
@@ -289,8 +289,8 @@
     (define too-low? (bflte? (ival-lo-val x) 0.bf))
     (define err (or (ival-err x) (bflte? (ival-hi-val x) 0.bf)))
     (define err? (or err (ival-err? x) too-low?))
-    (ival (rnd 'down e-compute #:check any-strong? bffn (if too-low? (endpoint 0.bf #f) (ival-lo x)))
-          (rnd 'up   e-compute #:check any-strong? bffn (ival-hi x)) err? err)))
+    (ival (rnd 'down e-compute bffn (if too-low? (endpoint 0.bf #f) (ival-lo x)))
+          (rnd 'up   e-compute bffn (ival-hi x)) err? err)))
 
 (define-monotonic-positive ival-log bflog)
 (define-monotonic-positive ival-log2 bflog2)
@@ -300,8 +300,8 @@
   (define too-low? (bflte? (ival-lo-val x) -1.bf))
   (define err (or (ival-err x) (bflte? (ival-hi-val x) -1.bf)))
   (define err? (or err (ival-err? x) too-low?))
-  (ival (if too-low? (endpoint -inf.bf #f) (rnd 'down e-compute #:check any-strong? bflog1p (ival-lo x)))
-        (rnd 'up   e-compute #:check any-strong? bflog1p (ival-hi x))
+  (ival (if too-low? (endpoint -inf.bf #f) (rnd 'down e-compute bflog1p (ival-lo x)))
+        (rnd 'up   e-compute bflog1p (ival-hi x))
         err? err))
 
 (define (ival-logb x)
@@ -516,7 +516,7 @@
   (cond
    [(bfgt? (ival-lo-val x) 0.bf) x]
    [(bflt? (ival-hi-val x) 0.bf)
-    (ival (e-compute #:check any-strong? bfneg (ival-hi x)) (e-compute #:check any-strong? bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
+    (ival (e-compute bfneg (ival-hi x)) (e-compute bfneg (ival-lo x)) (ival-err? x) (ival-err x))]
    [else ; interval stradles 0
     (ival (endpoint 0.bf #f) (endpoint-max2 (e-compute bfneg (ival-lo x)) (ival-hi x))
           (ival-err? x) (ival-err x))]))
@@ -624,13 +624,13 @@
 (define-monotonic ival-trunc bftruncate +inf.bf)
 
 (define (ival-erf x)
-  (ival (rnd 'down e-compute #:check any-strong? bferf (ival-lo x))
-        (rnd 'up e-compute #:check any-strong? bferf (ival-hi x))
+  (ival (rnd 'down e-compute bferf (ival-lo x))
+        (rnd 'up e-compute bferf (ival-hi x))
         (ival-err? x) (ival-err x)))
 
 (define (ival-erfc x)
-  (ival (rnd 'down e-compute #:check any-strong? bferfc (ival-hi x))
-        (rnd 'up   e-compute #:check any-strong? bferfc (ival-lo x))
+  (ival (rnd 'down e-compute bferfc (ival-hi x))
+        (rnd 'up   e-compute bferfc (ival-lo x))
         (ival-err? x) (ival-err x)))
 
 (define (ival-cmp x y)
@@ -698,8 +698,8 @@
 (define (ival-union x y)
   (match (ival-lo-val x)
    [(? bigfloat?)
-    (ival (e-compute #:check any-strong? bfmin2 (ival-lo x) (ival-lo y))
-          (e-compute #:check any-strong? bfmax2 (ival-hi x) (ival-hi y))
+    (ival (endpoint-min2 (ival-lo x) (ival-lo y))
+          (endpoint-max2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]
    [(? boolean?)
     (ival (e-compute and-2 (ival-lo x) (ival-lo y))
