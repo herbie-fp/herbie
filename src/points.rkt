@@ -97,10 +97,7 @@
                                   (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
               (log! 'sampled precision pt hi*)
               hi*]
-             [(or
-               (and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
-               (strong-immovable-endpoint? lo-endpoint)
-               (strong-immovable-endpoint? hi-endpoint))
+             [(and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
               (log! 'overflowed precision pt)
               +nan.0]
              [else
