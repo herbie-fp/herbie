@@ -147,8 +147,10 @@
   (parameterize ([bf-rounding-mode mode])
     (op args ...)))
 
-(define (split-ival i x)
-  (values (struct-copy ival i [hi (endpoint x #t)]) (struct-copy ival i [lo (endpoint x #t)])))
+(define (split-ival i val)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) i)
+  (values (struct-copy ival i [hi (endpoint val xhi!)])
+          (struct-copy ival i [lo (endpoint val xlo!)])))
 
 (define (classify-ival x [val 0.bf])
   (cond [(bfgte? (ival-lo-val x) val) 1] [(bflte? (ival-hi-val x) val) -1] [else 0]))
@@ -205,9 +207,9 @@
         (or (ival-err x) (ival-err y))))
 
 (define (endpoint-min2 e1 e2)
-  (if (bfgt? (endpoint-val e1) (endpoint-val e2))
-      e2
-      e1))
+  (if (bflt? (endpoint-val e1) (endpoint-val e2))
+      e1
+      e2))
 
 (define (endpoint-max2 e1 e2)
   (if (bfgt? (endpoint-val e1) (endpoint-val e2))
@@ -406,8 +408,9 @@
   (match (classify-ival x)
     [-1 (ival-pow-neg x y)]
     [1 (ival-pow-pos x y)]
-    [0 (ival-union (ival-pow-neg (ival (ival-lo x) (endpoint 0.bf #t) (ival-err? x) (ival-err x)) y)
-                   (ival-pow-pos (ival (endpoint 0.bf #t) (ival-hi x) (ival-err? x) (ival-err x)) y))]))
+    [0
+     (define-values (neg pos) (split-ival x 0.bf))
+     (ival-union (ival-pow-neg neg y) (ival-pow-pos pos y))]))
 
 (define (ival-fma a b c)
   (ival-add (ival-mult a b) c))
@@ -656,11 +659,11 @@
    [(? bigfloat?)
     (ival (endpoint-min2 (ival-lo x) (ival-lo y))
           (endpoint-max2 (ival-hi x) (ival-hi y))
-          (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]
+          (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
    [(? boolean?)
     (ival (e-compute and-2 (ival-lo x) (ival-lo y))
           (e-compute or-2 (ival-hi x) (ival-hi y))
-          (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y)))]))
+          (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
 
 (define (propagate-err c x)
   (ival (ival-lo x) (ival-hi x)
@@ -766,38 +769,65 @@
   (define (bflogb x)
     (bffloor (bflog2 (bfabs x))))
 
+  (define (bfcopysign x y)
+    (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
+
+  (define (bffdim x y)
+    (if (bfgt? x y) (bfsub x y) (bfsub y x)))
+
+  (define args
+    (list (list ival-neg   bfneg      '(real) 'real)
+          (list ival-fabs  bfabs      '(real) 'real)
+          (list ival-sqrt  bfsqrt     '(real) 'real)
+          (list ival-cbrt  bfcbrt     '(real) 'real)
+          (list ival-exp   bfexp      '(real) 'real)
+          (list ival-exp2  bfexp2     '(real) 'real)
+          (list ival-expm1 bfexpm1    '(real) 'real)
+          (list ival-log   bflog      '(real) 'real)
+          (list ival-log2  bflog2     '(real) 'real)
+          (list ival-log10 bflog10    '(real) 'real)
+          (list ival-log1p bflog1p    '(real) 'real)
+          (list ival-logb  bflogb     '(real) 'real)
+          (list ival-sin   bfsin      '(real) 'real)
+          (list ival-cos   bfcos      '(real) 'real)
+          (list ival-tan   bftan      '(real) 'real)
+          (list ival-asin  bfasin     '(real) 'real)
+          (list ival-acos  bfacos     '(real) 'real)
+          (list ival-atan  bfatan     '(real) 'real)
+          (list ival-sinh  bfsinh     '(real) 'real)
+          (list ival-cosh  bfcosh     '(real) 'real)
+          (list ival-tanh  bftanh     '(real) 'real)
+          (list ival-asinh bfasinh    '(real) 'real)
+          (list ival-acosh bfacosh    '(real) 'real)
+          (list ival-atanh bfatanh    '(real) 'real)
+          (list ival-erf   bferf      '(real) 'real)
+          (list ival-erfc  bferfc     '(real) 'real)
+          (list ival-rint  bfrint     '(real) 'real)
+          (list ival-round bfround    '(real) 'real)
+          (list ival-ceil  bfceiling  '(real) 'real)
+          (list ival-floor bffloor    '(real) 'real)
+          (list ival-trunc bftruncate '(real) 'real)
+          (list ival-add   bfadd      '(real real) 'real)
+          (list ival-sub   bfsub      '(real real) 'real)
+          (list ival-mult  bfmul      '(real real) 'real)
+          (list ival-div   bfdiv      '(real real) 'real)
+          (list ival-pow   bfexpt     '(real real) 'real)
+          (list ival-hypot bfhypot    '(real real) 'real)
+          (list ival-atan2 bfatan2    '(real real) 'real)
+          (list ival-<     bflt?      '(real real) 'bool)
+          (list ival-<=    bflte?     '(real real) 'bool)
+          (list ival->     bfgt?      '(real real) 'bool)
+          (list ival->=    bfgte?     '(real real) 'bool)
+          (list ival-==    bf=?       '(real real) 'bool)
+          (list ival-!= (compose not bf=?) '(real real) 'bool)
+          (list ival-fmin  bfmin2     '(real real) 'real)
+          (list ival-fmax  bfmax2     '(real real) 'real)
+          (list ival-copysign bfcopysign '(real real) 'real)
+          (list ival-fdim  bffdim     '(real real) 'real)))
+
   (define arg1
-    (list (cons ival-neg   bfneg)
-          (cons ival-fabs  bfabs)
-          (cons ival-sqrt  bfsqrt)
-          (cons ival-cbrt  bfcbrt)
-          (cons ival-exp   bfexp)
-          (cons ival-exp2  bfexp2)
-          (cons ival-expm1 bfexpm1)
-          (cons ival-log   bflog)
-          (cons ival-log2  bflog2)
-          (cons ival-log10 bflog10)
-          (cons ival-log1p bflog1p)
-          (cons ival-logb  bflogb)
-          (cons ival-sin   bfsin)
-          (cons ival-cos   bfcos)
-          (cons ival-tan   bftan)
-          (cons ival-asin  bfasin)
-          (cons ival-acos  bfacos)
-          (cons ival-atan  bfatan)
-          (cons ival-sinh  bfsinh)
-          (cons ival-cosh  bfcosh)
-          (cons ival-tanh  bftanh)
-          (cons ival-asinh bfasinh)
-          (cons ival-acosh bfacosh)
-          (cons ival-atanh bfatanh)
-          (cons ival-erf   bferf)
-          (cons ival-erfc  bferfc)
-          (cons ival-rint  bfrint)
-          (cons ival-round bfround)
-          (cons ival-ceil  bfceiling)
-          (cons ival-floor bffloor)
-          (cons ival-trunc bftruncate)))
+    (for/list ([fn args] #:when (= (length (caddr fn)) 1))
+      (cons (car fn) (cadr fn))))
 
   (for ([(ival-fn fn) (in-dict arg1)])
     (test-case (~a (object-name ival-fn))
@@ -811,30 +841,9 @@
            (check-ival-contains? iy (fn x))
            (check-ival-equals? iy (ival-union (ival-fn ilo) (ival-fn ihi)))))))
 
-  (define (bfcopysign x y)
-    (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
-
-  (define (bffdim x y)
-    (if (bfgt? x y) (bfsub x y) (bfsub y x)))
-
   (define arg2
-    (list (cons ival-add bfadd)
-          (cons ival-sub bfsub)
-          (cons ival-mult bfmul)
-          (cons ival-div bfdiv)
-          (cons ival-pow   bfexpt)
-          (cons ival-hypot bfhypot)
-          (cons ival-atan2 bfatan2)
-          (cons ival-< bflt?)
-          (cons ival-<= bflte?)
-          (cons ival-> bfgt?)
-          (cons ival->= bfgte?)
-          (cons ival-== bf=?)
-          (cons ival-!= (compose not bf=?))
-          (cons ival-fmin bfmin2)
-          (cons ival-fmax bfmax2)
-          (cons ival-copysign bfcopysign)
-          (cons ival-fdim bffdim)))
+    (for/list ([fn args] #:when (= (length (caddr fn)) 2))
+      (cons (car fn) (cadr fn))))
 
   (for ([(ival-fn fn) (in-dict arg2)])
     (test-case (~a (object-name ival-fn))
@@ -891,80 +900,35 @@
               (check-ival-equals? iy (ival-union (ival-fn i1 i2lo) (ival-fn i1 i2hi)))))))))
 
   ;; ##################################################### tests for endpoint-immovable
-  (define num-immovable-tests (/ num-tests 2))
+  
+  (define-binary-check (check-movability coarse fine)
+    (and
+     (or (not (endpoint-immovable? (ival-lo coarse)))
+         (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
+     (or (not (endpoint-immovable? (ival-hi coarse)))
+         (bf-equals? (ival-hi-val coarse) (ival-hi-val fine)))))
 
-  (define (check-endpoints-consistant result result2)
-    (when (endpoint-immovable? (ival-lo result))
-      (check (disjoin equal? bf=?) (ival-lo-val result) (ival-lo-val result2)))
-    (when (endpoint-immovable? (ival-hi result))
-      (check (disjoin equal? bf=?) (ival-hi-val result) (ival-hi-val result2))))
-
-  (define (test-function-overflows ival-fn fn num-of-arguments iterations)
+  (define (test-function-overflows ival-fn fn num-of-arguments)
     (parameterize ([bf-precision 80])
-      (test-case (symbol->string (object-name ival-fn))
-        (for ([n (in-range iterations)])
-          (let find-overflow-loop ([interval-size 1])
-            (define intervals
-              (for/list ([n (in-range num-of-arguments)])
-                (sample-interval-sized interval-size)))
-            (define points
-              (for/list ([i intervals])
-                (sample-from i)))
-            (with-check-info (['fn ival-fn] ['intervals intervals] ['points points] ['number n])
-              (let ([result (apply ival-fn intervals)])
-                (if (or (endpoint-immovable? (ival-lo result)) (endpoint-immovable? (ival-hi result)))
-                    (parameterize ([bf-precision 16000])
-                      (let ([higher-precision-result (apply ival-fn intervals)])
-                        (check-endpoints-consistant result higher-precision-result)))
-                    (if (> interval-size 0.005)
-                        (find-overflow-loop (/ interval-size 4.0))
-                        void)))))))))
+      (let find-overflow-loop ([interval-size 1])
+        (define intervals
+          (for/list ([n (in-range num-of-arguments)])
+            (sample-interval-sized interval-size)))
+        (define points
+          (for/list ([i intervals])
+            (sample-from i)))
+        (with-check-info (['fn ival-fn] ['intervals intervals] ['points points])
+          (let ([result (apply ival-fn intervals)])
+            (if (or (endpoint-immovable? (ival-lo result)) (endpoint-immovable? (ival-hi result)))
+                (parameterize ([bf-precision 16000])
+                  (let ([higher-precision-result (apply ival-fn intervals)])
+                    (check-movability result higher-precision-result)))
+                (when (> interval-size 0.005)
+                  (find-overflow-loop (/ interval-size 4.0)))))))))
 
   
-  (for ([(ival-fn fn) (in-dict arg1)])
-    (test-function-overflows ival-fn fn 1 num-immovable-tests))
-  (for ([(ival-fn fn) (in-dict arg2)])
-    (test-function-overflows ival-fn fn 2 num-immovable-tests))
-
-  (define arg1-list (dict->list arg1))
-  (define arg2-list (dict->list arg2))
-
-  ;; test endpoint-immovable also works with compoisition of functions
-  (for ([n (in-range 20)])
-    (define func1 (list-ref arg1-list (random 0 (length arg1-list))))
-    (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
-    (test-function-overflows (procedure-rename (compose (car func1) (car func2))
-                                               (string->symbol
-                                                (string-append (symbol->string (object-name (car func1)))
-                                                               "-composed-with-"
-                                                               (symbol->string (object-name (car func2))))))
-                             (procedure-rename (compose (cdr func1) (cdr func2))
-                                               (string->symbol
-                                                (string-append (symbol->string (object-name (cdr func1)))
-                                                               "-composed-with-"
-                                                               (symbol->string (object-name (cdr func2))))))
-                             1
-                             (/ num-immovable-tests 40)))
-
-  (define (compose-2-with-1 arity-2-func arity-1-func-1 arity-1-func-2)
-    (lambda (a b)
-      (arity-2-func (arity-1-func-1 a) (arity-1-func-2 b))))
-
-  (for ([n (in-range 20)])
-    (define func1 (list-ref arg2-list (random 0 (length arg2-list))))
-    (define func2 (list-ref arg1-list (random 0 (length arg1-list))))
-    (define func3 (list-ref arg1-list (random 0 (length arg1-list))))
-    (test-function-overflows (procedure-rename (compose-2-with-1 (car func1) (car func2) (car func3))
-                                               (string->symbol
-                                                (string-append (symbol->string (object-name (car func1)))
-                                                               "-composed-with-"
-                                                               (symbol->string (object-name (car func2))))))
-                             (procedure-rename (compose-2-with-1 (cdr func1) (cdr func2) (cdr func3))
-                                               (string->symbol
-                                                (string-append (symbol->string (object-name (cdr func1)))
-                                                               "-composed-with-"
-                                                               (symbol->string (object-name (cdr func2))))))
-                             2
-                             (/ num-immovable-tests 40)))
-  )
+  (for ([entry (in-list args)])
+    (test-case (~a (object-name (car entry)))
+      (for ([n (in-range num-tests)])
+        (test-function-overflows (car entry) (cadr entry) (length (caddr entry)))))))
 
