@@ -80,28 +80,24 @@
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
-      (if (> precision (*max-mpfr-prec*))
-          (begin 
-            (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo-endpoint hi-endpoint err? err) (apply fn pt)]
-                       [lo (endpoint-val lo-endpoint)]
-                       [hi (endpoint-val hi-endpoint)]
-                       [lo* (<-bf lo)]
-                       [hi* (<-bf hi)])
-            (cond
-             [err
-              (log! 'nan precision pt)
-              +nan.0]
-             [(and (not err?) (or (equal? lo* hi*)
-                                  (and (equal? lo* -0.0) (equal? hi* +0.0))
-                                  (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
-              (log! 'sampled precision pt hi*)
-              hi*]
-             [(and (endpoint-immovable? lo-endpoint) (endpoint-immovable? hi-endpoint))
-              (log! 'overflowed precision pt)
-              +nan.0]
-             [else
-              (loop (inexact->exact (round (* precision 2))))]))))))
+      (match-define
+       (ival (endpoint (app <-bf lo) lo!) (endpoint (app <-bf hi) hi!) err? err)
+       (apply fn pt))
+      (cond
+       [err
+        (log! 'nan precision pt)
+        +nan.0]
+       [(and (not err?) (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
+        (log! 'sampled precision pt hi)
+        hi]
+       [(and lo! hi!)
+        (log! 'overflowed precision pt)
+        +nan.0]
+       [else
+        (define precision* (exact-floor (* precision 2)))
+        (if (> precision* *max-mpfr-prec*)
+            (begin (log! 'exit precision pt) +nan.0)
+            (loop precision*))]))))
 
 ; These definitions in place, we finally generate the points.
 
