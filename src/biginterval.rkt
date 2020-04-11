@@ -15,8 +15,6 @@
           [struct endpoint ([val value?] [immovable? boolean?])]
           [struct ival ([lo endpoint?] [hi endpoint?] [err? boolean?] [err boolean?])]
           [mk-ival (-> value? ival?)]
-          [ival-hi-val (-> ival? value?)]
-          [ival-lo-val (-> ival? value?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
           [ival-bool (-> boolean? ival?)]

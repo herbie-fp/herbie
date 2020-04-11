@@ -169,18 +169,15 @@
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
-  (define (in-interval? iv pt)
+  (define-simple-check (check-in-interval? iv pt)
     (match-define (ival (endpoint lo lo-immovable?) (endpoint hi hi-immovable?) err? err) iv)
     (and (bf<= lo pt) (bf<= pt hi)))
-
-  (define-binary-check (check-in-interval? in-interval? interval point))
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
       (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
-      (check bf<= (ival-lo-val iv) (ival-hi-val iv))
       (check-in-interval? iv val))))
 
 ;; To compute the cost of a program, we could use the tree as a
