@@ -12,7 +12,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-const-expr eval-application
+         eval-prog eval-application
          compile
          free-variables replace-expression
          desugar-program resugar-program)
@@ -141,14 +141,11 @@
          (,precision->real ,(compile body*)))))
   (common-eval fn))
 
-(define (eval-const-expr expr)
-  ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f)))
-
 (define (eval-application op . args)
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define res (eval-const-expr (cons op args)))
+        (define fn (operator-info op 'nonffi))
+        (define res (apply op args))
         (define type-info (operator-info op 'type))
         (match-define (list (list _ type))
                       (if (hash-has-key? type-info (length args))

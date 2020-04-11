@@ -52,6 +52,10 @@
   (for/list ([rec al])
     (cons (car rec) (f (cdr rec)))))
 
+(define (eval-const-expr expr)
+  ;; When we are in nonffi mode, we don't use repr, so pass in #f
+  ((eval-prog `(λ () ,expr) 'nonffi #f)))
+
 (define (default-combine expr loc special)
   (cond
    [special special]
