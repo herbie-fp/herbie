@@ -140,8 +140,8 @@
           (endpoint-max2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
    [(? boolean?)
-    (ival (e-compute and-fn (ival-lo x) (ival-lo y))
-          (e-compute or-fn (ival-hi x) (ival-hi y))
+    (ival (epfn and-fn (ival-lo x) (ival-lo y))
+          (epfn or-fn (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
 
 (define (propagate-err c x)
@@ -150,7 +150,7 @@
         (or (ival-err c) (ival-err x))))
 
 ;; This function computes and propagates the immovable? flag for endpoints
-(define (e-compute op . args)
+(define (epfn op . args)
   (define args-bf (map endpoint-val args))
   (define-values (result exact?) (bf-return-exact? op args-bf))
   (endpoint result (and (andmap endpoint-immovable? args) exact?)))
@@ -174,8 +174,8 @@
 (define (ival-neg x)
   ;; No rounding, negation is exact
   (ival
-   (e-compute bfneg (ival-hi x))
-   (e-compute bfneg (ival-lo x))
+   (epfn bfneg (ival-hi x))
+   (epfn bfneg (ival-lo x))
    (ival-err? x) (ival-err x)))
 
 ;; Endpoint computation for both `add`, `sub`, and `hypot` (which has an add inside)
@@ -276,11 +276,11 @@
 
 (define ((monotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival  (rnd 'down e-compute bffn lo) (rnd 'up   e-compute bffn hi) err? err))
+  (ival  (rnd 'down epfn bffn lo) (rnd 'up   epfn bffn hi) err? err))
 
 (define ((comonotonic bffn) x)
   (match-define (ival lo hi err? err) x)
-  (ival  (rnd 'down e-compute bffn hi) (rnd 'up   e-compute bffn lo) err? err))
+  (ival  (rnd 'down epfn bffn hi) (rnd 'up   epfn bffn lo) err? err))
 
 (define ((clamp lo hi) x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
@@ -424,8 +424,8 @@
         (ormap ival-err? as) (ormap ival-err as)))
 
 (define (ival-not x)
-  (ival (e-compute not (ival-hi x))
-        (e-compute not (ival-lo x))
+  (ival (epfn not (ival-hi x))
+        (epfn not (ival-lo x))
         (ival-err? x)
         (ival-err x)))
 
@@ -436,18 +436,18 @@
   (define b (rnd 'up   bffloor (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi))))
   (cond
    [(and (bf=? a b) (bfeven? a))
-    (ival (rnd 'down e-compute bfcos (ival-hi x))
-          (rnd 'up e-compute bfcos (ival-lo x))
+    (ival (rnd 'down epfn bfcos (ival-hi x))
+          (rnd 'up epfn bfcos (ival-lo x))
           (ival-err? x) (ival-err x))]
    [(and (bf=? a b) (bfodd? a))
-    (ival (rnd 'down e-compute bfcos (ival-lo x))
-          (rnd 'up e-compute bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
+    (ival (rnd 'down epfn bfcos (ival-lo x))
+          (rnd 'up epfn bfcos (ival-hi x)) (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
     (ival (endpoint -1.bf #f)
-          (rnd 'up e-compute bfmax2 (e-compute bfcos (ival-lo x)) (e-compute bfcos (ival-hi x)))
+          (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
           (ival-err? x) (ival-err x))]
    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd 'down e-compute bfmin2 (e-compute bfcos (ival-lo x)) (e-compute bfcos (ival-hi x)))
+    (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
           (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
    [else
     (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
@@ -459,14 +459,14 @@
   (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi)) half.bf)))
   (cond
     [(and (bf=? a b) (bfeven? a))
-     (ival (rnd 'down e-compute bfsin (ival-hi x))
-           (rnd 'up e-compute bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
+     (ival (rnd 'down epfn bfsin (ival-hi x))
+           (rnd 'up epfn bfsin (ival-lo x)) (ival-err? x) (ival-err x))]
     [(and (bf=? a b) (bfodd? a))
-     (ival (rnd 'down e-compute bfsin (ival-lo x)) (rnd 'up e-compute bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
+     (ival (rnd 'down epfn bfsin (ival-lo x)) (rnd 'up epfn bfsin (ival-hi x)) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (endpoint -1.bf #f) (rnd 'up e-compute bfmax2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
+     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (rnd 'down e-compute bfmin2 (e-compute bfsin (ival-lo x)) (e-compute bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
     [else
      (ival (endpoint -1.bf #f) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]))
 
@@ -476,7 +476,7 @@
   (define a (rnd 'down bffloor (bfsub (bfdiv (ival-lo-val x) (if (bflt? (ival-lo-val x) 0.bf) lopi hipi)) half.bf))) ; half.bf is exact
   (define b (rnd 'up bffloor (bfsub (bfdiv (ival-hi-val x) (if (bflt? (ival-hi-val x) 0.bf) hipi lopi)) half.bf)))
   (if (bf=? a b) ; Same period
-      (ival (rnd 'down e-compute bftan (ival-lo x)) (rnd 'up e-compute bftan (ival-hi x)) #f #f)
+      (ival (rnd 'down epfn bftan (ival-lo x)) (rnd 'up epfn bftan (ival-hi x)) #f #f)
       (ival (endpoint -inf.bf #f) (endpoint +inf.bf #f) #t #f)))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
@@ -484,32 +484,28 @@
 (define* ival-atan (monotonic bfatan))
 
 (define (ival-atan2 y x)
+  (match-define (ival xlo xhi xerr? xerr) x)
+  (match-define (ival ylo yhi yerr? yerr) y)
+
   (define err? (or (ival-err? x) (ival-err? y)))
   (define err (or (ival-err x) (ival-err y)))
 
-  (define tl (cons (ival-hi y) (ival-lo x)))
-  (define tr (cons (ival-hi y) (ival-hi x)))
-  (define bl (cons (ival-lo y) (ival-lo x)))
-  (define br (cons (ival-lo y) (ival-hi x)))
+  (define (mkatan a b c d)
+    (ival (rnd 'down epfn bfatan2 a b) (rnd 'up epfn bfatan2 c d) err? err))
 
-  (define-values (a-lo a-hi)
-    (match* ((classify-ival x) (classify-ival y))
-      [(-1 -1) (values tl br)]
-      [( 0 -1) (values tl tr)]
-      [( 1 -1) (values bl tr)]
-      [( 1  0) (values bl tl)]
-      [( 1  1) (values br tl)]
-      [( 0  1) (values br bl)]
-      [(-1  1) (values tr bl)]
-      [( _  _) (values #f #f)]))
-
-  (if a-lo
-      (ival (rnd 'down e-compute bfatan2 (car a-lo) (cdr a-lo))
-            (rnd 'up   e-compute bfatan2 (car a-hi) (cdr a-hi)) err? err)
-      (ival (endpoint (bfneg (rnd 'up pi.bf)) #f) (endpoint (rnd 'up pi.bf) #f)
+  (match* ((classify-ival x) (classify-ival y))
+    [(-1 -1) (mkatan yhi xlo ylo xhi)]
+    [( 0 -1) (mkatan yhi xlo yhi xhi)]
+    [( 1 -1) (mkatan ylo xlo yhi xhi)]
+    [( 1  0) (mkatan ylo xlo yhi xlo)]
+    [( 1  1) (mkatan ylo xhi yhi xlo)]
+    [( 0  1) (mkatan ylo xhi ylo xlo)]
+    [(-1  1) (mkatan yhi xhi ylo xlo)]
+    [( _  0)
+     (ival (endpoint (bfneg (rnd 'up pi.bf)) #f) (endpoint (rnd 'up pi.bf) #f)
             (or err? (bfgte? (ival-hi-val x) 0.bf))
             (or err (and (bf=? (ival-lo-val x) 0.bf) (bf=? (ival-hi-val x) 0.bf)
-                         (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))))
+                         (bf=? (ival-lo-val y) 0.bf) (bf=? (ival-hi-val y) 0.bf))))]))
 
 (define* ival-cosh (compose (monotonic bfcosh) ival-fabs))
 (define* ival-sinh (monotonic bfsinh))
@@ -592,10 +588,10 @@
 (define* ival-erfc (comonotonic bferfc))
 
 (define (ival-cmp x y)
-  (define can-< (e-compute bflt? (ival-lo x) (ival-hi y)))
-  (define must-< (e-compute bflt? (ival-hi x) (ival-lo y)))
-  (define can-> (e-compute bfgt? (ival-hi x) (ival-lo y)))
-  (define must-> (e-compute bfgt? (ival-lo x) (ival-hi y)))
+  (define can-< (epfn bflt? (ival-lo x) (ival-hi y)))
+  (define must-< (epfn bflt? (ival-hi x) (ival-lo y)))
+  (define can-> (epfn bfgt? (ival-hi x) (ival-lo y)))
+  (define must-> (epfn bfgt? (ival-lo x) (ival-hi y)))
   (values can-< must-< can-> must->))
 
 (define (ival-<2 x y)
@@ -604,7 +600,7 @@
 
 (define (ival-<=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute not c>) (e-compute not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn not c>) (epfn not m>) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival->2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
@@ -612,12 +608,12 @@
 
 (define (ival->=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute not c<) (e-compute not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
+  (ival (epfn not c<) (epfn not m<) (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-==2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute and-fn (e-compute not c<) (e-compute not c>))
-        (e-compute and-fn (e-compute not m<) (e-compute not m>))
+  (ival (epfn and-fn (epfn not c<) (epfn not c>))
+        (epfn and-fn (epfn not m<) (epfn not m>))
         (or (ival-err? x) (ival-err? y))
         (or (ival-err x) (ival-err y))))
 
@@ -638,7 +634,7 @@
 
 (define (ival-!=2 x y)
   (define-values (c< m< c> m>) (ival-cmp x y))
-  (ival (e-compute or-fn m< m>) (e-compute or-fn c< c>)
+  (ival (epfn or-fn m< m>) (epfn or-fn c< c>)
         (or (ival-err? x) (ival-err? y)) (or (ival-err x) (ival-err y))))
 
 (define (ival-!= . as)
@@ -672,8 +668,8 @@
   (define err? (or (ival-err? y) xerr?))
   (define err (or (ival-err y) xerr))
   (match* (can-neg can-pos)
-    [(#t #t) (ival (e-compute bfneg xhi) xhi err? err)]
-    [(#t #f) (ival (e-compute bfneg xhi) (e-compute bfneg xlo) err? err)]
+    [(#t #t) (ival (epfn bfneg xhi) xhi err? err)]
+    [(#t #f) (ival (epfn bfneg xhi) (epfn bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]))
 
 (define* ival-fdim (compose ival-fabs ival-sub))

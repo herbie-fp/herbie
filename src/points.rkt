@@ -95,7 +95,7 @@
         +nan.0]
        [else
         (define precision* (exact-floor (* precision 2)))
-        (if (> precision* *max-mpfr-prec*)
+        (if (> precision* (*max-mpfr-prec*))
             (begin (log! 'exit precision pt) +nan.0)
             (loop precision*))]))))
 
