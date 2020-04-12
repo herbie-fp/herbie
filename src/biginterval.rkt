@@ -361,6 +361,7 @@
     (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
     (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
     (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
+        ;; Leverages ival-exp's overflow logic to sometimes set extra immovability flags
         (ival-exp (ival-mult y (ival-log x)))
         (ival (endpoint lo (or lo!))
               (endpoint hi (or hi!))
