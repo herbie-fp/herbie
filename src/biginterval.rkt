@@ -358,10 +358,14 @@
   (define y-class (classify-ival y))
 
   (define (mk-pow a b c d)
-    (ival (rnd 'down eppow a b x-class y-class)
-          (rnd 'up   eppow c d x-class y-class)
-          (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (bflte? (endpoint-val ylo) 0.bf)))
-          (or xerr yerr (and (bfzero? (endpoint-val xhi)) (bflte? (endpoint-val yhi) 0.bf)))))
+    (match-define (endpoint lo lo!) (rnd 'down eppow a b x-class y-class))
+    (match-define (endpoint hi hi!) (rnd 'up   eppow c d x-class y-class))
+    (if (or (bfzero? lo) (bfinfinite? lo) (bfzero? hi) (bfinfinite? hi))
+        (ival-exp (ival-mult y (ival-log x)))
+        (ival (endpoint lo (or lo!))
+              (endpoint hi (or hi!))
+              (or xerr? yerr? (and (bfzero? (endpoint-val xlo)) (bflte? (endpoint-val ylo) 0.bf)))
+              (or xerr yerr (and (bfzero? (endpoint-val xhi)) (bflte? (endpoint-val yhi) 0.bf))))))
 
   (match* (x-class y-class)
     [( 1  1) (mk-pow xlo ylo xhi yhi)]
