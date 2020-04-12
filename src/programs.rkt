@@ -145,7 +145,7 @@
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define fn (operator-info op 'nonffi))
-        (define res (apply op args))
+        (define res (apply fn args))
         (define type-info (operator-info op 'type))
         (match-define (list (list _ type))
                       (if (hash-has-key? type-info (length args))
