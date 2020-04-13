@@ -80,17 +80,22 @@
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
-      (match-define
-       (ival (endpoint (app <-bf lo) lo!) (endpoint (app <-bf hi) hi!) err? err)
-       (apply fn pt))
+      (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) (apply fn pt))
+      (define lo* (<-bf lo))
+      (define hi* (<-bf hi))
       (cond
        [err
         (log! 'nan precision pt)
         +nan.0]
-       [(and (not err?) (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
-        (log! 'sampled precision pt hi)
-        hi]
+       [(and (not err?) (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))) ; 0.0 and -0.0
+        (log! 'sampled precision pt hi*)
+        hi*]
        [(and lo! hi!)
+        (log! 'overflowed precision pt)
+        +nan.0]
+       [(or (and lo! (bigfloat? lo) (bfinfinite? lo))
+            (and hi! (bigfloat? hi) (bfinfinite? hi)))
+        ;; We never sample infinite points anyway
         (log! 'overflowed precision pt)
         +nan.0]
        [else
