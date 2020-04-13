@@ -561,16 +561,23 @@
     (define d (rnd 'up bfround (bfdiv (ival-hi-val x) (ival-lo-val y))))
     (cond
      [(bf=? c d) ; No intersection along `x.hi` either; use top-left/bottom-right point
-      (ival (endpoint (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y))) #f)
-            (endpoint (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y))) #f)
+      (define y* (bfdiv (ival-hi-val y) 2.bf))
+      (ival (endpoint (bfmax2 (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
+                              (bfneg y*)) #f)
+            (endpoint (bfmin2 (rnd 'up bfsub (ival-hi-val x) (rnd 'down bfmul c (ival-lo-val y)))
+                              y*) #f)
             err? err)]
      [else
-      (define y* (bfdiv (rnd 'down bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
-      (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)])]
+      ;; NOPE! need to subtract half.bf one way, add it another!
+      (define y*-hi (bfdiv (rnd 'down bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
+      (define y*-lo (bfmax2 (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
+                            (bfneg (bfdiv (ival-hi-val y) 2.bf))))
+      (ival (endpoint y*-lo #f) (endpoint y*-hi #f) err? err)])]
    [else
     (define y* (bfdiv (ival-hi-val y) 2.bf))
     (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)]))
 
+;; Seems unnecessary
 (define (ival-remainder x y)
   (define err? (or (ival-err? x) (ival-err? y)
                    (and (bflte? (ival-lo-val y) 0.bf) (bfgte? (ival-hi-val y) 0.bf))))
