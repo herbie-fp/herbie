@@ -572,7 +572,7 @@
       (define y*-hi (bfdiv (rnd 'down bfdiv (ival-hi-val x) (bfadd c half.bf)) 2.bf))
       (define y*-lo (bfmax2 (rnd 'down bfsub (ival-lo-val x) (rnd 'up bfmul c (ival-hi-val y)))
                             (bfneg (bfdiv (ival-hi-val y) 2.bf))))
-      (ival (endpoint y*-lo #f) (endpoint y*-hi #f) err? err)])]
+      (ival (endpoint (bfmin2 y*-lo (bfneg y*-hi)) #f) (endpoint y*-hi #f) err? err)])]
    [else
     (define y* (bfdiv (ival-hi-val y) 2.bf))
     (ival (endpoint (bfneg y*) #f) (endpoint y* #f) err? err)]))
