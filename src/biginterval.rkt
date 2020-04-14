@@ -687,79 +687,6 @@
 (module+ test
   (require rackunit racket/math racket/dict racket/format math/flonum racket/list)
   (require (only-in "common.rkt" sample-double))
-
-  (define num-tests 2500)
-
-  (define (sample-wide-interval)
-    (define v1 (sample-double))
-    (define v2 (sample-double))
-    (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f))
-
-  (define (sample-narrow-interval)
-    (define v1 (bf (sample-double)))
-    (define delta (* (match (random 0 2) [0 -1] [1 1]) (random 0 (expt 2 31))))
-    (define v2 (bfstep v1 delta))
-    (ival (endpoint (bfmin2 v1 v2) #t) (endpoint (bfmax2 v1 v2) #t) #f #f))
-
-  (define (sample-interval type)
-    (match type
-      ['real
-       (define x (if (= (random 0 2) 0) (sample-wide-interval) (sample-narrow-interval)))
-       (if (or (bfnan? (ival-lo-val x)) (bfnan? (ival-hi-val x))) (sample-interval type) x)]
-      ['bool
-       (match (random 0 3)
-         [0 (ival-bool #f)]
-         [1 (ival-bool #t)]
-         [2 (ival (endpoint #f #t) (endpoint #t #t) #f #f)])]))
-
-  (define (sample-interval-sized [size-limit 1])
-    (let* ([v1 (bf (sample-double))] [exp (random 0 31)] [mantissa (random 0 (expt 2 exp))] [sign (- (* 2 (random 0 2)) 1)])
-          (define v2 (bfstep v1 (exact-floor (* (* sign (+ exp mantissa)) size-limit))))
-          (if (= sign -1)
-              (ival (endpoint v2 #t) (endpoint v1 #t) (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2)))
-              (ival (endpoint v1 #t) (endpoint v2 #t) (or (bfnan? v1) (bfnan? v2)) (and (bfnan? v1) (bfnan? v2))))))
-
-  (define (sample-from ival)
-    (if (bigfloat? (ival-lo ival))
-        (let ([p (random)])
-          (bfadd (bfmul (bf p) (ival-lo-val ival)) (bfmul (bfsub 1.bf (bf p)) (ival-hi-val ival))))
-        (let ([p (random 0 2)])
-          (if (= p 0) (ival-lo-val ival) (ival-hi-val ival)))))
-
-  (define-simple-check (check-ival-valid? ival)
-    (if (ival-err ival)
-        (ival-err? ival)
-        (if (boolean? (ival-lo-val ival))
-            (or (not (ival-lo-val ival)) (ival-hi-val ival))
-            (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
-
-  (define-simple-check (check-ival-contains? ival pt)
-    (if (bigfloat? pt)
-        (if (bfnan? pt)
-            (ival-err? ival)
-            (and (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
-        (or (equal? pt (ival-lo-val ival)) (equal? pt (ival-hi-val ival)))))
-
-  (define (bf-equals? bf1 bf2)
-    (if (boolean? bf1)
-        (equal? bf1 bf2)
-        (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
-
-  (define-binary-check (check-ival-equals? ival1 ival2)
-    (or (ival-err? ival1)
-        (and (bf-equals? (ival-lo-val ival1) (ival-lo-val ival2))
-             (bf-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
-
-  (check-ival-contains? (ival-bool #f) #f)
-  (check-ival-contains? (ival-bool #t) #t)
-  (check-ival-contains? (ival-pi) (pi.bf))
-  (check-ival-contains? (ival-e) (bfexp 1.bf))
-  (test-case "mk-ival"
-    (for ([i (in-range num-tests)])
-      (define pt (sample-double))
-      (with-check-info (['point pt])
-        (check-ival-valid? (mk-ival (bf pt)))
-        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
   
   (define (bflogb x)
     (bffloor (bflog2 (bfabs x))))
@@ -842,8 +769,118 @@
           (list ival-if    if-fn      '(bool real real) 'real)
           ))
 
-  (for ([entry (in-list function-table)])
+  (define (sample-wide-interval)
+    (define v1 (sample-double))
+    (define v2 (sample-double))
+    (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f))
+
+  (define (sample-narrow-interval)
+    (define v1 (bf (sample-double)))
+    (define delta (* (match (random 0 2) [0 -1] [1 1]) (random 0 (expt 2 31))))
+    (define v2 (bfstep v1 delta))
+    (ival (endpoint (bfmin2 v1 v2) #t) (endpoint (bfmax2 v1 v2) #t) #f #f))
+
+  (define (sample-interval type)
+    (match type
+      ['real
+       (define x (if (= (random 0 2) 0) (sample-wide-interval) (sample-narrow-interval)))
+       (if (or (bfnan? (ival-lo-val x)) (bfnan? (ival-hi-val x))) (sample-interval type) x)]
+      ['bool
+       (match (random 0 3)
+         [0 (ival-bool #f)]
+         [1 (ival-bool #t)]
+         [2 (ival (endpoint #f #t) (endpoint #t #t) #f #f)])]))
+
+  (define (sample-from ival)
+    (if (bigfloat? (ival-lo ival))
+        (let ([p (random)])
+          (bfadd (bfmul (bf p) (ival-lo-val ival)) (bfmul (bfsub 1.bf (bf p)) (ival-hi-val ival))))
+        (let ([p (random 0 2)])
+          (if (= p 0) (ival-lo-val ival) (ival-hi-val ival)))))
+
+  (define-simple-check (check-ival-valid? ival)
+    (if (ival-err ival)
+        (ival-err? ival)
+        (if (boolean? (ival-lo-val ival))
+            (or (not (ival-lo-val ival)) (ival-hi-val ival))
+            (bflte? (ival-lo-val ival) (ival-hi-val ival)))))
+
+  (define-simple-check (check-ival-contains? ival pt)
+    (if (bigfloat? pt)
+        (if (bfnan? pt)
+            (ival-err? ival)
+            (and (bflte? (ival-lo-val ival) pt) (bflte? pt (ival-hi-val ival))))
+        (or (equal? pt (ival-lo-val ival)) (equal? pt (ival-hi-val ival)))))
+  
+  (define-binary-check (check-movability? coarse fine)
+    (and
+     (or (not (endpoint-immovable? (ival-lo coarse)))
+         (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
+     (or (not (endpoint-immovable? (ival-hi coarse)))
+         (bf-equals? (ival-hi-val coarse) (ival-hi-val fine)))))
+
+  (define (bf-equals? bf1 bf2)
+    (if (boolean? bf1)
+        (equal? bf1 bf2)
+        (or (bf=? bf1 bf2) (and (bfnan? bf1) (bfnan? bf2)))))
+
+  (define-binary-check (check-ival-equals? ival1 ival2)
+    (or (ival-err? ival1)
+        (and (bf-equals? (ival-lo-val ival1) (ival-lo-val ival2))
+             (bf-equals? (ival-hi-val ival1) (ival-hi-val ival2)))))
+
+  (define num-tests 2500)
+
+  (define (compose-nth f1 n1 f2 n2 k)
+    (procedure-rename
+     (λ args
+       (define intermediate (apply f2 (build-list n2 (λ (j) (list-ref args (+ j k))))))
+       (define (arg1 i)
+         (cond
+          [(< i k) (list-ref args i)]
+          [(= i k) intermediate]
+          [(> i k) (list-ref args (+ i n2 -1))]))
+       (apply f1 (build-list n1 arg1)))
+     (string->symbol (format "~a.~a@~a" (object-name f1) (object-name f2) k))))
+
+  (define (random-choose l)
+    (list-ref l (random 0 (length l))))
+
+  ;; We also generate new functions by composing the above randomly
+  (define num-composed-tests 50)
+  (define composed-function-table
+    (for/list ([i (in-range num-composed-tests)])
+      (match-define (list ival-f1 f1 args1 out1) (random-choose function-table))
+      (define l1 (length args1))
+      (define i (random 0 l1))
+      (define itype (list-ref args1 i))
+      (define f2s (filter (λ (e) (equal? (last e) itype)) function-table))
+      (match-define (list ival-f2 f2 args2 out2) (random-choose f2s))
+      (define l2 (length args2))
+      (define (type j)
+         (cond
+          [(< j i) (list-ref args1 j)]
+          [(< j (+ i l2)) (list-ref args2 (- j i))]
+          [else (list-ref args1 (- j l2 -1))]))
+      (list (compose-nth ival-f1 l1 ival-f2 l2 i)
+            (compose-nth f1 l1 f2 l2 i)
+            (build-list (+ l1 l2 -1) type)
+            out1)))
+
+  (check-ival-contains? (ival-bool #f) #f)
+  (check-ival-contains? (ival-bool #t) #t)
+  (check-ival-contains? (ival-pi) (pi.bf))
+  (check-ival-contains? (ival-e) (bfexp 1.bf))
+  (test-case "mk-ival"
+    (for ([i (in-range num-tests)])
+      (define pt (sample-double))
+      (with-check-info (['point pt])
+        (check-ival-valid? (mk-ival (bf pt)))
+        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
+
+  (for ([entry (in-list (append function-table composed-function-table))])
     (match-define (list ival-fn fn args _) entry)
+    (eprintf "Testing ~a\n" (object-name ival-fn))
     (test-case (~a (object-name ival-fn))
        (for ([n (in-range num-tests)])
          (define is (for/list ([arg args]) (sample-interval arg)))
@@ -859,37 +896,8 @@
              (with-check-info (['split-argument k])
                (check-ival-equals? iy
                  (ival-union (apply ival-fn (list-set is k ilo))
-                             (apply ival-fn (list-set is k ihi))))))))))
-
-  ;; ##################################################### tests for endpoint-immovable
-  
-  (define-binary-check (check-movability? coarse fine)
-    (and
-     (or (not (endpoint-immovable? (ival-lo coarse)))
-         (bf-equals? (ival-lo-val coarse) (ival-lo-val fine)))
-     (or (not (endpoint-immovable? (ival-hi coarse)))
-         (bf-equals? (ival-hi-val coarse) (ival-hi-val fine)))))
-
-  (define (test-function-overflows ival-fn fn num-of-arguments)
-    (parameterize ([bf-precision 80])
-      (let find-overflow-loop ([interval-size 1])
-        (define intervals
-          (for/list ([n (in-range num-of-arguments)])
-            (sample-interval-sized interval-size)))
-        (define points
-          (for/list ([i intervals])
-            (sample-from i)))
-        (with-check-info (['fn ival-fn] ['intervals intervals] ['points points])
-          (let ([result (apply ival-fn intervals)])
-            (if (or (endpoint-immovable? (ival-lo result)) (endpoint-immovable? (ival-hi result)))
-                (parameterize ([bf-precision 16000])
-                  (let ([higher-precision-result (apply ival-fn intervals)])
-                    (check-movability? result higher-precision-result)))
-                (when (> interval-size 0.005)
-                  (find-overflow-loop (/ interval-size 4.0)))))))))
-  
-  (for ([entry (in-list function-table)] #:when (andmap (curry equal? 'real) (caddr entry)))
-    (test-case (~a (object-name (car entry)))
-      (for ([n (in-range num-tests)])
-        (test-function-overflows (car entry) (cadr entry) (length (caddr entry)))))))
-
+                             (apply ival-fn (list-set is k ihi))))))
+           (when (and (or (endpoint-immovable? (ival-lo iy)) (endpoint-immovable? (ival-hi iy)))
+                      (not (ival-err iy)))
+             (define iy* (parameterize ([bf-precision 8000]) (apply ival-fn is)))
+             (check-movability? iy iy*)))))))
