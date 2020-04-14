@@ -132,12 +132,14 @@
       e2))
 
 (define (ival-union x y)
-  (match (ival-lo-val x)
-   [(? bigfloat?)
+  (cond
+   [(ival-err x) (struct-copy ival y [err? #t])]
+   [(ival-err y) (struct-copy ival x [err? #t])]
+   [(bigfloat? (ival-lo-val x))
     (ival (endpoint-min2 (ival-lo x) (ival-lo y))
           (endpoint-max2 (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]
-   [(? boolean?)
+   [(boolean? (ival-lo-val x))
     (ival (epfn and-fn (ival-lo x) (ival-lo y))
           (epfn or-fn (ival-hi x) (ival-hi y))
           (or (ival-err? x) (ival-err? y)) (and (ival-err x) (ival-err y)))]))
@@ -390,7 +392,9 @@
   (define b (bffloor (ival-hi-val y)))
   (cond
    [(bflt? b a)
-    (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t)]
+    (if (bfzero? (ival-hi-val x))
+        (ival (endpoint 0.bf #f) (endpoint 0.bf #f) #t #f)
+        (ival (endpoint +nan.bf #t) (endpoint +nan.bf #t) #t #t))]
    [(bf=? a b)
     (define aep (endpoint a (and (endpoint-immovable? (ival-lo y)) (endpoint-immovable? (ival-hi y)))))
     (if (bfodd? a)
@@ -831,6 +835,37 @@
 
   (define num-tests 2500)
 
+  (define (test-entry n ival-fn fn args)
+    (define is (for/list ([arg args]) (sample-interval arg)))
+    (define xs (for/list ([i is]) (sample-from i)))
+    (define iy (apply ival-fn is))
+    (define y (apply fn xs))
+
+    (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
+      (check-ival-valid? iy)
+      (check-ival-contains? iy y)
+      (for ([k (in-naturals)] [i is] [x xs])
+        (define-values (ilo ihi) (split-ival i x))
+        (with-check-info (['split-argument k])
+          (check-ival-equals? iy
+            (ival-union (apply ival-fn (list-set is k ilo))
+                        (apply ival-fn (list-set is k ihi))))))
+      (when (and (or (endpoint-immovable? (ival-lo iy)) (endpoint-immovable? (ival-hi iy)))
+                 (not (ival-err iy)))
+        (define iy* (parameterize ([bf-precision 8000]) (apply ival-fn is)))
+        (check-movability? iy iy*))))
+
+  (check-ival-contains? (ival-bool #f) #f)
+  (check-ival-contains? (ival-bool #t) #t)
+  (check-ival-contains? (ival-pi) (pi.bf))
+  (check-ival-contains? (ival-e) (bfexp 1.bf))
+  (test-case "mk-ival"
+    (for ([i (in-range num-tests)])
+      (define pt (sample-double))
+      (with-check-info (['point pt])
+        (check-ival-valid? (mk-ival (bf pt)))
+        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
+
   (define (compose-nth f1 n1 f2 n2 k)
     (procedure-rename
      (λ args
@@ -845,59 +880,42 @@
 
   (define (random-choose l)
     (list-ref l (random 0 (length l))))
-
-  ;; We also generate new functions by composing the above randomly
-  (define num-composed-tests 50)
-  (define composed-function-table
-    (for/list ([i (in-range num-composed-tests)])
-      (match-define (list ival-f1 f1 args1 out1) (random-choose function-table))
-      (define l1 (length args1))
-      (define i (random 0 l1))
-      (define itype (list-ref args1 i))
-      (define f2s (filter (λ (e) (equal? (last e) itype)) function-table))
-      (match-define (list ival-f2 f2 args2 out2) (random-choose f2s))
-      (define l2 (length args2))
+  
+  (define (compose-entries e1 e2)
+    (match-define (list ival-f1 f1 args1 out1) e1)
+    (match-define (list ival-f2 f2 args2 out2) e2)
+    (define l1 (length args1))
+    (define l2 (length args2))
+    (define i (random 0 l1))
+    (cond
+     [(equal? out2 (list-ref args1 i))
       (define (type j)
-         (cond
-          [(< j i) (list-ref args1 j)]
-          [(< j (+ i l2)) (list-ref args2 (- j i))]
-          [else (list-ref args1 (- j l2 -1))]))
+        (cond
+         [(< j i) (list-ref args1 j)]
+         [(< j (+ i l2)) (list-ref args2 (- j i))]
+         [else (list-ref args1 (- j l2 -1))]))
       (list (compose-nth ival-f1 l1 ival-f2 l2 i)
             (compose-nth f1 l1 f2 l2 i)
             (build-list (+ l1 l2 -1) type)
-            out1)))
+            out1)]
+     [else #f]))
 
-  (check-ival-contains? (ival-bool #f) #f)
-  (check-ival-contains? (ival-bool #t) #t)
-  (check-ival-contains? (ival-pi) (pi.bf))
-  (check-ival-contains? (ival-e) (bfexp 1.bf))
-  (test-case "mk-ival"
-    (for ([i (in-range num-tests)])
-      (define pt (sample-double))
-      (with-check-info (['point pt])
-        (check-ival-valid? (mk-ival (bf pt)))
-        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
-
-  (for ([entry (in-list (append function-table composed-function-table))])
+  (for ([entry (in-list function-table)])
     (match-define (list ival-fn fn args _) entry)
-    (eprintf "Testing ~a\n" (object-name ival-fn))
     (test-case (~a (object-name ival-fn))
        (for ([n (in-range num-tests)])
-         (define is (for/list ([arg args]) (sample-interval arg)))
-         (define xs (for/list ([i is]) (sample-from i)))
-         (define iy (apply ival-fn is))
-         (define y (apply fn xs))
+         (test-entry n ival-fn fn args))))
 
-         (with-check-info (['fn ival-fn] ['intervals is] ['points xs] ['number n])
-           (check-ival-valid? iy)
-           (check-ival-contains? iy y)
-           (for ([k (in-naturals)] [i is] [x xs])
-             (define-values (ilo ihi) (split-ival i x))
-             (with-check-info (['split-argument k])
-               (check-ival-equals? iy
-                 (ival-union (apply ival-fn (list-set is k ilo))
-                             (apply ival-fn (list-set is k ihi))))))
-           (when (and (or (endpoint-immovable? (ival-lo iy)) (endpoint-immovable? (ival-hi iy)))
-                      (not (ival-err iy)))
-             (define iy* (parameterize ([bf-precision 8000]) (apply ival-fn is)))
-             (check-movability? iy iy*)))))))
+  ;; We also generate new functions by composing the above randomly
+  (define num-composed-tests 0)
+  (define composed-function-table
+    (filter
+     identity
+     (for/list ([i (in-range num-composed-tests)])
+       (compose-entries (random-choose function-table) (random-choose function-table)))))
+
+  (for ([entry (in-list composed-function-table)])
+    (match-define (list ival-fn fn args _) entry)
+    (test-case (~a (object-name ival-fn))
+       (for ([n (in-range num-tests)])
+         (test-entry ival-fn fn args)))))
