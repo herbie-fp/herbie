@@ -84,8 +84,7 @@
   (define type (type-of expr (*var-reprs*)))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
-    (for ([rule rules] #:when (equal? type (rule-otype rule))
-          #:when (list? (rule-input rule)))
+    (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (when (or
              (not ghead) ; Any results work for me
              (and
