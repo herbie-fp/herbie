@@ -5,8 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points errors errors-score
+(provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
+         errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
@@ -212,6 +212,13 @@
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
       (point-error (apply fn point) exact repr))))
+
+(define (batch-errors progs pcontext repr)
+  (define fn (compose vector (batch-eval-progs progs 'fl repr)))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
+      (for/vector ([out (apply fn point)])
+        (point-error out exact repr)))))
 
 ;; Old, halfpoints method of sampling points
 

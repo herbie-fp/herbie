@@ -198,11 +198,16 @@
      (negate (compose (curry set-member? prog-set) alt-program))
      (remove-duplicates altns #:key alt-program)))
   (timeline-log! 'filtered (list (length altns*) (length altns)))
-  (for/fold ([atab atab]) ([altn altns*])
-    (atab-add-altn atab altn repr)))
+  (cond
+   [(null? altns*)
+    atab]
+   [else
+    (define progs (map alt-program altns*))
+    (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
+    (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
+      (atab-add-altn atab altn errs repr))]))
 
-(define (atab-add-altn atab altn repr)
-  (define errs (errors (alt-program altn) (alt-table-context atab) repr))
+(define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost altn))
   (match-define (alt-table point->alts alt->points _ _) atab)
   (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
