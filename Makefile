@@ -1,16 +1,13 @@
-.PHONY: all install update nightly index publish start-server package deploy
+.PHONY: help install nightly index start-server deploy
 
-all:
+help:
 	@echo "Type 'make install' to install Herbie"
-	@echo "Then type 'racket src/herbie.rkt web' to run Herbie."
+	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
 install:
-	raco pkg install --name herbie src/
+	raco pkg install --name herbie src/ || raco pkg update --name herbie src/
 
-update:
-	raco pkg update --name herbie src/
-
-nightly:
+nightly: install
 	bash infra/nightly.sh
 	bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
@@ -18,8 +15,7 @@ nightly:
 index:
 	bash infra/publish.sh index
 
-start-server:
-	$(MAKE) update || $(MAKE) install
+start-server: install
 	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
