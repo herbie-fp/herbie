@@ -12,7 +12,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-const-expr eval-application
+         eval-prog eval-application
          compile
          free-variables replace-expression
          desugar-program resugar-program)
@@ -141,14 +141,11 @@
          (,precision->real ,(compile body*)))))
   (common-eval fn))
 
-(define (eval-const-expr expr)
-  ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f)))
-
 (define (eval-application op . args)
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define res (eval-const-expr (cons op args)))
+        (define fn (operator-info op 'nonffi))
+        (define res (apply fn args))
         (define type-info (operator-info op 'type))
         (match-define (list (list _ type))
                       (if (hash-has-key? type-info (length args))
@@ -172,18 +169,15 @@
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
-  (define (in-interval? iv pt)
-    (match-define (ival lo hi err? err) iv)
+  (define-simple-check (check-in-interval? iv pt)
+    (match-define (ival (endpoint lo lo-immovable?) (endpoint hi hi-immovable?) err? err) iv)
     (and (bf<= lo pt) (bf<= pt hi)))
-
-  (define-binary-check (check-in-interval? in-interval? interval point))
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
       (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
-      (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 
 ;; To compute the cost of a program, we could use the tree as a
