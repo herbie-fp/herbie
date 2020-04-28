@@ -5,7 +5,8 @@ help:
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
 install:
-	raco pkg install --name herbie src/ || raco pkg update --name herbie src/
+	raco pkg install --skip-installed --name herbie src/
+	raco pkg update --name herbie src/
 
 nightly: install
 	bash infra/nightly.sh
@@ -23,7 +24,7 @@ start-server: install
 # This rule is run by herbie.uwplse.org on every commit to Github.
 # It does not restart the demo server, but it does pull new static content
 deploy:
-	cd $(shell ~/uwplse/getdir) && git pull
+	git -C $(shell ~/uwplse/getdir) pull
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
