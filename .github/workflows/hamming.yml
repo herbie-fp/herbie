@@ -9,6 +9,8 @@ jobs:
       matrix:
         racket-version: [ '7.3', '7.4', '7.5', '7.6' ]
     steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
         with:
