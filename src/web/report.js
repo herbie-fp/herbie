@@ -16,7 +16,7 @@ function ComponentInstance(elt, component) {
 }
 
 function Element(tagname, props, children) {
-    if (!children) { children = props; props = {}; }
+    if (children === undefined) { children = props; props = {}; }
 
     var $elt = document.createElement(tagname);
     for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
@@ -213,6 +213,64 @@ var Implementations = new Component("#program", {
         }
     },
 });
+
+function pct(val, base) {
+    return Math.floor(val/base * 10000) / 100 + "%";
+}
+
+var Profile = new Component("#profile", {
+    setup: function() {
+        fetch("profile.json").then(response => response.json()).then(data => this.render(data));
+    },
+    render: function(json) {
+        this.json = json;
+        this.elt.children[0].remove();
+        this.elt.appendChild(this.mkNode(json.nodes[1]));
+    },
+    mkNode: function(node) {
+        var that = this;
+        return Element("div", { className: "profile-row" }, [
+            Element("div", { className: "related" }, [
+                node.callers.sort((e1, e2) => e1.caller_time - e2.caller_time).map(function(edge) {
+                    var other = that.json.nodes[edge.caller];
+                    elt = Element("div", { className: "edge" }, [
+                        Element("a", { className: "name" }, other.id || "???"),
+                        Element("span", { className: "path" }, other.src || "???"),
+                        Element("span", { className: "pct" }, pct(edge.caller_time, node.total)),
+                    ]);
+                    elt.addEventListener("click", that.addElt(other));
+                    return elt;
+                })
+            ]),
+            Element("div", { className: "node" }, [
+                Element("span", { className: "pct" }, pct(node.total, that.json.total_time)),
+                Element("span", { className: "pct" }, pct(node.self, that.json.cpu_time)),
+                Element("span", { className: "name" }, node.id || "???"),
+                Element("span", { className: "path" }, node.src || "???"),
+            ]),
+            Element("div", { className: "related" }, [
+                node.callees.sort((e1, e2) => e2.callee_time - e1.callee_time).map(function(edge) {
+                    var other = that.json.nodes[edge.callee];
+                    elt = Element("div", { className: "edge" }, [
+                        Element("a", { className: "name" }, other.id || "???"),
+                        Element("span", { className: "path" }, other.src || "???"),
+                        Element("span", { className: "pct" }, pct(edge.callee_time, node.total)),
+                    ]);
+                    elt.addEventListener("click", that.addElt(other));
+                    return elt;
+                })
+            ]),
+        ]);
+    },
+    addElt: function(other) {
+        var that = this;
+        return function() {
+            var newelt = that.mkNode(other)
+            that.elt.appendChild(newelt);
+            newelt.scrollTo();
+        }
+    },
+})
 
 function histogram(id, data) {
     var width = 676;
