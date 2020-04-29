@@ -1,8 +1,8 @@
 #lang racket
-(require profile math/bigfloat racket/engine)
+(require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt")
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "profile.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -114,7 +114,10 @@
     (set! timeline *timeline*)
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
-          (profile (compute-result test)))
+          (profile-thunk
+           (λ () (compute-result test))
+           #:order 'total
+           #:render (λ (p order) (write-json (profile->json p)))))
         (compute-result test)))
 
   (define eng (engine in-engine))
