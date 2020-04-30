@@ -54,6 +54,24 @@
   [->c/mpfr (λ (x) (format "mpfr_set_si(~a, 1, MPFR_RNDN), mpfr_const_exp(~a, ~a, MPFR_RNDN)" x x x))]
   [->tex "e"])
 
+(define-constant INFINITY real
+  [bf (λ () +inf.bf)]
+  [fl (λ () +inf.0)]
+  [ival (λ () (mk-ival +inf.bf))]
+  [nonffi (λ () +inf.0)]
+  [->c/double "INFINITY"]
+  [->c/mpfr (curry format "mpfr_const_inf(~a, MPFR_RNDN)")]
+  [->tex "\\infty"])
+
+(define-constant NAN real
+  [bf (λ () +nan.bf)]
+  [fl (λ () +nan.0)]
+  [ival (λ () (mk-ival +nan.bf))]
+  [nonffi (λ () +nan.0)]
+  [->c/double "NAN"]
+  [->c/mpfr (curry format "mpfr_const_nan(~a, MPFR_RNDN)")]
+  [->tex "\\mathsf{NaN}"])
+
 (define-constant TRUE bool
   [bf (const true)]
   [fl (const true)]

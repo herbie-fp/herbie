@@ -1,5 +1,6 @@
 #lang racket
 
+(require math/bigfloat)
 (require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
          "float.rkt" "interface.rkt")
 
@@ -313,6 +314,7 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr)
+  (define ->bf (representation-repr->bf repr))
   (define expr*
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -326,7 +328,12 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (string->number (value->string expr repr))]
+        [(? value?)
+         (match (bigfloat->flonum (->bf expr))
+           [-inf.0 '(- INFINITY)]
+           [+inf.0 'INFINITY]
+           [+nan.0 'NAN]
+           [x x])]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)
