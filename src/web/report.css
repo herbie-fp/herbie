@@ -287,6 +287,8 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 .loaded .load-text { display: none; }
 .load-text { text-align: center; font-size: 140%; color: #888; }
 
+a.delete { color: currentColor; }
+a.delete:hover { color: #ed2b00; text-decoration: line-through; }
 #profile { border: 1px solid #ddd; }
 #profile input {
     width: 100%; padding: .5ex 1ex; box-sizing: border-box;

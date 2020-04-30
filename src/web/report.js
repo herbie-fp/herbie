@@ -263,12 +263,21 @@ var Profile = new Component("#profile", {
         ]);
         form.addEventListener("submit", this.doSearch);
         this.elt.appendChild(form);
-        this.elt.appendChild(this.mkNode(json.nodes[1]));
+        this.elt.appendChild(this.mkNode(json.nodes[json.nodes[0].callees[0].callee]));
         this.elt.classList.add("loaded");
     },
     mkNode: function(node) {
         var that = this;
-        return Element("div", { className: "profile-row" }, [
+        var nelt = Element("div", { className: "node" }, [
+            Element("a", { className: "name delete" }, node.id || "???"),
+            Element("span", { className: "path" }, path(node.src)),
+            Element("span", {
+                className: "pct",
+                title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
+                    pct(node.total, that.json.total_time)
+                ]),
+        ]);
+        var elt = Element("div", { className: "profile-row" }, [
             node.callers.sort((e1, e2) => e1.caller_time - e2.caller_time).map(function(edge) {
                 var other = that.json.nodes[edge.caller];
                 elt = Element("div", { className: "edge" }, [
@@ -276,18 +285,10 @@ var Profile = new Component("#profile", {
                     Element("span", { className: "path" }, path(other.src)),
                     Element("span", { className: "pct" }, pct(edge.caller_time, node.total)),
                 ]);
-                elt.addEventListener("click", that.addElt(other));
+                elt.children[0].addEventListener("click", that.addElt(other));
                 return elt;
             }),
-            Element("div", { className: "node" }, [
-                Element("span", { className: "name" }, node.id || "???"),
-                Element("span", { className: "path" }, path(node.src)),
-                Element("span", {
-                    className: "pct",
-                    title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
-                        pct(node.total, that.json.total_time)
-                    ]),
-            ]),
+            nelt,
             node.callees.sort((e1, e2) => e2.callee_time - e1.callee_time).map(function(edge) {
                 var other = that.json.nodes[edge.callee];
                 elt = Element("div", { className: "edge" }, [
@@ -295,10 +296,12 @@ var Profile = new Component("#profile", {
                     Element("span", { className: "path" }, path(other.src)),
                     Element("span", { className: "pct" }, pct(edge.callee_time, node.total)),
                 ]);
-                elt.addEventListener("click", that.addElt(other));
+                elt.children[0].addEventListener("click", that.addElt(other));
                 return elt;
             }),
         ]);
+        nelt.children[0].addEventListener("click", function() { elt.remove(); });
+        return elt;
     },
     addElt: function(other) {
         var that = this;
