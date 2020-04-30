@@ -284,12 +284,20 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 
 /* Formatting profile info */
 
+.loaded .load-text { display: none; }
+.load-text { text-align: center; font-size: 140%; color: #888; }
+
+#profile { border: 1px solid #ddd; }
+#profile input {
+    width: 100%; padding: .5ex 1ex; box-sizing: border-box;
+    border: none; border-bottom: 1px solid #ddd; font-size: 150%;
+}
 #profile .profile-row { margin: 1em 0; }
-#profile .related { margin-left: 10em; width: calc(100% - 10em;); color: #888; }
-#profile .node, #profile .edge { display: flex; }
+.profile-row div { display: flex; }
+#profile .edge { font-size: 90% color: #888; }
 #profile .path, #profile .name { font-family: monospace; white-space: nowrap; }
 #profile .path { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
 #profile .path:before { content: " ("; }
 #profile .path:after { content: ") "; }
-#profile span { padding: 0 .5em; }
+.profile-row > div > * { padding: 0 .5em; }
 #profile .pct { width: 4em; text-align: right; }

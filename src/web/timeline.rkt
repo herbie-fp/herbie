@@ -398,4 +398,5 @@
 
 (define (render-profile)
   `(div ([id "profile"])
-    (p "Loading profile data...")))
+    (h1 "Profiling")
+    (p ([class "load-text"]) "Loading profile data...")))
