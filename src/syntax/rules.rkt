@@ -190,7 +190,7 @@
 (define-ruleset id-transform-fp-safe (arithmetic fp-safe)
   #:type ([a real] [b real])
   [sub-neg           (- a b)               (+ a (neg b))]
-  [unsub-neg         (+ a (neg b))           (neg a b)]
+  [unsub-neg         (+ a (neg b))           (- a b)]
   [neg-sub0          (neg b)                 (- 0 b)]
   [*-un-lft-identity a                     (* 1 a)]
   [neg-mul-1         (neg a)                 (* -1 a)])
@@ -302,7 +302,7 @@
   #:type ([a real] [b real])
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
   [exp-neg      (exp (neg a))          (/ 1 (exp a))]
-  [exp-diff     (exp (neg a b))        (/ (exp a) (exp b))])
+  [exp-diff     (exp (- a b))        (/ (exp a) (exp b))])
 
 (define-ruleset exp-factor (exponents simplify)
   #:type ([a real] [b real])
@@ -392,10 +392,10 @@
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
   [1-sub-cos   (- 1 (* (cos a) (cos a)))   (* (sin a) (sin a))]
   [1-sub-sin   (- 1 (* (sin a) (sin a)))   (* (cos a) (cos a))]
-  [-1-add-cos  (+ (* (cos a) (cos a)) -1)  (- (* (sin a) (sin a)))]
-  [-1-add-sin  (+ (* (sin a) (sin a)) -1)  (- (* (cos a) (cos a)))]
-  [sub-1-cos   (- (* (cos a) (cos a)) 1)   (- (* (sin a) (sin a)))]
-  [sub-1-sin   (- (* (sin a) (sin a)) 1)   (- (* (cos a) (cos a)))]
+  [-1-add-cos  (+ (* (cos a) (cos a)) -1)  (neg (* (sin a) (sin a)))]
+  [-1-add-sin  (+ (* (sin a) (sin a)) -1)  (neg (* (cos a) (cos a)))]
+  [sub-1-cos   (- (* (cos a) (cos a)) 1)   (neg (* (sin a) (sin a)))]
+  [sub-1-sin   (- (* (sin a) (sin a)) 1)   (neg (* (cos a) (cos a)))]
   [sin-PI/6    (sin (/ PI 6))        1/2]
   [sin-PI/4    (sin (/ PI 4))        (/ (sqrt 2) 2)]
   [sin-PI/3    (sin (/ PI 3))        (/ (sqrt 3) 2)]
@@ -600,7 +600,7 @@
   ;
   ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
   [prod-diff    (- (* a b) (* c d))
-                (+ (fma a b (- (* d c)))
+                (+ (fma a b (neg (* d c)))
                    (fma (neg d) c (* d c)))])
 
 (define-ruleset bool-reduce (bools simplify fp-safe)
