@@ -149,7 +149,11 @@
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
         (if (=-or-nan? n* (<-bf bf) repr)
-            (bigfloat->string bf)
+            (match (bigfloat->string bf)
+              ["-inf.bf" "-inf.0"]
+              ["+inf.bf" "+inf.0"]
+              ["+nan.bf" "+nan.0"]
+              [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)
