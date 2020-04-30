@@ -98,7 +98,7 @@
         (for/list ([res (report-info-tests info)])
           (with-handlers ([(const #t) (const #f)])
             (call-with-input-file (build-path dir (table-row-link res) "profile.json") read-json))))
-      (define p (apply profile-merge (map json->profile (filter identity jsons))))
+      (define p (apply profile-merge (map json->profile (filter (negate eof-object?) jsons))))
       (write-json (profile->json p) out)))
 
   ; Delete old files

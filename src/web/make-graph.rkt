@@ -79,7 +79,6 @@
         (list/true
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
-         (and profile? '("Profile" . "profile.json"))
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])
