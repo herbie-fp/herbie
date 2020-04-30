@@ -13,7 +13,7 @@ function output_error {
     BRANCH=`git rev-parse --abbrev-ref HEAD`
     HOSTNAME=`hostname`
     cat >"$1" <<EOF
-{ "date": "$DATE", "commit": "$COMMIT", "branch": "$BRANCH",
+{ "date": $DATE, "commit": "$COMMIT", "branch": "$BRANCH",
   "hostname": "$HOSTNAME", "seed": "$SEED", "flags": [],
   "points": -1, "iterations": -1, "bit_width": -1,
   "note": "$NAME", "crash": true, "tests": [] }
