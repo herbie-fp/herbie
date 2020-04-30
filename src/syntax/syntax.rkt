@@ -503,7 +503,7 @@
 (define parametric-operators (make-hash))
 
 (define (get-parametric-operator name actual-types)
-  (for/or ([sig (hash-ref parametric-operators op)])
+  (for/or ([sig (hash-ref parametric-operators name)])
     (match-define (list* true-name rtype atypes) sig)
     (and
      (if (symbol? atypes)
