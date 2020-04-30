@@ -53,8 +53,7 @@
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
-     ;; Assumes single return type for any function
-     (second (first (first (hash-values (operator-info op 'type)))))]))
+     (operator-info op 'otype)]))
 
 
 ;; Converting constants
@@ -150,14 +149,10 @@
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define res (eval-const-expr (cons op args)))
-        (define type-info (operator-info op 'type))
-        (match-define (list (list _ type))
-                      (if (hash-has-key? type-info (length args))
-                          (hash-ref type-info (length args))
-                          (hash-ref type-info '*)))
-        (and ((value-of type) res)
-             (exact-value? type res)
-             (val-to-type type res)))
+        (define rtype (operator-info op 'otype))
+        (and ((value-of rtype) res)
+             (exact-value? rtype res)
+             (val-to-type rtype res)))
       false))
 
 (module+ test
@@ -271,7 +266,6 @@
       ;; Run after unfold-let, so no need to track lets
       (match expr
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define sigs (hash-ref parametric-operators op))
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
              ;; TODO(interface): Right now we check if the actual-type is binary64
@@ -282,17 +276,8 @@
              (if (set-member? '(binary64 binary32) actual-type)
                (values arg* 'real)
                (values arg* actual-type))))
-         (match-define (cons op* rtype)
-           (for/or ([sig sigs])
-             (match-define (list* true-name rtype atypes) sig)
-             (and
-              (if (symbol? atypes)
-                  (andmap (curry equal? atypes) actual-types)
-                  (if (set-member? variary-operators op)
-                      (and (andmap (λ (x) (eq? (car actual-types) x)) actual-types)
-                           (eq? (car actual-types) (car atypes)))
-                      (equal? atypes actual-types)))
-              (cons true-name rtype))))
+         ;; Match guaranteed to succeed because we ran type-check first
+         (match-define (cons op* rtype) (get-parametric-operator op actual-types))
          (values (cons op* args*) rtype)]
         [(list 'if cond ift iff)
          (define-values (cond* _a) (loop cond))
@@ -301,8 +286,7 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*)
-                 (second (first (first(hash-values (operator-info op 'type))))))]
+         (values (cons op args*) (operator-info op 'otype))]
         [(? real?) (values
                      (fl->repr expr (get-representation (match prec
                         ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]

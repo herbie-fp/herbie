@@ -3,20 +3,6 @@
 (require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
-(define (get-sigs fun-name num-args)
-  (if (and (operator? fun-name) (hash-has-key? (operator-info fun-name 'type) num-args))
-      (hash-ref (operator-info fun-name 'type) num-args)
-      (if (hash-has-key? (operator-info fun-name 'type) '*)
-          (hash-ref (operator-info fun-name 'type) '*)
-          #f)))
-
-(define (argtypes->rtype argtypes sig)
-  (match sig
-    [`((* ,argtype) ,rtype)
-     (and (andmap (curry equal? argtype) argtypes) rtype)]
-    [`((,expected-types ...) ,rtype)
-     (and (andmap equal? argtypes expected-types) rtype)]))
-
 (define (assert-program-typed! stx)
   (match-define (list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body) (syntax-e stx))
   (assert-expression-type! body 'real #:env (for/hash ([var vars]) (values (syntax-e var) 'real))))
@@ -46,54 +32,36 @@
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
-     (define sigs (hash-ref parametric-operators op))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
-
-     (define res
-       (for/or ([sig sigs])
-         (match-define (list* true-name rtype atypes) sig)
-         (and
-          (if (symbol? atypes)
-              (andmap (curry equal? atypes) actual-types)
-              (equal? atypes actual-types))
-          (cons true-name rtype))))
-     (if res
-       (let ([true-name (car res)]
-             [rtype (cdr res)])
-         (unless rtype
-           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
-                   (string-join
-                    (for/list ([sig sigs])
-                      (match sig
-                        [(list _ rtype atypes ...)
-                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
-                        [(list* _ rtype atype)
-                         (format "(~a <~a> ...)" op atype)]))
-                    " or ")
-                   op (string-join (map (curry format "<~a>") actual-types) " ")))
-         rtype)
-       #f)]
+     (match (get-parametric-operator op actual-types)
+       [(cons true-name rtype)
+        (unless rtype
+          (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+                  (string-join
+                   (for/list ([sig (hash-ref parametric-operators op)])
+                     (match sig
+                       [(list _ rtype atypes ...)
+                        (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                       [(list* _ rtype atype)
+                        (format "(~a <~a> ...)" op atype)]))
+                   " or ")
+                  op (string-join (map (curry format "<~a>") actual-types) " ")))
+         rtype]
+       [#f #f])]
     [#`(,(? operator? op) #,exprs ...)
-     (define sigs (get-sigs op (length exprs)))
-     (unless sigs (error! stx "Operator ~a has no type signature of length ~a" op (length exprs)))
-
-
      (define actual-types (for/list ([arg exprs]) (expression->type arg env error!)))
-     (define rtype
-       (for/or ([sig sigs])
-         (argtypes->rtype actual-types sig)))
-     (unless rtype
-       (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
-               (string-join
-                (for/list ([sig sigs])
-                  (match sig
-                    [`((* ,atype) ,rtype)
-                     (format "(~a <~a> ...)" op atype)]
-                    [`((,atypes ...) ,rtype)
-                     (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]))
-                " or ")
-               op (string-join (map (curry format "<~a>") actual-types) " ")))
-     rtype]
+
+     (define atypes (operator-info op 'itype))
+     (unless (if (symbol? atypes)
+                 (andmap (curry equal? atypes) actual-types)
+                 (equal? atypes actual-types))
+       (error! stx "Invalid arguments to ~a; expects ~a but got ~a"
+               op
+               (if (symbol? atypes)
+                   (format "<~a> ..." atypes)
+                   (string-join (map (curry format "<~a>") atypes) " "))
+               (string-join (map (curry format "<~a>") actual-types) " ")))
+     (operator-info op 'otype)]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
