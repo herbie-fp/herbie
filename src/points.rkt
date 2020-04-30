@@ -66,6 +66,8 @@
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
+        [`(overflowed ,prec ,pt)
+         (list name 'overflowed prec)]
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]
         [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
@@ -78,20 +80,29 @@
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
     (parameterize ([bf-precision precision])
-      (if (> precision (*max-mpfr-prec*))
-          (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err) (apply fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
-            (cond
-             [err
-              (log! 'nan precision pt)
-              +nan.0]
-             [(and (not err?) (or (equal? lo* hi*)
-                                  (and (equal? lo* -0.0) (equal? hi* +0.0))
-                                  (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
-              (log! 'sampled precision pt hi*)
-              hi*]
-             [else
-              (loop (inexact->exact (round (* precision 2))))]))))))
+      (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) (apply fn pt))
+      (define lo* (<-bf lo))
+      (define hi* (<-bf hi))
+      (cond
+       [err
+        (log! 'nan precision pt)
+        +nan.0]
+       [(and (not err?) (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))) ; 0.0 and -0.0
+        (log! 'sampled precision pt hi*)
+        hi*]
+       [(and lo! hi!)
+        (log! 'overflowed precision pt)
+        +nan.0]
+       [(or (and lo! (bigfloat? lo) (bfinfinite? lo))
+            (and hi! (bigfloat? hi) (bfinfinite? hi)))
+        ;; We never sample infinite points anyway
+        (log! 'overflowed precision pt)
+        +nan.0]
+       [else
+        (define precision* (exact-floor (* precision 2)))
+        (if (> precision* (*max-mpfr-prec*))
+            (begin (log! 'exit precision pt) +nan.0)
+            (loop precision*))]))))
 
 ; These definitions in place, we finally generate the points.
 
