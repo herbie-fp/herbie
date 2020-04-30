@@ -120,7 +120,7 @@
              [(and (linear? a) (linear? b))
               (out 'linear (alist-merge + (coeffs a) (coeffs b)))]
              [else #f])]
-           [`(- ,a)
+           [`(neg ,a)
             (cond
              [(linear? a)
               (out 'linear (alist-map - (coeffs a)))]

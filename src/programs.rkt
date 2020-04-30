@@ -249,12 +249,15 @@
 
 (define (expand-associativity expr)
   (match expr
-    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
+    [(list (and (or '+ '- '* '/) op) a ..2 b)
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
-    [(list '/ a)
-     (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '*) a) (expand-associativity a)]
+    [(list '- a) (list '- (expand-assocativity a))]
+    [(list '/ a) (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '-)) 0]
+    [(list (or '* '/)) 1]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_
@@ -330,7 +333,7 @@
         [(? (conjoin complex? (negate real?))) expr]
         [(? value?)
          (match (bigfloat->flonum (->bf expr))
-           [-inf.0 '(- INFINITY)]
+           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
            [+inf.0 'INFINITY]
            [+nan.0 'NAN]
            [x x])]

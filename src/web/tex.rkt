@@ -42,7 +42,7 @@
 
 (define (precedence-levels op)
   (match op
-    [(or '+ '- 'or 'complex) (values '+ '+)]
+    [(or '+ '- 'neg 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
     ['pow (values #f #f)]

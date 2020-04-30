@@ -127,11 +127,14 @@
   [->tex (curry format "~a + ~a")]
   [nonffi +])
 
-(define-operator (- real [real]) real
-  ;; Override the normal argument handling because - can be unary
-  [args '(1 2)] [type (hash 1 '(((real) real)) 2 '(((real real) real)))]
-  [fl -] [bf bf-] [ival (λ args (if (= (length args) 2) (apply ival-sub args) (apply ival-neg args)))]
-  [->tex (λ (x [y #f]) (if y (format "~a - ~a" x y) (format "-~a" x)))]
+(define-operator (- real real) real
+  [fl -] [bf bf-] [ival ival-sub]
+  [->tex (curry format "~a - ~a")]
+  [nonffi -])
+
+(define-operator (neg real) real
+  [fl -] [bf bf-] [ival ival-neg]
+  [->tex (curry format "-~a")]
   [nonffi -])
 
 (define-operator (* real real) real
@@ -511,7 +514,7 @@
 
 (declare-parametric-operator! '+ '+ '(real real) 'real)
 (declare-parametric-operator! '- '- '(real real) 'real)
-(declare-parametric-operator! '- '- '(real) 'real)
+(declare-parametric-operator! '- 'neg '(real) 'real)
 (declare-parametric-operator! '* '* '(real real) 'real)
 (declare-parametric-operator! '/ '/ '(real real) 'real)
 (declare-parametric-operator! 'pow 'pow '(real real) 'real)

@@ -158,7 +158,7 @@
           (list-ref seg i)))))
 
 (define taylor-expansion-known
-  '(+ - * / sqrt cbrt exp sin cos log pow))
+  '(+ - neg * / sqrt cbrt exp sin cos log pow))
 
 (register-reset
  (λ ()
@@ -184,7 +184,7 @@
      (taylor-exact expr)]
     [`(+ ,args ...)
      (apply taylor-add (map (curry taylor var) args))]
-    [`(- ,arg)
+    [`(neg ,arg)
      (taylor-negate ((curry taylor var) arg))]
     [`(- ,arg1 ,arg2)
      (taylor-add (taylor var arg1) (taylor-negate (taylor var arg2)))]
@@ -240,7 +240,7 @@
            (cons 0
                  (λ (n)
                     (if (= n 0)
-                        (simplify `(+ (* (- ,(car arg*)) (log ,var))
+                        (simplify `(+ (* (neg ,(car arg*)) (log ,var))
                                       ,((cdr rest) 0)))
                         ((cdr rest) n))))))]
     [`(pow ,base ,(? exact-integer? power))
@@ -290,7 +290,7 @@
                           (λ () (simplify (make-sum (for/list ([series serieses]) (series n)))))))))]))
 
 (define (taylor-negate term)
-  (cons (car term) (λ (n) (simplify (list '- ((cdr term) n))))))
+  (cons (car term) (λ (n) (simplify (list 'neg ((cdr term) n))))))
 
 (define (taylor-mult left right)
   (cons (+ (car left) (car right))
@@ -326,7 +326,7 @@
                       (hash-ref! hash n
                                  (λ ()
                                     (simplify
-                                     `(- (+ ,@(for/list ([i (range n)])
+                                     `(neg (+ ,@(for/list ([i (range n)])
                                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
          (cons (- offset) f)))]))
 
