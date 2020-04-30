@@ -294,7 +294,8 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 }
 #profile .profile-row { margin: 1em 0; }
 .profile-row div { display: flex; }
-#profile .edge { font-size: 90% color: #888; }
+#profile .edge { color: #888; }
+#profile .node { font-size: 120%; }
 #profile .path, #profile .name { font-family: monospace; white-space: nowrap; }
 #profile .path { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
 #profile .path:before { content: " ("; }

@@ -397,6 +397,6 @@
         #:key (λ (x) (apply + (map cdr (dict-ref (cdr x) 'time))))))
 
 (define (render-profile)
-  `(div ([id "profile"])
+  `(section ([id "profile"])
     (h1 "Profiling")
     (p ([class "load-text"]) "Loading profile data...")))
