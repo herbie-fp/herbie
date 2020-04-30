@@ -1,12 +1,12 @@
 #lang racket
 
 (require math/bigfloat)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
-         "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "syntax/complex.rkt"
+         "biginterval.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
-(provide (all-from-out "syntax/syntax.rkt")
+(provide (all-from-out "syntax/syntax.rkt" "syntax/complex.rkt")
          program-body program-variables ->flonum ->bf
          type-of
          expr-supports?
