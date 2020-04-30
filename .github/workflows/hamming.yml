@@ -1,0 +1,21 @@
+name: Hamming Benchmarks
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        racket-version: [ '7.3', '7.4', '7.5', '7.6' ]
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+        with:
+          version: ${{ matrix.racket-version }}
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: raco pkg install --name herbie --no-cache --auto src/
+      - run: racket infra/travis.rkt --seed 0 bench/hamming/
