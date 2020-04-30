@@ -90,9 +90,10 @@
         'callee_time (exact->inexact (edge-callee-time edge))))
 
 (define (string->srcloc s)
-  (match-define (list path-parts ... line col) (string-split s ":" #:trim? #f))
+  (match-define (list path-parts ... (app string->number line) (app string->number col))
+                (string-split s ":" #:trim? #f))
   (define path (string->path (string-join path-parts ":")))
-  (srcloc path (string->number line) (string->number col) #f #f))
+  (srcloc path line (and line col) #f #f))
 
 (define (json->profile j)
   (define nodes
