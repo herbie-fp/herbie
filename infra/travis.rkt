@@ -5,6 +5,9 @@
 (require "../src/alternative.rkt" "../src/sandbox.rkt")
 (require "../src/syntax/read.rkt" "../src/datafile.rkt")
 
+;; Load all the plugins
+(load-herbie-plugins)
+
 (define (test-successful? test input-bits target-bits output-bits)
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
