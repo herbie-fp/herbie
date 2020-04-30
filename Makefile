@@ -10,7 +10,6 @@ install:
 
 nightly: install
 	bash infra/nightly.sh
-	bash infra/nightly.sh --enable rules:numerics
 	$(MAKE) index
 
 index:
