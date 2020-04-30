@@ -29,7 +29,7 @@
   (set-node-self! node* (+ (node-self node*) (node-self node)))
   (for ([e (node-callers node)])
     (define caller* (translate table (edge-caller e)))
-    (match (findf (λ (e2) (eq? (edge-caller e) caller*)) (node-callers node*))
+    (match (findf (λ (e2) (eq? (edge-caller e2) caller*)) (node-callers node*))
       [#f
          (define e* (struct-copy edge e [caller caller*] [callee node*]))
          (set-node-callers! node* (cons e* (node-callers node*)))]
@@ -39,7 +39,7 @@
        (set-edge-callee-time! e* (+ (edge-callee-time e) (edge-callee-time e*)))]))
   (for ([e (node-callees node)])
     (define callee* (translate table (edge-callee e)))
-    (match (findf (λ (e2) (eq? (edge-callee e) callee*)) (node-callees node*))
+    (match (findf (λ (e2) (eq? (edge-callee e2) callee*)) (node-callees node*))
       [#f
        (define e* (struct-copy edge e [callee callee*] [caller node*]))
        (set-node-callees! node* (cons e* (node-callees node*)))]
