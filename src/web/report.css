@@ -296,7 +296,7 @@ a.delete:hover { color: #ed2b00; text-decoration: line-through; }
 }
 #profile .profile-row { margin: 1em 0; }
 .profile-row div { display: flex; }
-#profile .edge { color: #888; }
+#profile .edge { color: #888; margin-left: 2em; }
 #profile .node { font-size: 120%; }
 #profile .path, #profile .name { font-family: monospace; white-space: nowrap; }
 #profile .path { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
