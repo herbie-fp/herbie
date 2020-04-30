@@ -25,6 +25,10 @@
 
   (simplify* expr))
 
+(define (eval-const-expr expr)
+  ;; When we are in nonffi mode, we don't use repr, so pass in #f
+  ((eval-prog `(λ () ,expr) 'nonffi #f)))
+
 (define (simplify* expr*)
   (define expr ((get-evaluator) expr*))
   (match expr
