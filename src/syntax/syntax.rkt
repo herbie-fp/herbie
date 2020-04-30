@@ -82,7 +82,7 @@
   (unconstrained-domain-> to/c))
 
 (define-table operators
-  [args  (listof (or/c '* natural-number/c))]
+  [args  (or/c '* natural-number/c)]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
   [fl    (unconstrained-argument-number-> value? value?)]
   [nonffi (unconstrained-argument-number-> value? value?)]
@@ -104,7 +104,7 @@
 
 (define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
   (let ([type (hash (length '(atypes ...)) (list (list '(atypes ...) 'rtype)))]
-        [args (list (length '(atypes ...)))])
+        [args (length '(atypes ...))])
     (*loaded-ops* (cons 'operator (*loaded-ops*)))
     (table-set! operators 'operator
                 (make-hash (list (cons 'type type) (cons 'args args) (cons 'key value) ...)))))
@@ -440,42 +440,42 @@
 
 (define-operator (== real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl (comparator =)] [bf (comparator bf=)] [ival ival-==]
   [->tex (infix-joiner " = ")]
   [nonffi (comparator =)])
 
 (define-operator (!= real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl !=-fn] [bf bf!=-fn] [ival ival-!=]
   [->tex (infix-joiner " \\ne ")]
   [nonffi !=-fn])
 
 (define-operator (< real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl (comparator <)] [bf (comparator bf<)] [ival ival-<]
   [->tex (infix-joiner " \\lt ")]
   [nonffi (comparator <)])
 
 (define-operator (> real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl (comparator >)] [bf (comparator bf>)] [ival ival->]
   [->tex (infix-joiner " \\gt ")]
   [nonffi (comparator >)])
 
 (define-operator (<= real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl (comparator <=)] [bf (comparator bf<=)] [ival ival-<=]
   [->tex (infix-joiner " \\le ")]
   [nonffi (comparator <=)])
 
 (define-operator (>= real real) bool
   ; Override number of arguments
-  [type #hash((* . (((* real) bool))))] [args '(*)]
+  [type #hash((* . (((* real) bool))))] [args '*]
   [fl (comparator >=)] [bf (comparator bf>=)] [ival ival->=]
   [->tex (infix-joiner " \\ge ")]
   [nonffi (comparator >=)])
@@ -487,14 +487,14 @@
 
 (define-operator (and bool bool) bool
   ; Override number of arguments
-  [type #hash((* . (((* bool) bool))))] [args '(*)]
+  [type #hash((* . (((* bool) bool))))] [args '*]
   [fl and-fn] [bf and-fn] [ival ival-and]
   [->tex (infix-joiner " \\land ")]
   [nonffi and-fn])
 
 (define-operator (or bool bool) bool
   ; Override number of arguments
-  [type #hash((* . (((* bool) bool))))] [args '(*)]
+  [type #hash((* . (((* bool) bool))))] [args '*]
   [fl or-fn] [bf or-fn] [ival ival-or]
   [->tex (infix-joiner " \\lor ")]
   [nonffi or-fn])

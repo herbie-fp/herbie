@@ -37,10 +37,9 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (operator? f)
-         (let ([num-args (operator-info f 'args)])
-           (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
-             (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                     f (length args) (string-join (map ~a num-args) " or "))))
+         (unless (set-member? (list '* (length args)) (operator-info f 'args))
+           (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                   f (length args) (operator-info f 'args)))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
