@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date racket/cmdline)
-(require "../src/common.rkt" "../src/points.rkt")
+(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt")
 (require "../src/alternative.rkt" "../src/sandbox.rkt")
 (require "../src/syntax/read.rkt" "../src/datafile.rkt")
 
