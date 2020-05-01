@@ -180,8 +180,7 @@
           [(- x 0) . x]
           [(* x 1) . x]
           [(/ x 1) . x]
-          ; TODO: needs `neg` support in Egg
-          ;[(- (* 1 x) (* (+ x 1) 1)) . -1]
+          [(- (* 1 x) (* (+ x 1) 1)) . -1]
           [(- (+ x 1) x) . 1]
           [(- (+ x 1) 1) . x]
           [(/ (* x 3) x) . 3]
@@ -189,8 +188,7 @@
               (* (sqrt x) (sqrt x))) . 1]
           [(re (complex a b)) . a]
           [(+ 1/5 3/10) . 1/2]
-          ; TODO: needs `neg` support in Egg
-          ; [(cos PI) . -1]
+          [(cos PI) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
