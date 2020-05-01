@@ -19,7 +19,7 @@
 
     (define result
       (call-with-output-files
-       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.txt")))
+       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.json")))
        (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
 
     (set-seed! seed)

@@ -1,0 +1,16 @@
+name: Trigger Plugins
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -X POST https://api.github.com/repos/herbie-fp/softposit-herbie/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
+          --data '{"event_type": "herbie_update"}'

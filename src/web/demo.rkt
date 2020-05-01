@@ -48,7 +48,7 @@
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (make-page page out result #f))))]
-   [(equal? page "debug.log")
+   [(equal? page "debug.txt")
     (response 200 #"OK" (current-seconds) #"text/plain"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out) (display debug out)))]
@@ -251,6 +251,8 @@
                   "Formula must be a valid program using only the supported functions. "
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
+       (when (eof-object? formula)
+         (error "No formula specified"))
        (assert-program! formula)
        (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
