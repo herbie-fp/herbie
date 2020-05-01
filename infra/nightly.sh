@@ -36,7 +36,7 @@ function run {
       --seed $(seed) \
       --threads $CORES \
       "$@" \
-      "$bench" "reports/$name" || output_error "reports/$name" "$name"
+      "$bench" "reports/$name" || output_error "reports/$name/results.json" "$name"
   bash infra/publish.sh upload "reports/$name"
 }
 

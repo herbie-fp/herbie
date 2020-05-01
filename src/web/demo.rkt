@@ -48,7 +48,7 @@
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
                   (make-page page out result #f))))]
-   [(equal? page "debug.log")
+   [(equal? page "debug.txt")
     (response 200 #"OK" (current-seconds) #"text/plain"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out) (display debug out)))]
