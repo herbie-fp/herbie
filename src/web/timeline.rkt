@@ -28,14 +28,18 @@
        (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        (script ([src "../report.js"])))
       (body
-       ,(render-menu '() '(("Report" . "graph.html")))
+       ,(render-menu
+         '(("Timeline" . "#process-info")
+           ("Profile" . "#profile"))
+         '(("Report" . "graph.html")))
        (section ((id "process-info"))
          (h1 "Details")
          (p ((class "header"))
             "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
          ,(render-timeline timeline)
          ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-             (render-phase curr n next)))))
+             (render-phase curr n next)))
+       ,(render-profile)))
     out))
 
 (define/contract (render-timeline timeline)
@@ -229,6 +233,8 @@
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js"))))
      (body
+       ,(render-menu '(("About" . "#about") ("Timeline" . "#process-info") ("Profile" . "#profile"))
+                     '(("Report" . "results.html")))
 
       (table ((id "about"))
        (tr (th "Date:") (td ,(date->string date)))
@@ -250,7 +256,8 @@
                             `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                   " " ,(~a class) ":" ,(~a flag))))))))
 
-      ,(render-timeline-summary info (summarize-timelines info dir))))
+      ,(render-timeline-summary info (summarize-timelines info dir))
+      ,(render-profile)))
    out))
 
 (define (phase-time phase)
@@ -388,3 +395,8 @@
       (dict-set! data k (cons (cons res v) (dict-ref data k '())))))
   (sort (hash->list types) >
         #:key (λ (x) (apply + (map cdr (dict-ref (cdr x) 'time))))))
+
+(define (render-profile)
+  `(section ([id "profile"])
+    (h1 "Profiling")
+    (p ([class "load-text"]) "Loading profile data...")))

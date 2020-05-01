@@ -25,7 +25,6 @@
         (list/true
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
-         (and profile? '("Profile" . "profile.txt"))
          '("Metrics" . "timeline.html")))
 
       ,(render-warnings warnings)
