@@ -1,5 +1,5 @@
 #lang racket
-(require "../syntax/syntax.rkt" "../common.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 

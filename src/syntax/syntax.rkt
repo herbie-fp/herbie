@@ -1,8 +1,7 @@
 #lang racket
 
 (require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../errors.rkt" "types.rkt")
-(require "../biginterval.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt" "../biginterval.rkt")
 
 (provide constant? variable? operator? operator-info constant-info
          get-parametric-operator parametric-operators parametric-operators-reverse
