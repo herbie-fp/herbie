@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "syntax.rkt" "../programs.rkt")
+(require "../common.rkt" "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
@@ -32,6 +32,16 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
+(define (type-of-rule input output)
+  (cond
+   [(list? input)
+    (operator-info (car input) 'otype)]
+   [(list? output)
+    (operator-info (car output) 'otype)]
+   [else
+    (error 'define-ruleset "Could not compute type of rule ~a -> ~a"
+           input output)]))
+
 (define-syntax define-ruleset
   (syntax-rules ()
     [(define-ruleset name groups [rname input output] ...)
@@ -39,9 +49,9 @@
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
      (begin
-       (define name (list (rule 'rname 'input 'output '((var . type) ...)
-                                     (type-of 'input `((var . type) ...))) ...))
-            (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
+       (define name
+         (list (rule 'rname 'input 'output '((var . type) ...) (type-of-rule 'input 'output)) ...))
+       (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify fp-safe)
