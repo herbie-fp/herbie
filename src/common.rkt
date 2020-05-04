@@ -10,7 +10,7 @@
          argmins argmaxs index-of set-disjoint? comparator sample-double
          random-ranges parse-flag get-seed set-seed!
          common-eval quasisyntax
-         format-time format-bits when-dict in-sorted-dict web-resource
+         format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -136,13 +136,6 @@
 
 ;; Miscellaneous helper
 
-(define (random-exp k)
-  "Like (random (expt 2 k)), but k is allowed to be arbitrarily large"
-  (if (< k 31) ; Racket generates random numbers in the range [0, 2^32-2]; I think it's a bug
-      (random (expt 2 k))
-      (let ([head (arithmetic-shift (random-exp (- k 31)) 31)])
-        (+ head (random (expt 2 31))))))
-
 (define (random-ranges . ranges)
   (->* () #:rest (cons/c integer? integer?) integer?)
 
@@ -247,12 +240,6 @@
                 (car names) #:exists 'replace
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
-
-(define-syntax-rule (when-dict d (arg ...) body ...)
-  (if (and (dict-has-key? d 'arg) ...)
-      (let ([arg (dict-ref d 'arg)] ...)
-        body ...)
-      '()))
 
 (define (in-sorted-dict d #:key [key identity])
   (in-dict (sort (dict->list d) > #:key (compose key cdr))))
