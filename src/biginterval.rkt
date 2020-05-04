@@ -1,6 +1,19 @@
 #lang racket/base
 
 (require racket/contract racket/match racket/function math/private/bigfloat/mpfr)
+(require (for-syntax racket/base))
+
+(define-match-expander ival-expander
+  (λ (stx)
+    (syntax-case stx ()
+      [(_me lo hi)
+       #'(ival (endpoint lo _) (endpoint hi _) _ _)]
+      [(_me name lo hi)
+       #'(and name (ival (endpoint lo _) (endpoint hi _) _ _))]))
+  (λ (stx)
+    (syntax-case stx ()
+      [(_ lo hi)
+       #'(ival (endpoint lo #t) (endpoint hi #t) #f #f)])))
 
 (struct endpoint (val immovable?) #:transparent)
 (struct ival (lo hi err? err) #:transparent)
@@ -10,10 +23,14 @@
   (endpoint-val (ival-hi ival)))
 (define (ival-lo-val ival)
   (endpoint-val (ival-lo ival)))
+(define (ival-lo-fixed? ival)
+  (endpoint-immovable? (ival-lo ival)))
+(define (ival-hi-fixed? ival)
+  (endpoint-immovable? (ival-hi ival)))
 
-(provide (contract-out
-          [struct endpoint ([val value?] [immovable? boolean?])]
-          [struct ival ([lo endpoint?] [hi endpoint?] [err? boolean?] [err boolean?])]
+(provide ival? ival-err? ival-err ival-lo-fixed? ival-hi-fixed?
+         (rename-out [ival-expander ival] [ival-hi-val ival-hi] [ival-lo-val ival-lo])
+         (contract-out
           [mk-ival (-> value? ival?)]
           [ival-pi (-> ival?)]
           [ival-e  (-> ival?)]
@@ -690,8 +707,7 @@
   (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
 (module+ test
-  (require rackunit racket/math racket/dict racket/format math/flonum racket/list)
-  (require (only-in "common.rkt" sample-double))
+  (require rackunit racket/math racket/dict racket/format math/base math/flonum racket/list)
   
   (define (bflogb x)
     (bffloor (bflog2 (bfabs x))))
@@ -706,16 +722,28 @@
     (if c x y))
 
   (define (bffmod x mod)
-    ;; For this to be precise, we need enough bits
-    (define precision (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
-    (parameterize ([bf-precision precision]) 
-      (bfcanonicalize (bfsub x (bfmul (bftruncate (bfdiv x mod)) mod)))))
+    (cond
+     [(bfinfinite? x) +nan.bf]
+     [(bfinfinite? mod) x]
+     [else
+      ;; For this to be precise, we need enough bits
+      (define precision
+        (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
+      (parameterize ([bf-precision precision]) 
+        (bfcanonicalize (bfsub x (bfmul (bftruncate (bfdiv x mod)) mod))))]))
+  
+  (define (bffma a b c)
+    ;; `bfstep` truncates to `(bf-precision)` bits
+    (bfstep (bfadd c (parameterize ([bf-precision (* (bf-precision) 2)]) (bfmul a b))) 0))
 
   (define (bfremainder x mod)
-    ;; For this to be precise, we need enough bits
-    (define precision (+ (bf-precision) (max (- (bigfloat-exponent x) (bigfloat-exponent mod)) 0)))
-    (parameterize ([bf-precision precision])
-      (bfcanonicalize (bfsub x (bfmul (bfround (bfdiv x mod)) mod)))))
+    (define y (bffmod x mod))
+    (define mod* (bfabs mod))
+    (define mod/2 (bfdiv mod* 2.bf))
+    (cond
+     [(bfgt? y mod/2) (bfsub y mod*)]
+     [(bflt? y (bfneg mod/2)) (bfadd y mod*)]
+     [else y]))
 
   (define function-table
     (list (list ival-neg   bfneg      '(real) 'real)
@@ -753,6 +781,7 @@
           (list ival-sub   bfsub      '(real real) 'real)
           (list ival-mult  bfmul      '(real real) 'real)
           (list ival-div   bfdiv      '(real real) 'real)
+          (list ival-fma   bffma      '(real real real) 'real)
           (list ival-pow   bfexpt     '(real real) 'real)
           (list ival-hypot bfhypot    '(real real) 'real)
           (list ival-atan2 bfatan2    '(real real) 'real)
@@ -774,14 +803,22 @@
           (list ival-if    if-fn      '(bool real real) 'real)
           ))
 
+  (define (sample-bigfloat)
+    (define exponent (random -1023 1023)) ; Pretend-double
+    (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
+    (define val (bfshift (bfadd 1.bf significand) exponent))
+    (if (= (random 0 2) 1) (bfneg val) val))
+
   (define (sample-wide-interval)
-    (define v1 (sample-double))
-    (define v2 (sample-double))
-    (ival (endpoint (bf (min v1 v2)) #t) (endpoint (bf (max v1 v2)) #t) #f #f))
+    (define v1 (sample-bigfloat))
+    (define v2 (sample-bigfloat))
+    (ival (endpoint (bfmin2 v1 v2) #t) (endpoint (bfmax2 v1 v2) #t) #f #f))
 
   (define (sample-narrow-interval)
-    (define v1 (bf (sample-double)))
-    (define delta (* (match (random 0 2) [0 -1] [1 1]) (random 0 (expt 2 31))))
+    ;; Biased toward small intervals
+    (define v1 (sample-bigfloat))
+    (define size (random 1 (bf-precision)))
+    (define delta (* (match (random 0 2) [0 -1] [1 1]) size))
     (define v2 (bfstep v1 delta))
     (ival (endpoint (bfmin2 v1 v2) #t) (endpoint (bfmax2 v1 v2) #t) #f #f))
 
@@ -862,10 +899,10 @@
   (check-ival-contains? (ival-e) (bfexp 1.bf))
   (test-case "mk-ival"
     (for ([i (in-range num-tests)])
-      (define pt (sample-double))
+      (define pt (sample-bigfloat))
       (with-check-info (['point pt])
-        (check-ival-valid? (mk-ival (bf pt)))
-        (check-ival-contains? (mk-ival (bf pt)) (bf pt)))))
+        (check-ival-valid? (mk-ival pt))
+        (check-ival-contains? (mk-ival pt) pt))))
 
   (define (compose-nth f1 n1 f2 n2 k)
     (procedure-rename
