@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/runtime-path)
+(require racket/runtime-path math/base)
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
@@ -9,7 +9,7 @@
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
          write-file write-string
-         random-exp random-ranges parse-flag get-seed set-seed!
+         random-ranges parse-flag get-seed set-seed!
          common-eval quasisyntax
          format-time format-bits when-dict in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
@@ -176,7 +176,7 @@
   (define num-bits (inexact->exact (ceiling (/ (log total-weight) (log 2)))))
   (define sample ; Rejection sampling
     (let loop ()
-      (define sample (random-exp num-bits))
+      (define sample (random-bits num-bits))
       (if (< sample total-weight) sample (loop))))
 
   (let loop ([sample sample] [ranges ranges] [weights weights])
@@ -295,4 +295,4 @@
     (test left right)))
 
 (define (sample-double)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
+  (floating-point-bytes->real (integer->integer-bytes (random-bits 64) 8 #f)))

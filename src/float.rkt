@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat math/base)
 (require "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
@@ -43,7 +43,7 @@
   (ulps->bits (+ 1 (abs (ulp-difference x y repr)))))
 
 (define (random-generate repr)
-  ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))
+  ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
 (define (special-value? x repr)
   (set-member? (representation-special-values repr) x))
