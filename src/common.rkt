@@ -8,7 +8,6 @@
          for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
-         write-file write-string
          random-ranges parse-flag get-seed set-seed!
          common-eval quasisyntax
          format-time format-bits when-dict in-sorted-dict web-resource
@@ -134,14 +133,6 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
-
-;; Utility output functions
-
-(define-syntax-rule (write-file filename . rest)
-   (with-output-to-file filename (lambda () . rest) #:exists 'replace))
-
-(define-syntax-rule (write-string . rest)
-  (with-output-to-string (lambda () . rest)))
 
 ;; Miscellaneous helper
 

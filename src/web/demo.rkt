@@ -203,8 +203,10 @@
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
                     (λ (out) (make-page page out result #f)))))
-              (write-file (build-path (*demo-output*) path "debug.txt")
-                (display (get-output-string (hash-ref *jobs* hash))))
+              (call-with-out-file
+               (build-path (*demo-output*) path "debug.txt")
+               #:exists 'replace
+               (curry display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
