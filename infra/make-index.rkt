@@ -139,7 +139,7 @@
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
                (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
-(define (make-index-page)
+(define (make-index-page out)
   (when (file-exists? (build-path report-json-path "index.cache"))
     (define cached-info (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json)))
     (if (for/and ([(k v) (in-hash cached-info)]) (cache-row? v))
