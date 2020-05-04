@@ -1,5 +1,5 @@
 #lang racket
-(require "../syntax/syntax.rkt" "../common.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -42,7 +42,7 @@
 
 (define (precedence-levels op)
   (match op
-    [(or '+ '- 'or 'complex) (values '+ '+)]
+    [(or '+ '- 'neg 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
     ['pow (values #f #f)]

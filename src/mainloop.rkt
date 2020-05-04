@@ -136,7 +136,7 @@
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
-	[ninvert-x (λ (x) `(/ 1 (- ,x)))])
+	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
     `((0 ,identity ,identity)
       (inf ,invert-x ,invert-x)
       (-inf ,ninvert-x ,ninvert-x)

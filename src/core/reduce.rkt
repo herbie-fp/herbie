@@ -50,7 +50,7 @@
   (match expr
     [(? constant?) expr]
     [(? variable?) expr]
-    [(or `(+ ,_ ...) `(- ,_ ...))
+    [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
@@ -78,7 +78,7 @@
       [(? constant?) `((1 ,expr))]
       [(? variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
-      [`(- ,arg) (map negate-term (recurse arg))]
+      [`(neg ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...)
        (append (recurse arg)
                (map negate-term (append-map recurse args)))]
@@ -114,7 +114,7 @@
   (match expr
     [(? number?) `(,expr)]
     [(? symbol?) `(1 (1 . ,expr))]
-    [`(- ,arg)
+    [`(neg ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (cons (- (car terms)) (cdr terms)))]
     [`(* ,args ...)
@@ -207,7 +207,7 @@
   (match term
     [`(1 . ,x) x]
     [`(,x . 1) x]
-    [`(-1 . ,x) `(- ,x)]
+    [`(-1 . ,x) `(neg ,x)]
     [`(,coeff . ,x) `(* ,coeff ,x)]))
 
 (define (make-addition-node terms)
@@ -216,7 +216,7 @@
      [(and (null? pos) (null? neg))
       0]
      [(null? pos)
-      `(- ,(make-addition-node* (map negate-term neg)))]
+      `(neg ,(make-addition-node* (map negate-term neg)))]
      [(null? neg)
       (make-addition-node* pos)]
      [else

@@ -1,11 +1,12 @@
 #lang racket
 
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
-         "float.rkt" "interface.rkt")
+(require math/bigfloat)
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "syntax/complex.rkt"
+         "biginterval.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
-(provide (all-from-out "syntax/syntax.rkt")
+(provide (all-from-out "syntax/syntax.rkt" "syntax/complex.rkt")
          program-body program-variables ->flonum ->bf
          type-of
          expr-supports?
@@ -52,8 +53,7 @@
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
-     ;; Assumes single return type for any function
-     (second (first (first (hash-values (operator-info op 'type)))))]))
+     (operator-info op 'otype)]))
 
 
 ;; Converting constants
@@ -146,14 +146,10 @@
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define fn (operator-info op 'nonffi))
         (define res (apply fn args))
-        (define type-info (operator-info op 'type))
-        (match-define (list (list _ type))
-                      (if (hash-has-key? type-info (length args))
-                          (hash-ref type-info (length args))
-                          (hash-ref type-info '*)))
-        (and ((value-of type) res)
-             (exact-value? type res)
-             (val-to-type type res)))
+        (define rtype (operator-info op 'otype))
+        (and ((value-of rtype) res)
+             (exact-value? rtype res)
+             (val-to-type rtype res)))
       false))
 
 (module+ test
@@ -242,12 +238,15 @@
 
 (define (expand-associativity expr)
   (match expr
-    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
+    [(list (and (or '+ '- '* '/) op) a ..2 b)
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
-    [(list '/ a)
-     (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '*) a) (expand-associativity a)]
+    [(list '- a) (list '- (expand-associativity a))]
+    [(list '/ a) (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '-)) 0]
+    [(list (or '* '/)) 1]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_
@@ -261,7 +260,6 @@
       ;; Run after unfold-let, so no need to track lets
       (match expr
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define sigs (hash-ref parametric-operators op))
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
              ;; TODO(interface): Right now we check if the actual-type is binary64
@@ -272,17 +270,8 @@
              (if (set-member? '(binary64 binary32) actual-type)
                (values arg* 'real)
                (values arg* actual-type))))
-         (match-define (cons op* rtype)
-           (for/or ([sig sigs])
-             (match-define (list* true-name rtype atypes) sig)
-             (and
-              (if (symbol? atypes)
-                  (andmap (curry equal? atypes) actual-types)
-                  (if (set-member? variary-operators op)
-                      (and (andmap (λ (x) (eq? (car actual-types) x)) actual-types)
-                           (eq? (car actual-types) (car atypes)))
-                      (equal? atypes actual-types)))
-              (cons true-name rtype))))
+         ;; Match guaranteed to succeed because we ran type-check first
+         (match-define (cons op* rtype) (get-parametric-operator op actual-types))
          (values (cons op* args*) rtype)]
         [(list 'if cond ift iff)
          (define-values (cond* _a) (loop cond))
@@ -291,8 +280,7 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*)
-                 (second (first (first(hash-values (operator-info op 'type))))))]
+         (values (cons op args*) (operator-info op 'otype))]
         [(? real?) (values
                      (fl->repr expr (get-representation (match prec
                         ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
@@ -307,6 +295,7 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr)
+  (define ->bf (representation-repr->bf repr))
   (define expr*
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
@@ -320,7 +309,12 @@
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
         [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (string->number (value->string expr repr))]
+        [(? value?)
+         (match (bigfloat->flonum (->bf expr))
+           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+           [+inf.0 'INFINITY]
+           [+nan.0 'NAN]
+           [x x])]
         [(? constant?) expr]
         [(? variable?) expr])))
   expr*)

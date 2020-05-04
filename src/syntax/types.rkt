@@ -1,7 +1,6 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../bigcomplex.rkt")
 
 (provide type-dict type? value? bigvalue? value-of bigvalue-of)
 (module+ internals (provide define-type))
@@ -20,4 +19,3 @@
 
 (define-type real real? bigfloat?)
 (define-type bool boolean? boolean?)
-(define-type complex (conjoin complex? (negate real?)) bigcomplex?)

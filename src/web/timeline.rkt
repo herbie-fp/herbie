@@ -195,8 +195,8 @@
 
   (define/match (value-map k v)
     [('method v) (~a v)]
-    [('type v) (~a v)]
     [('locations v) (map (cons->hash 'expr ~a 'error identity) v)]
+    [('type v) (~a v)]
     [('rules v) (map (cons->hash 'rule ~a 'count identity) v)]
     [('times v) (map (λ (x) (cons (~a (car x)) (cdr x))) v)]
     [('outcomes v)

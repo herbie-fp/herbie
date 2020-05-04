@@ -77,7 +77,9 @@
   (define total-available
     (count (negate (curry equal? "ex-start")) statuses))
   (define total-crashed
-    (or (count (curry equal? "crash") statuses) (= iterations -1)))
+    (or (count (curry equal? "crash") statuses) (if (= iterations -1) 1 0)))
+  (define total-timeout
+    (count (curry equal? "timeout") statuses))
   (define total-unimproved
     (count (curry set-member? '("lt-start" "uni-start")) statuses))
 
@@ -97,6 +99,7 @@
         'tests-available total-available
         'tests-crashed total-crashed
         'tests-unimproved total-unimproved
+        'tests-timeout total-timeout
         'bits-improved (- total-start total-end)
         'bits-available total-start))
 
@@ -109,6 +112,11 @@
    [(>= (abs x) 10) (~a (inexact->exact (round x)))]
    [else (~r x #:precision 2)]))
 
+(define (bad-result? info)
+  (or (> (dict-ref info 'tests-crashed 0) 0)
+      (> (dict-ref info 'tests-unimproved 0) 0)
+      (> (dict-ref info 'tests-timeout 0) 0)))
+
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
            (th "Date") (th "Speed") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
@@ -116,7 +124,7 @@
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
 
-         `(tr ([class ,(if (or (> (field 'tests-crashed) 0) (> (field 'tests-unimproved) 0)) "crash" "")])
+         `(tr ([class ,(if (bad-result? info) "crash" "")])
            ;; TODO: Best to output a datetime field in RFC3338 format,
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])

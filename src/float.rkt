@@ -106,7 +106,12 @@
 
 (define (flval x repr)
   (match x
-    [(? real?) x]
+    [(? real?)
+     (match x
+       [(? rational?) x]
+       [(or -inf.0 -inf.f) (hash 'type "real" 'value "-inf")]
+       [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
+       [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
@@ -149,7 +154,11 @@
       (parameterize ([bf-precision precision])
         (define bf (->bf n*))
         (if (=-or-nan? n* (<-bf bf) repr)
-            (bigfloat->string bf)
+            (match (bigfloat->string bf)
+              ["-inf.bf" "-inf.0"]
+              ["+inf.bf" "+inf.0"]
+              ["+nan.bf" "+nan.0"]
+              [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
 
 (define/contract (->bf x repr)

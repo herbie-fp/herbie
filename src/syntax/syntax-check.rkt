@@ -37,10 +37,10 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (operator? f)
-         (let ([num-args (operator-info f 'args)])
-           (unless (or (set-member? num-args (length args)) (set-member? num-args '*))
-             (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                     f (length args) (string-join (map ~a num-args) " or "))))
+         (unless (or (symbol? (operator-info f 'itype))
+                     (= (length args) (length (operator-info f 'itype))))
+           (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                   f (length args) (length (operator-info f 'itype))))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
@@ -104,15 +104,14 @@
     [#`(FPCore #,vars #,props ... #,body)
      (unless (list? (syntax-e vars))
        (error! stx "Invalid arguments list ~a; must be a list" stx))
+     (define vars* (if (list? (syntax-e vars)) (filter identifier? (syntax-e vars)) '()))
      (when (list? (syntax-e vars))
        (for ([var (syntax-e vars)] #:unless (identifier? var))
-         (error! stx "Argument ~a is not a variable name" stx))
-       (when (check-duplicate-identifier (syntax-e vars))
-         (error! stx "Duplicate argument name ~a"
-                 (check-duplicate-identifier (syntax-e vars)))))
-     (define vars* (immutable-bound-id-set (if (list? (syntax-e vars)) (syntax-e vars) '())))
-     (check-properties* props vars* error!)
-     (check-expression* body vars* error!)]
+         (error! stx "Argument ~a is not a variable name" var))
+       (when (check-duplicate-identifier vars*)
+         (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
+     (check-properties* props (immutable-bound-id-set vars*) error!)
+     (check-expression* body (immutable-bound-id-set vars*) error!)]
     [_ (error! stx "Unknown syntax ~a" stx)]))
 
 (define (assert-expression! stx vars)

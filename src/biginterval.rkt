@@ -686,7 +686,8 @@
     [(#t #f) (ival (epfn bfneg xhi) (epfn bfneg xlo) err? err)]
     [(#f #t) (ival xlo xhi err? err)]))
 
-(define* ival-fdim (compose ival-fabs ival-sub))
+(define (ival-fdim x y)
+  (ival-fmax (ival-sub x y) (mk-ival 0.bf)))
 
 (module+ test
   (require rackunit racket/math racket/dict racket/format math/flonum racket/list)
@@ -699,7 +700,7 @@
     (bfmul (bfabs x) (if (= (bigfloat-signbit y) 1) -1.bf 1.bf)))
 
   (define (bffdim x y)
-    (if (bfgt? x y) (bfsub x y) (bfsub y x)))
+    (if (bfgt? x y) (bfsub x y) 0.bf))
 
   (define (if-fn c x y)
     (if c x y))

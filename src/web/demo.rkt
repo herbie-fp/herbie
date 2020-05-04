@@ -46,7 +46,7 @@
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
-                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                (with-handlers ([exn:fail? (page-error-handler result page)])
                   (make-page page out result #f))))]
    [(equal? page "debug.txt")
     (response 200 #"OK" (current-seconds) #"text/plain"
@@ -200,7 +200,7 @@
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
               (for ([page (all-pages result)])
-                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
                     (λ (out) (make-page page out result #f)))))
               (write-file (build-path (*demo-output*) path "debug.txt")
@@ -251,6 +251,8 @@
                   "Formula must be a valid program using only the supported functions. "
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
+       (when (eof-object? formula)
+         (error "No formula specified"))
        (assert-program! formula)
        (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
