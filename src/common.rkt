@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide reap define-table table-ref table-set! table-remove!
-         assert for/append string-prefix call-with-output-files
+         for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
          write-file write-string
@@ -46,15 +46,6 @@
   (hash-remove! (cdr tbl) key))
 
 ;; More various helpful values
-
-(define-syntax assert
-  (syntax-rules ()
-    [(assert pred #:loc location)
-     (when (not pred)
-       (error location "~a returned false!" 'pred))]
-    [(assert pred)
-     (when (not pred)
-       (error 'assert "~a returned false!" 'pred))]))
 
 (define-syntax-rule (for/append (defs ...)
                                 bodies ...)
