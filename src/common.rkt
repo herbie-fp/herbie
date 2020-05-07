@@ -151,7 +151,7 @@
   (define num-bits (inexact->exact (ceiling (/ (log total-weight) (log 2)))))
   (define sample ; Rejection sampling
     (let loop ()
-      (define sample (random-bits num-bits))
+      (define sample (if (= num-bits 0) 0 (random-bits num-bits)))
       (if (< sample total-weight) sample (loop))))
 
   (let loop ([sample sample] [ranges ranges] [weights weights])
