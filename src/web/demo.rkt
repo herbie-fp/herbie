@@ -131,19 +131,12 @@
 
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
-     '((sqrt cbrt) "Square and cube roots")
-     '((exp log) "Natural exponent and natural log")
+     '((and or) "Logical connectives (for preconditions)")
      '((pow) "Raising a value to a power")
+     '((exp log) "Natural exponent and natural log")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
-     '((sinh cosh tanh) "The hyperbolic trigonometric functions")
-     '((asinh acosh atanh) "The inverse hyperbolic trigonometric functions")
-     '((erf erfc) "Error function and complementary error function")
-     '((j0 j1 y0 y1) "Bessel functions of the first and second kind")
-     '((tgamma lgamma) "The gamma function and log-gamma function")
-     '((min max) "The min and max functions")
-     '((expm1 log1p) "The exponent of " (code "x - 1") " and the log of " (code "1 + x"))
-     '((fma) "The fused multiply-add, with the additive term last")
+     '((sqrt cbrt) "Square and cube roots")
      '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "

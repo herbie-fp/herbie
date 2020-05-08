@@ -68,8 +68,10 @@ Running Tests
 -------------
 
 Herbie has unit tests for basic functionality, though coverage is far
-from complete. You can run the test suite with:
+from complete. You can run the test suite by downloading the source
+code, changing to the source code directory, and running:
 
+    make install
     raco test src/
 
 Herbie also contains a large benchmark suite drawn from open source
@@ -77,10 +79,10 @@ projects, examples from users, and numerical analysis textbooks. This
 suite is found in `bench/`. The full test can be run with
 
     herbie report bench/ report/
-
-The output is HTML files in `report/`. This full test can take a few
-hours to run. We often test Herbie on basic but representative
-examples with:
+    
+You may see warnings; these are expected. The output is HTML files in
+`report/`. This full test can take a few hours to run. We often test
+Herbie on basic but representative examples with:
 
     herbie report bench/hamming/ graphs/
 
