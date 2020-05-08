@@ -76,6 +76,15 @@
             #:exists 'replace
             (λ (out) (make-page page out result #f))))))))
 
+(define (merge-profile-files info dir out)
+  (define jsons
+    (for/list ([res (report-info-tests info)])
+      (with-handlers ([(const #t) (const #f)])
+        (call-with-input-file (build-path dir (table-row-link res) "profile.json") read-json))))
+  (define valid-jsons (filter (conjoin identity (negate eof-object?)) jsons))
+  (define p (apply profile-merge (map json->profile valid-jsons)))
+  (write-json (profile->json p) out))
+
 (define (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir)) (make-directory dir))
@@ -85,21 +94,15 @@
   (define info (make-report-info (filter values results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
-  (call-with-output-file (build-path dir "timeline.html")
-    #:exists 'replace (curryr make-summary-html info dir))
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
-    #:exists 'replace (curryr make-report-page info))
-  (call-with-output-file (build-path dir "profile.json") #:exists 'replace
-    (λ (out)
-      (define jsons
-        (for/list ([res (report-info-tests info)])
-          (with-handlers ([(const #t) (const #f)])
-            (call-with-input-file (build-path dir (table-row-link res) "profile.json") read-json))))
-      (define p (apply profile-merge (map json->profile (filter (negate eof-object?) jsons))))
-      (write-json (profile->json p) out)))
+    (curryr make-report-page info) #:exists 'replace)
+  (call-with-output-file (build-path dir "timeline.html")
+    (curryr make-summary-html info dir) #:exists 'replace)
+  (call-with-output-file (build-path dir "profile.json")
+    (curry merge-profile-files info dir) #:exists 'replace)
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]
