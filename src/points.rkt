@@ -152,8 +152,12 @@
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
 
+      (define success
+        ;; +nan.0 is the "error" return code for ival-eval
+        (and (not (equal? pre +nan.0)) (not (equal? ex +nan.0))))
+
       (cond
-       [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
+       [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
