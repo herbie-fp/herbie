@@ -58,9 +58,11 @@
   (define ex2 (map prog2 points))
   (define errs
     (for/list ([pt points] [v1 ex1] [v2 ex2]
+               ;; Error code from ival-eval
                #:unless (or (eq? v1 +nan.0) (eq? v2 +nan.0))
-               #:when (and (ordinary-value? v1 repr)
-                           (ordinary-value? v2 repr)))
+               ;; Ignore rules that compute to bad values
+               #:when (ordinary-value? v1 repr)
+               #:when (ordinary-value? v2 repr))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 0))))
