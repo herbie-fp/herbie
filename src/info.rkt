@@ -33,6 +33,7 @@
     ("egg-herbie-osx" #:platform "x86_64-macosx" #:version "1.4")
     ("egg-herbie-linux" #:platform "x86_64-linux" #:version "1.4")
     "regraph"
+    "rival"
     "fpbench"))
 
 (define build-deps

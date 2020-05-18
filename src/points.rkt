@@ -1,6 +1,7 @@
 #lang racket
 
-(require math/bigfloat (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
+(require math/bigfloat rival
+         (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "biginterval.rkt" "interface.rkt")
 
@@ -51,7 +52,7 @@
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
   (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
-  (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
+  (eprintf "-> ~a benchmarks still not supported by the interval sampler.\n" unsup-count)
   (check <= unsup-count 50))
 
 (define (point-logger name dict prog)
