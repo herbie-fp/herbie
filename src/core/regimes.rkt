@@ -16,6 +16,8 @@
            (write (option-split-indices opt) port)
            (display ">" port))])
 
+;; TODO: splitpoint lists sp ends with +nan.0. These is suspect, for multi-precision, but I think is sound.
+
 ;; Struct representing a splitpoint
 ;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
 ;; bexpr = Branch Expression: The expression that this splitpoint should split on
@@ -322,7 +324,7 @@
 
 (define (splitpoints->point-preds splitpoints alts repr)
   (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
-  (assert (nan? (sp-point (last splitpoints))))
+  (assert (equal? (sp-point (last splitpoints)) +nan.0))
 
   (define vars (program-variables (alt-program (first alts))))
   (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
@@ -332,7 +334,7 @@
     (λ (pt)
       (define val (apply prog pt))
       (for/first ([right splitpoints]
-                  #:when (or (nan?-all-types (sp-point right) repr)
+                  #:when (or (equal? (sp-point right) +nan.0)
                              (<=/total val (sp-point right) repr)))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))

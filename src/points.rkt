@@ -1,8 +1,9 @@
 #lang racket
 
-(require math/bigfloat (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
+(require math/bigfloat rival
+         (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "biginterval.rkt" "interface.rkt")
+         "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points errors errors-score
@@ -51,7 +52,7 @@
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
   (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
-  (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
+  (eprintf "-> ~a benchmarks still not supported by the interval sampler.\n" unsup-count)
   (check <= unsup-count 50))
 
 (define (point-logger name dict prog)
@@ -79,30 +80,31 @@
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
-    (parameterize ([bf-precision precision])
-      (match-define (ival (endpoint lo lo!) (endpoint hi hi!) err? err) (apply fn pt))
-      (define lo* (<-bf lo))
-      (define hi* (<-bf hi))
-      (cond
-       [err
-        (log! 'nan precision pt)
-        +nan.0]
-       [(and (not err?) (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))) ; 0.0 and -0.0
-        (log! 'sampled precision pt hi*)
-        hi*]
-       [(and lo! hi!)
-        (log! 'overflowed precision pt)
-        +nan.0]
-       [(or (and lo! (bigfloat? lo) (bfinfinite? lo))
-            (and hi! (bigfloat? hi) (bfinfinite? hi)))
-        ;; We never sample infinite points anyway
-        (log! 'overflowed precision pt)
-        +nan.0]
-       [else
-        (define precision* (exact-floor (* precision 2)))
-        (if (> precision* (*max-mpfr-prec*))
-            (begin (log! 'exit precision pt) +nan.0)
-            (loop precision*))]))))
+    (match-define (ival out (app <-bf lo) (app <-bf hi))
+                  (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define lo! (ival-lo-fixed? out))
+    (define hi! (ival-hi-fixed? out))
+    (cond
+     [(ival-err out)
+      (log! 'nan precision pt)
+      +nan.0]
+     [(and (not (ival-err? out))
+           (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
+      (log! 'sampled precision pt hi)
+      hi]
+     [(and lo! hi!)
+      (log! 'overflowed precision pt)
+      +nan.0]
+     [(or (and lo! (bigfloat? (ival-lo out)) (bfinfinite? (ival-lo out)))
+          (and hi! (bigfloat? (ival-hi out)) (bfinfinite? (ival-hi out))))
+      ;; We never sample infinite points anyway
+      (log! 'overflowed precision pt)
+      +nan.0]
+     [else
+      (define precision* (exact-floor (* precision 2)))
+      (if (> precision* (*max-mpfr-prec*))
+          (begin (log! 'exit precision pt) +nan.0)
+          (loop precision*))])))
 
 ; These definitions in place, we finally generate the points.
 
@@ -152,8 +154,12 @@
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
 
+      (define success
+        ;; +nan.0 is the "error" return code for ival-eval
+        (and (not (equal? pre +nan.0)) (not (equal? ex +nan.0))))
+
       (cond
-       [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
+       [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
