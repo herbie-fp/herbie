@@ -92,8 +92,7 @@
 
 (define (exact-value? type val)
   (match type
-    ['real (exact? val)]
-    ['complex (exact? val)]
+    [(or 'real 'complex) (exact? val)]
     ['boolean true]
     [_ false]))
 
@@ -112,14 +111,15 @@
        [(or -inf.0 -inf.f) (hash 'type "real" 'value "-inf")]
        [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
-    [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (real-part x))]
+    [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
 (define/contract (->flonum x repr)
   (-> any/c representation? value?)
   (cond
    [(and (complex? x) (not (real? x)))
-    (make-rectangular (->flonum (real-part x) (get-representation 'binary64)) (->flonum (imag-part x) (get-representation 'binary64)))]
+    (make-rectangular (->flonum (real-part x) (get-representation 'binary64))
+                      (->flonum (imag-part x) (get-representation 'binary64)))]
    [(bigcomplex? x)
     (make-rectangular (->flonum (bigcomplex-re x) (get-representation 'binary64))
                       (->flonum (bigcomplex-im x) (get-representation 'binary64)))]

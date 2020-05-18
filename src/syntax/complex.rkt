@@ -5,6 +5,19 @@
 
 (define-type complex (conjoin complex? (negate real?)) bigcomplex?)
 
+(define-representation complex
+  (λ (x) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x))))
+  (λ (x) (bigcomplex (bf (real-part x)) (bf (imag-part x))))
+  (λ (x) (make-rectangular (ordinal->flonum (quotient x (expt 2 64))) (ordinal->flonum (modulo x (expt 2 64)))))
+  (λ (x) (+ (* (expt 2 64) (flonum->ordinal (real-part x))) (flonum->ordinal (imag-part x))))
+  128
+  ;; TODO(interface): note that these values for special-values are incorrect;
+  ;; any value that includes +nan.0 should be a special value, but because
+  ;; types and representations are not cleanly separated, this is not reasonable to
+  ;; express. Once types and representations are separated, fix this.
+  '(+nan.0 +inf.0)
+  real->double-flonum)
+
 (define-constant I complex
   [bf (λ () (bigcomplex 0.bf 1.bf))]
   [fl (const 0+1i)]
@@ -58,25 +71,21 @@
   [nonffi sqrt])
 
 (define-operator (complex real real) complex
-  ; Override number of arguments
   [fl make-rectangular] [bf bigcomplex] [ival #f]
   [->tex (curry format "~a + ~a i")]
   [nonffi make-rectangular])
 
 (define-operator (re complex) real
-  ; Override number of arguments
   [fl real-part] [bf bigcomplex-re] [ival #f]
   [->tex (curry format "\\Re(~a)")]
   [nonffi real-part])
 
 (define-operator (im complex) real
-  ; Override number of arguments
   [fl imag-part] [bf bigcomplex-im] [ival #f]
   [->tex (curry format "\\Im(~a)")]
   [nonffi imag-part])
 
 (define-operator (conj complex) complex
-  ; Override number of arguments
   [fl conjugate] [bf bf-complex-conjugate] [ival #f]
   [->tex (curry format "\\overline{~a}")]
   [nonffi conjugate])

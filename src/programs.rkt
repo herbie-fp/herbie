@@ -6,7 +6,7 @@
 
 (module+ test (require rackunit))
 
-(provide (all-from-out "syntax/syntax.rkt" "syntax/complex.rkt")
+(provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          type-of
          expr-supports?
@@ -41,7 +41,6 @@
   ;; Fast version does not recurse into functions applications
   (match expr
     [(? real?) 'real]
-    [(? complex?) 'complex]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
     [(? value?) (representation-type (*output-repr*))]
@@ -286,7 +285,6 @@
                         ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
                         [x x])))
                      prec)]
-        [(? complex?) (values expr 'complex)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
@@ -308,7 +306,6 @@
          (list 'if (loop cond) (loop ift) (loop iff))]
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
-        [(? (conjoin complex? (negate real?))) expr]
         [(? value?)
          (match (bigfloat->flonum (->bf expr))
            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
