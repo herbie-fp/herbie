@@ -19,7 +19,7 @@
           [bf-complex-pow (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-div (-> bigcomplex? bigcomplex? bigcomplex?)]))
 
-(define (bigcomplex->complex val)
+(define (bigcomplex->complex x)
   (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x))))
 
 (define (complex->bigcomplex val)
