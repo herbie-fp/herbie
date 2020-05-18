@@ -1,8 +1,8 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat rival)
 (require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "syntax/complex.rkt"
-         "biginterval.rkt" "float.rkt" "interface.rkt")
+         "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -166,7 +166,7 @@
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
   (define-simple-check (check-in-interval? iv pt)
-    (match-define (ival (endpoint lo lo-immovable?) (endpoint hi hi-immovable?) err? err) iv)
+    (match-define (ival lo hi) iv)
     (and (bf<= lo pt) (bf<= pt hi)))
 
   (for ([(e p) (in-hash tests)])
