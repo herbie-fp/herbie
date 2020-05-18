@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat "../plugin.rkt" "../bigcomplex.rkt")
+(require math/flonum math/bigfloat "../plugin.rkt" "../bigcomplex.rkt")
 
 (define-type complex (conjoin complex? (negate real?)) bigcomplex?)
 
