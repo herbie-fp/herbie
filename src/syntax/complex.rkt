@@ -1,7 +1,6 @@
 #lang racket
 
-(require (submod "syntax.rkt" internals) (submod "types.rkt" internals) (submod "rules.rkt" internals))
-(require math/bigfloat "../bigcomplex.rkt")
+(require math/bigfloat "../plugin.rkt" "../bigcomplex.rkt")
 
 (define-type complex (conjoin complex? (negate real?)) bigcomplex?)
 
