@@ -120,9 +120,8 @@
    [(and (complex? x) (not (real? x)))
     (make-rectangular (->flonum (real-part x) (get-representation 'binary64))
                       (->flonum (imag-part x) (get-representation 'binary64)))]
-   [(bigcomplex? x)
-    (make-rectangular (->flonum (bigcomplex-re x) (get-representation 'binary64))
-                      (->flonum (bigcomplex-im x) (get-representation 'binary64)))]
+   [(equal? (representation-type repr 'complex))
+    (bigcomplex->complex x)]
    [(and (symbol? x) (constant? x))
     (->flonum ((constant-info x 'fl)) repr)]
    [else

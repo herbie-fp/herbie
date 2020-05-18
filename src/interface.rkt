@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat math/flonum "bigcomplex.rkt")
+(require math/bigfloat math/flonum)
 
 (provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
 (module+ internals (provide define-representation))

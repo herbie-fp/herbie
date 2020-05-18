@@ -6,6 +6,8 @@
 
 (provide (contract-out
           [struct bigcomplex ((re bigfloat?) (im bigfloat?))]
+          [bigcomplex->complex (-> bigcomplex? complex?)]
+          [complex->bigcomplex (-> complex? bigcomplex?)]
           [bf-complex-add (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-sub (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-neg (-> bigcomplex? bigcomplex?)]
@@ -16,6 +18,12 @@
           [bf-complex-sqrt (-> bigcomplex? bigcomplex?)]
           [bf-complex-pow (-> bigcomplex? bigcomplex? bigcomplex?)]
           [bf-complex-div (-> bigcomplex? bigcomplex? bigcomplex?)]))
+
+(define (bigcomplex->complex val)
+  (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x))))
+
+(define (complex->bigcomplex val)
+  (bigcomplex (bf (real-part val)) (bf (imag-part val))))
 
 (define (bf-complex-neg x)
   (bigcomplex (bf- (bigcomplex-re x)) (bf- (bigcomplex-im x))))
