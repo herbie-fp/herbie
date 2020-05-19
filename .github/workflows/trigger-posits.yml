@@ -14,3 +14,8 @@ jobs:
           -H 'Accept: application/vnd.github.everest-preview+json' \
           -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
           --data '{"event_type": "herbie_update"}'
+      - run: |
+          curl -X POST https://api.github.com/repos/herbie-fp/complex-herbie/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
+          --data '{"event_type": "herbie_update"}'
