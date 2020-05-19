@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  pull_request:
 
 jobs:
   build:
@@ -13,9 +14,9 @@ jobs:
           curl -X POST https://api.github.com/repos/herbie-fp/softposit-herbie/dispatches \
           -H 'Accept: application/vnd.github.everest-preview+json' \
           -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
-          --data '{"event_type": "herbie_update"}'
+          --data '{"event_type": "herbie_update", "branch": "'${GITHUB_REF##*/}'"}'
       - run: |
           curl -X POST https://api.github.com/repos/herbie-fp/complex-herbie/dispatches \
           -H 'Accept: application/vnd.github.everest-preview+json' \
           -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
-          --data '{"event_type": "herbie_update"}'
+          --data '{"event_type": "herbie_update", "branch": "'${GITHUB_REF##*/}'"}'
