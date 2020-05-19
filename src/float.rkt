@@ -105,7 +105,7 @@
   (define type (representation-type repr))
   (match x
    [(? (type-exact? type))
-    ((type-inexact->exact? type) ((type-exact->inexact type) x))]
+    ((type-inexact->exact type) ((type-exact->inexact type) x))]
    [(? (type-inexact? type))
     ((type-inexact->exact type) x)]))
 
