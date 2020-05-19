@@ -13,6 +13,7 @@
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
 (define (double-transform)
+  ;; TODO: needs to be repr-aware
   (define repr (get-representation* 'real))
   (invertible-function
    (compose (representation-repr->ordinal repr) (curryr ->flonum repr))

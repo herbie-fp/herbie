@@ -117,9 +117,7 @@
    [(? (type-exact? type))
     ((type-inexact->exact? type) ((type-exact->inexact type) x))]
    [(? (type-inexact? type))
-    ((type-inexact->exact type) x)]
-   [(and (? symbol?) (? constant?))
-    (->flonum ((constant-info x 'fl)) repr)]))
+    ((type-inexact->exact type) x)]))
 
 (define (fl->repr x repr)
   ((representation-exact->repr repr) x))
