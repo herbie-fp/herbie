@@ -1,8 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "syntax/complex.rkt"
-         "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
