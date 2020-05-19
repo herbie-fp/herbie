@@ -10,17 +10,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger SoftPosit plugin
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          repository: herbie-fp/softposit-herbie
-          token: ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }}
-          event-type: herbie-update
-          client-payload: '{"branch": "${{ github.sha }}"}'
-      - name: Trigger Complex plugin
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          repository: herbie-fp/complex-herbie
-          token: ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }}
-          event-type: herbie-update
-          client-payload: '{"branch": "${{ github.sha }}"}'
+      - run: |
+          curl -X POST https://api.github.com/repos/herbie-fp/softposit-herbie/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
+          --data '{"event_type": "herbie-push", "client_payload": { "branch": "${{ github.sha }}"} }'
+      - run: |
+          curl -X POST https://api.github.com/repos/herbie-fp/complex-herbie/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
+          --data '{"event_type": "herbie-push", "client_payload": { "branch": "${{ github.sha }}"} }'
