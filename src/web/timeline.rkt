@@ -206,7 +206,7 @@
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
     [('bstep v)
-     (define n->js (value->json x repr))
+     (define n->js (curryr value->json repr))
      (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
     [(_ v) v])
 
