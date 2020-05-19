@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(require "common.rkt" "interface.rkt" "syntax/types.rkt" "bigcomplex.rkt"
+(require "common.rkt" "interface.rkt" "syntax/types.rkt"
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
@@ -116,21 +116,14 @@
 
 (define/contract (->flonum x repr)
   (-> any/c representation? value?)
-  (cond
-   [(and (complex? x) (not (real? x)))
-    (make-rectangular (->flonum (real-part x) (get-representation 'binary64))
-                      (->flonum (imag-part x) (get-representation 'binary64)))]
-   [(equal? (representation-type repr) 'complex)
-    (bigcomplex->complex x)]
-   [(and (symbol? x) (constant? x))
-    (->flonum ((constant-info x 'fl)) repr)]
-   [else
-    ;; TODO(interface): Once we have complex numbers as types rather than
-    ;; reprs, we don't have to do this additional check and we can just use
-    ;; repr->bf for everything.
-    (if (eq? (representation-name repr) 'complex)
-      (bigfloat->flonum x)
-      (if (and (real? x) (exact? x)) (exact->inexact x) x))]))
+  (define type (representation-type repr))
+  (match x
+   [(? (type-exact? type))
+    ((type-inexact->exact? type) ((type-exact->inexact type) x))]
+   [(? (type-inexact? type))
+    ((type-inexact->exact type) x)]
+   [(and (? symbol?) (? constant?))
+    (->flonum ((constant-info x 'fl)) repr)]))
 
 (define (fl->repr x repr)
   ((representation-exact->repr repr) x))

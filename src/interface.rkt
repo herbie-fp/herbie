@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
+(require "syntax/types.rkt")
 
 (provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
 (module+ internals (provide define-representation))
@@ -12,7 +13,7 @@
 ;; Structs
 
 (struct representation
-  (name
+  (name type
    bf->repr repr->bf ordinal->repr repr->ordinal
    total-bits special-values exact->repr)
   #:methods gen:custom-write
@@ -24,18 +25,12 @@
   (hash-ref representations name
             (λ () (error 'get-representation "Unknown representation ~a" name))))
 
-(define (representation-type repr)
-  (match (representation-name repr)
-    ['binary64 'real]
-    ['binary32 'real]
-    [x x]))
-
-(define-syntax-rule (define-representation name args ...)
+(define-syntax-rule (define-representation (name type) args ...)
   (begin
-    (define name (representation 'name args ...))
+    (define name (representation 'name (get-type 'type) args ...))
     (hash-set! representations 'name name)))
 
-(define-representation bool
+(define-representation (bool bool)
   identity
   identity
   (λ (x) (= x 0))
@@ -44,7 +39,7 @@
   null
   identity)
 
-(define-representation binary64
+(define-representation (binary64 real)
   bigfloat->flonum
   bf
   ordinal->flonum
@@ -69,7 +64,7 @@
     [(< x 0) (- (bit-field->single-flonum (- x)))]
     [else (bit-field->single-flonum x)]))
 
-(define-representation binary32
+(define-representation (binary32 real)
   (compose real->single-flonum bigfloat->flonum)
   bf
   ordinal->single-flonum
