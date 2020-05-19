@@ -17,7 +17,7 @@
 (define-type real (real? bigfloat?)
   bf bigfloat->flonum)
 
-(define-type bool boolean? boolean?
+(define-type bool (boolean? boolean?)
   identity identity)
 
 (define (value-of type) (type-exact? (hash-ref type-dict type)))
