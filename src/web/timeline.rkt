@@ -206,10 +206,8 @@
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
     [('bstep v)
-     (define (flval-wrapper x) (flval x repr))
-     (map (λ (x) (map (curryr apply '())
-                      (list flval-wrapper flval-wrapper identity flval-wrapper) x))
-          v)]
+     (define n->js (value->json x repr))
+     (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
     [(_ v) v])
 
   (define data

@@ -5,12 +5,17 @@
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
-(provide midpoint ulp-difference ulps->bits
-         </total <=/total =-or-nan?
-         ordinary-value? exact-value?
-         val-to-type flval
-         ->flonum ->bf random-generate fl->repr repr->fl value->string
-         mk-<= get-representation*)
+(provide 
+ get-representation*
+ ordinary-value?
+ ulp-difference ulps->bits
+ midpoint random-generate
+ </total <=/total =-or-nan?
+ exact-value? value->code
+ value->string value->json
+ ->flonum ->bf
+ fl->repr repr->fl
+ mk-<=)
 
 (define (get-representation* x)
   (match x
@@ -83,14 +88,13 @@
     ['boolean true]
     [_ false]))
 
-(define (val-to-type type val)
+(define (value->code type val)
   (match type
     ['real val]
-    ['complex (if (real? val) `(complex ,val 0) val)]
-    ['boolean (if val 'TRUE 'FALSE)]
-    [_ (error "Unknown type" type)]))
+    ['complex (list 'complex (real-part val) (imag-part val))]
+    ['boolean (if val 'TRUE 'FALSE)]))
 
-(define (flval x repr)
+(define (value->json x repr)
   (match x
     [(? real?)
      (match x

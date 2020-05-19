@@ -147,7 +147,7 @@
         (define rtype (operator-info op 'otype))
         (and ((value-of rtype) res)
              (exact-value? rtype res)
-             (val-to-type rtype res)))
+             (value->code rtype res)))
       false))
 
 (module+ test
