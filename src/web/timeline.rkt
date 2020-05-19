@@ -222,7 +222,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (make-summary-html out info dir)
-  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr

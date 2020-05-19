@@ -5,7 +5,7 @@
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
-(provide midpoint ulp-difference *bit-width* ulps->bits bit-difference
+(provide midpoint ulp-difference ulps->bits bit-difference
          </total <=/total =-or-nan? nan?-all-types ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
@@ -30,8 +30,6 @@
    (floor (/ (+ ((representation-repr->ordinal repr) p1)
                 ((representation-repr->ordinal repr) p2))
              2))))
-
-(define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
 (define/contract (ulps->bits x)
   (-> finite? finite?)

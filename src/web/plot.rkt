@@ -170,11 +170,12 @@
                  [plot-y-label title])
     (thunk)))
 
-(define (herbie-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+(define (herbie-plot repr #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+  (define bit-width (representation-total-bits repr))
   (define thunk
     (if port
-        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max (*bit-width*)))
-        (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
+        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max bit-width))
+        (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max bit-width))))
   (with-herbie-plot #:title title thunk))
 
 (define (with-alt-plot #:title [title #f] thunk)
@@ -293,6 +294,7 @@
   (define pts (points->doubles (test-success-newpoints result) repr))
   (herbie-plot
    #:port out #:kind 'png
+   repr
    (error-axes pts #:axis idx)
    (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
@@ -309,6 +311,7 @@
 
   (herbie-plot
    #:port out #:kind 'png
+   repr
    (error-points err pts #:axis idx #:color theme)
    (error-avg err pts #:axis idx #:color theme)))
 

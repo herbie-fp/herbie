@@ -185,7 +185,6 @@
       (+ 1 (expt 2 (representation-total-bits repr)))))
 
 (define (eval-errors eval-fn pcontext repr)
-  (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (point-error (apply eval-fn point) exact repr)))
 

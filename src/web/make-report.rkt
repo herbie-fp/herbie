@@ -13,7 +13,7 @@
     [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)]))
 
 (define (make-report-page out info)
-  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
