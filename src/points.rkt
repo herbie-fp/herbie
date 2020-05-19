@@ -15,7 +15,7 @@
 (define (sample-multi-bounded ranges repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define <-ordinal (representation-ordinal->repr repr))
-  (define <-exact (compose (representation-bigfloat->repr repr) bf))
+  (define <-exact (compose (representation-bf->repr repr) bf))
 
   (define ordinal-ranges
     (for/list ([range ranges])
