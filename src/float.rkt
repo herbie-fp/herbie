@@ -5,11 +5,11 @@
          "syntax/syntax.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
-(provide midpoint ulp-difference ulps->bits bit-difference
-         </total <=/total =-or-nan? nan?-all-types ordinary-value?
+(provide midpoint ulp-difference ulps->bits
+         </total <=/total =-or-nan? ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
-         <-all-precisions mk-<= special-value? get-representation*)
+         <-all-precisions mk-<= get-representation*)
 
 (define (get-representation* x)
   (match x
@@ -21,7 +21,7 @@
     (+ (ulp-difference (real-part x) (real-part y) (get-representation 'binary64))
        (ulp-difference (imag-part x) (imag-part y) (get-representation 'binary64)))
     (let ([->ordinal (representation-repr->ordinal repr)])
-      (- (->ordinal y) (->ordinal x)))))
+      (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
@@ -31,12 +31,7 @@
                 ((representation-repr->ordinal repr) p2))
              2))))
 
-(define/contract (ulps->bits x)
-  (-> finite? finite?)
-  (log x 2))
-
-(define (bit-difference x y repr)
-  (ulps->bits (+ 1 (abs (ulp-difference x y repr))) repr))
+(define (ulps->bits x) (log x 2))
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))
@@ -77,11 +72,6 @@
      [(set-member? (representation-special-values repr) x2) #t]
      [else (< ((representation-repr->ordinal repr) x1)
               ((representation-repr->ordinal repr) x2))])]))
-
-(define (nan?-all-types x repr)
-  (if (or (real? x) (complex? x))
-      (nan? x)
-      (set-member? (representation-special-values repr) x)))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))

@@ -65,7 +65,7 @@
                #:when (ordinary-value? v2 repr))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
-        (check-eq? (ulp-difference v1 v2 repr) 0))))
+        (check-eq? (ulp-difference v1 v2 repr) 1))))
   (when (< (length errs) (/ num-test-points 10))
     (fail-check "Not enough points sampled to test rule")))
 

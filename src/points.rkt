@@ -181,7 +181,7 @@
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
-      (+ 1 (abs (ulp-difference out exact repr)))
+      (ulp-difference out exact repr)
       (+ 1 (expt 2 (representation-total-bits repr)))))
 
 (define (eval-errors eval-fn pcontext repr)
