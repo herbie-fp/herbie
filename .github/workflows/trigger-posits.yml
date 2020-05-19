@@ -16,11 +16,11 @@ jobs:
           repository: herbie-fp/softposit-herbie
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           event-type: herbie-update
-          client-payload: '{"branch": "'${GITHUB_REF##*/}'"}'
+          client-payload: '{"branch": "${{ github.sha }}"}'
       - name: Trigger Complex plugin
         uses: peter-evans/repository-dispatch@v1
         with:
           repository: herbie-fp/complex-herbie
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           event-type: herbie-update
-          client-payload: '{"branch": "'${GITHUB_REF##*/}'"}'
+          client-payload: '{"branch": "${{ github.sha }}"}'
