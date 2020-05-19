@@ -13,7 +13,7 @@
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
 (define (double-transform)
-  (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
+  (define repr (get-representation* 'real))
   (invertible-function
    (compose (representation-repr->ordinal repr) (curryr ->flonum repr))
    (compose (representation-ordinal->repr repr) round)))

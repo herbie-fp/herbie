@@ -279,11 +279,7 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (operator-info op 'otype))]
-        [(? real?) (values
-                     (fl->repr expr (get-representation (match prec
-                        ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
-                        [x x])))
-                     prec)]
+        [(? real?) (values (fl->repr expr (get-representation* prec)) prec)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
