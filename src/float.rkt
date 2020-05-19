@@ -6,8 +6,9 @@
 (module+ test (require rackunit))
 
 (provide midpoint ulp-difference ulps->bits
-         </total <=/total =-or-nan? ordinary-value?
-         exact-value? val-to-type flval
+         </total <=/total =-or-nan?
+         ordinary-value? exact-value?
+         val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
          mk-<= get-representation*)
 
@@ -110,7 +111,7 @@
     ((type-inexact->exact type) x)]))
 
 (define (fl->repr x repr)
-  ((representation-exact->repr repr) x))
+  ((representation-bf->repr repr) (->bf x repr)))
 
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))

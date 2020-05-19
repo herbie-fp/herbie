@@ -15,7 +15,7 @@
 (struct representation
   (name type
    bf->repr repr->bf ordinal->repr repr->ordinal
-   total-bits special-values exact->repr)
+   total-bits special-values)
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
@@ -36,8 +36,7 @@
   (λ (x) (= x 0))
   (λ (x) (if x 1 0))
   1
-  null
-  identity)
+  null)
 
 (define-representation (binary64 real)
   bigfloat->flonum
@@ -45,8 +44,7 @@
   ordinal->flonum
   flonum->ordinal
   64
-  '(+nan.0 +inf.0 -inf.0)
-  real->double-flonum)
+  '(+nan.0 +inf.0 -inf.0))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
