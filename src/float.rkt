@@ -9,7 +9,7 @@
          </total <=/total =-or-nan? ordinary-value?
          exact-value? val-to-type flval
          ->flonum ->bf random-generate fl->repr repr->fl value->string
-         <-all-precisions mk-<= get-representation*)
+         mk-<= get-representation*)
 
 (define (get-representation* x)
   (match x
@@ -150,14 +150,6 @@
     (if (eq? (representation-name repr) 'complex)
       (bf x)
       ((representation-repr->bf repr) x))]))
-
-(define (<-all-precisions x1 x2 repr)
-  (cond
-   [(or (real? x1) (complex? x1))
-    (< x1 x2)]
-   [else
-    (define ->ordinal (representation-repr->ordinal repr))
-    (< (->ordinal x1) (->ordinal x2))]))
 
 (define (mk-<= repr var val)
   (define (cast x)

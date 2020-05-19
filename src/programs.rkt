@@ -325,14 +325,6 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
-(define ((replace-var var val) expr)
-  (cond
-   [(eq? expr var) val]
-   [(list? expr)
-    (cons (car expr) (map (replace-var var val) (cdr expr)))]
-   [#t
-    expr]))
-
 (define (expr-supports? expr field)
   (let loop ([expr expr])
     (match expr

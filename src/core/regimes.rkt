@@ -132,7 +132,7 @@
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
-                               (<-all-precisions prev val repr))))
+                               (</total prev val repr))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
