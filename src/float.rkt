@@ -33,14 +33,12 @@
 
 (define (*bit-width*) (if (flag-set? 'precision 'double) 64 32))
 
-(define (ulps->bits x)
-  (cond
-   [(nan? x) +nan.0]
-   [(infinite? x) (*bit-width*)]
-   [else (/ (log x) (log 2))]))
+(define/contract (ulps->bits x)
+  (-> finite? finite?)
+  (log x 2))
 
 (define (bit-difference x y repr)
-  (ulps->bits (+ 1 (abs (ulp-difference x y repr)))))
+  (ulps->bits (+ 1 (abs (ulp-difference x y repr))) repr))
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-exp (representation-total-bits repr))))

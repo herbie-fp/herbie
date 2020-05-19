@@ -182,7 +182,7 @@
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
       (+ 1 (abs (ulp-difference out exact repr)))
-      (+ 1 (expt 2 (*bit-width*)))))
+      (+ 1 (expt 2 (representation-total-bits repr)))))
 
 (define (eval-errors eval-fn pcontext repr)
   (define max-ulps (expt 2 (*bit-width*)))
@@ -201,10 +201,12 @@
   (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
   (eval-errors baseline newpcontext repr))
 
+(define (avg . s)
+  (/ (apply + s) (length s)))
+
 (define (errors-score e)
-  (if (flag-set? 'reduce 'avg-error)
-      (/ (apply + (map ulps->bits e)) (length e))
-      (apply max (map ulps->bits e))))
+  (apply (if (flag-set? 'reduce 'avg-error) avg max)
+         (map ulps->bits e)))
 
 (define (errors prog pcontext repr)
   (define fn (eval-prog prog 'fl repr))
