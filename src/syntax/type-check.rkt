@@ -108,12 +108,4 @@
   (check-fails #'(if (== a 1) 1 0) #:env #hash((a . bool)))
   (check-fails #'(if (== a 1) 1 TRUE) #:env #hash((a . real)))
   (check-type 'bool #'(let ([a 1]) TRUE))
-  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool)))
-
-  (require "complex.rkt")
-
-  (check-type 'complex #'(complex 2 3))
-  (check-type 'complex #'(+ (complex 1 2) (complex 3 4)))
-  (check-fails #'(+ 2 (complex 1 2)))
-  (check-type 'real #'(+))
-  (check-type 'real #'(re (+ (complex 1 2) (complex 3 4)))))
+  (check-type 'real #'(let ([a 1]) a) #:env #hash((a . bool))))
