@@ -108,7 +108,6 @@
 (define/contract (->flonum x repr)
   (-> any/c representation? value?)
   (define type (representation-type repr))
-  (eprintf "~a: ~a\n" repr x)
   (match x
    [(? (type-exact? type))
     ((type-inexact->exact type) ((type-exact->inexact type) x))]

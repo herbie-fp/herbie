@@ -122,14 +122,19 @@
     ['nonffi identity]))
 
   (define body*
-    (let inductor ([prog (program-body prog)])
-      (eprintf "Inducting on ~a\n" prog)
+    (let inductor ([prog (program-body prog)] [repr repr])
       (match prog
         [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [(list op args ...)
-         (cons (operator-info op mode) (map inductor args))]
+         (define atypes
+           (match (operator-info op 'itype)
+             [(? list? as) as]
+             [(? type-name? a) (map (const a) args)]))
+         (cons (operator-info op mode)
+               (for/list ([arg args] [atype atypes])
+                 (inductor arg (get-representation* atype))))]
         [_ (error (format "Invalid program ~a" prog))])))
 
   (define fn
@@ -293,8 +298,12 @@
   (match expr
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
+     (define atypes
+       (match (operator-info op 'itype)
+         [(? list? as) as]
+         [(? type-name? a) (map (const a) args)]))
      (define args*
-       (for/list ([arg args] [type (operator-info op 'itype)])
+       (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation* type))))
      (cons op args*)]
     [(? (conjoin complex? (negate real?)))
