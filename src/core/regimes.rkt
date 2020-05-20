@@ -172,7 +172,7 @@
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (option-on-expr alts '(if (== x 0.5) 1 +nan.0) repr)
-           '(0))))
+           '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
