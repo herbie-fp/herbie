@@ -68,6 +68,5 @@
   ordinal->single-flonum
   single-flonum->ordinal
   32
-  '(+nan.f +inf.f -inf.f)
-  real->single-flonum)
+  '(+nan.f +inf.f -inf.f))
 
