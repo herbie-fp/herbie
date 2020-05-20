@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "syntax/rules.rkt"
+         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
 
