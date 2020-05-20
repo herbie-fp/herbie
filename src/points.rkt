@@ -206,6 +206,8 @@
          (map ulps->bits e)))
 
 (define (errors prog pcontext repr)
+  (printf "~a: " repr)
+  (pretty-print prog)
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
