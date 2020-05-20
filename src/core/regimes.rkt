@@ -98,7 +98,9 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        `(if ,(mk-<= repr (sp-bexpr splitpoint) (sp-point splitpoint))
+        (define type (type-name (representation-type repr)))
+        (define <=-operator (get-parametric-operator '<= (list type type)))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
