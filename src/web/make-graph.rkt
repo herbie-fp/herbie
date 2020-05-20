@@ -91,7 +91,7 @@
                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" (format-bits (*bit-width*) #:unit #f)))
+       ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
 
       ,(render-warnings warnings)
 

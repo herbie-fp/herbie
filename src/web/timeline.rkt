@@ -206,10 +206,8 @@
        (hash 'count count 'time time
              'program (~a prog) 'category (~a category) 'precision prec))]
     [('bstep v)
-     (define (flval-wrapper x) (flval x repr))
-     (map (λ (x) (map (curryr apply '())
-                      (list flval-wrapper flval-wrapper identity flval-wrapper) x))
-          v)]
+     (define n->js (curryr value->json repr))
+     (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
     [(_ v) v])
 
   (define data
@@ -222,7 +220,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (make-summary-html out info dir)
-  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr

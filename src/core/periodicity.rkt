@@ -94,10 +94,11 @@
     (match prog
       [(list (or 'lambda 'λ) (list vars ...) body)
        `(λ ,vars ,(loop body (cons 2 loc)))]
+      [(? real? x)
+       (annotation x (reverse loc) 'constant x)]
       [(? constant? c)
-       ;; TODO : Do something more intelligent with 'PI
-       (let ([val (if (rational? c) c (->flonum c (*output-repr*)))])
-         (annotation val (reverse loc) 'constant val))]
+       (define val ((constant-info c 'fl)))
+       (annotation val (reverse loc) 'constant val)]
       [(? variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]
       [(list 'if cond ift iff)

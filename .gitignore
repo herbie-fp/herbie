@@ -1,13 +1,17 @@
+# OS cruft
 *~
+*.swp
+.DS_Store
+
+# Standard directories
+previous
 graphs
-papers
 www/demo
 demo.log
-*.class
-infra/cost
-previous
-regraph
-*.swp
+
+# Related repositories
+papers
 plugins
+rival
+regraph
 egg-herbie
-.DS_Store
