@@ -51,9 +51,7 @@
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
-  (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
-  (eprintf "-> ~a benchmarks still not supported by the interval sampler.\n" unsup-count)
-  (check <= unsup-count 50))
+  (check = (count (compose not (curryr expr-supports? 'ival)) exprs) 0))
 
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
