@@ -123,6 +123,7 @@
 
   (define body*
     (let inductor ([prog (program-body prog)])
+      (eprintf "Inducting on ~a\n" prog)
       (match prog
         [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
