@@ -42,12 +42,12 @@
     [(? real?) 'real]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
-    [(? value?) (representation-type (*output-repr*))]
+    [(? value?) (type-name (representation-type (*output-repr*)))]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?)
      (match (dict-ref env expr)
        [(? symbol? t) t]
-       [(? representation? r) (representation-type r)])]
+       [(? representation? r) (type-name (representation-type r))])]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)

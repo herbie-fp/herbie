@@ -18,7 +18,7 @@
  mk-<=)
 
 (define (get-representation* x)
-  (match (if (type? x) (type-name x) x)
+  (match x
     ['real (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32))]
     [x (get-representation x)]))
 
