@@ -1,6 +1,7 @@
 #lang racket
 
-(require math/bigfloat math/flonum "bigcomplex.rkt")
+(require math/bigfloat math/flonum)
+(require "syntax/types.rkt")
 
 (provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
 (module+ internals (provide define-representation))
@@ -12,9 +13,9 @@
 ;; Structs
 
 (struct representation
-  (name
+  (name type
    bf->repr repr->bf ordinal->repr repr->ordinal
-   total-bits special-values exact->repr)
+   total-bits special-values)
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
@@ -24,34 +25,26 @@
   (hash-ref representations name
             (λ () (error 'get-representation "Unknown representation ~a" name))))
 
-(define (representation-type repr)
-  (match (representation-name repr)
-    ['binary64 'real]
-    ['binary32 'real]
-    [x x]))
-
-(define-syntax-rule (define-representation name args ...)
+(define-syntax-rule (define-representation (name type) args ...)
   (begin
-    (define name (representation 'name args ...))
+    (define name (representation 'name (get-type 'type) args ...))
     (hash-set! representations 'name name)))
 
-(define-representation bool
+(define-representation (bool bool)
   identity
   identity
   (λ (x) (= x 0))
   (λ (x) (if x 1 0))
   1
-  null
-  identity)
+  null)
 
-(define-representation binary64
+(define-representation (binary64 real)
   bigfloat->flonum
   bf
   ordinal->flonum
   flonum->ordinal
   64
-  '(+nan.0 +inf.0 -inf.0)
-  real->double-flonum)
+  '(+nan.0 +inf.0 -inf.0))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -69,24 +62,11 @@
     [(< x 0) (- (bit-field->single-flonum (- x)))]
     [else (bit-field->single-flonum x)]))
 
-(define-representation binary32
+(define-representation (binary32 real)
   (compose real->single-flonum bigfloat->flonum)
   bf
   ordinal->single-flonum
   single-flonum->ordinal
   32
-  '(+nan.f +inf.f -inf.f)
-  real->single-flonum)
+  '(+nan.f +inf.f -inf.f))
 
-(define-representation complex
-  (λ (x) (make-rectangular (bigfloat->flonum (bigcomplex-re x)) (bigfloat->flonum (bigcomplex-im x))))
-  (λ (x) (bigcomplex (bf (real-part x)) (bf (imag-part x))))
-  (λ (x) (make-rectangular (ordinal->flonum (quotient x (expt 2 64))) (ordinal->flonum (modulo x (expt 2 64)))))
-  (λ (x) (+ (* (expt 2 64) (flonum->ordinal (real-part x))) (flonum->ordinal (imag-part x))))
-  128
-  ;; TODO(interface): note that these values for special-values are incorrect;
-  ;; any value that includes +nan.0 should be a special value, but because
-  ;; types and representations are not cleanly separated, this is not reasonable to
-  ;; express. Once types and representations are separated, fix this.
-  '(+nan.0 +inf.0)
-  real->double-flonum)

@@ -14,7 +14,7 @@
         time bits link) #:prefab)
 
 (struct report-info
-  (date commit branch hostname seed flags points iterations bit-width note tests) #:prefab #:mutable)
+  (date commit branch hostname seed flags points iterations note tests) #:prefab #:mutable)
 
 (define (make-report-info tests #:note [note ""] #:seed [seed #f])
   (report-info (current-date)
@@ -25,7 +25,6 @@
                (*flags*)
                (*num-points*)
                (*num-iterations*)
-               (*bit-width*)
                note
                tests))
 
@@ -56,7 +55,7 @@
   
   (define data
     (match info
-      [(report-info date commit branch hostname seed flags points iterations bit-width note tests)
+      [(report-info date commit branch hostname seed flags points iterations note tests)
        (make-hash
         `((date . ,(date->seconds date))
           (commit . ,commit)
@@ -66,7 +65,6 @@
           (flags . ,(flags->list flags))
           (points . ,points)
           (iterations . ,iterations)
-          (bit_width . ,bit-width)
           (note . ,note)
           (tests . ,(map simplify-test tests))))]))
 
@@ -91,7 +89,8 @@
          [get (λ (field) (hash-ref json field))])
     (report-info (seconds->date (get 'date)) (get 'commit) (get 'branch) (hash-ref json 'hostname "")
                  (parse-string (get 'seed))
-                 (list->flags (get 'flags)) (get 'points) (get 'iterations) (hash-ref json 'bit_width 64)
+                 (list->flags (get 'flags)) (get 'points)
+                 (get 'iterations)
                  (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
                    (let ([get (λ (field) (hash-ref test field))])
@@ -99,7 +98,9 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status) (parse-string (hash-ref test 'pre "TRUE")) (string->symbol (hash-ref test 'prec "binary64"))
+                     (table-row (get 'name) (get 'status)
+                                (parse-string (hash-ref test 'pre "TRUE"))
+                                (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))

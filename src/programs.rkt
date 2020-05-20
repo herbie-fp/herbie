@@ -1,12 +1,11 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "syntax/complex.rkt"
-         "float.rkt" "interface.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
-(provide (all-from-out "syntax/syntax.rkt" "syntax/complex.rkt")
+(provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          type-of
          expr-supports?
@@ -41,15 +40,14 @@
   ;; Fast version does not recurse into functions applications
   (match expr
     [(? real?) 'real]
-    [(? complex?) 'complex]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
-    [(? value?) (representation-type (*output-repr*))]
+    [(? value?) (type-name (representation-type (*output-repr*)))]
     [(? constant?) (constant-info expr 'type)]
     [(? variable?)
      (match (dict-ref env expr)
        [(? symbol? t) t]
-       [(? representation? r) (representation-type r)])]
+       [(? representation? r) (type-name (representation-type r))])]
     [(list 'if cond ift iff)
      (type-of ift env)]
     [(list op args ...)
@@ -149,7 +147,7 @@
         (define rtype (operator-info op 'otype))
         (and ((value-of rtype) res)
              (exact-value? rtype res)
-             (val-to-type rtype res)))
+             (value->code rtype res)))
       false))
 
 (module+ test
@@ -281,12 +279,7 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (operator-info op 'otype))]
-        [(? real?) (values
-                     (fl->repr expr (get-representation (match prec
-                        ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
-                        [x x])))
-                     prec)]
-        [(? complex?) (values expr 'complex)]
+        [(? real?) (values (fl->repr expr (get-representation* prec)) prec)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
@@ -308,7 +301,6 @@
          (list 'if (loop cond) (loop ift) (loop iff))]
         [(list op args ...)
          (cons op (for/list ([arg args]) (loop arg)))]
-        [(? (conjoin complex? (negate real?))) expr]
         [(? value?)
          (match (bigfloat->flonum (->bf expr))
            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
@@ -332,14 +324,6 @@
     [(list? expr)
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
-
-(define ((replace-var var val) expr)
-  (cond
-   [(eq? expr var) val]
-   [(list? expr)
-    (cons (car expr) (map (replace-var var val) (cdr expr)))]
-   [#t
-    expr]))
 
 (define (expr-supports? expr field)
   (let loop ([expr expr])

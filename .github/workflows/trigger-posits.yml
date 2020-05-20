@@ -4,13 +4,21 @@ on:
   push:
     branches:
       - master
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - name: "Trigger Softposit support"
+        run: |
           curl -X POST https://api.github.com/repos/herbie-fp/softposit-herbie/dispatches \
           -H 'Accept: application/vnd.github.everest-preview+json' \
           -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
-          --data '{"event_type": "herbie_update"}'
+          --data '{"event_type": "herbie-push", "client_payload": { "branch": "${{ github.sha }}"} }'
+      - name: "Trigger Complex support"
+        run: |
+          curl -X POST https://api.github.com/repos/herbie-fp/complex-herbie/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.SOFTPOSIT_ACCESS_TOKEN }} \
+          --data '{"event_type": "herbie-push", "client_payload": { "branch": "${{ github.sha }}"} }'

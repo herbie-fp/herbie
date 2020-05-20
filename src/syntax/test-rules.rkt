@@ -37,7 +37,7 @@
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
   (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation (match otype ['real 'binary64] [x x])))
+  (define repr (get-representation* otype))
 
   (define make-point
     (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
@@ -65,7 +65,7 @@
                #:when (ordinary-value? v2 repr))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
-        (check-eq? (ulp-difference v1 v2 repr) 0))))
+        (check-eq? (ulp-difference v1 v2 repr) 1))))
   (when (< (length errs) (/ num-test-points 10))
     (fail-check "Not enough points sampled to test rule")))
 
@@ -73,7 +73,7 @@
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
   (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation (match otype ['real 'binary64] [x x])))
+  (define repr (get-representation* otype))
   (define (make-point)
     (for/list ([v fv])
       (match (dict-ref (rule-itypes test-rule) v)

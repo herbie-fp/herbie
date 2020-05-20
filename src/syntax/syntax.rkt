@@ -20,7 +20,7 @@
 ;; depend on (bf-precision) and (flag 'precision 'double).
 
 (define-table constants
-  [type type?]
+  [type type-name?]
   [bf (->* () bigvalue?)]
   [fl (->* () value?)]
   [ival (or/c (->* () ival?) #f)]
@@ -81,8 +81,8 @@
   (unconstrained-domain-> to/c))
 
 (define-table operators
-  [itype (or/c (listof type?) type?)]
-  [otype type?]
+  [itype (or/c (listof type-name?) type-name?)]
+  [otype type-name?]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
   [fl    (unconstrained-argument-number-> value? value?)]
   [nonffi (unconstrained-argument-number-> value? value?)]

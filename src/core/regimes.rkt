@@ -62,7 +62,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (representation-type (get-representation* (type-of e (*var-reprs*)))) 'real))
+   (λ (e) (equal? (type-name (representation-type (get-representation* (type-of e (*var-reprs*))))) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -132,7 +132,7 @@
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals)] [prev splitvals])
-                               (<-all-precisions prev val repr))))
+                               (</total prev val repr))))
   (define err-lsts
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
@@ -172,12 +172,12 @@
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
            (option-on-expr alts '(if (== x 0.5) 1 +nan.0) repr)
-           '(0))))
+           '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (let ([midpoint (midpoint p1 p2 repr)])
-    (cond [(< (bit-difference p1 p2 repr) 48) midpoint]
+    (cond [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
 	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
 	  [else (binary-search-floats pred p1 midpoint repr)])))
 
