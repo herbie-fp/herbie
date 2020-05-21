@@ -217,7 +217,7 @@
   (define fn (batch-eval-progs progs 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
-      (for/vector ([out (apply fn point)])
+      (for/vector ([out (in-vector (apply fn point))])
         (point-error out exact repr)))))
 
 ;; Old, halfpoints method of sampling points

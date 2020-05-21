@@ -101,7 +101,8 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode repr)
-  (vector-ref (batch-eval-progs (list prog) mode repr) 0))
+  (define f (batch-eval-progs (list prog) mode repr))
+  (λ (x) (vector-ref (f x) 0)))
 
 (define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
