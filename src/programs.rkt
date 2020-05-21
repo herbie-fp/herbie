@@ -141,9 +141,9 @@
                  (define repr (dict-ref (*var-reprs*) var))
                  `[,var (,(curry real->precision repr) ,var)]))
          ,(compile
-           (values
-            ,@(for/list ([prog (in-list progs)])
-                `(,precision->real ,(munge prog))))))))
+           (cons 'values
+                 (for/list ([prog (in-list progs)])
+                   `(,precision->real ,(munge prog))))))))
   (common-eval fn))
 
 (define (eval-application op . args)
