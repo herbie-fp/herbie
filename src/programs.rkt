@@ -12,7 +12,7 @@
          location-hash
          location? expr?
          location-do location-get
-         batch-eval-prog eval-prog eval-application
+         batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program)
 
