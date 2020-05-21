@@ -102,7 +102,7 @@
 
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
-  (λ (x) (vector-ref (f x) 0)))
+  (λ args (vector-ref (apply f args) 0)))
 
 (define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
