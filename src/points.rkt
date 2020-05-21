@@ -214,7 +214,7 @@
       (point-error (apply fn point) exact repr))))
 
 (define (batch-errors progs pcontext repr)
-  (define fn (compose vector (batch-eval-progs progs 'fl repr)))
+  (define fn (batch-eval-progs progs 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
       (for/vector ([out (apply fn point)])

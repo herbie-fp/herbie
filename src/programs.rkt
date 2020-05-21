@@ -101,7 +101,7 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode repr)
-  (batch-eval-progs (list prog) mode repr))
+  (vector-ref (batch-eval-progs (list prog) mode repr) 0))
 
 (define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
@@ -141,7 +141,7 @@
                  (define repr (dict-ref (*var-reprs*) var))
                  `[,var (,(curry real->precision repr) ,var)]))
          ,(compile
-           (cons 'values
+           (cons 'vector
                  (for/list ([prog (in-list progs)])
                    `(,precision->real ,(munge prog))))))))
   (common-eval fn))
