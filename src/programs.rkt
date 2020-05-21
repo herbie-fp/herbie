@@ -12,8 +12,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-application
-         compile
+         batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program)
 
@@ -102,6 +101,10 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode repr)
+  (define f (batch-eval-progs (list prog) mode repr))
+  (λ args (vector-ref (apply f args) 0)))
+
+(define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
   ;; TODO(interface): Right now, real->precision and precision->real are
   ;; mixed up for bf and fl because there is a mismatch between the fpbench
@@ -121,7 +124,7 @@
     ['ival identity]
     ['nonffi identity]))
 
-  (define body*
+  (define (munge prog)
     (let inductor ([prog (program-body prog)])
       (match prog
         [(? value?) (real->precision repr prog)]
@@ -131,12 +134,17 @@
          (cons (operator-info op mode) (map inductor args))]
         [_ (error (format "Invalid program ~a" prog))])))
 
+  (define vars (program-variables (first progs)))
+
   (define fn
-    `(λ ,(program-variables prog)
-       (let (,@(for/list ([var (program-variables prog)])
+    `(λ ,vars
+       (let (,@(for/list ([var (in-list vars)])
                  (define repr (dict-ref (*var-reprs*) var))
                  `[,var (,(curry real->precision repr) ,var)]))
-         (,precision->real ,(compile body*)))))
+         ,(compile
+           (cons 'vector
+                 (for/list ([prog (in-list progs)])
+                   `(,precision->real ,(munge prog))))))))
   (common-eval fn))
 
 (define (eval-application op . args)
