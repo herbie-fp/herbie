@@ -15,38 +15,48 @@
 
   <p>
     The <a href="../..">Herbie</a> developers are excited to announce
-    Herbie 1.4! This release focuses on <em>who knows?</em>.
+    Herbie 1.4! This release continues a focus on speed and predictability.
   </p>
 
   <p>
     Herbie automatically improves the accuracy of floating point
     expressions. This avoids the bugs, errors, and surprises that so
     often occur when working with floating point. Since
-    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard at
-    work making Herbie more versatile and easier to use.
+    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard
+    at work making Herbie more versatile and easier to use.
   </p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0;" />
 
   <h2>Major features of this release</h2>
 
-  <p><em>Egg Support:</em> Herbie now uses
-    the <a href="https://github.com/mwillsey/egg">Egg</a> library to
-    simplify expressions. Egg is roughly thirty times faster than
-    Herbie's existing simplifier, making Herbie with Egg roughly twice
-    as fast overall. Egg is packaged for Windows, macOS, and Linux, so
-    it should be transparently usable on all platforms.
-    </p>
-  
-  <h2>Beta features in this release</h2>
+  <p><em>Faster simplification:</em> Herbie now uses
+  the <a href="https://github.com/mwillsey/egg">Egg</a> library to
+  simplify expressions. Egg is roughly thirty times faster than
+  Herbie's existing simplifier, making Herbie roughly twice as fast
+  overall. Egg is packaged for Windows, macOS, and Linux, so it should
+  be transparently usable on all platforms. </p>
 
+  <p><em>Fewer timeouts:</em> We've fixed several
+  accidentally-exponential algorithms in Herbie, which should
+  significantly reduce the number of timeouts you experience in
+  Herbie.</p>
+  
   <figure class="showcase" style="background: white; border: 1px solid gray;">
   </figure>
 
 
   <h2>Improvement to core algorithm</h2>
-
   <ul>
+    <li>Simplification now uses
+    the <a href="https://github.com/mwillsey/egg">Egg</a> library;
+    Herbie's existing e-graph library has been spun out as
+    the <a href="https://pkgs.racket-lang.org/package/regraph">regraph<a/>
+    library, which can be used by other Racket projects.</li>
+    <li>The interval arithmetic library has gained support
+    for <i>movability</i> flags, which generalize the floating-point
+    exactness and overflow flags. This significantly speeds up certain
+    cases of sampling, where too much time is spent sampling invalid points.</li>
   </ul>
 
   <h2>Usability improvements</h2>
@@ -58,6 +68,16 @@
   <h2>Code Cleanup</h2>
 
   <ul>
+    <li>Several herbie dependencies have been spun out as libraries,
+    including the C compiler
+    (<a href="https://pkgs.racket-lang.org/package/fpbench">fpbench</a>),
+    the e-graph implementation
+    (<a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>),
+    and the interval library
+    (<a href="https://pkgs.racket-lang.org/package/rival">rival</a>).
+    Separating out these components will make them easier for others
+    to use.</li>
+    <li>Many obsolete functions and data structures have been removed.</li>
   </ul>
   
   <h2>Try it out!</h2>

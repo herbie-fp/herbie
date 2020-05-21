@@ -36,11 +36,12 @@ function run {
       "$@" \
       "$bench" "reports/$name" \
       || output_error "reports/$name/results.json" "$name" "$seed"
-  bash infra/publish.sh upload "reports/$name"
 }
 
+report=$(git rev-parse --abbrev-ref HEAD)-$(date "+%Y-%m-%d")
 mkdir -p reports
 for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
   run "$bench" "$name" "$@"
 done
+bash infra/publish.sh upload "reports/"

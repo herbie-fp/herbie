@@ -64,7 +64,7 @@
            append
            (for/list ([entry prevs] [idx (in-naturals)]
                       [new-pcontext (split-pcontext pcontext splitpoints prevs repr)]
-                      [new-pcontext2 (split-pcontext pcontext splitpoints prevs repr)])
+                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs repr)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
