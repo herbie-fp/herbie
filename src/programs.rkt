@@ -132,10 +132,12 @@
            (match (operator-info op 'itype)
              [(? list? as) as]
              [(? type-name? a) (map (const a) args)]))
+         (unless (= (length atypes) (length args))
+           (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
                (for/list ([arg args] [atype atypes])
                  (inductor arg (get-representation* atype))))]
-        [_ (error (format "Invalid program ~a" prog))])))
+        [_ (raise-argument-error 'eval-prog "expr?" prog)])))
 
   (define fn
     `(λ ,(program-variables prog)
