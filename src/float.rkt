@@ -15,8 +15,7 @@
  exact-value? value->code
  value->string value->json
  ->flonum ->bf
- fl->repr repr->fl
- mk-<=)
+ fl->repr repr->fl)
 
 (define (get-representation* x)
   (match x
@@ -116,7 +115,7 @@
     ((type-inexact->exact type) x)]))
 
 (define (fl->repr x repr)
-  ((representation-bf->repr repr) (->bf x repr)))
+  ((representation-bf->repr repr) (bf x)))
 
 (define (repr->fl x repr)
   (bigfloat->flonum ((representation-repr->bf repr) x)))
@@ -156,17 +155,3 @@
     (if (eq? (representation-name repr) 'complex)
       (bf x)
       ((representation-repr->bf repr) x))]))
-
-(define (mk-<= repr var val)
-  (define (cast x)
-    (match (representation-name repr)
-      ['posit8 `(real->posit8 ,x)] ['posit16 `(real->posit16 ,x)] ['posit32 `(real->posit32 ,x)]
-      ['quire8 `(real->quire8 ,x)] ['quire16 `(real->quire16 ,x)] ['quire32 `(real->quire32 ,x)]
-      [(or 'binary64 'binary32) x]))
-  (define prec-point (cast (repr->fl val repr)))
-  (define <=-operator
-    (match (representation-name repr)
-      [(or 'binary64 'binary32) '<=] 
-      ['posit8 `<=.p8] ['posit16 `<=.p16] ['posit32 `<=.p32]
-      ['quire8 `<=.p8] ['quire16 `<=.q16] ['quire32 `<=.q32]))
-  (list <=-operator var prec-point))
