@@ -131,7 +131,7 @@
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
-         (list 'if
+         (list (operator-info 'if mode)
                (inductor c (get-representation 'bool))
                (inductor t repr)
                (inductor f repr))]
