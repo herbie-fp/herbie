@@ -176,7 +176,7 @@
   (match-define (list to from) filtered)
   (if (> from 0)
       `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
-                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+                            " (" ,(~r (* (- 1 (/ to from)) 100) #:precision '(= 1)) "%)"))
       '()))
 
 (define (render-phase-outcomes outcomes)
@@ -355,7 +355,7 @@
   (define to (apply + tos))
   (if (> from 0)
       `((dt "Filtered") (dd ,(~a (apply + froms)) " candidates to " ,(~a to) " candidates"
-                            " (" ,(~r (* (/ to from) 100) #:precision '(= 1)) "%)"))
+                            " (" ,(~r (* (- 1 (/ to from)) 100) #:precision '(= 1)) "%)"))
       '()))
 
 
