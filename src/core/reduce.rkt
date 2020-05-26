@@ -12,39 +12,23 @@
 (define fn-inverses
   (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
 
-(define (simplify expr)
-  (define expr* expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(pow ,base ,(? real?))
-       (when (equal? (type-of base (*var-reprs*)) 'complex)
-         (error "Bad pow!!!" expr*))]
-      [(list f args ...)
-       (for-each loop args)]
-      [_ 'ok]))
-
-  (simplify* expr))
-
 (define (eval-const-expr expr)
   ;; When we are in nonffi mode, we don't use repr, so pass in #f
   ((eval-prog `(λ () ,expr) 'nonffi #f)))
 
-(define (simplify* expr*)
+(define (simplify expr*)
   (define expr ((get-evaluator) expr*))
   (match expr
     [(? constant?) expr]
     [(? variable?) expr]
     [`(λ ,vars ,body)
-     `(λ ,vars ,(simplify* body))]
+     `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify* body))]
-    [(? (compose null? free-variables) `(,op ,args ...))
-     (let ([value (with-handlers ([(const #t) (const #f)]) (eval-const-expr expr))])
-       (if (and (number? value) (real? value) (exact? value))
-           value
-           (simplify-node `(,op ,@(map simplify* args)))))]
+     `(λ ,vars ,(simplify body))]
     [`(,op ,args ...)
-     (simplify-node `(,op ,@(map simplify* args)))]))
+     (define args* (map simplify args))
+     (define val (eval-application op args*))
+     (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
   (match expr
