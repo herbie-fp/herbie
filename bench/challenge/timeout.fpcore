@@ -1,8 +1,0 @@
-; -*- mode: scheme -*-
-
-; Herbie times out on these tests, but gets past sampling.
-
-(FPCore (a)
- :name "Random Jason Timeout Test 006"
- (fabs (fmod (atan2 (expm1 (sin (expm1 a))) (atan a)) a)))
-
