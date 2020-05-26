@@ -30,17 +30,13 @@
 
   <h2>Major features of this release</h2>
 
-  <p><em>Faster simplification:</em> Herbie now uses
-  the <a href="https://github.com/mwillsey/egg">Egg</a> library to
-  simplify expressions. Egg is roughly thirty times faster than
-  Herbie's existing simplifier, making Herbie roughly twice as fast
-  overall. Egg is packaged for Windows, macOS, and Linux, so it should
-  be transparently usable on all platforms. </p>
-
-  <p><em>Fewer timeouts:</em> We've fixed several
-  accidentally-exponential algorithms in Herbie, which should
-  significantly reduce the number of timeouts you experience in
-  Herbie.</p>
+  <p><em>Egg Support:</em> Herbie now uses
+    the <a href="https://github.com/mwillsey/egg">Egg</a> library to
+    simplify expressions. Egg is roughly thirty times faster than
+    Herbie's existing simplifier, making Herbie with Egg roughly twice
+    as fast overall. Egg is packaged for Windows, macOS, and Linux, so
+    it should be transparently usable on all platforms.
+    </p>
   
   <figure class="showcase" style="background: white; border: 1px solid gray;">
   </figure>
@@ -53,21 +49,84 @@
     Herbie's existing e-graph library has been spun out as
     the <a href="https://pkgs.racket-lang.org/package/regraph">regraph<a/>
     library, which can be used by other Racket projects.</li>
+
     <li>The interval arithmetic library has gained support
     for <i>movability</i> flags, which generalize the floating-point
     exactness and overflow flags. This significantly speeds up certain
     cases of sampling, where too much time is spent sampling invalid points.</li>
+
+    <li>The interval arithmetic library has been spun out as the 
+    <a href="https://pkgs.racket-lang.org/package/rival">rival<a/>
+    library, which other Racket projects can now use. Several minor
+    bugs in the interval library have been fixed, and support has been
+    extended to more functions. Testing has been improved to catch
+    such bugs in the future.</li>
+
+    <li>The core program evaluator now operates in batch mode,
+    speeding up cases where Herbie generates thousands of program
+    candidates.</li>
+
+    <li>An exponential behavior in the rewrite algorithm was fixed by
+    adding a cache, eliminating one common cause of timeouts.</li>
+
+    <li>Herbie's "final simplify" step no longer does constant
+    folding, eliminating a rare source of accuracy regression.</li>
   </ul>
 
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>The <code>:spec</code> property and <code>let*</code> construct are now supported.</li>
+    <li>Misleading sentences were stricken from the documentation,
+    which should now be a bit clearer and more approachable.</li>
+
+    <li>If a precondition is unsatisfiable, Herbie now names the
+    correct variable when reporting the error.</li>
+
+    <li>Herbie now tries just a little hard to select simpler
+    expressions when optimizing for accuracy. We've heard a lot of
+    feedback about Herbie's confusing and weird results. This change
+    does not totally fix the issue, but should help a bit.</li>
+
+    <li>Herbie now aggregates profile information across a whole
+    report and presents it in an interactive, JavaScript-enabled form
+    on the "Metrics" page. This should help the developers continue to
+    speed up Herbie.</li>
+
+    <li>Some "internal" measures that Herbie presents on its report
+    page now show the correct data.</li>
+
+    <li>The <code>:spec</code> property and <code>let*</code>
+    construct are now supported.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
 
   <ul>
+    <li>Many obsolete functions and data structures have been removed.
+    This makes Herbie easier to develop. A cost of this change is that
+    pre-1.4 seeds will produce different results on Herbie 1.4 due to
+    switching to a standard random-number API.</li>
+
+    <li>Herbie's support for multi- and mixed-precision operations
+    continues to improve, though there is still more work to do before
+    this task can be called "done".</li>
+
+    <li>Herbie's code base was reorganized. The increasingly-important
+    web version is now spread across multiple files with stronger
+    interfaces between them.</li>
+
+    <li>Herbie now uses Github Actions, not Travis, as its continuous
+    integration service. Right now the effects are minor, but we hope
+    to leverage Github Actions more in the future.</li>
+
+    <li>Herbie's support for complex number arithmetic has been
+    extracted to
+    an <a href="https://github.com/herbie-fp/complex-herbie">external
+    library</a>. The support remains in beta, but will no longer be a
+    standard part of Herbie. In the future we hope to provide a
+    standard API that complex number arithmetic can leverage, but
+    right now the divorce is only partially complete.</li>
+
     <li>Several herbie dependencies have been spun out as libraries,
     including the C compiler
     (<a href="https://pkgs.racket-lang.org/package/fpbench">fpbench</a>),
@@ -77,6 +136,7 @@
     (<a href="https://pkgs.racket-lang.org/package/rival">rival</a>).
     Separating out these components will make them easier for others
     to use.</li>
+
     <li>Many obsolete functions and data structures have been removed.</li>
   </ul>
   
