@@ -24,10 +24,6 @@
  :name "neg log"
  (- (log (- (/ 1 x) 1))))
 
-(FPCore (B x)
- :name "VandenBroeck and Keller, Equation (24)"
- (+ (- (* x (/ 1 (tan B)))) (/ 1 (sin B))))
-
 (FPCore (x)
  :name "sqrt sqr"
  :herbie-target
