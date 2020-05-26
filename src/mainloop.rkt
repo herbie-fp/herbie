@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "syntax/rules.rkt"
+         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
 
@@ -392,7 +392,8 @@
   (*all-alts* all-alts)
   (define joined-alt
     (cond
-     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1))
+     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
+           (equal? (type-name (representation-type repr)) 'real))
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts repr))
       (timeline-event! 'bsearch)

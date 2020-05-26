@@ -12,8 +12,7 @@
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-application
-         compile
+         batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program)
 
@@ -102,6 +101,10 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode repr)
+  (define f (batch-eval-progs (list prog) mode repr))
+  (λ args (vector-ref (apply f args) 0)))
+
+(define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
   ;; TODO(interface): Right now, real->precision and precision->real are
   ;; mixed up for bf and fl because there is a mismatch between the fpbench
@@ -121,22 +124,40 @@
     ['ival identity]
     ['nonffi identity]))
 
-  (define body*
-    (let inductor ([prog (program-body prog)])
+  (define (munge prog)
+    (let inductor ([prog (program-body prog)] [repr repr])
       (match prog
         [(? value?) (real->precision repr prog)]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
+        [`(if ,c ,t ,f)
+         (list (operator-info 'if mode)
+               (inductor c (get-representation 'bool))
+               (inductor t repr)
+               (inductor f repr))]
         [(list op args ...)
-         (cons (operator-info op mode) (map inductor args))]
-        [_ (error (format "Invalid program ~a" prog))])))
+         (define atypes
+           (match (operator-info op 'itype)
+             [(? list? as) as]
+             [(? type-name? a) (map (const a) args)]))
+         (unless (= (length atypes) (length args))
+           (raise-argument-error 'eval-prog "expr?" prog))
+         (cons (operator-info op mode)
+               (for/list ([arg args] [atype atypes])
+                 (inductor arg (get-representation* atype))))]
+        [_ (raise-argument-error 'eval-prog "expr?" prog)])))
+
+  (define vars (program-variables (first progs)))
 
   (define fn
-    `(λ ,(program-variables prog)
-       (let (,@(for/list ([var (program-variables prog)])
+    `(λ ,vars
+       (let (,@(for/list ([var (in-list vars)])
                  (define repr (dict-ref (*var-reprs*) var))
                  `[,var (,(curry real->precision repr) ,var)]))
-         (,precision->real ,(compile body*)))))
+         ,(compile
+           (cons 'vector
+                 (for/list ([prog (in-list progs)])
+                   `(,precision->real ,(munge prog))))))))
   (common-eval fn))
 
 (define (eval-application op . args)
@@ -289,27 +310,27 @@
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr)
   (define ->bf (representation-repr->bf repr))
-  (define expr*
-    (let loop ([expr expr])
-      ;; Run after unfold-let, so no need to track lets
-      (match expr
-        [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
-         (define args* (for/list ([arg args]) (loop arg)))
-         (define op* (hash-ref parametric-operators-reverse op))
-         (cons op* args*)]
-        [(list 'if cond ift iff)
-         (list 'if (loop cond) (loop ift) (loop iff))]
-        [(list op args ...)
-         (cons op (for/list ([arg args]) (loop arg)))]
-        [(? value?)
-         (match (bigfloat->flonum (->bf expr))
-           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
-           [+inf.0 'INFINITY]
-           [+nan.0 'NAN]
-           [x x])]
-        [(? constant?) expr]
-        [(? variable?) expr])))
-  expr*)
+  (match expr
+    [(list op args ...)
+     (define op* (hash-ref parametric-operators-reverse op op))
+     (define atypes
+       (match (operator-info op 'itype)
+         [(? list? as) as]
+         [(? type-name? a) (map (const a) args)]))
+     (define args*
+       (for/list ([arg args] [type atypes])
+         (expand-parametric-reverse arg (get-representation* type))))
+     (cons op args*)]
+    [(? (conjoin complex? (negate real?)))
+     `(complex ,(real-part expr) ,(imag-part expr))]
+    [(? value?)
+     (match (bigfloat->flonum (->bf expr))
+       [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+       [+inf.0 'INFINITY]
+       [+nan.0 'NAN]
+       [x x])]
+    [(? constant?) expr]
+    [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs)
   (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
