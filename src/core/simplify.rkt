@@ -51,9 +51,9 @@
             "Falling back on racket egraph because egg-herbie package not installed")
       simplify-batch-regraph]))
 
-  (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
+  (debug #:from 'simplify "Simplifying using" driver ":\n " (string-join (map ~a exprs) "\n  "))
   (define out (driver exprs #:rules rls #:precompute precompute?))
-  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a out) "\n  "))
+  (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a out) "\n  "))
     
   out)
 
