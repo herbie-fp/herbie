@@ -66,24 +66,10 @@
         (define oracle-errs (oracle-error fns newcontext output-repr))
 
         ;; The cells are stored in reverse order, so this finds last regimes invocation
-        (for/first ([cell (unbox timeline)]
-                    #:when (equal? (dict-ref cell 'type) 'regimes))
-          
-          (debug #:from 'regime-testing #:depth 1
-                 "Baseline error score:" (errors-score baseline-errs))
-          (debug #:from 'regime-testing #:depth 1
-                 "Oracle error score:" (errors-score oracle-errs))
-
+        (for/first ([cell (unbox timeline)] #:when (equal? (dict-ref cell 'type) 'regimes))
           (dict-set! cell 'oracle (errors-score oracle-errs))
           (dict-set! cell 'accuracy end-err)
           (dict-set! cell 'baseline (errors-score baseline-errs)))
-        
-        (debug #:from 'regime-testing #:depth 1
-               "End program error score:" end-err)
-        (when (test-output test)
-          (debug #:from 'regime-testing #:depth 1
-                 "Target error score:" (errors-score
-                                         (errors (test-target test) newcontext output-repr))))
 
         (define-values (points exacts) (get-p&es context))
         (define-values (newpoints newexacts) (get-p&es newcontext))
