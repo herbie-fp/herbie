@@ -1,3 +1,0 @@
-(FPCore (lo hi x)
-  :pre (and (< lo -1e308) (> hi 1e308))
-  (/ (- x lo) (- hi lo)))

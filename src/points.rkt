@@ -5,8 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points errors errors-score
+(provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
+         errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
@@ -51,9 +51,7 @@
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
-  (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
-  (eprintf "-> ~a benchmarks still not supported by the interval sampler.\n" unsup-count)
-  (check <= unsup-count 50))
+  (check = (count (compose not (curryr expr-supports? 'ival)) exprs) 0))
 
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
@@ -213,6 +211,13 @@
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
       (point-error (apply fn point) exact repr))))
 
+(define (batch-errors progs pcontext repr)
+  (define fn (batch-eval-progs progs 'fl repr))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
+      (for/vector ([out (in-vector (apply fn point))])
+        (point-error out exact repr)))))
+
 ;; Old, halfpoints method of sampling points
 
 (define (select-every skip l)
@@ -263,8 +268,10 @@
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex (*output-repr*))
-                            #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
+      ([pt pts] [ex exacts]
+       #:unless (and (real? ex) (nan? ex))
+       #:when (ordinary-value? ex (*output-repr*))
+       #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)

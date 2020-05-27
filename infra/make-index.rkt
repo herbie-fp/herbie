@@ -139,7 +139,7 @@
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
                (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
-(define (make-index-page)
+(define (make-index-page out)
   (when (file-exists? (build-path report-json-path "index.cache"))
     (define cached-info (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json)))
     (if (for/and ([(k v) (in-hash cached-info)]) (cache-row? v))
@@ -182,45 +182,48 @@
         (argmax (curryr dict-ref 'date-unix) crashes)))
   (define since-last-crash
     (and last-crash (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24))))
-
-  (write-file "index.html"
-    (printf "<!doctype html>\n")
-    (write-xexpr
-     `(html
-       (head
-        (meta ((charset "utf-8")))
-        (title "Herbie Reports")
-        (link ((rel "stylesheet") (href "index.css")))
-        (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
-        (script ((src "regression-chart.js")))
-        (script ((src "report.js"))))
-       (body
-        (div
-         ((id "large"))
-         (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
-         (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
-         (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
-         (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
-                                                           (format "~ad" (inexact->exact (round since-last-crash)))
-                                                           "∞"))))
-        (ul ((id "toc"))
-            ,@(for/list ([rows (append mainline-infos other-infos)])
-                (define branch (dict-ref (first rows) 'branch))
-                `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
-        (figure
-         (ul ((id "classes")))
-         (svg ((id "accuracy-graph") (width "400")))
-         (svg ((id "speed-graph") (width "400")))
-         (ul ((id "suites")))
-         (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
-        (table
-         ((id "reports"))
-         ,@(apply
-            append
-            (for/list ([rows (append mainline-infos other-infos)])
-              (print-rows rows #:name (dict-ref (first rows) 'branch)))))))))
-
-  (call-with-output-file (build-path report-json-path "index.cache") #:exists 'replace (curry write-json (*cache*))))
+  
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (meta ((charset "utf-8")))
+      (title "Herbie Reports")
+      (link ((rel "stylesheet") (href "index.css")))
+      (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ((src "regression-chart.js")))
+      (script ((src "report.js"))))
+     (body
+      (div
+       ((id "large"))
+       (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
+       (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
+       (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
+       (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
+                                                         (format "~ad" (inexact->exact (round since-last-crash)))
+                                                         "∞"))))
+      (ul ((id "toc"))
+          ,@(for/list ([rows (append mainline-infos other-infos)])
+              (define branch (dict-ref (first rows) 'branch))
+              `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
+      (figure
+       (ul ((id "classes")))
+       (svg ((id "accuracy-graph") (width "400")))
+       (svg ((id "speed-graph") (width "400")))
+       (ul ((id "suites")))
+       (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
+      (table
+       ((id "reports"))
+       ,@(apply
+          append
+          (for/list ([rows (append mainline-infos other-infos)])
+            (print-rows rows #:name (dict-ref (first rows) 'branch)))))))
+   out))
 
 (module+ main
-  (make-index-page))
+  (call-with-output-file "index.html"
+    #:exists 'replace
+    make-index-page)
+  (call-with-output-file (build-path report-json-path "index.cache")
+    #:exists 'replace
+    (curry write-json (*cache*))))

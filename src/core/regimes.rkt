@@ -98,7 +98,9 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        `(if ,(mk-<= repr (sp-bexpr splitpoint) (sp-point splitpoint))
+        (define type (type-name (representation-type repr)))
+        (define <=-operator (car (get-parametric-operator '<= (list type type))))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
@@ -137,10 +139,6 @@
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
-  (for ([pidx (map si-pidx (drop-right split-indices 1))])
-    (assert (> pidx 0))
-    (assert (list-ref can-split? pidx)))
-  (assert (= (si-pidx (last split-indices)) (length pts)))
   (option split-indices alts pts expr (pick-errors split-indices pts err-lsts)))
 
 (define/contract (pick-errors split-indices pts err-lsts)
@@ -262,7 +260,14 @@
 (struct cse (cost indices) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(define (err-lsts->split-indices err-lsts can-split-lst)
+(define (valid-splitindices? can-split? split-indices)
+  (and
+   (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
+     (and (> pidx 0)) (list-ref can-split? pidx))
+   (= (si-pidx (last split-indices)) (length can-split?))))
+
+(define/contract (err-lsts->split-indices err-lsts can-split-lst)
+  (->i ([e (listof list)] [cs (listof boolean?)]) [result (cs) (curry valid-splitindices? cs)])
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (length err-lsts))
@@ -322,9 +327,12 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-indices (last final))))
 
-(define (splitpoints->point-preds splitpoints alts repr)
-  (assert (= (set-count (list->set (map sp-bexpr splitpoints))) 1))
-  (assert (equal? (sp-point (last splitpoints)) +nan.0))
+(define (valid-splitpoints? splitpoints)
+  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)
+       (nan? (sp-point (last splitpoints)))))
+
+(define/contract (splitpoints->point-preds splitpoints alts repr)
+  (-> valid-splitpoints? (listof alt?) representation? (listof procedure?))
 
   (define vars (program-variables (alt-program (first alts))))
   (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
