@@ -18,7 +18,7 @@
         (simplify
          (for/fold ([expr expr]) ([var vars] [tform tforms])
            (replace-expression expr var ((car tform) var)))))
-  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
+  (debug #:from 'approximate "Approximating" expr "in" vars "around" 0)
 
   ; This is a very complex routine, with multiple parts.
   ; Some of the difficulty is due to the use of bounded Laurent series and their encoding.
@@ -47,6 +47,7 @@
                     (if (= (length coeffs) (length vars))
                       (simplify expr*)
                       (let ([var (list-ref vars (length coeffs))])
+                        (debug #:from 'taylor "Taking taylor expansion of" expr "in" var)
                         (taylor var expr*)))))))
 
   ; Given some uncorrected degrees, this gets you an offset to apply.
@@ -168,13 +169,10 @@
 
 (define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
   (define expr
     (if (and (list? expr*) (not (set-member? taylor-expansion-known (car expr*))))
         ((get-expander taylor-expansion-known) expr*)
         expr*))
-  (unless (equal? expr expr*)
-    (debug #:from 'taylor "Rewrote expression to" expr))
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
