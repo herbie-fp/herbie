@@ -9,7 +9,7 @@
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
          random-ranges parse-flag get-seed set-seed!
-         common-eval quasisyntax
+         quasisyntax
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -181,12 +181,6 @@
       (current-pseudo-random-generator
        (vector->pseudo-random-generator seed))
       (random-seed seed)))
-
-;; Common namespace for evaluation
-
-(define-namespace-anchor common-eval-ns-anchor)
-(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
-(define (common-eval expr) (eval expr common-eval-ns))
 
 ;; Matching support for syntax objects.
 
