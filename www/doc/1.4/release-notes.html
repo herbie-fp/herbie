@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.3 Release Notes</title>
+  <title>Herbie 1.4 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,17 +30,13 @@
 
   <h2>Major features of this release</h2>
 
-  <p><em>Faster simplification:</em> Herbie now uses
-  the <a href="https://github.com/mwillsey/egg">Egg</a> library to
-  simplify expressions. Egg is roughly thirty times faster than
-  Herbie's existing simplifier, making Herbie roughly twice as fast
-  overall. Egg is packaged for Windows, macOS, and Linux, so it should
-  be transparently usable on all platforms. </p>
-
-  <p><em>Fewer timeouts:</em> We've fixed several
-  accidentally-exponential algorithms in Herbie, which should
-  significantly reduce the number of timeouts you experience in
-  Herbie.</p>
+  <p><em>Egg Support:</em> Herbie now uses
+    the <a href="https://github.com/mwillsey/egg">Egg</a> library to
+    simplify expressions. Egg is roughly a hundred times faster than
+    Herbie's existing simplifier; Herbie with Egg is roughly twice as
+    fast overall. Egg is packaged for Windows, macOS, and Linux, so it
+    should be transparently usable on all platforms.
+  </p>
   
   <figure class="showcase" style="background: white; border: 1px solid gray;">
   </figure>
@@ -51,18 +47,54 @@
     <li>Simplification now uses
     the <a href="https://github.com/mwillsey/egg">Egg</a> library;
     Herbie's existing e-graph library has been spun out as
-    the <a href="https://pkgs.racket-lang.org/package/regraph">regraph<a/>
+    the <a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>
     library, which can be used by other Racket projects.</li>
+
     <li>The interval arithmetic library has gained support
-    for <i>movability</i> flags, which generalize the floating-point
-    exactness and overflow flags. This significantly speeds up certain
-    cases of sampling, where too much time is spent sampling invalid points.</li>
+    for <i>movability flags</i>, which allow Herbie to detect and skip
+    unavoidable overflow.</li>
+
+    <li>The core program evaluator now operates in batch mode,
+    speeding up cases where Herbie generates thousands of program
+    candidates.</li>
+
+    <li>The interval arithmetic library has been spun out as the 
+    <a href="https://pkgs.racket-lang.org/package/rival">rival</a>
+    library, which other Racket projects can now use. Several minor
+    bugs in the interval library have been fixed, and support has been
+    extended to more functions. Testing has been improved to catch
+    such bugs in the future.</li>
+
+    <li>Exponential growth in the rewrite algorithm is fixed by adding
+    a cache, eliminating a common cause of timeouts.</li>
+
+    <li>Herbie's "final simplify" step no longer does constant
+    folding, eliminating a rare source of accuracy regression.</li>
   </ul>
 
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>The <code>:spec</code> property and <code>let*</code> construct are now supported.</li>
+    <li>The documentation is now be a bit clearer and more
+    approachable.</li>
+
+    <li>Herbie now blames the correct variable if the precondition is
+    unsatisfiable.</li>
+
+    <li>The <code>:spec</code> property and <code>let*</code>
+    construct are now supported.</li>
+
+    <li>Herbie now tries a little hard to produce simpler expressions.
+    This change won't totally fix Herbie's weird output, but should
+    help a bit.</li>
+
+    <li>Herbie now aggregates profile information across a whole
+    report and presents it in an interactive, JavaScript-enabled form
+    on the "Metrics" page. This should help us keep speeding up
+    Herbie.</li>
+
+    <li>Some "internal" measures on the details page now show correct
+    data.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
@@ -75,18 +107,37 @@
     (<a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>),
     and the interval library
     (<a href="https://pkgs.racket-lang.org/package/rival">rival</a>).
-    Separating out these components will make them easier for others
-    to use.</li>
-    <li>Many obsolete functions and data structures have been removed.</li>
+    Others can now use and maintain these components.</li>
+
+    <li>Many obsolete functions and data structures have been removed.
+    As a result, pre-1.4 seeds will produce different results on
+    Herbie 1.4 due to switching random-number algorithms.</li>
+
+    <li>Herbie's support for multi- and mixed-precision operations
+    continues to improve, though there is still more work to do before
+    this task can be called "done".</li>
+
+    <li>The code base was reorganized to split the web code across
+    multiple files with stronger interfaces between them.</li>
+
+    <li>Herbie now uses Github Actions, not Travis, as its continuous
+    integration service. Right now the effects are minor, but we hope
+    to leverage Github Actions more in the future.</li>
+
+    <li>Herbie's support for complex number arithmetic has been
+    extracted to a beta-quality
+    <a href="https://github.com/herbie-fp/complex-herbie">external
+    library</a>. In the future we hope to provide a standard plugin
+    API not only for complex numbers but also vectors, matrices, and
+    other mathematical objects.</li>
   </ul>
   
   <h2>Try it out!</h2>
 
   <p>
-    We're excited to continue to improve Herbie and make it more
-    useful to scientists, engineers, and programmers around the world.
-    We've got a lot of features we're excited to work on in the coming
-    months. Please
+    We're want Herbie to be more useful to scientists, engineers, and
+    programmers around the world. We've got a lot of features we're
+    excited to work on in the coming months. Please
     <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
     join
     <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">the
@@ -94,6 +145,7 @@
     or <a href="https://github.com/uw-plse/herbie">contribute</a>.
   </p>
   
-  <p><em style="font-weight: bold; font-style: roman;">If you find Herbie useful, <a href="mailto:herbie@cs.washington.edu">let us know!</em></p>
+  <p style="font-weight: bold; text-align: center;">If you find Herbie
+  useful, <a href="mailto:herbie@cs.washington.edu">let us know!</p>
 </body>
 </html>

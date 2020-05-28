@@ -268,8 +268,10 @@
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex (*output-repr*))
-                            #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
+      ([pt pts] [ex exacts]
+       #:unless (and (real? ex) (nan? ex))
+       #:when (ordinary-value? ex (*output-repr*))
+       #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)

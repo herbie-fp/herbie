@@ -1,0 +1,58 @@
+; -*- mode: scheme -*-
+
+; This is a cool example that fails in cases of overflow
+
+(FPCore (lo hi x)
+  :pre (and (< lo -1e308) (> hi 1e308))
+  :precision binary64
+  (/ (- x lo) (- hi lo)))
+
+; These once crashed Herbie
+
+(FPCore (x y z a)
+ :name "tan-example"
+ :pre (and (or (== x 0) (<= 0.5884142 x 505.5909))
+           (or (<= -1.796658e+308 y -9.425585e-310) (<= 1.284938e-309 y 1.751224e+308))
+           (or (<= -1.776707e+308 z -8.599796e-310) (<= 3.293145e-311 z 1.725154e+308))
+           (or (<= -1.796658e+308 a -9.425585e-310) (<= 1.284938e-309 a 1.751224e+308)))
+ (+ x (- (tan (+ y z)) (tan a))))
+
+(FPCore (x c s)
+  :name "mixedcos"
+  (/ (cos (* 2 x)) (* (pow c 2) (* (* x (pow s 2)) x))))
+
+(FPCore (x)
+  :pre (or (== x 0) (== x 10))
+  x)
+
+; These should yield the same result
+
+(FPCore (r a b)
+ :name "rsin A"
+ (/ (* r (sin b)) (cos (+ a b))))
+
+(FPCore (r a b)
+ :name "rsin B"
+ (* r (/ (sin b) (cos (+ a b)))))
+
+; These should yield the same result
+
+(FPCore (x)
+ :name "sqrt A"
+ (sqrt (+ (* x x) (* x x))))
+
+(FPCore (x)
+ :name "sqrt B"
+ (sqrt (* (* 2 x) x)))
+
+(FPCore (x)
+ :name "sqrt C"
+ (sqrt (* 2 (* x x))))
+
+(FPCore (x)
+ :name "sqrt D"
+ (sqrt (* 2 (pow x 2))))
+
+(FPCore (x)
+ :name "sqrt E"
+ (sqrt (+ (pow x 2) (pow x 2))))

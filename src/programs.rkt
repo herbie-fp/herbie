@@ -305,27 +305,27 @@
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr)
   (define ->bf (representation-repr->bf repr))
-  (define expr*
-    (let loop ([expr expr])
-      ;; Run after unfold-let, so no need to track lets
-      (match expr
-        [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
-         (define args* (for/list ([arg args]) (loop arg)))
-         (define op* (hash-ref parametric-operators-reverse op))
-         (cons op* args*)]
-        [(list 'if cond ift iff)
-         (list 'if (loop cond) (loop ift) (loop iff))]
-        [(list op args ...)
-         (cons op (for/list ([arg args]) (loop arg)))]
-        [(? value?)
-         (match (bigfloat->flonum (->bf expr))
-           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
-           [+inf.0 'INFINITY]
-           [+nan.0 'NAN]
-           [x x])]
-        [(? constant?) expr]
-        [(? variable?) expr])))
-  expr*)
+  (match expr
+    [(list op args ...)
+     (define op* (hash-ref parametric-operators-reverse op op))
+     (define atypes
+       (match (operator-info op 'itype)
+         [(? list? as) as]
+         [(? type-name? a) (map (const a) args)]))
+     (define args*
+       (for/list ([arg args] [type atypes])
+         (expand-parametric-reverse arg (get-representation* type))))
+     (cons op args*)]
+    [(? (conjoin complex? (negate real?)))
+     `(complex ,(real-part expr) ,(imag-part expr))]
+    [(? value?)
+     (match (bigfloat->flonum (->bf expr))
+       [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+       [+inf.0 'INFINITY]
+       [+nan.0 'NAN]
+       [x x])]
+    [(? constant?) expr]
+    [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs)
   (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))

@@ -30,12 +30,12 @@
   (string-join
    (list
     (if start
-        (format "~a < " (repr->fl start repr))
+        (format "~a < " (value->string start repr))
         "")
     (~a (interval-expr ival))
     (if (equal? end +nan.0)
         ""
-        (format " < ~a" (repr->fl end repr))))))
+        (format " < ~a" (value->string end repr))))))
 
 (define/contract (render-history altn pcontext pcontext2 repr)
   (-> alt? pcontext? pcontext? representation? (listof xexpr?))
