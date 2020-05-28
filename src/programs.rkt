@@ -133,23 +133,38 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
 
-  (define (munge prog)
-    (let inductor ([prog (program-body prog)])
-      (define expr
-        (match prog
-          [(? variable?) prog]
-          [(? value?) (list (const (real->precision repr prog)))]
-          [(? constant?) (list (constant-info prog mode))]
-          [(list op args ...)
-           (cons (operator-info op mode) (map inductor args))]
-          [_ (error (format "Invalid program ~a" prog))]))
-      (hash-ref! exprhash expr
-                 (λ ()
-                   (define n (+ (length exprs) (length vars)))
-                   (set! exprs (cons expr exprs))
-                   n))))
+  (define (munge prog repr)
+    (define expr
+      (match prog
+        [(? value?) (list (const (real->precision repr prog)))]
+        [(? constant?) (list (constant-info prog mode))]
+        [(? variable?) prog]
+        [`(if ,c ,t ,f)
+         (list (operator-info 'if mode)
+               (munge c (get-representation 'bool))
+               (munge t repr)
+               (munge f repr))]
+        [(list op args ...)
+         (define atypes
+           (match (operator-info op 'itype)
+             [(? list? as) as]
+             [(? type-name? a) (map (const a) args)]))
+         (unless (= (length atypes) (length args))
+           (raise-argument-error 'eval-prog "expr?" prog))
+         (cons (operator-info op mode)
+               (for/list ([arg args] [atype atypes])
+                 (munge arg (get-representation* atype))))]
+        [_ (raise-argument-error 'eval-prog "expr?" prog)]))
+
+    (hash-ref! exprhash expr
+               (λ ()
+                 (define n (+ (length exprs) (length vars)))
+                 (set! exprs (cons expr exprs))
+                 n)))
   
-  (define names (map munge progs))
+  (define names
+    (for/list ([prog progs])
+      (munge (program-body prog) repr)))
   (define l1 (length vars))
   (define lt (+ (length exprs) l1))
   (define exprvec (list->vector (reverse exprs)))
