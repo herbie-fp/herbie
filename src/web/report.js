@@ -242,9 +242,10 @@ function path(p) {
 
 var Profile = new Component("#profile", {
     setup: function() {
+        var text = this.elt.querySelector(".load-text");
         fetch("profile.json")
             .then(response => response.json())
-            .catch((error) => this.elt.remove())
+            .catch(function(error) { text.textContent = "Error loading profile data" })
             .then(data => this.render(data))
     },
     render: function(json) {
