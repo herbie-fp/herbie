@@ -123,18 +123,27 @@
     ['fl (curryr ->flonum repr)]
     ['ival identity]
     ['nonffi identity]))
+  
+  (define vars (program-variables (first progs)))
+  (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
-  (define (munge prog)
-    (let inductor ([prog (program-body prog)] [repr repr])
+  (define exprs '())
+  (define exprhash
+    (make-hash
+     (for/list ([var vars] [i (in-naturals)])
+       (cons var i))))
+
+  (define (munge prog repr)
+    (define expr
       (match prog
-        [(? value?) (real->precision repr prog)]
+        [(? value?) (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
          (list (operator-info 'if mode)
-               (inductor c (get-representation 'bool))
-               (inductor t repr)
-               (inductor f repr))]
+               (munge c (get-representation 'bool))
+               (munge t repr)
+               (munge f repr))]
         [(list op args ...)
          (define atypes
            (match (operator-info op 'itype)
@@ -144,37 +153,32 @@
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
                (for/list ([arg args] [atype atypes])
-                 (inductor arg (get-representation* atype))))]
-        [_ (raise-argument-error 'eval-prog "expr?" prog)])))
+                 (munge arg (get-representation* atype))))]
+        [_ (raise-argument-error 'eval-prog "expr?" prog)]))
 
-  (define vars (program-variables (first progs)))
-
-  (define fn
-    `(λ ,vars
-       (let (,@(for/list ([var (in-list vars)])
-                 (define repr (dict-ref (*var-reprs*) var))
-                 `[,var (,(curry real->precision repr) ,var)]))
-         ,(compile
-           (cons 'vector
-                 (for/list ([prog (in-list progs)])
-                   `(,precision->real ,(munge prog))))))))
-  (common-eval fn))
-
-(define (eval-application op . args)
-  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
-      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define fn (operator-info op 'nonffi))
-        (define res (apply fn args))
-        (define rtype (operator-info op 'otype))
-        (and ((value-of rtype) res)
-             (exact-value? rtype res)
-             (value->code rtype res)))
-      false))
-
-(module+ test
-  (define repr (get-representation 'binary64))
-  (check-equal? (eval-application '+ 1 1) 2)
-  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
+    (hash-ref! exprhash expr
+               (λ ()
+                 (define n (+ (length exprs) (length vars)))
+                 (set! exprs (cons expr exprs))
+                 n)))
+  
+  (define names
+    (for/list ([prog progs])
+      (munge (program-body prog) repr)))
+  (define l1 (length vars))
+  (define lt (+ (length exprs) l1))
+  (define exprvec (list->vector (reverse exprs)))
+  (λ args
+    (define v (make-vector lt))
+    (for ([arg (in-list args)] [n (in-naturals)] [var (in-list vars)] [repr (in-list var-reprs)])
+      (vector-set! v n (real->precision repr arg)))
+    (for ([expr (in-vector exprvec)] [n (in-naturals l1)])
+      (define tl
+        (for/list ([arg (in-list (cdr expr))])
+          (vector-ref v arg)))
+      (vector-set! v n (apply (car expr) tl)))
+    (for/vector ([n (in-list names)])
+      (precision->real (vector-ref v n)))))
 
 (module+ test
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
@@ -195,30 +199,21 @@
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check-in-interval? iv val))))
 
-;; To compute the cost of a program, we could use the tree as a
-;; whole, but this is inaccurate if the program has many common
-;; subexpressions.  So, we compile the program to a register machine
-;; and use that to estimate the cost.
+(define (eval-application op . args)
+  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
+      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
+        (define fn (operator-info op 'nonffi))
+        (define res (apply fn args))
+        (define rtype (operator-info op 'otype))
+        (and ((value-of rtype) res)
+             (exact-value? rtype res)
+             (value->code rtype res)))
+      false))
 
-(define (compile expr)
-  (define assignments '())
-  (define compilations (make-hash))
-
-  ;; TODO : use one of Racket's memoization libraries
-  (define (compile-one expr)
-    (hash-ref!
-     compilations expr
-     (λ ()
-       (let ([expr* (if (list? expr)
-			(let ([fn (car expr)] [children (cdr expr)])
-			  (cons fn (map compile-one children)))
-			expr)]
-	     [register (gensym "r")])
-	 (set! assignments (cons (list register expr*) assignments))
-	 register))))
-
-  (let ([reg (compile-one expr)])
-    `(let* ,(reverse assignments) ,reg)))
+(module+ test
+  (define repr (get-representation 'binary64))
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)
