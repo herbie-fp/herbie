@@ -255,7 +255,7 @@
              ,@(dict-call phase render-summary-algorithm 'method)
              ,@(dict-call phase render-summary-outcomes 'outcomes)
              ,@(dict-call phase render-summary-times #:extra type 'times)
-             ,@(dict-call phase render-summary-accuracy #:extra info 'accuracy 'oracle 'baseline 'name 'link)
+             ,@(dict-call phase render-summary-accuracy 'accuracy 'oracle 'baseline 'name 'link)
              ,@(dict-call phase render-summary-filtered 'filtered)
              ,@(dict-call phase render-summary-rules 'rules)))))
 
@@ -270,15 +270,14 @@
                    `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
 
 (define (render-summary-times type times)
-  (define top-slowest (take-up-to times 5))
-
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" type)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (map second (append-map cdr times))) ")")
         (dd (table ([class "times"])
-                   ,@(for/list ([(expr time) (in-dict top-slowest)])
+                   ,@(for/list ([(expr time) (in-dict (sort times > #:key cadr))]
+                                [_ (in-range 5)])
                        `(tr (td ,(format-time (car time))) (td (pre ,(~a expr))))))))))
 
 (define (render-summary-rules rules)
@@ -293,7 +292,7 @@
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
 ;; TODO unconverted
-(define (render-summary-accuracy info accuracy oracle baseline name link)
+(define (render-summary-accuracy accuracy oracle baseline name link)
   (define rows
     (sort
      (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
@@ -306,19 +305,15 @@
      > #:key first))
 
   (define bits (map first rows))
-  (define top-bits-remaining (take-up-to rows 5))
-
-  (define total-gained
-    (for/sum ([row (report-info-tests info)])
-      (or (table-row-result row) 0)))
+  (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
-            " (" ,(~r (* (/ (apply + bits) total-gained) 100) #:precision 1) "%)")
+            " (" ,(~r (* (/ (apply + bits) total-remaining) 100) #:precision 1) "%)")
         (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
-           " (" ,(~r (* (/ (apply + (filter (curry > 1) bits)) total-gained) 100) #:precision 1) "%)")
+           " (" ,(~r (* (/ (apply + (filter (curry > 1) bits)) total-remaining) 100) #:precision 1) "%)")
         (table ([class "times"])
-               ,@(for/list ([row (in-list top-bits-remaining)])
+               ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
                    (match-define (list left fraction link name) row)
                    `(tr (td ,(format-bits left) "b")
                         (td ,(if (infinite? fraction) "-∞" (~r (* fraction 100) #:precision 1)) "%")
