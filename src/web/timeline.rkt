@@ -2,7 +2,7 @@
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
          "../datafile.rkt" "common.rkt" "../float.rkt"
-         "../interface.rkt")
+         "../interface.rkt" "../timeline.rkt")
 (provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -73,7 +73,7 @@
      ,@(dict-call curr render-phase-egraph 'egraph)
      ,@(dict-call curr render-phase-outcomes 'outcomes))))
 
-(define (if-cons? test x l)
+(define (if-cons test x l)
   (if test (cons x l) l))
 
 (define (dict-call d f #:default [default '()] #:extra [extra (void)] . args)
@@ -242,8 +242,9 @@
   (define total-time (apply + (map (curryr dict-ref 'time) timeline)))
 
   (define blocks
-    (for/list ([(type phase) (in-dict timeline)])
+    (for/list ([phase (in-list timeline)])
       (define time (dict-ref phase 'time))
+      (define type (dict-ref phase 'type))
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"]) ,(format-time time)
@@ -271,7 +272,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" type)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (map second (append-map cdr times))) ")")
+        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (map second times)) ")")
         (dd (table ([class "times"])
                    ,@(for/list ([(expr time) (in-dict (sort times > #:key cadr))]
                                 [_ (in-range 5)])
@@ -319,7 +320,7 @@
 (define (render-summary-filtered filtered)
   (match-define (list from to) filtered)
   `((dt "Filtered")
-    (dd ,(~a rom) " candidates to " ,(~a to) " candidates"
+    (dd ,(~a from) " candidates to " ,(~a to) " candidates"
         " (" ,(~r (if (> from 0) (* (- 1 (/ to from)) 100) 0) #:precision '(= 1)) "%)")))
 
 (define (render-summary-outcomes outcomes)

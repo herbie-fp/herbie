@@ -74,7 +74,7 @@
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
         (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
-        (timeline-adjust! 'regimes 'name (test-name name))
+        (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link link)
 
         (debug #:from 'regime-testing #:depth 1
@@ -106,7 +106,7 @@
   (define (on-exception start-time e)
     (timeline-event! 'end)
     (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-get)
+                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
                   warning-log e))
 
   (define (in-engine _)

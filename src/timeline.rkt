@@ -1,5 +1,5 @@
 #lang racket
-(require "config.rkt")
+(require "config.rkt" "float.rkt" racket/hash)
 (provide timeline-event! timeline-log! timeline-push! timeline-adjust! timeline-extract
          timeline->json timeline-merge *timeline-disabled*)
 (module+ debug (provide *timeline*))
@@ -35,13 +35,12 @@
 
 (define (timeline-adjust! type key value)
   (unless (*timeline-disabled*)
-    (or
-     (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
-       (hash-set! cell key value))
-     (error 'timeline-adjust! "No timeline event of type ~a" type))))
+    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
+      (hash-set! cell key value)
+      true)))
 
 (define (timeline-extract)
-  (reverse (unbox timeline)))
+  (reverse (unbox *timeline*)))
 
 (define (timeline->json timeline repr)
   (for/list ([event timeline] [next (cdr timeline)])
@@ -56,7 +55,7 @@
              (hash 'expr (~a expr) 'error error))]
           ['rules
            (for/hash ([(rule count) (in-dict v)])
-             (values (~a rule) count))]
+             (values rule count))]
           ['times
            (for/list ([(expr times) (in-dict v)])
              (cons (~a expr) times))]
@@ -69,8 +68,9 @@
           ['bstep
            (define n->js (curryr value->json repr))
            (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
-          [(or 'accuracy 'oracle 'baseline 'name 'link)
+          [(or 'accuracy 'oracle 'baseline 'name)
            (list v)]
+          ['link (list (path->string v))]
           [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph)
            v]))
 
@@ -80,15 +80,13 @@
   ;; The timelines in this case are JSON objects, as above
   (define types (make-hash))
   (for* ([tl (in-list timelines)] [event tl])
-    (define time (- (dict-ref next 'time) (dict-ref event 'time)))
-    (dict-set! data 'time (+ time (dict-ref data 'time 0)))
+    (define data (dict-ref! types (dict-ref event 'type) (make-hash)))
     (for ([(k v) (in-dict event)])
       (define v*
         (match k
           ['type v]
           ['time (+ v (dict-ref data k 0))]
           ['method (append v (dict-ref data k '()))]
-          ['locations (void)]
           ['rules (hash-union v (dict-ref data k #hash()) #:combine +)]
           ['times (sort (append v (dict-ref data k '())) > #:key cadr)]
           ['outcomes
@@ -99,14 +97,14 @@
                    'precision (dict-ref (car rows) 'precision)
                    'count (apply + (map (curryr dict-ref 'count) rows))
                    'time (apply + (map (curryr dict-ref 'time) rows))))]
-          ['bstep (void)]
           [(or 'accuracy 'oracle 'baseline 'name 'link)
            (append v (dict-ref data k '()))]
           ['filtered
            (match-define (list from1 to1) v)
            (match-define (list from2 to2) (dict-ref data k '(0 0)))
            (list (+ from1 from2) (+ to1 to2))]
-          [(or 'inputs outputs
+          [(or 'locations 'bstep
+               'inputs 'outputs
                'kept 'min-error
                'egraph)
            (void)]))

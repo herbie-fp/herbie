@@ -2,7 +2,7 @@
 
 (require json)
 (require "../common.rkt" "../syntax/read.rkt" "../datafile.rkt")
-(require "make-report.rkt" "thread-pool.rkt" "timeline.rkt" "../profile.rkt")
+(require "make-report.rkt" "thread-pool.rkt" "timeline.rkt" "../timeline.rkt" "../profile.rkt")
 
 (provide make-report rerun-report replot-report)
 
@@ -83,7 +83,7 @@
         (call-with-input-file (build-path dir (table-row-link res) name) read-json))))
   (define valid-jsons (filter (conjoin identity (negate eof-object?)) jsons))
   (define merged (apply merge valid-jsons))
-  (call-with-output-file (build-path dir name) (curry write-json merged))
+  (call-with-output-file (build-path dir name) #:exists 'replace (curry write-json merged))
   merged)
 
 (define (merge-profile-jsons . ps)
@@ -106,7 +106,7 @@
   (define timeline (merge-json-files info dir "timeline.json" timeline-merge))
   (merge-json-files info dir "profile.json" merge-profile-jsons)
   (call-with-output-file (build-path dir "timeline.html")
-    (curryr make-summary-html info dir) #:exists 'replace)
+    (curryr make-summary-html info timeline) #:exists 'replace)
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]
