@@ -199,7 +199,7 @@
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
-(define (make-summary-html out info dir)
+(define (make-summary-html out info timeline)
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (fprintf out "<!doctype html>\n")
@@ -234,19 +234,16 @@
                             `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                   " " ,(~a class) ":" ,(~a flag))))))))
 
-      ,(render-timeline-summary info (summarize-timelines info dir))
+      ,(render-timeline-summary timeline)
       ,(render-profile)))
    out))
 
-(define (phase-time phase)
-  (apply + (map cdr (dict-ref phase 'time))))
-
-(define (render-timeline-summary info summary)
-  (define total-time (apply + (map phase-time (dict-values summary))))
+(define (render-timeline-summary timeline)
+  (define total-time (apply + (map (curryr dict-ref 'time) timeline)))
 
   (define blocks
-    (for/list ([(type phase) (in-dict summary)])
-      (define time (phase-time phase))
+    (for/list ([(type phase) (in-dict timeline)])
+      (define time (dict-ref phase 'time))
       `(div ([class ,(format "timeline-block timeline-~a" type)])
             (h3 ,(~a type)
                 (span ([class "time"]) ,(format-time time)
@@ -334,14 +331,6 @@
                   (td ,(~a (dict-ref data 'program)))
                   (td ,(~a (dict-ref data 'precision)))
                   (td ,(~a (dict-ref data 'category)))))))))
-
-(define (summarize-timelines info dir)
-  (define tls
-    (for/list ([res (report-info-tests info)])
-      (with-handlers ([(const #t) (const #f)])
-        (call-with-input-file (build-path dir (table-row-link res) "timeline.json") read-json))))
-
-  (apply timeline-merge (filter identity tls)))
 
 (define (render-profile)
   `(section ([id "profile"])

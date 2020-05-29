@@ -112,4 +112,4 @@
            (void)]))
       (unless (void? v*)
         (dict-set! data k v*))))
-  (sort (dict->list types) > #:key (λ (x) (dict-ref (cdr x) 'time))))
+  (sort (dict-values types) > #:key (curryr dict-ref 'time)))

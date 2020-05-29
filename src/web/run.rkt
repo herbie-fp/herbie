@@ -76,14 +76,18 @@
             #:exists 'replace
             (λ (out) (make-page page out result #f))))))))
 
-(define (merge-profile-files info dir out)
+(define (merge-json-files info dir name merge)
   (define jsons
     (for/list ([res (report-info-tests info)])
       (with-handlers ([(const #t) (const #f)])
-        (call-with-input-file (build-path dir (table-row-link res) "profile.json") read-json))))
+        (call-with-input-file (build-path dir (table-row-link res) name) read-json))))
   (define valid-jsons (filter (conjoin identity (negate eof-object?)) jsons))
-  (define p (apply profile-merge (map json->profile valid-jsons)))
-  (write-json (profile->json p) out))
+  (define merged (apply merge valid-jsons))
+  (call-with-output-file (build-path dir name) (curry write-json merged))
+  merged)
+
+(define (merge-profile-jsons . ps)
+  (profile->json (apply profile-merge (map json->profile ps))))
 
 (define (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define seed (get-seed))
@@ -99,10 +103,10 @@
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
     (curryr make-report-page info) #:exists 'replace)
+  (define timeline (merge-json-files info dir "timeline.json" timeline-merge))
+  (merge-json-files info dir "profile.json" merge-profile-jsons)
   (call-with-output-file (build-path dir "timeline.html")
     (curryr make-summary-html info dir) #:exists 'replace)
-  (call-with-output-file (build-path dir "profile.json")
-    (curry merge-profile-files info dir) #:exists 'replace)
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]
