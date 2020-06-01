@@ -26,7 +26,7 @@
        (with-handlers ([exn? (const #f)])
          (call-with-input-file (build-path dir "profile.json") read-json)))))
   (define joint-pf (apply profile-merge (map json->profile pfs)))
-  (call-with-output-file "profiles.json" #:exists 'replace (curry write-json (profile->json joint-pf))))
+  (call-with-output-file "profile.json" #:exists 'replace (curry write-json (profile->json joint-pf))))
 
 (module+ main
   (command-line
