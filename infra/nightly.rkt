@@ -1,5 +1,5 @@
 #lang racket
-
+(require json)
 (require "../src/timeline.rkt" "../src/profile.rkt")
 
 (define (merge-timelines out dirs)
@@ -23,8 +23,7 @@
 
 (module+ main
   (command-line
-   #:name "nightly.rkt"
    #:args dirs
-   (call-with-output-file "timeline.json" (curry merge-timelines dirs))
-   (call-with-output-file "profiles.json" (curry merge-profiles dirs))
+   (call-with-output-file "timeline.json" (curryr merge-timelines dirs))
+   (call-with-output-file "profiles.json" (curryr merge-profiles dirs))
    ))
