@@ -1,6 +1,7 @@
 #lang racket
 (require json)
-(require "../src/timeline.rkt" "../src/profile.rkt" "../src/datafile.rkt" "../src/web/timeline.rkt")
+(require "../src/common.rkt" "../src/timeline.rkt" "../src/profile.rkt"
+         "../src/datafile.rkt" "../src/web/timeline.rkt")
 
 (define (merge-timelines . dirs)
   (define tls
@@ -13,7 +14,9 @@
   (define info (read-datafile (build-path (first dirs) "results.json")))
   (define joint-tl (apply timeline-merge tls))
   (call-with-output-file "timeline.json" #:exists 'replace (curry write-json joint-tl))
-  (call-with-output-file "timeline.html" #:exists 'replace (curryr make-summary-html info joint-tl)))
+  (call-with-output-file "timeline.html" #:exists 'replace (curryr make-summary-html info joint-tl))
+  (copy-file (web-resource "report.js") "report.js" #t)
+  (copy-file (web-resource "report.css") "report.css" #t))
 
 (define (merge-profiles . dirs)
   (define pfs
