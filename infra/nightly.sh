@@ -40,8 +40,10 @@ function run {
 
 report=$(git rev-parse --abbrev-ref HEAD)-$(date "+%Y-%m-%d")
 mkdir -p reports
+rm -rf reports/* || echo "No existing reports to delete"
 for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
   run "$bench" "$name" "$@"
 done
+racket infra/nightly.rkt reports/*
 bash infra/publish.sh upload "reports/"
