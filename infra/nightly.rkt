@@ -10,7 +10,7 @@
        (with-handlers ([exn? (const #f)])
          (define tl (call-with-input-file (build-path dir "timeline.json") read-json))
          (timeline-relink dir tl)))))
-  (write-json out (apply timeline-merge tls)))
+  (write-json (apply timeline-merge tls) out))
 
 (define (merge-profiles out dirs)
   (define tls
@@ -19,7 +19,7 @@
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
          (call-with-input-file (build-path dir "profile.json") read-json)))))
-  (write-json out (profile->json (apply profile-merge (map json->profile tls)))))
+  (write-json (profile->json (apply profile-merge (map json->profile tls))) out))
 
 (module+ main
   (command-line
