@@ -122,11 +122,10 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (let ([timeline*
-             (reverse 
-              (cons (hash 'type 'end 'time (current-inexact-milliseconds))
-                    (unbox timeline)))])
-        (test-timeout test (bf-precision) (*timeout*) timeline* '()))))
+      (begin
+        (timeline-load! timeline)
+        (timeline-event! 'end)
+        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
