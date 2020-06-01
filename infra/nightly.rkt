@@ -15,7 +15,7 @@
   (call-with-output-file "timeline.json" #:exists 'replace (curry write-json joint-tl))
   (call-with-output-file "timeline.html" #:exists 'replace (curryr make-summary-html info joint-tl)))
 
-(define (merge-profiles dirs)
+(define (merge-profiles . dirs)
   (define pfs
     (filter
      (conjoin (negate eof-object?) identity)
