@@ -10,7 +10,7 @@
        (with-handlers ([exn? (const #f)])
          (define tl (call-with-input-file (build-path dir "timeline.json") read-json))
          (timeline-relink dir tl)))))
-  (write-json out (timeline-merge tls)))
+  (write-json out (apply timeline-merge tls)))
 
 (define (merge-profiles out dirs)
   (define tls
@@ -24,6 +24,6 @@
 (module+ main
   (command-line
    #:args dirs
-   (call-with-output-file "timeline.json" (curryr merge-timelines dirs))
-   (call-with-output-file "profiles.json" (curryr merge-profiles dirs))
+   (call-with-output-file "timeline.json" #:exists 'replace (curryr merge-timelines dirs))
+   (call-with-output-file "profiles.json" #:exists 'replace (curryr merge-profiles dirs))
    ))
