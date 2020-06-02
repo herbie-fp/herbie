@@ -5,7 +5,7 @@
 
 (module+ test (require rackunit))
 
-(provide find-ranges range-table->intervals)
+(provide find-ranges range-table->hyperrects hyperrects->weights)
 
 (define (done? <-bf iv)
   (match-define (ival (app <-bf lo) (app <-bf hi)) iv)
@@ -22,6 +22,7 @@
     (set! initial (map (const (ival -inf.bf +inf.bf)) (program-variables prog))))
   (define <-bf (representation-bf->repr repr))
   (reap [sow] (find-intervals fn initial #:fuel depth #:true sow #:unknown sow)))
+
 
 (define (find-intervals ival-fn ranges #:fuel [depth 128]
                         #:true [true! void] #:false [false! void] #:error [error! void]
@@ -54,9 +55,9 @@
       (loop (list-set ranges n* range-lo) (add1 n))
       (loop (list-set ranges n* range-hi) (add1 n))])))
 
-(define (range-table->intervals range-table variables repr)
+(define (range-table->hyperrects range-table variables reprs)
   (apply cartesian-product
-   (for/list ([var-name variables])
+   (for/list ([var-name variables] [repr reprs])
      (map (curry fpbench-ival->ival repr) (hash-ref range-table var-name)))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
@@ -66,13 +67,22 @@
     (raise (error "not inclusive intervals")))
   
   (ival (bf lo) (bf hi)))
+
+(define (ival-ordinal-size interval)
+  (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
+
+(define (hyperrects->weights hyperrects)
+  (for/list ([hyperrect hyperrects])
+    (apply * (map ival-ordinal-size hyperrect))))
+  
            
 (module+ test
   (define test-table-simple
     (make-hash
      `((a . (,(interval 0.0 1.0 #t #t)))
        (b . (,(interval 0.0 1.0 #t #t))))))
-  (check-equal? (range-table->intervals test-table-simple `(a b) (get-representation 'binary64))
+  (check-equal? (range-table->hyperrects test-table-simple `(a b)
+                                        (list (get-representation 'binary64) (get-representation 'binary64)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
                 
           

@@ -12,24 +12,36 @@
 (module+ test (require rackunit))
 (module+ internals (provide make-sampler ival-eval))
 
-(define (sample-multi-bounded ranges repr)
-  (define ->ordinal (representation-repr->ordinal repr))
-  (define <-ordinal (representation-ordinal->repr repr))
-  (define <-exact (compose (representation-bf->repr repr) bf))
+(define (choose-hyperrect hyperrects weights)
+  (define weight-sum (apply + weights))
+  (define rand-ordinal (random-ranges (cons 0 weight-sum)))
+  (let loop ([current 0] [weights weights] [hyperrects hyperrects])
+    (cond
+      [(empty? weights)
+       (error 'choose-hyperrect "invalid randomly chosen weight in choose-hyperrect")]
+      [(equal? (length hyperrects) 1)
+       (first hyperrects)]
+      [(< rand-ordinal (+ current (first weights)))
+       (first hyperrects)]
+      [else
+       (loop (+ current (first weights)) (rest weights) (rest hyperrects))])))
+      
 
-  (define ordinal-ranges
-    (for/list ([range ranges])
-      (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) range)
-      (cons (+ (->ordinal lo) (if lo? 0 1)) (+ (->ordinal hi) (if hi? 1 0)))))
-
-  (<-ordinal (apply random-ranges ordinal-ranges)))
+(define (sample-multi-bounded hyperrects weights reprs)
+  (define hyperrect (choose-hyperrect hyperrects weights))
+  (for/list ([interval hyperrect] [repr reprs])
+    ((representation-bf->repr repr)
+     (ordinal->bigfloat
+      (random-ranges (cons (bigfloat->ordinal (ival-lo interval)) (- (bigfloat->ordinal (ival-hi interval)) 1)))))))
 
 (module+ test
   (define repr (get-representation 'binary64))
-  (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)) repr)))
-  (check-exn
-   exn:fail?
-   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)) repr))))
+  (check-true
+   (andmap (curry set-member? '(0.0 1.0))
+           (sample-multi-bounded (list (list (ival (bf 0) (bf 1)) (ival (bf 0) (bf 1))))
+                                 (list 1) (list 'a 'b)
+                                 (make-hash `((a . ,repr)
+                                              (b . ,repr)))))))
 
 (define *pcontext* (make-parameter #f))
 
@@ -108,29 +120,33 @@
 
 (define (make-sampler precondition repr)
   (define body (program-body precondition))
+  (define variables (program-variables precondition))
   
   (define range-table
     (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
-  (println range-table)
-  (println (range-table->intervals range-table (program-variables precondition) repr))
-  (for ([var (program-variables precondition)]
-        #:when (null? (range-table-ref range-table var)))
-    (raise-herbie-error "No valid values of variable ~a" var
-                        #:url "faq.html#no-valid-values"))
+  
   (define reprs
-    (for/list ([var (program-variables precondition)])
+    (for/list ([var variables])
       (when (null? (range-table-ref range-table var))
         (raise-herbie-error "No valid values of variable ~a" var
                             #:url "faq.html#no-valid-values"))
       (dict-ref (*var-reprs*) var)))
+
+  (define hyperrects-pre (range-table->hyperrects range-table variables reprs))
+ 
+  (define hyperrects
+    (apply append
+           (for/list ([rect hyperrects-pre])
+             (find-ranges precondition repr #:initial rect #:depth 20))))
+  
+  (define weights (hyperrects->weights hyperrects))
+  
+  
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
   (if (set-member? '(binary32 binary64) (representation-name repr))
       (λ ()
-        (map 
-         (λ (var repr)
-           (sample-multi-bounded (range-table-ref range-table var) repr))
-         (program-variables precondition) reprs))
+        (sample-multi-bounded hyperrects weights reprs))
       (λ () (map random-generate reprs))))
 
 (define (prepare-points-intervals prog precondition repr)
@@ -276,6 +292,7 @@
        #:when (ordinary-value? ex (*output-repr*))
        #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
+
 
 (define (extract-sampled-points allvars precondition)
   (match precondition
