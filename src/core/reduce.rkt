@@ -1,8 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
-         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
-         "../type-check.rkt")
+         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt")
 
 (provide simplify)
 
@@ -13,41 +12,29 @@
 (define fn-inverses
   (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
 
-(define (simplify expr)
-  (define expr* expr)
-  (let loop ([expr expr])
-    (match expr
-      [`(pow ,base ,(? real?))
-       (when (equal? (type-of base (*var-reprs*)) 'complex)
-         (error "Bad pow!!!" expr*))]
-      [(list f args ...)
-       (for-each loop args)]
-      [_ 'ok]))
+(define (eval-const-expr expr)
+  ;; When we are in nonffi mode, we don't use repr, so pass in #f
+  ((eval-prog `(λ () ,expr) 'nonffi #f)))
 
-  (simplify* expr))
-
-(define (simplify* expr*)
+(define (simplify expr*)
   (define expr ((get-evaluator) expr*))
   (match expr
     [(? constant?) expr]
     [(? variable?) expr]
     [`(λ ,vars ,body)
-     `(λ ,vars ,(simplify* body))]
+     `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify* body))]
-    [(? (compose null? free-variables) `(,op ,args ...))
-     (let ([value (with-handlers ([(const #t) (const #f)]) (eval-const-expr expr))])
-       (if (and (number? value) (real? value) (exact? value))
-           value
-           (simplify-node `(,op ,@(map simplify* args)))))]
+     `(λ ,vars ,(simplify body))]
     [`(,op ,args ...)
-     (simplify-node `(,op ,@(map simplify* args)))]))
+     (define args* (map simplify args))
+     (define val (eval-application op args*))
+     (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
   (match expr
     [(? constant?) expr]
     [(? variable?) expr]
-    [(or `(+ ,_ ...) `(- ,_ ...))
+    [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
@@ -75,7 +62,7 @@
       [(? constant?) `((1 ,expr))]
       [(? variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
-      [`(- ,arg) (map negate-term (recurse arg))]
+      [`(neg ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...)
        (append (recurse arg)
                (map negate-term (append-map recurse args)))]
@@ -111,7 +98,7 @@
   (match expr
     [(? number?) `(,expr)]
     [(? symbol?) `(1 (1 . ,expr))]
-    [`(- ,arg)
+    [`(neg ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (cons (- (car terms)) (cdr terms)))]
     [`(* ,args ...)
@@ -119,11 +106,11 @@
        (cons (apply * (map car terms)) (apply append (map cdr terms))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (if (= (car terms) 0) +nan.0 (/ (car terms))) (map negate-term (cdr terms))))]
+       (cons (if (= (car terms) 0) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
-       (cons (if (ormap (compose (curry = 0) car) dens) +nan.0 (apply / (car num) (map car dens)))
+       (cons (if (ormap (compose (curry = 0) car) dens) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
@@ -204,7 +191,7 @@
   (match term
     [`(1 . ,x) x]
     [`(,x . 1) x]
-    [`(-1 . ,x) `(- ,x)]
+    [`(-1 . ,x) `(neg ,x)]
     [`(,coeff . ,x) `(* ,coeff ,x)]))
 
 (define (make-addition-node terms)
@@ -213,7 +200,7 @@
      [(and (null? pos) (null? neg))
       0]
      [(null? pos)
-      `(- ,(make-addition-node* (map negate-term neg)))]
+      `(neg ,(make-addition-node* (map negate-term neg)))]
      [(null? neg)
       (make-addition-node* pos)]
      [else

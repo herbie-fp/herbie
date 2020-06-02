@@ -2,7 +2,7 @@
 
 (require math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../interface.rkt" "../formats/test.rkt" "../core/regimes.rkt" 
+         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot)
@@ -13,7 +13,8 @@
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
 (define (double-transform)
-  (define repr (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32)))
+  ;; TODO: needs to be repr-aware
+  (define repr (get-representation* 'real))
   (invertible-function
    (compose (representation-repr->ordinal repr) (curryr ->flonum repr))
    (compose (representation-ordinal->repr repr) round)))
@@ -115,7 +116,7 @@
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (apply x pt) (+ (ulps->bits err) (random) -1/2)))
+      (vector (apply x pt) (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)
@@ -170,11 +171,12 @@
                  [plot-y-label title])
     (thunk)))
 
-(define (herbie-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+(define (herbie-plot repr #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+  (define bit-width (representation-total-bits repr))
   (define thunk
     (if port
-        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max (*bit-width*)))
-        (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max (*bit-width*)))))
+        (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max bit-width))
+        (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max bit-width))))
   (with-herbie-plot #:title title thunk))
 
 (define (with-alt-plot #:title [title #f] thunk)
@@ -293,6 +295,7 @@
   (define pts (points->doubles (test-success-newpoints result) repr))
   (herbie-plot
    #:port out #:kind 'png
+   repr
    (error-axes pts #:axis idx)
    (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
@@ -309,6 +312,7 @@
 
   (herbie-plot
    #:port out #:kind 'png
+   repr
    (error-points err pts #:axis idx #:color theme)
    (error-avg err pts #:axis idx #:color theme)))
 

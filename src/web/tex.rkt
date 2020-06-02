@@ -1,5 +1,5 @@
 #lang racket
-(require "../syntax/syntax.rkt" "../common.rkt" "../programs.rkt" "../interface.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -42,7 +42,7 @@
 
 (define (precedence-levels op)
   (match op
-    [(or '+ '- 'or 'complex) (values '+ '+)]
+    [(or '+ '- 'neg 'or 'complex) (values '+ '+)]
     [(or '* 'and) (values '* '*)]
     ['/ (values #f #t)]
     ['pow (values #f #f)]
@@ -63,10 +63,10 @@
     [else
      (list (list #t expr loc))]))
 
-(define (texify-prog expr prec #:loc [color-loc #f] #:color [color "red"])
-  (texify-expr (program-body expr) prec #:loc color-loc #:color color))
+(define (texify-prog expr repr #:loc [color-loc #f] #:color [color "red"])
+  (texify-expr (program-body expr) repr #:loc color-loc #:color color))
 
-(define (texify-expr expr prec #:loc [color-loc #f] #:color [color "red"])
+(define (texify-expr expr repr #:loc [color-loc #f] #:color [color "red"])
   "Compile an expression to math mode TeX."
   (let texify ([expr expr] [parens #t] [loc '(2)])
     (format
@@ -84,7 +84,6 @@
                  (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
                  (texify (abs (imag-part expr)) '+ loc))]
         [(? value?)
-         (define repr (get-representation prec))
          (define s (value->string expr repr))
          (match (string-split s "e")
            [(list "-inf.bf") "-\\infty"]

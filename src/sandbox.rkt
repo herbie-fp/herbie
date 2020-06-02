@@ -1,8 +1,8 @@
 #lang racket
-(require profile math/bigfloat racket/engine)
+(require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "formats/datafile.rkt" "formats/test.rkt")
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "profile.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -20,22 +20,28 @@
 (struct test-timeout test-result ())
 
 (define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter (* 1000 60 10)))
+(define *timeout* (make-parameter (* 1000 60 5/2)))
 
 (define (get-p&es context)
   (for/lists (pts exs)
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-test-result test #:seed [seed #f] #:debug [debug? #f]
-                         #:profile [profile? #f] #:debug-port [debug-port #f] #:debug-level [debug-level #f])
+(define (get-test-result test
+                         #:seed [seed #f]
+                         #:link [link #f]
+                         #:profile [profile? #f]
+                         #:debug [debug? #f]
+                         #:debug-port [debug-port #f]
+                         #:debug-level [debug-level #f])
 
   (define timeline #f)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug-port (*debug-port*))])
+    (parameterize ([*debug-port* (or debug-port (*debug-port*))]
+                   [*timeline-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
@@ -56,30 +62,23 @@
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-specification test) (test-precondition test) output-repr)))
         (timeline-event! 'end)
-        (define end-err (errors-score (errors (alt-program alt) newcontext output-repr)))
 
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
+        (define end-errs (errors (alt-program alt) newcontext output-repr))
         (define baseline-errs (baseline-error fns context newcontext output-repr))
         (define oracle-errs (oracle-error fns newcontext output-repr))
 
-        ;; The cells are stored in reverse order, so this finds last regimes invocation
-        (for/first ([cell (unbox timeline)]
-                    #:when (equal? (dict-ref cell 'type) 'regimes))
-          
-          (debug #:from 'regime-testing #:depth 1
-                 "Baseline error score:" (errors-score baseline-errs))
-          (debug #:from 'regime-testing #:depth 1
-                 "Oracle error score:" (errors-score oracle-errs))
+        (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
+        (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
+        (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
+        (timeline-adjust! 'regimes 'name (test-name test))
+        (timeline-adjust! 'regimes 'link link)
 
-          (dict-set! cell 'oracle (errors-score oracle-errs))
-          (dict-set! cell 'accuracy end-err)
-          (dict-set! cell 'baseline (errors-score baseline-errs)))
-        
         (debug #:from 'regime-testing #:depth 1
-               "End program error score:" end-err)
+               "End program error score:" (errors-score end-errs))
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
                  "Target error score:" (errors-score
@@ -90,13 +89,13 @@
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
-                      (reverse (unbox timeline))
+                      (timeline-extract)
                       warning-log (make-alt (test-program test)) alt points exacts
                       (errors (test-program test) context output-repr)
                       (errors (alt-program alt) context output-repr)
                       newpoints newexacts
                       (errors (test-program test) newcontext output-repr)
-                      (errors (alt-program alt) newcontext output-repr)
+                      end-errs
                       (if (test-output test)
                           (errors (test-target test) newcontext output-repr)
                           #f)
@@ -107,14 +106,17 @@
   (define (on-exception start-time e)
     (timeline-event! 'end)
     (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (reverse (unbox timeline))
+                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
                   warning-log e))
 
   (define (in-engine _)
     (set! timeline *timeline*)
     (if profile?
         (parameterize ([current-output-port (or profile? (current-output-port))])
-          (profile (compute-result test)))
+          (profile-thunk
+           (λ () (compute-result test))
+           #:order 'total
+           #:render (λ (p order) (write-json (profile->json p)))))
         (compute-result test)))
 
   (define eng (engine in-engine))

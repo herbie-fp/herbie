@@ -1,11 +1,12 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat rival
+         (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "range-analysis.rkt" "biginterval.rkt" "interface.rkt" "findroot.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points errors errors-score
+(provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
+         errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
@@ -14,7 +15,7 @@
 (define (sample-multi-bounded ranges repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define <-ordinal (representation-ordinal->repr repr))
-  (define <-exact (representation-exact->repr repr))
+  (define <-exact (compose (representation-bf->repr repr) bf))
 
   (define ordinal-ranges
     (for/list ([range ranges])
@@ -44,15 +45,13 @@
   (pcontext (list->vector points) (list->vector exacts)))
 
 (module+ test
-  (require "formats/test.rkt")
+  (require "syntax/read.rkt")
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
       (append (map test-input tests) (map test-precondition tests))))
-  (define unsup-count (count (compose not (curryr expr-supports? 'ival)) exprs))
-  (eprintf "-> ~a benchmarks still not supported by the biginterval sampler.\n" unsup-count)
-  (check <= unsup-count 50))
+  (check = (count (compose not (curryr expr-supports? 'ival)) exprs) 0))
 
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
@@ -66,6 +65,8 @@
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
+        [`(overflowed ,prec ,pt)
+         (list name 'overflowed prec)]
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]
         [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
@@ -77,27 +78,43 @@
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
-    (parameterize ([bf-precision precision])
-      (if (> precision (*max-mpfr-prec*))
+    (match-define (ival out (app <-bf lo) (app <-bf hi))
+                  (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define lo! (ival-lo-fixed? out))
+    (define hi! (ival-hi-fixed? out))
+    (cond
+     [(ival-err out)
+      (log! 'nan precision pt)
+      +nan.0]
+     [(and (not (ival-err? out))
+           (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
+      (log! 'sampled precision pt hi)
+      hi]
+     [(and lo! hi!)
+      (log! 'overflowed precision pt)
+      +nan.0]
+     [(or (and lo! (bigfloat? (ival-lo out)) (bfinfinite? (ival-lo out)))
+          (and hi! (bigfloat? (ival-hi out)) (bfinfinite? (ival-hi out))))
+      ;; We never sample infinite points anyway
+      (log! 'overflowed precision pt)
+      +nan.0]
+     [else
+      (define precision* (exact-floor (* precision 2)))
+      (if (> precision* (*max-mpfr-prec*))
           (begin (log! 'exit precision pt) +nan.0)
-          (match-let* ([(ival lo hi err? err) (apply fn pt)] [lo* (<-bf lo)] [hi* (<-bf hi)])
-            (cond
-             [err
-              (log! 'nan precision pt)
-              +nan.0]
-             [(and (not err?) (or (equal? lo* hi*)
-                                  (and (equal? lo* -0.0) (equal? hi* +0.0))
-                                  (and (equal? lo* -0.0f0) (equal? hi* +0.0f0))))
-              (log! 'sampled precision pt hi*)
-              hi*]
-             [else
-              (loop (inexact->exact (round (* precision 2))))]))))))
+          (loop precision*))])))
 
 ; These definitions in place, we finally generate the points.
 
 (define (make-sampler precondition repr)
+<<<<<<< HEAD
   (define range-table (condition->range-table (program-body precondition)))
   
+=======
+  (define body (program-body precondition))
+  (define range-table
+    (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
+>>>>>>> master
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
@@ -140,8 +157,12 @@
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
 
+      (define success
+        ;; +nan.0 is the "error" return code for ival-eval
+        (and (not (equal? pre +nan.0)) (not (equal? ex +nan.0))))
+
       (cond
-       [(and (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
+       [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
             (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
@@ -163,11 +184,10 @@
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
-      (+ 1 (abs (ulp-difference out exact repr)))
-      (+ 1 (expt 2 (*bit-width*)))))
+      (ulp-difference out exact repr)
+      (+ 1 (expt 2 (representation-total-bits repr)))))
 
 (define (eval-errors eval-fn pcontext repr)
-  (define max-ulps (expt 2 (*bit-width*)))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (point-error (apply eval-fn point) exact repr)))
 
@@ -183,16 +203,25 @@
   (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
   (eval-errors baseline newpcontext repr))
 
+(define (avg . s)
+  (/ (apply + s) (length s)))
+
 (define (errors-score e)
-  (if (flag-set? 'reduce 'avg-error)
-      (/ (apply + (map ulps->bits e)) (length e))
-      (apply max (map ulps->bits e))))
+  (apply (if (flag-set? 'reduce 'avg-error) avg max)
+         (map ulps->bits e)))
 
 (define (errors prog pcontext repr)
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
       (point-error (apply fn point) exact repr))))
+
+(define (batch-errors progs pcontext repr)
+  (define fn (batch-eval-progs progs 'fl repr))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
+      (for/vector ([out (in-vector (apply fn point))])
+        (point-error out exact repr)))))
 
 ;; Old, halfpoints method of sampling points
 
@@ -244,8 +273,10 @@
 (define (filter-p&e pts exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
   (for/lists (ps es)
-      ([pt pts] [ex exacts] #:when (ordinary-value? ex (*output-repr*))
-                            #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
+      ([pt pts] [ex exacts]
+       #:unless (and (real? ex) (nan? ex))
+       #:when (ordinary-value? ex (*output-repr*))
+       #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
 (define (extract-sampled-points allvars precondition)

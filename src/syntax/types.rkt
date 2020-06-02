@@ -1,23 +1,27 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../bigcomplex.rkt")
 
-(provide type-dict type? value? bigvalue? value-of bigvalue-of)
+(provide (struct-out type) get-type type-name? value? bigvalue? value-of bigvalue-of)
 (module+ internals (provide define-type))
 
+(struct type (name exact? inexact? exact->inexact inexact->exact))
+
 (define type-dict (make-hash))
-(define-syntax-rule (define-type name val? bigval?)
-  (hash-set! type-dict 'name (cons val? bigval?)))
+(define-syntax-rule (define-type name (exact? inexact?) e->i i->e)
+  (hash-set! type-dict 'name (type 'name exact? inexact? e->i i->e)))
 
-(define (type? x) (hash-has-key? type-dict x))
+(define (type-name? x) (hash-has-key? type-dict x))
+(define (get-type x) (hash-ref type-dict x))
 
-(define (value-of type) (car (hash-ref type-dict type)))
-(define (bigvalue-of type) (cdr (hash-ref type-dict type)))
+(define-type real (real? bigfloat?)
+  bf bigfloat->flonum)
 
-(define (value? x) (for/or ([(type rec) (in-hash type-dict)]) ((car rec) x)))
-(define (bigvalue? x) (for/or ([(type rec) (in-hash type-dict)]) ((cdr rec) x)))
+(define-type bool (boolean? boolean?)
+  identity identity)
 
-(define-type real real? bigfloat?)
-(define-type bool boolean? boolean?)
-(define-type complex (conjoin complex? (negate real?)) bigcomplex?)
+(define (value-of type) (type-exact? (hash-ref type-dict type)))
+(define (bigvalue-of type) (type-inexact? (hash-ref type-dict type)))
+
+(define (value? x) (for/or ([(type rec) (in-hash type-dict)]) ((type-exact? rec) x)))
+(define (bigvalue? x) (for/or ([(type rec) (in-hash type-dict)]) ((type-inexact? rec) x)))

@@ -84,45 +84,45 @@
     (for ([phase phases] #:when phase) (phase rg))
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
-  (log rg 'done)
+  (log rg "done")
   (map unmunge (regraph-extract rg)))
+
+(define-syntax-rule (egg method)
+  (dynamic-require 'egg-herbie 'method))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (timeline-log! 'method 'egg-herbie)
   (define irules (rules->irules rls))
 
-  (local-require egg-herbie)
-
-  (egraph-run
+  ((egg egraph-run)
    (lambda (egg-graph)
-     (egraph-add-exprs
+     ((egg egraph-add-exprs)
       egg-graph
       exprs
       (lambda (node-ids)
         (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))
         (map
-         (lambda (id) (egg-expr->expr (egraph-get-simplest egg-graph id) egg-graph))
+         (lambda (id) ((egg egg-expr->expr) ((egg egraph-get-simplest) egg-graph id) egg-graph))
          node-ids))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
-  (local-require egg-herbie)
-  (define ffi-rules (make-ffi-rules irules))
+  (define ffi-rules ((egg make-ffi-rules) irules))
   (define start-time (current-inexact-milliseconds))
 
   (define (timeline-cost iter)
     (define cost
       (apply +
-             (map (lambda (node-id) (egraph-get-cost egg-graph node-id)) node-ids)))
-    (define cnt (egraph-get-size egg-graph))
+             (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id)) node-ids)))
+    (define cnt ((egg egraph-get-size) egg-graph))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (for/and ([iter (in-naturals 0)])
-    (define old-cnt (egraph-get-size egg-graph))
-    (egraph-run-iter egg-graph node-limit ffi-rules precompute?)
+    (define old-cnt ((egg egraph-get-size )egg-graph))
+    ((egg egraph-run-iter) egg-graph node-limit ffi-rules precompute?)
     (timeline-cost iter)
-    (define cnt (egraph-get-size egg-graph))
+    (define cnt ((egg egraph-get-size) egg-graph))
     (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
     (not is_stop)))
 
@@ -186,7 +186,6 @@
           [(/ (* x 3) x) . 3]
           [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
               (* (sqrt x) (sqrt x))) . 1]
-          [(re (complex a b)) . a]
           [(+ 1/5 3/10) . 1/2]
           [(cos PI) . -1]
           ;; this test is problematic and runs out of nodes currently
@@ -202,7 +201,7 @@
   (check set-member? '((* x 6) (* 6 x)) (first (test-simplify '(+ (+ (+ (+ (+ x x) x) x) x) x))))
 
   (define no-crash-exprs
-    '((exp (/ (/ (* (* c a) 4) (- (- b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+    '((exp (/ (/ (* (* c a) 4) (- (neg b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])

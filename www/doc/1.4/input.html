@@ -41,6 +41,7 @@
   <pre>(FPCore (a b) (sqrt (+ (* a a) (* b b))))</pre>
 
   <p>
+    FPCore supports line comments using the semicolon (<kbd>;</kbd>) character.
     We recommend the <code>.fpcore</code> file extension for Herbie input files.
   </p>
   
@@ -176,31 +177,6 @@
 
   <p>Herbie will only use the <code>:spec</code> expression to
   evaluate error, not to search for accurate expressions.</p>
-
-  <h2 id="complex">Complex Numbers<sup title="Supported in beta since Herbie 1.2">β</sup></h2>
-
-  <p>Herbie includes experimental support for complex numbers;
-  however, this support is currently limited to a few basic
-  operations.</p>
-
-  <p>All input parameters to an FPCore are real numbers; complex
-  numbers must be constructed with <code>complex</code>. The
-  functions <code>re</code>, <code>im</code>, and <code>conj</code>
-  are available on complex numbers, along with the arithmetic
-  operators, <code>exp</code>, <code>log</code>, <code>pow</code>,
-  and <code>sqrt</code>. Complex and real operations use the same
-  syntax, but cannot be mixed: <code>(+ (complex 1 2) 1)</code> is not
-  valid. Herbie reports type errors in such situations.</p>
-
-  <p>Complex operations use
-  the <a href="https://docs.racket-lang.org/reference/numbers.html#%28tech._complex._number%29">Racket</a>
-  implementation, so results may differ (slightly) from complex
-  numbers in some other language, especially for non-finite complex
-  numbers. Unfortunately, complex number arithmetic is not as
-  standardized as float-point arithmetic.</p>
-
-  <p>In the future, we hope to support complex-number arguments and
-  fully support all complex-number operations.</p>
 
   <h2 id="properties">Miscellaneous Properties</h2>
 

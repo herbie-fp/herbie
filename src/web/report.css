@@ -2,7 +2,7 @@
 
 body { width: 800px; margin: 0 auto; font-family: sans; line-height: 1.25; }
 
-a {color: #2A6496; text-decoration: none; cursor: pointer}
+a { color: #2A6496; text-decoration: none; cursor: pointer }
 a:hover {text-decoration: underline; color: #295785}
 figure { margin: 0; }
 
@@ -162,7 +162,7 @@ section h1 {
 
 /* Error graphs */
 
-#graphs figure { margin: 1em auto; position: relative; padding-top: 300px; width: 800px; }
+#graphs figure { margin: 0 auto; position: relative; padding-top: 300px; width: 800px; }
 #graphs figcaption { text-align: left; }
 #graphs figure img { position: absolute; top: 0; left: 0; }
 #graphs figcaption button {
@@ -247,6 +247,8 @@ table.times { border-spacing: 15px 5px; }
 table th { text-align: left; }
 table.times td { text-align: right; min-width: 8ex; vertical-align: baseline; }
 table.times td:last-child { text-align: left; }
+table.states { min-width: 50%; }
+table.states td:last-child, table.states tfoot { font-weight: bold; }
 table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 
 /* Timeline colors */
@@ -280,3 +282,25 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 #backtrace td:nth-child(3), #backtrace td:nth-child(4) { text-align: right; }
 #backtrace td.procedure { font-family: monospace; }
 
+/* Formatting profile info */
+
+.loaded .load-text { display: none; }
+.load-text { text-align: center; font-size: 140%; color: #888; }
+
+a.delete { color: currentColor; }
+a.delete:hover { color: #ed2b00; text-decoration: line-through; }
+#profile { border: 1px solid #ddd; }
+#profile input {
+    width: 100%; padding: .5ex 1ex; box-sizing: border-box;
+    border: none; border-bottom: 1px solid #ddd; font-size: 150%;
+}
+#profile .profile-row { margin: 1em 0; }
+.profile-row div { display: flex; }
+#profile .edge { color: #888; margin-left: 2em; }
+#profile .node { font-size: 120%; }
+#profile .path, #profile .name { font-family: monospace; white-space: nowrap; }
+#profile .path { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+#profile .path:before { content: " ("; }
+#profile .path:after { content: ") "; }
+.profile-row > div > * { padding: 0 .5em; }
+#profile .pct { width: 4em; text-align: right; }

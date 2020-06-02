@@ -1,6 +1,6 @@
 #lang racket
 
-(require "formats/test.rkt" "sandbox.rkt" "common.rkt")
+(require "syntax/read.rkt" "sandbox.rkt" "common.rkt")
 (provide run-shell)
 
 (define (get-input)

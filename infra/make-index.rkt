@@ -2,7 +2,7 @@
 
 (require racket/runtime-path)
 (require (only-in xml write-xexpr) json)
-(require racket/date "../src/common.rkt" "../src/formats/datafile.rkt")
+(require racket/date "../src/common.rkt" "../src/datafile.rkt")
 (provide directory-jsons name->timestamp)
 
 (define-runtime-path report-json-path "../previous/")
@@ -63,7 +63,7 @@
   (-> path? cache-row?)
   (eprintf "Reading ~a\n" folder)
   (define info (read-datafile (build-path report-json-path folder "results.json")))
-  (match-define (report-info date commit branch hostname seed flags points iterations bit-width note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (define-values (total-start total-end)
     (for/fold ([start 0] [end 0]) ([row (or tests '())])
@@ -77,7 +77,9 @@
   (define total-available
     (count (negate (curry equal? "ex-start")) statuses))
   (define total-crashed
-    (or (count (curry equal? "crash") statuses) (= iterations -1)))
+    (or (count (curry equal? "crash") statuses) (if (= iterations -1) 1 0)))
+  (define total-timeout
+    (count (curry equal? "timeout") statuses))
   (define total-unimproved
     (count (curry set-member? '("lt-start" "uni-start")) statuses))
 
@@ -97,6 +99,7 @@
         'tests-available total-available
         'tests-crashed total-crashed
         'tests-unimproved total-unimproved
+        'tests-timeout total-timeout
         'bits-improved (- total-start total-end)
         'bits-available total-start))
 
@@ -109,6 +112,11 @@
    [(>= (abs x) 10) (~a (inexact->exact (round x)))]
    [else (~r x #:precision 2)]))
 
+(define (bad-result? info)
+  (or (> (dict-ref info 'tests-crashed 0) 0)
+      (> (dict-ref info 'tests-unimproved 0) 0)
+      (> (dict-ref info 'tests-timeout 0) 0)))
+
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
            (th "Date") (th "Speed") (th "Branch") (th "Collection") (th "Tests") (th "Bits"))
@@ -116,7 +124,7 @@
      ,@(for/list ([info infos])
          (define field (curry dict-ref info))
 
-         `(tr ([class ,(if (or (> (field 'tests-crashed) 0) (> (field 'tests-unimproved) 0)) "crash" "")])
+         `(tr ([class ,(if (bad-result? info) "crash" "")])
            ;; TODO: Best to output a datetime field in RFC3338 format,
            ;; but Racket doesn't make that easy.
            (td ([title ,(field 'date-full)])
@@ -131,7 +139,7 @@
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
                (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
-(define (make-index-page)
+(define (make-index-page out)
   (when (file-exists? (build-path report-json-path "index.cache"))
     (define cached-info (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json)))
     (if (for/and ([(k v) (in-hash cached-info)]) (cache-row? v))
@@ -174,45 +182,48 @@
         (argmax (curryr dict-ref 'date-unix) crashes)))
   (define since-last-crash
     (and last-crash (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24))))
-
-  (write-file "index.html"
-    (printf "<!doctype html>\n")
-    (write-xexpr
-     `(html
-       (head
-        (meta ((charset "utf-8")))
-        (title "Herbie Reports")
-        (link ((rel "stylesheet") (href "index.css")))
-        (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
-        (script ((src "regression-chart.js")))
-        (script ((src "report.js"))))
-       (body
-        (div
-         ((id "large"))
-         (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
-         (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
-         (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
-         (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
-                                                           (format "~ad" (inexact->exact (round since-last-crash)))
-                                                           "∞"))))
-        (ul ((id "toc"))
-            ,@(for/list ([rows (append mainline-infos other-infos)])
-                (define branch (dict-ref (first rows) 'branch))
-                `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
-        (figure
-         (ul ((id "classes")))
-         (svg ((id "accuracy-graph") (width "400")))
-         (svg ((id "speed-graph") (width "400")))
-         (ul ((id "suites")))
-         (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
-        (table
-         ((id "reports"))
-         ,@(apply
-            append
-            (for/list ([rows (append mainline-infos other-infos)])
-              (print-rows rows #:name (dict-ref (first rows) 'branch)))))))))
-
-  (call-with-output-file (build-path report-json-path "index.cache") #:exists 'replace (curry write-json (*cache*))))
+  
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (meta ((charset "utf-8")))
+      (title "Herbie Reports")
+      (link ((rel "stylesheet") (href "index.css")))
+      (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ((src "regression-chart.js")))
+      (script ((src "report.js"))))
+     (body
+      (div
+       ((id "large"))
+       (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
+       (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
+       (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
+       (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
+                                                         (format "~ad" (inexact->exact (round since-last-crash)))
+                                                         "∞"))))
+      (ul ((id "toc"))
+          ,@(for/list ([rows (append mainline-infos other-infos)])
+              (define branch (dict-ref (first rows) 'branch))
+              `(li (a ((href ,(format "#reports-~a" branch))) ,branch))))
+      (figure
+       (ul ((id "classes")))
+       (svg ((id "accuracy-graph") (width "400")))
+       (svg ((id "speed-graph") (width "400")))
+       (ul ((id "suites")))
+       (script "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
+      (table
+       ((id "reports"))
+       ,@(apply
+          append
+          (for/list ([rows (append mainline-infos other-infos)])
+            (print-rows rows #:name (dict-ref (first rows) 'branch)))))))
+   out))
 
 (module+ main
-  (make-index-page))
+  (call-with-output-file "index.html"
+    #:exists 'replace
+    make-index-page)
+  (call-with-output-file (build-path report-json-path "index.cache")
+    #:exists 'replace
+    (curry write-json (*cache*))))

@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt")
-(require "../interface.rkt" "../type-check.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
 
 (provide localize-error)
 
@@ -34,20 +33,28 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define <-bf (representation-bf->repr (get-representation* (type-of expr (*var-reprs*)))))
-                   (define arg<-bfs
-                     (for/list ([arg args])
-                       (representation-bf->repr (get-representation* (type-of arg (*var-reprs*))))))
+                   (define repr (get-representation* (operator-info f 'otype)))
+                   (define argreprs
+                     (match (operator-info f 'itype)
+                       [(list arg-types ...)
+                        (map get-representation* arg-types)]
+                       [(? symbol? type)
+                        (map (const (get-representation* type)) args)]))
+                   (define <-bf (representation-bf->repr repr))
+                   (define arg<-bfs (map representation-bf->repr argreprs))
 
                    (define argexacts
-                     (flip-lists (map (compose car (curryr localize-on-expression vars cache repr)) args)))
+                     (flip-lists
+                      (for/list ([arg args] [repr argreprs])
+                        (car (localize-on-expression arg vars cache repr)))))
                    (define argapprox
                      (for/list ([pt argexacts])
-                       (for/list ([val pt] [arg<-bf arg<-bfs]) (arg<-bf val))))
+                       (for/list ([val pt] [arg<-bf arg<-bfs])
+                         (arg<-bf val))))
 
                    (define exact (map (curry apply (operator-info f 'bf)) argexacts))
                    (define approx (map (curry apply (operator-info f 'fl)) argapprox))
-                   (cons exact (map (λ (ex ap) (+ 1 (abs (ulp-difference (<-bf ex) ap repr))))
+                   (cons exact (map (λ (ex ap) (ulp-difference (<-bf ex) ap repr))
                                     exact approx))]))))
 
 (register-reset

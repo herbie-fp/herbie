@@ -1,17 +1,16 @@
 #lang racket
 
-(require racket/runtime-path)
+(require racket/runtime-path math/base)
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
 (provide reap define-table table-ref table-set! table-remove!
-         assert for/append string-prefix call-with-output-files
+         for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
-         write-file write-string
-         random-exp random-ranges parse-flag get-seed set-seed!
-         common-eval quasisyntax
-         format-time format-bits when-dict in-sorted-dict web-resource
+         random-ranges parse-flag get-seed set-seed!
+         quasisyntax
+         format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -46,15 +45,6 @@
   (hash-remove! (cdr tbl) key))
 
 ;; More various helpful values
-
-(define-syntax assert
-  (syntax-rules ()
-    [(assert pred #:loc location)
-     (when (not pred)
-       (error location "~a returned false!" 'pred))]
-    [(assert pred)
-     (when (not pred)
-       (error 'assert "~a returned false!" 'pred))]))
 
 (define-syntax-rule (for/append (defs ...)
                                 bodies ...)
@@ -144,22 +134,7 @@
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
 
-;; Utility output functions
-
-(define-syntax-rule (write-file filename . rest)
-   (with-output-to-file filename (lambda () . rest) #:exists 'replace))
-
-(define-syntax-rule (write-string . rest)
-  (with-output-to-string (lambda () . rest)))
-
 ;; Miscellaneous helper
-
-(define (random-exp k)
-  "Like (random (expt 2 k)), but k is allowed to be arbitrarily large"
-  (if (< k 31) ; Racket generates random numbers in the range [0, 2^32-2]; I think it's a bug
-      (random (expt 2 k))
-      (let ([head (arithmetic-shift (random-exp (- k 31)) 31)])
-        (+ head (random (expt 2 31))))))
 
 (define (random-ranges . ranges)
   (->* () #:rest (cons/c integer? integer?) integer?)
@@ -176,7 +151,7 @@
   (define num-bits (inexact->exact (ceiling (/ (log total-weight) (log 2)))))
   (define sample ; Rejection sampling
     (let loop ()
-      (define sample (random-exp num-bits))
+      (define sample (if (= num-bits 0) 0 (random-bits num-bits)))
       (if (< sample total-weight) sample (loop))))
 
   (let loop ([sample sample] [ranges ranges] [weights weights])
@@ -206,12 +181,6 @@
       (current-pseudo-random-generator
        (vector->pseudo-random-generator seed))
       (random-seed seed)))
-
-;; Common namespace for evaluation
-
-(define-namespace-anchor common-eval-ns-anchor)
-(define common-eval-ns (namespace-anchor->namespace common-eval-ns-anchor))
-(define (common-eval expr) (eval expr common-eval-ns))
 
 ;; Matching support for syntax objects.
 
@@ -266,12 +235,6 @@
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
 
-(define-syntax-rule (when-dict d (arg ...) body ...)
-  (if (and (dict-has-key? d 'arg) ...)
-      (let ([arg (dict-ref d 'arg)] ...)
-        body ...)
-      '()))
-
 (define (in-sorted-dict d #:key [key identity])
   (in-dict (sort (dict->list d) > #:key (compose key cdr))))
 
@@ -295,4 +258,4 @@
     (test left right)))
 
 (define (sample-double)
-  (floating-point-bytes->real (integer->integer-bytes (random-exp 64) 8 #f)))
+  (floating-point-bytes->real (integer->integer-bytes (random-bits 64) 8 #f)))

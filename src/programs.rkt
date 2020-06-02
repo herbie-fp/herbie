@@ -1,18 +1,18 @@
 #lang racket
 
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "biginterval.rkt"
-         "float.rkt" "interface.rkt")
+(require math/bigfloat rival)
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
+         type-of
          expr-supports?
          location-hash
          location? expr?
          location-do location-get
-         eval-prog eval-const-expr eval-application
-         compile
+         batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program)
 
@@ -24,13 +24,34 @@
 
 (define/contract (program-body prog)
   (-> expr? expr?)
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   body)
 
 (define/contract (program-variables prog)
   (-> expr? (listof symbol?))
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
+
+
+;; `env` is in an indeterminate state, where it's a mapping from
+;; variables to *either* types or reprs.
+(define (type-of expr env)
+  ;; Fast version does not recurse into functions applications
+  (match expr
+    [(? real?) 'real]
+    ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
+    ;; standards, this will have to have more information passed in
+    [(? value?) (type-name (representation-type (*output-repr*)))]
+    [(? constant?) (constant-info expr 'type)]
+    [(? variable?)
+     (match (dict-ref env expr)
+       [(? symbol? t) t]
+       [(? representation? r) (type-name (representation-type r))])]
+    [(list 'if cond ift iff)
+     (type-of ift env)]
+    [(list op args ...)
+     (operator-info op 'otype)]))
+
 
 ;; Converting constants
 
@@ -80,6 +101,10 @@
     (location-do loc prog return)))
 
 (define (eval-prog prog mode repr)
+  (define f (batch-eval-progs (list prog) mode repr))
+  (λ args (vector-ref (apply f args) 0)))
+
+(define (batch-eval-progs progs mode repr)
   ; Keep exact numbers exact
   ;; TODO(interface): Right now, real->precision and precision->real are
   ;; mixed up for bf and fl because there is a mismatch between the fpbench
@@ -98,47 +123,62 @@
     ['fl (curryr ->flonum repr)]
     ['ival identity]
     ['nonffi identity]))
+  
+  (define vars (program-variables (first progs)))
+  (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
-  (define body*
-    (let inductor ([prog (program-body prog)])
+  (define exprs '())
+  (define exprhash
+    (make-hash
+     (for/list ([var vars] [i (in-naturals)])
+       (cons var i))))
+
+  (define (munge prog repr)
+    (define expr
       (match prog
-        [(? value?) (real->precision repr prog)]
+        [(? value?) (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
+        [`(if ,c ,t ,f)
+         (list (operator-info 'if mode)
+               (munge c (get-representation 'bool))
+               (munge t repr)
+               (munge f repr))]
         [(list op args ...)
-         (cons (operator-info op mode) (map inductor args))]
-        [_ (error (format "Invalid program ~a" prog))])))
+         (define atypes
+           (match (operator-info op 'itype)
+             [(? list? as) as]
+             [(? type-name? a) (map (const a) args)]))
+         (unless (= (length atypes) (length args))
+           (raise-argument-error 'eval-prog "expr?" prog))
+         (cons (operator-info op mode)
+               (for/list ([arg args] [atype atypes])
+                 (munge arg (get-representation* atype))))]
+        [_ (raise-argument-error 'eval-prog "expr?" prog)]))
 
-  (define fn
-    `(λ ,(program-variables prog)
-       (let (,@(for/list ([var (program-variables prog)])
-                 (define repr (dict-ref (*var-reprs*) var))
-                 `[,var (,(curry real->precision repr) ,var)]))
-         (,precision->real ,(compile body*)))))
-  (common-eval fn))
-
-(define (eval-const-expr expr)
-  ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f)))
-
-(define (eval-application op . args)
-  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
-      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define res (eval-const-expr (cons op args)))
-        (define type-info (operator-info op 'type))
-        (match-define (list (list _ type))
-                      (if (hash-has-key? type-info (length args))
-                          (hash-ref type-info (length args))
-                          (hash-ref type-info '*)))
-        (and ((value-of type) res)
-             (exact-value? type res)
-             (val-to-type type res)))
-      false))
-
-(module+ test
-  (define repr (get-representation 'binary64))
-  (check-equal? (eval-application '+ 1 1) 2)
-  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
+    (hash-ref! exprhash expr
+               (λ ()
+                 (define n (+ (length exprs) (length vars)))
+                 (set! exprs (cons expr exprs))
+                 n)))
+  
+  (define names
+    (for/list ([prog progs])
+      (munge (program-body prog) repr)))
+  (define l1 (length vars))
+  (define lt (+ (length exprs) l1))
+  (define exprvec (list->vector (reverse exprs)))
+  (λ args
+    (define v (make-vector lt))
+    (for ([arg (in-list args)] [n (in-naturals)] [var (in-list vars)] [repr (in-list var-reprs)])
+      (vector-set! v n (real->precision repr arg)))
+    (for ([expr (in-vector exprvec)] [n (in-naturals l1)])
+      (define tl
+        (for/list ([arg (in-list (cdr expr))])
+          (vector-ref v arg)))
+      (vector-set! v n (apply (car expr) tl)))
+    (for/vector ([n (in-list names)])
+      (precision->real (vector-ref v n)))))
 
 (module+ test
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
@@ -148,44 +188,32 @@
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
-  (define (in-interval? iv pt)
-    (match-define (ival lo hi err? err) iv)
+  (define-simple-check (check-in-interval? iv pt)
+    (match-define (ival lo hi) iv)
     (and (bf<= lo pt) (bf<= pt hi)))
-
-  (define-binary-check (check-in-interval? in-interval? interval point))
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
       (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
-      (check bf<= (ival-lo iv) (ival-hi iv))
       (check-in-interval? iv val))))
 
-;; To compute the cost of a program, we could use the tree as a
-;; whole, but this is inaccurate if the program has many common
-;; subexpressions.  So, we compile the program to a register machine
-;; and use that to estimate the cost.
+(define (eval-application op . args)
+  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
+      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
+        (define fn (operator-info op 'nonffi))
+        (define res (apply fn args))
+        (define rtype (operator-info op 'otype))
+        (and ((value-of rtype) res)
+             (exact-value? rtype res)
+             (value->code rtype res)))
+      false))
 
-(define (compile expr)
-  (define assignments '())
-  (define compilations (make-hash))
-
-  ;; TODO : use one of Racket's memoization libraries
-  (define (compile-one expr)
-    (hash-ref!
-     compilations expr
-     (λ ()
-       (let ([expr* (if (list? expr)
-			(let ([fn (car expr)] [children (cdr expr)])
-			  (cons fn (map compile-one children)))
-			expr)]
-	     [register (gensym "r")])
-	 (set! assignments (cons (list register expr*) assignments))
-	 register))))
-
-  (let ([reg (compile-one expr)])
-    `(let* ,(reverse assignments) ,reg)))
+(module+ test
+  (define repr (get-representation 'binary64))
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)
@@ -224,12 +252,15 @@
 
 (define (expand-associativity expr)
   (match expr
-    [(list (? (curryr member '(+ - * /)) op) a ..2 b)
+    [(list (and (or '+ '- '* '/) op) a ..2 b)
      (list op
            (expand-associativity (cons op a))
            (expand-associativity b))]
-    [(list '/ a)
-     (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '*) a) (expand-associativity a)]
+    [(list '- a) (list '- (expand-associativity a))]
+    [(list '/ a) (list '/ 1 (expand-associativity a))]
+    [(list (or '+ '-)) 0]
+    [(list (or '* '/)) 1]
     [(list op a ...)
      (cons op (map expand-associativity a))]
     [_
@@ -243,7 +274,6 @@
       ;; Run after unfold-let, so no need to track lets
       (match expr
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define sigs (hash-ref parametric-operators op))
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
              ;; TODO(interface): Right now we check if the actual-type is binary64
@@ -254,17 +284,8 @@
              (if (set-member? '(binary64 binary32) actual-type)
                (values arg* 'real)
                (values arg* actual-type))))
-         (match-define (cons op* rtype)
-           (for/or ([sig sigs])
-             (match-define (list* true-name rtype atypes) sig)
-             (and
-              (if (symbol? atypes)
-                  (andmap (curry equal? atypes) actual-types)
-                  (if (set-member? variary-operators op)
-                      (and (andmap (λ (x) (eq? (car actual-types) x)) actual-types)
-                           (eq? (car actual-types) (car atypes)))
-                      (equal? atypes actual-types)))
-              (cons true-name rtype))))
+         ;; Match guaranteed to succeed because we ran type-check first
+         (match-define (cons op* rtype) (get-parametric-operator op actual-types))
          (values (cons op* args*) rtype)]
         [(list 'if cond ift iff)
          (define-values (cond* _a) (loop cond))
@@ -273,14 +294,8 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*)
-                 (second (first (first(hash-values (operator-info op 'type))))))]
-        [(? real?) (values
-                     (fl->repr expr (get-representation (match prec
-                        ['real (if (flag-set? 'precision 'double) 'binary64 'binary32)]
-                        [x x])))
-                     prec)]
-        [(? complex?) (values expr 'complex)]
+         (values (cons op args*) (operator-info op 'otype))]
+        [(? real?) (values (fl->repr expr (get-representation* prec)) prec)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
@@ -289,23 +304,28 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr)
-  (define expr*
-    (let loop ([expr expr])
-      ;; Run after unfold-let, so no need to track lets
-      (match expr
-        [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
-         (define args* (for/list ([arg args]) (loop arg)))
-         (define op* (hash-ref parametric-operators-reverse op))
-         (cons op* args*)]
-        [(list 'if cond ift iff)
-         (list 'if (loop cond) (loop ift) (loop iff))]
-        [(list op args ...)
-         (cons op (for/list ([arg args]) (loop arg)))]
-        [(? (conjoin complex? (negate real?))) expr]
-        [(? value?) (string->number (value->string expr repr))]
-        [(? constant?) expr]
-        [(? variable?) expr])))
-  expr*)
+  (define ->bf (representation-repr->bf repr))
+  (match expr
+    [(list op args ...)
+     (define op* (hash-ref parametric-operators-reverse op op))
+     (define atypes
+       (match (operator-info op 'itype)
+         [(? list? as) as]
+         [(? type-name? a) (map (const a) args)]))
+     (define args*
+       (for/list ([arg args] [type atypes])
+         (expand-parametric-reverse arg (get-representation* type))))
+     (cons op args*)]
+    [(? (conjoin complex? (negate real?)))
+     `(complex ,(real-part expr) ,(imag-part expr))]
+    [(? value?)
+     (match (bigfloat->flonum (->bf expr))
+       [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+       [+inf.0 'INFINITY]
+       [+nan.0 'NAN]
+       [x x])]
+    [(? constant?) expr]
+    [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs)
   (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
@@ -320,14 +340,6 @@
     [(list? expr)
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
-
-(define ((replace-var var val) expr)
-  (cond
-   [(eq? expr var) val]
-   [(list? expr)
-    (cons (car expr) (map (replace-var var val) (cdr expr)))]
-   [#t
-    expr]))
 
 (define (expr-supports? expr field)
   (let loop ([expr expr])

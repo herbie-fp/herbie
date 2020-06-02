@@ -1,9 +1,14 @@
 #lang racket
 
 (require racket/date racket/cmdline)
-(require "../src/common.rkt" "../src/points.rkt")
+(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt")
 (require "../src/alternative.rkt" "../src/sandbox.rkt")
-(require "../src/formats/test.rkt" "../src/formats/datafile.rkt")
+(require "../src/syntax/read.rkt" "../src/datafile.rkt")
+
+;; Load all the plugins
+(load-herbie-plugins)
+
+(define *precision* (make-parameter 'binary64))
 
 (define (test-successful? test input-bits target-bits output-bits)
   (match* ((test-output test) (test-expected test))
@@ -16,9 +21,14 @@
   (define tests (append-map load-tests bench-dirs))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
-  (for/and ([test tests] [i (in-naturals)])
+  (for/and ([the-test tests] [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
-    (match (get-test-result test #:seed seed)
+    (define the-test* (struct-copy test the-test
+                                   [output-prec (*precision*)]
+                                   [var-precs
+                                    (for/list ([(var prec) (in-dict (test-var-precs the-test))])
+                                      (cons var (*precision*)))]))
+    (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
                      start-alt end-alt points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-error target-error
@@ -61,5 +71,7 @@
    [("--seed") rs "The random seed to use in point generation. If false (#f), a random seed is used'"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
+   [("--precision") prec "Which precision to use for tests"
+    (*precision* (string->symbol prec))]
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))

@@ -16,7 +16,7 @@ function ComponentInstance(elt, component) {
 }
 
 function Element(tagname, props, children) {
-    if (!children) { children = props; props = {}; }
+    if (children === undefined) { children = props; props = {}; }
 
     var $elt = document.createElement(tagname);
     for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
@@ -25,7 +25,11 @@ function Element(tagname, props, children) {
         if (!c) return;
         else if (Array.isArray(c)) c.map(addAll);
         else if (typeof c == "string") $elt.appendChild(document.createTextNode(c))
-        else $elt.appendChild(c);
+        else if (c instanceof Node) $elt.appendChild(c);
+        else {
+            console.error("Not an element: ", c);
+            throw "Invalid element!"
+        }
     }
     addAll(children);
     return $elt;
@@ -124,24 +128,26 @@ var FigureTabs = new Component("#graphs > div", {
             figures[i].querySelector("figcaption > p").style.display = "none";
         }
         if (default_figure === null && figures.length > 0) default_figure = figures[0];
+        
+        var buttons = Object.keys(figure_array).map(function(idx) {
+            return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
+        });
 
         var tab_bar = Element("ul", { className: "tabbar" }, [
             Element("p", "Bits error vs value of"),
-            Object.keys(figure_array).map(function(idx) {
-                var button = Element("li", { id: "tab-" + idx }, figure_array[idx].name);
-                button.addEventListener("click", this.click_handler);
-                return button;
-            })
+            buttons,
         ]);
-        this.elt.querySelector("figcaption").appendChild(tab_bar);
+        this.elt.appendChild(tab_bar);
+
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
+        }
     
-        if (default_figure) this.toggle(default_figure.id);
+        if (default_figure) this.toggle("tab-" + default_figure.id);
     },
-    click_handler: function() {
-        this.toggle(this.id.substr(4));
-    },
-    toggle: function(id) {
-        var tab = document.getElementById("tab-" + id);
+    toggle: function(tabid) {
+        var id = tabid.substr(4);
+        var tab = document.getElementById(tabid);
         var pane = document.getElementById(id);
 
         var old_tab = tab.parentNode.getElementsByClassName("selected");
@@ -211,6 +217,110 @@ var Implementations = new Component("#program", {
         }
     },
 });
+
+function pct(val, base) {
+    return Math.floor(val/base * 10000) / 100 + "%";
+}
+
+function path(p) {
+    if (!p) {
+        return "???";
+    } else if (p[0] == "/") {
+        var r = p.substr(p.toLowerCase().indexOf("/racket") + 1);
+        var ds = r.split("/");
+        if (ds[1] == "share" && ds[2] == "pkgs") {
+            return "/" + ds.slice(3).join("/");
+        } else if (ds[1] == "collects") {
+            return "/" + ds.slice(2).join("/");
+        } else {
+            return "/" + ds.join("/");
+        }
+    } else {
+        return p;
+    }
+}
+
+var Profile = new Component("#profile", {
+    setup: function() {
+        fetch("profile.json")
+            .then(response => response.json())
+            .catch((error) => this.elt.remove())
+            .then(data => this.render(data))
+    },
+    render: function(json) {
+        this.json = json;
+        this.search = Element("input", {
+            placeholder: "Search for a function...",
+            autocomplete: "off",
+            name: "profilefn",
+        }, []);
+        this.search.setAttribute("list", "profilefns");
+        var form = Element("form", { method: "GET", action: "" }, [
+            this.search,
+            Element("datalist", { id: "profilefns" }, [
+                json.nodes.map(n => n.id && Element("option", n.id))
+            ]),
+        ]);
+        form.addEventListener("submit", this.doSearch);
+        this.elt.appendChild(form);
+        this.elt.appendChild(this.mkNode(json.nodes[json.nodes[0].callees[0].callee]));
+        this.elt.classList.add("loaded");
+    },
+    mkNode: function(node) {
+        var that = this;
+        var nelt = Element("div", { className: "node" }, [
+            Element("a", { className: "name delete" }, node.id || "???"),
+            Element("span", { className: "path" }, path(node.src)),
+            Element("span", {
+                className: "pct",
+                title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
+                    pct(node.total, that.json.total_time)
+                ]),
+        ]);
+        var elt = Element("div", { className: "profile-row" }, [
+            node.callers.sort((e1, e2) => e1.caller_time - e2.caller_time).map(function(edge) {
+                var other = that.json.nodes[edge.caller];
+                elt = Element("div", { className: "edge" }, [
+                    Element("a", { className: "name" }, other.id || "???"),
+                    Element("span", { className: "path" }, path(other.src)),
+                    Element("span", { className: "pct" }, pct(edge.caller_time, node.total)),
+                ]);
+                elt.children[0].addEventListener("click", that.addElt(other));
+                return elt;
+            }),
+            nelt,
+            node.callees.sort((e1, e2) => e2.callee_time - e1.callee_time).map(function(edge) {
+                var other = that.json.nodes[edge.callee];
+                elt = Element("div", { className: "edge" }, [
+                    Element("a", { className: "name" }, other.id || "???"),
+                    Element("span", { className: "path" }, path(other.src)),
+                    Element("span", { className: "pct" }, pct(edge.callee_time, node.total)),
+                ]);
+                elt.children[0].addEventListener("click", that.addElt(other));
+                return elt;
+            }),
+        ]);
+        nelt.children[0].addEventListener("click", function() { elt.remove(); });
+        return elt;
+    },
+    addElt: function(other) {
+        var that = this;
+        return function() {
+            var newelt = that.mkNode(other)
+            that.elt.appendChild(newelt);
+            newelt.scrollTo();
+            return newelt;
+        }
+    },
+    doSearch: function(e) {
+        e.preventDefault();
+        var term = this.search.value;
+        var elt = this.addElt(this.json.nodes.find(n => n.id == term))();
+        elt.scrollTo();
+        this.search.value = "";
+        return false;
+    }
+})
 
 function histogram(id, data) {
     var width = 676;

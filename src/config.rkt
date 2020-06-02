@@ -8,14 +8,14 @@
         [setup . (simplify early-exit)]
         [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics complex special bools branches)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . (double fallback)]
         [setup . (simplify)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic complex special bools branches)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))
 
 (define (enable-flag! category flag)
   (define (update cat-flags) (set-add cat-flags flag))

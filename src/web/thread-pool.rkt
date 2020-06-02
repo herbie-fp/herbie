@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/place)
-(require "../common.rkt" "../sandbox.rkt" "make-graph.rkt" "../formats/test.rkt" "../formats/datafile.rkt")
+(require "../common.rkt" "../sandbox.rkt" "pages.rkt" "../syntax/read.rkt" "../datafile.rkt")
 
 (provide get-test-results)
 
@@ -19,8 +19,8 @@
 
     (define result
       (call-with-output-files
-       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.txt")))
-       (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
+       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.json")))
+       (λ (dp pp) (get-test-result test #:seed seed #:link rdir #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
 
     (set-seed! seed)
     (define error? #f)

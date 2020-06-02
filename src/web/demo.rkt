@@ -4,9 +4,9 @@
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
-(require "../common.rkt" "../config.rkt" "../formats/test.rkt" "../errors.rkt")
-(require "../syntax-check.rkt" "../type-check.rkt" "../sandbox.rkt")
-(require "../formats/datafile.rkt" "make-graph.rkt" "make-report.rkt")
+(require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt")
 
 (provide run-demo)
 
@@ -46,9 +46,9 @@
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
-                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                (with-handlers ([exn:fail? (page-error-handler result page)])
                   (make-page page out result #f))))]
-   [(equal? page "debug.log")
+   [(equal? page "debug.txt")
     (response 200 #"OK" (current-seconds) #"text/plain"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out) (display debug out)))]
@@ -131,19 +131,12 @@
 
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
-     '((sqrt cbrt) "Square and cube roots")
-     '((exp log) "Natural exponent and natural log")
+     '((and or) "Logical connectives (for preconditions)")
      '((pow) "Raising a value to a power")
+     '((exp log) "Natural exponent and natural log")
      '((sin cos tan) "The trigonometric functions")
      '((asin acos atan) "The inverse trigonometric functions")
-     '((sinh cosh tanh) "The hyperbolic trigonometric functions")
-     '((asinh acosh atanh) "The inverse hyperbolic trigonometric functions")
-     '((erf erfc) "Error function and complementary error function")
-     '((j0 j1 y0 y1) "Bessel functions of the first and second kind")
-     '((tgamma lgamma) "The gamma function and log-gamma function")
-     '((min max) "The min and max functions")
-     '((expm1 log1p) "The exponent of " (code "x - 1") " and the log of " (code "1 + x"))
-     '((fma) "The fused multiply-add, with the additive term last")
+     '((sqrt cbrt) "Square and cube roots")
      '((PI E) "The mathematical constants"))
 
     `(p (em "Note") ": "
@@ -189,6 +182,7 @@
             (define result
               (get-test-result
                #:seed seed
+               #:link path
                #:debug-level (cons 'progress '(3 4))
                #:debug-port (hash-ref *jobs* hash)
                #:debug (*demo-debug?*)
@@ -200,11 +194,13 @@
               ;; Output results
               (make-directory (build-path (*demo-output*) path))
               (for ([page (all-pages result)])
-                (with-handlers ([exn:fail? (page-error-handler (test-result-test result) page)])
+                (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
                     (λ (out) (make-page page out result #f)))))
-              (write-file (build-path (*demo-output*) path "debug.txt")
-                (display (get-output-string (hash-ref *jobs* hash))))
+              (call-with-output-file
+               (build-path (*demo-output*) path "debug.txt")
+               #:exists 'replace
+               (curry display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
@@ -251,8 +247,10 @@
                   "Formula must be a valid program using only the supported functions. "
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
+       (when (eof-object? formula)
+         (error "No formula specified"))
        (assert-program! formula)
-       (assert-program-type! formula)
+       (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
        (body hash formula))]
     [_
