@@ -2,7 +2,7 @@
 
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "range-analysis.rkt" "biginterval.rkt" "interface.rkt")
+         "range-analysis.rkt" "biginterval.rkt" "interface.rkt" "findroot.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
          prepare-points errors errors-score
@@ -97,6 +97,7 @@
 
 (define (make-sampler precondition repr)
   (define range-table (condition->range-table (program-body precondition)))
+  
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var

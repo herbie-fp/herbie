@@ -1,6 +1,10 @@
 #lang racket
 (require math/bigfloat)
-(require "biginterval.rkt" "common.rkt" "programs.rkt" "interface.rkt")
+(require "biginterval.rkt" "common.rkt" "programs.rkt" "interface.rkt"
+         "range-analysis.rkt")
+
+
+(provide find-ranges)
 
 (define (done? <-bf iv)
   (match-define (ival (app <-bf lo) (app <-bf hi) _ _) iv)
@@ -45,3 +49,22 @@
       (define range-hi (struct-copy ival range [lo midpoint]))
       (loop (list-set ranges n* range-lo) (add1 n))
       (loop (list-set ranges n* range-hi) (add1 n))])))
+
+(define (range-table->intervals range-table variables)
+  (range-combinations
+   (for/list ([var-name variables])
+     (hash-ref range-table var-name))))
+
+(define (range-combinations range-lists)
+  (cond
+    [(empty? range-lists) empty]
+    [else
+     (define rest-combinations (range-combinations (rest range-lists)))
+     (append*
+      (for/list ([combo rest-combinations])
+        (for/list ([plain-interval (first range-lists)])
+          (assert (interval-l? plain-interval))
+          (assert (interval-r? plain-interval))
+          (cons 
+           
+    
