@@ -29,7 +29,6 @@
 
 (define (get-test-result test
                          #:seed [seed #f]
-                         #:link [link #f]
                          #:profile [profile? #f]
                          #:debug [debug? #f]
                          #:debug-port [debug-port #f]
@@ -75,7 +74,7 @@
         (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
-        (timeline-adjust! 'regimes 'link link)
+        (timeline-adjust! 'regimes 'link ".")
 
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" (errors-score end-errs))

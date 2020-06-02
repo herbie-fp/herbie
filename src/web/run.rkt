@@ -76,18 +76,19 @@
             #:exists 'replace
             (λ (out) (make-page page out result #f))))))))
 
-(define (merge-json-files info dir name merge)
+(define (read-json-files info dir name)
   (define jsons
     (for/list ([res (report-info-tests info)])
-      (with-handlers ([(const #t) (const #f)])
-        (call-with-input-file (build-path dir (table-row-link res) name) read-json))))
-  (define valid-jsons (filter (conjoin identity (negate eof-object?)) jsons))
-  (define merged (apply merge valid-jsons))
-  (call-with-output-file (build-path dir name) #:exists 'replace (curry write-json merged))
-  merged)
+      (define out
+        (with-handlers ([(const #t) (const #f)])
+          (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
+      (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
 
-(define (merge-profile-jsons . ps)
-  (profile->json (apply profile-merge (map json->profile ps))))
+(define (merge-timeline-jsons tl)
+  (apply timeline-merge (map timeline-relink (dict-keys tl) (dict-values tl))))
+
+(define (merge-profile-jsons ps)
+  (profile->json (apply profile-merge (map json->profile (dict-values ps)))))
 
 (define (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define seed (get-seed))
@@ -103,8 +104,11 @@
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
     (curryr make-report-page info) #:exists 'replace)
-  (define timeline (merge-json-files info dir "timeline.json" timeline-merge))
-  (merge-json-files info dir "profile.json" merge-profile-jsons)
+  (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
+  (call-with-output-file (build-path dir "timeline.json") (curry write-json timeline) #:exists 'replace)
+  (define profile (merge-profile-jsons (read-json-files info dir "profile.json")))
+  (call-with-output-file (build-path dir "profile.json") (curry write-json profile) #:exists 'replace)
+
   (call-with-output-file (build-path dir "timeline.html")
     (curryr make-summary-html info timeline) #:exists 'replace)
 
