@@ -120,8 +120,7 @@
           (loop precision*))])))
 
 ; These definitions in place, we finally generate the points.
-
-(define (make-sampler precondition repr)
+(define (make-sampler precondition repr #:program [program #f])
   (define body (program-body precondition))
   (define variables (program-variables precondition))
   
@@ -135,12 +134,20 @@
                             #:url "faq.html#no-valid-values"))
       (dict-ref (*var-reprs*) var)))
 
-  (define hyperrects-pre (range-table->hyperrects range-table variables reprs))
+  (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
  
   (define hyperrects
     (apply append
-           (for/list ([rect hyperrects-pre])
-             (find-ranges precondition repr #:initial rect #:depth 10))))
+           (for/list ([rect hyperrects-from-fpcore])
+             (find-ranges precondition repr #:initial rect #:depth 9))))
+#;
+  (define hyperrects
+    (if program
+        (apply append
+               (for/list ([rect hyperrects-from-precondition])
+                 (find-ranges program repr #:initial rect #:depth 4)))
+        hyperrects-from-precondition))
+  (println (length hyperrects))
   
   (define weights (hyperrects->weights hyperrects))
   
@@ -158,7 +165,7 @@
   (timeline-log! 'outcomes log)
 
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler pre-prog repr))
+  (define sampler (make-sampler pre-prog repr #:program prog))
 
   (define pre-fn (eval-prog pre-prog 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
