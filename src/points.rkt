@@ -29,10 +29,13 @@
 
 (define (sample-multi-bounded hyperrects weights reprs)
   (define hyperrect (choose-hyperrect hyperrects weights))
+  
   (for/list ([interval hyperrect] [repr reprs])
-    ((representation-bf->repr repr)
-     (ordinal->bigfloat
-      (random-ranges (cons (bigfloat->ordinal (ival-lo interval)) (- (bigfloat->ordinal (ival-hi interval)) 1)))))))
+    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+    (define <-ordinal (representation-ordinal->repr repr))
+    (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
+                                    (+ 1 (->ordinal (ival-hi interval))))))))
+    
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -137,7 +140,7 @@
   (define hyperrects
     (apply append
            (for/list ([rect hyperrects-pre])
-             (find-ranges precondition repr #:initial rect #:depth 20))))
+             (find-ranges precondition repr #:initial rect #:depth 10))))
   
   (define weights (hyperrects->weights hyperrects))
   
