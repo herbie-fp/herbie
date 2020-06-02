@@ -49,5 +49,5 @@ for bench in bench/*; do
       dirs="$dirs reports/$name";
   fi
 done
-racket infra/nightly.rkt $dirs
+racket infra/nightly.rkt reports/ $dirs
 bash infra/publish.sh upload "reports/"
