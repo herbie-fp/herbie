@@ -114,12 +114,7 @@
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
                         #:url "faq.html#no-valid-values"))
-  (define reprs
-    (for/list ([var (program-variables precondition)])
-      (when (null? (range-table-ref range-table var))
-        (raise-herbie-error "No valid values of variable ~a" var
-                            #:url "faq.html#no-valid-values"))
-      (dict-ref (*var-reprs*) var)))
+  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
   (if (set-member? '(binary32 binary64) (representation-name repr))
