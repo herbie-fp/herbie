@@ -3,7 +3,7 @@
 (require math/bigfloat rival
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "range-analysis.rkt" "biginterval.rkt" "interface.rkt" "findroot.rkt")
+         "interface.rkt" "findroot.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
          errors batch-errors errors-score
@@ -107,14 +107,12 @@
 ; These definitions in place, we finally generate the points.
 
 (define (make-sampler precondition repr)
-<<<<<<< HEAD
-  (define range-table (condition->range-table (program-body precondition)))
-  
-=======
   (define body (program-body precondition))
+  
   (define range-table
     (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
->>>>>>> master
+  (println range-table)
+  (println (range-table->intervals range-table (program-variables precondition) repr))
   (for ([var (program-variables precondition)]
         #:when (null? (range-table-ref range-table var)))
     (raise-herbie-error "No valid values of variable ~a" var
