@@ -25,6 +25,7 @@
 
 
 (define (round-midpoint midpoint lo hi repr)
+  
   (define (round point dir)
     ((representation-repr->bf repr)
      (parameterize ([bf-rounding-mode dir])
@@ -39,8 +40,8 @@
 
   (when (equal? lower higher)
     (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
-
-  (if (and (bf> lower lo) (bf< higher hi))
+  
+  (if (and (bf>= lower lo) (bf<= higher hi))
       (cons lower higher)
       #f))
 

@@ -64,8 +64,6 @@
     (define max-num (vector-ref arr (- (vector-length arr) 1)))
     (define search-for (random-integer 0 max-num))
     (define search-result (binary-search arr search-for))
-    (println search-for)
-    (fprintf (current-output-port) "res: ~a\n" search-result)
     (check-true (> (vector-ref arr search-result) search-for))
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
