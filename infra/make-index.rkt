@@ -77,7 +77,7 @@
   (define total-available
     (count (negate (curry equal? "ex-start")) statuses))
   (define total-crashed
-    (or (count (curry equal? "crash") statuses) (if (= iterations -1) 1 0)))
+    (+ (count (curry equal? "crash") statuses) (if (= iterations -1) 1 0)))
   (define total-timeout
     (count (curry equal? "timeout") statuses))
   (define total-unimproved
