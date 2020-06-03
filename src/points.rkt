@@ -171,8 +171,6 @@
                (for/list ([rect hyperrects-from-precondition])
                  (find-ranges program repr #:initial rect #:depth 4)))
         hyperrects-from-precondition))
-  (flush-output)
-
     
   (define hyperrect-vector
     (list->vector hyperrects))
