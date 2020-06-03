@@ -121,7 +121,7 @@
          (define-values (self-paren-level arg-paren-level) (precedence-levels f))
 
          (define atypes
-           (match (operator-info op 'itype)
+           (match (operator-info f 'itype)
              [(? list? as) as]
              [(? type-name? a) (map (const a) args)]))
          (unless (= (length atypes) (length args))
