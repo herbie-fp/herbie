@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival
-         (only-in fpbench interval))
+         (only-in fpbench interval range-table-ref))
 (require "common.rkt" "programs.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
@@ -58,15 +58,21 @@
 (define (range-table->hyperrects range-table variables reprs)
   (apply cartesian-product
    (for/list ([var-name variables] [repr reprs])
-     (map (curry fpbench-ival->ival repr) (hash-ref range-table var-name)))))
+     (map (curry fpbench-ival->ival repr) (range-table-ref range-table var-name)))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (define <-exact (compose (representation-bf->repr repr) bf))
-  (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) fpbench-interval)
-  (when (not (and lo? hi?))
-    (raise (error "not inclusive intervals")))
+  (match-define (interval lo hi lo? hi?) fpbench-interval)
+  (define bf-lo
+    (if lo?
+        (bf lo)
+        (bfstep (bf lo) 1)))
+  (define bf-hi
+    (if hi?
+        (bf hi)
+        (bfstep (bf hi) -1)))
   
-  (ival (bf lo) (bf hi)))
+  (ival bf-lo bf-hi))
 
 (define (ival-ordinal-size interval)
   (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))

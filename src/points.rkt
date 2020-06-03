@@ -171,7 +171,6 @@
                (for/list ([rect hyperrects-from-precondition])
                  (find-ranges program repr #:initial rect #:depth 4)))
         hyperrects-from-precondition))
-  (println (length hyperrects))
   (flush-output)
 
     
