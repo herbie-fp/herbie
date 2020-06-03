@@ -40,7 +40,7 @@
   (when (equal? lower higher)
     (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
 
-  (if (and (bf> lower lo) (bf> higher hi))
+  (if (and (bf> lower lo) (bf< higher hi))
       (cons lower higher)
       #f))
 

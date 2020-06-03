@@ -160,17 +160,22 @@
 
   (parameterize ([bf-precision 80])
     (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
+    (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
+    (define program-depth
+      (if (fpcore-expr? body)
+          (- (*max-find-range-depth*) (floor (/ (*max-find-range-depth*) 2)))
+          (*max-find-range-depth*)))
     
     (define hyperrects-from-precondition
       (apply append
              (for/list ([rect hyperrects-from-fpcore])
-               (find-ranges precondition repr #:initial rect #:depth 9 #:rounding-repr repr))))
+               (find-ranges precondition repr #:initial rect #:depth precondition-depth #:rounding-repr repr))))
 
     (define hyperrects
       (if program
           (apply append
                  (for/list ([rect hyperrects-from-precondition])
-                   (find-ranges program repr #:initial rect #:depth 4 #:rounding-repr repr)))
+                   (find-ranges program repr #:initial rect #:depth program-depth #:rounding-repr repr)))
           hyperrects-from-precondition))
     
     (define hyperrect-vector
