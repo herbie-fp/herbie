@@ -77,11 +77,13 @@
             (λ (out) (make-page page out result #f))))))))
 
 (define (read-json-files info dir name)
-  (for/list ([res (report-info-tests info)])
-    (define out
-      (with-handlers ([(const #t) (const #f)])
-        (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
-    (and out (not (eof-object? out)) (cons (table-row-link res) out))))
+  (filter
+   identity
+   (for/list ([res (report-info-tests info)])
+     (define out
+       (with-handlers ([(const #t) (const #f)])
+         (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
+     (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
 
 (define (merge-timeline-jsons tl)
   (apply timeline-merge (map timeline-relink (dict-keys tl) (dict-values tl))))
