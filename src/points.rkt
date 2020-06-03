@@ -158,31 +158,32 @@
                             #:url "faq.html#no-valid-values"))
       (dict-ref (*var-reprs*) var)))
 
-  (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
- 
-  (define hyperrects-from-precondition
-    (apply append
-           (for/list ([rect hyperrects-from-fpcore])
-             (find-ranges precondition repr #:initial rect #:depth 9))))
-
-  (define hyperrects
-    (if program
-        (apply append
-               (for/list ([rect hyperrects-from-precondition])
-                 (find-ranges program repr #:initial rect #:depth 4)))
-        hyperrects-from-precondition))
+  (parameterize ([bf-precision 80])
+    (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
     
-  (define hyperrect-vector
-    (list->vector hyperrects))
+    (define hyperrects-from-precondition
+      (apply append
+             (for/list ([rect hyperrects-from-fpcore])
+               (find-ranges precondition repr #:initial rect #:depth 9 #:rounding-repr repr))))
 
-  (define weights (list->vector (hyperrects->weights hyperrects)))
-  
-  ;; TODO(interface): range tables do not handle representations right now
-  ;; They produce +-inf endpoints, which aren't valid values in generic representations
-  (if (set-member? '(binary32 binary64) (representation-name repr))
-      (λ ()
-        (sample-multi-bounded hyperrect-vector weights reprs))
-      (λ () (map random-generate reprs))))
+    (define hyperrects
+      (if program
+          (apply append
+                 (for/list ([rect hyperrects-from-precondition])
+                   (find-ranges program repr #:initial rect #:depth 4 #:rounding-repr repr)))
+          hyperrects-from-precondition))
+    
+    (define hyperrect-vector
+      (list->vector hyperrects))
+
+    (define weights (list->vector (hyperrects->weights hyperrects)))
+    
+    ;; TODO(interface): range tables do not handle representations right now
+    ;; They produce +-inf endpoints, which aren't valid values in generic representations
+    (if (set-member? '(binary32 binary64) (representation-name repr))
+        (λ ()
+          (sample-multi-bounded hyperrect-vector weights reprs))
+        (λ () (map random-generate reprs)))))
 
 (define (prepare-points-intervals prog precondition repr)
   (timeline-log! 'method 'intervals)
