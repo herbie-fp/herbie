@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival
+(require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt" "findroot.rkt")
@@ -12,20 +12,28 @@
 (module+ test (require rackunit))
 (module+ internals (provide make-sampler ival-eval))
 
+;; we want a index i such that vector[i] > num and vector[i-1] <= num
+;; assumes vector strictly increasing
+(define (binary-search vector num)
+  (binary-search-recursive vector num 0 (- (vector-length vector) 1)))
+
+
+(define (binary-search-recursive vector num left-inclusive right-inclusive)
+  (cond
+    [(>= left-inclusive right-inclusive)
+     (min left-inclusive (- (vector-length vector) 1))]
+    [else
+     (define mid (floor (/ (+ left-inclusive right-inclusive) 2)))
+     (define val (vector-ref vector mid))
+     (if
+      (<= val num)
+      (binary-search-recursive vector num (+ 1 mid) right-inclusive)
+      (binary-search-recursive vector num left-inclusive mid))]))
+
 (define (choose-hyperrect hyperrects weights)
-  (define weight-sum (apply + weights))
-  (define rand-ordinal (random-ranges (cons 0 weight-sum)))
-  (let loop ([current 0] [weights weights] [hyperrects hyperrects])
-    (cond
-      [(empty? weights)
-       (error 'choose-hyperrect "invalid randomly chosen weight in choose-hyperrect")]
-      [(equal? (length hyperrects) 1)
-       (first hyperrects)]
-      [(< rand-ordinal (+ current (first weights)))
-       (first hyperrects)]
-      [else
-       (loop (+ current (first weights)) (rest weights) (rest hyperrects))])))
-      
+  (define weight-max (vector-ref weights (- (vector-length weights) 1)))
+  (define rand-ordinal (random-ranges (cons 0 weight-max)))
+  (vector-ref hyperrects (binary-search weights rand-ordinal)))    
 
 (define (sample-multi-bounded hyperrects weights reprs)
   (define hyperrect (choose-hyperrect hyperrects weights))
@@ -41,10 +49,26 @@
   (define repr (get-representation 'binary64))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
-           (sample-multi-bounded (list (list (ival (bf 0) (bf 1)) (ival (bf 0) (bf 1))))
-                                 (list 1) (list 'a 'b)
-                                 (make-hash `((a . ,repr)
-                                              (b . ,repr)))))))
+           (sample-multi-bounded (list->vector (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+                                 (list->vector (list 1)) (list repr repr))))
+
+  (define rand-list
+    (let loop ([current 0])
+      (if (> current 200)
+          empty
+          (let ([r (+ current (random-integer 1 10))])
+            (cons r (loop r))))))
+  (define arr
+    (list->vector rand-list))
+  (for ([i (range 0 20)])
+    (define max-num (vector-ref arr (- (vector-length arr) 1)))
+    (define search-for (random-integer 0 max-num))
+    (define search-result (binary-search arr search-for))
+    (println search-for)
+    (fprintf (current-output-port) "res: ~a\n" search-result)
+    (check-true (> (vector-ref arr search-result) search-for))
+    (when (> search-result 0)
+      (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
 (define *pcontext* (make-parameter #f))
 
@@ -136,11 +160,11 @@
 
   (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
  
-  (define hyperrects
+  (define hyperrects-from-precondition
     (apply append
            (for/list ([rect hyperrects-from-fpcore])
              (find-ranges precondition repr #:initial rect #:depth 9))))
-#;
+
   (define hyperrects
     (if program
         (apply append
@@ -148,15 +172,19 @@
                  (find-ranges program repr #:initial rect #:depth 4)))
         hyperrects-from-precondition))
   (println (length hyperrects))
-  
-  (define weights (hyperrects->weights hyperrects))
-  
+  (flush-output)
+
+    
+  (define hyperrect-vector
+    (list->vector hyperrects))
+
+  (define weights (list->vector (hyperrects->weights hyperrects)))
   
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
   (if (set-member? '(binary32 binary64) (representation-name repr))
       (λ ()
-        (sample-multi-bounded hyperrects weights reprs))
+        (sample-multi-bounded hyperrect-vector weights reprs))
       (λ () (map random-generate reprs))))
 
 (define (prepare-points-intervals prog precondition repr)

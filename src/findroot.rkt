@@ -72,8 +72,13 @@
   (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
 
 (define (hyperrects->weights hyperrects)
-  (for/list ([hyperrect hyperrects])
-    (apply * (map ival-ordinal-size hyperrect))))
+  (let loop ([current 0] [hyperrects hyperrects])
+    (cond
+      [(empty? hyperrects) empty]
+      [else
+       (let ([new-val (+ current (apply * (map ival-ordinal-size (first hyperrects))))])
+         (cons (+ current (apply * (map ival-ordinal-size (first hyperrects))))
+               (loop new-val (rest hyperrects))))])))
   
            
 (module+ test
