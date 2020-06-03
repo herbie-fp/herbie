@@ -1,5 +1,5 @@
 #lang racket
-(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../interface.rkt" "../float.rkt")
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -125,7 +125,7 @@
              [(? list? as) as]
              [(? type-name? a) (map (const a) args)]))
          (unless (= (length atypes) (length args))
-           (raise-argument-error 'eval-prog "expr?" prog))
+           (raise-argument-error 'texify-expr "expr?" expr))
 
          (define texed-args
            (for/list ([arg args] [atype atypes] [id (in-naturals 1)])
