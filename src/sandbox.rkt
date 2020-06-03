@@ -74,7 +74,7 @@
         (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
-        (timeline-adjust! 'regimes 'link ".")
+        (timeline-adjust! 'regimes 'link (string->path "."))
 
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" (errors-score end-errs))

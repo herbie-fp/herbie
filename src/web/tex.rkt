@@ -112,7 +112,7 @@
                  [(list bcond bexpr bloc)
                   (printf "\\mathbf{~a}\\;~a:~a~a~a~a\n"
                           (if (= n 0) "if" "elif")
-                          (texify bcond #t (cons 1 bloc) (get-representation 'boolean))
+                          (texify bcond #t (cons 1 bloc) (get-representation 'bool))
                           NL IND (texify bexpr #t (cons 2 bloc) repr) NL)]))
              (printf "\\end{array}")))]
         [`(<= ,x -inf.0)
