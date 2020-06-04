@@ -38,6 +38,8 @@
        (round (bfnext midpoint) 'up)]
       [else (round midpoint 'up)]))
 
+  (eprintf "~a\n" lower)
+  (eprintf "~a\n" higher)
   (when (equal? lower higher)
     (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
   
@@ -48,41 +50,43 @@
 (define (find-intervals ival-fn ranges #:fuel [depth 128]
                         #:true [true! void] #:false [false! void] #:error [error! void]
                         #:unknown [other! void] #:rounding-repr [rounding-repr #f])
-  (let loop ([ranges ranges] [n 0])
-    (define n* (remainder n (length ranges)))
-    (define range (list-ref ranges n*))
-    (define ival-res (apply ival-fn ranges))
-    (define-values (ylo yhi yerr? yerr) (values (ival-lo ival-res) (ival-hi ival-res)
-                                                (ival-err? ival-res) (ival-err ival-res)))
-    
-    ;(printf "~a. ~a -> (~a ~a ~a ~a)\n" (make-string n #\space) ranges ylo yhi yerr? yerr)
-    (cond
-     [yerr
-      (error! ranges)]
-     [(and (not yerr?) ylo)
-      (true! ranges)]
-     [(and (not yerr?) (not yhi))
-      (false! ranges)]
-     [(> n depth)
-      (other! ranges)]
-     [else
-      (define midpoint-unrounded
-        (ordinal->bigfloat
-         (floor (/ (+ (bigfloat->ordinal (ival-lo range))
-                      (bigfloat->ordinal (ival-hi range)))
-                   2))))
+  (if (empty? ranges)
+      empty
+      (let loop ([ranges ranges] [n 0])
+        (define n* (remainder n (length ranges)))
+        (define range (list-ref ranges n*))
+        (define ival-res (apply ival-fn ranges))
+        (define-values (ylo yhi yerr? yerr) (values (ival-lo ival-res) (ival-hi ival-res)
+                                                    (ival-err? ival-res) (ival-err ival-res)))
+        
+        ;(printf "~a. ~a -> (~a ~a ~a ~a)\n" (make-string n #\space) ranges ylo yhi yerr? yerr)
+        (cond
+          [yerr
+           (error! ranges)]
+          [(and (not yerr?) ylo)
+           (true! ranges)]
+          [(and (not yerr?) (not yhi))
+           (false! ranges)]
+          [(> n depth)
+           (other! ranges)]
+          [else
+           (define midpoint-unrounded
+             (ordinal->bigfloat
+              (floor (/ (+ (bigfloat->ordinal (ival-lo range))
+                           (bigfloat->ordinal (ival-hi range)))
+                        2))))
 
-      (define midpoints
-        (if rounding-repr
-            (round-midpoint midpoint-unrounded (ival-lo range) (ival-hi range) rounding-repr)
-            (cons midpoint-unrounded midpoint-unrounded)))
-      (cond
-        [midpoints
-         (define range-lo (ival (ival-lo range) (car midpoints)))
-         (define range-hi (ival (cdr midpoints) (ival-hi range)))
-         (loop (list-set ranges n* range-lo) (add1 n))
-         (loop (list-set ranges n* range-hi) (add1 n))]
-        [else (other! ranges)])])))
+           (define midpoints
+             (if rounding-repr
+                 (round-midpoint midpoint-unrounded (ival-lo range) (ival-hi range) rounding-repr)
+                 (cons midpoint-unrounded midpoint-unrounded)))
+           (cond
+             [midpoints
+              (define range-lo (ival (ival-lo range) (car midpoints)))
+              (define range-hi (ival (cdr midpoints) (ival-hi range)))
+              (loop (list-set ranges n* range-lo) (add1 n))
+              (loop (list-set ranges n* range-hi) (add1 n))]
+             [else (other! ranges)])]))))
 
 (define (range-table->hyperrects range-table variables reprs)
   (apply cartesian-product
