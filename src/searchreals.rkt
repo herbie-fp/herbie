@@ -12,16 +12,19 @@
   (< (- hi lo) 0.5)
   #;(or (and (number? lo) (= lo hi)) (equal? lo hi)))
 
-(define (find-ranges prog repr #:depth [depth 128] #:initial [initial #f] #:rounding-repr [rounding-repr #f])
+(define (find-ranges prog repr #:depth [depth 128] #:initial [initial #f]  #:eval-fn [eval-fn #f] #:rounding-repr [rounding-repr #f])
   (define vars (program-variables prog))
   (define body (program-body prog))
-  (define fn
-    (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables prog))])
-      (eval-prog `(λ ,vars ,body) 'ival repr)))
+
+  (unless eval-fn
+    (set! eval-fn 
+          (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables prog))])
+            (eval-prog `(λ ,vars ,body) 'ival repr))))
+  
   (unless initial
     (set! initial (map (const (ival -inf.bf +inf.bf)) (program-variables prog))))
   (define <-bf (representation-bf->repr repr))
-  (reap [sow] (find-intervals fn initial #:fuel depth #:true sow #:unknown sow #:rounding-repr rounding-repr)))
+  (reap [sow] (find-intervals eval-fn initial #:fuel depth #:true sow #:unknown sow #:rounding-repr rounding-repr)))
 
 
 (define (round-midpoint midpoint lo hi repr)

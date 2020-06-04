@@ -3,7 +3,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt" "findroot.rkt")
+         "interface.rkt" "searchreals.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
          errors batch-errors errors-score
@@ -145,52 +145,57 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
+(define (make-valid-search precondition programs repr)
+  (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
+    (compose
+     (lambda (ival-vec)
+       (define ival-list (vector->list ival-vec))
+       (apply ival-and (first ival-list)
+              (map ival-not (map ival-error? (rest ival-list)))))
+     (batch-eval-progs (cons precondition programs) 'ival repr))))
+
+(define (get-hyperrects range-table precondition programs reprs repr)
+  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
+  (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
+
+  (define search-func (make-valid-search precondition programs repr))
+  (define hyperrects
+    (apply append
+           (for/list ([rect hyperrects-from-fpcore])
+             (find-ranges precondition repr #:initial rect #:depth (*max-find-range-depth*)
+                          #:eval-fn search-func #:rounding-repr repr))))
+  
+  (when (and (not (equal? (length (program-variables precondition)) 0))
+             (empty? hyperrects))
+    (raise-herbie-error "No valid values."
+                        #:url "faq.html#no-valid-values"))
+  hyperrects)
+
 ; These definitions in place, we finally generate the points.
-(define (make-sampler precondition repr #:program [program #f])
+(define (make-sampler repr precondition . programs)
   (define body (program-body precondition))
   (define variables (program-variables precondition))
   
   (define range-table
     (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
-  
-  (define reprs
-    (for/list ([var variables])
+
+  (for ([var variables])
       (when (null? (range-table-ref range-table var))
         (raise-herbie-error "No valid values of variable ~a" var
-                            #:url "faq.html#no-valid-values"))
-      (dict-ref (*var-reprs*) var)))
+                            #:url "faq.html#no-valid-values")))
+  
+  (define reprs
+    (map (curry dict-ref (*var-reprs*)) variables))
 
   (parameterize ([bf-precision 80])
-    (define hyperrects-from-fpcore (range-table->hyperrects range-table variables reprs))
-    (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
-    (define program-depth
-      (if (fpcore-expr? body)
-          (- (*max-find-range-depth*) (floor (/ (*max-find-range-depth*) 2)))
-          (*max-find-range-depth*)))
-    
-    (define hyperrects-from-precondition
-      (apply append
-             (for/list ([rect hyperrects-from-fpcore])
-               (find-ranges precondition repr #:initial rect #:depth precondition-depth #:rounding-repr repr))))
-
-    (define hyperrects
-      (if program
-          (apply append
-                 (for/list ([rect hyperrects-from-precondition])
-                   (find-ranges program repr #:initial rect #:depth program-depth #:rounding-repr repr)))
-          hyperrects-from-precondition))
-
-    (when (and (not (equal? (length variables) 0)) (empty? hyperrects))
-      (raise-herbie-error "No valid values."
-                          #:url "faq.html#no-valid-values"))
+    ;; TODO(interface): range tables do not handle representations right now
+    ;; They produce +-inf endpoints, which aren't valid values in generic representations
+    (define hyperrects (get-hyperrects range-table precondition programs reprs repr))
+    (define weights (list->vector (hyperrects->weights hyperrects)))
     
     (define hyperrect-vector
       (list->vector hyperrects))
 
-    (define weights (list->vector (hyperrects->weights hyperrects)))
-    
-    ;; TODO(interface): range tables do not handle representations right now
-    ;; They produce +-inf endpoints, which aren't valid values in generic representations
     (if (set-member? '(binary32 binary64) (representation-name repr))
         (λ ()
           (sample-multi-bounded hyperrect-vector weights reprs))
@@ -202,7 +207,7 @@
   (timeline-log! 'outcomes log)
 
   (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler pre-prog repr #:program prog))
+  (define sampler (make-sampler repr pre-prog prog))
 
   (define pre-fn (eval-prog pre-prog 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
@@ -355,7 +360,7 @@
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition repr)
   (timeline-log! 'method 'halfpoints)
-  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition) repr))
+  (define sample (make-sampler repr `(λ ,(program-variables prog) ,precondition)))
 
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))

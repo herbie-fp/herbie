@@ -40,7 +40,11 @@
   (define repr (get-representation* otype))
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
+    (let ([sample (make-sampler
+                   (get-representation 'binary64)
+                   `(λ ,fv ,(dict-ref *conditions* name 'TRUE))
+                   `(λ ,fv ,p1)
+                   `(λ ,fv ,p2))])
       (λ ()
         (if (dict-has-key? *conditions* name)
             (sample)
