@@ -62,8 +62,23 @@
     [(< x 0) (- (bit-field->single-flonum (- x)))]
     [else (bit-field->single-flonum x)]))
 
+(define (single-flonum-step x n)
+  (ordinal->single-flonum (+ (single-flonum->ordinal x) n)))
+
+(define (bigfloat->single-flonum x)
+  (define loprec (parameterize ([bf-precision 24]) (bfadd 0.bf x)))
+  (define y (real->single-flonum (bigfloat->flonum loprec)))
+  (define x2 (bf y))
+  (match (bf-rounding-mode)
+    ['nearest y]
+    ['up   (if (bf< x2 x) (single-flonum-step y 1) y)]
+    ['down (if (bf> x2 x) (single-flonum-step y -1) y)]
+    ['zero (if (bf< x 0.bf)
+               (if (bf< x2 x) (single-flonum-step y 1) y)
+               (if (bf> x2 x) (single-flonum-step y -1) y))]))
+
 (define-representation (binary32 real)
-  (compose real->single-flonum bigfloat->flonum)
+  bigfloat->single-flonum
   bf
   ordinal->single-flonum
   single-flonum->ordinal
