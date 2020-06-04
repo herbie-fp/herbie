@@ -94,18 +94,8 @@
      (map (curry fpbench-ival->ival repr) (range-table-ref range-table var-name)))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
-  (define <-exact (compose (representation-bf->repr repr) bf))
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (define bf-lo
-    (if lo?
-        (bf lo)
-        (bfstep (bf lo) 1)))
-  (define bf-hi
-    (if hi?
-        (bf hi)
-        (bfstep (bf hi) -1)))
-  
-  (ival bf-lo bf-hi))
+  (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1))))
 
 (define (ival-ordinal-size interval)
   (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
