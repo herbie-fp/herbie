@@ -36,13 +36,17 @@
   (vector-ref hyperrects (binary-search weights rand-ordinal)))    
 
 (define (sample-multi-bounded hyperrects weights reprs)
-  (define hyperrect (choose-hyperrect hyperrects weights))
+  (cond
+    [(equal? (length reprs) 0)
+     empty]
+    [else
+     (define hyperrect (choose-hyperrect hyperrects weights))
   
-  (for/list ([interval hyperrect] [repr reprs])
-    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-    (define <-ordinal (representation-ordinal->repr repr))
-    (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
-                                    (+ 1 (->ordinal (ival-hi interval))))))))
+     (for/list ([interval hyperrect] [repr reprs])
+       (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+       (define <-ordinal (representation-ordinal->repr repr))
+       (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
+                                       (+ 1 (->ordinal (ival-hi interval)))))))]))
     
 
 (module+ test
@@ -175,6 +179,10 @@
                  (for/list ([rect hyperrects-from-precondition])
                    (find-ranges program repr #:initial rect #:depth program-depth #:rounding-repr repr)))
           hyperrects-from-precondition))
+
+    (when (and (not (equal? (length variables) 0)) (empty? hyperrects))
+      (raise-herbie-error "No valid values."
+                          #:url "faq.html#no-valid-values"))
     
     (define hyperrect-vector
       (list->vector hyperrects))
