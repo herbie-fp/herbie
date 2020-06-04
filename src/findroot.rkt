@@ -38,8 +38,6 @@
        (round (bfnext midpoint) 'up)]
       [else (round midpoint 'up)]))
 
-  (eprintf "~a\n" lower)
-  (eprintf "~a\n" higher)
   (when (equal? lower higher)
     (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
   
