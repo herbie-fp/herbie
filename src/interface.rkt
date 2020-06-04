@@ -66,7 +66,7 @@
   (ordinal->single-flonum (+ (single-flonum->ordinal x) n)))
 
 (define (bigfloat->single-flonum x)
-  (define loprec (parameterize ([bf-precision 24]) (bfadd 0.bf x)))
+  (define loprec (parameterize ([bf-precision 24]) (bf+ 0.bf x)))
   (define y (real->single-flonum (bigfloat->flonum loprec)))
   (define x2 (bf y))
   (match (bf-rounding-mode)
