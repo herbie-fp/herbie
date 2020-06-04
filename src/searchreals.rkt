@@ -1,11 +1,10 @@
 #lang racket
-(require math/bigfloat rival
-         (only-in fpbench interval range-table-ref))
+(require math/bigfloat rival)
 (require "common.rkt" "programs.rkt" "interface.rkt")
 
 (module+ test (require rackunit))
 
-(provide find-ranges range-table->hyperrects hyperrects->weights)
+(provide find-ranges)
 
 (define (done? <-bf iv)
   (match-define (ival (app <-bf lo) (app <-bf hi)) iv)
@@ -87,37 +86,5 @@
               (define range-hi (ival (cdr midpoints) (ival-hi range)))
               (loop (list-set ranges n* range-lo) (add1 n))
               (loop (list-set ranges n* range-hi) (add1 n))]
-             [else (other! ranges)])]))))
-
-(define (range-table->hyperrects range-table variables reprs)
-  (apply cartesian-product
-   (for/list ([var-name variables] [repr reprs])
-     (map (curry fpbench-ival->ival repr) (range-table-ref range-table var-name)))))
-
-(define (fpbench-ival->ival repr fpbench-interval)
-  (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1))))
-
-(define (ival-ordinal-size interval)
-  (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
-
-(define (hyperrects->weights hyperrects)
-  (let loop ([current 0] [hyperrects hyperrects])
-    (cond
-      [(empty? hyperrects) empty]
-      [else
-       (let ([new-val (+ current (apply * (map ival-ordinal-size (first hyperrects))))])
-         (cons (+ current (apply * (map ival-ordinal-size (first hyperrects))))
-               (loop new-val (rest hyperrects))))])))
-  
-           
-(module+ test
-  (define test-table-simple
-    (make-hash
-     `((a . (,(interval 0.0 1.0 #t #t)))
-       (b . (,(interval 0.0 1.0 #t #t))))))
-  (check-equal? (range-table->hyperrects test-table-simple `(a b)
-                                        (list (get-representation 'binary64) (get-representation 'binary64)))
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
-                
+             [else (other! ranges)])]))))  
           

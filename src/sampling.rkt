@@ -1,0 +1,159 @@
+#lang racket
+(require math/bigfloat rival math/base
+         (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
+(require "searchreals.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
+         "interface.rkt")
+
+(module+ test (require rackunit))
+
+(module+ internals (provide make-sampler))
+
+(provide make-sampler)
+
+(define (range-table->hyperrects range-table variables reprs)
+  (apply cartesian-product
+   (for/list ([var-name variables] [repr reprs])
+     (map (curry fpbench-ival->ival repr) (range-table-ref range-table var-name)))))
+
+(define (fpbench-ival->ival repr fpbench-interval)
+  (match-define (interval lo hi lo? hi?) fpbench-interval)
+  (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1))))
+
+(define (ival-ordinal-size interval)
+  (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
+
+(define (hyperrects->weights hyperrects)
+  (let loop ([current 0] [hyperrects hyperrects])
+    (cond
+      [(empty? hyperrects) empty]
+      [else
+       (let ([new-val (+ current (apply * (map ival-ordinal-size (first hyperrects))))])
+         (cons (+ current (apply * (map ival-ordinal-size (first hyperrects))))
+               (loop new-val (rest hyperrects))))])))
+
+
+;; we want a index i such that vector[i] > num and vector[i-1] <= num
+;; assumes vector strictly increasing
+(define (binary-search vector num)
+  (binary-search-recursive vector num 0 (- (vector-length vector) 1)))
+
+
+(define (binary-search-recursive vector num left-inclusive right-inclusive)
+  (cond
+    [(>= left-inclusive right-inclusive)
+     (min left-inclusive (- (vector-length vector) 1))]
+    [else
+     (define mid (floor (/ (+ left-inclusive right-inclusive) 2)))
+     (define val (vector-ref vector mid))
+     (if
+      (<= val num)
+      (binary-search-recursive vector num (+ 1 mid) right-inclusive)
+      (binary-search-recursive vector num left-inclusive mid))]))
+
+(define (choose-hyperrect hyperrects weights)
+  (define weight-max (vector-ref weights (- (vector-length weights) 1)))
+  (define rand-ordinal (random-ranges (cons 0 weight-max)))
+  (vector-ref hyperrects (binary-search weights rand-ordinal)))    
+
+(define (sample-multi-bounded hyperrects weights reprs)
+  (cond
+    [(equal? (length reprs) 0)
+     empty]
+    [else
+     (define hyperrect (choose-hyperrect hyperrects weights))
+  
+     (for/list ([interval hyperrect] [repr reprs])
+       (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+       (define <-ordinal (representation-ordinal->repr repr))
+       (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
+                                       (+ 1 (->ordinal (ival-hi interval)))))))]))
+
+(define (make-valid-search precondition programs repr)
+  (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
+    (compose
+     (lambda (ival-vec)
+       (define ival-list (vector->list ival-vec))
+       (apply ival-and (first ival-list)
+              (map ival-not (map ival-error? (rest ival-list)))))
+     (batch-eval-progs (cons precondition programs) 'ival repr))))
+
+(define (get-hyperrects range-table precondition programs reprs repr)
+  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
+  (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
+
+  (define search-func (make-valid-search precondition programs repr))
+  (define hyperrects
+    (apply append
+           (for/list ([rect hyperrects-from-fpcore])
+             (find-ranges precondition repr #:initial rect #:depth (*max-find-range-depth*)
+                          #:eval-fn search-func #:rounding-repr repr))))
+  
+  (when (and (not (equal? (length (program-variables precondition)) 0))
+             (empty? hyperrects))
+    (raise-herbie-error "No valid values."
+                        #:url "faq.html#no-valid-values"))
+  hyperrects)
+
+
+; These definitions in place, we finally generate the points.
+(define (make-sampler repr precondition . programs)
+  (define body (program-body precondition))
+  (define variables (program-variables precondition))
+  
+  (define range-table
+    (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
+
+  (for ([var variables])
+      (when (null? (range-table-ref range-table var))
+        (raise-herbie-error "No valid values of variable ~a" var
+                            #:url "faq.html#no-valid-values")))
+  
+  (define reprs
+    (map (curry dict-ref (*var-reprs*)) variables))
+
+  (parameterize ([bf-precision 80])
+    ;; TODO(interface): range tables do not handle representations right now
+    ;; They produce +-inf endpoints, which aren't valid values in generic representations
+    (define hyperrects (get-hyperrects range-table precondition programs reprs repr))
+    (define weights (list->vector (hyperrects->weights hyperrects)))
+    
+    (define hyperrect-vector
+      (list->vector hyperrects))
+
+    (if (set-member? '(binary32 binary64) (representation-name repr))
+        (λ ()
+          (sample-multi-bounded hyperrect-vector weights reprs))
+        (λ () (map random-generate reprs)))))
+
+
+
+(module+ test
+  (define repr (get-representation 'binary64))
+  (check-true
+   (andmap (curry set-member? '(0.0 1.0))
+           (sample-multi-bounded (list->vector (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+                                 (list->vector (list 1)) (list repr repr))))
+
+  (define rand-list
+    (let loop ([current 0])
+      (if (> current 200)
+          empty
+          (let ([r (+ current (random-integer 1 10))])
+            (cons r (loop r))))))
+  (define arr
+    (list->vector rand-list))
+  (for ([i (range 0 20)])
+    (define max-num (vector-ref arr (- (vector-length arr) 1)))
+    (define search-for (random-integer 0 max-num))
+    (define search-result (binary-search arr search-for))
+    (check-true (> (vector-ref arr search-result) search-for))
+    (when (> search-result 0)
+      (check-true (<= (vector-ref arr (- search-result 1)) search-for))))
+
+  (define test-table-simple
+    (make-hash
+     `((a . (,(interval 0.0 1.0 #t #t)))
+       (b . (,(interval 0.0 1.0 #t #t))))))
+  (check-equal? (range-table->hyperrects test-table-simple `(a b)
+                                         (list (get-representation 'binary64) (get-representation 'binary64)))
+                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
