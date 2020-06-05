@@ -103,7 +103,8 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
-    (timeline-event! 'end)
+    (parameterize ([*timeline-disabled* false])
+      (timeline-event! 'end))
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract)
                   warning-log e))
@@ -121,7 +122,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (begin
+      (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
         (timeline-event! 'end)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
