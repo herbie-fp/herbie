@@ -2,7 +2,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
-         "interface.rkt")
+         "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -11,9 +11,11 @@
 (provide make-sampler)
 
 (define (range-table->hyperrects range-table variables reprs)
-  (apply cartesian-product
-   (for/list ([var-name variables] [repr reprs])
-     (map (curry fpbench-ival->ival repr) (range-table-ref range-table var-name)))))
+  (map (lambda (rect) (cons rect 'other))
+       (apply cartesian-product
+              (for/list ([var-name variables] [repr reprs])
+                (map (lambda (interval) (fpbench-ival->ival repr interval))
+                     (range-table-ref range-table var-name))))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
@@ -27,9 +29,12 @@
     (cond
       [(empty? hyperrects) empty]
       [else
-       (let ([new-val (+ current (apply * (map ival-ordinal-size (first hyperrects))))])
-         (cons (+ current (apply * (map ival-ordinal-size (first hyperrects))))
+       (let ([new-val (+ current (apply * (map ival-ordinal-size (car (first hyperrects)))))])
+         (cons new-val
                (loop new-val (rest hyperrects))))])))
+
+(define (rect-space-sum hyperrects)
+  (last (hyperrects->weights hyperrects)))
 
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
@@ -62,7 +67,7 @@
     [else
      (define hyperrect (choose-hyperrect hyperrects weights))
   
-     (for/list ([interval hyperrect] [repr reprs])
+     (for/list ([interval (car hyperrect)] [repr reprs])
        (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
        (define <-ordinal (representation-ordinal->repr repr))
        (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
@@ -77,7 +82,21 @@
               (map ival-not (map ival-error? (rest ival-list)))))
      (batch-eval-progs (cons precondition programs) 'ival repr))))
 
-(define (get-hyperrects range-table precondition programs reprs repr)
+(define (log-space-improvement log hyperrects from-fpcore repr)
+  (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
+  (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+  (define total-space (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)))
+  
+  (define fpcore-space (rect-space-sum from-fpcore))
+  (define after-space (rect-space-sum hyperrects))
+  (define good-space (rect-space-sum true-hyperrects))
+
+  (hash-set! log 'range-analysis (exact->inexact (/ fpcore-space total-space))))
+  
+  
+    
+ 
+(define (get-hyperrects range-table precondition programs reprs repr log)
   (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
   (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
 
@@ -85,18 +104,26 @@
   (define hyperrects
     (apply append
            (for/list ([rect hyperrects-from-fpcore])
-             (find-ranges precondition repr #:initial rect #:depth (*max-find-range-depth*)
+             (find-ranges precondition repr #:initial (car rect) #:depth (*max-find-range-depth*)
                           #:eval-fn search-func #:rounding-repr repr))))
   
   (when (and (not (equal? (length (program-variables precondition)) 0))
              (empty? hyperrects))
     (raise-herbie-error "No valid values."
                         #:url "faq.html#no-valid-values"))
+
+  (log-space-improvement log hyperrects hyperrects-from-fpcore repr)
+  
   hyperrects)
+
+
 
 
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
+  (define log (make-hash))
+  (timeline-log! 'input-space log)
+  
   (define body (program-body precondition))
   (define variables (program-variables precondition))
   
@@ -114,7 +141,8 @@
   (parameterize ([bf-precision 80])
     ;; TODO(interface): range tables do not handle representations right now
     ;; They produce +-inf endpoints, which aren't valid values in generic representations
-    (define hyperrects (get-hyperrects range-table precondition programs reprs repr))
+    (define hyperrects (get-hyperrects range-table precondition programs reprs repr log))
+
     (define weights (list->vector (hyperrects->weights hyperrects)))
     
     (define hyperrect-vector
@@ -131,7 +159,8 @@
   (define repr (get-representation 'binary64))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
-           (sample-multi-bounded (list->vector (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+           (sample-multi-bounded (list->vector (list (list (cons (ival (bf 0) (bf 0)) 'other)
+                                                           (cons (ival (bf 1) (bf 1)) 'other))))
                                  (list->vector (list 1)) (list repr repr))))
 
   (define rand-list
