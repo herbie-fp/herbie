@@ -21,20 +21,21 @@
   (match-define (interval lo hi lo? hi?) fpbench-interval)
   (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1))))
 
-(define (ival-ordinal-size interval)
-  (+ 1 (- (bigfloat->ordinal (ival-hi interval)) (bigfloat->ordinal (ival-lo interval)))))
+(define (ival-ordinal-size repr interval)
+  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+  (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))
 
-(define (hyperrects->weights hyperrects)
+(define (hyperrects->weights repr hyperrects)
   (let loop ([current 0] [hyperrects hyperrects])
     (cond
       [(empty? hyperrects) empty]
       [else
-       (let ([new-val (+ current (apply * (map ival-ordinal-size (car (first hyperrects)))))])
+       (let ([new-val (+ current (apply * (map (curry ival-ordinal-size repr) (car (first hyperrects)))))])
          (cons new-val
                (loop new-val (rest hyperrects))))])))
 
-(define (rect-space-sum hyperrects)
-  (last (hyperrects->weights hyperrects)))
+(define (rect-space-sum repr hyperrects)
+  (last (hyperrects->weights repr hyperrects)))
 
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
@@ -82,18 +83,25 @@
               (map ival-not (map ival-error? (rest ival-list)))))
      (batch-eval-progs (cons precondition programs) 'ival repr))))
 
-(define (log-space-improvement log hyperrects from-fpcore repr)
-  (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
-  (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-  (define total-space (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)))
-  
-  (define fpcore-space (rect-space-sum from-fpcore))
-  (define after-space (rect-space-sum hyperrects))
-  (define good-space (rect-space-sum true-hyperrects))
+(define (log-space-improvement hyperrects from-fpcore repr)
+  (cond
+    [(empty? hyperrects)
+     void]
+    [else
+     (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
+     (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+     
+     (define total-space (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
+     (define fpcore-space (rect-space-sum repr from-fpcore))
+     (define after-space (rect-space-sum repr hyperrects))
+     (define good-space (rect-space-sum repr true-hyperrects))
 
-  (hash-set! log 'range-analysis (exact->inexact (/ fpcore-space total-space))))
-  
-  
+     (define sample-likelyhood (/ good-space after-space))
+     (define range-analysis-shrunk (/ fpcore-space total-space))
+     (define total-shrunk (/ after-space total-space))
+
+     #;(eprintf "~a\n" (exact->inexact total-shrunk))
+     #;(eprintf "~a\n" (exact->inexact sample-likelyhood))]))
     
  
 (define (get-hyperrects range-table precondition programs reprs repr log)
@@ -112,7 +120,7 @@
     (raise-herbie-error "No valid values."
                         #:url "faq.html#no-valid-values"))
 
-  (log-space-improvement log hyperrects hyperrects-from-fpcore repr)
+  (log-space-improvement hyperrects hyperrects-from-fpcore repr)
   
   hyperrects)
 
@@ -121,8 +129,6 @@
 
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
-  (define log (make-hash))
-  (timeline-log! 'input-space log)
   
   (define body (program-body precondition))
   (define variables (program-variables precondition))
@@ -143,7 +149,7 @@
     ;; They produce +-inf endpoints, which aren't valid values in generic representations
     (define hyperrects (get-hyperrects range-table precondition programs reprs repr log))
 
-    (define weights (list->vector (hyperrects->weights hyperrects)))
+    (define weights (list->vector (hyperrects->weights repr hyperrects)))
     
     (define hyperrect-vector
       (list->vector hyperrects))
