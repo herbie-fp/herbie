@@ -35,7 +35,11 @@
                (loop new-val (rest hyperrects))))])))
 
 (define (rect-space-sum repr hyperrects)
-  (last (hyperrects->weights repr hyperrects)))
+  (define weights (hyperrects->weights repr hyperrects))
+  (if
+   (empty? weights)
+   0
+   (last weights)))
 
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
@@ -165,8 +169,8 @@
   (define repr (get-representation 'binary64))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
-           (sample-multi-bounded (list->vector (list (list (cons (ival (bf 0) (bf 0)) 'other)
-                                                           (cons (ival (bf 1) (bf 1)) 'other))))
+           (sample-multi-bounded (list->vector (list (cons (list (ival (bf 0) (bf 0))
+                                                                 (ival (bf 1) (bf 1))) 'other)))
                                  (list->vector (list 1)) (list repr repr))))
 
   (define rand-list
@@ -191,4 +195,4 @@
        (b . (,(interval 0.0 1.0 #t #t))))))
   (check-equal? (range-table->hyperrects test-table-simple `(a b)
                                          (list (get-representation 'binary64) (get-representation 'binary64)))
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+                (list (cons (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))) 'other))))
