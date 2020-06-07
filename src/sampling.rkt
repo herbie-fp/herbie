@@ -99,7 +99,7 @@
      (define sample-likelyhood (/ good-space after-space))
      (define range-analysis-shrunk (/ fpcore-space total-space))
      (define total-shrunk (/ after-space total-space))
-
+     void
      #;(eprintf "~a\n" (exact->inexact total-shrunk))
      #;(eprintf "~a\n" (exact->inexact sample-likelyhood))]))
     
