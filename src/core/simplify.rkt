@@ -124,7 +124,9 @@
     (timeline-cost iter)
     (define cnt ((egg egraph-get-size) egg-graph))
     (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
-    (not is_stop)))
+    (not is_stop))
+
+  ((egg free-ffi-rules) ffi-rules))
 
 (define (munge expr)
   ;; Despite the name, `expr` might be an expression OR a pattern
