@@ -8,7 +8,7 @@
 ;; Load all the plugins
 (load-herbie-plugins)
 
-(define *precision* (make-parameter 'binary64))
+(define *precision* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
   (match* ((test-output test) (test-expected test))
@@ -23,11 +23,14 @@
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
   (for/and ([the-test tests] [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
-    (define the-test* (struct-copy test the-test
-                                   [output-prec (*precision*)]
-                                   [var-precs
-                                    (for/list ([(var prec) (in-dict (test-var-precs the-test))])
-                                      (cons var (*precision*)))]))
+    (define the-test*
+      (if (*precision*)
+          (struct-copy test the-test
+                       [output-prec (*precision*)]
+                       [var-precs
+                        (for/list ([(var prec) (in-dict (test-var-precs the-test))])
+                          (cons var (*precision*)))])
+          the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
                      start-alt end-alt points exacts start-est-error end-est-error
