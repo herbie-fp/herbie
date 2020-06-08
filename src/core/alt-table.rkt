@@ -197,7 +197,7 @@
     (filter
      (negate (compose (curry set-member? prog-set) alt-program))
      (remove-duplicates altns #:key alt-program)))
-  (timeline-log! 'filtered (list (length altns*) (length altns)))
+  (timeline-log! 'filtered (list (length altns) (length altns*)))
   (cond
    [(null? altns*)
     atab]

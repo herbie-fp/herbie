@@ -1,5 +1,6 @@
 #lang racket
-(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../programs.rkt" "../syntax/types.rkt" "../float.rkt" "../interface.rkt")
+
 
 (provide js-tex-include texify-expr texify-prog)
 
@@ -68,7 +69,7 @@
 
 (define (texify-expr expr repr #:loc [color-loc #f] #:color [color "red"])
   "Compile an expression to math mode TeX."
-  (let texify ([expr expr] [parens #t] [loc '(2)])
+  (let texify ([expr expr] [repr repr] [parens #t] [loc '(2)])
     (format
       (if (and color-loc (equal? (reverse color-loc) loc))
         (format "\\color{~a}{~~a}" color)
@@ -80,9 +81,9 @@
          (format "\\frac{~a}{~a}" (numerator expr) (denominator expr))]
         [(? (conjoin complex? (negate real?)))
          (format "~a ~a ~a i"
-                 (texify (real-part expr) '+ loc)
+                 (texify (real-part expr) (get-representation 'binary64) '+ loc)
                  (if (or (< (imag-part expr) 0) (equal? (imag-part expr) -0.0)) '- '+)
-                 (texify (abs (imag-part expr)) '+ loc))]
+                 (texify (abs (imag-part expr)) (get-representation 'binary64) '+ loc))]
         [(? value?)
          (define s (value->string expr repr))
          (match (string-split s "e")
@@ -108,23 +109,27 @@
                (match branch
                  [(list #t bexpr bloc)
                   (printf "\\mathbf{else}:~a~a~a~a\n"
-                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]
+                          NL IND (texify bexpr repr #t (cons 2 bloc)) NL)]
                  [(list bcond bexpr bloc)
                   (printf "\\mathbf{~a}\\;~a:~a~a~a~a\n"
                           (if (= n 0) "if" "elif")
-                          (texify bcond #t (cons 1 bloc))
-                          NL IND (texify bexpr #t (cons 2 bloc)) NL)]))
+                          (texify bcond (get-representation 'bool) #t (cons 1 bloc))
+                          NL IND (texify bexpr repr #t (cons 2 bloc)) NL)]))
              (printf "\\end{array}")))]
         [`(<= ,x -inf.0)
-         (texify `(== ,x -inf.0) parens loc)]
+         (texify `(== ,x -inf.0) repr parens loc)]
         [`(,f ,args ...)
          (define-values (self-paren-level arg-paren-level) (precedence-levels f))
-         (let ([texed-args
-                (for/list ([arg args] [id (in-naturals 1)])
-                  (texify arg arg-paren-level (cons id loc)))]
-               [hl-loc
-                #f])
-           (format ; omit parens if parent contex has lower precedence
-            (if (precedence< parens self-paren-level) "~a" "\\left(~a\\right)")
-            (apply (operator-info f '->tex) texed-args)))]))))
+         (define atypes
+           (match (operator-info f 'itype)
+             [(? list? as) as]
+             [(? type-name? a) (map (const a) args)]))
+         (unless (= (length atypes) (length args))
+           (raise-argument-error 'texify "expr?" expr))
+         (define texed-args
+           (for/list ([arg args] [atype atypes] [id (in-naturals 1)])
+             (texify arg (get-representation* atype) arg-paren-level (cons id loc))))
+         (format ; omit parens if parent contex has lower precedence
+          (if (precedence< parens self-paren-level) "~a" "\\left(~a\\right)")
+          (apply (operator-info f '->tex) texed-args))]))))
 

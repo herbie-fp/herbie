@@ -103,7 +103,7 @@
                 (td ,(format-bits (table-row-start result)))
                 (td ,(format-bits (table-row-result result)))
                 (td ,(format-bits (table-row-target result)))
-                (td ,(format-time (table-row-time result)))
+                (td ,(format-time (table-row-time result) #:min 1000))
                 ,(if (table-row-link result)
                      `(td
                        (a ((id ,(format "link~a" id))

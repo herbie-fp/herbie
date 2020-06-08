@@ -182,7 +182,6 @@
             (define result
               (get-test-result
                #:seed seed
-               #:link path
                #:debug-level (cons 'progress '(3 4))
                #:debug-port (hash-ref *jobs* hash)
                #:debug (*demo-debug?*)

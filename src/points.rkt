@@ -84,7 +84,6 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
-
 (define (prepare-points-intervals prog precondition repr)
   (timeline-log! 'method 'intervals)
   (define log (make-hash))
