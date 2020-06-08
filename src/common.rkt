@@ -211,11 +211,11 @@
 
 ;; String formatting operations
 
-(define (format-time ms)
+(define (format-time ms #:min [min-unit 0])
   (cond
-   [(< ms 1000) (format "~ams" (round ms))]
-   [(< ms 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
-   [(< ms 3600000) (format "~am" (/ (round (/ ms 6000.0)) 10))]
+   [(< (max ms min-unit) 1000) (format "~ams" (round ms))]
+   [(< (max ms min-unit) 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
+   [(< (max ms min-unit) 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
 
 (define (format-bits r #:sign [sign #f] #:unit [unit? #f])

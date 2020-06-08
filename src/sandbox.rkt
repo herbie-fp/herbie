@@ -29,7 +29,6 @@
 
 (define (get-test-result test
                          #:seed [seed #f]
-                         #:link [link #f]
                          #:profile [profile? #f]
                          #:debug [debug? #f]
                          #:debug-port [debug-port #f]
@@ -75,7 +74,7 @@
         (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
-        (timeline-adjust! 'regimes 'link link)
+        (timeline-adjust! 'regimes 'link (string->path "."))
 
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" (errors-score end-errs))
@@ -104,7 +103,8 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
-    (timeline-event! 'end)
+    (parameterize ([*timeline-disabled* false])
+      (timeline-event! 'end))
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract)
                   warning-log e))
@@ -122,11 +122,10 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (let ([timeline*
-             (reverse 
-              (cons (hash 'type 'end 'time (current-inexact-milliseconds))
-                    (unbox timeline)))])
-        (test-timeout test (bf-precision) (*timeout*) timeline* '()))))
+      (parameterize ([*timeline-disabled* false])
+        (timeline-load! timeline)
+        (timeline-event! 'end)
+        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))

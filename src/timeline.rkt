@@ -1,7 +1,8 @@
 #lang racket
 (require "config.rkt" "float.rkt" racket/hash)
-(provide timeline-event! timeline-log! timeline-push! timeline-adjust! timeline-extract
-         timeline->json timeline-merge *timeline-disabled*)
+(provide timeline-event! timeline-log! timeline-push! timeline-adjust!
+         timeline-load! timeline-extract timeline->json
+         timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
@@ -39,6 +40,9 @@
       (hash-set! cell key value)
       true)))
 
+(define (timeline-load! value)
+  (set! *timeline* value))
+
 (define (timeline-extract)
   (reverse (unbox *timeline*)))
 
@@ -75,6 +79,13 @@
            v]))
 
       (values k v*))))
+
+(define (timeline-relink link timeline)
+  (for/list ([event (in-list timeline)])
+    (for/hash ([(k v) (in-hash event)])
+      (if (equal? k 'link)
+          (values k (map (λ (p) (path->string (build-path link p))) v))
+          (values k v)))))
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
