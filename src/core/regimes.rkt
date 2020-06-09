@@ -221,22 +221,31 @@
     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
     (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
 
-    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
+    (if (or (equal? p1 +nan.0) (equal? p2 +nan.0))
+        #f
+        (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2))))
+
+  (define (regimes-sidx->spoint sidx)
+    (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
 
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
 
+  (define use-binary
+    (and (flag-set? 'reduce 'binary-search)
+         ;; Binary search is only valid if we correctly extracted the branch expression
+         (andmap identity (cons start-prog progs))))
+  (if use-binary
+      (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
+      (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts))
+      
   (append
-   (if (and (flag-set? 'reduce 'binary-search)
-            ;; Binary search is only valid if we correctly extracted the branch expression
-            (andmap identity (cons start-prog progs)))
-       (begin
-         (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
-         (for/list ([si1 sindices] [si2 (cdr sindices)])
-           (sidx->spoint si1 si2)))
-       (begin
-         (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts)
-         (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	   (sp (si-cidx sindex) expr (apply eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
+   (for/list ([si1 sindices] [si2 (cdr sindices)])
+     (cond
+       [use-binary
+        (let ([searched (sidx->spoint si1 si2)])
+          (if searched searched (regimes-sidx->spoint si1)))]
+       [else
+        (regimes-sidx->spoint si1)]))
    (list final-sp)))
 
 (define (point-with-dim index point val)
