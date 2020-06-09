@@ -110,13 +110,14 @@
  
 (define (get-hyperrects range-table precondition programs reprs repr log)
   (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
-  (define precondition-depth (floor (/ (*max-find-range-depth*) 2)))
+  (define adjusted-search-depth
+    (max 0 (- (*max-find-range-depth*) (floor (log (length hyperrects-from-fpcore) 2)))))
 
   (define search-func (make-valid-search precondition programs repr))
   (define hyperrects
     (apply append
            (for/list ([rect hyperrects-from-fpcore])
-             (find-ranges precondition repr #:initial (car rect) #:depth (*max-find-range-depth*)
+             (find-ranges precondition repr #:initial (car rect) #:depth adjusted-search-depth
                           #:eval-fn search-func #:rounding-repr repr))))
   
   (when (and (not (equal? (length (program-variables precondition)) 0))
