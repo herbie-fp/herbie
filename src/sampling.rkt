@@ -106,28 +106,34 @@
      void
      #;(eprintf "~a\n" (exact->inexact total-shrunk))
      #;(eprintf "~a\n" (exact->inexact sample-likelyhood))]))
-    
- 
+
+
 (define (get-hyperrects range-table precondition programs reprs repr log)
   (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
-  (define adjusted-search-depth
-    (max 0 (- (*max-find-range-depth*) (floor (log (length hyperrects-from-fpcore) 2)))))
+  (cond
+    [(not (andmap
+           (compose (curryr expr-supports? 'ival) program-body)
+           (cons precondition programs)))
+     hyperrects-from-fpcore]
+    [else
+     (define adjusted-search-depth
+       (max 0 (- (*max-find-range-depth*) (floor (log (length hyperrects-from-fpcore) 2)))))
 
-  (define search-func (make-valid-search precondition programs repr))
-  (define hyperrects
-    (apply append
-           (for/list ([rect hyperrects-from-fpcore])
-             (find-ranges precondition repr #:initial (car rect) #:depth adjusted-search-depth
-                          #:eval-fn search-func #:rounding-repr repr))))
-  
-  (when (and (not (equal? (length (program-variables precondition)) 0))
-             (empty? hyperrects))
-    (raise-herbie-error "No valid values."
-                        #:url "faq.html#no-valid-values"))
+     (define search-func (make-valid-search precondition programs repr))
+     (define hyperrects
+       (apply append
+              (for/list ([rect hyperrects-from-fpcore])
+                (find-ranges precondition repr #:initial (car rect) #:depth adjusted-search-depth
+                             #:eval-fn search-func #:rounding-repr repr))))
+     
+     (when (and (not (equal? (length (program-variables precondition)) 0))
+                (empty? hyperrects))
+       (raise-herbie-error "No valid values."
+                           #:url "faq.html#no-valid-values"))
 
-  (log-space-improvement hyperrects hyperrects-from-fpcore repr)
-  
-  hyperrects)
+     (log-space-improvement hyperrects hyperrects-from-fpcore repr)
+     
+     hyperrects]))
 
 
 
