@@ -50,7 +50,7 @@
 (define *num-iterations* (make-parameter 4))
 
 ;; The maximum depth for splitting the space when searching for valid areas of points.
-(define *max-find-range-depth* (make-parameter 15))
+(define *max-find-range-depth* (make-parameter 14))
 
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
