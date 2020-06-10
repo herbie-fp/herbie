@@ -27,26 +27,40 @@
   (reap [sow] (find-intervals eval-fn initial #:fuel depth #:true sow #:other sow #:rounding-repr rounding-repr)))
 
 
-(define (round-midpoint midpoint lo hi repr)
-  
-  (define (round point dir)
-    ((representation-repr->bf repr)
-     (parameterize ([bf-rounding-mode dir])
-       ((representation-bf->repr repr) point))))
-  
-  (define lower (round midpoint 'down))
-  (define higher
-    (cond
-      [(equal? lower (round midpoint 'up))
-       (round (bfnext midpoint) 'up)]
-      [else (round midpoint 'up)]))
+(define (get-midpoints lo hi repr)
+  (cond
+    [repr
+     (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+     ;; find midpoint in repr, then convert to bigfloat
+     (define midpoint
+       ((representation-repr->bf repr)
+        (floor (/ (+ (->ordinal hi) (->ordinal lo))
+                  2))))
+       
+     (define (round point dir)
+       ((representation-repr->bf repr)
+        (parameterize ([bf-rounding-mode dir])
+          ((representation-bf->repr repr) point))))
+     
+     (define lower midpoint)
+     (define higher (round (bfnext midpoint) 'up))
 
-  (when (equal? lower higher)
-    (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
-  
-  (if (and (bf>= lower lo) (bf<= higher hi))
-      (cons lower higher)
-      #f))
+     (when (equal? lower higher)
+       (error 'round-midpoint "Bigfloat at precision 80 not refinement of representation"))
+     
+     (if (and (bf>= lower lo) (bf<= higher hi))
+         (cons lower higher)
+         #f)]
+    [else
+     (define lower
+             (ordinal->bigfloat
+              (floor (/ (+ (bigfloat->ordinal lo)
+                           (bigfloat->ordinal hi))
+                        2))))
+     (define higher (bfstep lower 1))
+     (if (bf<= higher hi)
+         (cons lower higher)
+         #f)]))
 
 (define (find-intervals ival-fn ranges #:fuel [depth 128]
                         #:true [true! void] #:false [false! void] #:error [error! void]
@@ -77,10 +91,10 @@
                            (bigfloat->ordinal (ival-hi range)))
                         2))))
 
+           
            (define midpoints
-             (if rounding-repr
-                 (round-midpoint midpoint-unrounded (ival-lo range) (ival-hi range) rounding-repr)
-                 (cons midpoint-unrounded midpoint-unrounded)))
+             (get-midpoints (ival-lo range) (ival-hi range) rounding-repr))
+ 
            (cond
              [midpoints
               (define range-lo (ival (ival-lo range) (car midpoints)))
