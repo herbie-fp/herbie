@@ -34,8 +34,9 @@
      ;; find midpoint in repr, then convert to bigfloat
      (define midpoint
        ((representation-repr->bf repr)
-        (floor (/ (+ (->ordinal hi) (->ordinal lo))
-                  2))))
+        ((representation-ordinal->repr repr)
+         (floor (/ (+ (->ordinal hi) (->ordinal lo))
+                   2)))))
        
      (define (round point dir)
        ((representation-repr->bf repr)
