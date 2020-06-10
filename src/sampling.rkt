@@ -105,7 +105,7 @@
                 (loop (- ordinal stepsize) (* stepsize 2))))))
 
   (define (is-noninfinite-interval interval)
-    (define not-number? (or (boolean? ival-lo interval) (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
+    (define not-number? (or (boolean? (ival-lo interval)) (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
     (if not-number?
         (ival #t #t)
         (ival-and (ival-< interval (ival rounds-to-infinite-repr rounds-to-infinite-repr))
