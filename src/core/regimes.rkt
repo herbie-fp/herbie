@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt")
+(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -221,9 +221,7 @@
     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
     (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
 
-    (if (or (equal? p1 +nan.0) (equal? p2 +nan.0))
-        #f
-        (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2))))
+    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
   (define (regimes-sidx->spoint sidx)
     (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
@@ -242,8 +240,9 @@
    (for/list ([si1 sindices] [si2 (cdr sindices)])
      (cond
        [use-binary
-        (let ([searched (sidx->spoint si1 si2)])
-          (if searched searched (regimes-sidx->spoint si1)))]
+        (with-handlers ([exn:fail:user:herbie:sampling?
+                         (lambda (e) (regimes-sidx->spoint si1))])
+          (sidx->spoint si1 si2))]
        [else
         (regimes-sidx->spoint si1)]))
    (list final-sp)))

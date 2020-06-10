@@ -128,8 +128,8 @@
      
      (when (and (not (equal? (length (program-variables precondition)) 0))
                 (empty? hyperrects))
-       (raise-herbie-error "No valid values."
-                           #:url "faq.html#no-valid-values"))
+       (raise-herbie-sampling-error "No valid values."
+                                    #:url "faq.html#no-valid-values"))
 
      (log-space-improvement hyperrects hyperrects-from-fpcore repr)
      
@@ -149,8 +149,8 @@
 
   (for ([var variables])
       (when (null? (range-table-ref range-table var))
-        (raise-herbie-error "No valid values of variable ~a" var
-                            #:url "faq.html#no-valid-values")))
+        (raise-herbie-sampling-error "No valid values of variable ~a" var
+                                     #:url "faq.html#no-valid-values")))
   
   (define reprs
     (map (curry dict-ref (*var-reprs*)) variables))
