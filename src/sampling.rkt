@@ -78,13 +78,21 @@
        (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
                                        (+ 1 (->ordinal (ival-hi interval)))))))]))
 
+
 (define (make-valid-search precondition programs repr)
+  ;; max noninfinite repr value in bigfloat
+  (define max-repr-noninfinite
+    ((representation-repr->bf repr)
+     ((representation-ordinal->repr repr)
+      (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
+  
   (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
     (compose
      (lambda (ival-vec)
        (define ival-list (vector->list ival-vec))
        (apply ival-and (first ival-list)
-              (map ival-not (map ival-error? (rest ival-list)))))
+              (append (map (curry ival-> (ival max-repr-noninfinite max-repr-noninfinite)) (rest ival-list))
+                      (map ival-not (map ival-error? (rest ival-list))))))
      (batch-eval-progs (cons precondition programs) 'ival repr))))
 
 (define (log-space-improvement hyperrects from-fpcore repr)
