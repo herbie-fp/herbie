@@ -119,7 +119,7 @@
            (list (+ from1 from2) (+ to1 to2))]
           ['sampling
            ;; average each timeline's data and put in the list
-           (cons (apply map average v) (dict-ref data k v))]
+           (cons v (dict-ref data k v))]
           [(or 'locations 'bstep
                'inputs 'outputs
                'kept 'min-error
