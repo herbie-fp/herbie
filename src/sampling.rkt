@@ -95,12 +95,17 @@
      (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
      (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
      
-     (define total-space (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
-     (define fpcore-space (rect-space-sum repr from-fpcore))
-     (define after-space (rect-space-sum repr hyperrects))
-     (define good-space (rect-space-sum repr true-hyperrects))
+     (define total (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
+     (define fpcore (rect-space-sum repr from-fpcore))
+     (define after (rect-space-sum repr hyperrects))
+     (define good (rect-space-sum repr true-hyperrects))
 
-     (timeline-log! 'sampling (list (list total-space fpcore-space after-space good-space)))]))
+
+     (define fpcore-percent (exact->inexact (/ fpcore total)))
+     (define after-percent (exact->inexact (/ after total)))
+     (define good-chance (exact->inexact (/ good after)))
+     
+     (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
 
 
 (define (get-hyperrects range-table precondition programs reprs repr log)

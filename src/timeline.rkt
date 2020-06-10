@@ -87,6 +87,9 @@
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))
 
+(define (average . values)
+  (/ (apply + values) (length values)))
+
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
   (define types (make-hash))
@@ -115,7 +118,8 @@
            (match-define (list from2 to2) (dict-ref data k '(0 0)))
            (list (+ from1 from2) (+ to1 to2))]
           ['sampling
-           (append v (dict-ref data k empty))]
+           ;; average each timeline's data and put in the list
+           (cons (apply map average v) (dict-ref data k v))]
           [(or 'locations 'bstep
                'inputs 'outputs
                'kept 'min-error
@@ -123,4 +127,5 @@
            (void)]))
       (unless (void? v*)
         (dict-set! data k v*))))
+  
   (sort (dict-values types) > #:key (curryr dict-ref 'time)))

@@ -115,21 +115,19 @@
               (match-define (list iter nodes cost t) row)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
-(define (get-average . data)
-  (/ (apply + data) (length data)))
 
-(define (exact->percent exact)
-  (~r (* (exact->inexact exact) 100) #:precision '(= 1)))
+(define (->percent num)
+  (~r (* num 100)))
+
+(define (average . values)
+  (/ (apply + values) (length values)))
 
 (define (render-phase-sampling data)
-  (match-define (list total fpcore after good) (apply map get-average data))
-  (define fpcore-percent (exact->percent (/ fpcore total)))
-  (define after-percent (exact->percent (/ after total)))
-  (define good-chance (exact->percent (/ good after)))
+  (match-define (list fpcore after good) (apply map average data))
   `((dt "sampling")
-    (dd (p ,(format "space after fpcore: ~a%" fpcore-percent))
-        (p ,(format "space after search: ~a%" after-percent))
-        (p ,(format "guaranteed chance to sample good point: ~a%" good-chance)))))
+    (dd (p ,(format "Space saved by range analysis: ~a%" (->percent (- 1 fpcore))))
+        (p ,(format "Space saved by search: ~a%" (->percent (- 1 after))))
+        (p ,(format "Guaranteed chance to sample good point: ~a%" (->percent good))))))
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
