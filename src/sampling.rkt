@@ -86,26 +86,40 @@
     ((representation-repr->bf repr)
      ((representation-ordinal->repr repr)
       (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
+
+  (define (rounds-infinite? ordinal)
+    (define rounded ((representation-repr->bf repr) ((representation-bf->repr repr) (ordinal->bigfloat ordinal))))
+    (or (equal? rounded +inf.bf) (equal? rounded -inf.bf)))
   
-  (define bigfloat-rounds-to-infinite-repr
+  (define rounds-to-infinite-repr
     (parameterize ([bf-rounding-mode 'nearest])
       (let loop ([ordinal (bigfloat->ordinal max-repr-noninfinite)] [stepsize 1])
-            (if (equal?
-                 ((representation-repr->bf repr) ((representation-bf->repr repr) (ordinal->bigfloat ordinal)))
-                 +inf.bf)
+            (if (rounds-infinite? ordinal)
                 (ordinal->bigfloat ordinal)
                 (loop (+ ordinal stepsize) (* stepsize 2))))))
+  (define rounds-to-neg-infinite-repr
+    (parameterize ([bf-rounding-mode 'nearest])
+      (let loop ([ordinal (- (bigfloat->ordinal rounds-to-infinite-repr))] [stepsize 1])
+            (if (rounds-infinite? ordinal)
+                (ordinal->bigfloat ordinal)
+                (loop (- ordinal stepsize) (* stepsize 2))))))
+
+  (define (is-noninfinite-interval interval)
+    (if (boolean? (ival-lo interval))
+        (ival #t #t)
+        (ival-and (ival-< interval (ival rounds-to-infinite-repr rounds-to-infinite-repr))
+                  (ival-> interval (ival rounds-to-neg-infinite-repr rounds-to-neg-infinite-repr)))))
         
-  
+    
   (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
     (compose
      (lambda (ival-vec)
        (define ival-list (vector->list ival-vec))
        (apply ival-and (first ival-list)
-              (append (map (curry ival-> (ival bigfloat-rounds-to-infinite-repr bigfloat-rounds-to-infinite-repr))
-                           (rest ival-list))
+              (append (map is-noninfinite-interval (rest ival-list))
                       (map ival-not (map ival-error? (rest ival-list))))))
      (batch-eval-progs (cons precondition programs) 'ival repr))))
+
 
 (define (log-space-improvement hyperrects from-fpcore repr)
   (cond
