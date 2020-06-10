@@ -50,6 +50,7 @@
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]
         [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
+        [`(infinite ,prec ,pt ,_) (list name 'invalid prec)]
         [`(nan ,prec ,pt) (list name 'nan prec)]))
     (define dt (- (current-inexact-milliseconds) start))
     (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
@@ -68,7 +69,9 @@
       +nan.0]
      [(and (not (ival-err? out))
            (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
-      (log! 'sampled precision pt hi)
+      (if (ordinary-value? hi repr)
+          (log! 'sampled precision pt hi)
+          (log! 'infinite precision pt hi))
       hi]
      [(and lo! hi!)
       (log! 'overflowed precision pt)
