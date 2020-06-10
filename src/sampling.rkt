@@ -105,10 +105,13 @@
                 (loop (- ordinal stepsize) (* stepsize 2))))))
 
   (define (is-noninfinite-interval interval)
+    (define has-nan? (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
     (if (boolean? (ival-lo interval))
         (ival #t #t)
-        (ival-and (ival-< interval (ival rounds-to-infinite-repr rounds-to-infinite-repr))
-                  (ival-> interval (ival rounds-to-neg-infinite-repr rounds-to-neg-infinite-repr)))))
+        (ival-or
+         (ival-and (ival-< interval (ival rounds-to-infinite-repr rounds-to-infinite-repr))
+                   (ival-> interval (ival rounds-to-neg-infinite-repr rounds-to-neg-infinite-repr)))
+         (ival has-nan? has-nan?))))
         
     
   (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
