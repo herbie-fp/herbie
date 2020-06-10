@@ -71,6 +71,7 @@
      ,@(dict-call curr render-phase-times #:extra n 'times)
      ,@(dict-call curr render-phase-bstep 'bstep)
      ,@(dict-call curr render-phase-egraph 'egraph)
+     ,@(dict-call curr render-phase-sampling 'sampling)
      ,@(dict-call curr render-phase-outcomes 'outcomes))))
 
 (define (if-cons test x l)
@@ -114,6 +115,21 @@
               (match-define (list iter nodes cost t) row)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
+(define (get-average . data)
+  (/ (apply + data) (length data)))
+
+(define (exact->percent exact)
+  (~r (* (exact->inexact exact) 100) #:precision '(= 1)))
+
+(define (render-phase-sampling data)
+  (match-define (list total fpcore after good) (apply map get-average data))
+  (define fpcore-percent (exact->percent (/ fpcore total)))
+  (define after-percent (exact->percent (/ after total)))
+  (define good-chance (exact->percent (/ good after)))
+  `((dt "sampling")
+    (dd (p ,(format "space after fpcore: ~a%" fpcore-percent))
+        (p ,(format "space after search: ~a%" after-percent))
+        (p ,(format "guaranteed chance to sample good point: ~a%" good-chance)))))
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
@@ -262,11 +278,15 @@
              ,@(dict-call phase render-summary-times #:extra type 'times)
              ,@(dict-call phase render-summary-accuracy 'accuracy 'oracle 'baseline 'name 'link)
              ,@(dict-call phase render-summary-filtered 'filtered)
+             ,@(dict-call phase render-summary-sampling 'sampling)
              ,@(dict-call phase render-summary-rules 'rules)))))
 
   `(section ([id "process-info"])
             (h1 "Details")
             ,@blocks))
+
+(define (render-summary-sampling data)
+  (render-phase-sampling data))
 
 (define (render-summary-algorithm algorithm)
   `((dt "Algorithm")

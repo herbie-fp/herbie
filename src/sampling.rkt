@@ -100,12 +100,7 @@
      (define after-space (rect-space-sum repr hyperrects))
      (define good-space (rect-space-sum repr true-hyperrects))
 
-     (define sample-likelyhood (/ good-space after-space))
-     (define range-analysis-shrunk (/ fpcore-space total-space))
-     (define total-shrunk (/ after-space total-space))
-     void
-     #;(eprintf "~a\n" (exact->inexact total-shrunk))
-     #;(eprintf "~a\n" (exact->inexact sample-likelyhood))]))
+     (timeline-log! 'sampling (list (list total-space fpcore-space after-space good-space)))]))
 
 
 (define (get-hyperrects range-table precondition programs reprs repr log)

@@ -75,7 +75,7 @@
           [(or 'accuracy 'oracle 'baseline 'name)
            (list v)]
           ['link (list (path->string v))]
-          [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph)
+          [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph 'sampling)
            v]))
 
       (values k v*))))
@@ -114,6 +114,8 @@
            (match-define (list from1 to1) v)
            (match-define (list from2 to2) (dict-ref data k '(0 0)))
            (list (+ from1 from2) (+ to1 to2))]
+          ['sampling
+           (append v (dict-ref data k empty))]
           [(or 'locations 'bstep
                'inputs 'outputs
                'kept 'min-error
