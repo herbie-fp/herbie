@@ -80,18 +80,30 @@
 
 
 (define (make-valid-search precondition programs repr)
+  
   ;; max noninfinite repr value in bigfloat
   (define max-repr-noninfinite
     ((representation-repr->bf repr)
      ((representation-ordinal->repr repr)
       (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
   
+  (define bigfloat-rounds-to-infinite-repr
+    (parameterize ([bf-rounding-mode 'nearest])
+      (let loop ([ordinal (bigfloat->ordinal max-repr-noninfinite)] [stepsize 1])
+            (if (equal?
+                 ((representation-repr->bf repr) ((representation-bf->repr repr) (ordinal->bigfloat ordinal)))
+                 +inf.bf)
+                (ordinal->bigfloat ordinal)
+                (loop (+ ordinal stepsize) (* stepsize 2))))))
+        
+  
   (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
     (compose
      (lambda (ival-vec)
        (define ival-list (vector->list ival-vec))
        (apply ival-and (first ival-list)
-              (append (map (curry ival-> (ival max-repr-noninfinite max-repr-noninfinite)) (rest ival-list))
+              (append (map (curry ival-> (ival bigfloat-rounds-to-infinite-repr bigfloat-rounds-to-infinite-repr))
+                           (rest ival-list))
                       (map ival-not (map ival-error? (rest ival-list))))))
      (batch-eval-progs (cons precondition programs) 'ival repr))))
 
