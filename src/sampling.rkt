@@ -113,7 +113,6 @@
               (map ival-finite? ival-bodies)
               (map ival-samplable? ival-bodies) ; Arguable whether this should be here
               (map (compose ival-not ival-error?) ival-bodies))))
-    ;(eprintf "~a -> ~a\n" ival-vec x)
     x))
 
 (define (make-valid-search precondition programs repr)
@@ -129,7 +128,6 @@
     [else
      (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
      (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-     (pretty-print hyperrects)
      
      (define total (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
      (define fpcore (rect-space-sum repr from-fpcore))
@@ -141,7 +139,6 @@
      (define after-percent (exact->inexact (/ after total)))
      (define good-chance (exact->inexact (/ good after)))
      
-     (eprintf "%s ~a ~a ~a\n" fpcore-percent after-percent good-chance)
      (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
 
 (define (get-hyperrects precondition programs reprs repr)
@@ -187,27 +184,27 @@
 
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
-  
   (define reprs
     (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
-  (if (set-member? '(binary32 binary64) (representation-name repr))
-      (λ ()
-        (unless (> (bf-precision) (representation-total-bits repr))
-          (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
-                 (bf-precision) repr))
+  (cond
+    [(set-member? '(binary32 binary64) (representation-name repr))
+     (unless (> (bf-precision) (representation-total-bits repr))
+       (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
+              (bf-precision) repr))
 
-        (define hyperrects (get-hyperrects precondition programs reprs repr))
+     (define hyperrects (get-hyperrects precondition programs reprs repr))
 
-        (define weights (list->vector (hyperrects->weights repr hyperrects)))
-        
-        (define hyperrect-vector
-          (list->vector hyperrects))
-        
-        (sample-multi-bounded hyperrect-vector weights reprs))
-      (λ () (map random-generate reprs))))
+     (define weights (list->vector (hyperrects->weights repr hyperrects)))
+     
+     (define hyperrect-vector
+       (list->vector hyperrects))
+     (λ ()
+       (sample-multi-bounded hyperrect-vector weights reprs))]
+    [else
+     (λ () (map random-generate reprs))]))
 
 
 

@@ -118,8 +118,7 @@
            (match-define (list from2 to2) (dict-ref data k '(0 0)))
            (list (+ from1 from2) (+ to1 to2))]
           ['sampling
-           ;; average each timeline's data and put in the list
-           (cons v (dict-ref data k v))]
+           (append v (dict-ref data k v))]
           [(or 'locations 'bstep
                'inputs 'outputs
                'kept 'min-error

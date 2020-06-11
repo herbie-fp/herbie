@@ -124,24 +124,9 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
-(define (nested-average data)
-  (cond
-    [(number? (first data))
-     data]
-    [else
-     (apply map average (map nested-average data))]))
-     
-(module+ test
-  (check-equal?
-   (nested-average `((((2) ((3) (5))) ((10) (20))) ((5) (5) (5) (5) (5) (5) (5) (5) (5))))
-   (list (/ (+ (/ (+ 3 15) 2) 5) 2)))
-  (check-equal?
-   (nested-average `((1 4 8) (2 8 16)))
-   (list (/ 3 2) 6 12)))
-     
-     
+
 (define (render-phase-sampling data)
-  (match-define (list fpcore after good) (nested-average data))
+  (match-define (list fpcore after good) (apply map average data))
   `((dt "sampling")
     (dd (p ,(format "Space saved by range analysis: ~a%" (->percent (- 1 fpcore))))
         (p ,(format "Space saved by search: ~a%" (->percent (- 1 after))))
