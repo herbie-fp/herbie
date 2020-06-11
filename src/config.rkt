@@ -5,14 +5,14 @@
 
 (define all-flags
   #hash([precision . (double fallback)]
-        [setup . (simplify early-exit)]
+        [setup . (simplify early-exit search)]
         [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . (double fallback)]
-        [setup . (simplify)]
+        [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))

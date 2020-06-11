@@ -143,12 +143,23 @@
      (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
 
 
-(define (get-hyperrects range-table precondition programs reprs repr log)
-  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
+(define (get-hyperrects precondition programs reprs repr log)
+  (define range-table
+    (condition->range-table
+     (if (and (fpcore-expr? (program-body precondition)) (flag-set? 'setup 'search))
+         (program-body precondition)
+         'TRUE)))
+  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs)) 
+
+  (for ([var (program-variables precondition)])
+      (when (null? (range-table-ref range-table var))
+        (raise-herbie-sampling-error "No valid values of variable ~a" var
+                                     #:url "faq.html#no-valid-values")))
   (cond
-    [(not (andmap
-           (compose (curryr expr-supports? 'ival) program-body)
-           (cons precondition programs)))
+    [(or (not (flag-set? 'setup 'search))
+         (not (andmap
+               (compose (curryr expr-supports? 'ival) program-body)
+               (cons precondition programs))))
      hyperrects-from-fpcore]
     [else
      (define adjusted-search-depth
@@ -176,24 +187,13 @@
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
   
-  (define body (program-body precondition))
-  (define variables (program-variables precondition))
-  
-  (define range-table
-    (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
-
-  (for ([var variables])
-      (when (null? (range-table-ref range-table var))
-        (raise-herbie-sampling-error "No valid values of variable ~a" var
-                                     #:url "faq.html#no-valid-values")))
-  
   (define reprs
-    (map (curry dict-ref (*var-reprs*)) variables))
+    (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
   (parameterize ([bf-precision 80])
     ;; TODO(interface): range tables do not handle representations right now
     ;; They produce +-inf endpoints, which aren't valid values in generic representations
-    (define hyperrects (get-hyperrects range-table precondition programs reprs repr log))
+    (define hyperrects (get-hyperrects precondition programs reprs repr log))
 
     (define weights (list->vector (hyperrects->weights repr hyperrects)))
     
