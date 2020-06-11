@@ -141,7 +141,6 @@
      (define after-percent (exact->inexact (/ after total)))
      (define good-chance (exact->inexact (/ good after)))
      
-     (eprintf "%s ~a ~a ~a\n" fpcore-percent after-percent good-chance)
      (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
 
 (define (get-hyperrects precondition programs reprs repr)
