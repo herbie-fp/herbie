@@ -19,7 +19,11 @@
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1))))
+  (define bound (bound-ordinary-values repr))
+  (define bflo (match lo [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
+  (define bfhi (match hi [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
+  ;; Mobilize, because the actual sampling points will shrink
+  (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1))))
 
 (define (ival-ordinal-size repr interval)
   (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
@@ -78,49 +82,45 @@
        (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
                                        (+ 1 (->ordinal (ival-hi interval)))))))]))
 
+(define (is-finite-interval repr)
+  (define bound (bound-ordinary-values repr))
+  (λ (interval)
+    (define not-number? (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
+    (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound)))))
+
+(define (is-samplable-interval repr)
+  (define <-bf (representation-bf->repr repr))
+  (λ (interval)
+    (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
+    (define lo! (ival-lo-fixed? interval))
+    (define hi! (ival-hi-fixed? interval))
+    (define v
+      (and (not (and (not (ival-err? interval)) (or (equal? lo hi) (and (number? lo) (= lo hi)))))
+           (or (and lo! hi!)
+               (or (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
+                   (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval)))))))
+    (ival-bool (not v))))
+
+(define (valid-result? repr)
+  (define ival-finite? (is-finite-interval repr))
+  (define ival-samplable? (is-samplable-interval repr))
+  (λ (ival-vec)
+    (match-define (list ival-pre ival-bodies ...) (vector->list ival-vec))
+    (define x
+      (apply ival-and
+             ival-pre
+             (append
+              (map ival-finite? ival-bodies)
+              (map ival-samplable? ival-bodies) ; Arguable whether this should be here
+              (map (compose ival-not ival-error?) ival-bodies))))
+    ;(eprintf "~a -> ~a\n" ival-vec x)
+    x))
 
 (define (make-valid-search precondition programs repr)
-  
-  ;; max noninfinite repr value in bigfloat
-  (define max-repr-noninfinite
-    ((representation-repr->bf repr)
-     ((representation-ordinal->repr repr)
-      (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
-
-  (define (rounds-infinite? ordinal)
-    (define rounded ((representation-repr->bf repr) ((representation-bf->repr repr) (ordinal->bigfloat ordinal))))
-    (or (equal? rounded +inf.bf) (equal? rounded -inf.bf)))
-  
-  (define rounds-to-infinite-repr
-    (parameterize ([bf-rounding-mode 'nearest])
-      (let loop ([ordinal (bigfloat->ordinal max-repr-noninfinite)] [stepsize 1])
-            (if (rounds-infinite? ordinal)
-                (ordinal->bigfloat ordinal)
-                (loop (+ ordinal stepsize) (* stepsize 2))))))
-  (define rounds-to-neg-infinite-repr
-    (parameterize ([bf-rounding-mode 'nearest])
-      (let loop ([ordinal (- (bigfloat->ordinal rounds-to-infinite-repr))] [stepsize 1])
-            (if (rounds-infinite? ordinal)
-                (ordinal->bigfloat ordinal)
-                (loop (- ordinal stepsize) (* stepsize 2))))))
-
-  (define (is-noninfinite-interval interval)
-    (define not-number? (or (boolean? (ival-lo interval)) (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
-    (if not-number?
-        (ival #t #t)
-        (ival-and (ival-< interval (ival rounds-to-infinite-repr rounds-to-infinite-repr))
-                  (ival-> interval (ival rounds-to-neg-infinite-repr rounds-to-neg-infinite-repr)))))
-        
-    
   (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
     (compose
-     (lambda (ival-vec)
-       (define ival-list (vector->list ival-vec))
-       (apply ival-and (first ival-list)
-              (append (map is-noninfinite-interval (rest ival-list))
-                      (map ival-not (map ival-error? (rest ival-list))))))
+     (valid-result? repr)
      (batch-eval-progs (cons precondition programs) 'ival repr))))
-
 
 (define (log-space-improvement hyperrects from-fpcore repr)
   (cond
@@ -129,6 +129,7 @@
     [else
      (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
      (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+     (pretty-print hyperrects)
      
      (define total (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
      (define fpcore (rect-space-sum repr from-fpcore))
@@ -140,16 +141,16 @@
      (define after-percent (exact->inexact (/ after total)))
      (define good-chance (exact->inexact (/ good after)))
      
+     (eprintf "%s ~a ~a ~a\n" fpcore-percent after-percent good-chance)
      (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
 
-
-(define (get-hyperrects precondition programs reprs repr log)
+(define (get-hyperrects precondition programs reprs repr)
   (define range-table
     (condition->range-table
      (if (and (fpcore-expr? (program-body precondition)) (flag-set? 'setup 'search))
          (program-body precondition)
          'TRUE)))
-  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs)) 
+  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
 
   (for ([var (program-variables precondition)])
       (when (null? (range-table-ref range-table var))
@@ -167,10 +168,10 @@
 
      (define search-func (make-valid-search precondition programs repr))
      (define hyperrects
-       (apply append
-              (for/list ([rect hyperrects-from-fpcore])
-                (find-ranges precondition repr #:initial (car rect) #:depth adjusted-search-depth
-                             #:eval-fn search-func #:rounding-repr repr))))
+       (reap [sow]
+             (for ([rect hyperrects-from-fpcore])
+               (find-intervals search-func (car rect) sow #:repr repr
+                               #:fuel adjusted-search-depth))))
      
      (when (and (not (equal? (length (program-variables precondition)) 0))
                 (empty? hyperrects))
@@ -190,20 +191,23 @@
   (define reprs
     (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
-  (parameterize ([bf-precision 80])
-    ;; TODO(interface): range tables do not handle representations right now
-    ;; They produce +-inf endpoints, which aren't valid values in generic representations
-    (define hyperrects (get-hyperrects precondition programs reprs repr log))
+  (unless (> (bf-precision) (representation-total-bits repr))
+    (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
+           (bf-precision) repr))
 
-    (define weights (list->vector (hyperrects->weights repr hyperrects)))
+  ;; TODO(interface): range tables do not handle representations right now
+  ;; They produce +-inf endpoints, which aren't valid values in generic representations
+  (define hyperrects (get-hyperrects precondition programs reprs repr))
+
+  (define weights (list->vector (hyperrects->weights repr hyperrects)))
     
-    (define hyperrect-vector
-      (list->vector hyperrects))
+  (define hyperrect-vector
+    (list->vector hyperrects))
 
-    (if (set-member? '(binary32 binary64) (representation-name repr))
-        (λ ()
-          (sample-multi-bounded hyperrect-vector weights reprs))
-        (λ () (map random-generate reprs)))))
+  (if (set-member? '(binary32 binary64) (representation-name repr))
+      (λ ()
+        (sample-multi-bounded hyperrect-vector weights reprs))
+      (λ () (map random-generate reprs))))
 
 
 
