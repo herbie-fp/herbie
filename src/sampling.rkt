@@ -191,21 +191,21 @@
   (define reprs
     (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
-  (unless (> (bf-precision) (representation-total-bits repr))
-    (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
-           (bf-precision) repr))
-
   ;; TODO(interface): range tables do not handle representations right now
   ;; They produce +-inf endpoints, which aren't valid values in generic representations
-  (define hyperrects (get-hyperrects precondition programs reprs repr))
-
-  (define weights (list->vector (hyperrects->weights repr hyperrects)))
-    
-  (define hyperrect-vector
-    (list->vector hyperrects))
-
   (if (set-member? '(binary32 binary64) (representation-name repr))
       (λ ()
+        (unless (> (bf-precision) (representation-total-bits repr))
+          (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
+                 (bf-precision) repr))
+
+        (define hyperrects (get-hyperrects precondition programs reprs repr))
+
+        (define weights (list->vector (hyperrects->weights repr hyperrects)))
+        
+        (define hyperrect-vector
+          (list->vector hyperrects))
+        
         (sample-multi-bounded hyperrect-vector weights reprs))
       (λ () (map random-generate reprs))))
 
