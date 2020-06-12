@@ -121,15 +121,18 @@
      (valid-result? repr)
      (batch-eval-progs (cons precondition programs) 'ival repr))))
 
-(define (log-space-improvement hyperrects from-fpcore repr)
+(define (log-space-improvement hyperrects from-fpcore repr precondition reprs)
   (cond
     [(empty? hyperrects)
      void]
     [else
      (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
-     (define bf->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
      
-     (define total (expt (- (bf->ordinal +inf.bf) (bf->ordinal -inf.bf)) (length (car (first hyperrects)))))
+     (define full-table
+       (condition->range-table 'TRUE))
+     (define full-hyperrects (range-table->hyperrects full-table (program-variables precondition) reprs))
+     (define total (rect-space-sum repr full-hyperrects))
+     
      (define fpcore (rect-space-sum repr from-fpcore))
      (define after (rect-space-sum repr hyperrects))
      (define good (rect-space-sum repr true-hyperrects))
@@ -175,7 +178,7 @@
        (raise-herbie-sampling-error "No valid values."
                                     #:url "faq.html#no-valid-values"))
 
-     (log-space-improvement hyperrects hyperrects-from-fpcore repr)
+     (log-space-improvement hyperrects hyperrects-from-fpcore repr precondition reprs)
      
      hyperrects]))
 
