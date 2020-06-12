@@ -10,12 +10,20 @@
 
 (provide make-sampler)
 
-(define (range-table->hyperrects range-table variables reprs)
-  (map (lambda (rect) (cons rect 'other))
-       (apply cartesian-product
-              (for/list ([var-name variables] [repr reprs])
-                (map (lambda (interval) (fpbench-ival->ival repr interval))
-                     (range-table-ref range-table var-name))))))
+(define (precondition->hyperrects precondition reprs)
+  (define precondition*
+    (if (and (fpcore-expr? (program-body precondition)) (flag-set? 'setup 'search))
+        (program-body precondition)
+        'TRUE))
+  (define range-table (condition->range-table precondition*))
+
+  (define hyperrects
+    (apply cartesian-product
+           (for/list ([var-name (program-variables precondition)] [repr reprs])
+             (map (lambda (interval) (fpbench-ival->ival repr interval))
+                  (range-table-ref range-table var-name)))))
+
+  (map (curryr cons 'other) hyperrects))
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
@@ -25,44 +33,32 @@
   ;; Mobilize, because the actual sampling points will shrink
   (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1))))
 
-(define (ival-ordinal-size repr interval)
-  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-  (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))
+(define (hyperrect-weight hyperrect reprs)
+  (apply * (for/list ([ival hyperrect] [repr reprs])
+             (define ->ordinal (compose (representation-repr->ordinal repr)
+                                        (representation-bf->repr repr)))
+             (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
 
-(define (hyperrects->weights reprs hyperrects)
-  (let loop ([current 0] [hyperrects hyperrects])
-    (cond
-      [(empty? hyperrects) empty]
-      [else
-       (let ([new-val (+ current (apply * (map ival-ordinal-size reprs (car (first hyperrects)))))])
-         (cons new-val
-               (loop new-val (rest hyperrects))))])))
-
-(define (rect-space-sum reprs hyperrects)
-  (define weights (hyperrects->weights reprs hyperrects))
-  (if
-   (empty? weights)
-   0
-   (last weights)))
-
+(define (partial-sums v)
+  (define out (make-vector (vector-length v) 0))
+  (let loop ([sum 0] [i 0])
+    (if (< i (length v))
+        (let ([sum* (+ sum (vector-ref v i))])
+          (vector-set! out i sum*)
+          (loop sum* (+ i 1)))
+        out)))
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
 ;; assumes vector strictly increasing
 (define (binary-search vector num)
-  (binary-search-recursive vector num 0 (- (vector-length vector) 1)))
-
-
-(define (binary-search-recursive vector num left-inclusive right-inclusive)
-  (cond
-    [(>= left-inclusive right-inclusive)
-     (min left-inclusive (- (vector-length vector) 1))]
-    [else
-     (define mid (floor (/ (+ left-inclusive right-inclusive) 2)))
-     (define val (vector-ref vector mid))
-     (if
-      (<= val num)
-      (binary-search-recursive vector num (+ 1 mid) right-inclusive)
-      (binary-search-recursive vector num left-inclusive mid))]))
+  (let loop ([left 0] [right (- (vector-length vector) 1)])
+    (cond
+     [(>= left right)
+      (min left (- (vector-length vector) 1))]
+     [else
+      (define mid (floor (/ (+ left right) 2)))
+      (define pivot (vector-ref vector mid))
+      (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
 
 (define (choose-hyperrect hyperrects weights)
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
@@ -115,101 +111,63 @@
               (map (compose ival-not ival-error?) ival-bodies))))
     x))
 
-(define (make-valid-search precondition programs repr)
-  (parameterize ([*var-reprs* (map (λ (x) (cons x repr)) (program-variables precondition))])
-    (compose
-     (valid-result? repr)
-     (batch-eval-progs (cons precondition programs) 'ival repr))))
+(define/contract (log-space-improvement from-search from-analysis reprs)
+  (-> (non-empty-listof any/c) any/c (listof representation?) void?)
 
-(define (log-space-improvement hyperrects from-fpcore repr precondition reprs)
-  (cond
-    [(empty? hyperrects)
-     void]
-    [else
-     (define true-hyperrects (filter (lambda (rect) (equal? (cdr rect) 'true)) hyperrects))
+  (define (total-weight hyperrects)
+    (exact->inexact (apply + (map (curryr hyperrect-weight reprs) hyperrects))))
      
-     (define full-table
-       (condition->range-table 'TRUE))
-     (define full-hyperrects (range-table->hyperrects full-table (program-variables precondition) reprs))
-     (define total (rect-space-sum reprs full-hyperrects))
+  (define total (expt 2 (apply + (map representation-total-bits reprs))))
+  (define fpcore (total-weight from-analysis))
+  (define after (total-weight from-search))
+  (define good (total-weight (filter (lambda (rect) (equal? (cdr rect) 'true)) from-search)))
      
-     (define fpcore (rect-space-sum reprs from-fpcore))
-     (define after (rect-space-sum reprs hyperrects))
-     (define good (rect-space-sum reprs true-hyperrects))
-
-
-     (define fpcore-percent (exact->inexact (/ fpcore total)))
-     (define after-percent (exact->inexact (/ after total)))
-     (define good-chance (exact->inexact (/ good after)))
-     
-     (timeline-log! 'sampling (list (list fpcore-percent after-percent good-chance)))]))
+  (timeline-push! 'sampling (/ fpcore total) (/ after total) (/ good after)))
 
 (define (get-hyperrects precondition programs reprs repr)
-  (define range-table
-    (condition->range-table
-     (if (and (fpcore-expr? (program-body precondition)) (flag-set? 'setup 'search))
-         (program-body precondition)
-         'TRUE)))
-  (define hyperrects-from-fpcore (range-table->hyperrects range-table (program-variables precondition) reprs))
+  (define hyperrects-analysis (precondition->hyperrects precondition reprs))
 
-  (for ([var (program-variables precondition)])
-      (when (null? (range-table-ref range-table var))
-        (raise-herbie-sampling-error "No valid values of variable ~a" var
-                                     #:url "faq.html#no-valid-values")))
-  (cond
-    [(or (not (flag-set? 'setup 'search))
-         (not (andmap
-               (compose (curryr expr-supports? 'ival) program-body)
-               (cons precondition programs))))
-     hyperrects-from-fpcore]
-    [else
-     (define adjusted-search-depth
-       (max 0 (- (*max-find-range-depth*) (floor (log (length hyperrects-from-fpcore) 2)))))
+  (define fuel (floor (max 0 (- (*max-find-range-depth*) (log (length hyperrects-analysis) 2)))))
 
-     (define search-func (make-valid-search precondition programs repr))
-     (define hyperrects
-       (reap [sow]
-             (for ([rect hyperrects-from-fpcore])
-               (find-intervals search-func (car rect) sow #:reprs reprs
-                               #:fuel adjusted-search-depth))))
+  (define search-func
+    (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
+
+  (define hyperrects-search
+    (reap [sow]
+          (for ([rect hyperrects-analysis])
+            (find-intervals search-func (car rect) sow #:reprs reprs #:fuel fuel))))
      
-     (when (and (not (equal? (length (program-variables precondition)) 0))
-                (empty? hyperrects))
-       (raise-herbie-sampling-error "No valid values."
-                                    #:url "faq.html#no-valid-values"))
+  (when (empty? hyperrects-search)
+    (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
 
-     (log-space-improvement hyperrects hyperrects-from-fpcore repr precondition reprs)
-     
-     hyperrects]))
+  (log-space-improvement hyperrects-analysis hyperrects-search reprs)
+
+  hyperrects-search)
 
 
 
 
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
-  (define reprs
-    (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
+  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
-  ;; TODO(interface): range tables do not handle representations right now
-  ;; They produce +-inf endpoints, which aren't valid values in generic representations
+  (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
+    (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representations ~a"
+           (bf-precision) reprs))
+
   (cond
-    [(set-member? '(binary32 binary64) (representation-name repr))
-     (unless (> (bf-precision) (representation-total-bits repr))
-       (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representation ~a"
-              (bf-precision) repr))
+   ;; TODO: unclear why we need to make these representations special
+   [(and (set-member? '(binary32 binary64) (representation-name repr))
+         (flag-set? 'setup 'search)
+         (expr-supports? (program-body precondition) 'ival)
+         (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
+         (not (empty? reprs)))
 
-     (define hyperrects (get-hyperrects precondition programs reprs repr))
-
-     (define weights (list->vector (hyperrects->weights reprs hyperrects)))
-     
-     (define hyperrect-vector
-       (list->vector hyperrects))
-     (λ ()
-       (sample-multi-bounded hyperrect-vector weights reprs))]
-    [else
-     (λ () (map random-generate reprs))]))
-
-
+    (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
+    (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
+    (λ () (sample-multi-bounded hyperrects weights reprs))]
+   [else
+    (λ () (map random-generate reprs))]))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -235,10 +193,5 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for))))
 
-  (define test-table-simple
-    (make-hash
-     `((a . (,(interval 0.0 1.0 #t #t)))
-       (b . (,(interval 0.0 1.0 #t #t))))))
-  (check-equal? (range-table->hyperrects test-table-simple `(a b)
-                                         (list (get-representation 'binary64) (get-representation 'binary64)))
+  (check-equal? (precondition->hyperrects '(λ (a b) (and (<= 0 a 1) (<= 0 b 1))) (list repr repr))
                 (list (cons (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))) 'other))))
