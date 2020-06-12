@@ -29,17 +29,17 @@
   (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
   (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))
 
-(define (hyperrects->weights repr hyperrects)
+(define (hyperrects->weights reprs hyperrects)
   (let loop ([current 0] [hyperrects hyperrects])
     (cond
       [(empty? hyperrects) empty]
       [else
-       (let ([new-val (+ current (apply * (map (curry ival-ordinal-size repr) (car (first hyperrects)))))])
+       (let ([new-val (+ current (apply * (map ival-ordinal-size reprs (car (first hyperrects)))))])
          (cons new-val
                (loop new-val (rest hyperrects))))])))
 
-(define (rect-space-sum repr hyperrects)
-  (define weights (hyperrects->weights repr hyperrects))
+(define (rect-space-sum reprs hyperrects)
+  (define weights (hyperrects->weights reprs hyperrects))
   (if
    (empty? weights)
    0
@@ -131,11 +131,11 @@
      (define full-table
        (condition->range-table 'TRUE))
      (define full-hyperrects (range-table->hyperrects full-table (program-variables precondition) reprs))
-     (define total (rect-space-sum repr full-hyperrects))
+     (define total (rect-space-sum reprs full-hyperrects))
      
-     (define fpcore (rect-space-sum repr from-fpcore))
-     (define after (rect-space-sum repr hyperrects))
-     (define good (rect-space-sum repr true-hyperrects))
+     (define fpcore (rect-space-sum reprs from-fpcore))
+     (define after (rect-space-sum reprs hyperrects))
+     (define good (rect-space-sum reprs true-hyperrects))
 
 
      (define fpcore-percent (exact->inexact (/ fpcore total)))
@@ -170,7 +170,7 @@
      (define hyperrects
        (reap [sow]
              (for ([rect hyperrects-from-fpcore])
-               (find-intervals search-func (car rect) sow #:repr repr
+               (find-intervals search-func (car rect) sow #:reprs reprs
                                #:fuel adjusted-search-depth))))
      
      (when (and (not (equal? (length (program-variables precondition)) 0))
@@ -200,7 +200,7 @@
 
      (define hyperrects (get-hyperrects precondition programs reprs repr))
 
-     (define weights (list->vector (hyperrects->weights repr hyperrects)))
+     (define weights (list->vector (hyperrects->weights reprs hyperrects)))
      
      (define hyperrect-vector
        (list->vector hyperrects))

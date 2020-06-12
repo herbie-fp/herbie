@@ -19,10 +19,10 @@
   (define lower (<-ordinal (floor (/ (+ (->ordinal hi) (->ordinal lo)) 2))))
   (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
 
-  (and (bf>= lower lo) (bf<= higher hi) ; lo and hi are already close together
+  (and (bf>= lower lo) (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
-(define (find-intervals ival-fn ranges callback #:repr rounding-repr #:fuel [depth 128])
+(define (find-intervals ival-fn ranges callback #:reprs reprs #:fuel [depth 128])
   (if (empty? ranges)
       empty
       (let loop ([ranges ranges] [n 0])
@@ -42,7 +42,8 @@
           [(> n depth)
            (callback (cons ranges 'other))]
           [else
-           (match (get-midpoints (ival-lo range) (ival-hi range) rounding-repr)
+           (define repr (list-ref reprs n*))
+           (match (get-midpoints (ival-lo range) (ival-hi range) repr)
              [(cons midleft midright)
               (define range-lo (ival (ival-lo range) midleft))
               (define range-hi (ival midright (ival-hi range)))
