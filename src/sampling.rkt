@@ -34,7 +34,7 @@
   (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1))))
 
 (define (hyperrect-weight hyperrect reprs)
-  (apply * (for/list ([ival hyperrect] [repr reprs])
+  (apply * (for/list ([ival (in-list (car hyperrect))] [repr (in-list reprs)])
              (define ->ordinal (compose (representation-repr->ordinal repr)
                                         (representation-bf->repr repr)))
              (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
