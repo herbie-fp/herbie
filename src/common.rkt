@@ -8,7 +8,7 @@
          for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double
-         random-ranges parse-flag get-seed set-seed!
+         parse-flag get-seed set-seed!
          quasisyntax
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
@@ -135,30 +135,6 @@
   (check-false (set-disjoint? '(a b c) '(a))))
 
 ;; Miscellaneous helper
-
-(define (random-ranges . ranges)
-  (->* () #:rest (cons/c integer? integer?) integer?)
-
-  (define weights
-    (for/list ([(lo hi) (in-dict ranges)])
-      ;; The `max` handles the case lo > hi and similar
-      (max 0 (- hi lo))))
-
-  (define total-weight (apply + weights))
-  (when (= total-weight 0)
-    (error 'random-ranges "Empty ranges"))
-
-  (define num-bits (inexact->exact (ceiling (/ (log total-weight) (log 2)))))
-  (define sample ; Rejection sampling
-    (let loop ()
-      (define sample (if (= num-bits 0) 0 (random-bits num-bits)))
-      (if (< sample total-weight) sample (loop))))
-
-  (let loop ([sample sample] [ranges ranges] [weights weights])
-    ;; The `(car)` is guaranteed to succeed by the construction of `sample`
-    (if (< sample (car weights))
-        (+ (caar ranges) sample)
-        (loop (- sample (car weights)) (cdr ranges) (cdr weights)))))
 
 (define (parse-flag s)
   (match (string-split s ":")

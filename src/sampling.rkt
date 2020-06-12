@@ -62,21 +62,17 @@
 
 (define (choose-hyperrect hyperrects weights)
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
-  (define rand-ordinal (random-ranges (cons 0 weight-max)))
-  (vector-ref hyperrects (binary-search weights rand-ordinal)))    
+  (define rand-ordinal (random-integer 0 weight-max))
+  (vector-ref hyperrects (binary-search weights rand-ordinal)))
 
 (define (sample-multi-bounded hyperrects weights reprs)
-  (cond
-    [(equal? (length reprs) 0)
-     empty]
-    [else
-     (define hyperrect (choose-hyperrect hyperrects weights))
-  
-     (for/list ([interval (car hyperrect)] [repr reprs])
-       (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-       (define <-ordinal (representation-ordinal->repr repr))
-       (<-ordinal (random-ranges (cons (->ordinal (ival-lo interval))
-                                       (+ 1 (->ordinal (ival-hi interval)))))))]))
+  (define hyperrect (choose-hyperrect hyperrects weights))
+
+  (for/list ([interval (car hyperrect)] [repr reprs])
+    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+    (define <-ordinal (representation-ordinal->repr repr))
+    (<-ordinal (random-integer (->ordinal (ival-lo interval))
+                               (+ 1 (->ordinal (ival-hi interval)))))))
 
 (define (is-finite-interval repr)
   (define bound (bound-ordinary-values repr))
@@ -116,12 +112,12 @@
 
   (define (total-weight hyperrects)
     (exact->inexact (apply + (map (curryr hyperrect-weight reprs) hyperrects))))
-     
+
   (define total (expt 2 (apply + (map representation-total-bits reprs))))
   (define fpcore (total-weight from-analysis))
   (define after (total-weight from-search))
   (define good (total-weight (filter (lambda (rect) (equal? (cdr rect) 'true)) from-search)))
-     
+
   (timeline-push! 'sampling (/ fpcore total) (/ after total) (/ good after)))
 
 (define (get-hyperrects precondition programs reprs repr)
@@ -136,7 +132,7 @@
     (reap [sow]
           (for ([rect hyperrects-analysis])
             (find-intervals search-func (car rect) sow #:reprs reprs #:fuel fuel))))
-     
+
   (when (empty? hyperrects-search)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
 
