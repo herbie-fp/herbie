@@ -56,3 +56,9 @@
 (FPCore (x)
  :name "sqrt E"
  (sqrt (+ (pow x 2) (pow x 2))))
+
+; This used to cause crashes
+
+(FPCore (w l)
+ :name "exp-w crasher"
+ (* (exp (- w)) (pow l (exp w))))
