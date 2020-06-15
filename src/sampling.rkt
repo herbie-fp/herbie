@@ -34,7 +34,7 @@
   (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1))))
 
 (define (hyperrect-weight hyperrect reprs)
-  (apply * (for/list ([ival (in-list (car hyperrect))] [repr (in-list reprs)])
+  (apply * (for/list ([interval (in-list (car hyperrect))] [repr (in-list reprs)])
              (define ->ordinal (compose (representation-repr->ordinal repr)
                                         (representation-bf->repr repr)))
              (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
@@ -42,7 +42,7 @@
 (define (partial-sums v)
   (define out (make-vector (vector-length v) 0))
   (let loop ([sum 0] [i 0])
-    (if (< i (length v))
+    (if (< i (vector-length v))
         (let ([sum* (+ sum (vector-ref v i))])
           (vector-set! out i sum*)
           (loop sum* (+ i 1)))
