@@ -94,11 +94,12 @@
        (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
        (define lo! (ival-lo-fixed? interval))
        (define hi! (ival-hi-fixed? interval))
+       (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi))))
        (define v
-         (and (not (and (not (ival-err? interval)) (or (equal? lo hi) (and (number? lo) (= lo hi)))))
-              (or (and lo! hi!)
-                  (or (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
-                      (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval)))))))
+         (and (not (ival-err? interval))
+              (or (and lo! hi! (not lo=hi))
+                  (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
+                  (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval))))))
        (ival-bool (not v)))]
     ['bool (const (ival-bool #t))]))
 

@@ -63,17 +63,17 @@
                   (parameterize ([bf-precision precision]) (apply fn pt)))
     (define lo! (ival-lo-fixed? out))
     (define hi! (ival-hi-fixed? out))
+    (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
     (cond
      [(ival-err out)
       (log! 'nan precision pt)
       +nan.0]
-     [(and (not (ival-err? out))
-           (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
+     [(and (not (ival-err? out)) lo=hi)
       (if (ordinary-value? hi repr)
           (log! 'sampled precision pt hi)
           (log! 'infinite precision pt hi))
       hi]
-     [(and lo! hi!)
+     [(and lo! hi! (not lo=hi))
       (log! 'overflowed precision pt)
       +nan.0]
      [(or (and lo! (bigfloat? (ival-lo out)) (bfinfinite? (ival-lo out)))
