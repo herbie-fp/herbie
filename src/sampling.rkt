@@ -2,7 +2,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
-         "interface.rkt" "timeline.rkt")
+         "interface.rkt" "timeline.rkt" "syntax/types.rkt")
 
 (module+ test (require rackunit))
 
@@ -27,11 +27,14 @@
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (define bound (bound-ordinary-values repr))
-  (define bflo (match lo [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-  (define bfhi (match hi [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-  ;; Mobilize, because the actual sampling points will shrink
-  (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1))))
+  (match (type-name (representation-type repr))
+    ['real
+     (define bound (bound-ordinary-values repr))
+     (define bflo (match lo [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
+     (define bfhi (match hi [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
+     (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1)))]
+    ['bool
+     (ival #f #t)]))
 
 (define (hyperrect-weight hyperrect reprs)
   (apply * (for/list ([interval (in-list (car hyperrect))] [repr (in-list reprs)])
@@ -76,22 +79,28 @@
 
 (define (is-finite-interval repr)
   (define bound (bound-ordinary-values repr))
-  (λ (interval)
-    (define not-number? (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
-    (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound)))))
+  (match (type-name (representation-type repr))
+    ['real
+     (λ (interval)
+       (define not-number? (and (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval)))))
+       (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound))))]
+    ['bool (const (ival-bool #t))]))
 
 (define (is-samplable-interval repr)
   (define <-bf (representation-bf->repr repr))
-  (λ (interval)
-    (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
-    (define lo! (ival-lo-fixed? interval))
-    (define hi! (ival-hi-fixed? interval))
-    (define v
-      (and (not (and (not (ival-err? interval)) (or (equal? lo hi) (and (number? lo) (= lo hi)))))
-           (or (and lo! hi!)
-               (or (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
-                   (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval)))))))
-    (ival-bool (not v))))
+  (match (type-name (representation-type repr))
+    ['real
+     (λ (interval)
+       (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
+       (define lo! (ival-lo-fixed? interval))
+       (define hi! (ival-hi-fixed? interval))
+       (define v
+         (and (not (and (not (ival-err? interval)) (or (equal? lo hi) (and (number? lo) (= lo hi)))))
+              (or (and lo! hi!)
+                  (or (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
+                      (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval)))))))
+       (ival-bool (not v)))]
+    ['bool (const (ival-bool #t))]))
 
 (define (valid-result? repr)
   (define ival-finite? (is-finite-interval repr))

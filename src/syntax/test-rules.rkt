@@ -42,7 +42,7 @@
 
   (define make-point
     (let ([sample (make-sampler
-                   (get-representation 'binary64)
+                   repr
                    `(λ ,fv ,(dict-ref *conditions* name 'TRUE))
                    `(λ ,fv ,p1)
                    `(λ ,fv ,p2))])
