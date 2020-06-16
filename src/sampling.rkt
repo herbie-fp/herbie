@@ -168,11 +168,12 @@
          (expr-supports? (program-body precondition) 'ival)
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
-
+    (timeline-log! 'method 'search)
     (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
     (λ () (sample-multi-bounded hyperrects weights reprs))]
    [else
+    (timeline-log! 'method 'random)
     (λ () (map random-generate reprs))]))
 
 (module+ test

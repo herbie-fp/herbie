@@ -72,10 +72,9 @@
   (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
-  (check-unused-variables (program-variables prog) precondition (program-body prog))
+  (check-unused-variables (program-variables prog) (program-body precondition) (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  (timeline-event! 'sample)
   ;; If the specification is given, it is used for sampling points
   (define context (prepare-points (or specification prog) precondition (*output-repr*)))
   (^precondition^ precondition)

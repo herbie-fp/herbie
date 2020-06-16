@@ -30,8 +30,8 @@
   (define-runtime-path benchmarks "../bench/")
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
-      (append (map test-input tests) (map test-precondition tests))))
-  (check = (count (compose not (curryr expr-supports? 'ival)) exprs) 0))
+      (append (map test-program tests) (map test-precondition tests))))
+  (check = (count (compose not (curryr expr-supports? 'ival) program-body) exprs) 0))
 
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
@@ -88,14 +88,15 @@
           (loop precision*))])))
 
 (define (prepare-points-intervals prog precondition repr)
-  (timeline-log! 'method 'intervals)
+  (timeline-event! 'analyze)
+  (define sampler (make-sampler repr precondition prog))
+
+  (timeline-event! 'sample)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
+  (timeline-log! 'method 'intervals)
 
-  (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler repr pre-prog prog))
-
-  (define pre-fn (eval-prog pre-prog 'ival repr))
+  (define pre-fn (eval-prog precondition 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
 
   (define-values (points exacts)
@@ -103,8 +104,8 @@
       (define pt (sampler))
 
       (define pre
-        (or (equal? precondition 'TRUE)
-            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log pre-prog))))
+        (or (equal? (program-body precondition) 'TRUE)
+            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log precondition))))
 
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
@@ -130,7 +131,8 @@
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
-  (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
+  (if (and (expr-supports? (program-body precondition) 'ival)
+           (expr-supports? (program-body prog) 'ival))
     (prepare-points-intervals prog precondition repr)
     (prepare-points-halfpoints prog precondition repr)))
 
@@ -191,7 +193,7 @@
 (define (make-exacts-walkup prog pts precondition repr)
   (define <-bf (representation-bf->repr repr))
   (let ([f (eval-prog prog 'bf repr)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf repr)])
+        [pre (eval-prog precondition 'bf repr)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (when (> prec (*max-mpfr-prec*))
@@ -245,9 +247,11 @@
 
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition repr)
-  (timeline-log! 'method 'halfpoints)
-  (define sample (make-sampler repr `(λ ,(program-variables prog) ,precondition)))
+  (timeline-event! 'analyze)
+  (define sample (make-sampler repr precondition))
 
+  (timeline-event! 'sample)
+  (timeline-log! 'method 'halfpoints)
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
