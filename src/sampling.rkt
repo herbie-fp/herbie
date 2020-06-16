@@ -140,13 +140,13 @@
 
   (define hyperrects-search
     (reap [sow]
-          (for ([rect hyperrects-analysis])
-            (find-intervals search-func (car rect) sow #:reprs reprs #:fuel fuel))))
+          (for ([(rect outcome) (in-dict hyperrects-analysis)])
+            (find-intervals search-func rect sow #:reprs reprs #:fuel fuel))))
 
   (when (empty? hyperrects-search)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
 
-  (log-space-improvement hyperrects-analysis hyperrects-search reprs)
+  (log-space-improvement hyperrects-search hyperrects-analysis reprs)
 
   hyperrects-search)
 
