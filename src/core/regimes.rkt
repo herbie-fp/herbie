@@ -207,7 +207,7 @@
                      [*timeline-disabled* true]
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) repr))
+          (prepare-points start-prog `(λ ,(program-variables start-prog) (== ,(caadr start-prog) ,v)) repr))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
