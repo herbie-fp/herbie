@@ -126,6 +126,7 @@
 
   (cond
    [(and (flag-set? 'setup 'search)
+         (andmap (curry equal? 'real) (map (compose type-name representation-type) (cons repr reprs)))
          (expr-supports? (program-body precondition) 'ival)
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
