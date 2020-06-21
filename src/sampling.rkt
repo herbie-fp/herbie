@@ -11,11 +11,7 @@
 (provide make-sampler)
 
 (define (precondition->hyperrects precondition reprs)
-  (define precondition*
-    (if (and (fpcore-expr? (program-body precondition)) (flag-set? 'setup 'search))
-        (program-body precondition)
-        'TRUE))
-  (define range-table (condition->range-table precondition*))
+  (define range-table (condition->range-table (program-body precondition)))
 
   (apply cartesian-product
          (for/list ([var-name (program-variables precondition)] [repr reprs])
@@ -110,11 +106,14 @@
 
 (define (get-hyperrects precondition programs reprs repr)
   (define hyperrects-analysis (precondition->hyperrects precondition reprs))
-
-  (define search-func
-    (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
-
-  (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*)))
+  (cond
+    [(flag-set? 'setup 'search)
+     (define search-func
+       (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
+     (pretty-print (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*)))
+     (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*))]
+    [else
+     hyperrects-analysis]))
 
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
@@ -125,8 +124,7 @@
            (bf-precision) reprs))
 
   (cond
-   [(and (flag-set? 'setup 'search)
-         (andmap (curry equal? 'real) (map (compose type-name representation-type) (cons repr reprs)))
+   [(and (andmap (curry equal? 'real) (map (compose type-name representation-type) (cons repr reprs)))
          (expr-supports? (program-body precondition) 'ival)
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
