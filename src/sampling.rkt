@@ -110,7 +110,6 @@
     [(flag-set? 'setup 'search)
      (define search-func
        (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
-     (pretty-print (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*)))
      (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*))]
     [else
      hyperrects-analysis]))
