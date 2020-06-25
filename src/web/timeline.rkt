@@ -120,26 +120,31 @@
 
 
 (define (->percent num)
-  (~r (* num 100)))
+  (string-append (~r (* num 100) #:precision 1) "%"))
 
 (define (average . values)
   (/ (apply + values) (length values)))
 
-(define (render-phase-sampling data)
-  (match-define (list fpcore after good) (apply map average data))
-  `((dt "sampling")
-    (dd (p ,(format "Space saved by range analysis: ~a%" (->percent (- 1 fpcore))))
-        (p ,(format "Space saved by search: ~a%" (->percent (- 1 after))))
-        (p ,(format "Guaranteed chance to sample good point: ~a%" (->percent good))))))
+(define (render-phase-sampling sampling)
+  (define total (round (apply + (cdr (car sampling)))))
+  `((dt "Search")
+    (dd (table ([class "times"])
+         (tr (th "True") (th "Other") (th "False") (th "Iter"))
+         ,@(for/list ([rec (in-list (reverse sampling))])
+             (match-define (list n wt wo wf) rec)
+             `(tr (td ,(->percent (/ wt total)))
+                  (td ,(->percent (/ wo total)))
+                  (td ,(->percent (/ wf total)))
+                  (td ,(~a n))))))))
 
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
     (if (= baseline oracle)
-        (if (= baseline accuracy) "100" "-∞")
-        (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
+        (if (= baseline accuracy) "100%" "-∞")
+        (->percent (/ (- baseline accuracy) (- baseline oracle)))))
 
   `((dt "Accuracy")
-    (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
+    (dd (p ,percentage " (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
         (p "Error of " ,(format-bits accuracy) "b"
            " against oracle of " ,(format-bits oracle) "b"
            " and baseline of " ,(format-bits baseline) "b"))))

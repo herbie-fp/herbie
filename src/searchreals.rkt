@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "common.rkt" "programs.rkt" "interface.rkt")
+(require "common.rkt" "programs.rkt" "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -34,7 +34,8 @@
        (cons lower higher)))
 
 (define (total-weight reprs hyperrects)
-  (exact->inexact (apply + (map (curryr hyperrect-weight reprs) hyperrects))))
+  (define whole-space (expt 2 (apply + (map representation-total-bits reprs))))
+  (exact->inexact (/ (apply + (map (curryr hyperrect-weight reprs) hyperrects)) whole-space)))
 
 (define (search-step ival-fn space reprs split-var)
   (match-define (search-space true false other) space)
@@ -66,11 +67,12 @@
         (match-define (search-space true false other) space)
 
         (define wt (total-weight reprs true))
-        (define wf (total-weight reprs false))
         (define wo (total-weight reprs other))
-        #;(eprintf "~a: ~a T + ~a F + ~a O :: ~a saved, ~a good\n"
-                 n (length true) (length false) (length other)
-                 (/ wf (+ wt wf wo)) (/ wt (+ wt wo)))
+        ;; Since the initial rects need not be whole space (but the
+        ;; missing area is implicitly "false") we don't measure the
+        ;; size of the "false" set.
+        (define wf (- 1 wt wo))
+        (timeline-push! 'sampling n wt wo wf)
 
         (define n* (remainder n num-vars))
         (if (or (>= n depth) (empty? (search-space-other space)))
