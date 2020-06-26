@@ -292,7 +292,7 @@
             ,@blocks))
 
 (define (render-summary-sampling data)
-  (render-phase-sampling data))
+  (render-phase-sampling (reverse data)))
 
 (define (render-summary-algorithm algorithm)
   `((dt "Algorithm")
