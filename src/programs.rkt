@@ -240,12 +240,12 @@
 (define (unfold-let expr)
   (match expr
     [`(let ([,vars ,vals] ...) ,body)
-     (define bindings (map cons vars vals))
+     (define bindings (map cons vars (map unfold-let vals)))
      (replace-vars bindings (unfold-let body))]
     [`(let* () ,body)
      (unfold-let body)]
     [`(let* ([,var ,val] ,rest ...) ,body)
-     (replace-vars (list (cons var val)) (unfold-let `(let* ,rest ,body)))]
+     (replace-vars (list (cons var (unfold-let val))) (unfold-let `(let* ,rest ,body)))]
     [`(,head ,args ...)
      (cons head (map unfold-let args))]
     [x x]))
