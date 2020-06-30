@@ -1,11 +1,15 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction)
+(provide render-menu render-warnings render-large render-program program->fpcore resugar-fpcore render-reproduction)
 
 (define (program->fpcore prog)
   (match-define (list _ args expr) prog)
   (list 'FPCore args expr))
+
+(define (resugar-fpcore prog prec)
+  (match-define (list 'FPCore args expr) prog)
+  (list 'FPCore args (resugar-program expr prec)))
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -37,10 +41,12 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
+;; TODO: TeX does not want fpcores resugared while C does. It would be great to have tex match C
+;; to make everything cleaner.
 (define languages
   `(("TeX" . ,texify-prog)
     ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr) (core->c prog "code")))))
+    ("C" . ,(λ (prog repr) (core->c (resugar-fpcore prog (representation-name repr)) "code")))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
@@ -52,7 +58,8 @@
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
+        (when (and (fpcore? (resugar-fpcore in-prog output-prec)) 
+                   (or (not out-prog) (fpcore? (resugar-fpcore out-prog output-prec))))
           (sow (cons lang (cons (converter in-prog output-repr)
                                 (and out-prog (converter out-prog output-repr)))))))))
 
