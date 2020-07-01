@@ -2,7 +2,7 @@
 
 (require math/bigfloat rival math/base)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt" "sampling.rkt")
+         "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
          errors batch-errors errors-score
@@ -87,11 +87,7 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
-(define (prepare-points-intervals prog precondition repr)
-  (timeline-event! 'analyze)
-  (define sampler (make-sampler repr precondition prog))
-
-  (timeline-event! 'sample)
+(define (prepare-points-intervals prog precondition repr sampler)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
   (timeline-log! 'method 'intervals)
@@ -127,14 +123,14 @@
 
   (mk-pcontext points exacts))
 
-(define (prepare-points prog precondition repr)
+(define (prepare-points prog precondition repr sampler)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? (program-body precondition) 'ival)
            (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition repr)
-    (prepare-points-halfpoints prog precondition repr)))
+    (prepare-points-intervals prog precondition repr sampler)
+    (prepare-points-halfpoints prog precondition repr sampler)))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -246,11 +242,7 @@
     [_ #f]))
 
 ;; This is the obsolete version for the "halfpoint" method
-(define (prepare-points-halfpoints prog precondition repr)
-  (timeline-event! 'analyze)
-  (define sample (make-sampler repr precondition))
-
-  (timeline-event! 'sample)
+(define (prepare-points-halfpoints prog precondition repr sampler)
   (timeline-log! 'method 'halfpoints)
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
@@ -267,7 +259,7 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([n (in-range num)]) (sample)))
+      (define pts1 (for/list ([n (in-range num)]) (sampler)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")

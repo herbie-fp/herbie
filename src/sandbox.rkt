@@ -56,9 +56,10 @@
                        #:precision output-prec))
         (define context (*pcontext*))
         (when seed (set-seed! seed))
+        (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-repr)))
+            (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
         (timeline-event! 'end)
 
         (define fns

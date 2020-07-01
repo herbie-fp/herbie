@@ -3,11 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
          "interface.rkt" "timeline.rkt" "syntax/types.rkt")
-
 (module+ test (require rackunit))
-
-(module+ internals (provide make-sampler))
-
 (provide make-sampler)
 
 (define (precondition->hyperrects precondition reprs)

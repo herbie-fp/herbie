@@ -2,7 +2,7 @@
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt"
-         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
+         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
 
 (provide (all-defined-out))
@@ -15,10 +15,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified precondition precision)
+  (table next-alt locs children gened-series gened-rewrites simplified)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f 'TRUE #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -32,12 +32,6 @@
 (define (^children^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
   (shellstate-children (^shell-state^)))
-(define (^precondition^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-precondition! (^shell-state^) newval))
-  (shellstate-precondition (^shell-state^)))
-(define (^precision^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-precision! (^shell-state^) newval))
-  (shellstate-precision (^shell-state^)))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -49,6 +43,8 @@
 (define (^simplified^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
   (shellstate-simplified (^shell-state^)))
+
+(define *sampler* (make-parameter #f))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -76,13 +72,13 @@
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
-  (define context (prepare-points (or specification prog) precondition (*output-repr*)))
-  (^precondition^ precondition)
-  (^precision^ precision)
-  (*pcontext* context)
+  (timeline-event! 'analyze)
+  (*sampler* (make-sampler (*output-repr*) precondition (or specification prog)))
+  (timeline-event! 'sample)
+  (*pcontext* (prepare-points (or specification prog) precondition (*output-repr*) (*sampler*)))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
-  (^table^ (make-alt-table context alt (*output-repr*)))
+  (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
   alt)
 
 ;; Information
@@ -396,7 +392,7 @@
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts repr))
       (timeline-event! 'bsearch)
-      (combine-alts option repr)]
+      (combine-alts option repr (*sampler*))]
      [else
       (best-alt all-alts repr)]))
   (timeline-event! 'simplify)
