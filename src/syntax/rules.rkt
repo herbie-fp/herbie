@@ -160,7 +160,7 @@
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
-(define-ruleset id-transform-fp-safe (arithmetic fp-safe)
+(define-ruleset id-transform-fp-safe (arithmetic simplify fp-safe)
   #:type ([a real] [b real])
   [sub-neg           (- a b)               (+ a (neg b))]
   [unsub-neg         (+ a (neg b))           (- a b)]
@@ -486,8 +486,8 @@
 
 (define-ruleset htrig-expand (hyperbolic)
   #:type ([x real] [y real])
-  [sinh-undef  (/ (- (exp x) (exp (neg x))) 2)                       (sinh x)]
-  [cosh-undef  (/ (+ (exp x) (exp (neg x))) 2)                       (cosh x)]
+  [sinh-undef  (- (exp x) (exp (neg x)))                       (* 2 (sinh x))]
+  [cosh-undef  (+ (exp x) (exp (neg x)))                       (* 2 (cosh x))]
   [tanh-undef  (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)]
   [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
   [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
