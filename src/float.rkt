@@ -43,7 +43,9 @@
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
 (define (special-value? x repr)
-  (set-member? (representation-special-values repr) x))
+  (if (set-member? '(binary32 binary64) (representation-name repr))
+      (ormap (curry = x) (representation-special-values repr))
+      (set-member? (representation-special-values repr) x)))
 
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
