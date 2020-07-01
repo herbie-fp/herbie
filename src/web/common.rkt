@@ -3,9 +3,9 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore resugar-fpcore render-reproduction)
 
-(define (program->fpcore prog)
+(define (program->fpcore prog [transform identity])
   (match-define (list _ args expr) prog)
-  (list 'FPCore args expr))
+  (list 'FPCore args (transform expr)))
 
 (define (resugar-fpcore prog prec)
   (match-define (list 'FPCore args expr) prog)
@@ -44,40 +44,39 @@
 ;; TODO: TeX does not want fpcores resugared while C does. It would be great to have tex match C
 ;; to make everything cleaner.
 (define languages
-  `(("TeX" . ,texify-prog)
+  `(("TeX" . ,(λ (prog) (texify-prog prog)))
     ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr) (core->c (resugar-fpcore prog (representation-name repr)) "code")))))
+    ("C" . ,(λ (prog) (core->c prog "code")))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
-  (define in-prog (program->fpcore (test-program test)))
-  (define out-prog (and result (program->fpcore result)))
+  (define in-prog (program->fpcore (test-program test) (curryr resugar-program output-prec)))
+  (define out-prog (and result (program->fpcore result (curryr resugar-program output-prec))))
 
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (when (and (fpcore? (resugar-fpcore in-prog output-prec)) 
-                   (or (not out-prog) (fpcore? (resugar-fpcore out-prog output-prec))))
-          (sow (cons lang (cons (converter in-prog output-repr)
-                                (and out-prog (converter out-prog output-repr)))))))))
+        (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
+          (sow (cons lang (cons (converter in-prog)
+                                (and out-prog (converter out-prog)))))))))
 
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test) output-repr) "\\]")))
+                  "\\[" ,(texify-expr (test-precondition test)) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-repr) "\\]")
+       (div ([class "program math"]) "\\[" ,(texify-prog in-prog) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-repr) "\\]"))
+               (div ([class "program math"]) "\\[" ,(texify-prog out-prog) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)

@@ -130,9 +130,8 @@
               (tr (th "Original") (td ,(format-bits (errors-score start-error))))
               (tr (th "Target") (td ,(format-bits (errors-score target-error))))
               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-             (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test)
-                                                           ,(test-output test))
-                                                       repr) "\\]"))
+             (div ([class "math"]) "\\[" ,(texify-expr (resugar-program (test-output test) (test-output-prec test)))
+                                         "\\]"))
            "")
 
       (section ([id "history"])
