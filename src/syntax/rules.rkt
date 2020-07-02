@@ -168,7 +168,8 @@
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
 
-(define-ruleset id-transform-fp-safe (arithmetic simplify fp-safe)
+(define-ruleset id-transform-fp-safe (arithmetic fp-safe)
+  #:type ([a real])
   [*-un-lft-identity a                     (* 1 a)])
 
 ; Difference of cubes
