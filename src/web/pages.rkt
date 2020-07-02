@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench core->js fpcore?))
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header))
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt")
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt")
 (provide all-pages make-page page-error-handler)
@@ -60,9 +60,12 @@
       (alt-program (test-success-end-alt result))
       (curryr resugar-program prec)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
+       (supported-by-lang? start-fpcore "js")
+       (supported-by-lang? end-fpcore "js")
        (string-append
-        (core->js start-fpcore "start")
-        (core->js end-fpcore "end"))))
+          (js-header "Math")  ; pow, fmax, fmin will not work without this
+          (core->js start-fpcore "start")
+          (core->js end-fpcore "end"))))
 
 (define (make-interactive-js result out prec)
   (define js-text (get-interactive-js result prec))

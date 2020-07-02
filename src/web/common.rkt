@@ -1,5 +1,6 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
+(require (only-in xml write-xexpr xexpr?) 
+         (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore resugar-fpcore render-reproduction)
 
@@ -44,7 +45,7 @@
 ;; TODO: TeX does not want fpcores resugared while C does. It would be great to have tex match C
 ;; to make everything cleaner.
 (define languages
-  `(("TeX" . ,(λ (prog) (texify-prog prog)))
+  `(("TeX" . ,core->tex)
     ;; TODO(interface): currently program->c doesn't take the repr into account
     ("C" . ,(λ (prog) (core->c prog "code")))))
 
@@ -67,16 +68,16 @@
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (test-precondition test)) "\\]")))
+                  "\\[" ,(expr->tex (test-precondition test)) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog in-prog) "\\]")
+       (div ([class "program math"]) "\\[" ,(core->tex in-prog) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog out-prog) "\\]"))
+               (div ([class "program math"]) "\\[" ,(core->tex out-prog) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)

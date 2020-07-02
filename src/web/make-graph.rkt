@@ -1,6 +1,7 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?))
+(require (only-in xml write-xexpr xexpr?) 
+         (only-in fpbench core->tex))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
@@ -130,7 +131,10 @@
               (tr (th "Original") (td ,(format-bits (errors-score start-error))))
               (tr (th "Target") (td ,(format-bits (errors-score target-error))))
               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-             (div ([class "math"]) "\\[" ,(texify-expr (resugar-program (test-output test) (test-output-prec test)))
+             (div ([class "math"]) "\\[" ,(core->tex
+                                            (program->fpcore
+                                              (test-target test)
+                                              (curryr resugar-program (test-output-prec test))))
                                          "\\]"))
            "")
 
