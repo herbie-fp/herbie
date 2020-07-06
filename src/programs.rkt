@@ -315,7 +315,7 @@
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation* type))))
-     (cons op args*)]
+     (cons op* args*)]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
     [(? value?)
@@ -332,7 +332,10 @@
 
 (define (resugar-program prog prec)
   (define repr (get-representation prec))
-  (expand-parametric-reverse prog repr))
+  (match prog
+    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr))]
+    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr))]
+    [(? expr?) (expand-parametric-reverse prog repr)]))
 
 (define (replace-vars dict expr)
   (cond

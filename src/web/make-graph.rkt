@@ -1,10 +1,11 @@
 #lang racket
 
-(require (only-in xml write-xexpr xexpr?))
+(require (only-in xml write-xexpr xexpr?) 
+         (only-in fpbench core->tex))
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
-         "common.rkt" "tex.rkt" "history.rkt")
+         "common.rkt" "history.rkt")
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -130,9 +131,10 @@
               (tr (th "Original") (td ,(format-bits (errors-score start-error))))
               (tr (th "Target") (td ,(format-bits (errors-score target-error))))
               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
-             (div ([class "math"]) "\\[" ,(texify-prog `(λ ,(test-vars test)
-                                                           ,(test-output test))
-                                                       repr) "\\]"))
+             (div ([class "math"]) "\\[" ,(core->tex
+                                            (program->fpcore
+                                              (resugar-program (test-target test) (test-output-prec test))))
+                                         "\\]"))
            "")
 
       (section ([id "history"])
