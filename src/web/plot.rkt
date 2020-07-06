@@ -243,7 +243,7 @@
              (for/list ([i (in-range idx-min (+ idx-min bin-size))]) (vector-ref errs i))])
            <)))))
 
-(define (error-avg errs pts #:axis [axis 0] #:vars [vars '()]
+(define (error-avg errs pts repr #:axis [axis 0] #:vars [vars '()]
                    #:color [color *blue-theme*] #:bin-size [bin-size 128])
   (define get-coord
     (if (number? axis)
@@ -259,7 +259,9 @@
   (define-values (min max)
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
-            [(x y) (values (flmax (flnext -inf.0) x) (flmin (flprev +inf.0) y))]))
+            [(x y)
+              (values (flmax (flnext -inf.0) (repr->fl x repr))
+                      (flmin (flprev +inf.0) (repr->fl y repr)))]))
   (function avg-fun min max
             #:width 2 #:color (color-theme-fit color)))
 
@@ -314,7 +316,7 @@
    #:port out #:kind 'png
    repr
    (error-points err pts #:axis idx #:color theme)
-   (error-avg err pts #:axis idx #:color theme)))
+   (error-avg err pts repr #:axis idx #:color theme)))
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
