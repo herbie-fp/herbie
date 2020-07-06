@@ -1,16 +1,12 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) 
          (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
-(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program program->fpcore resugar-fpcore render-reproduction)
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt")
+(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
 
-(define (program->fpcore prog [transform identity])
+(define (program->fpcore prog)
   (match-define (list _ args expr) prog)
-  (list 'FPCore args (transform expr)))
-
-(define (resugar-fpcore prog prec)
-  (match-define (list 'FPCore args expr) prog)
-  (list 'FPCore args (resugar-program expr prec)))
+  (list 'FPCore args expr))
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
@@ -42,19 +38,17 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
-;; TODO: TeX does not want fpcores resugared while C does. It would be great to have tex match C
-;; to make everything cleaner.
+;; TODO(interface): currently program->c doesn't take the repr into account
 (define languages
-  `(("TeX" . ,core->tex)
-    ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog) (core->c prog "code")))))
+  `(("TeX" . ,core->tex) 
+    ("C" . ,(curryr core->c "code"))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
-  (define in-prog (program->fpcore (test-program test) (curryr resugar-program output-prec)))
-  (define out-prog (and result (program->fpcore result (curryr resugar-program output-prec))))
+  (define in-prog (program->fpcore (resugar-program (test-program test) output-prec)))
+  (define out-prog (and result (program->fpcore (resugar-program result output-prec))))
 
   (define versions
     (reap [sow]
@@ -137,3 +131,15 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
+
+(define js-tex-include
+  '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
+           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
+             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
+             [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+             [crossorigin "anonymous"]))))
+             

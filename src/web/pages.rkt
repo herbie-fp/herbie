@@ -52,13 +52,9 @@
 
 (define (get-interactive-js result prec)
   (define start-fpcore 
-    (program->fpcore
-      (alt-program (test-success-start-alt result))
-      (curryr resugar-program prec)))
+    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) prec)))
   (define end-fpcore
-    (program->fpcore
-      (alt-program (test-success-end-alt result))
-      (curryr resugar-program prec)))
+    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) prec)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")

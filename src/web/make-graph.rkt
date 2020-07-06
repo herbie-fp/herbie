@@ -5,7 +5,7 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
-         "common.rkt" "tex.rkt" "history.rkt")
+         "common.rkt" "history.rkt")
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -133,8 +133,7 @@
               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
              (div ([class "math"]) "\\[" ,(core->tex
                                             (program->fpcore
-                                              (test-target test)
-                                              (curryr resugar-program (test-output-prec test))))
+                                              (resugar-program (test-target test) (test-output-prec test))))
                                          "\\]"))
            "")
 

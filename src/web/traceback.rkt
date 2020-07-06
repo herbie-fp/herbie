@@ -2,7 +2,7 @@
 
 (require (only-in xml write-xexpr xexpr?))
 (require "../common.rkt" "../errors.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "common.rkt" "tex.rkt")
+         "common.rkt")
 (provide make-traceback)
 
 (define (make-traceback result out profile?)

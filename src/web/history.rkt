@@ -51,7 +51,7 @@
     [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(core->tex (program->fpcore prog (curryr resugar-program prec))) "\\]")))]
+           (div ([class "math"]) "\\[" ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -77,32 +77,32 @@
     [(alt prog `(taylor ,pt ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore prog (curryr resugar-program prec)) 
+           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
                                                                 #:loc loc #:color "blue") 
                                                   "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore prog (curryr resugar-program prec)) 
+           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
                                                                 #:loc loc #:color "blue") 
                                                   "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore prog (curryr resugar-program prec))) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore prog (curryr resugar-program prec))) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore prog (curryr resugar-program prec)) 
+           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
                                                                 #:loc (change-location cng) #:color "blue")
                                                   "\\]")))]
     ))

@@ -332,7 +332,10 @@
 
 (define (resugar-program prog prec)
   (define repr (get-representation prec))
-  (expand-parametric-reverse prog repr))
+  (match prog
+    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr))]
+    [(list 'λ (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr))]
+    [(? expr?) (expand-parametric-reverse prog repr)]))
 
 (define (replace-vars dict expr)
   (cond
