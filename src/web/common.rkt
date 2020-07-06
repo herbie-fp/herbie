@@ -8,6 +8,18 @@
   (match-define (list _ args expr) prog)
   (list 'FPCore args expr))
 
+(define (fpcore-add-props core props)
+  (match-define (list 'FPCore args expr) core)
+  `(FPCore ,args ,@props ,expr))
+
+(define (fpcore->string core)
+  (match-define (list 'FPCore args props ... expr) core)
+  (define props*
+    (for/list ([val (apply dict-set* '() props)])
+      (format "~a ~a" (car val) (cdr val))))
+  (with-output-to-string
+    (λ () (pretty-display `(,(format "FPCore ~a" args) ,@props* ,expr)))))
+
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
   `(nav ([id "links"])
@@ -37,25 +49,31 @@
   `(div ,name ": " (span ([class "number"]
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
-
-;; TODO(interface): currently program->c doesn't take the repr into account
+  
 (define languages
-  `(("TeX" . ,core->tex) 
+  `(("TeX" . ,core->tex)
+    ("FPCore" . ,fpcore->string)
     ("C" . ,(curryr core->c "code"))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
-
   (define in-prog (program->fpcore (resugar-program (test-program test) output-prec)))
   (define out-prog (and result (program->fpcore (resugar-program result output-prec))))
+
+  (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
+  (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))
 
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
-        (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
-          (sow (cons lang (cons (converter in-prog)
-                                (and out-prog (converter out-prog)))))))))
+        (let ([ext (string-downcase lang)]) ; FPBench organizes compilers by extension
+          (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
+                    (or (equal? ext "fpcore")                           
+                        (and (supported-by-lang? in-prog ext) ; must be valid in a given language  
+                             (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
+            (sow (cons lang (cons (converter in-prog*)
+                                  (and out-prog* (converter out-prog*)))))
+    )))))
 
   `(section ([id "program"])
      ,(if (equal? (test-precondition test) 'TRUE)
@@ -68,18 +86,20 @@
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(core->tex in-prog) "\\]")
+       (div ([class "program math"]) "\\[" ,(core->tex in-prog*) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(core->tex out-prog) "\\]"))
+               (div ([class "program math"]) "\\[" ,(core->tex out-prog*) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
-         `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,out-input)
-            ,@(if out-output
-                  `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,out-output))
+         `(div ,(if (or (equal? lang "Math") (equal? lang "TeX"))  ; left align if C and FPCore
+                   `([class "implementation"] [data-language ,lang])
+                   `([class "implementation"] [data-language ,lang] [style "text-align:left"])) 
+            (pre ([class "program"]) ,out-input) 
+            ,@(if out-output   
+                  `((div ([class "arrow"] [style "text-align:center"]) "↓") ; always centered
+                    (pre ([class "program"]) ,out-output))  
                   `())))))
 
 (define/contract (render-command-line)
