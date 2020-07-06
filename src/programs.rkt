@@ -334,7 +334,7 @@
   (define repr (get-representation prec))
   (match prog
     [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr))]
-    [(list 'λ (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr))]
+    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr))]
     [(? expr?) (expand-parametric-reverse prog repr)]))
 
 (define (replace-vars dict expr)
