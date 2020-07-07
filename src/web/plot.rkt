@@ -2,6 +2,7 @@
 
 (require math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
@@ -14,19 +15,23 @@
 
 (define (repr-transform repr)
   (invertible-function
-   (compose (representation-repr->ordinal repr) (curryr ->flonum repr))
-   (compose (representation-ordinal->repr repr) round)))
+   (compose (representation-repr->ordinal repr) (curryr fl->repr repr))
+   (compose (curryr repr->fl repr) (representation-ordinal->repr repr) round)))
 
 (define (repr-axis repr)
   (make-axis-transform (repr-transform repr)))
 
 (define (power10-upto x repr)
+  (define ->fl-in-repr ; will be bad if repr > double
+    (compose (curryr repr->fl repr)
+             (curryr fl->repr repr)))
+  (define minbound (repr->fl (fl->repr (flnext 0.0) repr) repr))
   (if (= x 0)
       '()
       (reverse
        (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (fl->repr (expt 10.0 power) repr))
-         (if (= value 0) '() (cons value (loop (- power 1))))))))
+         (define value (->fl-in-repr (expt 10.0 power)))
+         (if (<= value minbound) '() (cons value (loop (- power 1))))))))
 
 (define (possible-ticks min max repr)
   ;; Either
@@ -105,14 +110,16 @@
            (~r (exact->inexact val) #:precision 4)
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e"))))))
 
-(define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
+(define (error-points errs pts repr #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
   (define x
     (if (number? axis)
         (λ x (list-ref x axis))
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (apply x pt) (ulps->bits err)))
+      (vector 
+        (repr->fl (apply x pt) repr) ; TODO: real rather than flonum
+        (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)
@@ -146,10 +153,10 @@
                                            (list-ref (car l) (cadr var-idxs)))) l))
     (points color-points #:color point-color #:sym 'fullcircle #:size 5)))
 
-(define (error-axes pts #:axis [axis 0])
+(define (error-axes pts repr #:axis [axis 0])
   (list
    (y-tick-lines)
-   (error-points (map (const 1) pts) pts #:axis axis #:alpha 0)))
+   (error-points (map (const 1) pts) pts repr #:axis axis #:alpha 0)))
 
 (define (with-herbie-plot repr #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 300]
@@ -199,8 +206,8 @@
     (lambda () (plot-file renderers port kind)))
   (with-alt-plot repr #:title title thunk))
 
-(define (errors-by x errs pts)
-  (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) < #:key car))
+(define (errors-by x errs pts cmp) 
+  (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) cmp #:key car))
 
 (define (vector-binary-search v x cmp)
   (define (search l r)
@@ -245,18 +252,30 @@
     (if (number? axis)
         (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
-  (define eby (errors-by get-coord errs pts))
+
+  ;; representation-specific values
+  (define-values (gt lt)
+    (let ([type (type-name (representation-type repr))])
+      (values
+        (operator-info (car (get-parametric-operator '> (list type type))) 'fl)
+        (operator-info (car (get-parametric-operator '< (list type type))) 'fl))))
+  (define maxbound (fl->repr (flprev +inf.0) repr)) ; TODO: MAX_FLOAT for any repr
+  (define minbound (fl->repr (- (flprev +inf.0)) repr))
+  (define max (λ (x y) (if (gt x y) x y))) 
+  (define min (λ (x y) (if (gt x y) y x)))
+
+  (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  (define-values (min max) ; plot requires rational bounds
+  (define-values (lbound ubound) ; plot requires rational (flonum) bounds
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
             [(x y)
-              (values (flmax (flnext -inf.0) (repr->fl x repr)) ; hence this trick
-                      (flmin (flprev +inf.0) (repr->fl y repr)))]))
-  (function avg-fun min max #:width 2 #:color (color-theme-fit color)))
+              (values (repr->fl (max minbound x) repr)
+                      (repr->fl (min maxbound y) repr))]))
+  (function avg-fun lbound ubound #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
   (inverse (const x-val) #:color "gray" #:width 3))
@@ -282,10 +301,11 @@
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
   (define repr (get-representation (test-output-prec (test-result-test result))))
   (define pts (test-success-newpoints result))
+
   (herbie-plot
    #:port out #:kind 'png
    repr
-   (error-axes pts #:axis idx)
+   (error-axes pts repr #:axis idx)
    (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
 (define (make-points-plot result out idx letter)
@@ -302,7 +322,7 @@
   (herbie-plot
    #:port out #:kind 'png
    repr
-   (error-points err pts #:axis idx #:color theme)
+   (error-points err pts repr #:axis idx #:color theme)
    (error-avg err pts repr #:axis idx #:color theme)))
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)
