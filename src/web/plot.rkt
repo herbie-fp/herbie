@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/flonum plot/no-gui)
+(require math/bigfloat math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
@@ -13,24 +13,28 @@
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
+;;  Repr conversions
+
+(define (repr->real x repr)
+  (bigfloat->real ((representation-repr->bf repr) x)))
+
+(define (ordinal->real x repr)
+  (repr->real ((representation-ordinal->repr repr) x) repr))
+
+(define (real->ordinal x repr) 
+  ((representation-repr->ordinal repr) (fl->repr x repr))) 
+
 (define (repr-transform repr)
-  (invertible-function
-   (compose (representation-repr->ordinal repr) (curryr fl->repr repr))
-   (compose (curryr repr->fl repr) (representation-ordinal->repr repr) round)))
+  (invertible-function 
+    (curryr real->ordinal repr)
+    (compose (curryr ordinal->real repr) round)))
 
 (define (repr-axis repr)
   (make-axis-transform (repr-transform repr)))
 
-(define (ordinal->fl x repr)
-  (repr->fl ((representation-ordinal->repr repr) x) repr))
-
-(define (fl->ordinal x repr) 
-  ((representation-repr->ordinal repr) (fl->repr x repr)))
-
 (define (first-power10 min max repr)
   (define ->fl-in-repr ; will be bad if repr > double
-    (compose (curryr repr->fl repr)
-             (curryr fl->repr repr)))
+    (compose (curryr repr->real repr) (curryr fl->repr repr)))
   (define value
     (cond
      [(negative? max) 
@@ -50,10 +54,10 @@
   (define near (λ (x n) (and (<= x n) (<= (abs (/ (- x n) sub-range)) 0.2)))) ; <- tolerance
   (for/list ([itr (in-range 1 (add1 number))])
     (define power10 
-      (first-power10 (ordinal->fl (- max (* (add1 itr) sub-range)) repr)
-                     (ordinal->fl (- max (* itr sub-range)) repr) repr))
-    (if (and power10 (near (fl->ordinal power10 repr) (- max (* itr sub-range))))
-        (fl->ordinal power10 repr)
+      (first-power10 (ordinal->real (- max (* (add1 itr) sub-range)) repr)
+                     (ordinal->real (- max (* itr sub-range)) repr) repr))
+    (if (and power10 (near (real->ordinal power10 repr) (- max (* itr sub-range))))
+        (real->ordinal power10 repr)
         (- max (* itr sub-range)))))
 
 (define (pick-spaced-ordinals necessary min max number repr)
@@ -82,12 +86,12 @@
 
 (define (choose-ticks min max repr)
   (define tick-count 13)
-  (define necessary (map (curryr fl->ordinal repr) 
+  (define necessary (map (curryr real->ordinal repr) 
                          (filter (λ (x) (<= min x max)) (list min -1.0 0.0 1.0 max))))
   (define major-ticks
     (map
-      (curryr ordinal->fl repr)
-      (pick-spaced-ordinals necessary (fl->ordinal min repr) (fl->ordinal max repr)
+      (curryr ordinal->real repr)
+      (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
                             tick-count repr)))
   (for/list ([tick major-ticks])
     (pre-tick tick #t)))
@@ -110,7 +114,7 @@
   (points
     (for/list ([pt pts] [err errs])
       (vector 
-        (repr->fl (apply x pt) repr) ; TODO: real rather than flonum
+        (repr->real (apply x pt) repr) ; TODO: real rather than flonum
         (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
@@ -245,16 +249,20 @@
         (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
 
-  ;; representation-specific values
+  ;; representation-specific operators
   (define-values (gt lt)
     (let ([type (type-name (representation-type repr))])
       (values
         (operator-info (car (get-parametric-operator '> (list type type))) 'fl)
         (operator-info (car (get-parametric-operator '< (list type type))) 'fl))))
-  (define maxbound (fl->repr (flprev +inf.0) repr)) ; TODO: MAX_FLOAT for any repr
-  (define minbound (fl->repr (- (flprev +inf.0)) repr))
   (define max (λ (x y) (if (gt x y) x y))) 
   (define min (λ (x y) (if (gt x y) y x)))
+
+  ; max and min finite values (works for ieee754 and posit)
+  (define-values (maxbound minbound) 
+    (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))]) ; posit's +inf.0 is negative
+      (values ((representation-ordinal->repr repr) ord)
+              ((representation-ordinal->repr repr) (- ord)))))
 
   (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
@@ -265,8 +273,8 @@
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
             [(x y)
-              (values (repr->fl (max minbound x) repr)
-                      (repr->fl (min maxbound y) repr))]))
+              (values (repr->real (max minbound x) repr) ; make sure the min, max are finite
+                      (repr->real (min maxbound y) repr))]))
   (function avg-fun lbound ubound #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
