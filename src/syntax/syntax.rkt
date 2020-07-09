@@ -500,6 +500,7 @@
   (and (symbol? var) (not (constant? var))))
 
 (define parametric-operators (make-hash))
+(define parametric-operators-reverse (make-hash))
 
 (define (get-parametric-operator name actual-types)
   (for/or ([sig (hash-ref parametric-operators name)])
@@ -511,7 +512,8 @@
      (cons true-name rtype))))
 
 (define (declare-parametric-operator! name op inputs output)
-  (hash-update! parametric-operators name (curry cons (list* op output inputs)) '()))
+  (hash-update! parametric-operators name (curry cons (list* op output inputs)) '())
+  (hash-set! parametric-operators-reverse op name))
 
 (declare-parametric-operator! '+ '+ '(real real) 'real)
 (declare-parametric-operator! '- '- '(real real) 'real)
@@ -528,13 +530,6 @@
 (declare-parametric-operator! '>= '>= 'real 'bool)
 (declare-parametric-operator! '== '== 'real 'bool)
 (declare-parametric-operator! '!= '!= 'real 'bool)
-
-(define parametric-operators-reverse
-  (make-hash (append* (for/list ([(key-val) (hash->list parametric-operators)])
-    (define key (car key-val))
-    (define vals (cdr key-val))
-    (for/list ([val vals])
-      (cons (car val) key))))))
 
 (module+ test
   (for ([(k r) (in-hash (cdr constants))] #:when true
