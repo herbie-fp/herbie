@@ -62,3 +62,7 @@
 (FPCore (w l)
  :name "exp-w crasher"
  (* (exp (- w)) (pow l (exp w))))
+
+(FPCore (x)
+ :name "expfmod"
+ (* (fmod (exp x) (sqrt (cos x))) (exp (- x))))
