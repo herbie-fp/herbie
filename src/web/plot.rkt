@@ -247,14 +247,13 @@
   (define get-coord
     (if (number? axis)
         (λ x (list-ref x axis))
-        (eval-prog `(λ ,vars ,axis) 'fl)))
-
-  ;; representation-specific operators
-  (define-values (gt lt)
-    (let ([type (type-name (representation-type repr))])
+        (eval-prog `(λ ,vars ,axis) 'fl repr)))
+        
+  (define-values (gt lt) ;; representation-specific operators
+    (let ([name (representation-name repr)])
       (values
-        (operator-info (car (get-parametric-operator '> (list type type))) 'fl)
-        (operator-info (car (get-parametric-operator '< (list type type))) 'fl))))
+        (operator-info (car (get-parametric-operator '> (list name name))) 'fl)
+        (operator-info (car (get-parametric-operator '< (list name name))) 'fl))))
   (define max (λ (x y) (if (gt x y) x y))) 
   (define min (λ (x y) (if (gt x y) y x)))
 

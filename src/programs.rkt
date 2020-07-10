@@ -148,12 +148,12 @@
          (define atypes
            (match (operator-info op 'itype)
              [(? list? as) as]
-             [(? type-name? a) (map (const a) args)]))
+             [(? symbol? a) (map (const a) args)]))
          (unless (= (length atypes) (length args))
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
                (for/list ([arg args] [atype atypes])
-                 (munge arg (get-representation* atype))))]
+                 (munge arg (get-representation atype))))]
         [_ (raise-argument-error 'eval-prog "expr?" prog)]))
 
     (hash-ref! exprhash expr
@@ -280,10 +280,7 @@
              ;; or binary32 because we don't have a distinction between them (both
              ;; are included in real). Once the operator code is fixed, this check
              ;; can be removed.
-             (define-values (arg* actual-type) (loop arg))
-             (if (set-member? '(binary64 binary32) actual-type)
-               (values arg* 'real)
-               (values arg* actual-type))))
+             (loop arg)))
          ;; Match guaranteed to succeed because we ran type-check first
          (match-define (cons op* rtype) (get-parametric-operator op actual-types))
          (values (cons op* args*) rtype)]
@@ -295,7 +292,7 @@
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (operator-info op 'otype))]
-        [(? real?) (values (fl->repr expr (get-representation* prec)) prec)]
+        [(? real?) (values (fl->repr expr (get-representation prec)) prec)]
         [(? value?) (values expr prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
@@ -311,10 +308,10 @@
      (define atypes
        (match (operator-info op 'itype)
          [(? list? as) as]
-         [(? type-name? a) (map (const a) args)]))
+         [(? symbol? a) (map (const a) args)]))
      (define args*
        (for/list ([arg args] [type atypes])
-         (expand-parametric-reverse arg (get-representation* type))))
+         (expand-parametric-reverse arg (get-representation type))))
      (cons op* args*)]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
