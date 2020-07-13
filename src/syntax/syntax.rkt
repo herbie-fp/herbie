@@ -3,11 +3,14 @@
 (require math/flonum math/base math/bigfloat math/special-functions)
 (require "../common.rkt" "../errors.rkt" "types.rkt" rival)
 
-(provide constant? variable? operator? operator-info constant-info
+(provide constant? variable? operator? operator-info constant-info operator-info*
          get-parametric-operator parametric-operators parametric-operators-reverse
+         get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
 
-(module+ internals (provide operators constants define-constant define-operator declare-parametric-operator! infix-joiner))
+(module+ internals 
+  (provide operators constants define-constant define-operator declare-parametric-operator!
+          declare-parametric-constant! infix-joiner))
 
 (module+ test (require rackunit))
 
@@ -32,29 +35,77 @@
   (table-set! constants 'constant
               (make-hash (list (cons 'type 'ctype) (cons 'key value) ...))))
 
-(define-constant PI binary64
+(define parametric-constants (make-hash))
+(define parametric-constants-reverse (make-hash))
+
+(define (get-parametric-constant name type)
+  (for/or ([sig (hash-ref parametric-constants name)])
+    (match-define (list* true-name rtype) sig)
+    (and
+     (equal? rtype type)
+     true-name)))
+
+(define (declare-parametric-constant! name cnst type)
+  (hash-update! parametric-constants name (curry cons (list* cnst type)) '())
+  (hash-set! parametric-constants-reverse cnst name))
+
+(define-constant PI.f64 binary64
   [bf (λ () pi.bf)]
   [fl (λ () pi)]
   [ival ival-pi]
   [nonffi (λ () pi)])
 
-(define-constant E binary64
+(define-constant E.f64 binary64
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
   [ival ival-e]
   [nonffi (λ () (exp 1.0))])
 
-(define-constant INFINITY binary64
+(define-constant INFINITY.f64 binary64
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
   [ival (λ () (mk-ival +inf.bf))]
   [nonffi (λ () +inf.0)])
 
-(define-constant NAN binary64
+(define-constant NAN.f64 binary64
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
   [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.0)])
+  [nonffi (λ () +nan.0)]) 
+
+(declare-parametric-constant! 'E 'E.f64 'binary64)
+(declare-parametric-constant! 'PI 'PI.f64 'binary64)
+(declare-parametric-constant! 'INFINITY 'INFINITY.f64 'binary64)
+(declare-parametric-constant! 'NAN 'NAN.f64 'binary64)
+
+(define-constant PI.f32 binary32
+  [bf (λ () pi.bf)]
+  [fl (λ () pi.f)]
+  [ival ival-pi]
+  [nonffi (λ () pi.f)])
+
+(define-constant E.f32 binary32
+  [bf (λ () (bfexp 1.bf))]
+  [fl (λ () (exp 1.0f0))]
+  [ival ival-e]
+  [nonffi (λ () (exp 1.0f0))])
+
+(define-constant INFINITY.f32 binary32
+  [bf (λ () +inf.bf)]
+  [fl (λ () +inf.f)]
+  [ival (λ () (mk-ival +inf.bf))]
+  [nonffi (λ () +inf.f)])
+
+(define-constant NAN.f32 binary32
+  [bf (λ () +nan.bf)]
+  [fl (λ () +nan.f)]
+  [ival (λ () (mk-ival +nan.bf))]
+  [nonffi (λ () +nan.f)]) 
+
+(declare-parametric-constant! 'E 'E.f32 'binary32)
+(declare-parametric-constant! 'PI 'PI.f32 'binary32)
+(declare-parametric-constant! 'INFINITY 'INFINITY.f32 'binary32)
+(declare-parametric-constant! 'NAN 'NAN.f32 'binary32)
 
 (define-constant TRUE bool
   [bf (const true)]
@@ -127,6 +178,13 @@
   (hash-update! parametric-operators name (curry cons (list* op output inputs)) '())
   (hash-set! parametric-operators-reverse op name))
 
+(define (operator-info* op field)
+  (cond
+   [(hash-has-key? parametric-operators op)
+    (let ([val (first (hash-ref parametric-operators op))])
+      (operator-info (car val) field))]
+   [else (operator-info op field)]))
+
 (define-operator (+.f64 binary64 binary64) binary64 
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
@@ -149,7 +207,7 @@
 
 (declare-parametric-operator! '+ '+.f64 '(binary64 binary64) 'binary64)
 (declare-parametric-operator! '- '-.f64 '(binary64 binary64) 'binary64)
-(declare-parametric-operator! '- 'neg.64 '(binary64) 'binary64)
+(declare-parametric-operator! '- 'neg.f64 '(binary64) 'binary64)
 (declare-parametric-operator! '* '*.f64 '(binary64 binary64) 'binary64)
 (declare-parametric-operator! '/ '/.f64 '(binary64 binary64) 'binary64)
 
@@ -175,7 +233,7 @@
 
 (declare-parametric-operator! '+ '+.f32 '(binary32 binary32) 'binary32)
 (declare-parametric-operator! '- '-.f32 '(binary32 binary32) 'binary32)
-(declare-parametric-operator! '- 'neg.32 '(binary32) 'binary32)
+(declare-parametric-operator! '- 'neg.f32 '(binary32) 'binary32)
 (declare-parametric-operator! '* '*.f32 '(binary32 binary32) 'binary32)
 (declare-parametric-operator! '/ '/.f32 '(binary32 binary32) 'binary32)
 
@@ -428,7 +486,7 @@
 (define (bf!=-fn . args)
   (not (check-duplicates args bf=)))
 
-(define-operator (if bool binary64 binary64) binary64 ; types not used, special cased in type checker
+(define-operator (if bool real real) real
   [fl if-fn] [bf if-fn] [ival ival-if]
   [nonffi if-fn])
 
@@ -465,12 +523,12 @@
   [fl (comparator >=)] [bf (comparator bf>=)] [ival ival->=]
   [nonffi (comparator >=)])
 
-(declare-parametric-operator! '== '== 'binary64 'bool)
-(declare-parametric-operator! '!= '!= 'binary64 'bool)
-(declare-parametric-operator! '<  '<  'binary64 'bool)
-(declare-parametric-operator! '<= '<= 'binary64 'bool)
-(declare-parametric-operator! '>  '>  'binary64 'bool)
-(declare-parametric-operator! '>= '>= 'binary64 'bool)
+(declare-parametric-operator! '== '==.f64 'binary64 'bool)
+(declare-parametric-operator! '!= '!=.f64 'binary64 'bool)
+(declare-parametric-operator! '<  '<.f64  'binary64 'bool)
+(declare-parametric-operator! '<= '<=.f64 'binary64 'bool)
+(declare-parametric-operator! '>  '>.f64  'binary64 'bool)
+(declare-parametric-operator! '>= '>=.f64 'binary64 'bool)
 
 (define-operator (==.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
@@ -502,12 +560,12 @@
   [fl (comparator >=)] [bf (comparator bf>=)] [ival ival->=]
   [nonffi (comparator >=)])
 
-(declare-parametric-operator! '== '== 'binary64 'bool)
-(declare-parametric-operator! '!= '!= 'binary64 'bool)
-(declare-parametric-operator! '<  '<  'binary64 'bool)
-(declare-parametric-operator! '<= '<= 'binary64 'bool)
-(declare-parametric-operator! '>  '>  'binary64 'bool)
-(declare-parametric-operator! '>= '>= 'binary64 'bool)
+(declare-parametric-operator! '== '==.f32 'binary32 'bool)
+(declare-parametric-operator! '!= '!=.f32 'binary32 'bool)
+(declare-parametric-operator! '<  '<.f32  'binary32 'bool)
+(declare-parametric-operator! '<= '<=.f32 'binary32 'bool)
+(declare-parametric-operator! '>  '>.f32  'binary32 'bool)
+(declare-parametric-operator! '>= '>=.f32 'binary32 'bool)
 
 (define-operator (not bool) bool
   [fl not] [bf not] [ival ival-not]
@@ -524,10 +582,11 @@
   [nonffi or-fn])
 
 (define (operator? op)
-  (and (symbol? op) (dict-has-key? (cdr operators) op)))
+  (and (symbol? op) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
-  (or (value? var) (and (symbol? var) (dict-has-key? (cdr constants) var))))
+  (or (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 
+                                          (dict-has-key? (cdr constants) var)))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

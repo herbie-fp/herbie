@@ -37,10 +37,10 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (operator? f)
-         (unless (or (symbol? (operator-info f 'itype))
-                     (= (length args) (length (operator-info f 'itype))))
+         (unless (or (symbol? (operator-info* f 'itype))
+                     (= (length args) (length (operator-info* f 'itype))))
            (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                   f (length args) (length (operator-info f 'itype))))
+                   f (length args) (length (operator-info* f 'itype))))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))

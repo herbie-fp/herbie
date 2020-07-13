@@ -28,7 +28,10 @@
 (define (expression->type stx env type error!)
   (match stx
     [#`,(? real?) type]
-    [#`,(? constant? x) (constant-info x 'type)]
+    [#`,(? constant? x)
+      (if (hash-has-key? parametric-constants x)
+          (constant-info (get-parametric-constant x type) 'type)
+          (constant-info x 'type))]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t type)

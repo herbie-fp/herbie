@@ -45,12 +45,7 @@
                               (list-ref args (add1 (index-of args ':precision))))
                         (cons arg-name default-prec))))
 
-  (define ctx-prec
-    ;; Default to 'real because types and precisions are mixed up right now
-    (match (dict-ref prop-dict ':precision 'real)
-      ['binary32 'real]
-      ['binary64 'real]
-      [x x]))
+  (define ctx-prec (dict-ref prop-dict ':precision 'binary64))
   (define type-ctx (map (curryr cons ctx-prec) args))
 
   (test (~a (dict-ref prop-dict ':name body))

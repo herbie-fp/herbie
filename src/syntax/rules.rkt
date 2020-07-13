@@ -32,26 +32,63 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-(define (type-of-rule input output)
+(define (parameterize-rule expr ctx prec)
+  (match expr
+   [(? real?) (cons expr prec)]
+   [(? constant?) (cons expr prec)] ; TODO change
+   [(? symbol?) (cons expr (dict-ref ctx expr prec))]
+   [`(if ,cond ,ift ,iff)
+    (define cond* (parameterize-rule cond ctx prec))
+    (define ift* (parameterize-rule ift ctx prec))
+    (define iff* (parameterize-rule iff ctx prec))
+    (unless (equal? (cdr ift*) (cdr iff*))
+      (error 'parameterize-rule "Return type of branches do not match"))
+    (cons `(if ,(car cond*) ,(car ift*) ,(car iff*)) (cdr ift*))]
+   [`(neg ,arg)
+    (define arg* (parameterize-rule arg ctx prec))
+    (define op* (get-parametric-operator '- (list (cdr arg*))))
+    (cons `(,(car op*) ,(car arg*)) (cdr op*))]
+   [(list (? (curry hash-has-key? parametric-operators) op) args ...)
+    (define args* (map (curryr parameterize-rule ctx prec) args))
+    (define op* (get-parametric-operator op (map cdr args*)))
+    (cons `(,(car op*) ,@(map car args*)) (cdr op*))]
+   [(list op args ...)
+    (define args* (map (curryr parameterize-rule ctx prec) args))
+    (cons `(,op ,@(map car args*)) (operator-info op 'otype))]))
+
+(define (type-of-rule input output ctx prec)
+  (define input* (parameterize-rule input ctx prec))
+  (define output* (parameterize-rule output ctx prec))
   (cond
-   [(list? input)
-    (operator-info (car input) 'otype)]
-   [(list? output)
-    (operator-info (car output) 'otype)]
+   [(list? input) (values (car input*) (car output*) (cdr input*))]
+   [(list? output) (values (car input*) (car output*) (cdr output*))]
    [else
     (error 'define-ruleset "Could not compute type of rule ~a -> ~a"
            input output)]))
 
+;; TODO: super messy way to parameterize any rule containing 'real into 'binary64 and 'binary32
 (define-syntax define-ruleset
   (syntax-rules ()
     [(define-ruleset name groups [rname input output] ...)
      (define-ruleset name groups #:type () [rname input output] ...)]
     [(define-ruleset name groups #:type ([var type] ...)
        [rname input output] ...)
-     (begin
-       (define name
-         (list (rule 'rname 'input 'output '((var . type) ...) (type-of-rule 'input 'output)) ...))
-       (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
+      (begin
+        (define-values (rnames inputs outputs vars types)
+          (values (list 'rname ...) (list 'input ...) (list 'output ...)
+                  (list 'var ...) (list 'type ...)))
+        (define types*
+          (if (for/or ([t types]) (equal? t 'real))
+              (for/lists (f64 f32 #:result (list f64 f32)) ([t types])
+                (if (equal? t 'real) (values 'binary64 'binary32) (values t t)))
+              (list types)))
+        (for ([types types*] [prec '(binary64 binary32)])
+          (define ctx (for/list ([var* vars] [type* types]) (cons var* type*)))
+          (define name
+            (for/list ([rname* rnames] [input* inputs] [output* outputs])
+              (define-values (input** output** otype) (type-of-rule input* output* ctx prec))
+              (rule rname* input** output** ctx otype)))
+          (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify fp-safe)

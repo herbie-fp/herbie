@@ -276,10 +276,6 @@
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
-             ;; TODO(interface): Right now we check if the actual-type is binary64
-             ;; or binary32 because we don't have a distinction between them (both
-             ;; are included in real). Once the operator code is fixed, this check
-             ;; can be removed.
              (loop arg)))
          ;; Match guaranteed to succeed because we ran type-check first
          (match-define (cons op* rtype) (get-parametric-operator op actual-types))
@@ -294,6 +290,9 @@
          (values (cons op args*) (operator-info op 'otype))]
         [(? real?) (values (fl->repr expr (get-representation prec)) prec)]
         [(? value?) (values expr prec)]
+        [(? (curry hash-has-key? parametric-constants) cnst)
+          (define cnst* (get-parametric-constant expr prec))
+          (values cnst* prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
         [(? variable?) (values expr (dict-ref var-precs expr))])))
   expr*)
@@ -303,6 +302,11 @@
 (define (expand-parametric-reverse expr repr)
   (define ->bf (representation-repr->bf repr))
   (match expr
+    [(list 'if cond ift iff)
+     (define cond* (expand-parametric-reverse cond repr))
+     (define ift* (expand-parametric-reverse ift repr))
+     (define iff* (expand-parametric-reverse iff repr))
+     (list 'if cond* ift* iff*)]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -321,7 +325,9 @@
        [+inf.0 'INFINITY]
        [+nan.0 'NAN]
        [x x])]
-    [(? constant?) expr]
+    [(? constant?)
+     (define cnst (hash-ref parametric-constants-reverse expr expr))
+     cnst]
     [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs)
