@@ -154,19 +154,23 @@
   [/-rgt-identity    (/ a 1)               a]
   [mul-1-neg         (* -1 a)              (neg a)])
 
+(define-ruleset nan-transform-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real] [b real])
+  [sub-neg           (- a b)               (+ a (neg b))]
+  [unsub-neg         (+ a (neg b))           (- a b)]
+  [neg-sub0          (neg b)                 (- 0 b)]
+  [neg-mul-1         (neg a)                 (* -1 a)])
+
 (define-ruleset id-transform (arithmetic)
   #:type ([a real] [b real])
   [div-inv           (/ a b)               (* a (/ 1 b))]
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
+
 (define-ruleset id-transform-fp-safe (arithmetic fp-safe)
-  #:type ([a real] [b real])
-  [sub-neg           (- a b)               (+ a (neg b))]
-  [unsub-neg         (+ a (neg b))           (- a b)]
-  [neg-sub0          (neg b)                 (- 0 b)]
-  [*-un-lft-identity a                     (* 1 a)]
-  [neg-mul-1         (neg a)                 (* -1 a)])
+  #:type ([a real])
+  [*-un-lft-identity a                     (* 1 a)])
 
 ; Difference of cubes
 (define-ruleset difference-of-cubes (polynomials)
@@ -486,8 +490,8 @@
 
 (define-ruleset htrig-expand (hyperbolic)
   #:type ([x real] [y real])
-  [sinh-undef  (/ (- (exp x) (exp (neg x))) 2)                       (sinh x)]
-  [cosh-undef  (/ (+ (exp x) (exp (neg x))) 2)                       (cosh x)]
+  [sinh-undef  (- (exp x) (exp (neg x)))                       (* 2 (sinh x))]
+  [cosh-undef  (+ (exp x) (exp (neg x)))                       (* 2 (cosh x))]
   [tanh-undef  (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)]
   [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
   [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
