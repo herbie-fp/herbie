@@ -38,11 +38,19 @@
   1
   null)
 
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
+
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
+
 (define-representation (binary64 real)
   bigfloat->flonum
   bf
-  ordinal->flonum
-  flonum->ordinal
+  (shift 63 ordinal->flonum)
+  (unshift 63 flonum->ordinal)
   64
   '(+nan.0 +inf.0 -inf.0))
 
