@@ -1,7 +1,8 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?) (only-in fpbench fpcore? core->c))
-(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "tex.rkt")
-(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction)
+(require (only-in xml write-xexpr xexpr?) 
+         (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt")
+(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog)
   (match-define (list _ args expr) prog)
@@ -37,40 +38,40 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
+;; TODO(interface): currently program->c doesn't take the repr into account
 (define languages
-  `(("TeX" . ,texify-prog)
-    ;; TODO(interface): currently program->c doesn't take the repr into account
-    ("C" . ,(λ (prog repr) (core->c prog "code")))))
+  `(("TeX" . ,core->tex) 
+    ("C" . ,(curryr core->c "code"))))
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
-  (define in-prog (program->fpcore (test-program test)))
-  (define out-prog (and result (program->fpcore result)))
+  (define in-prog (program->fpcore (resugar-program (test-program test) output-prec)))
+  (define out-prog (and result (program->fpcore (resugar-program result output-prec))))
 
   (define versions
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
         (when (and (fpcore? in-prog) (or (not out-prog) (fpcore? out-prog)))
-          (sow (cons lang (cons (converter in-prog output-repr)
-                                (and out-prog (converter out-prog output-repr)))))))))
+          (sow (cons lang (cons (converter in-prog)
+                                (and out-prog (converter out-prog)))))))))
 
   `(section ([id "program"])
      ,(if (equal? (program-body (test-precondition test)) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(texify-expr (program-body (test-precondition test)) output-repr) "\\]")))
+                  "\\[" ,(expr->tex (program-body (test-precondition test))) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(texify-prog in-prog output-repr) "\\]")
+       (div ([class "program math"]) "\\[" ,(core->tex in-prog) "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(texify-prog out-prog output-repr) "\\]"))
+               (div ([class "program math"]) "\\[" ,(core->tex out-prog) "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
@@ -130,3 +131,15 @@
          (code
           ,(render-command-line) "\n"
           ,(render-fpcore test) "\n"))))
+
+(define js-tex-include
+  '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
+           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
+           [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
+             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
+             [crossorigin "anonymous"]))
+    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
+             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
+             [crossorigin "anonymous"]))))
+             

@@ -1,8 +1,8 @@
 #lang racket
 
-(require (only-in fpbench core->js fpcore?))
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header))
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt")
-(require "common.rkt""timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt")
+(require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -36,11 +36,11 @@
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result) profile?)]
+       [(? test-success?) (make-graph result out (get-interactive-js result precision) profile?)]
        [(? test-timeout?) (make-traceback result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
-     (make-interactive-js result out)]
+     (make-interactive-js result out precision)]
     ["timeline.html"
      (make-timeline result out)]
     ["timeline.json"
@@ -50,15 +50,20 @@
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
-(define (get-interactive-js result)
-  (define start-fpcore (program->fpcore (alt-program (test-success-start-alt result))))
-  (define end-fpcore (program->fpcore (alt-program (test-success-end-alt result))))
+(define (get-interactive-js result prec)
+  (define start-fpcore 
+    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) prec)))
+  (define end-fpcore
+    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) prec)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
+       (supported-by-lang? start-fpcore "js")
+       (supported-by-lang? end-fpcore "js")
        (string-append
-        (core->js start-fpcore "start")
-        (core->js end-fpcore "end"))))
+          (js-header "Math")  ; pow, fmax, fmin will not work without this
+          (core->js start-fpcore "start")
+          (core->js end-fpcore "end"))))
 
-(define (make-interactive-js result out)
-  (define js-text (get-interactive-js result))
+(define (make-interactive-js result out prec)
+  (define js-text (get-interactive-js result prec))
   (when (string? js-text)
     (display js-text out)))

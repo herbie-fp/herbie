@@ -15,3 +15,7 @@ plugins
 rival
 regraph
 egg-herbie
+
+# Racket
+*.zo
+*.dep
