@@ -93,12 +93,10 @@
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
-         `(div ,(if (or (equal? lang "Math") (equal? lang "TeX"))  ; left align if C and FPCore
-                   `([class "implementation"] [data-language ,lang])
-                   `([class "implementation"] [data-language ,lang] [style "text-align:left"])) 
+         `(div ([class "implementation"] [data-language ,lang])
             (pre ([class "program"]) ,out-input) 
             ,@(if out-output   
-                  `((div ([class "arrow"] [style "text-align:center"]) "↓") ; always centered
+                  `((div ([class "arrow"]) "↓")
                     (pre ([class "program"]) ,out-output))  
                   `())))))
 
