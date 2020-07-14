@@ -75,6 +75,7 @@
           [(or 'accuracy 'oracle 'baseline 'name)
            (list v)]
           ['link (list (path->string v))]
+          ['sampling (reverse v)]
           [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph)
            v]))
 
@@ -86,6 +87,9 @@
       (if (equal? k 'link)
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))
+
+(define (average . values)
+  (/ (apply + values) (length values)))
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
@@ -114,6 +118,18 @@
            (match-define (list from1 to1) v)
            (match-define (list from2 to2) (dict-ref data k '(0 0)))
            (list (+ from1 from2) (+ to1 to2))]
+          ['sampling
+           (if (dict-has-key? data k)
+               (let loop ([l1 v] [l2 (dict-ref data k)])
+                 (match-define (list n1 wt1 wo1 wf1) (car l1))
+                 (match-define (list n2 wt2 wo2 wf2) (car l2))
+                 (define rec (list n1 (+ wt1 wt2) (+ wo1 wo2) (+ wf1 wf2)))
+                 (match* ((cdr l1) (cdr l2))
+                   [('() '()) (list rec)]
+                   [('() l2*) (cons rec (loop (list (list (+ n1 1) wt1 wo1 wf1)) l2*))]
+                   [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) wt2 wo2 wf2))))]
+                   [(l1* l2*) (cons rec (loop l1* l2*))]))
+               v)]
           [(or 'locations 'bstep
                'inputs 'outputs
                'kept 'min-error
@@ -121,4 +137,5 @@
            (void)]))
       (unless (void? v*)
         (dict-set! data k v*))))
+  
   (sort (dict-values types) > #:key (curryr dict-ref 'time)))

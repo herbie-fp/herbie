@@ -9,6 +9,7 @@
 (provide 
  get-representation*
  ordinary-value?
+ largest-ordinary-value bound-ordinary-values
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
@@ -43,7 +44,9 @@
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
 (define (special-value? x repr)
-  (set-member? (representation-special-values repr) x))
+  (if (set-member? '(binary32 binary64) (representation-name repr))
+      (or (infinite? x) (nan? x))
+      (set-member? (representation-special-values repr) x)))
 
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
@@ -53,11 +56,29 @@
            (ordinary-value? (imag-part x) (get-representation 'binary64)))
       (not (special-value? x repr))))
 
+
+(define (largest-ordinary-value repr)
+  ((representation-repr->bf repr)
+   ((representation-ordinal->repr repr)
+    (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
+
+(define (bound-ordinary-values repr)
+  (parameterize ([bf-rounding-mode 'nearest])
+    (let loop ([ordinal (bigfloat->ordinal (largest-ordinary-value repr))] [stepsize 1])
+      (define bfval (ordinal->bigfloat ordinal))
+      (if (bfinfinite? ((representation-repr->bf repr) ((representation-bf->repr repr) bfval)))
+          bfval
+          (loop (+ ordinal stepsize) (* stepsize 2))))))
+
 (module+ test
   (define binary64 (get-representation 'binary64))
   (check-true (ordinary-value? 2.5 binary64))
   (check-false (ordinary-value? +nan.0 binary64))
-  (check-false (ordinary-value? -inf.0 binary64)))
+  (check-false (ordinary-value? -inf.0 binary64))
+  (define binary32 (get-representation 'binary32))
+  (check-true (ordinary-value? 2.5f0 binary32))
+  (check-false (ordinary-value? +nan.f binary32))
+  (check-false (ordinary-value? -inf.f binary32)))
 
 (define (=-or-nan? x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))

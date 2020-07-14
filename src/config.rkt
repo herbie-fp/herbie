@@ -5,14 +5,14 @@
 
 (define all-flags
   #hash([precision . (double fallback)]
-        [setup . (simplify early-exit)]
+        [setup . (simplify early-exit search)]
         [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . (double fallback)]
-        [setup . (simplify)]
+        [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))
@@ -48,6 +48,9 @@
 
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
+
+;; The maximum depth for splitting the space when searching for valid areas of points.
+(define *max-find-range-depth* (make-parameter 14))
 
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))

@@ -77,9 +77,7 @@
   [associate-/r*     (/ a (* b c))         (/ (/ a b) c)]
   [associate-/l*     (/ (* b c) a)         (/ b (/ a c))]
   [associate-/r/     (/ a (/ b c))         (* (/ a b) c)]
-  [associate-/l/     (/ (/ b c) a)         (/ b (* a c))]
-  [sub-neg           (- a b)               (+ a (neg b))]
-  [unsub-neg         (+ a (neg b))           (- a b)])
+  [associate-/l/     (/ (/ b c) a)         (/ b (* a c))])
 
 ; Counting
 (define-ruleset counting (arithmetic simplify)
@@ -139,8 +137,8 @@
   [+-inverses        (- a a)               0]
   [*-inverses        (/ a a)               1]
   [div0              (/ 0 a)               0]
-  [mul0              (* 0 a)               0]
-  [mul0              (* a 0)               0])
+  [mul0-lft          (* 0 a)               0]
+  [mul0-rgt          (* a 0)               0])
 
 (define-ruleset id-reduce-fp-safe (arithmetic simplify fp-safe)
   #:type ([a real])
@@ -154,19 +152,23 @@
   [/-rgt-identity    (/ a 1)               a]
   [mul-1-neg         (* -1 a)              (neg a)])
 
+(define-ruleset nan-transform-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real] [b real])
+  [sub-neg           (- a b)               (+ a (neg b))]
+  [unsub-neg         (+ a (neg b))           (- a b)]
+  [neg-sub0          (neg b)                 (- 0 b)]
+  [neg-mul-1         (neg a)                 (* -1 a)])
+
 (define-ruleset id-transform (arithmetic)
   #:type ([a real] [b real])
   [div-inv           (/ a b)               (* a (/ 1 b))]
   [un-div-inv        (* a (/ 1 b))         (/ a b)]
   [clear-num         (/ a b)               (/ 1 (/ b a))])
 
+
 (define-ruleset id-transform-fp-safe (arithmetic fp-safe)
-  #:type ([a real] [b real])
-  [sub-neg           (- a b)               (+ a (neg b))]
-  [unsub-neg         (+ a (neg b))           (- a b)]
-  [neg-sub0          (neg b)                 (- 0 b)]
-  [*-un-lft-identity a                     (* 1 a)]
-  [neg-mul-1         (neg a)                 (* -1 a)])
+  #:type ([a real])
+  [*-un-lft-identity a                     (* 1 a)])
 
 ; Difference of cubes
 (define-ruleset difference-of-cubes (polynomials)
@@ -420,8 +422,8 @@
                (cos (* 3 x))]
   [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
   [2-tan       (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
-  [sqr-sin     (* (sin x) (sin x))       (- 1/2 (* 1/2 (cos (* 2 x))))]
-  [sqr-cos     (* (cos x) (cos x))       (+ 1/2 (* 1/2 (cos (* 2 x))))]
+  [sqr-sin-a   (* (sin x) (sin x))       (- 1/2 (* 1/2 (cos (* 2 x))))]
+  [sqr-cos-a   (* (cos x) (cos x))       (+ 1/2 (* 1/2 (cos (* 2 x))))]
   [diff-sin    (- (sin x) (sin y))       (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
   [diff-cos    (- (cos x) (cos y))       (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2))))]
   [sum-sin     (+ (sin x) (sin y))       (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2))))]
@@ -438,10 +440,10 @@
   [tan-hang-m  (tan (/ (- a b) 2))
                (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
-(define-ruleset trig-expand-fp-safe (trignometry fp-safe)
+(define-ruleset trig-expand-fp-safe (trignometry)
   #:type ([x real])
-  [sqr-sin     (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
-  [sqr-cos     (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
+  [sqr-sin-b   (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
+  [sqr-cos-b   (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
 
 (define-ruleset trig-inverses (trigonometry)
   #:type ([x real])
@@ -477,17 +479,17 @@
   #:type ([x real])
   [sinh-def    (sinh x)               (/ (- (exp x) (exp (neg x))) 2)]
   [cosh-def    (cosh x)               (/ (+ (exp x) (exp (neg x))) 2)]
-  [tanh-def    (tanh x)               (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x))))]
-  [tanh-def    (tanh x)               (/ (- (exp (* 2 x)) 1) (+ (exp (* 2 x)) 1))]
-  [tanh-def    (tanh x)               (/ (- 1 (exp (* -2 x))) (+ 1 (exp (* -2 x))))]
+  [tanh-def-a  (tanh x)               (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x))))]
+  [tanh-def-b  (tanh x)               (/ (- (exp (* 2 x)) 1) (+ (exp (* 2 x)) 1))]
+  [tanh-def-c  (tanh x)               (/ (- 1 (exp (* -2 x))) (+ 1 (exp (* -2 x))))]
   [sinh-cosh   (- (* (cosh x) (cosh x)) (* (sinh x) (sinh x))) 1]
   [sinh-+-cosh (+ (cosh x) (sinh x))  (exp x)]
   [sinh---cosh (- (cosh x) (sinh x))  (exp (neg x))])
 
 (define-ruleset htrig-expand (hyperbolic)
   #:type ([x real] [y real])
-  [sinh-undef  (/ (- (exp x) (exp (neg x))) 2)                       (sinh x)]
-  [cosh-undef  (/ (+ (exp x) (exp (neg x))) 2)                       (cosh x)]
+  [sinh-undef  (- (exp x) (exp (neg x)))                       (* 2 (sinh x))]
+  [cosh-undef  (+ (exp x) (exp (neg x)))                       (* 2 (cosh x))]
   [tanh-undef  (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)]
   [cosh-sum    (cosh (+ x y))         (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
   [cosh-diff   (cosh (- x y))         (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
@@ -629,3 +631,7 @@
              (set-member? groups 'simplify))
         rules
         '())))
+
+(module+ test
+  (require rackunit)
+  (check-false (check-duplicates (map rule-name (append-map first (*rulesets*))))))

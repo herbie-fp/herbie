@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival
-         (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
+(require math/bigfloat rival math/base)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt")
 
@@ -10,26 +9,7 @@
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
-(module+ internals (provide make-sampler ival-eval))
-
-(define (sample-multi-bounded ranges repr)
-  (define ->ordinal (representation-repr->ordinal repr))
-  (define <-ordinal (representation-ordinal->repr repr))
-  (define <-exact (compose (representation-bf->repr repr) bf))
-
-  (define ordinal-ranges
-    (for/list ([range ranges])
-      (match-define (interval (app <-exact lo) (app <-exact hi) lo? hi?) range)
-      (cons (+ (->ordinal lo) (if lo? 0 1)) (+ (->ordinal hi) (if hi? 1 0)))))
-
-  (<-ordinal (apply random-ranges ordinal-ranges)))
-
-(module+ test
-  (define repr (get-representation 'binary64))
-  (check-true (set-member? '(0.0 1.0) (sample-multi-bounded (list (interval 0 0 #t #t) (interval 1 1 #t #t)) repr)))
-  (check-exn
-   exn:fail?
-   (λ () (sample-multi-bounded (list (interval 0 0 #t #f) (interval 1 1 #f #t)) repr))))
+(module+ internals (provide ival-eval))
 
 (define *pcontext* (make-parameter #f))
 
@@ -50,8 +30,8 @@
   (define-runtime-path benchmarks "../bench/")
   (define exprs
     (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
-      (append (map test-input tests) (map test-precondition tests))))
-  (check = (count (compose not (curryr expr-supports? 'ival)) exprs) 0))
+      (append (map test-program tests) (map test-precondition tests))))
+  (check = (count (compose not (curryr expr-supports? 'ival) program-body) exprs) 0))
 
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
@@ -70,6 +50,7 @@
         [`(sampled ,prec ,pt #f) (list name 'false prec)]
         [`(sampled ,prec ,pt #t) (list name 'true prec)]
         [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
+        [`(infinite ,prec ,pt ,_) (list name 'invalid prec)]
         [`(nan ,prec ,pt) (list name 'nan prec)]))
     (define dt (- (current-inexact-milliseconds) start))
     (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
@@ -82,15 +63,17 @@
                   (parameterize ([bf-precision precision]) (apply fn pt)))
     (define lo! (ival-lo-fixed? out))
     (define hi! (ival-hi-fixed? out))
+    (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
     (cond
      [(ival-err out)
       (log! 'nan precision pt)
       +nan.0]
-     [(and (not (ival-err? out))
-           (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
-      (log! 'sampled precision pt hi)
+     [(and (not (ival-err? out)) lo=hi)
+      (if (ordinary-value? hi repr)
+          (log! 'sampled precision pt hi)
+          (log! 'infinite precision pt hi))
       hi]
-     [(and lo! hi!)
+     [(and lo! hi! (not lo=hi))
       (log! 'overflowed precision pt)
       +nan.0]
      [(or (and lo! (bigfloat? (ival-lo out)) (bfinfinite? (ival-lo out)))
@@ -104,36 +87,12 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
-; These definitions in place, we finally generate the points.
-
-(define (make-sampler precondition repr)
-  (define body (program-body precondition))
-  (define range-table
-    (condition->range-table (if (fpcore-expr? body) body 'TRUE)))
-  (for ([var (program-variables precondition)]
-        #:when (null? (range-table-ref range-table var)))
-    (raise-herbie-error "No valid values of variable ~a" var
-                        #:url "faq.html#no-valid-values"))
-  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
-  ;; TODO(interface): range tables do not handle representations right now
-  ;; They produce +-inf endpoints, which aren't valid values in generic representations
-  (if (set-member? '(binary32 binary64) (representation-name repr))
-      (λ ()
-        (map 
-         (λ (var repr)
-           (sample-multi-bounded (range-table-ref range-table var) repr))
-         (program-variables precondition) reprs))
-      (λ () (map random-generate reprs))))
-
-(define (prepare-points-intervals prog precondition repr)
-  (timeline-log! 'method 'intervals)
+(define (prepare-points-intervals prog precondition repr sampler)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
+  (timeline-log! 'method 'intervals)
 
-  (define pre-prog `(λ ,(program-variables prog) ,precondition))
-  (define sampler (make-sampler pre-prog repr))
-
-  (define pre-fn (eval-prog pre-prog 'ival repr))
+  (define pre-fn (eval-prog precondition 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
 
   (define-values (points exacts)
@@ -141,8 +100,8 @@
       (define pt (sampler))
 
       (define pre
-        (or (equal? precondition 'TRUE)
-            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log pre-prog))))
+        (or (equal? (program-body precondition) 'TRUE)
+            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log precondition))))
 
       (define ex
         (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
@@ -164,13 +123,14 @@
 
   (mk-pcontext points exacts))
 
-(define (prepare-points prog precondition repr)
+(define (prepare-points prog precondition repr sampler)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
-  (if (and (expr-supports? precondition 'ival) (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition repr)
-    (prepare-points-halfpoints prog precondition repr)))
+  (if (and (expr-supports? (program-body precondition) 'ival)
+           (expr-supports? (program-body prog) 'ival))
+    (prepare-points-intervals prog precondition repr sampler)
+    (prepare-points-halfpoints prog precondition repr sampler)))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -229,7 +189,7 @@
 (define (make-exacts-walkup prog pts precondition repr)
   (define <-bf (representation-bf->repr repr))
   (let ([f (eval-prog prog 'bf repr)] [n (length pts)]
-        [pre (eval-prog `(λ ,(program-variables prog) ,precondition) 'bf repr)])
+        [pre (eval-prog precondition 'bf repr)])
     (let loop ([prec (max 64 (- (bf-precision) (*precision-step*)))]
                [prev #f])
       (when (> prec (*max-mpfr-prec*))
@@ -269,6 +229,7 @@
        #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
     (values pt ex)))
 
+
 (define (extract-sampled-points allvars precondition)
   (match precondition
     [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
@@ -281,10 +242,8 @@
     [_ #f]))
 
 ;; This is the obsolete version for the "halfpoint" method
-(define (prepare-points-halfpoints prog precondition repr)
+(define (prepare-points-halfpoints prog precondition repr sampler)
   (timeline-log! 'method 'halfpoints)
-  (define sample (make-sampler `(λ ,(program-variables prog) ,precondition) repr))
-
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
@@ -300,7 +259,7 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([n (in-range num)]) (sample)))
+      (define pts1 (for/list ([n (in-range num)]) (sampler)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")

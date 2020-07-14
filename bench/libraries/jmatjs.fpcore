@@ -2,6 +2,7 @@
 
 (FPCore (z)
  :name "Jmat.Real.gamma, branch z greater than 0.5"
+ :pre (> z 0.5)
  (let ((z* (- z 1)) (g 7))
    (let ((x
           (+
@@ -19,6 +20,7 @@
 
 (FPCore (z)
  :name "Jmat.Real.gamma, branch z less than 0.5"
+ :pre (<= z 0.5)
  (let ((z* (- (- 1 z) 1)) (g 7))
    (let ((x
           (+
@@ -67,6 +69,7 @@
 
 (FPCore (x)
  :name "Jmat.Real.erfi, branch x less than or equal to 0.5"
+ :pre (<= x 0.5)
  (let ((sqrtPI (sqrt PI)))
    (let ((ps (/ 1 sqrtPI)))
      (let ((x* (fabs x)))
@@ -78,6 +81,7 @@
 
 (FPCore (x)
  :name "Jmat.Real.erfi, branch x greater than or equal to 5"
+ :pre (>= x 0.5)
  (let ((sqrtPI (sqrt PI)))
    (let ((ps (/ 1 sqrtPI)))
      (let ((x* (fabs x)))

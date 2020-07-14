@@ -1,7 +1,8 @@
 #lang racket
 
 (require rackunit math/bigfloat)
-(require "../common.rkt" "../programs.rkt" (submod "../points.rkt" internals))
+(require "../common.rkt" "../programs.rkt" "../sampling.rkt"
+         (submod "../points.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt")
 
@@ -9,23 +10,15 @@
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  `([acosh-def  . (>= x 1)]
-    [atanh-def  . (< (fabs x) 1)]
-    [asin-acos  . (<= -1 x 1)]
-    [acos-asin  . (<= -1 x 1)]
-    [acosh-2    . (>= x 1)]
-    [asinh-2    . (>= x 0)]
-    [sinh-acosh . (> (fabs x) 1)]
-    [sinh-atanh . (< (fabs x) 1)]
-    [cosh-atanh . (< (fabs x) 1)]
-    [tanh-acosh . (> (fabs x) 1)]
-    ;; These next three unquote the pi computation so that range analysis will work
-    [asin-sin-s . (<= (fabs x) ,(/ pi 2))]
-    [acos-cos-s . (<= 0 x ,pi)]
-    [atan-tan-s . (<= (fabs x) ,(/ pi 2))]))
+  `([asinh-2       . (>= x 0)]
+    ;; These next three approximate pi so that range analysis will work
+    [asin-sin-s    . (<= (fabs x) 1.5708)]
+    [acos-cos-s    . (<= 0 x 3.1415)]
+    [atan-tan-s    . (<= (fabs x) 1.5708)]))
 
 (define (ival-ground-truth fv p repr)
-  (λ (x) (ival-eval (eval-prog `(λ ,fv ,p) 'ival repr) x repr)))
+  (define prog (eval-prog `(λ ,fv ,p) 'ival repr))
+  (λ (x) (ival-eval prog x repr)))
 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (apply f x)))
@@ -40,15 +33,11 @@
   (define repr (get-representation* otype))
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
-      (λ ()
-        (if (dict-has-key? *conditions* name)
-            (sample)
-            (for/list ([v fv] [i (in-naturals)])
-              (match (dict-ref (rule-itypes test-rule) v)
-                ['real (sample-double)]
-                ['complex (make-rectangular (sample-double) (sample-double))]
-                [rname (random-generate (get-representation rname))]))))))
+    (make-sampler
+     repr
+     `(λ ,fv ,(dict-ref *conditions* name 'TRUE))
+     `(λ ,fv ,p1)
+     `(λ ,fv ,p2)))
 
   (define points (for/list ([n (in-range num-test-points)]) (make-point)))
   (define prog1 (ground-truth fv p1 repr))
@@ -66,8 +55,13 @@
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 1))))
-  (when (< (length errs) (/ num-test-points 10))
-    (fail-check "Not enough points sampled to test rule")))
+  (define usable-fraction (/ (length errs) num-test-points))
+  (cond
+   [(< usable-fraction 1/10)
+    (fail-check "Not enough points sampled to test rule")]
+   [(< usable-fraction 8/10)
+    (eprintf "~a: ~a% of points usable\n" name
+           (~r (* 100 usable-fraction) #:precision '(= 1)))]))
 
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
