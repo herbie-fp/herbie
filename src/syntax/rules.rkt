@@ -32,10 +32,15 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-(define (parameterize-rule expr ctx prec)
+;; pretty much desugaring, TODO: combine procedures
+(define (parameterize-rule expr ctx prec) 
   (match expr
    [(? real?) (cons expr prec)]
-   [(? constant?) (cons expr prec)] ; TODO change
+   [(? constant?)
+    (if (hash-has-key? parametric-constants expr)
+        (let ([cnst (get-parametric-constant expr prec)])
+          (cons cnst (constant-info cnst 'type)))
+        (cons expr (constant-info expr 'type)))]
    [(? symbol?) (cons expr (dict-ref ctx expr prec))]
    [`(if ,cond ,ift ,iff)
     (define cond* (parameterize-rule cond ctx prec))

@@ -480,15 +480,15 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
+(define-operator (if bool real real) real ; types not used
+  [fl if-fn] [bf if-fn] [ival ival-if]
+  [nonffi if-fn])
+
 (define (!=-fn . args)
   (not (check-duplicates args =)))
 
 (define (bf!=-fn . args)
   (not (check-duplicates args bf=)))
-
-(define-operator (if bool real real) real
-  [fl if-fn] [bf if-fn] [ival ival-if]
-  [nonffi if-fn])
 
 (define ((infix-joiner x) . args)
   (string-join args x))
@@ -582,7 +582,7 @@
   [nonffi or-fn])
 
 (define (operator? op)
-  (and (symbol? op) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
+  (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
   (or (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 
@@ -590,8 +590,3 @@
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))
-
-(module+ test
-  (for ([(k r) (in-hash (cdr constants))] #:when true
-        [(f c) (in-dict (car constants))] [v (in-list r)] #:when (flat-contract? c))
-    (check-pred (flat-contract-predicate c) v)))

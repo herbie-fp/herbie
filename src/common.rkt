@@ -7,7 +7,7 @@
 (provide reap define-table table-ref table-set! table-remove!
          for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
-         argmins argmaxs index-of set-disjoint? comparator sample-double
+         argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
          random-ranges parse-flag get-seed set-seed!
          quasisyntax
          format-time format-bits in-sorted-dict web-resource
@@ -259,3 +259,6 @@
 
 (define (sample-double)
   (floating-point-bytes->real (integer->integer-bytes (random-bits 64) 8 #f)))
+
+(define (sample-single)
+  (floating-point-bytes->real (integer->integer-bytes (random-bits 32) 4 #f)))

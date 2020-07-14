@@ -184,7 +184,7 @@
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
   (require math/bigfloat)
   (define tests
-    #hash([(λ (a b c) (/ (- (sqrt (- (* b b) (* a c))) b) a))
+    #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
@@ -203,17 +203,19 @@
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define fn (operator-info op 'nonffi))
-        (define res (apply fn args))
+        (define res (apply fn args))value-of
         (define rtype (operator-info op 'otype))
-        (and ((value-of rtype) res)
-             (exact-value? rtype res)
-             (value->code rtype res)))
+        ;; TODO: splitting real into binary64 and binary32 problems
+        (define rtype* (if (set-member? '(binary64 binary32) rtype) 'real rtype))
+        (and ((value-of rtype*) res)
+             (exact-value? rtype* res)
+             (value->code rtype* res)))
       false))
 
 (module+ test
   (define repr (get-representation 'binary64))
-  (check-equal? (eval-application '+ 1 1) 2)
-  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
+  (check-equal? (eval-application '+.f64 1 1) 2)
+  (check-equal? (eval-application 'exp.f64 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)

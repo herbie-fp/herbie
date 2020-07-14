@@ -153,7 +153,7 @@
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
                  [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
                  [*output-repr* (get-representation 'binary64)])
-    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
+    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define repr (get-representation 'binary64))
 
     ;; This is a basic sanity test
@@ -169,7 +169,7 @@
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '(if (== x 0.5) 1 +nan.0) repr)
+           (option-on-expr alts '(if (==.f64 x 0.5) 1 +nan.0) repr)
            '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
@@ -352,10 +352,10 @@
                  [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
                  [*output-repr* (get-representation 'binary64)])
     (define sps
-      (list (sp 0 '(/ y x) -inf.0)
-            (sp 2 '(/ y x) 0.0)
-            (sp 0 '(/ y x) +inf.0)
-            (sp 1 '(/ y x) +nan.0)))
+      (list (sp 0 '(/.f64 y x) -inf.0)
+            (sp 2 '(/.f64 y x) 0.0)
+            (sp 0 '(/.f64 y x) +inf.0)
+            (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
                   (splitpoints->point-preds
                     sps

@@ -37,16 +37,17 @@
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
   (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation* otype))
+  (define repr (get-representation* otype))       
 
   (define make-point
-    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) (get-representation 'binary64))])
+    (let ([sample (make-sampler `(λ ,fv ,(dict-ref *conditions* name 'TRUE)) repr)])
       (λ ()
         (if (dict-has-key? *conditions* name)
             (sample)
             (for/list ([v fv] [i (in-naturals)])
               (match (dict-ref (rule-itypes test-rule) v)
-                ['real (sample-double)]
+                ['binary64 (sample-double)]
+                ['binary32 (sample-single)]
                 ['complex (make-rectangular (sample-double) (sample-double))]
                 [rname (random-generate (get-representation rname))]))))))
 
@@ -77,7 +78,8 @@
   (define (make-point)
     (for/list ([v fv])
       (match (dict-ref (rule-itypes test-rule) v)
-        ['real (sample-double)]
+        ['binary64 (sample-double)]
+        ['binary32 (sample-single)]
         ['bool (if (< (random) .5) false true)]
         ['complex (make-rectangular (sample-double) (sample-double))])))
   (define point-sequence (in-producer make-point))

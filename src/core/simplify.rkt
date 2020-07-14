@@ -176,20 +176,20 @@
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
-          [(+ 1 0) . 1]
-          [(+ 1 5) . 6]
-          [(+ x 0) . x]
-          [(- x 0) . x]
-          [(* x 1) . x]
-          [(/ x 1) . x]
-          [(- (* 1 x) (* (+ x 1) 1)) . -1]
-          [(- (+ x 1) x) . 1]
-          [(- (+ x 1) 1) . x]
-          [(/ (* x 3) x) . 3]
-          [(- (* (sqrt (+ x 1)) (sqrt (+ x 1)))
-              (* (sqrt x) (sqrt x))) . 1]
-          [(+ 1/5 3/10) . 1/2]
-          [(cos PI) . -1]
+          [(+.f64 1 0) . 1]
+          [(+.f64 1 5) . 6]
+          [(+.f64 x 0) . x]
+          [(-.f64 x 0) . x]
+          [(*.f64 x 1) . x]
+          [(/.f64 x 1) . x]
+          [(-.f64 (*.f64 1 x) (*.f64 (+.f64 x 1) 1)) . -1]
+          [(-.f64 (+.f64 x 1) x) . 1]
+          [(-.f64 (+.f64 x 1) 1) . x]
+          [(/.f64 (*.f64 x 3) x) . 3]
+          [(-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
+              (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
+          [(+.f64 1/5 3/10) . 1/2]
+          [(cos.f64 PI.f64) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
@@ -200,10 +200,12 @@
     (with-check-info (['original original])
        (check-equal? output target)))
 
-  (check set-member? '((* x 6) (* 6 x)) (first (test-simplify '(+ (+ (+ (+ (+ x x) x) x) x) x))))
+  (check set-member? '((*.f64 x 6) (*.f64 6 x)) 
+                     (first (test-simplify '(+.f64 (+.f64 (+.f64 (+.f64 (+.f64 x x) x) x) x) x))))
 
   (define no-crash-exprs
-    '((exp (/ (/ (* (* c a) 4) (- (neg b) (sqrt (- (* b b) (* 4 (* a c)))))) (* 2 a)))))
+    '((exp.f64 (/.f64 (/.f64 (*.f64 (*.f64 c a) 4) 
+                      (-.f64 (neg.f64 b) (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 4 (*.f64 a c)))))) (*.f64 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])

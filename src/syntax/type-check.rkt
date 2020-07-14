@@ -33,14 +33,6 @@
           (constant-info (get-parametric-constant x type) 'type)
           (constant-info x 'type))]
     [#`,(? variable? x) (dict-ref env x)]
-    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define t type)
-     (for ([arg exprs] [i (in-naturals)])
-       (define actual-type (expression->type arg env type error!))
-       (if (= i 0) (set! t actual-type) #f)
-       (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
-     t]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (match (get-parametric-operator op actual-types)
@@ -90,7 +82,6 @@
      (define elsestmt-type (expression->type elsestmt env type error!))
      (unless (equal? ifstmt-type elsestmt-type)
        (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
-      
       ifstmt-type]))
 
 (module+ test
@@ -114,8 +105,8 @@
   (check-type 'binary64 #'(acos x) #:env #hash((x . binary64)))
   (check-fails 'binary64 #'(acos x) #:env #hash((x . bool)))
   (check-type 'bool #'(and a b c) #:env #hash((a . bool) (b . bool) (c . bool)))
-  (check-type 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . binary64)))
-  (check-fails 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . bool)))
-  (check-fails 'binary64 #'(if (== a 1) 1 TRUE) #:env #hash((a . binary64)))
+  (check-type 'real #'(if (== a 1) 1 0) #:env #hash((a . real)))
+  (check-fails 'real #'(if (== a 1) 1 0) #:env #hash((a . bool)))
+  (check-fails 'real #'(if (== a 1) 1 TRUE) #:env #hash((a . real)))
   (check-type 'bool #'(let ([a 1]) TRUE))
   (check-type 'binary64 #'(let ([a 1]) a) #:env #hash((a . bool))))
