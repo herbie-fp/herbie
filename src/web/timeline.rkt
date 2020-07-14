@@ -3,6 +3,9 @@
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
          "../datafile.rkt" "common.rkt" "../float.rkt"
          "../interface.rkt" "../timeline.rkt")
+
+(module+ test (require rackunit))
+
 (provide make-timeline make-timeline-json make-summary-html)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -71,6 +74,7 @@
      ,@(dict-call curr render-phase-times #:extra n 'times)
      ,@(dict-call curr render-phase-bstep 'bstep)
      ,@(dict-call curr render-phase-egraph 'egraph)
+     ,@(dict-call curr render-phase-sampling 'sampling)
      ,@(dict-call curr render-phase-outcomes 'outcomes))))
 
 (define (if-cons test x l)
@@ -115,14 +119,32 @@
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 
+(define (->percent num)
+  (string-append (~r (* num 100) #:precision 1) "%"))
+
+(define (average . values)
+  (/ (apply + values) (length values)))
+
+(define (render-phase-sampling sampling)
+  (define total (round (apply + (cdr (car sampling)))))
+  `((dt "Search")
+    (dd (table ([class "times"])
+         (tr (th "True") (th "Other") (th "False") (th "Iter"))
+         ,@(for/list ([rec (in-list (reverse sampling))])
+             (match-define (list n wt wo wf) rec)
+             `(tr (td ,(->percent (/ wt total)))
+                  (td ,(->percent (/ wo total)))
+                  (td ,(->percent (/ wf total)))
+                  (td ,(~a n))))))))
+
 (define (render-phase-accuracy accuracy oracle baseline)
   (define percentage
     (if (= baseline oracle)
-        (if (= baseline accuracy) "100" "-∞")
-        (~r (* (/ (- baseline accuracy) (- baseline oracle)) 100) #:precision 1)))
+        (if (= baseline accuracy) "100%" "-∞")
+        (->percent (/ (- baseline accuracy) (- baseline oracle)))))
 
   `((dt "Accuracy")
-    (dd (p ,percentage "% (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
+    (dd (p ,percentage " (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
         (p "Error of " ,(format-bits accuracy) "b"
            " against oracle of " ,(format-bits oracle) "b"
            " and baseline of " ,(format-bits baseline) "b"))))
@@ -262,11 +284,15 @@
              ,@(dict-call phase render-summary-times #:extra type 'times)
              ,@(dict-call phase render-summary-accuracy 'accuracy 'oracle 'baseline 'name 'link)
              ,@(dict-call phase render-summary-filtered 'filtered)
+             ,@(dict-call phase render-summary-sampling 'sampling)
              ,@(dict-call phase render-summary-rules 'rules)))))
 
   `(section ([id "process-info"])
             (h1 "Details")
             ,@blocks))
+
+(define (render-summary-sampling data)
+  (render-phase-sampling (reverse data)))
 
 (define (render-summary-algorithm algorithm)
   `((dt "Algorithm")

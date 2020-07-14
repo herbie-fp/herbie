@@ -116,6 +116,7 @@
 
 (FPCore (re im)
  :name "math.sqrt on complex, imaginary part, im greater than 0 branch"
+ :pre (> im 0)
  (* 0.5 (sqrt (* 2.0 (- (sqrt (+ (* re re) (* im im))) re)))))
 
 (FPCore (re im)

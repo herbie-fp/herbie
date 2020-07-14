@@ -76,7 +76,7 @@
     )))))
 
   `(section ([id "program"])
-     ,(if (equal? (test-precondition test) 'TRUE)
+     ,(if (equal? (program-body (test-precondition test)) 'TRUE)
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
@@ -121,9 +121,9 @@
      (format "(FPCore ~a" (test-vars test))
      (format "  :name ~s" (test-name test))
      (format "  :precision ~s" (test-output-prec test))
-     (if (equal? (test-precondition test) 'TRUE)
+     (if (equal? (program-body (test-precondition test)) 'TRUE)
          #f
-         (format "  :pre ~a" (resugar-program (test-precondition test)
+         (format "  :pre ~a" (resugar-program (program-body (test-precondition test))
                                               (test-output-prec test))))
      (if (equal? (test-expected test) #t)
          #f

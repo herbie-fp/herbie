@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt")
+(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -86,12 +86,12 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option repr)
+(define (combine-alts best-option repr sampler)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
-    (define splitpoints (sindices->spoints pts expr alts splitindices repr))
+    (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
@@ -191,7 +191,7 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices repr)
+(define (sindices->spoints points expr alts sindices repr sampler)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
@@ -207,7 +207,10 @@
                      [*timeline-disabled* true]
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
-          (prepare-points start-prog `(== ,(caadr start-prog) ,v) repr))
+          (prepare-points start-prog
+                          `(λ ,(program-variables start-prog) (== ,(caadr start-prog) ,v))
+                          repr
+                          (λ () (cons v (sampler)))))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
@@ -223,20 +226,28 @@
 
     (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
+  (define (regimes-sidx->spoint sidx)
+    (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
+
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
 
+  (define use-binary
+    (and (flag-set? 'reduce 'binary-search)
+         ;; Binary search is only valid if we correctly extracted the branch expression
+         (andmap identity (cons start-prog progs))))
+  (if use-binary
+      (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
+      (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts))
+      
   (append
-   (if (and (flag-set? 'reduce 'binary-search)
-            ;; Binary search is only valid if we correctly extracted the branch expression
-            (andmap identity (cons start-prog progs)))
-       (begin
-         (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
-         (for/list ([si1 sindices] [si2 (cdr sindices)])
-           (sidx->spoint si1 si2)))
-       (begin
-         (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts)
-         (for/list ([sindex (take sindices (sub1 (length sindices)))])
-	   (sp (si-cidx sindex) expr (apply eval-expr (list-ref points (- (si-pidx sindex) 1)))))))
+   (for/list ([si1 sindices] [si2 (cdr sindices)])
+     (cond
+       [use-binary
+        (with-handlers ([exn:fail:user:herbie:sampling?
+                         (lambda (e) (regimes-sidx->spoint si1))])
+          (sidx->spoint si1 si2))]
+       [else
+        (regimes-sidx->spoint si1)]))
    (list final-sp)))
 
 (define (point-with-dim index point val)

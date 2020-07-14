@@ -187,8 +187,9 @@
 			     (let ([context
 				    (prepare-points
 				     program
-                                     `(and ,@(for/list ([(var period) (lp-periods ploc)])
-                                               `(<= 0 ,var ,(* 2 pi var))))
+                                     `(λ ,(program-variables program)
+                                        (and ,@(for/list ([(var period) (lp-periods ploc)])
+                                                 `(<= 0 ,var ,(* 2 pi var)))))
                                      (*output-repr*))])
 			       (parameterize ([*pcontext* context])
 				 (improve-func (make-alt program)))))))

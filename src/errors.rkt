@@ -1,16 +1,21 @@
 #lang racket
 (require "config.rkt")
 (provide raise-herbie-error raise-herbie-syntax-error
+         raise-herbie-sampling-error
          herbie-error->string herbie-error-url
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
+         (struct-out exn:fail:user:herbie:sampling)
          warn warning-log expect-warning)
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
 
 (struct exn:fail:user:herbie:syntax exn:fail:user:herbie (locations)
-        #:extra-constructor-name make-exn:fail:user:herbie:syntax)
+  #:extra-constructor-name make-exn:fail:user:herbie:syntax)
+
+(struct exn:fail:user:herbie:sampling exn:fail:user (url)
+  #:extra-constructor-name make-exn:fail:user:herbie:sampling)
 
 (define (raise-herbie-error message #:url [url #f] . args)
   (raise (make-exn:fail:user:herbie
@@ -19,6 +24,10 @@
 (define (raise-herbie-syntax-error message #:url [url "faq.html#invalid-syntax"] #:locations [locations '()] . args)
   (raise (make-exn:fail:user:herbie:syntax
           (apply format message args) (current-continuation-marks) url locations)))
+
+(define (raise-herbie-sampling-error message #:url [url #f] . args)
+  (raise (make-exn:fail:user:herbie:sampling
+          (apply format message args) (current-continuation-marks) url)))
 
 (define (herbie-error-url exn)
   (format "https://herbie.uwplse.org/doc/~a/~a"
