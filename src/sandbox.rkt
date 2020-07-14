@@ -59,7 +59,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-repr)))
+            (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
         (timeline-event! 'end)
 
         (define fns
@@ -130,7 +130,7 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (table-row (test-name test) status
-             (resugar-program (test-precondition test) (test-output-prec test))
+             (resugar-program (program-body (test-precondition test)) (test-output-prec test))
              (test-output-prec test)
              (test-vars test)
              (resugar-program (test-input test) (test-output-prec test)) #f

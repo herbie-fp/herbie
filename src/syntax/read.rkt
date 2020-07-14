@@ -2,10 +2,12 @@
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "syntax-check.rkt" "type-check.rkt")
 
-(provide (struct-out test) test-program test-target test-specification load-tests parse-test)
+(provide (struct-out test)
+         test-program test-target test-specification load-tests parse-test
+         test-precondition)
 
 
-(struct test (name vars input output expected spec precondition
+(struct test (name vars input output expected spec pre
                    output-prec var-precs) #:prefab)
 
 (define (test-program test)
@@ -16,6 +18,9 @@
 
 (define (test-specification test)
   `(λ ,(test-vars test) ,(test-spec test)))
+
+(define (test-precondition test)
+  `(λ ,(test-vars test) ,(test-pre test)))
 
 (define (parse-test stx)
   (assert-program! stx)
