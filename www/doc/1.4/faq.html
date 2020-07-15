@@ -10,7 +10,7 @@
 <body>
   <header>
     <a href="../../"><img class="logo" src="../../logo.png" /></a>
-    <h1>Frequently Asked Questions</h1>
+    <h1>Common Errors and Warnings</h1>
   </header>
 
   <p><a href="../../">Herbie</a> automatically transforms floating
@@ -91,7 +91,8 @@
     that Herbie uses. (For example, Microsoft's <code>math.h</code>
     does not provide the <code>y0</code> function.) Herbie provides a
     fallback implementation, but you can disable the fallback
-    with <code>--disable precision:fallback</code>.
+    with <code>--disable precision:fallback</code>, in which Herbie
+    will not be able to use that function.
   </p>
 
   <h3 id="value-to-string">Could uniquely print <var>val</var></h3>
@@ -121,10 +122,9 @@
   <h3>Missing reports chart on Chrome</h3>
 
   <p>
-    When using Chrome to view web pages on your local machine, Chrome
-    disables certain APIs for security reasons; this prevents the
-    Herbie reports from drawing the
-    chart. <a href="http://www.chrome-allow-file-access-from-file.com/">Run
+    When using Chrome to view web pages on your local machine, Herbie
+    reports cannot draw the arrow chart due to security restrictions.
+    <a href="http://www.chrome-allow-file-access-from-file.com/">Run
     Chrome with <code>--allow-file-access-from-files</code></a> to fix
     this error.
   </p>
