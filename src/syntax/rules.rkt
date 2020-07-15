@@ -82,12 +82,13 @@
         (define-values (rnames inputs outputs vars types)
           (values (list 'rname ...) (list 'input ...) (list 'output ...)
                   (list 'var ...) (list 'type ...)))
+        (define real-precs '(binary64 binary32))
         (define types*
           (if (for/or ([t types]) (equal? t 'real))
-              (for/lists (f64 f32 #:result (list f64 f32)) ([t types])
-                (if (equal? t 'real) (values 'binary64 'binary32) (values t t)))
+              (for/list ([prec real-precs])
+                (for/list ([t types]) (if (equal? t 'real) prec t)))
               (list types)))
-        (for ([types types*] [prec '(binary64 binary32)])
+        (for ([types types*] [prec real-precs])
           (define ctx (for/list ([var* vars] [type* types]) (cons var* type*)))
           (define name
             (for/list ([rname* rnames] [input* inputs] [output* outputs])

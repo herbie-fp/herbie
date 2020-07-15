@@ -38,6 +38,9 @@
     [#`(if #,args ...)
      (error! stx "Invalid `if` expression with ~a arguments (expects 3)" (length args))
      (unless (null? args) (check-expression* (last args) vars error!))]
+    [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
+     ;; These expand associativity so we don't check the number of arguments
+     (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (operator? f)

@@ -8,7 +8,7 @@
          for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
-         random-ranges parse-flag get-seed set-seed!
+         parse-flag get-seed set-seed!
          quasisyntax
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))

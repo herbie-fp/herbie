@@ -33,6 +33,14 @@
           (constant-info (get-parametric-constant x type) 'type)
           (constant-info x 'type))]
     [#`,(? variable? x) (dict-ref env x)]
+    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
+     (define t 'real)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env type error!))
+       (if (= i 0) (set! t actual-type) #f)
+       (unless (equal? t actual-type)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
+     t]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (match (get-parametric-operator op actual-types)

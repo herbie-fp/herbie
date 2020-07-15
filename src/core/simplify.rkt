@@ -1,6 +1,7 @@
 #lang racket
 
 (require pkg/lib)
+(require (only-in ffi/unsafe ptr-ref _string))
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
 
 (provide simplify-expr simplify-batch)

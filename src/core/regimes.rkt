@@ -199,6 +199,9 @@
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
+  (define repr-name (representation-name repr))
+  (define eq-repr (car (get-parametric-operator '== (list repr-name repr-name))))
+
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
@@ -208,7 +211,7 @@
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog) (== ,(caadr start-prog) ,v))
+                          `(λ ,(program-variables start-prog) (,eq-repr ,(caadr start-prog) ,v))
                           repr
                           (λ () (cons v (sampler)))))
         (< (errors-score (errors prog1 ctx repr))
