@@ -69,7 +69,7 @@
         (let ([ext (string-downcase lang)]) ; FPBench organizes compilers by extension
           (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
                     (or (equal? ext "fpcore")                           
-                        (and (supported-by-lang? in-prog ext) ; must be valid in a given language  
+                        (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
                              (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
             (sow (cons lang (cons (converter in-prog*)
                                   (and out-prog* (converter out-prog*)))))
