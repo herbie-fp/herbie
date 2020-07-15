@@ -42,9 +42,12 @@
   <p>This error occurs when Herbie is unable to find enough valid
   points. For example, the expression <code>(acos (+ 1000 x))</code>
   only yields a valid result when <code>x</code> is between -1001 and
-  -999, a rather narrow range. The solution is to help out Herbie by
-  specifying a precondition: <code>:pre (&lt; -1001 x -999)</code>.
-  Herbie will use the precondition to improve its sampling strategy.
+  -999, a rather narrow range. Several things can help in this case.
+  The simplest is to increase
+  the <a href="options.html"><code>--num-analysis</code> flag</a>,
+  which can help in some cases. Specifying a precondition,
+  like <code>:pre (&lt; -1001 x -999)</code>, can also help Herbie
+  out.
   </p>
 
   <h3 id="no-valid-values">No valid values</h3>

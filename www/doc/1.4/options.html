@@ -100,6 +100,15 @@
       most programs. The more points sampled, the slower Herbie is.
       This option can be increased to 512 or 1024 if Herbie gives very
       inconsistent results between runs with different seeds.</dd>
+
+    <dt><code>--num-analysis N</code></dt>
+    <dd>The number of input subdivisions to use when searching for
+      valid input points. The default, 14, is a good balance. The more
+      subdivisions, the slower Herbie will be, but also the less
+      likely it will be to hit the
+      "<a href="faq.html#sample-valid-points">Cannot sample enough
+      valid points</a>" error.
+    </dd>
     
     <dt><code>--timeout T</code></dt>
     <dd>The timeout to use per-input, in seconds. A fractional number
