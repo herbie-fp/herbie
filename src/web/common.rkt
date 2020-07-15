@@ -80,7 +80,7 @@
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(expr->tex (program-body (test-precondition test))) "\\]")))
+                  "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-prec)) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
