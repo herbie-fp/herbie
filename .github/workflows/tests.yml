@@ -76,6 +76,6 @@ jobs:
         with:
           repository: herbie-fp/complex-herbie
           path: plugin
-      - name: "Install SoftPosit support"
-        run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
+      - name: "Install Complex support"
+        run: raco pkg install --no-cache --auto --name complex-herbie plugin/
       - run: racket infra/travis.rkt --seed 0 plugin/test.fpcore
