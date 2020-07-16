@@ -245,18 +245,24 @@
     (if (number? axis)
         (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
+
+   ; works for binary64, binary32 (probably not for posits)
+  (define-values (maxbound minbound)
+    (let ([hi (sub1 ((representation-repr->ordinal repr) (fl->repr +inf.0 repr)))]
+          [lo (add1 ((representation-repr->ordinal repr) (fl->repr -inf.0 repr)))])
+      (values ((representation-ordinal->repr repr) hi)
+              ((representation-ordinal->repr repr) lo))))
+
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  (define-values (min max) ; plot requires rational bounds
+  (define-values (min* max*) ; plot requires finite bounds
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
-            [(x y)
-              (values (flmax (flnext -inf.0) (repr->fl x repr)) ; hence this trick
-                      (flmin (flprev +inf.0) (repr->fl y repr)))]))
-  (function avg-fun min max #:width 2 #:color (color-theme-fit color)))
+            [(x y) (values (max minbound x) (min maxbound y))])) ; hence this
+  (function avg-fun min* max* #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
   (inverse (const x-val) #:color "gray" #:width 3))
