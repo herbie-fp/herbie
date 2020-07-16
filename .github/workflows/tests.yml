@@ -57,7 +57,7 @@ jobs:
           path: plugin
       - name: "Install SoftPosit support"
         run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
-      - run: racket herbie/infra/travis.rkt --precision posit16 --seed 0 plugin/bench/posits.fpcore
+      - run: racket infra/travis.rkt --precision posit16 --seed 0 plugin/bench/posits.fpcore
 
   complex:
     name: "Plugin tests (Complex)"
@@ -78,4 +78,4 @@ jobs:
           path: plugin
       - name: "Install SoftPosit support"
         run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
-      - run: racket herbie/infra/travis.rkt --seed 0 plugin/test.fpcore
+      - run: racket infra/travis.rkt --seed 0 plugin/test.fpcore
