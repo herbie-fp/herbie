@@ -14,7 +14,8 @@
          location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program)
+         desugar-program resugar-program
+         parameterize-expr unparameterize-expr)
 
 (define expr? (or/c list? symbol? value?))
 
@@ -152,8 +153,9 @@
          (unless (= (length atypes) (length args))
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
-               (for/list ([arg args] [atype atypes])
-                 (munge arg (get-representation atype))))]
+               (for/list ([arg args] [type atypes])
+                (let ([type* (if (equal? type 'real) 'binary64 type)]) ; TODO: temp conversion
+                 (munge arg (get-representation type*)))))]
         [_ (raise-argument-error 'eval-prog "expr?" prog)]))
 
     (hash-ref! exprhash expr
@@ -203,7 +205,7 @@
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define fn (operator-info op 'nonffi))
-        (define res (apply fn args))value-of
+        (define res (apply fn args))
         (define rtype (operator-info op 'otype))
         ;; TODO: splitting real into binary64 and binary32 problems
         (define rtype* (if (set-member? '(binary64 binary32) rtype) 'real rtype))
@@ -317,7 +319,8 @@
          [(? symbol? a) (map (const a) args)]))
      (define args*
        (for/list ([arg args] [type atypes])
-         (expand-parametric-reverse arg (get-representation type))))
+        (let ([type* (if (equal? type 'real) 'binary64 type)]) ; TODO: temp conversion
+         (expand-parametric-reverse arg (get-representation type*)))))
      (cons op* args*)]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
@@ -356,3 +359,50 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+
+;; Conversions to and from "classic" (<= 1.4) Herbie to "parameterized" Herbie
+;; Needed for src/core/taylor.rkt and src/core/reduce.rkt
+
+(define (unparameterize-expr expr)
+  (match expr
+   [(? number?) expr]
+   [(? (curry hash-has-key? parametric-constants-reverse))
+    (hash-ref parametric-constants-reverse expr)]
+   [(? constant?) expr]
+   [(? symbol?) expr]
+   [(list 'if cond ift iff)
+    (define cond* (unparameterize-expr cond))
+    (define ift* (unparameterize-expr ift))
+    (define iff* (unparameterize-expr iff))
+    `(if ,cond* ,ift* ,iff*)]
+   [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
+    (define op* (hash-ref parametric-operators-reverse op))
+    (define args* (map unparameterize-expr args))
+    (if (and (equal? op* '-) (equal? (length args) 1))
+       `(neg ,@args*)
+       `(,op* ,@args*))]
+   [(list op args ...) 
+    `(,op ,@(map unparameterize-expr args))]))
+
+(define (parameterize-expr expr prec)
+  (match expr
+   [(? number?) expr]
+   [(? (curry hash-has-key? parametric-constants))
+    (get-parametric-constant expr prec)]
+   [(? constant?) expr]
+   [(? symbol?) expr]
+   [(list 'if cond ift iff)
+    (define cond* (parameterize-expr cond prec))
+    (define ift* (parameterize-expr ift prec))
+    (define iff* (parameterize-expr iff prec))
+    `(if ,cond* ,ift* ,iff*)]
+   [(list 'neg arg)
+    (define op* (car (get-parametric-operator '- (list prec))))
+    (define arg* (parameterize-expr arg prec))
+    `(,op* ,arg*)]
+   [(list (? (curry hash-has-key? parametric-operators) op) args ...)
+    (define op* (car (get-parametric-operator op (make-list (length args) prec))))
+    (define args* (map (curryr parameterize-expr prec) args))
+    `(,op* ,@args*)]
+   [(list op args ...) 
+    `(,op ,@(map (curryr parameterize-expr prec) args))]))

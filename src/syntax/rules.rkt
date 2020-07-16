@@ -71,30 +71,38 @@
     (error 'define-ruleset "Could not compute type of rule ~a -> ~a"
            input output)]))
 
+;; Rule generation
+
+(define rule-names (mutable-set))
+
+(define (gen-unique-rule-name name)
+  (let ([name* (if (set-member? rule-names name) (gensym name) name)])
+    (set-add! rule-names name*)
+    name*))
+
 ;; TODO: super messy way to parameterize any rule containing 'real into 'binary64 and 'binary32
 (define-syntax define-ruleset
   (syntax-rules ()
-    [(define-ruleset name groups [rname input output] ...)
-     (define-ruleset name groups #:type () [rname input output] ...)]
-    [(define-ruleset name groups #:type ([var type] ...)
-       [rname input output] ...)
-      (begin
-        (define-values (rnames inputs outputs vars types)
-          (values (list 'rname ...) (list 'input ...) (list 'output ...)
-                  (list 'var ...) (list 'type ...)))
-        (define real-precs '(binary64 binary32))
-        (define types*
-          (if (for/or ([t types]) (equal? t 'real))
-              (for/list ([prec real-precs])
-                (for/list ([t types]) (if (equal? t 'real) prec t)))
-              (list types)))
-        (for ([types types*] [prec real-precs])
-          (define ctx (for/list ([var* vars] [type* types]) (cons var* type*)))
-          (define name
-            (for/list ([rname* rnames] [input* inputs] [output* outputs])
-              (define-values (input** output** otype) (type-of-rule input* output* ctx prec))
-              (rule rname* input** output** ctx otype)))
-          (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
+   [(define-ruleset name groups [rname input output] ...)
+    (define-ruleset name groups #:type () [rname input output] ...)]
+   [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
+    (begin
+      (define-values (rnames inputs outputs vars types)
+        (values (list 'rname ...) (list 'input ...) (list 'output ...)
+                (list 'var ...) (list 'type ...)))
+      (define real-precs '(binary64 binary32))
+      (define types*
+        (if (for/or ([t types]) (equal? t 'real))
+            (for/list ([prec real-precs])
+              (for/list ([t types]) (if (equal? t 'real) prec t)))
+            (list types)))
+      (for ([types types*] [prec real-precs])
+        (define ctx (for/list ([var* vars] [type* types]) (cons var* type*)))
+        (define name
+          (for/list ([rname* rnames] [input* inputs] [output* outputs])
+            (define-values (input** output** otype) (type-of-rule input* output* ctx prec))
+            (rule (gen-unique-rule-name rname*) input** output** ctx otype)))
+        (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 
 ; Commutativity
 (define-ruleset commutativity (arithmetic simplify fp-safe)

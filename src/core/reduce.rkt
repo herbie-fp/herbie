@@ -10,11 +10,9 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
-
-(define (eval-const-expr expr)
-  ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f)))
+  (remove-duplicates
+    (unparameterize-expr
+      (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))))
 
 (define (simplify expr*)
   (define expr ((get-evaluator) expr*))
@@ -26,8 +24,17 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(,op ,args ...)
+     ; Get the parameterized op for binary64
+     ; Correct arg length is taken from 'operator-info* and not 'args since these exprs
+     ; are v-ary while operator-info* is not
+     (define-values (op-name arg-len) 
+        (if (equal? op 'neg)
+            (values '- 1)
+            (values op (length (operator-info* op 'itype)))))
+     (define op* (car (get-parametric-operator op-name (make-list arg-len 'binary64))))
+
      (define args* (map simplify args))
-     (define val (eval-application op args*))
+     (define val (apply (curry eval-application op*) args*))
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
@@ -263,6 +270,6 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of x (*var-reprs*))
+     (match (type-of (parameterize-expr x 'binary64) (*var-reprs*))
        [(or 'real 'binary64 'binary32) `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

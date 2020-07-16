@@ -238,7 +238,6 @@
 (declare-parametric-operator! '/ '/.f32 '(binary32 binary32) 'binary32)
 
 (define (declare-parametric-operator/libm op num-args)
-  (define sym-append (λ args (string->symbol (apply string-append (map symbol->string args)))))
   (declare-parametric-operator! op (sym-append op '.f64) (make-list num-args 'binary64) 'binary64)
   (declare-parametric-operator! op (sym-append op '.f32) (make-list num-args 'binary32) 'binary32))
 
