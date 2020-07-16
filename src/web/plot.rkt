@@ -12,37 +12,34 @@
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
-(define (double-transform)
-  ;; TODO: needs to be repr-aware
-  (define repr (get-representation* 'real))
+(define (repr-transform repr)
   (invertible-function
    (compose (representation-repr->ordinal repr) (curryr ->flonum repr))
    (compose (representation-ordinal->repr repr) round)))
 
-(define (double-axis)
-  (make-axis-transform (double-transform)))
+(define (repr-axis repr)
+  (make-axis-transform (repr-transform repr)))
 
-(define (power10-upto x)
-  (define ->repr (if (flag-set? 'precision 'double) real->double-flonum real->single-flonum))
+(define (power10-upto x repr)
   (if (= x 0)
       '()
       (reverse
        (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (->repr (expt 10.0 power)))
+         (define value (fl->repr (expt 10.0 power) repr))
          (if (= value 0) '() (cons value (loop (- power 1))))))))
 
-(define (possible-ticks min max)
+(define (possible-ticks min max repr)
   ;; Either
   ;; + 0 is between min and max
   ;; + 0 is one of min and max (two cases)
   ;; + min and max are on the same side of 0 (two cases)
   (sort 
    (cond
-    [(< (* min max) 0) (append (map - (power10-upto (- min))) '(0.0) (power10-upto max))]
-    [(= min 0) (cons 0 (power10-upto max))]
-    [(= max 0) (append (map - (power10-upto (abs min))) '(0.0))]
-    [(> min 0) (set-subtract (power10-upto max) (power10-upto min))]
-    [(< max 0) (map - (set-subtract (power10-upto (abs min)) (power10-upto (abs max))))])
+    [(< (* min max) 0) (append (map - (power10-upto (- min) repr)) '(0.0) (power10-upto max repr))]
+    [(= min 0) (cons 0 (power10-upto max repr))]
+    [(= max 0) (append (map - (power10-upto (abs min) repr)) '(0.0))]
+    [(> min 0) (set-subtract (power10-upto max repr) (power10-upto min repr))]
+    [(< max 0) (map - (set-subtract (power10-upto (abs min) repr) (power10-upto (abs max) repr)))])
    <))
 
 (define (pick-spaced-indices necessary possible number)
@@ -82,9 +79,8 @@
   (define stopper (if (null? necessary) 0 (apply max necessary)))
   (car (argmin (λ (x) (+ (cdr x) (sqr (- (- possible 1) (caar x))))) (drop (vector->list final) stopper))))
 
-(define (choose-ticks min max)
-  (define possible (possible-ticks min max))
-
+(define (choose-ticks min max repr)
+  (define possible (possible-ticks min max repr))
   (cond
    [(< (length possible) 12)
     ;; If there aren't enough possible big ticks, we fall back to the standard method
@@ -92,16 +88,16 @@
      (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
      (if (<= min 0.0 max) (list (pre-tick 0.0 #t)) '())
      (if (<= min -1.0 max) (list (pre-tick -1.0 #t)) '())
-     ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) (double-transform))) min max))]
+     ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) (repr-transform repr))) min max))]
    [else
     (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
     (define major-indices (pick-spaced-indices necessary (length possible) 12))
     (for/list ([idx major-indices])
       (pre-tick (list-ref possible idx) #t))]))
 
-(define (double-ticks)
+(define (repr-ticks repr)
   (ticks
-   choose-ticks
+   (curryr choose-ticks repr)
    (λ (lft rgt pticks)
      (for/list ([ptick pticks])
        (define val (pre-tick-value ptick))
@@ -155,11 +151,11 @@
    (y-tick-lines)
    (error-points (map (const 1) pts) pts #:axis axis #:alpha 0)))
 
-(define (with-herbie-plot #:title [title #f] thunk)
+(define (with-herbie-plot repr #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
-                 [plot-x-transform (double-axis)]
-                 [plot-x-ticks (double-ticks)]
+                 [plot-x-transform (repr-axis repr)]
+                 [plot-x-ticks (repr-ticks repr)]
                  [plot-x-tick-label-anchor 'top]
                  [plot-x-label #f]
                  [plot-x-far-axis? #t]
@@ -177,19 +173,19 @@
     (if port
         (lambda () (plot-file (cons (y-axis) renderers) port kind #:y-min 0 #:y-max bit-width))
         (lambda () (plot-pict (cons (y-axis) renderers) #:y-min 0 #:y-max bit-width))))
-  (with-herbie-plot #:title title thunk))
+  (with-herbie-plot repr #:title title thunk))
 
-(define (with-alt-plot #:title [title #f] thunk)
+(define (with-alt-plot repr #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 800]
                  [plot-background-alpha 1]
-                 [plot-x-transform (double-axis)]
-                 [plot-x-ticks (double-ticks)]
+                 [plot-x-transform (repr-axis repr)]
+                 [plot-x-ticks (repr-ticks repr)]
                  [plot-x-tick-label-anchor 'top]
                  [plot-x-label #f]
                  [plot-x-far-axis? #t]
                  [plot-x-far-ticks no-ticks]
-                 [plot-y-transform (double-axis)]
-                 [plot-y-ticks (double-ticks)]
+                 [plot-y-transform (repr-axis repr)]
+                 [plot-y-ticks (repr-ticks repr)]
                  [plot-y-tick-label-anchor 'left]
                  [plot-y-label #f]
                  [plot-y-far-axis? #t]
@@ -198,10 +194,10 @@
                  [plot-y-label title])
     (thunk)))
 
-(define (alt-plot #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
+(define (alt-plot repr #:port [port #f] #:kind [kind 'auto] #:title [title #f] . renderers)
   (define thunk
     (lambda () (plot-file renderers port kind)))
-  (with-alt-plot #:title title thunk))
+  (with-alt-plot repr #:title title thunk))
 
 (define (errors-by x errs pts)
   (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) < #:key car))
@@ -243,25 +239,30 @@
              (for/list ([i (in-range idx-min (+ idx-min bin-size))]) (vector-ref errs i))])
            <)))))
 
-(define (error-avg errs pts #:axis [axis 0] #:vars [vars '()]
+(define (error-avg errs pts repr #:axis [axis 0] #:vars [vars '()]
                    #:color [color *blue-theme*] #:bin-size [bin-size 128])
   (define get-coord
     (if (number? axis)
         (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl)))
+
+   ; works for binary64, binary32 (probably not for posits)
+  (define-values (maxbound minbound)
+    (let ([hi (sub1 ((representation-repr->ordinal repr) (fl->repr +inf.0 repr)))]
+          [lo (add1 ((representation-repr->ordinal repr) (fl->repr -inf.0 repr)))])
+      (values ((representation-ordinal->repr repr) hi)
+              ((representation-ordinal->repr repr) lo))))
+
   (define eby (errors-by get-coord errs pts))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  ;; TODO: This is a weird hack in several ways, and ideally wouldn't exist
-  ;; TODO: This doesn't work in single-precision
-  (define-values (min max)
+  (define-values (min* max*) ; plot requires finite bounds
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
-            [(x y) (values (flmax (flnext -inf.0) x) (flmin (flprev +inf.0) y))]))
-  (function avg-fun min max
-            #:width 2 #:color (color-theme-fit color)))
+            [(x y) (values (max minbound x) (min maxbound y))])) ; hence this
+  (function avg-fun min* max* #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
   (inverse (const x-val) #:color "gray" #:width 3))
@@ -282,17 +283,11 @@
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
 
-(define (points->doubles pts repr)
-  (cond
-    [(or (real? (caar pts)) (complex? (caar pts))) pts]
-    [else
-     (map (curry map (curryr repr->fl repr)) pts)]))
-
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
   (define repr (get-representation (test-output-prec (test-result-test result))))
-  (define pts (points->doubles (test-success-newpoints result) repr))
+  (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
    repr
@@ -307,18 +302,19 @@
       ['b (values *blue-theme*  test-success-end-error)]))
 
   (define repr (get-representation (test-output-prec (test-result-test result))))
-  (define pts (points->doubles (test-success-newpoints result) repr))
+  (define pts (test-success-newpoints result))
   (define err (accessor result))
 
   (herbie-plot
    #:port out #:kind 'png
    repr
    (error-points err pts #:axis idx #:color theme)
-   (error-avg err pts #:axis idx #:color theme)))
+   (error-avg err pts repr #:axis idx #:color theme)))
 
-(define (make-alt-plots point-alt-idxs alt-idxs title out)
+(define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
-  (alt-plot best-alt-point-renderers #:port out #:kind 'png #:title title))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (alt-plot best-alt-point-renderers repr #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
   (define repr (get-representation (test-output-prec (test-result-test result))))
@@ -328,9 +324,10 @@
   (define newexacts (test-success-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts repr))
 
-(define (make-contour-plot point-colors var-idxs title out)
+(define (make-contour-plot point-colors var-idxs title out result)
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
-  (alt-plot point-renderers #:port out #:kind 'png #:title title))
+  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (alt-plot point-renderers repr #:port out #:kind 'png #:title title))
 
 #;
 (define (make-plots result rdir profile? debug?)
@@ -350,9 +347,9 @@
       (define alt-idxs (list i j))
       (define title (format "~a vs ~a" (list-ref vars j) (list-ref vars i)))
       (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'best-alts
-                 make-alt-plots point-alt-idxs alt-idxs title)
+                 make-alt-plots point-alt-idxs alt-idxs title result)
       (open-file (- (+ j (* i (- (length vars)))) 1) #:type 'contours
-                 make-contour-plot point-colors alt-idxs title)))
+                 make-contour-plot point-colors alt-idxs title result)))
 
   (for ([var (test-vars (test-result-test result))] [idx (in-naturals)])
     (when (> (length (remove-duplicates (map (curryr list-ref idx) (test-success-newpoints result)))) 1)
