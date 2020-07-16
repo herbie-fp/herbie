@@ -1,7 +1,7 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "../datafile.rkt" "common.rkt" "../float.rkt"
+         "../datafile.rkt" "common.rkt"
          "../interface.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))

@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "common.rkt" "programs.rkt" "interface.rkt" "timeline.rkt")
+(require "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
