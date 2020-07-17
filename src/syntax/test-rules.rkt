@@ -29,13 +29,14 @@
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation* otype))       
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
+  (define var-precs (for/list ([(v t) (in-dict itypes)]) (cons v t)))
+  (define repr (get-representation otype))       
 
   (define make-point
     (make-sampler
      repr
-     `(λ ,fv ,(dict-ref *conditions* name 'TRUE))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) otype var-precs))
      `(λ ,fv ,p1)
      `(λ ,fv ,p2)))
 
@@ -66,8 +67,8 @@
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation* otype))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
+  (define repr (get-representation otype))
   (define (make-point)
     (for/list ([v fv])
       (match (dict-ref (rule-itypes test-rule) v)

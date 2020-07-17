@@ -49,8 +49,8 @@
 (define-representation (binary64 real)
   bigfloat->flonum
   bf
-  ordinal->flonum
-  flonum->ordinal
+  (shift 63 ordinal->flonum)
+  (unshift 63 flonum->ordinal)
   64
   '(+nan.0 +inf.0 -inf.0))
 

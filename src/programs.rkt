@@ -36,23 +36,17 @@
 
 ;; `env` is in an indeterminate state, where it's a mapping from
 ;; variables to *either* types or reprs.
-(define (type-of expr env)
+(define (type-of expr repr env)
   ;; Fast version does not recurse into functions applications
   (match expr
-    [(? real?) 'real]
+    [(? real?) (representation-name repr)]
     ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
     ;; standards, this will have to have more information passed in
-    [(? value?) (type-name (representation-type (*output-repr*)))]
+    [(? value?) (representation-name (*output-repr*))]
     [(? constant?) (constant-info expr 'type)]
-    [(? variable?)
-     (match (dict-ref env expr)
-       [(? symbol? t) t]
-       [(? representation? r) (type-name (representation-type r))])]
-    [(list 'if cond ift iff)
-     (type-of ift env)]
-    [(list op args ...)
-     (operator-info op 'otype)]))
-
+    [(? variable?) (representation-name (dict-ref env expr))]
+    [(list 'if cond ift iff) (type-of ift env)]
+    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
 

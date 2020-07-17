@@ -114,6 +114,8 @@
 (define (make-sampler repr precondition . programs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
+  (displayln precondition)
+
   (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
     (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representations ~a"
            (bf-precision) reprs))

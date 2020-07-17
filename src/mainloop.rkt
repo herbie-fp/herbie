@@ -147,7 +147,7 @@
   (define var-precs (for/list ([var vars]) (cons var prec)))
 
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (set-member? '(binary64 binary32) (type-of expr (*var-reprs*)))))
+          (not (set-member? '(binary64 binary32) (type-of expr repr (*var-reprs*)))))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
@@ -185,7 +185,7 @@
   (^gened-series^ #t)
   (void))
 
-(define (gen-rewrites!)
+(define (gen-rewrites! repr)
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-log! 'method (object-name rewrite))
@@ -197,7 +197,7 @@
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr #:rules (*rules*) #:root location)
+             (begin0 (rewrite expr repr #:rules (*rules*) #:root location)
                (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
@@ -324,7 +324,7 @@
     (gen-series! repr))
   (when (not (^gened-rewrites^))
     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-    (gen-rewrites!))
+    (gen-rewrites! repr))
   (when (not (^simplified^))
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
@@ -358,7 +358,7 @@
 	     (debug #:from 'progress #:depth 3 "localizing error")
 	     (localize!)
 	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-	     (gen-rewrites!)
+	     (gen-rewrites! repr)
 	     (debug #:from 'progress #:depth 3 "generating series expansions")
 	     (gen-series! repr)
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")

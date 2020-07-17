@@ -270,6 +270,6 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of (parameterize-expr x 'binary64) (*var-reprs*))
-       [(or 'real 'binary64 'binary32) `(pow ,x ,power)]
+     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; *var-reprs* might be problematic
+       [(or 'binary64 'binary32) `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

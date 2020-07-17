@@ -36,7 +36,7 @@
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts)
+        (exprs-to-branch-on alts repr)
         (program-variables (alt-program (first alts)))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
@@ -56,13 +56,13 @@
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
 
-(define (exprs-to-branch-on alts)
+(define (exprs-to-branch-on alts repr)
   (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
   (define start-critexprs (all-critical-subexpressions (*start-prog*)))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-name (representation-type (get-representation* (type-of e (*var-reprs*))))) 'real))
+   (λ (e) (set-member? '(binary64 binary32) (type-of e repr (*var-reprs*))))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
