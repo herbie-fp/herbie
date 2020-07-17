@@ -15,14 +15,14 @@
 
   <p><a href="../../">Herbie</a> automatically transforms floating
   point expressions into more accurate forms. This page troubleshoots
-  common Herbie errors.</p>
+  common Herbie errors, warnings, and known issues.</p>
 
 
   <h2>Common errors</h2>
 
   <p>
-    Herbie error messages refer here for additional information and
-    debugging tips.
+    Herbie error messages refer to this second for additional
+    information and debugging tips.
   </p>
 
   <h3 id="invalid-syntax">Invalid syntax</h3>
@@ -33,30 +33,28 @@
     that should not be parenthesized. For example, in
     <code>(- (exp (x)) 1)</code>, the expression <code>x</code> is a
     variable so shouldn't be parenthesized. <code>(- (exp x) 1)</code>
-    would be the correct way of writing that expression. Please review
-    the <a href="input.html">input format</a> documentation for more.
+    would be the correct way to write that expression.
+    The <a href="input.html">input format</a> documentation has more
+    details on Herbie's syntax.
   </p>
 
   <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
 
   <p>This error occurs when Herbie is unable to find enough valid
   points. For example, the expression <code>(acos (+ 1000 x))</code>
-  only yields a valid result when <code>x</code> is between -1001 and
-  -999, a rather narrow range. Several things can help in this case.
-  The simplest is to increase
-  the <a href="options.html"><code>--num-analysis</code> flag</a>,
-  which can help in some cases. Specifying a precondition,
-  like <code>:pre (&lt; -1001 x -999)</code>, can also help Herbie
-  out.
+  is invalid unless <code>(&lt;= -1001 x -999)</code>, a rather narrow
+  range. The simplest fix is to increase
+  the <a href="options.html"><code>--num-analysis</code> flag</a>.
+  Specifying the range of valid points as
+  a <a href="input.html#preconditions">precondition</a> can also help.
   </p>
 
   <h3 id="no-valid-values">No valid values</h3>
 
-  <p>This error indicates that your precondition excludes all possible
-  inputs. For example, the precondition <code>(&lt 3 x 2)</code>
-  excludes all inputs. Herbie raises this exception when it can prove
-  that no inputs could work. The solution is to fix the precondition
-  to allow some inputs.</p>
+  <p>This error indicates that your input has no valid inputs, usually
+  due to an overly restriction precondition. For example, the
+  precondition <code>(&lt 3 x 2)</code> excludes all inputs. The
+  solution is to fix the precondition or input program.</p>
 
   <h3 id="mpfr-prec-limit">Exceeded MPFR precision limit</h3>
 
@@ -69,15 +67,15 @@
 
   <h2>Common warnings</h2>
 
-  <p>Herbie warnings refer here for explanations and common actions to
-  take.</p>
+  <p>Herbie warnings refer to this section for explanations and common
+  actions to take.</p>
 
   <h3 id="ground-truth">Could not determine a ground truth</h3>
 
   <p>
-    Herbie will raise this warning when some inputs require more than
-    10 000 bits to compute an exact ground truth value. For example,
-    to compute <code>(/ (exp x) (exp x))</code> for very
+    Herbie raises this warning when some inputs require more than
+    10 000 bits to compute an exact ground truth. For example, to
+    compute <code>(/ (exp x) (exp x))</code> for very
     large <code>x</code>, absurdly large exponents would be required.
     Herbie discards such inputs and raises this warning. If you see
     this warning, you should add a restrictive precondition, such
@@ -87,12 +85,11 @@
   <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
 
   <p>
-    Some systems do not have native implementations for all operations
-    that Herbie uses. (For example, Microsoft's <code>math.h</code>
-    does not provide the <code>y0</code> function.) Herbie provides a
-    fallback implementation, but you can disable the fallback
-    with <code>--disable precision:fallback</code>, in which Herbie
-    will not be able to use that function.
+    Microsoft's <code>math.h</code> does not provide implementations
+    of the Bessel functions. Herbie provides fallback implementations
+    which print this warning. You can disable the fallback with
+    the <code>--disable precision:fallback</code> option; Herbie will
+    then not use those functions.
   </p>
 
   <h3 id="value-to-string">Could uniquely print <var>val</var></h3>
@@ -103,15 +100,16 @@
     likely the result of a bug in a third-party plugin.
   </p>
 
-  <h3 id="egg-herbie">Falling back on racket egraph because egg-herbie package not installed</h3>
+  <h3 id="egg-herbie">Falling back on regraph because egg-herbie package not installed</h3>
 
   <p>
-    The package <code>egg-herbie</code> provides the "equivalence
-    graph" data structure for simplifying expressions. If it is not
-    installed, Herbie will fall back on an implementation written in
-    Racket. Herbie will get similar results but run roughly twice as
-    long. <code>egg-herbie</code> is packaged for Windows, macOS, and
-    Linux, and is installed automatically by <code>raco</code>.
+    Herbie can use either the <code>egg-herbie</code>
+    or <code>regraph</code> package to simplify
+    expressions; <code>egg-herbie</code> is much faster, but uses
+    compiled binaries that cannot be installed on some systems. Herbie
+    will then fall back to <code>regraph</code>, and get similar
+    results but run roughly twice as long.
+    Install <code>egg-herbie</code> with <code>raco</code>.
   </p>
 
 

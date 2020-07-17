@@ -41,14 +41,16 @@
   <p><em>Input search:</em> Herbie now uses interval arithmetic to
   more efficiently sample valid inputs.
   The "<a href="faq.html#sample-valid-points">Cannot sample enough
-  valid points</a>" error message should now be rarer.
+  valid points</a>" error message should now be rarer,
+    because Herbie should be much better at finding valid inputs,
+    whereever they are.
   </p>
   
   <figure class="showcase" style="background: white; border: 1px solid gray;">
     <img src="egg-graph.png" style="display: block; width: 100%"/>
     <figcaption>Herbie 1.4 is substantially faster at simplifying
     expressions than Herbie 1.3 and 1.2. With timeouts off, these two
-    releases have made simplification almost 1000× faster. Figure
+    releases have made simplification almost 4000× faster. Figure
     from <a href="https://arxiv.org/abs/2004.03082">our arXiv
     submission</a>.</figcaption>
   </figure>
@@ -59,29 +61,29 @@
     <li>Simplification now uses
     the <a href="https://github.com/mwillsey/egg">Egg</a> library;
     Herbie's existing e-graph library has been spun out as
-    the <a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>
-    library, which can be used by other Racket projects.</li>
+    <a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>,
+    which can be used by other Racket projects.</li>
 
-    <li>Herbie's analysis pass now analyzes the program and its
-    precondition to avoid sampling invalid inputs where possible.</li>
+    <li>Herbie's input search pass now analyzes the input program and
+    its precondition and avoids sampling invalid inputs as much as
+    possible.</li>
 
     <li>The interval arithmetic library has gained support
     for <i>movability flags</i>, which allow Herbie to detect and skip
-    unavoidable overflow.</li>
+    unsamplable input points.</li>
 
     <li>The core program evaluator now operates in batch mode,
-    speeding up cases where Herbie generates thousands of program
+    speeding Herbie when it generates thousands of program
     candidates.</li>
 
-    <li>The interval arithmetic library has been spun out as the 
-    <a href="https://pkgs.racket-lang.org/package/rival">rival</a>
-    library, which other Racket projects can now use. Several minor
-    bugs in the interval library have been fixed, and support has been
-    extended to more functions. Testing has been improved to catch
-    such bugs in the future.</li>
+    <li>The interval arithmetic library has been spun out as 
+    <a href="https://pkgs.racket-lang.org/package/rival">rival</a>,
+    which other Racket projects can now use. Minor bugs in the
+    interval library have been fixed, and support has been extended to
+    more functions.</li>
 
-    <li>Exponential growth in the rewrite algorithm is fixed by adding
-    a cache, eliminating a common cause of timeouts.</li>
+    <li>One form of exponential growth in the rewrite algorithm is
+    fixed by a cache, eliminating a common cause of timeouts.</li>
 
     <li>Herbie's "final simplify" step no longer does constant
     folding, eliminating a rare source of accuracy regression.</li>
@@ -90,10 +92,10 @@
   <h2>Usability improvements</h2>
 
   <ul>
-    <li>The documentation is now be a bit clearer and more
+    <li>The documentation is now a bit clearer and more
     approachable.</li>
 
-    <li>Herbie now blames the correct variable if the precondition is
+    <li>Herbie now blames the correct variable when a precondition is
     unsatisfiable.</li>
 
     <li>The <code>:spec</code> property and <code>let*</code>
@@ -116,28 +118,13 @@
 
   <ul>
     <li>Several herbie dependencies have been spun out as libraries,
-    including the C compiler
+    including the C and TeX translators
     (<a href="https://pkgs.racket-lang.org/package/fpbench">fpbench</a>),
     the e-graph implementation
     (<a href="https://pkgs.racket-lang.org/package/regraph">regraph</a>),
     and the interval library
     (<a href="https://pkgs.racket-lang.org/package/rival">rival</a>).
-    Others can now use and maintain these components.</li>
-
-    <li>Many obsolete functions and data structures have been removed.
-    As a result, pre-1.4 seeds will produce different results on
-    Herbie 1.4 due to switching random-number algorithms.</li>
-
-    <li>Herbie's support for multi- and mixed-precision operations
-    continues to improve, though there is more to do. We are targeting
-    Herbie 1.5 for this to be "done".</li>
-
-    <li>The code base was reorganized to split the web code across
-    multiple files with stronger interfaces between them.</li>
-
-    <li>Herbie now uses Github Actions, not Travis, as its continuous
-    integration service. Right now the effects are minor, but we hope
-    to leverage Github Actions more in the future.</li>
+    Other projects can now use these components.</li>
 
     <li>Herbie's support for complex number arithmetic has been
     extracted to a beta-quality
@@ -145,6 +132,23 @@
     library</a>. In the future we hope to provide a standard plugin
     API not only for complex numbers but also vectors, matrices, and
     other mathematical objects.</li>
+
+    <li>Herbie's support for multi- and mixed-precision operations
+    continues to improve, though there is more to do. We are targeting
+    Herbie 1.5 for this to be "done".</li>
+
+    <li>Many obsolete functions and data structures have been removed.
+    A new random-number algorithm means pre-1.4 seeds will produce
+    different results on Herbie 1.4.</li>
+
+    <li>The code base was reorganized to split the web code across
+    multiple files, with cleaner separation between
+    responsibilities.</li>
+
+    <li>Herbie now uses Github Actions, not Travis, as its continuous
+    integration service. This already means that single-precision and
+    posit support is better tested, and we hope to leverage Github
+    Actions more in the future.</li>
   </ul>
   
   <h2>Try it out!</h2>
