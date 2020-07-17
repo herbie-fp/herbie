@@ -259,16 +259,16 @@
 
   ; max and min finite values (works for ieee754 and posit)
   (define-values (maxbound minbound) 
-    (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))]) ; posit's +inf.0 is negative
+    (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))])
       (values ((representation-ordinal->repr repr) ord)
-              ((representation-ordinal->repr repr) (- ord)))))
+              (- ((representation-ordinal->repr repr) ord)))))
 
   (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  (define-values (lbound ubound) ; plot requires rational (flonum) bounds
+  (define-values (lbound ubound) ; plot requires finite bounds
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
             [(x y)

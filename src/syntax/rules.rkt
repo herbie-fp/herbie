@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "syntax.rkt")
+(require "../common.rkt" "../programs.rkt" "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
@@ -32,53 +32,33 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-;; pretty much desugaring, TODO: combine procedures
-(define (parameterize-rule expr ctx prec) 
-  (match expr
-   [(? real?) (cons expr prec)]
-   [(? constant?)
-    (if (hash-has-key? parametric-constants expr)
-        (let ([cnst (get-parametric-constant expr prec)])
-          (cons cnst (constant-info cnst 'type)))
-        (cons expr (constant-info expr 'type)))]
-   [(? symbol?) (cons expr (dict-ref ctx expr prec))]
-   [`(if ,cond ,ift ,iff)
-    (define cond* (parameterize-rule cond ctx prec))
-    (define ift* (parameterize-rule ift ctx prec))
-    (define iff* (parameterize-rule iff ctx prec))
-    (unless (equal? (cdr ift*) (cdr iff*))
-      (error 'parameterize-rule "Return type of branches do not match"))
-    (cons `(if ,(car cond*) ,(car ift*) ,(car iff*)) (cdr ift*))]
-   [`(neg ,arg)
-    (define arg* (parameterize-rule arg ctx prec))
-    (define op* (get-parametric-operator '- (list (cdr arg*))))
-    (cons `(,(car op*) ,(car arg*)) (cdr op*))]
-   [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-    (define args* (map (curryr parameterize-rule ctx prec) args))
-    (define op* (get-parametric-operator op (map cdr args*)))
-    (cons `(,(car op*) ,@(map car args*)) (cdr op*))]
-   [(list op args ...)
-    (define args* (map (curryr parameterize-rule ctx prec) args))
-    (cons `(,op ,@(map car args*)) (operator-info op 'otype))]))
-
-(define (type-of-rule input output ctx prec)
-  (define input* (parameterize-rule input ctx prec))
-  (define output* (parameterize-rule output ctx prec))
-  (cond
-   [(list? input) (values (car input*) (car output*) (cdr input*))]
-   [(list? output) (values (car input*) (car output*) (cdr output*))]
-   [else
-    (error 'define-ruleset "Could not compute type of rule ~a -> ~a"
-           input output)]))
+(define (type-of-rule input output prec)
+  (define input* (parameterize-expr input prec))
+  (define output* (parameterize-expr output prec))
+  (define type
+    (cond
+      [(list? input) (operator-info (car input*) 'otype)]
+      [(list? output) (operator-info (car output*) 'otype)]
+      [else
+        (error 'define-ruleset "Could not compute type of rule ~a -> ~a"
+                input output)]))
+  (values input* output* (if (equal? type 'real) prec type))) ; if can still emit real
 
 ;; Rule generation
 
 (define rule-names (mutable-set))
+(define collision-count 1)
 
-(define (gen-unique-rule-name name)
-  (let ([name* (if (set-member? rule-names name) (gensym name) name)])
+(define (gen-unique-rule-name name) 
+  (cond
+   [(set-member? rule-names name)
+    (define name* (string->symbol (format "~a_~a" name collision-count)))
     (set-add! rule-names name*)
-    name*))
+    (set! collision-count (add1 collision-count))
+    name*]
+   [else
+    (set-add! rule-names name)
+    name]))
 
 ;; TODO: super messy way to parameterize any rule containing 'real into 'binary64 and 'binary32
 (define-syntax define-ruleset
@@ -100,7 +80,7 @@
         (define ctx (for/list ([var* vars] [type* types]) (cons var* type*)))
         (define name
           (for/list ([rname* rnames] [input* inputs] [output* outputs])
-            (define-values (input** output** otype) (type-of-rule input* output* ctx prec))
+            (define-values (input** output** otype) (type-of-rule input* output* prec))
             (rule (gen-unique-rule-name rname*) input** output** ctx otype)))
         (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 

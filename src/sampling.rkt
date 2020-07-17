@@ -7,7 +7,8 @@
 (provide make-sampler)
 
 (define (precondition->hyperrects precondition reprs)
-  (define range-table (condition->range-table (program-body precondition)))
+  ;; FPBench needs unparameterized operators
+  (define range-table (condition->range-table (unparameterize-expr (program-body precondition))))
 
   (apply cartesian-product
          (for/list ([var-name (program-variables precondition)] [repr reprs])
@@ -113,8 +114,6 @@
 ; These definitions in place, we finally generate the points.
 (define (make-sampler repr precondition . programs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
-
-  (displayln precondition)
 
   (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
     (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representations ~a"
