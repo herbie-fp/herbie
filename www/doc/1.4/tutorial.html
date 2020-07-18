@@ -201,8 +201,8 @@ else {
 
   <p>Herbie's algorithm is randomized, so you likely won't see the
   exact same thing. For example, the branch expression <code>xre ≤
-  6.68107529348e-308</code> will probably have some other really small
-  number. And perhaps Herbie will choose slightly different
+  -4.780438341784697e-111</code> will probably have some other really
+  small number. And perhaps Herbie will choose slightly different
   expressions. But the result should be recognizably similar. In this
   case, Herbie reports that the initial expression had 38.7 bits of
   error, and that the output has 29.4.</p>
@@ -210,7 +210,9 @@ else {
   <p>It's a little harder to describe what Herbie found wrong with the
   original expression, and why its new version is better—it is due to
   a floating-point phenomenon called “cancellation”. But you can get
-  some insight from the error plot just below the program block:</p>
+  some insight from the error plot just below the program block.
+  Select the <code>xim</code> variable just below the plot, and you
+  will see something like this:</p>
 
   <figure>
     <img width="100%" src="report-plot2.png" />
@@ -228,15 +230,10 @@ else {
   better. There are two lines drawn: a red one for your input and a
   blue one for Herbie's output. You can see from the plot that
   as <code>xim</code> gets smaller (toward the left, closer to zero),
-  Herbie's improvement becomes more and more significant.</p>
-
-  <p>Below the plot is a list of the variable names,
-  with <code>xim</code> highlighted. Click on <code>xre</code>: you
-  will see that the two expressions are similarly accurate for
-  positive <code>xre</code> but that Herbie's output is better for
-  negative <code>xre</code>. You can also see that the difference is
-  quite large, with Herbie's output expression often much more
-  accurate than its input.</p>
+  Herbie's improvement becomes more and more significant. You can also
+  see that for very large values of <code>xim</code>, the original
+  program had maximal error (in fact, it overflows) but the replace
+  program is often better.</p>
 
   <p>Of course, your exact output will differ a bit from the
   screenshots and descriptions here, because Herbie is randomized.</p>
@@ -247,10 +244,16 @@ else {
   <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
 // Herbie version of 0.5 * Math.sqrt(2.0 * (r + x.re))
 var re;
-if (x.re &lt;= 0) {
+if (x.re &lt;= -4.780438341784697e-111) {
     re = Math.abs(x.im) * Math.sqrt(0.5) / Math.sqrt(r - x.re);
-} else {
+} else if (x.re &lt;= 1.857088496624289e-105) {
+    re = 0.5 * Math.sqrt(2.0 * (x.re + x.im));
+} else if (x.re &lt;= 117.16871373388169) {
     re = 0.5 * Math.sqrt(2.0 * (r + x.re));
+} else if (x.re &lt;= 5.213930590364927e+88) {
+    re = 0.5 * Math.sqrt(2.0 * (x.re + x.im));
+} else {
+    re = 0.5 * Math.sqrt(2.0 * (x.re + x.re));
 }
 if (x.im &gt;= 0) {
   return new Complex(
