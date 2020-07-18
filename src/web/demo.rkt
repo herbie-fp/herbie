@@ -110,7 +110,7 @@
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
-           (input ([type "submit"])))
+           (button ([type "submit"] [tabindex "-1"])))
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
@@ -125,10 +125,13 @@
         "expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
-        "You can write ordinary mathematical expressions (parsed with "
-        (a ([href "https://mathjs.org"]) "math.js") ") using the standard "
-        (code "math.h") " functions, including:")
-
+        "Use ordinary mathematical syntax (parsed by "
+        (a ([href "https://mathjs.org"]) "math.js") ")"
+        " and "
+        (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
+           "standard functions")
+        " like:")
+    
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
      '((and or) "Logical connectives (for preconditions)")

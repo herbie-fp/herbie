@@ -52,7 +52,7 @@ a:hover {text-decoration: underline; color: #295785}
     display: block; text-align: right; margin-top: .5em;
     cursor: pointer;
 }
-#formula input[type=submit] { display: none; }
+#formula button[type=submit] { visibility: hidden; height: 0; }
 label { display: inline-block; width: 20%; line-height: 3; }
 input, select { width: 80%; }
 #errors li { color: #800; }
