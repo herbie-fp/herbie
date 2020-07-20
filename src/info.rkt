@@ -32,9 +32,9 @@
     ("egg-herbie-windows" #:platform "win32\\x86_64" #:version "1.4")
     ("egg-herbie-osx" #:platform "x86_64-macosx" #:version "1.4")
     ("egg-herbie-linux" #:platform "x86_64-linux" #:version "1.4")
-    "regraph"
-    "rival"
-    "fpbench"))
+    ("regraph" #:version "1.4")
+    ("rival" #:version "1.4")
+    ("fpbench" #:version "2.0")))
 
 (define build-deps
   '("rackunit-lib"))

@@ -55,7 +55,9 @@ a:hover {text-decoration: underline; color: #295785}
 }
 #num-jobs { font-weight: bold; }
 
-dl.function-list dt { font-weight: bold; float: left; width: 220px; clear: left; margin: 0 1em .5em 1em; }
+dl { margin: 1em .5em; }
+dl dd { margin: .5em 1em; }
+dl.function-list dt { font-weight: bold; float: left; width: 220px; clear: left; margin-bottom: .5em; }
 dl.function-list dd { clear: right; margin: 0; }
 dl.function-list dd:after { clear: both; height: 1px; display: block; content: "."; visibility: hidden; margin: 0;}
 

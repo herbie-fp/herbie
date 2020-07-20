@@ -116,7 +116,7 @@
       (define tr (run-test i test #:seed seed #:profile profile? #:debug debug? #:dir dir))
       (print-test-result (+ 1 i) (length progs) tr)
       (set! outs (cons tr outs))))
-  outs)
+  (reverse outs))
 
 (define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)

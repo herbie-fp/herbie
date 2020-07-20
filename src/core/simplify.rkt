@@ -48,7 +48,7 @@
       simplify-batch-egg]
      [else
       (warn 'simplify #:url "faq.html#egg-herbie"
-            "Falling back on racket egraph because egg-herbie package not installed")
+            "Falling back on regraph because egg-herbie package not installed")
       simplify-batch-regraph]))
 
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))

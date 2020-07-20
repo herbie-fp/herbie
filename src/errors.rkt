@@ -6,7 +6,7 @@
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
          (struct-out exn:fail:user:herbie:sampling)
-         warn warning-log expect-warning)
+         warn warning-log *warnings-disabled*)
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
@@ -68,24 +68,16 @@
 
 (define warnings-seen (mutable-set))
 (define warning-log '())
+(define *warnings-disabled* (make-parameter true))
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
-  (unless (set-member? warnings-seen type)
+  (unless (or (*warnings-disabled*) (set-member? warnings-seen type))
     (set-add! warnings-seen type)
     (define url* (and url (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* url)))
     (set! warning-log (cons (list type message args url* extra) warning-log))
     (eprintf "Warning: ~a\n" (apply format message args))
     (for ([line extra]) (eprintf "  ~a\n" line))
     (when url (eprintf "See <~a> for more.\n" url*))))
-
-(define (expect-warning type thunk)
-  (define already-silent #f)
-  (dynamic-wind
-    (λ ()
-      (set! already-silent (set-member? warnings-seen type))
-      (set-add! warnings-seen type))
-    thunk
-    (λ () (unless already-silent (set-remove! warnings-seen type)))))
 
 (register-reset
  (λ ()

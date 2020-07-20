@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date json)
-(require "common.rkt" "float.rkt")
+(require "common.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)

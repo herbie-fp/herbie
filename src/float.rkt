@@ -2,8 +2,7 @@
 
 
 (require math/bigfloat math/base)
-(require "common.rkt" "interface.rkt" "syntax/types.rkt"
-         "syntax/syntax.rkt" "errors.rkt")
+(require "common.rkt" "interface.rkt" "syntax/types.rkt" "errors.rkt")
 (module+ test (require rackunit))
 
 (provide 
