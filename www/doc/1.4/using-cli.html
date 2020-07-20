@@ -46,9 +46,9 @@ Find help on https://herbie.uwplse.org/, exit with Ctrl-D
 
   <p>Herbie suggests that <code>1</code> is more accurate than the
   original expression <code>(- (+ 1 x) x)</code>. The
-  the <var>...</var> hides lots
-  of <a href="file:///home/pavpan/herbie/www/doc/1.3/input.html#properties">additional
-  information</a> from Herbie.</p>
+  the <var>...</var> elides 
+  <a href="input.html#properties">additional information</a> provided
+  by Herbie.</p>
 
   <p>The Herbie shell makes it easy to play with different expressions
   and try multiple variants, informed by Herbie's advice.</p>
@@ -63,9 +63,9 @@ Find help on https://herbie.uwplse.org/, exit with Ctrl-D
 
   <pre class="shell">herbie improve bench/tutorial.fpcore out.fpcore
 Starting Herbie on 3 problems (seed: 1809676410)...
-  1/3	[   2.202s]   29→ 0	Cancel like terms
-  2/3	[  14.875s]   39→ 0	Expanding a square
-  3/3	[   8.546s]    0→ 0	Commute and associate</pre>
+  1/3	[   0.769s]   29→ 0	Cancel like terms
+  2/3	[   1.392s]   39→ 0	Expanding a square
+  3/3	[   2.522s]    0→ 0	Commute and associate</pre>
 
   <p>
     The output file <code>out.fpcore</code> contains more accurate
@@ -75,7 +75,7 @@ Starting Herbie on 3 problems (seed: 1809676410)...
   <pre>;; seed: 1809676410
 
 (FPCore (x) <var>...</var> 1.0)
-(FPCore (x) <var>...</var> (+ (* x x) (* 2.0 x)))
+(FPCore (x) <var>...</var> (* x (+ x 2.0)))
 (FPCore (x y z) <var>...</var> 0.0)</pre>
 
   <p>
