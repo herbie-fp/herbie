@@ -138,16 +138,16 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
-(define (taylor-alt altn loc repr)
+(define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
 
   ;; resugar/desugaring
-  (define prec (representation-name repr))
+  (define prec (representation-name (*output-repr*)))
   (define var-precs (for/list ([var vars]) (cons var prec)))
 
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (set-member? '(binary64 binary32) (type-of expr repr (*var-reprs*)))))
+          (not (equal? (type-of expr (*output-repr*) (*var-reprs*)) 'real)))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
@@ -162,7 +162,7 @@
          `(taylor ,name ,loc)
          (list altn)))))
 
-(define (gen-series! repr)
+(define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
 
@@ -173,7 +173,7 @@
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
          (define tnow (current-inexact-milliseconds))
          (begin0
-             (taylor-alt (^next-alt^) location repr)
+             (taylor-alt (^next-alt^) location)
            (timeline-push! 'times
                            (location-get location (alt-program (^next-alt^)))
                            (- (current-inexact-milliseconds) tnow))))))
@@ -185,7 +185,7 @@
   (^gened-series^ #t)
   (void))
 
-(define (gen-rewrites! repr)
+(define (gen-rewrites!)
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-log! 'method (object-name rewrite))
@@ -197,7 +197,7 @@
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr repr #:rules (*rules*) #:root location)
+             (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
                (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
@@ -312,7 +312,7 @@
   (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-repr*)))
   (void))
 
-(define (finish-iter! repr)
+(define (finish-iter!)
   (when (not (^next-alt^))
     (debug #:from 'progress #:depth 3 "picking best candidate")
     (choose-best-alt!))
@@ -321,10 +321,10 @@
     (localize!))
   (when (not (^gened-series^))
     (debug #:from 'progress #:depth 3 "generating series expansions")
-    (gen-series! repr))
+    (gen-series!))
   (when (not (^gened-rewrites^))
     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-    (gen-rewrites! repr))
+    (gen-rewrites!))
   (when (not (^simplified^))
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
@@ -348,7 +348,7 @@
   (void))
 
 ;; Run a complete iteration
-(define (run-iter! repr)
+(define (run-iter!)
   (if (^next-alt^)
       (begin (printf "An iteration is already in progress!\n")
 	     (printf "Finish it up manually, or by running (finish-iter!)\n")
@@ -358,9 +358,9 @@
 	     (debug #:from 'progress #:depth 3 "localizing error")
 	     (localize!)
 	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-	     (gen-rewrites! repr)
+	     (gen-rewrites!)
 	     (debug #:from 'progress #:depth 3 "generating series expansions")
-	     (gen-series! repr)
+	     (gen-series!)
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")
 	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
@@ -388,7 +388,7 @@
       (finalize-iter!))
     (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
       (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-      (run-iter! repr))
+      (run-iter!))
     (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
     (get-final-combination repr)]))
 

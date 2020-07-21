@@ -25,12 +25,12 @@
      `(λ ,vars ,(simplify body))]
     [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
      ; Get the parameterized op for binary64
-     ; Correct arg length is taken from 'operator-info* and not 'args since these exprs
-     ; are v-ary while operator-info* is not
+     ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
+     ; are v-ary while get-operator-argc is not
      (define-values (op-name arg-len) 
         (if (equal? op 'neg)
             (values '- 1)
-            (values op (length (operator-info* op 'itype)))))
+            (values op (length (get-operator-argc op)))))
      (define op* (car (get-parametric-operator op-name (make-list arg-len 'binary64))))
      (define args* (map simplify args))
      (define val (apply (curry eval-application op*) args*))
@@ -270,6 +270,6 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; *var-reprs* might be problematic
-       [(or 'binary64 'binary32) `(pow ,x ,power)]
+     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; assuming binary64 might be problematic
+       ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

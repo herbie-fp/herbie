@@ -7,7 +7,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
-         type-of
+         type-of repr-of
          expr-supports?
          location-hash
          location? expr?
@@ -33,20 +33,31 @@
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
 
-
-;; `env` is in an indeterminate state, where it's a mapping from
-;; variables to *either* types or reprs.
+;; Returns type name
+;; Fast version does not recurse into functions applications
+;; TODO(interface): Once we update the syntax checker to FPCore 1.1
+;; standards, this will have to have more information passed in
 (define (type-of expr repr env)
-  ;; Fast version does not recurse into functions applications
   (match expr
-    [(? real?) (representation-name repr)]
-    ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
-    ;; standards, this will have to have more information passed in
-    [(? value?) (representation-name (*output-repr*))]
-    [(? constant?) (constant-info expr 'type)]
-    [(? variable?) (representation-name (dict-ref env expr))]
-    [(list 'if cond ift iff) (type-of ift env)]
-    [(list op args ...) (operator-info op 'otype)]))
+   [(? real?) 'real]
+   [(? value?) (type-name (representation-type repr))]
+   [(? constant?) 
+    (type-name (representation-type (get-representation (constant-info expr 'type))))]
+   [(? variable?) (type-name (representation-type (dict-ref env expr)))]
+   [(list 'if cond ift iff) (type-of ift env)]
+   [(list op args ...) ; repr-name -> repr -> type
+    (type-name (representation-type (get-representation (operator-info op 'otype))))]))
+
+;; Returns repr name
+;; Fast version does not recurse into functions applications
+(define (repr-of expr repr env)
+  (match expr
+   [(? real?) (representation-name repr)]
+   [(? value?) (representation-name repr)]
+   [(? constant?) (constant-info expr 'type)]
+   [(? variable?) (representation-name (dict-ref env expr))]
+   [(list 'if cond ift iff) (repr-of ift env)]
+   [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
 
@@ -330,9 +341,7 @@
        [+inf.0 'INFINITY]
        [+nan.0 'NAN]
        [x x])]
-    [(? constant?)
-     (define cnst (hash-ref parametric-constants-reverse expr expr))
-     cnst]
+    [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs)
