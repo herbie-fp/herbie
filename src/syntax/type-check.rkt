@@ -34,7 +34,7 @@
           (constant-info x 'type))]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define t 'real)
+     (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
        (if (= i 0) (set! t actual-type) #f)

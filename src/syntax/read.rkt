@@ -22,7 +22,7 @@
 (define (test-precondition test)
   `(λ ,(test-vars test) ,(test-pre test)))
 
-(define (parse-test stx)
+(define (parse-test stx [override-ctx '()])
   (assert-program! stx)
   (assert-program-typed! stx)
   (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
@@ -40,7 +40,14 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define default-prec (dict-ref prop-dict ':precision
+  (define prop-dict* ; override fpcore props
+    (let loop ([prop-dict prop-dict] [ctx override-ctx])
+      (match ctx
+       ['() prop-dict]
+       [(list (cons prop val) rest ...)
+        (loop (dict-set* prop-dict prop val) rest)])))
+  
+  (define default-prec (dict-ref prop-dict* ':precision
                                  (if (flag-set? 'precision 'double)
                                    'binary64
                                    'binary32)))
@@ -50,46 +57,46 @@
                               (list-ref args (add1 (index-of args ':precision))))
                         (cons arg-name default-prec))))
 
-  (define ctx-prec (dict-ref prop-dict ':precision 'binary64))
+  (define ctx-prec (dict-ref prop-dict* ':precision 'binary64))
   (define type-ctx (map (curryr cons ctx-prec) args))
 
-  (test (~a (dict-ref prop-dict ':name body))
+  (test (~a (dict-ref prop-dict* ':name body))
         arg-names
         (desugar-program body default-prec var-precs)
-        (desugar-program (dict-ref prop-dict ':herbie-target #f) default-prec var-precs)
-        (dict-ref prop-dict ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict ':spec body) default-prec var-precs)
-        (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-prec var-precs)
+        (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-prec var-precs)
+        (dict-ref prop-dict* ':herbie-expected #t)
+        (desugar-program (dict-ref prop-dict* ':spec body) default-prec var-precs)
+        (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-prec var-precs)
         default-prec
         var-precs))
 
-(define (load-stdin)
+(define (load-stdin override-ctx)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (parse-test test)))
+    (parse-test test override-ctx)))
 
-(define (load-file file)
+(define (load-file file override-ctx)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
       (for/list ([test (in-port (curry read-syntax file) port)])
-        (parse-test test)))))
+        (parse-test test override-ctx)))))
 
-(define (load-directory dir)
+(define (load-directory dir override-ctx)
   (for/append ([fname (in-directory dir)]
                #:when (file-exists? fname)
                #:when (equal? (filename-extension fname) #"fpcore"))
-    (load-file fname)))
+    (load-file fname override-ctx)))
 
-(define (load-tests path)
+(define (load-tests path [override-ctx '()])
   (define path* (if (string? path) (string->path path) path))
   (define out
     (cond
      [(equal? path "-")
-      (load-stdin)]
+      (load-stdin override-ctx)]
      [(directory-exists? path*)
-      (load-directory path*)]
+      (load-directory path* override-ctx)]
      [else
-      (load-file path*)]))
+      (load-file path* override-ctx)]))
   (define duplicates (find-duplicates (map test-name out)))
   (unless (null? duplicates)
     (warn 'duplicate-names

@@ -23,7 +23,7 @@
      `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
-    [`(,op ,args ...)
+    [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
      ; Get the parameterized op for binary64
      ; Correct arg length is taken from 'operator-info* and not 'args since these exprs
      ; are v-ary while operator-info* is not
@@ -32,10 +32,10 @@
             (values '- 1)
             (values op (length (operator-info* op 'itype)))))
      (define op* (car (get-parametric-operator op-name (make-list arg-len 'binary64))))
-
      (define args* (map simplify args))
      (define val (apply (curry eval-application op*) args*))
-     (or val (simplify-node (list* op args*)))]))
+     (or val (simplify-node (list* op args*)))]
+    [_ expr])) ;; prevent posit conversions from crashing. TODO: how does this actually affect things?
 
 (define (simplify-node expr)
   (match expr

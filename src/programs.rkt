@@ -148,8 +148,7 @@
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
                (for/list ([arg args] [type atypes])
-                (let ([type* (if (equal? type 'real) 'binary64 type)]) ; TODO: temp conversion
-                 (munge arg (get-representation type*)))))]
+                 (munge arg (get-representation type))))]
         [_ (raise-argument-error 'eval-prog "expr?" prog)]))
 
     (hash-ref! exprhash expr
@@ -201,7 +200,7 @@
         (define fn (operator-info op 'nonffi))
         (define res (apply fn args))
         (define rtype (operator-info op 'otype))
-        ;; TODO: splitting real into binary64 and binary32 problems
+        ; binary64/32 split issues
         (define rtype* (if (set-member? '(binary64 binary32) rtype) 'real rtype))
         (and ((value-of rtype*) res)
              (exact-value? rtype* res)
@@ -305,12 +304,12 @@
      (define ift* (expand-parametric-reverse ift repr))
      (define iff* (expand-parametric-reverse iff repr))
      (list 'if cond* ift* iff*)]
-    [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) 
-           body) ; conversion (e.g. posit16->f64)
+    [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
+      ; conversion (e.g. posit16->f64)
      (define-values (iprec oprec)
        (let ([split (string-split (symbol->string op) "->")])
          (values (first split) (last split))))
-     (define repr* (get-representation (string->symbol oprec)))
+     (define repr* (get-representation (string->symbol iprec)))
      (define body* (expand-parametric-reverse body repr*))
      `(! :precision ,oprec ,body*)]
     [(list op args ...)
@@ -402,9 +401,18 @@
     (define op* (car (get-parametric-operator '- (list prec))))
     (define arg* (parameterize-expr arg prec))
     `(,op* ,arg*)]
+   [(list (and (or '+ '- '*) op) args ...) ; these ops are sometimes v-ary
+    (define op* (car (get-parametric-operator op (make-list 2 prec))))
+    (define args* (map (curryr parameterize-expr prec) args))
+    `(,op* ,@args*)]
    [(list (? (curry hash-has-key? parametric-operators) op) args ...)
     (define op* (car (get-parametric-operator op (make-list (length args) prec))))
     (define args* (map (curryr parameterize-expr prec) args))
     `(,op* ,@args*)]
+   [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
+    ; conversion (e.g. posit16->f64)
+     (define iprec (first (string-split (symbol->string op) "->")))
+     (define body* (parameterize-expr body iprec))
+    `(,op ,body*)]
    [(list op args ...) 
     `(,op ,@(map (curryr parameterize-expr prec) args))]))
