@@ -29,7 +29,7 @@
   (require racket/runtime-path)
   (define-runtime-path benchmarks "../bench/")
   (define exprs
-    (let ([tests (expect-warning 'duplicate-names (λ () (load-tests benchmarks)))])
+    (let ([tests (load-tests benchmarks)])
       (append (map test-program tests) (map test-precondition tests))))
   (check = (count (compose not (curryr expr-supports? 'ival) program-body) exprs) 0))
 

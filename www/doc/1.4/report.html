@@ -16,29 +16,32 @@
   
   <h1>The Herbie report</h1>
 
-  <p>Herbie can <a href="using-web.html">generate HTML reports</a>
-  which give its output expression and also how Herbie found it.</p>
+  <p>When used <a href="using-web.html">in the browser</a>, Herbie
+  generates HTML reports full of information about the accuracy of
+  your input and its output expressions.</p>
 
   <h2 id="summary">Summary numbers</h2>
 
   <p>First, a brief summary of the results. For most uses, the
-    “Average Error” number, which summarizes how accurate the input
-    and output expressions are, is the most important number in this
+    “Average Error” number, which describes how accurate the input and
+    output expressions are, is the most important statistic in this
     section. The other numbers list time Herbie took to improve the
-    program and the <a href="input.html#precisions">precision</a> of
-    floating-point operations.
+    program and the <a href="input.html#precisions">precision</a>
+    assumed for floating-point operations.
   </p>
 
   <figure>
     <img width="100%" src="report-large.png" />
-    <figcaption>Summary numbers from a Herbie report.</figcaption>
+    <figcaption>Summary numbers from a Herbie report. The "binary64"
+    precision refers to double-precision IEEE-754
+    arithmetic.</figcaption>
   </figure>
 
   <h2 id="programs">Input and output programs</h2>
 
-  <p>Second, the input and output programs themselves. These are
-  printed in standard mathematical syntax. In the top-right corner,
-  the drop-down can be used to change to C syntax or raw TeX.</p>
+  <p>Second, the input and output programs themselves, in standard
+  mathematical syntax. In the top-right corner, the drop-down can be
+  used to switch to C syntax or some other format.</p>
 
   <figure>
     <img width="100%" src="report-prog.png" />
@@ -52,21 +55,19 @@
     versus input value. This is helpful for understanding the sorts of
     inputs Herbie is improving accuracy on. Sometimes, Herbie improved
     accuracy on some inputs at the cost of accuracy on other inputs
-    that you care more about. In these cases, you can add
-    a <a href="input.html#preconditions"><code>:pre</code> field</a>
-    to restrict the inputs Herbie reasons about.
+    that you care more about. You can add
+    a <a href="input.html#preconditions">precondition</a> to restrict
+    Herbie to certain inputs in those cases.
   </p>
 
   <p>
-    On these graphs, the red line is the error of the input program,
-    while the blue line is the error of the output program
-    (both can be toggled).
-    For expressions with multiple variables,
-    the variable on the horizontal axis can be selected.
-    If Herbie decided to insert
-    an <code>if</code> statement into the program,
-    the locations of those <code>if</code> statements
-    will be marked with vertical bars.
+    These graphs show the error of the input program with a red line,
+    and the error of the output program with a blue line. Both can be
+    toggled. If the expression has multiple variables, the variable
+    picker on the bottom left selects which variable is placed on the
+    horizontal axis. If Herbie decided to insert an <code>if</code>
+    statement into the program, the locations of those <code>if</code>
+    statements will be marked with vertical bars.
   </p>
 
   <figure>
@@ -79,59 +80,60 @@
   <h2 id="try-it">Interactive inputs</h2>
 
   <p>
-    Fourth, a form where you can try out specific inputs on the input
-    program and Herbie's output program. Enter the argument values on
-    the left, and the input and output programs will be evaluated on
-    those arguments and the results printed on the right.
+    Fourth, a interactive form where you can the output of both your
+    and Herbie's programs. on inputs of your choice Enter argument
+    values on the left, and the input and output programs will be
+    evaluated on those arguments and the results printed on the right.
   </p>
 
   <figure>
     <img width="100%" src="report-try-it.png" />
     <figcaption>
-      Try it out section on a simple program.
+      The interactive section of a Herbie report. "In" is your program,
+      "Out" is Herbie's.
     </figcaption>
   </figure>
 
   <h2 id="derivation">Derivation</h2>
 
-  <p>Fifth, a derivation of the output from the input.
-    For complex or unexpected programs, these can be helpful.
-    Each substantive step in the derivation also lists the error,
-    in bits, of that step's output.</p>
+  <p>Fifth, Herbie's derivation of its output program. These can be
+    helpful in understanding how Herbie works. Each substantive step
+    in the derivation also lists the error, in bits, of that step's
+    output. Sometimes you can use that to pick a less-complex and
+    not-substantially-less-accurate program.</p>
 
-  <p>The derivations may name rules built into Herbie,
-    or may claim derivation steps are done by simplification,
-    series expansion, or other Herbie strategies. The derivation will
-    also call out splits of the input into regimes, and strategies
-    Herbie is invoking. When one part of the term is colored blue,
-    that is the only part of the term modified by the operation.
+  <p>Derivations sometime name arithmetic laws used by Herbie, or they
+    might claim derivation steps are done by simplification, series
+    expansion, or other Herbie strategies. The derivation will also
+    call out any time the input is split into cases. When one part of
+    the program is colored blue, that is the part modified in that
+    derivation step.
   </p>
 
   <figure>
     <img width="100%" src="report-derivation.png" />
     <figcaption>A short derivation from a Herbie report. Note the
-    error at each step, in bits, in gray.</figcaption>
+    error, in gray, measured after each derivation step.</figcaption>
   </figure>
 
   <h2 id="reproduction">Reproduction</h2>
 
-  <p>Sixth, a command you can use to reproduce this Herbie result.
-  If you find a bug, include the code snippet in this section when
-  <a href="https://github.com/uwplse/herbie/issues">filing the
-  bug</a>. Please also include the debug log linked at the top of the
-  page.</p>
+  <p>Sixth, a command to reproduce this Herbie result. If you find a
+  Herbie bug, include this code snippet when
+  <a href="https://github.com/uwplse/herbie/issues">filing an
+  issue</a>.</p>
 
   <figure>
     <img width="100%" src="report-reproduce.png" />
-    <figcaption>Reproduction information for a Herbie run.</figcaption>
+    <figcaption>Reproduction information for a Herbie run. You can use
+    this when submitting bug reports.</figcaption>
   </figure>
 
   <h2 id="links">Additional links</h2>
   
   <p>The top of the page has a right-hand menu bar with additional
-  links. “Log” you to a detailed debug log. “Profile” gives
-  a <code>gprof</code>-style profile. and “Metrics” gives detailed
-  internal metrics on Herbie's results.</p>
+  links. “Report” returns you to Herbie's main page. “Log” and
+  “Metrics” give you detailed internal information about Herbie.</p>
 
   <p>We expect the report to grow more informative with future
   versions. Please <a href="mailto:herbie@cs.washington.edu">get in

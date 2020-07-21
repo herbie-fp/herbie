@@ -13,10 +13,11 @@
     <h1>Plugins</h1>
   </header>
 
-  <p><a href="../../">Herbie</a> allows plugins to define additional
-  functions, rewrite rules, and even number representations. Plugins
-  are be separately installed. Once installed, Herbie automatically
-  loads and uses them.</p>
+  <p><a href="../../">Herbie</a> plugins define new functions, add
+  rewrite rules, and even implement number representations.</p>
+
+  <p>Herbie plugins are installed separately. Herbie then
+  automatically loads and uses them.</p>
   
   <h2>Posit arithmetic</h2>
 
@@ -26,28 +27,25 @@
 
   <pre class="shell">raco pkg install --auto softposit-herbie</pre>
 
-  <p>Note that this plugin uses the SoftPosit library, which only
-  supports Linux platforms, and even then is reported to misbehave on
-  some machines. The only supported operations are the arithmetic
-  operators and <code>sqrt</code>. Quires are supported, though we
-  expect the syntax for this to change.</p>
+  <p>This plugin uses the SoftPosit library, only supported on Linux.
+  Even then is reported to misbehave on some machines. The plugin
+  support arithmetic operations, <code>sqrt</code>, and quires.</p>
 
   <p>Once <kbd>softposit-herbie</kbd> is installed,
   specify <code>:precision posit16</code> to inform Herbie that it
   should assume the core's inputs and outputs are posit numbers. Other
-  posit sizes (from 8 to 128 bits) and also quires (for 8, 16, and 32
-  bits) are available, but are poorly supported.</p>
+  posit sizes (with 8 or 32 bits) and also quires (for 8, 16, and 32
+  bit posits) are available, but are poorly supported.</p>
 
 
   <h2 id="complex">Complex Numbers</h2>
 
-  <p>The <kbd>complex-herbie</kbd> includes experimental support for
-  complex numbers; however, this support is currently limited to a few
-  basic operations. Install it with:</p>
+  <p>The <kbd>complex-herbie</kbd> plugin implements support for
+  complex numbers. Install it with:</p>
 
   <pre class="shell">raco pkg install --auto complex-herbie</pre>
 
-  <p>All input parameters to an FPCore are real numbers; complex
+  <p>Herbie input parameters are always real numbers; complex
   numbers must be constructed with <code>complex</code>. The
   functions <code>re</code>, <code>im</code>, and <code>conj</code>
   are available on complex numbers, along with the arithmetic
@@ -56,15 +54,12 @@
   syntax, but cannot be mixed: <code>(+ (complex 1 2) 1)</code> is not
   valid. Herbie reports type errors in such situations.</p>
 
-  <p>Complex operations use
-  the <a href="https://docs.racket-lang.org/reference/numbers.html#%28tech._complex._number%29">Racket</a>
-  implementation, so results may differ (slightly) from complex
-  numbers in some other language, especially for non-finite complex
-  numbers. Unfortunately, complex number arithmetic is not as
-  standardized as float-point arithmetic.</p>
-
-  <p>In the future, we hope to support complex-number arguments and
-  fully support all complex-number operations.</p>
+  <p>Complex operations are implemented by
+  <a href="https://docs.racket-lang.org/reference/numbers.html#%28tech._complex._number%29">Racket</a>,
+  so results may differ (slightly) from complex numbers in some other
+  language, especially for non-finite complex numbers. In the future,
+  we hope to support complex-number arguments and fully support all
+  complex-number operations.</p>
 
   
   <h2>Developing plugins</h2>

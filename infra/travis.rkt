@@ -1,9 +1,7 @@
 #lang racket
 
-(require racket/date racket/cmdline)
 (require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt")
-(require "../src/alternative.rkt" "../src/sandbox.rkt")
-(require "../src/syntax/read.rkt" "../src/datafile.rkt")
+(require "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)

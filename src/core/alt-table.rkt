@@ -2,7 +2,7 @@
 
 (require racket/hash)
 (require "../common.rkt" "../alternative.rkt" "../points.rkt"
-         "../interface.rkt" "../timeline.rkt" "../programs.rkt")
+         "../timeline.rkt" "../programs.rkt")
 
 (provide
  (contract-out

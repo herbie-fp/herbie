@@ -300,7 +300,6 @@
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
   (define repr (get-representation (test-output-prec (test-result-test result))))
   (define pts (test-success-newpoints result))
-
   (herbie-plot
    #:port out #:kind 'png
    repr

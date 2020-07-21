@@ -14,11 +14,10 @@
 
 (define (fpcore->string core)
   (match-define (list 'FPCore args props ... expr) core)
-  (define props*
-    (for/list ([val (apply dict-set* '() props)])
-      (format "~a ~a" (car val) (cdr val))))
-  (with-output-to-string
-    (λ () (pretty-display `(,(format "FPCore ~a" args) ,@props* ,expr)))))
+  (define props*  ; make sure each property (name, value) gets put on the same line
+    (for/list ([(prop name) (in-dict (apply dict-set* '() props))]) ; how to make a list of pairs from a list
+      (format "~a ~a" prop name)))
+  (pretty-format `(,(format "FPCore ~a" args) ,@props* ,expr) #:mode 'display))
 
 (define/contract (render-menu sections links)
   (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
