@@ -124,7 +124,8 @@
     ['ival identity]
     ['nonffi identity]))
   
-  (define vars (program-variables (first progs)))
+  (define vars 
+    (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
   (define exprs '())
@@ -161,7 +162,7 @@
                  (define n (+ (length exprs) (length vars)))
                  (set! exprs (cons expr exprs))
                  n)))
-  
+
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))
