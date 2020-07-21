@@ -1,12 +1,9 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "../datafile.rkt" "common.rkt"
+         "../datafile.rkt" "common.rkt" "../float.rkt"
          "../interface.rkt" "../timeline.rkt")
-
-(module+ test (require rackunit))
-
-(provide make-timeline make-timeline-json make-summary-html)
+(provide make-timeline make-summary-html)
 
 (define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))
@@ -14,20 +11,12 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline result out)
-  (match-define (test-result test bits fulltime timeline warnings) result)
-  (unless (andmap (curryr hash-has-key? 'time) timeline)
-    (pretty-print timeline))
-
-  (define time
-    (apply + (for/list ([phase timeline] [next (cdr timeline)])
-               (- (dict-ref next 'time) (dict-ref phase 'time)))))
-
   (fprintf out "<!doctype html>\n")
   (write-xexpr
     `(html
       (head
        (meta ([charset "utf-8"]))
-       (title "Metrics for " ,(~a (test-name test)))
+       (title "Metrics for " ,(~a (test-name (test-result-test result))))
        (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
        (script ([src "../report.js"])))
       (body
@@ -35,47 +24,67 @@
          '(("Timeline" . "#process-info")
            ("Profile" . "#profile"))
          '(("Report" . "graph.html")))
-       (section ((id "process-info"))
-         (h1 "Details")
-         (p ((class "header"))
-            "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
-         ,(render-timeline timeline)
-         ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
-             (render-phase curr n next)))
+       ,(render-timeline (test-result-timeline result))
        ,(render-profile)))
     out))
 
+(define (make-summary-html out info timeline)
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr
+   `(html
+     (head
+      (title "Metrics for Herbie run")
+      (meta ((charset "utf-8")))
+      (link ((rel "stylesheet") (type "text/css") (href "report.css")))
+      (script ((src "report.js"))))
+     (body
+       ,(render-menu '(("About" . "#about")
+                       ("Timeline" . "#process-info")
+                       ("Profile" . "#profile"))
+                     '(("Report" . "results.html")))
+       ,(render-about info)
+       ,(render-timeline timeline)
+       ,(render-profile)))
+   out))
+
 (define/contract (render-timeline timeline)
   (-> timeline? xexpr?)
-  `(div ((class "timeline"))
-        ,@(for/list ([curr timeline] [n (in-naturals)] [next (cdr timeline)])
+  (define time (apply + (map (curryr dict-ref 'time) timeline)))
+  `(section ([id "process-info"])
+     (h1 "Details")
+     (p ((class "header"))
+        "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
+     (div ((class "timeline"))
+        ,@(for/list ([n (in-naturals)] [curr timeline])
             `(div
               ([class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type))]
                [data-id ,(format "timeline~a" n)]
                [data-type ,(~a (dict-ref curr 'type))]
-               [data-timespan ,(~a (- (dict-ref next 'time) (dict-ref curr 'time)))])
-              ))))
+               [data-timespan ,(~a (dict-ref curr 'time))])
+              )))
+     ,@(for/list ([phase timeline] [n (in-naturals)])
+         (render-phase phase n time))))
 
-(define/contract (render-phase curr n next)
-  (-> timeline-phase? integer? timeline-phase? xexpr?)
-  `(div ([class ,(format "timeline-block timeline-~a" (dict-ref curr 'type))]
-         [id ,(format "timeline~a" n)])
-    (h3 ,(~a (dict-ref curr 'type))
-        (span ([class "time"])
-         ,(format-time (- (dict-ref next 'time) (dict-ref curr 'time)))))
-    (dl
-     ,@(dict-call curr render-phase-method 'method)
-     ,@(dict-call curr render-phase-locations 'locations)
-     ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline)
-     ,@(dict-call curr render-phase-filtered 'filtered)
-     ,@(dict-call curr render-phase-pruning 'kept 'min-error)
-     ,@(dict-call curr render-phase-rules 'rules)
-     ,@(dict-call curr render-phase-counts 'inputs 'outputs)
-     ,@(dict-call curr render-phase-times #:extra n 'times)
-     ,@(dict-call curr render-phase-bstep 'bstep)
-     ,@(dict-call curr render-phase-egraph 'egraph)
-     ,@(dict-call curr render-phase-sampling 'sampling)
-     ,@(dict-call curr render-phase-outcomes 'outcomes))))
+(define/contract (render-phase curr n total-time)
+  (-> timeline-phase? integer? real? xexpr?)
+  (match-define (dict 'time time 'type type) curr)
+
+  `(div ([class ,(format "timeline-block timeline-~a" type)] [id ,(format "timeline~a" n)])
+        (h3 ,(~a type)
+            (span ([class "time"])
+                  ,(format-time time) " (" ,(format-percent (/ time total-time)) ")"))
+        (dl
+         ,@(dict-call curr render-phase-algorithm 'method)
+         ,@(dict-call curr render-phase-locations 'locations)
+         ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link)
+         ,@(dict-call curr render-phase-pruning 'kept 'min-error)
+         ,@(dict-call curr render-phase-rules 'rules)
+         ,@(dict-call curr render-phase-counts 'inputs 'outputs)
+         ,@(dict-call curr render-phase-times #:extra n 'times)
+         ,@(dict-call curr render-phase-bstep 'bstep)
+         ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-sampling 'sampling)
+         ,@(dict-call curr render-phase-outcomes 'outcomes))))
 
 (define (if-cons test x l)
   (if test (cons x l) l))
@@ -85,14 +94,20 @@
       (apply f (if-cons (not (void? extra)) extra (map (curry dict-ref d) args)))
       default))
 
-(define (render-phase-method method)
-  `((dt "Algorithm") (dd ,(~a method))))
+(define (render-phase-algorithm algorithm)
+  `((dt "Algorithm")
+    (dd (table ([class "times"])
+               ,@(for/list ([alg (group-by identity algorithm)])
+                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
+
 
 (define (render-phase-locations locations)
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-               ,@(for/list ([(expr err) (in-dict locations)])
+               ,@(for/list ([rec (in-list locations)])
+                   (define err (dict-ref rec 'error))
+                   (define expr (dict-ref rec 'expr))
                    `(tr (td ,(format-bits (car err)) "b") (td (pre ,(~a expr)))))))))
 
 (define (render-phase-bstep iters)
@@ -119,8 +134,12 @@
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 
-(define (->percent num)
-  (string-append (~r (* num 100) #:precision 1) "%"))
+(define (format-percent num)
+  (string-append
+   (if (infinite? num)
+       (if (> num 0) "+∞" "-∞")
+       (~r (* num 100) #:precision 1))
+   "%"))
 
 (define (average . values)
   (/ (apply + values) (length values)))
@@ -132,23 +151,40 @@
          (tr (th "True") (th "Other") (th "False") (th "Iter"))
          ,@(for/list ([rec (in-list (reverse sampling))])
              (match-define (list n wt wo wf) rec)
-             `(tr (td ,(->percent (/ wt total)))
-                  (td ,(->percent (/ wo total)))
-                  (td ,(->percent (/ wf total)))
+             `(tr (td ,(format-percent (/ wt total)))
+                  (td ,(format-percent (/ wo total)))
+                  (td ,(format-percent (/ wf total)))
                   (td ,(~a n))))))))
 
-(define (render-phase-accuracy accuracy oracle baseline)
-  (define percentage
-    (if (= baseline oracle)
-        (if (= baseline accuracy) "100%" "-∞")
-        (->percent (/ (- baseline accuracy) (- baseline oracle)))))
+(define (render-phase-accuracy accuracy oracle baseline name link)
+  (define rows
+    (sort
+     (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
+       (list (- acc ora)
+             (if (= bas ora)
+                 (if (= bas acc) 1 -inf.0)
+                 (/ (- bas acc) (- bas ora)))
+             link
+             name))
+     > #:key first))
+
+  (define bits (map first rows))
+  (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p ,percentage " (" ,(format-bits (- accuracy oracle)) "b" " remaining)")
-        (p "Error of " ,(format-bits accuracy) "b"
-           " against oracle of " ,(format-bits oracle) "b"
-           " and baseline of " ,(format-bits baseline) "b"))))
-
+    (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
+            " (" ,(format-percent (/ (apply + bits) total-remaining)) ")"
+        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
+           " (" ,(format-percent (/ (apply + (filter (curry > 1) bits)) total-remaining)) ")")
+        ,@(if (> (length rows) 1)
+              `(table ([class "times"])
+                 ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
+                     (match-define (list left fraction link name) row)
+                     `(tr (td ,(format-bits left) "b")
+                          (td ,(format-percent (* fraction 100)))
+                          (td (a ([href ,(format "~a/graph.html" link)]) ,(or name ""))))))
+              '())))))
+  
 (define (render-phase-pruning kept min-error)
   (define (altnum kind [col #f])
     (define rec (hash-ref kept kind))
@@ -174,50 +210,38 @@
         (p "Merged error: " ,(format-bits min-error) "b"))))
 
 (define (render-phase-rules rules)
-  (define counts (make-hash))
+  (define by-count (make-hash))
   (for ([(rule count) (in-dict rules)])
-    (dict-update! counts count (curry cons rule) '()))
+    (dict-update! by-count count (curry cons rule) '()))
 
   `((dt "Rules")
     (dd (table ([class "times"])
-               ,@(for/list ([(count rules) (in-dict (sort (hash->list counts) > #:key car))])
-                   `(tr (td ,(~a count) "×")
-                        (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
+          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)])
+              `(tr (td ,(~a count) "×")
+                   (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
 (define (render-phase-counts inputs outputs)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
 
 (define (render-phase-times n times)
   `((dt "Calls")
-    (dd ,(~a (length times)) " calls:"
+    (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
         (table ([class "times"])
-               ,@(for/list ([(expr time) (in-dict times)])
+               ,@(for/list ([(expr time) (in-sorted-dict times #:key second)] [_ (in-range 5)])
                    `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
-
-(define (render-phase-filtered filtered)
-  (match-define (list to from) filtered)
-  (if (> from 0)
-      `((dt "Filtered") (dd ,(~a from) " candidates to " ,(~a to) " candidates"
-                            " (" ,(~r (* (- 1 (/ to from)) 100) #:precision '(= 1)) "%)"))
-      '()))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-               ,@(for/list ([(outcome number) (in-sorted-dict outcomes #:key cdr)])
-                   (match-define (cons count time) number)
-                   (match-define (list prog category prec) outcome)
-                   `(tr (td ,(format-time time)) (td ,(~a count) "×")
-                        (td ,(~a prog)) (td ,(~a prec)) (td ,(~a category))))))))
-
-(define (make-timeline-json result out precision)
-  (define repr (get-representation precision))
-  (define timeline (test-result-timeline result))
-
-  (write-json (timeline->json timeline repr) out))
+         ,@(for/list ([data (sort outcomes > #:key (curryr dict-ref 'time))])
+             `(tr (td ,(format-time (dict-ref data 'time)))
+                  (td ,(~a (dict-ref data 'count)) "×")
+                  (td ,(~a (dict-ref data 'program)))
+                  (td ,(~a (dict-ref data 'precision)))
+                  (td ,(~a (dict-ref data 'category)))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
@@ -247,124 +271,6 @@
                           (match-define (list delta class flag) rec)
                           `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                 " " ,(~a class) ":" ,(~a flag)))))))))
-
-(define (make-summary-html out info timeline)
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
-   `(html
-     (head
-      (title "Metrics for Herbie run")
-      (meta ((charset "utf-8")))
-      (link ((rel "stylesheet") (type "text/css") (href "report.css")))
-      (script ((src "report.js"))))
-     (body
-       ,(render-menu '(("About" . "#about")
-                       ("Timeline" . "#process-info")
-                       ("Profile" . "#profile"))
-                     '(("Report" . "results.html")))
-       ,(render-about info)
-       ,(render-timeline-summary timeline)
-       ,(render-profile)))
-   out))
-
-(define (render-timeline-summary timeline)
-  (define total-time (apply + (map (curryr dict-ref 'time) timeline)))
-
-  (define blocks
-    (for/list ([phase (in-list timeline)])
-      (define time (dict-ref phase 'time))
-      (define type (dict-ref phase 'type))
-      `(div ([class ,(format "timeline-block timeline-~a" type)])
-            (h3 ,(~a type)
-                (span ([class "time"]) ,(format-time time)
-                      " (" ,(~r (* (/ time total-time) 100) #:precision '(= 1)) "%)"))
-            (dl
-             ,@(dict-call phase render-summary-algorithm 'method)
-             ,@(dict-call phase render-summary-outcomes 'outcomes)
-             ,@(dict-call phase render-summary-times #:extra type 'times)
-             ,@(dict-call phase render-summary-accuracy 'accuracy 'oracle 'baseline 'name 'link)
-             ,@(dict-call phase render-summary-filtered 'filtered)
-             ,@(dict-call phase render-summary-sampling 'sampling)
-             ,@(dict-call phase render-summary-rules 'rules)))))
-
-  `(section ([id "process-info"])
-            (h1 "Details")
-            ,@blocks))
-
-(define (render-summary-sampling data)
-  (render-phase-sampling (reverse data)))
-
-(define (render-summary-algorithm algorithm)
-  `((dt "Algorithm")
-    (dd (table ([class "times"])
-               ,@(for/list ([alg (group-by identity algorithm)])
-                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
-
-(define (render-summary-times type times)
-  `((dt "Calls")
-    (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" type)]
-                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" type) "\", " ,(jsexpr->string (map second times)) ")")
-        (dd (table ([class "times"])
-                   ,@(for/list ([(expr time) (in-dict (sort times > #:key cadr))]
-                                [_ (in-range 5)])
-                       `(tr (td ,(format-time (car time))) (td (pre ,(~a expr))))))))))
-
-(define (render-summary-rules rules)
-  (define counts-grouped (make-hash))
-  (for ([(rule count) (in-dict rules)])
-    (dict-update! counts-grouped count (curry cons rule) '()))
-
-  `((dt "Rules")
-    (dd (table ([class "times"])
-          ,@(for/list ([(count rules) (in-dict (sort (hash->list counts-grouped) > #:key car))])
-              `(tr (td ,(~a count) "×")
-                   (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
-
-;; TODO unconverted
-(define (render-summary-accuracy accuracy oracle baseline name link)
-  (define rows
-    (sort
-     (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
-       (list (- acc ora)
-             (if (= bas ora)
-                 (if (= bas acc) 1 -inf.0)
-                 (/ (- bas acc) (- bas ora)))
-             link
-             name))
-     > #:key first))
-
-  (define bits (map first rows))
-  (define total-remaining (apply + accuracy))
-
-  `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
-            " (" ,(~r (* (/ (apply + bits) total-remaining) 100) #:precision 1) "%)")
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
-           " (" ,(~r (* (/ (apply + (filter (curry > 1) bits)) total-remaining) 100) #:precision 1) "%)")
-        (table ([class "times"])
-               ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
-                   (match-define (list left fraction link name) row)
-                   `(tr (td ,(format-bits left) "b")
-                        (td ,(if (infinite? fraction) "-∞" (~r (* fraction 100) #:precision 1)) "%")
-                        (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))))
-
-(define (render-summary-filtered filtered)
-  (match-define (list from to) filtered)
-  `((dt "Filtered")
-    (dd ,(~a from) " candidates to " ,(~a to) " candidates"
-        " (" ,(~r (if (> from 0) (* (- 1 (/ to from)) 100) 0) #:precision '(= 1)) "%)")))
-
-(define (render-summary-outcomes outcomes)
-  `((dt "Results")
-    (dd (table ([class "times"])
-         ,@(for/list ([data (sort outcomes > #:key (curryr dict-ref 'time))])
-             `(tr (td ,(format-time (dict-ref data 'time)))
-                  (td ,(~a (dict-ref data 'count)) "×")
-                  (td ,(~a (dict-ref data 'program)))
-                  (td ,(~a (dict-ref data 'precision)))
-                  (td ,(~a (dict-ref data 'category)))))))))
 
 (define (render-profile)
   `(section ([id "profile"])

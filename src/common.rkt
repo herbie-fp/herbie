@@ -9,7 +9,7 @@
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
          parse-flag get-seed set-seed!
-         quasisyntax sym-append
+         quasisyntax dict sym-append
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -185,6 +185,14 @@
       [(_ a)
        #'(app syntax-e 'a)])))
 
+(define-match-expander dict
+  (λ (stx)
+    (syntax-case stx (quote)
+      [(_)
+       #'(? dict?)]
+      [(dict 'x y rest ...)
+       #'(and (dict rest ...) (? (curryr dict-has-key? 'x)) (app (curryr dict-ref 'x) y))])))
+
 ;; String formatting operations
 
 (define (format-time ms #:min [min-unit 0])
@@ -212,7 +220,7 @@
             (loop (cdr names) (cons #f ps))))))
 
 (define (in-sorted-dict d #:key [key identity])
-  (in-dict (sort (dict->list d) > #:key (compose key cdr))))
+  (in-dict (sort (dict->list d) > #:key key)))
 
 (define-runtime-path web-resource-path "web/")
 

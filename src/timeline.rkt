@@ -43,8 +43,8 @@
 (define (timeline-load! value)
   (set! *timeline* value))
 
-(define (timeline-extract)
-  (reverse (unbox *timeline*)))
+(define (timeline-extract repr)
+  (timeline->json (reverse (unbox *timeline*)) repr))
 
 (define (timeline->json timeline repr)
   (for/list ([event timeline] [next (cdr timeline)])
@@ -76,7 +76,7 @@
            (list v)]
           ['link (list (path->string v))]
           ['sampling (reverse v)]
-          [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph)
+          [(or 'inputs 'outputs 'kept 'min-error 'egraph)
            v]))
 
       (values k v*))))
@@ -114,10 +114,6 @@
                    'time (apply + (map (curryr dict-ref 'time) rows))))]
           [(or 'accuracy 'oracle 'baseline 'name 'link)
            (append v (dict-ref data k '()))]
-          ['filtered
-           (match-define (list from1 to1) v)
-           (match-define (list from2 to2) (dict-ref data k '(0 0)))
-           (list (+ from1 from2) (+ to1 to2))]
           ['sampling
            (if (dict-has-key? data k)
                (let loop ([l1 v] [l2 (dict-ref data k)])
