@@ -149,7 +149,7 @@
   `((dt "Search")
     (dd (table ([class "times"])
          (tr (th "True") (th "Other") (th "False") (th "Iter"))
-         ,@(for/list ([rec (in-list (reverse sampling))])
+         ,@(for/list ([rec (in-list sampling)])
              (match-define (list n wt wo wf) rec)
              `(tr (td ,(format-percent (/ wt total)))
                   (td ,(format-percent (/ wo total)))
