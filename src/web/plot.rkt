@@ -249,19 +249,19 @@
         (λ x (list-ref x axis))
         (eval-prog `(λ ,vars ,axis) 'fl repr)))
         
-  (define-values (gt lt) ;; representation-specific operators
+  (define-values (lt neg) ;; representation-specific operators
     (let ([name (representation-name repr)])
       (values
-        (operator-info (car (get-parametric-operator '> (list name name))) 'fl)
-        (operator-info (car (get-parametric-operator '< (list name name))) 'fl))))
-  (define max (λ (x y) (if (gt x y) x y))) 
-  (define min (λ (x y) (if (gt x y) y x)))
+        (operator-info (car (get-parametric-operator '< (list name name))) 'fl)
+        (operator-info (car (get-parametric-operator '- (list name))) 'fl))))
+  (define max (λ (x y) (if (lt x y) y x))) 
+  (define min (λ (x y) (if (lt x y) x y)))
 
   ; max and min finite values (works for ieee754 and posit)
   (define-values (maxbound minbound) 
     (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))])
       (values ((representation-ordinal->repr repr) ord)
-              (- ((representation-ordinal->repr repr) ord)))))
+              (neg ((representation-ordinal->repr repr) ord)))))
 
   (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))

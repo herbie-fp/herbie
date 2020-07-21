@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?)
-         (only-in fpbench core->tex))
+         (only-in fpbench core->tex supported-by-lang?))
 (require "../points.rkt" "../float.rkt" "../alternative.rkt" "../interface.rkt"
          "../syntax/rules.rkt" "../core/regimes.rkt" "../common.rkt"
         "common.rkt" "../programs.rkt")
@@ -49,9 +49,10 @@
 
   (match altn
     [(alt prog 'start (list))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
+           (div ([class "math"]) "\\[" ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -75,34 +76,42 @@
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
-                                                                #:loc loc #:color "blue") 
+           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
+                                                      (core->tex prog* #:loc loc #:color "blue") 
+                                                      "ERROR")        
                                                   "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
-                                                                #:loc loc #:color "blue") 
+           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
+                                                      (core->tex prog* #:loc loc #:color "blue") 
+                                                      "ERROR") 
                                                   "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec))) "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
+     (define prog* (program->fpcore (resugar-program prog prec)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(core->tex (program->fpcore (resugar-program prog prec)) 
-                                                                #:loc (change-location cng) #:color "blue")
+           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
+                                                      (core->tex prog* #:loc (change-location cng) #:color "blue")
+                                                      "ERROR")
                                                   "\\]")))]
     ))

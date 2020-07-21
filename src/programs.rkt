@@ -305,6 +305,14 @@
      (define ift* (expand-parametric-reverse ift repr))
      (define iff* (expand-parametric-reverse iff repr))
      (list 'if cond* ift* iff*)]
+    [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) 
+           body) ; conversion (e.g. posit16->f64)
+     (define-values (iprec oprec)
+       (let ([split (string-split (symbol->string op) "->")])
+         (values (first split) (last split))))
+     (define repr* (get-representation (string->symbol oprec)))
+     (define body* (expand-parametric-reverse body repr*))
+     `(! :precision ,oprec ,body*)]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -313,8 +321,7 @@
          [(? symbol? a) (map (const a) args)]))
      (define args*
        (for/list ([arg args] [type atypes])
-        (let ([type* (if (equal? type 'real) 'binary64 type)]) ; TODO: temp conversion
-         (expand-parametric-reverse arg (get-representation type*)))))
+         (expand-parametric-reverse arg (get-representation type))))
      (cons op* args*)]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
@@ -354,8 +361,9 @@
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
 
-;; Conversions to and from "classic" (<= 1.4) Herbie to "parameterized" Herbie
-;; Needed for src/core/taylor.rkt and src/core/reduce.rkt
+;; Conversions to and from (<= 1.4) and "parameterized" Herbie
+;; Needed for src/core/taylor.rkt, src/core/reduce.rkt, src/syntax/rules.rkt
+;; Similar to de/resugaring but not quite
 
 (define (unparameterize-expr expr)
   (match expr
