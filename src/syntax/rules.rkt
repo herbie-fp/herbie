@@ -32,15 +32,14 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-(define (type-of-rule input output [prec 'binary64]) ; see below
+(define (type-of-rule input output [prec 'binary64])
   (define type
-    (cond
-      [(list? input) (operator-info (car input) 'otype)]
-      [(list? output) (operator-info (car output) 'otype)]
+    (cond   ; 'if' is treated as an operator here
+      [(list? input) (if (equal? (car input) 'if) 'prec (operator-info (car input) 'otype))]
+      [(list? output) (if (equal? (car output) 'if) 'prec (operator-info (car output) 'otype))]
       [else
         (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
-                input output)]))
-  (if (equal? type 'real) prec type)) ; 'if' can still emit real. TODO: fix
+                input output)])))
 
 ;; Name generation
 
