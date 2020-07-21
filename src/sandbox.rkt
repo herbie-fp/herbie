@@ -88,7 +88,7 @@
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
-                      (timeline-extract)
+                      (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alt points exacts
                       (errors (test-program test) context output-repr)
                       (errors (alt-program alt) context output-repr)
@@ -106,7 +106,7 @@
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end))
     (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
+                  (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
                   warning-log e))
 
   (define (in-engine _)
@@ -125,7 +125,7 @@
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
         (timeline-event! 'end)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
+        (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))

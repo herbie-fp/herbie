@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header))
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt")
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt")
 (provide all-pages make-page page-error-handler)
@@ -44,7 +44,7 @@
     ["timeline.html"
      (make-timeline result out)]
     ["timeline.json"
-     (make-timeline-json result out precision)]
+     (write-json (test-result-timeline result) out)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
