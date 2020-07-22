@@ -76,7 +76,7 @@
   (define (make-point)
     (for/list ([v fv])
       (match (dict-ref (rule-itypes test-rule) v)
-        [(or 'binary64 'binary64) (random-generate repr)]
+        [(or 'binary64 'binary32) (random-generate repr)]
         ['bool (if (< (random) .5) false true)]
         ['complex (make-rectangular (sample-double) (sample-double))])))
   (define point-sequence (in-producer make-point))
