@@ -23,15 +23,17 @@
      `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
+    [`(neg ,arg)
+      (define op* (car (get-parametric-operator '- '(binary64))))
+      (define arg* (simplify arg))
+      (define val (eval-application op* arg*))
+      (or val (simplify-node (list op* arg*)))]
     [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
      ; Get the parameterized op for binary64
      ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
      ; are v-ary while get-operator-argc is not
-     (define-values (op-name arg-len) 
-        (if (equal? op 'neg)
-            (values '- 1)
-            (values op (length (get-operator-argc op)))))
-     (define op* (car (get-parametric-operator op-name (make-list arg-len 'binary64))))
+     (define arg-len (length (get-operator-argc op)))
+     (define op* (car (get-parametric-operator op (make-list arg-len 'binary64))))
      (define args* (map simplify args))
      (define val (apply (curry eval-application op*) args*))
      (or val (simplify-node (list* op args*)))]
