@@ -33,13 +33,12 @@
       (list (filter rule-ops-supported? rules) groups types)))))
 
 (define (type-of-rule input output [prec 'binary64])
-  (define type
-    (cond   ; 'if' is treated as an operator here
-      [(list? input) (if (equal? (car input) 'if) 'prec (operator-info (car input) 'otype))]
-      [(list? output) (if (equal? (car output) 'if) 'prec (operator-info (car output) 'otype))]
-      [else
-        (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
-                input output)])))
+  (cond   ; 'if' is treated as an operator here
+    [(list? input) (if (equal? (car input) 'if) prec (operator-info (car input) 'otype))]
+    [(list? output) (if (equal? (car output) 'if) prec (operator-info (car output) 'otype))]
+    [else
+      (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
+              input output)]))
 
 ;; Name generation
 
