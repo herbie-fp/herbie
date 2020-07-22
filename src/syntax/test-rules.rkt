@@ -88,7 +88,9 @@
       (values (apply prog1 pt) (apply prog2 pt))))
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
-      (check-equal? v1 v2))))
+      (match otype
+       ['binary32 (check-equal? (real->single-flonum v1) (real->single-flonum v2))] ; casting problems
+       [else (check-equal? v1 v2)]))))
 
 (module+ main
   (command-line

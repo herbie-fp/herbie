@@ -27,7 +27,7 @@
       (define op* (car (get-parametric-operator '- '(binary64))))
       (define arg* (simplify arg))
       (define val (eval-application op* arg*))
-      (or val (simplify-node (list op* arg*)))]
+      (or val (simplify-node (list 'neg arg*)))]
     [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
      ; Get the parameterized op for binary64
      ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
