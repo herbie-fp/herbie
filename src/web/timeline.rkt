@@ -177,12 +177,12 @@
         (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
            " (" ,(format-percent (/ (apply + (filter (curry > 1) bits)) total-remaining)) ")")
         ,@(if (> (length rows) 1)
-              `(table ([class "times"])
-                 ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
-                     (match-define (list left fraction link name) row)
-                     `(tr (td ,(format-bits left) "b")
-                          (td ,(format-percent (* fraction 100)))
-                          (td (a ([href ,(format "~a/graph.html" link)]) ,(or name ""))))))
+              `((table ([class "times"])
+                  ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
+                      (match-define (list left fraction link name) row)
+                      `(tr (td ,(format-bits left) "b")
+                           (td ,(format-percent (* fraction 100)))
+                           (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
   
 (define (render-phase-pruning kept min-error)
