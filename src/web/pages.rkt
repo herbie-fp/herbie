@@ -42,7 +42,7 @@
     ["interactive.js"
      (make-interactive-js result out repr)]
     ["timeline.html"
-     (make-timeline result out)]
+     (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))

@@ -1,51 +1,34 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "../datafile.rkt" "common.rkt" "../float.rkt"
-         "../interface.rkt" "../timeline.rkt")
-(provide make-timeline make-summary-html)
+         "../datafile.rkt" "common.rkt")
+(provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline result out)
+(define (make-timeline name timeline out #:info [info #f])
   (fprintf out "<!doctype html>\n")
   (write-xexpr
     `(html
       (head
        (meta ([charset "utf-8"]))
-       (title "Metrics for " ,(~a (test-name (test-result-test result))))
-       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-       (script ([src "../report.js"])))
+       (title "Metrics for " ,(~a name))
+       (link ([rel "stylesheet"] [type "text/css"] [href ,(if info "report.css" "../report.css")]))
+       (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         '(("Timeline" . "#process-info")
-           ("Profile" . "#profile"))
-         '(("Report" . "graph.html")))
-       ,(render-timeline (test-result-timeline result))
-       ,(render-profile)))
-    out))
-
-(define (make-summary-html out info timeline)
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
-   `(html
-     (head
-      (title "Metrics for Herbie run")
-      (meta ((charset "utf-8")))
-      (link ((rel "stylesheet") (type "text/css") (href "report.css")))
-      (script ((src "report.js"))))
-     (body
-       ,(render-menu '(("About" . "#about")
-                       ("Timeline" . "#process-info")
-                       ("Profile" . "#profile"))
-                     '(("Report" . "results.html")))
-       ,(render-about info)
+         (list/true
+          (and info '("About" . "#about"))
+          '("Timeline" . "#process-info")
+          '("Profile" . "#profile"))
+         '(("Report" . ,(if info "results.html" "graph.html"))))
+       ,(if info (render-about info) "")
        ,(render-timeline timeline)
        ,(render-profile)))
-   out))
+    out))
 
 (define/contract (render-timeline timeline)
   (-> timeline? xexpr?)
