@@ -10,7 +10,9 @@
 ;; distributativity, and function inverses.
 
 (define fn-inverses
-  (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))
+  (remove-duplicates
+    (unparameterize-expr
+      (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))))
 
 (define (simplify expr*)
   (define expr ((get-evaluator) expr*))
@@ -21,10 +23,21 @@
      `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
-    [`(,op ,args ...)
+    [`(neg ,arg)
+      (define op* (car (get-parametric-operator '- '(binary64))))
+      (define arg* (simplify arg))
+      (define val (eval-application op* arg*))
+      (or val (simplify-node (list 'neg arg*)))]
+    [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
+     ; Get the parameterized op for binary64
+     ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
+     ; are v-ary while get-operator-argc is not
+     (define arg-len (length (get-operator-argc op)))
+     (define op* (car (get-parametric-operator op (make-list arg-len 'binary64))))
      (define args* (map simplify args))
-     (define val (eval-application op args*))
-     (or val (simplify-node (list* op args*)))]))
+     (define val (apply (curry eval-application op*) args*))
+     (or val (simplify-node (list* op args*)))]
+    [_ expr])) ;; prevent posit conversions from crashing. TODO: how does this actually affect things?
 
 (define (simplify-node expr)
   (match expr
@@ -259,6 +272,6 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of x (*var-reprs*))
-       [(or 'real 'binary64 'binary32) `(pow ,x ,power)]
+     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; assuming binary64 might be problematic
+       ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

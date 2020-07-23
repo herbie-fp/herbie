@@ -27,7 +27,14 @@
     (dict-set! known-functions op #f))
   (define known-function? (curry dict-has-key? known-functions))
 
-  (define definition-rules (filter definition-rule? (*rules*)))
+  (define definition-rules ; these rules are unparameterized
+    (map 
+      (λ (r)
+        (rule (rule-name r)
+              (unparameterize-expr (rule-input r))
+              (unparameterize-expr (rule-output r))
+              (rule-itypes r) (rule-otype r)))
+      (filter definition-rule? (*rules*))))
 
   (let loop ()
     (define continue? #f)
@@ -38,7 +45,7 @@
         (dict-set! known-functions op rule)
         (set! continue? #t))))
 
-  (define (simplify expr)
+  (define (simplify expr) ; all rewriting done with unparameterized operators
     (and (list? expr)
          (dict-ref known-functions (car expr) #f)
          (rule-rewrite (dict-ref known-functions (car expr)) expr)))
@@ -51,8 +58,9 @@
 (define (make-evaluator)
   (define evaluation-rules
     (for/hash ([rule (*rules*)] #:when (evaluation-rule? rule))
-      (values (rule-input rule) (rule-output rule))))
-
+      (values 
+        (unparameterize-expr (rule-input rule))
+        (unparameterize-expr (rule-output rule)))))
   (λ (expr) (dict-ref evaluation-rules expr expr)))
 
 (define (get-expander primitives)

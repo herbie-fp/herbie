@@ -36,7 +36,7 @@
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts)
+        (exprs-to-branch-on alts repr)
         (program-variables (alt-program (first alts)))))
   (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
          #:from 'regime-changes #:depth 3)
@@ -56,13 +56,13 @@
   (debug "Found split indices:" best #:from 'regime #:depth 3)
   best)
 
-(define (exprs-to-branch-on alts)
+(define (exprs-to-branch-on alts repr)
   (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
   (define start-critexprs (all-critical-subexpressions (*start-prog*)))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-name (representation-type (get-representation* (type-of e (*var-reprs*))))) 'real))
+   (λ (e) (equal? (type-of e repr (*var-reprs*)) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -98,8 +98,8 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        (define type (type-name (representation-type repr)))
-        (define <=-operator (car (get-parametric-operator '<= (list type type))))
+        (define name (representation-name repr))
+        (define <=-operator (car (get-parametric-operator '<= (list name name))))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
@@ -153,7 +153,7 @@
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
                  [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
                  [*output-repr* (get-representation 'binary64)])
-    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin x 1) '(fmax x 1))))
+    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define repr (get-representation 'binary64))
 
     ;; This is a basic sanity test
@@ -169,7 +169,7 @@
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '(if (== x 0.5) 1 +nan.0) repr)
+           (option-on-expr alts '(if (==.f64 x 0.5) 1 +nan.0) repr)
            '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
@@ -199,6 +199,9 @@
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
+  (define repr-name (representation-name repr))
+  (define eq-repr (car (get-parametric-operator '== (list repr-name repr-name))))
+
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
@@ -208,7 +211,7 @@
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog) (== ,(caadr start-prog) ,v))
+                          `(λ ,(program-variables start-prog) (,eq-repr ,(caadr start-prog) ,v))
                           repr
                           (λ () (cons v (sampler)))))
         (< (errors-score (errors prog1 ctx repr))
@@ -363,10 +366,10 @@
                  [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
                  [*output-repr* (get-representation 'binary64)])
     (define sps
-      (list (sp 0 '(/ y x) -inf.0)
-            (sp 2 '(/ y x) 0.0)
-            (sp 0 '(/ y x) +inf.0)
-            (sp 1 '(/ y x) +nan.0)))
+      (list (sp 0 '(/.f64 y x) -inf.0)
+            (sp 2 '(/.f64 y x) 0.0)
+            (sp 0 '(/.f64 y x) +inf.0)
+            (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
                   (splitpoints->point-preds
                     sps

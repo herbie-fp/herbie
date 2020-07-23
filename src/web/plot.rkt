@@ -1,7 +1,8 @@
 #lang racket
 
-(require math/flonum plot/no-gui)
+(require math/bigfloat math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
@@ -12,88 +13,88 @@
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 
+;;  Repr conversions
+
+(define (repr->real x repr)
+  (bigfloat->real ((representation-repr->bf repr) x)))
+
+(define (ordinal->real x repr)
+  (repr->real ((representation-ordinal->repr repr) x) repr))
+
+(define (real->ordinal x repr) 
+  ((representation-repr->ordinal repr) (fl->repr x repr))) 
+
 (define (repr-transform repr)
-  (invertible-function
-   (compose (representation-repr->ordinal repr) (curryr ->flonum repr))
-   (compose (representation-ordinal->repr repr) round)))
+  (invertible-function 
+    (curryr real->ordinal repr)
+    (compose (curryr ordinal->real repr) round)))
 
 (define (repr-axis repr)
   (make-axis-transform (repr-transform repr)))
 
-(define (power10-upto x repr)
-  (if (= x 0)
-      '()
-      (reverse
-       (let loop ([power (round (/ (log x) (log 10)))])
-         (define value (fl->repr (expt 10.0 power) repr))
-         (if (= value 0) '() (cons value (loop (- power 1))))))))
+(define (first-power10 min max repr)
+  (define ->fl-in-repr ; will be bad if repr > double
+    (compose (curryr repr->real repr) (curryr fl->repr repr)))
+  (define value
+    (cond
+     [(negative? max) 
+      (define power (ceiling (/ (log (- max)) (log 10))))
+      (- (->fl-in-repr (expt 10.0 power)))]
+    [else
+      (define power (floor (/ (log max) (log 10))))
+      (->fl-in-repr (expt 10.0 power))]))
+  (if (<= value min) #f value))
 
-(define (possible-ticks min max repr)
-  ;; Either
-  ;; + 0 is between min and max
-  ;; + 0 is one of min and max (two cases)
-  ;; + min and max are on the same side of 0 (two cases)
-  (sort 
-   (cond
-    [(< (* min max) 0) (append (map - (power10-upto (- min) repr)) '(0.0) (power10-upto max repr))]
-    [(= min 0) (cons 0 (power10-upto max repr))]
-    [(= max 0) (append (map - (power10-upto (abs min) repr)) '(0.0))]
-    [(> min 0) (set-subtract (power10-upto max repr) (power10-upto min repr))]
-    [(< max 0) (map - (set-subtract (power10-upto (abs min) repr) (power10-upto (abs max) repr)))])
-   <))
+(define (choose-between min max number repr)
+  ; Returns a given number of ticks, roughly evenly spaced, between min and max
+  ; For any tick, n divisions below max, the tick is an ordinal corresponding to:
+  ;  (a) a power of 10 between n and (n + ε) divisions below max where ε is some tolerance, or
+  ;  (b) a value, n divisions below max
+  (define sub-range (round (/ (- max min) (add1 number))))
+  (define near (λ (x n) (and (<= x n) (<= (abs (/ (- x n) sub-range)) 0.2)))) ; <- tolerance
+  (for/list ([itr (in-range 1 (add1 number))])
+    (define power10 
+      (first-power10 (ordinal->real (- max (* (add1 itr) sub-range)) repr)
+                     (ordinal->real (- max (* itr sub-range)) repr) repr))
+    (if (and power10 (near (real->ordinal power10 repr) (- max (* itr sub-range))))
+        (real->ordinal power10 repr)
+        (- max (* itr sub-range)))))
 
-(define (pick-spaced-indices necessary possible number)
-  "Choose `number` entries from among `possible`, with every index in `necessary` chosen and even spacing between choices."
-
-  ;; `possible` and `number` are numbers; `necessary` is a list of numbers less than `possible`
-  ;; The approach here is a dynamic programming algorithm.
-  ;; The algorithm minimizes the sum squared of gaps between chosen ticks.
-  ;; State is a vector of ticks chosen left of point + total weight left of point.
-  ;; At the Nth iter, the Ith entry in array has N ticks including I (except first few)
-  (define initial
-    (for/vector ([i (in-range possible)])
-      (define chosen (sort (filter (curryr <= i) necessary) <))
-      (define weight (apply + (for/list ([left (cons 0 chosen)] [right chosen]) (sqr (- right left)))))
-      (cons (reverse chosen) weight)))
-
-  (define final
-    (for/fold ([initial initial]) ([iter (in-range number)])
-      (define upper
-        (if (< iter (length necessary))
-            (last (take (sort necessary <) (+ 1 iter)))
-            possible))
-      (for/vector ([i (in-range possible)])
-        (if (< i upper)
-            (let*-values ([(stoppers) (filter (curryr < i) necessary)]
-                          [(stopper) (if (null? stoppers) 0 (apply max stoppers))]
-                          [(j* score*)
-                           (for/fold ([j* #f] [score* #f]) ([j (in-range stopper i)])
-                             (match-define (cons *j *score) (vector-ref initial j))
-                             (define score (+ *score (if (null? *j) (sqr i) (sqr (- i (car *j))))))
-                             (if (or (not j*) (< score score*)) (values (cons i *j) score) (values j* score*)))])
-              (if j*
-                  (cons j* score*)
-                  (cons (list i) 1)))
-            (vector-ref initial i)))))
-
-  (define stopper (if (null? necessary) 0 (apply max necessary)))
-  (car (argmin (λ (x) (+ (cdr x) (sqr (- (- possible 1) (caar x))))) (drop (vector->list final) stopper))))
+(define (pick-spaced-ordinals necessary min max number repr)
+  (define sub-range (/ (- max min) number)) ; size of a division on the ordinal range
+  (define necessary*      ; filter out necessary points that are too close
+    (let loop ([necessary necessary])
+      (cond
+       [(< (length necessary) 2) necessary]
+       [(< (- (cadr necessary) (car necessary)) sub-range)
+        (loop (cdr necessary))]
+       [else (cons (car necessary) (loop (cdr necessary)))])))
+  (define all
+    (let loop ([necessary necessary*] [min* min] [start 0])
+      (cond
+       [(>= start number) '()]
+       [(empty? necessary)
+        (choose-between min* max (- number start) repr)]
+       [else
+        (define idx (for/first ([i (in-range number)] 
+                                #:when (<= (- (first necessary) (+ min (* i sub-range))) sub-range))
+                        i))
+        (append
+          (choose-between min* (first necessary) (- idx start) repr)
+          (loop (cdr necessary) (first necessary) (add1 idx)))])))
+  (sort (append all necessary*) <))
 
 (define (choose-ticks min max repr)
-  (define possible (possible-ticks min max repr))
-  (cond
-   [(< (length possible) 12)
-    ;; If there aren't enough possible big ticks, we fall back to the standard method
-    (append
-     (if (<= min 1.0 max) (list (pre-tick 1.0 #t)) '())
-     (if (<= min 0.0 max) (list (pre-tick 0.0 #t)) '())
-     (if (<= min -1.0 max) (list (pre-tick -1.0 #t)) '())
-     ((ticks-layout (ticks-scale (linear-ticks #:number 6 #:base 10 #:divisors '(1 2 5)) (repr-transform repr))) min max))]
-   [else
-    (define necessary (filter identity (map (curry index-of possible) '(1.0 0.0 -1.0))))
-    (define major-indices (pick-spaced-indices necessary (length possible) 12))
-    (for/list ([idx major-indices])
-      (pre-tick (list-ref possible idx) #t))]))
+  (define tick-count 13)
+  (define necessary (map (curryr real->ordinal repr) 
+                         (filter (λ (x) (<= min x max)) (list min -1.0 0.0 1.0 max))))
+  (define major-ticks
+    (map
+      (curryr ordinal->real repr)
+      (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
+                            tick-count repr)))
+  (for/list ([tick major-ticks])
+    (pre-tick tick #t)))
 
 (define (repr-ticks repr)
   (ticks
@@ -105,14 +106,16 @@
            (~r (exact->inexact val) #:precision 4)
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e"))))))
 
-(define (error-points errs pts #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
+(define (error-points errs pts repr #:axis [axis 0] #:color [color *blue-theme*] #:alpha [alpha 0.02])
   (define x
     (if (number? axis)
         (λ x (list-ref x axis))
         (eval-prog axis 'fl)))
   (points
     (for/list ([pt pts] [err errs])
-      (vector (apply x pt) (ulps->bits err)))
+      (vector 
+        (repr->real (apply x pt) repr) ; TODO: real rather than flonum
+        (ulps->bits err)))
     #:sym 'fullcircle #:color (color-theme-line color) #:alpha alpha #:size 4))
 
 (define (best-alt-points point-alt-idxs var-idxs)
@@ -146,10 +149,10 @@
                                            (list-ref (car l) (cadr var-idxs)))) l))
     (points color-points #:color point-color #:sym 'fullcircle #:size 5)))
 
-(define (error-axes pts #:axis [axis 0])
+(define (error-axes pts repr #:axis [axis 0])
   (list
    (y-tick-lines)
-   (error-points (map (const 1) pts) pts #:axis axis #:alpha 0)))
+   (error-points (map (const 1) pts) pts repr #:axis axis #:alpha 0)))
 
 (define (with-herbie-plot repr #:title [title #f] thunk)
   (parameterize ([plot-width 800] [plot-height 300]
@@ -199,8 +202,8 @@
     (lambda () (plot-file renderers port kind)))
   (with-alt-plot repr #:title title thunk))
 
-(define (errors-by x errs pts)
-  (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) < #:key car))
+(define (errors-by x errs pts cmp) 
+  (sort (map (λ (pt err) (cons (apply x pt) err)) pts errs) cmp #:key car))
 
 (define (vector-binary-search v x cmp)
   (define (search l r)
@@ -244,25 +247,34 @@
   (define get-coord
     (if (number? axis)
         (λ x (list-ref x axis))
-        (eval-prog `(λ ,vars ,axis) 'fl)))
+        (eval-prog `(λ ,vars ,axis) 'fl repr)))
+        
+  (define-values (lt neg) ;; representation-specific operators
+    (let ([name (representation-name repr)])
+      (values
+        (operator-info (car (get-parametric-operator '< (list name name))) 'fl)
+        (operator-info (car (get-parametric-operator '- (list name))) 'fl))))
+  (define max (λ (x y) (if (lt x y) y x))) 
+  (define min (λ (x y) (if (lt x y) x y)))
 
-   ; works for binary64, binary32 (probably not for posits)
-  (define-values (maxbound minbound)
-    (let ([hi (sub1 ((representation-repr->ordinal repr) (fl->repr +inf.0 repr)))]
-          [lo (add1 ((representation-repr->ordinal repr) (fl->repr -inf.0 repr)))])
-      (values ((representation-ordinal->repr repr) hi)
-              ((representation-ordinal->repr repr) lo))))
+  ; max and min finite values (works for ieee754 and posit)
+  (define-values (maxbound minbound) 
+    (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))])
+      (values ((representation-ordinal->repr repr) ord)
+              (neg ((representation-ordinal->repr repr) ord)))))
 
-  (define eby (errors-by get-coord errs pts))
+  (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))
   (define (avg-fun x)
     (define h (histogram-f x))
     (/ (apply + (vector->list h)) (vector-length h)))
-  (define-values (min* max*) ; plot requires finite bounds
+  (define-values (lbound ubound) ; plot requires finite bounds
     (match* ((car (first eby)) (car (last eby)))
             [(x x) (values #f #f)]
-            [(x y) (values (max minbound x) (min maxbound y))])) ; hence this
-  (function avg-fun min* max* #:width 2 #:color (color-theme-fit color)))
+            [(x y)
+              (values (repr->real (max minbound x) repr) ; make sure the min, max are finite
+                      (repr->real (min maxbound y) repr))]))
+  (function avg-fun lbound ubound #:width 2 #:color (color-theme-fit color)))
 
 (define (error-mark x-val)
   (inverse (const x-val) #:color "gray" #:width 3))
@@ -291,7 +303,7 @@
   (herbie-plot
    #:port out #:kind 'png
    repr
-   (error-axes pts #:axis idx)
+   (error-axes pts repr #:axis idx)
    (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
 
 (define (make-points-plot result out idx letter)
@@ -308,7 +320,7 @@
   (herbie-plot
    #:port out #:kind 'png
    repr
-   (error-points err pts #:axis idx #:color theme)
+   (error-points err pts repr #:axis idx #:color theme)
    (error-avg err pts repr #:axis idx #:color theme)))
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)

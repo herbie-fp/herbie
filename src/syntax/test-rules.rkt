@@ -10,16 +10,20 @@
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  `([asinh-2       . (>= x 0)]
+  `([asinh-2_binary64       . (>= x 0)]
+    [asinh-2_binary32       . (>= x 0)]
     ;; These next three approximate pi so that range analysis will work
-    [asin-sin-s    . (<= (fabs x) 1.5708)]
-    [acos-cos-s    . (<= 0 x 3.1415)]
-    [atan-tan-s    . (<= (fabs x) 1.5708)]))
+    [asin-sin-s_binary64    . (<= (fabs x) 1.5708)]
+    [asin-sin-s_binary32    . (<= (fabs x) 1.5708)]
+    [acos-cos-s_binary64    . (<= 0 x 3.1415)]
+    [acos-cos-s_binary32    . (<= 0 x 3.1415)]
+    [atan-tan-s_binary64    . (<= (fabs x) 1.5708)]
+    [atan-tan-s_binary32    . (<= (fabs x) 1.5708)]))
 
 (define (ival-ground-truth fv p repr)
   (define prog (eval-prog `(λ ,fv ,p) 'ival repr))
   (λ (x) (ival-eval prog x repr)))
-
+ 
 (define ((with-hiprec f) x)
   (parameterize ([bf-precision 2000]) (apply f x)))
 
@@ -29,13 +33,14 @@
 (define (check-rule-correct test-rule ground-truth)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation* otype))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
+  (define var-precs (for/list ([(v t) (in-dict itypes)]) (cons v t)))
+  (define repr (get-representation otype))       
 
   (define make-point
     (make-sampler
      repr
-     `(λ ,fv ,(dict-ref *conditions* name 'TRUE))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) otype var-precs))
      `(λ ,fv ,p1)
      `(λ ,fv ,p2)))
 
@@ -66,12 +71,12 @@
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation* t))))
-  (define repr (get-representation* otype))
+  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
+  (define repr (get-representation otype))
   (define (make-point)
     (for/list ([v fv])
       (match (dict-ref (rule-itypes test-rule) v)
-        ['real (sample-double)]
+        [(or 'binary64 'binary32) (random-generate repr)]
         ['bool (if (< (random) .5) false true)]
         ['complex (make-rectangular (sample-double) (sample-double))])))
   (define point-sequence (in-producer make-point))
@@ -83,7 +88,9 @@
       (values (apply prog1 pt) (apply prog2 pt))))
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
-      (check-equal? v1 v2))))
+      (match otype
+       ['binary32 (check-equal? (real->single-flonum v1) (real->single-flonum v2))] ; casting problems
+       [else (check-equal? v1 v2)]))))
 
 (module+ main
   (command-line

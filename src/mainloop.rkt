@@ -141,14 +141,24 @@
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
+
+  ;; resugar/desugaring
+  (define prec (representation-name (*output-repr*)))
+  (define var-precs (for/list ([var vars]) (cons var prec)))
+
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (equal? (type-of expr (*var-reprs*)) 'real)))
+          (not (equal? (type-of expr (*output-repr*) (*var-reprs*)) 'real)))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
         (define transformer (map (const (cons f finv)) vars))
         (alt
-         (location-do loc (alt-program altn) (λ (expr) (approximate expr vars #:transform transformer)))
+         (location-do loc 
+                      (alt-program altn) 
+                      (λ (x) ; taylor uses older format, resugaring and desugaring needed
+                        (parameterize-expr
+                          (approximate (unparameterize-expr x) vars #:transform transformer)
+                          prec)))
          `(taylor ,name ,loc)
          (list altn)))))
 
@@ -187,7 +197,7 @@
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr #:rules (*rules*) #:root location)
+             (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
                (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
