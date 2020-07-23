@@ -381,7 +381,7 @@
   [log-rec      (log (/ 1 a))       (neg (log a))]
   [log-pow      (log (pow a b))     (* b (log a))])
 
-(define-ruleset* log-distribute-fp-safe (exponents simplify fp-safe)
+(define-ruleset* log-distribute-fp-safe (exponents simplify)
   [log-E        (log E)             1])
 
 (define-ruleset* log-factor (exponents)

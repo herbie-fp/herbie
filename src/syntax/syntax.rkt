@@ -84,21 +84,21 @@
 
 (define-constant E.f32 binary32
   [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (exp 1.0f0))]
+  [fl (λ () (exp 1.0))]
   [ival ival-e]
-  [nonffi (λ () (exp 1.0f0))])
+  [nonffi (λ () (exp 1.0))])
 
 (define-constant INFINITY.f32 binary32
   [bf (λ () +inf.bf)]
-  [fl (λ () +inf.f)]
+  [fl (λ () +inf.0)]
   [ival (λ () (mk-ival +inf.bf))]
-  [nonffi (λ () +inf.f)])
+  [nonffi (λ () +inf.0)])
 
 (define-constant NAN.f32 binary32
   [bf (λ () +nan.bf)]
-  [fl (λ () +nan.f)]
+  [fl (λ () +nan.0)]
   [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.f)]) 
+  [nonffi (λ () +nan.0)]) 
 
 (declare-parametric-constant! 'E 'E.f32 'binary32)
 (declare-parametric-constant! 'PI 'PI.f32 'binary32)
