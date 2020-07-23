@@ -7,7 +7,8 @@
 (provide make-sampler)
 
 (define (precondition->hyperrects precondition reprs)
-  (define range-table (condition->range-table (program-body precondition)))
+  ;; FPBench needs unparameterized operators
+  (define range-table (condition->range-table (unparameterize-expr (program-body precondition))))
 
   (apply cartesian-product
          (for/list ([var-name (program-variables precondition)] [repr reprs])

@@ -66,13 +66,19 @@
     (reap [sow]
       (for ([(lang converter) (in-dict languages)])
         (let ([ext (string-downcase lang)]) ; FPBench organizes compilers by extension
-          (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
-                    (or (equal? ext "fpcore")                           
-                        (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
-                             (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
+          (when (and (fpcore? in-prog*) (fpcore? out-prog*)
+                     (or (equal? ext "fpcore")                           
+                          (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
+                               (supported-by-lang? out-prog* ext))))
             (sow (cons lang (cons (converter in-prog*)
                                   (and out-prog* (converter out-prog*)))))
     )))))
+
+  (define-values (math-in math-out)
+    (if (dict-has-key? versions "TeX")
+        (let ([val (dict-ref versions "TeX")])
+          (values (car val) (cdr val)))
+        (values "" "")))
 
   `(section ([id "program"])
      ,(if (equal? (program-body (test-precondition test)) 'TRUE)
@@ -85,10 +91,10 @@
        ,@(for/list ([lang (in-dict-keys versions)])
            `(option ,lang)))
      (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,(core->tex in-prog*) "\\]")
+       (div ([class "program math"]) "\\[" ,math-in "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,(core->tex out-prog*) "\\]"))
+               (div ([class "program math"]) "\\[" ,math-out "\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)

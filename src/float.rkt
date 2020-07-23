@@ -6,7 +6,6 @@
 (module+ test (require rackunit))
 
 (provide 
- get-representation*
  ordinary-value?
  largest-ordinary-value bound-ordinary-values
  ulp-difference ulps->bits
@@ -16,11 +15,6 @@
  value->string value->json
  ->flonum ->bf
  fl->repr repr->fl)
-
-(define (get-representation* x)
-  (match x
-    ['real (get-representation (if (flag-set? 'precision 'double) 'binary64 'binary32))]
-    [x (get-representation x)]))
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))

@@ -33,13 +33,13 @@
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f ,args ...)
-                   (define repr (get-representation* (operator-info f 'otype)))
+                   (define repr (get-representation (operator-info f 'otype)))
                    (define argreprs
                      (match (operator-info f 'itype)
                        [(list arg-types ...)
-                        (map get-representation* arg-types)]
+                        (map get-representation arg-types)]
                        [(? symbol? type)
-                        (map (const (get-representation* type)) args)]))
+                        (map (const (get-representation type)) args)]))
                    (define <-bf (representation-bf->repr repr))
                    (define arg<-bfs (map representation-bf->repr argreprs))
 
