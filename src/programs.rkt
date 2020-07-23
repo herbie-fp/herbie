@@ -116,13 +116,11 @@
   (define real->precision (match mode
     ['bf (λ (repr x) (->bf x repr))]
     ['fl (λ (repr x) (->flonum x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
-    ['nonffi (λ (repr x) x)]))
+    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
   (define precision->real (match mode
     ['bf identity]
     ['fl (curryr ->flonum repr)]
-    ['ival identity]
-    ['nonffi identity]))
+    ['ival identity]))
   
   (define vars 
     (if (empty? progs) '() (program-variables (first progs))))
