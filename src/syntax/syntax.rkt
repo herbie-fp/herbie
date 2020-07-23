@@ -177,10 +177,13 @@
   (hash-set! parametric-operators-reverse op name))
 
 ;; mainly useful for getting arg count of an unparameterized operator
+;; TODO: hopefully will be fixed when the way operators are declared
+;; gets overhauled
 (define (get-operator-argc op) 
   (cond
    [(hash-has-key? parametric-operators op)
-    (operator-info (car (first (hash-ref parametric-operators op))) 'itype)]
+    ; use 'last' so v-ary comparators don't break with posits
+    (operator-info (car (last (hash-ref parametric-operators op))) 'itype)]
    [else (operator-info op 'itype)]))
 
 (define-operator (+.f64 binary64 binary64) binary64 

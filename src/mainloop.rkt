@@ -144,7 +144,9 @@
 
   ;; resugar/desugaring
   (define prec (representation-name (*output-repr*)))
-  (define var-precs (for/list ([var vars]) (cons var prec)))
+  (define var-precs 
+    (for/list ([(var repr) (in-dict (*var-reprs*))])
+      (cons var (representation-name repr))))
 
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
           (not (equal? (type-of expr (*output-repr*) (*var-reprs*)) 'real)))
@@ -156,9 +158,11 @@
          (location-do loc 
                       (alt-program altn) 
                       (λ (x) ; taylor uses older format, resugaring and desugaring needed
-                        (parameterize-expr
-                          (approximate (unparameterize-expr x) vars #:transform transformer)
-                          prec)))
+                        (desugar-program 
+                            (approximate (resugar-program x prec #:fpcore? #f)
+                                         vars #:transform transformer)
+                            prec var-precs 
+                            #:expand #f)))
          `(taylor ,name ,loc)
          (list altn)))))
 

@@ -91,8 +91,8 @@
           (define name
             (for/list ([rname* rnames] [input* inputs] [output* outputs])
               (define rname** (gen-unique-rule-name (sym-append rname* '_ prec)))
-              (define input** (parameterize-expr input* prec))
-              (define output** (parameterize-expr output* prec))
+              (define input** (desugar-program input* prec ctx #:expand #f))
+              (define output** (desugar-program output* prec ctx #:expand #f))
               (rule rname** input** output** ctx (type-of-rule input** output** prec))))
           (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 

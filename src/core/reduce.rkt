@@ -11,8 +11,9 @@
 
 (define fn-inverses
   (remove-duplicates
-    (unparameterize-expr
-      (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))))
+    (map
+      (λ (r) (resugar-program (rule-input r) (rule-otype r) #:fpcore? #f))
+      (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
 
 (define (simplify expr*)
   (define expr ((get-evaluator) expr*))
@@ -272,6 +273,11 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; assuming binary64 might be problematic
+     (define var-precs 
+       (for/list ([(var repr) (in-dict (*var-reprs*))])
+         (cons var (representation-name repr)))) 
+     (match (type-of (desugar-program x 'binary64 var-precs #:expand #f) 
+                     (get-representation 'binary64)
+                     (*var-reprs*)) ; assuming binary64 might be problematic
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))
