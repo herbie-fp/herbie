@@ -6,7 +6,7 @@
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
-         program-body program-variables ->flonum ->bf
+         program-body program-variables
          type-of
          expr-supports?
          location-hash
