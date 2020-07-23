@@ -20,7 +20,7 @@
     (curry write-json joint-tl))
   (call-with-output-file (build-path outdir "timeline.html")
     #:exists 'replace
-    (curryr make-summary-html info joint-tl))
+    (λ (out) (make-timeline "Herbie run" joint-tl out #:info info)))
   (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path outdir "report.css") #t))
 
