@@ -10,7 +10,7 @@
   ;; FPBench needs unparameterized operators
   (define range-table 
     (condition->range-table  
-      (resugar-program (program-body precondition) (representation-name repr) #:full #f)))
+      (resugar-program (program-body precondition) repr #:full #f)))
 
   (apply cartesian-product
          (for/list ([var-name (program-variables precondition)] [repr reprs])

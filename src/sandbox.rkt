@@ -129,14 +129,14 @@
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
+  (define repr (get-representation (test-output-prec test)))
   (table-row (test-name test) status
-             (resugar-program (program-body (test-precondition test)) (test-output-prec test))
+             (resugar-program (program-body (test-precondition test)) repr)
              (test-output-prec test)
              (test-vars test)
-             (resugar-program (test-input test) (test-output-prec test)) #f
-             (resugar-program (test-spec test) (test-output-prec test))
-             (and (test-output test)
-                  (resugar-program (test-output test) (test-output-prec test)))
+             (resugar-program (test-input test) repr) #f
+             (resugar-program (test-spec test) repr)
+             (and (test-output test) (resugar-program (test-output test) repr))
              #f #f #f #f #f (test-result-time result)
              (test-result-bits result) link))
 
@@ -173,7 +173,7 @@
     (struct-copy table-row (dummy-table-row result status link)
                  [output (resugar-program
                            (program-body (alt-program (test-success-end-alt result)))
-                           (test-output-prec test))]
+                           (get-representation (test-output-prec test)))]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score])]
    [(test-failure? result)

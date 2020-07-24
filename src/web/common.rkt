@@ -56,8 +56,10 @@
 
 (define (render-program #:to [result #f] test)
   (define output-prec (test-output-prec test))
-  (define in-prog (program->fpcore (resugar-program (test-program test) output-prec)))
-  (define out-prog (and result (program->fpcore (resugar-program result output-prec))))
+  (define output-repr (get-representation output-prec))
+
+  (define in-prog (program->fpcore (resugar-program (test-program test) output-repr)))
+  (define out-prog (and result (program->fpcore (resugar-program result output-repr))))
 
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
   (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))
@@ -85,7 +87,7 @@
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-prec)) "\\]")))
+                  "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
@@ -119,6 +121,7 @@
 
 (define/contract (render-fpcore test)
   (-> test? string?)
+  (define output-repr (get-representation (test-output-prec test)))
   (string-join
    (filter
     identity
@@ -128,17 +131,15 @@
      (format "  :precision ~s" (test-output-prec test))
      (if (equal? (program-body (test-precondition test)) 'TRUE)
          #f
-         (format "  :pre ~a" (resugar-program (program-body (test-precondition test))
-                                              (test-output-prec test))))
+         (format "  :pre ~a" (resugar-program (program-body (test-precondition test)) output-repr)))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
          ;; Extra newlines for clarity
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test)
-                                                               (test-output-prec test)))
+         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test) output-repr))
          #f)
-     (format "  ~a)" (resugar-program (test-input test) (test-output-prec test)))))
+     (format "  ~a)" (resugar-program (test-input test) output-repr))))
    "\n"))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])

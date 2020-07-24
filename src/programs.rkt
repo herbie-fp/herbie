@@ -275,8 +275,8 @@
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
-(define (expand-parametric expr prec var-precs full?)
-  (define-values (expr* type)
+(define (expand-parametric expr repr var-reprs full?)
+  (define-values (expr* prec)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
       (match expr
@@ -296,31 +296,36 @@
          (define op* (get-parametric-operator op (make-list 2 (first atypes))))
          (values (cons op* args*) (operator-info op* 'otype))]
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define-values (args* actual-types)
-           (for/lists (args* actual-types) ([arg args])
+         (define-values (args* atypes)
+           (for/lists (args* atypes) ([arg args])
              (loop arg)))
          ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (get-parametric-operator op actual-types))
+         (define op* (get-parametric-operator op atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
-        [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body)
+        [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
+                                        (symbol->string x))) 
+                  op)
+               body)
           ; conversion (e.g. posit16->f64)
-          (define-values (iprec oprec)
-            (let ([split (string-split (symbol->string op) "->")])
-              (values (first split) (last split))))
-          (define-values (body* rtype) (loop body))
-          (values (list op body*) oprec)]
+         (define-values (iprec oprec)
+           (let ([split (string-split (symbol->string op) "->")])
+             (values (first split) (last split))))
+         (define-values (body* rtype) (loop body))
+         (values (list op body*) oprec)]
         [(list op args ...)
          (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
          (values (cons op args*) (operator-info op 'otype))]
         [(? real?) 
-          (if (and full? (not (set-member? '(binary64 binary32) prec)))
-              (values (fl->repr expr (get-representation prec)) prec)
-              (values expr prec))]
-        [(? value?) (values expr prec)]
+         (define prec (representation-name repr))
+         (if (and full? (not (set-member? '(binary64 binary32) prec)))
+             (values (fl->repr expr repr) prec)
+             (values expr prec))]
+        [(? value?) (values expr (representation-name repr))]
         [(? (curry hash-has-key? parametric-constants) cnst)
-          (values (get-parametric-constant expr prec) prec)]
+         (define prec (representation-name repr))
+         (values (get-parametric-constant expr prec) prec)]
         [(? constant?) (values expr (constant-info expr 'type))]
-        [(? variable?) (values expr (dict-ref var-precs expr))])))
+        [(? variable?) (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
@@ -368,13 +373,12 @@
     [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 
-(define (desugar-program prog prec var-precs #:full [full? #t])
+(define (desugar-program prog repr var-reprs #:full [full? #t])
   (if full?
-      (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs full?)
-      (expand-parametric prog prec var-precs full?)))
+      (expand-parametric (expand-associativity (unfold-let prog)) repr var-reprs full?)
+      (expand-parametric prog repr var-reprs full?)))
 
-(define (resugar-program prog prec #:full [full? #t])
-  (define repr (get-representation prec))
+(define (resugar-program prog repr #:full [full? #t])
   (match prog
     [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr full?))]
     [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr full?))]

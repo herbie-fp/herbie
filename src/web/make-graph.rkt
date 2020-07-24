@@ -133,7 +133,7 @@
               (tr (th "Herbie") (td ,(format-bits (errors-score end-error)))))
              (div ([class "math"]) "\\[" ,(core->tex
                                             (program->fpcore
-                                              (resugar-program (test-target test) (test-output-prec test))))
+                                              (resugar-program (test-target test) repr)))
                                          "\\]"))
            "")
 

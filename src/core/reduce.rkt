@@ -12,7 +12,7 @@
 (define fn-inverses
   (remove-duplicates
     (map
-      (λ (r) (resugar-program (rule-input r) (rule-otype r) #:full #f))
+      (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
       (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
 
 (define (simplify expr*)
@@ -273,11 +273,7 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (define var-precs
-       (for/list ([(var repr) (in-dict (*var-reprs*))])
-         (cons var (representation-name repr))))
-     (match (type-of (desugar-program x (representation-name (*output-repr*)) var-precs #:full #f)
-                     (*output-repr*)
-                     (*var-reprs*))
+     (match (type-of (desugar-program x (*output-repr*) (*var-reprs*) #:full #f)
+                     (*output-repr*) (*var-reprs*))
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

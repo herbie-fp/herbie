@@ -34,13 +34,12 @@
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
   (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
-  (define var-precs (for/list ([(v t) (in-dict itypes)]) (cons v t)))
   (define repr (get-representation otype))       
 
   (define make-point
     (make-sampler
      repr
-     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) otype var-precs))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
      `(λ ,fv ,p1)
      `(λ ,fv ,p2)))
 

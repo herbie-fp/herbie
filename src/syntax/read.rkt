@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../programs.rkt" "syntax-check.rkt" "type-check.rkt")
+(require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
+         "syntax-check.rkt" "type-check.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
@@ -54,16 +55,17 @@
                               (list-ref args (add1 (index-of args ':precision))))
                         (cons arg-name default-prec))))
 
-  (define ctx-prec (dict-ref prop-dict* ':precision 'binary64))
-  (define type-ctx (map (curryr cons ctx-prec) args))
+  (define default-repr (get-representation default-prec))
+  (define var-reprs (for/list ([(var prec) (in-dict var-precs)])
+                        (cons var (get-representation prec))))
 
   (test (~a (dict-ref prop-dict* ':name body))
         arg-names
-        (desugar-program body default-prec var-precs)
-        (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-prec var-precs)
+        (desugar-program body default-repr var-reprs)
+        (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)
         (dict-ref prop-dict* ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict* ':spec body) default-prec var-precs)
-        (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-prec var-precs)
+        (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
+        (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs)
         default-prec
         var-precs))
 

@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../programs.rkt" "syntax.rkt")
+(require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
@@ -91,14 +91,15 @@
           (values (list 'rname ...) (list 'input ...) (list 'output ...)
                   (list 'var ...) (list 'type ...)))
         (for ([prec 'precs])
-          (define ctx 
-            (for/list ([var* vars] [type* types]) 
-              (cons var* (if (equal? type* 'real) prec type*))))
+          (define ctx (for/list ([var* vars] [type* types]) 
+                          (cons var* (if (equal? type* 'real) prec type*))))
+          (define var-reprs (for/list ([(var* prec*) (in-dict ctx)])
+                                (cons var* (get-representation prec*))))
           (define name
             (for/list ([rname* rnames] [input* inputs] [output* outputs])
               (define rname** (gen-unique-rule-name (sym-append rname* '_ prec)))
-              (define input** (desugar-program input* prec ctx #:full #f))
-              (define output** (desugar-program output* prec ctx #:full #f))
+              (define input** (desugar-program input* (get-representation prec) var-reprs #:full #f))
+              (define output** (desugar-program output* (get-representation prec) var-reprs #:full #f))
               (rule rname** input** output** ctx (type-of-rule input** output** ctx))))
           (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 

@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in fpbench fpcore? supported-by-lang? core->js js-header))
-(require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt")
+(require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" "../interface.rkt")
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt")
 (provide all-pages make-page page-error-handler)
 
@@ -51,10 +51,11 @@
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define (get-interactive-js result prec)
+  (define repr (get-representation prec))
   (define start-fpcore 
-    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) prec)))
+    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) repr)))
   (define end-fpcore
-    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) prec)))
+    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) repr)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")
