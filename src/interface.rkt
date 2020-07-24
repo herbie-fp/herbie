@@ -6,10 +6,6 @@
 (provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
 (module+ internals (provide define-representation))
 
-;; Global precision tacking
-(define *output-repr* (make-parameter '()))
-(define *var-reprs* (make-parameter '()))
-
 ;; Structs
 
 (struct representation
@@ -93,3 +89,6 @@
   32
   '(+nan.f +inf.f -inf.f))
 
+;; Global precision tacking
+(define *output-repr* (make-parameter (get-representation 'binary64)))
+(define *var-reprs* (make-parameter '()))

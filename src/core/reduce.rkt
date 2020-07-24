@@ -12,7 +12,7 @@
 (define fn-inverses
   (remove-duplicates
     (map
-      (λ (r) (resugar-program (rule-input r) (rule-otype r) #:fpcore? #f))
+      (λ (r) (resugar-program (rule-input r) (rule-otype r) #:full #f))
       (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
 
 (define (simplify expr*)
@@ -30,7 +30,7 @@
       (define val (eval-application op* arg*))
       (or val (simplify-node (list 'neg arg*)))]
     [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
-     ; Get the parameterized op for binary64
+     ; Get the parameterized op
      ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
      ; are v-ary while get-operator-argc is not
      (define arg-len (length (get-operator-argc op)))
@@ -62,9 +62,9 @@
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:expand [expand #f] #:label [label #f] )
+(define (gather-additive-terms expr #:full [expand #f] #:label [label #f] )
   (define (recurse subexpr #:label [label #f])
-    (gather-additive-terms subexpr #:expand expand #:label label))
+    (gather-additive-terms subexpr #:full expand #:label label))
 
   (let ([label (or label expr)])
     (match expr
@@ -273,11 +273,11 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (define var-precs 
+     (define var-precs
        (for/list ([(var repr) (in-dict (*var-reprs*))])
-         (cons var (representation-name repr)))) 
-     (match (type-of (desugar-program x (representation-name (*output-repr*)) var-precs #:expand #f) 
+         (cons var (representation-name repr))))
+     (match (type-of (desugar-program x (representation-name (*output-repr*)) var-precs #:full #f)
                      (*output-repr*)
-                     (*var-reprs*)) ; assuming binary64 might be problematic
+                     (*var-reprs*))
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))
