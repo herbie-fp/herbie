@@ -286,23 +286,22 @@
          (define-values (iff* _b) (loop iff))
          (values (list 'if cond* ift* iff*) rtype)]
         [(list (or 'neg '-) arg) ; unary minus
-         (printf "param: ~a ~a\n" (car expr) arg)
          (define-values (arg* atype) (loop arg))
-         (match-define (cons op* rtype) (get-parametric-operator '- (list atype)))
-         (values (list op* arg*) rtype)]
+         (define op* (get-parametric-operator '- (list atype)))
+         (values (list op* arg*) (operator-info op* 'otype))]
         [(list (and (or '+ '- '*) op) args ...) ; these ops are sometimes v-ary
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
              (loop arg)))
-         (match-define (cons op* rtype) (get-parametric-operator op (make-list 2 (first atypes))))
-         (values (cons op* args*) rtype)]
+         (define op* (get-parametric-operator op (make-list 2 (first atypes))))
+         (values (cons op* args*) (operator-info op* 'otype))]
         [(list (? (curry hash-has-key? parametric-operators) op) args ...)
          (define-values (args* actual-types)
            (for/lists (args* actual-types) ([arg args])
              (loop arg)))
          ;; Match guaranteed to succeed because we ran type-check first
-         (match-define (cons op* rtype) (get-parametric-operator op actual-types))
-         (values (cons op* args*) rtype)]
+         (define op* (get-parametric-operator op actual-types))
+         (values (cons op* args*) (operator-info op* 'otype))]
         [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
           ; conversion (e.g. posit16->f64)
           (define-values (iprec oprec)
@@ -366,7 +365,6 @@
     [(? variable?) expr]))
 
 (define (desugar-program prog prec var-precs #:expand [expand #t])
-  (unless expand (printf "desugar: ~a\n" prog))
   (if expand
       (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs)
       (expand-parametric prog prec var-precs)))

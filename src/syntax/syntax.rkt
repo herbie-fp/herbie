@@ -170,7 +170,7 @@
      (if (symbol? atypes)
          (andmap (curry equal? atypes) actual-types)
          (equal? atypes actual-types))
-     (cons true-name rtype))))
+     true-name)))
 
 (define (declare-parametric-operator! name op inputs output)
   (hash-update! parametric-operators name (curry cons (list* op output inputs)) '())
@@ -182,7 +182,7 @@
 (define (get-operator-argc op) 
   (cond
    [(hash-has-key? parametric-operators op)
-    ; use 'last' so v-ary comparators don't break with posits
+    ; use 'last' so comparators don't break with posits
     (operator-info (car (last (hash-ref parametric-operators op))) 'itype)]
    [else (operator-info op 'itype)]))
 
@@ -211,7 +211,7 @@
 (declare-parametric-operator! '- 'neg.f64 '(binary64) 'binary64)
 (declare-parametric-operator! '* '*.f64 '(binary64 binary64) 'binary64)
 (declare-parametric-operator! '/ '/.f64 '(binary64 binary64) 'binary64)
-
+ 
 (define-operator (+.f32 binary32 binary32) binary32 
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])

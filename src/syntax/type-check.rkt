@@ -43,7 +43,8 @@
      t]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (match (get-parametric-operator op actual-types)
+     (define op* (get-parametric-operator op actual-types))
+     (match (cons op* (operator-info op* 'otype))
        [(cons true-name rtype)
         (unless rtype
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op

@@ -252,8 +252,8 @@
   (define-values (lt neg) ;; representation-specific operators
     (let ([name (representation-name repr)])
       (values
-        (operator-info (car (get-parametric-operator '< (list name name))) 'fl)
-        (operator-info (car (get-parametric-operator '- (list name))) 'fl))))
+        (operator-info (get-parametric-operator '< (list name name)) 'fl)
+        (operator-info (get-parametric-operator '- (list name)) 'fl))))
   (define max (λ (x y) (if (lt x y) y x))) 
   (define min (λ (x y) (if (lt x y) x y)))
 

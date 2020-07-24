@@ -25,7 +25,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(neg ,arg)
-      (define op* (car (get-parametric-operator '- '(binary64))))
+      (define op* (get-parametric-operator '- (list (representation-name (*output-repr*)))))
       (define arg* (simplify arg))
       (define val (eval-application op* arg*))
       (or val (simplify-node (list 'neg arg*)))]
@@ -34,7 +34,7 @@
      ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
      ; are v-ary while get-operator-argc is not
      (define arg-len (length (get-operator-argc op)))
-     (define op* (car (get-parametric-operator op (make-list arg-len 'binary64))))
+     (define op* (get-parametric-operator op (make-list arg-len (representation-name (*output-repr*)))))
      (define args* (map simplify args))
      (define val (apply (curry eval-application op*) args*))
      (or val (simplify-node (list* op args*)))]
@@ -276,8 +276,8 @@
      (define var-precs 
        (for/list ([(var repr) (in-dict (*var-reprs*))])
          (cons var (representation-name repr)))) 
-     (match (type-of (desugar-program x 'binary64 var-precs #:expand #f) 
-                     (get-representation 'binary64)
+     (match (type-of (desugar-program x (representation-name (*output-repr*)) var-precs #:expand #f) 
+                     (*output-repr*)
                      (*var-reprs*)) ; assuming binary64 might be problematic
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))
