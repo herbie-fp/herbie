@@ -33,6 +33,25 @@
           (constant-info (get-parametric-constant x type) 'type)
           (constant-info x 'type))]
     [#`,(? variable? x) (dict-ref env x)]
+    [#`(let ((,id #,expr) ...) #,body)
+     (define env2
+       (for/fold ([env2 env]) ([var id] [val expr])
+         (dict-set env2 var (expression->type val env type error!))))
+     (expression->type body env2 type error!)]
+    [#`(let* ((,id #,expr) ...) #,body)
+     (define env2
+       (for/fold ([env2 env]) ([var id] [val expr])
+         (dict-set env2 var (expression->type val env2 type error!))))
+     (expression->type body env2 type error!)]
+    [#`(if #,branch #,ifstmt #,elsestmt)
+     (define branch-type (expression->type branch env type error!))
+     (unless (equal? branch-type 'bool)
+       (error! stx "If statement has non-boolean type for branch ~a" branch-type))
+     (define ifstmt-type (expression->type ifstmt env type error!))
+     (define elsestmt-type (expression->type elsestmt env type error!))
+     (unless (equal? ifstmt-type elsestmt-type)
+       (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
+      ifstmt-type]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t #f)
      (for ([arg exprs] [i (in-naturals)])
@@ -72,26 +91,7 @@
                    (format "<~a> ..." atypes)
                    (string-join (map (curry format "<~a>") atypes) " "))
                (string-join (map (curry format "<~a>") actual-types) " ")))
-     (operator-info op 'otype)]
-    [#`(let ((,id #,expr) ...) #,body)
-     (define env2
-       (for/fold ([env2 env]) ([var id] [val expr])
-         (dict-set env2 var (expression->type val env type error!))))
-     (expression->type body env2 type error!)]
-    [#`(let* ((,id #,expr) ...) #,body)
-     (define env2
-       (for/fold ([env2 env]) ([var id] [val expr])
-         (dict-set env2 var (expression->type val env2 type error!))))
-     (expression->type body env2 type error!)]
-    [#`(if #,branch #,ifstmt #,elsestmt)
-     (define branch-type (expression->type branch env type error!))
-     (unless (equal? branch-type 'bool)
-       (error! stx "If statement has non-boolean type for branch ~a" branch-type))
-     (define ifstmt-type (expression->type ifstmt env type error!))
-     (define elsestmt-type (expression->type elsestmt env type error!))
-     (unless (equal? ifstmt-type elsestmt-type)
-       (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
-      ifstmt-type]))
+     (operator-info op 'otype)]))
 
 (module+ test
   (require rackunit)

@@ -295,36 +295,31 @@
              (loop arg)))
          (define op* (get-parametric-operator op (make-list 2 (first atypes))))
          (values (cons op* args*) (operator-info op* 'otype))]
-        [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define-values (args* atypes)
-           (for/lists (args* atypes) ([arg args])
-             (loop arg)))
-         ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (get-parametric-operator op atypes))
-         (values (cons op* args*) (operator-info op* 'otype))]
         [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
-                                        (symbol->string x))) 
-                  op)
-               body)
-          ; conversion (e.g. posit16->f64)
+                                        (symbol->string x))) op)
+               body) ; conversion (e.g. posit16->f64)
          (define-values (iprec oprec)
            (let ([split (string-split (symbol->string op) "->")])
              (values (first split) (last split))))
          (define-values (body* rtype) (loop body))
          (values (list op body*) oprec)]
         [(list op args ...)
-         (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*) (operator-info op 'otype))]
+         (define-values (args* atypes)
+           (for/lists (args* atypes) ([arg args])
+             (loop arg)))
+         ;; Match guaranteed to succeed because we ran type-check first
+         (define op* (get-parametric-operator op atypes))
+         (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
          (define prec (representation-name repr))
          (if (and full? (not (set-member? '(binary64 binary32) prec)))
              (values (fl->repr expr repr) prec)
              (values expr prec))]
         [(? value?) (values expr (representation-name repr))]
-        [(? (curry hash-has-key? parametric-constants) cnst)
-         (define prec (representation-name repr))
-         (values (get-parametric-constant expr prec) prec)]
-        [(? constant?) (values expr (constant-info expr 'type))]
+        [(? constant?) 
+         (define prec (if (set-member? '(TRUE FALSE) expr) 'bool (representation-name repr)))
+         (define constant* (get-parametric-constant expr prec))
+         (values constant* (constant-info constant* 'type))]
         [(? variable?) (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
@@ -346,7 +341,7 @@
      (define repr* (get-representation (string->symbol iprec)))
      (define body* (expand-parametric-reverse body repr* full?))
      (if full? 
-        `(! :precision ,oprec ,body*)
+        `(! :precision ,oprec (cast (! :precision ,iprec ,body*)))
         `(,op ,body*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
