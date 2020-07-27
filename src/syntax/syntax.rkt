@@ -156,14 +156,19 @@
     (format "couldn't find ~a and no default implementation defined" 'operator)
     (current-continuation-marks))))
 
+;; '-' corresponds to both unary minus and subtraction however unary minus takes
+;; strictly one argument while subtraction is v-ary. Store any v-ary match in
+;; 'maybe' but break if a direct match is found.
 (define (get-parametric-operator name actual-types)
-  (for/or ([sig (hash-ref parametric-operators name)])
+  (for/fold ([maybe #f] [match #f] #:result maybe) 
+            ([sig (hash-ref parametric-operators name)])
+            #:break match
     (match-define (list* true-name rtype atypes) sig)
-    (and
-     (if (symbol? atypes)
-         (andmap (curry equal? atypes) actual-types)
-         (equal? atypes actual-types))
-     true-name)))
+    (cond
+      [(and (symbol? atypes) (andmap (curry equal? atypes) actual-types))
+        (values true-name #f)]
+      [(equal? atypes actual-types) (values true-name #t)]
+      [else (values maybe #f)])))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -177,10 +182,12 @@
 
 ;; binary64 4-function ;;
 (define-operator (+ +.f64 binary64 binary64) binary64 
+  [itype 'binary64] ;; override argc
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
 (define-operator (- -.f64 binary64 binary64) binary64
+  [itype 'binary64] ;; override argc
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
@@ -189,19 +196,23 @@
   [nonffi -])
 
 (define-operator (* *.f64 binary64 binary64) binary64
+  [itype 'binary64] ;; override argc
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
 (define-operator (/ /.f64 binary64 binary64) binary64
+  [itype 'binary64] ;; override argc
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
  
 ;; binary32 4-function ;;
 (define-operator (+ +.f32 binary32 binary32) binary32 
+  [itype 'binary32] ;; override argc
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
 (define-operator (- -.f32 binary32 binary32) binary32
+  [itype 'binary32] ;; override argc
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
@@ -210,10 +221,12 @@
   [nonffi -])
 
 (define-operator (* *.f32 binary32 binary32) binary32
+  [itype 'binary32] ;; override argc
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
 (define-operator (/ /.f32 binary32 binary32) binary32
+  [itype 'binary32] ;; override argc
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
 

@@ -289,12 +289,6 @@
          (define-values (arg* atype) (loop arg))
          (define op* (get-parametric-operator '- (list atype)))
          (values (list op* arg*) (operator-info op* 'otype))]
-        [(list (and (or '+ '- '*) op) args ...) ; these ops are sometimes v-ary
-         (define-values (args* atypes)
-           (for/lists (args* atypes) ([arg args])
-             (loop arg)))
-         (define op* (get-parametric-operator op (make-list 2 (first atypes))))
-         (values (cons op* args*) (operator-info op* 'otype))]
         [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
                                         (symbol->string x))) op)
                body) ; conversion (e.g. posit16->f64)
@@ -314,7 +308,7 @@
          (define prec (representation-name repr))
          (if (and full? (not (set-member? '(binary64 binary32) prec)))
              (values (fl->repr expr repr) prec)
-             (values expr prec))]
+             (values (inexact->exact expr) prec))]
         [(? value?) (values expr (representation-name repr))]
         [(? constant?) 
          (define prec (if (set-member? '(TRUE FALSE) expr) 'bool (representation-name repr)))
@@ -333,8 +327,9 @@
      (define ift* (expand-parametric-reverse ift repr full?))
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
-    [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
-      ; conversion (e.g. posit16->f64)
+    [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
+                                        (symbol->string x))) op)
+               body) ; conversion (e.g. posit16->f64)
      (define-values (iprec oprec)
        (let ([split (string-split (symbol->string op) "->")])
          (values (first split) (last split))))

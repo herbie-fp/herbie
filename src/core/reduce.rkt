@@ -29,16 +29,15 @@
       (define arg* (simplify arg))
       (define val (eval-application op* arg*))
       (or val (simplify-node (list 'neg arg*)))]
-    [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
-     ; Get the parameterized op
-     ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
-     ; are v-ary while get-operator-argc is not
-     (define arg-len (length (get-operator-argc op)))
-     (define op* (get-parametric-operator op (make-list arg-len (representation-name (*output-repr*)))))
+    [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
+                                        (symbol->string x))) op)
+               body) ; conversion (e.g. posit16->f64)
+      expr] ; TODO: figure out what to do here
+    [`(,op ,args ...)
+     (define op* (get-parametric-operator op (make-list (length args) (representation-name (*output-repr*)))))
      (define args* (map simplify args))
      (define val (apply (curry eval-application op*) args*))
-     (or val (simplify-node (list* op args*)))]
-    [_ expr])) ;; prevent posit conversions from crashing. TODO: how does this actually affect things?
+     (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
   (match expr

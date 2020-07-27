@@ -29,9 +29,9 @@
   (match stx
     [#`,(? real?) type]
     [#`,(? constant? x)
-      (if (hash-has-key? parametric-constants x)
-          (constant-info (get-parametric-constant x type) 'type)
-          (constant-info x 'type))]
+     (if (set-member? '(TRUE FALSE) x)
+         (constant-info x 'type)
+         (constant-info (get-parametric-constant x type) 'type))]
     [#`,(? variable? x) (dict-ref env x)]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
@@ -52,46 +52,39 @@
      (unless (equal? ifstmt-type elsestmt-type)
        (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
       ifstmt-type]
-    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define t #f)
-     (for ([arg exprs] [i (in-naturals)])
-       (define actual-type (expression->type arg env type error!))
-       (if (= i 0) (set! t actual-type) #f)
-       (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
-     t]
-    [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
-     (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (get-parametric-operator op actual-types))
-     (match (cons op* (operator-info op* 'otype))
-       [(cons true-name rtype)
-        (unless rtype
-          (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+    [#`(- #,arg)
+     (define actual-type (expression->type arg env type error!))
+     (define op* (get-parametric-operator '- (list actual-type)))
+     (if op*
+         (operator-info op* 'otype)
+         (begin
+          (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([sig (hash-ref parametric-operators op)])
+                   (for/list ([sig (hash-ref parametric-operators '-)])
                      (match sig
                        [(list _ rtype atypes ...)
-                        (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                        (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))]
                        [(list* _ rtype atype)
-                        (format "(~a <~a> ...)" op atype)]))
-                   " or ")
-                  op (string-join (map (curry format "<~a>") actual-types) " ")))
-         rtype]
-       [#f #f])]
+                        (format "(- <~a> ...)" atype)]))
+                   " or "))
+          #f))]        
     [#`(,(? operator? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-
-     (define atypes (operator-info op 'itype))
-     (unless (if (symbol? atypes)
-                 (andmap (curry equal? atypes) actual-types)
-                 (equal? atypes actual-types))
-       (error! stx "Invalid arguments to ~a; expects ~a but got ~a"
-               op
-               (if (symbol? atypes)
-                   (format "<~a> ..." atypes)
-                   (string-join (map (curry format "<~a>") atypes) " "))
-               (string-join (map (curry format "<~a>") actual-types) " ")))
-     (operator-info op 'otype)]))
+     (define op* (get-parametric-operator op actual-types))
+     (if op*
+         (operator-info op* 'otype)
+         (begin
+          (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+                  (string-join
+                    (for/list ([sig (hash-ref parametric-operators op)])
+                      (match sig
+                        [(list _ rtype atypes ...)
+                        (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
+                        [(list* _ rtype atype)
+                        (format "(~a <~a> ...)" op atype)]))
+                    " or ")
+                  op (string-join (map (curry format "<~a>") actual-types) " "))
+          #f))]))
 
 (module+ test
   (require rackunit)
@@ -99,8 +92,8 @@
   (define (fail stx msg . args)
     (error (apply format msg args) stx))
 
-  (define (check-type type expr #:env [env #hash()])
-    (check-equal? (expression->type expr env type fail) type))
+  (define (check-type env-type rtype expr #:env [env #hash()])
+    (check-equal? (expression->type expr env env-type fail) rtype))
 
   (define (check-fails type expr #:env [env #hash()])
     (check-equal?
@@ -109,13 +102,13 @@
        v)
      #t))
 
-  (check-type 'binary64 #'4)
-  (check-type 'binary64 #'x #:env #hash((x . binary64)))
-  (check-type 'binary64 #'(acos.f64 x) #:env #hash((x . binary64)))
-  (check-fails 'binary64 #'(acos.f64 x) #:env #hash((x . bool)))
-  (check-type 'bool #'(and a b c) #:env #hash((a . bool) (b . bool) (c . bool)))
-  (check-type 'binary64 #'(if (==.f64 a 1) 1 0) #:env #hash((a . binary64)))
-  (check-fails 'binary64 #'(if (==.f64 a 1) 1 0) #:env #hash((a . bool)))
-  (check-fails 'binary64 #'(if (==.f64 a 1) 1 TRUE) #:env #hash((a . binary64)))
-  (check-type 'bool #'(let ([a 1]) TRUE))
-  (check-type 'binary64 #'(let ([a 1]) a) #:env #hash((a . bool))))
+  (check-type 'binary64 'binary64 #'4)
+  (check-type 'binary64'binary64 #'x #:env #hash((x . binary64)))
+  (check-type 'binary64 'binary64 #'(acos x) #:env #hash((x . binary64)))
+  (check-fails 'binary64 #'(acos x) #:env #hash((x . bool)))
+  (check-type 'binary64 'bool #'(and a b c) #:env #hash((a . bool) (b . bool) (c . bool)))
+  (check-type 'binary64 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . binary64)))
+  (check-fails 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . bool)))
+  (check-type 'binary64 'bool #'(let ([a 1]) TRUE))
+  (check-fails 'binary64 #'(if (== a 1) 1 TRUE) #:env #hash((a . binary64)))
+  (check-type 'binary64 'binary64 #'(let ([a 1]) a) #:env #hash((a . bool))))
