@@ -54,7 +54,7 @@
       ifstmt-type]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
-     (define op* (get-parametric-operator '- (list actual-type)))
+     (define op* (get-parametric-operator '- actual-type))
      (if op*
          (operator-info op* 'otype)
          (begin
@@ -67,10 +67,18 @@
                        [(list* _ rtype atype)
                         (format "(- <~a> ...)" atype)]))
                    " or "))
-          #f))]        
-    [#`(,(? operator? op) #,exprs ...)
+          #f))]    
+    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
+     (define t #f)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env type error!))
+       (if (= i 0) (set! t actual-type) #f)
+       (unless (equal? t actual-type)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
+     t]
+    [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (get-parametric-operator op actual-types))
+     (define op* (apply (curry get-parametric-operator op) actual-types))
      (if op*
          (operator-info op* 'otype)
          (begin

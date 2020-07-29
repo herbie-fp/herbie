@@ -287,7 +287,7 @@
          (values (list 'if cond* ift* iff*) rtype)]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg))
-         (define op* (get-parametric-operator '- (list atype)))
+         (define op* (get-parametric-operator '- atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
                                         (symbol->string x))) op)
@@ -302,13 +302,19 @@
            (for/lists (args* atypes) ([arg args])
              (loop arg)))
          ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (get-parametric-operator op atypes))
+         (define op* (apply (curry get-parametric-operator op) atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
+         ;; convert to repr if a representation does not support 'real' numbers in Racket (e.g. posits)
+         ;; else make exact
          (define prec (representation-name repr))
          (if (and full? (not (set-member? '(binary64 binary32) prec)))
-             (values (fl->repr expr repr) prec)
-             (values (inexact->exact expr) prec))]
+             (values (fl->repr expr repr) prec) 
+             (values
+               (match expr
+                 [(or +inf.0 -inf.0 +nan.0) expr]
+                 [_ (inexact->exact expr)])
+               prec))]
         [(? value?) (values expr (representation-name repr))]
         [(? constant?) 
          (define prec (if (set-member? '(TRUE FALSE) expr) 'bool (representation-name repr)))
@@ -330,13 +336,11 @@
     [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
                                         (symbol->string x))) op)
                body) ; conversion (e.g. posit16->f64)
-     (define-values (iprec oprec)
-       (let ([split (string-split (symbol->string op) "->")])
-         (values (first split) (last split))))
+     (define iprec (first (string-split (symbol->string op) "->")))
      (define repr* (get-representation (string->symbol iprec)))
      (define body* (expand-parametric-reverse body repr* full?))
      (if full? 
-        `(! :precision ,oprec (cast (! :precision ,iprec ,body*)))
+        `(! :precision ,(string->symbol iprec) ,body*)
         `(,op ,body*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
@@ -348,17 +352,21 @@
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))
      (if (and (not full?) (equal? op* '-) (= (length args) 1))
-         (cons 'neg args*)
+         (cons 'neg args*) ; if only unparameterizing, leave 'neg' alone
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
     [(? value?)
      (if full?
-        (match (bigfloat->flonum (->bf expr))
-          [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
-          [+inf.0 'INFINITY]
-          [+nan.0 'NAN]
-          [x x])
+        (let ([bf (->bf expr)])
+          (match (bigfloat->flonum bf)
+            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+            [+inf.0 'INFINITY]
+            [+nan.0 'NAN]
+            [x 
+             (if (set-member? '(binary64 binary32) (representation-name repr))
+                 (bigfloat->flonum bf) ; convert to flonum if binary64 or binary32
+                 (bigfloat->real bf))]))
         expr)]
     [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))

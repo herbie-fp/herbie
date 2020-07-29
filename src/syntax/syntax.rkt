@@ -3,7 +3,7 @@
 (require math/flonum math/base math/bigfloat math/special-functions)
 (require "../common.rkt" "../errors.rkt" "types.rkt" rival)
 
-(provide constant? variable? operator? operator-info constant-info get-operator-argc
+(provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
@@ -156,38 +156,31 @@
     (format "couldn't find ~a and no default implementation defined" 'operator)
     (current-continuation-marks))))
 
-;; '-' corresponds to both unary minus and subtraction however unary minus takes
-;; strictly one argument while subtraction is v-ary. Store any v-ary match in
-;; 'maybe' but break if a direct match is found.
-(define (get-parametric-operator name actual-types)
-  (for/fold ([maybe #f] [match #f] #:result maybe) 
-            ([sig (hash-ref parametric-operators name)])
-            #:break match
+(define (get-parametric-operator name . actual-types)
+  (for/or ([sig (hash-ref parametric-operators name)])
     (match-define (list* true-name rtype atypes) sig)
-    (cond
-      [(and (symbol? atypes) (andmap (curry equal? atypes) actual-types))
-        (values true-name #f)]
-      [(equal? atypes actual-types) (values true-name #t)]
-      [else (values maybe #f)])))
+    (and
+      (if (symbol? atypes)
+          (andmap (curry equal? atypes) actual-types)
+          (equal? atypes actual-types))
+      true-name)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
 ;; gets overhauled
-(define (get-operator-argc op) 
-  (cond
-   [(hash-has-key? parametric-operators op)
-    ; use 'last' so comparators don't break with posits
-    (operator-info (car (last (hash-ref parametric-operators op))) 'itype)]
-   [else (operator-info op 'itype)]))
+(define (get-operator-itype op) 
+  (operator-info
+    (if (hash-has-key? parametric-operators op)
+        (car (last (hash-ref parametric-operators op)))
+        op)
+    'itype))
 
 ;; binary64 4-function ;;
 (define-operator (+ +.f64 binary64 binary64) binary64 
-  [itype 'binary64] ;; override argc
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
 (define-operator (- -.f64 binary64 binary64) binary64
-  [itype 'binary64] ;; override argc
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
@@ -196,23 +189,19 @@
   [nonffi -])
 
 (define-operator (* *.f64 binary64 binary64) binary64
-  [itype 'binary64] ;; override argc
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
 (define-operator (/ /.f64 binary64 binary64) binary64
-  [itype 'binary64] ;; override argc
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
  
 ;; binary32 4-function ;;
 (define-operator (+ +.f32 binary32 binary32) binary32 
-  [itype 'binary32] ;; override argc
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
 (define-operator (- -.f32 binary32 binary32) binary32
-  [itype 'binary32] ;; override argc
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
@@ -221,12 +210,10 @@
   [nonffi -])
 
 (define-operator (* *.f32 binary32 binary32) binary32
-  [itype 'binary32] ;; override argc
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
 (define-operator (/ /.f32 binary32 binary32) binary32
-  [itype 'binary32] ;; override argc
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
 
