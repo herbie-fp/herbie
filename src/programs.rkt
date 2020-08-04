@@ -6,7 +6,7 @@
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
-         program-body program-variables ->flonum ->bf
+         program-body program-variables
          type-of repr-of
          expr-supports?
          location-hash
@@ -120,14 +120,9 @@
   ;; additional check to see if the repr is complex.
   (define real->precision (match mode
     ['bf (λ (repr x) (->bf x repr))]
-    ['fl (λ (repr x) (->flonum x repr))]
+    ['fl (λ (repr x) (real->repr x repr))]
     ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
     ['nonffi (λ (repr x) x)]))
-  (define precision->real (match mode
-    ['bf identity]
-    ['fl (curryr ->flonum repr)]
-    ['ival identity]
-    ['nonffi identity]))
   
   (define vars (program-variables (first progs)))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
@@ -141,7 +136,8 @@
   (define (munge prog repr)
     (define expr
       (match prog
-        [(? value?) (list (const (real->precision repr prog)))]
+        [(? value?) 
+          (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
@@ -183,7 +179,7 @@
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
     (for/vector ([n (in-list names)])
-      (precision->real (vector-ref v n)))))
+      (vector-ref v n))))
 
 (module+ test
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))

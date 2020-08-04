@@ -1,8 +1,8 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat ffi/unsafe)
 
-(provide (struct-out type) get-type type-name? value? bigvalue? value-of bigvalue-of)
+(provide (struct-out type) get-type type-name? bigvalue? value-of bigvalue-of)
 (module+ internals (provide define-type))
 
 (struct type (name exact? inexact? exact->inexact inexact->exact))
@@ -20,8 +20,10 @@
 (define-type bool (boolean? boolean?)
   identity identity)
 
-(define (value-of type) (type-exact? (hash-ref type-dict type)))
-(define (bigvalue-of type) (type-inexact? (hash-ref type-dict type)))
+(define (value-of type) (type-exact? (hash-ref type-dict type))) ; used once (eval-application in src/programs.rkt)
+(define (bigvalue-of type) (type-inexact? (hash-ref type-dict type))) ; not used
 
-(define (value? x) (for/or ([(type rec) (in-hash type-dict)]) ((type-exact? rec) x)))
+; used 3 times (src/float.rkt and src/syntax/syntax.rkt)
+; counterpart value? is in src/interface.rkt since the definition of what is a value is
+; now repr specific
 (define (bigvalue? x) (for/or ([(type rec) (in-hash type-dict)]) ((type-inexact? rec) x)))

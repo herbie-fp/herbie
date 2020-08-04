@@ -13,8 +13,7 @@
  </total <=/total =-or-nan?
  exact-value? value->code
  value->string value->json
- ->flonum ->bf
- fl->repr repr->fl)
+ ->bf fl->repr repr->fl)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -119,15 +118,6 @@
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
-(define/contract (->flonum x repr)
-  (-> any/c representation? value?)
-  (define type (representation-type repr))
-  (match x
-   [(? (type-exact? type))
-    ((type-inexact->exact type) ((type-exact->inexact type) x))]
-   [(? (type-inexact? type))
-    ((type-inexact->exact type) x)]))
-
 (define (fl->repr x repr)
   ((representation-bf->repr repr) (bf x)))
 
@@ -160,7 +150,7 @@
   (-> any/c representation? bigvalue?)
   (define type (representation-type repr))
   (cond
-   [(and ((type-exact? type) x) (equal? (type-name type) 'complex)) ;; HACK
+   [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
     ((type-exact->inexact type) x)]
    [else
     ;; TODO(interface): ->bf is used to convert syntactic numbers to

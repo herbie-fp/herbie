@@ -3,13 +3,15 @@
 (require math/bigfloat math/flonum)
 (require "syntax/types.rkt")
 
-(provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
+(provide (struct-out representation) get-representation
+          *output-repr* *var-reprs*
+          real->repr repr->real value?)
 (module+ internals (provide define-representation))
 
 ;; Structs
 
 (struct representation
-  (name type
+  (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
    total-bits special-values)
   #:methods gen:custom-write
@@ -21,12 +23,12 @@
   (hash-ref representations name
             (λ () (error 'get-representation "Unknown representation ~a" name))))
 
-(define-syntax-rule (define-representation (name type) args ...)
+(define-syntax-rule (define-representation (name type repr?) args ...)
   (begin
-    (define name (representation 'name (get-type 'type) args ...))
+    (define name (representation 'name (get-type 'type) repr? args ...))
     (hash-set! representations 'name name)))
 
-(define-representation (bool bool)
+(define-representation (bool bool boolean?)
   identity
   identity
   (λ (x) (= x 0))
@@ -42,7 +44,7 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define-representation (binary64 real)
+(define-representation (binary64 real real?)
   bigfloat->flonum
   bf
   (shift 63 ordinal->flonum)
@@ -81,13 +83,25 @@
                (if (bf< x2 x) (single-flonum-step y 1) y)
                (if (bf> x2 x) (single-flonum-step y -1) y))]))
 
-(define-representation (binary32 real)
+(define-representation (binary32 real real?)
   bigfloat->single-flonum
   bf
   ordinal->single-flonum
   single-flonum->ordinal
   32
   '(+nan.f +inf.f -inf.f))
+
+(define (real->repr x repr)
+  (if (real? x)
+      ((representation-bf->repr repr) (bf x))
+      ((representation-bf->repr repr) ((representation-repr->bf repr) x))))
+
+(define (repr->real x repr)
+  (bigfloat->real ((representation-repr->bf repr) x)))
+
+;; Predicates
+
+(define (value? x) (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
 
 ;; Global precision tacking
 (define *output-repr* (make-parameter (get-representation 'binary64)))

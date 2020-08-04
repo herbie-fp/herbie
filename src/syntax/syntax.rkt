@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../errors.rkt" "types.rkt" rival)
+(require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt" rival)
 
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
