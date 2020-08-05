@@ -95,9 +95,7 @@
 ;; repr <==> real
 
 (define (real->repr x repr)
-  (if (real? x)
-      ((representation-bf->repr repr) (bf x))
-      ((representation-bf->repr repr) ((representation-repr->bf repr) x))))
+  ((representation-bf->repr repr) ((representation-repr->bf repr) x)))
 
 (define (repr->real x repr)
   (bigfloat->real ((representation-repr->bf repr) x)))

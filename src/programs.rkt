@@ -200,17 +200,28 @@
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check-in-interval? iv val))))
 
+(define (exact-value? type val)
+  (match type
+    [(or 'real 'complex) (exact? val)]
+    ['boolean true]
+    [_ false]))
+
+(define (value->code type val)
+  (match type
+    ['real val]
+    ['complex (list 'complex (real-part val) (imag-part val))]
+    ['boolean (if val 'TRUE 'FALSE)]))
+
 (define (eval-application op . args)
   (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
       (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
         (define fn (operator-info op 'nonffi))
         (define res (apply fn args))
-        (define rtype (operator-info op 'otype))
-        ; binary64/32 split issues
-        (define rtype* (if (set-member? '(binary64 binary32) rtype) 'real rtype))
-        (and ((value-of rtype*) res)
-             (exact-value? rtype* res)
-             (value->code rtype* res)))
+        (define repr (get-representation (operator-info op 'otype)))
+        (define rtype (type-name (representation-type repr)))
+        (and ((value-of rtype) res)
+             (exact-value? rtype res)
+             (value->code rtype res)))
       false))
 
 (module+ test
@@ -303,7 +314,7 @@
          ;; else make exact
          (define prec (representation-name repr))
          (if (and full? (not (set-member? '(binary64 binary32) prec)))
-             (values (fl->repr expr repr) prec) 
+             (values (real->repr expr repr) prec) 
              (values
                (match expr
                  [(or +inf.0 -inf.0 +nan.0) expr]

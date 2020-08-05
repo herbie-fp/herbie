@@ -11,9 +11,8 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
- exact-value? value->code
  value->string value->json
- ->bf fl->repr repr->fl)
+ ->bf)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -90,18 +89,6 @@
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
 
-(define (exact-value? type val)
-  (match type
-    [(or 'real 'complex) (exact? val)]
-    ['boolean true]
-    [_ false]))
-
-(define (value->code type val)
-  (match type
-    ['real val]
-    ['complex (list 'complex (real-part val) (imag-part val))]
-    ['boolean (if val 'TRUE 'FALSE)]))
-
 (define (value->json x repr)
   (match x
     [(? real?)
@@ -112,12 +99,6 @@
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
-
-(define (fl->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
-
-(define (repr->fl x repr)
-  (bigfloat->flonum ((representation-repr->bf repr) x)))
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
@@ -143,6 +124,7 @@
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
+  (printf "->bf ~a with ~a\n" x repr)
   (define type (representation-type repr))
   (cond
    [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK

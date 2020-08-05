@@ -15,14 +15,11 @@
 
 ;;  Repr conversions
 
-(define (repr->real x repr)
-  (bigfloat->real ((representation-repr->bf repr) x)))
-
 (define (ordinal->real x repr)
   (repr->real ((representation-ordinal->repr repr) x) repr))
 
 (define (real->ordinal x repr) 
-  ((representation-repr->ordinal repr) (fl->repr x repr))) 
+  ((representation-repr->ordinal repr) (real->repr x repr))) 
 
 (define (repr-transform repr)
   (invertible-function 
@@ -33,16 +30,12 @@
   (make-axis-transform (repr-transform repr)))
 
 (define (first-power10 min max repr)
-  (define ->fl-in-repr ; will be bad if repr > double
-    (compose (curryr repr->real repr) (curryr fl->repr repr)))
   (define value
     (cond
      [(negative? max) 
-      (define power (ceiling (/ (log (- max)) (log 10))))
-      (- (->fl-in-repr (expt 10.0 power)))]
+      (- (expt 10 (ceiling (/ (log (- max)) (log 10)))))]
     [else
-      (define power (floor (/ (log max) (log 10))))
-      (->fl-in-repr (expt 10.0 power))]))
+      (expt 10 (floor (/ (log max) (log 10))))]))
   (if (<= value min) #f value))
 
 (define (choose-between min max number repr)
