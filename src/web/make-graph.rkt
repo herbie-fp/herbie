@@ -54,7 +54,7 @@
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
-  (define repr (get-representation (test-output-prec test)))
+  (define repr (test-output-repr test))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr

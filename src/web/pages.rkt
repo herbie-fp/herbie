@@ -32,26 +32,25 @@
 
 (define (make-page page out result profile?)
   (define test (test-result-test result))
-  (define precision (test-output-prec test))
+  (define repr (test-output-repr test))
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result precision) profile?)]
+       [(? test-success?) (make-graph result out (get-interactive-js result repr) profile?)]
        [(? test-timeout?) (make-traceback result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
-     (make-interactive-js result out precision)]
+     (make-interactive-js result out repr)]
     ["timeline.html"
      (make-timeline result out)]
     ["timeline.json"
-     (make-timeline-json result out precision)]
+     (make-timeline-json result out (representation-name repr))]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
-(define (get-interactive-js result prec)
-  (define repr (get-representation prec))
+(define (get-interactive-js result repr)
   (define start-fpcore 
     (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) repr)))
   (define end-fpcore
@@ -64,7 +63,7 @@
           (core->js start-fpcore "start")
           (core->js end-fpcore "end"))))
 
-(define (make-interactive-js result out prec)
-  (define js-text (get-interactive-js result prec))
+(define (make-interactive-js result out repr)
+  (define js-text (get-interactive-js result repr))
   (when (string? js-text)
     (display js-text out)))

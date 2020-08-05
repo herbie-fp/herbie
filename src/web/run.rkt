@@ -50,7 +50,7 @@
             #f (table-row-spec row)
             (table-row-pre row) (table-row-precision row)
             (map (curryr cons (table-row-precision row)) (table-row-vars row))))
-    (define output-repr (get-representation (test-output-prec orig-test)))
+    (define output-repr (test-output-repr orig-test))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
       (define newcontext

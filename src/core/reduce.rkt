@@ -25,22 +25,23 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(neg ,arg)
-      (define op* (get-parametric-operator '- (representation-name (*output-repr*))))
-      (define arg* (simplify arg))
-      (define val (eval-application op* arg*))
-      (or val (simplify-node (list 'neg arg*)))]
-    [(list (? (λ (x) (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" 
-                                        (symbol->string x))) op)
-               body) ; conversion (e.g. posit16->f64)
-      expr] ; TODO: figure out what to do here
-    [`(,op ,args ...)
-     ; Correct arg-length is taken from get-operator-itype since some operators are allowed
-     ; to be v-ary
-     (define argc (length (get-operator-itype op)))
-     (define op* (apply (curry get-parametric-operator op) 
-                        (make-list argc (representation-name (*output-repr*)))))
+     (define op* (get-parametric-operator '- (representation-name (*output-repr*))))
+     (define arg* (simplify arg))
+     (define val (eval-application op* arg*))
+     (or val (simplify-node (list 'neg arg*)))]
+    [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
+     (simplify-node (list op (simplify body)))]
+    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
+     (define atypes (make-list 2 (representation-name (*output-repr*))))
+     (define op* (apply get-parametric-operator op atypes))
      (define args* (map simplify args))
-     (define val (apply (curry eval-application op*) args*))
+     (define val (apply eval-application op* args*))
+     (or val (simplify-node (list* op args*)))]
+    [`(,op ,args ...)
+     (define atypes (make-list (length args) (representation-name (*output-repr*))))
+     (define op* (apply get-parametric-operator op atypes))
+     (define args* (map simplify args))
+     (define val (apply eval-application op* args*))
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)

@@ -6,7 +6,8 @@
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
-         *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
+         *unknown-d-ops* *unknown-f-ops* *loaded-ops*
+         repr-conv?)
 
 (module+ internals 
   (provide operators constants define-constant define-operator infix-joiner))
@@ -164,6 +165,9 @@
           (andmap (curry equal? atypes) actual-types)
           (equal? atypes actual-types))
       true-name)))
+
+(define (repr-conv? expr)
+  (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" (symbol->string expr)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared

@@ -298,7 +298,7 @@
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
   (define split-var? (equal? var (regime-var (test-success-end-alt result))))
-  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
@@ -313,7 +313,7 @@
       ['g (values *green-theme* test-success-target-error)]
       ['b (values *blue-theme*  test-success-end-error)]))
 
-  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
   (define err (accessor result))
 
@@ -325,11 +325,11 @@
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
-  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define repr (test-output-repr (test-result-test result)))
   (alt-plot best-alt-point-renderers repr #:port out #:kind 'png #:title title))
 
 (define (make-point-alt-idxs result)
-  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define repr (test-output-repr (test-result-test result)))
   (define all-alts (test-success-all-alts result))
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
   (define newpoints (test-success-newpoints result))
@@ -338,7 +338,7 @@
 
 (define (make-contour-plot point-colors var-idxs title out result)
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
-  (define repr (get-representation (test-output-prec (test-result-test result))))
+  (define repr (test-output-repr (test-result-test result)))
   (alt-plot point-renderers repr #:port out #:kind 'png #:title title))
 
 #;

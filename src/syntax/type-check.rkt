@@ -78,7 +78,7 @@
      t]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (apply (curry get-parametric-operator op) actual-types))
+     (define op* (apply get-parametric-operator op actual-types))
      (if op*
          (operator-info op* 'otype)
          (begin

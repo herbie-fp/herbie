@@ -5,7 +5,7 @@
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
-         test-precondition)
+         test-precondition test-output-repr)
 
 
 (struct test (name vars input output expected spec pre
@@ -22,6 +22,9 @@
 
 (define (test-precondition test)
   `(λ ,(test-vars test) ,(test-pre test)))
+
+(define (test-output-repr test)
+  (get-representation (test-output-prec test)))
 
 (define (parse-test stx [override-ctx '()])
   (assert-program! stx)
@@ -48,16 +51,13 @@
        [(list (cons prop val) rest ...)
         (loop (dict-set* prop-dict prop val) rest)])))
   
-  (define default-prec (dict-ref prop-dict* ':precision 'binary64))
-  (define var-precs (for/list ([arg args] [arg-name arg-names])
-                      (if (and (list? arg) (set-member? args ':precision))
-                        (cons arg-name
-                              (list-ref args (add1 (index-of args ':precision))))
-                        (cons arg-name default-prec))))
-
-  (define default-repr (get-representation default-prec))
-  (define var-reprs (for/list ([(var prec) (in-dict var-precs)])
-                        (cons var (get-representation prec))))
+  (define default-repr (get-representation (dict-ref prop-dict* ':precision 'binary64)))
+  (define var-reprs 
+    (for/list ([arg args] [arg-name arg-names])
+      (cons arg-name
+            (if (and (list? arg) (set-member? args ':precision))
+                (get-representation (list-ref args (add1 (index-of args ':precision))))
+                default-repr))))
 
   (test (~a (dict-ref prop-dict* ':name body))
         arg-names
@@ -66,8 +66,9 @@
         (dict-ref prop-dict* ':herbie-expected #t)
         (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
         (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs)
-        default-prec
-        var-precs))
+        (representation-name default-repr)
+        (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)))
+        
 
 (define (load-stdin override-ctx)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])

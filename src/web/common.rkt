@@ -121,7 +121,7 @@
 
 (define/contract (render-fpcore test)
   (-> test? string?)
-  (define output-repr (get-representation (test-output-prec test)))
+  (define output-repr (test-output-repr test))
   (string-join
    (filter
     identity
