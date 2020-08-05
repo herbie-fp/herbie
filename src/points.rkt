@@ -201,7 +201,7 @@
       (let ([curr (map (compose <-bf (call f)) pts)]
             [good? (map (call pre) pts)])
         (if (and prev (andmap (λ (good? old new) (or (not good?) (=-or-nan? old new repr))) good? prev curr))
-            (map (λ (good? x) (if good? x +nan.0)) good? curr)
+            (map (λ (good? x) (if good? x (real->repr +nan.0 repr))) good? curr)
             (loop (+ prec (*precision-step*)) curr))))))
 
 ; warning: this will start at whatever precision exacts happens to be at

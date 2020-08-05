@@ -35,11 +35,6 @@
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
-(define (special-value? x repr)
-  (if (set-member? '(binary32 binary64) (representation-name repr))
-      (or (infinite? x) (nan? x))
-      (set-member? (representation-special-values repr) x)))
-
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
       ;; TODO: Once complex is a separate type rather than a repr, check to see
@@ -87,8 +82,8 @@
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
     (cond
-     [(set-member? (representation-special-values repr) x1) #f]
-     [(set-member? (representation-special-values repr) x2) #t]
+     [(special-value? x1 repr) #f]
+     [(special-value? x2 repr) #t]
      [else (< ((representation-repr->ordinal repr) x1)
               ((representation-repr->ordinal repr) x2))])]))
 

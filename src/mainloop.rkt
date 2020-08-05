@@ -141,9 +141,9 @@
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
-  ; breaks with posits
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
-          (not (set-member? '(binary64 binary32) (repr-of expr (*output-repr*) (*var-reprs*)))))
+          (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
+                            (repr-of expr (*output-repr*) (*var-reprs*)))))
       (list altn)
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)

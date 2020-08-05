@@ -5,7 +5,8 @@
 
 (provide (struct-out representation) get-representation
           *output-repr* *var-reprs*
-          real->repr repr->real value?)
+          real->repr repr->real
+          value? special-value?)
 (module+ internals (provide define-representation))
 
 ;; Structs
@@ -34,7 +35,7 @@
   (λ (x) (= x 0))
   (λ (x) (if x 1 0))
   1
-  null)
+  (const #f))
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
@@ -50,7 +51,7 @@
   (shift 63 ordinal->flonum)
   (unshift 63 flonum->ordinal)
   64
-  '(+nan.0 +inf.0 -inf.0))
+  (disjoin nan? infinite?))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -89,7 +90,9 @@
   ordinal->single-flonum
   single-flonum->ordinal
   32
-  '(+nan.f +inf.f -inf.f))
+  (disjoin nan? infinite?))
+
+;; repr <==> real
 
 (define (real->repr x repr)
   (if (real? x)
@@ -101,7 +104,11 @@
 
 ;; Predicates
 
-(define (value? x) (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
+(define (value? x)
+  (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
+
+(define (special-value? x repr)
+  ((representation-special-values repr) x))
 
 ;; Global precision tacking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
