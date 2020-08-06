@@ -547,6 +547,17 @@
   [fl or-fn] [bf or-fn] [ival ival-or]
   [nonffi or-fn])
 
+;; Miscellaneous operators ;;
+
+(define-operator (cast cast.f64 binary64) binary64
+  [fl identity] [bf identity] [ival #f]
+  [nonffi (curry repr->real (get-representation 'binary64))])
+
+(define-operator (cast cast.f32 binary32) binary32
+  [fl (curry repr->real (get-representation 'binary32))]
+  [bf identity] [ival #f]
+  [nonffi (curry repr->real (get-representation 'binary32))])
+
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
 

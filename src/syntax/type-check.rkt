@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -32,7 +32,12 @@
      (if (set-member? '(TRUE FALSE) x)
          (constant-info x 'type)
          (constant-info (get-parametric-constant x type) 'type))]
-    [#`,(? variable? x) (dict-ref env x)]
+    [#`,(? variable? x)
+     (define etype (representation-type (get-representation type)))
+     (define vtype (representation-type (get-representation (dict-ref env x))))
+     (unless (equal? etype vtype)
+       (error! stx "Expected a variable of type ~a, but got ~a" etype vtype))
+     type]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -52,6 +57,17 @@
      (unless (equal? ifstmt-type elsestmt-type)
        (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
       ifstmt-type]
+    [#`(! #,props ... #,body)
+     (define props* (apply hash-set* (hash) (map syntax-e props)))
+     (cond
+       [(hash-has-key? props* ':precision)
+        (define itype (hash-ref props* ':precision))
+        (define rtype (expression->type body env itype error!))
+        (unless (equal? rtype itype)
+          (error! stx "Annotation promised precision ~a, but got ~a" itype rtype))
+        type]
+       [else
+        (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
      (define op* (get-parametric-operator '- actual-type))

@@ -292,6 +292,13 @@
          (define-values (ift* rtype) (loop ift prec))
          (define-values (iff* _b) (loop iff prec))
          (values (list 'if cond* ift* iff*) rtype)]
+        [(list '! props ... body)
+         (define props* (apply hash-set* (hash) props))
+         (cond
+           [(hash-has-key? props* ':precision)
+            (define-values (body* _) (loop body (hash-ref props* ':precision)))
+            (values body* prec)]
+           [else (loop body prec)])]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg prec))
          (define op* (get-parametric-operator '- atype))
@@ -333,7 +340,11 @@
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
          (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
-        [(? variable?) (values expr (representation-name (dict-ref var-reprs expr)))])))
+        [(? variable?) 
+         (values 
+           expr 
+           (if (equal? (representation-name (dict-ref var-reprs expr)) 'bool) 
+               'bool prec))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated

@@ -38,6 +38,14 @@
     [#`(if #,args ...)
      (error! stx "Invalid `if` expression with ~a arguments (expects 3)" (length args))
      (unless (null? args) (check-expression* (last args) vars error!))]
+    [#`(! #,props ... #,body)
+     (let loop ([props props])
+       (match props
+         [(list) (void)]
+         [(list prop) (error! stx "Expected a value for property ~a" prop)]
+         [(list (app syntax-e (? symbol? prop)) value rest ...) (loop rest)]
+         [(list prop value rest ...) (error! stx "Invalid property ~a" prop)]))
+     (check-expression* body vars error!)]
     [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]

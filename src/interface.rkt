@@ -96,8 +96,13 @@
 
 (define (real->repr x repr)
   (match x
+   [(? real?) ((representation-bf->repr repr) (bf x))]
    [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
-   [(? real?) ((representation-bf->repr repr) (bf x))]))
+   [(? value?) ; value in another repr, convert to new repr through bf
+    (for/first ([(name repr*) (in-hash representations)]
+               #:when ((representation-repr? repr*) x))
+      ((representation-bf->repr repr) ((representation-repr->bf repr*) x)))]
+   [_ (error 'real->repr "Unknown value ~a" x)]))
 
 (define (repr->real x repr)
   (bigfloat->real ((representation-repr->bf repr) x)))
