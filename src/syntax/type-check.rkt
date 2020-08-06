@@ -76,6 +76,21 @@
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
+    [#`(,(and (or 're 'im) op) #,arg)
+     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+     ; re, im : complex -> binary64
+     (define atype (expression->type arg env 'complex error!)) 
+     (unless (equal? atype 'complex)
+       (error! stx "~a expects argument of type complex (not ~a)" op atype))
+     'binary64]
+    [#`(complex #,re #,im)
+     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+     ; complex : binary64, binary64 -> complex
+     (define re-type (expression->type re env 'binary64 error!))
+     (define im-type (expression->type im env 'binary64 error!))
+     (unless (and (equal? re-type 'binary64) (equal? im-type 'binary64))
+       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)" re-type im-type))
+     'complex]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types))

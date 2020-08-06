@@ -124,7 +124,6 @@
 
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
-  (printf "->bf ~a with ~a\n" x repr)
   (define type (representation-type repr))
   (cond
    [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK

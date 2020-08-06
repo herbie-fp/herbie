@@ -95,7 +95,9 @@
 ;; repr <==> real
 
 (define (real->repr x repr)
-  ((representation-bf->repr repr) ((representation-repr->bf repr) x)))
+  (match x
+   [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
+   [(? real?) ((representation-bf->repr repr) (bf x))]))
 
 (define (repr->real x repr)
   (bigfloat->real ((representation-repr->bf repr) x)))

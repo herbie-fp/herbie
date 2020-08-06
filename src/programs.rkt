@@ -284,46 +284,54 @@
 ;; and supports multiple precisions
 (define (expand-parametric expr repr var-reprs full?)
   (define-values (expr* prec)
-    (let loop ([expr expr])
+    (let loop ([expr expr] [prec (representation-name repr)]) ; easier to work with repr names
       ;; Run after unfold-let, so no need to track lets
       (match expr
         [(list 'if cond ift iff)
-         (define-values (cond* _a) (loop cond))
-         (define-values (ift* rtype) (loop ift))
-         (define-values (iff* _b) (loop iff))
+         (define-values (cond* _a) (loop cond prec))
+         (define-values (ift* rtype) (loop ift prec))
+         (define-values (iff* _b) (loop iff prec))
          (values (list 'if cond* ift* iff*) rtype)]
         [(list (or 'neg '-) arg) ; unary minus
-         (define-values (arg* atype) (loop arg))
+         (define-values (arg* atype) (loop arg prec))
          (define op* (get-parametric-operator '- atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
          (define-values (iprec oprec)
            (let ([split (string-split (symbol->string op) "->")])
              (values (first split) (last split))))
-         (define-values (body* rtype) (loop body))
+         (define-values (body* rtype) (loop body iprec))
          (values (list op body*) oprec)]
+        [(list (and (or 're 'im) op) arg)
+         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+         (define-values (arg* atype) (loop arg 'complex))
+         (values (list op arg*) 'binary64)]
+        [(list 'complex re im)
+         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+         (define-values (re* re-type) (loop re 'binary64))
+         (define-values (im* im-type) (loop im 'binary64))
+         (values (list 'complex re* im*) 'complex)]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
-             (loop arg)))
+             (loop arg prec)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
          ;; convert to repr if a representation does not support 'real' numbers in Racket (e.g. posits)
          ;; else make exact
-         (define prec (representation-name repr))
          (if (and full? (not (set-member? '(binary64 binary32) prec)))
-             (values (real->repr expr repr) prec) 
+             (values (real->repr expr (get-representation prec)) prec) 
              (values
                (match expr
                  [(or +inf.0 -inf.0 +nan.0) expr]
                  [_ (inexact->exact expr)])
                prec))]
-        [(? value?) (values expr (representation-name repr))]
+        [(? value?) (values expr prec)]
         [(? constant?) 
-         (define prec (if (set-member? '(TRUE FALSE) expr) 'bool (representation-name repr)))
-         (define constant* (get-parametric-constant expr prec))
+         (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
+         (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
         [(? variable?) (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
