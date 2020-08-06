@@ -3,14 +3,14 @@
 (require math/flonum math/base math/bigfloat math/special-functions)
 (require "../common.rkt" "../errors.rkt" "types.rkt" rival)
 
-(provide constant? variable? operator? operator-info constant-info get-operator-argc
+(provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
-         *unknown-d-ops* *unknown-f-ops* *loaded-ops*)
+         *unknown-d-ops* *unknown-f-ops* *loaded-ops*
+         repr-conv?)
 
 (module+ internals 
-  (provide operators constants define-constant define-operator declare-parametric-operator!
-          declare-parametric-constant! infix-joiner))
+  (provide operators constants define-constant define-operator infix-joiner))
 
 (module+ test (require rackunit))
 
@@ -29,89 +29,81 @@
   [ival (or/c (->* () ival?) #f)]
   [nonffi (->* () value?)])
 
-(define (constant-info constant field) (table-ref constants constant field))
-
-(define-syntax-rule (define-constant constant ctype [key value] ...)
-  (table-set! constants 'constant
-              (make-hash (list (cons 'type 'ctype) (cons 'key value) ...))))
-
 (define parametric-constants (make-hash))
 (define parametric-constants-reverse (make-hash))
+
+(define (constant-info constant field) (table-ref constants constant field))
+
+(define-syntax-rule (define-constant (constant name) ctype [key value] ...)
+  (begin
+    (table-set! constants 'name
+                (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
+    (hash-update! parametric-constants 'constant (curry cons (list* 'name 'ctype)) '())
+    (hash-set! parametric-constants-reverse 'name 'constant)))
 
 (define (get-parametric-constant name type)
   (for/first ([(true-name rtype) (in-dict (hash-ref parametric-constants name))]
               #:when (equal? rtype type))
     true-name))
 
-(define (declare-parametric-constant! name cnst type)
-  (hash-update! parametric-constants name (curry cons (list* cnst type)) '())
-  (hash-set! parametric-constants-reverse cnst name))
-
-(define-constant PI.f64 binary64
+;; binary64 ;;
+(define-constant (PI PI.f64) binary64
   [bf (λ () pi.bf)]
   [fl (λ () pi)]
   [ival ival-pi]
   [nonffi (λ () pi)])
 
-(define-constant E.f64 binary64
+(define-constant (E E.f64) binary64
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
   [ival ival-e]
   [nonffi (λ () (exp 1.0))])
 
-(define-constant INFINITY.f64 binary64
+(define-constant (INFINITY INFINITY.f64) binary64
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
   [ival (λ () (mk-ival +inf.bf))]
   [nonffi (λ () +inf.0)])
 
-(define-constant NAN.f64 binary64
+(define-constant (NAN NAN.f64) binary64
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
   [ival (λ () (mk-ival +nan.bf))]
   [nonffi (λ () +nan.0)]) 
 
-(declare-parametric-constant! 'E 'E.f64 'binary64)
-(declare-parametric-constant! 'PI 'PI.f64 'binary64)
-(declare-parametric-constant! 'INFINITY 'INFINITY.f64 'binary64)
-(declare-parametric-constant! 'NAN 'NAN.f64 'binary64)
-
-(define-constant PI.f32 binary32
+;; binary32 ;;
+(define-constant (PI PI.f32) binary32
   [bf (λ () pi.bf)]
   [fl (λ () pi.f)]
   [ival ival-pi]
   [nonffi (λ () pi.f)])
 
-(define-constant E.f32 binary32
+(define-constant (E E.f32) binary32
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
   [ival ival-e]
   [nonffi (λ () (exp 1.0))])
 
-(define-constant INFINITY.f32 binary32
+(define-constant (INFINITY INFINITY.f32) binary32
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
   [ival (λ () (mk-ival +inf.bf))]
   [nonffi (λ () +inf.0)])
 
-(define-constant NAN.f32 binary32
+(define-constant (NAN NAN.f32) binary32
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
   [ival (λ () (mk-ival +nan.bf))]
   [nonffi (λ () +nan.0)]) 
 
-(declare-parametric-constant! 'E 'E.f32 'binary32)
-(declare-parametric-constant! 'PI 'PI.f32 'binary32)
-(declare-parametric-constant! 'INFINITY 'INFINITY.f32 'binary32)
-(declare-parametric-constant! 'NAN 'NAN.f32 'binary32)
-
-(define-constant TRUE bool
+;; bool ;;
+(define-constant (TRUE TRUE) bool
   [bf (const true)]
   [fl (const true)]
   [nonffi (const true)]
   [ival (λ () (ival-bool true))])
 
-(define-constant FALSE bool
+(define-constant (FALSE FALSE) bool
   [bf (const false)]
   [fl (const false)]
   [nonffi (const false)]
@@ -130,6 +122,9 @@
   [nonffi (unconstrained-argument-number-> value? value?)]
   [ival (or/c #f (unconstrained-argument-number-> ival? ival?))])
 
+(define parametric-operators (make-hash))
+(define parametric-operators-reverse (make-hash))
+
 (define (operator-info operator field) (table-ref operators operator field))
 
 (define (operator-remove! operator)
@@ -142,12 +137,14 @@
      (for ([op (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*))])
        (operator-remove! op)))))
 
-(define-syntax-rule (define-operator (operator atypes ...) rtype [key value] ...)
+(define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
   (begin
-    (*loaded-ops* (cons 'operator (*loaded-ops*)))
-    (table-set! operators 'operator
+    (*loaded-ops* (cons 'name (*loaded-ops*)))
+    (table-set! operators 'name
                 (make-hash (list (cons 'itype '(atypes ...)) (cons 'otype 'rtype)
-                                 (cons 'key value) ...)))))
+                                 (cons 'key value) ...)))
+    (hash-update! parametric-operators 'operator (curry cons (list* 'name 'rtype (operator-info 'name 'itype))) '())
+    (hash-set! parametric-operators-reverse 'name 'operator)))
 
 (define (no-complex fun)
   (λ xs
@@ -160,85 +157,69 @@
     (format "couldn't find ~a and no default implementation defined" 'operator)
     (current-continuation-marks))))
 
-(define parametric-operators (make-hash))
-(define parametric-operators-reverse (make-hash))
-
-(define (get-parametric-operator name actual-types)
+(define (get-parametric-operator name . actual-types)
   (for/or ([sig (hash-ref parametric-operators name)])
     (match-define (list* true-name rtype atypes) sig)
     (and
-     (if (symbol? atypes)
-         (andmap (curry equal? atypes) actual-types)
-         (equal? atypes actual-types))
-     (cons true-name rtype))))
+      (if (symbol? atypes)
+          (andmap (curry equal? atypes) actual-types)
+          (equal? atypes actual-types))
+      true-name)))
 
-(define (declare-parametric-operator! name op inputs output)
-  (hash-update! parametric-operators name (curry cons (list* op output inputs)) '())
-  (hash-set! parametric-operators-reverse op name))
+(define (repr-conv? expr)
+  (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" (symbol->string expr)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
-(define (get-operator-argc op) 
-  (cond
-   [(hash-has-key? parametric-operators op)
-    (operator-info (car (first (hash-ref parametric-operators op))) 'itype)]
-   [else (operator-info op 'itype)]))
+;; TODO: hopefully will be fixed when the way operators are declared
+;; gets overhauled
+(define (get-operator-itype op) 
+  (operator-info
+    (if (hash-has-key? parametric-operators op)
+        (car (last (hash-ref parametric-operators op)))
+        op)
+    'itype))
 
-(define-operator (+.f64 binary64 binary64) binary64 
+;; binary64 4-function ;;
+(define-operator (+ +.f64 binary64 binary64) binary64 
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
-(define-operator (-.f64 binary64 binary64) binary64
+(define-operator (- -.f64 binary64 binary64) binary64
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
-(define-operator (neg.f64 binary64) binary64
+(define-operator (- neg.f64 binary64) binary64
   [fl -] [bf bf-] [ival ival-neg]
   [nonffi -])
 
-(define-operator (*.f64 binary64 binary64) binary64
+(define-operator (* *.f64 binary64 binary64) binary64
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
-(define-operator (/.f64 binary64 binary64) binary64
+(define-operator (/ /.f64 binary64 binary64) binary64
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
-
-(declare-parametric-operator! '+ '+.f64 '(binary64 binary64) 'binary64)
-(declare-parametric-operator! '- '-.f64 '(binary64 binary64) 'binary64)
-(declare-parametric-operator! '- 'neg.f64 '(binary64) 'binary64)
-(declare-parametric-operator! '* '*.f64 '(binary64 binary64) 'binary64)
-(declare-parametric-operator! '/ '/.f64 '(binary64 binary64) 'binary64)
-
-(define-operator (+.f32 binary32 binary32) binary32 
+ 
+;; binary32 4-function ;;
+(define-operator (+ +.f32 binary32 binary32) binary32 
   [fl +] [bf bf+] [ival ival-add]
   [nonffi +])
 
-(define-operator (-.f32 binary32 binary32) binary32
+(define-operator (- -.f32 binary32 binary32) binary32
   [fl -] [bf bf-] [ival ival-sub]
   [nonffi -])
 
-(define-operator (neg.f32 binary32) binary32
+(define-operator (- neg.f32 binary32) binary32
   [fl -] [bf bf-] [ival ival-neg]
   [nonffi -])
 
-(define-operator (*.f32 binary32 binary32) binary32
+(define-operator (* *.f32 binary32 binary32) binary32
   [fl *] [bf bf*] [ival ival-mult]
   [nonffi *])
 
-(define-operator (/.f32 binary32 binary32) binary32
+(define-operator (/ /.f32 binary32 binary32) binary32
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
-
-(declare-parametric-operator! '+ '+.f32 '(binary32 binary32) 'binary32)
-(declare-parametric-operator! '- '-.f32 '(binary32 binary32) 'binary32)
-(declare-parametric-operator! '- 'neg.f32 '(binary32) 'binary32)
-(declare-parametric-operator! '* '*.f32 '(binary32 binary32) 'binary32)
-(declare-parametric-operator! '/ '/.f32 '(binary32 binary32) 'binary32)
-
-; TODO: put this inside of define-operator/libm if possible
-(define (declare-parametric-ops/libm op opf64 opf32 num-args)
-  (declare-parametric-operator! op opf64 (make-list num-args 'binary64) 'binary64)
-  (declare-parametric-operator! op opf32 (make-list num-args 'binary32) 'binary32))
 
 (require ffi/unsafe)
 (define-syntax (define-operator/libm stx)
@@ -258,13 +239,12 @@
                                             (lambda () (*unknown-d-ops* (cons 'opf64 (*unknown-d-ops*))) (curry fallback #'double))))
            (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
                                            (lambda () (*unknown-f-ops* (cons 'opf32 (*unknown-f-ops*))) (curry fallback #'float))))
-           (define-operator (opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
+           (define-operator (op opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
              [fl (λ args (apply double-proc args))]
              [key value] ...)
-           (define-operator (opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
+           (define-operator (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
              [fl (λ args (apply float-proc args))]
              [key value] ...)
-           (declare-parametric-ops/libm 'op 'opf64 'opf32 #,num-args)
        ))]))
 
 (define-operator/libm (acos acos.f64 acos.f32 real) real
@@ -478,10 +458,9 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
-(define-operator (if bool real real) real ; types not used
+(define-operator (if if bool real real) real ; types not used
   [fl if-fn] [bf if-fn] [ival ival-if]
   [nonffi if-fn])
-
 (define (!=-fn . args)
   (not (check-duplicates args =)))
 
@@ -491,90 +470,79 @@
 (define ((infix-joiner x) . args)
   (string-join args x))
 
-(define-operator (==.f64 binary64 binary64) bool
+;; binary64 comparators ;;
+(define-operator (== ==.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl (comparator =)] [bf (comparator bf=)] [ival ival-==]
   [nonffi (comparator =)])
 
-(define-operator (!=.f64 binary64 binary64) bool
+(define-operator (!= !=.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl !=-fn] [bf bf!=-fn] [ival ival-!=]
   [nonffi !=-fn])
 
-(define-operator (<.f64 binary64 binary64) bool
+(define-operator (< <.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl (comparator <)] [bf (comparator bf<)] [ival ival-<]
   [nonffi (comparator <)])
 
-(define-operator (>.f64 binary64 binary64) bool
+(define-operator (> >.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl (comparator >)] [bf (comparator bf>)] [ival ival->]
   [nonffi (comparator >)])
 
-(define-operator (<=.f64 binary64 binary64) bool
+(define-operator (<= <=.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl (comparator <=)] [bf (comparator bf<=)] [ival ival-<=]
   [nonffi (comparator <=)])
 
-(define-operator (>=.f64 binary64 binary64) bool
+(define-operator (>= >=.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
   [fl (comparator >=)] [bf (comparator bf>=)] [ival ival->=]
   [nonffi (comparator >=)])
 
-(declare-parametric-operator! '== '==.f64 'binary64 'bool)
-(declare-parametric-operator! '!= '!=.f64 'binary64 'bool)
-(declare-parametric-operator! '<  '<.f64  'binary64 'bool)
-(declare-parametric-operator! '<= '<=.f64 'binary64 'bool)
-(declare-parametric-operator! '>  '>.f64  'binary64 'bool)
-(declare-parametric-operator! '>= '>=.f64 'binary64 'bool)
-
-(define-operator (==.f32 binary32 binary32) bool
+;; binary32 comparators
+(define-operator (== ==.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator =)] [bf (comparator bf=)] [ival ival-==]
   [nonffi (comparator =)])
 
-(define-operator (!=.f32 binary32 binary32) bool
+(define-operator (!= !=.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl !=-fn] [bf bf!=-fn] [ival ival-!=]
   [nonffi !=-fn])
 
-(define-operator (<.f32 binary32 binary32) bool
+(define-operator (< <.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator <)] [bf (comparator bf<)] [ival ival-<]
   [nonffi (comparator <)])
 
-(define-operator (>.f32 binary32 binary32) bool
+(define-operator (> >.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator >)] [bf (comparator bf>)] [ival ival->]
   [nonffi (comparator >)])
 
-(define-operator (<=.f32 binary32 binary32) bool
+(define-operator (<= <=.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator <=)] [bf (comparator bf<=)] [ival ival-<=]
   [nonffi (comparator <=)])
 
-(define-operator (>=.f32 binary32 binary32) bool
+(define-operator (>= >=.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator >=)] [bf (comparator bf>=)] [ival ival->=]
   [nonffi (comparator >=)])
 
-(declare-parametric-operator! '== '==.f32 'binary32 'bool)
-(declare-parametric-operator! '!= '!=.f32 'binary32 'bool)
-(declare-parametric-operator! '<  '<.f32  'binary32 'bool)
-(declare-parametric-operator! '<= '<=.f32 'binary32 'bool)
-(declare-parametric-operator! '>  '>.f32  'binary32 'bool)
-(declare-parametric-operator! '>= '>=.f32 'binary32 'bool)
-
-(define-operator (not bool) bool
+;; logical operators ;;
+(define-operator (not not bool) bool
   [fl not] [bf not] [ival ival-not]
   [nonffi not])
 
-(define-operator (and bool bool) bool
+(define-operator (and and bool bool) bool
   [itype 'bool] [otype 'bool] ; Override number of arguments
   [fl and-fn] [bf and-fn] [ival ival-and]
   [nonffi and-fn])
 
-(define-operator (or bool bool) bool
+(define-operator (or or bool bool) bool
   [itype 'bool] [otype 'bool] ; Override number of arguments
   [fl or-fn] [bf or-fn] [ival ival-or]
   [nonffi or-fn])

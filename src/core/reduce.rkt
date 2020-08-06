@@ -11,8 +11,9 @@
 
 (define fn-inverses
   (remove-duplicates
-    (unparameterize-expr
-      (map rule-input (filter (λ (rule) (variable? (rule-output rule))) (*rules*))))))
+    (map
+      (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
+      (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
 
 (define (simplify expr*)
   (define expr ((get-evaluator) expr*))
@@ -24,20 +25,24 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(neg ,arg)
-      (define op* (car (get-parametric-operator '- '(binary64))))
-      (define arg* (simplify arg))
-      (define val (eval-application op* arg*))
-      (or val (simplify-node (list 'neg arg*)))]
-    [`(,(? (curry hash-has-key? parametric-operators) op) ,args ...)
-     ; Get the parameterized op for binary64
-     ; Correct arg length is taken from get-operator-argc and not 'args since these exprs
-     ; are v-ary while get-operator-argc is not
-     (define arg-len (length (get-operator-argc op)))
-     (define op* (car (get-parametric-operator op (make-list arg-len 'binary64))))
+     (define op* (get-parametric-operator '- (representation-name (*output-repr*))))
+     (define arg* (simplify arg))
+     (define val (eval-application op* arg*))
+     (or val (simplify-node (list 'neg arg*)))]
+    [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
+     (simplify-node (list op (simplify body)))]
+    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
+     (define atypes (make-list 2 (representation-name (*output-repr*))))
+     (define op* (apply get-parametric-operator op atypes))
      (define args* (map simplify args))
-     (define val (apply (curry eval-application op*) args*))
+     (define val (apply eval-application op* args*))
      (or val (simplify-node (list* op args*)))]
-    [_ expr])) ;; prevent posit conversions from crashing. TODO: how does this actually affect things?
+    [`(,op ,args ...)
+     (define atypes (make-list (length args) (representation-name (*output-repr*))))
+     (define op* (apply get-parametric-operator op atypes))
+     (define args* (map simplify args))
+     (define val (apply eval-application op* args*))
+     (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
   (match expr
@@ -61,9 +66,9 @@
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:expand [expand #f] #:label [label #f] )
+(define (gather-additive-terms expr #:full [expand #f] #:label [label #f] )
   (define (recurse subexpr #:label [label #f])
-    (gather-additive-terms subexpr #:expand expand #:label label))
+    (gather-additive-terms subexpr #:full expand #:label label))
 
   (let ([label (or label expr)])
     (match expr
@@ -272,6 +277,7 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of (parameterize-expr x 'binary64) (get-representation 'binary64) (*var-reprs*)) ; assuming binary64 might be problematic
+     (match (type-of (desugar-program x (*output-repr*) (*var-reprs*) #:full #f)
+                     (*output-repr*) (*var-reprs*))
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

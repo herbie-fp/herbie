@@ -99,7 +99,7 @@
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
         (define name (representation-name repr))
-        (define <=-operator (car (get-parametric-operator '<= (list name name))))
+        (define <=-operator (get-parametric-operator '<= name name))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
@@ -200,7 +200,7 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   (define repr-name (representation-name repr))
-  (define eq-repr (car (get-parametric-operator '== (list repr-name repr-name))))
+  (define eq-repr (get-parametric-operator '== repr-name repr-name))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt")
+(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt" "interface.rkt")
 (provide get-expander get-evaluator)
 
 (define (evaluation-rule? rule)
@@ -31,8 +31,8 @@
     (map 
       (λ (r)
         (rule (rule-name r)
-              (unparameterize-expr (rule-input r))
-              (unparameterize-expr (rule-output r))
+              (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f)
+              (resugar-program (rule-output r) (get-representation (rule-otype r)) #:full #f)
               (rule-itypes r) (rule-otype r)))
       (filter definition-rule? (*rules*))))
 
@@ -59,8 +59,8 @@
   (define evaluation-rules
     (for/hash ([rule (*rules*)] #:when (evaluation-rule? rule))
       (values 
-        (unparameterize-expr (rule-input rule))
-        (unparameterize-expr (rule-output rule)))))
+        (resugar-program (rule-input rule) (get-representation (rule-otype rule)) #:full #f)
+        (resugar-program (rule-output rule) (get-representation (rule-otype rule)) #:full #f))))
   (λ (expr) (dict-ref evaluation-rules expr expr)))
 
 (define (get-expander primitives)

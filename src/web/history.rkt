@@ -45,11 +45,10 @@
     (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
   (define err2
     (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 repr)))))
-  (define prec (representation-name repr))
 
   (match altn
     [(alt prog 'start (list))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[" ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
@@ -76,7 +75,7 @@
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,loc) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Taylor expanded around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
@@ -85,7 +84,7 @@
                                                   "\\]")))]
 
     [(alt prog `(simplify ,loc) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
@@ -94,19 +93,19 @@
                                                   "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog prec)))
+     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))

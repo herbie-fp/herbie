@@ -141,11 +141,6 @@
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
-
-  ;; resugar/desugaring
-  (define prec (representation-name (*output-repr*)))
-  (define var-precs (for/list ([var vars]) (cons var prec)))
-
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
           (not (equal? (type-of expr (*output-repr*) (*var-reprs*)) 'real)))
       (list altn)
@@ -156,9 +151,11 @@
          (location-do loc 
                       (alt-program altn) 
                       (λ (x) ; taylor uses older format, resugaring and desugaring needed
-                        (parameterize-expr
-                          (approximate (unparameterize-expr x) vars #:transform transformer)
-                          prec)))
+                        (desugar-program
+                            (approximate (resugar-program x (*output-repr*) #:full #f)
+                                         vars #:transform transformer)
+                            (*output-repr*) (*var-reprs*)
+                            #:full #f)))
          `(taylor ,name ,loc)
          (list altn)))))
 

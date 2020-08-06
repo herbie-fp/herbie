@@ -14,8 +14,7 @@
          location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program
-         parameterize-expr unparameterize-expr)
+         desugar-program resugar-program)
 
 (define expr? (or/c list? symbol? value?))
 
@@ -276,53 +275,69 @@
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
-(define (expand-parametric expr prec var-precs)
-  (define-values (expr* type)
+(define (expand-parametric expr repr var-reprs full?)
+  (define-values (expr* prec)
     (let loop ([expr expr])
       ;; Run after unfold-let, so no need to track lets
       (match expr
-        [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-         (define-values (args* actual-types)
-           (for/lists (args* actual-types) ([arg args])
-             (loop arg)))
-         ;; Match guaranteed to succeed because we ran type-check first
-         (match-define (cons op* rtype) (get-parametric-operator op actual-types))
-         (values (cons op* args*) rtype)]
         [(list 'if cond ift iff)
          (define-values (cond* _a) (loop cond))
          (define-values (ift* rtype) (loop ift))
          (define-values (iff* _b) (loop iff))
          (values (list 'if cond* ift* iff*) rtype)]
+        [(list (or 'neg '-) arg) ; unary minus
+         (define-values (arg* atype) (loop arg))
+         (define op* (get-parametric-operator '- atype))
+         (values (list op* arg*) (operator-info op* 'otype))]
+        [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
+         (define-values (iprec oprec)
+           (let ([split (string-split (symbol->string op) "->")])
+             (values (first split) (last split))))
+         (define-values (body* rtype) (loop body))
+         (values (list op body*) oprec)]
         [(list op args ...)
-         (define-values (args* _) (for/lists (args* _) ([arg args]) (loop arg)))
-         (values (cons op args*) (operator-info op 'otype))]
-        [(? real?) (values (fl->repr expr (get-representation prec)) prec)]
-        [(? value?) (values expr prec)]
-        [(? (curry hash-has-key? parametric-constants) cnst)
-          (define cnst* (get-parametric-constant expr prec))
-          (values cnst* prec)]
-        [(? constant?) (values expr (constant-info expr 'type))]
-        [(? variable?) (values expr (dict-ref var-precs expr))])))
+         (define-values (args* atypes)
+           (for/lists (args* atypes) ([arg args])
+             (loop arg)))
+         ;; Match guaranteed to succeed because we ran type-check first
+         (define op* (apply get-parametric-operator op atypes))
+         (values (cons op* args*) (operator-info op* 'otype))]
+        [(? real?) 
+         ;; convert to repr if a representation does not support 'real' numbers in Racket (e.g. posits)
+         ;; else make exact
+         (define prec (representation-name repr))
+         (if (and full? (not (set-member? '(binary64 binary32) prec)))
+             (values (fl->repr expr repr) prec) 
+             (values
+               (match expr
+                 [(or +inf.0 -inf.0 +nan.0) expr]
+                 [_ (inexact->exact expr)])
+               prec))]
+        [(? value?) (values expr (representation-name repr))]
+        [(? constant?) 
+         (define prec (if (set-member? '(TRUE FALSE) expr) 'bool (representation-name repr)))
+         (define constant* (get-parametric-constant expr prec))
+         (values constant* (constant-info constant* 'type))]
+        [(? variable?) (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
-(define (expand-parametric-reverse expr repr)
+(define (expand-parametric-reverse expr repr full?)
   (define ->bf (representation-repr->bf repr))
   (match expr
     [(list 'if cond ift iff)
-     (define cond* (expand-parametric-reverse cond repr))
-     (define ift* (expand-parametric-reverse ift repr))
-     (define iff* (expand-parametric-reverse iff repr))
+     (define cond* (expand-parametric-reverse cond repr full?))
+     (define ift* (expand-parametric-reverse ift repr full?))
+     (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
-    [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
-      ; conversion (e.g. posit16->f64)
-     (define-values (iprec oprec)
-       (let ([split (string-split (symbol->string op) "->")])
-         (values (first split) (last split))))
+    [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
+     (define iprec (first (string-split (symbol->string op) "->")))
      (define repr* (get-representation (string->symbol iprec)))
-     (define body* (expand-parametric-reverse body repr*))
-     `(! :precision ,oprec ,body*)]
+     (define body* (expand-parametric-reverse body repr* full?))
+     (if full? 
+        `(! :precision ,(string->symbol iprec) ,body*)
+        `(,op ,body*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -331,28 +346,37 @@
          [(? symbol? a) (map (const a) args)]))
      (define args*
        (for/list ([arg args] [type atypes])
-         (expand-parametric-reverse arg (get-representation type))))
-     (cons op* args*)]
+         (expand-parametric-reverse arg (get-representation type) full?)))
+     (if (and (not full?) (equal? op* '-) (= (length args) 1))
+         (cons 'neg args*) ; if only unparameterizing, leave 'neg' alone
+         (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
     [(? value?)
-     (match (bigfloat->flonum (->bf expr))
-       [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
-       [+inf.0 'INFINITY]
-       [+nan.0 'NAN]
-       [x x])]
+     (if full?
+        (let ([bf (->bf expr)])
+          (match (bigfloat->flonum bf)
+            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+            [+inf.0 'INFINITY]
+            [+nan.0 'NAN]
+            [x 
+             (if (set-member? '(binary64 binary32) (representation-name repr))
+                 (bigfloat->flonum bf) ; convert to flonum if binary64 or binary32
+                 (bigfloat->real bf))]))
+        expr)]
     [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 
-(define (desugar-program prog prec var-precs)
-  (expand-parametric (expand-associativity (unfold-let prog)) prec var-precs))
+(define (desugar-program prog repr var-reprs #:full [full? #t])
+  (if full?
+      (expand-parametric (expand-associativity (unfold-let prog)) repr var-reprs full?)
+      (expand-parametric prog repr var-reprs full?)))
 
-(define (resugar-program prog prec)
-  (define repr (get-representation prec))
+(define (resugar-program prog repr #:full [full? #t])
   (match prog
-    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr))]
-    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr))]
-    [(? expr?) (expand-parametric-reverse prog repr)]))
+    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr full?))]
+    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr full?))]
+    [(? expr?) (expand-parametric-reverse prog repr full?)]))
 
 (define (replace-vars dict expr)
   (cond
@@ -368,60 +392,3 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
-
-;; Conversions to and from (<= 1.4) and "parameterized" Herbie
-;; Needed for src/core/taylor.rkt, src/core/reduce.rkt, src/syntax/rules.rkt
-;; Similar to de/resugaring but not quite
-
-(define (unparameterize-expr expr)
-  (match expr
-   [(? number?) expr]
-   [(? (curry hash-has-key? parametric-constants-reverse))
-    (hash-ref parametric-constants-reverse expr)]
-   [(? constant?) expr]
-   [(? symbol?) expr]
-   [(list 'if cond ift iff)
-    (define cond* (unparameterize-expr cond))
-    (define ift* (unparameterize-expr ift))
-    (define iff* (unparameterize-expr iff))
-    `(if ,cond* ,ift* ,iff*)]
-   [(list (? (curry hash-has-key? parametric-operators-reverse) op) args ...)
-    (define op* (hash-ref parametric-operators-reverse op))
-    (define args* (map unparameterize-expr args))
-    (if (and (equal? op* '-) (equal? (length args) 1))
-       `(neg ,@args*)
-       `(,op* ,@args*))]
-   [(list op args ...) 
-    `(,op ,@(map unparameterize-expr args))]))
-
-(define (parameterize-expr expr prec)
-  (match expr
-   [(? number?) expr]
-   [(? (curry hash-has-key? parametric-constants))
-    (get-parametric-constant expr prec)]
-   [(? constant?) expr]
-   [(? symbol?) expr]
-   [(list 'if cond ift iff)
-    (define cond* (parameterize-expr cond prec))
-    (define ift* (parameterize-expr ift prec))
-    (define iff* (parameterize-expr iff prec))
-    `(if ,cond* ,ift* ,iff*)]
-   [(list 'neg arg)
-    (define op* (car (get-parametric-operator '- (list prec))))
-    (define arg* (parameterize-expr arg prec))
-    `(,op* ,arg*)]
-   [(list (and (or '+ '- '*) op) args ...) ; these ops are sometimes v-ary
-    (define op* (car (get-parametric-operator op (make-list 2 prec))))
-    (define args* (map (curryr parameterize-expr prec) args))
-    `(,op* ,@args*)]
-   [(list (? (curry hash-has-key? parametric-operators) op) args ...)
-    (define op* (car (get-parametric-operator op (make-list (length args) prec))))
-    (define args* (map (curryr parameterize-expr prec) args))
-    `(,op* ,@args*)]
-   [(list (? (compose (curry regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+") symbol->string) op) body) 
-    ; conversion (e.g. posit16->f64)
-     (define iprec (first (string-split (symbol->string op) "->")))
-     (define body* (parameterize-expr body iprec))
-    `(,op ,body*)]
-   [(list op args ...) 
-    `(,op ,@(map (curryr parameterize-expr prec) args))]))

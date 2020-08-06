@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../programs.rkt" "syntax.rkt")
+(require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset *rulesets*))
@@ -32,10 +32,14 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-(define (type-of-rule input output [prec 'binary64])
-  (cond   ; 'if' is treated as an operator here
-    [(list? input) (if (equal? (car input) 'if) prec (operator-info (car input) 'otype))]
-    [(list? output) (if (equal? (car output) 'if) prec (operator-info (car output) 'otype))]
+(define (type-of-rule input output ctx)
+  (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
+    [(list? input) 
+      (if (equal? (car input) 'if) (type-of-rule (caddr input) output ctx) (operator-info (car input) 'otype))]
+    [(list? output)
+      (if (equal? (car output) 'if) (type-of-rule input (caddr output) ctx) (operator-info (car output) 'otype))]
+    [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
+    [(symbol? output) (dict-ref ctx output)]
     [else
       (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
               input output)]))
@@ -56,7 +60,7 @@
     (set-add! rule-names name)
     name]))
 
-;; Expects precisions (no 'real types) and parameterized operators
+;; Expects repr names (no 'real types) and parameterized operators
 (define-syntax define-ruleset
   (syntax-rules ()
    [(define-ruleset name groups [rname input output] ...)
@@ -64,7 +68,9 @@
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
     (begin   
        (define name
-         (list (rule (gen-unique-rule-name 'rname) 'input 'output '((var . type) ...) (type-of-rule 'input 'output)) ...))
+         (list (rule (gen-unique-rule-name 'rname) 'input 'output '((var . type) ...) 
+                     (type-of-rule 'input 'output '((var . type) ...)))
+               ...))
        (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
 ; Used for rules with type 'real'. Creates rules for binary64, binary32, etc.
@@ -85,15 +91,16 @@
           (values (list 'rname ...) (list 'input ...) (list 'output ...)
                   (list 'var ...) (list 'type ...)))
         (for ([prec 'precs])
-          (define ctx 
-            (for/list ([var* vars] [type* types]) 
-              (cons var* (if (equal? type* 'real) prec type*))))
+          (define ctx (for/list ([var* vars] [type* types]) 
+                          (cons var* (if (equal? type* 'real) prec type*))))
+          (define var-reprs (for/list ([(var* prec*) (in-dict ctx)])
+                                (cons var* (get-representation prec*))))
           (define name
             (for/list ([rname* rnames] [input* inputs] [output* outputs])
               (define rname** (gen-unique-rule-name (sym-append rname* '_ prec)))
-              (define input** (parameterize-expr input* prec))
-              (define output** (parameterize-expr output* prec))
-              (rule rname** input** output** ctx (type-of-rule input** output** prec))))
+              (define input** (desugar-program input* (get-representation prec) var-reprs #:full #f))
+              (define output** (desugar-program output* (get-representation prec) var-reprs #:full #f))
+              (rule rname** input** output** ctx (type-of-rule input** output** ctx))))
           (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
 
 ; Commutativity

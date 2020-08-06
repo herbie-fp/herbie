@@ -6,9 +6,11 @@
 (module+ test (require rackunit))
 (provide make-sampler)
 
-(define (precondition->hyperrects precondition reprs)
+(define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
-  (define range-table (condition->range-table (unparameterize-expr (program-body precondition))))
+  (define range-table 
+    (condition->range-table  
+      (resugar-program (program-body precondition) repr #:full #f)))
 
   (apply cartesian-product
          (for/list ([var-name (program-variables precondition)] [repr reprs])
@@ -102,7 +104,7 @@
     x))
 
 (define (get-hyperrects precondition programs reprs repr)
-  (define hyperrects-analysis (precondition->hyperrects precondition reprs))
+  (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
   (cond
     [(flag-set? 'setup 'search)
      (define search-func
@@ -159,5 +161,5 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for))))
 
-  (check-equal? (precondition->hyperrects '(λ (a b) (and (<= 0 a 1) (<= 0 b 1))) (list repr repr))
+  (check-equal? (precondition->hyperrects '(λ (a b) (and (<=.f64 0 a 1) (<=.f64 0 b 1))) (list repr repr) repr)
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
