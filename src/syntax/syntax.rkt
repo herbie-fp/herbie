@@ -549,16 +549,12 @@
 
 ;; Miscellaneous operators ;;
 
-; convert real (or value in another repr) to this repr
-(define (->repr prec)
-  (curry real->repr (get-representation prec)))
-
 (define-operator (cast cast.f64 binary64) binary64
-  [fl (->repr 'binary64)] [bf identity] [ival #f]
+  [fl identity] [bf identity] [ival #f]
   [nonffi identity])
 
 (define-operator (cast cast.f32 binary32) binary32
-  [fl (->repr 'binary32)] [bf identity] [ival #f]
+  [fl identity [bf identity] [ival #f]
   [nonffi identity])
 
 (define (operator? op)
