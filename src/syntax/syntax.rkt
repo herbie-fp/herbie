@@ -554,7 +554,7 @@
   [nonffi identity])
 
 (define-operator (cast cast.f32 binary32) binary32
-  [fl identity [bf identity] [ival #f]
+  [fl identity] [bf identity] [ival #f]
   [nonffi identity])
 
 (define (operator? op)
