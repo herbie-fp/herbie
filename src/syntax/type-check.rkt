@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -32,7 +32,13 @@
      (if (set-member? '(TRUE FALSE) x)
          (constant-info x 'type)
          (constant-info (get-parametric-constant x type) 'type))]
-    [#`,(? variable? x) (dict-ref env x)]
+    [#`,(? variable? x)
+     (define etype (type-name (representation-type (get-representation type))))
+     (define vtype (type-name (representation-type (get-representation (dict-ref env x)))))
+     (cond
+      [(equal? vtype 'bool) 'bool]
+      [(equal? etype vtype) type]
+      [else (error! stx "Expected a variable of type ~a, but got ~a" etype vtype)])]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -52,6 +58,17 @@
      (unless (equal? ifstmt-type elsestmt-type)
        (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
       ifstmt-type]
+    [#`(! #,props ... #,body)
+     (define props* (apply hash-set* (hash) (map syntax-e props)))
+     (cond
+       [(hash-has-key? props* ':precision)
+        (define itype (hash-ref props* ':precision))
+        (define rtype (expression->type body env itype error!))
+        (unless (equal? rtype itype)
+          (error! stx "Annotation promised precision ~a, but got ~a" itype rtype))
+        type]
+       [else
+        (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
      (define op* (get-parametric-operator '- actual-type))
@@ -76,6 +93,21 @@
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
+    [#`(,(and (or 're 'im) op) #,arg)
+     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+     ; re, im : complex -> binary64
+     (define atype (expression->type arg env 'complex error!)) 
+     (unless (equal? atype 'complex)
+       (error! stx "~a expects argument of type complex (not ~a)" op atype))
+     'binary64]
+    [#`(complex #,re #,im)
+     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
+     ; complex : binary64, binary64 -> complex
+     (define re-type (expression->type re env 'binary64 error!))
+     (define im-type (expression->type im env 'binary64 error!))
+     (unless (and (equal? re-type 'binary64) (equal? im-type 'binary64))
+       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)" re-type im-type))
+     'complex]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types))

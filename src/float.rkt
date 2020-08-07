@@ -11,10 +11,8 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
- exact-value? value->code
  value->string value->json
- ->flonum ->bf
- fl->repr repr->fl)
+ ->bf)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -35,11 +33,6 @@
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
-
-(define (special-value? x repr)
-  (if (set-member? '(binary32 binary64) (representation-name repr))
-      (or (infinite? x) (nan? x))
-      (set-member? (representation-special-values repr) x)))
 
 (define (ordinary-value? x repr)
   (if (and (complex? x) (not (real? x)))
@@ -88,25 +81,13 @@
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
     (cond
-     [(set-member? (representation-special-values repr) x1) #f]
-     [(set-member? (representation-special-values repr) x2) #t]
+     [(special-value? x1 repr) #f]
+     [(special-value? x2 repr) #t]
      [else (< ((representation-repr->ordinal repr) x1)
               ((representation-repr->ordinal repr) x2))])]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
-
-(define (exact-value? type val)
-  (match type
-    [(or 'real 'complex) (exact? val)]
-    ['boolean true]
-    [_ false]))
-
-(define (value->code type val)
-  (match type
-    ['real val]
-    ['complex (list 'complex (real-part val) (imag-part val))]
-    ['boolean (if val 'TRUE 'FALSE)]))
 
 (define (value->json x repr)
   (match x
@@ -118,21 +99,6 @@
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
-
-(define/contract (->flonum x repr)
-  (-> any/c representation? value?)
-  (define type (representation-type repr))
-  (match x
-   [(? (type-exact? type))
-    ((type-inexact->exact type) ((type-exact->inexact type) x))]
-   [(? (type-inexact? type))
-    ((type-inexact->exact type) x)]))
-
-(define (fl->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
-
-(define (repr->fl x repr)
-  (bigfloat->flonum ((representation-repr->bf repr) x)))
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
@@ -160,7 +126,7 @@
   (-> any/c representation? bigvalue?)
   (define type (representation-type repr))
   (cond
-   [(and ((type-exact? type) x) (equal? (type-name type) 'complex)) ;; HACK
+   [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
     ((type-exact->inexact type) x)]
    [else
     ;; TODO(interface): ->bf is used to convert syntactic numbers to

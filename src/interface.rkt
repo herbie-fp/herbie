@@ -3,13 +3,16 @@
 (require math/bigfloat math/flonum)
 (require "syntax/types.rkt")
 
-(provide (struct-out representation) get-representation *output-repr* *var-reprs* representation-type)
+(provide (struct-out representation) get-representation
+          *output-repr* *var-reprs*
+          real->repr repr->real
+          value? special-value?)
 (module+ internals (provide define-representation))
 
 ;; Structs
 
 (struct representation
-  (name type
+  (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
    total-bits special-values)
   #:methods gen:custom-write
@@ -21,18 +24,18 @@
   (hash-ref representations name
             (λ () (error 'get-representation "Unknown representation ~a" name))))
 
-(define-syntax-rule (define-representation (name type) args ...)
+(define-syntax-rule (define-representation (name type repr?) args ...)
   (begin
-    (define name (representation 'name (get-type 'type) args ...))
+    (define name (representation 'name (get-type 'type) repr? args ...))
     (hash-set! representations 'name name)))
 
-(define-representation (bool bool)
+(define-representation (bool bool boolean?)
   identity
   identity
   (λ (x) (= x 0))
   (λ (x) (if x 1 0))
   1
-  null)
+  (const #f))
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
@@ -42,13 +45,13 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define-representation (binary64 real)
+(define-representation (binary64 real real?)
   bigfloat->flonum
   bf
   (shift 63 ordinal->flonum)
   (unshift 63 flonum->ordinal)
   64
-  '(+nan.0 +inf.0 -inf.0))
+  (disjoin nan? infinite?))
 
 (define (single-flonum->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -81,13 +84,36 @@
                (if (bf< x2 x) (single-flonum-step y 1) y)
                (if (bf> x2 x) (single-flonum-step y -1) y))]))
 
-(define-representation (binary32 real)
+(define-representation (binary32 real real?)
   bigfloat->single-flonum
   bf
   ordinal->single-flonum
   single-flonum->ordinal
   32
-  '(+nan.f +inf.f -inf.f))
+  (disjoin nan? infinite?))
+
+;; repr <==> real
+
+(define (real->repr x repr)
+  (match x
+   [(? real?) ((representation-bf->repr repr) (bf x))]
+   [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
+   [(? value?) ; value in another repr, convert to new repr through bf
+    (for/first ([(name repr*) (in-hash representations)]
+               #:when ((representation-repr? repr*) x))
+      ((representation-bf->repr repr) ((representation-repr->bf repr*) x)))]
+   [_ (error 'real->repr "Unknown value ~a" x)]))
+
+(define (repr->real x repr)
+  (bigfloat->real ((representation-repr->bf repr) x)))
+
+;; Predicates
+
+(define (value? x)
+  (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
+
+(define (special-value? x repr)
+  ((representation-special-values repr) x))
 
 ;; Global precision tacking
 (define *output-repr* (make-parameter (get-representation 'binary64)))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../errors.rkt" "types.rkt" rival)
+(require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt" rival)
 
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
@@ -546,6 +546,16 @@
   [itype 'bool] [otype 'bool] ; Override number of arguments
   [fl or-fn] [bf or-fn] [ival ival-or]
   [nonffi or-fn])
+
+;; Miscellaneous operators ;;
+
+(define-operator (cast cast.f64 binary64) binary64
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
+
+(define-operator (cast cast.f32 binary32) binary32
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
 
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
