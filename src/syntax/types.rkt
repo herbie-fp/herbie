@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat ffi/unsafe)
+(require math/bigfloat)
 
 (provide (struct-out type) get-type type-name? bigvalue? value-of bigvalue-of)
 (module+ internals (provide define-type))

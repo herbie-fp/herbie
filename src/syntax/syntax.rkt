@@ -549,14 +549,17 @@
 
 ;; Miscellaneous operators ;;
 
+; convert real (or value in another repr) to this repr
+(define (->repr prec)
+  (curry real->repr (get-representation prec)))
+
 (define-operator (cast cast.f64 binary64) binary64
-  [fl identity] [bf identity] [ival #f]
-  [nonffi (curry repr->real (get-representation 'binary64))])
+  [fl (->repr 'binary64)] [bf identity] [ival #f]
+  [nonffi identity])
 
 (define-operator (cast cast.f32 binary32) binary32
-  [fl (curry repr->real (get-representation 'binary32))]
-  [bf identity] [ival #f]
-  [nonffi (curry repr->real (get-representation 'binary32))])
+  [fl (->repr 'binary32)] [bf identity] [ival #f]
+  [nonffi identity])
 
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))

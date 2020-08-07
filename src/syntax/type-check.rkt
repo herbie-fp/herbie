@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -33,11 +33,12 @@
          (constant-info x 'type)
          (constant-info (get-parametric-constant x type) 'type))]
     [#`,(? variable? x)
-     (define etype (representation-type (get-representation type)))
-     (define vtype (representation-type (get-representation (dict-ref env x))))
-     (unless (equal? etype vtype)
-       (error! stx "Expected a variable of type ~a, but got ~a" etype vtype))
-     type]
+     (define etype (type-name (representation-type (get-representation type))))
+     (define vtype (type-name (representation-type (get-representation (dict-ref env x)))))
+     (cond
+      [(equal? vtype 'bool) 'bool]
+      [(equal? etype vtype) type]
+      [else (error! stx "Expected a variable of type ~a, but got ~a" etype vtype)])]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])

@@ -362,7 +362,7 @@
      (define repr* (get-representation (string->symbol iprec)))
      (define body* (expand-parametric-reverse body repr* full?))
      (if full? 
-        `(! :precision ,(string->symbol iprec) ,body*)
+        `(cast (! :precision ,(string->symbol iprec) ,body*))
         `(,op ,body*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
