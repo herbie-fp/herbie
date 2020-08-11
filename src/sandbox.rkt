@@ -60,8 +60,6 @@
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
             (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
-        (timeline-event! 'end)
-
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
@@ -74,7 +72,7 @@
         (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
-        (timeline-adjust! 'regimes 'link (string->path "."))
+        (timeline-adjust! 'regimes 'link ".")
 
         (debug #:from 'regime-testing #:depth 1
                "End program error score:" (errors-score end-errs))
@@ -103,8 +101,6 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
-    (parameterize ([*timeline-disabled* false])
-      (timeline-event! 'end))
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
                   warning-log e))
@@ -124,7 +120,6 @@
       (engine-result eng)
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
-        (timeline-event! 'end)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)

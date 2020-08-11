@@ -124,7 +124,7 @@
   (define locs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
   (for/list ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
-                    (location-get loc (alt-program (^next-alt^)))
+                    (~a (location-get loc (alt-program (^next-alt^))))
                     (errors-score err)))
   (^locs^ (map cdr locs))
   (void))
@@ -186,7 +186,7 @@
 (define (gen-rewrites!)
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (timeline-log! 'method (object-name rewrite))
+  (timeline-push! 'method (~a (object-name rewrite)))
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
@@ -201,11 +201,8 @@
   (define rules-used
     (append-map (curry map change-rule) changelists))
   (define rule-counts
-    (sort
-     (hash->list
-      (for/hash ([rgroup (group-by identity rules-used)])
-        (values (rule-name (first rgroup)) (length rgroup))))
-     > #:key cdr))
+    (for/hash ([rgroup (group-by identity rules-used)])
+      (values (rule-name (first rgroup)) (length rgroup))))
 
   (define rewritten
     (for/list ([cl changelists])

@@ -34,17 +34,18 @@
           (error 'timeline "Attempting to push onto a timeline non-list ~a (value ~a)" key x)))
     (hash-update! (car (unbox *timeline*)) key  try-cons '())))
 
-(define (timeline-adjust! type key value)
+(define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
     (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
-      (hash-set! cell key value)
+      (hash-set! cell key values)
       true)))
 
 (define (timeline-load! value)
   (set! *timeline* value))
 
 (define (timeline-extract repr)
-  (timeline->json (reverse (unbox *timeline*)) repr))
+  (define end (hash 'time (current-inexact-milliseconds)))
+  (timeline->json (reverse (cons end (unbox *timeline*))) repr))
 
 (define (timeline->json timeline repr)
   (for/list ([event timeline] [next (cdr timeline)])
@@ -53,13 +54,6 @@
         (match k
           ['type (~a v)]
           ['time (- (dict-ref next 'time) v)]
-          ['method (list (~a v))]
-          ['locations
-           (for/list ([(expr error) (in-dict v)])
-             (hash 'expr (~a expr) 'error error))]
-          ['rules
-           (for/hash ([(rule count) (in-dict v)])
-             (values rule count))]
           ['times
            (for/list ([(expr times) (in-dict v)])
              (cons (~a expr) times))]
@@ -72,12 +66,10 @@
           ['bstep
            (define n->js (curryr value->json repr))
            (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
-          [(or 'accuracy 'oracle 'baseline 'name)
-           (list v)]
-          ['link (list (path->string v))]
           ['sampling (reverse v)]
           ['compiler (first v)]
-          [(or 'inputs 'outputs 'kept 'min-error 'egraph)
+          [(or 'accuracy 'oracle 'baseline 'name 'link) v]
+          [(or 'inputs 'outputs 'kept 'min-error 'egraph 'method 'rules 'locations)
            v]))
 
       (values k v*))))

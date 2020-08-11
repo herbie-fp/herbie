@@ -91,9 +91,8 @@
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
                ,@(for/list ([rec (in-list locations)])
-                   (define err (dict-ref rec 'error))
-                   (define expr (dict-ref rec 'expr))
-                   `(tr (td ,(format-bits (car err)) "b") (td (pre ,(~a expr)))))))))
+                   (match-define (list expr err) rec)
+                   `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
 
 (define (render-phase-bstep iters)
   `((dt "Steps")

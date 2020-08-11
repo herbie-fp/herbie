@@ -59,6 +59,7 @@
 
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
+  (timeline-push! 'method "regraph")
   (local-require regraph)
 
   (define start-time (current-inexact-milliseconds))
@@ -92,7 +93,7 @@
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
-  (timeline-log! 'method 'egg-herbie)
+  (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
   ((egg egraph-run)

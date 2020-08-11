@@ -90,7 +90,7 @@
 (define (prepare-points-intervals prog precondition repr sampler)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
-  (timeline-log! 'method 'intervals)
+  (timeline-push! 'method "intervals")
 
   (define pre-fn (eval-prog precondition 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
@@ -243,7 +243,7 @@
 
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition repr sampler)
-  (timeline-log! 'method 'halfpoints)
+  (timeline-push! 'method "halfpoints")
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
