@@ -76,6 +76,7 @@
            (list v)]
           ['link (list (path->string v))]
           ['sampling (reverse v)]
+          ['compiler (first v)]
           [(or 'inputs 'outputs 'kept 'min-error 'egraph)
            v]))
 
@@ -104,6 +105,7 @@
           ['method (append v (dict-ref data k '()))]
           ['rules (hash-union v (dict-ref data k #hash()) #:combine +)]
           ['times (sort (append v (dict-ref data k '())) > #:key cadr)]
+          ['compiler (map + v (dict-ref data k '(0 0)))]
           ['outcomes
            (define (key x) (map (curry hash-ref x) '(program category precision)))
            (for/list ([rows (group-by key (append v (dict-ref data k '())))])

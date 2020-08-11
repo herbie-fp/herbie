@@ -67,7 +67,9 @@
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
-         ,@(dict-call curr render-phase-outcomes 'outcomes))))
+         ,@(dict-call curr render-phase-outcomes 'outcomes)
+         ,@(dict-call curr render-phase-compiler 'compiler)
+         )))
 
 (define (if-cons test x l)
   (if test (cons x l) l))
@@ -215,6 +217,12 @@
         (table ([class "times"])
                ,@(for/list ([(expr time) (in-sorted-dict times #:key second)] [_ (in-range 5)])
                    `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-compiler compiler)
+  (match-define (list size compiled) compiler)
+  `((dt "Compiler")
+    (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
+           "(" ,(format-percent (- 1 (/ compiled size))) " saved)"))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")

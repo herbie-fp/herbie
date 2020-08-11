@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -133,7 +133,10 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
 
+  (define size 0)
+
   (define (munge prog repr)
+    (set! size (+ 1 size))
     (define expr
       (match prog
         [(? value?) 
@@ -168,6 +171,8 @@
       (munge (program-body prog) repr)))
   (define l1 (length vars))
   (define lt (+ (length exprs) l1))
+
+  (timeline-push! 'compiler size lt)
   (define exprvec (list->vector (reverse exprs)))
   (λ args
     (define v (make-vector lt))
