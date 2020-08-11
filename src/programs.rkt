@@ -121,8 +121,7 @@
   (define real->precision (match mode
     ['bf (λ (repr x) (->bf x repr))]
     ['fl (λ (repr x) (real->repr x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
-    ['nonffi (λ (repr x) x)]))
+    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
   
   (define vars 
     (if (empty? progs) '() (program-variables (first progs))))
