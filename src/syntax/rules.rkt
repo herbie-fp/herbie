@@ -7,12 +7,34 @@
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* *rulesets* generate-rules-for))
 
+;; Rulesets
+(define *rulesets* (make-parameter '()))
+
+;; Cached rules
+(define all-rules (make-parameter '()))
+(define simplify-rules (make-parameter '()))
+(define fp-safe-simplify-rules (make-parameter '()))
+
+;; Exported parameters to update and access rules
+(define *rules*
+  (make-derived-parameter all-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (all-rules))))
+
+(define *simplify-rules*
+  (make-derived-parameter simplify-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (simplify-rules))))
+
+(define *fp-safe-simplify-rules*
+  (make-derived-parameter fp-safe-simplify-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (fp-safe-simplify-rules))))
+
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (fprintf port "#<rule ~a>" (rule-name rule)))])
-
-(define *rulesets* (make-parameter '()))
 
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
@@ -74,6 +96,7 @@
                ...))
        (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
+;; Boolean
 (define-ruleset bool-reduce (bools simplify fp-safe)
   #:type ([a bool] [b bool])
   [not-true     (not TRUE)       FALSE]
@@ -672,29 +695,6 @@
   [erf-odd          (erf (neg x))        (neg (erf x))]
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
-
-;; Cached rules
-
-(define all-rules (make-parameter '()))
-(define simplify-rules (make-parameter '()))
-(define fp-safe-simplify-rules (make-parameter '()))
-
-;; Exported parameters to update and access rules
-
-(define *rules*
-  (make-derived-parameter all-rules 
-                          identity 
-                          (λ (_) (update-cached-rules) (all-rules))))
-
-(define *simplify-rules*
-  (make-derived-parameter simplify-rules 
-                          identity 
-                          (λ (_) (update-cached-rules) (simplify-rules))))
-
-(define *fp-safe-simplify-rules*
-  (make-derived-parameter fp-safe-simplify-rules 
-                          identity 
-                          (λ (_) (update-cached-rules) (fp-safe-simplify-rules))))
 
 ;; Generate rules for new reprs
 

@@ -9,6 +9,9 @@
           value? special-value?)
 (module+ internals (provide define-representation))
 
+(define *reprs-with-rules* (make-parameter '()))
+(define *needed-reprs* (make-parameter '()))
+
 ;; Structs
 
 (struct representation
@@ -117,8 +120,3 @@
 ;; Global precision tacking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
-
-(define *needed-reprs* (make-parameter '()))
-
-; TODO: this parameter gets reset every test. fix?
-(define *reprs-with-rules* (make-parameter '()))
