@@ -5,7 +5,7 @@
 (require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
-(module+ internals (provide define-ruleset *rulesets*))
+(module+ internals (provide define-ruleset *rulesets* generate-rules-for))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -60,9 +60,6 @@
     (set-add! rule-names name)
     name]))
 
-(define (sym-append . args)
-  (string->symbol (apply string-append (map symbol->string args))))
-
 ;; Expects repr names (no 'real types) and parameterized operators
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -76,35 +73,54 @@
                ...))
        (*rulesets* (cons (list name 'groups '((var . type) ...)) (*rulesets*))))]))
 
-; Used for rules with type 'real'. Creates rules for binary64, binary32, etc.
+(define-ruleset bool-reduce (bools simplify fp-safe)
+  #:type ([a bool] [b bool])
+  [not-true     (not TRUE)       FALSE]
+  [not-false    (not FALSE)      TRUE]
+  [not-not      (not (not a))    a]
+  [not-and      (not (and a b))  (or  (not a) (not b))]
+  [not-or       (not (or  a b))  (and (not a) (not b))]
+  [and-true-l   (and TRUE a)     a]
+  [and-true-r   (and a TRUE)     a]
+  [and-false-l  (and FALSE a)    FALSE]
+  [and-false-r  (and a FALSE)    FALSE]
+  [and-same     (and a a)        a]
+  [or-true-l    (or TRUE a)      TRUE]
+  [or-true-r    (or a TRUE)      TRUE]
+  [or-false-l   (or FALSE a)     a]
+  [or-false-r   (or a FALSE)     a]
+  [or-same      (or a a)         a])
+
+(define *templated-rulesets* (make-parameter '()))
+
 (define-syntax define-ruleset*
   (syntax-rules ()
     [(_ name groups [rname input output] ...)
-     (define-ruleset* name groups #:type () #:prec (binary64 binary32) 
-                      [rname input output] ...)]
+     (define-ruleset* name groups #:type () [rname input output] ...)]
     [(_ name groups #:type ([var type] ...) [rname input output] ...)
-     (define-ruleset* name groups #:type ([var type] ...) #:prec (binary64 binary32) 
-                      [rname input output] ...)]
-    [(_ name groups #:prec precs [rname input output] ...)
-     (define-ruleset* name groups #:type () #:prec precs
-                      [rname input output] ...)]
-    [(_ name groups #:type ([var type] ...) #:prec precs [rname input output] ...)
-      (begin
-        (define-values (rnames inputs outputs vars types)
-          (values (list 'rname ...) (list 'input ...) (list 'output ...)
-                  (list 'var ...) (list 'type ...)))
-        (for ([prec 'precs])
-          (define ctx (for/list ([var* vars] [type* types]) 
-                          (cons var* (if (equal? type* 'real) prec type*))))
-          (define var-reprs (for/list ([(var* prec*) (in-dict ctx)])
-                                (cons var* (get-representation prec*))))
-          (define name
-            (for/list ([rname* rnames] [input* inputs] [output* outputs])
-              (define rname** (gen-unique-rule-name (sym-append rname* '_ prec)))
-              (define input** (desugar-program input* (get-representation prec) var-reprs #:full #f))
-              (define output** (desugar-program output* (get-representation prec) var-reprs #:full #f))
-              (rule rname** input** output** ctx (type-of-rule input** output** ctx))))
-          (*rulesets* (cons (list name 'groups ctx) (*rulesets*)))))]))
+     (begin
+      (define name (list (rule 'rname 'input 'output '((var . type) ...) 'unknown) ...))
+      (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
+                                  (*templated-rulesets*))))]))
+
+(define (sym-append . args)
+  (string->symbol (apply string-append (map symbol->string args))))
+
+;; Generate a set of rules by replacing a generic type with a repr
+(define (generate-rules-for type repr-name)
+  (for ([set (*templated-rulesets*)])
+    (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
+    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t type) repr-name t))))
+    (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
+    (define rules*
+      (for/list ([r rules])
+        (let ([name* (gen-unique-rule-name (sym-append (rule-name r) '_ repr-name))]
+              [input* (desugar-program (rule-input r) (get-representation repr-name)
+                                       var-reprs #:full #f)]
+              [output* (desugar-program (rule-output r) (get-representation repr-name)
+                                        var-reprs #:full #f)])
+          (rule name* input* output* ctx (type-of-rule input* output* ctx)))))
+    (*rulesets* (cons (list rules* groups ctx) (*rulesets*)))))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)
@@ -617,24 +633,6 @@
                 (+ (fma a b (neg (* d c)))
                    (fma (neg d) c (* d c)))])
 
-(define-ruleset* bool-reduce (bools simplify fp-safe)
-  #:type ([a bool] [b bool])
-  [not-true     (not TRUE)       FALSE]
-  [not-false    (not FALSE)      TRUE]
-  [not-not      (not (not a))    a]
-  [not-and      (not (and a b))  (or  (not a) (not b))]
-  [not-or       (not (or  a b))  (and (not a) (not b))]
-  [and-true-l   (and TRUE a)     a]
-  [and-true-r   (and a TRUE)     a]
-  [and-false-l  (and FALSE a)    FALSE]
-  [and-false-r  (and a FALSE)    FALSE]
-  [and-same     (and a a)        a]
-  [or-true-l    (or TRUE a)      TRUE]
-  [or-true-r    (or a TRUE)      TRUE]
-  [or-false-l   (or FALSE a)     a]
-  [or-false-r   (or a FALSE)     a]
-  [or-same      (or a a)         a])
-
 (define-ruleset* compare-reduce (bools simplify fp-safe-nan)
   #:type ([x real] [y real])
   [lt-same      (<  x x)         FALSE]
@@ -659,7 +657,7 @@
 
 (define-ruleset* erf-rules (special simplify)
   #:type ([x real])
-  [erf-odd          (erf (neg x))          (neg (erf x))]
+  [erf-odd          (erf (neg x))        (neg (erf x))]
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
@@ -686,3 +684,6 @@
              (set-member? groups 'simplify))
         rules
         '())))
+
+(generate-rules-for 'real 'binary64)
+(generate-rules-for 'real 'binary32)
