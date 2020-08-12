@@ -90,7 +90,7 @@
     (define prec (dict-ref prop-dict ':precision))
     (define known-prec?
       (with-handlers ([exn:fail? (const false)])
-        (get-representation (syntax-e prec))
+        (get-representation (syntax-e* prec))
         true))
     (unless known-prec?
       (error! prec "Unknown :precision ~a" prec)))

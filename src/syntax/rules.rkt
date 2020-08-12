@@ -60,6 +60,9 @@
     (set-add! rule-names name)
     name]))
 
+(define (sym-append . args)
+  (string->symbol (apply string-append (map symbol->string args))))
+
 ;; Expects repr names (no 'real types) and parameterized operators
 (define-syntax define-ruleset
   (syntax-rules ()

@@ -25,9 +25,8 @@
             (λ () (error 'get-representation "Unknown representation ~a" name))))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
-  (begin
-    (define name (representation 'name (get-type 'type) repr? args ...))
-    (hash-set! representations 'name name)))
+  (hash-set! representations 'name
+            (representation 'name (get-type 'type) repr? args ...)))
 
 (define-representation (bool bool boolean?)
   identity
