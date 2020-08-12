@@ -88,12 +88,12 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-prec?
+    (define known-repr?
       (with-handlers ([exn:fail? (const false)])
-        (get-representation (syntax-e* prec))
-        true))
-    (unless known-prec?
-      (error! prec "Unknown :precision ~a" prec)))
+        (get-representation (syntax-e* prec))))
+    (unless known-repr?
+      (error! prec "Unknown :precision ~a" prec))
+    (*needed-reprs* (cons known-repr? (*needed-reprs*))))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

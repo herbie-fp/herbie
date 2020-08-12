@@ -4,7 +4,7 @@
 (require "syntax/types.rkt")
 
 (provide (struct-out representation) get-representation
-          *output-repr* *var-reprs*
+          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
           value? special-value?)
 (module+ internals (provide define-representation))
@@ -117,3 +117,8 @@
 ;; Global precision tacking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
+
+(define *needed-reprs* (make-parameter '()))
+
+; TODO: this parameter gets reset every test. fix?
+(define *reprs-with-rules* (make-parameter '()))

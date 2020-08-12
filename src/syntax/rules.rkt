@@ -2,10 +2,10 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
-(module+ internals (provide define-ruleset *rulesets* generate-rules-for))
+(module+ internals (provide define-ruleset define-ruleset* *rulesets* generate-rules-for))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -60,7 +60,8 @@
     (set-add! rule-names name)
     name]))
 
-;; Expects repr names (no 'real types) and parameterized operators
+;; Rulesets defined by reprs. These rulesets are unique
+
 (define-syntax define-ruleset
   (syntax-rules ()
    [(define-ruleset name groups [rname input output] ...)
@@ -91,6 +92,9 @@
   [or-false-r   (or a FALSE)     a]
   [or-same      (or a a)         a])
 
+;; Templated rulesets defined by types. These are used to generate duplicate rules that
+;; are valid in any representation of the same underlying type.
+
 (define *templated-rulesets* (make-parameter '()))
 
 (define-syntax define-ruleset*
@@ -108,19 +112,27 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr-name)
-  (for ([set (*templated-rulesets*)])
+  (for ([set (*templated-rulesets*)]
+       #:when (ormap (λ (p) (equal? (cdr p) type)) (third set)))
     (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
     (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t type) repr-name t))))
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
     (define rules*
-      (for/list ([r rules])
+      (for/fold ([rules* '()]) ([r rules])
         (let ([name* (gen-unique-rule-name (sym-append (rule-name r) '_ repr-name))]
-              [input* (desugar-program (rule-input r) (get-representation repr-name)
-                                       var-reprs #:full #f)]
-              [output* (desugar-program (rule-output r) (get-representation repr-name)
-                                        var-reprs #:full #f)])
-          (rule name* input* output* ctx (type-of-rule input* output* ctx)))))
-    (*rulesets* (cons (list rules* groups ctx) (*rulesets*)))))
+              [input* (with-handlers ([exn:fail? (const #f)])
+                        (desugar-program (rule-input r) (get-representation repr-name)
+                                         var-reprs #:full #f))]
+              [output* (with-handlers ([exn:fail? (const #f)])
+                         (desugar-program (rule-output r) (get-representation repr-name)
+                                          var-reprs #:full #f))])
+          (if (and input* output*) ; if successfully desugars, then the rule is valid
+              (cons (rule name* input* output* 
+                          ctx (type-of-rule input* output* ctx))
+                    rules*)
+              rules*))))      ; else, assume the expression(s) are not supported in the repr
+    (unless (empty? rules*)   ; only add the ruleset if it contains one
+      (*rulesets* (cons (list rules* groups ctx) (*rulesets*))))))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)
@@ -661,29 +673,67 @@
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
+;; Cached rules
 
+(define all-rules (make-parameter '()))
+(define simplify-rules (make-parameter '()))
+(define fp-safe-simplify-rules (make-parameter '()))
 
-(define (*rules*)
-  (for/append ([rec (*rulesets*)])
-    (match-define (list rules groups _) rec)
-    (if (ormap (curry flag-set? 'rules) groups) rules '())))
+;; Exported parameters to update and access rules
 
-(define (*simplify-rules*)
-  (for/append ([rec (*rulesets*)])
-    (match-define (list rules groups _) rec)
-    (if (and (ormap (curry flag-set? 'rules) groups)
-             (set-member? groups 'simplify))
-        rules
-        '())))
+(define *rules*
+  (make-derived-parameter all-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (all-rules))))
 
-(define (*fp-safe-simplify-rules*)
-  (for/append ([rec (*rulesets*)])
-    (match-define (list rules groups _) rec)
-    (if (and (ormap (curry flag-set? 'rules) groups)
-             (set-member? groups 'fp-safe)
-             (set-member? groups 'simplify))
-        rules
-        '())))
+(define *simplify-rules*
+  (make-derived-parameter simplify-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (simplify-rules))))
 
-(generate-rules-for 'real 'binary64)
-(generate-rules-for 'real 'binary32)
+(define *fp-safe-simplify-rules*
+  (make-derived-parameter fp-safe-simplify-rules 
+                          identity 
+                          (λ (_) (update-cached-rules) (fp-safe-simplify-rules))))
+
+;; Generate rules for new reprs
+
+(define (generate-missing-rules)
+  (for/fold ([new-reprs '()]) 
+            ([repr (*needed-reprs*)] #:unless (set-member? (*reprs-with-rules*) repr))
+    (generate-rules-for (type-name (representation-type repr)) (representation-name repr))
+    (*reprs-with-rules* (cons repr (*reprs-with-rules*)))
+    (cons (representation-name repr) new-reprs)))
+
+;; Update cached rules
+
+(define (update-rules new-reprs)
+  (unless (empty? new-reprs)
+    (for ([ruleset (*rulesets*)]
+         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
+      (match-define (list rules groups _) ruleset)
+      (when (ormap (curry flag-set? 'rules) groups)
+        (all-rules (append rules (all-rules)))))))
+
+(define (update-simplify-rules new-reprs)
+  (unless (empty? new-reprs)
+    (for ([ruleset (*rulesets*)]
+         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
+      (match-define (list rules groups _) ruleset)
+      (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
+        (simplify-rules (append rules (simplify-rules)))))))
+
+(define (update-fp-safe-simplify-rules new-reprs)
+  (unless (empty? new-reprs)
+    (for ([ruleset (*rulesets*)]
+         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
+      (match-define (list rules groups _) ruleset)
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                (set-member? groups 'fp-safe) (set-member? groups 'simplify))
+        (fp-safe-simplify-rules (append rules (fp-safe-simplify-rules)))))))
+
+(define (update-cached-rules)
+  (define new-reprs (generate-missing-rules))
+  (update-rules new-reprs)
+  (update-simplify-rules new-reprs)
+  (update-fp-safe-simplify-rules new-reprs))
