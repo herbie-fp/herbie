@@ -699,9 +699,8 @@
 ;; Generate rules for new reprs
 
 (define (generate-missing-rules)
-  (for/fold ([new-reprs '()]) 
-            ([repr (*needed-reprs*)] #:unless (set-member? (*reprs-with-rules*) repr))
-    (printf "Generating rules for ~a ...\n" (representation-name repr))
+  (for/fold ([new-reprs '()]) ([repr (*needed-reprs*)] 
+                              #:unless (set-member? (*reprs-with-rules*) repr))
     (generate-rules-for (type-name (representation-type repr)) (representation-name repr))
     (*reprs-with-rules* (cons repr (*reprs-with-rules*)))
     (cons (representation-name repr) new-reprs)))

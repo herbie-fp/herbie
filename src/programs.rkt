@@ -147,8 +147,8 @@
         [(list op args ...)
          (define atypes
            (match (operator-info op 'itype)
-             [(? list? as) as]
-             [(? symbol? a) (map (const a) args)]))
+             [(? representation-name? a) (map (const a) args)] ; must be first
+             [(? list? as) as]))
          (unless (= (length atypes) (length args))
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
@@ -362,8 +362,8 @@
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
        (match (operator-info op 'itype)
-         [(? list? as) as]
-         [(? symbol? a) (map (const a) args)]))
+         [(? representation-name? a) (map (const a) args)] ; some repr names are lists
+         [(? list? as) as]))   
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))

@@ -166,7 +166,7 @@
   (for/or ([sig (hash-ref parametric-operators name)])
     (match-define (list* true-name rtype atypes) sig)
     (and
-      (if (symbol? atypes)
+      (if (representation-name? atypes)
           (andmap (curry equal? atypes) actual-types)
           (equal? atypes actual-types))
       true-name)))

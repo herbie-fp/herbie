@@ -27,10 +27,10 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-;; Here's the dilemma: A few parameters involving rules are updated when 'run-improve' is called. 
-;; Currently, a new thread is created to call 'run-improve' meaning these parameters will be restored.
-;; This is a messy fix to save such updates and save it once execution returns to this thread
-;; Is it better not to use parameters? What happens if reports / improve is run with multithreading?
+;; Here's the dilemma: The mainloop is run within a new thread meaning any rules added will be forgotten after
+;; every run. This is a messy fix to save the generated rules and update the same parameters in this thread, but
+;; it seems to defeat the purpose of parameters. Is it better to not to use parameters? What happens if Herbie
+;; is run with multithreading?
 ;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
 (define (update-rules all simplify fp-safe)
   (*rules* all)

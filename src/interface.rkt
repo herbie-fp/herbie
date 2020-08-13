@@ -3,7 +3,7 @@
 (require math/bigfloat math/flonum)
 (require "syntax/types.rkt")
 
-(provide (struct-out representation) get-representation
+(provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
           value? special-value?)
@@ -63,6 +63,11 @@
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
+
+(define (representation-name? x)
+  (with-handlers ([exn:fail? (const #f)])
+    (get-representation x)
+    true))
 
 (define-representation (bool bool boolean?)
   identity
