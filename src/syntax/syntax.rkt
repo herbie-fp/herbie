@@ -10,7 +10,8 @@
          repr-conv?)
 
 (module+ internals 
-  (provide operators constants define-constant define-operator infix-joiner))
+  (provide operators constants define-constant define-operator infix-joiner
+           register-constant! register-operator!))
 
 (module+ test (require rackunit))
 
@@ -34,12 +35,14 @@
 
 (define (constant-info constant field) (table-ref constants constant field))
 
+(define (register-constant! constant name ctype attrib-dict)
+  (table-set! constants name
+              (make-hash (cons (cons 'type ctype) attrib-dict)))
+  (hash-update! parametric-constants constant (curry cons (list* name ctype)) '())
+  (hash-set! parametric-constants-reverse name constant))
+
 (define-syntax-rule (define-constant (constant name) ctype [key value] ...)
-  (begin
-    (table-set! constants 'name
-                (make-hash (list (cons 'type 'ctype) (cons 'key value) ...)))
-    (hash-update! parametric-constants 'constant (curry cons (list* 'name 'ctype)) '())
-    (hash-set! parametric-constants-reverse 'name 'constant)))
+  (register-constant! 'constant 'name 'ctype (list (cons 'key value) ...)))
 
 (define (get-parametric-constant name type)
   (for/first ([(true-name rtype) (in-dict (hash-ref parametric-constants name))]
@@ -137,14 +140,16 @@
      (for ([op (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*))])
        (operator-remove! op)))))
 
+(define (register-operator! operator name atypes rtype attrib-dict)
+  (*loaded-ops* (cons name (*loaded-ops*)))
+  (table-set! operators name
+              (make-hash (append (list (cons 'itype atypes) (cons 'otype rtype)) attrib-dict)))
+  (hash-update! parametric-operators operator 
+                (curry cons (list* name rtype (operator-info name 'itype))) '())
+  (hash-set! parametric-operators-reverse name operator))
+
 (define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
-  (begin
-    (*loaded-ops* (cons 'name (*loaded-ops*)))
-    (table-set! operators 'name
-                (make-hash (list (cons 'itype '(atypes ...)) (cons 'otype 'rtype)
-                                 (cons 'key value) ...)))
-    (hash-update! parametric-operators 'operator (curry cons (list* 'name 'rtype (operator-info 'name 'itype))) '())
-    (hash-set! parametric-operators-reverse 'name 'operator)))
+  (register-operator! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
 (define (no-complex fun)
   (λ xs

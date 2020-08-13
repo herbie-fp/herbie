@@ -7,7 +7,9 @@
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
           value? special-value?)
-(module+ internals (provide define-representation))
+
+(module+ internals 
+  (provide define-representation register-generator! register-representation!))
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
@@ -23,13 +25,44 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (define representations (make-hash))
+
+;; Repr / operator generation
+;; Some plugins might define 'templated' reprs (e.g. fixed point with
+;; m integer and n fractional bits). Since defining an infinite number of reprs
+;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
+;; across a repr that is not known at the time. 
+
+;; Generators take one argument, a repr name, and returns true if knows what the
+;; repr is and has generated that repr and its operators, and false otherwise
+(define repr-generators '())
+
+(define (register-generator! proc)
+  (-> (-> any/c boolean?))
+  (set! repr-generators (cons proc repr-generators)))
+
+(define (generate-repr repr-name)
+  (for/or ([proc repr-generators])
+    (proc repr-name)))
+
 (define (get-representation name)
-  (hash-ref representations name
-            (λ () (error 'get-representation "Unknown representation ~a" name))))
+  (cond
+   [(hash-has-key? representations name)
+    (define repr (hash-ref representations name))
+    (unless (equal? name 'bool)
+      (*needed-reprs* (cons repr (*needed-reprs*))))
+    repr]
+   [(generate-repr name)
+    (define repr (hash-ref representations name))
+    (*needed-reprs* (cons repr (*needed-reprs*)))
+    repr]
+   [else (error 'get-representation "Unknown representation ~a" name)]))
+
+(define (register-representation! name type repr? . args)
+  (hash-set! representations name
+            (apply representation name (get-type type) repr? args)))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
-  (hash-set! representations 'name
-            (representation 'name (get-type 'type) repr? args ...)))
+  (register-representation! 'name 'type repr? args ...))
 
 (define-representation (bool bool boolean?)
   identity
