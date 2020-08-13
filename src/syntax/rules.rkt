@@ -699,6 +699,8 @@
 ;; Generate rules for new reprs
 
 (define (generate-missing-rules)
+  (when (empty? (*needed-reprs*))
+    (*needed-reprs* (list (get-representation 'binary64))))
   (for/fold ([new-reprs '()]) 
             ([repr (*needed-reprs*)] #:unless (set-member? (*reprs-with-rules*) repr))
     (generate-rules-for (type-name (representation-type repr)) (representation-name repr))
@@ -707,33 +709,25 @@
 
 ;; Update cached rules
 
-(define (update-rules new-reprs)
-  (unless (empty? new-reprs)
-    (for ([ruleset (*rulesets*)]
-         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
-      (match-define (list rules groups _) ruleset)
-      (when (ormap (curry flag-set? 'rules) groups)
-        (all-rules (append rules (all-rules)))))))
+(define (update-rules rules groups)
+  (when (ormap (curry flag-set? 'rules) groups)
+    (all-rules (append rules (all-rules)))))
 
-(define (update-simplify-rules new-reprs)
-  (unless (empty? new-reprs)
-    (for ([ruleset (*rulesets*)]
-         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
-      (match-define (list rules groups _) ruleset)
-      (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-        (simplify-rules (append rules (simplify-rules)))))))
+(define (update-simplify-rules rules groups)
+  (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
+    (simplify-rules (append rules (simplify-rules)))))
 
-(define (update-fp-safe-simplify-rules new-reprs)
-  (unless (empty? new-reprs)
-    (for ([ruleset (*rulesets*)]
-         #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
-      (match-define (list rules groups _) ruleset)
-      (when (and (ormap (curry flag-set? 'rules) groups)
-                (set-member? groups 'fp-safe) (set-member? groups 'simplify))
-        (fp-safe-simplify-rules (append rules (fp-safe-simplify-rules)))))))
+(define (update-fp-safe-simplify-rules rules groups)
+  (when (and (ormap (curry flag-set? 'rules) groups)
+             (set-member? groups 'fp-safe) (set-member? groups 'simplify))
+    (fp-safe-simplify-rules (append rules (fp-safe-simplify-rules)))))
 
 (define (update-cached-rules)
   (define new-reprs (generate-missing-rules))
-  (update-rules new-reprs)
-  (update-simplify-rules new-reprs)
-  (update-fp-safe-simplify-rules new-reprs))
+  (unless (empty? new-reprs)
+    (for ([ruleset (*rulesets*)]
+        #:when (ormap (λ (p) (set-member? new-reprs (cdr p))) (third ruleset)))
+      (match-define (list rules groups _) ruleset)
+      (update-rules rules groups)
+      (update-simplify-rules rules groups)
+      (update-fp-safe-simplify-rules rules groups))))

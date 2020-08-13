@@ -134,4 +134,4 @@
     ;; reals, so we need to call `bf` here
     (if (eq? (representation-name repr) 'complex)
       (bf x)
-      ((representation-repr->bf repr) x))]))
+      ((representation-repr->bf repr) (real->repr x repr)))]))

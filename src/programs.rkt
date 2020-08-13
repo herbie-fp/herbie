@@ -136,8 +136,7 @@
   (define (munge prog repr)
     (define expr
       (match prog
-        [(? value?) 
-          (list (const (real->precision repr prog)))]
+        [(? value?) (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
@@ -326,15 +325,11 @@
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
-         ;; convert to repr if a representation does not support 'real' numbers in Racket (e.g. posits)
-         ;; else make exact
-         (if (and full? (not (set-member? '(binary64 binary32) prec)))
-             (values (real->repr expr (get-representation prec)) prec) 
-             (values
-               (match expr
-                 [(or +inf.0 -inf.0 +nan.0) expr]
-                 [_ (inexact->exact expr)])
-               prec))]
+         (values
+           (match expr
+             [(or +inf.0 -inf.0 +nan.0) expr]
+             [_ (inexact->exact expr)])
+           prec)]
         [(? value?) (values expr prec)]
         [(? constant?) 
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
@@ -350,7 +345,6 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr full?)
-  (define ->bf (representation-repr->bf repr))
   (match expr
     [(list 'if cond ift iff)
      (define cond* (expand-parametric-reverse cond repr full?))
@@ -380,7 +374,7 @@
      `(complex ,(real-part expr) ,(imag-part expr))]
     [(? value?)
      (if full?
-        (let ([bf (->bf expr)])
+        (let ([bf (->bf expr repr)])
           (match (bigfloat->flonum bf)
             [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
             [+inf.0 'INFINITY]

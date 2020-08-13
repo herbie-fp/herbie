@@ -98,7 +98,7 @@
 
 (define (real->repr x repr)
   (match x
-   [(? real?) ((representation-bf->repr repr) (bf x))]
+   [(? real?) ((representation-bf->repr repr) (bf x))] ; put this first, important
    [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
    [(? value?) ; value in another repr, convert to new repr through bf
     (for/first ([(name repr*) (in-hash representations)]
