@@ -158,7 +158,7 @@
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr-name)
   (define repr (get-representation repr-name))
-  (*reprs-with-rules* (cons repr (*reprs-with-rules*))) ; update
+  (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
   (for ([set templated-rulesets]
        #:when (ormap (λ (p) (equal? (cdr p) type)) (third set)))
     (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
@@ -186,7 +186,8 @@
 
 (define (generate-missing-rules)
   (for ([repr (*needed-reprs*)] 
-       #:unless (set-member? (*reprs-with-rules*) repr))
+       #:unless (or (set-member? (*reprs-with-rules*) repr)
+                    (equal? (representation-name repr) 'bool)))
     (generate-rules-for (type-name (representation-type repr))
                         (representation-name repr))))
 

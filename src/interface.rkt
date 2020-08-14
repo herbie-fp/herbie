@@ -44,12 +44,19 @@
   (for/or ([proc repr-generators])
     (proc repr-name)))
 
+;; The set of reprs that Herbie comes across is collected here. This is the best place to guarantee 
+;; that all the correct rules are generated but it'll collect more reprs than is necessary.
+;; TODO: Find a better place to put this. Watch out for problems with multithreading / parameters. 
 (define (get-representation name)
   (cond
    [(hash-has-key? representations name) ; check existing
-    (hash-ref representations name)]
+    (define repr (hash-ref representations name))
+    (*needed-reprs* (set-add (*needed-reprs*) repr))
+    repr]
    [(generate-repr name)  ; ask plugins to try generating this repr
-    (hash-ref representations name)]
+    (define repr (hash-ref representations name))
+    (*needed-reprs* (set-add (*needed-reprs*) repr))
+    repr]
    [else (error 'get-representation "Unknown representation ~a" name)])) ; else, fail
 
 (define (register-representation! name type repr? . args)
