@@ -92,7 +92,8 @@
        [else (check-equal? v1 v2)]))))
 
 (module+ main
-  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (generate-rules-for 'real 'binary64)
+  (generate-rules-for 'real 'binary32)
   (command-line
    #:args names
    (for ([name names])
@@ -103,7 +104,6 @@
 (module+ test
   (generate-rules-for 'real 'binary64)
   (generate-rules-for 'real 'binary32)
-
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
 
     (define ground-truth

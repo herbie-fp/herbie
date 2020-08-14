@@ -2,7 +2,8 @@
 (require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt")
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" 
+         "syntax/rules.rkt" (submod "syntax/rules.rkt" internals) "profile.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -32,7 +33,9 @@
 ;; it seems to defeat the purpose of parameters. Is it better to not to use parameters? What happens if Herbie
 ;; is run with multithreading?
 ;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
-(define (update-rules all simplify fp-safe)
+(define (update-rules reprs rulesets all simplify fp-safe)
+  (*reprs-with-rules* reprs)
+  (*rulesets* rulesets)
   (*rules* all)
   (*simplify-rules* simplify)
   (*fp-safe-simplify-rules* fp-safe))
@@ -50,6 +53,7 @@
 
   ;; Needed to restore rules
   (define reprs-encountered '())
+  (define rulesets '())
   (define all-rules '())
   (define simplify-rules '())
   (define fp-safe-rules '())
@@ -73,6 +77,7 @@
 
         ; Store this thread's set of rules, reprs
         (set! reprs-encountered (*reprs-with-rules*))
+        (set! rulesets (*rulesets*))
         (set! all-rules (*rules*))
         (set! simplify-rules (*simplify-rules*))
         (set! fp-safe-rules (*fp-safe-simplify-rules*))
@@ -145,8 +150,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (begin ; update state
-        (*reprs-with-rules* reprs-encountered)
-        (update-rules all-rules simplify-rules fp-safe-rules)
+        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)

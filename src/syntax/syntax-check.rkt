@@ -91,9 +91,12 @@
              [repr (with-handlers ([exn:fail? (const false)])
                      (get-representation (syntax-e* prec)))])
         (if repr
-            (*needed-reprs* (cons repr (*needed-reprs*)))
+            (unless (set-member? (*needed-reprs*) repr)
+              (*needed-reprs* (cons repr (*needed-reprs*))))
             (error! prec "Unknown :precision ~a" prec)))
-      (*needed-reprs* (cons (get-representation 'binary64) (*needed-reprs*))))
+      (let ([default (get-representation 'binary64)])
+        (unless (set-member? (*needed-reprs*) default)
+          (*needed-reprs* (cons default (*needed-reprs*))))))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

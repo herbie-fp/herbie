@@ -3,7 +3,7 @@
 (require (submod "syntax/types.rkt" internals) (submod "interface.rkt" internals)
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide define-type define-representation define-constant define-operator
-         define-ruleset define-ruleset* 
+         define-ruleset define-ruleset* register-ruleset!
          register-generator! register-representation! register-constant! register-operator!
          load-herbie-plugins)
 
