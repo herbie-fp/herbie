@@ -86,14 +86,14 @@
     (unless (string? (syntax-e desc))
       (error! desc "Invalid :description ~a; must be a string" desc)))
 
-  (when (dict-has-key? prop-dict ':precision)
-    (define prec (dict-ref prop-dict ':precision))
-    (define known-repr?
-      (with-handlers ([exn:fail? (const false)])
-        (get-representation (syntax-e* prec))
-        true))
-    (unless known-repr?
-      (error! prec "Unknown :precision ~a" prec)))
+  (if (dict-has-key? prop-dict ':precision)
+      (let* ([prec (dict-ref prop-dict ':precision)]
+             [repr (with-handlers ([exn:fail? (const false)])
+                     (get-representation (syntax-e* prec)))])
+        (if repr
+            (*needed-reprs* (cons repr (*needed-reprs*)))
+            (error! prec "Unknown :precision ~a" prec)))
+      (*needed-reprs* (cons (get-representation 'binary64) (*needed-reprs*))))
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))

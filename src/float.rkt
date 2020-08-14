@@ -128,10 +128,9 @@
   (cond
    [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
     ((type-exact->inexact type) x)]
-   [else
     ;; TODO(interface): ->bf is used to convert syntactic numbers to
     ;; bf values. For 'complex' type, syntactic numbers are still
     ;; reals, so we need to call `bf` here
-    (if (eq? (representation-name repr) 'complex)
-      (bf x)
-      ((representation-repr->bf repr) (real->repr x repr)))]))
+   [(eq? (representation-name repr) 'complex) (bf x)]
+   [((representation-repr? repr) x) ((representation-repr->bf repr) x)]
+   [else ((representation-repr->bf repr) (real->repr x repr))]))

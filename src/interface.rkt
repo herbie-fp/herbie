@@ -46,16 +46,11 @@
 
 (define (get-representation name)
   (cond
-   [(hash-has-key? representations name)
-    (define repr (hash-ref representations name))
-    (unless (equal? name 'bool)
-      (*needed-reprs* (cons repr (*needed-reprs*))))
-    repr]
-   [(generate-repr name)
-    (define repr (hash-ref representations name))
-    (*needed-reprs* (cons repr (*needed-reprs*)))
-    repr]
-   [else (error 'get-representation "Unknown representation ~a" name)]))
+   [(hash-has-key? representations name) ; check existing
+    (hash-ref representations name)]
+   [(generate-repr name)  ; ask plugins to try generating this repr
+    (hash-ref representations name)]
+   [else (error 'get-representation "Unknown representation ~a" name)])) ; else, fail
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
