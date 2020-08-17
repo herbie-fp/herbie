@@ -173,7 +173,7 @@
          (begin0
              (taylor-alt (^next-alt^) location)
            (timeline-push! 'times
-                           (location-get location (alt-program (^next-alt^)))
+                           (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
     (timeline-log! 'inputs (length (^locs^)))
@@ -196,7 +196,7 @@
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
              (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
-               (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
+               (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
     (append-map (curry map change-rule) changelists))

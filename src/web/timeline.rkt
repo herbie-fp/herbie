@@ -133,7 +133,7 @@
   `((dt "Search")
     (dd (table ([class "times"])
          (tr (th "True") (th "Other") (th "False") (th "Iter"))
-         ,@(for/list ([rec (in-list sampling)])
+         ,@(for/list ([rec (in-list (sort sampling < #:key first))])
              (match-define (list n wt wo wf) rec)
              `(tr (td ,(format-percent (/ wt total)))
                   (td ,(format-percent (/ wo total)))
@@ -218,7 +218,9 @@
                    `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-compiler compiler)
-  (match-define (list size compiled) compiler)
+  (match-define (list (list sizes compileds) ...) compiler)
+  (define size (apply + sizes))
+  (define compiled (apply + compileds))
   `((dt "Compiler")
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
            "(" ,(format-percent (- 1 (/ compiled size))) " saved)"))))

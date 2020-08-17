@@ -14,7 +14,7 @@
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
-    (define initial (hash 'type type 'time (current-inexact-milliseconds)))
+    (define initial (hash 'type (~a type) 'time (current-inexact-milliseconds)))
     (define b (make-hash (hash->list initial))) ; convert to mutable hash
     (set-box! *timeline* (cons b (unbox *timeline*)))))
 
@@ -52,24 +52,16 @@
     (for/hash ([(k v) (in-dict event)])
       (define v*
         (match k
-          ['type (~a v)]
           ['time (- (dict-ref next 'time) v)]
-          ['times
-           (for/list ([(expr times) (in-dict v)])
-             (cons (~a expr) times))]
           ['outcomes
            (for/list ([(outcome number) (in-dict v)])
              (match-define (cons count time) number)
              (match-define (list prog category prec) outcome)
              (hash 'count count 'time time
                    'program (~a prog) 'category (~a category) 'precision prec))]
-          ['bstep
-           (define n->js (curryr value->json repr))
-           (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
-          ['sampling (reverse v)]
-          ['compiler (first v)]
+          [(or 'compiler 'bstep 'times 'sampling) v]
           [(or 'accuracy 'oracle 'baseline 'name 'link) v]
-          [(or 'inputs 'outputs 'kept 'min-error 'egraph 'method 'rules 'locations)
+          [(or 'inputs 'outputs 'kept 'min-error 'egraph 'method 'rules 'locations 'type)
            v]))
 
       (values k v*))))
@@ -97,7 +89,10 @@
           ['method (append v (dict-ref data k '()))]
           ['rules (hash-union v (dict-ref data k #hash()) #:combine +)]
           ['times (sort (append v (dict-ref data k '())) > #:key cadr)]
-          ['compiler (map + v (dict-ref data k '(0 0)))]
+          ['compiler
+           (list
+            (list (apply + (map first (append (dict-ref data k '()) v)))
+                  (apply + (map second (append (dict-ref data k '()) v)))))]
           ['outcomes
            (define (key x) (map (curry hash-ref x) '(program category precision)))
            (for/list ([rows (group-by key (append v (dict-ref data k '())))])
@@ -110,7 +105,7 @@
            (append v (dict-ref data k '()))]
           ['sampling
            (if (dict-has-key? data k)
-               (let loop ([l1 v] [l2 (dict-ref data k)])
+               (let loop ([l1 (sort v < #:key first)] [l2 (sort (dict-ref data k) < #:key first)])
                  (match-define (list n1 wt1 wo1 wf1) (car l1))
                  (match-define (list n2 wt2 wo2 wf2) (car l2))
                  (define rec (list n1 (+ wt1 wt2) (+ wo1 wo2) (+ wf1 wf2)))
