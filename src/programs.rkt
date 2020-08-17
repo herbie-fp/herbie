@@ -326,11 +326,9 @@
          (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
          (values
-           (if (and full? (not (set-member? '(binary64 binary32) prec)))
-               (real->repr expr (get-representation prec))
-               (match expr
-                 [(or +inf.0 -inf.0 +nan.0) expr]
-                 [_ (inexact->exact expr)]))
+           (match expr
+             [(or +inf.0 -inf.0 +nan.0) expr]
+             [_ (inexact->exact expr)])
            prec)]
         [(? value?) (values expr prec)]
         [(? constant?) 
@@ -383,7 +381,7 @@
             [+nan.0 'NAN]
             [x 
              (if (set-member? '(binary64 binary32) (representation-name repr))
-                 x ; convert to flonum if binary64 or binary32
+                 (bigfloat->flonum bf) ; convert to flonum if binary64 or binary32
                  (bigfloat->real bf))]))
         expr)]
     [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
