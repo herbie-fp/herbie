@@ -1,10 +1,33 @@
 #lang racket
 
-(require racket/place)
+(require racket/place (only-in ffi/unsafe cpointer? cpointer-tag))
 (require "../common.rkt" "../sandbox.rkt" "../plugin.rkt" "pages.rkt"
-         "../syntax/read.rkt" "../datafile.rkt")
+         "../syntax/read.rkt" "../datafile.rkt" "../interface.rkt")
 
 (provide get-test-results)
+
+;; Place messages do not allow C-pointers, but documentation says they're supported (?).
+;; Assume the C-pointers are values in a representation and convert them to a 
+;; prefab struct
+(struct place-cpointer (value repr) #:prefab)
+
+(define (expr->place-expr expr) 
+  (match expr
+    [(list subexprs ...) (map expr->place-expr subexprs)]
+    [_
+      (if (and (cpointer? expr) expr) ; #f is considered a C-pointer
+          (let ([prec (first (cpointer-tag expr))]) ; assuming #<cpointer:prec>
+            (place-cpointer (repr->real expr (get-representation prec))
+                            prec))
+          expr)]))
+
+(define (place-expr->expr expr)
+  (match expr
+    [(list subexprs ...) (map place-expr->expr subexprs)]
+    [(? place-cpointer?) 
+     (real->repr (place-cpointer-value expr) 
+                 (get-representation (place-cpointer-repr expr)))]
+    [_ expr]))
 
 (define (graph-folder-path tname index)
   (format "~a-~a" index (string-prefix (string-replace tname #px"\\W+" "") 50)))
@@ -49,9 +72,22 @@
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
-      (match-define (list 'apply self id test) (place-channel-get ch))
-      (define result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir))
-      (place-channel-put ch `(done ,id ,self ,result)))))
+      (match-define (list 'apply self id prog) (place-channel-get ch))
+      (define test*
+        (struct-copy test prog
+          [input     (place-expr->expr (test-input prog))]
+          [output    (place-expr->expr (test-output prog))]
+          [pre       (place-expr->expr (test-pre prog))]
+          [spec      (place-expr->expr (test-spec prog))]))
+      (define result (run-test id test* #:seed seed #:profile profile? #:debug debug? #:dir dir))
+      (define result*
+        (struct-copy table-row result
+          [input     (expr->place-expr (table-row-input result))]
+          [output    (expr->place-expr (table-row-output result))]
+          [pre       (expr->place-expr (table-row-pre result))]
+          [spec      (expr->place-expr (table-row-spec result))]
+          [target    (expr->place-expr (table-row-target result))]))
+      (place-channel-put ch `(done ,id ,self ,result*)))))
 
 (define (print-test-result i n data)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
@@ -76,7 +112,13 @@
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
-      (list id prog)))
+      (list 
+        id
+        (struct-copy test prog
+          [input     (expr->place-expr (test-input prog))]
+          [output    (expr->place-expr (test-output prog))]
+          [pre       (expr->place-expr (test-pre prog))]
+          [spec      (expr->place-expr (test-spec prog))]))))
 
   (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
   (for ([worker workers])
@@ -96,10 +138,16 @@
           (place-channel-put more `(apply ,more ,@(car work)))
           (set! work (cdr work)))
 
-        (define out* (cons (cons id tr) out))
+        (define tr*
+          (struct-copy table-row tr
+          [input     (place-expr->expr (table-row-input tr))]
+          [output    (place-expr->expr (table-row-output tr))]
+          [pre       (place-expr->expr (table-row-pre tr))]
+          [spec      (place-expr->expr (table-row-spec tr))]
+          [target    (place-expr->expr (table-row-target tr))]))
 
-        (print-test-result (length out*) (length progs) tr)
-
+        (define out* (cons (cons id tr*) out))
+        (print-test-result (length out*) (length progs) tr*)
         (if (= (length out*) (length progs))
             out*
             (loop out*)))))
