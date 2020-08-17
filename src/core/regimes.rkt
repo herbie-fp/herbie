@@ -100,7 +100,7 @@
           ([splitpoint (cdr (reverse splitpoints))])
         (define name (representation-name repr))
         (define <=-operator (get-parametric-operator '<= name name))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr)) 
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
