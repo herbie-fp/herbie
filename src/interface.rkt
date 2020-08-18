@@ -138,6 +138,7 @@
 
 (define (real->repr x repr)
   (match x
+   [(? boolean?) x]
    [(? real?) ((representation-bf->repr repr) (bf x))] ; put this first, important
    [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
    [(? value?) ; value in another repr, convert to new repr through bf
@@ -147,7 +148,9 @@
    [_ (error 'real->repr "Unknown value ~a" x)]))
 
 (define (repr->real x repr)
-  (bigfloat->real ((representation-repr->bf repr) x)))
+  (match x
+    [(? boolean?) x]
+    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
 
 ;; Predicates
 
