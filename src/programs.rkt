@@ -16,7 +16,7 @@
          free-variables replace-expression
          desugar-program resugar-program)
 
-(define expr? (or/c list? symbol? value?))
+(define expr? (or/c list? symbol? value? real?))
 
 (define location? (listof natural-number/c))
 
@@ -123,12 +123,6 @@
     ['fl (λ (repr x) (real->repr x repr))]
     ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
     ['nonffi (λ (repr x) x)]))
-
-  (define precision->real (match mode
-    ['bf identity]
-    ['fl (curryr repr->real repr)]
-    ['ival identity]
-    ['nonffi identity]))
   
   (define vars (program-variables (first progs)))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
@@ -142,7 +136,7 @@
   (define (munge prog repr)
     (define expr
       (match prog
-        [(? value?) (list (const (real->precision repr prog)))]
+        [(? real?) (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
@@ -184,7 +178,7 @@
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
     (for/vector ([n (in-list names)])
-      (precision->real (vector-ref v n)))))
+      (vector-ref v n))))
 
 (module+ test
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
@@ -379,7 +373,7 @@
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
-    [(? value?)
+    [(? real?)
      (if full?
          (match expr
            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring

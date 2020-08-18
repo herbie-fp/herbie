@@ -87,7 +87,7 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define-representation (binary64 real real?)
+(define-representation (binary64 real flonum?)
   bigfloat->flonum
   bf
   (shift 63 ordinal->flonum)
@@ -126,7 +126,7 @@
                (if (bf< x2 x) (single-flonum-step y 1) y)
                (if (bf> x2 x) (single-flonum-step y -1) y))]))
 
-(define-representation (binary32 real real?)
+(define-representation (binary32 real single-flonum?)
   bigfloat->single-flonum
   bf
   ordinal->single-flonum
@@ -138,13 +138,8 @@
 
 (define (real->repr x repr)
   (match x
-   [(? boolean?) x]
-   [(? real?) ((representation-bf->repr repr) (bf x))] ; put this first, important
    [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
-   [(? value?) ; value in another repr, convert to new repr through bf
-    (for/first ([(name repr*) (in-hash representations)]
-               #:when ((representation-repr? repr*) x))
-      ((representation-bf->repr repr) ((representation-repr->bf repr*) x)))]
+   [(? real?) ((representation-bf->repr repr) (bf x))]
    [_ (error 'real->repr "Unknown value ~a" x)]))
 
 (define (repr->real x repr)

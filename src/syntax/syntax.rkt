@@ -566,8 +566,8 @@
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
-  (or (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 
-                                          (dict-has-key? (cdr constants) var)))))
+  (or (real? var) (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 
+                                                      (dict-has-key? (cdr constants) var)))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

@@ -14,20 +14,20 @@
  value->string value->json
  ->bf)
 
-(define (real->ordinal x repr)
-  ((representation-repr->ordinal repr) (real->repr x repr)))
-
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
     (+ (ulp-difference (real-part x) (real-part y) (get-representation 'binary64))
        (ulp-difference (imag-part x) (imag-part y) (get-representation 'binary64)))
-    (+ 1 (abs (- (real->ordinal y repr) (real->ordinal x repr))))))
+    (let ([->ordinal (representation-repr->ordinal repr)])
+      (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
 (define (midpoint p1 p2 repr)
   ((representation-ordinal->repr repr)
-   (floor (/ (+ (real->ordinal p1 repr) (real->ordinal p2 repr)) 2))))
+   (floor (/ (+ ((representation-repr->ordinal repr) p1)
+                ((representation-repr->ordinal repr) p2))
+             2))))
 
 (define (ulps->bits x) (log x 2))
 
@@ -40,7 +40,7 @@
       ;; what repr the complex implementation is using
       (and (ordinary-value? (real-part x) (get-representation 'binary64))
            (ordinary-value? (imag-part x) (get-representation 'binary64)))
-      (not (special-value? (real->repr x repr) repr))))
+      (not (special-value? x repr))))
 
 
 (define (largest-ordinary-value repr)
@@ -67,11 +67,11 @@
   (check-false (ordinary-value? -inf.f binary32)))
 
 (define (=-or-nan? x1 x2 repr)
-  (or (= (real->ordinal x1 repr) (real->ordinal x2 repr))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (or (= (->ordinal x1) (->ordinal x2))
       (if (real? x1) ; Infinities are considered special values for real reprs for some reason
           (and (nan? x1) (nan? x2))
-          (and (special-value? (real->repr x1 repr) repr) 
-               (special-value? (real->repr x2 repr) repr)))))
+          (and (special-value? x1 repr) (special-value? x2 repr)))))
 
 (define (</total x1 x2 repr)
   (cond
@@ -80,34 +80,29 @@
    [(and (real? x1) (real? x2))
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
-    (define x1* (real->repr x1 repr))
-    (define x2* (real->repr x2 repr))
     (cond
-     [(special-value? x1* repr) #f]
-     [(special-value? x2* repr) #t]
-     [else (< ((representation-repr->ordinal repr) x1*)
-              ((representation-repr->ordinal repr) x2*))])]))
+     [(special-value? x1 repr) #f]
+     [(special-value? x2 repr) #t]
+     [else (< ((representation-repr->ordinal repr) x1)
+              ((representation-repr->ordinal repr) x2))])]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
 
 (define (value->json x repr)
-  (define x* (real->repr x repr))
-  (match x*
+  (match x
     [(? real?)
-     (match x*
-       [(? rational?) x*]
+     (match x
+       [(? rational?) x]
        [(or -inf.0 -inf.f) (hash 'type "real" 'value "-inf")]
        [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
-    [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x*)))]))
+    [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* 
-    (let ([n* (real->repr n repr)]) 
-      (if (and (number? n*) (exact? n*)) (exact->inexact n*) n*)))
+  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
