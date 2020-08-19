@@ -99,7 +99,9 @@
    (for ([name names])
      (eprintf "Checking ~a...\n" name)
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-     (check-rule-correct rule ival-ground-truth))))
+     (check-rule-correct rule ival-ground-truth)
+     (when (set-member? (*fp-safe-simplify-rules*) rule)
+      (check-rule-fp-safe rule)))))
 
 (module+ test
   (generate-rules-for 'real 'binary64)

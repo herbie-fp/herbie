@@ -133,4 +133,4 @@
     ;; reals, so we need to call `bf` here
    [(eq? (representation-name repr) 'complex) (bf x)]
    [((representation-repr? repr) x) ((representation-repr->bf repr) x)]
-   [else ((representation-repr->bf repr) (real->repr x repr))]))
+   [else (bf x)])) ; assume real

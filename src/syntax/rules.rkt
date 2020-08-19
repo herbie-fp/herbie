@@ -160,7 +160,8 @@
   (define repr (get-representation repr-name))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
   (for ([set templated-rulesets]
-       #:when (ormap (λ (p) (equal? (cdr p) type)) (third set)))
+       #:when (or (empty? (third set)) ; no type ctx
+                  (ormap (λ (p) (equal? (cdr p) type)) (third set))))
     (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
     (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t type) repr-name t))))
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
