@@ -36,16 +36,16 @@
 
 (define (update-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups)
-    (all-rules (append rules (all-rules)))))
+    (all-rules (append (all-rules) rules))))
 
 (define (update-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-    (simplify-rules (append rules (simplify-rules)))))
+    (simplify-rules (append (simplify-rules) rules))))
 
 (define (update-fp-safe-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'fp-safe) (set-member? groups 'simplify))
-    (fp-safe-simplify-rules (append rules (fp-safe-simplify-rules)))))
+    (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -178,7 +178,6 @@
                     rules*)
               rules*))))      ; else, assume the expression(s) are not supported in the repr
     (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (*rulesets* (cons (list rules* groups ctx) (*rulesets*)))
       (update-rules rules* groups)
       (update-simplify-rules rules* groups)
       (update-fp-safe-simplify-rules rules* groups))))
