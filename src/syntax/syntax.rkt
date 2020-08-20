@@ -7,7 +7,7 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*
-         repr-conv?)
+         repr-conv? rewrite-repr-op?)
 
 (module+ internals 
   (provide operators constants define-constant define-operator infix-joiner
@@ -172,7 +172,7 @@
       true-name)))
 
 (define (repr-conv? expr)
-  (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" (symbol->string expr)))
+  (regexp-match? #rx"^[A-Za-z0-9_]+(->)[A-Za-z0-9_]+$" (symbol->string expr)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -561,6 +561,25 @@
 (define-operator (cast cast.f32 binary32) binary32
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
+
+(define-operator (binary64->binary32 binary64->binary32 binary64) binary32
+  [fl (curryr real->single-flonum)] [bf identity] [ival #f]
+  [nonffi (curryr real->single-flonum)])
+
+(define-operator (binary32->binary64 binary32->binary64 binary32) binary64
+  [fl (curryr real->double-flonum)] [bf identity] [ival #f]
+  [nonffi (curryr real->double-flonum)])
+
+;; Rewrite operators in a different repr ;;
+
+(define (rewrite-repr-op? expr)
+  (regexp-match? #rx"^(->)[A-Za-z0-9_]+$" (symbol->string expr)))
+
+(define-operator (rewrite ->binary64 binary64) binary64
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
+
+;; Expression predicates ;;
 
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))

@@ -212,11 +212,18 @@
       (for/fold ([altn altn]) ([cng cl])
         (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
 
+  (define rewritten*
+    (filter (λ (altn) (program-body (alt-program altn)))
+      (map (λ (altn) (alt (apply-repr-change (alt-program altn))
+                          (alt-event altn)
+                          (alt-prevs altn)))
+           rewritten)))
+
   (timeline-log! 'inputs (length (^locs^)))
   (timeline-log! 'rules rule-counts)
-  (timeline-log! 'outputs (length rewritten))
+  (timeline-log! 'outputs (length rewritten*))
 
-  (^children^ (append (^children^) rewritten))
+  (^children^ (append (^children^) rewritten*))
   (^gened-rewrites^ #t)
   (void))
 

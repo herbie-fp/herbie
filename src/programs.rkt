@@ -14,7 +14,8 @@
          location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program)
+         desugar-program resugar-program
+         apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
 
@@ -305,7 +306,7 @@
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
          (define-values (iprec oprec)
            (let ([split (string-split (symbol->string op) "->")])
-             (values (first split) (last split))))
+             (values (string->symbol (first split)) (string->symbol (last split)))))
          (define-values (body* rtype) (loop body iprec))
          (values (list op body*) oprec)]
         [(list (and (or 're 'im) op) arg)
@@ -412,3 +413,26 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+  
+(define (apply-repr-change prog)
+  (define (loop expr prec)
+    (match expr
+     [(list (? rewrite-repr-op? op) body)
+      (define prec* 
+        (string->symbol 
+          (second (regexp-match #rx"->([A-Za-z0-9_]+)" (symbol->string op)))))
+      (loop body prec*)]
+     [(list (? operator? op) args ...) 
+      (define prec* (if prec prec (operator-info op 'otype)))
+      (if (equal? (operator-info op 'otype) prec*)
+          (let ([args* (map loop args (operator-info op 'itype))])
+            (and (andmap identity args*) (cons op args*)))
+          (let ([op* (apply get-parametric-operator 
+                            (hash-ref parametric-operators-reverse op)
+                            (make-list (length args) prec*))]
+                [args* (map (curryr loop prec*) args)])
+            (and op* (andmap identity args*) (cons op* args*))))]
+     [_ expr]))
+  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
+  `(,lam ,args ,(loop body #f)))
+      

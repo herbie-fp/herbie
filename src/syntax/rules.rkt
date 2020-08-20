@@ -137,6 +137,10 @@
   [or-false-r   (or a FALSE)     a]
   [or-same      (or a a)         a])
 
+(define-ruleset promotef32->f64 (arithmetic)
+  #:type ([a binary32])
+  [promotef32->f64    a     (binary64->binary32 (->binary64 a))])
+
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
 
