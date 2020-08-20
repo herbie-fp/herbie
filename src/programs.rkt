@@ -11,7 +11,7 @@
          expr-supports?
          location-hash
          location? expr?
-         location-do location-get
+         location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program
@@ -105,6 +105,24 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
+
+(define (location-repr loc prog repr var-reprs)
+  (let loop ([expr prog] [repr repr] [loc loc])
+    (cond
+     [(null? loc)
+      (get-representation
+        (if (operator? expr)
+            (operator-info expr 'otype)
+            (repr-of expr repr var-reprs)))]
+     [(not (pair? expr))
+      (error "Bad location: cannot enter " expr "any further.")]
+     [else
+      (match expr
+        [(list (? operator? op) args ...)
+         (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
+         (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
+        [(list (or 'λ 'lambda) (list vars ...) body)
+         (loop (list-ref expr (car loc)) repr (cdr loc))])])))
 
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
@@ -420,7 +438,7 @@
      [(list (? rewrite-repr-op? op) body)
       (define prec* 
         (string->symbol 
-          (second (regexp-match #rx"->([A-Za-z0-9_]+)" (symbol->string op)))))
+          (second (regexp-match #rx"<-([A-Za-z0-9_]+)" (symbol->string op)))))
       (loop body prec*)]
      [(list (? operator? op) args ...) 
       (define prec* (if prec prec (operator-info op 'otype)))

@@ -137,9 +137,21 @@
   [or-false-r   (or a FALSE)     a]
   [or-same      (or a a)         a])
 
-(define-ruleset promotef32->f64 (arithmetic)
+(define-ruleset rewritef32->f64 (arithmetic)
   #:type ([a binary32])
-  [promotef32->f64    a     (binary64->binary32 (->binary64 a))])
+  [rewritef32->f64    a     (binary64->binary32 (<-binary64 a))])
+
+(define-ruleset rewritef64->f32 (arithmetic)
+  #:type ([a binary64])
+  [rewritef64->f32    a     (binary32->binary64 (<-binary32 a))])
+
+(define-ruleset insert-f64cast-f32 (arithmetic)
+  #:type ([a binary32])
+  [insert-f64cast-f32   a   (cast.f32 (cast.f64 a))])
+
+(define-ruleset insert-f32cast-f64 (arithmetic)
+  #:type ([a binary64])
+  [insert-f32cast-f64   a   (cast.f64 (cast.f32 a))])
 
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.

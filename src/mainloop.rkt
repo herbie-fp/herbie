@@ -138,8 +138,15 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
+; taylor uses older format, resugaring and desugaring needed
+(define (taylor-expr expr repr vars transformer)
+  (define expr* (resugar-program expr repr #:full #f))
+  (define approx (approximate expr* vars #:transform transformer))
+  (desugar-program approx repr (*var-reprs*) #:full #f))
+
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
+  (define repr (location-repr loc (alt-program altn) (*output-repr*) (*var-reprs*)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
           (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
@@ -148,17 +155,9 @@
       (for/list ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
         (define transformer (map (const (cons f finv)) vars))
-        (alt
-         (location-do loc 
-                      (alt-program altn) 
-                      (λ (x) ; taylor uses older format, resugaring and desugaring needed
-                        (desugar-program
-                            (approximate (resugar-program x (*output-repr*) #:full #f)
-                                         vars #:transform transformer)
-                            (*output-repr*) (*var-reprs*)
-                            #:full #f)))
-         `(taylor ,name ,loc)
-         (list altn)))))
+        (alt (location-do loc (alt-program altn) (curryr taylor-expr repr vars transformer))
+            `(taylor ,name ,loc)
+             (list altn)))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
@@ -207,23 +206,21 @@
         (values (rule-name (first rgroup)) (length rgroup))))
      > #:key cdr))
 
-  (define rewritten
-    (for/list ([cl changelists])
-      (for/fold ([altn altn]) ([cng cl])
-        (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
+  (define (repr-rewrite-alt altn)
+    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
 
-  (define rewritten*
+  (define rewritten
     (filter (λ (altn) (program-body (alt-program altn)))
-      (map (λ (altn) (alt (apply-repr-change (alt-program altn))
-                          (alt-event altn)
-                          (alt-prevs altn)))
-           rewritten)))
+      (map repr-rewrite-alt
+        (for/list ([cl changelists])
+          (for/fold ([altn altn]) ([cng cl])
+            (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
   (timeline-log! 'inputs (length (^locs^)))
   (timeline-log! 'rules rule-counts)
-  (timeline-log! 'outputs (length rewritten*))
+  (timeline-log! 'outputs (length rewritten))
 
-  (^children^ (append (^children^) rewritten*))
+  (^children^ (append (^children^) rewritten))
   (^gened-rewrites^ #t)
   (void))
 

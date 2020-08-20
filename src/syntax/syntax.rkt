@@ -571,11 +571,16 @@
   [nonffi (curryr real->double-flonum)])
 
 ;; Rewrite operators in a different repr ;;
+;; These operators are temporary and only appear during rewrites
 
 (define (rewrite-repr-op? expr)
-  (regexp-match? #rx"^(->)[A-Za-z0-9_]+$" (symbol->string expr)))
+  (regexp-match? #rx"^(<-)[A-Za-z0-9_]+$" (symbol->string expr)))
 
-(define-operator (rewrite ->binary64 binary64) binary64
+(define-operator (<-binary64 <-binary64 binary64) binary64
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
+
+(define-operator (<-binary32 <-binary32 binary32) binary32
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
 
