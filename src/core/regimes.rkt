@@ -100,7 +100,7 @@
           ([splitpoint (cdr (reverse splitpoints))])
         (define name (representation-name repr))
         (define <=-operator (get-parametric-operator '<= name name))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(sp-point splitpoint))
+        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
 
@@ -142,7 +142,7 @@
   (option split-indices alts pts expr (pick-errors split-indices pts err-lsts)))
 
 (define/contract (pick-errors split-indices pts err-lsts)
-  (-> (listof si?) (listof (listof value?)) (listof (listof value?))
+  (-> (listof si?) (listof (listof value?)) (listof (listof real?))
       (listof nonnegative-integer?))
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
     (for/first ([si split-indices] #:when (< i (si-pidx si)))

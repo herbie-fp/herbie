@@ -16,7 +16,7 @@
          free-variables replace-expression
          desugar-program resugar-program)
 
-(define expr? (or/c list? symbol? value?))
+(define expr? (or/c list? symbol? value? real?))
 
 (define location? (listof natural-number/c))
 
@@ -136,8 +136,7 @@
   (define (munge prog repr)
     (define expr
       (match prog
-        [(? value?) 
-          (list (const (real->precision repr prog)))]
+        [(? real?) (list (const (real->precision repr prog)))]
         [(? constant?) (list (constant-info prog mode))]
         [(? variable?) prog]
         [`(if ,c ,t ,f)
@@ -148,8 +147,8 @@
         [(list op args ...)
          (define atypes
            (match (operator-info op 'itype)
-             [(? list? as) as]
-             [(? symbol? a) (map (const a) args)]))
+             [(? representation-name? a) (map (const a) args)] ; must be first
+             [(? list? as) as]))
          (unless (= (length atypes) (length args))
            (raise-argument-error 'eval-prog "expr?" prog))
          (cons (operator-info op mode)
@@ -326,16 +325,13 @@
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
         [(? real?) 
-         ;; convert to repr if a representation does not support 'real' numbers in Racket (e.g. posits)
-         ;; else make exact
-         (if (and full? (not (set-member? '(binary64 binary32) prec)))
-             (values (real->repr expr (get-representation prec)) prec) 
-             (values
-               (match expr
-                 [(or +inf.0 -inf.0 +nan.0) expr]
-                 [_ (inexact->exact expr)])
-               prec))]
-        [(? value?) (values expr prec)]
+         (values
+           (match expr
+             [(or +inf.0 -inf.0 +nan.0) expr]
+             [(? exact?) expr]
+             [_ (inexact->exact expr)])
+           prec)]
+        [(? boolean?) (values expr 'bool)]
         [(? constant?) 
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
          (define constant* (get-parametric-constant expr prec*))
@@ -350,7 +346,6 @@
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
 (define (expand-parametric-reverse expr repr full?)
-  (define ->bf (representation-repr->bf repr))
   (match expr
     [(list 'if cond ift iff)
      (define cond* (expand-parametric-reverse cond repr full?))
@@ -368,8 +363,8 @@
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
        (match (operator-info op 'itype)
-         [(? list? as) as]
-         [(? symbol? a) (map (const a) args)]))
+         [(? representation-name? a) (map (const a) args)] ; some repr names are lists
+         [(? list? as) as]))   
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))
@@ -378,18 +373,17 @@
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
-    [(? value?)
+    [(? real?)
      (if full?
-        (let ([bf (->bf expr)])
-          (match (bigfloat->flonum bf)
-            [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
-            [+inf.0 'INFINITY]
-            [+nan.0 'NAN]
-            [x 
-             (if (set-member? '(binary64 binary32) (representation-name repr))
-                 (bigfloat->flonum bf) ; convert to flonum if binary64 or binary32
-                 (bigfloat->real bf))]))
-        expr)]
+         (match expr
+           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+           [+inf.0 'INFINITY]
+           [+nan.0 'NAN]
+           [x
+            (if (set-member? '(binary64 binary32) (representation-name repr))
+                 (exact->inexact x) ; convert to flonum if binary64 or binary32
+                 x)])
+         expr)]
     [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 

@@ -92,14 +92,20 @@
        [else (check-equal? v1 v2)]))))
 
 (module+ main
+  (generate-rules-for 'real 'binary64)
+  (generate-rules-for 'real 'binary32)
   (command-line
    #:args names
    (for ([name names])
      (eprintf "Checking ~a...\n" name)
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-     (check-rule-correct rule ival-ground-truth))))
+     (check-rule-correct rule ival-ground-truth)
+     (when (set-member? (*fp-safe-simplify-rules*) rule)
+      (check-rule-fp-safe rule)))))
 
 (module+ test
+  (generate-rules-for 'real 'binary64)
+  (generate-rules-for 'real 'binary32)
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
 
     (define ground-truth

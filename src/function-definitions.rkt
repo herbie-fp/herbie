@@ -28,13 +28,14 @@
   (define known-function? (curry dict-has-key? known-functions))
 
   (define definition-rules ; these rules are unparameterized
-    (map 
-      (λ (r)
-        (rule (rule-name r)
-              (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f)
-              (resugar-program (rule-output r) (get-representation (rule-otype r)) #:full #f)
-              (rule-itypes r) (rule-otype r)))
-      (filter definition-rule? (*rules*))))
+    (remove-duplicates
+      (map 
+        (λ (r)
+          (rule (rule-name r)
+                (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f)
+                (resugar-program (rule-output r) (get-representation (rule-otype r)) #:full #f)
+                (rule-itypes r) (rule-otype r)))
+        (filter definition-rule? (*rules*)))))
 
   (let loop ()
     (define continue? #f)
