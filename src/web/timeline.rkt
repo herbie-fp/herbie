@@ -228,12 +228,15 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([data (sort outcomes > #:key (curryr dict-ref 'time))])
-             `(tr (td ,(format-time (dict-ref data 'time)))
-                  (td ,(~a (dict-ref data 'count)) "×")
-                  (td ,(~a (dict-ref data 'program)))
-                  (td ,(~a (dict-ref data 'precision)))
-                  (td ,(~a (dict-ref data 'category)))))))))
+         ,@(for/list ([data (sort (hash->list outcomes) > #:key second)])
+             (match-define
+              (list (app symbol->string
+                         (regexp #rx"^(.+)/([0-9]+)/(.*)$"
+                                 (list _ prog (app string->number precision) category)))
+                    time count)
+              data)
+             `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
+                  (td ,(~a precision)) (td ,(~a category))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 

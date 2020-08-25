@@ -36,24 +36,25 @@
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
   (define (log! . args)
-    (define key
+    (match-define (list category prec)
       (match args
         [`(exit ,prec ,pt)
-         (define key (list name 'exit prec))
+         (define key (list 'exit prec))
          (warn 'ground-truth #:url "faq.html#ground-truth"
                "could not determine a ground truth for program ~a" name
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
         [`(overflowed ,prec ,pt)
-         (list name 'overflowed prec)]
-        [`(sampled ,prec ,pt #f) (list name 'false prec)]
-        [`(sampled ,prec ,pt #t) (list name 'true prec)]
-        [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
-        [`(infinite ,prec ,pt ,_) (list name 'invalid prec)]
-        [`(nan ,prec ,pt) (list name 'nan prec)]))
+         (list 'overflowed prec)]
+        [`(sampled ,prec ,pt #f) (list 'false prec)]
+        [`(sampled ,prec ,pt #t) (list 'true prec)]
+        [`(sampled ,prec ,pt ,_) (list 'valid prec)]
+        [`(infinite ,prec ,pt ,_) (list 'invalid prec)]
+        [`(nan ,prec ,pt) (list 'nan prec)]))
+    (define key (string->symbol (format "~a/~a/~a" name prec category)))
     (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
+    (hash-update! dict key (curry map + (list dt 1)) (list 0 0)))
   (if dict log! void))
 
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
