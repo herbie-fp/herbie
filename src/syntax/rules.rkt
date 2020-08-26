@@ -4,7 +4,8 @@
 
 (require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
+(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
+                           *derivative-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
                             *rulesets* generate-rules-for))
 
@@ -14,6 +15,7 @@
 ;; Cached rules
 (define all-rules (make-parameter '()))
 (define simplify-rules (make-parameter '()))
+(define derivative-rules (make-parameter '()))
 (define fp-safe-simplify-rules (make-parameter '()))
 
 ;; Exported parameters to update and access rules
@@ -27,6 +29,11 @@
                           identity 
                           (λ (_) (generate-missing-rules) (simplify-rules))))
 
+(define *derivative-rules*
+  (make-derived-parameter derivative-rules
+                          identity
+                          (λ (_) (generate-missing-rules) (derivative-rules))))
+
 (define *fp-safe-simplify-rules*
   (make-derived-parameter fp-safe-simplify-rules 
                           identity 
@@ -35,12 +42,23 @@
 ;; Update parameters
 
 (define (update-rules rules groups)
+  (unless (empty? rules)   ; only add the ruleset if it contains one
+    (update-rules-rules rules groups)
+    (update-simplify-rules rules groups)
+    (update-derivative-rules rules groups)
+    (update-fp-safe-simplify-rules rules groups)))
+
+(define (update-rules-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups)
     (all-rules (append (all-rules) rules))))
 
 (define (update-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
     (simplify-rules (append (simplify-rules) rules))))
+
+(define (update-derivative-rules rules groups)
+  (when (or (set-member? groups 'derivative) (set-member? groups 'simplify))
+    (derivative-rules (append (derivative-rules) rules))))
 
 (define (update-fp-safe-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups)
@@ -107,9 +125,7 @@
       (rule (gen-unique-rule-name rname) input output var-ctx 
             (type-of-rule input output var-ctx))))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups)
-  (update-simplify-rules rules* groups)
-  (update-fp-safe-simplify-rules rules* groups))
+  (update-rules rules* groups))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -177,10 +193,7 @@
                           ctx (type-of-rule input* output* ctx))
                     rules*)
               rules*))))      ; else, assume the expression(s) are not supported in the repr
-    (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (update-rules rules* groups)
-      (update-simplify-rules rules* groups)
-      (update-fp-safe-simplify-rules rules* groups))))
+    (update-rules rules* groups)))
 
 ;; Generate rules for new reprs
 
@@ -441,7 +454,7 @@
   [unpow3          (pow a 3)                  (* (* a a) a)]
   [unpow1/3        (pow a 1/3)                (cbrt a)])
 
-(define-ruleset* pow-transform (exponents)
+(define-ruleset* pow-transform (exponents derivative)
   #:type ([a real] [b real] [c real])
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
@@ -729,3 +742,21 @@
   [erf-odd          (erf (neg x))        (neg (erf x))]
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
+
+(define-ruleset* derive-rules (derivative)
+  #:type ([x real] [a real] [b real])
+  [d-variable       (d x x)              1]
+  [d-add            (d (+ a b) x)        (+ (d a x) (d b x))]
+  [d-sub            (d (- a b) x)        (- (d a x) (d b x))]
+  [d-mul            (d (* a b) x)        (+ (* a (d b x))
+                                            (* b (d a x)))]
+  [d-div            (d (/ a b) x)        (/ (- (* b (d a x)) (* a (d b x)))
+                                            (* b b))]
+  ;; todo add with check that a is non-zero
+  [d-power          (d (pow a b) x)      (* (pow a b)
+                                            (+ (* (d a x)
+                                               (/ b a))
+                                            (* (d b x)
+                                               (log a))))]
+  [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
+  [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))])

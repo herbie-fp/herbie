@@ -291,6 +291,10 @@
          (define-values (ift* rtype) (loop ift prec))
          (define-values (iff* _b) (loop iff prec))
          (values (list 'if cond* ift* iff*) rtype)]
+        [(list 'd term var)
+         (define-values (term* rtype) (loop term prec))
+         (define-values (var* _b) (loop var prec))
+         (values (list 'd term* var*) rtype)]
         [(list '! props ... body)
          (define props* (apply hash-set* (hash) props))
          (cond

@@ -562,6 +562,15 @@
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
 
+;; Differentiation and substitution
+
+(define throw-derive-error
+        (lambda (a b) (error "derivative operator should not exist outside of e-graph")))
+(define-operator (d d real real) real
+  [itype 'real] [otype 'real]
+  [fl throw-derive-error] [bf throw-derive-error]
+  [ival throw-derive-error] [nonffi throw-derive-error])
+
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
 
