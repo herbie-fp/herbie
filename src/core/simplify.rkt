@@ -3,7 +3,7 @@
 (require pkg/lib)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
 
-(provide simplify-expr simplify-batch)
+(provide simplify-expr simplify-batch differentiate-expr)
 (module+ test (require rackunit))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
@@ -26,14 +26,20 @@
    (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
 
 ;; prefab struct used to send rules to egg-herbie
-(struct irule (name input output) #:prefab)
+;; if is-build-in is true, it is a rule that egg-herbie defines, including rust code
+(struct irule (name input output is-built-in) #:prefab)
 
 (define (rules->irules rules)
   (if use-egg-math?
       (for/list [(rule rules)]
-        (irule (rule-name rule) (rule-input rule) (rule-output rule)))
+        (irule (rule-name rule) (rule-input rule) (rule-output rule)
+               (is-built-in-rule? (rule-name rule))))
       (list)))
 
+
+(define/contract (differentiate-expr expr)
+  (-> expr? expr?)
+  (first (simplify-batch (list expr) #:rules (*differentiation-rules*) #:precompute true)))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
@@ -41,22 +47,23 @@
 
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-
   (define driver
     (cond
-     [use-egg-math?
-      simplify-batch-egg]
-     [else
-      (warn 'simplify #:url "faq.html#egg-herbie"
-            "Falling back on regraph because egg-herbie package not installed")
-      simplify-batch-regraph]))
-
+      [use-egg-math?
+        simplify-batch-egg]
+      [else
+        (warn 'simplify #:url "faq.html#egg-herbie"
+              "Falling back on regraph because egg-herbie package not installed")
+        simplify-batch-regraph]))
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
-  (define out (driver exprs #:rules rls #:precompute precompute?))
+  (define out
+    (driver exprs #:rules rls #:precompute precompute?))
+
   (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a out) "\n  "))
     
   out)
-
+ 
+;; TODO built in rules in egg-herbie not supported by regraph
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (local-require regraph)

@@ -5,7 +5,7 @@
 (require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
-                           *derivative-rules*)
+                           *differentiation-rules* is-built-in-rule?)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
                             *rulesets* generate-rules-for))
 
@@ -15,7 +15,7 @@
 ;; Cached rules
 (define all-rules (make-parameter '()))
 (define simplify-rules (make-parameter '()))
-(define derivative-rules (make-parameter '()))
+(define differentiation-rules (make-parameter '()))
 (define fp-safe-simplify-rules (make-parameter '()))
 
 ;; Exported parameters to update and access rules
@@ -29,10 +29,10 @@
                           identity 
                           (λ (_) (generate-missing-rules) (simplify-rules))))
 
-(define *derivative-rules*
-  (make-derived-parameter derivative-rules
+(define *differentiation-rules*
+  (make-derived-parameter differentiation-rules
                           identity
-                          (λ (_) (generate-missing-rules) (derivative-rules))))
+                          (λ (_) (generate-missing-rules) (differentiation-rules))))
 
 (define *fp-safe-simplify-rules*
   (make-derived-parameter fp-safe-simplify-rules 
@@ -45,7 +45,7 @@
   (unless (empty? rules)   ; only add the ruleset if it contains one
     (update-rules-rules rules groups)
     (update-simplify-rules rules groups)
-    (update-derivative-rules rules groups)
+    (update-differentiation-rules rules groups)
     (update-fp-safe-simplify-rules rules groups)))
 
 (define (update-rules-rules rules groups)
@@ -56,9 +56,9 @@
   (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
     (simplify-rules (append (simplify-rules) rules))))
 
-(define (update-derivative-rules rules groups)
+(define (update-differentiation-rules rules groups)
   (when (or (set-member? groups 'derivative) (set-member? groups 'simplify))
-    (derivative-rules (append (derivative-rules) rules))))
+    (differentiation-rules (append (differentiation-rules) rules))))
 
 (define (update-fp-safe-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups)
@@ -743,6 +743,13 @@
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
+(define (is-built-in-rule? rule-name)
+  (string-prefix? (symbol->string rule-name) "d-constant"))
+
+(define-ruleset* derive-rules-built-in (derivative)
+  #:type ([c real] [x real])
+  [d-constant       (d c x)              0]) ;; condition in egg-herbie that c is a constant or different variable
+
 (define-ruleset* derive-rules (derivative)
   #:type ([x real] [a real] [b real])
   [d-variable       (d x x)              1]
@@ -760,3 +767,5 @@
                                                (log a))))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))])
+
+
