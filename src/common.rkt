@@ -4,7 +4,7 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap define-table table-ref table-set! table-remove!
+(provide reap define-table table-ref table-set! table-remove! table-keys
          for/append string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
@@ -40,6 +40,10 @@
   (match-let ([(cons header rows) tbl])
     (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
     (hash-set! rows key row)))
+
+(define (table-keys tbl)
+  (match-let ([(cons header rows) tbl])
+    (hash-keys rows)))
 
 (define (table-remove! tbl key)
   (hash-remove! (cdr tbl) key))

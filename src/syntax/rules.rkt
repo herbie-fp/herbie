@@ -3,6 +3,8 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
+(require (submod "syntax.rkt" internals))
+
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
                            *differentiation-rules* is-built-in-rule?)
@@ -121,6 +123,7 @@
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
+      (println r)
       (match-define (list rname input output) r)
       (rule (gen-unique-rule-name rname) input output var-ctx 
             (type-of-rule input output var-ctx))))
@@ -744,11 +747,14 @@
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
 (define (is-built-in-rule? rule-name)
-  (string-prefix? (symbol->string rule-name) "d-constant"))
+  (define rules (list "d-constant"))
+  (for/or ([name rules])
+    (string-prefix? (symbol->string rule-name) name)))
 
 (define-ruleset* derive-rules-built-in (derivative)
   #:type ([c real] [x real])
   [d-constant       (d c x)              0]) ;; condition in egg-herbie that c is a constant or different variable
+
 
 (define-ruleset* derive-rules (derivative)
   #:type ([x real] [a real] [b real])
@@ -768,3 +774,45 @@
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))])
 
+(define-ruleset* substitution (derivative)
+  #:type ([a real] [b real] [c real] [x real] [y real])
+  [subst-variable (subst a a x)          x])
+
+;; generate substitution rules for all operators other than differentiation and subst
+(define (generate-subst-in-rule op-name num-children)
+  (when (> num-children 20)
+        (error "operator with too many children"))
+  (define rule-match
+    (cons op-name
+          (for/list ([n (in-range 97 (+ 97 num-children))])
+                    (string->symbol (string (integer->char n))))))
+  (define rule-rewrite
+    (cons op-name
+          (for/list ([s (rest rule-match)])
+            (list `subst s `y `z))))
+  
+  (list (string->symbol (string-append "subst-in-" (symbol->string op-name)))
+        `(subst ,rule-match y z)
+        rule-rewrite))
+
+(define subst-in-rules
+  (apply
+    append
+    (for/list ([op-name (table-keys operators)]
+               #:when (and (not (equal? op-name 'd))
+                           (not (equal? op-name 'subst))))
+      (define itype (table-ref operators op-name 'itype))
+      (cond
+        [(list? itype)
+         (list (generate-subst-in-rule op-name (length itype)))]
+        [else ;; for v-ary functions, generate matches for the first 3 number of args
+         (list
+              (generate-subst-in-rule op-name 1)
+              (generate-subst-in-rule op-name 2)
+              (generate-subst-in-rule op-name 3))]))))
+
+(pretty-print subst-in-rules)
+
+(register-ruleset! "subst-in-rules" '(derivative)
+                   (list (cons 'a 'real) (cons 'b 'real)) subst-in-rules)
+  

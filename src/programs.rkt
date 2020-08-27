@@ -295,6 +295,11 @@
          (define-values (term* rtype) (loop term prec))
          (define-values (var* _b) (loop var prec))
          (values (list 'd term* var*) rtype)]
+        [(list 'subst term var value)
+         (define-values (term* rtype) (loop term prec))
+         (define-values (var* _b) (loop var prec))
+         (define-values (value* _c) (loop value prec))
+         (values (list 'subst term* var* value*) rtype)]
         [(list '! props ... body)
          (define props* (apply hash-set* (hash) props))
          (cond
