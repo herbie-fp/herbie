@@ -123,7 +123,6 @@
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
-      (println r)
       (match-define (list rname input output) r)
       (rule (gen-unique-rule-name rname) input output var-ctx 
             (type-of-rule input output var-ctx))))
@@ -747,13 +746,14 @@
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
 (define (is-built-in-rule? rule-name)
-  (define rules (list "d-constant"))
+  (define rules (list "d-constant" "subst-constant"))
   (for/or ([name rules])
     (string-prefix? (symbol->string rule-name) name)))
 
 (define-ruleset* derive-rules-built-in (derivative)
-  #:type ([c real] [x real])
-  [d-constant       (d c x)              0]) ;; condition in egg-herbie that c is a constant or different variable
+  #:type ([c real] [x real] [v real])
+  [d-constant       (d c x)              0] ;; condition in egg-herbie that c is a constant or different variable
+  [subst-constant   (subst c x v)        c]) 
 
 
 (define-ruleset* derive-rules (derivative)
@@ -810,8 +810,6 @@
               (generate-subst-in-rule op-name 1)
               (generate-subst-in-rule op-name 2)
               (generate-subst-in-rule op-name 3))]))))
-
-(pretty-print subst-in-rules)
 
 (register-ruleset! "subst-in-rules" '(derivative)
                    (list (cons 'a 'real) (cons 'b 'real)) subst-in-rules)
