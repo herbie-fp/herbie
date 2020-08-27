@@ -33,11 +33,12 @@
 ;; it seems to defeat the purpose of parameters. Is it better to not to use parameters? What happens if Herbie
 ;; is run with multithreading?
 ;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
-(define (update-rules reprs rulesets all simplify fp-safe)
+(define (update-rules reprs rulesets all simplify fp-safe differentiation-rules)
   (*reprs-with-rules* reprs)
   (*rulesets* rulesets)
   (*rules* all)
   (*simplify-rules* simplify)
+  (*differentiation-rules* differentiation-rules)
   (*fp-safe-simplify-rules* fp-safe))
 
 (define (get-test-result test
@@ -80,6 +81,7 @@
         (set! rulesets (*rulesets*))
         (set! all-rules (*rules*))
         (set! simplify-rules (*simplify-rules*))
+        (set! differentiation-rules (*differentiation-rules*))
         (set! fp-safe-rules (*fp-safe-simplify-rules*))
 
         (define context (*pcontext*))
@@ -150,7 +152,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (begin ; update state
-        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
+        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules differentiation-rules)
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)

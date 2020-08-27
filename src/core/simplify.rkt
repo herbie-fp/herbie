@@ -102,6 +102,7 @@
   (timeline-log! 'method 'egg-herbie)
   (define irules (rules->irules rls))
 
+
   ((egg egraph-run)
    (lambda (egg-graph)
      ((egg egraph-add-exprs)

@@ -461,7 +461,7 @@
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-prod-down    (* (pow b a) (pow c a))     (pow (* b c) a)]
   [pow-pow          (pow (pow a b) c)           (pow a (* b c))]
-  [pow-neg          (pow a (neg b))               (/ 1 (pow a b))]
+  [pow-neg          (pow a (neg b))             (/ 1 (pow a b))]
   [pow-flip         (/ 1 (pow a b))             (pow a (neg b))]
   [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))]
   [pow-sub          (pow a (- b c))             (/ (pow a b) (pow a c))]
@@ -759,7 +759,7 @@
                                             (* b (d a x)))]
   [d-div            (d (/ a b) x)        (/ (- (* b (d a x)) (* a (d b x)))
                                             (* b b))]
-  ;; todo add with check that a is non-zero
+  ;; todo add with check that a is non-zero- also the other power rules might need it
   [d-power          (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
                                                (/ b a))
@@ -767,5 +767,4 @@
                                                (log a))))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))])
-
 
