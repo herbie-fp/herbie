@@ -766,6 +766,7 @@
   [d-div            (d (/ a b) x)        (/ (- (* b (d a x)) (* a (d b x)))
                                             (* b b))]
   ;; todo add with check that a is non-zero- also the other power rules might need it
+  [d-log            (d (log a) x)        (/ (d a x) a)]
   [d-power          (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
                                                (/ b a))
