@@ -211,7 +211,8 @@
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog) (,eq-repr ,(caadr start-prog) ,v))
+                          `(λ ,(program-variables start-prog)
+                              (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
                           (λ () (cons v (sampler)))))
         (< (errors-score (errors prog1 ctx repr))
