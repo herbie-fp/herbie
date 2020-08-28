@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/place)
-(require "../common.rkt" "../sandbox.rkt" "pages.rkt" "../syntax/read.rkt" "../datafile.rkt")
+(require "../common.rkt" "../sandbox.rkt" "../plugin.rkt" "pages.rkt"
+         "../syntax/read.rkt" "../datafile.rkt")
 
 (provide get-test-results)
 
@@ -45,6 +46,8 @@
 
 (define (make-worker seed profile? debug? dir)
   (place/context* ch #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts*)
+    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+      (load-herbie-plugins))
     (for ([_ (in-naturals)])
       (match-define (list 'apply self id test) (place-channel-get ch))
       (define result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir))

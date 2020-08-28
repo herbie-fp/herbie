@@ -2,7 +2,8 @@
 (require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "profile.rkt")
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" 
+         "syntax/rules.rkt" (submod "syntax/rules.rkt" internals) "profile.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -27,6 +28,18 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
+;; Here's the dilemma: The mainloop is run within a new thread meaning any rules added will be forgotten after
+;; every run. This is a messy fix to save the generated rules and update the same parameters in this thread, but
+;; it seems to defeat the purpose of parameters. Is it better to not to use parameters? What happens if Herbie
+;; is run with multithreading?
+;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
+(define (update-rules reprs rulesets all simplify fp-safe)
+  (*reprs-with-rules* reprs)
+  (*rulesets* rulesets)
+  (*rules* all)
+  (*simplify-rules* simplify)
+  (*fp-safe-simplify-rules* fp-safe))
+
 (define (get-test-result test
                          #:seed [seed #f]
                          #:profile [profile? #f]
@@ -37,6 +50,13 @@
   (define timeline #f)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
+
+  ;; Needed to restore rules
+  (define reprs-encountered '())
+  (define rulesets '())
+  (define all-rules '())
+  (define simplify-rules '())
+  (define fp-safe-rules '())
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -54,6 +74,14 @@
                        #:precondition (test-precondition test)
                        #:specification (test-specification test)
                        #:precision output-prec))
+
+        ; Store this thread's set of rules, reprs
+        (set! reprs-encountered (*reprs-with-rules*))
+        (set! rulesets (*rulesets*))
+        (set! all-rules (*rules*))
+        (set! simplify-rules (*simplify-rules*))
+        (set! fp-safe-rules (*fp-safe-simplify-rules*))
+
         (define context (*pcontext*))
         (when seed (set-seed! seed))
         (timeline-event! 'sample)
@@ -117,7 +145,9 @@
 
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
-      (engine-result eng)
+      (begin ; update state
+        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
+        (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))

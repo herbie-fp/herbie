@@ -9,7 +9,7 @@
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
          parse-flag get-seed set-seed!
-         quasisyntax dict sym-append
+         quasisyntax dict syntax-e*
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -247,4 +247,7 @@
 (define (sample-single)
   (floating-point-bytes->real (integer->integer-bytes (random-bits 32) 4 #f)))
 
-(define (sym-append . args) (string->symbol (apply string-append (map symbol->string args))))
+(define (syntax-e* stx)
+  (match (syntax-e stx)
+    [(list elems ...) (map syntax-e* elems)]
+    [stx* stx*]))

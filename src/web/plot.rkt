@@ -252,9 +252,15 @@
 
   ; max and min finite values (works for ieee754 and posit)
   (define-values (maxbound minbound) 
-    (let ([ord (sub1 (abs (real->ordinal +inf.0 repr)))])
-      (values ((representation-ordinal->repr repr) ord)
-              (neg ((representation-ordinal->repr repr) ord)))))
+    (let ([pinf (real->ordinal +inf.0 repr)]
+          [minf (real->ordinal -inf.0 repr)])
+      (cond
+       [(= pinf minf) ; posit
+        (values ((representation-ordinal->repr repr) (sub1 (expt 2 (representation-total-bits repr))))
+                ((representation-ordinal->repr repr) (add1 minf)))]
+       [else 
+        (values ((representation-ordinal->repr repr) (sub1 pinf))
+                ((representation-ordinal->repr repr) (add1 minf)))])))
 
   (define eby (errors-by get-coord errs pts lt))
   (define histogram-f (histogram-function eby #:bin-size bin-size))

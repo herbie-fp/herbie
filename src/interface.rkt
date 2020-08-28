@@ -3,11 +3,16 @@
 (require math/bigfloat math/flonum)
 (require "syntax/types.rkt")
 
-(provide (struct-out representation) get-representation
-          *output-repr* *var-reprs*
+(provide (struct-out representation) get-representation representation-name?
+          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
           value? special-value?)
-(module+ internals (provide define-representation))
+
+(module+ internals 
+  (provide define-representation register-generator! register-representation!))
+
+(define *reprs-with-rules* (make-parameter '()))
+(define *needed-reprs* (make-parameter '()))
 
 ;; Structs
 
@@ -20,14 +25,51 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (define representations (make-hash))
+
+;; Repr / operator generation
+;; Some plugins might define 'templated' reprs (e.g. fixed point with
+;; m integer and n fractional bits). Since defining an infinite number of reprs
+;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
+;; across a repr that is not known at the time. 
+
+;; Generators take one argument, a repr name, and returns true if knows what the
+;; repr is and has generated that repr and its operators, and false otherwise
+(define repr-generators '())
+
+(define (register-generator! proc)
+  (-> (-> any/c boolean?))
+  (set! repr-generators (cons proc repr-generators)))
+
+(define (generate-repr repr-name)
+  (for/or ([proc repr-generators])
+    (proc repr-name)))
+
+;; The set of reprs that Herbie comes across is collected here. This is the best place to guarantee 
+;; that all the correct rules are generated but it'll collect more reprs than is necessary.
+;; TODO: Find a better place to put this. Watch out for problems with multithreading / parameters. 
 (define (get-representation name)
-  (hash-ref representations name
-            (λ () (error 'get-representation "Unknown representation ~a" name))))
+  (cond
+   [(hash-has-key? representations name) ; check existing
+    (define repr (hash-ref representations name))
+    (*needed-reprs* (set-add (*needed-reprs*) repr))
+    repr]
+   [(generate-repr name)  ; ask plugins to try generating this repr
+    (define repr (hash-ref representations name))
+    (*needed-reprs* (set-add (*needed-reprs*) repr))
+    repr]
+   [else (error 'get-representation "Unknown representation ~a" name)])) ; else, fail
+
+(define (register-representation! name type repr? . args)
+  (hash-set! representations name
+            (apply representation name (get-type type) repr? args)))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
-  (begin
-    (define name (representation 'name (get-type 'type) repr? args ...))
-    (hash-set! representations 'name name)))
+  (register-representation! 'name 'type repr? args ...))
+
+(define (representation-name? x)
+  (with-handlers ([exn:fail? (const #f)])
+    (get-representation x)
+    true))
 
 (define-representation (bool bool boolean?)
   identity
@@ -45,7 +87,7 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define-representation (binary64 real real?)
+(define-representation (binary64 real flonum?)
   bigfloat->flonum
   bf
   (shift 63 ordinal->flonum)
@@ -84,7 +126,7 @@
                (if (bf< x2 x) (single-flonum-step y 1) y)
                (if (bf> x2 x) (single-flonum-step y -1) y))]))
 
-(define-representation (binary32 real real?)
+(define-representation (binary32 real single-flonum?)
   bigfloat->single-flonum
   bf
   ordinal->single-flonum
@@ -96,16 +138,14 @@
 
 (define (real->repr x repr)
   (match x
-   [(? real?) ((representation-bf->repr repr) (bf x))]
    [(? (representation-repr? repr)) x] ; identity function if x is already a value in the repr
-   [(? value?) ; value in another repr, convert to new repr through bf
-    (for/first ([(name repr*) (in-hash representations)]
-               #:when ((representation-repr? repr*) x))
-      ((representation-bf->repr repr) ((representation-repr->bf repr*) x)))]
+   [(? real?) ((representation-bf->repr repr) (bf x))]
    [_ (error 'real->repr "Unknown value ~a" x)]))
 
 (define (repr->real x repr)
-  (bigfloat->real ((representation-repr->bf repr) x)))
+  (match x
+    [(? boolean?) x]
+    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
 
 ;; Predicates
 

@@ -36,10 +36,10 @@
                    (define repr (get-representation (operator-info f 'otype)))
                    (define argreprs
                      (match (operator-info f 'itype)
+                       [(? representation-name? type)
+                        (map (const (get-representation type)) args)]
                        [(list arg-types ...)
-                        (map get-representation arg-types)]
-                       [(? symbol? type)
-                        (map (const (get-representation type)) args)]))
+                        (map get-representation arg-types)]))
                    (define <-bf (representation-bf->repr repr))
                    (define arg<-bfs (map representation-bf->repr argreprs))
 
