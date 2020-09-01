@@ -59,7 +59,7 @@
     (simplify-rules (append (simplify-rules) rules))))
 
 (define (update-differentiation-rules rules groups)
-  (when (or (set-member? groups 'derivative) (set-member? groups 'simplify))
+  (when (set-member? groups 'derivative)
     (differentiation-rules (append (differentiation-rules) rules))))
 
 (define (update-fp-safe-simplify-rules rules groups)
