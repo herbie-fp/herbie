@@ -10,6 +10,7 @@
 (module+ test
   (define derivatives
           `(((d a a) . 1)
+            ((d y x) . 0)
             ((d (+.f64 1 (*.f64 2 x)) x) . 2)
             ((d (+.f64 1 (*.f64 y x)) x) . y)
             ((d (pow.f64 x 3) x) . (*.f64 x (*.f64 x 3)))
