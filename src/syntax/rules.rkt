@@ -7,7 +7,7 @@
 
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
-                           *differentiation-rules* is-built-in-rule?)
+                           *differentiation-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
                             *rulesets* generate-rules-for))
 
@@ -745,17 +745,6 @@
   [erf-erfc         (erfc x)             (- 1 (erf x))]
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
-(define (is-built-in-rule? rule-name)
-  (define rules (list "d-constant" "subst-constant"))
-  (for/or ([name rules])
-    (string-prefix? (symbol->string rule-name) name)))
-
-(define-ruleset* derive-rules-built-in (derivative)
-  #:type ([c real] [x real] [v real])
-  [d-constant       (d c x)              0] ;; condition in egg-herbie that c is a constant or different variable
-  [subst-constant   (subst c x v)        c]) 
-
-
 (define-ruleset* derive-rules (derivative)
   #:type ([x real] [a real] [b real])
   [d-variable       (d x x)              1]
@@ -814,4 +803,3 @@
 
 (register-ruleset! "subst-in-rules" '(derivative)
                    (list (cons 'a 'real) (cons 'b 'real)) subst-in-rules)
-  

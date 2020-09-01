@@ -27,14 +27,11 @@
 
 ;; prefab struct used to send rules to egg-herbie
 ;; if is-build-in is true, it is a rule that egg-herbie defines, including rust code
-(struct irule (name input output is-built-in) #:prefab)
+(struct irule (name input output) #:prefab)
 
 (define (rules->irules rules)
-  (if use-egg-math?
-      (for/list [(rule rules)]
-        (irule (rule-name rule) (rule-input rule) (rule-output rule)
-               (is-built-in-rule? (rule-name rule))))
-      (list)))
+  (for/list [(rule rules)]
+    (irule (rule-name rule) (rule-input rule) (rule-output rule))))
 
 
 (define/contract (differentiate-expr expr)
@@ -62,7 +59,7 @@
   (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a out) "\n  "))
     
   out)
- 
+
 ;; TODO built in rules in egg-herbie not supported by regraph
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
