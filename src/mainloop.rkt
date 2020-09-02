@@ -129,16 +129,21 @@
   (^locs^ (map cdr locs))
   (void))
 
-(define transforms-to-try
-  (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
-	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity)
-      (inf ,invert-x ,invert-x)
-      (-inf ,ninvert-x ,ninvert-x)
-      #;(exp ,exp-x ,log-x)
-      #;(log ,log-x ,exp-x))))
-
 (define (taylor-alt altn loc)
+  (define transforms-to-try
+    (let ([invert-x (λ (x)
+                       (let ([repr (repr-of x (*output-repr*) (*var-reprs*))])
+                         (list (get-parametric-operator '/ repr repr) 1 x)))]
+          [ninvert-x (λ (x)
+                        (let ([repr (repr-of x (*output-repr*) (*var-reprs*))])
+                          (list (get-parametric-operator '/ repr repr)
+                                1
+                                (list (get-parametric-operator '- repr) x))))])
+      `((0 ,identity ,identity)
+        (inf ,invert-x ,invert-x)
+        (-inf ,ninvert-x ,ninvert-x))))
+
+
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
@@ -151,12 +156,9 @@
         (alt
          (location-do loc 
                       (alt-program altn) 
-                      (λ (x) ; taylor uses older format, resugaring and desugaring needed
-                        (desugar-program
-                            (approximate (resugar-program x (*output-repr*) #:full #f)
-                                         vars #:transform transformer)
-                            (*output-repr*) (*var-reprs*)
-                            #:full #f)))
+                      (λ (x)
+                        (approximate x
+                                     vars #:transform transformer)))
          `(taylor ,name ,loc)
          (list altn)))))
 

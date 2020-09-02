@@ -57,6 +57,7 @@
   (define rulesets '())
   (define all-rules '())
   (define simplify-rules '())
+  (define differentiation-rules '())
   (define fp-safe-rules '())
 
   (define (compute-result test)

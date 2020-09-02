@@ -1,10 +1,11 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt")
+(require "../common.rkt" "../interface.rkt")
 (require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
+(require (only-in "simplify.rkt" differentiate-expr))
 
 (provide approximate)
 
@@ -15,9 +16,8 @@
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
-        (simplify
-         (for/fold ([expr expr]) ([var vars] [tform tforms])
-           (replace-expression expr var ((car tform) var)))))
+        (for/fold ([expr expr]) ([var vars] [tform tforms])
+          (replace-expression expr var ((car tform) var))))
   (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
 
   ; This is a very complex routine, with multiple parts.
@@ -45,7 +45,7 @@
                   (let* ([oc (get-taylor (cdr coeffs))]
                          [expr* ((cdr oc) (car coeffs))])
                     (if (= (length coeffs) (length vars))
-                      (simplify expr*)
+                      expr*
                       (let ([var (list-ref vars (length coeffs))])
                         (taylor var expr*)))))))
 
@@ -79,7 +79,7 @@
                            #f))))))
 
   ; We must now iterate through the coefficients in `corrected` order.
-  (simplify
+  (differentiate-expr
    (make-sum
     ; We'll track how many non-trivial zeros we've seen
     ; and all the useful terms we've seen so far
@@ -102,27 +102,31 @@
                                                   ((cdr tform) var)))
                                                expts) res) (+ 1 i)))))))))))
 
+(define (binary-op-with-repr op child)
+  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
+  (get-parametric-operator op repr repr))
+
 (define (make-sum terms)
   (match terms
    ['() 0]
    [`(,x) x]
    [`(,x ,xs ...)
-    `(+ ,x ,(make-sum xs))]))
+    `(,(binary-op-with-repr '+ x) ,x ,(make-sum xs))]))
 
 (define (make-prod terms)
   (match terms
    ['() 1]
    [`(,x) x]
    [`(,x ,xs ...)
-    `(* ,x ,(make-prod xs))]))
+    `(,(binary-op-with-repr '* x) ,x ,(make-prod xs))]))
 
 (define (make-monomial var power)
   (cond
    [(equal? power 0)   1]
    [(equal? power 1)   var]
-   [(equal? power -1) `(/ 1 ,var)]
-   [(positive? power) `(pow ,var ,power)]
-   [(negative? power) `(pow ,var ,power)]))
+   [(equal? power -1) `(,(binary-op-with-repr '/ var) 1 ,var)]
+   [(positive? power) `(,(binary-op-with-repr 'pow var) ,var ,power)]
+   [(negative? power) `(,(binary-op-with-repr 'pow var) ,var ,power)]))
 
 (define (make-term head vars expts)
   ; We do not want to output something like (* (sqr x) (sqr y)) -- we'd prefer (sqr (* x y))
@@ -130,7 +134,8 @@
   (let ([outside-expt (apply gcd expts)])
     (if (zero? outside-expt)
         head ; Only happens if expts has only zeros
-        `(* ,head
+        `(,(binary-op-with-repr '* head)
+            ,head
             ,(make-monomial
               (make-prod
                (map make-monomial vars (map (curryr / outside-expt) expts)))
@@ -166,7 +171,31 @@
   (hash-clear! logcache)
   (hash-set! logcache 1 '((1 -1 1)))))
 
-(define (taylor var expr*)
+(define (build-derivative var expr n)
+  (if (equal? n 0)
+      expr
+      (list 'd (build-derivative var expr (- n 1)) var)))
+
+(define (taylor-term var expr n around)
+  (cond
+    [(equal? n 0)
+     (differentiate-expr (list 'subst expr var around))]
+    [else
+      (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
+      (define get-op (lambda (op) (get-parametric-operator op repr repr)))
+      (differentiate-expr
+        (list (get-op '/) (list (get-op '*)
+                                (build-derivative var expr n)
+                                (list (get-op 'pow) (list (get-op '-) var around) n))
+                          (factorial n)))]))
+
+(define (taylor var expr)
+  (define taylor-func
+    (lambda (n)
+      (taylor-term var expr n 0)))
+  (cons (first-nonzero-exp taylor-func) taylor-func))
+
+(define (taylor-without-egg var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
   (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
   (define expr

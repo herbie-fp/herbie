@@ -96,7 +96,7 @@
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
-  (timeline-log! 'method 'egg-herbie)
+  #;(timeline-log! 'method 'egg-herbie)
   (define irules (rules->irules rls))
 
 
