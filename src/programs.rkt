@@ -375,9 +375,10 @@
      (define iprec (first (string-split (symbol->string op) "->")))
      (define repr* (get-representation (string->symbol iprec)))
      (define body* (expand-parametric-reverse body repr* full?))
-     (if full? 
-        `(cast (! :precision ,(string->symbol iprec) ,body*))
-        `(,op ,body*))]
+     (cond
+      [(not full?) `(,op ,body*)]
+      [(list? body*) `(cast (! :precision ,(string->symbol iprec) ,body*))]
+      [else body*])]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -432,13 +433,28 @@
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
   
-(define (apply-repr-change prog)
-  (define (loop expr prec)
+(define (apply-repr-change-expr expr)
+  (let loop ([expr expr] [prec #f])
     (match expr
+     [(list (? repr-conv? op) body)
+      (define-values (iprec oprec)
+        (let ([split (string-split (symbol->string op) "->")])
+          (values (string->symbol (first split)) (string->symbol (last split)))))
+      (define prec* (if prec prec oprec))
+      (define body* (loop body iprec))
+      (cond
+       [(not body*) #f]
+       [(equal? iprec prec*) body*]
+       [else
+        (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
+        (if new-conv
+            (list new-conv body*)
+            (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
+              (and second-conv (list second-conv (list op body*)))))])]
      [(list (? rewrite-repr-op? op) body)
       (define prec* 
         (string->symbol 
-          (second (regexp-match #rx"<-([A-Za-z0-9_]+)" (symbol->string op)))))
+          (second (regexp-match #px"<-([\\S]+)" (symbol->string op)))))
       (loop body prec*)]
      [(list (? operator? op) args ...) 
       (define prec* (if prec prec (operator-info op 'otype)))
@@ -450,7 +466,19 @@
                             (make-list (length args) prec*))]
                 [args* (map (curryr loop prec*) args)])
             (and op* (andmap identity args*) (cons op* args*))))]
-     [_ expr]))
-  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
-  `(,lam ,args ,(loop body #f)))
+     [(? variable?)
+      (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
+      (cond
+       [(equal? var-prec prec) expr]
+       [else
+        (define cast (get-repr-conv var-prec prec))
+        (list cast expr)])]
+     [(? (curry hash-has-key? parametric-constants-reverse))
+      (define c-unparam (hash-ref parametric-constants-reverse expr expr))
+      (define c* (get-parametric-constant c-unparam prec))
+      c*]
+     [_ expr])))
       
+(define (apply-repr-change prog)
+  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
+  `(,lam ,args ,(apply-repr-change-expr body)))

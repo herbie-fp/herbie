@@ -7,7 +7,7 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*
-         repr-conv? rewrite-repr-op?)
+         repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
   (provide operators constants define-constant define-operator infix-joiner
@@ -170,9 +170,6 @@
           (andmap (curry equal? atypes) actual-types)
           (equal? atypes actual-types))
       true-name)))
-
-(define (repr-conv? expr)
-  (regexp-match? #rx"^[A-Za-z0-9_]+(->)[A-Za-z0-9_]+$" (symbol->string expr)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -554,6 +551,17 @@
 
 ;; Miscellaneous operators ;;
 
+(define (repr-conv? expr)
+  (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr)))
+
+(define (get-repr-conv iprec oprec)
+  (for/or ([(name sig) (in-hash parametric-operators)]
+           #:when (repr-conv? name))
+    (match-define (list* true-name rtype atypes) (car sig))
+    (and (equal? rtype oprec)
+         (equal? (first atypes) iprec)
+         name)))
+
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
@@ -574,7 +582,7 @@
 ;; These operators are temporary and only appear during rewrites
 
 (define (rewrite-repr-op? expr)
-  (regexp-match? #rx"^(<-)[A-Za-z0-9_]+$" (symbol->string expr)))
+  (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr)))
 
 (define-operator (<-binary64 <-binary64 binary64) binary64
   [fl identity] [bf identity] [ival #f]

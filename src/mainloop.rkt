@@ -139,10 +139,12 @@
       #;(log ,log-x ,exp-x))))
 
 ; taylor uses older format, resugaring and desugaring needed
+; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr vars transformer)
   (define expr* (resugar-program expr repr #:full #f))
-  (define approx (approximate expr* vars #:transform transformer))
-  (desugar-program approx repr (*var-reprs*) #:full #f))
+  (with-handlers ([exn:fail? (const #f)]) 
+    (let ([approx (approximate expr* vars #:transform transformer)])
+      (desugar-program approx repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
@@ -152,12 +154,19 @@
           (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
                             (repr-of expr (*output-repr*) (*var-reprs*)))))
       (list altn)
-      (for/list ([transform-type transforms-to-try])
+      (for/fold ([alts '()] #:result (reverse alts)) ; filter out failed taylor transforms
+                ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
         (define transformer (map (const (cons f finv)) vars))
-        (alt (location-do loc (alt-program altn) (curryr taylor-expr repr vars transformer))
-            `(taylor ,name ,loc)
-             (list altn)))))
+        (define valid? #t)
+        (define altn*
+          (alt (location-do loc (alt-program altn) 
+                            (λ (x) (let ([expr* (taylor-expr x repr vars transformer)])
+                                      (unless expr* (set! valid? #f))
+                                      expr*)))
+              `(taylor ,name ,loc)
+              (list altn)))
+        (if valid? (cons altn* alts) alts))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
