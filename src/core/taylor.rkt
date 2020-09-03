@@ -230,14 +230,16 @@
 
   (define terms
     (list->vector
-      (reverse
+      (for/list ([i (range num-zero-terms (+ num-zero-terms max-terms))])
+        (get-term i))))
+      #;(reverse
         (let loop ([res '()] [num-zeros 0] [i num-zero-terms])
           (if (or (> num-zeros max-zero) (>= (- i num-zeros) max-nonzero))
               res
               (let ([new-term (get-term i)])
                 (loop (cons new-term res)
                       (if (equal? 0 new-term) (+ 1 num-zeros) num-zeros)
-                      (+ i 1))))))))
+                      (+ i 1))))))
 
   (define taylor-func
     (if

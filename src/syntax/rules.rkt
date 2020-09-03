@@ -761,6 +761,7 @@
                                                (/ b a))
                                             (* (d b x)
                                                (log a))))]
+  [d-sqrt           (d (sqrt a) x)       (/ (d a x) (* 2 (sqrt a)))]
   [d-exp            (d (exp a) x)        (* (exp a) (d a x))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))]
