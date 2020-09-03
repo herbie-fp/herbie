@@ -3,7 +3,7 @@
 (require pkg/lib)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
 
-(provide simplify-expr simplify-batch differentiate-expr)
+(provide simplify-expr simplify-batch differentiate-expr differentiate-exprs)
 (module+ test (require rackunit))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
@@ -33,10 +33,12 @@
   (for/list [(rule rules)]
     (irule (rule-name rule) (rule-input rule) (rule-output rule))))
 
+(define (differentiate-expr expr)
+  (first (differentiate-exprs (list expr))))
 
-(define/contract (differentiate-expr expr)
-  (-> expr? expr?)
-  (first (simplify-batch (list expr) #:rules (append (*simplify-rules*) (*differentiation-rules*)) #:precompute true)))
+(define/contract (differentiate-exprs exprs)
+  (-> (listof expr?) expr?)
+  (simplify-batch exprs #:rules (append (*simplify-rules*) (*differentiation-rules*)) #:precompute true))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)

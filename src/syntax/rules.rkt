@@ -763,7 +763,9 @@
                                                (log a))))]
   [d-exp            (d (exp a) x)        (* (exp a) (d a x))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
-  [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))])
+  [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))]
+  [d-tan            (d (tan a) x)        (* (/ 1 (pow (cos a) 2))
+                                            (d a x))])
 
 (define-ruleset* substitution (derivative)
   #:type ([a real] [b real] [c real] [x real] [y real])

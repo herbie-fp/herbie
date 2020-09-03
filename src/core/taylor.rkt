@@ -5,7 +5,7 @@
 (require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
-(require (only-in "simplify.rkt" differentiate-expr))
+(require (only-in "simplify.rkt" differentiate-exprs differentiate-expr))
 
 (provide approximate)
 
@@ -13,6 +13,8 @@
                      #:terms [terms 3] #:iters [iters 5])
   "Take a Taylor expansion in multiple variables, with at most `terms` terms."
 
+  (printf "approximate ~a\n" expr)
+  (printf "vars ~a\n" vars)
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
@@ -26,14 +28,14 @@
   ; The first step is to determine the minimum exponent of each variable.
   ; We do this by taking a taylor expansion in each variable and considering the minimal term.
 
-  (define offsets (for/list ([var (reverse vars)]) (car (taylor var expr))))
+  (define offsets (for/list ([var (reverse vars)]) (car (taylor var expr terms iters))))
 
   ; We construct a multivariable Taylor expansion by taking a Taylor expansion in one variable,
   ; then expanding each coefficient in the second variable, and so on.
   ; We cache the computation of any expansion to speed this process up.
 
   (define taylor-cache (make-hash))
-  (hash-set! taylor-cache '() (taylor (car vars) expr))
+  (hash-set! taylor-cache '() (taylor (car vars) expr terms iters))
 
   ; This is the memoized expansion-taking.
   ; The argument, `coeffs`, is the "uncorrected" degrees of the terms--`offsets` is not subtracted.
@@ -47,7 +49,7 @@
                     (if (= (length coeffs) (length vars))
                       expr*
                       (let ([var (list-ref vars (length coeffs))])
-                        (taylor var expr*)))))))
+                        (taylor var expr* terms iters)))))))
 
   ; Given some uncorrected degrees, this gets you an offset to apply.
   ; The corrected degrees for uncorrected `coeffs` are (map - coeffs (get-offset coeffs))
@@ -79,6 +81,7 @@
                            #f))))))
 
   ; We must now iterate through the coefficients in `corrected` order.
+  (define res
   (differentiate-expr
    (make-sum
     ; We'll track how many non-trivial zeros we've seen
@@ -101,6 +104,8 @@
                                                 (for/list ([var vars] [tform tforms])
                                                   ((cdr tform) var)))
                                                expts) res) (+ 1 i)))))))))))
+  (printf "result ~a\n" res)
+  res)
 
 (define (binary-op-with-repr op child)
   (define repr (repr-of child (*output-repr*) (*var-reprs*)))
@@ -172,6 +177,8 @@
   (hash-set! logcache 1 '((1 -1 1)))))
 
 (define (build-derivative var expr n)
+  (when (list? var)
+        (error (format "var should be a symbol. got:  ~a" var)))
   (if (equal? n 0)
       expr
       (list 'd (build-derivative var expr (- n 1)) var)))
@@ -179,21 +186,74 @@
 (define (taylor-term var expr n around)
   (cond
     [(equal? n 0)
-     (differentiate-expr (list 'subst expr var around))]
+     (list 'subst expr var around)]
     [else
       (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
       (define get-op (lambda (op) (get-parametric-operator op repr repr)))
-      (differentiate-expr
-        (list (get-op '/) (list (get-op '*)
-                                (build-derivative var expr n)
-                                (list (get-op 'pow) (list (get-op '-) var around) n))
-                          (factorial n)))]))
+      (list (get-op '/) (list (get-op '*)
+                              (build-derivative var expr n)
+                              (list (get-op 'pow) (list (get-op '-) var around) n))
+                        (factorial n))]))
 
-(define (taylor var expr)
+(define (contains-derivative-or-subst? expr)
+  (cond
+    [(list? expr)
+     (or (equal? (first expr) 'd) (equal? (first expr) 'subst) (ormap contains-derivative-or-subst? (rest expr)))]
+    [else #f]))
+
+(define (taylor var expr max-nonzero max-zero)
+  (define max-terms (+ max-nonzero max-zero 1))
+  (define term-cache (make-hash))
+  (define current-max 0)
+  (define (get-term n)
+    (cond
+      [(>= n current-max)
+       (define new-derivatives
+         (differentiate-exprs
+           (for/list ([i (range current-max (+ current-max max-terms))])
+             (taylor-term var expr i 0))))
+       (for ([i (range current-max (+ current-max max-terms))] [derivative new-derivatives])
+         (hash-set! term-cache i derivative))
+       (set! current-max (+ current-max max-terms))
+       (hash-ref term-cache n)]
+      [else
+        (hash-ref term-cache n)]))
+  
+
+  (define num-zero-terms
+    (let loop ([i 0])
+      (if (equal? (get-term i) 0)
+          (if (>= i 20)
+              20
+              (loop (+ i 1)))
+          i)))
+
+  (define terms
+    (list->vector
+      (reverse
+        (let loop ([res '()] [num-zeros 0] [i num-zero-terms])
+          (if (or (> num-zeros max-zero) (>= (- i num-zeros) max-nonzero))
+              res
+              (let ([new-term (get-term i)])
+                (loop (cons new-term res)
+                      (if (equal? 0 new-term) (+ 1 num-zeros) num-zeros)
+                      (+ i 1))))))))
+
   (define taylor-func
-    (lambda (n)
-      (taylor-term var expr n 0)))
-  (cons (first-nonzero-exp taylor-func) taylor-func))
+    (if
+      (for/or ([t terms])
+        (if (contains-derivative-or-subst? t)
+            (begin (printf "term failed ~a \n" t) true)
+            false))
+      (lambda (n)
+        (if (equal? n 0) expr 0))  
+      (lambda (n)
+        (cond
+          [(>= n (vector-length terms))
+            (error "attempted to get term more than max")]
+          [else
+            (vector-ref terms n)]))))
+  (cons num-zero-terms taylor-func))
 
 (define (taylor-without-egg var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
