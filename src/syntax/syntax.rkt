@@ -7,6 +7,7 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*
+         generate-conversions
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
@@ -33,7 +34,11 @@
 (define parametric-constants (make-hash))
 (define parametric-constants-reverse (make-hash))
 
-(define (constant-info constant field) (table-ref constants constant field))
+(define (constant-info constant field)
+  (with-handlers ([exn:fail?
+                   (λ (e) (error 'constant-info "Unknown constant or field: ~a ~a"
+                                                constant field))])
+    (table-ref constants constant field)))
 
 (define (register-constant! constant name ctype attrib-dict)
   (table-set! constants name
@@ -128,7 +133,11 @@
 (define parametric-operators (make-hash))
 (define parametric-operators-reverse (make-hash))
 
-(define (operator-info operator field) (table-ref operators operator field))
+(define (operator-info operator field)
+  (with-handlers ([exn:fail? 
+                   (λ (e) (error 'operator-info "Unknown operator or field: ~a ~a"
+                                                operator field))])
+    (table-ref operators operator field)))
 
 (define (operator-remove! operator)
   (table-remove! operators operator)
@@ -562,6 +571,25 @@
          (equal? (first atypes) iprec)
          name)))
 
+(define (generate-conversions convs)
+  (for ([conv convs])
+   (with-handlers ([exn:fail? (λ (e) (error 'generate-conversions "Invalid conversion: ~a" conv))])
+      (define-values (iprec oprec)
+        (let ([split (string-split (symbol->string conv) "->")])
+          (values (string->symbol (first split))
+                  (string->symbol (last split)))))
+      (define irepr (get-representation iprec))
+      (define orepr (get-representation oprec))
+      (unless (hash-has-key? parametric-operators conv)
+        (printf "~a not found. Generating default implementation\n" conv)
+        (register-operator! conv conv (list iprec) oprec  ; fallback implementation
+          (list
+            (cons 'fl (compose (representation-bf->repr orepr) (representation-repr->bf irepr)))
+            (cons 'bf identity) (cons 'ival #f)
+            (cons 'nonffi (compose (representation-bf->repr orepr) (representation-repr->bf irepr))))))
+      ;; TODO: add to 'necessary' reprs
+    )))
+
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
@@ -595,7 +623,9 @@
 ;; Expression predicates ;;
 
 (define (operator? op)
-  (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
+  (and (symbol? op) (not (equal? op 'if))
+       (or (hash-has-key? parametric-operators op)
+           (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
   (or (real? var) (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 

@@ -474,9 +474,11 @@
         (define cast (get-repr-conv var-prec prec))
         (list cast expr)])]
      [(? (curry hash-has-key? parametric-constants-reverse))
-      (define c-unparam (hash-ref parametric-constants-reverse expr expr))
-      (define c* (get-parametric-constant c-unparam prec))
-      c*]
+      (define prec* (if prec prec (constant-info expr 'type)))
+      (if (equal? (constant-info expr 'type) prec*)
+          expr
+          (let ([c* (hash-ref parametric-constants-reverse expr expr)])
+            (get-parametric-constant c* prec)))]
      [_ expr])))
       
 (define (apply-repr-change prog)

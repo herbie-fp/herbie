@@ -9,7 +9,7 @@
 
 
 (struct test (name vars input output expected spec pre
-                   output-prec var-precs) #:prefab)
+                   output-prec var-precs conversions) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -67,7 +67,8 @@
         (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
         (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs)
         (representation-name default-repr)
-        (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)))
+        (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
+        (dict-ref prop-dict* ':herbie-conversions '())))
         
 
 (define (load-stdin override-ctx)

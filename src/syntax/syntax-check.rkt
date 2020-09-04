@@ -99,15 +99,21 @@
     (define cite (dict-ref prop-dict ':cite))
     (unless (list? (syntax-e cite))
       (error! cite "Invalid :cite ~a; must be a list" cite))
-    (when (list? (syntax-e cite))
-      (for ([citation (syntax-e cite)] #:unless (identifier? citation))
-        (error! citation "Invalid citation ~a; must be a variable name" citation))))
+    (for ([citation (syntax-e cite)] #:unless (identifier? citation))
+      (error! citation "Invalid citation ~a; must be a variable name" citation)))
 
   (when (dict-has-key? prop-dict ':pre)
     (check-expression* (dict-ref prop-dict ':pre) vars error!))
 
   (when (dict-has-key? prop-dict ':herbie-target)
-    (check-expression* (dict-ref prop-dict ':herbie-target) vars error!)))
+    (check-expression* (dict-ref prop-dict ':herbie-target) vars error!))
+    
+  (when (dict-has-key? prop-dict ':herbie-conversions)
+    (define conversions (dict-ref prop-dict ':herbie-conversions))
+    (unless (list? (syntax-e conversions))
+      (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))
+    (for ([conv (syntax-e* conversions)] #:unless (repr-conv? conv))
+      (error! conversions "Invalid conversion ~a; must be a conversion, e.g. binary64->binary32"))))
 
 (define (check-program* stx error!)
   (match stx

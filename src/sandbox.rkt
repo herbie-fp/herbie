@@ -67,6 +67,7 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
+      (generate-conversions (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alt
           (run-improve (test-program test)
