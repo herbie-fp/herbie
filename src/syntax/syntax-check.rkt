@@ -112,8 +112,9 @@
     (define conversions (dict-ref prop-dict ':herbie-conversions))
     (unless (list? (syntax-e conversions))
       (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))
-    (for ([conv (syntax-e* conversions)] #:unless (repr-conv? conv))
-      (error! conversions "Invalid conversion ~a; must be a conversion, e.g. binary64->binary32"))))
+    (for ([conv (syntax-e* conversions)]
+          #:unless (regexp-match? #px"^[\\S]+(/)[\\S]+$" (symbol->string conv)))
+      (error! conversions "Invalid conversion ~a; Valid example: binary64/binary32"))))
 
 (define (check-program* stx error!)
   (match stx

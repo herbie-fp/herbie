@@ -3,7 +3,7 @@
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals))
+         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -28,6 +28,17 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
+;; Here's the dilemma: There are a few parameters that are updated within the mainloop. However,
+;; the mainloop runs in a separate thread and thus the parameters are reset after every run.
+;; This is a messy fix to save the parameters, but it seems to defeat the purpose of parameters.
+;; Is it better to not to use parameters? What happens if Herbie is run with multithreading?
+;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
+(define (restore-state rulesets unknown-d-ops unknown-f-ops loaded-ops)
+  (*rulesets* rulesets)
+  (*unknown-d-ops* unknown-d-ops)
+  (*unknown-f-ops* unknown-f-ops)
+  (*loaded-ops* loaded-ops))
+
 (define (get-test-result test
                          #:seed [seed #f]
                          #:profile [profile? #f]
@@ -39,8 +50,11 @@
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
-  (*needed-reprs* (set-add (*needed-reprs*) output-repr))
+  (*needed-reprs* (set-union (*needed-reprs*) (list output-repr (get-representation 'bool))))
   (define rulesets '())
+  (define unknown-d-ops '())
+  (define unknown-f-ops '())
+  (define loaded-ops '())
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -60,7 +74,11 @@
                        #:specification (test-specification test)
                        #:precision output-prec))
 
+        ; Store parameters
         (set! rulesets (*rulesets*))
+        (set! unknown-d-ops (*unknown-d-ops*))
+        (set! unknown-f-ops (*unknown-f-ops*))
+        (set! loaded-ops (*loaded-ops*))
 
         (define context (*pcontext*))
         (when seed (set-seed! seed))
@@ -130,7 +148,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (begin
-        (*rulesets* rulesets)
+        (restore-state rulesets unknown-d-ops unknown-f-ops loaded-ops)
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)

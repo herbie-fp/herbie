@@ -1,0 +1,46 @@
+#lang racket
+
+(require "common.rkt" "interface.rkt" "syntax/rules.rkt" "syntax/syntax.rkt"
+         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
+(provide generate-conversions)
+
+(define (generate-conversion-1way iprec oprec)
+  (define conv (sym-append iprec '-> oprec))
+  (define-values (irepr orepr)
+    (with-handlers ([exn:fail?
+                     (λ (e) (error 'generate-conversion-1way
+                                   "Invalid conversion: ~a to ~a\n" iprec oprec))])
+      (values (get-representation iprec) (get-representation oprec))))
+
+  (unless (hash-has-key? parametric-operators conv)
+    (define impl (compose (representation-bf->repr orepr) (representation-repr->bf irepr)))
+    (eprintf "~a not found, falling back to default implementation... \n" conv)
+    (register-operator! conv conv (list iprec) oprec  ; fallback implementation
+      (list (cons 'fl impl) (cons 'bf identity) (cons 'ival #f)
+            (cons 'nonffi impl))))
+
+  (define repr-rewrite (sym-append '<- iprec))
+  (unless (hash-has-key? parametric-operators repr-rewrite)
+    (register-operator! repr-rewrite repr-rewrite (list iprec) iprec
+      (list (cons 'fl identity) (cons 'bf identity) (cons 'ival identity)
+            (cons 'nonffi identity))))
+
+  (define rulename (sym-append 'rewrite '- oprec '/ iprec))
+  (unless (ormap (λ (rs) (equal? (rule-name (caar rs)) rulename)) (*rulesets*))
+    (register-ruleset! rulename '(arithmetic) (list (cons 'a oprec))
+      (list
+        (list rulename 'a  `(,conv (,repr-rewrite a)))))))
+
+
+(define (generate-conversions convs)
+  (define reprs
+    (for/fold ([reprs '()]) ([conv convs])
+      (define-values (prec1 prec2)
+        (let ([split (regexp-match #px"^([\\S]+)/([\\S]+)$" (symbol->string conv))])
+          (values (string->symbol (second split)) (string->symbol (last split)))))
+      (generate-conversion-1way prec1 prec2)
+      (generate-conversion-1way prec2 prec1)
+      (define repr1 (get-representation prec1))
+      (define repr2 (get-representation prec2))
+      (set-union reprs (list repr1 repr2))))
+  (*needed-reprs* (append reprs (*needed-reprs*))))

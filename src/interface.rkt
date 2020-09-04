@@ -11,6 +11,9 @@
 (module+ internals 
   (provide define-representation register-generator! register-representation!))
 
+(define *reprs-with-rules* (make-parameter '()))
+(define *needed-reprs* (make-parameter '()))
+
 ;; Structs
 
 (struct representation
@@ -149,6 +152,3 @@
 ;; Global precision tracking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
-
-(define *reprs-with-rules* (make-parameter '()))
-(define *needed-reprs* (make-parameter (list (get-representation 'bool))))
