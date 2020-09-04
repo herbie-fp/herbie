@@ -7,7 +7,7 @@
 (require "reduce.rkt")
 (require (only-in "simplify.rkt" differentiate-exprs differentiate-expr))
 
-(provide approximate)
+(provide approximate iterate-diagonal)
 
 (define (approximate expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
@@ -28,14 +28,14 @@
   ; The first step is to determine the minimum exponent of each variable.
   ; We do this by taking a taylor expansion in each variable and considering the minimal term.
 
-  (define offsets (for/list ([var (reverse vars)]) (car (taylor var expr terms iters))))
+  (define offsets (for/list ([var (reverse vars)]) (car (taylor var expr))))
 
   ; We construct a multivariable Taylor expansion by taking a Taylor expansion in one variable,
   ; then expanding each coefficient in the second variable, and so on.
   ; We cache the computation of any expansion to speed this process up.
 
   (define taylor-cache (make-hash))
-  (hash-set! taylor-cache '() (taylor (car vars) expr terms iters))
+  (hash-set! taylor-cache '() (taylor (car vars) expr))
 
   ; This is the memoized expansion-taking.
   ; The argument, `coeffs`, is the "uncorrected" degrees of the terms--`offsets` is not subtracted.
@@ -49,7 +49,7 @@
                     (if (= (length coeffs) (length vars))
                       expr*
                       (let ([var (list-ref vars (length coeffs))])
-                        (taylor var expr* terms iters)))))))
+                        (taylor var expr*)))))))
 
   ; Given some uncorrected degrees, this gets you an offset to apply.
   ; The corrected degrees for uncorrected `coeffs` are (map - coeffs (get-offset coeffs))
@@ -107,6 +107,10 @@
   (printf "result ~a\n" res)
   res)
 
+(define (unary-op-with-repr op child)
+  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
+  (get-parametric-operator op repr))
+
 (define (binary-op-with-repr op child)
   (define repr (repr-of child (*output-repr*) (*var-reprs*)))
   (get-parametric-operator op repr repr))
@@ -123,7 +127,10 @@
    ['() 1]
    [`(,x) x]
    [`(,x ,xs ...)
-    `(,(binary-op-with-repr '* x) ,x ,(make-prod xs))]))
+    (define rest (make-prod xs))
+    (if (or (equal? x 0) (equal? (make-prod xs) 0))
+        0
+        `(,(binary-op-with-repr '* x) ,x ,(make-prod xs)))]))
 
 (define (make-monomial var power)
   (cond
@@ -201,61 +208,56 @@
      (or (equal? (first expr) 'd) (equal? (first expr) 'subst) (ormap contains-derivative-or-subst? (rest expr)))]
     [else #f]))
 
-(define (taylor var expr max-nonzero max-zero)
-  (define max-terms (+ max-nonzero max-zero 1))
+(define (taylor var expr)
+  (define batch-size 4)
   (define term-cache (make-hash))
+  (define max-computable #f)
   (define current-max 0)
+
+  ;; when we can't take a derivative, we put the rest of the expression in the last term
+  ;; This looks like \frac{f(x) - ...}{x^i} with ... as the terms that came before it subtracted off
+  (define (make-last-term i)
+    (list (binary-op-with-repr '/ expr)
+          (make-sum (cons expr
+                          (for/list ([n (in-range 0 i)])
+                            (list (unary-op-with-repr '- expr) (make-term (get-term n) (list var) (list n))))))
+          (make-term 1 (list var) (list i))))  
+
   (define (get-term n)
     (cond
+      [(and max-computable (> n max-computable))
+       0]
       [(>= n current-max)
        (define new-derivatives
          (differentiate-exprs
-           (for/list ([i (range current-max (+ current-max max-terms))])
+           (for/list ([i (in-range current-max (+ current-max batch-size))])
              (taylor-term var expr i 0))))
-       (for ([i (range current-max (+ current-max max-terms))] [derivative new-derivatives])
-         (hash-set! term-cache i derivative))
-       (set! current-max (+ current-max max-terms))
-       (hash-ref term-cache n)]
+       (for ([i (in-range current-max (+ current-max batch-size))]
+             [derivative new-derivatives]
+             #:break (and max-computable (> i max-computable)))
+         ;; update max-computable if necessary
+         (cond
+           [(contains-derivative-or-subst? derivative)
+            (set! max-computable i)
+            (hash-set! term-cache i (make-last-term i))]
+           [else
+            (hash-set! term-cache i derivative)]))
+       (set! current-max (+ current-max batch-size))
+       (get-term n)]
       [else
         (hash-ref term-cache n)]))
   
 
-  (define num-zero-terms
-    (let loop ([i 0])
+  (define num-zero-terms 0
+    #;(let loop ([i 0])
       (if (equal? (get-term i) 0)
           (if (>= i 20)
               20
               (loop (+ i 1)))
           i)))
+  
 
-  (define terms
-    (list->vector
-      (for/list ([i (range num-zero-terms (+ num-zero-terms max-terms))])
-        (get-term i))))
-      #;(reverse
-        (let loop ([res '()] [num-zeros 0] [i num-zero-terms])
-          (if (or (> num-zeros max-zero) (>= (- i num-zeros) max-nonzero))
-              res
-              (let ([new-term (get-term i)])
-                (loop (cons new-term res)
-                      (if (equal? 0 new-term) (+ 1 num-zeros) num-zeros)
-                      (+ i 1))))))
-
-  (define taylor-func
-    (if
-      (for/or ([t terms])
-        (if (contains-derivative-or-subst? t)
-            (begin (printf "term failed ~a \n" t) true)
-            false))
-      (lambda (n)
-        (if (equal? n 0) expr 0))  
-      (lambda (n)
-        (cond
-          [(>= n (vector-length terms))
-            (error "attempted to get term more than max")]
-          [else
-            (vector-ref terms n)]))))
-  (cons num-zero-terms taylor-func))
+  (cons num-zero-terms get-term))
 
 (define (taylor-without-egg var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -391,7 +393,7 @@
                        (λ ()
                          (simplify
                           (make-sum
-                           (for/list ([i (range (+ n 1))])
+                           (for/list ([i (in-range (+ n 1))])
                              (list '* ((cdr left) i) ((cdr right) (- n i))))))))))))
 
 (define (normalize-series series)
@@ -417,7 +419,7 @@
                       (hash-ref! hash n
                                  (λ ()
                                     (simplify
-                                     `(neg (+ ,@(for/list ([i (range n)])
+                                     `(neg (+ ,@(for/list ([i (in-range n)])
                                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
          (cons (- offset) f)))]))
 
@@ -434,7 +436,7 @@
                                  (λ ()
                                     (simplify
                                      `(- (/ ,(a n) ,(b 0))
-                                         (+ ,@(for/list ([i (range n)])
+                                         (+ ,@(for/list ([i (in-range n)])
                                                 `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))]
                 [offset (- noff doff)])
          (cons offset f)))]))

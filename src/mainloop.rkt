@@ -140,8 +140,8 @@
                                 1
                                 (list (get-parametric-operator '- repr) x))))])
       `((0 ,identity ,identity)
-        #;(inf ,invert-x ,invert-x)
-        #;(-inf ,ninvert-x ,ninvert-x))))
+        (inf ,invert-x ,invert-x)
+        (-inf ,ninvert-x ,ninvert-x))))
 
 
   (define expr (location-get loc (alt-program altn)))

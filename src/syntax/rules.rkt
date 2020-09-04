@@ -456,7 +456,7 @@
   [unpow3          (pow a 3)                  (* (* a a) a)]
   [unpow1/3        (pow a 1/3)                (cbrt a)])
 
-(define-ruleset* pow-transform (exponents)
+(define-ruleset* pow-transform (exponents derivative)
   #:type ([a real] [b real] [c real])
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
@@ -748,6 +748,7 @@
 (define-ruleset* derive-rules (derivative)
   #:type ([x real] [a real] [b real])
   [d-variable       (d x x)              1]
+  [d-neg            (d (neg a) x)        (neg (d a x))]
   [d-add            (d (+ a b) x)        (+ (d a x) (d b x))]
   [d-sub            (d (- a b) x)        (- (d a x) (d b x))]
   [d-mul            (d (* a b) x)        (+ (* a (d b x))
